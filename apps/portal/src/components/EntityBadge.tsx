@@ -193,6 +193,14 @@ interface EntityBadgeProps {
   readonly compact?: boolean
 }
 
+/**
+ * Parent-scope classes that restore EntityBadge's hover-chip horizontal padding
+ * (`-ml-2` + inner `px-2`) for leading / left-column slots. Right-aligned badges
+ * omit this so their right edge can share a common gutter with the row.
+ */
+export const entityBadgeLeadingPadScope =
+  '[&_[data-entity-badge]]:-ml-2 [&_[data-entity-badge]>a]:px-2 [&_[data-entity-badge]>div:not(.absolute)]:px-2'
+
 export const EntityBadge = ({
   children,
   variant,
@@ -289,7 +297,7 @@ export const EntityBadge = ({
   // tab", status-bar URL preview, and right-click affordances — none of
   // which work with a button + navigate() pattern.
   const primaryWrapperClass = cn(
-    'inline-flex items-center gap-2 px-2 rounded cursor-pointer text-left no-underline',
+    'inline-flex items-center gap-2 rounded cursor-pointer text-left no-underline',
     formatConstraintClass[format],
     // Keep the hit area hugging the stacked pill — otherwise wrap+label
     // stretches to the grid cell and leaves empty fill on the right.
@@ -445,12 +453,11 @@ export const EntityBadge = ({
 
   return (
     <div
+      data-entity-badge
       className={cn(
-        'relative group/entity inline-flex -ml-2',
+        'relative group/entity inline-flex',
         (format === 'truncate' || format === 'wrap') && 'max-w-full min-w-0',
         stacksLabel && 'w-fit',
-        // `-ml-2` compensates the inner wrapper's `px-2` so the pill text
-        // sits flush with the container's left edge.
       )}
     >
       {/*

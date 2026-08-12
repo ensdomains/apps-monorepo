@@ -1,5 +1,9 @@
-import { EntityBadge } from '@/components/EntityBadge'
+import {
+  EntityBadge,
+  entityBadgeLeadingPadScope,
+} from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
+import { cn } from '@/lib/utils'
 import { formatTimelineDate } from '../formatTimelineDate'
 import type { Action } from '../summarize/summarize.types'
 import { ActionSlots } from './ActionSlots'
@@ -31,7 +35,12 @@ export const ActionSummaryRow = ({
     </span>
   )
   const labelAndChips = (
-    <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+    <div
+      className={cn(
+        'flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1',
+        entityBadgeLeadingPadScope,
+      )}
+    >
       <span className="text-neutral-7 text-p">{action.label}</span>
       <ActionSlots slots={action.slots} />
     </div>

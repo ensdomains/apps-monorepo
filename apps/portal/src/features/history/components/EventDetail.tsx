@@ -13,7 +13,11 @@ import {
   getTransactionQueryOptions,
   getTransactionReceiptQueryOptions,
 } from 'wagmi/query'
-import { EntityBadge } from '@/components/EntityBadge'
+import {
+  EntityBadge,
+  entityBadgeLeadingPadScope,
+} from '@/components/EntityBadge'
+import { cn } from '@/lib/utils'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import {
   getContractLabel,
@@ -101,7 +105,12 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
     )
   }
   return (
-    <div className="w-full min-w-0 [contain:inline-size]">
+    <div
+      className={cn(
+        'w-full min-w-0 [contain:inline-size]',
+        entityBadgeLeadingPadScope,
+      )}
+    >
       <table className="w-full table-fixed border-separate border-spacing-y-2 text-p">
         <thead>
           <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wide">
@@ -143,7 +152,7 @@ const MetaRow = ({
 }) => (
   <div className="flex items-center gap-4 py-1 text-muted-foreground">
     <span className="w-24 shrink-0 text-p sm:w-40">{label}</span>
-    <div className="w-fit">{children}</div>
+    <div className={cn('w-fit', entityBadgeLeadingPadScope)}>{children}</div>
   </div>
 )
 

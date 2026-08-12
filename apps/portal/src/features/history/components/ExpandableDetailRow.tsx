@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
+import { entityBadgeLeadingPadScope } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
 
@@ -39,7 +40,12 @@ export const ExpandableDetailRow = ({
           />
         </span>
         <div className="grid min-w-0 flex-1 grid-cols-1 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-3 sm:gap-y-0">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div
+            className={cn(
+              'flex min-w-0 flex-wrap items-center gap-2',
+              entityBadgeLeadingPadScope,
+            )}
+          >
             {left}
           </div>
           {right != null && (
