@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const messageCardVariants = cva(
-  'rounded-xl p-6 flex items-start gap-3 relative w-full max-w-lg mx-auto my-4 **:data-[slot=button]:dark:hover:bg-white/10',
+  'rounded-xl p-6 flex items-start gap-3 relative w-full max-w-lg mx-auto my-4',
   {
     variants: {
       variant: {
-        primary: 'bg-neutral-2 text-foreground',
+        // The dark hover tint suits the neutral button only; the coloured
+        // variants below carry their own hover.
+        primary:
+          'bg-neutral-2 text-foreground **:data-[slot=button]:dark:hover:bg-white/10',
         success: 'bg-message-success-fill text-message-success-text',
         danger: 'bg-message-danger-fill text-message-danger-text',
         warning: 'bg-message-warning-fill text-message-warning-text',
@@ -25,16 +28,14 @@ export type MessageCardVariant = NonNullable<
   VariantProps<typeof messageCardVariants>['variant']
 >
 
-// Per the Builder Message spec the action button takes the message's text
-// color as its fill (e.g. dark green on the success card), not the default
-// black button.
 const messageButtonClass: Record<MessageCardVariant, string> = {
   primary: '',
   success:
-    'bg-message-success-text text-white hover:bg-message-success-text/90',
-  danger: 'bg-message-danger-text text-white hover:bg-message-danger-text/90',
+    'bg-message-success-text text-message-success-fill hover:bg-message-success-text/90',
+  danger:
+    'bg-message-danger-text text-message-danger-fill hover:bg-message-danger-text/90',
   warning:
-    'bg-message-warning-text text-white hover:bg-message-warning-text/90',
+    'bg-message-warning-text text-message-warning-fill hover:bg-message-warning-text/90',
 }
 
 export type MessageCardProps = {
