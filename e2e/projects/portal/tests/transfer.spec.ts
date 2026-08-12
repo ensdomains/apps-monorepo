@@ -170,12 +170,9 @@ async function setEthAddressRecord(
 }
 
 test.describe('Portal name transfer', () => {
-  test('transfers a name from wallet A to wallet B, and wallet B is shown as the owner', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-    makeName,
-  }) => {
+  test('transfers a name from wallet A to wallet B, and wallet B is shown as the owner', {
+    tag: ['@scenario:F10'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
 
     await connectWithHeadlessWallet(page, wallet)
@@ -268,12 +265,9 @@ test.describe('Portal name transfer', () => {
     ).toBeVisible({ timeout: 15_000 })
   })
 
-  test('transfers a name from wallet A to an ENS name owned by wallet B', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-    makeName,
-  }) => {
+  test('transfers a name from wallet A to an ENS name owned by wallet B', {
+    tag: ['@scenario:F10'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
 
     await connectWithHeadlessWallet(page, wallet)
@@ -318,12 +312,9 @@ test.describe('Portal name transfer', () => {
     await expectOwnerOnNamePages(page, name, recipientAddress)
   })
 
-  test('cannot transfer a name to its own address or its own ENS name', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-    makeName,
-  }) => {
+  test('cannot transfer a name to its own address or its own ENS name', {
+    tag: ['@scenario:F10'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(120_000)
 
     await connectWithHeadlessWallet(page, wallet)
@@ -354,11 +345,9 @@ test.describe('Portal name transfer', () => {
     await expect(transferButton).toBeDisabled()
   })
 
-  test('cannot transfer to an invalid or unresolvable recipient', async ({
-    portalPage: page,
-    wallet,
-    makeName,
-  }) => {
+  test('cannot transfer to an invalid or unresolvable recipient', {
+    tag: ['@scenario:F10'],
+  }, async ({ portalPage: page, wallet, makeName }) => {
     test.setTimeout(120_000)
 
     await connectWithHeadlessWallet(page, wallet)
@@ -715,11 +704,9 @@ test.describe('Portal name transfer', () => {
 // Guard / validation states that never reach the chain
 // ---------------------------------------------------------------------------
 test.describe('Portal name transfer — guards', () => {
-  test('rejects the zero address as a recipient', async ({
-    portalPage: page,
-    wallet,
-    makeName,
-  }) => {
+  test('rejects the zero address as a recipient', {
+    tag: ['@scenario:F10'],
+  }, async ({ portalPage: page, wallet, makeName }) => {
     test.setTimeout(120_000)
 
     await connectWithHeadlessWallet(page, wallet)
@@ -736,12 +723,9 @@ test.describe('Portal name transfer — guards', () => {
     ).toBeDisabled()
   })
 
-  test('accepts a recipient address with surrounding whitespace', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-    makeName,
-  }) => {
+  test('accepts a recipient address with surrounding whitespace', {
+    tag: ['@scenario:F10'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(120_000)
 
     await connectWithHeadlessWallet(page, wallet)
@@ -759,11 +743,9 @@ test.describe('Portal name transfer — guards', () => {
     ).toBeEnabled({ timeout: 15_000 })
   })
 
-  test('shows "Not authorized" to a wallet that does not own the name', async ({
-    portalPage: page,
-    wallet,
-    makeName,
-  }) => {
+  test('shows "Not authorized" to a wallet that does not own the name', {
+    tag: ['@scenario:F13'],
+  }, async ({ portalPage: page, wallet, makeName }) => {
     test.setTimeout(120_000)
 
     await connectWithHeadlessWallet(page, wallet)
@@ -787,10 +769,9 @@ test.describe('Portal name transfer — guards', () => {
     await expect(page.getByRole('link', { name: 'Transfer' })).toBeHidden()
   })
 
-  test('asks a disconnected visitor to connect their wallet', async ({
-    portalPage: page,
-    makeName,
-  }) => {
+  test('asks a disconnected visitor to connect their wallet', {
+    tag: ['@scenario:F13'],
+  }, async ({ portalPage: page, makeName }) => {
     test.setTimeout(120_000)
 
     // Deliberately NOT calling connectWithHeadlessWallet.

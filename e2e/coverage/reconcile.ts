@@ -355,9 +355,12 @@ function loadOutcomes(): Map<string, TaggedTest['outcome']> {
           status,
         )
         for (const m of String(spec.title ?? '').matchAll(TAG_RE)) {
-          // Best outcome wins: one passing test proves the scenario.
+          // Worst outcome wins. A scenario is only covered when *every* test
+          // claiming it passes — see the note on the PASS decision below.
           const prev = outcomes.get(`tag::${m[1]}`)
-          if (prev !== 'passed') outcomes.set(`tag::${m[1]}`, status)
+          if (prev === undefined || prev === 'passed') {
+            outcomes.set(`tag::${m[1]}`, status)
+          }
         }
       }
       for (const child of node.suites ?? []) visit(child, nf)
@@ -585,16 +588,27 @@ const rows: Row[] = scenarios.map((scenario) => {
   // Only scenarios it actually reports on are judged by it; the rest keep
   // their static evidence. Otherwise running a five-test batch would downgrade
   // every other scenario in the ledger and trip the ratchet.
+  // **Every** covering test must pass, not just one.
+  //
+  // This used to be "best outcome wins", which is wrong in both directions.
+  // Many catalogue rows are matrices — F10 names six recipient forms, and there
+  // is a test per form — so any-one-passes made the row green on a single
+  // input. And it hid partial regressions: `A16` stayed PASS with one of its
+  // two tests failing. Requiring all of them is what makes it honest to tag a
+  // per-case test at all, which is otherwise forbidden by the no-partial-tags
+  // rule.
   const reported = run.filter((t) => t.outcome !== undefined)
   if (reported.length > 0) {
-    const passed = reported.filter((t) => t.outcome === 'passed')
-    if (passed.length === 0) {
+    const notPassing = reported.filter((t) => t.outcome !== 'passed')
+    if (notPassing.length > 0) {
       return {
         scenario,
         status: 'not-started',
         tests,
         defects: open,
-        evidence: `ran but did not pass (${reported.map((t) => t.outcome).join(', ')})`,
+        evidence:
+          `${notPassing.length}/${reported.length} covering test(s) did not pass: ` +
+          notPassing.map((t) => `"${t.title}" (${t.outcome})`).join(', '),
       }
     }
     return {
@@ -602,7 +616,7 @@ const rows: Row[] = scenarios.map((scenario) => {
       status: 'pass',
       tests,
       defects: open,
-      evidence: `${passed.length} passing in ${[...new Set(passed.flatMap((t) => t.runBy))].join(', ')}`,
+      evidence: `all ${reported.length} covering test(s) passing in ${[...new Set(reported.flatMap((t) => t.runBy))].join(', ')}`,
     }
   }
 
