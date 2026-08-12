@@ -8,6 +8,11 @@ import { formatPricingUsd } from './AnimatedPrice'
  * With a funding budget quoted that is `rent + networkFee`, and the fee half is
  * an estimate, so the figure is an upper bound: hence "up to". Without a budget
  * the total is exact rent and the hedge would be a lie, so it is dropped.
+ *
+ * The `tracking-*` values are Figma-spec (node 3867:126050) and stay arbitrary:
+ * `theme.css` defines no letter-spacing tokens, and Tailwind's default scale is
+ * em-relative (`tracking-tight` is -0.45px at this size, not -0.36px), so no
+ * utility expresses them.
  */
 export const PaymentTotalRow = ({
   total,
@@ -27,7 +32,7 @@ export const PaymentTotalRow = ({
             <Trans>up to</Trans>{' '}
           </span>
         )}
-        <span className="text-[20px] text-ens-quartz-900 tabular-nums">
+        <span className="text-ens-quartz-900 text-xl tabular-nums">
           {formatPricingUsd(total ?? 0)}
         </span>
       </p>
