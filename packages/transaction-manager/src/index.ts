@@ -1,7 +1,10 @@
 // Contracts
 export { ENS_SEPOLIA_CONTRACTS } from './contracts/ens-sepolia'
 // Errors
-export { TransactionSubmissionError } from './errors/transaction.errors'
+export {
+  SignerAddressMismatchError,
+  TransactionSubmissionError,
+} from './errors/transaction.errors'
 // Helpers
 export { getSmartAccountAddress } from './helpers/getSmartAccountAddress'
 export {
@@ -32,6 +35,7 @@ export {
 export {
   type WaitForTransactionResult,
   waitForTransaction,
+  waitForTransactionHash,
 } from './helpers/waitForTransaction'
 export {
   encodeDeployDedicatedResolverCall,

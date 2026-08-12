@@ -39,6 +39,26 @@ export const normalizeEthName = (name: string): EthName | null => {
   }
 }
 
+// Normalizes a non-.eth name (e.g. a DNS name); bare labels are not
+// DNS names here, they resolve as .eth candidates
+export const normalizeDnsName = (name: string): string | null => {
+  let normalized: string
+
+  try {
+    normalized = normalize(name)
+  } catch {
+    return null
+  }
+
+  const labels = normalized.split('.')
+
+  if (labels.length < 2 || labels.some((label) => !label)) {
+    return null
+  }
+
+  return normalized
+}
+
 export const normalizeEth2LdName = (name: string): Eth2LdName | null => {
   const ethName = normalizeEthName(name)
 

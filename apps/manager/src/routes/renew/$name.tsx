@@ -14,7 +14,6 @@ import {
 } from '@/features/renew/utils/renewableName'
 import { RenewalRouteError } from '@/features/renew/workflow/components/RenewalRouteError'
 import { RenewalPage } from '@/features/renew/workflow/RenewalPage'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const Route = createFileRoute('/renew/$name')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
@@ -43,22 +42,11 @@ export const Route = createFileRoute('/renew/$name')({
     }
 
     if (isPastGracePeriod(expiryDate, true)) {
-      throw redirect(
-        isFeatureEnabled('REGISTRATION_V2')
-          ? {
-              params: { name },
-              to: '/register/$name',
-              replace: true,
-            }
-          : {
-              search: {
-                name,
-                duration: 1,
-              },
-              to: '/register',
-              replace: true,
-            },
-      )
+      throw redirect({
+        params: { name },
+        to: '/register/$name',
+        replace: true,
+      })
     }
 
     if (!canRenewV2Name(name, expiryDate)) {

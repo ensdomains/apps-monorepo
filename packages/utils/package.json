@@ -30,8 +30,10 @@
   },
   "keywords": [],
   "dependencies": {
+    "@ensdomains/ensjs": "catalog:",
     "@tanstack/react-query": "^5.87.1",
     "neverthrow": "^8.2.0",
+    "viem": "catalog:",
     "xstate": "catalog:"
   }
 }

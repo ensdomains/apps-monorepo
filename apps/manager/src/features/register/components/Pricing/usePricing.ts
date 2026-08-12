@@ -3,7 +3,6 @@ import { useCallback, useMemo, useReducer, useState } from 'react'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { getPremiumLabel } from '@/features/register/utils'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { useConnectModal } from '@/lib/wallet'
 import { getTokenPrices } from '../../services/nameChainContractService'
@@ -39,17 +38,11 @@ export const usePricing = ({
 >) => {
   const { client: smartAccountClient } = useSmartAccountContext()
   const { openConnectModal } = useConnectModal()
-  const discountsEnabled = useFeatureFlag('DISCOUNTS_APPLIED')
-
-  const createInitialState = useMemo(
-    () => createInitialStateFactory(discountsEnabled),
-    [discountsEnabled],
-  )
 
   const [state, dispatch] = useReducer(
     pricingReducer,
     sanitizePricingDuration(duration),
-    createInitialState,
+    createInitialStateFactory(),
   )
 
   // Shared input value for duration inputs across components
@@ -71,10 +64,8 @@ export const usePricing = ({
       const updatedQuotes = createEmptyPricingQuoteMap()
 
       for (const dur of PRICING_DURATIONS) {
-        const discount = discountsEnabled
-          ? INITIAL_PRICING_OPTIONS[dur].discount
-          : 0
-        const discountMultiplier = discountsEnabled ? 1 - discount / 100 : 1
+        const discount = INITIAL_PRICING_OPTIONS[dur].discount
+        const discountMultiplier = 1 - discount / 100
         const perYearPrice = raw.basePricePerYear * discountMultiplier
         const totalPrice = Math.ceil(perYearPrice * dur)
 
@@ -99,7 +90,7 @@ export const usePricing = ({
         pricingQuotes: updatedQuotes,
       }
     },
-    [discountsEnabled],
+    [],
   )
 
   const basePriceQuery = useQuery({
@@ -184,16 +175,14 @@ export const usePricing = ({
 
   const theoreticalTotal =
     basePerYear > 0 ? basePerYear * state.selectedDuration : 0
-  const discountAmount = discountsEnabled
-    ? finalPrice && theoreticalTotal > 0
+  const discountAmount =
+    finalPrice && theoreticalTotal > 0
       ? Math.max(0, theoreticalTotal - finalPrice)
       : 0
-    : 0
-  const discountPercentage = discountsEnabled
-    ? theoreticalTotal > 0 && finalPrice
+  const discountPercentage =
+    theoreticalTotal > 0 && finalPrice
       ? Math.max(0, Math.round((discountAmount / theoreticalTotal) * 100))
       : (selectedOption?.discount ?? 0)
-    : 0
 
   const expirationDate = useMemo(() => {
     if (state.selectedExpirationDate) {

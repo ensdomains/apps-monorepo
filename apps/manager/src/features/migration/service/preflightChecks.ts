@@ -1,4 +1,1 @@
-export {
-  type EligibilityResult,
-  runEligibilityChecks,
-} from '@ens-apps/migration'
+export { runEligibilityChecks } from '@ens-apps/migration'

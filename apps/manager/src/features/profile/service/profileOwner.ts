@@ -8,7 +8,7 @@ import { getOwner as ensjsv2_getOwner } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, namehash, zeroAddress } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { normalizeEthName } from './profileName'
+import { normalizeDnsName, normalizeEthName } from './profileName'
 
 class GetOwnerError extends TaggedError('GetOwnerError')<{
   cause: unknown
@@ -24,7 +24,29 @@ export type ProfileOwnerResult = {
 export const getOwner = ResultFn(async function* (params: { name: string }) {
   const ethName = normalizeEthName(params.name)
 
+  // Non-.eth names (imported DNS names) only exist in the v1 registry;
+  // the v2 registry is rooted at .eth
   if (!ethName) {
+    const dnsName = normalizeDnsName(params.name)
+
+    if (!dnsName) {
+      return ok(null)
+    }
+
+    const client = yield* safeGetClient()
+
+    const dnsOwner = yield* fromPromise(
+      ensjsv1_getOwner(client, { name: dnsName }),
+      (e) => new GetOwnerError({ cause: e }),
+    )
+
+    if (dnsOwner?.owner && dnsOwner.owner !== zeroAddress) {
+      return ok({
+        owner: dnsOwner.owner,
+        protocol: 'v1',
+      } satisfies ProfileOwnerResult)
+    }
+
     return ok(null)
   }
 
