@@ -5,6 +5,71 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 10 — 2026-08-12 · first real scenario batch
+
+**Batch:** R0 · audit the ten untagged `transfer.spec.ts` tests against F9–F13.
+
+**Result:** 2 tagged (**F11**, **F12**) · 1 strengthened · 3 rows deliberately
+left untagged. **R0 6 → 8**, ratchet raised. Both verified green by observed
+runs, not static evidence.
+
+- **F12** needed nothing — it already reads the resolver back off the registry
+  and asserts `addr(60) == recipient`, exactly the catalogue oracle.
+- **F11** verified its record write with `getByText`, i.e. the rendered value,
+  which only proves the form echoed what was typed. Now reads `text()` off
+  chain.
+
+### F11's first fix looked like a defect and was not
+
+The chain read initially used ensjs `getTextRecord` and failed — apparently
+"the new owner cannot write", which would have been a real S2. It was my
+instrument. Checked by hand against a name from an earlier run:
+
+```
+registry resolver    = 0xcE06b938…
+resolver.text direct = "Edited by the new owner"     ← the write landed
+ensjs getTextRecord  = ERR TypeError                 ← the helper is wrong here
+```
+
+`getTextRecord` resolves through the Universal Resolver, which does not answer
+for the resolver this test freshly deploys. Reading the resolver directly is
+also the higher oracle — it depends on nothing but the two contracts the
+assertion is about.
+
+**Third time this session** that a red test was not evidence about the app
+(after the portal-on-public-Sepolia run, and the "R0 is hollow" inference).
+Establish the instrument before believing the reading.
+
+### F9, F10, F13 — untagged on purpose
+
+They are **multi-case matrices** in the catalogue and the existing tests cover
+one case each. F10 alone names six recipient forms (ENS name, address,
+whitespace, self, zero address, unresolvable) and there is a passing test for
+each — but the reconciler marks a scenario PASS when **any one** covering test
+passes, so six per-case tags would make F10 green on a single input. That is
+precisely the partial tag rule 2 forbids.
+
+Unblocking them needs one of:
+
+1. a consolidated test per row, or
+2. **an all-must-pass reconciler semantic** — a scenario is PASS only when every
+   covering live test passes.
+
+Option 2 is the better fix and also closes the hole found in iteration 9, where
+`A16` stays green because one of its two tagged tests passes while the other
+fails. It is a change to PASS semantics, so it will demote whatever is currently
+carried by a partial pass — a scope change worth doing deliberately rather than
+mid-batch.
+
+### Ratchet note
+
+Raised on the **static** run, so `R1` stays at its pre-existing 2 while the
+verified value is 1 (`B2` genuinely fails — iteration 9). That staleness is
+already parked, not newly introduced here; `R0 6 → 8` is the real movement and
+is backed by observed green runs of both tests.
+
+---
+
 ## Iteration 9 — 2026-08-12 · manager repriced, and registration diagnosed
 
 **Manager suite verified.** 18 tests: 12 passed, 5 failed, 1 skipped, ~40 min.
