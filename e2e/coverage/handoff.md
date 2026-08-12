@@ -70,11 +70,54 @@ So the UI message is a **symptom two layers below its cause**. Nothing is wrong
 with the commitment polling; the intent that would have written the commitment
 reverted inside the executor.
 
-**Next step is `packages/smart-account/DEBUGGING_INTENTS.md`**, which is
-normative here and whose first instruction is exactly the situation: the outer
-error is a wrapper, get the inner revert first, by replaying the intent with
-`cast call --trace` plus state overrides. That is smart-account work, not test
-work.
+### Root cause — the HCA session is never enabled
+
+Followed `DEBUGGING_INTENTS.md` §2 and replayed the intent. The trace bottoms
+out exactly where §1 says it will:
+
+```
+0x5f249FCa…::isValidSignatureWithSender(…)          ← HCAOwnerAndSessionValidator
+  ├─ HCA::ownerAndSessionNonce() → (0xf39f…2266, 0)
+  └─ ← [Revert] 0x9bdfc59f                          ← the real error
+     → returns 0xffffffff
+  ← [Revert] 0x8baa579f  InvalidSignature()         ← the wrapper §1 warns about
+```
+
+| fact | value |
+|---|---|
+| inner error | `0x9bdfc59f` = **`InvalidSessionData()`** — *"payload is not the Smart Session USE form"* (§3 table) |
+| mode byte `data[0]` | **`0x05` = `FIXED_SESSION_REFUND_ENABLE_MODE`** — same-chain first use, *carries the proof* |
+| permissionId `data[1:33]` | `0xfd53396b5143242c0a1114e2ccd39a52ee7830fd19cf39ebee2d1530f86b2810` |
+| `isPermissionEnabled(hca, permissionId)` at `latest` | **`false`** |
+| `ownerAndSessionNonce()` | owner `0xf39f…2266`, nonce **0** |
+
+So the app *is* doing the §7 thing correctly — mode `0x05` means the
+session-enable proof is attached. The failure is one level in: the validator
+rejects the session payload as not being in Smart Session USE form, the session
+therefore never gets enabled, and **every** registration fails at its first
+commit.
+
+**This is not the intermittent bug §7 describes.** That one has the signature
+"`false` at the failing block, `true` at `latest`". Here it is `false` at
+`latest` too — the session is never enabled at all, so this is deterministic and
+reproduces on every run, which matches what is observed.
+
+Reproduce in one command (no fork or archive RPC needed — the failing state is
+the local chain):
+
+```bash
+docker logs --since 10m infra-mockestrator-1 2>&1 \
+  | grep -aoE 'data:   0x8b10923e[0-9a-f]+' | tail -1 | sed 's/^data:   //' > /tmp/intent.hex
+cast call 0x8a525dc484f893ca64fef507746ebd5036eec256 "$(cat /tmp/intent.hex)" \
+  --from 0x1aF50037fFD325FBC96A2BEFCf4b0d13c94Df0e8 \
+  --rpc-url http://127.0.0.1:8545 --trace
+```
+
+**Where the fix belongs:** `packages/smart-account`, in how the fixed-session
+payload is packed for `0x05` mode — §3's note applies, *"a trace only ever
+reveals the first violation"*, so re-check the remaining calls against the
+policy loop after fixing this one. That is app work and explicitly out of scope
+for the test-building loop (§12), so it is handed over rather than attempted.
 
 Not filed in `e2e-defects.md`: `registration-rhinestone.spec.ts` is untagged, so
 a defect row naming `A2` would trip the reconciler's `defect-unproven` failure.
