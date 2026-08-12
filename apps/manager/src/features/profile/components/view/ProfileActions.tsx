@@ -100,7 +100,7 @@ export const ProfileActions = ({
         />
       </div>
 
-      {isOwner && !isInGrace ? (
+      {isOwner && !isInGrace && renewalProtocol !== 'v1' ? (
         <nav aria-label={t`Profile actions`} className={editBottomNavClassName}>
           <div className={editBottomNavContentClassName}>
             <ProfileEditAction
@@ -110,6 +110,7 @@ export const ProfileActions = ({
               name={name}
               onUpdated={onUpdated}
               owner={owner}
+              protocol={renewalProtocol}
               records={records}
             />
           </div>
