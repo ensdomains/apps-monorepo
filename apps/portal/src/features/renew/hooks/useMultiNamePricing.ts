@@ -1,28 +1,21 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
 import {
   getBaseRateForName,
   getBaseRatesQueryOptions,
 } from '@/features/register/hooks/useBaseRate'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
-import {
-  getDurationInSecondsFromYears,
-  getStartOfToday,
-} from '@/features/register/utils/registrationDuration'
+import { getStartOfToday } from '@/features/register/utils/registrationDuration'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
-import {
-  MIN_REGISTRATION_DURATION,
-  SECONDS_PER_DAY,
-  SECONDS_PER_HOUR,
-  SECONDS_PER_MINUTE,
-} from '@/lib/constants/duration'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { dateToPlainDate } from '@/utils/temporal'
-import type { ExtensionSpanType } from '../components/ExtensionDurationOrExpiryPicker'
 import {
   computeNamePricingDisplay,
   type NamePricingDisplay,
 } from '../utils/computeNamePricingDisplay'
+import {
+  type ExtensionSpan,
+  getExtensionDurationSeconds,
+} from '../utils/extensionDurationPicker'
 import { getRenewerAddress } from '../utils/renewer'
 import type { SelectedName } from './useRenewalTransactions'
 
@@ -42,13 +35,6 @@ export type MultiNamePricingResult = {
   readonly allLoaded: boolean
 }
 
-type RenewalDurationInput = {
-  readonly spanType: ExtensionSpanType
-  /** Year count in `years` mode, target-expiry timestamp in `date` mode. */
-  readonly duration: number
-  readonly baseDate?: Temporal.PlainDate
-}
-
 export const getLatestRenewalExpiry = (
   selectedNames: readonly SelectedName[],
 ): Date | null =>
@@ -57,58 +43,19 @@ export const getLatestRenewalExpiry = (
     return !max || selectedName.expiryDate > max ? selectedName.expiryDate : max
   }, null)
 
-export const getRenewalDurationSeconds = ({
-  spanType,
-  duration,
-  baseDate = getStartOfToday(),
-}: RenewalDurationInput): number => {
-  if (spanType === 'years') {
-    return getDurationInSecondsFromYears(duration, baseDate)
-  }
-
-  if (!Number.isFinite(duration)) {
-    throw new Error('Date mode duration must be a valid timestamp')
-  }
-
-  // Wall-clock arithmetic, never an epoch delta: a DST transition inside the
-  // span must not add or drop an hour, so a date picked from the calendar is
-  // exactly the whole days it looks like. The seconds-of-day tail carries the
-  // 6h/yr a contract year has over a calendar one, keeping the year presets
-  // priced as whole years.
-  const target = Temporal.Instant.fromEpochMilliseconds(
-    duration,
-  ).toZonedDateTimeISO(Temporal.Now.timeZoneId())
-  const days = baseDate.until(target.toPlainDate(), { largestUnit: 'day' }).days
-  const secondsOfDay =
-    target.hour * SECONDS_PER_HOUR +
-    target.minute * SECONDS_PER_MINUTE +
-    target.second
-
-  return Math.max(
-    days * SECONDS_PER_DAY + secondsOfDay,
-    MIN_REGISTRATION_DURATION,
-  )
-}
-
 export function useMultiNamePricing(
   selectedNames: readonly SelectedName[],
-  spanType: ExtensionSpanType,
-  duration: number,
+  span: ExtensionSpan,
 ): MultiNamePricingResult {
-  const renewalInputs = useMemo(
-    () =>
-      selectedNames.map((selectedName) => ({
-        selectedName,
-        duration: getRenewalDurationSeconds({
-          spanType,
-          duration,
-          baseDate: selectedName.expiryDate
-            ? dateToPlainDate(selectedName.expiryDate)
-            : undefined,
-        }),
-      })),
-    [duration, selectedNames, spanType],
-  )
+  const renewalInputs = selectedNames.map((selectedName) => ({
+    selectedName,
+    duration: getExtensionDurationSeconds(
+      selectedName.expiryDate
+        ? dateToPlainDate(selectedName.expiryDate)
+        : getStartOfToday(),
+      span,
+    ),
+  }))
 
   const priceQueries = useQueries({
     queries: renewalInputs.map((renewal) =>

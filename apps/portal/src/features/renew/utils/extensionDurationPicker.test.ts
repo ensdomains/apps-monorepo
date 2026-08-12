@@ -1,114 +1,164 @@
 import { describe, expect, it } from 'vitest'
 import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
-import { dateToPlainDate } from '@/utils/temporal'
 import {
-  getExtensionBaseDate,
+  MAX_REGISTRATION_YEARS,
+  MIN_REGISTRATION_DURATION,
+  SECONDS_PER_DAY,
+} from '@/lib/constants/duration'
+import {
   getExtensionDisplayedYears,
-  getExtensionDurationForToggledSpan,
+  getExtensionDurationSeconds,
   getExtensionTargetDate,
-  getExtensionTimestampForPickedDate,
-  getExtensionTimestampForYears,
+  getToggledExtensionSpan,
 } from './extensionDurationPicker'
 
-describe('extensionDurationPicker helpers', () => {
-  it('returns expiry date as the base date when provided', () => {
-    expect(
-      getExtensionBaseDate(new Date('2026-05-10T00:00:00.000Z')).toString(),
-    ).toBe('2026-05-10')
-  })
+const plainDate = (value: string) => Temporal.PlainDate.from(value)
 
-  it('derives target date from years mode', () => {
-    const result = getExtensionTargetDate({
-      baseDate: Temporal.PlainDate.from('2026-01-01'),
-      duration: 2,
-      spanType: 'years',
+describe('extensionDurationPicker', () => {
+  describe('getExtensionTargetDate', () => {
+    it('adds whole calendar years in years mode', () => {
+      expect(
+        getExtensionTargetDate(plainDate('2026-01-01'), {
+          type: 'years',
+          years: 2,
+        }).toString(),
+      ).toBe('2028-01-01')
     })
 
-    expect(result.toString()).toBe('2028-01-01')
+    it('is the picked date itself in date mode', () => {
+      expect(
+        getExtensionTargetDate(plainDate('2026-01-01'), {
+          type: 'date',
+          date: plainDate('2026-04-15'),
+        }).toString(),
+      ).toBe('2026-04-15')
+    })
   })
 
-  it('derives target date from date mode timestamp', () => {
-    const result = getExtensionTargetDate({
-      baseDate: Temporal.PlainDate.from('2026-01-01'),
-      duration: new Date('2026-04-15T00:00:00.000Z').getTime(),
-      spanType: 'date',
+  describe('getExtensionDurationSeconds', () => {
+    it('charges the contract year in years mode', () => {
+      expect(
+        getExtensionDurationSeconds(plainDate('2026-01-01'), {
+          type: 'years',
+          years: 2,
+        }),
+      ).toBe(getDurationInSecondsFromYears(2, plainDate('2026-01-01')))
     })
 
-    expect(result.toString()).toBe('2026-04-15')
-  })
+    it('charges whole days for a date that is not a year target', () => {
+      const baseDate = plainDate('2026-01-01')
 
-  it('throws for invalid date mode duration', () => {
-    expect(() =>
-      getExtensionTargetDate({
-        baseDate: Temporal.PlainDate.from('2026-01-01'),
-        duration: Number.NaN,
-        spanType: 'date',
-      }),
-    ).toThrow('Date mode duration must be a valid timestamp')
-  })
-
-  it('derives displayed years from date mode target date', () => {
-    const result = getExtensionDisplayedYears({
-      baseDate: Temporal.PlainDate.from('2026-01-01'),
-      duration: new Date('2028-01-01T00:00:00.000Z').getTime(),
-      spanType: 'date',
-      targetDate: Temporal.PlainDate.from('2028-01-01'),
+      expect(
+        getExtensionDurationSeconds(baseDate, {
+          type: 'date',
+          date: plainDate('2026-03-01'),
+        }),
+      ).toBe(59 * SECONDS_PER_DAY)
     })
 
-    expect(result).toBe(2)
-  })
+    it.each([
+      1, 2, 3, 6,
+    ])('charges %i whole contract years for a date on that year target', (years) => {
+      // Day-counting alone lands ~6h/yr short of the contract year and drops
+      // the term below the oracle's discount tier, so the chip would price as
+      // "N-1 years 11 months 29 days" once re-picked off the calendar.
+      const baseDate = plainDate('2028-08-06')
 
-  it('converts years mode toggle value to a date timestamp', () => {
-    const result = getExtensionDurationForToggledSpan({
-      baseDate: Temporal.PlainDate.from('2026-01-01'),
-      displayedYears: 3,
-      spanType: 'years',
+      expect(
+        getExtensionDurationSeconds(baseDate, {
+          type: 'date',
+          date: getExtensionTargetDate(baseDate, { type: 'years', years }),
+        }),
+      ).toBe(getDurationInSecondsFromYears(years, baseDate))
     })
 
-    expect(dateToPlainDate(new Date(result)).toString()).toBe('2029-01-01')
-    // Same duration years mode would charge, so toggling modes doesn't reprice
-    // the extension as 2 years 11 months 30 days.
-    expect(result - new Date(2026, 0, 1).getTime()).toBe(
-      getDurationInSecondsFromYears(3, Temporal.PlainDate.from('2026-01-01')) *
-        1000,
-    )
-  })
+    it('treats a leap-day expiry constrained to Feb 28 as a whole year', () => {
+      const baseDate = plainDate('2028-02-29')
 
-  it('keeps a re-picked preset date on the preset duration', () => {
-    // Pick "6 years" from the chips, pick another day, then pick the chip's day
-    // back off the calendar. Plain local midnight came back 18h short, which
-    // repriced it as "5 years 11 months 29 days" and lost the tier discount.
-    const baseDate = Temporal.PlainDate.from('2028-08-06')
-    const chipTimestamp = getExtensionTimestampForYears(baseDate, 6)
-    const chipDate = getExtensionTargetDate({
-      baseDate,
-      duration: chipTimestamp,
-      spanType: 'date',
+      expect(
+        getExtensionDurationSeconds(baseDate, {
+          type: 'date',
+          date: plainDate('2029-02-28'),
+        }),
+      ).toBe(getDurationInSecondsFromYears(1, baseDate))
     })
 
-    expect(getExtensionTimestampForPickedDate(baseDate, chipDate)).toBe(
-      chipTimestamp,
-    )
+    it('falls back to the minimum for a target at or before the expiry', () => {
+      // Unreachable from the picker (its min date is expiry + 28 days), but the
+      // contract cannot shorten an expiry, so never emit a negative duration.
+      expect(
+        getExtensionDurationSeconds(plainDate('2040-01-01'), {
+          type: 'date',
+          date: plainDate('2030-01-01'),
+        }),
+      ).toBe(MIN_REGISTRATION_DURATION)
+    })
+
+    it('measures each name from its own expiry towards a shared target', () => {
+      const date = plainDate('2029-01-01')
+
+      expect(
+        [plainDate('2026-01-01'), plainDate('2027-01-01')].map((baseDate) =>
+          getExtensionDurationSeconds(baseDate, { type: 'date', date }),
+        ),
+      ).toEqual([1096 * SECONDS_PER_DAY, 731 * SECONDS_PER_DAY])
+    })
   })
 
-  it('leaves a date that is not a whole-year target at local midnight', () => {
-    const baseDate = Temporal.PlainDate.from('2028-08-06')
+  describe('getExtensionDisplayedYears', () => {
+    it('floors a date-mode span to whole years, at least one', () => {
+      const baseDate = plainDate('2026-01-01')
 
-    expect(
-      getExtensionTimestampForPickedDate(
+      expect(
+        getExtensionDisplayedYears(baseDate, {
+          type: 'date',
+          date: plainDate('2028-06-01'),
+        }),
+      ).toBe(2)
+      expect(
+        getExtensionDisplayedYears(baseDate, {
+          type: 'date',
+          date: plainDate('2026-04-01'),
+        }),
+      ).toBe(1)
+    })
+
+    it('clamps years mode to the registration maximum', () => {
+      expect(
+        getExtensionDisplayedYears(plainDate('2026-01-01'), {
+          type: 'years',
+          years: MAX_REGISTRATION_YEARS + 1,
+        }),
+      ).toBe(MAX_REGISTRATION_YEARS)
+    })
+  })
+
+  describe('getToggledExtensionSpan', () => {
+    it.each([
+      1, 3, 10,
+    ])('keeps %i years priced the same through a toggle', (years) => {
+      const baseDate = plainDate('2030-06-15')
+      const span = { type: 'years', years } as const
+
+      expect(
+        getExtensionDurationSeconds(
+          baseDate,
+          getToggledExtensionSpan(baseDate, span),
+        ),
+      ).toBe(getExtensionDurationSeconds(baseDate, span))
+    })
+
+    it('round-trips a date span back to itself', () => {
+      const baseDate = plainDate('2030-06-15')
+      const span = { type: 'date', date: plainDate('2033-06-15') } as const
+      const roundTripped = getToggledExtensionSpan(
         baseDate,
-        Temporal.PlainDate.from('2029-02-14'),
-      ),
-    ).toBe(new Date(2029, 1, 14).getTime())
-  })
+        getToggledExtensionSpan(baseDate, span),
+      )
 
-  it('converts date mode toggle value back to displayed years', () => {
-    const result = getExtensionDurationForToggledSpan({
-      baseDate: Temporal.PlainDate.from('2026-01-01'),
-      displayedYears: 3,
-      spanType: 'date',
+      expect(getExtensionTargetDate(baseDate, roundTripped).toString()).toBe(
+        '2033-06-15',
+      )
     })
-
-    expect(result).toBe(3)
   })
 })

@@ -2,16 +2,15 @@ import { describe, expect, it } from 'vitest'
 import {
   CONTRACT_SECONDS_PER_YEAR,
   MAX_REGISTRATION_YEARS,
-  SECONDS_PER_DAY,
 } from '@/lib/constants/duration'
 import {
-  calculateDurationFromDate,
-  formatRegistrationDuration,
+  formatCalendarDuration,
   getDurationFromPickerDate,
   getDurationInSecondsFromYears,
   getExpiryDateForPicker,
   getMaxExpiryDateForPicker,
   getMinExpiryDateForPicker,
+  getRegistrationDisplayDates,
   getRegistrationDurationInSeconds,
   getRegistrationExpiryDateFromSeconds,
   getYearsFromDuration,
@@ -20,116 +19,47 @@ import {
 describe('registrationDuration', () => {
   const startOfFixedToday = Temporal.PlainDate.from('2025-01-15')
 
-  describe('formatRegistrationDuration', () => {
-    // Contract year math: 1 year = CONTRACT_SECONDS_PER_YEAR (365.25 d),
-    // 1 month = year / 12 (~30.4375 d).
-    const SECONDS_PER_MONTH = CONTRACT_SECONDS_PER_YEAR / 12
-
-    it('throws when duration is less than 1 day', () => {
-      expect(() => formatRegistrationDuration(0)).toThrow(
-        'Duration is less than 1 day',
+  describe('formatCalendarDuration', () => {
+    const span = (from: string, to: string) =>
+      formatCalendarDuration(
+        Temporal.PlainDate.from(from),
+        Temporal.PlainDate.from(to),
       )
-      expect(() => formatRegistrationDuration(SECONDS_PER_DAY - 1)).toThrow(
-        'Duration is less than 1 day',
-      )
+
+    it('formats years, months and days, singular and plural', () => {
+      expect(span('2030-01-01', '2031-01-01')).toBe('1 year')
+      expect(span('2030-01-01', '2033-03-03')).toBe('3 years 2 months 2 days')
+      expect(span('2030-01-01', '2030-02-02')).toBe('1 month 1 day')
+      expect(span('2030-01-01', '2030-01-16')).toBe('15 days')
     })
 
-    it('returns "1 year" for exactly CONTRACT_SECONDS_PER_YEAR', () => {
-      expect(formatRegistrationDuration(CONTRACT_SECONDS_PER_YEAR)).toBe(
-        '1 year',
-      )
+    it('distinguishes a day past a whole-year target from the target', () => {
+      // Both printed "1 year" when this divided seconds by a 365.25-day year.
+      expect(span('2033-08-06', '2034-08-06')).toBe('1 year')
+      expect(span('2033-08-06', '2034-08-07')).toBe('1 year 1 day')
     })
 
-    it('returns "2 years" for 2 × CONTRACT_SECONDS_PER_YEAR', () => {
-      expect(formatRegistrationDuration(2 * CONTRACT_SECONDS_PER_YEAR)).toBe(
-        '2 years',
-      )
+    it('treats a leap-day start constrained to Feb 28 as a whole year', () => {
+      expect(span('2028-02-29', '2029-02-28')).toBe('1 year')
     })
 
-    it('returns "1 year 3 months" for 15 contract-months', () => {
-      expect(formatRegistrationDuration(15 * SECONDS_PER_MONTH)).toBe(
-        '1 year 3 months',
-      )
-    })
-
-    it('returns "2 years 6 months" for 30 contract-months', () => {
-      expect(formatRegistrationDuration(30 * SECONDS_PER_MONTH)).toBe(
-        '2 years 6 months',
-      )
-    })
-
-    it('returns "1 month" for exactly 1 contract-month', () => {
-      expect(formatRegistrationDuration(SECONDS_PER_MONTH)).toBe('1 month')
-    })
-
-    it('returns "6 months" for exactly 6 contract-months', () => {
-      expect(formatRegistrationDuration(6 * SECONDS_PER_MONTH)).toBe('6 months')
-    })
-
-    it('returns "1 day" for exactly 1 day', () => {
-      expect(formatRegistrationDuration(SECONDS_PER_DAY)).toBe('1 day')
-    })
-
-    it('returns "15 days" for 15 days (less than 1 contract-month)', () => {
-      expect(formatRegistrationDuration(15 * SECONDS_PER_DAY)).toBe('15 days')
-    })
-
-    it('includes days when months and extra days are present', () => {
-      expect(
-        formatRegistrationDuration(SECONDS_PER_MONTH + 5 * SECONDS_PER_DAY),
-      ).toBe('1 month 5 days')
+    it('returns 0 days for an empty span', () => {
+      expect(span('2030-01-01', '2030-01-01')).toBe('0 days')
     })
   })
 
-  describe('calculateDurationFromDate', () => {
-    it('should return 1 when target is today or in the past', () => {
-      expect(
-        calculateDurationFromDate(
-          startOfFixedToday,
-          Temporal.PlainDate.from('2025-01-15'),
-        ),
-      ).toBe(1)
-      expect(
-        calculateDurationFromDate(
-          startOfFixedToday,
-          Temporal.PlainDate.from('2024-01-01'),
-        ),
-      ).toBe(1)
-    })
+  describe('getRegistrationDisplayDates', () => {
+    it('reports whole years for every year preset', () => {
+      const baseDate = Temporal.PlainDate.from('2033-08-06')
 
-    it('should return ~1 for exactly one year from today', () => {
-      const oneYearFromNow = startOfFixedToday.add({ years: 1 })
-      const result = calculateDurationFromDate(
-        startOfFixedToday,
-        oneYearFromNow,
-      )
-      expect(result).toBeGreaterThan(0.99)
-      expect(result).toBeLessThan(1.01)
-    })
-
-    it('should return ~2 for two years from today', () => {
-      const twoYearsFromNow = startOfFixedToday.add({ years: 2 })
-      const result = calculateDurationFromDate(
-        startOfFixedToday,
-        twoYearsFromNow,
-      )
-      expect(result).toBeGreaterThan(1.99)
-      expect(result).toBeLessThan(2.01)
-    })
-
-    it('should preserve fractional years (no rounding)', () => {
-      const sixMonthsFromNow = startOfFixedToday.add({ months: 6 })
-      const result = calculateDurationFromDate(
-        startOfFixedToday,
-        sixMonthsFromNow,
-      )
-      expect(result).toBeGreaterThan(0.49)
-      expect(result).toBeLessThan(0.51)
-    })
-
-    it('should return at least 1', () => {
-      const farPast = Temporal.PlainDate.from('2020-01-01')
-      expect(calculateDurationFromDate(startOfFixedToday, farPast)).toBe(1)
+      for (const years of [1, 2, 3, 6, 10]) {
+        expect(
+          getRegistrationDisplayDates(
+            getDurationInSecondsFromYears(years, baseDate),
+            baseDate,
+          ).registrationPeriod,
+        ).toBe(years === 1 ? '1 year' : `${years} years`)
+      }
     })
   })
 

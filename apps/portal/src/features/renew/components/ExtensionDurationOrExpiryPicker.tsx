@@ -5,60 +5,38 @@ import { RegistrationExpiryDatePicker } from '@/features/register/components/Reg
 import {
   getMaxExpiryDateForPicker,
   getMinExpiryDateForPicker,
+  getStartOfToday,
 } from '@/features/register/utils/registrationDuration'
 import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
 import { cn } from '@/lib/utils'
+import { dateToPlainDate } from '@/utils/temporal'
 import {
-  getExtensionBaseDate,
+  type ExtensionSpan,
   getExtensionDisplayedYears,
-  getExtensionDurationForToggledSpan,
   getExtensionTargetDate,
-  getExtensionTimestampForPickedDate,
-  getExtensionTimestampForYears,
+  getToggledExtensionSpan,
 } from '../utils/extensionDurationPicker'
-
-export type ExtensionSpanType = 'years' | 'date'
 
 type ExtensionDurationOrExpiryPickerProps = {
   readonly disabled?: boolean
-  readonly duration: number
-  readonly setDuration: (duration: number) => void
+  readonly span: ExtensionSpan
+  readonly setSpan: (span: ExtensionSpan) => void
   /** Base date for duration calculations (use name's current expiry for renewal) */
   readonly expiryDate?: Date | null
-  readonly spanType: ExtensionSpanType
-  readonly setSpanType: (type: ExtensionSpanType) => void
   /** Name used to compute per-year prices for preset chips. Chips hidden if absent. */
   readonly name?: string
 }
 
 export const ExtensionDurationOrExpiryPicker = ({
   disabled = false,
-  duration,
-  setDuration,
+  span,
+  setSpan,
   expiryDate,
-  spanType,
-  setSpanType,
   name,
 }: ExtensionDurationOrExpiryPickerProps) => {
-  const baseDate = getExtensionBaseDate(expiryDate)
-  const targetDate = getExtensionTargetDate({ baseDate, duration, spanType })
-  const displayedYears = getExtensionDisplayedYears({
-    baseDate,
-    duration,
-    spanType,
-    targetDate,
-  })
-
-  const handleSpanTypeToggle = () => {
-    setDuration(
-      getExtensionDurationForToggledSpan({
-        baseDate,
-        displayedYears,
-        spanType,
-      }),
-    )
-    setSpanType(spanType === 'years' ? 'date' : 'years')
-  }
+  const baseDate = expiryDate ? dateToPlainDate(expiryDate) : getStartOfToday()
+  const targetDate = getExtensionTargetDate(baseDate, span)
+  const displayedYears = getExtensionDisplayedYears(baseDate, span)
 
   return (
     <div
@@ -70,18 +48,18 @@ export const ExtensionDurationOrExpiryPicker = ({
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <span className="text-lg font-medium">
-            {spanType === 'years' ? 'For' : 'Until'}
+            {span.type === 'years' ? 'For' : 'Until'}
           </span>
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleSpanTypeToggle}
+            onClick={() => setSpan(getToggledExtensionSpan(baseDate, span))}
             className="gap-1 text-primary"
           >
             <span className="text-xs font-normal">
-              {spanType === 'years' ? 'Pick by date' : 'Choose length'}
+              {span.type === 'years' ? 'Pick by date' : 'Choose length'}
             </span>
-            {spanType === 'years' ? (
+            {span.type === 'years' ? (
               <CalendarIcon className="size-3" />
             ) : (
               <HashIcon className="size-3" />
@@ -89,21 +67,25 @@ export const ExtensionDurationOrExpiryPicker = ({
           </Button>
         </div>
 
-        {spanType === 'years' ? (
+        {span.type === 'years' ? (
           <RegistrationDurationPicker
             value={displayedYears}
             max={MAX_REGISTRATION_YEARS}
-            onChange={(years) => setDuration(years)}
+            onChange={(years) => setSpan({ type: 'years', years })}
             name={name}
           />
         ) : (
           <RegistrationExpiryDatePicker
             date={targetDate}
-            onDateChange={(date) =>
-              setDuration(getExtensionTimestampForPickedDate(baseDate, date))
-            }
+            onDateChange={(date) => setSpan({ type: 'date', date })}
             onYearsPresetSelect={(years) =>
-              setDuration(getExtensionTimestampForYears(baseDate, years))
+              setSpan({
+                type: 'date',
+                date: getExtensionTargetDate(baseDate, {
+                  type: 'years',
+                  years,
+                }),
+              })
             }
             minDate={getMinExpiryDateForPicker(baseDate)}
             maxDate={getMaxExpiryDateForPicker(baseDate)}

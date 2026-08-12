@@ -2,6 +2,7 @@ import {
   CONTRACT_SECONDS_PER_YEAR,
   MAX_REGISTRATION_YEARS,
   MIN_REGISTRATION_DURATION,
+  SECONDS_PER_DAY,
 } from '@/lib/constants/duration'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 import { plainDateToDate } from '@/utils/temporal'
@@ -21,53 +22,46 @@ export function isDateWithinCalendarRange(
   )
 }
 
-const SECONDS_PER_MONTH = CONTRACT_SECONDS_PER_YEAR / 12
-
 /**
- * Formats a duration in seconds as "X years Y months Z days" using the
- * contract's year definition (1 year = CONTRACT_SECONDS_PER_YEAR = 365.25 d,
- * 1 month = year / 12). Same `secondsToDuration` pattern manager uses, so
- * `N × CONTRACT_SECONDS_PER_YEAR` renders cleanly as "N years" instead of
- * "N-1 years 11 months 30 days" (which the old Temporal calendar diff
- * produced after the floor in expiry display dropped the 0.25 d/y leap
- * fraction).
+ * Formats the calendar span between two dates as "X years Y months Z days".
+ *
+ * Counted off `startDate` rather than by dividing seconds: a contract year is
+ * 365.25 d, so seconds ÷ year absorbs up to 23h of slack and renders a span one
+ * day past a whole-year target identically to the target itself.
  */
-export const formatRegistrationDuration = (durationSeconds: number): string => {
-  let remainder = durationSeconds
-  const years = Math.floor(remainder / CONTRACT_SECONDS_PER_YEAR)
-  remainder -= years * CONTRACT_SECONDS_PER_YEAR
-  const months = Math.floor(remainder / SECONDS_PER_MONTH)
-  remainder -= months * SECONDS_PER_MONTH
-  const days = Math.floor(remainder / 86400)
-
-  const parts: string[] = []
-  if (years > 0) parts.push(years === 1 ? '1 year' : `${years} years`)
-  if (months > 0) parts.push(months === 1 ? '1 month' : `${months} months`)
-  if (days > 0) parts.push(days === 1 ? '1 day' : `${days} days`)
-
-  if (parts.length === 0) {
-    throw new Error('Duration is less than 1 day')
-  }
-
-  return parts.join(' ')
-}
-
-/**
- * Calculates the duration in years from start to expiry.
- * Returns years rounded to two decimal places (e.g. 1.00, 3.00, 2.50).
- */
-export const calculateDurationFromDate = (
+export const formatCalendarDuration = (
   startDate: Temporal.PlainDate,
-  expiryDate: Temporal.PlainDate,
-): number => {
-  const diffDays = startDate.until(expiryDate, { largestUnit: 'days' }).days
+  endDate: Temporal.PlainDate,
+): string => {
+  const { years, months, days } = startDate.until(endDate, {
+    largestUnit: 'year',
+  })
 
-  if (diffDays <= 0) {
-    return 1
+  // A Feb 29 start constrains to Feb 28 a year on, which `until` reports as
+  // "11 months 30 days"; that is still the whole-year target for such a name.
+  const constrainedYears = years + 1
+  if (
+    (months > 0 || days > 0) &&
+    Temporal.PlainDate.compare(
+      startDate.add({ years: constrainedYears }),
+      endDate,
+    ) === 0
+  ) {
+    return `${constrainedYears} year${constrainedYears === 1 ? '' : 's'}`
   }
 
-  const diffYears = diffDays / (CONTRACT_SECONDS_PER_YEAR / 86400)
-  return Math.round(diffYears * 100) / 100
+  return (
+    (
+      [
+        [years, 'year'],
+        [months, 'month'],
+        [days, 'day'],
+      ] as const
+    )
+      .filter(([value]) => value > 0)
+      .map(([value, unit]) => `${value} ${unit}${value === 1 ? '' : 's'}`)
+      .join(' ') || '0 days'
+  )
 }
 
 /**
@@ -162,9 +156,10 @@ export function getRegistrationDisplayDates(
     largestUnit: 'days',
   }).days
   return {
-    registrationPeriod: formatRegistrationDuration(durationSeconds),
-    registrationDays: Math.floor(durationSeconds / 86400),
+    registrationPeriod: formatCalendarDuration(baseDate, expiryDate),
+    registrationDays: Math.floor(durationSeconds / SECONDS_PER_DAY),
     daysUntilExpiry,
+    expiryDate,
     expiresFormatted: formatExpiryDate(expiryDate),
   }
 }
