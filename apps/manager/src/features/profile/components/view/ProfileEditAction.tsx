@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import type { Address } from 'viem'
 import { EditProfileDialog } from '@/features/profile/components/dialogs/edit-profile/EditProfileDialog'
 import type { ProfileRecords } from '@/features/profile/types'
+import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 
 type ProfileEditActionProps = {
   readonly className: string
@@ -10,6 +11,7 @@ type ProfileEditActionProps = {
   readonly name: string
   readonly onUpdated: () => undefined | Promise<unknown>
   readonly owner?: Address
+  readonly protocol?: RenewalProtocol
   readonly records: ProfileRecords
 }
 
@@ -19,10 +21,13 @@ export const ProfileEditAction = ({
   name,
   onUpdated,
   owner,
+  protocol,
   records,
   className,
 }: ProfileEditActionProps) => {
-  if (!isOwner || isInGrace) return null
+  // Records live on the v2 resolver, so an unmigrated v1 name has nothing to
+  // write to and saving fails. The upgrade banner already says as much.
+  if (!isOwner || isInGrace || protocol === 'v1') return null
 
   const trigger = (
     <button className={className} type="button">
