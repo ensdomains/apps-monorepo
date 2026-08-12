@@ -7,8 +7,10 @@ const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 export const ENS_SEPOLIA_CONTRACTS = {
   // --- V1 (sourced from ensjs) ---
   ETHRegistrarController: ensjsSepolia.ensEthRegistrarController.address,
+  ETHRenewerV1: ensjsSepolia.ensEthRenewerV1.address,
   PublicResolver: ensjsSepolia.ensPublicResolver.address,
   ReverseRegistrar: ensjsSepolia.ensReverseRegistrar.address,
+  LegacyRegistry: ensjsSepolia.ensLegacyRegistry.address,
 
   // --- V2 (sourced from ensjs chain config) ---
   ETHRegistry: ensjsSepolia.ensRegistry.address,
@@ -29,6 +31,10 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // — NOT the superseded `0xeb8269fb…` standalone deployment, whose records
   // nothing in the canonical resolution path reads.
   DefaultReverseRegistrar: '0x4F382928805ba0e23B30cFB75fC9E848e82DFD47',
+  // HCA forwarders for the two v1 reverse registrars (canonical deployment,
+  // contracts-v2 docs/addresses/sepolia.md @ 97a5729).
+  DefaultReverseRegistrarAdapter: '0x7a84e241f862D73960D73c26d68c3C8F89F0B18F',
+  ReverseRegistrarAdapter: '0x035ae6188ac22ab79b5018039dFbda4FFe7990e9',
 } as const
 
 // Payment tokens the V2 registrar actually accepts (its PAYMENT_TOKEN /

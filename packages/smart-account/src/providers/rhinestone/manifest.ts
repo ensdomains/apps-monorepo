@@ -1,22 +1,17 @@
 /**
  * Standalone-HCA contract manifest.
  *
- * Provenance: these addresses are the coordinated Sepolia / Base Sepolia
- * deployment that the standalone HCA in `ensdomains/contracts-v2` PR #362
- * (branch `feat/hca-final-maybe`, commit `12712e3`) was deployed against, as
- * published in the "HCA: New" handoff doc.
+ * Provenance: most ENS-side addresses come from the ensjs `e96662c` Sepolia
+ * manifest, whose values match the remediated deployment published by
+ * `ensdomains/contracts-v2` PR #388 at `8d1c893`. The HCA-aware
+ * `MigrationHelper` was deployed separately from contracts-v2 PR #402. The
+ * standalone HCA implementation and validator were redeployed in PR #409 so
+ * the validator accepts MockUSDC refunds. These contracts remain pinned below
+ * because ensjs does not expose them yet.
  *
- * That is no longer true of the ENS-side contracts. ensjs now tracks the
- * deployment the apps actually ship against, so the registrar and registry are
- * read from it — registering somewhere the rest of the app does not read is
- * what made renewal revert `NameNotRenewable`. ensjs still has no entry for
- * `StandaloneHCAImplementation`, `HCAOwnerAndSessionValidator`, the proxy
- * logic, the reverse adapter, or the funding validator, so those stay
- * hardcoded here until it does.
- *
- * When ensjs ships the standalone-HCA deployment, re-point these to
- * `getChainContractAddress(...)`. Until then, this local, chain-keyed table is
- * the only correct source. Keep it grouped per chain so a redeploy is a
+ * Re-point the remaining hardcoded extras to `getChainContractAddress(...)`
+ * when ensjs exposes them. Until then, this local, chain-keyed table remains
+ * the complete source. Keep it grouped per chain so a redeploy is a
  * single-block edit and adding a source chain is additive.
  *
  * SDK patch SHA-256: 5e0a5f328ccf65514b051f255c217e693d81a9bfcf8ccbbd71dc2729e8932867
@@ -47,9 +42,21 @@ export interface DestinationContracts {
   readonly hcaOwnerAndSessionValidator: Address
   readonly verifiableFactory: Address
   readonly verifiableFactoryProxyLogic: Address
+  /** Block where this VerifiableFactory was deployed; used as the log-scan floor. */
+  readonly verifiableFactoryDeployBlock: bigint
   readonly permissionedResolverImpl: Address
   readonly ethRegistrar: Address
   readonly ethRegistry: Address
+  readonly rootRegistry: Address
+  readonly migrationHelper: Address
+  readonly unlockedMigrationController: Address
+  readonly lockedMigrationController: Address
+  /** Allowlist used to identify legacy public resolvers during migration. */
+  readonly publicResolverSet: Address
+  /** Implementation deployed for wrapper registries created by locked migration. */
+  readonly wrapperRegistryImpl: Address
+  /** Replacement/default resolver written during migration. */
+  readonly publicResolverV2: Address
   readonly defaultReverseRegistrarHcaAdapter: Address
   readonly usdc: Address
 }
@@ -75,17 +82,27 @@ export interface SharedContracts {
 
 export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
   [sepolia.id]: {
-    // From ensjs, which tracks the deployment the apps ship against.
+    // From ensjs e96662c, which matches the remediated PR #388 deployment.
     standaloneHcaFactory: ensjsSepolia.ensHcaFactory.address,
     verifiableFactory: ensjsSepolia.ensVerifiableFactory.address,
     permissionedResolverImpl: ensjsSepolia.ensPermissionedResolverImpl.address,
     ethRegistrar: ensjsSepolia.ensEthRegistrar.address,
     ethRegistry: ensjsSepolia.ensRegistry.address,
+    // HCA-aware helper from contracts-v2 PR #402. The ensjs entry still points
+    // at the preceding helper deployment, which cannot resolve an HCA caller
+    // back to its certified EOA owner.
+    migrationHelper: '0xddC597d937618849348E18Db5D631Ce747bCDeEF',
+    unlockedMigrationController:
+      ensjsSepolia.ensUnlockedMigrationController.address,
+    lockedMigrationController:
+      ensjsSepolia.ensLockedMigrationController.address,
 
-    // Not in ensjs yet. Addresses from contracts-v2
-    // `contracts/docs/addresses/sepolia.md` @ 97a5729 (deployed 2026-07-30).
-    standaloneHcaImplementation: '0xD213De41421Fed3a5E475943F9D634A0cf64a385',
-    hcaOwnerAndSessionValidator: '0x976D90c51Afb2C11660EaeE94bD42A7e84751D08',
+    // Not in ensjs yet. Addresses from contracts-v2 PR #409 (deployed
+    // 2026-08-10): validator accepts Circle USDC (primary) and MockUSDC
+    // (secondary) as session refund tokens; the implementation follows because
+    // it pins the validator as a constructor immutable.
+    standaloneHcaImplementation: '0xAA761541620fC1a42bb701a26a9f107A9DF1E904',
+    hcaOwnerAndSessionValidator: '0x5f249FCa8bB4949105651146858c347E8BFb0F7E',
     defaultReverseRegistrarHcaAdapter:
       '0x7a84e241f862D73960D73c26d68c3C8F89F0B18F',
     // Not deployed as its own artifact — VerifiableFactory creates it in its
@@ -93,17 +110,22 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     // off `ensVerifiableFactory` above. It MUST stay paired with that factory:
     // it is the EIP-1167 runtime hashed into every CREATE2 proxy address.
     verifiableFactoryProxyLogic: '0xA136BeE4E37B44586242e516a39893EfD54315e9',
+    verifiableFactoryDeployBlock: 11_383_823n,
+    rootRegistry: '0x8115186E8f2E0B0281e86ab91f0f48Ba90364354',
+    publicResolverSet: '0xf2794eBD70C1fa74094A9eC653DA1c2dF9f5a5A9',
+    wrapperRegistryImpl: '0x433F81a3E8921Fc868ae1A04576f135d9A75B0f2',
+    publicResolverV2: '0xe7B9A25607E02da8145E4eB1836CA539e53F11f7',
 
-    // Circle's real Sepolia USDC — deliberately NOT `ensjsSepolia.usdc`, which
-    // is MockUSDC. The app pays in the real token.
-    usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    // MockUSDC: the orchestrator accepts it as a payment token, and the
+    // api-worker faucet can mint it, so the whole route runs on one token.
+    usdc: ensjsSepolia.usdc.address,
   },
 }
 
 export const SOURCE_CONTRACTS: Record<number, SourceContracts> = {
   [baseSepolia.id]: {
     usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-    hcaFundingSessionValidator: '0x6FC0FdE0960003AcB24810FFd5dB6224B3d88974',
+    hcaFundingSessionValidator: '0x6Fc0FdE0960003acb24810fFd5dB6224b3d88974',
   },
 }
 

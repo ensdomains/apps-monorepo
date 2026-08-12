@@ -37,7 +37,7 @@ export class AccountVerificationError extends TaggedError(
   'AccountVerificationError',
 )<{
   message: string
-  field: 'owner' | 'accountId' | 'implementation' | 'trustedImplementation'
+  field: 'owner' | 'authorizedOwner' | 'accountId' | 'implementation'
   expected: string
   actual: string
   cause?: unknown

@@ -5,7 +5,7 @@ import type { SmartAccountConfig } from './transaction.types'
 
 /**
  * Transaction infrastructure options
- * - warp: Intent-based via Rhinestone Warp (relayer-sponsored)
+ * - warp: Intent-based via Rhinestone Warp (user-paid; no sponsorship)
  */
 export type TransactionInfra = 'warp'
 
@@ -51,8 +51,8 @@ export interface RhinestoneSessionContext {
  * Rhinestone Smart Account Signer
  *
  * Uses the standalone ENS HCA. Intents are session-signed and USER-PAID in
- * USDC (`sponsored: { gas: false, bridging: false, swaps: false }`,
- * `feeAsset: 'USDC'`) — there is NO gas sponsorship. The HCA is funded from
+ * USDC (`feeAsset: 'USDC'`) — there is NO gas sponsorship, and no way to ask
+ * for any: the transport always sends the user-paid shape. The HCA is funded from
  * the wallet via an EIP-2612 permit + `transferFrom` pair carried inside the
  * first (commit) request; execution costs are refunded from the HCA's USDC
  * via `enableSessionWithRefund`.

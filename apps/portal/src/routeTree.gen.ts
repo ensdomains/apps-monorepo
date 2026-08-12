@@ -22,7 +22,6 @@ import { Route as NameSubnamesRouteImport } from './routes/$name/subnames'
 import { Route as NameResolverRouteImport } from './routes/$name/resolver'
 import { Route as NameRegistryRouteImport } from './routes/$name/registry'
 import { Route as NameRecordsRouteImport } from './routes/$name/records'
-import { Route as NameOwnershipRouteImport } from './routes/$name/ownership'
 import { Route as NameHistoryRouteImport } from './routes/$name/history'
 import { Route as NameEditRecordsRouteImport } from './routes/$name/edit-records'
 import { Route as NameCreateSubnameRouteImport } from './routes/$name/create-subname'
@@ -33,6 +32,7 @@ import { Route as ResolverAddressIndexRouteImport } from './routes/resolver/$add
 import { Route as RegistryAddressIndexRouteImport } from './routes/registry/$address/index'
 import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
 import { Route as NameRolesIndexRouteImport } from './routes/$name/roles/index'
+import { Route as NameOwnershipIndexRouteImport } from './routes/$name/ownership/index'
 import { Route as NameFusesIndexRouteImport } from './routes/$name/fuses/index'
 import { Route as ResolverAddressNodesRouteImport } from './routes/resolver/$address/nodes'
 import { Route as ResolverAddressHistoryRouteImport } from './routes/resolver/$address/history'
@@ -45,6 +45,7 @@ import { Route as AddrAddrReverseResolutionRouteImport } from './routes/addr/$ad
 import { Route as AddrAddrResolutionRouteImport } from './routes/addr/$addr/resolution'
 import { Route as AddrAddrNamesRouteImport } from './routes/addr/$addr/names'
 import { Route as AddrAddrHistoryRouteImport } from './routes/addr/$addr/history'
+import { Route as NameOwnershipTransferRouteImport } from './routes/$name/ownership/transfer'
 import { Route as NameFusesBurnRouteImport } from './routes/$name/fuses/burn'
 import { Route as ResolverAddressRolesIndexRouteImport } from './routes/resolver/$address/roles/index'
 
@@ -113,11 +114,6 @@ const NameRecordsRoute = NameRecordsRouteImport.update({
   path: '/records',
   getParentRoute: () => NameRoute,
 } as any)
-const NameOwnershipRoute = NameOwnershipRouteImport.update({
-  id: '/ownership',
-  path: '/ownership',
-  getParentRoute: () => NameRoute,
-} as any)
 const NameHistoryRoute = NameHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -166,6 +162,11 @@ const AddrAddrIndexRoute = AddrAddrIndexRouteImport.update({
 const NameRolesIndexRoute = NameRolesIndexRouteImport.update({
   id: '/roles/',
   path: '/roles/',
+  getParentRoute: () => NameRoute,
+} as any)
+const NameOwnershipIndexRoute = NameOwnershipIndexRouteImport.update({
+  id: '/ownership/',
+  path: '/ownership/',
   getParentRoute: () => NameRoute,
 } as any)
 const NameFusesIndexRoute = NameFusesIndexRouteImport.update({
@@ -230,6 +231,11 @@ const AddrAddrHistoryRoute = AddrAddrHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => AddrAddrRoute,
 } as any)
+const NameOwnershipTransferRoute = NameOwnershipTransferRouteImport.update({
+  id: '/ownership/transfer',
+  path: '/ownership/transfer',
+  getParentRoute: () => NameRoute,
+} as any)
 const NameFusesBurnRoute = NameFusesBurnRouteImport.update({
   id: '/fuses/burn',
   path: '/fuses/burn',
@@ -250,7 +256,6 @@ export interface FileRoutesByFullPath {
   '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
-  '/$name/ownership': typeof NameOwnershipRoute
   '/$name/records': typeof NameRecordsRoute
   '/$name/registry': typeof NameRegistryRoute
   '/$name/resolver': typeof NameResolverRoute
@@ -263,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/$name/': typeof NameIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/$name/fuses/burn': typeof NameFusesBurnRoute
+  '/$name/ownership/transfer': typeof NameOwnershipTransferRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
@@ -275,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/resolver/$address/history': typeof ResolverAddressHistoryRoute
   '/resolver/$address/nodes': typeof ResolverAddressNodesRoute
   '/$name/fuses/': typeof NameFusesIndexRoute
+  '/$name/ownership/': typeof NameOwnershipIndexRoute
   '/$name/roles/': typeof NameRolesIndexRoute
   '/addr/$addr/': typeof AddrAddrIndexRoute
   '/registry/$address/': typeof RegistryAddressIndexRoute
@@ -289,7 +296,6 @@ export interface FileRoutesByTo {
   '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
-  '/$name/ownership': typeof NameOwnershipRoute
   '/$name/records': typeof NameRecordsRoute
   '/$name/registry': typeof NameRegistryRoute
   '/$name/resolver': typeof NameResolverRoute
@@ -298,6 +304,7 @@ export interface FileRoutesByTo {
   '/$name': typeof NameIndexRoute
   '/register': typeof RegisterIndexRoute
   '/$name/fuses/burn': typeof NameFusesBurnRoute
+  '/$name/ownership/transfer': typeof NameOwnershipTransferRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
@@ -310,6 +317,7 @@ export interface FileRoutesByTo {
   '/resolver/$address/history': typeof ResolverAddressHistoryRoute
   '/resolver/$address/nodes': typeof ResolverAddressNodesRoute
   '/$name/fuses': typeof NameFusesIndexRoute
+  '/$name/ownership': typeof NameOwnershipIndexRoute
   '/$name/roles': typeof NameRolesIndexRoute
   '/addr/$addr': typeof AddrAddrIndexRoute
   '/registry/$address': typeof RegistryAddressIndexRoute
@@ -326,7 +334,6 @@ export interface FileRoutesById {
   '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
-  '/$name/ownership': typeof NameOwnershipRoute
   '/$name/records': typeof NameRecordsRoute
   '/$name/registry': typeof NameRegistryRoute
   '/$name/resolver': typeof NameResolverRoute
@@ -339,6 +346,7 @@ export interface FileRoutesById {
   '/$name/': typeof NameIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/$name/fuses/burn': typeof NameFusesBurnRoute
+  '/$name/ownership/transfer': typeof NameOwnershipTransferRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
@@ -351,6 +359,7 @@ export interface FileRoutesById {
   '/resolver/$address/history': typeof ResolverAddressHistoryRoute
   '/resolver/$address/nodes': typeof ResolverAddressNodesRoute
   '/$name/fuses/': typeof NameFusesIndexRoute
+  '/$name/ownership/': typeof NameOwnershipIndexRoute
   '/$name/roles/': typeof NameRolesIndexRoute
   '/addr/$addr/': typeof AddrAddrIndexRoute
   '/registry/$address/': typeof RegistryAddressIndexRoute
@@ -368,7 +377,6 @@ export interface FileRouteTypes {
     | '/$name/create-subname'
     | '/$name/edit-records'
     | '/$name/history'
-    | '/$name/ownership'
     | '/$name/records'
     | '/$name/registry'
     | '/$name/resolver'
@@ -381,6 +389,7 @@ export interface FileRouteTypes {
     | '/$name/'
     | '/register/'
     | '/$name/fuses/burn'
+    | '/$name/ownership/transfer'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
     | '/addr/$addr/resolution'
@@ -393,6 +402,7 @@ export interface FileRouteTypes {
     | '/resolver/$address/history'
     | '/resolver/$address/nodes'
     | '/$name/fuses/'
+    | '/$name/ownership/'
     | '/$name/roles/'
     | '/addr/$addr/'
     | '/registry/$address/'
@@ -407,7 +417,6 @@ export interface FileRouteTypes {
     | '/$name/create-subname'
     | '/$name/edit-records'
     | '/$name/history'
-    | '/$name/ownership'
     | '/$name/records'
     | '/$name/registry'
     | '/$name/resolver'
@@ -416,6 +425,7 @@ export interface FileRouteTypes {
     | '/$name'
     | '/register'
     | '/$name/fuses/burn'
+    | '/$name/ownership/transfer'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
     | '/addr/$addr/resolution'
@@ -428,6 +438,7 @@ export interface FileRouteTypes {
     | '/resolver/$address/history'
     | '/resolver/$address/nodes'
     | '/$name/fuses'
+    | '/$name/ownership'
     | '/$name/roles'
     | '/addr/$addr'
     | '/registry/$address'
@@ -443,7 +454,6 @@ export interface FileRouteTypes {
     | '/$name/create-subname'
     | '/$name/edit-records'
     | '/$name/history'
-    | '/$name/ownership'
     | '/$name/records'
     | '/$name/registry'
     | '/$name/resolver'
@@ -456,6 +466,7 @@ export interface FileRouteTypes {
     | '/$name/'
     | '/register/'
     | '/$name/fuses/burn'
+    | '/$name/ownership/transfer'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
     | '/addr/$addr/resolution'
@@ -468,6 +479,7 @@ export interface FileRouteTypes {
     | '/resolver/$address/history'
     | '/resolver/$address/nodes'
     | '/$name/fuses/'
+    | '/$name/ownership/'
     | '/$name/roles/'
     | '/addr/$addr/'
     | '/registry/$address/'
@@ -579,13 +591,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NameRecordsRouteImport
       parentRoute: typeof NameRoute
     }
-    '/$name/ownership': {
-      id: '/$name/ownership'
-      path: '/ownership'
-      fullPath: '/$name/ownership'
-      preLoaderRoute: typeof NameOwnershipRouteImport
-      parentRoute: typeof NameRoute
-    }
     '/$name/history': {
       id: '/$name/history'
       path: '/history'
@@ -654,6 +659,13 @@ declare module '@tanstack/react-router' {
       path: '/roles'
       fullPath: '/$name/roles/'
       preLoaderRoute: typeof NameRolesIndexRouteImport
+      parentRoute: typeof NameRoute
+    }
+    '/$name/ownership/': {
+      id: '/$name/ownership/'
+      path: '/ownership'
+      fullPath: '/$name/ownership/'
+      preLoaderRoute: typeof NameOwnershipIndexRouteImport
       parentRoute: typeof NameRoute
     }
     '/$name/fuses/': {
@@ -740,6 +752,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AddrAddrHistoryRouteImport
       parentRoute: typeof AddrAddrRoute
     }
+    '/$name/ownership/transfer': {
+      id: '/$name/ownership/transfer'
+      path: '/ownership/transfer'
+      fullPath: '/$name/ownership/transfer'
+      preLoaderRoute: typeof NameOwnershipTransferRouteImport
+      parentRoute: typeof NameRoute
+    }
     '/$name/fuses/burn': {
       id: '/$name/fuses/burn'
       path: '/fuses/burn'
@@ -763,7 +782,6 @@ interface NameRouteChildren {
   NameCreateSubnameRoute: typeof NameCreateSubnameRoute
   NameEditRecordsRoute: typeof NameEditRecordsRoute
   NameHistoryRoute: typeof NameHistoryRoute
-  NameOwnershipRoute: typeof NameOwnershipRoute
   NameRecordsRoute: typeof NameRecordsRoute
   NameRegistryRoute: typeof NameRegistryRoute
   NameResolverRoute: typeof NameResolverRoute
@@ -771,7 +789,9 @@ interface NameRouteChildren {
   NameTokenRoute: typeof NameTokenRoute
   NameIndexRoute: typeof NameIndexRoute
   NameFusesBurnRoute: typeof NameFusesBurnRoute
+  NameOwnershipTransferRoute: typeof NameOwnershipTransferRoute
   NameFusesIndexRoute: typeof NameFusesIndexRoute
+  NameOwnershipIndexRoute: typeof NameOwnershipIndexRoute
   NameRolesIndexRoute: typeof NameRolesIndexRoute
 }
 
@@ -781,7 +801,6 @@ const NameRouteChildren: NameRouteChildren = {
   NameCreateSubnameRoute: NameCreateSubnameRoute,
   NameEditRecordsRoute: NameEditRecordsRoute,
   NameHistoryRoute: NameHistoryRoute,
-  NameOwnershipRoute: NameOwnershipRoute,
   NameRecordsRoute: NameRecordsRoute,
   NameRegistryRoute: NameRegistryRoute,
   NameResolverRoute: NameResolverRoute,
@@ -789,7 +808,9 @@ const NameRouteChildren: NameRouteChildren = {
   NameTokenRoute: NameTokenRoute,
   NameIndexRoute: NameIndexRoute,
   NameFusesBurnRoute: NameFusesBurnRoute,
+  NameOwnershipTransferRoute: NameOwnershipTransferRoute,
   NameFusesIndexRoute: NameFusesIndexRoute,
+  NameOwnershipIndexRoute: NameOwnershipIndexRoute,
   NameRolesIndexRoute: NameRolesIndexRoute,
 }
 

@@ -13,6 +13,7 @@ import {
 import type React from 'react'
 import ensMobile from '@/assets/icons/ens-mobile.svg'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { EXPLORER_URL } from '@/constants'
 import { twm } from '@/utils/tailwind'
 
 type NavigationContentProps = {
@@ -64,7 +65,7 @@ const navigationSections: readonly NavigationSection[] = [
       },
       {
         label: msg`Go to ENS Explorer`,
-        href: 'https://explorer.ens.dev',
+        href: EXPLORER_URL,
         className: 'text-base gap-1',
         suffix: (
           <MSymbol

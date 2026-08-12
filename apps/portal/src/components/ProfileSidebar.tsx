@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { CopyIcon, FlameIcon } from 'lucide-react'
+import { FlameIcon, WalletIcon } from 'lucide-react'
 import {
   CardsStackIcon,
   GraphIcon,
@@ -16,6 +16,8 @@ import { SoonBadge } from '@/components/ui/badge'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { createDefineLinkItem } from '@/utils/tsr'
 import type { ProtocolVersion } from '@/utils/types'
 import { SettingsMenu } from './SettingsMenu'
@@ -46,6 +48,14 @@ type SidebarItemData = {
 const defineProfileSidebarItem = createDefineLinkItem<SidebarItemData>()
 
 const getItems = (name: string, protocolVersion?: ProtocolVersion) => [
+  defineProfileSidebarItem({
+    title: 'Address Resolution',
+    icon: WalletIcon,
+    link: {
+      to: '/$name/address',
+      params: { name },
+    },
+  }),
   defineProfileSidebarItem({
     title: 'Records',
     icon: CardsStackIcon,
@@ -108,14 +118,6 @@ const getItems = (name: string, protocolVersion?: ProtocolVersion) => [
     },
   }),
   defineProfileSidebarItem({
-    title: 'Address Resolution',
-    icon: CopyIcon,
-    link: {
-      to: '/$name/address',
-      params: { name },
-    },
-  }),
-  defineProfileSidebarItem({
     title: 'Token info',
     icon: TollIcon,
     link: {
@@ -139,6 +141,10 @@ interface ProfileSidebarProps {
 
 export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
   const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const { data: availability } = useQuery({
+    ...getNameAvailabilityQueryOptions({ name }),
+    enabled: isRegistrable(name),
+  })
   const protocolVersion = ownerData?.protocolVersion
   const items = getItems(name, protocolVersion)
   const { state, isMobile, setOpenMobile } = useSidebar()
@@ -206,39 +212,41 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
           </Link>
         </div>
 
-        <SidebarGroup className="px-6 py-0 group-data-[collapsible=icon]:px-2">
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-3">
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  {item.disabled || item.upcoming ? (
-                    <SidebarMenuButton
-                      disabled
-                      className="opacity-50 cursor-not-allowed"
-                      tooltip={item.title}
-                    >
-                      <item.icon className="size-4" />
-                      <span className="text-sm">{item.title}</span>
-                      {item.upcoming && <SoonBadge />}
-                    </SidebarMenuButton>
-                  ) : (
-                    <SidebarMenuButton asChild tooltip={item.title}>
-                      <Link
-                        {...item.link}
-                        activeProps={{
-                          'data-active': 'true',
-                        }}
+        {!availability?.isAvailable && (
+          <SidebarGroup className="px-6 py-0 group-data-[collapsible=icon]:px-2">
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-3">
+                {items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    {item.disabled || item.upcoming ? (
+                      <SidebarMenuButton
+                        disabled
+                        className="opacity-50 cursor-not-allowed"
+                        tooltip={item.title}
                       >
                         <item.icon className="size-4" />
                         <span className="text-sm">{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  )}
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                        {item.upcoming && <SoonBadge />}
+                      </SidebarMenuButton>
+                    ) : (
+                      <SidebarMenuButton asChild tooltip={item.title}>
+                        <Link
+                          {...item.link}
+                          activeProps={{
+                            'data-active': 'true',
+                          }}
+                        >
+                          <item.icon className="size-4" />
+                          <span className="text-sm">{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    )}
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarSeparator className="self-center data-[orientation=horizontal]:w-[calc(100%-3rem)] group-data-[collapsible=icon]:data-[orientation=horizontal]:w-8" />

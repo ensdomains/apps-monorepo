@@ -42,6 +42,7 @@ interface InitializeAccountInput {
 class AccountInitializationError extends TaggedError(
   'AccountInitializationError',
 )<{
+  message: string
   provider: 'rhinestone' | 'routing'
   cause: AccountInitializationErrorCause
 }> {}
@@ -79,6 +80,7 @@ export function initializeAccountActor(
   if (!walletClient) {
     return errAsync(
       new AccountInitializationError({
+        message: 'Missing wallet client for Rhinestone initialization',
         provider: 'routing',
         cause: new Error('Missing wallet client for Rhinestone initialization'),
       }),
@@ -87,6 +89,7 @@ export function initializeAccountActor(
   if (!publicClient) {
     return errAsync(
       new AccountInitializationError({
+        message: 'Missing public client for Rhinestone initialization',
         provider: 'routing',
         cause: new Error('Missing public client for Rhinestone initialization'),
       }),
@@ -98,10 +101,16 @@ export function initializeAccountActor(
       walletClient,
       publicClient,
     }),
-    (error) =>
-      new AccountInitializationError({
+    (error) => {
+      const cause = error as RhinestoneErrorCause
+      return new AccountInitializationError({
+        message:
+          cause instanceof Error && cause.message
+            ? cause.message
+            : 'Failed to initialize Rhinestone account',
         provider: 'rhinestone',
-        cause: error as RhinestoneErrorCause,
-      }),
+        cause,
+      })
+    },
   ).map((result) => mapRhinestoneConfig(result, result.ownerAddress))
 }

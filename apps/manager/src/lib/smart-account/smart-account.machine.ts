@@ -30,7 +30,10 @@ type WalletConnectedEvent = {
   publicClient: PublicClient
 }
 
-type SmartAccountEvent = WalletConnectedEvent | { type: 'WALLET_DISCONNECTED' }
+type SmartAccountEvent =
+  | WalletConnectedEvent
+  | { type: 'WALLET_DISCONNECTED' }
+  | { type: 'REFRESH' }
 
 // The HCA is session-less; gas sponsorship always routes through the
 // Rhinestone Warp orchestrator (intent-based, relayer-funded). Warp is the
@@ -133,6 +136,7 @@ export const smartAccountMachine = setup({
     ready: {
       entry: [logState('ready')],
       on: {
+        REFRESH: 'initializing',
         WALLET_DISCONNECTED: 'disconnected',
       },
     },
@@ -140,6 +144,7 @@ export const smartAccountMachine = setup({
     error: {
       entry: [logState('error')],
       on: {
+        REFRESH: 'initializing',
         WALLET_DISCONNECTED: 'disconnected',
       },
     },

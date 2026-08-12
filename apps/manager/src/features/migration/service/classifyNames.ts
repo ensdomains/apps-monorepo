@@ -2,13 +2,11 @@ import type { ClassifiedName } from '@ens-apps/migration'
 
 export {
   type ClassifiedName,
-  type ClassifyNamesResult,
   classifyName,
   classifyNames,
   FUSES,
   hasFuse,
   type IneligibleName,
-  type IneligibleReason,
   type MigrationTokenType,
 } from '@ens-apps/migration'
 

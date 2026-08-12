@@ -51,7 +51,7 @@
     "@types/pg": "^8.15.5",
     "@typescript/native-preview": "catalog:",
     "concurrently": "^9.2.1",
-    "drizzle-kit": "^0.31.4",
+    "drizzle-kit": "^0.31.10",
     "typescript": "catalog:typescript6",
     "vite": "catalog:",
     "vitest": "catalog:"

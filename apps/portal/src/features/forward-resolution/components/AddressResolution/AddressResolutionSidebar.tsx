@@ -35,7 +35,9 @@ import {
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
+import { DEFAULT_REVERSE_REGISTRAR_ADDRESS } from '@/features/reverse-resolution/config'
 import { useSetL2ReverseName } from '@/features/reverse-resolution/hooks/useSetL2ReverseName'
 import { useSetReverseResolution } from '@/features/reverse-resolution/hooks/useSetReverseResolution'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -159,7 +161,7 @@ const CoinTypeRow = ({
 
 const AddressField = ({
   address,
-  isOwner,
+  canEdit,
   addressInput,
   setAddressInput,
   disabled,
@@ -168,7 +170,7 @@ const AddressField = ({
   onSave,
 }: {
   address: string | null
-  isOwner: boolean
+  canEdit: boolean
   addressInput: string
   setAddressInput: (v: string) => void
   disabled: boolean
@@ -196,7 +198,7 @@ const AddressField = ({
       ) : (
         <span className="font-mono text-sm text-muted-foreground/50">null</span>
       )}
-      {isOwner && (
+      {canEdit && (
         <div className="flex gap-2">
           <Input
             value={addressInput}
@@ -307,7 +309,7 @@ const ResolutionDetails = ({
   row,
   name,
   address,
-  isOwner,
+  canEdit,
   addressInput,
   setAddressInput,
   isBusy,
@@ -322,7 +324,7 @@ const ResolutionDetails = ({
   row: AddressResolutionRow
   name: string
   address: string | null
-  isOwner: boolean
+  canEdit: boolean
   addressInput: string
   setAddressInput: (v: string) => void
   isBusy: boolean
@@ -383,7 +385,7 @@ const ResolutionDetails = ({
         <CoinTypeRow coinType={coinType} icon={icon} label={label} />
         <AddressField
           address={address}
-          isOwner={isOwner}
+          canEdit={canEdit}
           addressInput={addressInput}
           setAddressInput={setAddressInput}
           disabled={isBusy}
@@ -413,14 +415,6 @@ const ResolutionDetails = ({
 }
 
 const SET_PRIMARY_TX_ID = 'tx-forward-set-primary-name'
-
-// Standalone ENSv1 `DefaultReverseRegistrar` on Sepolia (ENSIP-19
-// `default.reverse`, coin type 0x80000000). `setName(string)` sets the caller's
-// cross-chain primary name — NOT the ENSv2 permissioned-resolver path.
-// TODO: Sepolia-only; move to a network-keyed source (e.g. @ens-apps/l2-primary)
-// when mainnet is supported.
-const DEFAULT_REVERSE_REGISTRAR_ADDRESS =
-  '0x4f382928805ba0e23b30cfb75fc9e848e82dfd47' as const
 
 /**
  * Owns the two write flows for the selected network — editing the
@@ -474,9 +468,9 @@ const useAddressRecordEditor = (
   // The address input is fully derived — no state writes during render and no
   // effect needed: an edit applies only to the row (coin type) it was typed
   // on, so switching rows implicitly falls back to that row's current address.
-  // When the record is unset, fall back to the connected wallet so owners
+  // When the record is unset, fall back to the connected wallet so editors
   // setting their own address don't have to copy-paste it. The edit UI only
-  // renders for owners, so non-owners never see this default.
+  // renders for accounts that can write records, so others never see this default.
   const [edit, setEdit] = useState<{ coinType: number; value: string } | null>(
     null,
   )
@@ -488,10 +482,10 @@ const useAddressRecordEditor = (
     if (data) setEdit({ coinType: data.coinType, value })
   }
 
-  const isOwner =
-    !!connectedAddress &&
-    !!owner?.owner &&
-    isAddressEqual(connectedAddress, owner.owner)
+  const { canEdit } = useCanEditRecords({
+    name,
+    roles: ['ROLE_SET_ADDR'],
+  })
 
   const txId = data ? `tx-set-addr-${data.coinType}` : 'tx-set-addr'
   const onTransactionDone = () => {
@@ -620,7 +614,7 @@ const useAddressRecordEditor = (
         ]
 
   return {
-    isOwner,
+    canEdit,
     canSetPrimaryName,
     protocolVersion: owner?.protocolVersion,
     hasResolver: !!resolverAddress,
@@ -652,7 +646,7 @@ const useAddressRecordEditor = (
 
 /**
  * Sheet for a single network's forward resolution. Editing writes the
- * `addr(coinType)` record for the connected name owner.
+ * `addr(coinType)` record for accounts with resolver write permission.
  *
  * `TransactionModal` is a sibling of `SheetContent` (never nested inside it),
  * mirroring `ReverseResolutionSidebar`.
@@ -683,7 +677,7 @@ export const AddressResolutionSidebar: FC<
               row={data}
               name={name}
               address={data.address}
-              isOwner={editor.isOwner}
+              canEdit={editor.canEdit}
               addressInput={editor.addressInput}
               setAddressInput={editor.setAddressInput}
               isBusy={editor.isBusy}

@@ -12,8 +12,6 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const MOCK_HCA = '0x1111111111111111111111111111111111111111' as const
-
 const mockCreateAccount = vi.fn()
 
 vi.mock('@rhinestone/sdk', () => ({
@@ -24,9 +22,20 @@ vi.mock('@rhinestone/sdk', () => ({
 }))
 
 import { RhinestoneSDK } from '@rhinestone/sdk'
-import type { Account, Address, Chain } from 'viem'
+import {
+  type Account,
+  type Address,
+  type Chain,
+  encodeFunctionData,
+  parseAbi,
+} from 'viem'
 import { sepolia } from 'viem/chains'
-import { initializeRhinestoneAccount } from './initialize-account'
+import {
+  buildHcaDeploymentCall,
+  computeStandaloneHcaAddress,
+  getHcaDirectExecutionReadiness,
+  initializeRhinestoneAccount,
+} from './initialize-account'
 import {
   getDestinationContracts,
   ONCHAIN_ACCOUNT_ID,
@@ -34,8 +43,43 @@ import {
 } from './manifest'
 
 const OWNER = '0x2222222222222222222222222222222222222222' as Address
+const OTHER = '0x9999999999999999999999999999999999999999' as Address
 const CHAIN = sepolia as Chain
 const CONTRACTS = getDestinationContracts(sepolia.id)
+const MOCK_HCA = computeStandaloneHcaAddress({
+  chainId: sepolia.id,
+  owner: OWNER,
+})
+const hcaFactoryDeployAbi = parseAbi([
+  'function deploy(address owner, address hcaImplementation, uint256 userSalt) returns (address hca)',
+])
+const deploymentData = (
+  params: {
+    readonly owner?: Address
+    readonly implementation?: Address
+    readonly userSalt?: bigint
+  } = {},
+) =>
+  encodeFunctionData({
+    abi: hcaFactoryDeployAbi,
+    functionName: 'deploy',
+    args: [
+      params.owner ?? OWNER,
+      params.implementation ?? CONTRACTS.standaloneHcaImplementation,
+      params.userSalt ?? 0n,
+    ],
+  })
+const DEPLOY_DATA = deploymentData()
+const mockGetInitData = vi.fn(() => ({
+  factory: CONTRACTS.standaloneHcaFactory,
+  factoryData: DEPLOY_DATA,
+}))
+
+describe('computeStandaloneHcaAddress', () => {
+  it('preserves the pinned VerifiableFactory CREATE2 address', () => {
+    expect(MOCK_HCA).toBe('0x29fBA8EAfc3a898B48a314182Ea5c93ce5734DBd')
+  })
+})
 
 function makeOwnerAccount(): Account {
   return {
@@ -46,7 +90,10 @@ function makeOwnerAccount(): Account {
 }
 
 function makeSdkAccount() {
-  return { getAddress: () => MOCK_HCA } as any
+  return {
+    getAddress: () => MOCK_HCA,
+    getInitData: mockGetInitData,
+  } as any
 }
 
 /** publicClient whose reads default to a valid existing HCA. */
@@ -56,11 +103,11 @@ function makePublicClient(overrides: Partial<Record<string, any>> = {}) {
     readContract:
       overrides.readContract ??
       vi.fn().mockImplementation(({ functionName }: any) => {
-        if (functionName === 'ownerAndSessionNonce') return [OWNER, 0n]
+        if (functionName === 'owner') return OWNER
         if (functionName === 'accountId') return ONCHAIN_ACCOUNT_ID
+        if (functionName === 'authorizedOwnerOf') return OWNER
         if (functionName === 'verifyContract')
           return CONTRACTS.standaloneHcaImplementation
-        if (functionName === 'trustedHCAImplementations') return true
         return undefined
       }),
   } as any
@@ -68,6 +115,10 @@ function makePublicClient(overrides: Partial<Record<string, any>> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockGetInitData.mockReturnValue({
+    factory: CONTRACTS.standaloneHcaFactory,
+    factoryData: DEPLOY_DATA,
+  })
   mockCreateAccount.mockResolvedValue(makeSdkAccount())
 })
 
@@ -177,9 +228,10 @@ describe('initializeRhinestoneAccount (adopt existing HCA)', () => {
     const publicClient = makePublicClient({
       getCode: vi.fn().mockResolvedValue('0xabcd'),
       readContract: vi.fn().mockImplementation(({ functionName }: any) => {
-        if (functionName === 'ownerAndSessionNonce')
-          return ['0x9999999999999999999999999999999999999999', 0n]
+        if (functionName === 'owner')
+          return '0x9999999999999999999999999999999999999999'
         if (functionName === 'accountId') return ONCHAIN_ACCOUNT_ID
+        if (functionName === 'authorizedOwnerOf') return OWNER
         if (functionName === 'verifyContract')
           return CONTRACTS.standaloneHcaImplementation
         return undefined
@@ -204,8 +256,9 @@ describe('initializeRhinestoneAccount (adopt existing HCA)', () => {
     const publicClient = makePublicClient({
       getCode: vi.fn().mockResolvedValue('0xabcd'),
       readContract: vi.fn().mockImplementation(({ functionName }: any) => {
-        if (functionName === 'ownerAndSessionNonce') return [OWNER, 0n]
+        if (functionName === 'owner') return OWNER
         if (functionName === 'accountId') return 'something-else'
+        if (functionName === 'authorizedOwnerOf') return OWNER
         if (functionName === 'verifyContract')
           return CONTRACTS.standaloneHcaImplementation
         return undefined
@@ -222,15 +275,16 @@ describe('initializeRhinestoneAccount (adopt existing HCA)', () => {
     expect((result._unsafeUnwrapErr() as any).field).toBe('accountId')
   })
 
-  it('rejects a not-trusted implementation only when requireTrustedForPrimary', async () => {
+  it('rejects when the remediated factory did not authorize the connected owner', async () => {
     const publicClient = makePublicClient({
       getCode: vi.fn().mockResolvedValue('0xabcd'),
       readContract: vi.fn().mockImplementation(({ functionName }: any) => {
-        if (functionName === 'ownerAndSessionNonce') return [OWNER, 0n]
+        if (functionName === 'owner') return OWNER
         if (functionName === 'accountId') return ONCHAIN_ACCOUNT_ID
+        if (functionName === 'authorizedOwnerOf')
+          return '0x9999999999999999999999999999999999999999'
         if (functionName === 'verifyContract')
           return CONTRACTS.standaloneHcaImplementation
-        if (functionName === 'trustedHCAImplementations') return false
         return undefined
       }),
     })
@@ -240,12 +294,172 @@ describe('initializeRhinestoneAccount (adopt existing HCA)', () => {
       chain: CHAIN,
       publicClient,
       rhinestoneApiKey: 'k',
-      requireTrustedForPrimary: true,
     })
     expect(result._unsafeUnwrapErr()._tag).toBe('AccountVerificationError')
-    expect((result._unsafeUnwrapErr() as any).field).toBe(
-      'trustedImplementation',
+    expect((result._unsafeUnwrapErr() as any).field).toBe('authorizedOwner')
+  })
+})
+
+describe('direct owner execution readiness', () => {
+  it('uses SDK getInitData to expose the factory deployment call', async () => {
+    const initialized = (
+      await initializeRhinestoneAccount({
+        ownerAccount: makeOwnerAccount(),
+        eoaAddress: OWNER,
+        chain: CHAIN,
+        publicClient: makePublicClient(),
+        rhinestoneApiKey: 'k',
+      })
+    )._unsafeUnwrap()
+
+    expect(getHcaDirectExecutionReadiness(initialized)).toEqual({
+      status: 'deployment-required',
+      hca: MOCK_HCA,
+      deploymentCall: {
+        to: CONTRACTS.standaloneHcaFactory,
+        value: 0n,
+        data: DEPLOY_DATA,
+      },
+    })
+    expect(mockGetInitData).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not request factory init data for an already-deployed HCA', async () => {
+    const initialized = (
+      await initializeRhinestoneAccount({
+        ownerAccount: makeOwnerAccount(),
+        eoaAddress: OWNER,
+        chain: CHAIN,
+        publicClient: makePublicClient({
+          getCode: vi.fn().mockResolvedValue('0xabcd'),
+        }),
+        rhinestoneApiKey: 'k',
+      })
+    )._unsafeUnwrap()
+
+    expect(getHcaDirectExecutionReadiness(initialized)).toEqual({
+      status: 'ready',
+      hca: MOCK_HCA,
+    })
+    expect(mockGetInitData).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    {
+      field: 'factory',
+      client: {
+        getAddress: () => MOCK_HCA,
+        getInitData: () => ({ factory: OTHER, factoryData: DEPLOY_DATA }),
+      },
+      expectedHca: MOCK_HCA,
+    },
+    {
+      field: 'clientHca',
+      client: {
+        getAddress: () => OTHER,
+        getInitData: () => ({
+          factory: CONTRACTS.standaloneHcaFactory,
+          factoryData: DEPLOY_DATA,
+        }),
+      },
+      expectedHca: MOCK_HCA,
+    },
+    {
+      field: 'calldata',
+      client: {
+        getAddress: () => MOCK_HCA,
+        getInitData: () => ({
+          factory: CONTRACTS.standaloneHcaFactory,
+          factoryData: '0x1234' as const,
+        }),
+      },
+      expectedHca: MOCK_HCA,
+    },
+    {
+      field: 'owner',
+      client: {
+        getAddress: () => MOCK_HCA,
+        getInitData: () => ({
+          factory: CONTRACTS.standaloneHcaFactory,
+          factoryData: deploymentData({ owner: OTHER }),
+        }),
+      },
+      expectedHca: MOCK_HCA,
+    },
+    {
+      field: 'implementation',
+      client: {
+        getAddress: () => MOCK_HCA,
+        getInitData: () => ({
+          factory: CONTRACTS.standaloneHcaFactory,
+          factoryData: deploymentData({ implementation: OTHER }),
+        }),
+      },
+      expectedHca: MOCK_HCA,
+    },
+    {
+      field: 'userSalt',
+      client: {
+        getAddress: () => MOCK_HCA,
+        getInitData: () => ({
+          factory: CONTRACTS.standaloneHcaFactory,
+          factoryData: deploymentData({ userSalt: 1n }),
+        }),
+      },
+      expectedHca: MOCK_HCA,
+    },
+    {
+      field: 'derivedHca',
+      client: {
+        getAddress: () => OTHER,
+        getInitData: () => ({
+          factory: CONTRACTS.standaloneHcaFactory,
+          factoryData: DEPLOY_DATA,
+        }),
+      },
+      expectedHca: OTHER,
+    },
+  ])('rejects a mismatched $field before returning a wallet call', ({
+    client,
+    expectedHca,
+    field,
+  }) => {
+    expect(() =>
+      buildHcaDeploymentCall({
+        client,
+        chainId: sepolia.id,
+        expectedHca,
+        expectedOwner: OWNER,
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        name: 'HcaDeploymentCallValidationError',
+        field,
+      }),
     )
+  })
+
+  it('refreshes after direct deployment and returns an initData-bound client', async () => {
+    const publicClient = makePublicClient({
+      getCode: vi.fn().mockResolvedValueOnce('0x').mockResolvedValue('0xabcd'),
+    })
+    const initial = (
+      await initializeRhinestoneAccount({
+        ownerAccount: makeOwnerAccount(),
+        eoaAddress: OWNER,
+        chain: CHAIN,
+        publicClient,
+        rhinestoneApiKey: 'k',
+      })
+    )._unsafeUnwrap()
+    expect(initial.alreadyDeployed).toBe(false)
+
+    const refreshed = (await initial.refresh())._unsafeUnwrap()
+    expect(refreshed.alreadyDeployed).toBe(true)
+    expect(mockCreateAccount).toHaveBeenCalledTimes(3)
+    expect(mockCreateAccount.mock.calls[2][0]).toMatchObject({
+      initData: { address: MOCK_HCA },
+    })
   })
 })
 

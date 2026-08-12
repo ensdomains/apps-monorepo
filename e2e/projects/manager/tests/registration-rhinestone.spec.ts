@@ -25,10 +25,10 @@
  */
 import {
   authorizeTransactionsWhile,
-  expect,
   test,
 } from '../../../fixtures/playwright.manager.fixture.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
+import { expectFlowSuccess } from '../../../helpers/flow-completion.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
@@ -67,6 +67,10 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
 
     await page.getByRole('button', { name: /register name/i }).click()
 
+    // RegistrationDetails (including the completion banner) stays hidden while
+    // the parallel notification-settings region is waiting for a choice.
+    await page.getByRole('button', { name: 'Set up later' }).click()
+
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
 
     // The registration itself needs no eth_sendTransaction on the HCA path
@@ -81,7 +85,9 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
       wallet,
       () => registrationComplete,
     )
-    await expect(successBanner).toContainText('Registration Complete', {
+    await expectFlowSuccess(page, {
+      success: successBanner.filter({ hasText: 'Registration Complete' }),
+      failureTitle: 'Registration Failed',
       timeout: 240_000,
     })
     registrationComplete = true

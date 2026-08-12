@@ -5,6 +5,7 @@ import type { Address, Hex } from 'viem'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   clearAllSessions,
+  getAllSessions,
   getSession,
   getSessionByOwner,
   getSkippedStatus,
@@ -52,7 +53,15 @@ function makeSession(
 }
 
 describe('session-storage', () => {
-  beforeEach(() => clearAllSessions())
+  beforeEach(() => {
+    clearAllSessions()
+    localStorage.removeItem('ens-sessions-v7')
+  })
+
+  it('ignores sessions authorized against the pre-remediation v7 manifest', () => {
+    localStorage.setItem('ens-sessions-v7', JSON.stringify([makeSession()]))
+    expect(getAllSessions()).toEqual([])
+  })
 
   it('saves and reads back a session by HCA address (case-insensitive)', () => {
     const s = makeSession()

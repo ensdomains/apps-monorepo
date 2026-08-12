@@ -2,6 +2,7 @@ import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
+import { useConnection } from 'wagmi'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
@@ -80,6 +81,7 @@ export const PaymentCardBase = ({
   premiumAmount,
   basePrice,
   type,
+  connectionSource = 'smart-account',
 }: {
   canNext: boolean
   onNext: () => void
@@ -90,8 +92,12 @@ export const PaymentCardBase = ({
   basePrice?: number
   isLoading: boolean
   type: 'register' | 'renew'
+  connectionSource?: 'eoa' | 'smart-account'
 }) => {
-  const { isConnected } = useSmartAccountContext()
+  const { isConnected: isSmartAccountConnected } = useSmartAccountContext()
+  const { isConnected: isEoaConnected } = useConnection()
+  const isConnected =
+    connectionSource === 'eoa' ? isEoaConnected : isSmartAccountConnected
   const { openConnectModal, connectModalOpen } = useConnectModal()
 
   return (

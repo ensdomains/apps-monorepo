@@ -101,10 +101,6 @@ export const getDefaultVisibleFields = (
           return true
         }
 
-        if (field === 'name') {
-          return false
-        }
-
         if (field === 'location' || field === 'timezone') {
           return getTextRecordValue(records.contact, field).trim() !== ''
         }

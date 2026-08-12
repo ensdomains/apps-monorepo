@@ -1,14 +1,15 @@
-import { type Address, decodeErrorResult, type Hex } from 'viem'
+import { type Address, decodeErrorResult, type Hex, parseAbi } from 'viem'
 import {
   LIB_MIGRATION_ERRORS_ABI,
   MIGRATION_HELPER_ABI,
 } from '../contracts/abis'
-import { OwnedResolverDeployError } from './ensureOwnedPermRes'
 import { ProfileFetchError } from './fetchV1Profiles'
 
 export type MigrationError =
   | { type: 'generic'; message: string }
-  | { type: 'resolver-deploy-failed'; message: string }
+  | { type: 'plan-changed' }
+  | { type: 'retry-blocked' }
+  | { type: 'cleanup-failed' }
   | {
       type: 'profile-fetch-failed'
       phase: 'subgraph' | 'onchain'
@@ -16,9 +17,10 @@ export type MigrationError =
     }
   | { type: 'user-rejected' }
   | { type: 'preflight-timeout'; message: string; timeoutMs?: number }
-  | { type: 'parent-not-migrated'; parentName: string }
-  | { type: 'not-approved-operator'; nft: Address; owner: Address }
-  | { type: 'wrapped-owner-mismatch'; tokenId: bigint }
+  | { type: 'permission-missing'; tokenId?: bigint }
+  | { type: 'token-owner-changed'; tokenId?: bigint }
+  | { type: 'hca-owner-mismatch' }
+  | { type: 'direct-transfer-unauthorized'; caller: Address }
   | { type: 'name-not-locked'; tokenId: bigint }
   | { type: 'name-is-locked'; tokenId: bigint }
   | { type: 'name-data-mismatch'; tokenId: bigint }
@@ -75,64 +77,97 @@ const findTimeoutError = (
   return null
 }
 
-const findRevertData = (err: unknown): Hex | null => {
-  for (const e of walkCauseChain(err)) {
-    const data = (e as { data?: unknown }).data
-    if (typeof data === 'string' && data.startsWith('0x')) return data as Hex
-  }
-  return null
+const hasNamedError = (err: unknown, name: string): boolean =>
+  walkCauseChain(err).some((error) => error.name === name)
+
+const asHexData = (value: unknown): Hex | null =>
+  typeof value === 'string' && value.startsWith('0x') ? (value as Hex) : null
+
+const findRevertData = (err: unknown): readonly Hex[] => {
+  const matches = walkCauseChain(err).flatMap((error) => {
+    const errorRecord = error as unknown as Record<string, unknown>
+    const nestedData = errorRecord.data
+    const nestedDataRecord =
+      typeof nestedData === 'object' && nestedData !== null
+        ? (nestedData as Record<string, unknown>)
+        : null
+    return [
+      asHexData(errorRecord.raw),
+      asHexData(nestedData),
+      asHexData(nestedDataRecord?.data),
+    ].filter((data): data is Hex => data !== null)
+  })
+  return [...new Set(matches)]
 }
 
-// Length-prefixed DNS-encoded name → dotted human-readable name.
-const decodeDnsName = (encoded: Hex): string => {
-  const bytes = encoded.slice(2)
-  const labels: string[] = []
-  let i = 0
-  while (i < bytes.length) {
-    const len = parseInt(bytes.slice(i, i + 2), 16)
-    if (len === 0) break
-    i += 2
-    const labelBytes = bytes.slice(i, i + len * 2)
-    let label = ''
-    for (let j = 0; j < labelBytes.length; j += 2) {
-      label += String.fromCharCode(parseInt(labelBytes.slice(j, j + 2), 16))
-    }
-    labels.push(label)
-    i += len * 2
-  }
-  return labels.join('.')
-}
+const MIGRATION_EXECUTION_ERRORS_ABI = [
+  ...MIGRATION_HELPER_ABI,
+  ...parseAbi([
+    'error CallerNotOwner()',
+    'error UnauthorizedCaller(address caller)',
+    'error ERC721InsufficientApproval(address operator, uint256 tokenId)',
+    'error ERC721IncorrectOwner(address sender, uint256 tokenId, address owner)',
+    'error ERC1155MissingApprovalForAll(address operator, address owner)',
+    'error ERC1155InsufficientBalance(address sender, uint256 balance, uint256 needed, uint256 tokenId)',
+    'error ERC1155InvalidArrayLength(uint256 idsLength, uint256 valuesLength)',
+  ]),
+] as const
 
-const tryDecodeHelperError = (data: Hex): MigrationError | null => {
+const tryDecodeMigrationExecutionError = (data: Hex): MigrationError | null => {
   try {
-    const decoded = decodeErrorResult({ abi: MIGRATION_HELPER_ABI, data })
+    const decoded = decodeErrorResult({
+      abi: MIGRATION_EXECUTION_ERRORS_ABI,
+      data,
+    })
     switch (decoded.errorName) {
+      case 'CallerNotOwner':
+        return { type: 'hca-owner-mismatch' }
+      case 'UnauthorizedCaller':
+        return {
+          type: 'direct-transfer-unauthorized',
+          caller: decoded.args[0] as Address,
+        }
+      case 'NotApprovedOperator':
+        return { type: 'permission-missing' }
       case 'WrappedOwnerMismatch':
         return {
-          type: 'wrapped-owner-mismatch',
+          type: 'token-owner-changed',
           tokenId: decoded.args[0] as bigint,
         }
-      case 'ParentNotMigrated': {
-        const encoded = decoded.args[0] as Hex
+      case 'ParentNotMigrated':
         return {
-          type: 'parent-not-migrated',
-          parentName: decodeDnsName(encoded),
+          type: 'generic',
+          message: 'A parent name must migrate before its child names.',
         }
-      }
-      case 'NotApprovedOperator':
+      case 'ERC721InsufficientApproval':
         return {
-          type: 'not-approved-operator',
-          nft: decoded.args[0] as Address,
-          owner: decoded.args[1] as Address,
+          type: 'permission-missing',
+          tokenId: decoded.args[1] as bigint,
         }
+      case 'ERC1155MissingApprovalForAll':
+        return { type: 'permission-missing' }
+      case 'ERC721IncorrectOwner':
+        return {
+          type: 'token-owner-changed',
+          tokenId: decoded.args[1] as bigint,
+        }
+      case 'ERC1155InsufficientBalance':
+        return {
+          type: 'token-owner-changed',
+          tokenId: decoded.args[3] as bigint,
+        }
+      case 'ERC1155InvalidArrayLength':
+        return { type: 'invalid-data' }
     }
   } catch {
-    // not a helper-typed error
+    // not a helper/HCA/token/receiver error
   }
   return null
 }
 
 const ERROR_STRING_SELECTOR = '0x08c379a0'
+const WRAPPED_ERROR_PREFIX = 'WrappedError::0x'
+const MAX_REVERT_UNWRAP_DEPTH = 8
 
 const matchLibMigrationError = (data: Hex): MigrationError | null => {
   try {
@@ -163,50 +198,123 @@ const matchLibMigrationError = (data: Hex): MigrationError | null => {
   return null
 }
 
-const tryUnwrapControllerError = (data: Hex): MigrationError | null => {
+const decodeErrorStringPayload = (data: Hex): Hex | null => {
   if (!data.toLowerCase().startsWith(ERROR_STRING_SELECTOR)) return null
 
-  // NameWrapper rewraps typed reverts as revert(string(abi.encodePacked(returnData))),
-  // packing the inner revert bytes verbatim into the Error(string) payload. Read
-  // length+bytes directly from the ABI payload to sidestep viem's UTF-8 string
-  // decode (which mangles non-UTF-8 byte sequences).
-  const lengthOffset = 2 + 8 + 64 // '0x' + 4-byte selector + 32-byte offset
   try {
-    const length = Number.parseInt(
-      data.slice(lengthOffset, lengthOffset + 64),
-      16,
-    )
-    if (length >= 4) {
-      const inner = `0x${data.slice(
-        lengthOffset + 64,
-        lengthOffset + 64 + length * 2,
-      )}` as Hex
-      const match = matchLibMigrationError(inner)
-      if (match) return match
-    }
-  } catch {
-    // fall through to the hex-text path
-  }
+    const argsStart = 2 + 8
+    const offsetEnd = argsStart + 64
+    const offset = Number.parseInt(data.slice(argsStart, offsetEnd), 16)
+    const lengthStart = argsStart + offset * 2
+    const payloadStart = lengthStart + 64
+    const length = Number.parseInt(data.slice(lengthStart, payloadStart), 16)
+    const payloadEnd = payloadStart + length * 2
 
-  // Fallback: some encoders (and our older test fixtures) wrap the inner data
-  // as a "0x..." hex literal inside the string. Try that too.
-  try {
-    const wrapper = decodeErrorResult({
-      abi: [
-        { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
-      ] as const,
-      data,
-    })
-    const raw = wrapper.args[0] as string
-    const inner = (raw.startsWith('0x') ? raw : `0x${raw}`) as Hex
-    return matchLibMigrationError(inner)
+    if (
+      !Number.isSafeInteger(offset) ||
+      !Number.isSafeInteger(length) ||
+      offset < 0 ||
+      length < 0 ||
+      payloadEnd > data.length
+    ) {
+      return null
+    }
+
+    return `0x${data.slice(payloadStart, payloadEnd)}` as Hex
   } catch {
     return null
   }
 }
 
+const hexBytesToAscii = (data: Hex): string => {
+  let result = ''
+  for (let i = 2; i < data.length; i += 2) {
+    result += String.fromCharCode(Number.parseInt(data.slice(i, i + 2), 16))
+  }
+  return result
+}
+
+const parseHexText = (value: string): Hex | null => {
+  const unprefixed = value.startsWith('0x') ? value.slice(2) : value
+  if (unprefixed.length < 8 || unprefixed.length % 2 !== 0) return null
+  if (!/^[0-9a-f]+$/i.test(unprefixed)) return null
+  return `0x${unprefixed}` as Hex
+}
+
+const getNestedRevertData = (data: Hex): readonly Hex[] => {
+  const payload = decodeErrorStringPayload(data)
+  if (!payload) return []
+
+  const text = hexBytesToAscii(payload)
+  if (text.startsWith(WRAPPED_ERROR_PREFIX)) {
+    const wrapped = parseHexText(text.slice(WRAPPED_ERROR_PREFIX.length))
+    return wrapped ? [wrapped] : []
+  }
+
+  const encodedAsText = parseHexText(text)
+  return encodedAsText ? [encodedAsText] : [payload]
+}
+
+const matchDirectTransferErrorString = (data: Hex): MigrationError | null => {
+  const payload = decodeErrorStringPayload(data)
+  if (!payload) return null
+  const message = hexBytesToAscii(payload)
+
+  if (
+    /not owner nor approved|not token owner or approved|missing approval for all/i.test(
+      message,
+    )
+  ) {
+    return { type: 'permission-missing' }
+  }
+  if (
+    /incorrect owner|transfer of token that is not own|insufficient balance|nonexistent token/i.test(
+      message,
+    )
+  ) {
+    return { type: 'token-owner-changed' }
+  }
+  return null
+}
+
+const matchMigrationRevert = (data: Hex, depth = 0): MigrationError | null => {
+  if (depth >= MAX_REVERT_UNWRAP_DEPTH) return null
+
+  const directMatch =
+    tryDecodeMigrationExecutionError(data) ??
+    matchLibMigrationError(data) ??
+    matchDirectTransferErrorString(data)
+  if (directMatch) return directMatch
+
+  for (const inner of getNestedRevertData(data)) {
+    const nestedMatch = matchMigrationRevert(inner, depth + 1)
+    if (nestedMatch) return nestedMatch
+  }
+
+  return null
+}
+
 export const decodeMigrationError = (err: unknown): MigrationError => {
   if (isUserRejection(err)) return { type: 'user-rejected' }
+
+  if (hasNamedError(err, 'MigrationPlanChangedError')) {
+    return { type: 'plan-changed' }
+  }
+  if (hasNamedError(err, 'MigrationCleanupError')) {
+    return { type: 'cleanup-failed' }
+  }
+  if (
+    [
+      'SubmittedAtomicMigrationIndeterminateError',
+      'SubmittedAtomicMigrationVerificationError',
+      'AtomicMigrationIntentIndeterminateError',
+      'MigrationSourceOwnershipError',
+      'MigrationBatchJournalCorruptError',
+      'MigrationBatchJournalUnavailableError',
+    ].some((name) => hasNamedError(err, name))
+  ) {
+    return { type: 'retry-blocked' }
+  }
 
   const timeout = findTimeoutError(err)
   if (timeout) {
@@ -217,9 +325,6 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
     }
   }
 
-  if (err instanceof OwnedResolverDeployError) {
-    return { type: 'resolver-deploy-failed', message: extractErrorMessage(err) }
-  }
   if (err instanceof ProfileFetchError) {
     return {
       type: 'profile-fetch-failed',
@@ -228,12 +333,9 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
     }
   }
 
-  const revertData = findRevertData(err)
-  if (revertData) {
-    const helperMatch = tryDecodeHelperError(revertData)
-    if (helperMatch) return helperMatch
-    const wrappedMatch = tryUnwrapControllerError(revertData)
-    if (wrappedMatch) return wrappedMatch
+  for (const revertData of findRevertData(err)) {
+    const match = matchMigrationRevert(revertData)
+    if (match) return match
   }
 
   return { type: 'generic', message: extractErrorMessage(err) }
