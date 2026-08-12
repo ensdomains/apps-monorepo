@@ -135,7 +135,9 @@ export const SearchResultsList = ({
   ) => (
     <>
       {avatar}
-      <div className="flex min-w-0 flex-col items-start gap-0.5">
+      {/* Addresses and long labels are single unbreakable tokens, so they need
+          an explicit break rule or they render outside the popover. */}
+      <div className="flex min-w-0 flex-col items-start gap-0.5 wrap-anywhere">
         <span className="font-medium">{label}</span>
         {description && (
           <span className="text-xs text-muted-foreground">{description}</span>

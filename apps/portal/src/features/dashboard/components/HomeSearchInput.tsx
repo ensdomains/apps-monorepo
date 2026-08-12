@@ -275,11 +275,12 @@ export const HomeSearchInput = ({
         <PopoverContent
           align="start"
           className={cn(
-            'p-1 max-h-[min(60vh,400px)] overflow-y-auto max-w-[min(28rem,calc(100vw-1rem))]',
-            // min-width beats max-width below the minimum, so the cap repeats inside it
-            hasAnySection
-              ? 'w-max min-w-[min(max(var(--radix-popover-trigger-width),20rem),calc(100vw-1rem))]'
-              : 'w-(--radix-popover-trigger-width)',
+            'p-1 max-h-[min(60vh,400px)] overflow-y-auto w-(--radix-popover-trigger-width) max-w-[min(28rem,calc(100vw-1rem))]',
+            // Results get a floor so the narrow sidenav trigger still yields a
+            // readable popover. min-width beats max-width below the minimum,
+            // so the viewport cap repeats inside it.
+            hasAnySection &&
+              'min-w-[min(max(var(--radix-popover-trigger-width),20rem),calc(100vw-1rem))]',
           )}
           sideOffset={4}
           onOpenAutoFocus={(e) => e.preventDefault()}
