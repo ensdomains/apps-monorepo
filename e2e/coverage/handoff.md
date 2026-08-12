@@ -5,6 +5,135 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 7 — 2026-08-12 · **LOOP STOPPED — escalating**
+
+**Batch:** reprice the ledger against a real run. Full portal suite,
+`--reporter=json`, fed to `pnpm e2e:coverage --results`.
+
+**Result:** the ledger's terminal count was **inflated by 58%**, and both apps'
+write paths are blocked in this environment.
+
+```
+                     static   observed
+  HW  harness           5        5
+  R0  irreversible      6        4
+  R1  financial         2        2   (manager-side, not in this report)
+  R2  authorization    26        5
+  R3  display           1        1   (manager-side, not in this report)
+  R4  resilience        0        0
+  TOTAL                40       17
+```
+
+Run: 61 tests, **17 passed · 41 failed · 3 skipped**, 2.0h, single worker.
+Report kept at `/tmp/portal-results.json` (288 KB, not committed). Reproduce
+with:
+
+```
+pnpm exec playwright test --config=projects/portal/playwright.config.ts \
+  --reporter=json --workers=1 > /tmp/portal-run.log 2>&1
+pnpm e2e:coverage --results /tmp/portal-results.json
+```
+
+### The 41 failures are one shape, not 41 bugs
+
+Every test that **passed** is a negative or read-only assertion. Every test that
+**failed** drives a write through a UI form, and fails on a form control that
+never appears.
+
+Passing portal tests, in full: *refuses to change the resolver without
+ROLE_SET_RESOLVER* · *shows no role holders once the name has expired* · *gives
+an approved operator the blended role set* · *shows no role holders for a name
+that is only reserved* · *does not offer subname creation without
+ROLE_REGISTRAR* · *refuses to transfer an expired name* · *does not offer
+transfer for a name with CANNOT_TRANSFER burnt*. Plus all 10 harness tests.
+
+Failing locators, top of the distribution:
+
+| n | locator |
+|---|---|
+| 12 | `getByPlaceholder('ENS name or address')` |
+| 5 | roles table — `h3` "parent registry roles" → following rows |
+| 4 | `getByLabel('Type', { exact: true })` |
+| 3 | `getByRole('link', { name: 'Transfer' })` |
+| 2 | `getByRole('button', { name: 'Add user' })` |
+| 2 | `locator('#label')` |
+
+Spanning `transfer`, `roles`, `subnames`, `records`, `resolver` — five spec
+files, many distinct controls. So not a single drifted selector, but a single
+*class*: **the portal's connected/write UI does not mount here, while read-only
+and guard paths render fine.**
+
+Note the harness `wallets` test passes, and it asserts the portal header shows
+the injected account — so some connection state exists. Whatever is broken sits
+between "header knows the account" and "owner-gated forms render". Not triaged
+further; that is an app/env question, not test debt, and it is the same class as
+the manager's connect blocker from iteration 4.
+
+### The ratchet is doing its job, and it is blocking a correction
+
+`pnpm e2e:coverage --results …` now **fails**:
+
+```
+Ratchet regression (baseline may only increase):
+  ✗ R0: terminal 6 → 4
+  ✗ R2: terminal 26 → 5
+```
+
+That is correct behaviour. It also means the repo is in an uncomfortable state
+worth naming: **the truthful invocation fails and the flattering one passes.**
+Plain `pnpm e2e:coverage` still reports 40/300 and exits 0, because static mode
+means "a test exists and a config runs it".
+
+**I did not lower the baseline.** Lowering it is a scope change (§12) and the
+honest reading is ambiguous in a way only a human can settle:
+
+- if the portal write UI is *broken*, the tests are fine and the environment is
+  the blocker — the baseline should stand and the work is to fix the env;
+- if the portal write UI *changed*, the tests are stale and 21 R2 rows plus 2 R0
+  rows should genuinely return to not-started.
+
+Guessing either way corrupts the ledger. **Parked: owner sugh01, expires
+2026-08-19.**
+
+### Why the loop stopped
+
+Goal §16.4, *No progress*: iterations 6 and 7 both closed with no increase in
+terminal count. That is the stop condition, and unlike the earlier bootstrap
+iterations it is not covered by §16.6's carve-out — `HW*` did not move either.
+
+Continuing would mean authoring scenario tests against an environment where no
+write flow completes. I could not verify any of them, and unverifiable tests
+committed as coverage is precisely the failure mode this goal exists to prevent
+(§16.5: *claiming a passing run it did not observe*).
+
+### What is needed to restart, in priority order
+
+1. **Portal write UI** — 41 failures, one class. Blocks R0 `F*`, R2 `C*`/`D*`/
+   `E*`. Nothing else in the ledger is worth more.
+2. **Manager connect flow** — `VITE_FF_USE_EOA=false` (iteration 4). Blocks
+   every manager scenario. Flipping it restarts your dev server, which is why I
+   did not.
+3. **Ratchet ruling** — stand or lower, per the ambiguity above.
+4. **`0x640294a2…` identity** (iteration 2) — one address, two contract names.
+   Blocks trusting any `GR*` result.
+5. **`makeV1Name` registrar** (iteration 4) — blocks all 61 `G*` rows. Proven,
+   citable, and `test.fail()`-pinned so it goes red the moment it is fixed.
+
+Work that remains reachable *without* any of the above, if the loop restarts and
+you want progress meanwhile: the missing harness modules — **HW4** time-presets,
+**HW7** cross-app fixture, **HW8** transaction-ids, **HW9** fault-injection,
+**HW10** premigration. Each is a batch and each moves the ledger honestly.
+
+### State at stop
+
+- Bootstrap **B0–B4 complete** (B4's R2 slice audited by measurement rather than
+  by reading, which is stronger evidence than the audit would have produced).
+- Harness gates green on both projects; address gate green.
+- Ledger: static 40/300, **observed 17/300**. Invariant sites 0/32.
+- `docs/e2e-spec-audit.md` holds the per-spec verdicts.
+
+---
+
 ## Iteration 6 — 2026-08-12
 
 **Batch:** BOOTSTRAP · goal §6 **B4** — audit the inherited specs. R0 slice:

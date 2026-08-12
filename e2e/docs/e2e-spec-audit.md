@@ -111,6 +111,41 @@ from what the file actually imports.
 
 ---
 
+---
+
+## R2 · audited by measurement — 2026-08-12
+
+The four portal files below were going to be read one by one. A full suite run
+with `--results` answered the question faster and with better evidence: a test
+that fails when executed is not coverage, whatever its assertions look like.
+
+**41 of 61 failed.** R2 repriced **26 → 5**, R0 **6 → 4**, total **40 → 17**.
+
+| File | Tagged | Observed |
+|---|---|---|
+| `roles.spec.ts` | C1, C2, C3, C4, C5, C7, C8, C9, C11, C12 | C7, C8, C9 pass; the rest fail |
+| `subnames.spec.ts` | D1–D6 | D4 passes; the rest fail |
+| `resolver.spec.ts` | E3, E6, E7, E8, E10, E11 | E7 passes; the rest fail |
+| `records.spec.ts` | E1, E2, E4, E5 | all fail |
+| `transfer.spec.ts` | F1–F5, F7 | F2, F4 pass; F1, F3, F5, F7 fail |
+
+**Every survivor is a negative or read-only assertion.** Every failure drives a
+write through a UI form and dies on a control that never appears — 12 of them on
+`getByPlaceholder('ENS name or address')` alone.
+
+So these specs are **not** individually audit-failing in the §4 sense. The
+oracle quality of `roles.spec.ts` (which reads bitmaps on chain) and
+`records.spec.ts` (which reads records back on chain) looked good on inspection.
+They fail for an environmental reason that no amount of assertion review would
+have found — which is itself the lesson: **run the suite before auditing it.**
+A static read of these files would have concluded "26 R2 rows are solid" and
+been wrong in the most expensive direction.
+
+Their verdicts are therefore **deferred, not decided**. Re-run once the portal
+write UI is working; only then is a §4 reading of the surviving failures
+meaningful. See `coverage/handoff.md`, iteration 7, for the blocker and the
+parked ratchet ruling.
+
 ## Not yet audited
 
 Blocking the ledger's remaining terminal claims. In tier order.
