@@ -244,7 +244,8 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   })
 
   // `first` bounds each source's query independently — one v2 collection plus
-  // three v1 ones — so the merge can hold up to 4x it. Truncation happens on
+  // one v1 collection per registry / registrar / resolver-the-name-ever-used —
+  // so the merge can hold several times it. Truncation happens on
   // transaction boundaries because `summarizeEvents` groups by transaction: a
   // half-included transaction would be summarized from a subset of its events.
   return ok(

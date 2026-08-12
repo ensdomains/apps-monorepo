@@ -6,9 +6,17 @@ type V1SubgraphResult = {
   domain: {
     events: V1SubgraphEvent[]
     registration?: { cost?: string | null; events: V1SubgraphEvent[] } | null
-    resolver?: { events: V1SubgraphEvent[] } | null
   } | null
+  resolvers: { events: V1SubgraphEvent[] }[]
 }
+
+/**
+ * Bound on how many resolvers a single name's history is read from. The
+ * subgraph writes one `Resolver` row per (resolver address, name) pair, so this
+ * is "how many different resolvers has this name ever used" — a handful at
+ * most, well under the cap.
+ */
+const RESOLVERS_PER_NAME = 100
 
 /**
  * Fetch a name's v1 history as one flat event list — the registry / registrar /
@@ -29,6 +37,13 @@ type V1SubgraphResult = {
  * orders by `id`, and ids are `"{chainId}-{blockNumber}-{logIndex}"` strings,
  * so they sort lexicographically and put block 10000000 before block 9529458.
  *
+ * Resolver events are read from every resolver the name has ever pointed at
+ * (`resolvers(where: { domain })`), not just `domain.resolver`: that field is
+ * only the *current* one, so records set on a resolver the name has since
+ * moved off would silently drop out of what reads as a complete history. Each
+ * event names its own resolver via `resolverId`, so the flat list stays
+ * unambiguous.
+ *
  * `cost` lives on the `Registration` entity rather than on the `NameRegistered`
  * event (the subgraph writes it from a second handler), so it is folded onto
  * that event here — the adapter only ever sees events.
@@ -44,11 +59,16 @@ export const fetchV1NameHistory = async ({
   readonly first: number
   readonly orderDirection: 'asc' | 'desc'
 }): Promise<V1SubgraphEvent[]> => {
-  const { domain } = await new GraphQLClient(
+  const { domain, resolvers } = await new GraphQLClient(
     subgraphUrl,
   ).request<V1SubgraphResult>(
     gql`
-      query getV1NameHistoryTimeline($id: String!, $first: Int, $orderDirection: OrderDirection) {
+      query getV1NameHistoryTimeline(
+        $id: String!
+        $first: Int
+        $resolvers: Int
+        $orderDirection: OrderDirection
+      ) {
         domain(id: $id) {
           events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
             id
@@ -77,29 +97,29 @@ export const fetchV1NameHistory = async ({
               ... on NameTransferred { newOwner { id } }
             }
           }
-          resolver {
-            events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
-              id
-              blockNumber
-              transactionID
-              type: __typename
-              resolverId
-              ... on AddrChanged { addr { id } }
-              ... on MulticoinAddrChanged { coinType multiaddr: addr }
-              ... on NameChanged { name }
-              ... on AbiChanged { contentType }
-              ... on PubkeyChanged { x y }
-              ... on TextChanged { key value }
-              ... on ContenthashChanged { hash }
-              ... on InterfaceChanged { interfaceID implementer }
-              ... on AuthorisationChanged { owner target isAuthorized }
-              ... on VersionChanged { version }
-            }
+        }
+        resolvers(where: { domain: $id }, first: $resolvers) {
+          events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
+            id
+            blockNumber
+            transactionID
+            type: __typename
+            resolverId
+            ... on AddrChanged { addr { id } }
+            ... on MulticoinAddrChanged { coinType multiaddr: addr }
+            ... on NameChanged { name }
+            ... on AbiChanged { contentType }
+            ... on PubkeyChanged { x y }
+            ... on TextChanged { key value }
+            ... on ContenthashChanged { hash }
+            ... on InterfaceChanged { interfaceID implementer }
+            ... on AuthorisationChanged { owner target isAuthorized }
+            ... on VersionChanged { version }
           }
         }
       }
     `,
-    { id: namehash, first, orderDirection },
+    { id: namehash, first, resolvers: RESOLVERS_PER_NAME, orderDirection },
   )
 
   const cost = domain?.registration?.cost
@@ -109,6 +129,6 @@ export const fetchV1NameHistory = async ({
     ...(domain?.registration?.events ?? []).map((event) =>
       event.type === 'NameRegistered' ? { ...event, cost } : event,
     ),
-    ...(domain?.resolver?.events ?? []),
+    ...(resolvers ?? []).flatMap(({ events }) => events),
   ]
 }
