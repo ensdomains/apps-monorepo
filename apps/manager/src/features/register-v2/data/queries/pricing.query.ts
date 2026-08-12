@@ -21,7 +21,8 @@ const ETH_REGISTRAR = getChainContractAddress({
   contract: 'ensEthRegistrar',
 })
 
-// Standalone-HCA registrar (0xa4449a…) + its price getter. The displayed price
+// Standalone-HCA registrar from the shared remediated deployment manifest + its
+// price getter. The displayed price
 // MUST come from the SAME registrar the HCA flow actually pays, in the SAME
 // token (Circle Sepolia USDC), so the quote the user sees matches what the
 // commit/reveal charges. The legacy ensjs `ensEthRegistrar` + mock USDC path

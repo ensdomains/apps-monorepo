@@ -4,7 +4,6 @@ import { CheckIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import { useChainId } from 'wagmi'
 import {
   ChipCopyIcon,
   ChipLinkIcon,
@@ -179,6 +178,12 @@ interface EntityBadgeProps {
    * "wrap" breaks long values across lines inside the fill (overlays).
    */
   readonly format?: 'inline' | 'truncate' | 'wrap'
+  /**
+   * Drop the vertical padding the chip-enhanced variant reserves for its hover
+   * chips, so the badge doesn't inflate dense rows. The chips still overflow on
+   * hover (they're absolutely positioned) — only the reserved layout height is gone.
+   */
+  readonly compact?: boolean
 }
 
 export const EntityBadge = ({
@@ -197,9 +202,8 @@ export const EntityBadge = ({
   showAvatar = false,
   type = 'action',
   format = 'inline',
+  compact = false,
 }: EntityBadgeProps) => {
-  const chainId = useChainId()
-
   const labelContent = label ? (
     <span className="bg-background text-center text-entity-label leading-none px-1 py-0.5 rounded-[2px] mr-1">
       {label}
@@ -215,9 +219,7 @@ export const EntityBadge = ({
   })
   const isResolver = resolverInterfaces?.some(Boolean) ?? false
   const contractName =
-    variant === 'contract' && address
-      ? getEnsContractName(chainId, address)
-      : undefined
+    variant === 'contract' && address ? getEnsContractName(address) : undefined
 
   const derivedCopyValue =
     copyValue ?? (variant === 'name' ? name : address) ?? ''
@@ -271,11 +273,14 @@ export const EntityBadge = ({
   // tab", status-bar URL preview, and right-click affordances — none of
   // which work with a button + navigate() pattern.
   const primaryWrapperClass = cn(
-    'inline-flex items-center gap-2 py-2.5 px-2 rounded cursor-pointer text-left no-underline',
+    'inline-flex items-center gap-2 px-2 rounded cursor-pointer text-left no-underline',
     formatConstraintClass[format],
+    // `py-2.5` reserves room for the hover chips (which sit above the pill). `compact`
+    // drops it for dense rows — the chips still overflow, they just aren't reserved for.
+    compact ? 'py-0' : 'py-2.5',
     // avatar pills are h-6 (24px), so tighten the hover bridge to keep the
     // whole badge at exactly 40px like text-only pills (20px + 2*10px)
-    resolvedAvatar && 'py-2',
+    resolvedAvatar && !compact && 'py-2',
   )
 
   const renderPrimary = () => {
@@ -383,16 +388,16 @@ export const EntityBadge = ({
           // When a label is present its bg-background sub-chip acts as a visual
           // reference that makes the left strip read one pixel too wide, so
           // flush the x-inset to 0 in that case.
-          '-inset-y-0.5',
+          'inset-y-[-2px]',
           // No label: bg extends 1px beyond pill edge → ~5px colored strip to text (matches top)
           // With label: label sub-chip (~18px) in a 20px pill leaves only 1px above it, so
           //   push x inset 1px *inside* the pill edge → 3px strip to sub-chip (matches top)
           label
             ? 'inset-x-px'
             : resolvedAvatar
-              ? '-inset-x-0.5'
-              : '-inset-x-px',
-          'group-hover/entity:-inset-3',
+              ? 'inset-x-[-2px]'
+              : 'inset-x-[-1px]',
+          'group-hover/entity:inset-[-12px]',
           variantBgClass[variant],
         )}
         aria-hidden="true"

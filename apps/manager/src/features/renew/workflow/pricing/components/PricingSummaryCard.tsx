@@ -15,7 +15,10 @@ export const PricingSummaryCard = () => {
   )
 
   const newExpirationDate = useMemo(() => {
-    return getDurationExpiryDateForDisplay(duration, currentExpirationDate)
+    return getDurationExpiryDateForDisplay(
+      Number(duration),
+      currentExpirationDate,
+    )
   }, [currentExpirationDate, duration])
 
   return (
@@ -26,7 +29,7 @@ export const PricingSummaryCard = () => {
         </span>
         <span className="font-normal text-[#024A70]">
           <DurationLabel
-            duration={duration}
+            duration={Number(duration)}
             referenceDate={currentExpirationDate}
           />
         </span>

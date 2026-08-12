@@ -3,15 +3,17 @@
 import {
   computeResolverAddress,
   getDestinationContracts,
+  primaryNameGas,
 } from '@ens-apps/smart-account'
 import type { Address, Hex, PublicClient } from 'viem'
-import { decodeFunctionData, parseAbi } from 'viem'
+import { decodeFunctionData, isAddressEqual, parseAbi } from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EOASigner, Signer } from '../../types/signer.types'
 import type { RhinestoneTransactionRequest } from '../../types/transaction.types'
 import type { PermitSignature } from './registration.actors'
 import {
+  estimateHcaBudgetActor,
   readUsdcSpend,
   signFundingPermitActor,
   submitFundingAndCommitActor,
@@ -124,13 +126,9 @@ describe('submitFundingAndCommitActor', () => {
     expect((transfer.args as any)[1].toLowerCase()).toBe(HCA.toLowerCase())
     expect((transfer.args as any)[2]).toBe(permit.value)
 
-    // Paid by the HCA in USDC — no sponsorship on this route.
+    // Paid by the HCA in USDC. Sponsorship is not a request-level concern at
+    // all any more — the transport always sends the user-paid shape.
     expect(request.from.toLowerCase()).toBe(HCA.toLowerCase())
-    expect(request.rhinestoneParams.sponsored).toEqual({
-      gas: false,
-      bridging: false,
-      swaps: false,
-    })
     expect(request.rhinestoneParams.feeAsset).toBe('USDC')
     // First-use mode: enableData rides along with the intent.
     expect(request.rhinestoneParams.sessionEnableData).toBe(
@@ -331,7 +329,7 @@ describe('readUsdcSpend', () => {
     const cost = {
       tokensSpent: {
         '11155111': {
-          '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238': {
+          '0x768f42455a2d082e23ceef7d51e5787c82d67a39': {
             locked: '0',
             unlocked: '905736',
           },
@@ -429,5 +427,136 @@ describe('readUsdcSpend', () => {
         sepolia.id,
       ),
     ).toBe(7n)
+  })
+})
+
+describe('estimateHcaBudgetActor', () => {
+  const PRICE_BASE = 4_000_000n
+  const PRICE_PREMIUM = 0n
+
+  const prepareTransaction = vi.fn()
+
+  const budgetSigner = {
+    type: 'rhinestone',
+    account: {
+      getAddress: () => HCA,
+      prepareTransaction: (...args: unknown[]) => prepareTransaction(...args),
+    },
+  } as unknown as Signer
+
+  /** A quote the orchestrator priced successfully (source stays `'quote'`). */
+  const pricedQuote = {
+    intentRoute: {
+      intentCost: {
+        tokensSpent: {
+          [String(sepolia.id)]: {
+            [C.usdc.toLowerCase()]: { locked: '0', unlocked: '900000' },
+          },
+        },
+      },
+    },
+  }
+
+  const budgetClient = {
+    chain: sepolia,
+    // `readRegisterPrice` goes through the client's own method.
+    readContract: vi.fn().mockResolvedValue([PRICE_BASE, PRICE_PREMIUM]),
+    // Resolver not yet deployed — the batch opens with `deployProxy`.
+    getCode: vi.fn().mockResolvedValue('0x'),
+  } as unknown as PublicClient
+
+  const input = {
+    name: 'myname.eth',
+    duration: 31_536_000n,
+    publicClient: budgetClient,
+    chainId: sepolia.id,
+    signer: budgetSigner,
+  }
+
+  /** The `prepareTransaction` params for the reveal (register) leg. */
+  const registerLegParams = () => {
+    // Legs are quoted commit-first, then register.
+    const [params] = prepareTransaction.mock.calls[1] as unknown as [
+      { calls: { to: Address; data: Hex }[]; gasLimit: bigint },
+    ]
+    return params
+  }
+
+  beforeEach(() => {
+    prepareTransaction.mockReset()
+    prepareTransaction.mockResolvedValue(pricedQuote)
+    // `readHcaUsdcBalanceActor` — the HCA starts empty.
+    readContract.mockResolvedValue(0n)
+  })
+
+  it('quotes the reveal batch WITH the primary-name call when one is set', async () => {
+    // The permit is sized from this quote, so the quoted batch must be the
+    // batch that gets submitted. Pricing a reveal without the adapter call
+    // under-funds the HCA by that call's fee and the reveal then fails for
+    // insufficient USDC — the exact regression this locks.
+    const result = await estimateHcaBudgetActor({
+      ...input,
+      primaryName: 'myname.eth',
+    })
+
+    expect(result.isOk()).toBe(true)
+
+    const adapterCall = registerLegParams().calls.find((call) =>
+      isAddressEqual(call.to, C.defaultReverseRegistrarHcaAdapter),
+    )
+    expect(adapterCall).toBeDefined()
+
+    const decoded = decodeFunctionData({
+      abi: parseAbi(['function setNameWithHCA(address addr, string name)']),
+      // biome-ignore lint/style/noNonNullAssertion: asserted defined above
+      data: adapterCall!.data,
+    })
+    expect(decoded.functionName).toBe('setNameWithHCA')
+    // The real name, so the calldata (and cost basis) matches byte for byte.
+    expect((decoded.args as any)[1]).toBe('myname.eth')
+  })
+
+  it('widens the register gas limit by the primary-name delta', async () => {
+    // The rail prices the quote on the LIMIT (measured: /intents/route returns
+    // an identical cost for 5 vs 6 executions at the same limit), so a limit
+    // that does not cover the extra call under-funds the permit.
+    await estimateHcaBudgetActor({ ...input, primaryName: 'myname.eth' })
+    const withName = registerLegParams().gasLimit
+
+    prepareTransaction.mockClear()
+    await estimateHcaBudgetActor(input)
+    const withoutName = registerLegParams().gasLimit
+
+    expect(withName - withoutName).toBe(primaryNameGas('myname.eth'))
+  })
+
+  it('scales the widening with the name length', async () => {
+    // Measured on a Sepolia fork: <=31 bytes is one SSTORE (34_624 gas) but a
+    // 33-byte name is three (79_981). A flat allowance sized for the short
+    // case silently under-funds the long one.
+    const long = `${'n'.repeat(29)}.eth` // 33 bytes
+    expect(long.length).toBeGreaterThan(31)
+
+    await estimateHcaBudgetActor({ ...input, primaryName: long })
+    const withLong = registerLegParams().gasLimit
+
+    prepareTransaction.mockClear()
+    await estimateHcaBudgetActor({ ...input, primaryName: 'short.eth' })
+    const withShort = registerLegParams().gasLimit
+
+    expect(withLong).toBeGreaterThan(withShort)
+    expect(withLong - withShort).toBe(
+      primaryNameGas(long) - primaryNameGas('short.eth'),
+    )
+  })
+
+  it('omits the primary-name call when the user did not opt in', async () => {
+    await estimateHcaBudgetActor(input)
+
+    expect(
+      registerLegParams().calls.some((call) =>
+        isAddressEqual(call.to, C.defaultReverseRegistrarHcaAdapter),
+      ),
+    ).toBe(false)
   })
 })

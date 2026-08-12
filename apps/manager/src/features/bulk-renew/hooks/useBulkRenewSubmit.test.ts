@@ -114,9 +114,11 @@ describe('useBulkRenewSubmit', () => {
     expect(mocks.invalidateQueries).toHaveBeenCalled()
   })
 
-  it('renews from the connected wallet, never sponsored', async () => {
+  it('renews from the connected wallet, never through the HCA', async () => {
     // `AbstractETHRegistrar.renew` charges `msg.sender` with no HCA unwrap, so
-    // the EOA must be the sender AND the payer — sponsoring would bill the HCA.
+    // the EOA must be the sender AND the payer — routing this through the HCA
+    // would bill the smart account instead. The signer type IS the guarantee:
+    // an EOA request never reaches the intent transport at all.
     const { result } = renderHook(() => useBulkRenewSubmit())
 
     await act(async () => {
@@ -125,9 +127,10 @@ describe('useBulkRenewSubmit', () => {
 
     for (const call of mocks.submitRenewActor.mock.calls) {
       expect(call[0]?.signer?.type).toBe('eoa')
-      expect(call[0]?.sponsored).toBe(false)
     }
-    expect(mocks.submitApprovalActor.mock.calls[0]?.[0]?.sponsored).toBe(false)
+    expect(mocks.submitApprovalActor.mock.calls[0]?.[0]?.signer?.type).toBe(
+      'eoa',
+    )
   })
 
   it('authorizes against the canonical registrar, not a separate deployment', async () => {

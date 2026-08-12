@@ -61,7 +61,7 @@ const ReceivingChainIcons = ({
   if (withIcon.length === 0) return null
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-1 lg:landscape:min-w-50">
+    <div className="flex max-w-full shrink-0 flex-wrap items-center gap-1 lg:landscape:min-w-50">
       {withIcon.map((chain) => (
         <IconRenderer
           className="size-4.5 object-contain lg:landscape:size-6.5"
@@ -88,12 +88,12 @@ const MainAddressCard = ({
 
   return (
     <CopyableButton
-      className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-13.75 w-full justify-between gap-2 py-0 lg:landscape:h-auto lg:landscape:max-w-132.75`}
+      className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-auto min-h-13.75 w-full justify-between gap-2 py-4 lg:landscape:max-w-132.75`}
       iconClassName={profileCardCopyIconClassName}
       iconStrokeWidth={profileCardTrailingIconStrokeWidth}
       value={address.value}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-2 lg:landscape:flex-wrap">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         <div className="flex min-w-0 items-center gap-2 lg:landscape:h-6.5 lg:landscape:gap-4">
           <div className="flex min-w-0 items-center gap-1">
             <div className="size-5.5 shrink-0 overflow-hidden rounded-full bg-ens-quartz-100 lg:landscape:size-[25.576px] lg:landscape:rounded-sm">

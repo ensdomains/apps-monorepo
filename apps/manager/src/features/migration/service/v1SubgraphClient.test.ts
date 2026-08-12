@@ -121,7 +121,19 @@ describe('getV1ProfileKeys', () => {
       jsonResponse({
         data: {
           domains: [
-            { id: '0x01', resolver: { texts: ['email'], coinTypes: [60] } },
+            {
+              id: '0x01',
+              resolver: {
+                texts: ['email'],
+                coinTypes: [60],
+                contentHash: '0xe301',
+                abiChangeds: [
+                  { contentType: '1' },
+                  { contentType: '1' },
+                  { contentType: '2' },
+                ],
+              },
+            },
             { id: '0x02', resolver: null },
             { id: '0x03', resolver: { texts: null, coinTypes: null } },
           ],
@@ -131,9 +143,27 @@ describe('getV1ProfileKeys', () => {
     const result = await getV1ProfileKeys(['0x01', '0x02', '0x03'])
     assert(result.isOk())
     expect(result.value).toEqual([
-      { id: '0x01', texts: ['email'], coinTypes: [60] },
-      { id: '0x02', texts: [], coinTypes: [] },
-      { id: '0x03', texts: [], coinTypes: [] },
+      {
+        id: '0x01',
+        texts: ['email'],
+        coinTypes: [60],
+        contentHash: '0xe301',
+        abiContentTypes: [1n, 2n],
+      },
+      {
+        id: '0x02',
+        texts: [],
+        coinTypes: [],
+        contentHash: null,
+        abiContentTypes: [],
+      },
+      {
+        id: '0x03',
+        texts: [],
+        coinTypes: [],
+        contentHash: null,
+        abiContentTypes: [],
+      },
     ])
   })
 

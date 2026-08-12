@@ -36,6 +36,7 @@ import { getBlock, multicall, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
+import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 
 // `MIN_COMMITMENT_AGE` is an immutable on ETHRegistrar; ensjs-abi does not (yet)
 // expose a dedicated snippet for it.
@@ -272,11 +273,8 @@ export function getSignerAddress(signer: Signer): Address {
   }
 
   if (signer.type === 'rhinestone') {
-    if (signer.config.accountAddress) {
-      return signer.config.accountAddress
-    }
-    // Fallback to SDK method
-    return signer.account.getAddress() as Address
+    // Delegate so the cached-address verification lives in one place.
+    return getSmartAccountAddress(signer)
   }
 
   signer satisfies never
@@ -299,9 +297,8 @@ export function createTransactionRequest(params: {
   from: Address
   chainId: number
   calls: Call[]
-  sponsored?: boolean
 }): TransactionRequest {
-  const { signer, from, chainId, calls, sponsored } = params
+  const { signer, from, chainId, calls } = params
 
   if (calls.length === 0) {
     throw new Error('createTransactionRequest requires at least one call')
@@ -331,10 +328,7 @@ export function createTransactionRequest(params: {
       type: 'rhinestone-intent',
       from,
       chainId,
-      rhinestoneParams: {
-        calls,
-        sponsored: sponsored ?? true,
-      },
+      rhinestoneParams: { calls },
     }
   }
 
@@ -354,7 +348,6 @@ export function submitResolverDeploymentActor(input: {
   owner: Address
   signer: import('../..').Signer
   publicClient: PublicClient
-  sponsored?: boolean
   id?: string
 }): ResultAsync<{ txId: string; salt: bigint }, Error> {
   return ResultAsync.fromSafePromise(
@@ -369,7 +362,6 @@ export function submitResolverDeploymentActor(input: {
         calls: [
           encodeDeployDedicatedResolverCall({ owner: input.owner, salt }),
         ],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(
@@ -475,7 +467,6 @@ export function submitCommitmentActor(input: {
   name: string
   duration: bigint
   publicClient: PublicClient
-  sponsored?: boolean
   id?: string
 }): ResultAsync<string, Error> {
   const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
@@ -512,7 +503,6 @@ export function submitCommitmentActor(input: {
             value: 0n,
           },
         ],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(
@@ -835,7 +825,6 @@ export function submitApprovalActor(input: {
   selectedToken: TOKEN_SYMBOL
   signer: import('../..').Signer
   publicClient: PublicClient
-  sponsored?: boolean
   id?: string
   /** Spender to approve. Defaults to the legacy registrar. */
   registrarAddress?: Address
@@ -874,7 +863,6 @@ export function submitApprovalActor(input: {
             value: 0n,
           },
         ],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(
@@ -908,7 +896,6 @@ export function submitRegistrationActor(input: {
   selectedToken: TOKEN_SYMBOL
   owner: Address
   publicClient: PublicClient
-  sponsored?: boolean
   resolverAddress: Address
   id?: string
 }): ResultAsync<string, Error> {
@@ -948,7 +935,6 @@ export function submitRegistrationActor(input: {
         from: accountAddress,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [registerCall],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(
@@ -1026,7 +1012,7 @@ export function pollTransactionStatusActor(input: {
 // This is the same payer the `register` flow authorizes, so renewal reuses the
 // exact allowance machinery: read `allowance[EOA][registrar]`, and either skip
 // (already enough), sign a gasless EIP-2612 permit batched with `renew` in one
-// sponsored intent (rhinestone/HCA), or do a plain on-chain `approve` (EOA).
+// intent (rhinestone/HCA), or do a plain on-chain `approve` (EOA).
 
 /**
  * Encode `renew(label, duration, paymentToken, referrer)` calldata.
@@ -1056,19 +1042,15 @@ export function submitRenewActor(input: {
   selectedToken: TOKEN_SYMBOL
   signer: import('../..').Signer
   publicClient: PublicClient
-  sponsored?: boolean
+  renewerAddress?: Address
   id?: string
 }): ResultAsync<string, Error> {
   // Renewal is NOT an HCA flow — it is a plain wallet transaction against the
-  // canonical ENS deployment, so it uses the canonical registrar and token.
-  //
-  // This used to target the standalone-HCA deployment, which was a genuinely
-  // separate set of contracts. The deployment we ship against now carries those
-  // same contracts, so there is nothing left to target separately, and keeping
-  // the override meant renewing on a registrar that had never registered the
-  // name — which reverts `NameNotRenewable(label)`.
+  // selected canonical renewer. V2 callers keep the ETHRegistrar default;
+  // unmigrated V1 names explicitly target ETHRenewerV1.
   const chainId = input.publicClient.chain?.id ?? sepolia.id
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const renewerAddress =
+    input.renewerAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return fromPromise(
     (async () => {
@@ -1083,7 +1065,7 @@ export function submitRenewActor(input: {
 
       await assertPaymentTokenSupported(
         input.publicClient,
-        registrarAddress,
+        renewerAddress,
         normalizedPaymentToken,
       )
 
@@ -1097,8 +1079,7 @@ export function submitRenewActor(input: {
         signer: input.signer,
         from: accountAddress,
         chainId,
-        calls: [{ to: registrarAddress, data: renewData, value: 0n }],
-        sponsored: input.sponsored ?? true,
+        calls: [{ to: renewerAddress, data: renewData, value: 0n }],
       })
 
       const txId = transactionManager.startTransaction(

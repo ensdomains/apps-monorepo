@@ -19,6 +19,7 @@ test.describe('ENS profile', () => {
   test('add lots of records to profile', async ({
     profileConnectedPage: page,
     makeV2Name,
+    wallet,
   }) => {
     const name = await makeV2Name({ label: 'profileadd' })
     console.log(`[profile] name for add-records test: ${name}`)
@@ -52,9 +53,9 @@ test.describe('ENS profile', () => {
     // Twitter is enabled by default — fill the already-visible input.
     await page.getByLabel('Twitter', { exact: true }).fill('ens_test_user')
 
-    await saveProfileChanges(page)
-    // In Rhinestone HCA mode profile-record saves are eth_signTypedData_v4 intents
-    // that are auto-authorized by PERMITTED_SIGN_KINDS — no eth_sendTransaction.
+    // In-place record writes are always a plain eth_sendTransaction from the
+    // owner EOA, even in Rhinestone HCA mode — saveProfileChanges authorizes it.
+    await saveProfileChanges(page, wallet)
     await waitForProfileUpdated(page)
 
     console.log(`[profile] ✅ Add lots of records succeeded for ${name}`)
@@ -63,6 +64,7 @@ test.describe('ENS profile', () => {
   test('remove records from profile', async ({
     profileConnectedPage: page,
     makeV2Name,
+    wallet,
   }) => {
     const name = await makeV2Name({ label: 'profilerem' })
     console.log(`[profile] name for remove-records test: ${name}`)
@@ -81,7 +83,7 @@ test.describe('ENS profile', () => {
       .click()
     await page.getByLabel('E-mail', { exact: true }).fill('remove@example.com')
 
-    await saveProfileChanges(page)
+    await saveProfileChanges(page, wallet)
     await waitForProfileUpdated(page)
 
     // Second pass — remove both records by clicking their active pills
@@ -97,7 +99,7 @@ test.describe('ENS profile', () => {
       .and(page.locator(':not([aria-pressed])'))
       .click()
 
-    await saveProfileChanges(page)
+    await saveProfileChanges(page, wallet)
     await waitForProfileUpdated(page)
 
     // Verify they are gone on the view profile page

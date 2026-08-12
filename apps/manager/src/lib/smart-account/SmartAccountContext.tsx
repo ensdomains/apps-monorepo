@@ -34,7 +34,7 @@ import {
   type WalletClient,
 } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
-import type { EventFromLogic } from 'xstate'
+import { type EventFromLogic, waitFor } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
@@ -94,6 +94,12 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly getSessionEnablePayload: () => Promise<
     HcaSessionEnablePayload | undefined
   >
+  /**
+   * Re-initialize the in-memory smart-account client from the connected wallet.
+   * Migration calls this after a direct factory deployment so subsequent HCA
+   * reads and actions cannot retain the counterfactual/deployment snapshot.
+   */
+  readonly refreshAccount: () => Promise<void>
 }
 
 const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
@@ -178,6 +184,7 @@ function useWalletConnectionSync(
 ) {
   const connectedKeyRef = useRef<string | null>(null)
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: wallet connection transitions must remain ordered to prevent stale sessions during disconnect and account switches.
   useEffect(() => {
     const walletSource = detectWalletSource(wagmiWalletClient)
 
@@ -338,7 +345,7 @@ export const SmartAccountContextProvider = ({
   })
 
   // Smart account is HCA-only: fund the EOA (which holds the ENS name and
-  // stablecoins the smart account spends from). ETH for gas is sponsored
+  // stablecoins the smart account spends from). Execution costs are paid
   // by Rhinestone, so the SCA itself doesn't need funding.
   const addressToFund = ownerAddress
 
@@ -440,15 +447,8 @@ export const SmartAccountContextProvider = ({
   }, [balances.stablecoinBalances])
 
   useEffect(() => {
-    // The api-worker faucet mints MOCK USDC/DAI — only meaningful with the
-    // local-infra (Anvil fork) setup. The standalone-HCA flow pays in REAL
-    // Circle Sepolia USDC (the token whose balance `needsStablecoins` reads),
-    // which the faucet cannot mint; running it there leaves the real balance
-    // low, retries every refetch, and shows a misleading success toast. Gate it
-    // on `isTimeTravelEnabled()` (DEV + VITE_TIME_TRAVEL), the same "local Anvil
-    // is running" signal used by `anvilSetupOwner`. On real Sepolia the user
-    // funds their own USDC.
-    if (!isTimeTravelEnabled()) return
+    // The faucet mints MockUSDC, which is also the payment token of the
+    // standalone-HCA route, so auto-fund runs on real Sepolia too.
 
     // NOTE: deliberately NOT gated on the smart-account machine's `isLoading`.
     // Funding tops up the EOA owner's stablecoins, which is independent of HCA
@@ -468,7 +468,7 @@ export const SmartAccountContextProvider = ({
 
     // Fund when the owner is low on stablecoins. The api-worker faucet mints
     // mock USDC/DAI as needed; gated on a low balance so this stays idempotent.
-    // (HCA gas is Warp-sponsored and the payment approval is a gasless permit,
+    // (HCA execution costs are paid in USDC and the payment approval is a gasless permit,
     // so the EOA owner never needs native ETH.)
     if (!needsStablecoins) return
 
@@ -716,6 +716,22 @@ export const SmartAccountContextProvider = ({
     ? !!eoaAddress
     : !!snapshot.context.client && !!snapshot.context.accountAddress
 
+  const refreshAccount = useCallback(async (): Promise<void> => {
+    if (useEoa) return
+
+    send({ type: 'REFRESH' })
+    const refreshed = await waitFor(
+      actorRef,
+      (next) => next.matches('ready') || next.matches('error'),
+      { timeout: 30_000 },
+    )
+    if (refreshed.matches('error')) {
+      throw new Error(
+        refreshed.context.error ?? 'Failed to refresh the smart account',
+      )
+    }
+  }, [actorRef, send, useEoa])
+
   // Memoized so the provider only emits a new value when something it exposes
   // actually changes. Without this the object is rebuilt on every render — the
   // 30s balance polls, the funding mutation and the XState snapshot all churn
@@ -757,6 +773,7 @@ export const SmartAccountContextProvider = ({
             enableSession,
             activeStoredSession: null,
             getSessionEnablePayload,
+            refreshAccount,
           }
         : {
             type: 'rhinestone',
@@ -790,6 +807,7 @@ export const SmartAccountContextProvider = ({
             enableSession,
             activeStoredSession: activeSession,
             getSessionEnablePayload,
+            refreshAccount,
           },
     [
       useEoa,
@@ -818,6 +836,7 @@ export const SmartAccountContextProvider = ({
       sessionError,
       enableSession,
       getSessionEnablePayload,
+      refreshAccount,
     ],
   )
 

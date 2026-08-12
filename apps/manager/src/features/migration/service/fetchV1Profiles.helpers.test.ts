@@ -6,6 +6,7 @@ import {
   initEmptyProfileBuckets,
   mergeMulticallResultsIntoProfiles,
   type NameForFetch,
+  type ProfileKeyEntry,
   profileMapKey,
 } from './fetchV1Profiles.helpers'
 
@@ -17,6 +18,11 @@ const NODE_B: Hex =
 
 const A: NameForFetch = { nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }
 const B: NameForFetch = { nodeHex: NODE_B, v1ResolverAddress: V1_RESOLVER }
+
+const profileKeys = (
+  overrides: Omit<ProfileKeyEntry, 'contentHash' | 'abiContentTypes'> &
+    Partial<Pick<ProfileKeyEntry, 'contentHash' | 'abiContentTypes'>>,
+): ProfileKeyEntry => ({ contentHash: null, abiContentTypes: [], ...overrides })
 
 describe('profileMapKey', () => {
   it('lowercases and is idempotent', () => {
@@ -39,8 +45,8 @@ describe('buildProfileMulticallPlan', () => {
     const byNode = indexNamesByNode([A])
     const { calls, contracts } = buildProfileMulticallPlan(
       [
-        { id: NODE_A, texts: ['email'], coinTypes: [60] },
-        { id: NODE_B, texts: ['only'], coinTypes: [] },
+        profileKeys({ id: NODE_A, texts: ['email'], coinTypes: [60] }),
+        profileKeys({ id: NODE_B, texts: ['only'], coinTypes: [] }),
       ],
       byNode,
     )
@@ -55,7 +61,13 @@ describe('buildProfileMulticallPlan', () => {
   it('matches subgraph rows to names via lowercased node id', () => {
     const byNode = indexNamesByNode([A])
     const { calls } = buildProfileMulticallPlan(
-      [{ id: NODE_A.toUpperCase(), texts: ['email'], coinTypes: [] }],
+      [
+        profileKeys({
+          id: NODE_A.toUpperCase(),
+          texts: ['email'],
+          coinTypes: [],
+        }),
+      ],
       byNode,
     )
     expect(calls).toHaveLength(1)
@@ -76,6 +88,8 @@ describe('initEmptyProfileBuckets', () => {
     expect(buckets.get(profileMapKey(NODE_A))).toEqual({
       texts: [],
       addresses: [],
+      contentHash: null,
+      abis: [],
     })
   })
 })
@@ -86,7 +100,7 @@ describe('mergeMulticallResultsIntoProfiles', () => {
   it('appends text and addr entries on successful results', () => {
     const buckets = initEmptyProfileBuckets(byNode)
     const { calls } = buildProfileMulticallPlan(
-      [{ id: NODE_A, texts: ['email'], coinTypes: [60] }],
+      [profileKeys({ id: NODE_A, texts: ['email'], coinTypes: [60] })],
       byNode,
     )
     const merged = mergeMulticallResultsIntoProfiles({
@@ -114,7 +128,7 @@ describe('mergeMulticallResultsIntoProfiles', () => {
   it('drops empty text values and "0x" addr values', () => {
     const buckets = initEmptyProfileBuckets(byNode)
     const { calls } = buildProfileMulticallPlan(
-      [{ id: NODE_A, texts: ['email'], coinTypes: [60] }],
+      [profileKeys({ id: NODE_A, texts: ['email'], coinTypes: [60] })],
       byNode,
     )
     const merged = mergeMulticallResultsIntoProfiles({
@@ -134,7 +148,13 @@ describe('mergeMulticallResultsIntoProfiles', () => {
   it('skips failed results', () => {
     const buckets = initEmptyProfileBuckets(byNode)
     const { calls } = buildProfileMulticallPlan(
-      [{ id: NODE_A, texts: ['email', 'url'], coinTypes: [] }],
+      [
+        profileKeys({
+          id: NODE_A,
+          texts: ['email', 'url'],
+          coinTypes: [],
+        }),
+      ],
       byNode,
     )
     const merged = mergeMulticallResultsIntoProfiles({
@@ -148,5 +168,45 @@ describe('mergeMulticallResultsIntoProfiles', () => {
     expect(merged.get(profileMapKey(NODE_A))?.texts).toEqual([
       { key: 'url', value: 'ok-value' },
     ])
+  })
+
+  it('plans and merges contenthash and raw ABI records', () => {
+    const buckets = initEmptyProfileBuckets(byNode)
+    const { calls, contracts } = buildProfileMulticallPlan(
+      [
+        profileKeys({
+          id: NODE_A,
+          texts: [],
+          coinTypes: [],
+          contentHash: '0xe301',
+          abiContentTypes: [1n, 1n, 2n],
+        }),
+      ],
+      byNode,
+    )
+
+    expect(calls.map(({ kind }) => kind)).toEqual(['contenthash', 'abi', 'abi'])
+    expect(contracts.map(({ functionName }) => functionName)).toEqual([
+      'contenthash',
+      'ABI',
+      'ABI',
+    ])
+
+    const merged = mergeMulticallResultsIntoProfiles({
+      buckets,
+      calls,
+      results: [
+        { status: 'success', result: '0xe301' as Hex },
+        { status: 'success', result: [1n, '0x5b5d' as Hex] },
+        { status: 'success', result: [0n, '0x' as Hex] },
+      ],
+    })
+
+    expect(merged.get(profileMapKey(NODE_A))).toEqual({
+      texts: [],
+      addresses: [],
+      contentHash: '0xe301',
+      abis: [{ contentType: 1n, value: '0x5b5d' }],
+    })
   })
 })
