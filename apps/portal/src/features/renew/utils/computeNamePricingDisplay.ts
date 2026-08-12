@@ -11,7 +11,6 @@ import {
 } from '@/features/register/utils/registrationPrice'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
-import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { dateToPlainDate } from '@/utils/temporal'
 import type { SelectedName } from '../hooks/useRenewalTransactions'
@@ -51,13 +50,11 @@ export function computeNamePricingDisplay(
   duration: number,
   baseRate: bigint,
 ): NamePricingDisplay {
-  const { registrationPeriod } = getRegistrationDisplayDates(duration)
-
-  const days = Math.floor(duration / 86400)
   const baseDate = selectedName.expiryDate
     ? dateToPlainDate(selectedName.expiryDate)
     : getStartOfToday()
-  const newExpiryFormatted = formatExpiryDate(baseDate.add({ days }))
+  const { registrationPeriod, expiresFormatted: newExpiryFormatted } =
+    getRegistrationDisplayDates(duration, baseDate)
 
   const years = duration / CONTRACT_SECONDS_PER_YEAR
   const roundedYears = Math.round(years)

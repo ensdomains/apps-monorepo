@@ -1,10 +1,13 @@
 import {
   getDurationInSecondsFromYears,
   getStartOfToday,
-  plainDateToDate,
 } from '@/features/register/utils/registrationDuration'
-import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
-import { dateToPlainDate } from '@/utils/temporal'
+import {
+  CONTRACT_SECONDS_PER_YEAR,
+  MAX_REGISTRATION_YEARS,
+  SECONDS_PER_DAY,
+} from '@/lib/constants/duration'
+import { dateToPlainDate, plainDateToDate } from '@/utils/temporal'
 import type { ExtensionSpanType } from '../components/ExtensionDurationOrExpiryPicker'
 
 export const getExtensionBaseDate = (
@@ -65,13 +68,51 @@ export const getExtensionDisplayedYears = ({
  * years mode would charge. Going through `add({ years })` instead drops the
  * 6h/yr a contract year carries over a calendar one, pricing "1 year" as
  * 11 months 30 days.
+ *
+ * Built with wall-clock arithmetic (whole days + seconds-of-day), never
+ * `baseDate + duration * 1000`: `getRenewalDurationSeconds` decodes this
+ * timestamp the same wall-clock way, so an epoch delta would lose an hour
+ * across a DST transition and drop the preset just below the contract's
+ * `CONTRACT_SECONDS_PER_YEAR * N` discount tier.
  */
 export const getExtensionTimestampForYears = (
   baseDate: Temporal.PlainDate,
   years: number,
-): number =>
-  plainDateToDate(baseDate).getTime() +
-  getDurationInSecondsFromYears(years, baseDate) * 1000
+): number => {
+  const seconds = getDurationInSecondsFromYears(years, baseDate)
+
+  return baseDate
+    .add({ days: Math.floor(seconds / SECONDS_PER_DAY) })
+    .toZonedDateTime({
+      timeZone: Temporal.Now.timeZoneId(),
+      plainTime: Temporal.PlainTime.from('00:00').add({
+        seconds: seconds % SECONDS_PER_DAY,
+      }),
+    }).epochMilliseconds
+}
+
+/**
+ * Date-mode timestamp for a date picked off the calendar. A calendar day is
+ * plain local midnight — except when it lands exactly on a whole-year target,
+ * where it snaps to the preset duration instead. Encoding midnight there would
+ * drop the 6h/yr tail and reprice the user's own "6 years" chip selection as
+ * "5 years 11 months 29 days" the moment they re-picked that same day.
+ */
+export const getExtensionTimestampForPickedDate = (
+  baseDate: Temporal.PlainDate,
+  date: Temporal.PlainDate,
+): number => {
+  const days = baseDate.until(date, { largestUnit: 'day' }).days
+  const years = Math.round((days * SECONDS_PER_DAY) / CONTRACT_SECONDS_PER_YEAR)
+  const isWholeYearTarget =
+    years >= 1 &&
+    years <= MAX_REGISTRATION_YEARS &&
+    Temporal.PlainDate.compare(baseDate.add({ years }), date) === 0
+
+  return isWholeYearTarget
+    ? getExtensionTimestampForYears(baseDate, years)
+    : plainDateToDate(date).getTime()
+}
 
 export const getExtensionDurationForToggledSpan = ({
   baseDate,

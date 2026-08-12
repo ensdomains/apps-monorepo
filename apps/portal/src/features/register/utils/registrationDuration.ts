@@ -4,7 +4,6 @@ import {
   MIN_REGISTRATION_DURATION,
 } from '@/lib/constants/duration'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
-import { plainDateToDate } from '@/utils/temporal'
 
 /**
  * Returns true when `date` falls on or between `minDate` and `maxDate` (inclusive),
@@ -53,21 +52,49 @@ export const formatRegistrationDuration = (durationSeconds: number): string => {
 }
 
 /**
- * Calculates the duration in years from start to expiry.
- * Returns years rounded to two decimal places (e.g. 1.00, 3.00, 2.50).
+ * Formats the calendar span between two dates as "X years Y months Z days".
+ *
+ * Use instead of `formatRegistrationDuration` whenever a base date is known
+ * (the extend flow): seconds ÷ 365.25 d absorbs up to 23h of slack per year, so
+ * a span one day past a whole-year target renders identically to the target
+ * itself (366 days and the 365.25-day "1 year" preset both print "1 year").
+ * A calendar diff off the base date says "1 year 1 day", which is what the user
+ * picked.
  */
-export const calculateDurationFromDate = (
+export const formatCalendarDuration = (
   startDate: Temporal.PlainDate,
-  expiryDate: Temporal.PlainDate,
-): number => {
-  const diffDays = startDate.until(expiryDate, { largestUnit: 'days' }).days
+  endDate: Temporal.PlainDate,
+): string => {
+  const { years, months, days } = startDate.until(endDate, {
+    largestUnit: 'year',
+  })
 
-  if (diffDays <= 0) {
-    return 1
+  // A Feb 29 start constrains to Feb 28 a year later, which `until` reports as
+  // "11 months 30 days". That IS the whole-year target for such a name, so say
+  // so rather than shaving a day off the user's "1 year".
+  const constrainedYears = years + 1
+  if (
+    (months > 0 || days > 0) &&
+    Temporal.PlainDate.compare(
+      startDate.add({ years: constrainedYears }),
+      endDate,
+    ) === 0
+  ) {
+    return `${constrainedYears} year${constrainedYears === 1 ? '' : 's'}`
   }
 
-  const diffYears = diffDays / (CONTRACT_SECONDS_PER_YEAR / 86400)
-  return Math.round(diffYears * 100) / 100
+  const parts = [
+    [years, 'year'],
+    [months, 'month'],
+    [days, 'day'],
+  ] as const
+
+  return (
+    parts
+      .filter(([value]) => value > 0)
+      .map(([value, unit]) => `${value} ${unit}${value === 1 ? '' : 's'}`)
+      .join(' ') || '0 days'
+  )
 }
 
 /**
@@ -119,10 +146,8 @@ export const getDurationInSecondsFromYears = (
  * Inverse of `getDurationInSecondsFromYears` — round-trips cleanly so the
  * years picker keeps the user's selection regardless of start date.
  */
-export const getYearsFromDuration = (
-  durationInSeconds: number,
-  _startOfToday: Temporal.PlainDate = getStartOfToday(),
-): number => Math.round(durationInSeconds / CONTRACT_SECONDS_PER_YEAR)
+export const getYearsFromDuration = (durationInSeconds: number): number =>
+  Math.round(durationInSeconds / CONTRACT_SECONDS_PER_YEAR)
 
 /**
  * Converts duration in seconds to an expiry PlainDate for display.
@@ -148,6 +173,9 @@ export const getRegistrationExpiryDateFromSeconds = (
  *
  * Pass `baseDate` (default: today) to anchor the expiry on an existing date —
  * used by the extend flow so `expiresFormatted` reflects `currentExpiry + duration`.
+ *
+ * `registrationPeriod` is the calendar span base → expiry, so it always moves
+ * with the expiry shown next to it. See `formatCalendarDuration`.
  */
 export function getRegistrationDisplayDates(
   durationSeconds: number,
@@ -162,7 +190,7 @@ export function getRegistrationDisplayDates(
     largestUnit: 'days',
   }).days
   return {
-    registrationPeriod: formatRegistrationDuration(durationSeconds),
+    registrationPeriod: formatCalendarDuration(baseDate, expiryDate),
     registrationDays: Math.floor(durationSeconds / 86400),
     daysUntilExpiry,
     expiresFormatted: formatExpiryDate(expiryDate),
@@ -221,9 +249,3 @@ export const getDurationFromPickerDate = (
   const days = startOfToday.until(capped, { largestUnit: 'days' }).days
   return Math.max(days * 86400, MIN_REGISTRATION_DURATION)
 }
-
-/**
- * Converts a Temporal.PlainDate to a native Date for react-day-picker props.
- * Re-exported here for convenience in the date picker component.
- */
-export { plainDateToDate }

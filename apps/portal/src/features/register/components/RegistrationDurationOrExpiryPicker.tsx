@@ -45,10 +45,7 @@ export const RegistrationDurationOrExpiryPicker = ({
       setRegistrationSpanType('date')
     } else {
       setRegistrationSpanType('years')
-      const displayedYears = Math.max(
-        1,
-        Math.round(getYearsFromDuration(duration)),
-      )
+      const displayedYears = Math.max(1, getYearsFromDuration(duration))
       setDuration(getDurationInSecondsFromYears(displayedYears))
     }
   }
@@ -87,7 +84,7 @@ export const RegistrationDurationOrExpiryPicker = ({
 
         {registrationSpanType === 'years' ? (
           <RegistrationDurationPicker
-            value={Math.max(1, Math.round(getYearsFromDuration(duration)))}
+            value={Math.max(1, getYearsFromDuration(duration))}
             max={MAX_REGISTRATION_YEARS}
             onChange={(years) =>
               setDuration(getDurationInSecondsFromYears(years))

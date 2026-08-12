@@ -5,7 +5,6 @@ import { RegistrationExpiryDatePicker } from '@/features/register/components/Reg
 import {
   getMaxExpiryDateForPicker,
   getMinExpiryDateForPicker,
-  plainDateToDate,
 } from '@/features/register/utils/registrationDuration'
 import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
 import { cn } from '@/lib/utils'
@@ -14,6 +13,7 @@ import {
   getExtensionDisplayedYears,
   getExtensionDurationForToggledSpan,
   getExtensionTargetDate,
+  getExtensionTimestampForPickedDate,
   getExtensionTimestampForYears,
 } from '../utils/extensionDurationPicker'
 
@@ -100,7 +100,7 @@ export const ExtensionDurationOrExpiryPicker = ({
           <RegistrationExpiryDatePicker
             date={targetDate}
             onDateChange={(date) =>
-              setDuration(plainDateToDate(date).getTime())
+              setDuration(getExtensionTimestampForPickedDate(baseDate, date))
             }
             onYearsPresetSelect={(years) =>
               setDuration(getExtensionTimestampForYears(baseDate, years))

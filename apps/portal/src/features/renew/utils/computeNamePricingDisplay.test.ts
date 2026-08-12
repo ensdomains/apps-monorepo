@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
+import {
+  CONTRACT_SECONDS_PER_YEAR,
+  SECONDS_PER_DAY,
+} from '@/lib/constants/duration'
 import { computeNamePricingDisplay } from './computeNamePricingDisplay'
 
 const USDC_DECIMALS = 6
@@ -38,11 +41,29 @@ describe('computeNamePricingDisplay', () => {
       expect(result.registrationPeriod).toBeTruthy()
       expect(typeof result.registrationPeriod).toBe('string')
     })
+
+    it('distinguishes a day past a whole-year target from the target itself', () => {
+      // Both spans used to print "1 year": seconds ÷ 365.25 d absorbs the extra
+      // day, so picking Aug 7 instead of Aug 6 changed the price but not the
+      // extension text.
+      const period = (durationDays: number) =>
+        computeNamePricingDisplay(
+          selectedName('hello.eth', new Date(2033, 7, 6)),
+          mockPrice(5),
+          durationDays * SECONDS_PER_DAY,
+          0n,
+        ).registrationPeriod
+
+      expect(period(365)).toBe('1 year')
+      expect(period(366)).toBe('1 year 1 day')
+    })
   })
 
   describe('newExpiryFormatted', () => {
     it('adds duration days to the existing expiry date', () => {
-      const expiryDate = new Date('2024-01-01T00:00:00Z')
+      // Local-midnight Date: the expiry is read in the local calendar, so a UTC
+      // literal asserts a different day west of UTC.
+      const expiryDate = new Date(2024, 0, 1)
       const result = computeNamePricingDisplay(
         selectedName('hello.eth', expiryDate),
         mockPrice(5),
