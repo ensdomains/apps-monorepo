@@ -5,6 +5,75 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 8 — 2026-08-12 · the real numbers
+
+Portal suite re-run against the corrected environment.
+
+```
+                    run 1 (bad env)   run 2 (fixed)
+  passed                  17               58
+  failed                  41                1
+  skipped                  3                3
+  duration               2.0h             8.9m
+```
+
+**`pnpm e2e:coverage --results` now reports 40/300 and exits 0.** Same number as
+static mode — which is the point: every static PASS is now a *verified* PASS,
+not an assumption. The ledger's evidence quality went up without the count
+moving.
+
+```
+  HW  harness         5/10
+  R0  irreversible    6/83    PASS 4 · DEFECT 2
+  R1  financial       2/50
+  R2  authorization  26/64    ← the 26 are real
+  R3  display         1/70
+  R4  resilience      0/23
+```
+
+**The single failure is correct and should stay red.** `transfer.spec.ts ::
+surfaces an error when the recipient cannot receive the token` (F5) fails with
+*"the resolver must not be detached for a transfer that cannot complete"* —
+that is the committed regression test for open S1 **E2E-002**, doing exactly
+what §7 prescribes: app wrong → file the defect, keep the failing test
+committed. The reconciler counts F5 as DEFECT, which is terminal.
+
+The 2.0h → 8.9m collapse is the tell: run 1 was 41 tests each burning a 60s
+locator timeout against an app that could not see their fixtures.
+
+### What is now settled, and what is not
+
+- **Settled:** the 23 rows I flagged as possibly-stale are fine. No ratchet
+  ruling needed. No portal write-UI bug exists. Iteration 7's escalation is
+  fully void.
+- **Not settled:** B4's R2 audit. Passing is not the same as meeting §4 — a test
+  can be green on a weak oracle. Iteration 6's doc claimed R2 was "audited by
+  measurement"; that was wrong twice, first because the run was invalid and
+  second because a green run is not an oracle review. `roles.spec.ts`,
+  `subnames.spec.ts`, `resolver.spec.ts` and `records.spec.ts` still need
+  reading against §4. They now have a *much* better prior — they read bitmaps
+  and records back on chain — but that is an impression, not an audit.
+
+### Blockers, updated
+
+| Was | Now |
+|---|---|
+| Portal write UI broken | **resolved** — was the env, fixed by the repo owner |
+| Ratchet ruling needed | **withdrawn** — premise was void |
+| Manager connect flow (`VITE_FF_USE_EOA`) | `.env` restored; **needs a manager-suite run to confirm** |
+| `0x640294a2…` identity | **still open** — owner sugh01, expires 2026-08-18 |
+| `makeV1Name` registrar | **still open** — blocks all 61 `G*` rows |
+
+### Next
+
+1. **Run the manager suite** the same way — `--reporter=json` → `--results`. Its
+   `.env` was restored too, so the iteration-4 connect blocker may already be
+   gone. That reprices R1/R3 on real evidence and is cheap.
+2. **B4's R2 slice** — read the four portal files against §4.
+3. Then R0 proper: `F` (14 rows) and `I` (6).
+
+---
+
 ## Iteration 7a — 2026-08-12 · **CORRECTION to iteration 7**
 
 Iteration 7's diagnosis below was **wrong**, and its numbers are void. Keeping
