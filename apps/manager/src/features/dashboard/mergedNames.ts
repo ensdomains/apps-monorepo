@@ -201,10 +201,11 @@ export const mergedRowMetadata = (
   const expiryDate = getMergedExpiryDate(item.sortExpiry)
   const isV1 = item.kind === 'v1'
   const isV2 = !isV1
-  const isInGrace = isInGracePeriod(expiryDate, isV2, now)
+  const protocol = isV2 ? 'v2' : 'v1'
+  const isInGrace = isInGracePeriod(expiryDate, protocol, now)
   const graceEndDate =
-    expiryDate && isInGrace ? getGraceEndDate(expiryDate, isV2) : null
-  const displayExpiryDate = getDisplayExpiryDate(expiryDate, isV2, now)
+    expiryDate && isInGrace ? getGraceEndDate(expiryDate, protocol) : null
+  const displayExpiryDate = getDisplayExpiryDate(expiryDate, protocol, now)
   const isMigrationEligible = getIsMigrationEligible(item)
   const daysUntilExpiry = getDaysUntil(expiryDate)
   const daysSinceExpiry =

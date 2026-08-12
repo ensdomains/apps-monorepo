@@ -105,12 +105,7 @@ export const Route = createFileRoute('/$name/')({
       expiryData?.expiry == null
         ? null
         : new Date(Number(expiryData.expiry) * 1000)
-    // v1 names get a 90 day grace, v2 a 28 day one, so judging a v1 name as v2
-    // declares it past grace up to 62 days early.
-    const isPastGrace = isPastGracePeriod(
-      expiryDate,
-      ownerData.protocol === 'v2',
-    )
+    const isPastGrace = isPastGracePeriod(expiryDate, ownerData.protocol)
 
     if (isPastGrace && (await isFreeToRegister(queryClient, name))) {
       throw redirect({
