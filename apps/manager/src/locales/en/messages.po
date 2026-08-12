@@ -286,6 +286,10 @@ msgstr "An error occurred during registration. Please try again."
 msgid "An error occurred during verification"
 msgstr "An error occurred during verification"
 
+#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
+msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "And more..."
 msgstr "And more..."
@@ -1145,7 +1149,6 @@ msgid "Finishing setup"
 msgstr "Finishing setup"
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
 msgid "for"
 msgstr "for"
@@ -1522,6 +1525,10 @@ msgstr "Need help?"
 msgid "Need more help? Visit ENS Support Docs"
 msgstr "Need more help? Visit ENS Support Docs"
 
+#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+msgid "Network cost"
+msgstr "Network cost"
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Never lose your name to expiry."
 msgstr "Never lose your name to expiry."
@@ -1599,6 +1606,28 @@ msgstr "No wallet connected yet"
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
 msgid "Not a valid name format"
 msgstr "Not a valid name format"
+
+#. placeholder {0}: f.total.toFixed(2)
+#. placeholder {1}: f.hcaCredit.toFixed(2)
+#. placeholder {2}: f.walletDebit.toFixed(2)
+#. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Not enough USDC. This registration costs {0} USDC and your account already holds {1}, so you need {2} more — but your wallet holds {3} USDC."
+msgstr "Not enough USDC. This registration costs {0} USDC and your account already holds {1}, so you need {2} more — but your wallet holds {3} USDC."
+
+#. placeholder {0}: f.walletDebit.toFixed(2)
+#. placeholder {1}: f.registration.toFixed(2)
+#. placeholder {2}: f.networkFee.toFixed(2)
+#. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Not enough USDC. This registration needs {0} USDC — a {1} registration plus a {2} network cost — but your wallet holds {3} USDC."
+msgstr "Not enough USDC. This registration needs {0} USDC — a {1} registration plus a {2} network cost — but your wallet holds {3} USDC."
+
+#. placeholder {0}: e.required.toFixed(2)
+#. placeholder {1}: e.available.toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
+msgstr "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
 
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx
@@ -2754,6 +2783,7 @@ msgid "total"
 msgstr "total"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
 msgid "Total"
 msgstr "Total"
 
@@ -2816,6 +2846,10 @@ msgstr "unique searches in the last 30 days"
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Unread only"
 msgstr "Unread only"
+
+#: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
+msgid "up to"
+msgstr "up to"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Updating address..."
@@ -3095,12 +3129,9 @@ msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr "Wallet isn’t ready yet. Try again in a moment."
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't confirm that {domainName} is still available. Please try again."
 msgstr "We couldn't confirm that {domainName} is still available. Please try again."
-
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "We couldn't confirm that {label}.eth is still available. Please try again."
-msgstr "We couldn't confirm that {label}.eth is still available. Please try again."
 
 #: src/features/renew/workflow/components/RenewalRouteError.tsx
 msgid "We couldn’t confirm that this name is renewable."
@@ -3130,6 +3161,10 @@ msgstr "What additional fee are you willing to pay?"
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "What is a primary name?"
 msgstr "What is a primary name?"
+
+#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+msgid "What is the network cost?"
+msgstr "What is the network cost?"
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 #: src/features/renew/workflow/result/FailureStep.tsx
