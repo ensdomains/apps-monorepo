@@ -14,6 +14,7 @@ import { useTransactionModalRouteReset } from '@/features/transaction-manager/ho
 import { ConnectModalProvider } from '@/features/wallet/ConnectModalProvider'
 import { MockWalletAutoConnect } from '@/features/wallet/MockWalletAutoConnect'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { isMockWalletEnabled } from '@/lib/mockWallet.mock'
 import { PHProvider } from '@/lib/posthog/provider'
 import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
@@ -45,6 +46,8 @@ function TransactionManagerSetup({ children }: { children: ReactNode }) {
 export const Route = createRootRoute({
   staticData: { hideSidebar: true },
   component: () => {
+    useDocumentTitle()
+
     return (
       <>
         <WagmiProvider config={wagmiConfig}>

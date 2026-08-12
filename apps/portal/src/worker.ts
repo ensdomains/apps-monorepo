@@ -10,6 +10,7 @@ import {
   renderResolverOgImage,
   renderTldOgImage,
 } from './worker/og-render'
+import { getPageTitle } from './worker/pageTitle'
 import {
   extractAddrFromPath,
   extractNameFromPath,
@@ -19,7 +20,6 @@ import {
   isAddrSubpage,
   isTldRoute,
   matchContractRoute,
-  truncateAddress,
 } from './worker/routing'
 
 /** Only inject meta tags / render OG cards for navigations, not asset fetches. */
@@ -191,16 +191,13 @@ function handleAddressPage(
   if (!address) return env.ASSETS.fetch(request)
 
   const decodedAddress = decodeURIComponent(address)
-  const displayAddress = truncateAddress(decodedAddress, 6, 5)
   const segments = url.pathname.split('/')
   const subpage = segments.length > 3 ? segments.slice(3).join('/') : ''
   const encoded = encodeURIComponent(decodedAddress)
   const imageUrl = subpage
     ? `https://${url.host}/og/addr/${encoded}/${encodeURIComponent(subpage)}.png`
     : `https://${url.host}/og/addr/${encoded}.png`
-  const pageTitle = subpage
-    ? `${displayAddress} > ${subpage} — ENS Explorer App`
-    : `${displayAddress} — ENS Explorer App`
+  const pageTitle = getPageTitle(url.pathname, url.searchParams)
 
   return injectMeta(request, env, {
     title: pageTitle,
@@ -222,14 +219,11 @@ function handleContractPage(
 ): Promise<Response> {
   const label = kind === 'resolver' ? 'Resolver' : 'Registry'
   const decodedAddress = decodeURIComponent(address)
-  const displayAddress = truncateAddress(decodedAddress, 6, 5)
   const encoded = encodeURIComponent(decodedAddress)
   const imageUrl = subpage
     ? `https://${url.host}/og/${kind}/${encoded}/${encodeURIComponent(subpage)}.png`
     : `https://${url.host}/og/${kind}/${encoded}.png`
-  const pageTitle = subpage
-    ? `${label} ${displayAddress} > ${subpage} — ENS Explorer App`
-    : `${label} ${displayAddress} — ENS Explorer App`
+  const pageTitle = getPageTitle(url.pathname, url.searchParams)
 
   return injectMeta(request, env, {
     title: pageTitle,
@@ -259,10 +253,7 @@ async function handleNamePage(
   const imageUrl = subpage
     ? `https://${url.host}/og/${encoded}/${encodeURIComponent(subpage)}.png`
     : `https://${url.host}/og/${encoded}.png`
-  const subpageTitle = segments.length > 2 ? segments.slice(2).join(' > ') : ''
-  const pageTitle = subpageTitle
-    ? `${decodedName} > ${subpageTitle} — ENS Explorer App`
-    : `${decodedName} — ENS Explorer App`
+  const pageTitle = getPageTitle(url.pathname, url.searchParams)
 
   return new HTMLRewriter()
     .on(
@@ -291,7 +282,7 @@ function handleTldPage(
   if (!tld) return env.ASSETS.fetch(request)
 
   const decodedTld = decodeURIComponent(tld)
-  const pageTitle = `${decodedTld} — ENS Explorer App`
+  const pageTitle = getPageTitle(url.pathname, url.searchParams)
 
   return injectMeta(request, env, {
     title: pageTitle,
@@ -362,7 +353,7 @@ function handlePageMeta(
 
   // All other routes: inject default OG meta tags.
   return injectMeta(request, env, {
-    title: 'ENS Explorer App',
+    title: getPageTitle(url.pathname, url.searchParams),
     description: 'Explore ENS names and addresses',
     imageUrl: `https://${url.host}/og/default.png`,
   })
