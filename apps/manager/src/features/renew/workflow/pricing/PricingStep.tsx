@@ -17,7 +17,7 @@ export const RenewPricingStep = () => {
     <RenewPageLayout>
       {protocol === 'v1' ? (
         <div className="flex flex-col items-center gap-3 md:items-start">
-          <span className="inline-flex h-5 w-fit items-center gap-1 whitespace-nowrap rounded-full border-[0.5px] border-ens-peridot-500 px-2 font-sans text-ens-peridot-500 text-sm leading-none tracking-[0.28px]">
+          <span className="inline-flex h-5 w-fit items-center gap-1 whitespace-nowrap rounded-full border border-ens-peridot-500 px-2 font-sans text-ens-peridot-500 text-sm leading-none tracking-wide">
             <img alt="" className="size-4 shrink-0" src={ensMarkBadge} />
             <Trans>ENSv1 only</Trans>
           </span>
