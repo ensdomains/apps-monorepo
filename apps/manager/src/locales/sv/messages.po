@@ -605,6 +605,10 @@ msgstr ""
 msgid "Complete upgrade and receive a collectible marking your place in ENS history."
 msgstr ""
 
+#: src/features/migration/components/MigrationProgressBanner.tsx
+msgid "Complete upgrade to unlock your new ENS profile."
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
 msgid "Complete your profile"
 msgstr ""
@@ -2881,12 +2885,24 @@ msgstr ""
 msgid "Upgrade your name to edit your new ENS profile and claim your personalized NFT."
 msgstr ""
 
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "Upgrade your name to edit your new ENS profile."
+msgstr ""
+
 #: src/features/migration/components/MigrationModal.tsx
 msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
+#: src/features/migration/components/MigrationModal.tsx
+msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile."
+msgstr ""
+
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
+msgstr ""
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "Upgrade your name(s) to unlock your new ENS profile."
 msgstr ""
 
 #: src/features/migration/components/GameStep.tsx
