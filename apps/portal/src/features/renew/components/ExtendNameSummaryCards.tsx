@@ -1,8 +1,13 @@
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
-import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
+import {
+  getRegistrationDisplayDates,
+  getRegistrationExpiryDateFromSeconds,
+  getStartOfToday,
+} from '@/features/register/utils/registrationDuration'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { dateToPlainDate } from '@/utils/temporal'
+import { formatExtensionPeriod } from '../utils/formatExtensionPeriod'
 
 type ExtendNameSummaryCardsProps = {
   readonly durationSeconds: number
@@ -21,14 +26,12 @@ export const ExtendNameSummaryCards = ({
   price,
   baseDate,
 }: ExtendNameSummaryCardsProps) => {
-  const {
-    registrationPeriod,
-    registrationDays,
-    daysUntilExpiry,
-    expiresFormatted,
-  } = getRegistrationDisplayDates(
-    durationSeconds,
-    baseDate ? dateToPlainDate(baseDate) : undefined,
+  const basePlainDate = baseDate ? dateToPlainDate(baseDate) : getStartOfToday()
+  const { registrationDays, daysUntilExpiry, expiresFormatted } =
+    getRegistrationDisplayDates(durationSeconds, basePlainDate)
+  const registrationPeriod = formatExtensionPeriod(
+    basePlainDate,
+    getRegistrationExpiryDateFromSeconds(basePlainDate, durationSeconds),
   )
 
   // Renewal only charges `base` (the renewer's `renew` — v2 ETHRegistrar or v1

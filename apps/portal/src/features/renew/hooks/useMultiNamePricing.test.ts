@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  CONTRACT_SECONDS_PER_YEAR,
-  MIN_REGISTRATION_DURATION,
-} from '@/lib/constants/duration'
+import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import {
   getLatestRenewalExpiry,
   getRenewalDurationSeconds,
@@ -122,20 +119,6 @@ describe('useMultiNamePricing pure helpers', () => {
 
       // Same target, so the earlier-expiring name buys exactly a year more.
       expect(durations).toEqual([1096 * 86400, 731 * 86400])
-    })
-
-    it('falls back to the 28-day minimum for a name already expiring past the target', () => {
-      // Multi-name date mode shares one target across the basket, so a name
-      // that already outlives it has no span to buy. It gets the contract
-      // minimum instead — the UI has no way to shorten an expiry, so such a
-      // name is renewed 28 days past its own expiry, not "until" the target.
-      const result = getRenewalDurationSeconds({
-        spanType: 'date',
-        duration: new Date(2030, 0, 1).getTime(),
-        baseDate: plainDate('2040-01-01'),
-      })
-
-      expect(result).toBe(MIN_REGISTRATION_DURATION)
     })
 
     it('throws for invalid date mode duration', () => {

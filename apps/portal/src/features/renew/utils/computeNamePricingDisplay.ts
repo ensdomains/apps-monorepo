@@ -1,19 +1,18 @@
 import { formatUnits } from 'viem'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import { getEffectivePricePerYearUsd } from '@/features/register/utils/effectivePricePerYear'
-import {
-  getRegistrationDisplayDates,
-  getStartOfToday,
-} from '@/features/register/utils/registrationDuration'
+import { getStartOfToday } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,
   formatRegistrationTotal,
 } from '@/features/register/utils/registrationPrice'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
+import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { dateToPlainDate } from '@/utils/temporal'
 import type { SelectedName } from '../hooks/useRenewalTransactions'
+import { formatExtensionPeriod } from './formatExtensionPeriod'
 
 export type NamePricingDisplay = {
   /** e.g. "3 years" */
@@ -50,11 +49,13 @@ export function computeNamePricingDisplay(
   duration: number,
   baseRate: bigint,
 ): NamePricingDisplay {
+  const days = Math.floor(duration / 86400)
   const baseDate = selectedName.expiryDate
     ? dateToPlainDate(selectedName.expiryDate)
     : getStartOfToday()
-  const { registrationPeriod, expiresFormatted: newExpiryFormatted } =
-    getRegistrationDisplayDates(duration, baseDate)
+  const newExpiryDate = baseDate.add({ days })
+  const newExpiryFormatted = formatExpiryDate(newExpiryDate)
+  const registrationPeriod = formatExtensionPeriod(baseDate, newExpiryDate)
 
   const years = duration / CONTRACT_SECONDS_PER_YEAR
   const roundedYears = Math.round(years)
