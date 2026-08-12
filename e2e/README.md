@@ -20,6 +20,12 @@ The E2E test suite lives in `e2e/` at the monorepo root and uses **Playwright** 
 
 **Config**: `playwright.config.base.ts` — shared settings (single worker, no parallelism, retries on CI only). Each project extends it in `projects/<app>/playwright.config.ts`.
 
+### Pinned images
+
+`anvil` and `mockestrator` are pinned **by digest** in `e2e/infra/docker-compose.yml`. CI runs on throwaway runners and pulls fresh every job, so a service left on a moving tag ships a different build on every run and an upstream push can turn CI red with no change in this repo — an anvil nightly that silently dropped some of the mockestrator's impersonated transactions is what made the manager registration test flaky through August 2026.
+
+The header comment in `docker-compose.yml` records the resolved versions, the evidence, and the procedure for bumping a pin. Alto, the paymaster and Panoptes are intentionally still on moving tags.
+
 ---
 
 ## Project Structure
@@ -146,9 +152,11 @@ Same registration flow as the standard registration test (`registration.spec.ts`
 
 ### Additional Infrastructure
 
-The mockestrator (`public.ecr.aws/rhinestone/mockestrator:latest`) is included in the e2e Docker stack. It simulates the Rhinestone orchestrator locally, using:
+The mockestrator (ENS fork: `ghcr.io/ensdomains/mockestrator`, **pinned by digest** — not the upstream `public.ecr.aws/rhinestone/mockestrator` image) is included in the e2e Docker stack. It simulates the Rhinestone orchestrator locally, using:
 - `e2e/infra/mockestrator/rpcs.json` — maps chain 11155111 to the Anvil fork
 - `e2e/infra/mockestrator/chains.json` — maps USDC to the standalone deployment's Circle Sepolia USDC (balances/allowances at slots 9/10)
+
+Note that it fills an intent by impersonating the smart account and sending **one transaction per call** in the batch, so — unlike the real orchestrator — a batch can land partially. It still reports the intent `COMPLETED`, carrying only the *last* call's transaction hash. A batch that stops halfway therefore looks like success to the app, which then waits for a receipt that never arrives; see [Pinned images](#pinned-images).
 
 ### Required Environment Variables
 

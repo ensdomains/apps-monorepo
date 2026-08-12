@@ -1,24 +1,14 @@
 import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 import { CheckAvailability } from '../components/CheckAvailability/CheckAvailability'
 
 export const CheckDomainPage = () => {
   const navigate = useNavigate()
   const handleRegistrationComplete = (name: string) => {
-    navigate(
-      isFeatureEnabled('REGISTRATION_V2')
-        ? {
-            params: { name },
-            to: '/register/$name',
-          }
-        : {
-            search: {
-              name,
-            },
-            to: '/register',
-          },
-    )
+    navigate({
+      params: { name },
+      to: '/register/$name',
+    })
   }
 
   return (

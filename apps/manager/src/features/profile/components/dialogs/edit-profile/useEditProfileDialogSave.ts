@@ -31,9 +31,10 @@ import { setupControlledResolver } from '@/features/profile/service/setupControl
 import type { ProfileRecords } from '@/features/profile/types'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
-import type {
-  editProfileDialogMachine,
-  PendingSave,
+import {
+  type editProfileDialogMachine,
+  hasOwnerWallet,
+  type PendingSave,
 } from './EditProfileDialog.machine'
 import type {
   EditProfileForm,
@@ -390,6 +391,7 @@ export const useEditProfileDialogSave = ({
           publicClient: publicClient as PublicClient,
           retryCount: 0,
           signer: account.signer,
+          walletClient: account.walletClient,
         },
       })
 
@@ -403,7 +405,12 @@ export const useEditProfileDialogSave = ({
       toast.error(t`Cannot save profile`, {
         description: getSaveBlockedDescription({
           hasOwner: Boolean(owner),
-          hasAccount: Boolean(account.signer && account.accountAddress),
+          // Mirrors the machine's `missingAccount` guard: setup needs the HCA
+          // signer, an in-place write needs a connected wallet still bound to
+          // the owner address.
+          hasAccount: needsResolverSetup
+            ? Boolean(account.signer && account.accountAddress)
+            : hasOwnerWallet(account.walletClient, ownerAddress),
           hasSetupSigner: !(
             needsResolverSetup &&
             (account.signer?.type !== 'rhinestone' || !ownerAddress)
@@ -415,6 +422,7 @@ export const useEditProfileDialogSave = ({
     [
       account.accountAddress,
       account.signer,
+      account.walletClient,
       chainId,
       dialogActor,
       isResolverAccessPending,

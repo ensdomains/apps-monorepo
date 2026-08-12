@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
-import { getAddress } from 'viem'
+import { getAddress, isAddressEqual } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
@@ -191,9 +191,21 @@ const useUpdateEthAddressMutation = ({
   return useMutation({
     mutationFn: async () => {
       if (!selectedName || !account.ownerAddress) return
-      if (!account.signer || !account.accountAddress) return
 
       const walletAddress = account.ownerAddress as Address
+
+      // Writing a record on an existing resolver is an owner-EOA transaction,
+      // not an HCA intent — the resolver authorizes the owner wallet, and the
+      // session validator's action policy rejects the same call as an intent.
+      // Require the wallet still bound to the owner: `resolverWriteAccess`
+      // probed from that address, so a mid-switch wallet would revert on-chain.
+      const { walletClient } = account
+      if (
+        !walletClient?.account ||
+        !isAddressEqual(walletClient.account.address, walletAddress)
+      ) {
+        return
+      }
 
       const snapshot = await getProfileEthAddressSnapshot(
         selectedName,
@@ -223,8 +235,8 @@ const useUpdateEthAddressMutation = ({
           texts: [],
           coins: [{ coinType: 60, value: getAddress(walletAddress) }],
         },
-        signer: account.signer,
-        accountAddress: account.accountAddress,
+        signer: { type: 'eoa', walletClient },
+        accountAddress: walletClient.account.address,
         publicClient: publicClient as PublicClient,
         chainId,
         resolverAddress,

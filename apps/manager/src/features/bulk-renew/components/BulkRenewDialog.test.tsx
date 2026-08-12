@@ -30,8 +30,6 @@ vi.mock('motion/react', () => ({
   ),
 }))
 
-vi.mock('@/utils/feature-flags', () => ({ isFeatureEnabled: () => false }))
-
 // Light stubs for everything except SuccessStep, which echoes the dates it's
 // handed so the assertion can read them.
 vi.mock('./DurationPresets', () => ({ DurationPresets: () => <div /> }))
