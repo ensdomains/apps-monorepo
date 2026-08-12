@@ -5,6 +5,82 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 14 — 2026-08-12 · the grant is reproducible now · **LOOP STOPPED, needs a ruling**
+
+**Batch:** implement iteration 13's recipe.
+
+**Result:** PASS 0 · DEFECT 0 · EXEMPT 0 · PRODUCT-GAP 0. **Ratchet unchanged at
+44.** Second consecutive iteration with no terminal progress, so the anti-stall
+rule fires and **the loop is stopped deliberately** — see the ruling needed
+below. This is the rule working, not a malfunction.
+
+**In flight: nothing.**
+
+### Landed
+
+- **`fixtures/v1-controller-auth.ts`** — `ensureV1ControllersAuthorised()`, the
+  reproducible form of iteration 13's probe. Idempotent, memoised per process,
+  grants only what is missing, and **reads back after writing** (rule 5) so a
+  silent no-op cannot recur. Grants both
+  `base.controllers(ETHRegistrarController)` (for `register`) and
+  `base.controllers(NameWrapper)` (for `wrapETH2LD`).
+- **A harness test for it** in `harness-manager.spec.ts`, asserting both grants
+  land and that a second call is a no-op. Snapshot/reverted so the test does not
+  itself become the untracked fork mutation it exists to replace. **Verified
+  green** (6 expected, 0 unexpected).
+- **Rule-7 gate is green again.** It was red, and that was my doing, not
+  pre-existing: `probe-reverse.mts` (committed in iteration 12) bound
+  `0xf39f…` under a third name, and iteration 13's five `probe-v1-*.mts` added
+  four more conflicts plus an unaccounted literal. All six one-off probes are
+  deleted; their findings live in the iteration 13 entry, in the corrected
+  comment at the top of `makeV1Name.ts`, and in the fixture above. **Check this
+  gate before committing** — nothing else runs it automatically, which is how it
+  stayed red across two iterations.
+
+### NOT done, and why
+
+The repoint itself. `makeV1Name` still points at the superseded deployment, so
+**the 59 `G*` rows remain at zero.** Stopping short was deliberate: the blast
+radius is wider than iteration 13 assumed.
+
+`scripts/check-address-literals.ts` already records `V1_PUBLIC_RESOLVER`
+(`0x640294a2…`) as **DISPUTED** — the same address is declared as
+`DEDICATED_RESOLVER` in `fixtures/makeName.ts`, it is **absent from
+`ensL1Contracts[sepolia]` entirely**, and its bytecode matches neither
+`ensPublicResolver` (`0x5239A812`) nor `ensPermissionedResolverImpl` nor the
+resolver the V1 registry returns for `eth`. It is a third contract under two
+names, and at least one name is wrong. It is used by
+`migration-fuses.spec.ts` (`assertV2Resolver(label, V1_PUBLIC_RESOLVER)`) and by
+`makeName.ts`, so repointing it silently would change what those assert.
+
+### ⛔ Ruling needed before the next iteration can proceed
+
+1. **What is `0x640294a2…`?** Until this is settled, no `GR*` record-replay
+   result can be trusted, and the repoint cannot touch the resolver constant.
+   This is an intent question about the deployment, not something to guess.
+2. **Scope of the repoint** — all four V1 constants at once (controller, base
+   registrar, wrapper, ENS registry), or controller + registrar first, leaving
+   wrapped/locked for a follow-up? Note the two pairs sit on **different ENS
+   registries** (`0x00000000000C2E07…` canonical vs `0x7e89b563…`), so anything
+   reading the registry directly moves with the switch.
+
+Everything not depending on those answers has been done. Per goal §10 these
+default to **EXEMPT after 5 working days (2026-08-19)** if unanswered — but the
+repoint is not exemptible, it is just blocked, so the honest move is to escalate
+rather than let the loop grind.
+
+### Next batch, once ruled on
+
+Repoint, then verify `unwrapped` / `wrapped` / `locked` end to end against
+`harness-manager.spec.ts`. When its rule-6 `test.fail()` goes **red** ("expected
+to fail but passed") that is the success signal: delete the annotation in the
+same change and the `G*` matrix opens.
+
+**If the ruling is slow, do not idle.** R2 has 38 and R3 has 69 not-started rows,
+all unblocked, and taking a batch there is the correct use of the time.
+
+---
+
 ## Iteration 13 — 2026-08-12 · the `makeV1Name` blocker is diagnosed, and it was never what the comment said
 
 **Batch:** unblock `makeV1Name`, which holds all 59 `G*` migration rows at zero.

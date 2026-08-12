@@ -33,6 +33,12 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { revertTo, takeSnapshot } from '../fixtures/chain-snapshot.js'
 import { createMakeV1Name, V1_BASE_REGISTRAR } from '../fixtures/makeV1Name.js'
 import { expect, test } from '../fixtures/playwright.manager.fixture.js'
+import {
+  APP_V1_CONTROLLER,
+  APP_V1_NAME_WRAPPER,
+  ensureV1ControllersAuthorised,
+  v1ControllerAuthState,
+} from '../fixtures/v1-controller-auth.js'
 import { publicClient } from '../helpers/anvil-client.js'
 import { ETH_REGISTRY } from '../helpers/role-assertions.js'
 
@@ -229,6 +235,37 @@ test.describe('Harness integrity — manager', () => {
         owner,
         `${name} is not present in ${APP_V1_BASE_REGISTRAR}, the V1 BaseRegistrar the migration code actually reads — so the app cannot see any name this fixture makes`,
       ).not.toBeNull()
+    } finally {
+      await revertTo(before)
+    }
+  })
+
+  test('v1-controller-auth: both grants land on the canonical registrar, and are idempotent', async () => {
+    // The precondition for repointing `makeV1Name` at the deployment the app
+    // reads. Iteration 13 proved the grant works but did it from a probe, which
+    // mutated one long-lived fork and would not survive `infra:up` or reach CI.
+    // This asserts the reproducible version.
+    //
+    // Snapshot/revert around it so the run leaves the fork as it found it —
+    // otherwise this test would itself become the untracked state mutation it
+    // exists to replace.
+    const before = await takeSnapshot()
+    try {
+      await ensureV1ControllersAuthorised()
+      const first = await v1ControllerAuthState()
+      expect(
+        first.controller,
+        `${APP_V1_BASE_REGISTRAR}.controllers(${APP_V1_CONTROLLER}) is still false after ensureV1ControllersAuthorised() — register on the canonical controller will keep reverting inside onlyController with no revert data`,
+      ).toBe(true)
+      expect(
+        first.nameWrapper,
+        `${APP_V1_BASE_REGISTRAR}.controllers(${APP_V1_NAME_WRAPPER}) is still false — unwrapped names would work but wrapETH2LD would not, so every wrapped and locked G* row stays unreachable`,
+      ).toBe(true)
+
+      // Idempotent: a second call must be a no-op, not a second grant or a
+      // revert. Fixtures call this per name, so it runs many times per run.
+      await ensureV1ControllersAuthorised()
+      expect(await v1ControllerAuthState()).toEqual(first)
     } finally {
       await revertTo(before)
     }
