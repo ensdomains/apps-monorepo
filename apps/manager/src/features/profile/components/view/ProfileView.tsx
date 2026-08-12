@@ -173,6 +173,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           expiry={expiry}
           isOwner={resolvedIsOwner}
           name={name}
+          protocol={ownerData?.protocol}
         />
         <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-11.25 lg:landscape:max-w-226.25">
           <div>
@@ -186,6 +187,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               expiry={expiry}
               isOwner={resolvedIsOwner}
               name={name}
+              protocol={ownerData?.protocol}
             />
             <ProfileHeader
               avatarLoading={false}
@@ -197,6 +199,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
                   avatarUrl={avatarUrl}
                   isOwner={resolvedIsOwner}
                   name={name}
+                  renewalProtocol={ownerData?.protocol}
                   url={getProfileUrl(name)}
                 />
               }
@@ -229,6 +232,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           onUpdated={refetchRecords}
           owner={owner}
           records={records}
+          renewalProtocol={ownerData?.protocol}
           url={getProfileUrl(name)}
         />
       </ProfileThemeColorProvider>

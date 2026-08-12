@@ -2,14 +2,14 @@ import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useMemo } from 'react'
+import { DurationCustomRow } from '@/features/register-v2/workflow/pricing/components/DurationCustomRow'
+import { DurationPresetRow } from '@/features/register-v2/workflow/pricing/components/DurationPresetRow'
+import { getComputedDurationPresets } from '@/features/register-v2/workflow/pricing/components/durationPresets'
 import {
   type GetRenewPriceError,
   getRenewPriceQueryOptions,
   type MissingTokenError,
-} from '@/features/register-v2/data/queries/pricing.query'
-import { DurationCustomRow } from '@/features/register-v2/workflow/pricing/components/DurationCustomRow'
-import { DurationPresetRow } from '@/features/register-v2/workflow/pricing/components/DurationPresetRow'
-import { getComputedDurationPresets } from '@/features/register-v2/workflow/pricing/components/durationPresets'
+} from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
@@ -20,7 +20,7 @@ type PresetPricingQuery = {
 }
 
 export const DurationSelector = () => {
-  const { uiActor, label, currentExpiry } = useRenewalUiContext()
+  const { uiActor, label, currentExpiry, protocol } = useRenewalUiContext()
   const referenceDate = useMemo(
     () => new Date(Number(currentExpiry) * 1000),
     [currentExpiry],
@@ -36,7 +36,7 @@ export const DurationSelector = () => {
 
   const presetPricingQueries = useQueries({
     queries: presetDurations.map(({ duration }) =>
-      getRenewPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
+      getRenewPriceQueryOptions(label, duration, TOKENS.USDC.symbol, protocol),
     ),
     combine: (results) =>
       results.map((result, idx): PresetPricingQuery => {

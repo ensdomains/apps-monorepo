@@ -1,6 +1,7 @@
 import { useLingui } from '@lingui/react/macro'
 import type { Address } from 'viem'
 import type { ProfileRecords } from '@/features/profile/types'
+import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import {
   desktopActionContainerClassName,
   desktopActionContainerStyle,
@@ -23,18 +24,20 @@ type ProfileActionsProps = {
   readonly onUpdated: () => undefined | Promise<unknown>
   readonly owner?: Address
   readonly records: ProfileRecords
+  readonly renewalProtocol?: RenewalProtocol
   readonly url: string
 }
 
 type ProfileMobileActionsProps = Pick<
   ProfileActionsProps,
-  'avatarUrl' | 'isOwner' | 'name' | 'url'
+  'avatarUrl' | 'isOwner' | 'name' | 'renewalProtocol' | 'url'
 >
 
 export const ProfileMobileActions = ({
   avatarUrl,
   isOwner,
   name,
+  renewalProtocol,
   url,
 }: ProfileMobileActionsProps) => (
   <div className="flex w-full items-center justify-between lg:landscape:hidden">
@@ -42,6 +45,7 @@ export const ProfileMobileActions = ({
       className={renewActionClassName}
       isOwner={isOwner}
       name={name}
+      protocol={renewalProtocol}
     />
     <div className="flex shrink-0 items-center gap-4">
       <ProfileFavoriteAction name={name} />
@@ -59,6 +63,7 @@ export const ProfileActions = ({
   onUpdated,
   owner,
   records,
+  renewalProtocol,
   url,
 }: ProfileActionsProps) => {
   const { t } = useLingui()
@@ -72,6 +77,7 @@ export const ProfileActions = ({
               avatarUrl={avatarUrl}
               isOwner={isOwner}
               name={name}
+              renewalProtocol={renewalProtocol}
               url={url}
             />
           </div>
@@ -90,6 +96,7 @@ export const ProfileActions = ({
           className={renewActionClassName}
           isOwner={isOwner}
           name={name}
+          protocol={renewalProtocol}
         />
       </div>
 

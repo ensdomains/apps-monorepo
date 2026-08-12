@@ -9,6 +9,7 @@ import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
+import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useOwnedDomains } from '../useOwnedDomains'
 
@@ -52,14 +53,30 @@ export const DashboardGraceBanner = ({
       migrationEnabled,
     ],
   )
+  const { isRenewable: isV1Renewable } = useV1Renewable(
+    banner.show && !banner.isV2 ? [banner.renewName] : [],
+  )
 
   return match(banner)
+    .with({ show: true, isV2: false }, (visible) =>
+      isV1Renewable(visible.renewName) ? (
+        <GracePeriodBanner
+          daysSinceExpiry={visible.daysSinceExpiry}
+          graceEndDate={visible.graceEndDate}
+          isV2={false}
+          renewName={visible.renewName}
+          renewProtocol="v1"
+          variant={visible.variant}
+        />
+      ) : null,
+    )
     .with({ show: true }, (visible) => (
       <GracePeriodBanner
         daysSinceExpiry={visible.daysSinceExpiry}
         graceEndDate={visible.graceEndDate}
         isV2={visible.isV2}
         renewName={visible.renewName}
+        renewProtocol="v2"
         variant={visible.variant}
       />
     ))

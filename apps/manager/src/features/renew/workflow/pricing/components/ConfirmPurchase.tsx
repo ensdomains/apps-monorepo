@@ -4,14 +4,14 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import type { WalletClient } from 'viem'
-import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { ConfirmPurchaseBase } from '@/features/register-v2/workflow/pricing/components/ConfirmPurchase'
+import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 export const ConfirmPurchase = () => {
-  const { label, uiActor } = useRenewalUiContext()
+  const { label, uiActor, protocol } = useRenewalUiContext()
   const account = useSmartAccountContext()
   const [duration, selectedToken] = useSelector(
     uiActor,
@@ -19,7 +19,7 @@ export const ConfirmPurchase = () => {
   )
 
   const pricingQuery = useQuery({
-    ...getRenewPriceQueryOptions(label, duration, selectedToken),
+    ...getRenewPriceQueryOptions(label, duration, selectedToken, protocol),
     select: (data) => ({
       basePriceNumber: decimalBigintToNumber(
         data.amount,
