@@ -122,8 +122,16 @@ so the failures say nothing about the specs and the passes say less: all seven
 survivors were negative assertions, true only because the app could not see the
 name.
 
-Corrected and re-run; see `coverage/handoff.md` iteration 7a and 8. The table
-below is kept only so the void numbers cannot be mistaken for current ones.
+Corrected and re-run: **58 passed, 1 failed, 3 skipped** in 8.9 minutes, and the
+single failure is F5's committed regression test for open S1 E2E-002, which is
+supposed to be red. The table below is kept only so the void numbers cannot be
+mistaken for current ones.
+
+**The R2 verdicts remain outstanding.** A green run is not an oracle review — a
+test can pass on a weak assertion. `roles.spec.ts`, `subnames.spec.ts`,
+`resolver.spec.ts` and `records.spec.ts` still need reading against §4. They now
+have a much better prior, since they do read bitmaps and records back on chain,
+but that is an impression rather than an audit.
 
 **The method still stands, and so does its lesson — with one addition:** run the
 suite before auditing it, *and verify the app under test is on the right chain
