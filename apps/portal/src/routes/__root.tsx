@@ -4,7 +4,7 @@ import {
   transactionManager,
 } from '@ens-apps/transaction-manager'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { createRootRoute, Outlet } from '@tanstack/react-router'
+import { createRootRoute, HeadContent, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
@@ -14,11 +14,11 @@ import { useTransactionModalRouteReset } from '@/features/transaction-manager/ho
 import { ConnectModalProvider } from '@/features/wallet/ConnectModalProvider'
 import { MockWalletAutoConnect } from '@/features/wallet/MockWalletAutoConnect'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
-import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { isMockWalletEnabled } from '@/lib/mockWallet.mock'
 import { PHProvider } from '@/lib/posthog/provider'
 import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
+import { getPageTitle } from '@/worker/pageTitle'
 
 function TransactionManagerSetup({ children }: { children: ReactNode }) {
   const publicClient = usePublicClient()
@@ -45,11 +45,24 @@ function TransactionManagerSetup({ children }: { children: ReactNode }) {
 
 export const Route = createRootRoute({
   staticData: { hideSidebar: true },
-  component: () => {
-    useDocumentTitle()
+  // The router re-runs this on every navigation, so the title tracks the route
+  // without each route having to restate it.
+  head: ({ matches }) => {
+    const match = matches[matches.length - 1]
+    const pathname = match?.pathname.replace(/(.)\/$/, '$1') ?? '/'
+    const search = new URLSearchParams(
+      Object.entries(match?.search ?? {}).map(([key, value]) => [
+        key,
+        String(value),
+      ]),
+    )
 
+    return { meta: [{ title: getPageTitle(pathname, search) }] }
+  },
+  component: () => {
     return (
       <>
+        <HeadContent />
         <WagmiProvider config={wagmiConfig}>
           <QueryClientProvider client={queryClient}>
             {isMockWalletEnabled && <MockWalletAutoConnect />}
