@@ -119,7 +119,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
           description="No events match the selected filters. Try widening the date range or clearing the event filter."
         />
       ) : (
-        <div className="relative min-w-0 overflow-x-clip overflow-y-visible pr-3 [--detail-indent:48px] [--rail-x:12px] [--tier2-indent:30px] sm:[--detail-indent:224px] sm:[--rail-x:151px] sm:[--tier2-indent:182px]">
+        <div className="relative min-w-0 overflow-x-clip overflow-y-visible pr-3 [--detail-indent:36px] [--rail-x:12px] [--tier2-indent:30px] lg:[--detail-indent:224px] lg:[--rail-x:151px] lg:[--tier2-indent:182px]">
           {events && events.length >= HISTORY_TIMELINE_PAGE_SIZE && (
             <p className="mb-3 text-muted-foreground text-p">
               Showing the most recent {events.length} events.

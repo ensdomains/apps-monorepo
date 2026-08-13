@@ -67,7 +67,10 @@ export const TimelineRow = ({
           onClick={handleClick}
           onKeyDown={handleKeyDown}
           className={cn(
-            'group/row cursor-pointer select-none rounded-md transition-none pr-3',
+            // No horizontal padding on the narrow layout — every pixel goes to
+            // the stacked content; the inset only earns its place beside the
+            // desktop rail.
+            'group/row cursor-pointer select-none rounded-md transition-none lg:pr-3',
             hoverHighlight && 'hover:bg-neutral-1',
             className,
           )}

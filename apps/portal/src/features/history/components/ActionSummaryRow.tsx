@@ -50,11 +50,11 @@ export const ActionSummaryRow = ({
     </div>
   )
   const counts = (
-    <div className="flex items-center gap-2 whitespace-nowrap sm:gap-3">
+    <div className="flex items-center gap-2 whitespace-nowrap lg:gap-3">
       <EntityBadge variant="default" className="gap-1">
         {eventCount}
-        <span className="sm:hidden"> evt</span>
-        <span className="hidden sm:inline">
+        <span className="lg:hidden"> evt</span>
+        <span className="hidden lg:inline">
           {` ${eventCount === 1 ? 'event' : 'events'}`}
         </span>
       </EntityBadge>
@@ -77,9 +77,9 @@ export const ActionSummaryRow = ({
         </div>
       }
     >
-      <div className="flex gap-2 py-2 sm:hidden">
+      <div className="flex gap-2 py-2 lg:hidden">
         {iconBadge}
-        <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 lg:gap-1">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[13px] text-muted-foreground">
               {dateLabel}
@@ -90,7 +90,7 @@ export const ActionSummaryRow = ({
         </div>
       </div>
 
-      <div className="hidden min-w-0 grid-cols-[180px_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5 sm:grid">
+      <div className="hidden min-w-0 grid-cols-[180px_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5 lg:grid">
         <div className="flex items-center gap-5">
           <span className="w-30 shrink-0 text-right font-mono text-[13px] text-muted-foreground">
             {desktopDateLabel}

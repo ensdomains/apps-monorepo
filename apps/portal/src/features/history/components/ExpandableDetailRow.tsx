@@ -19,7 +19,7 @@ export const ExpandableDetailRow = ({
     <TimelineRow
       isOpen={isOpen}
       onToggle={() => setIsOpen((open) => !open)}
-      className="ml-(--tier2-indent) pl-3"
+      className="ml-(--tier2-indent) lg:pl-3"
       disclosure={<div className="pl-(--detail-indent)">{disclosure}</div>}
     >
       <div className="flex items-center gap-2 py-2">
@@ -39,7 +39,7 @@ export const ExpandableDetailRow = ({
             aria-hidden
           />
         </span>
-        <div className="grid min-w-0 flex-1 grid-cols-1 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-3 sm:gap-y-0">
+        <div className="grid min-w-0 flex-1 grid-cols-1 gap-y-1.5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-x-3 lg:gap-y-0">
           <div
             className={cn(
               'flex min-w-0 flex-wrap items-center gap-2',
@@ -49,7 +49,7 @@ export const ExpandableDetailRow = ({
             {left}
           </div>
           {right != null && (
-            <div className="justify-self-start whitespace-nowrap sm:justify-self-end">
+            <div className="justify-self-start whitespace-nowrap lg:justify-self-end">
               {right}
             </div>
           )}

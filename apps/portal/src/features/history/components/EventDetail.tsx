@@ -114,8 +114,11 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
       <table className="w-full table-fixed border-separate border-spacing-y-2 text-p">
         <thead>
           <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wide">
-            <th className="w-34 py-1.5 pr-3 font-medium">Parameter</th>
-            <th className="w-30 py-1.5 pr-3 font-medium">Type</th>
+            {/* Real px widths at both tiers, never `w-fit`: under `table-fixed`
+                a content-sized header is not a column width, and the browser
+                falls back to measuring the first row. */}
+            <th className="w-28 py-1.5 pr-3 font-medium lg:w-34">Parameter</th>
+            <th className="w-22 py-1.5 pr-3 font-medium lg:w-30">Type</th>
             <th className="py-1.5 font-medium">Decoded</th>
           </tr>
         </thead>
@@ -147,7 +150,7 @@ const MetaRow = ({
   children: React.ReactNode
 }) => (
   <div className="flex items-center gap-3 py-1 text-muted-foreground">
-    <span className="w-34 shrink-0 text-p">{label}</span>
+    <span className="w-28 shrink-0 text-p lg:w-34">{label}</span>
     <div className={cn('min-w-0 flex-1', entityBadgeLeadingPadScope)}>
       {children}
     </div>
