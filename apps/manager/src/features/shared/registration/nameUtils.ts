@@ -34,6 +34,10 @@ export const normalizeQuery = (query: string): string => {
   return trimmed.endsWith('.eth') ? trimmed : `${trimmed}.eth`
 }
 
+/** The bare label of a 2LD: strips a trailing `.eth`, passes labels through. */
+export const toLabel = (name: string): string =>
+  name.toLowerCase().endsWith('.eth') ? name.slice(0, -4) : name
+
 /**
  * Determines if a domain name is premium based on its length
  * Premium domains are 4 characters or less (excluding .eth)

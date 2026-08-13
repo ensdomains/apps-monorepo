@@ -34,8 +34,6 @@ export const checkRealNameAvailability = ResultFn(async function* (
     return err(new NameChainContractError({ cause: validation.message }))
   }
 
-  const cleanName = name.replace('.eth', '')
-
   yield* fromPromise(getChainId(publicClient), (e) => {
     return new NameChainContractError({
       cause: `Network unreachable: ${e}`,
@@ -45,9 +43,10 @@ export const checkRealNameAvailability = ResultFn(async function* (
   // Check availability via the v2 registrar's `isAvailable`. The ensjs
   // action reads `client.chain.contracts.ensEthRegistrar` and is
   // eth-2ld-only, which matches what `validateENSName` already guarantees
-  // here.
+  // here. Every caller passes a `.eth` name (normalizeQuery /
+  // normalizeDomainNameFromUrl both append the suffix).
   const availability = yield* fromPromise(
-    getAvailable(publicClient, { name: `${cleanName}.eth` }),
+    getAvailable(publicClient, { name }),
     (e) =>
       new NameChainContractError({
         cause: `Contract call failed: ${e}`,
@@ -56,16 +55,17 @@ export const checkRealNameAvailability = ResultFn(async function* (
 
   return ok({
     isAvailable: availability,
-    name: `${cleanName}.eth`,
+    name,
   })
 })
 
-// Single source of truth for pricing - USDC and DAI
+// Single source of truth for pricing - USDC and DAI.
+// Takes the bare label: `getRegisterPrice` prices labels, and the caller
+// (`getNamePricingQueryOptions`) strips the `.eth` suffix.
 export const getTokenPrices = ResultFn(async function* (
-  name: string,
+  label: string,
   duration: number = 1, // in years
 ) {
-  const cleanName = name.replace('.eth', '')
   const durationInSeconds = durationYearsToSeconds(duration)
 
   const prices: Record<string, TokenPriceInfo> = {}
@@ -73,7 +73,7 @@ export const getTokenPrices = ResultFn(async function* (
   for (const [tokenName, tokenAddress] of Object.entries(SUPPORTED_TOKENS)) {
     const { base, premium } = yield* fromPromise(
       getRegisterPrice(publicClient, {
-        label: cleanName,
+        label,
         duration: BigInt(durationInSeconds),
         paymentToken: tokenAddress,
       }),
