@@ -151,9 +151,21 @@ export const HISTORY_TIMELINE_PAGE_SIZE = 100
 /**
  * Direct children come from `subdomains`, not a `name_ends_with` suffix match:
  * the suffix also matches every deeper descendant, so `a.b.leon.eth` would land
- * in `leon.eth`'s timeline. The field takes no `first`, so the child set is
- * whatever the name has.
+ * in `leon.eth`'s timeline.
+ *
+ * `first` is passed explicitly so the page size is ours: omitting it falls back
+ * to the indexer's own default (10 at time of writing), which can change
+ * server-side without a deploy here.
+ *
+ * These are not the *newest* children — `subdomains` accepts `orderBy` /
+ * `orderDirection` but ignores them, always sorting by name — so a parent with
+ * more children than this contributes its alphabetically-first ones. Sorting
+ * client-side would mean fetching every child, the unbounded query this limit
+ * exists to avoid.
+ * TODO(indexer): honour `orderBy: createdAt` on `subdomains`.
  */
+const HISTORY_TIMELINE_CHILD_LIMIT = 25
+
 const HISTORY_TIMELINE_QUERY = gql`
   fragment TimelineEvent on Event {
     id
@@ -192,7 +204,7 @@ const HISTORY_TIMELINE_QUERY = gql`
       events(first: $first, orderBy: timestamp, orderDirection: $orderDirection) {
         ...TimelineEvent
       }
-      subdomains {
+      subdomains(first: ${HISTORY_TIMELINE_CHILD_LIMIT}) {
         events(
           first: 1
           orderBy: timestamp
