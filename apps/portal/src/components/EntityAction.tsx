@@ -17,7 +17,7 @@ const entityActionVariants = cva(
     'hover:border-neutral-5 hover:text-neutral-8',
     // Active: same border+text as hover, fill steps up to neutral-1
     'active:bg-neutral-1 active:border-neutral-5 active:text-neutral-8',
-    'outline-hidden focus-visible:border-neutral-5 focus-visible:text-neutral-8',
+    'outline-hidden focus-visible:border-neutral-5 focus-visible:text-neutral-8 focus-visible:ring-[3px] focus-visible:ring-neutral-5/50',
     'text-[11px] font-normal no-underline',
   ),
   {
