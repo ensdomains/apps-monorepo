@@ -2,6 +2,11 @@
   "name": "portal-app",
   "compatibility_date": "2025-07-08",
   "main": "src/worker.ts",
+  // Used by the OG worker to cap avatar pixel dimensions before satori/resvg
+  // decodes them (WEB-1218) — see src/worker/avatar-image.ts.
+  "images": {
+    "binding": "IMAGES"
+  },
   "assets": {
     "directory": "dist",
     "binding": "ASSETS",
