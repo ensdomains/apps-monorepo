@@ -324,6 +324,32 @@ const shouldUpdateEthAddress = ({
   !isLoadingRecords &&
   !hasMatchingEthAddress(selectedNameRecords, ownerAddress)
 
+/**
+ * Nothing to submit yet: a step is in flight, or a query the branch decision
+ * depends on (write access, records) has not answered.
+ */
+const isConfirmBlocked = ({
+  isSubmitting,
+  isPreparing,
+  resolverAccessPending,
+  isLoadingRecords,
+  hasChanges,
+  selectedName,
+}: {
+  readonly isSubmitting: boolean
+  readonly isPreparing: boolean
+  readonly resolverAccessPending: boolean
+  readonly isLoadingRecords: boolean
+  readonly hasChanges: boolean
+  readonly selectedName: string | null
+}) =>
+  isSubmitting ||
+  isPreparing ||
+  resolverAccessPending ||
+  isLoadingRecords ||
+  !hasChanges ||
+  !selectedName
+
 const getPrimaryNameQueryVariables = (
   address: string | undefined,
 ): PrimaryNameQueryVariables => {
@@ -447,6 +473,13 @@ export const ChoosePrimaryNameDialog = ({
     Boolean(account.ownerAddress) &&
     resolverWriteAccess.isLoading
 
+  // Only set up a resolver when a forward write actually needs one. When the
+  // ETH record already points at this wallet, setting primary writes nothing
+  // but the reverse record — and on a transferred name the setup sequence can
+  // never finish anyway, since the transfer moved `ROLE_SET_RESOLVER` to the new
+  // owner. Skipping it is what makes that case work rather than fail late.
+  const needsResolverSetup = resolverBlocked && needsEthAddressUpdate
+
   // Set selected name to current primary on mount
   useEffect(() => {
     if (reverseName && !selectedName) {
@@ -471,7 +504,7 @@ export const ChoosePrimaryNameDialog = ({
     }
 
     try {
-      if (resolverBlocked) {
+      if (needsResolverSetup) {
         await setupResolverMutation.mutateAsync()
       } else if (needsEthAddressUpdate) {
         await updateEthAddressMutation.mutateAsync()
@@ -498,7 +531,7 @@ export const ChoosePrimaryNameDialog = ({
       return
     }
 
-    if (resolverBlocked) {
+    if (needsResolverSetup) {
       setSetupConfirmOpen(true)
       return
     }
@@ -515,15 +548,20 @@ export const ChoosePrimaryNameDialog = ({
 
   const hasChanges = selectedName !== reverseName
 
-  const showEthAddressInfo = needsEthAddressUpdate && !resolverBlocked
+  const showEthAddressInfo = needsEthAddressUpdate && !needsResolverSetup
   const isPreparing =
     updateEthAddressMutation.isPending || setupResolverMutation.isPending
-  const confirmDisabled =
-    isSubmitting ||
-    isPreparing ||
-    resolverAccessPending ||
-    !hasChanges ||
-    !selectedName
+  // `isLoadingRecords` gates here too: the records decide whether a forward
+  // write — and so a resolver setup — is needed at all, and deciding that from
+  // an unloaded query picks the wrong branch.
+  const confirmDisabled = isConfirmBlocked({
+    isSubmitting,
+    isPreparing,
+    resolverAccessPending,
+    isLoadingRecords,
+    hasChanges,
+    selectedName,
+  })
   const actionErrorMessage =
     getSetupResolverErrorMessage(setupResolverMutation.error, {
       notAuthorized: t`Your wallet does not have permission to change the resolver for this name.`,
