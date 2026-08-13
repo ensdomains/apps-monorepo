@@ -8,7 +8,11 @@ import {
   zeroAddress,
 } from 'viem'
 import { useTransaction, useTransactionReceipt } from 'wagmi'
-import { EntityBadge } from '@/components/EntityBadge'
+import {
+  EntityBadge,
+  entityBadgeLeadingPadScope,
+} from '@/components/EntityBadge'
+import { cn } from '@/lib/utils'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import {
   getContractLabel,
@@ -54,24 +58,34 @@ const DecodedValue = ({
             )
             .otherwise(() => undefined)}
           isRegistry={isRegistryParam}
-          full
+          format="wrap"
         />
       )
     }
-    return <AccountBadge address={address} full />
+    return <AccountBadge address={address} />
   }
 
   const name =
     paramKey === 'name' ? resolveDecodedName(value, event.name) : undefined
   if (name) {
     return (
-      <EntityBadge variant="name" name={name} compact>
+      <EntityBadge variant="name" name={name} compact format="wrap">
         {name}
       </EntityBadge>
     )
   }
 
-  return <>{value}</>
+  return (
+    <EntityBadge
+      variant="default"
+      type="content"
+      copyValue={value}
+      compact
+      format="wrap"
+    >
+      {value}
+    </EntityBadge>
+  )
 }
 
 /** Tier-3 decoded-parameter table (Parameter / Type / Decoded) — inline, no card. */
@@ -80,31 +94,36 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
 
   if (entries.length === 0) {
     return (
-      <p className="py-2 text-muted-foreground text-sm">
+      <p className="py-2 text-muted-foreground text-p">
         No decoded parameters for this event.
       </p>
     )
   }
   return (
-    <div className="w-full overflow-x-auto overscroll-x-contain contain-[inline-size] sm:overflow-x-visible sm:[contain:none]">
-      <table className="w-max min-w-full border-separate border-spacing-y-2 text-sm sm:w-full">
+    <div
+      className={cn(
+        'w-full min-w-0 [contain:inline-size]',
+        entityBadgeLeadingPadScope,
+      )}
+    >
+      <table className="w-full table-fixed border-separate border-spacing-y-2 text-p">
         <thead>
           <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wide">
-            <th className="py-1.5 pr-6 font-medium">Parameter</th>
-            <th className="py-1.5 pr-6 font-medium">Type</th>
+            <th className="w-28 py-1.5 pr-3 font-medium lg:w-34">Parameter</th>
+            <th className="w-22 py-1.5 pr-3 font-medium lg:w-30">Type</th>
             <th className="py-1.5 font-medium">Decoded</th>
           </tr>
         </thead>
         <tbody>
           {entries.map(([key, value]) => (
             <tr key={key}>
-              <td className="py-1.5 pr-6 align-top">
+              <td className="py-1.5 pr-3 align-top">
                 <EntityBadge variant="default">{key}</EntityBadge>
               </td>
-              <td className="py-1.5 pr-6 align-top font-mono text-muted-foreground">
+              <td className="break-all py-1.5 pr-3 align-top font-mono text-muted-foreground">
                 {getTimelineFieldType(event.type, key)}
               </td>
-              <td className="py-1.5 break-all align-top font-mono text-neutral-7">
+              <td className="max-w-0 py-1.5 align-top">
                 <DecodedValue event={event} paramKey={key} value={value} />
               </td>
             </tr>
@@ -122,12 +141,18 @@ const MetaRow = ({
   label: string
   children: React.ReactNode
 }) => (
-  <div className="flex items-baseline gap-4 py-1 text-muted-foreground">
-    <span className="w-24 shrink-0 text-sm sm:w-40">{label}</span>
-    <span className="shrink-0 font-mono text-sm sm:min-w-0 sm:shrink">
+  <div className="flex items-center gap-3 py-1 text-muted-foreground">
+    <span className="w-28 shrink-0 text-p lg:w-34">{label}</span>
+    <div className={cn('min-w-0 flex-1', entityBadgeLeadingPadScope)}>
       {children}
-    </span>
+    </div>
   </div>
+)
+
+const CopyableMetaValue = ({ value }: { value: string }) => (
+  <EntityBadge variant="default" type="content" copyValue={value} compact>
+    {value}
+  </EntityBadge>
 )
 
 export const TransactionMeta = ({
@@ -137,9 +162,7 @@ export const TransactionMeta = ({
   event: TimelineIndexerEvent
   txHash: Hash
 }) => {
-  const { data: tx, isLoading: isTxLoading } = useTransaction({
-    hash: txHash,
-  })
+  const { data: tx, isLoading: isTxLoading } = useTransaction({ hash: txHash })
   const { data: receipt, isLoading: isReceiptLoading } = useTransactionReceipt({
     hash: txHash,
   })
@@ -162,39 +185,49 @@ export const TransactionMeta = ({
     )
     .otherwise((addr) => <AccountBadge address={addr} full />)
 
+  const blockNumber = event.blockNumber.toString()
+  const timestampLabel = formatTimestamp(BigInt(event.timestamp))
+  const valueLabel = tx ? `${formatEther(tx.value)} ETH` : null
+  const gasUsedLabel = receipt ? receipt.gasUsed.toString() : null
+  const gasPriceLabel = receipt?.effectiveGasPrice
+    ? `${formatGwei(receipt.effectiveGasPrice)} gwei`
+    : null
+
   return (
-    <div className="w-full overflow-x-auto overscroll-x-contain [contain:inline-size] sm:overflow-x-visible sm:[contain:none]">
-      <div className="flex w-max min-w-full flex-col gap-y-2 sm:w-full">
-        <MetaRow label="Transaction">
-          <EntityBadge
-            variant="tx"
-            copyValue={txHash}
-            etherscanHref={txUrl}
-            compact
-          >
-            <FullOnDesktop value={txHash} />
-          </EntityBadge>
-        </MetaRow>
-        <MetaRow label="Block">{event.blockNumber}</MetaRow>
-        <MetaRow label="Timestamp">
-          {formatTimestamp(BigInt(event.timestamp)) ?? '—'} UTC
-        </MetaRow>
-        <MetaRow label="From">{fromValue}</MetaRow>
-        <MetaRow label="To">{toValue}</MetaRow>
-        {tx?.value !== 0n && (
-          <MetaRow label="Value">
-            {tx ? `${formatEther(tx.value)} ETH` : pending}
-          </MetaRow>
+    <div className="flex flex-col gap-y-2">
+      <MetaRow label="Transaction">
+        <EntityBadge
+          variant="tx"
+          copyValue={txHash}
+          etherscanHref={txUrl}
+          compact
+        >
+          <FullOnDesktop value={txHash} />
+        </EntityBadge>
+      </MetaRow>
+      <MetaRow label="Block">
+        <CopyableMetaValue value={blockNumber} />
+      </MetaRow>
+      <MetaRow label="Timestamp">
+        {timestampLabel ? (
+          <CopyableMetaValue value={`${timestampLabel} UTC`} />
+        ) : (
+          '—'
         )}
-        <MetaRow label="Gas used">
-          {receipt ? receipt.gasUsed.toString() : pending}
+      </MetaRow>
+      <MetaRow label="From">{fromValue}</MetaRow>
+      <MetaRow label="To">{toValue}</MetaRow>
+      {tx?.value !== 0n && (
+        <MetaRow label="Value">
+          {valueLabel ? <CopyableMetaValue value={valueLabel} /> : pending}
         </MetaRow>
-        <MetaRow label="Gas price">
-          {receipt?.effectiveGasPrice
-            ? `${formatGwei(receipt.effectiveGasPrice)} gwei`
-            : pending}
-        </MetaRow>
-      </div>
+      )}
+      <MetaRow label="Gas used">
+        {gasUsedLabel ? <CopyableMetaValue value={gasUsedLabel} /> : pending}
+      </MetaRow>
+      <MetaRow label="Gas price">
+        {gasPriceLabel ? <CopyableMetaValue value={gasPriceLabel} /> : pending}
+      </MetaRow>
     </div>
   )
 }

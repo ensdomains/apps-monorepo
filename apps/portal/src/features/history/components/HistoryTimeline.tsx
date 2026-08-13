@@ -79,7 +79,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
   }
 
   return (
-    <div className="flex w-full flex-col gap-4 sm:gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-4 sm:gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <h1 className="text-4xl">History</h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -119,23 +119,21 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
           description="No events match the selected filters. Try widening the date range or clearing the event filter."
         />
       ) : (
-        <div className="relative [--detail-indent:48px] [--rail-x:12px] [--tier2-indent:30px] sm:[--detail-indent:224px] sm:[--rail-x:151px] sm:[--tier2-indent:182px]">
+        <div className="relative min-w-0 overflow-x-clip overflow-y-visible pr-3 [--detail-indent:36px] [--rail-x:12px] [--tier2-indent:30px] lg:[--detail-indent:224px] lg:[--rail-x:151px] lg:[--tier2-indent:182px]">
           {events && events.length >= HISTORY_TIMELINE_PAGE_SIZE && (
-            <p className="mb-3 text-muted-foreground text-sm">
+            <p className="mb-3 text-muted-foreground text-p">
               Showing the most recent {events.length} events.
             </p>
           )}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-(--rail-x) w-0.5 bg-neutral-2"
-          />
-          <div className="flex flex-col gap-y-4">
+          <div className="relative flex flex-col">
             {filteredActions.map((action, index) => (
               <ActionSummaryRow
                 key={action.txHash}
                 action={action}
                 isOpen={openIds.has(action.txHash)}
                 onToggle={() => toggleAction(action.txHash)}
+                connectRailAbove={index > 0}
+                connectRailBelow={index < filteredActions.length - 1}
                 showDate={
                   index === 0 ||
                   formatTimelineDate(filteredActions[index - 1].timestamp) !==

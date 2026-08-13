@@ -15,6 +15,13 @@ describe('getTimelineFieldType', () => {
     expect(getTimelineFieldType('FusesSet', 'fuses')).toBe('uint32')
     expect(getTimelineFieldType('AddressChanged', 'address')).toBe('bytes')
     expect(getTimelineFieldType('ExpiryUpdated', 'expiry')).toBe('uint64')
+    expect(getTimelineFieldType('SubregistryUpdated', 'subregistry')).toBe(
+      'address',
+    )
+    expect(getTimelineFieldType('SubregistryUpdated', 'canonicalId')).toBe(
+      'uint256',
+    )
+    expect(getTimelineFieldType('SubregistryUpdated', 'sender')).toBe('address')
   })
 
   it('returns unknown for unmapped types or fields', () => {

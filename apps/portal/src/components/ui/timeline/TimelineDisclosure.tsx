@@ -9,8 +9,11 @@ interface TimelineDisclosureProps {
 
 /**
  * Expand/collapse nested timeline content: grow height, then fade in.
- * Stays overflow-hidden while animating; overflow-visible when settled so
- * EntityBadge hover chips aren't clipped.
+ * Stays overflow-hidden while animating. When settled, clips horizontally
+ * (`overflow-x-clip`) so EntityBadge chips / wide decoded values cannot
+ * widen the page, while keeping `overflow-y-visible` so chips above the
+ * badge are not cut off. (`clip` + `visible` is valid in Overflow L3;
+ * `hidden` + `visible` would force both axes to `auto`.)
  */
 export const TimelineDisclosure = ({
   isOpen,
@@ -43,7 +46,7 @@ export const TimelineDisclosure = ({
       <div
         className={cn(
           'min-h-0',
-          isSettled ? 'overflow-visible' : 'overflow-hidden',
+          isSettled ? 'overflow-x-clip overflow-y-visible' : 'overflow-hidden',
         )}
       >
         <div

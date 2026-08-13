@@ -387,11 +387,6 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
-
-  /* ABCMonumentGroteskMono design spec: 0.1 em, halved to 0.05 em (0.7 px at 14 px) */
-  .font-mono {
-    @apply tracking-wider;
-  }
 }
 
 @theme {
