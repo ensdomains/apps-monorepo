@@ -199,7 +199,7 @@ interface EntityBadgeProps {
  * omit this so their right edge can share a common gutter with the row.
  */
 export const entityBadgeLeadingPadScope =
-  '[&_[data-entity-badge]]:-ml-2 [&_[data-entity-badge]>a]:px-2 [&_[data-entity-badge]>div:not(.absolute)]:px-2'
+  '[&_[data-entity-badge]]:-ml-2 [&_[data-entity-badge]>a]:px-2 [&_[data-entity-badge]>div:not([data-entity-chips])]:px-2'
 
 export const EntityBadge = ({
   children,
@@ -468,6 +468,7 @@ export const EntityBadge = ({
           (matching Figma's chip-to-bg-edge gap of 8px)
       */}
       <div
+        data-entity-chips
         className={cn(
           'absolute bottom-[calc(100%-6px)] left-2 flex flex-row gap-1 z-50',
           // Reveal on mouse hover and on keyboard focus-within the badge;

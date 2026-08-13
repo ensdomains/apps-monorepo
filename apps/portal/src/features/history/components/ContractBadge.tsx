@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
@@ -17,7 +18,7 @@ export const ContractBadge = ({
   readonly isRegistry?: boolean
   readonly label?: string
   readonly full?: boolean
-  readonly format?: 'inline' | 'truncate' | 'wrap'
+  readonly format?: ComponentProps<typeof EntityBadge>['format']
 }) => {
   const explorerUrl = useBlockExplorerAddressUrl(address)
   const known = getContractLabel(address)

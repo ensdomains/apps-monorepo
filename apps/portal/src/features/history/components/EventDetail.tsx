@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import { match, P } from 'ts-pattern'
 import {
   type Address,
@@ -8,11 +7,7 @@ import {
   isAddress,
   zeroAddress,
 } from 'viem'
-import { useChainId, useConfig } from 'wagmi'
-import {
-  getTransactionQueryOptions,
-  getTransactionReceiptQueryOptions,
-} from 'wagmi/query'
+import { useTransaction, useTransactionReceipt } from 'wagmi'
 import {
   EntityBadge,
   entityBadgeLeadingPadScope,
@@ -114,9 +109,6 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
       <table className="w-full table-fixed border-separate border-spacing-y-2 text-p">
         <thead>
           <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wide">
-            {/* Real px widths at both tiers, never `w-fit`: under `table-fixed`
-                a content-sized header is not a column width, and the browser
-                falls back to measuring the first row. */}
             <th className="w-28 py-1.5 pr-3 font-medium lg:w-34">Parameter</th>
             <th className="w-22 py-1.5 pr-3 font-medium lg:w-30">Type</th>
             <th className="py-1.5 font-medium">Decoded</th>
@@ -170,18 +162,12 @@ export const TransactionMeta = ({
   event: TimelineIndexerEvent
   txHash: Hash
 }) => {
-  const chainId = useChainId()
-  const config = useConfig()
-  const txQuery = useQuery(
-    getTransactionQueryOptions(config, { hash: txHash, chainId }),
-  )
-  const receiptQuery = useQuery(
-    getTransactionReceiptQueryOptions(config, { hash: txHash, chainId }),
-  )
-  const tx = txQuery.data
-  const receipt = receiptQuery.data
+  const { data: tx, isLoading: isTxLoading } = useTransaction({ hash: txHash })
+  const { data: receipt, isLoading: isReceiptLoading } = useTransactionReceipt({
+    hash: txHash,
+  })
 
-  const pending = txQuery.isLoading || receiptQuery.isLoading ? '…' : '—'
+  const pending = isTxLoading || isReceiptLoading ? '…' : '—'
   const toAddress = tx?.to ?? event.contractAddress ?? undefined
 
   const txUrl = useBlockExplorerTxUrl(txHash)

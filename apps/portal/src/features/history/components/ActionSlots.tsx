@@ -62,8 +62,8 @@ const Slot = ({ slot }: { slot: ActionSlot }) =>
       <ContractBadge address={value} isRegistry={isRegistry} label={label} />
     ))
     .with({ kind: 'text' }, ({ value }) => (
-      <code className="rounded bg-neutral-1 px-1.5 py-0.5 font-mono text-p text-neutral-7">
-        {truncateAddress(value, 20, 12)}
+      <code className="inline-block max-w-60 truncate rounded bg-neutral-1 px-1.5 py-0.5 align-bottom font-mono text-p text-neutral-7">
+        {value}
       </code>
     ))
     .with({ kind: 'glyph' }, ({ value }) => (
