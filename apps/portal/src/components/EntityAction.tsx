@@ -5,26 +5,18 @@ import { useEffect, useState } from 'react'
 import { ChipCopyIcon } from '@/assets/icons'
 import { cn } from '@/lib/utils'
 
-// Figma "Entity Action" (📗 ENS Builder, node 644:3107): the small bordered
-// chip that hangs off an entity — Normal / Hover / Active states.
 const entityActionVariants = cva(
   cn(
     'inline-flex items-center cursor-pointer transition-colors',
     'h-7 px-2 gap-1.5 rounded-sm',
-    // Normal: neutral-0 fill, neutral-3 border, neutral-7 text
     'border border-neutral-3 bg-neutral-0 text-neutral-7',
-    // Hover: border → neutral-5, text → neutral-8 (fill stays neutral-0)
     'hover:border-neutral-5 hover:text-neutral-8',
-    // Active: same border+text as hover, fill steps up to neutral-1
     'active:bg-neutral-1 active:border-neutral-5 active:text-neutral-8',
     'outline-hidden focus-visible:border-neutral-5 focus-visible:text-neutral-8 focus-visible:ring-[3px] focus-visible:ring-neutral-5/50',
     'text-[11px] font-normal no-underline',
   ),
   {
     variants: {
-      // The component's own type is sans, but addresses and hashes have to
-      // stay monospaced, so they get their own variant rather than a one-off
-      // font override at each call site.
       font: {
         // The reset is on the variant, not the base: timeline parents (MetaRow,
         // table cells) hand down mono and letter-spacing, and cva concatenates

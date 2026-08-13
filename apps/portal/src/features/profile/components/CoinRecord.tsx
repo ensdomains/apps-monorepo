@@ -44,8 +44,6 @@ export const CoinRecord = ({
 }) => {
   if (!value) return null
   return (
-    // A small open delay plus the content's enter/exit animation keeps a sweep
-    // across the row of coin icons from strobing one card per logo.
     <HoverCard openDelay={150} closeDelay={200}>
       <HoverCardTrigger asChild>
         <Link
@@ -69,8 +67,6 @@ export const CoinRecord = ({
         side="top"
         align="start"
         sideOffset={6}
-        // The Entity Action brings its own border, fill and radius, so the
-        // content wrapper is stripped back to a positioned, animated shell.
         className="w-auto max-w-(--radix-hover-card-content-available-width) border-0 bg-transparent p-0 shadow-none"
       >
         <EntityActionCopy
