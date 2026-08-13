@@ -3,7 +3,7 @@ import {
   type coinTypeToNameMap,
 } from '@ensdomains/address-encoder'
 import { Link } from '@tanstack/react-router'
-import { CopyButton } from '@/components/CopyButton'
+import { EntityActionCopy } from '@/components/EntityAction'
 import {
   HoverCard,
   HoverCardContent,
@@ -44,14 +44,16 @@ export const CoinRecord = ({
 }) => {
   if (!value) return null
   return (
-    <HoverCard openDelay={0} closeDelay={200}>
+    // A small open delay plus the content's enter/exit animation keeps a sweep
+    // across the row of coin icons from strobing one card per logo.
+    <HoverCard openDelay={150} closeDelay={200}>
       <HoverCardTrigger asChild>
         <Link
           to="/$name/address"
           params={{ name }}
           aria-label={`${coinType} address — view address resolution`}
           className={cn(
-            'block rounded-full outline-hidden',
+            'block rounded-full outline-hidden transition-shadow duration-150',
             'hover:ring-[3px] hover:ring-neutral-8',
             'focus-visible:ring-[3px] focus-visible:ring-neutral-8',
           )}
@@ -67,10 +69,16 @@ export const CoinRecord = ({
         side="top"
         align="start"
         sideOffset={6}
-        className="flex w-auto max-w-(--radix-hover-card-content-available-width) items-center gap-1.5 rounded-sm border border-neutral-3 bg-neutral-0 px-2 py-1.5 text-neutral-7 shadow-sm"
+        // The Entity Action brings its own border, fill and radius, so the
+        // content wrapper is stripped back to a positioned, animated shell.
+        className="w-auto max-w-(--radix-hover-card-content-available-width) border-0 bg-transparent p-0 shadow-none"
       >
-        <CopyButton value={value} size="sm" />
-        <span className="min-w-0 font-mono text-xs break-all">{value}</span>
+        <EntityActionCopy
+          value={value}
+          label={value}
+          font="mono"
+          className="max-w-full shadow-sm"
+        />
       </HoverCardContent>
     </HoverCard>
   )

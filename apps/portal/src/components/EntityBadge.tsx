@@ -1,17 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { CheckIcon } from 'lucide-react'
-import { type ReactNode, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import {
-  ChipCopyIcon,
   ChipLinkIcon,
   ChipNameIcon,
   ChipWalletIcon,
   HubIcon,
   ResolverIcon,
 } from '@/assets/icons'
+import {
+  EntityActionCopy,
+  entityActionVariants,
+} from '@/components/EntityAction'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
@@ -88,64 +90,7 @@ const pillType = (variant: EntityVariant) =>
 const pillClass = (variant: EntityVariant, className?: string) =>
   cn(pillBase, pillType(variant), variantClass[variant], className)
 
-const chipClass = cn(
-  'inline-flex items-center cursor-pointer transition-colors',
-  'h-7 px-2 gap-1.5 rounded-sm',
-  // Default: outline variant — neutral-0 fill, neutral-3 border, neutral-7 text
-  'border border-neutral-3 bg-neutral-0 text-neutral-7',
-  // Hover: border → neutral-5, text → neutral-8 (fill stays neutral-0)
-  'hover:border-neutral-5 hover:text-neutral-8',
-  // Active: same border+text as hover, fill steps up to neutral-1
-  'active:bg-neutral-1 active:border-neutral-5 active:text-neutral-8',
-  // Reset inherited mono/tracking from timeline parents (e.g. MetaRow, table cells)
-  'font-sans text-[11px] font-normal tracking-normal no-underline',
-)
-
-const CopyChip = ({
-  value,
-  label = 'Copy',
-  showIcon = true,
-}: {
-  readonly value: string
-  readonly label?: string
-  readonly showIcon?: boolean
-}) => {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    try {
-      await navigator.clipboard.writeText(value)
-      setCopied(true)
-    } catch {
-      // clipboard access denied or unavailable — silently ignore
-    }
-  }
-
-  useEffect(() => {
-    if (copied) {
-      const timer = setTimeout(() => setCopied(false), 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [copied])
-
-  return (
-    <button
-      type="button"
-      className={chipClass}
-      onClick={handleCopy}
-      aria-label={label || 'Copy'}
-    >
-      {copied ? (
-        <CheckIcon className="size-3.25" />
-      ) : (
-        showIcon && <ChipCopyIcon className="size-3.25" />
-      )}
-      {!copied && label ? label : null}
-    </button>
-  )
-}
+const chipClass = entityActionVariants()
 
 interface EntityBadgeProps {
   readonly children: ReactNode
@@ -529,7 +474,7 @@ export const EntityBadge = ({
         {/* Auto-derived contract-name chip — suppressed when the caller gives an
             explicit `label` (e.g. "root registry"), which already names the pill. */}
         {!label && contractName && (
-          <CopyChip
+          <EntityActionCopy
             value={contractName}
             label={contractName}
             showIcon={false}
@@ -554,7 +499,7 @@ export const EntityBadge = ({
           </Link>
         )}
 
-        {derivedCopyValue && <CopyChip value={derivedCopyValue} />}
+        {derivedCopyValue && <EntityActionCopy value={derivedCopyValue} />}
 
         {variant !== 'default' && etherscanHref && (
           <a
