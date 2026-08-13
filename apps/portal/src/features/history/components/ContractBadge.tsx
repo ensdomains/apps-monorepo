@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
@@ -11,11 +12,13 @@ export const ContractBadge = ({
   isRegistry,
   label: fallbackLabel,
   full = false,
+  format = 'inline',
 }: {
   readonly address: Address
   readonly isRegistry?: boolean
   readonly label?: string
   readonly full?: boolean
+  readonly format?: ComponentProps<typeof EntityBadge>['format']
 }) => {
   const explorerUrl = useBlockExplorerAddressUrl(address)
   const known = getContractLabel(address)
@@ -29,6 +32,7 @@ export const ContractBadge = ({
       label={label}
       isRegistry={known === 'permissioned registry' || (!!isRegistry && !known)}
       etherscanHref={explorerUrl}
+      format={format}
       compact
     >
       {full ? <FullOnDesktop value={address} /> : truncateAddress(address)}

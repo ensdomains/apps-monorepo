@@ -7,12 +7,12 @@ import { addSeconds } from 'date-fns'
 import { useMemo } from 'react'
 import { getNameRowProfilePreview } from '@/features/dashboard/components/nameRowProfileRecords'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
-import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import { getBaseRatesQueryOptions } from '@/features/register-v2/data/queries/baseRates.query'
 import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
+import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import {
   type StablecoinBalance,
   useSmartAccountContext,

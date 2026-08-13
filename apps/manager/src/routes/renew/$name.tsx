@@ -41,7 +41,7 @@ export const Route = createFileRoute('/renew/$name')({
       throw new Error('This name is not available for renewal.')
     }
 
-    if (isPastGracePeriod(expiryDate, true)) {
+    if (isPastGracePeriod(expiryDate, expiryData.protocol)) {
       throw redirect({
         params: { name },
         to: '/register/$name',

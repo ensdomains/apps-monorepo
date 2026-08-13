@@ -17,7 +17,7 @@ import {
 import {
   getNamePricingQueryOptions,
   getSearchNameQueryOptions,
-} from '@/features/register/services/checkNameAvailabilityService'
+} from '@/features/shared/service/checkNameAvailabilityService'
 import { tw } from '@/utils/tailwind'
 import { recordNameSearch } from './recordNameSearch'
 import { searchHistoryStore } from './useSearchHistory'

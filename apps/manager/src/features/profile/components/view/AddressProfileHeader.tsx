@@ -92,7 +92,7 @@ const useAddressProfileHeaderData = ({
 
   const expiry =
     isV1Primary && primaryEntry
-      ? getProfileNameExpiryStatus(primaryEntry.expiryDate, false)
+      ? getProfileNameExpiryStatus(primaryEntry.expiryDate, 'v1')
       : getProfileExpiryResultStatus(expiryData)
   const registrationDate = isV1Primary
     ? primaryEntry?.createdAt

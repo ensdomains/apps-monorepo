@@ -17,6 +17,13 @@ type FeatureFlagConfig = {
 }
 
 const FEATURE_FLAGS_INTERNAL = {
+  /**
+   * Copy promising a commemorative NFT for upgrading. Off for beta, where no
+   * NFT is granted yet; the strings stay in place to switch back on later.
+   */
+  COMMEMORATIVE_NFT_COPY: {
+    enabled: import.meta.env.VITE_FF_COMMEMORATIVE_NFT_COPY === 'true',
+  },
   LANGUAGE_SELECTOR: {
     enabled: import.meta.env.VITE_FF_LANGUAGE_SELECTOR === 'true',
   },

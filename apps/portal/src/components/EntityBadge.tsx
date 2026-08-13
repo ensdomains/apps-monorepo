@@ -1,17 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { CheckIcon } from 'lucide-react'
-import { type ReactNode, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import {
-  ChipCopyIcon,
   ChipLinkIcon,
   ChipNameIcon,
   ChipWalletIcon,
   HubIcon,
   ResolverIcon,
 } from '@/assets/icons'
+import {
+  EntityActionCopy,
+  entityActionVariants,
+} from '@/components/EntityAction'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
@@ -69,13 +71,17 @@ const pillBase =
 const formatConstraintClass: Record<string, string> = {
   inline: '',
   truncate: 'max-w-full min-w-0',
-  wrap: '',
+  wrap: 'max-w-full min-w-0',
 }
 const formatPillClass: Record<string, string> = {
   inline: '',
   truncate: 'max-w-full min-w-0',
-  wrap: 'h-auto min-h-5 whitespace-normal',
+  wrap: 'h-auto min-h-5 max-w-full whitespace-normal',
 }
+
+/** Wrap + label: stack on mobile only; side-by-side from sm up. */
+const labeledWrapPillClass =
+  'max-sm:flex-col max-sm:items-start max-sm:gap-0.5 max-sm:w-fit'
 
 const pillType = (variant: EntityVariant) =>
   variant === 'name' ? 'text-entity-name' : 'text-entity-base'
@@ -84,63 +90,7 @@ const pillType = (variant: EntityVariant) =>
 const pillClass = (variant: EntityVariant, className?: string) =>
   cn(pillBase, pillType(variant), variantClass[variant], className)
 
-const chipClass = cn(
-  'inline-flex items-center cursor-pointer transition-colors',
-  'h-7 px-2 gap-1.5 rounded-sm',
-  // Default: outline variant — neutral-0 fill, neutral-3 border, neutral-7 text
-  'border border-neutral-3 bg-neutral-0 text-neutral-7',
-  // Hover: border → neutral-5, text → neutral-8 (fill stays neutral-0)
-  'hover:border-neutral-5 hover:text-neutral-8',
-  // Active: same border+text as hover, fill steps up to neutral-1
-  'active:bg-neutral-1 active:border-neutral-5 active:text-neutral-8',
-  'text-[11px] font-normal no-underline',
-)
-
-const CopyChip = ({
-  value,
-  label = 'Copy',
-  showIcon = true,
-}: {
-  readonly value: string
-  readonly label?: string
-  readonly showIcon?: boolean
-}) => {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    try {
-      await navigator.clipboard.writeText(value)
-      setCopied(true)
-    } catch {
-      // clipboard access denied or unavailable — silently ignore
-    }
-  }
-
-  useEffect(() => {
-    if (copied) {
-      const timer = setTimeout(() => setCopied(false), 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [copied])
-
-  return (
-    <button
-      type="button"
-      className={chipClass}
-      onClick={handleCopy}
-      aria-label={label || 'Copy'}
-    >
-      {copied ? (
-        <CheckIcon className="size-3.25" />
-      ) : (
-        showIcon && <ChipCopyIcon className="size-3.25" />
-      )}
-      {!copied && label ? label : null}
-    </button>
-  )
-}
+const chipClass = entityActionVariants()
 
 interface EntityBadgeProps {
   readonly children: ReactNode
@@ -175,7 +125,9 @@ interface EntityBadgeProps {
   /**
    * Figma entity format. "inline" (default) sizes to its content; "truncate"
    * ellipsizes inside the fill when the container constrains it (tables);
-   * "wrap" breaks long values across lines inside the fill (overlays).
+   * "wrap" breaks long values across lines inside the fill. With a `label`,
+   * wrap also stacks the label above the value on mobile only (`max-sm`),
+   * keeping them side-by-side from `sm` up.
    */
   readonly format?: 'inline' | 'truncate' | 'wrap'
   /**
@@ -185,6 +137,14 @@ interface EntityBadgeProps {
    */
   readonly compact?: boolean
 }
+
+/**
+ * Parent-scope classes that restore EntityBadge's hover-chip horizontal padding
+ * (`-ml-2` + inner `px-2`) for leading / left-column slots. Right-aligned badges
+ * omit this so their right edge can share a common gutter with the row.
+ */
+export const entityBadgeLeadingPadScope =
+  '[&_[data-entity-badge]]:-ml-2 [&_[data-entity-badge]>a]:px-2 [&_[data-entity-badge]>div:not([data-entity-chips])]:px-2'
 
 export const EntityBadge = ({
   children,
@@ -204,8 +164,16 @@ export const EntityBadge = ({
   format = 'inline',
   compact = false,
 }: EntityBadgeProps) => {
+  const stacksLabel = !!label && format === 'wrap'
+
   const labelContent = label ? (
-    <span className="bg-background text-center text-entity-label leading-none px-1 py-0.5 rounded-[2px] mr-1">
+    <span
+      className={cn(
+        'bg-background text-center text-entity-label leading-none px-1 py-0.5 rounded-[2px]',
+        // Side-by-side uses margin; wrap stacks on mobile and uses gap there.
+        stacksLabel ? 'max-sm:mr-0 sm:mr-1' : 'mr-1',
+      )}
+    >
       {label}
     </span>
   ) : null
@@ -260,6 +228,7 @@ export const EntityBadge = ({
           pillClass(variant, className),
           'h-6 rounded',
           formatPillClass[format],
+          stacksLabel && labeledWrapPillClass,
           type === 'content' && 'bg-transparent dark:bg-transparent',
         )}
       >
@@ -273,8 +242,11 @@ export const EntityBadge = ({
   // tab", status-bar URL preview, and right-click affordances — none of
   // which work with a button + navigate() pattern.
   const primaryWrapperClass = cn(
-    'inline-flex items-center gap-2 px-2 rounded cursor-pointer text-left no-underline',
+    'inline-flex items-center gap-2 rounded cursor-pointer text-left no-underline',
     formatConstraintClass[format],
+    // Keep the hit area hugging the stacked pill — otherwise wrap+label
+    // stretches to the grid cell and leaves empty fill on the right.
+    stacksLabel && 'w-fit max-w-full',
     // `py-2.5` reserves room for the hover chips (which sit above the pill). `compact`
     // drops it for dense rows — the chips still overflow, they just aren't reserved for.
     compact ? 'py-0' : 'py-2.5',
@@ -373,6 +345,7 @@ export const EntityBadge = ({
       className={cn(
         'relative inline-flex items-center',
         formatConstraintClass[format],
+        stacksLabel && 'w-fit max-w-full',
       )}
     >
       <span
@@ -412,6 +385,7 @@ export const EntityBadge = ({
           // Keep px-1 around the avatar so the fill visibly wraps it
           // and add gap-1 so avatar doesn't touch the text
           resolvedAvatar && 'h-6 gap-1.5',
+          stacksLabel && labeledWrapPillClass,
           className,
         )}
       >
@@ -424,11 +398,11 @@ export const EntityBadge = ({
 
   return (
     <div
+      data-entity-badge
       className={cn(
-        'relative group/entity inline-flex -ml-2',
-        format === 'truncate' && 'max-w-full',
-        // `-ml-2` compensates the inner wrapper's `px-2` so the pill text
-        // sits flush with the container's left edge.
+        'relative group/entity inline-flex',
+        (format === 'truncate' || format === 'wrap') && 'max-w-full min-w-0',
+        stacksLabel && 'w-fit',
       )}
     >
       {/*
@@ -439,6 +413,7 @@ export const EntityBadge = ({
           (matching Figma's chip-to-bg-edge gap of 8px)
       */}
       <div
+        data-entity-chips
         className={cn(
           'absolute bottom-[calc(100%-6px)] left-2 flex flex-row gap-1 z-50',
           // Reveal on mouse hover and on keyboard focus-within the badge;
@@ -499,7 +474,7 @@ export const EntityBadge = ({
         {/* Auto-derived contract-name chip — suppressed when the caller gives an
             explicit `label` (e.g. "root registry"), which already names the pill. */}
         {!label && contractName && (
-          <CopyChip
+          <EntityActionCopy
             value={contractName}
             label={contractName}
             showIcon={false}
@@ -524,7 +499,7 @@ export const EntityBadge = ({
           </Link>
         )}
 
-        {derivedCopyValue && <CopyChip value={derivedCopyValue} />}
+        {derivedCopyValue && <EntityActionCopy value={derivedCopyValue} />}
 
         {variant !== 'default' && etherscanHref && (
           <a
