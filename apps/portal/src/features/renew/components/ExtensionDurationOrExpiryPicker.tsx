@@ -73,6 +73,7 @@ export const ExtensionDurationOrExpiryPicker = ({
             max={MAX_REGISTRATION_YEARS}
             onChange={(years) => setSpan({ type: 'years', years })}
             name={name}
+            baseDate={baseDate}
           />
         ) : (
           <RegistrationExpiryDatePicker

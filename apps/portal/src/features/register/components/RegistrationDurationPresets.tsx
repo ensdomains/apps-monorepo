@@ -2,17 +2,16 @@ import { useQueries } from '@tanstack/react-query'
 import { formatUnits } from 'viem'
 import { getAppliedDiscountQueryOptions } from '@/features/register/hooks/useAppliedDiscount'
 import { useBaseRate } from '@/features/register/hooks/useBaseRate'
+import {
+  getDurationInSecondsFromYears,
+  getStartOfToday,
+} from '@/features/register/utils/registrationDuration'
 import { getSavingsPct } from '@/features/register/utils/registrationPrice'
-import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { cn } from '@/lib/utils'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 export const PRESET_YEARS = [1, 2, 3, 6] as const
-
-const PRESET_DURATIONS_SECONDS = PRESET_YEARS.map(
-  (years) => years * CONTRACT_SECONDS_PER_YEAR,
-)
 
 /**
  * Contract-equivalent effective $/year for a given duration. `discountedBase`
@@ -33,12 +32,15 @@ type RegistrationDurationPresetsProps = {
   readonly onSelect: (years: number) => void
   /** Name used to look up the per-character base rate. Chips hidden if absent. */
   readonly name?: string
+  /** Date the term starts — today when registering, the expiry when extending. */
+  readonly baseDate?: Temporal.PlainDate
 }
 
 export const RegistrationDurationPresets = ({
   value,
   onSelect,
   name,
+  baseDate = getStartOfToday(),
 }: RegistrationDurationPresetsProps) => {
   const selectedYears = PRESET_YEARS.includes(
     value as (typeof PRESET_YEARS)[number],
@@ -47,13 +49,17 @@ export const RegistrationDurationPresets = ({
     : undefined
 
   const baseRate = useBaseRate(name ?? '')
+  // Price the term each chip would actually buy, not a nominal 365.25-day year:
+  // a span crossing a leap day is 366 days, so a generic per-year rate prints a
+  // cent under the total it sits above.
   const discountQueries = useQueries({
-    queries: PRESET_DURATIONS_SECONDS.map((duration) =>
-      getAppliedDiscountQueryOptions({
+    queries: PRESET_YEARS.map((years) => {
+      const duration = getDurationInSecondsFromYears(years, baseDate)
+      return getAppliedDiscountQueryOptions({
         value: baseRate * BigInt(duration),
         duration,
-      }),
-    ),
+      })
+    }),
   })
 
   const effectivePerYear = PRESET_YEARS.map((years, idx) =>

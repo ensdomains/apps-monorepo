@@ -120,6 +120,7 @@ export const RegistrationExpiryDatePicker = ({
           )}
           onSelect={handlePresetSelect}
           name={name}
+          baseDate={baseDate}
         />
       ) : null}
     </div>
