@@ -65,6 +65,7 @@ export const EntityActionCopy = ({
   readonly value: string
   readonly label?: string
   readonly showIcon?: boolean
+  readonly keepLabelWhenCopied?: boolean
   readonly font?: VariantProps<typeof entityActionVariants>['font']
   readonly className?: string
 }) => {
@@ -95,6 +96,9 @@ export const EntityActionCopy = ({
       onClick={handleCopy}
       aria-label={label || 'Copy'}
     >
+      {/* Only the icon swaps on copy: where the label is the value itself (an
+          address in a hover card), dropping it resizes the chip out from under
+          the pointer and closes the card. */}
       {copied ? (
         <CheckIcon className="size-3.25 shrink-0" />
       ) : (
