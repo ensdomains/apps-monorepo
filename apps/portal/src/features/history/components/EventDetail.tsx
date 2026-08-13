@@ -114,22 +114,18 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
       <table className="w-full table-fixed border-separate border-spacing-y-2 text-p">
         <thead>
           <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wide">
-            <th className="lg:w-[14%] w-fit py-1.5 pr-3 font-medium sm:pr-6">
-              Parameter
-            </th>
-            <th className="lg:w-[12%] w-fit py-1.5 pr-3 font-medium sm:pr-6">
-              Type
-            </th>
+            <th className="w-34 py-1.5 pr-3 font-medium">Parameter</th>
+            <th className="w-30 py-1.5 pr-3 font-medium">Type</th>
             <th className="py-1.5 font-medium">Decoded</th>
           </tr>
         </thead>
         <tbody>
           {entries.map(([key, value]) => (
             <tr key={key}>
-              <td className="py-1.5 pr-3 align-top sm:pr-6">
+              <td className="py-1.5 pr-3 align-top">
                 <EntityBadge variant="default">{key}</EntityBadge>
               </td>
-              <td className="break-all py-1.5 pr-3 align-top font-mono text-muted-foreground sm:pr-6">
+              <td className="break-all py-1.5 pr-3 align-top font-mono text-muted-foreground">
                 {getTimelineFieldType(event.type, key)}
               </td>
               <td className="max-w-0 py-1.5 align-top">
@@ -150,9 +146,11 @@ const MetaRow = ({
   label: string
   children: React.ReactNode
 }) => (
-  <div className="flex items-center gap-4 py-1 text-muted-foreground">
-    <span className="w-24 shrink-0 text-p sm:w-40">{label}</span>
-    <div className={cn('w-fit', entityBadgeLeadingPadScope)}>{children}</div>
+  <div className="flex items-center gap-3 py-1 text-muted-foreground">
+    <span className="w-34 shrink-0 text-p">{label}</span>
+    <div className={cn('min-w-0 flex-1', entityBadgeLeadingPadScope)}>
+      {children}
+    </div>
   </div>
 )
 
