@@ -34,7 +34,7 @@ vi.mock('@/lib/wagmi', () => ({
   SEPOLIA_RPC_URL: 'https://sepolia.example.com',
 }))
 
-vi.mock('@/features/register/services/nameChainContractService', () => ({
+vi.mock('@/features/shared/service/nameChainContractService', () => ({
   SUPPORTED_TOKENS: {},
 }))
 

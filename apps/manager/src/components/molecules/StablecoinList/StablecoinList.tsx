@@ -1,5 +1,5 @@
 import { Coins } from 'lucide-react'
-import { STABLECOINS } from '@/features/register/utils'
+import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import { cn } from '@/lib/utils'
 
 export interface StablecoinData {

@@ -1,4 +1,8 @@
-import type { PricingDuration, PricingOptions, PricingQuoteMap } from './types'
+import type {
+  PricingDuration,
+  PricingOptions,
+  PricingQuoteMap,
+} from './pricingTypes'
 
 export const PRICING_DURATIONS: PricingDuration[] = [1, 3, 5, 10]
 export const SECONDS_PER_DAY = 86400

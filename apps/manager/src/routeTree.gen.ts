@@ -15,7 +15,6 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as NameRouteRouteImport } from './routes/$name/route'
 import { Route as AddressRouteRouteImport } from './routes/$address/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as AutoRenewalIndexRouteImport } from './routes/auto-renewal/index'
 import { Route as NameIndexRouteImport } from './routes/$name/index'
 import { Route as AddressIndexRouteImport } from './routes/$address/index'
@@ -64,11 +63,6 @@ const AddressRouteRoute = AddressRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterIndexRoute = RegisterIndexRouteImport.update({
-  id: '/register/',
-  path: '/register/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AutoRenewalIndexRoute = AutoRenewalIndexRouteImport.update({
@@ -192,7 +186,6 @@ export interface FileRoutesByFullPath {
   '/$address/': typeof AddressIndexRoute
   '/$name/': typeof NameIndexRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
-  '/register/': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
   '/notifications/': typeof NotificationsAuthenticatedIndexRoute
@@ -217,7 +210,6 @@ export interface FileRoutesByTo {
   '/$address': typeof AddressIndexRoute
   '/$name': typeof NameIndexRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
-  '/register': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/debug/backend': typeof DebugBackendIndexRoute
   '/notifications': typeof NotificationsAuthenticatedIndexRoute
@@ -246,7 +238,6 @@ export interface FileRoutesById {
   '/$address/': typeof AddressIndexRoute
   '/$name/': typeof NameIndexRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
-  '/register/': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
   '/notifications/_authenticated/': typeof NotificationsAuthenticatedIndexRoute
@@ -276,7 +267,6 @@ export interface FileRouteTypes {
     | '/$address/'
     | '/$name/'
     | '/auto-renewal/'
-    | '/register/'
     | '/debug/backend/settings'
     | '/debug/backend/'
     | '/notifications/'
@@ -301,7 +291,6 @@ export interface FileRouteTypes {
     | '/$address'
     | '/$name'
     | '/auto-renewal'
-    | '/register'
     | '/debug/backend/settings'
     | '/debug/backend'
     | '/notifications'
@@ -329,7 +318,6 @@ export interface FileRouteTypes {
     | '/$address/'
     | '/$name/'
     | '/auto-renewal/'
-    | '/register/'
     | '/debug/backend/settings'
     | '/debug/backend/'
     | '/notifications/_authenticated/'
@@ -356,7 +344,6 @@ export interface RootRouteChildren {
   RenewV1NameRoute: typeof RenewV1NameRoute
   RenewNameRoute: typeof RenewNameRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
-  RegisterIndexRoute: typeof RegisterIndexRoute
   DebugBackendSettingsRoute: typeof DebugBackendSettingsRoute
   DebugBackendIndexRoute: typeof DebugBackendIndexRoute
   PNameIndexRoute: typeof PNameIndexRoute
@@ -405,13 +392,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register/': {
-      id: '/register/'
-      path: '/register'
-      fullPath: '/register/'
-      preLoaderRoute: typeof RegisterIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auto-renewal/': {
@@ -610,7 +590,6 @@ const rootRouteChildren: RootRouteChildren = {
   RenewV1NameRoute: RenewV1NameRoute,
   RenewNameRoute: RenewNameRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
-  RegisterIndexRoute: RegisterIndexRoute,
   DebugBackendSettingsRoute: DebugBackendSettingsRoute,
   DebugBackendIndexRoute: DebugBackendIndexRoute,
   PNameIndexRoute: PNameIndexRoute,

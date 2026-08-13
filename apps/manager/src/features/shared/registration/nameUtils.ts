@@ -1,7 +1,13 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { sepolia } from 'viem/chains'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
-import { NameAvailabilityError } from './machines/searchNameMachine'
+
+export class NameAvailabilityError extends TaggedError(
+  'NameAvailabilityError',
+)<{
+  cause: unknown
+}> {}
 
 export type ValidationError =
   | { type: 'INVALID_CHARACTER'; message: string }
@@ -27,6 +33,10 @@ export const normalizeQuery = (query: string): string => {
   if (!trimmed) return ''
   return trimmed.endsWith('.eth') ? trimmed : `${trimmed}.eth`
 }
+
+/** The bare label of a 2LD: strips a trailing `.eth`, passes labels through. */
+export const toLabel = (name: string): string =>
+  name.toLowerCase().endsWith('.eth') ? name.slice(0, -4) : name
 
 /**
  * Determines if a domain name is premium based on its length

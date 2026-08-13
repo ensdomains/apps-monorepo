@@ -2,20 +2,20 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, isAddress } from 'viem'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import type { PricingOptions } from '@/features/register/components/Pricing/types'
-import {
-  INITIAL_PRICING_OPTIONS,
-  PRICING_DURATIONS,
-} from '@/features/register/components/Pricing/utils'
-import {
-  getNamePricingQueryOptions,
-  getSearchNameQueryOptions,
-} from '@/features/register/services/checkNameAvailabilityService'
 import {
   getPremiumLabel,
   normalizeQuery,
   validateENSName,
-} from '@/features/register/utils'
+} from '@/features/shared/registration/nameUtils'
+import {
+  INITIAL_PRICING_OPTIONS,
+  PRICING_DURATIONS,
+} from '@/features/shared/registration/pricing'
+import type { PricingOptions } from '@/features/shared/registration/pricingTypes'
+import {
+  getNamePricingQueryOptions,
+  getSearchNameQueryOptions,
+} from '@/features/shared/service/checkNameAvailabilityService'
 
 export type DisplayState =
   | { type: 'idle' }

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { NameAvailabilityError } from './machines/searchNameMachine'
 import {
   determinePremium,
   getErrorMessage,
   getPremiumLabel,
   isNameAvailabilityError,
+  NameAvailabilityError,
   normalizeQuery,
   validateENSName,
-} from './utils'
+} from './nameUtils'
 
 describe('register utils', () => {
   describe('normalizeQuery', () => {

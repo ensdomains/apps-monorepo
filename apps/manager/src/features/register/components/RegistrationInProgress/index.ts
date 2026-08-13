@@ -1,1 +1,0 @@
-export { RegistrationInProgress } from './RegistrationInProgress'

@@ -13,7 +13,7 @@ import { DomainAttributePill } from '@/components/molecules/DomainResultCard/Dom
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { STABLECOINS } from '@/features/register/utils'
+import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { cn } from '@/lib/utils'
