@@ -11,6 +11,17 @@ interface TransformCall {
 }
 
 /**
+ * Header the binding reports for a source that does need work: too big in
+ * pixels, so every knob other than the one under test stays out of the way.
+ */
+const OVERSIZED: ImageInfoResponse = {
+  format: 'image/png',
+  fileSize: 200 * 1024,
+  width: 1000,
+  height: 1000,
+}
+
+/**
  * Stand-in for the Images binding: records what it was asked to do and hands
  * back {@link OUTPUT_BYTES}, so a test can assert on the transform rather than
  * on pixels we'd have to encode by hand.
@@ -18,9 +29,11 @@ interface TransformCall {
 function mockImages({
   outputContentType = 'image/png',
   fail = false,
+  info = OVERSIZED,
 }: {
   outputContentType?: string
   fail?: boolean
+  info?: ImageInfoResponse
 } = {}) {
   const transforms: TransformCall[] = []
   const outputs: ImageOutputOptions[] = []
@@ -50,6 +63,8 @@ function mockImages({
     },
   }
 
+  const infoCalls: (ImageInputOptions | undefined)[] = []
+
   const images = {
     input(stream: ReadableStream<Uint8Array>, options?: ImageInputOptions) {
       // Drain eagerly: the assertions want the bytes we were handed, and the
@@ -59,10 +74,17 @@ function mockImages({
         .then((buf) => inputs.push({ data: new Uint8Array(buf), options }))
       return transformer
     },
-    info: vi.fn(),
+    async info(
+      stream: ReadableStream<Uint8Array>,
+      options?: ImageInputOptions,
+    ) {
+      await new Response(stream).arrayBuffer()
+      infoCalls.push(options)
+      return info
+    },
   } as unknown as ImagesBinding
 
-  return { images, transforms, outputs, inputs }
+  return { images, transforms, outputs, inputs, infoCalls }
 }
 
 describe('downscaleAvatar', () => {
@@ -167,6 +189,86 @@ describe('downscaleAvatar', () => {
       })
 
       expect(outputs[0]?.anim).toBe(false)
+    })
+  })
+
+  describe('only transforms avatars that need it', () => {
+    /** Already card-sized, and in a format satori reads: nothing to gain. */
+    const SMALL: ImageInfoResponse = {
+      format: 'image/png',
+      fileSize: 40 * 1024,
+      width: 200,
+      height: 200,
+    }
+
+    it('leaves an already-small avatar untouched', async () => {
+      const { images, transforms, inputs } = mockImages({ info: SMALL })
+
+      const result = await downscaleAvatar(images, {
+        data: new Uint8Array([1]),
+        contentType: 'image/png',
+      })
+
+      expect(result).toBeNull()
+      expect(transforms).toHaveLength(0)
+      expect(inputs).toHaveLength(0)
+    })
+
+    it.each([
+      ['width', { ...SMALL, width: 281 }],
+      ['height', { ...SMALL, height: 281 }],
+    ])('transforms when the %s exceeds the target', async (_label, info) => {
+      const { images, transforms } = mockImages({ info })
+
+      await downscaleAvatar(images, {
+        data: new Uint8Array([1]),
+        contentType: 'image/png',
+      })
+
+      expect(transforms).toHaveLength(1)
+    })
+
+    it('transforms a small avatar satori cannot read', async () => {
+      // The luc.eth case: 26KB of WebP well under the slot, and still fatal.
+      // Size is not what makes this one need work.
+      const { images, transforms, outputs } = mockImages({
+        info: { ...SMALL, format: 'image/webp' },
+      })
+
+      await downscaleAvatar(images, {
+        data: new Uint8Array([1]),
+        contentType: 'image/webp',
+      })
+
+      expect(transforms).toHaveLength(1)
+      expect(outputs[0]?.format).toBe('image/png')
+    })
+
+    it('transforms a small avatar that is heavy in bytes', async () => {
+      // An animated GIF pays per frame, so 200x200 can still be megabytes of
+      // bitmap; `anim: false` is what collapses it.
+      const { images, transforms } = mockImages({
+        info: { ...SMALL, format: 'image/gif', fileSize: 2 * 1024 * 1024 },
+      })
+
+      await downscaleAvatar(images, {
+        data: new Uint8Array([1]),
+        contentType: 'image/gif',
+      })
+
+      expect(transforms).toHaveLength(1)
+    })
+
+    it('reads the header through the same encoding as the input', async () => {
+      const { images, infoCalls } = mockImages({ info: SMALL })
+
+      await downscaleAvatar(images, {
+        data: 'AQIDBA==',
+        contentType: 'image/png',
+        encoding: 'base64',
+      })
+
+      expect(infoCalls).toEqual([{ encoding: 'base64' }])
     })
   })
 

@@ -38,6 +38,28 @@ const AVATAR_MAX_PX = 280
  */
 const JPEG_QUALITY = 85
 
+/**
+ * Formats satori can measure, and so embed as they are. Anything outside this
+ * set has to be re-encoded however small it is — that is the WebP/AVIF case.
+ */
+const SATORI_FORMATS = new Set([
+  'image/png',
+  'image/apng',
+  'image/jpeg',
+  'image/gif',
+])
+
+/**
+ * Byte ceiling for an avatar we otherwise leave alone.
+ *
+ * Dimensions don't catch everything: an animated GIF or WebP is charged per
+ * *frame*, so a 200×200 avatar can still be megabytes of bitmap for resvg to
+ * ingest, and `anim: false` is what collapses that. A 280 px still is ~115 KB
+ * as PNG at the very worst, so anything past this is carrying weight the card
+ * can't use.
+ */
+const PASSTHROUGH_MAX_BYTES = 512 * 1024
+
 /** Image bytes plus the media type they should be labelled with. */
 export interface AvatarBitmap {
   readonly bytes: Uint8Array
@@ -74,6 +96,33 @@ function outputFormat(contentType: string): 'image/jpeg' | 'image/png' {
   return contentType === 'image/jpeg' ? 'image/jpeg' : 'image/png'
 }
 
+/**
+ * Is this avatar worth a transform at all?
+ *
+ * Most avatars are oversized and most of the win is in the resize, but a good
+ * few are already card-sized — re-encoding those spends a billed transformation
+ * and a round trip to hand back an image no better than the one we have. So the
+ * transform is reserved for images that are actually too big, in pixels or in
+ * bytes, or that satori can't read in the first place.
+ *
+ * `.info()` is free (Cloudflare stopped billing it in July 2026) and reads only
+ * the header, which is why the check is a call rather than a magic-byte parser
+ * of our own: satori's format list is the thing we have to agree with, and one
+ * more hand-rolled image header parser in this worker is a poor trade for a
+ * round trip we make anyway on every avatar we do transform.
+ */
+function needsTransform(info: ImageInfoResponse): boolean {
+  // Vectors report no dimensions, and `isVector` has already sent them home.
+  if (!('width' in info)) return false
+
+  return (
+    info.width > AVATAR_MAX_PX ||
+    info.height > AVATAR_MAX_PX ||
+    info.fileSize > PASSTHROUGH_MAX_BYTES ||
+    !SATORI_FORMATS.has(info.format)
+  )
+}
+
 /** Wrap a single buffer as the one-chunk stream the binding takes as input. */
 function toStream(data: Uint8Array | string): ReadableStream<Uint8Array> {
   const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data
@@ -91,9 +140,10 @@ function toStream(data: Uint8Array | string): ReadableStream<Uint8Array> {
  * satori can read.
  *
  * Returns `null` whenever the image is left as-is — no binding configured, a
- * vector source, or a transform the Images service refused (a corrupt or
- * unsupported input, an account without Images enabled). Callers fall back to
- * the original bytes, which is exactly today's behaviour, so a failure here can
+ * vector source, an avatar already small enough to embed untouched, or a
+ * transform the Images service refused (a corrupt or unsupported input, an
+ * account whose Workers are still on legacy billing). Callers fall back to the
+ * original bytes, which is exactly today's behaviour, so a failure here can
  * only cost us the optimisation and never the card.
  */
 export async function downscaleAvatar(
@@ -104,6 +154,11 @@ export async function downscaleAvatar(
   if (!images || isVector(contentType)) return null
 
   try {
+    const info = await images.info(toStream(source.data), {
+      encoding: source.encoding,
+    })
+    if (!needsTransform(info)) return null
+
     const result = await images
       .input(toStream(source.data), { encoding: source.encoding })
       // `scale-down` caps the longest edge without ever enlarging, so an avatar

@@ -66,7 +66,17 @@ function stubImages(bytes: Uint8Array, contentType = 'image/png') {
         input(...args)
         return transformer
       },
-      info: vi.fn(),
+      // Oversized, so the transform is always reached — the skip for
+      // already-small avatars is covered in avatar-image.test.ts.
+      info: async (stream: ReadableStream<Uint8Array>) => {
+        await new Response(stream).arrayBuffer()
+        return {
+          format: 'image/png',
+          fileSize: 200 * 1024,
+          width: 1000,
+          height: 1000,
+        }
+      },
     } as unknown as ImagesBinding,
   }
 }
