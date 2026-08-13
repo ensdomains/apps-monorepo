@@ -100,7 +100,7 @@ export const EntityActionCopy = ({
       ) : (
         showIcon && <ChipCopyIcon className="size-3.25 shrink-0" />
       )}
-      {!copied && label ? label : null}
+      {label || null}
     </EntityAction>
   )
 }
