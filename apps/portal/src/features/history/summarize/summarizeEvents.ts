@@ -29,7 +29,23 @@ const TYPE_RANK: Record<string, number> = {
   ContenthashChanged: 30,
   FusesSet: 20,
   ExpiryUpdated: 20,
+  // ENS v1 types with no v2 counterpart (see `v1/adaptV1Events.ts`).
+  NameTransferred: 72,
+  WrappedTransfer: 70,
+  NewOwner: 15,
 }
+
+/**
+ * Rank at or above which an event outranks the multi-record recipe: a
+ * transaction that both registers a name and seeds its records is one "Register
+ * name", not "Set 5 records". Deliberately above `ResolverUpdated` (60) — "set
+ * the resolver and write records" is still best headlined by the records.
+ *
+ * This is protocol-agnostic on purpose: v2 registrations that seed records in
+ * the same transaction headline as "Register name" too, which is the label
+ * those rows should have had all along.
+ */
+const STRUCTURAL_RANK = 70
 
 const RECORD_TYPES = new Set([
   'TextChanged',
@@ -90,13 +106,22 @@ const describeGroup = (
   group: readonly TimelineIndexerEvent[],
   byRank: readonly TimelineIndexerEvent[],
 ): Pick<Action, 'icon' | 'label' | 'slots'> => {
-  const fromRecipe = multiRecordRecipe(group)
-  if (fromRecipe) return fromRecipe
-
-  for (const primary of byRank) {
+  const built = byRank.flatMap((primary) => {
     const descriptor = DESCRIPTORS[primary.type]
-    const built = descriptor?.build(primary)
-    if (built) return { ...built, icon: built.icon ?? descriptor.icon }
+    const result = descriptor?.build(primary)
+    return result
+      ? [{ primary, ...result, icon: result.icon ?? descriptor.icon }]
+      : []
+  })
+
+  if (!built[0] || rankOf(built[0].primary) < STRUCTURAL_RANK) {
+    const fromRecipe = multiRecordRecipe(group)
+    if (fromRecipe) return fromRecipe
+  }
+
+  if (built[0]) {
+    const { primary: _primary, ...action } = built[0]
+    return action
   }
 
   return {

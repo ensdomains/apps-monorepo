@@ -16,6 +16,7 @@ import {
   getNameExpiryStatus,
   type NameExpiryStatus,
 } from '@/features/grace/utils/gracePeriod'
+import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEth2LdName } from './profileName'
@@ -31,9 +32,9 @@ export const profileExpiryDateFromSeconds = (
 
 export const getProfileNameExpiryStatus = (
   expirySeconds: number | bigint | null | undefined,
-  isV2 = true,
+  protocol: RenewalProtocol,
 ): NameExpiryStatus =>
-  getNameExpiryStatus(profileExpiryDateFromSeconds(expirySeconds), isV2)
+  getNameExpiryStatus(profileExpiryDateFromSeconds(expirySeconds), protocol)
 
 export type ProfileExpiryResult = {
   readonly expiry: bigint | null
@@ -44,7 +45,7 @@ export type ProfileExpiryResult = {
 export const getProfileExpiryResultStatus = (
   expiry: ProfileExpiryResult | null | undefined,
 ): NameExpiryStatus =>
-  getProfileNameExpiryStatus(expiry?.expiry, expiry?.protocol !== 'v1')
+  getProfileNameExpiryStatus(expiry?.expiry, expiry?.protocol ?? 'v2')
 
 class GetProfileExpiryError extends TaggedError('GetProfileExpiryError')<{
   cause: GetV1ExpiryErrorType | GetV2ExpiryErrorType

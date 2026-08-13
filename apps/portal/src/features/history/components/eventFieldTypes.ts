@@ -78,6 +78,33 @@ const FIELD_TYPES: Record<string, Record<string, string>> = {
     oldRoleBitmap: 'uint256',
     newRoleBitmap: 'uint256',
   },
+  NewOwner: { owner: 'address', node: 'bytes32', parent: 'string' },
+  NewTTL: { node: 'bytes32', ttl: 'uint64' },
+  WrappedTransfer: { node: 'bytes32', owner: 'address' },
+  NameTransferred: { node: 'bytes32', newOwner: 'address' },
+  AbiChanged: { node: 'bytes32', resolver: 'address', contentType: 'uint256' },
+  PubkeyChanged: {
+    node: 'bytes32',
+    resolver: 'address',
+    x: 'bytes32',
+    y: 'bytes32',
+  },
+  InterfaceChanged: {
+    node: 'bytes32',
+    resolver: 'address',
+    interfaceID: 'bytes4',
+    implementer: 'address',
+  },
+  AuthorisationChanged: {
+    node: 'bytes32',
+    resolver: 'address',
+    owner: 'address',
+    target: 'address',
+    isAuthorized: 'bool',
+  },
+  VersionChanged: { node: 'bytes32', resolver: 'address', version: 'uint64' },
+  ContenthashChanged: { node: 'bytes32', resolver: 'address', hash: 'bytes' },
+  NameChanged: { node: 'bytes32', resolver: 'address', name: 'string' },
 }
 
 const PAYLOAD_KEY_BY_TYPE: Record<string, keyof TimelineDecoded> = {

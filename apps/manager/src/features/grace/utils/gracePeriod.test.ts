@@ -16,14 +16,14 @@ const base = new Date('2024-06-01T12:00:00Z')
 
 describe('getGraceEndDate', () => {
   it('adds 28 days for v2', () => {
-    const end = getGraceEndDate(base, true)
+    const end = getGraceEndDate(base, 'v2')
     expect(end.getTime()).toBe(
       base.getTime() + V2_GRACE_PERIOD_DAYS * MS_PER_DAY,
     )
   })
 
   it('adds 90 days for v1', () => {
-    const end = getGraceEndDate(base, false)
+    const end = getGraceEndDate(base, 'v1')
     expect(end.getTime()).toBe(base.getTime() + GRACE_PERIOD_DAYS * MS_PER_DAY)
   })
 })
@@ -38,27 +38,27 @@ describe('isInGracePeriod', () => {
 
   it('returns false before expiry', () => {
     vi.setSystemTime(base.getTime() - MS_PER_DAY)
-    expect(isInGracePeriod(base, true)).toBe(false)
+    expect(isInGracePeriod(base, 'v2')).toBe(false)
   })
 
   it('returns true on first day of v2 grace', () => {
     vi.setSystemTime(base.getTime() + MS_PER_DAY)
-    expect(isInGracePeriod(base, true)).toBe(true)
+    expect(isInGracePeriod(base, 'v2')).toBe(true)
   })
 
   it('returns true on last day of v2 grace', () => {
     vi.setSystemTime(base.getTime() + V2_GRACE_PERIOD_DAYS * MS_PER_DAY - 1)
-    expect(isInGracePeriod(base, true)).toBe(true)
+    expect(isInGracePeriod(base, 'v2')).toBe(true)
   })
 
   it('returns false after v2 grace ends', () => {
     vi.setSystemTime(base.getTime() + V2_GRACE_PERIOD_DAYS * MS_PER_DAY)
-    expect(isInGracePeriod(base, true)).toBe(false)
+    expect(isInGracePeriod(base, 'v2')).toBe(false)
   })
 
   it('returns true on last day of v1 grace', () => {
     vi.setSystemTime(base.getTime() + GRACE_PERIOD_DAYS * MS_PER_DAY - 1)
-    expect(isInGracePeriod(base, false)).toBe(true)
+    expect(isInGracePeriod(base, 'v1')).toBe(true)
   })
 })
 
@@ -72,12 +72,20 @@ describe('isPastGracePeriod', () => {
 
   it('returns false during grace', () => {
     vi.setSystemTime(base.getTime() + MS_PER_DAY)
-    expect(isPastGracePeriod(base, true)).toBe(false)
+    expect(isPastGracePeriod(base, 'v2')).toBe(false)
   })
 
   it('returns true after grace', () => {
     vi.setSystemTime(base.getTime() + V2_GRACE_PERIOD_DAYS * MS_PER_DAY)
-    expect(isPastGracePeriod(base, true)).toBe(true)
+    expect(isPastGracePeriod(base, 'v2')).toBe(true)
+  })
+
+  // A v1 name judged as v2 is called past grace up to 62 days early, which sent
+  // it to registration while the registrar still refused it (WEB-1255).
+  it('keeps a v1 name in grace where a v2 name would be past it', () => {
+    vi.setSystemTime(base.getTime() + 40 * MS_PER_DAY)
+    expect(isPastGracePeriod(base, 'v2')).toBe(true)
+    expect(isPastGracePeriod(base, 'v1')).toBe(false)
   })
 })
 
@@ -105,17 +113,17 @@ describe('shouldShowProminentRenew', () => {
 
   it('returns true when in grace', () => {
     vi.setSystemTime(base.getTime() + MS_PER_DAY)
-    expect(shouldShowProminentRenew(base, true)).toBe(true)
+    expect(shouldShowProminentRenew(base, 'v2')).toBe(true)
   })
 
   it('returns true within 30 days before expiry', () => {
     vi.setSystemTime(base.getTime() - 10 * MS_PER_DAY)
-    expect(shouldShowProminentRenew(base, true)).toBe(true)
+    expect(shouldShowProminentRenew(base, 'v2')).toBe(true)
   })
 
   it('returns false more than 30 days before expiry', () => {
     vi.setSystemTime(base.getTime() - 31 * MS_PER_DAY)
-    expect(shouldShowProminentRenew(base, true)).toBe(false)
+    expect(shouldShowProminentRenew(base, 'v2')).toBe(false)
   })
 })
 
@@ -161,12 +169,12 @@ describe('getDisplayExpiryDate', () => {
 
   it('returns grace end when in grace', () => {
     vi.setSystemTime(base.getTime() + MS_PER_DAY)
-    const display = getDisplayExpiryDate(base, true)
-    expect(display?.getTime()).toBe(getGraceEndDate(base, true).getTime())
+    const display = getDisplayExpiryDate(base, 'v2')
+    expect(display?.getTime()).toBe(getGraceEndDate(base, 'v2').getTime())
   })
 
   it('returns raw expiry when not in grace', () => {
     vi.setSystemTime(base.getTime() - MS_PER_DAY)
-    expect(getDisplayExpiryDate(base, true)?.getTime()).toBe(base.getTime())
+    expect(getDisplayExpiryDate(base, 'v2')?.getTime()).toBe(base.getTime())
   })
 })

@@ -256,6 +256,10 @@ msgstr ""
 msgid "An error occurred during verification"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
+msgstr ""
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "And more..."
 msgstr ""
@@ -351,6 +355,7 @@ msgstr ""
 msgid "Back to Home"
 msgstr ""
 
+#: src/features/renew/workflow/components/RenewalRouteError.tsx
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
 msgid "Back to profile"
 msgstr ""
@@ -525,6 +530,10 @@ msgstr ""
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "Complete upgrade and receive a collectible marking your place in ENS history."
+msgstr ""
+
+#: src/features/migration/components/MigrationProgressBanner.tsx
+msgid "Complete upgrade to unlock your new ENS profile."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
@@ -848,6 +857,7 @@ msgid "ENS Labs Updates"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/renew/workflow/pricing/PricingStep.tsx
 msgid "ENSv1 only"
 msgstr ""
 
@@ -1008,7 +1018,6 @@ msgid "Finishing setup"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "for"
 msgstr ""
 
@@ -1341,6 +1350,10 @@ msgstr ""
 msgid "Need more help? Visit ENS Support Docs"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+msgid "Network cost"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Never lose your name to expiry."
 msgstr ""
@@ -1409,6 +1422,28 @@ msgstr ""
 
 #: src/routes/wallet.tsx
 msgid "No wallet connected yet"
+msgstr ""
+
+#. placeholder {0}: f.total.toFixed(2)
+#. placeholder {1}: f.hcaCredit.toFixed(2)
+#. placeholder {2}: f.walletDebit.toFixed(2)
+#. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Not enough USDC. This registration costs {0} USDC and your account already holds {1}, so you need {2} more — but your wallet holds {3} USDC."
+msgstr ""
+
+#. placeholder {0}: f.walletDebit.toFixed(2)
+#. placeholder {1}: f.registration.toFixed(2)
+#. placeholder {2}: f.networkFee.toFixed(2)
+#. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Not enough USDC. This registration needs {0} USDC — a {1} registration plus a {2} network cost — but your wallet holds {3} USDC."
+msgstr ""
+
+#. placeholder {0}: e.required.toFixed(2)
+#. placeholder {1}: e.available.toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
 msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
@@ -2416,6 +2451,10 @@ msgstr ""
 msgid "This name can’t be edited"
 msgstr ""
 
+#: src/features/renew/workflow/components/RenewalRouteError.tsx
+msgid "This name can’t be renewed here"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "This name doesn’t have a wallet address yet. If you continue, we’ll set it to your current wallet and make this name your primary."
 msgstr ""
@@ -2473,6 +2512,7 @@ msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
 msgid "Total"
 msgstr ""
 
@@ -2495,6 +2535,7 @@ msgstr ""
 
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/components/MigrationSuccessDialog.tsx
+#: src/features/renew/workflow/components/RenewalRouteError.tsx
 msgid "Try again"
 msgstr ""
 
@@ -2522,6 +2563,10 @@ msgstr ""
 msgid "Unread only"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
+msgid "up to"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Updating address..."
 msgstr ""
@@ -2547,12 +2592,24 @@ msgstr ""
 msgid "Upgrade your name to edit your new ENS profile and claim your personalized NFT."
 msgstr ""
 
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "Upgrade your name to edit your new ENS profile."
+msgstr ""
+
 #: src/features/migration/components/MigrationModal.tsx
 msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
+#: src/features/migration/components/MigrationModal.tsx
+msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile."
+msgstr ""
+
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
+msgstr ""
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "Upgrade your name(s) to unlock your new ENS profile."
 msgstr ""
 
 #: src/features/migration/components/GameStep.tsx
@@ -2771,11 +2828,12 @@ msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't confirm that {domainName} is still available. Please try again."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "We couldn't confirm that {label}.eth is still available. Please try again."
+#: src/features/renew/workflow/components/RenewalRouteError.tsx
+msgid "We couldn’t confirm that this name is renewable."
 msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx
@@ -2800,6 +2858,10 @@ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "What is a primary name?"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+msgid "What is the network cost?"
 msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx

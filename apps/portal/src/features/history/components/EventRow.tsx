@@ -20,6 +20,19 @@ const Mono = ({ children }: { children: React.ReactNode }) => (
 
 const muted = 'text-muted-foreground text-sm'
 
+const RESOLVER_EVENT_TYPES = new Set([
+  'AbiChanged',
+  'AddrChanged',
+  'AddressChanged',
+  'AuthorisationChanged',
+  'ContenthashChanged',
+  'InterfaceChanged',
+  'NameChanged',
+  'PubkeyChanged',
+  'TextChanged',
+  'VersionChanged',
+])
+
 /** A name chip when the value resolves to a full ENS name, plain mono text otherwise. */
 const NameOrLabel = ({
   value,
@@ -113,7 +126,12 @@ export const EventRow = ({ event }: EventRowProps) => {
       }
       right={
         contractAddress ? (
-          <ContractBadge address={contractAddress} />
+          <ContractBadge
+            address={contractAddress}
+            label={
+              RESOLVER_EVENT_TYPES.has(event.type) ? 'resolver' : undefined
+            }
+          />
         ) : undefined
       }
       disclosure={<DecodedParams event={event} />}

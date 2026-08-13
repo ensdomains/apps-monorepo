@@ -6,18 +6,21 @@ import {
   submitApprovalActor,
   submitRenewActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
-import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address } from 'viem'
 import { assign, setup } from 'xstate'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
+import { getV1RenewableQueryOptions } from '@/features/renew/data/queries/v1Renewable.query'
+import {
+  getRenewerAddress,
+  type RenewalProtocol,
+} from '@/features/renew/utils/renewalProtocol'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 
 // Renewal is not an HCA flow: allowance check, approve and renew all run as
-// plain wallet transactions against the canonical ENS deployment, which is what
-// the actors already default to. Overriding them with the standalone-HCA
-// deployment renewed on a registrar that had never registered the name.
+// plain wallet transactions against the selected canonical renewer.
 
 type SubmissionData = {
   label: string
@@ -44,11 +47,20 @@ type SubmissionData = {
   ownerAddress: Address
 }
 
+const requireSubmissionData = (
+  submissionData: SubmissionData | undefined,
+): SubmissionData => {
+  if (!submissionData) throw new Error('Renewal submission data is required')
+  return submissionData
+}
+
 export const renewalUiMachine = setup({
   types: {
     context: {} as {
       currentExpiry: bigint
-      duration: number
+      protocol: RenewalProtocol
+      renewerAddress: Address
+      duration: bigint
       selectedToken: SUPPORTED_TOKEN | undefined
       lastErrorMessage?: string
       submissionData?: SubmissionData
@@ -57,12 +69,13 @@ export const renewalUiMachine = setup({
     },
     input: {} as {
       currentExpiry: bigint
+      protocol: RenewalProtocol
     },
     events: {} as
       | { type: 'pricing.step.next' }
       | { type: 'pricing.step.previous' }
       | { type: 'pricing.dialog.dismiss' }
-      | { type: 'pricing.duration.set'; duration: number }
+      | { type: 'pricing.duration.set'; duration: bigint }
       | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
       | {
           type: 'renewal.start'
@@ -157,15 +170,28 @@ export const renewalUiMachine = setup({
           name: `${name}.eth`,
         }),
       })
+
+      if (context.protocol === 'v1') {
+        queryClient.invalidateQueries({
+          queryKey: getV1RenewableQueryOptions(`${name}.eth`).queryKey,
+        })
+        queryClient.invalidateQueries({
+          queryKey: qk('migration', 'v1_names'),
+        })
+      }
     },
   },
 }).createMachine({
   id: 'renewalUi',
   context: ({ input }) => ({
     currentExpiry: input.currentExpiry,
-    duration: getDurationInSecondsFromYears(
-      1,
-      new Date(Number(input.currentExpiry) * 1000),
+    protocol: input.protocol,
+    renewerAddress: getRenewerAddress(input.protocol),
+    duration: BigInt(
+      getDurationInSecondsFromYears(
+        1,
+        new Date(Number(input.currentExpiry) * 1000),
+      ),
     ),
     selectedToken: undefined,
     lastErrorMessage: undefined,
@@ -224,11 +250,15 @@ export const renewalUiMachine = setup({
       tags: 'renewing',
       invoke: {
         src: 'readPaymentTokenAllowance',
-        input: ({ context }) => ({
-          owner: context.submissionData!.ownerAddress,
-          selectedToken: context.submissionData!.token,
-          publicClient,
-        }),
+        input: ({ context }) => {
+          const submission = requireSubmissionData(context.submissionData)
+          return {
+            owner: submission.ownerAddress,
+            selectedToken: submission.token,
+            publicClient,
+            registrarAddress: context.renewerAddress,
+          }
+        },
         onDone: [
           {
             // Already authorized enough — skip approval entirely.
@@ -251,13 +281,14 @@ export const renewalUiMachine = setup({
         id: 'submitTokenApproval',
         src: 'submitTokenApproval',
         input: ({ context }) => {
-          const submission = context.submissionData!
+          const submission = requireSubmissionData(context.submissionData)
           return {
             tokenPrice: submission.priceRaw,
             selectedToken: submission.token,
             // Direct wallet route — the connected EOA signs the approve.
             signer: submission.signer,
             publicClient,
+            registrarAddress: context.renewerAddress,
           }
         },
         onDone: {
@@ -313,13 +344,14 @@ export const renewalUiMachine = setup({
         id: 'submitRenewal',
         src: 'submitRenewal',
         input: ({ context }) => {
-          const submission = context.submissionData!
+          const submission = requireSubmissionData(context.submissionData)
           return {
             label: submission.label,
             duration: submission.duration,
             selectedToken: submission.token,
             signer: submission.signer,
             publicClient,
+            renewerAddress: context.renewerAddress,
           }
         },
         onDone: {
