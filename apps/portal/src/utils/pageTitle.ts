@@ -1,12 +1,12 @@
 import {
   extractAddrFromPath,
   extractNameFromPath,
-  extractRegisterName,
   extractTldFromPath,
   isAddressRoute,
   isAddrSubpage,
   isTldRoute,
   matchContractRoute,
+  normalizeRegisterName,
   truncateAddress,
 } from './routePaths'
 
@@ -60,9 +60,9 @@ const nameTitle = (pathname: string): string | null => {
 
 const registerTitle = (
   pathname: string,
-  searchParams: URLSearchParams,
+  registerName: string | undefined,
 ): string | null => {
-  const name = extractRegisterName(pathname, searchParams)
+  const name = normalizeRegisterName(pathname, registerName)
 
   return name ? withSuffix(decodeURIComponent(name)) : null
 }
@@ -77,19 +77,26 @@ const tldTitle = (pathname: string): string | null => {
 
 /**
  * Document title for a pathname, shared by the worker's meta injection and the
- * client's title updates so a page reads the same before and after hydration.
+ * client's `head`, so both sides format a page the same way.
  *
  * Matched most-specific first, mirroring `handlePageMeta`.
+ *
+ * The two sides can still disagree on a URL that no route matches exactly. The
+ * client can only pass the deepest *matched* route, so with the router's fuzzy
+ * not-found matching `/nick.eth/bogus` arrives here as `/nick.eth` and is
+ * titled `nick.eth`, where the worker saw the full path and served
+ * `nick.eth > bogus`. `head` has no access to the location, and it need not
+ * re-run when only an unmatched segment changes, so this is a known gap rather
+ * than something the caller can correct.
+ *
+ * @param registerName the raw `?name=` value; only `/register` reads it
  */
-export function getPageTitle(
-  pathname: string,
-  searchParams: URLSearchParams = new URLSearchParams(),
-): string {
+export function getPageTitle(pathname: string, registerName?: string): string {
   return (
     addressTitle(pathname) ??
     contractTitle(pathname) ??
     nameTitle(pathname) ??
-    registerTitle(pathname, searchParams) ??
+    registerTitle(pathname, registerName) ??
     tldTitle(pathname) ??
     TITLE_SUFFIX
   )

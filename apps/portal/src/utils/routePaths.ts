@@ -94,9 +94,17 @@ export function extractRegisterName(
   pathname: string,
   searchParams: URLSearchParams,
 ): string | null {
+  return normalizeRegisterName(pathname, searchParams.get('name'))
+}
+
+/** As {@link extractRegisterName}, for callers that already hold the `name`. */
+export function normalizeRegisterName(
+  pathname: string,
+  name: string | null | undefined,
+): string | null {
   if (pathname !== '/register' && pathname !== '/register/') return null
 
-  const raw = searchParams.get('name')?.trim()
+  const raw = name?.trim()
   if (!raw || raw === '.eth') return null
   if (!raw.endsWith('.eth')) return null
 

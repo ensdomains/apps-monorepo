@@ -1,4 +1,4 @@
-import { getPageTitle } from './utils/pageTitle'
+import { getPageTitle, TITLE_SUFFIX } from './utils/pageTitle'
 import {
   extractAddrFromPath,
   extractNameFromPath,
@@ -197,7 +197,10 @@ function handleAddressPage(
   const imageUrl = subpage
     ? `https://${url.host}/og/addr/${encoded}/${encodeURIComponent(subpage)}.png`
     : `https://${url.host}/og/addr/${encoded}.png`
-  const pageTitle = getPageTitle(url.pathname, url.searchParams)
+  const pageTitle = getPageTitle(
+    url.pathname,
+    url.searchParams.get('name') ?? undefined,
+  )
 
   return injectMeta(request, env, {
     title: pageTitle,
@@ -223,7 +226,10 @@ function handleContractPage(
   const imageUrl = subpage
     ? `https://${url.host}/og/${kind}/${encoded}/${encodeURIComponent(subpage)}.png`
     : `https://${url.host}/og/${kind}/${encoded}.png`
-  const pageTitle = getPageTitle(url.pathname, url.searchParams)
+  const pageTitle = getPageTitle(
+    url.pathname,
+    url.searchParams.get('name') ?? undefined,
+  )
 
   return injectMeta(request, env, {
     title: pageTitle,
@@ -253,7 +259,10 @@ async function handleNamePage(
   const imageUrl = subpage
     ? `https://${url.host}/og/${encoded}/${encodeURIComponent(subpage)}.png`
     : `https://${url.host}/og/${encoded}.png`
-  const pageTitle = getPageTitle(url.pathname, url.searchParams)
+  const pageTitle = getPageTitle(
+    url.pathname,
+    url.searchParams.get('name') ?? undefined,
+  )
 
   return new HTMLRewriter()
     .on(
@@ -282,7 +291,10 @@ function handleTldPage(
   if (!tld) return env.ASSETS.fetch(request)
 
   const decodedTld = decodeURIComponent(tld)
-  const pageTitle = getPageTitle(url.pathname, url.searchParams)
+  const pageTitle = getPageTitle(
+    url.pathname,
+    url.searchParams.get('name') ?? undefined,
+  )
 
   return injectMeta(request, env, {
     title: pageTitle,
@@ -353,7 +365,9 @@ function handlePageMeta(
 
   // All other routes: inject default OG meta tags.
   return injectMeta(request, env, {
-    title: getPageTitle(url.pathname, url.searchParams),
+    // Every matcher getPageTitle would run has already failed above, so this
+    // branch is the bare app name by definition.
+    title: TITLE_SUFFIX,
     description: 'Explore ENS names and addresses',
     imageUrl: `https://${url.host}/og/default.png`,
   })

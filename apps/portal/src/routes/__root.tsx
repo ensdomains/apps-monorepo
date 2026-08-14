@@ -47,21 +47,31 @@ export const Route = createRootRoute({
   staticData: { hideSidebar: true },
   // The router re-runs this on every navigation, so the title tracks the route
   // without each route having to restate it.
+  // The router re-runs this on every navigation, so the title tracks the route
+  // without each route having to restate it.
   head: ({ matches }) => {
     const match = matches[matches.length - 1]
     const pathname = match?.pathname.replace(/(.)\/$/, '$1') ?? '/'
-    const search = new URLSearchParams(
-      Object.entries(match?.search ?? {}).map(([key, value]) => [
-        key,
-        String(value),
-      ]),
-    )
+    const { name } = (match?.search ?? {}) as { name?: unknown }
 
-    return { meta: [{ title: getPageTitle(pathname, search) }] }
+    return {
+      meta: [
+        {
+          title: getPageTitle(
+            pathname,
+            typeof name === 'string' ? name : undefined,
+          ),
+        },
+      ],
+    }
   },
   component: () => {
     return (
       <>
+        {/* The worker also injects a <title> into index.html, so after hydration
+            the document holds two. React 19 hoists its own ahead of the existing
+            one and document.title reads the first in tree order, which is why
+            this wins. Removing the duplicate would silently restore the bug. */}
         <HeadContent />
         <WagmiProvider config={wagmiConfig}>
           <QueryClientProvider client={queryClient}>

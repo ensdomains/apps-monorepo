@@ -36,9 +36,9 @@ describe('getPageTitle', () => {
   })
 
   it('reads the register target from the query string', () => {
-    expect(
-      getPageTitle('/register', new URLSearchParams({ name: 'foxes.eth' })),
-    ).toBe('foxes.eth — ENS Explorer App')
+    expect(getPageTitle('/register', 'foxes.eth')).toBe(
+      'foxes.eth — ENS Explorer App',
+    )
   })
 
   it('titles a TLD page', () => {
