@@ -254,6 +254,7 @@ export const useEditProfileDialogSave = ({
         name: pendingSave.name,
         signer: pendingSave.signer,
         ownerAddress: pendingSave.ownerAddress,
+        walletClient: pendingSave.walletClient,
         publicClient: pendingSave.publicClient,
         chainId: pendingSave.chainId,
         before: pendingSave.before,

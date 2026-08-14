@@ -1,5 +1,5 @@
 import type { Address, PublicClient } from 'viem'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@ens-apps/transaction-manager', () => ({
   getSmartAccountAddress: (signer: { config: { accountAddress: Address } }) =>
@@ -14,6 +14,7 @@ vi.mock('@/features/migration/service/ensureOwnedPermRes', () => ({
 }))
 vi.mock('./changeResolver', () => ({
   buildSetResolverCall: vi.fn(() => SET_RESOLVER_CALL),
+  resolveNameRegistryTarget: vi.fn(),
 }))
 vi.mock('./profileRecordTransactions', () => ({
   buildRecordsUpdateCalls: vi.fn(async () => ({
@@ -29,13 +30,19 @@ import {
 import {
   buildDeployOwnedPermResCall,
   findExistingPermRes,
+  simulateOwnedPermResAddress,
 } from '@/features/migration/service/ensureOwnedPermRes'
+import {
+  buildSetResolverCall,
+  resolveNameRegistryTarget,
+} from './changeResolver'
 import { buildRecordsUpdateCalls } from './profileRecordTransactions'
 import { setupControlledResolver } from './setupControlledResolver'
 
 const SMART_ACCOUNT = '0x2222222222222222222222222222222222222222' as Address
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
+const USER_REGISTRY = '0x4444444444444444444444444444444444444444' as Address
 const DEPLOY_CALL = {
   to: '0x00000000000000000000000000000000000000a1' as Address,
   data: '0xdeploy' as const,
@@ -64,7 +71,18 @@ const snapshots = {
 const start = vi.mocked(transactionManager.startTransaction)
 const mockedFindExisting = vi.mocked(findExistingPermRes)
 const mockedDeployCall = vi.mocked(buildDeployOwnedPermResCall)
+const mockedSimulateAddress = vi.mocked(simulateOwnedPermResAddress)
 const mockedBuildRecords = vi.mocked(buildRecordsUpdateCalls)
+const mockedBuildSetResolver = vi.mocked(buildSetResolverCall)
+const mockedResolveRegistryTarget = vi.mocked(resolveNameRegistryTarget)
+
+beforeEach(() => {
+  mockedResolveRegistryTarget.mockResolvedValue({
+    isSubname: false,
+    label: 'leon',
+    registryAddress: SET_RESOLVER_CALL.to,
+  })
+})
 
 afterEach(() => {
   vi.clearAllMocks()
@@ -151,19 +169,45 @@ describe('setupControlledResolver', () => {
     expect(calls).toEqual([DEPLOY_CALL, SET_RESOLVER_CALL])
   })
 
-  it('rejects subnames before doing any on-chain work', async () => {
-    await expect(
-      setupControlledResolver({
-        name: 'sub.leon.eth',
-        signer: smartSigner,
-        ownerAddress: OWNER,
-        publicClient,
-        chainId: CHAIN_ID,
-        ...snapshots,
-      }),
-    ).rejects.toThrow(/subname/i)
+  it('sets up subnames through the parent registry from the owner EOA', async () => {
+    mockedResolveRegistryTarget.mockResolvedValue({
+      isSubname: true,
+      label: 'sub',
+      registryAddress: USER_REGISTRY,
+    })
+    mockedFindExisting.mockResolvedValue(null)
 
-    expect(start).not.toHaveBeenCalled()
-    expect(mockedFindExisting).not.toHaveBeenCalled()
+    const walletClient = {
+      account: { address: OWNER },
+    } as never
+
+    await setupControlledResolver({
+      name: 'sub.leon.eth',
+      signer: smartSigner,
+      ownerAddress: OWNER,
+      walletClient,
+      publicClient,
+      chainId: CHAIN_ID,
+      ...snapshots,
+    })
+
+    expect(mockedSimulateAddress).toHaveBeenCalledWith({
+      eoa: OWNER,
+      deployer: OWNER,
+      publicClient,
+    })
+    expect(mockedBuildSetResolver).toHaveBeenCalledWith({
+      label: 'sub',
+      newResolver: RESOLVER,
+      registryAddress: USER_REGISTRY,
+    })
+    expect(start).toHaveBeenCalledTimes(3)
+    for (const [intent, signer] of start.mock.calls) {
+      expect(intent).toMatchObject({
+        type: 'custom',
+        request: { type: 'eoa', from: OWNER, chainId: CHAIN_ID },
+      })
+      expect(signer).toEqual({ type: 'eoa', walletClient })
+    }
   })
 })

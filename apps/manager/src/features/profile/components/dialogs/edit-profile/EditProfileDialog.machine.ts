@@ -62,6 +62,7 @@ interface PendingSetupSave {
   readonly ownerAddress: Address
   readonly signer: RhinestoneSigner
   readonly publicClient: PublicClient
+  readonly walletClient?: WalletClient | null
 }
 
 const ethCoinValue = (coins: readonly { coinType: number; value: string }[]) =>
@@ -150,6 +151,7 @@ const getPendingSave = (
       ownerAddress: deps.ownerAddress,
       signer: deps.signer,
       publicClient: deps.publicClient,
+      walletClient: deps.walletClient,
     }
   }
 

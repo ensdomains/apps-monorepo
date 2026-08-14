@@ -1,19 +1,28 @@
 import {
   type Call,
+  type EOATransactionRequest,
   getSmartAccountAddress,
   type RhinestoneSigner,
+  type Signer,
   type TransactionRequest,
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { parseInput } from '@ensdomains/ensjs/utils'
-import type { Address, PublicClient } from 'viem'
+import {
+  type Address,
+  isAddressEqual,
+  type PublicClient,
+  type WalletClient,
+} from 'viem'
 import {
   buildDeployOwnedPermResCall,
   findExistingPermRes,
   simulateOwnedPermResAddress,
 } from '@/features/migration/service/ensureOwnedPermRes'
-import { buildSetResolverCall } from './changeResolver'
+import {
+  buildSetResolverCall,
+  resolveNameRegistryTarget,
+} from './changeResolver'
 import {
   buildRecordsUpdateCalls,
   type ServiceRecordSnapshot,
@@ -26,6 +35,8 @@ export interface SetupControlledResolverParams {
   ownerAddress: Address
   publicClient: PublicClient
   chainId: number
+  /** Connected owner wallet; required when setting up a subname. */
+  walletClient?: WalletClient | null
   /**
    * Record diff to write to the freshly-controlled resolver. A freshly
    * deployed/assigned resolver starts empty, so callers typically pass an
@@ -40,16 +51,17 @@ export interface SetupControlledResolverParams {
 
 /**
  * Give the connected owner a resolver they control on a transferred `name`,
- * point the name at it, and optionally write records — one atomic
- * intent: deploy the owned resolver (skipped when it already exists),
- * `setResolver`, record write. The owned resolver's address is deterministic
- * (CREATE2 keyed off the owner's salt and the smart account as deployer), so
- * it's predicted up front and the later calls point at it before it's mined.
+ * point the name at it, and optionally write records. The 2LD path uses one
+ * atomic HCA intent. The subname path sends the same deploy (when needed),
+ * `setResolver`, and record-write calls sequentially from the owner EOA. The
+ * owned resolver's address is deterministic (CREATE2 keyed off the owner's
+ * salt and the executing account), so it is predicted before submission.
  *
- * Only supports `.eth` 2LDs — subnames live in a parent registry we can't
- * deploy or point at, so this throws for them before submitting anything.
+ * Subnames are updated through their attached parent registry. Unlike the 2LD
+ * path, those calls cannot use the session validator's fixed target allowlist,
+ * so they are submitted sequentially by the owner EOA.
  *
- * Resolves with the resolver address once the intent is confirmed.
+ * Resolves with the resolver address once every required transaction confirms.
  */
 export async function setupControlledResolver({
   name,
@@ -57,18 +69,16 @@ export async function setupControlledResolver({
   ownerAddress,
   publicClient,
   chainId,
+  walletClient,
   before,
   after,
   description = `Set up resolver for ${name}`,
 }: SetupControlledResolverParams): Promise<Address> {
-  const fullName = name.endsWith('.eth') ? name : `${name}.eth`
-  if (!parseInput(fullName).is2LD) {
-    throw new Error(
-      'This subname can’t be set up here yet. Please set it up in the ENS app first.',
-    )
-  }
-
   const smartAccount = getSmartAccountAddress(signer)
+  const registryTarget = await resolveNameRegistryTarget({
+    name,
+    publicClient,
+  })
 
   const existing = await findExistingPermRes({
     eoa: ownerAddress,
@@ -79,7 +89,7 @@ export async function setupControlledResolver({
     existing ??
     (await simulateOwnedPermResAddress({
       eoa: ownerAddress,
-      deployer: smartAccount,
+      deployer: registryTarget.isSubname ? ownerAddress : smartAccount,
       publicClient,
     }))
 
@@ -107,9 +117,51 @@ export async function setupControlledResolver({
 
   const calls: Call[] = [
     ...(existing ? [] : [buildDeployOwnedPermResCall(ownerAddress)]),
-    buildSetResolverCall({ name, newResolver: resolver }),
+    buildSetResolverCall({
+      label: registryTarget.label,
+      newResolver: resolver,
+      registryAddress: registryTarget.registryAddress,
+    }),
     ...recordCalls,
   ]
+
+  if (registryTarget.isSubname) {
+    if (
+      !walletClient?.account ||
+      !isAddressEqual(walletClient.account.address, ownerAddress)
+    ) {
+      throw new Error(
+        'Cannot set up subname resolver - the connected wallet does not control the owner address.',
+      )
+    }
+
+    const eoaSigner: Signer = { type: 'eoa', walletClient }
+
+    for (const call of calls) {
+      const request: EOATransactionRequest = {
+        type: 'eoa',
+        from: ownerAddress,
+        to: call.to,
+        data: call.data,
+        value: call.value,
+        chainId,
+      }
+      const txId = transactionManager.startTransaction(
+        { type: 'custom', request },
+        eoaSigner,
+        {
+          description,
+          publicClient,
+          chainId,
+          operation: 'setup-controlled-resolver',
+          name,
+        },
+      )
+      await waitForTransaction(txId)
+    }
+
+    return resolver
+  }
 
   const request: TransactionRequest = {
     type: 'rhinestone-intent',

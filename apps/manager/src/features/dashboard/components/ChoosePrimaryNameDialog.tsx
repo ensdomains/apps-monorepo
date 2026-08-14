@@ -250,7 +250,8 @@ const useUpdateEthAddressMutation = ({
 
 /**
  * Set up a resolver this wallet can write to, then seed the ETH address.
- * One sponsored intent; runs before set-primary when write access is missing.
+ * Runs before set-primary when write access is missing. A 2LD uses one HCA
+ * intent; a subname uses owner-EOA transactions against its parent registry.
  */
 const useSetupResolverMutation = ({
   account,
@@ -278,6 +279,7 @@ const useSetupResolverMutation = ({
         name: selectedName,
         signer,
         ownerAddress: walletAddress,
+        walletClient: account.walletClient,
         publicClient: publicClient as PublicClient,
         chainId,
         before: { texts: [], coins: [] },
