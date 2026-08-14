@@ -11,7 +11,7 @@ import {
   RESERVED_ROUTE_SEGMENTS,
   STATIC_PATH_PREFIXES,
   truncate,
-} from './routing'
+} from './routePaths'
 
 const ADDR = '0x2245606Dd6B3ae61205fCf8c843E200CC2f1123d'
 
