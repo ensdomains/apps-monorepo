@@ -7,10 +7,35 @@ const PASTED_NAME_NOISE = /[\s\u200B-\u200D\uFEFF\u00AD]/g
 export const normalizePastedNameSearch = (text: string): string =>
   text.toLowerCase().replaceAll(PASTED_NAME_NOISE, '')
 
+export const insertNormalizedNameSearchPaste = (
+  currentValue: string,
+  pastedText: string,
+  selectionStart: number | null,
+  selectionEnd: number | null,
+): { readonly value: string; readonly caret: number } => {
+  const pasted = normalizePastedNameSearch(pastedText)
+  const start = selectionStart ?? currentValue.length
+  const end = selectionEnd ?? currentValue.length
+  return {
+    value: `${currentValue.slice(0, start)}${pasted}${currentValue.slice(end)}`,
+    caret: start + pasted.length,
+  }
+}
+
 export const applyPastedNameSearch = (
   event: ClipboardEvent<HTMLInputElement>,
   setValue: (value: string) => void,
 ) => {
   event.preventDefault()
-  setValue(normalizePastedNameSearch(event.clipboardData.getData('text/plain')))
+  const input = event.currentTarget
+  const { value, caret } = insertNormalizedNameSearchPaste(
+    input.value,
+    event.clipboardData.getData('text/plain'),
+    input.selectionStart,
+    input.selectionEnd,
+  )
+  setValue(value)
+  requestAnimationFrame(() => {
+    input.setSelectionRange(caret, caret)
+  })
 }

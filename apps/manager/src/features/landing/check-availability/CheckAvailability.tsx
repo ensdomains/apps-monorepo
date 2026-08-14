@@ -24,7 +24,7 @@ import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useDebounce } from '@/hooks/useDebounce'
 import { truncateToMaxBytes } from '@/utils/domain'
-import { normalizePastedNameSearch } from '@/utils/normalizePastedNameSearch'
+import { applyPastedNameSearch } from '@/utils/normalizePastedNameSearch'
 
 const dropdownAnimation = {
   initial: { opacity: 0, y: -8, scale: 0.98 },
@@ -103,16 +103,9 @@ export const CheckAvailability = ({
           className="w-full"
           isLoading={isLoading}
           onChange={handleInputChange}
-          onPaste={(event) => {
-            event.preventDefault()
-            setInputValue(
-              truncateToMaxBytes(
-                normalizePastedNameSearch(
-                  event.clipboardData.getData('text/plain'),
-                ),
-              ),
-            )
-          }}
+          onPaste={(event) =>
+            applyPastedNameSearch(event, setInputValue, truncateToMaxBytes)
+          }
           placeholder=".eth"
           ref={inputRef}
           value={inputValue}
