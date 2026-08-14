@@ -146,8 +146,32 @@ describe('ProfileView helpers', () => {
     ])
   })
 
+  it('excludes fallback social contacts when primary contacts are not configured', () => {
+    const records = makeRecords({
+      contact: [{ key: 'email', value: 'person@example.com' }],
+      social: [
+        { key: 'org.telegram', value: 'erni_eth' },
+        { key: 'com.github', value: 'ensdomains' },
+        { key: 'com.discord', value: 'ensdomains' },
+      ],
+    })
+
+    expect(getPrimaryContactItems(records).map((item) => item.key)).toEqual([
+      'email',
+      'org.telegram',
+      'com.github',
+    ])
+    expect(getSecondarySocialRecords(records)).toEqual([
+      { key: 'com.discord', value: 'ensdomains' },
+    ])
+  })
+
   it('restores a social record when it is no longer a primary contact', () => {
     const records = makeRecords({
+      base: {
+        'domains.ens.primary-contacts': JSON.stringify(['email']),
+      },
+      contact: [{ key: 'email', value: 'person@example.com' }],
       social: [
         { key: 'com.twitter', value: 'ernieth' },
         { key: 'org.telegram', value: '' },
