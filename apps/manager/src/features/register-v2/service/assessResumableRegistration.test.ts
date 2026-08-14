@@ -9,9 +9,27 @@ import {
 import type { StoredRegistration } from './registrationPersistence'
 
 const getRegisterPrice = vi.fn()
+const getRegisterPriceQueryOptions = vi.fn((...args: unknown[]) => ({
+  queryKey: ['register-price', ...args],
+  queryFn: () => getRegisterPrice(...args),
+}))
 vi.mock('../data/queries/pricing.query', () => ({
   getRegisterPrice: (...args: unknown[]) =>
     (getRegisterPrice as unknown as (...a: unknown[]) => unknown)(...args),
+  getRegisterPriceQueryOptions: (...args: unknown[]) =>
+    (getRegisterPriceQueryOptions as unknown as (...a: unknown[]) => unknown)(
+      ...args,
+    ),
+}))
+
+// Controlled explicitly rather than left to the real router: whether a query
+// client exists decides which of the two re-quote paths runs, and a unit test
+// should not depend on router internals to pick one.
+const getQueryClient = vi.fn<() => { fetchQuery: unknown } | undefined>(
+  () => undefined,
+)
+vi.mock('@/utils/router/root-context', () => ({
+  getQueryClient: () => getQueryClient(),
 }))
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
@@ -91,10 +109,54 @@ const assess = (params: {
 describe('assessResumableRegistration', () => {
   beforeEach(() => {
     getRegisterPrice.mockReset()
+    getQueryClient.mockReset()
+    getQueryClient.mockReturnValue(undefined)
     getRegisterPrice.mockResolvedValue({
       isErr: () => false,
       value: { basePrice: 4_000_000n, premium: 1_000_000n },
     })
+  })
+
+  it('re-quotes through the shared pricing query when a client is available', async () => {
+    // Deduped against the pricing screen's query rather than a second raw
+    // contract read for the same label/duration/token.
+    const fetchQuery = vi.fn(async (options: { queryFn: () => unknown }) => {
+      const quote = (await options.queryFn()) as {
+        value: { basePrice: bigint; premium: bigint }
+      }
+      return quote.value
+    })
+    getQueryClient.mockReturnValue({ fetchQuery })
+
+    const result = await assess({ stored: storedRegistration() })
+
+    expect(fetchQuery).toHaveBeenCalledOnce()
+    expect(getRegisterPriceQueryOptions).toHaveBeenCalledWith(
+      'leon',
+      31_536_000,
+      'USDC',
+    )
+    expect(result.status).toBe('resumable')
+    if (result.status !== 'resumable') return
+    expect(result.confirmedData.totalPrice).toBe(5_000_000n)
+    expect(result.priceIsStale).toBe(false)
+  })
+
+  it('keeps the stored price when the shared query throws', async () => {
+    // `resultQueryOptions` unwraps the Result by throwing on Err, so the
+    // fallback has to be a catch, not a `.isErr()` check.
+    getQueryClient.mockReturnValue({
+      fetchQuery: vi.fn(async () => {
+        throw new Error('rpc down')
+      }),
+    })
+
+    const result = await assess({ stored: storedRegistration() })
+
+    expect(result.status).toBe('resumable')
+    if (result.status !== 'resumable') return
+    expect(result.priceIsStale).toBe(true)
+    expect(result.confirmedData.totalPrice).toBe(5_000_000n)
   })
 
   it('reports nothing to do with no stored record', async () => {

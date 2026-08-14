@@ -24,7 +24,11 @@ import {
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { type Address, type PublicClient, parseAbi } from 'viem'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
-import { getRegisterPrice } from '../data/queries/pricing.query'
+import { getQueryClient } from '@/utils/router/root-context'
+import {
+  getRegisterPrice,
+  getRegisterPriceQueryOptions,
+} from '../data/queries/pricing.query'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
 import {
   loadStoredRegistration,
@@ -101,34 +105,61 @@ async function readCommitmentAge(params: {
   return { ageSeconds: block.timestamp - committedAt, maxAgeSeconds }
 }
 
+/**
+ * Re-quote through the SAME query the pricing screen uses, so the read is
+ * cached and deduped against it rather than being a second raw contract call
+ * for the same label/duration/token.
+ *
+ * `resultQueryOptions` unwraps the `Result` — the value on Ok, a throw on Err —
+ * so this catches rather than inspecting a `Result`. Falls back to calling the
+ * service directly when no query client is available (tests, and any caller
+ * outside the router tree).
+ */
+async function fetchRegisterPrice(
+  label: string,
+  durationSeconds: number,
+  token: SUPPORTED_TOKEN,
+): Promise<{ basePrice: bigint; premium: bigint }> {
+  const queryClient = getQueryClient()
+
+  if (!queryClient) {
+    const quote = await getRegisterPrice(label, durationSeconds, token)
+    if (quote.isErr()) throw quote.error
+    return quote.value
+  }
+
+  return queryClient.fetchQuery(
+    getRegisterPriceQueryOptions(label, durationSeconds, token),
+  )
+}
+
 async function requoteConfirmedData(
   stored: StoredRegistration,
 ): Promise<{ confirmedData: RegistrationConfirmedData; stale: boolean }> {
   const { confirmedData } = stored
-  const quote = await getRegisterPrice(
-    stored.label,
-    Number(confirmedData.duration),
-    confirmedData.token as SUPPORTED_TOKEN,
-  )
 
-  if (quote.isErr()) {
+  try {
+    const { basePrice, premium } = await fetchRegisterPrice(
+      stored.label,
+      Number(confirmedData.duration),
+      confirmedData.token as SUPPORTED_TOKEN,
+    )
+    const decimals = TOKENS[confirmedData.token].decimals
+
+    return {
+      stale: false,
+      confirmedData: {
+        ...confirmedData,
+        totalPrice: basePrice + premium,
+        basePriceNumber: decimalBigintToNumber(basePrice, decimals),
+        premiumPriceNumber: decimalBigintToNumber(premium, decimals),
+      },
+    }
+  } catch {
     // Keep the stored price rather than blocking resume. The registrar pulls
     // the LIVE price at settlement either way; a stale quote only risks an
     // under-sized permit, which surfaces as a normal retryable failure.
     return { confirmedData, stale: true }
-  }
-
-  const decimals = TOKENS[confirmedData.token].decimals
-  const { basePrice, premium } = quote.value
-
-  return {
-    stale: false,
-    confirmedData: {
-      ...confirmedData,
-      totalPrice: basePrice + premium,
-      basePriceNumber: decimalBigintToNumber(basePrice, decimals),
-      premiumPriceNumber: decimalBigintToNumber(premium, decimals),
-    },
   }
 }
 
