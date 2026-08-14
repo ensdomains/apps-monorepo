@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
+import { match } from 'ts-pattern'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { shouldShowUpgradeBanner } from '@/features/migration/components/UpgradeBanner.helpers'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
@@ -10,6 +11,7 @@ import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNam
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 
 type UpgradeBannerProps = {
   readonly className?: string
@@ -20,6 +22,7 @@ export const UpgradeBanner = ({
   className,
   profileName,
 }: UpgradeBannerProps) => {
+  const nftCopyEnabled = isFeatureEnabled('COMMEMORATIVE_NFT_COPY')
   const navigate = useNavigate()
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
@@ -69,17 +72,28 @@ export const UpgradeBanner = ({
           </h2>
           <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
             <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
-              {isProfileBanner ? (
-                <Trans>
-                  Upgrade your name to edit your new ENS profile and claim your
-                  personalized NFT.
-                </Trans>
-              ) : (
-                <Trans>
-                  Upgrade your name(s) to unlock your new ENS profile and claim
-                  your personalized NFT.
-                </Trans>
-              )}
+              {match({ isProfileBanner, nftCopyEnabled })
+                .with({ isProfileBanner: true, nftCopyEnabled: true }, () => (
+                  <Trans>
+                    Upgrade your name to edit your new ENS profile and claim
+                    your personalized NFT.
+                  </Trans>
+                ))
+                .with({ isProfileBanner: true, nftCopyEnabled: false }, () => (
+                  <Trans>Upgrade your name to edit your new ENS profile.</Trans>
+                ))
+                .with({ isProfileBanner: false, nftCopyEnabled: true }, () => (
+                  <Trans>
+                    Upgrade your name(s) to unlock your new ENS profile and
+                    claim your personalized NFT.
+                  </Trans>
+                ))
+                .with({ isProfileBanner: false, nftCopyEnabled: false }, () => (
+                  <Trans>
+                    Upgrade your name(s) to unlock your new ENS profile.
+                  </Trans>
+                ))
+                .exhaustive()}
             </p>
             {isProfileBanner ? null : (
               <button

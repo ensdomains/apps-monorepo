@@ -293,6 +293,7 @@ describe('signFundingPermitActor', () => {
     getEip712Domain.mockRejectedValue(new Error('execution reverted'))
     readContract
       .mockResolvedValueOnce(7n) // nonces(wallet)
+      .mockResolvedValueOnce(20_000_000n) // balanceOf(wallet)
       .mockResolvedValueOnce('USDC') // name()
       .mockResolvedValueOnce('2') // version()
     signTypedData.mockResolvedValue(`0x${'11'.repeat(32)}${'22'.repeat(32)}1b`)
@@ -317,6 +318,34 @@ describe('signFundingPermitActor', () => {
     expect(typedData.message.spender.toLowerCase()).toBe(HCA.toLowerCase())
     expect(typedData.message.value).toBe(15_000_000n)
     expect(typedData.message.nonce).toBe(7n)
+  })
+
+  it('refuses to sign a permit the wallet cannot cover, without prompting', async () => {
+    // Regression: the pricing UI gates on the registration PRICE, but the
+    // permit is signed for the whole HCA budget (price + both leg costs). A
+    // wallet holding between the two used to sign happily and then have the
+    // commit batch revert on `transferFrom`, which the orchestrator reports as
+    // `Simulation failed: UnclassifiedRevert` / `errorSelector: 0x00000000` —
+    // naming neither USDC nor the shortfall.
+    getEip712Domain.mockRejectedValue(new Error('execution reverted'))
+    readContract
+      .mockResolvedValueOnce(0n) // nonces(wallet)
+      .mockResolvedValueOnce(20_000_000n) // balanceOf(wallet) — 20.000000 USDC
+
+    const result = await signFundingPermitActor({
+      wallet: WALLET,
+      hca: HCA,
+      value: 20_196_054n, // 20.196054 USDC budget
+      approvalSigner: eoaSigner(WALLET),
+      publicClient,
+      chainId: sepolia.id,
+    })
+
+    expect(result._unsafeUnwrapErr().message).toMatch(
+      /Insufficient USDC.*Need 20\.196054 USDC.*holds 20 USDC.*short by 0\.196054 USDC/s,
+    )
+    // The wallet must never be asked to sign a permit that cannot be honoured.
+    expect(signTypedData).not.toHaveBeenCalled()
   })
 })
 

@@ -12,13 +12,32 @@ import { ContractBadge } from './ContractBadge'
 import { DecodedParams } from './EventDetail'
 import { ExpandableDetailRow } from './ExpandableDetailRow'
 
-const Mono = ({ children }: { children: React.ReactNode }) => (
-  <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground text-sm">
+const ActionValue = ({
+  children,
+  copyValue,
+}: {
+  children: React.ReactNode
+  copyValue: string
+}) => (
+  <EntityBadge variant="default" type="action" copyValue={copyValue} compact>
     {children}
-  </code>
+  </EntityBadge>
 )
 
-const muted = 'text-muted-foreground text-sm'
+const muted = 'text-muted-foreground text-p'
+
+const RESOLVER_EVENT_TYPES = new Set([
+  'AbiChanged',
+  'AddrChanged',
+  'AddressChanged',
+  'AuthorisationChanged',
+  'ContenthashChanged',
+  'InterfaceChanged',
+  'NameChanged',
+  'PubkeyChanged',
+  'TextChanged',
+  'VersionChanged',
+])
 
 /** A name chip when the value resolves to a full ENS name, plain mono text otherwise. */
 const NameOrLabel = ({
@@ -35,7 +54,7 @@ const NameOrLabel = ({
       {name}
     </EntityBadge>
   ) : (
-    <Mono>{value}</Mono>
+    <ActionValue copyValue={value}>{value}</ActionValue>
   )
 }
 
@@ -68,7 +87,9 @@ const EventContent = ({ event }: { event: TimelineIndexerEvent }) =>
             {isMint ? 'minted token ID' : 'transferred token ID'}
           </span>
           {event.asTransfer?.id && (
-            <Mono>{truncateAddress(event.asTransfer.id)}</Mono>
+            <ActionValue copyValue={event.asTransfer.id}>
+              {truncateAddress(event.asTransfer.id)}
+            </ActionValue>
           )}
         </>
       )
@@ -91,7 +112,11 @@ const EventContent = ({ event }: { event: TimelineIndexerEvent }) =>
     .with('TextChanged', () => (
       <>
         <span className={muted}>set</span>
-        {event.asTextChanged?.key && <Mono>{event.asTextChanged.key}</Mono>}
+        {event.asTextChanged?.key && (
+          <ActionValue copyValue={event.asTextChanged.key}>
+            {event.asTextChanged.key}
+          </ActionValue>
+        )}
       </>
     ))
     .otherwise(() => null)
@@ -107,13 +132,18 @@ export const EventRow = ({ event }: EventRowProps) => {
     <ExpandableDetailRow
       left={
         <>
-          <Mono>{event.type}</Mono>
+          <ActionValue copyValue={event.type}>{event.type}</ActionValue>
           <EventContent event={event} />
         </>
       }
       right={
         contractAddress ? (
-          <ContractBadge address={contractAddress} />
+          <ContractBadge
+            address={contractAddress}
+            label={
+              RESOLVER_EVENT_TYPES.has(event.type) ? 'resolver' : undefined
+            }
+          />
         ) : undefined
       }
       disclosure={<DecodedParams event={event} />}

@@ -23,6 +23,7 @@ import {
   usePublicClient,
   useReadContract,
 } from 'wagmi'
+import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import {
@@ -48,6 +49,7 @@ type SavedRegistrationParams = {
   readonly tokenSymbol: 'USDC' | 'DAI'
   readonly tokenAddress: Address
   readonly tokenPrice: bigint
+  readonly tokenDecimals: number
 }
 
 /** Map machine states to whether registration is actively in progress */
@@ -302,8 +304,13 @@ export const useRegistrationTransactions = ({
       tokenSymbol: tokenInfo.symbol,
       tokenAddress: selectedTokenAddress,
       tokenPrice,
+      tokenDecimals: tokenInfo.decimals,
     })
   }
+
+  const paid = savedParams
+    ? formatPriceDisplay(savedParams.tokenPrice, savedParams.tokenDecimals)
+    : undefined
 
   const resetRegistration = useCallback(() => {
     actor.send({ type: 'CANCEL' })
@@ -317,6 +324,7 @@ export const useRegistrationTransactions = ({
     isRegistering,
     isSuccess,
     selectedToken,
+    paid,
     startFlow,
     resetRegistration,
   }

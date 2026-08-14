@@ -1,6 +1,11 @@
+import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
-import { clickThroughEnableSessions } from './manager-auth.js'
+import { expectFlowSuccess } from './flow-completion.js'
+import {
+  authorizeTransaction,
+  clickThroughEnableSessions,
+} from './manager-auth.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
@@ -36,9 +41,21 @@ export async function ensureProfilePillField(
 /**
  * Clicks the "Save Profile" button in the edit-profile dialog header.
  * The dialog closes automatically once the on-chain save succeeds.
+ *
+ * In-place record writes always go out as a plain `eth_sendTransaction` from
+ * the owner EOA (see EditProfileDialog.machine.ts's `getPendingSave`), even in
+ * Rhinestone HCA mode — unlike the sign-typed-data intents that
+ * PERMITTED_SIGN_KINDS auto-authorizes. Authorize it here or the dialog spins
+ * on "Saving" until `waitForProfileUpdated` times out.
  */
-export async function saveProfileChanges(page: Page) {
-  await page.getByRole('button', { name: 'Save Profile' }).click()
+export async function saveProfileChanges(
+  page: Page,
+  wallet: Web3ProviderBackend,
+) {
+  await Promise.all([
+    page.getByRole('button', { name: 'Save Profile' }).click(),
+    authorizeTransaction(wallet, 30_000),
+  ])
 }
 
 export async function waitForProfileUpdated(page: Page, timeout = 90_000) {
@@ -80,7 +97,9 @@ export async function renewFor28Days(page: Page): Promise<string> {
   await page.getByRole('button', { name: /renew name/i }).click()
   await page.getByRole('button', { name: /renew name/i }).click()
 
-  await expect(page.getByText('Renewal Complete!')).toBeVisible({
+  await expectFlowSuccess(page, {
+    success: page.getByText('Renewal Complete!'),
+    failureTitle: 'Renewal Failed',
     timeout: 90_000,
   })
   await expect(page.getByText(expectedExpiry)).toBeVisible({ timeout: 5_000 })

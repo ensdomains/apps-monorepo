@@ -27,6 +27,22 @@ type BuildSuggestionsOptions = {
   validTlds?: readonly string[]
 }
 
+const SHORT_LABEL_NOTICE = 'Names are at least 3 characters'
+
+/**
+ * Returns a notice when the input is a 2LD whose label is too short to
+ * register. The 3-character minimum is a .eth registrar rule, and subnames
+ * have no minimum, so both are left alone.
+ */
+export const getSearchNotice = (value: string): string | null => {
+  const [label = '', ...rest] = value.trim().toLowerCase().split('.')
+  if (rest.length > 1) return null
+  if (rest[0] !== undefined && !'eth'.startsWith(rest[0])) return null
+
+  const length = [...label].length
+  return length > 0 && length < 3 ? SHORT_LABEL_NOTICE : null
+}
+
 /**
  * Pure function to build search suggestions from user input
  * Handles both Ethereum addresses and ENS names
@@ -106,9 +122,6 @@ export const buildSearchSuggestions = ({
     dotCount >= 2 ||
     (dotCount === 1 && afterFirstDot !== '' && !isTldPrefix(afterFirstDot))
 
-  // Hide suggestions for non-subname searches when the label is under 3 chars.
-  // ENS names require a minimum of 3 characters; showing shorter names as
-  // "available" is misleading since they can't be registered.
   if (!isSubname && [...labelBeforeFirstDot].length < 3) return []
 
   if (isSubname) {

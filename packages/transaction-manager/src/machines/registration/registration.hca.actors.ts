@@ -42,6 +42,7 @@ import type { Address, Chain, Hash, Hex, PublicClient } from 'viem'
 import {
   bytesToHex,
   encodeFunctionData,
+  formatUnits,
   isAddressEqual,
   keccak256,
   parseAbi,
@@ -590,12 +591,50 @@ export function signFundingPermitActor(input: {
 
   return fromPromise(
     (async () => {
-      const nonce = await readContract(input.publicClient, {
-        address: contracts.usdc,
-        abi: erc2612Abi,
-        functionName: 'nonces',
-        args: [input.wallet],
-      })
+      const [nonce, walletBalance] = await Promise.all([
+        readContract(input.publicClient, {
+          address: contracts.usdc,
+          abi: erc2612Abi,
+          functionName: 'nonces',
+          args: [input.wallet],
+        }),
+        readContract(input.publicClient, {
+          address: contracts.usdc,
+          abi: erc2612Abi,
+          functionName: 'balanceOf',
+          args: [input.wallet],
+        }),
+      ])
+
+      // Preflight the WALLET's balance before prompting for a signature.
+      //
+      // A permit only authorizes a transfer; it does not make one possible. The
+      // pair is honoured by `transferFrom(wallet, HCA, value)` inside the
+      // session-signed commit batch, where USDC checks the balance for real. A
+      // wallet short by even one 6dp unit reverts that call, and because it is
+      // one leg of an atomic batch the WHOLE intent fails — surfacing from the
+      // orchestrator as `Simulation failed: UnclassifiedRevert` with
+      // `errorSelector: 0x00000000`, which names neither the token nor the
+      // shortfall and is not in the validator's error table (see
+      // DEBUGGING_INTENTS.md). Catch it here, where both numbers are known.
+      //
+      // This bound is NOT the one the pricing UI enforces. That screen gates on
+      // the registration PRICE; `value` is the funding shortfall for the whole
+      // HCA BUDGET (price + both Rhinestone leg costs), which is materially
+      // larger — on Sepolia an 8.00 USDC name has run to a ~20.20 USDC budget.
+      // A wallet holding between the two passes the UI and then fails
+      // simulation, which is exactly the window this check closes.
+      if (walletBalance < input.value) {
+        throw new Error(
+          `Insufficient USDC to fund the registration. Need ` +
+            `${formatUnits(input.value, 6)} USDC in ${input.wallet}, ` +
+            `but it holds ${formatUnits(walletBalance, 6)} USDC ` +
+            `(short by ${formatUnits(input.value - walletBalance, 6)} USDC). ` +
+            `The funding amount covers the registration price plus the ` +
+            `execution costs of both the commit and register legs, so it is ` +
+            `larger than the price shown at checkout.`,
+        )
+      }
 
       // Prefer ERC-5267 `eip712Domain()`; fall back to `name()` + `version()`.
       // Circle's Sepolia USDC (FiatTokenV2_2) does NOT implement ERC-5267 (it

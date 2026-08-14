@@ -16,6 +16,7 @@ import {
   type ProfileRecordsResult,
   profileRecordsQuery,
 } from '@/features/profile/service/profileRecords'
+import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { tw } from '@/utils/tailwind'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
@@ -80,6 +81,7 @@ const AnimatedNameRow = ({
   isAuthenticated,
   selectedLabels,
   onToggleSelect,
+  isV1Renewable,
 }: {
   readonly metadata: MergedNameRowMetadata
   readonly item: MergedItem
@@ -93,6 +95,7 @@ const AnimatedNameRow = ({
   readonly isAuthenticated: boolean
   readonly selectedLabels: ReadonlySet<string>
   readonly onToggleSelect: (label: string) => void
+  readonly isV1Renewable: boolean
 }) => {
   const {
     label,
@@ -131,9 +134,11 @@ const AnimatedNameRow = ({
     }))
     .exhaustive()
 
-  // A v2 .eth 2LD still within its grace window is eligible for renewal — which
-  // drives both the row's "Renew" menu action and its bulk-selection checkbox.
-  const isRenewable = !isV1 && isRenewableV2EthName(label, metadata.expiryDate)
+  // V1 rows use the authoritative renewer read; V2 rows use their grace window.
+  // Only V2 names can expose the bulk-selection checkbox.
+  const isRenewable = isV1
+    ? isV1Renewable
+    : isRenewableV2EthName(label, metadata.expiryDate)
 
   return (
     <motion.div
@@ -166,7 +171,8 @@ const AnimatedNameRow = ({
         nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
         onToggleSelect={() => onToggleSelect(label)}
-        selectable={isRenewable}
+        renewalProtocol={isV1 ? 'v1' : 'v2'}
+        selectable={!isV1 && isRenewable}
         showFavoriteButton
         status={status}
         themeColor={profilePreview.themeColor}
@@ -257,6 +263,9 @@ export const MyNamesList = ({
         isLoading: result.isLoading,
       })),
   })
+  const { isRenewable: isV1Renewable } = useV1Renewable(
+    pageRows.filter(({ item }) => item.kind === 'v1').map(({ name }) => name),
+  )
 
   if (hasError && !hasNames) {
     return (
@@ -314,6 +323,9 @@ export const MyNamesList = ({
                   isAuthenticated={isAuthenticated}
                   isProfileRecordsLoading={
                     profileRecordState?.isLoading ?? false
+                  }
+                  isV1Renewable={
+                    row.item.kind === 'v1' && isV1Renewable(row.name)
                   }
                   item={row.item}
                   key={row.item.key}

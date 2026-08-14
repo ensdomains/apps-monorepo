@@ -40,6 +40,7 @@ import {
 } from '@/utils/ens/tldHelpers'
 import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
+import { validateNameLength } from '@/utils/token/nameValidation'
 
 type NameSearch = {
   readonly registered?: boolean
@@ -205,7 +206,15 @@ const Profile = ({
     if (availabilityQuery.data?.isAvailable) {
       // .eth names can be registered
       if (isRegistrable(name)) {
-        return <AvailableNameMessage name={name} />
+        const lengthError = validateNameLength(name)
+        return lengthError ? (
+          <InvalidNameMessage
+            title="Name too short"
+            description={lengthError}
+          />
+        ) : (
+          <AvailableNameMessage name={name} />
+        )
       }
       // Other valid TLD names - DNS import not available on ENSv2 yet
       if (isClaimable(name)) {
@@ -307,7 +316,12 @@ const Profile = ({
   }
 
   if (availabilityQuery.data?.isAvailable && isRegistrable(name)) {
-    return <AvailableNameMessage name={name} />
+    const lengthError = validateNameLength(name)
+    return lengthError ? (
+      <InvalidNameMessage title="Name too short" description={lengthError} />
+    ) : (
+      <AvailableNameMessage name={name} />
+    )
   }
 
   // Profile query error - but we have owner, so name exists

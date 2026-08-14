@@ -15,8 +15,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import { getDurationExpiryDateForDisplay } from '@/features/register-v2/utils/time'
+import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import { cn } from '@/lib/utils'
 
 const getDurationFromSelectedDate = (date: Date, referenceDate: Date) =>

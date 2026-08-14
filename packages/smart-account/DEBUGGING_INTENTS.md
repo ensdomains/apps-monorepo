@@ -254,3 +254,49 @@ Symptom to recognise: first registration succeeds, every later one fails, and
 `isPermissionEnabled` is `true` at the failing block (not `false`, as in §7).
 Read the mode byte before anything else — `0x01`/`0x02` on a batch that also
 contains `enableSessionWithRefund` means the call and the signature disagree.
+
+## 8. `UnclassifiedRevert` is NOT a policy failure — read the batch's own state
+
+```
+Simulation failed: UnclassifiedRevert
+  errorSelector: 0x00000000  category: UNCLASSIFIED_REVERT  retryable: false
+```
+
+Everything above this section is about `InvalidSignature()` (`0x8baa579f`), which
+is the validator rejecting the intent. `UnclassifiedRevert` with a **zero
+selector** is the opposite: the validator passed, execution began, and one of
+the batched calls reverted with data the orchestrator could not classify. A
+plain `Error(string)` from an ERC-20 lands here — `0x08c379a0` is not in its
+table — so do not go looking for a policy bug.
+
+Decode `simulations[].signedIntentOp.…destinationOps` and check each call
+against **live chain state for that user** before anything else. The ops decode
+straightforwardly:
+
+| `to` | selector | call |
+|---|---|---|
+| USDC | `0xd505accf` | `permit(owner, spender, value, deadline, v, r, s)` |
+| USDC | `0x23b872dd` | `transferFrom(wallet, HCA, value)` |
+| validator | `0x4a9b6c49` | `enableSessionWithRefund(...)` |
+| registrar | `0xf14fcbc8` | `commit(bytes32)` |
+
+```bash
+cast call <usdc> 'balanceOf(address)(uint256)' <permit.owner> --rpc-url "$RPC"
+cast call <usdc> 'nonces(address)(uint256)'    <permit.owner> --rpc-url "$RPC"
+```
+
+The first real instance: `permit`/`transferFrom` for `20196054` against a wallet
+holding `20000000`. `transferFrom` reverts `ERC20: transfer amount exceeds
+balance`, and since the batch is atomic the whole intent fails.
+
+**Why it hits only some users.** The funding permit is signed for the whole HCA
+budget — `registrationPrice + commitCost + registerCost` — while the pricing UI
+gates on `registrationPrice` alone. On Sepolia the two legs have run to ~12 USDC
+against an 8 USDC name, so any wallet holding between the price and the budget
+clears checkout and then fails simulation. `signFundingPermitActor` now reads
+`balanceOf(wallet)` and refuses before the wallet is ever prompted; if this
+error resurfaces, check that gate first.
+
+Note that `checkingHcaFunding` reads the **HCA's** balance, not the wallet's —
+it decides whether a permit is needed at all, and never validated that the
+wallet could honour one.

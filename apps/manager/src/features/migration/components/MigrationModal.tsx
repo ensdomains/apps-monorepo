@@ -13,8 +13,10 @@ import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Name
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const MigrationModal = () => {
+  const nftCopyEnabled = isFeatureEnabled('COMMEMORATIVE_NFT_COPY')
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isEligibleV1NamesPending } =
     useEligibleV1Names({ fallbackToClassified: false })
@@ -60,10 +62,17 @@ export const MigrationModal = () => {
             <Trans>Welcome to the new ENS app!</Trans>
           </DialogTitle>
           <DialogDescription className="w-full text-[15px] text-ens-garnet-500 leading-[1.15] tracking-[-0.2px] sm:text-base sm:leading-[1.2] sm:tracking-[-0.24px]">
-            <Trans>
-              Upgrade your name(s) in just a couple steps to unlock your new ENS
-              profile and claim your commemorative NFT.
-            </Trans>
+            {nftCopyEnabled ? (
+              <Trans>
+                Upgrade your name(s) in just a couple steps to unlock your new
+                ENS profile and claim your commemorative NFT.
+              </Trans>
+            ) : (
+              <Trans>
+                Upgrade your name(s) in just a couple steps to unlock your new
+                ENS profile.
+              </Trans>
+            )}
           </DialogDescription>
 
           <MigrationValuePropsCarousel />

@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { AvailabilityCheckIcon } from '@/components/atoms/AvailabilityCheckIcon'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
-import type { PremiumLabel } from '@/features/register/utils'
+import type { PremiumLabel } from '@/features/shared/registration/nameUtils'
 import { cn } from '@/lib/utils'
 import { getByteLength, getDomainCardSizeClasses } from '@/utils/domain'
 import { DomainAttributePill } from './DomainAttributePill'

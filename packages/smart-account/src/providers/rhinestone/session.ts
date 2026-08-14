@@ -55,10 +55,20 @@ const standaloneHcaAbi = parseAbi([
  * by index into the signed session set. Only the destination entry carries
  * the HCA nonce.
  *
- * Aliased from the SDK's own (unexported) shape via `ChainSessionConfig` so
- * values flow into `signers.enableData` without structural friction.
+ * Extends the SDK shape with the standalone-HCA nonce added by the ENS patch.
+ * The published SDK 1.8 declarations do not include this runtime field yet.
  */
-export type SessionEnableData = NonNullable<ChainSessionConfig['enableData']>
+export type SessionEnableData = NonNullable<
+  ChainSessionConfig['enableData']
+> & {
+  readonly hcaSessionNonce: bigint
+}
+
+/** Standalone sessions bind the permission to one HCA address. */
+export type StandaloneHcaSession = Session & {
+  readonly account: Address
+  readonly salt: Hex
+}
 
 /** One chain digest entry from `SessionDetails.hashesAndChainIds`. */
 export type ChainDigest = SessionEnableData['hashesAndChainIds'][number]
@@ -81,7 +91,7 @@ export interface DestinationSessionParams {
 }
 
 export interface DestinationSessionResult {
-  readonly session: Session
+  readonly session: StandaloneHcaSession
   readonly permissionId: Hex
   readonly enableData: SessionEnableData
   readonly hcaSessionNonce: bigint
@@ -218,7 +228,7 @@ export function createDestinationSession(
         refundToken: c.usdc,
       })
 
-      const session: Session = {
+      const session: StandaloneHcaSession = {
         chain: params.chain,
         account: params.hca,
         salt,
@@ -309,7 +319,7 @@ export function rebuildDestinationSession(params: {
   readonly hcaSessionNonce: bigint
   readonly validUntil: bigint
   readonly sessionPrivateKey: Hex
-}): { session: Session; permissionId: Hex } {
+}): { session: StandaloneHcaSession; permissionId: Hex } {
   const c = getDestinationContracts(params.chain.id)
   const salt = computeDestinationSessionSalt({
     hcaSessionNonce: params.hcaSessionNonce,
@@ -317,7 +327,7 @@ export function rebuildDestinationSession(params: {
     resolver: params.resolver,
     refundToken: c.usdc,
   })
-  const session: Session = {
+  const session: StandaloneHcaSession = {
     chain: params.chain,
     account: params.hca,
     salt,

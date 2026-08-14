@@ -21,7 +21,7 @@ export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
       left={
         <>
           <AccountBadge txHash={event.transactionHash} />
-          <span className="text-muted-foreground text-sm">
+          <span className="text-muted-foreground text-p">
             initiated at {formatTimelineTime(event.timestamp)}
           </span>
         </>

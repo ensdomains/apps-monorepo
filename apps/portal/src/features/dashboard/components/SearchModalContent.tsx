@@ -32,6 +32,7 @@ export const SearchModalContent = ({
     ownedNamesFiltered,
     isTldsLoading,
     hasAnySection,
+    searchNotice,
   } = useSearchResults({
     searchValue,
     navigateToName,
@@ -71,7 +72,7 @@ export const SearchModalContent = ({
     <CommandList>
       <CommandEmpty>
         {searchValue
-          ? 'No results found.'
+          ? (searchNotice ?? 'No results found.')
           : 'Type to search for names or addresses...'}
       </CommandEmpty>
       <SearchResultsList

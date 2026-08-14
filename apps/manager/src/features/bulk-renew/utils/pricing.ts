@@ -1,11 +1,11 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { differenceInCalendarDays, startOfDay } from 'date-fns'
 import { secondsInDay } from 'date-fns/constants'
-import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import {
   getDurationExpiryDateForDisplay,
   getDurationInSecondsFromYears,
 } from '@/features/register-v2/utils/time'
+import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import type { Selection } from '../types'
 
 /** Renewals are paid in stablecoins; USDC is the display/default coin. */

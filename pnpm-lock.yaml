@@ -280,9 +280,6 @@ importers:
       motion:
         specifier: ^12.23.25
         version: 12.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      motion-plus:
-        specifier: workspace:*
-        version: link:../../packages/motion-plus
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
@@ -893,21 +890,6 @@ importers:
         specifier: 'catalog:'
         version: 4.1.5(@types/node@24.10.2)(@vitest/coverage-v8@4.1.5)(happy-dom@18.0.1)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.8.2))
 
-  packages/motion-plus:
-    dependencies:
-      motion:
-        specifier: ^12.25.0
-        version: 12.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      motion-dom:
-        specifier: ^12.25.0
-        version: 12.38.0
-      motion-plus-dom:
-        specifier: ^2.9.0
-        version: 2.11.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      motion-utils:
-        specifier: ^12.23.6
-        version: 12.36.0
-
   packages/shared-schema:
     dependencies:
       valibot:
@@ -1009,12 +991,18 @@ importers:
 
   packages/utils:
     dependencies:
+      '@ensdomains/ensjs':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e96662c(viem@2.52.2(typescript@6.0.3)(zod@4.1.13))
       '@tanstack/react-query':
         specifier: ^5.87.1
         version: 5.90.12(react@19.2.5)
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
+      viem:
+        specifier: 'catalog:'
+        version: 2.52.2(typescript@6.0.3)(zod@4.1.13)
       xstate:
         specifier: 'catalog:'
         version: 5.24.0(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5)
@@ -6720,9 +6708,6 @@ packages:
 
   motion-dom@12.38.0:
     resolution: {integrity: sha512-pdkHLD8QYRp8VfiNLb8xIBJis1byQ9gPT3Jnh2jqfFtAsWUA3dEepDlsWe/xMpO8McV+VdpKVcp+E+TGJEtOoA==}
-
-  motion-plus-dom@2.11.2:
-    resolution: {integrity: sha512-WNXCn7XRS7H5ZJiwceJMbNjXbhVwjhQquJn/3LuyPkwMcxtOtQmc+cCas46bNpYNfKCyJs94oN9XRcBWmT2LxQ==}
 
   motion-utils@12.36.0:
     resolution: {integrity: sha512-eHWisygbiwVvf6PZ1vhaHCLamvkSbPIeAYxWUuL3a2PD/TROgE7FvfHWTIH4vMl798QLfMw15nRqIaRDXTlYRg==}
@@ -15055,16 +15040,6 @@ snapshots:
   motion-dom@12.38.0:
     dependencies:
       motion-utils: 12.36.0
-
-  motion-plus-dom@2.11.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5):
-    dependencies:
-      motion: 12.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      motion-dom: 12.38.0
-      motion-utils: 12.36.0
-    transitivePeerDependencies:
-      - '@emotion/is-prop-valid'
-      - react
-      - react-dom
 
   motion-utils@12.36.0: {}
 

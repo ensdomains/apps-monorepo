@@ -1,7 +1,9 @@
 import { Trans } from '@lingui/react/macro'
 import type { Address } from 'viem'
 import { EditProfileDialog } from '@/features/profile/components/dialogs/edit-profile/EditProfileDialog'
+import { normalizeEthName } from '@/features/profile/service/profileName'
 import type { ProfileRecords } from '@/features/profile/types'
+import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 
 type ProfileEditActionProps = {
   readonly className: string
@@ -10,6 +12,7 @@ type ProfileEditActionProps = {
   readonly name: string
   readonly onUpdated: () => undefined | Promise<unknown>
   readonly owner?: Address
+  readonly protocol?: RenewalProtocol
   readonly records: ProfileRecords
 }
 
@@ -19,10 +22,17 @@ export const ProfileEditAction = ({
   name,
   onUpdated,
   owner,
+  protocol,
   records,
   className,
 }: ProfileEditActionProps) => {
-  if (!isOwner || isInGrace) return null
+  // An unmigrated .eth name has no v2 resolver to write to, so saving fails and
+  // the upgrade banner says as much. Imported DNS names are also served by the
+  // v1 registry but are editable, so the protocol alone can't decide this.
+  const isUnmigratedEthName =
+    protocol === 'v1' && normalizeEthName(name) !== null
+
+  if (!isOwner || isInGrace || isUnmigratedEthName) return null
 
   const trigger = (
     <button className={className} type="button">
