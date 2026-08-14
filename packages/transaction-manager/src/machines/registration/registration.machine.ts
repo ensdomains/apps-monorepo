@@ -32,6 +32,10 @@ import {
   submitRevealBatchActor,
   verifyHcaRegistrationActor,
 } from './registration.hca.actors'
+import {
+  getResumeTarget,
+  type PersistedRegistrationContext,
+} from './registration.persistence'
 
 /** `Math.max` for bigints (no bigint overload on `Math.max`). */
 const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
@@ -59,7 +63,9 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  *    session-signed, no wallet prompt
  * 6. Verify against the standalone registry
  *
- * Persistence is handled automatically via inspect option (see export at bottom)
+ * Persistence lives outside the machine: `subscribeRegistrationPersistence`
+ * (registration.persistence.ts) mirrors progress into a storage adapter, and an
+ * interrupted run re-enters through the `RESUME` event on `idle`.
  */
 
 type CommitmentData = {
@@ -214,6 +220,29 @@ export type RegistrationEvent =
       ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA`, so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
       publicClient: PublicClient
+    }
+  | {
+      /**
+       * Re-enter a registration that was interrupted (tab closed, reload).
+       *
+       * Carries the restored serializable context plus FRESHLY REBUILT runtime
+       * deps — the machine never restores a persisted actor snapshot, because
+       * XState v5 re-runs pending invoked promises on restore and would
+       * re-submit an in-flight bundle. Routing (`getResumeTarget`) can only
+       * reach states that read the chain before they write to it.
+       */
+      type: 'RESUME'
+      /** The stage the run was persisted at; used only for routing. */
+      stage: string
+      context: PersistedRegistrationContext
+      deps: {
+        signer: Signer
+        /** EOA that signs the EIP-2612 funding permit on the HCA path. */
+        approvalSigner?: Signer
+        publicClient: PublicClient
+        /** Rebuilt from the app's session store, never persisted. */
+        hcaSessionEnable?: HcaSessionEnableParams
+      }
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -429,16 +458,21 @@ export const registrationMachine = setup({
       },
     ),
     verifyRegistration: fromResultAsync(
-      (input: {
-        mode: 'eoa' | 'hca'
-        name: string
-        owner: Address
-        hca: Address
-        resolverAddress: Address
-        publicClient: PublicClient
-        commitment: Hash
-        duration: bigint
-      }) => {
+      (
+        input: {
+          mode: 'eoa' | 'hca'
+          name: string
+          owner: Address
+          hca: Address
+          resolverAddress: Address
+          publicClient: PublicClient
+          commitment: Hash
+          duration: bigint
+        },
+        // Both actors grace-poll for up to 30s; pass the actor's signal so
+        // CANCEL stops the poll instead of leaving it running to term.
+        { signal }: { signal: AbortSignal },
+      ) => {
         // One machine state, two deployments: the HCA path verifies against
         // the standalone registry, the EOA path against the old deployment.
         return input.mode === 'hca'
@@ -449,8 +483,9 @@ export const registrationMachine = setup({
               publicClient: input.publicClient,
               commitment: input.commitment,
               duration: input.duration,
+              signal,
             })
-          : verifyRegistrationActor(input)
+          : verifyRegistrationActor({ ...input, signal })
       },
     ),
   },
@@ -471,11 +506,38 @@ export const registrationMachine = setup({
       })
     },
 
-    clearSnapshot: async () => {
-      // TODO: Implement via persistence service
-      // await persistenceService.clearRegistrationSnapshot()
-      console.log('🗑️ [REGISTRATION] Cleared snapshot')
-    },
+    /**
+     * Rehydrate from a `RESUME` event: persisted fields verbatim, runtime deps
+     * from the freshly rebuilt bag.
+     *
+     * Everything the flow can re-derive is explicitly cleared rather than
+     * carried: a permit past its 1h deadline, a budget quoted at yesterday's
+     * price and a balance read before the tab closed are each worse than no
+     * value at all, because the states that consume them treat "present" as
+     * "trustworthy".
+     */
+    applyResumeContext: assign(({ context, event }) => {
+      if (event.type !== 'RESUME') return context
+
+      // `signerType` exists only to pick the registrar when reading a record
+      // back; the live `signer` supersedes it here.
+      const { signerType: _signerType, ...restored } = event.context
+
+      return {
+        ...context,
+        ...restored,
+        signer: event.deps.signer,
+        approvalSigner: event.deps.approvalSigner,
+        publicClient: event.deps.publicClient,
+        hcaSessionEnable: event.deps.hcaSessionEnable,
+        permit: undefined,
+        hcaBudget: undefined,
+        hcaBudgetBreakdown: undefined,
+        hcaUsdcBalance: undefined,
+        error: undefined,
+        retryTarget: undefined,
+      }
+    }),
 
     clearRegisterReadyTimestamp: assign({
       registerReadyTimestamp: () => undefined,
@@ -525,8 +587,6 @@ export const registrationMachine = setup({
       })
     },
   },
-
-  // Note: Persistence will be handled via inspect option (see export at bottom)
 }).createMachine({
   id: 'registration',
   initial: 'idle',
@@ -590,6 +650,28 @@ export const registrationMachine = setup({
             registrationTxId: () => undefined,
           }),
         },
+
+        // Re-enter an interrupted run. The target set is exactly
+        // `ResumeTarget` — no `submitting*` and no `signingFundingPermit`, so
+        // a resume can never re-send a request that may already be in flight.
+        RESUME: [
+          {
+            guard: ({ event }) =>
+              getResumeTarget(event) === 'verifyingRegistration',
+            target: 'verifyingRegistration',
+            actions: 'applyResumeContext',
+          },
+          {
+            guard: ({ event }) =>
+              getResumeTarget(event) === 'validatingCommitment',
+            target: 'validatingCommitment',
+            actions: 'applyResumeContext',
+          },
+          {
+            target: 'settingUpRegistration',
+            actions: 'applyResumeContext',
+          },
+        ],
       },
     },
 
@@ -1565,7 +1647,10 @@ export const registrationMachine = setup({
     success: {
       // Not `type: 'final'` so `CANCEL` can return to `idle` for a new registration
       // (e.g. register-v2 after another name); `START_REGISTRATION` only runs from `idle`.
-      entry: ['logTransition', 'logRegistrationDuration', 'clearSnapshot'],
+      // Clearing the persisted record is the subscriber's job (see
+      // `subscribeRegistrationPersistence`), which keeps storage out of the
+      // machine entirely.
+      entry: ['logTransition', 'logRegistrationDuration'],
       on: {
         CANCEL: {
           target: 'idle',
@@ -1717,8 +1802,3 @@ export const registrationMachine = setup({
     },
   },
 })
-
-// TODO: Add persistence wrapper with inspect option
-// const savedSnapshot = await persistenceService.loadRegistrationSnapshot()
-// export const registrationMachine = savedSnapshot
-//   ? baseMachine.provide({ snapshot: savedSnapshot })

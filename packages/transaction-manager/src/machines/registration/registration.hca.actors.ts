@@ -66,7 +66,11 @@ import type {
   RhinestoneTransactionRequest,
   SessionEnableData,
 } from '../../types/transaction.types'
-import type { PermitSignature } from './registration.actors'
+import {
+  type PermitSignature,
+  pollUntilVerified,
+  type VerifyPollOptions,
+} from './registration.actors'
 
 type CommitmentData = {
   commitment: Hash
@@ -745,6 +749,19 @@ export function signFundingPermitActor(input: {
         Math.floor(Date.now() / 1000) + PERMIT_DEADLINE_SECONDS,
       )
 
+      // Observability contract — do not remove. The resume e2e counts wallet
+      // prompts by matching this exact line, because the whole cost of a
+      // resumed registration is meant to be ONE permit re-signature: the
+      // permit is deliberately not persisted (1h deadline, untracked nonce),
+      // so `checkingAllowance → signingPermit` re-signs it. A second prompt
+      // means the flow restarted rather than resumed. Values are interpolated
+      // into the string, not passed as an object arg — Playwright's
+      // `msg.text()` renders object args as `JSHandle@object`, which is
+      // unmatchable.
+      console.log(
+        `📊 [TRANSACTION MANAGER] Funding permit signing: wallet=${input.wallet} value=${input.value.toString()}`,
+      )
+
       const signature = await signTypedData(walletClient, {
         account,
         domain,
@@ -914,87 +931,95 @@ export function submitFundingAndCommitActor(input: {
  * `register` deletes what it consumes and `commit` only writes. Every path into
  * `commitmentCooldown` confirms the commitment first, so zero means consumed.
  */
-export function verifyHcaRegistrationActor(input: {
-  name: string
-  wallet: Address
-  hca: Address
-  publicClient: PublicClient
-  /** The commitment this flow's reveal consumed. */
-  commitment: Hash
-  /** Duration the commitment bound, to check the expiry we paid for. */
-  duration: bigint
-}): ResultAsync<{ verified: boolean; reason?: string }, Error> {
-  return fromPromise(
-    (async () => {
-      const chainId = requireChainId(input.publicClient, 'HCA registration')
-      const contracts = getDestinationContracts(chainId)
-      const label = cleanLabel(input.name)
-      const expectedResolver = computeResolverAddress({
-        chainId,
-        hca: input.hca,
-      })
+export function verifyHcaRegistrationActor(
+  input: {
+    name: string
+    wallet: Address
+    hca: Address
+    publicClient: PublicClient
+    /** The commitment this flow's reveal consumed. */
+    commitment: Hash
+    /** Duration the commitment bound, to check the expiry we paid for. */
+    duration: bigint
+  } & VerifyPollOptions,
+): ResultAsync<{ verified: boolean; reason?: string }, Error> {
+  const readRegistryState = async (): Promise<{
+    verified: boolean
+    reason?: string
+  }> => {
+    const chainId = requireChainId(input.publicClient, 'HCA registration')
+    const contracts = getDestinationContracts(chainId)
+    const label = cleanLabel(input.name)
+    const expectedResolver = computeResolverAddress({
+      chainId,
+      hca: input.hca,
+    })
 
-      const [state, registryResolver, registrySubregistry, commitTime] =
-        await Promise.all([
-          readContract(input.publicClient, {
-            address: contracts.ethRegistry,
-            abi: permissionedRegistryGetStateSnippet,
-            functionName: 'getState',
-            args: [BigInt(keccak256(stringToHex(label)))],
-          }),
-          readContract(input.publicClient, {
-            address: contracts.ethRegistry,
-            abi: permissionedRegistryGetResolverSnippet,
-            functionName: 'getResolver',
-            args: [label],
-          }),
-          readContract(input.publicClient, {
-            address: contracts.ethRegistry,
-            abi: permissionedRegistryGetSubregistrySnippet,
-            functionName: 'getSubregistry',
-            args: [label],
-          }),
-          readContract(input.publicClient, {
-            address: contracts.ethRegistrar,
-            abi: ethRegistrarCommitmentsSnippet,
-            functionName: 'commitmentAt',
-            args: [input.commitment],
-          }),
-        ])
-
-      const reason = firstFailure([
-        [
-          Number(state.status) === STATUS_REGISTERED,
-          `label is not REGISTERED (status ${Number(state.status)})`,
-        ],
-        [
-          isAddressEqual(state.latestOwner, input.wallet),
-          `owner is ${state.latestOwner}, expected the wallet ${input.wallet}`,
-        ],
-        [
-          isAddressEqual(registryResolver, expectedResolver),
-          `resolver is ${registryResolver}, expected the HCA resolver ${expectedResolver}`,
-        ],
-        [
-          // Our reveal sets none, and whoever did set it owns every name
-          // beneath this one.
-          isAddressEqual(registrySubregistry, zeroAddress),
-          `subregistry is ${registrySubregistry}, expected none — this registration is not ours`,
-        ],
-        [
-          BigInt(commitTime) === 0n,
-          `our commitment is unconsumed (recorded at ${commitTime}), so a different reveal registered this name`,
-        ],
-        [
-          BigInt(state.expiry) + EXPIRY_SLACK_SECONDS >=
-            BigInt(Math.floor(Date.now() / 1000)) + input.duration,
-          `expiry ${state.expiry} is shorter than the ${input.duration}s registered`,
-        ],
+    const [state, registryResolver, registrySubregistry, commitTime] =
+      await Promise.all([
+        readContract(input.publicClient, {
+          address: contracts.ethRegistry,
+          abi: permissionedRegistryGetStateSnippet,
+          functionName: 'getState',
+          args: [BigInt(keccak256(stringToHex(label)))],
+        }),
+        readContract(input.publicClient, {
+          address: contracts.ethRegistry,
+          abi: permissionedRegistryGetResolverSnippet,
+          functionName: 'getResolver',
+          args: [label],
+        }),
+        readContract(input.publicClient, {
+          address: contracts.ethRegistry,
+          abi: permissionedRegistryGetSubregistrySnippet,
+          functionName: 'getSubregistry',
+          args: [label],
+        }),
+        readContract(input.publicClient, {
+          address: contracts.ethRegistrar,
+          abi: ethRegistrarCommitmentsSnippet,
+          functionName: 'commitmentAt',
+          args: [input.commitment],
+        }),
       ])
 
-      return reason ? { verified: false, reason } : { verified: true }
-    })(),
-    (error) => (error instanceof Error ? error : new Error(String(error))),
+    const reason = firstFailure([
+      [
+        Number(state.status) === STATUS_REGISTERED,
+        `label is not REGISTERED (status ${Number(state.status)})`,
+      ],
+      [
+        isAddressEqual(state.latestOwner, input.wallet),
+        `owner is ${state.latestOwner}, expected the wallet ${input.wallet}`,
+      ],
+      [
+        isAddressEqual(registryResolver, expectedResolver),
+        `resolver is ${registryResolver}, expected the HCA resolver ${expectedResolver}`,
+      ],
+      [
+        // Our reveal sets none, and whoever did set it owns every name
+        // beneath this one.
+        isAddressEqual(registrySubregistry, zeroAddress),
+        `subregistry is ${registrySubregistry}, expected none — this registration is not ours`,
+      ],
+      [
+        BigInt(commitTime) === 0n,
+        `our commitment is unconsumed (recorded at ${commitTime}), so a different reveal registered this name`,
+      ],
+      [
+        BigInt(state.expiry) + EXPIRY_SLACK_SECONDS >=
+          BigInt(Math.floor(Date.now() / 1000)) + input.duration,
+        `expiry ${state.expiry} is shorter than the ${input.duration}s registered`,
+      ],
+    ])
+
+    return reason ? { verified: false, reason } : { verified: true }
+  }
+
+  // Grace-polls: a Rhinestone intent keeps filling server-side after the tab
+  // closes, so a resumed run reaches here before the reveal has confirmed.
+  return fromPromise(pollUntilVerified(readRegistryState, input), (error) =>
+    error instanceof Error ? error : new Error(String(error)),
   )
 }
 
