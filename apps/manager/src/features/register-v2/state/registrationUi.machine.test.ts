@@ -11,6 +11,7 @@ import { assign, createActor, createMachine } from 'xstate'
  */
 type RegistrationStubEvent =
   | { type: 'START_REGISTRATION'; primaryName?: string }
+  | { type: 'RESUME'; stage: string; context: any; deps: any }
   | { type: 'FORCE_SUCCESS' }
   | { type: 'FORCE_ERROR'; error: Error }
   | { type: 'RETRY' }
@@ -29,6 +30,10 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       error: undefined as Error | undefined,
       retryCount: 0,
       primaryName: undefined as string | undefined,
+      /** Captures the RESUME payload so tests can assert what was forwarded. */
+      resumed: undefined as
+        | { stage: string; context: any; deps: any }
+        | undefined,
     },
     initial: 'idle',
     states: {
@@ -40,6 +45,19 @@ vi.mock('@ens-apps/transaction-manager', () => ({
               primaryName: ({ event }) =>
                 event.type === 'START_REGISTRATION'
                   ? event.primaryName
+                  : undefined,
+            }),
+          },
+          RESUME: {
+            target: 'running',
+            actions: assign({
+              resumed: ({ event }) =>
+                event.type === 'RESUME'
+                  ? {
+                      stage: event.stage,
+                      context: event.context,
+                      deps: event.deps,
+                    }
                   : undefined,
             }),
           },
@@ -580,5 +598,183 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
       actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
     ).toBe(true)
     expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
+  })
+})
+
+const resumeRecord = (
+  overrides: { stage?: string; primaryName?: string } = {},
+) => ({
+  v: 1,
+  fingerprint: 'test-fingerprint',
+  stage: overrides.stage ?? 'commitmentCooldown',
+  updatedAt: 1,
+  context: {
+    chainId: 11155111,
+    name: 'example.eth',
+    duration: 31_536_000n,
+    selectedToken: 'USDC' as const,
+    tokenPrice: 900_000n,
+    signerType: 'rhinestone' as const,
+    accountAddress: HCA_ADDRESS,
+    ownerAddress: EOA_ADDRESS,
+    resolverAddress: '0x9999999999999999999999999999999999999999' as const,
+    commitment: {
+      commitment: `0x${'ab'.repeat(32)}` as const,
+      secret: `0x${'cd'.repeat(32)}` as const,
+    },
+    primaryName: overrides.primaryName,
+  },
+})
+
+const resumeEvent = (
+  account: SmartAccountContextValue,
+  overrides: { stage?: string; primaryName?: string; totalPrice?: bigint } = {},
+) =>
+  ({
+    type: 'registration.resume' as const,
+    label: 'example',
+    confirmedData: {
+      label: 'example',
+      duration: 31_536_000n,
+      ownerAddress: EOA_ADDRESS as Address,
+      token: 'USDC' as const,
+      // Deliberately different from the record's stored tokenPrice, so the
+      // assertions can tell which one reaches the child.
+      totalPrice: overrides.totalPrice ?? 1_200_000n,
+      basePriceNumber: 1.2,
+      premiumPriceNumber: 0,
+    },
+    record: resumeRecord(overrides),
+    account,
+  }) as const
+
+describe('registrationV2UiMachine — registration.resume', () => {
+  const hcaAccount = {
+    signer: { type: 'rhinestone' },
+    accountAddress: HCA_ADDRESS,
+    ownerAddress: EOA_ADDRESS,
+    walletClient: {},
+  } as unknown as SmartAccountContextValue
+
+  it('resumes from the pricing step a fresh mount lands on', () => {
+    // A reload puts the UI machine in `pricing.duration`, not `pricing.tokens`.
+    // The event is handled at the machine root precisely so that works.
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+    expect(actor.getSnapshot().value).toMatchObject({ pricing: 'duration' })
+
+    actor.send(resumeEvent(hcaAccount))
+
+    expect(actor.getSnapshot().value).toMatchObject({ registering: {} })
+  })
+
+  it('forwards RESUME to the child, never START_REGISTRATION', () => {
+    const actor = startActorInTokens()
+
+    actor.send(resumeEvent(hcaAccount))
+
+    const child = getChild(actor).getSnapshot() as unknown as {
+      context: { resumed?: { stage: string; context: any; deps: any } }
+    }
+    expect(child.context.resumed).toBeDefined()
+    expect(child.context.resumed?.stage).toBe('commitmentCooldown')
+    // The unguessable half — losing it means paying for a second commitment.
+    expect(child.context.resumed?.context.commitment.secret).toBe(
+      `0x${'cd'.repeat(32)}`,
+    )
+    expect(child.context.resumed?.context.resolverAddress).toBe(
+      '0x9999999999999999999999999999999999999999',
+    )
+  })
+
+  it('sends the re-quoted price, not the one stored before the user left', () => {
+    const actor = startActorInTokens()
+
+    actor.send(resumeEvent(hcaAccount, { totalPrice: 1_200_000n }))
+
+    const child = getChild(actor).getSnapshot() as unknown as {
+      context: { resumed?: { context: { tokenPrice: bigint } } }
+    }
+    // The record carried 900_000n; the premium decayed while the tab was shut.
+    expect(child.context.resumed?.context.tokenPrice).toBe(1_200_000n)
+  })
+
+  it('rebuilds runtime deps from the live account rather than storage', () => {
+    const actor = startActorInTokens()
+
+    actor.send(resumeEvent(hcaAccount))
+
+    const child = getChild(actor).getSnapshot() as unknown as {
+      context: { resumed?: { deps: any } }
+    }
+    expect(child.context.resumed?.deps.signer).toBe(hcaAccount.signer)
+    expect(child.context.resumed?.deps.approvalSigner).toMatchObject({
+      type: 'eoa',
+    })
+    expect(child.context.resumed?.deps.publicClient).toBeDefined()
+  })
+
+  it('restores the confirmed pricing so the registering screen can render', () => {
+    const actor = startActorInTokens()
+
+    actor.send(resumeEvent(hcaAccount))
+
+    expect(actor.getSnapshot().context.confirmedData).toMatchObject({
+      label: 'example',
+      totalPrice: 1_200_000n,
+      basePriceNumber: 1.2,
+    })
+  })
+
+  it('carries the primary name the ORIGINAL run committed to', () => {
+    // The reveal batch already bundles it; re-deriving from current UI state
+    // could disagree with the batch that is in flight.
+    const actor = startActorInTokens()
+
+    actor.send(resumeEvent(hcaAccount, { primaryName: 'example.eth' }))
+
+    expect(actor.getSnapshot().context.hcaPrimaryName).toBe('example.eth')
+  })
+
+  it('restores the resolver so post-registration does not deploy a second one', () => {
+    const actor = startActorInTokens()
+
+    actor.send(resumeEvent(hcaAccount))
+
+    expect(actor.getSnapshot().context.postRegistrationData).toMatchObject({
+      resolverAddress: '0x9999999999999999999999999999999999999999',
+    })
+  })
+
+  it('fails fast when the owner wallet cannot sign the payment approval', () => {
+    const actor = startActorInTokens()
+
+    actor.send(
+      resumeEvent({
+        signer: { type: 'rhinestone' },
+        accountAddress: HCA_ADDRESS,
+        ownerAddress: EOA_ADDRESS,
+        walletClient: null,
+      } as unknown as SmartAccountContextValue),
+    )
+
+    expect(actor.getSnapshot().value).toBe('failure')
+  })
+
+  it('fails fast when the account is not ready', () => {
+    const actor = startActorInTokens()
+
+    actor.send(
+      resumeEvent({
+        signer: null,
+        accountAddress: null,
+        ownerAddress: null,
+        walletClient: null,
+      } as unknown as SmartAccountContextValue),
+    )
+
+    expect(actor.getSnapshot().value).toBe('failure')
   })
 })

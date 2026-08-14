@@ -5,6 +5,8 @@ export {
   useRegistrationV2Context,
 } from './state/registrationUi.context'
 export { useRegistrationStep } from './state/registrationUi.selectors'
+export { useOrphanRegistrationCleanup } from './state/useOrphanRegistrationCleanup'
+export type { RegistrationResumeState } from './state/useRegistrationResume'
 export { parseName } from './utils/name-parser'
 
 export { PricingStep } from './workflow/pricing/PricingStep'

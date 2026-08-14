@@ -2387,6 +2387,10 @@ msgstr "Temporary migration access is still active. Retry to remove it and conti
 msgid "Terms of Use"
 msgstr "Terms of Use"
 
+#: src/features/register-v2/state/useOrphanRegistrationCleanup.ts
+msgid "That name was registered by someone else. You were not charged."
+msgstr "That name was registered by someone else. You were not charged."
+
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "That's generous of you!"
 msgstr "That's generous of you!"
@@ -3078,6 +3082,10 @@ msgstr "Your primary name has expired."
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
 msgstr "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
+
+#: src/features/register-v2/state/useOrphanRegistrationCleanup.ts
+msgid "Your registration completed while you were away."
+msgstr "Your registration completed while you were away."
 
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"

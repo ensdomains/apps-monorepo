@@ -1,5 +1,6 @@
 import type { HcaSessionEnablePayload } from '@ens-apps/smart-account'
 import {
+  type PersistedRegistrationRecord,
   type RegistrationEvent,
   registrationMachine,
   type Signer,
@@ -71,20 +72,27 @@ type PostRegistrationProgress = {
   addrReverseClearAttempted: boolean
 }
 
+/**
+ * What the user confirmed at the pricing step, carried through the registering
+ * screen. Named because the resume path has to persist and restore it — the
+ * price breakdown is display state the machine context cannot reproduce.
+ */
+export type RegistrationConfirmedData = {
+  label: string
+  duration: bigint
+  ownerAddress: Address
+  token: SUPPORTED_TOKEN
+  totalPrice: bigint
+  basePriceNumber: number
+  premiumPriceNumber: number
+}
+
 type Context = {
   chainId: number
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
   lastErrorMessage?: string
-  confirmedData?: {
-    label: string
-    duration: bigint
-    ownerAddress: Address
-    token: SUPPORTED_TOKEN
-    totalPrice: bigint
-    basePriceNumber: number
-    premiumPriceNumber: number
-  }
+  confirmedData?: RegistrationConfirmedData
   postRegistrationSetup?: RegistrationPostRegistrationSetup
   postRegistrationData?: PostRegistrationData
   postRegistrationProgress: PostRegistrationProgress
@@ -131,6 +139,23 @@ type Events =
        * budget quote failed and only the rent was displayed.
        */
       displayedWalletDebit?: bigint
+    }
+  | {
+      /**
+       * Re-enter a registration that was interrupted by a reload.
+       *
+       * Carries what was persisted plus a freshly rebuilt account, and is
+       * accepted from ANY state — a reload lands the UI machine in `pricing`,
+       * which is where the resume has to be caught.
+       */
+      type: 'registration.resume'
+      label: string
+      confirmedData: RegistrationConfirmedData
+      /** The machine-context half, as restored by the preflight. */
+      record: PersistedRegistrationRecord
+      postRegistrationSetup?: RegistrationPostRegistrationSetup
+      account: SmartAccountContextValue
+      hcaSessionEnable?: HcaSessionEnablePayload
     }
   | { type: 'registration.completed' }
   | { type: 'notifications.step.next' }
@@ -566,6 +591,102 @@ const startRegistrationAction = machineSetup.createAction(
         primaryName: bundlePrimaryName,
         // Consent bound on the funding permit: what the confirm screen showed.
         displayedWalletDebit: event.displayedWalletDebit,
+      } satisfies RegistrationEvent),
+    )
+  }),
+)
+
+/**
+ * Resume counterpart to `startRegistrationAction`.
+ *
+ * The two differ in exactly one way that matters: this one hands the child a
+ * `RESUME` (restored context + fresh deps, routed to a read-before-write state)
+ * rather than a `START_REGISTRATION`, so nothing already in flight is
+ * re-submitted. Everything else — the account checks, the approval signer, the
+ * post-registration bookkeeping — is deliberately identical, because a resumed
+ * run has to behave like the run it is continuing.
+ */
+const resumeRegistrationAction = machineSetup.createAction(
+  enqueueActions(({ enqueue, event }) => {
+    if (event.type !== 'registration.resume') {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error('registration.resume event required'),
+      })
+    }
+
+    if (!event.account.signer || !event.account.accountAddress) {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error('Account not ready'),
+      })
+    }
+
+    const ownerAddress =
+      event.account.ownerAddress ?? event.account.accountAddress
+
+    const approvalSigner: Signer | undefined = event.account.walletClient
+      ? { type: 'eoa', walletClient: event.account.walletClient }
+      : undefined
+
+    const isHcaRegistration =
+      event.account.signer.type === 'rhinestone' &&
+      ownerAddress.toLowerCase() !== event.account.accountAddress.toLowerCase()
+
+    if (isHcaRegistration && !approvalSigner) {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(
+          'Cannot resume: the wallet that owns this account is unavailable to sign the payment approval. Please reconnect your wallet and try again.',
+        ),
+      })
+    }
+
+    enqueue.assign({
+      confirmedData: event.confirmedData,
+      postRegistrationSetup: isHcaRegistration
+        ? undefined
+        : event.postRegistrationSetup,
+      postRegistrationData: {
+        label: event.label,
+        signer: event.account.signer,
+        walletClient: event.account.walletClient,
+        accountAddress: event.account.accountAddress,
+        ownerAddress,
+        publicClient: defaultPublicClient,
+        chainId: defaultPublicClient.chain.id,
+        // Restoring this lets the post-registration eth-record sync target the
+        // resolver the original run deployed, instead of deploying a second one.
+        resolverAddress: event.record.context.resolverAddress,
+      },
+      postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
+      registrationCompleted: false,
+      postRegistrationSetupFailed: false,
+      ethRecordSyncTxId: undefined,
+      primaryNameTxId: undefined,
+      // The reveal batch bundles the primary name, so this is whatever the
+      // ORIGINAL run committed to — re-deriving it from current UI state could
+      // disagree with the batch that is already in flight.
+      hcaPrimaryName: event.record.context.primaryName,
+      addrReverseClearTxId: undefined,
+    })
+
+    enqueue(
+      machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
+        type: 'RESUME',
+        stage: event.record.stage,
+        context: {
+          ...event.record.context,
+          // The preflight re-quoted; the stored price is from before the user
+          // left and the temporary premium has decayed since.
+          tokenPrice: event.confirmedData.totalPrice,
+        },
+        deps: {
+          signer: event.account.signer,
+          approvalSigner,
+          publicClient: defaultPublicClient,
+          hcaSessionEnable: event.hcaSessionEnable,
+        },
       } satisfies RegistrationEvent),
     )
   }),
@@ -1007,6 +1128,14 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     $error: {
       target: '.failure',
       actions: ['setError'],
+    },
+    // Root-level, not on `pricing`: a reload drops the UI machine into
+    // `pricing.duration`, and the child registration actor is invoked at the
+    // root, so this is the only place that catches a resume regardless of which
+    // pricing substate the fresh mount happened to land in.
+    'registration.resume': {
+      target: '.registering',
+      actions: ['clearError', 'clearMaxProgress', resumeRegistrationAction],
     },
     'label.changed': {
       target: '.pricing',
