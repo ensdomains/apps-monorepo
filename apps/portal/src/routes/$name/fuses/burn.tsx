@@ -111,6 +111,18 @@ function RouteComponent() {
     return <V2NameMessage />
   }
 
+  // Fail closed when the expiry lookup itself fails: `useGraceStatus` reports an
+  // error as `isExpired: false`, so carrying on would put an expired name back
+  // in front of the burn form — exactly what this route is gating against.
+  if (grace.error) {
+    return (
+      <ErrorMessage
+        title="Failed to check expiry"
+        description={grace.error.message}
+      />
+    )
+  }
+
   // Checked before ownership: once a name drops out of grace the wrapper reports
   // `address(0)` as its owner, and "you are not the owner" is a misleading way
   // to tell the previous owner their registration lapsed.
@@ -353,9 +365,9 @@ const ExpiredNameMessage = ({
   graceEndDate,
   canExtend,
 }: {
-  isInGrace: boolean
-  graceEndDate: Date | null
-  canExtend: boolean
+  readonly isInGrace: boolean
+  readonly graceEndDate: Date | null
+  readonly canExtend: boolean
 }) => (
   <div className="flex flex-col gap-6">
     {isInGrace && graceEndDate && (

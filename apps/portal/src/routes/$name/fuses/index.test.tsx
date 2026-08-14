@@ -18,13 +18,23 @@ vi.mock('wagmi', async (importOriginal) => {
   return { ...actual, useConnection: () => ({ address: OWNER }) }
 })
 
-const graceStatus = {
+// Swapped wholesale per test (see the note in ./burn.test.tsx) so no case can
+// leak a stray field into the next one.
+type GraceStatus = {
+  isInGrace: boolean
+  isExpired: boolean
+  graceEndDate: Date | null
+  isLoading: boolean
+  error: Error | null
+}
+const ACTIVE_GRACE: GraceStatus = {
   isInGrace: false,
   isExpired: false,
-  graceEndDate: null as Date | null,
+  graceEndDate: null,
   isLoading: false,
   error: null,
 }
+let graceStatus: GraceStatus = ACTIVE_GRACE
 vi.mock('@/features/profile/hooks/useGraceStatus', () => ({
   useGraceStatus: () => graceStatus,
 }))
@@ -32,11 +42,8 @@ vi.mock('@/features/renew/hooks/useCanExtend', () => ({
   useCanExtend: () => ({ canExtend: true }),
 }))
 
-const wrapperDataResult: {
-  data: unknown
-  error: unknown
-  isLoading: boolean
-} = { data: undefined, error: undefined, isLoading: false }
+type QueryResult = { data: unknown; error: unknown; isLoading: boolean }
+let wrapperDataResult: QueryResult
 
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
@@ -74,13 +81,8 @@ const wrapperData = {
 }
 
 beforeEach(() => {
-  wrapperDataResult.data = wrapperData
-  wrapperDataResult.error = undefined
-  wrapperDataResult.isLoading = false
-  graceStatus.isInGrace = false
-  graceStatus.isExpired = false
-  graceStatus.graceEndDate = null
-  graceStatus.isLoading = false
+  wrapperDataResult = { data: wrapperData, error: undefined, isLoading: false }
+  graceStatus = ACTIVE_GRACE
 })
 
 describe('fuses index route', () => {
@@ -92,9 +94,12 @@ describe('fuses index route', () => {
   })
 
   it('hides the burn CTA and explains why while the name is in grace', () => {
-    graceStatus.isInGrace = true
-    graceStatus.isExpired = true
-    graceStatus.graceEndDate = new Date('2026-08-27T17:43:48Z')
+    graceStatus = {
+      ...ACTIVE_GRACE,
+      isInGrace: true,
+      isExpired: true,
+      graceEndDate: new Date('2026-08-27T17:43:48Z'),
+    }
 
     render(<FusesRoute />)
 
@@ -106,7 +111,7 @@ describe('fuses index route', () => {
   })
 
   it('hides the burn CTA once the name has dropped out of grace', () => {
-    graceStatus.isExpired = true
+    graceStatus = { ...ACTIVE_GRACE, isExpired: true }
 
     render(<FusesRoute />)
 

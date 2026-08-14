@@ -53,13 +53,23 @@ vi.mock(
 
 // Grace state is the thing under test; drive it directly rather than through
 // the expiry multicall it wraps (covered by useGraceStatus' own concerns).
-const graceStatus = {
+// Each test swaps in a whole fresh object rather than editing fields, so no
+// case can leak a stray field into the next one.
+type GraceStatus = {
+  isInGrace: boolean
+  isExpired: boolean
+  graceEndDate: Date | null
+  isLoading: boolean
+  error: Error | null
+}
+const ACTIVE_GRACE: GraceStatus = {
   isInGrace: false,
   isExpired: false,
-  graceEndDate: null as Date | null,
+  graceEndDate: null,
   isLoading: false,
   error: null,
 }
+let graceStatus: GraceStatus = ACTIVE_GRACE
 vi.mock('@/features/profile/hooks/useGraceStatus', () => ({
   useGraceStatus: () => graceStatus,
 }))
@@ -67,11 +77,8 @@ vi.mock('@/features/renew/hooks/useCanExtend', () => ({
   useCanExtend: () => ({ canExtend: true }),
 }))
 
-const wrapperDataResult: {
-  data: unknown
-  error: unknown
-  isLoading: boolean
-} = { data: undefined, error: undefined, isLoading: false }
+type QueryResult = { data: unknown; error: unknown; isLoading: boolean }
+let wrapperDataResult: QueryResult
 
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
@@ -115,13 +122,8 @@ const wrapperData = {
 }
 
 beforeEach(() => {
-  wrapperDataResult.data = wrapperData
-  wrapperDataResult.error = undefined
-  wrapperDataResult.isLoading = false
-  graceStatus.isInGrace = false
-  graceStatus.isExpired = false
-  graceStatus.graceEndDate = null
-  graceStatus.isLoading = false
+  wrapperDataResult = { data: wrapperData, error: undefined, isLoading: false }
+  graceStatus = ACTIVE_GRACE
 })
 
 describe('fuses/burn route', () => {
@@ -139,9 +141,12 @@ describe('fuses/burn route', () => {
   // throughout the grace period, but the page rendered a fully enabled form
   // because `ownerOf` still returns the connected account.
   it('blocks burning while the name is in its grace period', () => {
-    graceStatus.isInGrace = true
-    graceStatus.isExpired = true
-    graceStatus.graceEndDate = new Date('2026-08-27T17:43:48Z')
+    graceStatus = {
+      ...ACTIVE_GRACE,
+      isInGrace: true,
+      isExpired: true,
+      graceEndDate: new Date('2026-08-27T17:43:48Z'),
+    }
 
     render(<BurnRoute />)
 
@@ -162,8 +167,11 @@ describe('fuses/burn route', () => {
   // would otherwise answer "you are not the owner" — true, but a misleading way
   // to say the registration lapsed.
   it('reports expiry rather than "not owner" once the name has dropped', () => {
-    graceStatus.isExpired = true
-    wrapperDataResult.data = { ...wrapperData, owner: undefined }
+    graceStatus = { ...ACTIVE_GRACE, isExpired: true }
+    wrapperDataResult = {
+      ...wrapperDataResult,
+      data: { ...wrapperData, owner: undefined },
+    }
 
     render(<BurnRoute />)
 
@@ -177,7 +185,7 @@ describe('fuses/burn route', () => {
   })
 
   it('waits for the grace lookup before rendering the form', () => {
-    graceStatus.isLoading = true
+    graceStatus = { ...ACTIVE_GRACE, isLoading: true }
 
     render(<BurnRoute />)
 
@@ -186,8 +194,24 @@ describe('fuses/burn route', () => {
     ).not.toBeInTheDocument()
   })
 
+  // A failed expiry lookup reads as `isExpired: false`, so failing open here
+  // would hand an expired name straight back to the burn form.
+  it('fails closed when the expiry lookup errors', () => {
+    graceStatus = { ...ACTIVE_GRACE, error: new Error('rpc unavailable') }
+
+    render(<BurnRoute />)
+
+    expect(screen.getByText('Failed to check expiry')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Burn fuses' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('still refuses a non-owner on an active name', () => {
-    wrapperDataResult.data = { ...wrapperData, owner: '0xdead' }
+    wrapperDataResult = {
+      ...wrapperDataResult,
+      data: { ...wrapperData, owner: '0xdead' },
+    }
 
     render(<BurnRoute />)
 
