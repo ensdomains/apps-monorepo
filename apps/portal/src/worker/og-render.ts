@@ -5,9 +5,8 @@ import ensLogoSvg from '../assets/fonts/og/Logo.svg?raw'
 import shieldIconSvg from '../assets/fonts/og/shield-icon.svg?raw'
 import syncIconSvg from '../assets/fonts/og/sync-icon.svg?raw'
 import walletIconSvg from '../assets/fonts/og/wallet-icon.svg?raw'
-
+import { truncate, truncateAddress } from '../utils/routePaths'
 import { buildOgFontList, loadOgFonts, type OgFonts } from './fonts'
-import { truncate, truncateAddress } from './routing'
 
 const matchHtmlRegExp = /["'&<>]/
 
