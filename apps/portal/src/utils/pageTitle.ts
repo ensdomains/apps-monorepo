@@ -8,7 +8,7 @@ import {
   isTldRoute,
   matchContractRoute,
   truncateAddress,
-} from './routing'
+} from './routePaths'
 
 export const TITLE_SUFFIX = 'ENS Explorer App'
 

@@ -1,4 +1,4 @@
-import { truncateAddress } from '../utils/formatting/truncateAddress'
+import { truncateAddress } from './formatting/truncateAddress'
 
 export const STATIC_PATH_PREFIXES = [
   '/assets/',

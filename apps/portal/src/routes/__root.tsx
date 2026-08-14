@@ -17,8 +17,8 @@ import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
 import { isMockWalletEnabled } from '@/lib/mockWallet.mock'
 import { PHProvider } from '@/lib/posthog/provider'
 import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
+import { getPageTitle } from '@/utils/pageTitle'
 import { queryClient } from '@/utils/queryClient'
-import { getPageTitle } from '@/worker/pageTitle'
 
 function TransactionManagerSetup({ children }: { children: ReactNode }) {
   const publicClient = usePublicClient()

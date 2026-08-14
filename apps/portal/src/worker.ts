@@ -1,3 +1,14 @@
+import { getPageTitle } from './utils/pageTitle'
+import {
+  extractAddrFromPath,
+  extractNameFromPath,
+  extractRegisterName,
+  extractTldFromPath,
+  isAddressRoute,
+  isAddrSubpage,
+  isTldRoute,
+  matchContractRoute,
+} from './utils/routePaths'
 import { withSecurityHeaders } from './worker/csp'
 import { fetchEnsData, fetchIsPermissionedResolver } from './worker/ens'
 import { MetaTagInjector, TitleRewriter } from './worker/html-rewriter'
@@ -10,17 +21,6 @@ import {
   renderResolverOgImage,
   renderTldOgImage,
 } from './worker/og-render'
-import { getPageTitle } from './worker/pageTitle'
-import {
-  extractAddrFromPath,
-  extractNameFromPath,
-  extractRegisterName,
-  extractTldFromPath,
-  isAddressRoute,
-  isAddrSubpage,
-  isTldRoute,
-  matchContractRoute,
-} from './worker/routing'
 
 /** Only inject meta tags / render OG cards for navigations, not asset fetches. */
 function wantsHtml(request: Request): boolean {
