@@ -7,6 +7,7 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { normalizePastedNameSearch } from '@/utils/normalizePastedNameSearch'
 import { tw } from '@/utils/tailwind'
 
 type SearchInputProps = Omit<
@@ -54,6 +55,14 @@ export const SearchInput = ({
         type="text"
         value={searchValue}
         {...props}
+        onPaste={(event) => {
+          event.preventDefault()
+          setSearchValue(
+            normalizePastedNameSearch(
+              event.clipboardData.getData('text/plain'),
+            ),
+          )
+        }}
       />
       {isLoading ? (
         <InputGroupAddon align="inline-end">
