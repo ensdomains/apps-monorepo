@@ -44,6 +44,8 @@ export type ResumeStaleReason =
   | 'label-mismatch'
   /** The record was written against a different chain. */
   | 'chain-mismatch'
+  /** The app switched between the EOA and HCA paths since the record was written. */
+  | 'signer-mode-mismatch'
   /** Past MAX_COMMITMENT_AGE — reveal would revert `CommitmentTooOld`. */
   | 'commitment-expired'
   /** A finished run whose record outlived its own cleanup. */
@@ -135,6 +137,12 @@ export async function assessResumableRegistration(params: {
   readonly label: string
   readonly chainId: number
   readonly publicClient: PublicClient
+  /**
+   * The LIVE signer's type. `VITE_FF_USE_EOA` can flip between the run that
+   * wrote the record and the one resuming it (it takes effect on redeploy), and
+   * the two paths commit against different registrars.
+   */
+  readonly signerType?: 'eoa' | 'rhinestone'
   /** Injectable for tests; defaults to the real localStorage record. */
   readonly stored?: StoredRegistration | null
 }): Promise<ResumeAssessment> {
@@ -149,6 +157,24 @@ export async function assessResumableRegistration(params: {
 
   if (stored.record.context.chainId !== params.chainId) {
     return { status: 'stale', reason: 'chain-mismatch' }
+  }
+
+  // Resuming across a signer-mode flip cannot be made safe. `RESUME` replaces
+  // the stored `signerType` with the live signer, and every signer-aware branch
+  // downstream — which registrar `validatingCommitment` reads, which one
+  // `verifyingRegistration` checks, whether the reveal is a batch or a bare
+  // register — would then be evaluated against a commitment made under the
+  // other mode. Discard instead: one restarted registration beats a paid
+  // commitment stranded behind an unsignable reveal.
+  //
+  // The two registrars happen to be the same contract on Sepolia today, so this
+  // is currently latent — which is exactly why it needs a guard rather than an
+  // assumption.
+  if (
+    params.signerType &&
+    stored.record.context.signerType !== params.signerType
+  ) {
+    return { status: 'stale', reason: 'signer-mode-mismatch' }
   }
 
   // The subscriber clears on `success`/`idle`, so seeing one here means the tab

@@ -74,7 +74,7 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
  * whose loader redirects away exactly when a stored registration needs
  * resolving. See `orphanRegistrationCleanup.ts`.
  */
-function RegistrationOrphanCleanup() {
+const RegistrationOrphanCleanup = () => {
   useOrphanRegistrationCleanup()
   return null
 }

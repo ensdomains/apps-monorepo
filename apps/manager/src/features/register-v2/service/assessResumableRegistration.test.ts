@@ -181,6 +181,49 @@ describe('assessResumableRegistration', () => {
     expect(result).toEqual({ status: 'stale', reason: 'chain-mismatch' })
   })
 
+  it('discards a record written under the other signer mode', async () => {
+    // `VITE_FF_USE_EOA` can flip on redeploy between the run that committed and
+    // the one resuming. RESUME replaces the stored signerType with the live
+    // signer, so every signer-aware branch downstream would then run against a
+    // commitment made under the other mode.
+    const result = await assessResumableRegistration({
+      label: 'leon',
+      chainId: CHAIN_ID,
+      publicClient: publicClientWith(NOW - 60n),
+      // The record is written by a rhinestone run (see `storedRegistration`).
+      signerType: 'eoa',
+      stored: storedRegistration(),
+    })
+
+    expect(result).toEqual({ status: 'stale', reason: 'signer-mode-mismatch' })
+  })
+
+  it('resumes when the signer mode still matches', async () => {
+    const result = await assessResumableRegistration({
+      label: 'leon',
+      chainId: CHAIN_ID,
+      publicClient: publicClientWith(NOW - 60n),
+      signerType: 'rhinestone',
+      stored: storedRegistration(),
+    })
+
+    expect(result.status).toBe('resumable')
+  })
+
+  it('does not gate on signer mode before the account has resolved one', async () => {
+    // The wallet restores asynchronously; an absent signer must not be read as
+    // a mismatch, or the record would be destroyed mid-restore.
+    const result = await assessResumableRegistration({
+      label: 'leon',
+      chainId: CHAIN_ID,
+      publicClient: publicClientWith(NOW - 60n),
+      signerType: undefined,
+      stored: storedRegistration(),
+    })
+
+    expect(result.status).toBe('resumable')
+  })
+
   it.each([
     'success',
     'idle',

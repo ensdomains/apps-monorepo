@@ -55,6 +55,7 @@ async function decideResume(params: {
     label,
     chainId: publicClient.chain.id,
     publicClient,
+    signerType: account.signer?.type,
   })
 
   if (assessment.status === 'none') {
@@ -141,13 +142,25 @@ export function useRegistrationResume(params: {
 
     let cancelled = false
 
-    void decideResume({ label, account }).then((decision) => {
-      if (cancelled) return
+    decideResume({ label, account })
+      .then((decision) => {
+        if (cancelled) return
 
-      if (decision.latch) decidedForLabel.current = label
-      if (decision.dispatch) uiActor.send(decision.dispatch)
-      setState(decision.state)
-    })
+        if (decision.latch) decidedForLabel.current = label
+        if (decision.dispatch) uiActor.send(decision.dispatch)
+        setState(decision.state)
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+
+        // `enableSession()` and `getSessionEnablePayload()` can both reject.
+        // Without this the resume would sit at `checking` forever on an
+        // unhandled rejection — the record intact but never picked up. Stay
+        // un-latched so a reconnect or a retried session enable gets another
+        // go, and leave the record alone: it is still valid.
+        console.warn('⚠️ [REGISTRATION] Resume check failed:', error)
+        setState({ status: 'idle' })
+      })
 
     return () => {
       cancelled = true
