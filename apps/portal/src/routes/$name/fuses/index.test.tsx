@@ -110,6 +110,20 @@ describe('fuses index route', () => {
     expect(screen.getByText('Parent Cannot Control')).toBeInTheDocument()
   })
 
+  // Matches ./burn.tsx: a failed lookup reads as `isExpired: false`, so both
+  // routes fail closed on it — and this one says why, since a silently missing
+  // button leaves the owner of a healthy name with nothing to act on.
+  it('hides the burn CTA and explains when the expiry lookup errors', () => {
+    graceStatus = { ...ACTIVE_GRACE, error: new Error('rpc unavailable') }
+
+    render(<FusesRoute />)
+
+    expect(screen.queryByText('Burn fuses')).not.toBeInTheDocument()
+    expect(screen.getByText(/Couldn't check whether this name/)).toBeVisible()
+    // The fuse table is unaffected by a failed expiry lookup.
+    expect(screen.getByText('Parent Cannot Control')).toBeInTheDocument()
+  })
+
   it('hides the burn CTA once the name has dropped out of grace', () => {
     graceStatus = { ...ACTIVE_GRACE, isExpired: true }
 

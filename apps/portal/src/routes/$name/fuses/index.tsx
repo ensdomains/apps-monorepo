@@ -180,12 +180,22 @@ function RouteComponent() {
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner graceEndDate={grace.graceEndDate} canExtend={canExtend} />
       )}
+      {/* A failed expiry lookup reads as `isExpired: false`, so the CTA below
+          fails closed on it exactly as ./burn.tsx does. Say why: a hidden
+          button with no explanation would leave the owner of a healthy name
+          with nothing to act on. */}
+      {grace.error && (
+        <ErrorMessage
+          compact
+          description="Couldn't check whether this name has expired, so burning fuses is unavailable. Refresh to try again."
+        />
+      )}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h1 className="text-h1">Fuses</h1>
           {/* The wrapper refuses owner writes on an expired name, so offering
               the burn flow would only route the user into a reverting tx. */}
-          {isOwner && !grace.isExpired && (
+          {isOwner && !grace.isExpired && !grace.error && (
             <Button asChild variant="default" className="gap-2">
               <Link to="/$name/fuses/burn" params={{ name }}>
                 <Flame className="w-4 h-4 text-lapis-500" />
