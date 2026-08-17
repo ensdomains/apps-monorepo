@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import { addDays, format } from 'date-fns'
 import { useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
@@ -35,6 +36,14 @@ export const RenewToDatePopover = ({
     setIsOpen(false)
   }
 
+  useHotkeySequence(['M', 'I', 'N'], () => handleSelect(minSelectableDate), {
+    enabled: isOpen,
+    ignoreInputs: true,
+    preventDefault: false,
+    stopPropagation: false,
+    timeout: 1000,
+  })
+
   return (
     <Popover onOpenChange={setIsOpen} open={isOpen}>
       <PopoverTrigger asChild>
@@ -65,11 +74,8 @@ export const RenewToDatePopover = ({
             return dateToCheck.getTime() < minDate.getTime()
           }}
           endMonth={addDays(minSelectableDate, 365 * 100)}
-          minimumDate={minSelectableDate}
-          onMinimum={() => handleSelect(minSelectableDate)}
           onSelect={handleSelect}
           selected={targetDate}
-          showMinimumButton
           startMonth={minSelectableDate}
         />
       </PopoverContent>

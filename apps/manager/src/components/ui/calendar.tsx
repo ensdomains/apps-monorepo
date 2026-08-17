@@ -19,10 +19,7 @@ type CalendarProps = Omit<
 > & {
   buttonVariant?: React.ComponentProps<typeof Button>['variant']
   showClearButton?: boolean
-  showMinimumButton?: boolean
   onClear?: () => void
-  onMinimum?: () => void
-  minimumDate?: Date
   selected?: Date
   onSelect?: (date: Date | undefined) => void
 }
@@ -36,10 +33,7 @@ function Calendar({
   formatters,
   components,
   showClearButton = false,
-  showMinimumButton = false,
   onClear,
-  onMinimum,
-  minimumDate,
   selected,
   onSelect,
   ...props
@@ -87,20 +81,6 @@ function Calendar({
       onClear()
     } else if (onSelect) {
       onSelect(undefined)
-    }
-  }
-
-  const handleMinimum = () => {
-    const target =
-      minimumDate instanceof Date ? new Date(minimumDate) : new Date()
-    if (!isControlled) {
-      setInternalSelected(target)
-    }
-    setMonth(new Date(target))
-    if (onMinimum) {
-      onMinimum()
-    } else if (onSelect) {
-      onSelect(target)
     }
   }
 
@@ -259,26 +239,15 @@ function Calendar({
         showOutsideDays={showOutsideDays}
         {...props}
       />
-      {(showClearButton || showMinimumButton) && (
+      {showClearButton && (
         <div className="mt-4 flex items-center justify-between border-gray-200 border-t pt-4">
-          {showClearButton && (
-            <button
-              className="font-normal text-[#101828] text-sm transition-colors hover:text-[#6a7282]"
-              onClick={handleClear}
-              type="button"
-            >
-              Clear
-            </button>
-          )}
-          {showMinimumButton && (
-            <button
-              className="ml-auto font-normal text-[#101828] text-sm transition-colors hover:text-[#6a7282]"
-              onClick={handleMinimum}
-              type="button"
-            >
-              Minimum
-            </button>
-          )}
+          <button
+            className="font-normal text-[#101828] text-sm transition-colors hover:text-[#6a7282]"
+            onClick={handleClear}
+            type="button"
+          >
+            Clear
+          </button>
         </div>
       )}
     </div>

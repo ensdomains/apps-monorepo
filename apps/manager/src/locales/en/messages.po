@@ -255,10 +255,6 @@ msgstr "An error occurred during verification"
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "And more..."
-msgstr "And more..."
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve {name}"
 msgstr "Approve {name}"
@@ -306,10 +302,6 @@ msgstr "Approving payment token"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approving the payment token"
 msgstr "Approving the payment token"
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Are you sure?"
-msgstr "Are you sure?"
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Auth address:"
@@ -754,10 +746,6 @@ msgstr "Does not expire"
 msgid "doesn't exist"
 msgstr "doesn't exist"
 
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Domain transfer & expiry notifications"
-msgstr "Domain transfer & expiry notifications"
-
 #: src/features/bulk-renew/components/SuccessStep.tsx
 msgid "Done"
 msgstr "Done"
@@ -1059,10 +1047,6 @@ msgstr "Get updated on the latest releases and features."
 #: src/features/migration/components/GameStep.tsx
 msgid "Getting ready..."
 msgstr "Getting ready..."
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Go Back"
-msgstr "Go Back"
 
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "Go back home"
@@ -2013,10 +1997,6 @@ msgstr "Save Preferences"
 msgid "Save Profile"
 msgstr "Save Profile"
 
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Saved favorites & searches"
-msgstr "Saved favorites & searches"
-
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
 msgid "Saving"
@@ -2227,18 +2207,6 @@ msgstr "Sign the gasless payment approval in your wallet"
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
 msgstr "Signing in..."
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Skip Anyway"
-msgstr "Skip Anyway"
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Skip for now"
-msgstr "Skip for now"
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
-msgstr "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Smart Account"
@@ -2904,10 +2872,6 @@ msgstr "You can now receive notifications at this email address."
 msgid "You can preview the card after migrating one name, mint immediately, or return from your Dashboard or canonical profile later."
 msgstr "You can preview the card after migrating one name, mint immediately, or return from your Dashboard or canonical profile later."
 
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "You can verify later by clicking your profile in the navbar"
-msgstr "You can verify later by clicking your profile in the navbar"
-
 #: src/features/migration/components/MigrationModal.tsx
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
 msgstr "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
@@ -2939,10 +2903,6 @@ msgstr "You'll always see important notifications in the app."
 #: src/features/notifications/settings/preferences.tsx
 msgid "You'll be notified 30, 7, and 1 day before expiry."
 msgstr "You'll be notified 30, 7, and 1 day before expiry."
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "You'll miss:"
-msgstr "You'll miss:"
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "You're almost there!"

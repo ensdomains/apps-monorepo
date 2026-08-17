@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import {
   addMonths,
   addSeconds,
@@ -57,6 +58,20 @@ export const DurationCustomRow = memo(function DurationCustomRow({
     MIN_REGISTER_DURATION_SECONDS,
   )
 
+  const selectMinimumDuration = () => {
+    const minDate = new Date(minSelectableDate)
+    minDate.setHours(0, 0, 0, 0)
+    onDurationSet(getDurationFromSelectedDate(minDate, referenceDate))
+  }
+
+  useHotkeySequence(['M', 'I', 'N'], selectMinimumDuration, {
+    enabled: isDatePopoverOpen,
+    ignoreInputs: true,
+    preventDefault: false,
+    stopPropagation: false,
+    timeout: 1000,
+  })
+
   return (
     <Popover onOpenChange={setIsDatePopoverOpen} open={isDatePopoverOpen}>
       <PopoverTrigger asChild>
@@ -100,12 +115,6 @@ export const DurationCustomRow = memo(function DurationCustomRow({
             return dateToCheck.getTime() < minDate.getTime()
           }}
           endMonth={addMonths(new Date(), 1200)}
-          minimumDate={minSelectableDate}
-          onMinimum={() => {
-            const minDate = new Date(minSelectableDate)
-            minDate.setHours(0, 0, 0, 0)
-            onDurationSet(getDurationFromSelectedDate(minDate, referenceDate))
-          }}
           onSelect={(date) => {
             if (!date) {
               return
@@ -114,7 +123,6 @@ export const DurationCustomRow = memo(function DurationCustomRow({
             onDurationSet(getDurationFromSelectedDate(date, referenceDate))
           }}
           selected={expirationDate}
-          showMinimumButton
           startMonth={minSelectableDate}
         />
       </PopoverContent>
