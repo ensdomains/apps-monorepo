@@ -44,7 +44,11 @@ export const Premium: Story = {
   },
 }
 
-/** No avatar record, so the card falls back to the pattern avatar. */
+/**
+ * The pattern-avatar fallback. In production the card always receives an
+ * avatar url and reaches this state when the request 404s (no avatar record)
+ * or errors; omitting the url here forces the same state deterministically.
+ */
 export const Registered: Story = {
   args: {
     domainName: 'earl.eth',

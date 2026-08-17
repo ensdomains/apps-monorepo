@@ -17,6 +17,11 @@ class PendingImage extends EventTarget {
   }
 }
 
+// The loaded avatar is decorative (alt=""), so it is absent from the
+// accessibility tree; assert on it directly via the DOM.
+const queryAvatarImage = (container: HTMLElement, src: string) =>
+  container.querySelector(`img[src="${src}"]`)
+
 describe('DomainResultCard', () => {
   beforeEach(() => {
     pendingImages.length = 0
@@ -28,9 +33,10 @@ describe('DomainResultCard', () => {
   })
 
   it('shows the name pattern while its avatar loads, then shows the avatar', async () => {
-    render(
+    const avatarUrl = 'https://example.com/alien.png'
+    const { container } = render(
       <DomainResultCard
-        avatarUrl="https://example.com/alien.png"
+        avatarUrl={avatarUrl}
         domainName="alien.eth"
         status="registered"
       />,
@@ -39,82 +45,81 @@ describe('DomainResultCard', () => {
     expect(
       screen.getByRole('img', { name: 'alien.eth pattern' }),
     ).toBeInTheDocument()
-    expect(
-      screen.queryByRole('img', { name: 'alien.eth avatar' }),
-    ).not.toBeInTheDocument()
+    expect(queryAvatarImage(container, avatarUrl)).not.toBeInTheDocument()
+
+    const probe = pendingImages[0]
+    if (!probe) throw new Error('Expected an avatar image request')
+    expect(probe.src).toBe(avatarUrl)
 
     act(() => {
-      const image = pendingImages[0]
-      if (!image) throw new Error('Expected an avatar image request')
-      image.complete = true
-      image.naturalWidth = 1
-      image.dispatchEvent(new Event('load'))
+      probe.complete = true
+      probe.naturalWidth = 1
+      probe.dispatchEvent(new Event('load'))
     })
 
-    const avatar = await screen.findByRole('img', {
-      name: 'alien.eth avatar',
-    })
-    expect(avatar).toHaveAttribute('src', 'https://example.com/alien.png')
+    expect(queryAvatarImage(container, avatarUrl)).toBeInTheDocument()
     expect(
       screen.queryByRole('img', { name: 'alien.eth pattern' }),
     ).not.toBeInTheDocument()
   })
 
-  it('shows the name pattern when no avatar record is present', () => {
-    render(<DomainResultCard domainName="no-avatar.eth" status="registered" />)
+  it('shows the name pattern when no avatar url is passed', () => {
+    const { container } = render(
+      <DomainResultCard domainName="no-avatar.eth" status="registered" />,
+    )
 
     expect(
       screen.getByRole('img', { name: 'no-avatar.eth pattern' }),
     ).toBeInTheDocument()
-    expect(
-      screen.queryByRole('img', { name: 'no-avatar.eth avatar' }),
-    ).not.toBeInTheDocument()
+    expect(container.querySelector('img[alt=""]')).not.toBeInTheDocument()
   })
 
   it('keeps the name pattern when the avatar request fails', () => {
-    render(
+    const avatarUrl = 'https://example.com/missing.png'
+    const { container } = render(
       <DomainResultCard
-        avatarUrl="https://example.com/missing.png"
+        avatarUrl={avatarUrl}
         domainName="broken-avatar.eth"
         status="registered"
       />,
     )
 
+    const probe = pendingImages[0]
+    if (!probe) throw new Error('Expected an avatar image request')
+    expect(probe.src).toBe(avatarUrl)
+
     act(() => {
-      const image = pendingImages[0]
-      if (!image) throw new Error('Expected an avatar image request')
-      image.dispatchEvent(new Event('error'))
+      probe.dispatchEvent(new Event('error'))
     })
 
     expect(
       screen.getByRole('img', { name: 'broken-avatar.eth pattern' }),
     ).toBeInTheDocument()
-    expect(
-      screen.queryByRole('img', { name: 'broken-avatar.eth avatar' }),
-    ).not.toBeInTheDocument()
+    expect(queryAvatarImage(container, avatarUrl)).not.toBeInTheDocument()
   })
 
-  it('shows the pattern avatar for a name in its grace period', () => {
+  it('renders the pattern avatar and the grace badge for a name in grace', () => {
     render(<DomainResultCard domainName="earl.eth" status="grace" />)
 
     expect(
       screen.getByRole('img', { name: 'earl.eth pattern' }),
     ).toBeInTheDocument()
+    expect(screen.getByText('Grace period')).toBeInTheDocument()
   })
 
   it('renders no avatar for an available name', () => {
-    render(
+    const { container } = render(
       <DomainResultCard domainName="earl.eth" price={5} status="available" />,
     )
 
-    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(container.querySelector('img')).not.toBeInTheDocument()
   })
 
   it('renders no avatar while the availability check is loading', () => {
-    render(
+    const { container } = render(
       <DomainResultCard domainName="earl.eth" isLoading status="registered" />,
     )
 
-    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(container.querySelector('img')).not.toBeInTheDocument()
   })
 })

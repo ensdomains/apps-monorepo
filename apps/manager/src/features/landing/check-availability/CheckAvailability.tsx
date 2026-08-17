@@ -89,8 +89,6 @@ export const CheckAvailability = ({
     enabled: !!profileName,
   })
 
-  const { isInGrace } = getProfileExpiryResultStatus(profileExpiry)
-
   const { data: profileRegistration } = useQuery({
     ...profileRegistrationQuery(profileName ?? ''),
     enabled: !!profileName,
@@ -239,12 +237,12 @@ export const CheckAvailability = ({
                   >
                     <Link params={{ name: state.domainName }} to="/$name">
                       <DomainResultCard
-                        // A name in grace shows the pattern avatar, matching
-                        // how the profile page treats a lapsed name.
-                        avatarUrl={isInGrace ? undefined : profileAvatar}
+                        avatarUrl={profileAvatar}
                         clickable
                         domainName={state.domainName}
-                        status={domainResultStatusFromGrace(isInGrace)}
+                        status={domainResultStatusFromGrace(
+                          getProfileExpiryResultStatus(profileExpiry).isInGrace,
+                        )}
                       />
                     </Link>
                   </motion.div>

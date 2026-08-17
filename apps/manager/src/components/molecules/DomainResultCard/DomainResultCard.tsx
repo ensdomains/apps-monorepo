@@ -85,13 +85,13 @@ export const DomainResultCard = ({
           <div className="size-12 shrink-0 overflow-hidden rounded-md">
             <ImageFallback.Root className="contents">
               <ImageFallback.Image
-                alt={`${domainName} avatar`}
+                alt=""
                 className="size-full object-cover"
                 src={avatarUrl}
               />
               <ImageFallback.Fallback>
                 <PatternAvatar
-                  className="size-full min-h-0 min-w-0"
+                  className="size-full rounded-md border-none bg-transparent p-0 shadow-none"
                   name={domainName}
                 />
               </ImageFallback.Fallback>
