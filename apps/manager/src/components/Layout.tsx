@@ -43,7 +43,7 @@ export const Layout = ({ children }: LayoutProps) => {
           : 'min-h-screen',
       )}
     >
-      <div className="sticky inset-x-0 top-0 z-50 shrink-0">
+      <div className="sticky inset-x-0 top-0 z-30 shrink-0">
         <Header
           desktopBreakpoint={isEnsNameProfilePage ? 'lg-landscape' : 'md'}
           hasMobileBlurredBackground={isEnsNameProfilePage}
