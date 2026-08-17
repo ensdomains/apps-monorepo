@@ -243,6 +243,7 @@ export const CheckAvailability = ({
                         status={domainResultStatusFromGrace(
                           getProfileExpiryResultStatus(profileExpiry).isInGrace,
                         )}
+                        themeColor={themeColor}
                       />
                     </Link>
                   </motion.div>

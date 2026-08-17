@@ -11,7 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createClient, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { mainnet } from 'viem/chains'
-import { beforeEach } from 'vitest'
+import { afterEach, beforeEach } from 'vitest'
 
 import { hashFn } from 'wagmi/query'
 
@@ -70,3 +70,38 @@ const AllTheProviders = ({ children }: AllTheProvidersProps) => (
 
 export const render = (ui: React.ReactNode, options?: RenderOptions) =>
   baseRender(ui, { wrapper: AllTheProviders, ...options })
+
+/**
+ * Replaces `window.Image` with an inert stub so tests can observe and drive
+ * the preloading that `ImageFallback` performs with `new window.Image()`.
+ * Call at `describe` scope; returns the probes in creation order. Each test
+ * starts with an empty list and the real constructor is restored afterwards.
+ */
+export class ImagePreloadStub extends EventTarget {
+  complete = false
+  naturalWidth = 0
+  src = ''
+}
+
+export const stubImagePreload = (): ImagePreloadStub[] => {
+  const probes: ImagePreloadStub[] = []
+  const originalImage = window.Image
+
+  class TrackedImage extends ImagePreloadStub {
+    constructor() {
+      super()
+      probes.push(this)
+    }
+  }
+
+  beforeEach(() => {
+    probes.length = 0
+    window.Image = TrackedImage as unknown as typeof window.Image
+  })
+
+  afterEach(() => {
+    window.Image = originalImage
+  })
+
+  return probes
+}

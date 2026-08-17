@@ -28,6 +28,8 @@ export type DomainResultCardProps = {
    * layout; anything that does not load falls back to the pattern avatar.
    */
   readonly avatarUrl?: string
+  /** Tints the pattern-avatar fallback with the name's theme record. */
+  readonly themeColor?: string | null
 }
 
 const statusIconMap = {
@@ -46,6 +48,7 @@ export const DomainResultCard = ({
   clickable = false,
   isInCooldown = false,
   avatarUrl,
+  themeColor,
 }: DomainResultCardProps) => {
   const baseClasses = cn(
     'domain-result-card',
@@ -82,7 +85,12 @@ export const DomainResultCard = ({
         </>
       ) : isRegisteredDomainResultStatus(status) ? (
         <div className="flex w-full items-center gap-4">
-          <div className="size-12 shrink-0 overflow-hidden rounded-md">
+          {/* Decorative in every state: the name is already the card's text,
+              so neither the avatar nor the pattern may rename the link. */}
+          <div
+            aria-hidden="true"
+            className="size-12 shrink-0 overflow-hidden rounded-md"
+          >
             <ImageFallback.Root className="contents">
               <ImageFallback.Image
                 alt=""
@@ -92,6 +100,7 @@ export const DomainResultCard = ({
               <ImageFallback.Fallback>
                 <PatternAvatar
                   className="size-full rounded-md border-none bg-transparent p-0 shadow-none"
+                  color={themeColor}
                   name={domainName}
                 />
               </ImageFallback.Fallback>
