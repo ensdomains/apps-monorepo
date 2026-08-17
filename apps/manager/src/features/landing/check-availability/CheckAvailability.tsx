@@ -51,7 +51,6 @@ export const CheckAvailability = ({
     premiumLabel,
     isInCooldown,
     primaryName,
-    selectedName,
     isLoading,
     error,
   } = useCheckAvailability({ inputValue, debouncedInput: debouncedValue })
@@ -68,7 +67,7 @@ export const CheckAvailability = ({
 
   // Determine which name to fetch profile data for
   const profileName = match(displayState)
-    .with({ type: 'unavailable' }, () => selectedName)
+    .with({ type: 'unavailable' }, ({ domainName }) => domainName)
     .with({ type: 'address' }, () => primaryName ?? null)
     .otherwise(() => null)
 
@@ -89,6 +88,8 @@ export const CheckAvailability = ({
     ...profileExpiryQuery(profileName ?? ''),
     enabled: !!profileName,
   })
+
+  const { isInGrace } = getProfileExpiryResultStatus(profileExpiry)
 
   const { data: profileRegistration } = useQuery({
     ...profileRegistrationQuery(profileName ?? ''),
@@ -238,11 +239,12 @@ export const CheckAvailability = ({
                   >
                     <Link params={{ name: state.domainName }} to="/$name">
                       <DomainResultCard
+                        // A name in grace shows the pattern avatar, matching
+                        // how the profile page treats a lapsed name.
+                        avatarUrl={isInGrace ? undefined : profileAvatar}
                         clickable
                         domainName={state.domainName}
-                        status={domainResultStatusFromGrace(
-                          getProfileExpiryResultStatus(profileExpiry).isInGrace,
-                        )}
+                        status={domainResultStatusFromGrace(isInGrace)}
                       />
                     </Link>
                   </motion.div>

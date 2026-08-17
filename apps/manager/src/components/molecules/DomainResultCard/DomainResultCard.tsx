@@ -1,5 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { AvailabilityCheckIcon } from '@/components/atoms/AvailabilityCheckIcon'
+import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import type { PremiumLabel } from '@/features/shared/registration/nameUtils'
 import { cn } from '@/lib/utils'
@@ -11,16 +13,21 @@ import {
 } from './domainResultStatus'
 
 export type DomainResultCardProps = {
-  domainName: string
-  status: DomainResultStatus
-  premiumLabel?: PremiumLabel
-  price?: number
-  priceLabel?: string
-  className?: string
-  isLoading?: boolean
-  clickable?: boolean
+  readonly domainName: string
+  readonly status: DomainResultStatus
+  readonly premiumLabel?: PremiumLabel
+  readonly price?: number
+  readonly priceLabel?: string
+  readonly className?: string
+  readonly isLoading?: boolean
+  readonly clickable?: boolean
   /** Renders the "Price Cooldown" pill when the name is in temp premium. */
-  isInCooldown?: boolean
+  readonly isInCooldown?: boolean
+  /**
+   * Profile avatar for a registered name. Only read by the registered/grace
+   * layout; anything that does not load falls back to the pattern avatar.
+   */
+  readonly avatarUrl?: string
 }
 
 const statusIconMap = {
@@ -38,6 +45,7 @@ export const DomainResultCard = ({
   isLoading = false,
   clickable = false,
   isInCooldown = false,
+  avatarUrl,
 }: DomainResultCardProps) => {
   const baseClasses = cn(
     'domain-result-card',
@@ -73,24 +81,42 @@ export const DomainResultCard = ({
           </div>
         </>
       ) : isRegisteredDomainResultStatus(status) ? (
-        <>
-          <span
-            className={cn(
-              'inline-block w-fit max-w-full break-words rounded-sm border border-ens-blue bg-white px-2 py-1',
-              'font-medium text-ens-blue leading-tight tracking-[-0.48px]',
-              getDomainCardSizeClasses(getByteLength(domainName)),
-            )}
-            title={domainName}
-          >
-            {domainName}
-          </span>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex h-5 shrink-0 items-center justify-center rounded-xl bg-ens-white px-2 py-1 font-sans text-ens-lapis-core text-xs leading-none">
-              <Trans>Registered</Trans>
-            </span>
-            {status === 'grace' && <GracePeriodBadge />}
+        <div className="flex w-full items-center gap-4">
+          <div className="size-12 shrink-0 overflow-hidden rounded-md">
+            <ImageFallback.Root className="contents">
+              <ImageFallback.Image
+                alt={`${domainName} avatar`}
+                className="size-full object-cover"
+                src={avatarUrl}
+              />
+              <ImageFallback.Fallback>
+                <PatternAvatar
+                  className="size-full min-h-0 min-w-0"
+                  name={domainName}
+                />
+              </ImageFallback.Fallback>
+            </ImageFallback.Root>
           </div>
-        </>
+
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <span
+              className={cn(
+                'inline-block w-fit max-w-full break-words rounded-sm border border-ens-blue bg-white px-2 py-1',
+                'font-medium text-ens-blue leading-tight tracking-[-0.48px]',
+                getDomainCardSizeClasses(getByteLength(domainName)),
+              )}
+              title={domainName}
+            >
+              {domainName}
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex h-5 shrink-0 items-center justify-center rounded-xl bg-ens-white px-2 py-1 font-sans text-ens-lapis-core text-xs leading-none">
+                <Trans>Registered</Trans>
+              </span>
+              {status === 'grace' && <GracePeriodBadge />}
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           <div className="flex w-full items-start justify-between gap-4">

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
+import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getByteLength } from '@/utils/domain'
 import { DomainResultCard } from './DomainResultCard'
 import { DOMAIN_RESULT_STATUSES } from './domainResultStatus'
@@ -17,6 +18,9 @@ const meta = {
     },
     price: {
       control: 'number',
+    },
+    avatarUrl: {
+      control: 'text',
     },
   },
 } satisfies Meta<typeof DomainResultCard>
@@ -40,10 +44,19 @@ export const Premium: Story = {
   },
 }
 
+/** No avatar record, so the card falls back to the pattern avatar. */
 export const Registered: Story = {
   args: {
     domainName: 'earl.eth',
     status: 'registered',
+  },
+}
+
+export const RegisteredWithAvatar: Story = {
+  args: {
+    domainName: 'alien.eth',
+    status: 'registered',
+    avatarUrl: buildNameAvatarUrl('alien.eth'),
   },
 }
 
