@@ -3,6 +3,7 @@ import { AvailabilityCheckIcon } from '@/components/atoms/AvailabilityCheckIcon'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
+import { resolveThemeColor } from '@/features/profile/utils/themeColor'
 import type { PremiumLabel } from '@/features/shared/registration/nameUtils'
 import { cn } from '@/lib/utils'
 import { getByteLength, getDomainCardSizeClasses } from '@/utils/domain'
@@ -28,7 +29,11 @@ export type DomainResultCardProps = {
    * layout; anything that does not load falls back to the pattern avatar.
    */
   readonly avatarUrl?: string
-  /** Tints the pattern-avatar fallback with the name's theme record. */
+  /**
+   * Tints the pattern-avatar fallback with the name's theme record. The raw
+   * record value is accepted: malformed values and grace-period names fall
+   * back to the default tint.
+   */
   readonly themeColor?: string | null
 }
 
@@ -89,7 +94,7 @@ export const DomainResultCard = ({
               so neither the avatar nor the pattern may rename the link. */}
           <div
             aria-hidden="true"
-            className="size-12 shrink-0 overflow-hidden rounded-md"
+            className="relative size-12 shrink-0 overflow-hidden rounded-md bg-ens-quartz-50"
           >
             <ImageFallback.Root className="contents">
               <ImageFallback.Image
@@ -98,9 +103,15 @@ export const DomainResultCard = ({
                 src={avatarUrl}
               />
               <ImageFallback.Fallback>
+                {/* The record value is attacker-controlled and etherloom
+                    throws on non-hex colors, so it is never passed raw; a
+                    lapsed name drops its tint like NameRow and
+                    PrimaryNameCard do. */}
                 <PatternAvatar
                   className="size-full rounded-md border-none bg-transparent p-0 shadow-none"
-                  color={themeColor}
+                  color={resolveThemeColor(
+                    status === 'grace' ? undefined : themeColor,
+                  )}
                   name={domainName}
                 />
               </ImageFallback.Fallback>

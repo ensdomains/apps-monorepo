@@ -86,7 +86,9 @@ describe('CheckAvailability', () => {
     const expectedAvatarUrl = buildNameAvatarUrl('alien.eth')
     const { container } = render(<CheckAvailability />)
 
-    searchFor('alien.eth')
+    // The raw input differs from the resolved name on purpose: the avatar
+    // url must be built from the availability result's normalized name.
+    searchFor('alien')
 
     await waitFor(() => {
       expect(
@@ -116,7 +118,7 @@ describe('CheckAvailability', () => {
     const expectedAvatarUrl = buildNameAvatarUrl('alien.eth')
     render(<CheckAvailability />)
 
-    searchFor('alien.eth')
+    searchFor('alien')
 
     await waitFor(() => {
       expect(screen.getByText('Grace period')).toBeInTheDocument()

@@ -37,11 +37,12 @@ describe('DomainResultCard', () => {
     expect(queryAvatarImage(container, avatarUrl)).toBeInTheDocument()
     expect(queryPatternImage(container, 'alien.eth')).not.toBeInTheDocument()
     expect(container.querySelectorAll('img')).toHaveLength(1)
+    expect(container.querySelector('img[alt=""]')).toBeInTheDocument()
   })
 
   it('keeps every image out of the accessibility tree', () => {
     const avatarUrl = 'https://example.com/alien.png'
-    render(
+    const { container } = render(
       <DomainResultCard
         avatarUrl={avatarUrl}
         domainName="alien.eth"
@@ -51,11 +52,65 @@ describe('DomainResultCard', () => {
 
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
 
+    const probe = probes[0]
+    if (!probe) throw new Error('Expected an avatar image request')
+
     act(() => {
-      probes[0]?.dispatchEvent(new Event('load'))
+      probe.dispatchEvent(new Event('load'))
     })
 
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(container.querySelector('img[alt=""]')).toBeInTheDocument()
+  })
+
+  it('tints the pattern with the theme record and shrugs off malformed values', () => {
+    const patternSrc = (themeColor: string | undefined) => {
+      const { container, unmount } = render(
+        <DomainResultCard
+          domainName="earl.eth"
+          status="registered"
+          themeColor={themeColor}
+        />,
+      )
+      const src = queryPatternImage(container, 'earl.eth')?.getAttribute('src')
+      unmount()
+      if (!src) throw new Error('Expected a pattern image')
+      return src
+    }
+
+    const defaultTint = patternSrc(undefined)
+    const themedTint = patternSrc('#112233')
+
+    expect(themedTint).not.toBe(defaultTint)
+    // Attacker-controlled record values must never throw: non-hex values
+    // fall back to the default tint, and padded hex is trimmed.
+    expect(patternSrc('red')).toBe(defaultTint)
+    expect(patternSrc('')).toBe(defaultTint)
+    expect(patternSrc(' #112233 ')).toBe(themedTint)
+  })
+
+  it('drops the theme tint for a name in its grace period', () => {
+    const { container } = render(
+      <DomainResultCard
+        domainName="earl.eth"
+        status="grace"
+        themeColor="#112233"
+      />,
+    )
+    const graceSrc = queryPatternImage(container, 'earl.eth')?.getAttribute(
+      'src',
+    )
+
+    const { container: registeredContainer } = render(
+      <DomainResultCard domainName="earl.eth" status="registered" />,
+    )
+    const defaultSrc = queryPatternImage(
+      registeredContainer,
+      'earl.eth',
+    )?.getAttribute('src')
+
+    expect(graceSrc).toBeDefined()
+    expect(graceSrc).toBe(defaultSrc)
   })
 
   it('shows the name pattern when no avatar url is passed', () => {
@@ -107,8 +162,11 @@ describe('DomainResultCard', () => {
     expect(queryPatternImage(container, 'earl.eth')).toBeInTheDocument()
     expect(screen.getByText('Grace period')).toBeInTheDocument()
 
+    const probe = probes[0]
+    if (!probe) throw new Error('Expected an avatar image request')
+
     act(() => {
-      probes[0]?.dispatchEvent(new Event('load'))
+      probe.dispatchEvent(new Event('load'))
     })
 
     expect(queryAvatarImage(container, avatarUrl)).toBeInTheDocument()

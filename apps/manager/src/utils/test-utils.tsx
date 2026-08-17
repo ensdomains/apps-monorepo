@@ -71,19 +71,19 @@ const AllTheProviders = ({ children }: AllTheProvidersProps) => (
 export const render = (ui: React.ReactNode, options?: RenderOptions) =>
   baseRender(ui, { wrapper: AllTheProviders, ...options })
 
+class ImagePreloadStub extends EventTarget {
+  complete = false
+  naturalWidth = 0
+  src = ''
+}
+
 /**
  * Replaces `window.Image` with an inert stub so tests can observe and drive
  * the preloading that `ImageFallback` performs with `new window.Image()`.
  * Call at `describe` scope; returns the probes in creation order. Each test
  * starts with an empty list and the real constructor is restored afterwards.
  */
-export class ImagePreloadStub extends EventTarget {
-  complete = false
-  naturalWidth = 0
-  src = ''
-}
-
-export const stubImagePreload = (): ImagePreloadStub[] => {
+export const stubImagePreload = () => {
   const probes: ImagePreloadStub[] = []
   const originalImage = window.Image
 
