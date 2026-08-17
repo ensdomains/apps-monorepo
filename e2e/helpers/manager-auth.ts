@@ -137,9 +137,9 @@ export async function clickThroughEnableSessions(page: Page): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
- * Dismiss the app's BackendAuthModal (SIWE prompt) by clicking
- * "Skip for now" → "Skip Anyway". Idempotent: if the modal doesn't
- * appear within the timeout, returns silently.
+ * Dismiss the app's BackendAuthModal (SIWE prompt) by typing the hidden
+ * `SKIP` key sequence. Idempotent: if the modal doesn't appear within the
+ * timeout, returns silently.
  *
  * Why skip rather than complete:
  *   - SIWE requires reaching the backend API worker, which is not part
@@ -161,14 +161,10 @@ export async function dismissBackendAuthModal(
 ): Promise<void> {
   const timeout = options.timeout ?? 60_000
 
-  // The verification step's title is "Verify your wallet".
-  // The skip-confirmation step's title is "Are you sure?".
-  // We key off the "Skip for now" cancel button which is only present
-  // in the verification step.
-  const skipBtn = page.getByRole('button', { name: 'Skip for now' })
+  const dialog = page.getByRole('alertdialog', { name: 'Verify your wallet' })
 
   try {
-    await skipBtn.waitFor({ state: 'visible', timeout })
+    await dialog.waitFor({ state: 'visible', timeout })
   } catch {
     // Modal never appeared — already skipped/dismissed, EOA-only mode,
     // or feature disabled. Either way, nothing to do.
@@ -178,16 +174,8 @@ export async function dismissBackendAuthModal(
     return
   }
 
-  console.log(
-    '[manager-auth] BackendAuthModal visible — clicking "Skip for now"',
-  )
-  await skipBtn.click()
-
-  // The skip-confirmation step replaces the modal contents but keeps
-  // the dialog open. Click "Skip Anyway" to fully dismiss.
-  const skipAnywayBtn = page.getByRole('button', { name: 'Skip Anyway' })
-  await skipAnywayBtn.waitFor({ state: 'visible', timeout: 10_000 })
-  await skipAnywayBtn.click()
+  console.log('[manager-auth] BackendAuthModal visible — typing SKIP')
+  await page.keyboard.type('skip', { delay: 50 })
 
   // Wait for the dialog overlay to disappear so subsequent navigations
   // are clean and pointer-events on the page are restored.
