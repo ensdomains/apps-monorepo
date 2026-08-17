@@ -7,6 +7,7 @@ import * as AlertDialog from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
+import { useWalletDisconnect } from '@/lib/wallet'
 import { backendAuthStore } from '@/utils/backend-client'
 
 export const BackendAuthModal = () => {
@@ -18,6 +19,7 @@ export const BackendAuthModal = () => {
 
   const { isConnected: isWalletConnected } = useConnection()
   const { data: walletClient } = useWalletClient()
+  const { disconnect, isDisconnecting } = useWalletDisconnect()
 
   // Hold this modal until the SCA is live. Hook is null before the
   // provider mounts; then we don't wait, so EOA-only isn't stuck.
@@ -75,7 +77,7 @@ export const BackendAuthModal = () => {
         <div className="space-y-4">
           <Button
             className="w-full"
-            disabled={signIn.isPending || !walletClient}
+            disabled={signIn.isPending || isDisconnecting || !walletClient}
             onClick={handleSignIn}
             size="lg"
           >
@@ -83,6 +85,19 @@ export const BackendAuthModal = () => {
               <Trans>Signing in...</Trans>
             ) : (
               <Trans>Sign in with Wallet</Trans>
+            )}
+          </Button>
+          <Button
+            className="w-full"
+            disabled={signIn.isPending || isDisconnecting}
+            onClick={() => void disconnect()}
+            size="lg"
+            variant="outline"
+          >
+            {isDisconnecting ? (
+              <Trans>Disconnecting...</Trans>
+            ) : (
+              <Trans>Disconnect</Trans>
             )}
           </Button>
 
@@ -93,7 +108,7 @@ export const BackendAuthModal = () => {
               </p>
             </div>
           )}
-          {!walletClient && (
+          {!walletClient && !isDisconnecting && (
             <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">
               <p className="text-destructive text-sm">
                 <Trans>

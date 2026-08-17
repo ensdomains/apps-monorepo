@@ -14,6 +14,11 @@ const smartAccountMock = vi.hoisted(() => ({
 
 const useMutationMock = vi.hoisted(() => vi.fn())
 
+const walletDisconnectMock = vi.hoisted(() => ({
+  disconnect: vi.fn(),
+  isDisconnecting: false,
+}))
+
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return {
@@ -24,6 +29,14 @@ vi.mock('wagmi', async (importOriginal) => {
 })
 
 vi.mock('@/lib/smart-account/SmartAccountContext', () => smartAccountMock)
+
+vi.mock('@/lib/wallet', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/wallet')>()
+  return {
+    ...actual,
+    useWalletDisconnect: () => walletDisconnectMock,
+  }
+})
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
@@ -52,6 +65,8 @@ const showModal = ({ isPending = false }: { isPending?: boolean } = {}) => {
     isError: false,
     mutateAsync: vi.fn(),
   })
+  walletDisconnectMock.disconnect.mockReset()
+  walletDisconnectMock.isDisconnecting = false
 }
 
 describe('BackendAuthModal', () => {
@@ -120,6 +135,14 @@ describe('BackendAuthModal', () => {
       screen.getByRole('alertdialog', { name: 'Verify your wallet' }),
     ).toBeInTheDocument()
     expect(backendAuthStore.get().context.modalDismissed).toBe(false)
+  })
+
+  it('disconnects the wallet so the user can switch accounts', () => {
+    render(<BackendAuthModal />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
+
+    expect(walletDisconnectMock.disconnect).toHaveBeenCalledOnce()
   })
 
   it('does not dismiss when Escape is pressed', () => {

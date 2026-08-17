@@ -727,12 +727,17 @@ msgid "Did You Know?"
 msgstr "Did You Know?"
 
 #: src/features/navigation/Header/account/WalletSection.tsx
+#: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Disconnect"
 msgstr "Disconnect"
 
 #: src/routes/wallet.tsx
 msgid "Disconnect Wallet"
 msgstr "Disconnect Wallet"
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Disconnecting..."
+msgstr "Disconnecting..."
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Do I have to upgrade my names? What happens if I don't?"

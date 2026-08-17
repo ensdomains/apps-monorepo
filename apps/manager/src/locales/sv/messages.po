@@ -732,11 +732,16 @@ msgid "Did You Know?"
 msgstr "Visste du att?"
 
 #: src/features/navigation/Header/account/WalletSection.tsx
+#: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Disconnect"
 msgstr ""
 
 #: src/routes/wallet.tsx
 msgid "Disconnect Wallet"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Disconnecting..."
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
