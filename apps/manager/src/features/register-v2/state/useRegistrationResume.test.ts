@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
+import { createElement } from 'react'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ResumeAssessment } from '../service/assessResumableRegistration'
@@ -12,6 +14,7 @@ const assessResumableRegistration = vi.fn()
 const clearStoredRegistration = vi.fn()
 const needsSessionBeforeRegistration = vi.fn(() => false)
 const useSmartAccountContext = vi.fn()
+const toast = vi.fn()
 
 // Mocked wholesale rather than via `importOriginal`: the real module pulls in
 // the pricing query and the wagmi client, none of which this hook's behaviour
@@ -45,6 +48,8 @@ vi.mock('@/lib/wagmi', () => ({
   publicClient: { chain: { id: 11155111 } },
 }))
 
+vi.mock('sonner', () => ({ toast: (...a: unknown[]) => toast(...a) }))
+
 const enableSession = vi.fn(async () => ({ type: 'rhinestone' }))
 const getSessionEnablePayload = vi.fn(async () => ({ stub: 'enable' }))
 
@@ -73,8 +78,23 @@ const resumableAssessment = (): ResumeAssessment =>
 const send = vi.fn()
 const uiActor = { send } as unknown as RegistrationV2UiActor
 
-const render = () =>
-  renderHook(() => useRegistrationResume({ label: 'leon', uiActor }))
+// Retries stay with the query in production; in here they would only turn a
+// deliberate rejection into a hang.
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  createElement(
+    QueryClientProvider,
+    {
+      client: new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      }),
+    },
+    children,
+  )
+
+const render = (enabled?: boolean) =>
+  renderHook(() => useRegistrationResume({ label: 'leon', uiActor, enabled }), {
+    wrapper,
+  })
 
 describe('useRegistrationResume', () => {
   beforeEach(() => {
@@ -93,6 +113,8 @@ describe('useRegistrationResume', () => {
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'registration.resume', label: 'leon' }),
     )
+    // The promised "Resuming registration" notice.
+    expect(toast).toHaveBeenCalledOnce()
   })
 
   it('waits for the wallet before deciding anything', async () => {
@@ -120,9 +142,8 @@ describe('useRegistrationResume', () => {
   })
 
   it('resumes once the right wallet connects', async () => {
-    // The wrong-wallet verdict is deliberately un-latched. It re-decides when
-    // the account object changes — which is what connecting a wallet does —
-    // not on every render.
+    // The wrong-wallet verdict is deliberately un-latched. Connecting the
+    // right wallet re-keys the assessment query, which re-decides.
     useSmartAccountContext.mockReturnValue(account({ ownerAddress: OTHER }))
     const { result, rerender } = render()
     await waitFor(() => expect(result.current.status).toBe('wrong-wallet'))
@@ -134,7 +155,7 @@ describe('useRegistrationResume', () => {
     expect(send).toHaveBeenCalledOnce()
   })
 
-  it('discards a stale record and reports why', async () => {
+  it('discards an expired record, reports why, and notifies', async () => {
     assessResumableRegistration.mockResolvedValue({
       status: 'stale',
       reason: 'commitment-expired',
@@ -145,6 +166,23 @@ describe('useRegistrationResume', () => {
     await waitFor(() => expect(result.current.status).toBe('discarded'))
     expect(clearStoredRegistration).toHaveBeenCalledOnce()
     expect(send).not.toHaveBeenCalled()
+    // The user paid for that commitment; its disappearance needs a notice.
+    expect(toast).toHaveBeenCalledOnce()
+  })
+
+  it('discards a technical mismatch silently', async () => {
+    assessResumableRegistration.mockResolvedValue({
+      status: 'stale',
+      reason: 'signer-mode-mismatch',
+    })
+
+    const { result } = render()
+
+    await waitFor(() => expect(result.current.status).toBe('discarded'))
+    expect(clearStoredRegistration).toHaveBeenCalledOnce()
+    // A quiet restart is the correct surface — there is nothing actionable to
+    // tell the user about an internal mode flip.
+    expect(toast).not.toHaveBeenCalled()
   })
 
   it('goes idle when there is nothing stored', async () => {
@@ -193,16 +231,16 @@ describe('useRegistrationResume', () => {
   })
 
   it('stays retryable after a throw, so a reconnect can still resume', async () => {
+    // An RPC failure while no wallet is connected must not latch. Connecting a
+    // wallet re-keys the assessment query, which refetches — that is the
+    // recovery path.
     assessResumableRegistration.mockRejectedValueOnce(new Error('rpc down'))
+    useSmartAccountContext.mockReturnValue(account({ ownerAddress: null }))
 
     const { result, rerender } = render()
     await waitFor(() => expect(result.current.status).toBe('idle'))
     expect(send).not.toHaveBeenCalled()
 
-    // A throw must not latch. Re-deciding on the next account change is the
-    // recovery path — without the catch this would still be stuck at
-    // `checking` and no rerender would help.
-    assessResumableRegistration.mockResolvedValue(resumableAssessment())
     useSmartAccountContext.mockReturnValue(account())
     rerender()
 
@@ -222,9 +260,7 @@ describe('useRegistrationResume', () => {
   })
 
   it('does nothing at all when disabled', async () => {
-    const { result } = renderHook(() =>
-      useRegistrationResume({ label: 'leon', uiActor, enabled: false }),
-    )
+    const { result } = render(false)
 
     await waitFor(() => expect(result.current.status).toBe('idle'))
     expect(assessResumableRegistration).not.toHaveBeenCalled()

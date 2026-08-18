@@ -1,24 +1,39 @@
 /**
  * Resume an interrupted registration on mount.
  *
- * Runs the preflight, gates on identity and session, and dispatches
- * `registration.resume` exactly once per label. Auto-resumes rather than
- * asking: the user navigated back to `/register/$name` deliberately, and a
- * confirmation prompt in front of a flow they already paid to start is friction
- * without a decision behind it.
+ * The pure reads — stored record, commitment age, price re-quote — run through
+ * TanStack Query (`getResumeAssessmentQueryOptions`), which owns caching,
+ * retries and deduplication. This hook owns the imperative tail: the identity
+ * and session gates and the one-shot `registration.resume` dispatch, kept
+ * outside the query lifecycle so a refetch can never replay a wallet prompt.
+ *
+ * Auto-resumes rather than asking: the user navigated back to
+ * `/register/$name` deliberately, and a confirmation prompt in front of a flow
+ * they already paid to start is friction without a decision behind it.
  */
 
+import { i18n } from '@lingui/core'
+import { msg } from '@lingui/core/macro'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import type { Address } from 'viem'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { needsSessionBeforeRegistration } from '@/lib/smart-account/sessionGate'
-import { publicClient } from '@/lib/wagmi'
+import { getResumeAssessmentQueryOptions } from '../data/queries/resumeAssessment.query'
 import {
-  assessResumableRegistration,
   isResumeOwner,
+  type ResumeAssessment,
   type ResumeStaleReason,
 } from '../service/assessResumableRegistration'
 import { clearStoredRegistration } from '../service/registrationPersistence'
 import type { RegistrationV2UiActor } from './registrationUi.machine'
+
+const resumingMessage = msg`Resuming your registration.`
+const expiredMessage = msg`Your previous registration attempt expired. Starting over.`
+
+const translate = (message: typeof resumingMessage) =>
+  i18n.locale ? i18n._(message) : message.message
 
 export type RegistrationResumeState =
   /** Still deciding — the wallet may not have finished restoring. */
@@ -32,63 +47,96 @@ export type RegistrationResumeState =
   /** `registration.resume` has been dispatched. */
   | { readonly status: 'resumed' }
 
-/**
- * What the effect should do next.
- *
- * `latch` says whether the decision is final for this label. A wrong wallet is
- * deliberately NOT final — the user can connect the right one and the resume
- * should pick up when they do — and neither is a rejected session enable.
- */
-type ResumeDecision = {
-  readonly state: RegistrationResumeState
-  readonly latch: boolean
-  readonly dispatch?: Parameters<RegistrationV2UiActor['send']>[0]
-}
+function discardStaleRecord(
+  label: string,
+  reason: ResumeStaleReason,
+): RegistrationResumeState {
+  clearStoredRegistration()
 
-async function decideResume(params: {
-  label: string
-  account: ReturnType<typeof useSmartAccountContext>
-}): Promise<ResumeDecision> {
-  const { label, account } = params
-
-  const assessment = await assessResumableRegistration({
-    label,
-    chainId: publicClient.chain.id,
-    publicClient,
-    signerType: account.signer?.type,
-  })
-
-  if (assessment.status === 'none') {
-    return { state: { status: 'idle' }, latch: true }
+  // Only the expiry gets a notice: it is the one stale reason where the user
+  // did something (paid for a commitment) whose silent disappearance would
+  // read as a bug. The rest are technical mismatches for which a quiet
+  // restart is the correct surface.
+  if (reason === 'commitment-expired') {
+    toast(translate(expiredMessage), {
+      id: `registration-resume-${label}`,
+      position: 'bottom-right',
+    })
   }
 
-  if (assessment.status === 'stale') {
-    clearStoredRegistration()
+  return { status: 'discarded', reason }
+}
+
+type SettledDecision =
+  /** Settle on a state; `latch` marks the decision final for this label. */
+  | {
+      readonly kind: 'state'
+      readonly state: RegistrationResumeState
+      readonly latch: boolean
+    }
+  /** A live resumable record owned by the connected wallet — go dispatch. */
+  | {
+      readonly kind: 'dispatch'
+      readonly verdict: Extract<ResumeAssessment, { status: 'resumable' }>
+    }
+
+function decideFromVerdict(
+  verdict: ResumeAssessment,
+  label: string,
+  connectedOwner: Address | null | undefined,
+): SettledDecision {
+  if (verdict.status === 'none') {
+    return { kind: 'state', state: { status: 'idle' }, latch: true }
+  }
+
+  if (verdict.status === 'stale') {
     return {
-      state: { status: 'discarded', reason: assessment.reason },
+      kind: 'state',
+      state: discardStaleRecord(label, verdict.reason),
       latch: true,
     }
   }
 
-  const recordOwner = assessment.stored.record.context.ownerAddress
+  const recordOwner = verdict.stored.record.context.ownerAddress
 
-  if (!isResumeOwner(recordOwner, account.ownerAddress)) {
+  if (!isResumeOwner(recordOwner, connectedOwner)) {
+    // Deliberately un-latched: the user can connect the right wallet, which
+    // re-keys the assessment and lets the resume pick up when they do.
     return {
+      kind: 'state',
       state: { status: 'wrong-wallet', expectedOwner: recordOwner ?? '' },
       latch: false,
     }
   }
 
-  // A session that expired while the tab was closed has to be re-enabled before
-  // the reveal can be signed. `needsSessionBeforeRegistration` also rejects one
-  // with too little headroom left to outlive the commitment cooldown — the case
-  // that would otherwise strand a paid commitment with an unsignable reveal.
+  return { kind: 'dispatch', verdict }
+}
+
+/**
+ * The imperative tail of a resume: the session gate, then the one-shot
+ * dispatch. Returns the state the hook should settle on, or null when the
+ * effect was cleaned up mid-flight and nothing may be reported.
+ */
+async function enableSessionAndDispatch(params: {
+  verdict: Extract<ResumeAssessment, { status: 'resumable' }>
+  label: string
+  account: ReturnType<typeof useSmartAccountContext>
+  uiActor: RegistrationV2UiActor
+  isCancelled: () => boolean
+}): Promise<RegistrationResumeState | null> {
+  const { verdict, label, account, uiActor, isCancelled } = params
+
+  // A session that expired while the tab was closed has to be re-enabled
+  // before the reveal can be signed. `needsSessionBeforeRegistration` also
+  // rejects one with too little headroom left to outlive the commitment
+  // cooldown — the case that would otherwise strand a paid commitment with an
+  // unsignable reveal.
   if (needsSessionBeforeRegistration(account)) {
     const signer = await account.enableSession()
     if (!signer) {
-      // Rejected or failed. Leave the record in place and stay un-latched so a
-      // reconnect can still resume.
-      return { state: { status: 'idle' }, latch: false }
+      // Rejected or failed. Leave the record in place and stay un-latched so
+      // a reconnect can still resume.
+      return isCancelled() ? null : { status: 'idle' }
     }
   }
 
@@ -96,19 +144,23 @@ async function decideResume(params: {
   // signature, with no wallet interaction.
   const hcaSessionEnable = await account.getSessionEnablePayload()
 
-  return {
-    state: { status: 'resumed' },
-    latch: true,
-    dispatch: {
-      type: 'registration.resume',
-      label,
-      confirmedData: assessment.confirmedData,
-      record: assessment.stored.record,
-      postRegistrationSetup: assessment.stored.postRegistrationSetup,
-      account,
-      hcaSessionEnable,
-    },
-  }
+  if (isCancelled()) return null
+
+  uiActor.send({
+    type: 'registration.resume',
+    label,
+    confirmedData: verdict.confirmedData,
+    record: verdict.stored.record,
+    postRegistrationSetup: verdict.stored.postRegistrationSetup,
+    account,
+    hcaSessionEnable,
+  })
+  toast(translate(resumingMessage), {
+    id: `registration-resume-${label}`,
+    position: 'bottom-right',
+  })
+
+  return { status: 'resumed' }
 }
 
 export function useRegistrationResume(params: {
@@ -128,6 +180,22 @@ export function useRegistrationResume(params: {
   // already running.
   const decidedForLabel = useRef<string | null>(null)
 
+  const assessment = useQuery({
+    ...getResumeAssessmentQueryOptions({
+      label,
+      ownerAddress: account.ownerAddress,
+      signerType: account.signer?.type,
+    }),
+    // The wallet restores asynchronously. Assessing before it has settled
+    // would run the signer-mode check against a signer that isn't there yet —
+    // and deciding "wrong wallet" that early would show the banner to the very
+    // user who owns the record.
+    enabled: enabled && account.hasInitialized,
+  })
+
+  const verdict = assessment.data
+  const assessmentError = assessment.isError ? assessment.error : null
+
   useEffect(() => {
     if (!enabled) {
       setState({ status: 'idle' })
@@ -135,20 +203,41 @@ export function useRegistrationResume(params: {
     }
 
     if (decidedForLabel.current === label) return
-
-    // The wallet restores asynchronously. Deciding "wrong wallet" before it has
-    // settled would show the banner to the very user who owns the record.
     if (!account.hasInitialized) return
+
+    if (assessmentError) {
+      // The query has already retried. Stay un-latched and leave the record
+      // alone: connecting a wallet re-keys the query, which is the recovery
+      // path — a resumable record must survive a transient RPC failure.
+      console.warn('⚠️ [REGISTRATION] Resume check failed:', assessmentError)
+      setState({ status: 'idle' })
+      return
+    }
+
+    // Still fetching — stay at 'checking'.
+    if (!verdict) return
+
+    const decision = decideFromVerdict(verdict, label, account.ownerAddress)
+
+    if (decision.kind === 'state') {
+      if (decision.latch) decidedForLabel.current = label
+      setState(decision.state)
+      return
+    }
 
     let cancelled = false
 
-    decideResume({ label, account })
-      .then((decision) => {
-        if (cancelled) return
-
-        if (decision.latch) decidedForLabel.current = label
-        if (decision.dispatch) uiActor.send(decision.dispatch)
-        setState(decision.state)
+    enableSessionAndDispatch({
+      verdict: decision.verdict,
+      label,
+      account,
+      uiActor,
+      isCancelled: () => cancelled,
+    })
+      .then((next) => {
+        if (!next) return
+        if (next.status === 'resumed') decidedForLabel.current = label
+        setState(next)
       })
       .catch((error: unknown) => {
         if (cancelled) return
@@ -165,7 +254,7 @@ export function useRegistrationResume(params: {
     return () => {
       cancelled = true
     }
-  }, [enabled, label, account, uiActor])
+  }, [enabled, label, account, uiActor, verdict, assessmentError])
 
   return state
 }

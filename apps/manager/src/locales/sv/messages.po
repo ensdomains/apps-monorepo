@@ -566,6 +566,11 @@ msgstr ""
 msgid "Connect Wallet"
 msgstr ""
 
+#. placeholder {0}: truncateAddress(resume.expectedOwner)
+#: src/features/register-v2/workflow/pricing/components/ResumeWrongWalletBanner.tsx
+msgid "Connect wallet {0} to resume registering {label}.eth. Starting over from another wallet would abandon the payment already made."
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Connect your wallet"
 msgstr ""
@@ -1970,6 +1975,10 @@ msgstr ""
 msgid "Restore your managers"
 msgstr ""
 
+#: src/features/register-v2/state/useRegistrationResume.ts
+msgid "Resuming your registration."
+msgstr ""
+
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Retry artwork"
 msgstr ""
@@ -2602,6 +2611,10 @@ msgstr ""
 msgid "Unable to load names for this address. Please try again."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/ResumeWrongWalletBanner.tsx
+msgid "Unfinished registration"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "unique searches in the last 30 days"
 msgstr ""
@@ -3074,6 +3087,10 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Your permissions changed. Go back to check the updated estimate."
+msgstr ""
+
+#: src/features/register-v2/state/useRegistrationResume.ts
+msgid "Your previous registration attempt expired. Starting over."
 msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx

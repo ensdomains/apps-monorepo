@@ -561,6 +561,11 @@ msgstr "Connect to renew"
 msgid "Connect Wallet"
 msgstr "Connect Wallet"
 
+#. placeholder {0}: truncateAddress(resume.expectedOwner)
+#: src/features/register-v2/workflow/pricing/components/ResumeWrongWalletBanner.tsx
+msgid "Connect wallet {0} to resume registering {label}.eth. Starting over from another wallet would abandon the payment already made."
+msgstr "Connect wallet {0} to resume registering {label}.eth. Starting over from another wallet would abandon the payment already made."
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Connect your wallet"
 msgstr "Connect your wallet"
@@ -1965,6 +1970,10 @@ msgstr "Reserving your name"
 msgid "Restore your managers"
 msgstr "Restore your managers"
 
+#: src/features/register-v2/state/useRegistrationResume.ts
+msgid "Resuming your registration."
+msgstr "Resuming your registration."
+
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Retry artwork"
 msgstr "Retry artwork"
@@ -2597,6 +2606,10 @@ msgstr "Try it out"
 msgid "Unable to load names for this address. Please try again."
 msgstr "Unable to load names for this address. Please try again."
 
+#: src/features/register-v2/workflow/pricing/components/ResumeWrongWalletBanner.tsx
+msgid "Unfinished registration"
+msgstr "Unfinished registration"
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "unique searches in the last 30 days"
 msgstr "unique searches in the last 30 days"
@@ -3070,6 +3083,10 @@ msgstr "Your new profile is ready."
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Your permissions changed. Go back to check the updated estimate."
 msgstr "Your permissions changed. Go back to check the updated estimate."
+
+#: src/features/register-v2/state/useRegistrationResume.ts
+msgid "Your previous registration attempt expired. Starting over."
+msgstr "Your previous registration attempt expired. Starting over."
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
