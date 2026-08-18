@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, useParams } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
@@ -130,6 +130,8 @@ const Profile = ({
     protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
   })
 
+  const navigate = useNavigate()
+
   const migrationQuery = useMigrationStatus(name, {
     enabled: ownerQuery.data?.protocolVersion === 'ENSv1',
   })
@@ -190,7 +192,32 @@ const Profile = ({
       )
     }
 
-    // Case 3: It's a 2LD - check availability
+    // Case 3: A DNS 2LD with no registry entry — offer the import flow.
+    // (The availability query below is .eth-only, so this must come first.)
+    if (isClaimable(name)) {
+      return (
+        <AvailableNameMessage
+          name={name}
+          description={
+            <p>
+              This DNS name can be imported to ENS — free off-chain, or onchain
+              with a token.
+            </p>
+          }
+          actionButton={{
+            label: 'Import name',
+            onClick: () =>
+              void navigate({
+                to: '/import/$name',
+                params: { name },
+                search: { type: 'offchain', step: 'start' },
+              }),
+          }}
+        />
+      )
+    }
+
+    // Case 4: It's a .eth 2LD - check availability
     if (availabilityQuery.isLoading) {
       return <LoadingSpinner title="Checking availability..." />
     }
@@ -207,20 +234,6 @@ const Profile = ({
           />
         ) : (
           <AvailableNameMessage name={name} />
-        )
-      }
-      // Other valid TLD names - DNS import not available on ENSv2 yet
-      if (isClaimable(name)) {
-        return (
-          <NotFoundMessage
-            title="DNS import not available"
-            description={
-              <>
-                <strong>{name}</strong> could be claimed via DNS import, but
-                this feature isn't available yet on ENSv2.
-              </>
-            }
-          />
         )
       }
     }
