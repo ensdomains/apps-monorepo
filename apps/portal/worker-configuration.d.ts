@@ -7,6 +7,7 @@ declare namespace Cloudflare {
 	}
 	interface Env {
 		ASSETS: Fetcher;
+		IMAGES: ImagesBinding;
 		SEPOLIA_RPC_URL: string;
 		VITE_PUBLIC_POSTHOG_KEY: string;
 		VITE_PUBLIC_POSTHOG_HOST: string;
