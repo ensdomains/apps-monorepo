@@ -1,6 +1,6 @@
 import { buildRegistrationRecord } from '@ens-apps/transaction-manager'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
-import { zeroAddress } from 'viem'
+import { labelhash, zeroAddress } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
 import { resolveOrphanRegistration } from './orphanRegistrationCleanup'
@@ -50,20 +50,39 @@ const stored = (
 
 const clientOwnedBy = (owner: Address) =>
   ({
-    readContract: vi.fn(async () => owner),
+    readContract: vi.fn(async () => ({
+      status: 0,
+      expiry: 0n,
+      latestOwner: owner,
+      tokenId: 0n,
+      resource: 0n,
+    })),
   }) as unknown as PublicClient
 
 describe('resolveOrphanRegistration', () => {
   it('reports our own registration landing while the user was away', async () => {
     // The whole reason this lives outside the register route: the loader
     // redirects on exactly this outcome, so the provider never runs.
+    const publicClient = clientOwnedBy(OWNER)
+
     await expect(
       resolveOrphanRegistration({
         stored: stored(),
-        publicClient: clientOwnedBy(OWNER),
+        publicClient,
         chainId: CHAIN_ID,
       }),
     ).resolves.toEqual({ status: 'registered', label: 'leon' })
+
+    // Pin the exact read. The first version of this service called a
+    // `getOwner(string)` that does not exist on the v2 PermissionedRegistry —
+    // every live call reverted and the hook's catch swallowed it, so no orphan
+    // was ever cleaned. A wholesale mock cannot catch that; the call shape can.
+    expect(publicClient.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: 'getState',
+        args: [BigInt(labelhash('leon'))],
+      }),
+    )
   })
 
   it('matches the owner regardless of checksum casing', async () => {

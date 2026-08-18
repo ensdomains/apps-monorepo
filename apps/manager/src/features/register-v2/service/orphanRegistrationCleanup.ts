@@ -13,11 +13,22 @@
  */
 
 import { getDestinationContracts } from '@ens-apps/smart-account'
-import { isAddressEqual, type PublicClient, parseAbi, zeroAddress } from 'viem'
+import {
+  isAddressEqual,
+  labelhash,
+  type PublicClient,
+  parseAbi,
+  zeroAddress,
+} from 'viem'
 import type { StoredRegistration } from './registrationPersistence'
 
-const registryOwnerAbi = parseAbi([
-  'function getOwner(string label) view returns (address)',
+// The v2 PermissionedRegistry has no per-label owner getter — ownership is
+// read off `getState`, keyed by the label hash (the same way ensjs
+// `getNameRolesAccounts` reads it). `latestOwner` is zero for a name that was
+// never registered, and the call returns zeros rather than reverting.
+const registryGetStateAbi = parseAbi([
+  'struct NameState { uint8 status; uint64 expiry; address latestOwner; uint256 tokenId; uint256 resource; }',
+  'function getState(uint256 anyId) view returns (NameState state)',
 ])
 
 export type OrphanRegistrationOutcome =
@@ -48,11 +59,11 @@ export async function resolveOrphanRegistration(params: {
 
   const contracts = getDestinationContracts(params.chainId)
 
-  const owner = await params.publicClient.readContract({
+  const { latestOwner: owner } = await params.publicClient.readContract({
     address: contracts.ethRegistry,
-    abi: registryOwnerAbi,
-    functionName: 'getOwner',
-    args: [stored.label],
+    abi: registryGetStateAbi,
+    functionName: 'getState',
+    args: [BigInt(labelhash(stored.label))],
   })
 
   // `isAddressEqual` throws on a malformed address (same reason
