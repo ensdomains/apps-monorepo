@@ -90,4 +90,74 @@ describe('pollUntilVerified', () => {
     expect(VERIFY_GRACE_WINDOW_MS).toBe(30_000)
     expect(VERIFY_POLL_INTERVAL_MS).toBe(5_000)
   })
+
+  it('short-circuits the window when the intent is definitively dead', async () => {
+    // The orchestrator says FAILED/EXPIRED: the fill can never land, so the
+    // grace window would be 30s of waiting for a state that cannot appear.
+    const check = vi.fn(async () => ({ verified: false }))
+    const isDefinitivelyDead = vi.fn(async () => true)
+
+    const result = await pollUntilVerified(check, {
+      // Long enough that running the window out would hang the test.
+      graceWindowMs: 60_000,
+      pollIntervalMs: 5_000,
+      isDefinitivelyDead,
+    })
+
+    expect(result).toEqual({ verified: false })
+    expect(check).toHaveBeenCalledTimes(1)
+    expect(isDefinitivelyDead).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps polling on an inconclusive death verdict', async () => {
+    let calls = 0
+    const check = vi.fn(async () => {
+      calls += 1
+      return { verified: calls >= 2 }
+    })
+    const isDefinitivelyDead = vi.fn(async () => false)
+
+    const result = await pollUntilVerified(check, {
+      graceWindowMs: 500,
+      pollIntervalMs: 10,
+      isDefinitivelyDead,
+    })
+
+    expect(result).toEqual({ verified: true })
+    // Consulted once, not per poll iteration.
+    expect(isDefinitivelyDead).toHaveBeenCalledTimes(1)
+  })
+
+  it('treats a thrown death verdict as inconclusive', async () => {
+    // An unreachable orchestrator must never fail a verification the chain
+    // could still confirm.
+    let calls = 0
+    const check = vi.fn(async () => {
+      calls += 1
+      return { verified: calls >= 2 }
+    })
+
+    const result = await pollUntilVerified(check, {
+      graceWindowMs: 500,
+      pollIntervalMs: 10,
+      isDefinitivelyDead: async () => {
+        throw new Error('orchestrator unreachable')
+      },
+    })
+
+    expect(result).toEqual({ verified: true })
+  })
+
+  it('never consults the death verdict when the first read verifies', async () => {
+    // The chain is authoritative; a registered name needs no second opinion.
+    const isDefinitivelyDead = vi.fn(async () => true)
+
+    const result = await pollUntilVerified(async () => ({ verified: true }), {
+      graceWindowMs: 60_000,
+      isDefinitivelyDead,
+    })
+
+    expect(result).toEqual({ verified: true })
+    expect(isDefinitivelyDead).not.toHaveBeenCalled()
+  })
 })

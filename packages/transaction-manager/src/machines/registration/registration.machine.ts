@@ -172,6 +172,20 @@ export type RegistrationContext = {
   permit?: PermitSignature
   approvalTxId?: string
   registrationTxId?: string
+  /**
+   * The reveal intent's orchestrator id, reported by `onIntentSubmitted` the
+   * moment the intent is accepted — BEFORE the fill resolves, because a tab
+   * closed mid-fill is exactly when it is needed. Persisted: it is the only
+   * handle a resumed run has for asking the orchestrator whether that intent
+   * is still filling or definitively dead.
+   */
+  registrationIntentId?: bigint
+  /**
+   * Asks the orchestrator for an intent's status (`'FAILED'`, `'PENDING'`, …)
+   * or null when inconclusive. Runtime dep injected on RESUME, never
+   * persisted; absent, verification falls back to the blind grace poll.
+   */
+  fetchRegistrationIntentStatus?: (intentId: bigint) => Promise<string | null>
   registerReadyTimestamp?: number
   registrationStartedAt?: number
 
@@ -242,7 +256,22 @@ export type RegistrationEvent =
         publicClient: PublicClient
         /** Rebuilt from the app's session store, never persisted. */
         hcaSessionEnable?: HcaSessionEnableParams
+        /**
+         * Orchestrator status lookup for the persisted reveal intent, so a
+         * resumed verification can fail fast on a dead intent instead of
+         * sitting out the whole on-chain grace window.
+         */
+        fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
       }
+    }
+  | {
+      /**
+       * The warp transport accepted an intent and reported its orchestrator
+       * id. Fired mid-flight (before the fill), from whatever state the
+       * machine happens to be in — hence handled at the root.
+       */
+      type: 'INTENT_SUBMITTED'
+      intentId: bigint
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -322,6 +351,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         primaryName?: string
         id?: string
+        onIntentSubmitted?: (intentId: bigint) => void
       }) => {
         return submitRevealBatchActor(input)
       },
@@ -468,6 +498,8 @@ export const registrationMachine = setup({
           publicClient: PublicClient
           commitment: Hash
           duration: bigint
+          intentId?: bigint
+          fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
         },
         // Both actors grace-poll for up to 30s; pass the actor's signal so
         // CANCEL stops the poll instead of leaving it running to term.
@@ -483,6 +515,8 @@ export const registrationMachine = setup({
               publicClient: input.publicClient,
               commitment: input.commitment,
               duration: input.duration,
+              intentId: input.intentId,
+              fetchIntentStatus: input.fetchIntentStatus,
               signal,
             })
           : verifyRegistrationActor({ ...input, signal })
@@ -530,6 +564,7 @@ export const registrationMachine = setup({
         approvalSigner: event.deps.approvalSigner,
         publicClient: event.deps.publicClient,
         hcaSessionEnable: event.deps.hcaSessionEnable,
+        fetchRegistrationIntentStatus: event.deps.fetchIntentStatus,
         permit: undefined,
         hcaBudget: undefined,
         hcaBudgetBreakdown: undefined,
@@ -609,6 +644,17 @@ export const registrationMachine = setup({
     resolverSalt: undefined,
   }),
 
+  on: {
+    // Arrives from the transport whenever the orchestrator accepts the reveal
+    // intent — by then the machine has usually moved past the submitting
+    // state, so the id is accepted from anywhere.
+    INTENT_SUBMITTED: {
+      actions: assign({
+        registrationIntentId: ({ event }) => event.intentId,
+      }),
+    },
+  },
+
   states: {
     idle: {
       on: {
@@ -648,6 +694,8 @@ export const registrationMachine = setup({
             hcaUsdcBalance: () => undefined,
             approvalTxId: () => undefined,
             registrationTxId: () => undefined,
+            registrationIntentId: () => undefined,
+            fetchRegistrationIntentStatus: () => undefined,
           }),
         },
 
@@ -1297,7 +1345,7 @@ export const registrationMachine = setup({
       entry: ['logTransition', 'clearRegisterReadyTimestamp'],
       invoke: {
         src: 'submitRevealBatch',
-        input: ({ context }) => ({
+        input: ({ context, self }) => ({
           name: context.name,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           wallet: context.ownerAddress ?? context.accountAddress!,
@@ -1313,6 +1361,12 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           primaryName: context.primaryName,
           id: REGISTRATION_TX_IDS.register,
+          // Fires from the transport once the orchestrator accepts the
+          // intent — typically AFTER this invoke has already resolved (the
+          // submit actor returns as soon as the tx is queued), so the id is
+          // delivered as a machine event rather than through the result.
+          onIntentSubmitted: (intentId: bigint) =>
+            self.send({ type: 'INTENT_SUBMITTED', intentId }),
         }),
         onDone: {
           target: 'waitingForRhinestoneBundle',
@@ -1585,6 +1639,8 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           commitment: context.commitment!.commitment,
           duration: context.duration,
+          intentId: context.registrationIntentId,
+          fetchIntentStatus: context.fetchRegistrationIntentStatus,
         }),
         onDone: [
           {

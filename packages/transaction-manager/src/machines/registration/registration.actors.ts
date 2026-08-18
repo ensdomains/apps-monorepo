@@ -694,6 +694,14 @@ export type VerifyPollOptions = {
   pollIntervalMs?: number
   /** Abort the poll early — wired to the XState actor's signal. */
   signal?: AbortSignal
+  /**
+   * Consulted ONCE, only after the first read has already come back
+   * unverified — the chain stays authoritative. Return true when the awaited
+   * transaction is definitively dead (e.g. the orchestrator reports its
+   * intent FAILED/EXPIRED) and the grace window would be waiting for a state
+   * that cannot appear. A throw is treated as inconclusive: keep polling.
+   */
+  isDefinitivelyDead?: () => Promise<boolean>
 }
 
 function sleepUnlessAborted(ms: number, signal?: AbortSignal): Promise<void> {
@@ -732,6 +740,15 @@ export async function pollUntilVerified(
     Date.now() + (options.graceWindowMs ?? VERIFY_GRACE_WINDOW_MS)
 
   let result = await check()
+
+  if (!result.verified && options.isDefinitivelyDead) {
+    try {
+      if (await options.isDefinitivelyDead()) return result
+    } catch {
+      // Inconclusive — an unreachable oracle must never fail a verification
+      // the chain could still confirm.
+    }
+  }
 
   while (!result.verified && !signal?.aborted) {
     const remaining = deadline - Date.now()

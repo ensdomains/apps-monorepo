@@ -18,6 +18,7 @@
 
 import {
   type RhinestoneInitResult as CoreRhinestoneInitResult,
+  fetchIntentOperationStatus,
   type InitializeRhinestoneAccountParams,
   initializeRhinestoneAccount as initializeRhinestoneAccountCore,
 } from '@ens-apps/smart-account'
@@ -104,6 +105,32 @@ function resolveSdkEnv(): {
     rhinestoneApiKey: apiKey,
     rhinestoneEndpointUrl: endpointUrl,
     rhinestoneCustomRpcUrls: customRpcUrls,
+  }
+}
+
+/**
+ * Build the orchestrator status lookup a resumed registration uses to tell a
+ * still-filling reveal intent from a definitively dead one, so verification
+ * can fail fast instead of sitting out the on-chain grace poll.
+ *
+ * Honors the same env resolution as the SDK init (`VITE_RHINESTONE_API_KEY`,
+ * `VITE_RHINESTONE_ENDPOINT_URL` for the e2e mockestrator). Returns undefined
+ * when no key resolves — the machine then falls back to the blind poll, which
+ * is always safe.
+ */
+export function buildIntentStatusFetcher():
+  | ((intentId: bigint) => Promise<string | null>)
+  | undefined {
+  try {
+    const { rhinestoneApiKey, rhinestoneEndpointUrl } = resolveSdkEnv()
+    return (intentId) =>
+      fetchIntentOperationStatus({
+        intentId,
+        apiKey: rhinestoneApiKey,
+        endpointUrl: rhinestoneEndpointUrl,
+      })
+  } catch {
+    return undefined
   }
 }
 

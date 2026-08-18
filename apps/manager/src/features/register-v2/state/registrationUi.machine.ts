@@ -26,6 +26,7 @@ import {
 } from 'xstate'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
@@ -686,6 +687,10 @@ const resumeRegistrationAction = machineSetup.createAction(
           approvalSigner,
           publicClient: defaultPublicClient,
           hcaSessionEnable: event.hcaSessionEnable,
+          // Lets a resumed verification ask the orchestrator whether the
+          // persisted reveal intent is still filling or dead, instead of
+          // sitting out the full grace poll before showing the retry screen.
+          fetchIntentStatus: buildIntentStatusFetcher(),
         },
       } satisfies RegistrationEvent),
     )

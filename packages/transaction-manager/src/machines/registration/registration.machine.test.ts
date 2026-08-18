@@ -590,6 +590,75 @@ describe('registrationMachine — RESUME', () => {
     expect(actor.getSnapshot().context.name).toBe('myname.eth')
     actor.stop()
   })
+
+  it('threads the persisted intent id and status fetcher into verification', async () => {
+    const verifyRegistration = vi.fn(() => new Promise(() => {}))
+    const fetchIntentStatus = vi.fn(async () => 'PENDING')
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          verifyRegistration: fromPromise(verifyRegistration) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'waitingForRhinestoneBundle',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+        registrationTxId: 'tx-reg-register',
+        registrationIntentId: 42n,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        fetchIntentStatus,
+      },
+    })
+
+    await waitFor(actor, (s) => s.matches('verifyingRegistration'))
+
+    // The whole point of persisting the id: verification can ask the
+    // orchestrator about THIS intent instead of blind-polling the registry.
+    expect(verifyRegistration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          intentId: 42n,
+          fetchIntentStatus,
+        }),
+      }),
+    )
+    actor.stop()
+  })
+})
+
+describe('registrationMachine — intent id capture', () => {
+  it('captures the id the transport reports mid-flight, from any state', () => {
+    // `onIntentSubmitted` fires from the transport once the orchestrator
+    // accepts the reveal intent — usually after the submitting state has
+    // already moved on, which is why the handler lives at the machine root.
+    const actor = createActor(registrationMachine, {
+      input: { chainId: sepolia.id },
+    })
+
+    actor.start()
+    actor.send({ type: 'INTENT_SUBMITTED', intentId: 987n })
+
+    expect(actor.getSnapshot().context.registrationIntentId).toBe(987n)
+    actor.stop()
+  })
 })
 
 describe('registrationMachine — verification retry target (WEB-1209)', () => {

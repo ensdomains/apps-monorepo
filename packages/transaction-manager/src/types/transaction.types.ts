@@ -88,6 +88,16 @@ export interface RhinestoneIntentParams {
   /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
   readonly tokenRequests?: readonly TokenRequest[]
   /**
+   * Called with the orchestrator's intent id the moment `sendTransaction`
+   * returns — BEFORE the fill completes. The id is the only handle for
+   * `GET /intent-operation/{id}`, and a caller that wants to survive a reload
+   * has to capture it mid-flight: an intent that is still filling (or fails
+   * server-side) never resolves the submitting actor, so a resolved-value
+   * channel would lose exactly the ids that matter. Failures are swallowed by
+   * the transport — a broken observer must not break the submission.
+   */
+  readonly onIntentSubmitted?: (intentId: bigint) => void
+  /**
    * Balances that will land DURING this intent and so are invisible to the
    * orchestrator when it plans, keyed by chain then token.
    *

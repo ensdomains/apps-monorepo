@@ -941,6 +941,15 @@ export function verifyHcaRegistrationActor(
     commitment: Hash
     /** Duration the commitment bound, to check the expiry we paid for. */
     duration: bigint
+    /** The reveal intent's orchestrator id, when a resumed run persisted one. */
+    intentId?: bigint
+    /**
+     * Orchestrator status lookup. `'FAILED'`/`'EXPIRED'` short-circuits the
+     * grace poll — that intent will never fill, so polling the registry is
+     * waiting for a state that cannot appear. Anything else (PENDING, null,
+     * a thrown fetch) is inconclusive and falls back to the poll.
+     */
+    fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
   } & VerifyPollOptions,
 ): ResultAsync<{ verified: boolean; reason?: string }, Error> {
   const readRegistryState = async (): Promise<{
@@ -1016,10 +1025,24 @@ export function verifyHcaRegistrationActor(
     return reason ? { verified: false, reason } : { verified: true }
   }
 
+  // A definitive FAILED / EXPIRED from the orchestrator means the fill can
+  // never land — the only thing the grace window would add is 30 seconds of
+  // false hope in front of the retry screen. Anything else (PENDING, no id,
+  // an unreachable orchestrator) is inconclusive and keeps the poll.
+  const isRevealIntentDead = async (): Promise<boolean> => {
+    if (input.intentId === undefined || !input.fetchIntentStatus) return false
+    const status = await input.fetchIntentStatus(input.intentId)
+    return status === 'FAILED' || status === 'EXPIRED'
+  }
+
   // Grace-polls: a Rhinestone intent keeps filling server-side after the tab
   // closes, so a resumed run reaches here before the reveal has confirmed.
-  return fromPromise(pollUntilVerified(readRegistryState, input), (error) =>
-    error instanceof Error ? error : new Error(String(error)),
+  return fromPromise(
+    pollUntilVerified(readRegistryState, {
+      ...input,
+      isDefinitivelyDead: isRevealIntentDead,
+    }),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
   )
 }
 
@@ -1046,6 +1069,8 @@ export function submitRevealBatchActor(input: {
   publicClient: PublicClient
   primaryName?: string
   id?: string
+  /** Receives the orchestrator's intent id the moment the intent is accepted. */
+  onIntentSubmitted?: (intentId: bigint) => void
 }): ResultAsync<string, Error> {
   return fromPromise(
     (async () => {
@@ -1091,7 +1116,18 @@ export function submitRevealBatchActor(input: {
       })
 
       const txId = transactionManager.startTransaction(
-        { type: 'custom', request },
+        {
+          type: 'custom',
+          request: input.onIntentSubmitted
+            ? {
+                ...request,
+                rhinestoneParams: {
+                  ...request.rhinestoneParams,
+                  onIntentSubmitted: input.onIntentSubmitted,
+                },
+              }
+            : request,
+        },
         input.signer,
         {
           id: input.id,

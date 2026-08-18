@@ -176,6 +176,8 @@ describe('registration record serialization', () => {
       commitment: { commitment: COMMITMENT, secret: SECRET },
       commitmentTxId: 'tx-reg-commit',
       registerReadyTimestamp: 1_800_000_000_000,
+      // Real orchestrator ids are ~250-bit uint256s — far past Number range.
+      registrationIntentId: 2n ** 250n + 123n,
     })
 
     const record = buildRegistrationRecord('commitmentCooldown', context, 42)
@@ -187,6 +189,9 @@ describe('registration record serialization', () => {
     expect(result._unsafeUnwrap().context.duration).toBe(63_072_000n)
     expect(result._unsafeUnwrap().context.resolverSalt).toBe(2n ** 200n)
     expect(result._unsafeUnwrap().context.commitment?.secret).toBe(SECRET)
+    expect(result._unsafeUnwrap().context.registrationIntentId).toBe(
+      2n ** 250n + 123n,
+    )
   })
 
   it('drops the non-serializable deps rather than trying to encode them', () => {

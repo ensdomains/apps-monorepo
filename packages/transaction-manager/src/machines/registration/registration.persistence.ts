@@ -76,6 +76,14 @@ export type PersistedRegistrationContext = {
   commitmentTxId?: string
   approvalTxId?: string
   registrationTxId?: string
+  /**
+   * The reveal intent's orchestrator id. Lets a resumed verification ask the
+   * orchestrator whether the intent is still filling or definitively dead,
+   * instead of sitting out the full on-chain grace poll. Optional: records
+   * written before it existed (or before the reveal) simply fall back to the
+   * blind poll.
+   */
+  registrationIntentId?: bigint
   registerReadyTimestamp?: number
   registrationStartedAt?: number
 }
@@ -225,6 +233,7 @@ export function serializeRegistrationContext(
     commitmentTxId: context.commitmentTxId,
     approvalTxId: context.approvalTxId,
     registrationTxId: context.registrationTxId,
+    registrationIntentId: context.registrationIntentId,
     registerReadyTimestamp: context.registerReadyTimestamp,
     registrationStartedAt: context.registrationStartedAt,
   }
@@ -300,6 +309,7 @@ const persistedContextSchema = v.object({
   commitmentTxId: v.optional(v.string()),
   approvalTxId: v.optional(v.string()),
   registrationTxId: v.optional(v.string()),
+  registrationIntentId: v.optional(v.bigint()),
   registerReadyTimestamp: v.optional(v.number()),
   registrationStartedAt: v.optional(v.number()),
 })
