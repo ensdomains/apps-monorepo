@@ -34,6 +34,7 @@
     "@ens-apps/transaction-manager": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.4",
+    "@ensdomains/dnsprovejs": "^0.5.4",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@ensdomains/locales": "workspace:^",
