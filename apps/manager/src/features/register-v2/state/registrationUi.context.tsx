@@ -7,6 +7,7 @@ import { useChainId } from 'wagmi'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 import { createRegistrationPersistenceAdapter } from '../service/registrationPersistence'
 import {
   getRegistrationV2ChildActor,
@@ -76,11 +77,16 @@ export const RegistrationV2UiProvider = ({
     return subscription.unsubscribe
   }, [registrationV2UiActor])
 
+  // The kill switch gates the writes and the resume together: a record that
+  // will never be picked up should not be written either. Orphan cleanup is
+  // deliberately NOT gated, so records from before a flip-off still resolve.
+  const resumeEnabled = isFeatureEnabled('REGISTRATION_RESUME')
+
   // Mirror the child machine's progress into localStorage so a reload can pick
   // it back up. The child is (re)created with the invoke, so this re-subscribes
   // whenever it changes identity.
   useEffect(() => {
-    if (!registrationActor) return
+    if (!registrationActor || !resumeEnabled) return
 
     const adapter = createRegistrationPersistenceAdapter({
       label,
@@ -96,11 +102,12 @@ export const RegistrationV2UiProvider = ({
     })
 
     return subscribeRegistrationPersistence(registrationActor, adapter)
-  }, [registrationActor, registrationV2UiActor, label])
+  }, [registrationActor, registrationV2UiActor, label, resumeEnabled])
 
   const resume = useRegistrationResume({
     label,
     uiActor: registrationV2UiActor,
+    enabled: resumeEnabled,
   })
 
   // Inform the UI actor that the label has changed and to cancel any ongoing transactions
