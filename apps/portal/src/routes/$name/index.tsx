@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem'
-import { useEnsResolver } from 'wagmi'
+import { useConnection, useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
@@ -10,6 +10,9 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { nameHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { DnsClaimableMessage } from '@/features/dns-import/components/DnsClaimableMessage'
+import { DnsOutOfSyncBanner } from '@/features/dns-import/components/DnsOutOfSyncBanner'
+import { SyncManagerBanner } from '@/features/dns-import/components/SyncManagerBanner'
+import { useDnsSyncStatus } from '@/features/dns-import/hooks/useDnsSyncStatus'
 import { RecentHistoryTimeline } from '@/features/history/components/RecentHistoryTimeline'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
@@ -136,6 +139,17 @@ const Profile = ({
     protocolVersion: isEthTld
       ? (ownerQuery.data?.protocolVersion ?? 'ENSv2')
       : undefined,
+  })
+
+  const { address: connectedAddress } = useConnection()
+
+  // Sync state between an imported DNS name's `_ens` TXT record and its v1
+  // manager. Internally gated to onchain-imported DNS 2LDs.
+  const dnsSync = useDnsSyncStatus({
+    name,
+    manager: ownerQuery.data?.owner,
+    protocolVersion: ownerQuery.data?.protocolVersion,
+    connectedAddress,
   })
 
   const migrationQuery = useMigrationStatus(name, {
@@ -369,6 +383,16 @@ const Profile = ({
       )}
 
       {showUpgradeBanner && <UpgradeBanner name={name} />}
+
+      {dnsSync.status === 'syncable' && <SyncManagerBanner name={name} />}
+
+      {dnsSync.status === 'out-of-sync' && (
+        <DnsOutOfSyncBanner
+          name={name}
+          onRefresh={dnsSync.refetch}
+          isRefreshing={dnsSync.isRefetching}
+        />
+      )}
 
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
