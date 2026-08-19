@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import type { Actor } from 'xstate'
@@ -111,14 +111,21 @@ const ethCoinValue = (coins: readonly { coinType: number; value: string }[]) =>
 
 const toastSaveError = (error: unknown) => {
   toast.error(t`Cannot save profile`, {
-    description:
-      error instanceof ResolverChangeNotAuthorizedError
-        ? t`Your wallet does not have permission to change the resolver for this name.`
-        : error instanceof OwnedResolverNotReadyError
-          ? t`The replacement resolver could not be verified. Please try again.`
-          : error instanceof Error
-            ? error.message
-            : t`Something went wrong preparing the save. Please try again.`,
+    description: match(error)
+      .with(
+        P.instanceOf(ResolverChangeNotAuthorizedError),
+        () =>
+          t`Your wallet does not have permission to change the resolver for this name.`,
+      )
+      .with(
+        P.instanceOf(OwnedResolverNotReadyError),
+        () =>
+          t`The replacement resolver could not be verified. Please try again.`,
+      )
+      .with(P.instanceOf(Error), (saveError) => saveError.message)
+      .otherwise(
+        () => t`Something went wrong preparing the save. Please try again.`,
+      ),
   })
 }
 
