@@ -58,6 +58,16 @@ vi.mock('@/features/profile/hooks/useEnsOwner', () => ({
   }),
 }))
 
+// Without this the availability query hits a live RPC, never settles under the
+// test's `waitFor`, and `SearchResultsList` keeps rendering a description
+// skeleton instead of the suggestion text.
+vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
+  getNameAvailabilityQueryOptions: ({ name }: { name: string }) => ({
+    queryKey: ['check-name-availability', { name }],
+    queryFn: async () => ({ isAvailable: false, name }),
+  }),
+}))
+
 const { useIsMobile } = await import('@/hooks/use-mobile')
 
 function createWrapper() {
