@@ -14,9 +14,14 @@ const method = (id: string): PaymentMethod => ({
  * isolated from the module-level singleton and its localStorage subscriber, and
  * hands us both the previous and next context so we can assert the handlers
  * never mutate in place — the guarantee immer used to provide here.
+ *
+ * The array is handed to the store by reference on purpose: the caller's own
+ * array is the one under observation, which is what makes the no-mutation
+ * assertions meaningful. Marking it `readonly` would also not typecheck, since
+ * the store's context is a mutable `PaymentMethod[]`.
  */
 const transition = (
-  paymentMethods: readonly PaymentMethod[],
+  paymentMethods: PaymentMethod[],
   event: Parameters<typeof paymentMethodsStore.transition>[1],
 ) => {
   const before = {
