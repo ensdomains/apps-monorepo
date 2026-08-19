@@ -24,7 +24,7 @@
     "lint": "biome check"
   },
   "devDependencies": {
-    "typescript": "catalog:typescript6"
+    "typescript": "catalog:"
   },
   "keywords": [],
   "dependencies": {
