@@ -1,4 +1,9 @@
-import { encodeErrorResult, parseAbi } from 'viem'
+import {
+  BaseError,
+  ContractFunctionRevertedError,
+  encodeErrorResult,
+  parseAbi,
+} from 'viem'
 import { describe, expect, it } from 'vitest'
 import { decodeDnsRegistrarError } from './decodeDnsRegistrarError'
 
@@ -31,5 +36,29 @@ describe('decodeDnsRegistrarError', () => {
 
   it('returns null for non-revert errors', () => {
     expect(decodeDnsRegistrarError(new Error('boom'))).toBeNull()
+  })
+
+  it('walks a viem error chain down to the revert data', () => {
+    const data = encodeErrorResult({ abi, errorName: 'StaleProof' })
+    const revert = new ContractFunctionRevertedError({
+      abi,
+      data,
+      functionName: 'proveAndClaim',
+    })
+    const chained = new BaseError('Execution reverted.', { cause: revert })
+    expect(decodeDnsRegistrarError(chained)).toMatch(/record changed/i)
+  })
+
+  it('returns null for a viem revert without raw data', () => {
+    const revert = new ContractFunctionRevertedError({
+      abi,
+      functionName: 'proveAndClaim',
+    })
+    const chained = new BaseError('Execution reverted.', { cause: revert })
+    expect(decodeDnsRegistrarError(chained)).toBeNull()
+  })
+
+  it('returns null for a viem error chain without a revert', () => {
+    expect(decodeDnsRegistrarError(new BaseError('rpc timeout'))).toBeNull()
   })
 })

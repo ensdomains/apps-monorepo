@@ -3,6 +3,7 @@ import {
   DnsDnssecWildcardExpansionError,
   DnsInvalidAddressChecksumError,
   DnsInvalidTxtRecordError,
+  DnsNewerRecordTypeAvailableError,
   DnsNoTxtRecordError,
   DnsResponseStatusError,
 } from '@ensdomains/ensjs'
@@ -56,6 +57,19 @@ describe('dnsErrorToKind', () => {
   it('maps unrelated errors to unknown', () => {
     expect(dnsErrorToKind(new Error('boom'))).toBe('unknown')
     expect(dnsErrorToKind(undefined)).toBe('unknown')
+  })
+
+  it('maps ensjs BaseErrors outside the handled set to unknown', () => {
+    expect(
+      dnsErrorToKind(
+        new DnsNewerRecordTypeAvailableError({
+          typeCovered: 'TXT',
+          signatureName: '_ens.example.xyz',
+          onchainInception: 2,
+          dnsInception: 1,
+        }),
+      ),
+    ).toBe('unknown')
   })
 })
 

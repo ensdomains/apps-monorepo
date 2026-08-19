@@ -20,7 +20,9 @@ vi.mock('@/lib/wagmi/helpers', async () => {
   }
 })
 
-const { getDnsOffchainStatus } = await import('./getDnsOffchainStatus')
+const { getDnsOffchainStatus, getDnsOffchainStatusQueryOptions } = await import(
+  './getDnsOffchainStatus'
+)
 
 const OFFICIAL_SEPOLIA_RESOLVER = '0x0EF1aF80c24B681991d675176D9c07d8C9236B9a'
 const USER = '0x0b08dA7068b73A579Bd5E8a8290ff8afd37bc32A'
@@ -84,6 +86,16 @@ describe('getDnsOffchainStatus', () => {
     expect(result._unsafeUnwrap()?.resolvedAddress).toBeNull()
   })
 
+  it('treats a (defensive) null result as no record', async () => {
+    getDnsOffchainDataMock.mockResolvedValue(null)
+
+    const result = await getDnsOffchainStatus({ name: 'example.xyz' })
+
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toBeNull()
+    expect(getAddressRecordMock).not.toHaveBeenCalled()
+  })
+
   it('propagates strict DNS errors as GetDnsOffchainStatusError', async () => {
     const cause = new DnsNoTxtRecordError()
     getDnsOffchainDataMock.mockRejectedValue(cause)
@@ -94,5 +106,29 @@ describe('getDnsOffchainStatus', () => {
     const error = result._unsafeUnwrapErr()
     expect(error._tag).toBe('GetDnsOffchainStatusError')
     expect(error.cause).toBe(cause)
+  })
+
+  it('exposes the lookup through query options keyed by name', async () => {
+    getDnsOffchainDataMock.mockResolvedValue({
+      resolverAddress: OFFICIAL_SEPOLIA_RESOLVER,
+      extraData: null,
+    })
+    getAddressRecordMock.mockResolvedValue({
+      id: 60,
+      name: 'addr',
+      value: USER,
+    })
+
+    const options = getDnsOffchainStatusQueryOptions({ name: 'example.xyz' })
+
+    expect(options.queryKey).toEqual([
+      'dns-offchain-status',
+      { name: 'example.xyz' },
+    ])
+    const queryFn = options.queryFn as unknown as (ctx: {
+      queryKey: typeof options.queryKey
+    }) => Promise<unknown>
+    const value = await queryFn({ queryKey: options.queryKey })
+    expect(value).toMatchObject({ resolverIsOfficial: true })
   })
 })

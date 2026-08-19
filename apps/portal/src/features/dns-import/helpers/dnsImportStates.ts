@@ -65,10 +65,6 @@ export const dnsErrorToKind = (error: unknown): DnsErrorKind => {
   return 'unknown'
 }
 
-/** Whether a DNS error kind renders as the amber "None" chip (record simply absent). */
-export const isNoRecordKind = (kind: DnsErrorKind): boolean =>
-  kind === 'noTxtRecord'
-
 /**
  * Derives the verify-step state from a completed lookup: the address the DNS
  * side designates vs the connected wallet.
