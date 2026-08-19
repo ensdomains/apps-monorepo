@@ -11,13 +11,13 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { permissionedRegistryGetSubregistrySnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { fromPromise, ok } from 'neverthrow'
-import type { Address } from 'viem'
+import type { Address, ReadContractErrorType } from 'viem'
 import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export class ReadSubregistryError extends TaggedError('ReadSubregistryError')<{
-  cause: Error
+  cause: ReadContractErrorType
 }> {}
 
 export type ReadSubregistryParameters = {
@@ -41,7 +41,7 @@ export const readSubregistry = ResultFn(async function* ({
       functionName: 'getSubregistry',
       args: [label],
     }),
-    (e) => new ReadSubregistryError({ cause: e as Error }),
+    (e) => new ReadSubregistryError({ cause: e as ReadContractErrorType }),
   )
 
   return ok(subregistry as Address)

@@ -279,12 +279,15 @@ const subregistryWriteFor = (
  * only re-read here, before the wallet signs anything, so a name that gained a
  * registry after selection fails closed instead of losing its subnames.
  */
-export const assertNoLiveSubregistryOverwrite = async (params: {
+export const assertNoLiveSubregistryOverwrite = async ({
+  publicClient,
+  names,
+}: {
   readonly publicClient: PublicClient
   readonly names: readonly ClassifiedName[]
 }): Promise<void> => {
-  const selectedNames = new Set(params.names.map((name) => name.domain.name))
-  const writes = params.names
+  const selectedNames = new Set(names.map((name) => name.domain.name))
+  const writes = names
     .map((name) => subregistryWriteFor(name, selectedNames))
     .filter((write): write is SubregistryWrite => write !== null)
 
@@ -292,14 +295,12 @@ export const assertNoLiveSubregistryOverwrite = async (params: {
     writes.map(async (write) => {
       // An undeployed destination has no entries. Missing parent wrappers are
       // reported by `resolveDirectMigrationRoutes`, which knows the route.
-      const code = await params.publicClient.getCode({
-        address: write.registry,
-      })
+      const code = await publicClient.getCode({ address: write.registry })
       if (!hasCode(code)) return
 
       let current: Address
       try {
-        current = await params.publicClient.readContract({
+        current = await publicClient.readContract({
           address: write.registry,
           abi: permissionedRegistryGetSubregistrySnippet,
           functionName: 'getSubregistry',
