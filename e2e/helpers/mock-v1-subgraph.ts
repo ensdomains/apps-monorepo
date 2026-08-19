@@ -10,15 +10,33 @@
  */
 import type { Page } from '@playwright/test'
 import { keccak256, namehash, toHex } from 'viem'
-import type {
-  V1AddressRecord,
-  V1NameType,
-  V1TextRecord,
+import {
+  V1_NAME_WRAPPER as V1_NAME_WRAPPER_ADDRESS,
+  V1_PUBLIC_RESOLVER as V1_PUBLIC_RESOLVER_ADDRESS,
+  type V1AddressRecord,
+  type V1NameType,
+  type V1TextRecord,
 } from '../fixtures/makeV1Name.js'
 
-const V1_PUBLIC_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d'
+// Resolved from the same source the app and fixtures use, so the mocked subgraph payload
+// always describes the deployment the app is actually reading.
+const V1_PUBLIC_RESOLVER = V1_PUBLIC_RESOLVER_ADDRESS.toLowerCase()
+const V1_NAME_WRAPPER = V1_NAME_WRAPPER_ADDRESS.toLowerCase()
 
-const V1_SUBGRAPH_URL = 'ensnode-api-sepolia-staging-v1.up.railway.app/subgraph'
+/**
+ * Hosts the manager app has used for the V1 subgraph.
+ *
+ * `v1-graphql.ens.dev` is current (see
+ * `apps/manager/src/features/migration/service/v1SubgraphClient.ts`); the Railway host is
+ * kept so older app builds still get intercepted. If the app ever moves again and this
+ * list is not updated, the mock silently stops firing: the migration UI then sees zero V1
+ * names, renders no "Upgrade Names" CTA, and every migration spec times out waiting for
+ * a button that will never appear.
+ */
+const V1_SUBGRAPH_HOSTS = [
+  'v1-graphql.ens.dev',
+  'ensnode-api-sepolia-staging-v1.up.railway.app',
+] as const
 
 /**
  * Fuse values matching the NameWrapper contract.
@@ -49,6 +67,7 @@ function buildV1Domain(params: {
   fuses?: number
   registrationDate?: number
   expiryDate?: number
+  resolverAddress?: string | null
 }) {
   const {
     label,
@@ -76,15 +95,19 @@ function buildV1Domain(params: {
     createdAt: String(registrationDate ?? now),
     resolvedAddress: null,
     // Include resolver info when the name has records set
+    // `resolverAddress: null` models a name wrapped with no resolver — which changes
+    // whether the app's CANNOT_SET_RESOLVER record-safety gate applies.
     resolver:
-      hasRecords || isWrapped
-        ? { id: V1_PUBLIC_RESOLVER, address: V1_PUBLIC_RESOLVER }
-        : null,
+      params.resolverAddress === null
+        ? null
+        : params.resolverAddress
+          ? { id: params.resolverAddress, address: params.resolverAddress }
+          : hasRecords || isWrapped
+            ? { id: V1_PUBLIC_RESOLVER, address: V1_PUBLIC_RESOLVER }
+            : null,
     // For unwrapped: owner is the EOA. For wrapped: owner is the NameWrapper.
     owner: {
-      id: isWrapped
-        ? '0xc7e033b8836e4bd55d069d113f018b98478cb091' // NameWrapper
-        : owner,
+      id: isWrapped ? V1_NAME_WRAPPER : owner,
     },
     // registrant is always the EOA (BaseRegistrar ERC-721 holder or original registrant)
     registrant: { id: owner },
@@ -132,6 +155,11 @@ export type MockV1Name = {
   fuses?: number
   /** Registration expiry timestamp (Unix seconds). Defaults to now + 1 year. */
   expiryDate?: number
+  /**
+   * Resolver reported for this name. Pass `null` to model a name wrapped with no
+   * resolver — must match what `makeV1Name` actually set on chain.
+   */
+  resolverAddress?: string | null
   /** V1 records set on this name (used to mock getProfilesForDomains) */
   records?: {
     texts?: V1TextRecord[]
@@ -159,7 +187,10 @@ export async function mockV1Subgraph(
     namesByNode.set(namehash(`${label}.eth`), n)
   }
 
-  await page.route(`**/${V1_SUBGRAPH_URL}`, async (route, request) => {
+  const handleSubgraphRequest: Parameters<Page['route']>[1] = async (
+    route,
+    request,
+  ) => {
     const postData = request.postData()
 
     // ── Handle getProfilesForDomains queries ────────────────────────
@@ -228,6 +259,7 @@ export async function mockV1Subgraph(
         fuses: n.fuses,
         hasRecords: Boolean(n.records),
         expiryDate: n.expiryDate,
+        resolverAddress: n.resolverAddress,
       })
     })
 
@@ -257,5 +289,9 @@ export async function mockV1Subgraph(
         data: { domains: allDomains },
       }),
     })
-  })
+  }
+
+  for (const host of V1_SUBGRAPH_HOSTS) {
+    await page.route(`**/${host}/subgraph`, handleSubgraphRequest)
+  }
 }

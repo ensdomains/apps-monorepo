@@ -1,12 +1,11 @@
 /**
- * makeV1Name fixture — registers .eth names on the Anvil Sepolia fork
- * using the V1 ETHRegistrarController (unwrapped controller).
+ * makeV1Name fixture — creates .eth names on the Anvil Sepolia fork in the V1 stack the
+ * manager app and the deployed migration controllers actually read.
  *
- * V1 registration differs from V2:
- *   - Payment is in ETH (msg.value), not ERC-20 tokens
- *   - Uses struct-based ABI: (name, owner, duration, secret, resolver, data[], reverseRecord, referral)
- *   - Creates an unwrapped ERC-721 token on the BaseRegistrar
- *   - Has a 60-second minCommitmentAge (requires time advancement)
+ * Names are minted straight on the BaseRegistrar after granting ourselves controller
+ * rights (see `ensureBaseRegistrarController`). The forked Sepolia stack has no
+ * ETHRegistrarController authorised, so the commit/reveal path is unavailable — and
+ * direct minting is faster anyway: no commitment wait and no rent to pay.
  *
  * After each V1 registration, reserveInV2() creates the RESERVED placeholder
  * in the V2 ETH Registry. Migration controllers only hold ROLE_REGISTER_RESERVED —
@@ -15,6 +14,11 @@
  *
  * The registered name is owned by the specified account's EOA address.
  */
+
+import {
+  extendChainWithEns,
+  getChainContractAddress,
+} from '@ensdomains/ensjs/chain'
 import {
   type Address,
   encodeFunctionData,
@@ -22,11 +26,12 @@ import {
   keccak256,
   namehash,
   parseAbi,
+  parseEther,
   toHex,
   zeroAddress,
-  zeroHash,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
+import { sepolia } from 'viem/chains'
 
 import {
   publicClient,
@@ -35,44 +40,43 @@ import {
 } from '../helpers/anvil-client.js'
 
 // ---------------------------------------------------------------------------
-// V1 Contract addresses (Sepolia fork)
+// Contract addresses
+//
+// Resolved from the SAME source the manager app uses (`@ensdomains/ensjs` chain config),
+// not hardcoded. Hardcoding these previously desynced the suite from the app after a
+// redeploy: the fixtures wrapped names in one NameWrapper while the app read a different
+// one, so every migration spec saw "No eligible names found for this wallet".
 // ---------------------------------------------------------------------------
-const V1_ETH_REGISTRAR_CONTROLLER =
-  '0xF42dF26c1b222bee5a6B78cBB8bbfaa0Ba07786a' as const
-export const V1_BASE_REGISTRAR =
-  '0x6409609247722761b8ba96371485de92a6d7b83b' as Address
-export const V1_NAME_WRAPPER =
-  '0xc7e033b8836e4bd55d069d113f018b98478cb091' as Address
-export const V1_PUBLIC_RESOLVER =
-  '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address
-export const V1_ENS_REGISTRY =
-  '0x7e89b563f936c68c31a360840eb7f9a4aacaf014' as Address
+const chainWithEns = extendChainWithEns(sepolia)
+const ensContract = (contract: string): Address =>
+  getChainContractAddress({
+    chain: chainWithEns,
+    // biome-ignore lint/suspicious/noExplicitAny: contract names are validated at runtime
+    contract: contract as any,
+  })
+
+export const V1_BASE_REGISTRAR = ensContract('ensBaseRegistrarImplementation')
+export const V1_NAME_WRAPPER = ensContract('ensNameWrapper')
+export const V1_PUBLIC_RESOLVER = ensContract('ensPublicResolver')
+export const V1_ENS_REGISTRY = ensContract('ensLegacyRegistry')
+
+// V2 .eth `PermissionedRegistry`. ensjs exposes it as `ensRegistry`.
+const V2_ETH_REGISTRY = ensContract('ensRegistry')
+// V2 ETHRegistrar — holds ROLE_REGISTRAR on the registry root. We impersonate it to
+// create the RESERVED premigration entries that migration requires.
+const V2_ETH_REGISTRAR = ensContract('ensEthRegistrar')
 
 // ---------------------------------------------------------------------------
-// V2 Contract addresses — used by reserveInV2()
+// ABIs
 // ---------------------------------------------------------------------------
-// ETH Registry (PermissionedRegistry for .eth)
-const V2_ETH_REGISTRY = '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address
-// ETH Registrar — has ROLE_REGISTRAR on V2_ETH_REGISTRY (baked by bake-contracts.py)
-// We impersonate it to create RESERVED entries for dynamically-created test names.
-const V2_ETH_REGISTRAR = '0x68586418353b771cf2425ed14a07512aa880c532' as Address
-
-// ---------------------------------------------------------------------------
-// ABIs — struct-based V1 controller
-// ---------------------------------------------------------------------------
-const V1_CONTROLLER_ABI = parseAbi([
-  'function makeCommitment((string,address,uint256,bytes32,address,bytes[],uint8,bytes32)) pure returns (bytes32)',
-  'function commit(bytes32 commitment)',
-  'function register((string,address,uint256,bytes32,address,bytes[],uint8,bytes32)) payable',
-  'function rentPrice(string name, uint256 duration) view returns (uint256)',
-  'function minCommitmentAge() view returns (uint256)',
-  'function available(string name) view returns (bool)',
-])
-
 const BASE_REGISTRAR_ABI = parseAbi([
   'function setApprovalForAll(address operator, bool approved)',
   'function isApprovedForAll(address owner, address operator) view returns (bool)',
   'function nameExpires(uint256 id) view returns (uint256)',
+  'function register(uint256 id, address owner, uint256 duration) returns (uint256)',
+  'function addController(address controller)',
+  'function controllers(address) view returns (bool)',
+  'function owner() view returns (address)',
 ])
 
 const NAME_WRAPPER_ABI = parseAbi([
@@ -95,11 +99,19 @@ const RESOLVER_ABI = parseAbi([
 // Caller must have ROLE_REGISTRAR on the root resource (we impersonate ETH_REGISTRAR).
 const V2_ETH_REGISTRY_ABI = parseAbi([
   'function register(string label, address owner, address registry, address resolver, uint256 roleBitmap, uint64 expiry) returns (uint256)',
+  'function getStatus(uint256 anyId) view returns (uint8)',
 ])
 
 // ---------------------------------------------------------------------------
-// Fuse constants (NameWrapper owner-controlled fuses, bits 0-6)
+// Fuse constants
 // ---------------------------------------------------------------------------
+
+/**
+ * Owner-controlled NameWrapper fuses (bits 0-6).
+ *
+ * These are the only fuses `wrapETH2LD` accepts — its `ownerControlledFuses` argument is a
+ * `uint16`. Passing anything wider throws at encode time in viem.
+ */
 export const FUSES = {
   CANNOT_UNWRAP: 1,
   CANNOT_BURN_FUSES: 2,
@@ -108,8 +120,25 @@ export const FUSES = {
   CANNOT_SET_TTL: 16,
   CANNOT_CREATE_SUBDOMAIN: 32,
   CANNOT_APPROVE: 64,
-  CAN_EXTEND_EXPIRY: 1 << 18, // parent-controlled, but setChildFuses can set on child
 } as const
+
+/**
+ * Parent-controlled NameWrapper fuses (bits 16-18).
+ *
+ * NOT settable via `wrapETH2LD` — the wrapper sets `PARENT_CANNOT_CONTROL | IS_DOT_ETH`
+ * itself when wrapping a `.eth` 2LD, and `CAN_EXTEND_EXPIRY` can only be granted by a
+ * parent via `setSubnodeOwner` / `setChildFuses`, so it is unreachable on a 2LD.
+ *
+ * Exported for building expected fuse words when mocking the V1 subgraph.
+ */
+export const PARENT_FUSES = {
+  PARENT_CANNOT_CONTROL: 1 << 16,
+  IS_DOT_ETH: 1 << 17,
+  CAN_EXTEND_EXPIRY: 1 << 18,
+} as const
+
+/** Every owner-controlled fuse OR'd together — the widest legal `wrapETH2LD` argument. */
+const ALL_OWNER_FUSES = Object.values(FUSES).reduce((a, b) => a | b, 0)
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -162,6 +191,16 @@ export type V1NameConfig = {
    */
   fuses?: number
   /**
+   * Resolver to set on the wrapped name (default: the V1 PublicResolver).
+   *
+   * Pass `zeroAddress` to wrap with NO resolver. That matters for
+   * `CANNOT_SET_RESOLVER` tests: with a resolver pinned, the app refuses to migrate
+   * unless that resolver is certified in the on-chain `PublicResolverSet`, because the
+   * atomic plan cannot replay records into the replacement resolver. With no resolver
+   * there is nothing to lose, so the fuse's role mapping can be tested in isolation.
+   */
+  v1Resolver?: Address
+  /**
    * V1 records to set on the name after registration.
    */
   records?: {
@@ -184,14 +223,108 @@ export type V1NameConfig = {
  *
  * Silently succeeds if the slot is already RESERVED (idempotent guard).
  */
+/**
+ * Grant the Anvil funder `controller` rights on the V1 BaseRegistrar so tests can mint
+ * `.eth` names directly, and make sure the NameWrapper can reclaim them when wrapping.
+ *
+ * Idempotent — safe to call before every registration.
+ */
+let baseRegistrarControllerReady = false
+async function ensureBaseRegistrarController(): Promise<void> {
+  if (baseRegistrarControllerReady) return
+
+  const alreadyController = await publicClient.readContract({
+    address: V1_BASE_REGISTRAR,
+    abi: BASE_REGISTRAR_ABI,
+    functionName: 'controllers',
+    args: [ANVIL_FUNDER.address],
+  })
+  if (alreadyController) {
+    baseRegistrarControllerReady = true
+    return
+  }
+
+  // On this fork the BaseRegistrar is owned by ETHRenewerV1, a contract. Impersonating a
+  // contract address is fine on Anvil, but it still needs gas.
+  const registrarOwner = await publicClient.readContract({
+    address: V1_BASE_REGISTRAR,
+    abi: BASE_REGISTRAR_ABI,
+    functionName: 'owner',
+  })
+  console.log(
+    `[makeV1Name] granting BaseRegistrar controller rights via owner ${registrarOwner}`,
+  )
+
+  await testClient.impersonateAccount({ address: registrarOwner })
+  try {
+    await testClient.setBalance({
+      address: registrarOwner,
+      value: parseEther('10'),
+    })
+    for (const controller of [ANVIL_FUNDER.address, V1_NAME_WRAPPER]) {
+      const has = await publicClient.readContract({
+        address: V1_BASE_REGISTRAR,
+        abi: BASE_REGISTRAR_ABI,
+        functionName: 'controllers',
+        args: [controller],
+      })
+      if (has) continue
+      const hash = await walletClient.sendTransaction({
+        account: registrarOwner,
+        to: V1_BASE_REGISTRAR,
+        data: encodeFunctionData({
+          abi: BASE_REGISTRAR_ABI,
+          functionName: 'addController',
+          args: [controller],
+        }),
+      })
+      await waitForTx(hash)
+    }
+  } finally {
+    await testClient.stopImpersonatingAccount({ address: registrarOwner })
+  }
+
+  baseRegistrarControllerReady = true
+}
+
+/** V2 registry status enum (`PermissionedRegistry.getStatus`). */
+const V2_STATUS = { AVAILABLE: 0, RESERVED: 1, REGISTERED: 2 } as const
+
+async function readV2Status(label: string): Promise<number> {
+  return publicClient.readContract({
+    address: V2_ETH_REGISTRY,
+    abi: V2_ETH_REGISTRY_ABI,
+    functionName: 'getStatus',
+    args: [BigInt(keccak256(toHex(label)))],
+  })
+}
+
 export async function reserveInV2(
   label: string,
   v1Expiry: bigint,
 ): Promise<void> {
+  // Migration requires a premigrated RESERVED slot: the controllers only hold
+  // ROLE_REGISTER_RESERVED, so they can promote a reservation but cannot create a name.
+  // Without this the app's preflight classifies the name `notPremigrated` and the
+  // migration UI reports "No eligible names found".
+  const existing = await readV2Status(label)
+  if (existing !== V2_STATUS.AVAILABLE) {
+    console.log(
+      `[reserveInV2] ${label}.eth already present in V2 (status=${existing}), skipping`,
+    )
+    return
+  }
+
   console.log(`[reserveInV2] reserving ${label}.eth in V2 (expiry=${v1Expiry})`)
 
   await testClient.impersonateAccount({ address: V2_ETH_REGISTRAR })
   try {
+    // The registrar is a contract address with no ETH balance; impersonating it is not
+    // enough, it also has to be able to pay for gas.
+    await testClient.setBalance({
+      address: V2_ETH_REGISTRAR,
+      value: parseEther('10'),
+    })
     const hash = await walletClient.sendTransaction({
       account: V2_ETH_REGISTRAR,
       to: V2_ETH_REGISTRY,
@@ -209,18 +342,19 @@ export async function reserveInV2(
       }),
     })
     await waitForTx(hash)
-    console.log(`[reserveInV2] ✅ ${label}.eth RESERVED in V2`)
-  } catch (err: unknown) {
-    // LabelAlreadyReserved → already RESERVED, nothing to do
-    const msg = err instanceof Error ? err.message : String(err)
-    if (msg.includes('LabelAlreadyReserved') || msg.includes('0x')) {
-      console.log(`[reserveInV2] ${label}.eth already RESERVED, skipping`)
-    } else {
-      throw err
-    }
   } finally {
     await testClient.stopImpersonatingAccount({ address: V2_ETH_REGISTRAR })
   }
+
+  // Verify rather than assume. A silently-failed reservation used to surface much later
+  // as an unexplained "no eligible names" in the migration UI.
+  const status = await readV2Status(label)
+  if (status !== V2_STATUS.RESERVED) {
+    throw new Error(
+      `[reserveInV2] ${label}.eth is status=${status} after reserving, expected RESERVED (1)`,
+    )
+  }
+  console.log(`[reserveInV2] ✅ ${label}.eth RESERVED in V2`)
 }
 
 // ---------------------------------------------------------------------------
@@ -229,17 +363,6 @@ export async function reserveInV2(
 async function waitForTx(hash: Hash) {
   return publicClient.waitForTransactionReceipt({ hash })
 }
-
-type RegistrationStruct = readonly [
-  string,
-  Address,
-  bigint,
-  `0x${string}`,
-  Address,
-  readonly `0x${string}`[],
-  number,
-  `0x${string}`,
-]
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -259,7 +382,6 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
     const absDuration = Math.abs(config.duration ?? DEFAULT_DURATION)
     const isNegativeDuration = (config.duration ?? DEFAULT_DURATION) < 0
     const duration = BigInt(absDuration)
-    const secret = keccak256(toHex(`v1-${uniqueLabel}:${Math.random()}`))
 
     console.log(
       `[makeV1Name] registering V1 name ${uniqueLabel}.eth (duration=${duration}s, type=${config.type ?? 'unwrapped'})`,
@@ -276,75 +398,26 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
       await waitForTx(fundTx)
     }
 
-    const regStruct: RegistrationStruct = [
-      uniqueLabel,
-      ownerAddress,
-      duration,
-      secret,
-      zeroAddress,
-      [],
-      0,
-      zeroHash as `0x${string}`,
-    ]
+    // ── 1. Register directly on the BaseRegistrar ──────────────────
+    // The forked Sepolia V1 stack has no ETHRegistrarController wired up as a
+    // BaseRegistrar controller, so the commit/reveal path reverts. On a fork we can grant
+    // ourselves controller rights and mint directly, which is also faster (no commitment
+    // wait, no rent payment) and independent of whichever controller ABI is deployed.
+    await ensureBaseRegistrarController()
 
-    // ── 1. Commit ──────────────────────────────────────────────────
-    const commitment = await publicClient.readContract({
-      address: V1_ETH_REGISTRAR_CONTROLLER,
-      abi: V1_CONTROLLER_ABI,
-      functionName: 'makeCommitment',
-      args: [regStruct],
-    })
-
-    const commitTx = await walletClient.sendTransaction({
-      account: ownerAccount,
-      to: V1_ETH_REGISTRAR_CONTROLLER,
-      data: encodeFunctionData({
-        abi: V1_CONTROLLER_ABI,
-        functionName: 'commit',
-        args: [commitment],
-      }),
-    })
-    await waitForTx(commitTx)
-
-    // ── 2. Wait for minCommitmentAge ───────────────────────────────
-    let minAge = 0n
-    try {
-      minAge = await publicClient.readContract({
-        address: V1_ETH_REGISTRAR_CONTROLLER,
-        abi: V1_CONTROLLER_ABI,
-        functionName: 'minCommitmentAge',
-      })
-    } catch {
-      /* default 0 */
-    }
-
-    if (minAge > 0n) {
-      await testClient.increaseTime({ seconds: Number(minAge) + 1 })
-      await testClient.mine({ blocks: 1 })
-    }
-
-    // ── 3. Register ────────────────────────────────────────────────
-    const price = await publicClient.readContract({
-      address: V1_ETH_REGISTRAR_CONTROLLER,
-      abi: V1_CONTROLLER_ABI,
-      functionName: 'rentPrice',
-      args: [uniqueLabel, duration],
-    })
-
+    const tokenId = BigInt(keccak256(toHex(uniqueLabel)))
     const registerTx = await walletClient.sendTransaction({
-      account: ownerAccount,
-      to: V1_ETH_REGISTRAR_CONTROLLER,
+      account: ANVIL_FUNDER,
+      to: V1_BASE_REGISTRAR,
       data: encodeFunctionData({
-        abi: V1_CONTROLLER_ABI,
+        abi: BASE_REGISTRAR_ABI,
         functionName: 'register',
-        args: [regStruct],
+        args: [tokenId, ownerAddress, BigInt(duration)],
       }),
-      value: (price * 110n) / 100n,
     })
     await waitForTx(registerTx)
 
-    // ── 4. Read V1 expiry from BaseRegistrar ───────────────────────
-    const tokenId = BigInt(keccak256(toHex(uniqueLabel)))
+    // ── 2. Read V1 expiry from BaseRegistrar ───────────────────────
     const v1Expiry = await publicClient.readContract({
       address: V1_BASE_REGISTRAR,
       abi: BASE_REGISTRAR_ABI,
@@ -366,6 +439,7 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
         ownerAccount,
         nameType,
         config.fuses,
+        config.v1Resolver,
       )
     }
 
@@ -405,6 +479,7 @@ async function wrapName(
   ownerAccount: ReturnType<typeof privateKeyToAccount>,
   nameType: 'wrapped' | 'locked',
   additionalFuses?: number,
+  v1Resolver: Address = V1_PUBLIC_RESOLVER,
 ) {
   const approved = await publicClient.readContract({
     address: V1_BASE_REGISTRAR,
@@ -433,6 +508,18 @@ async function wrapName(
       ? FUSES.CANNOT_UNWRAP | (additionalFuses ?? 0)
       : (additionalFuses ?? 0)
 
+  // `wrapETH2LD` takes a uint16. Parent-controlled fuses (PARENT_CANNOT_CONTROL,
+  // IS_DOT_ETH, CAN_EXTEND_EXPIRY) live above bit 15 and cannot be set here — viem would
+  // otherwise fail with an opaque "not in safe 16-bit unsigned integer range" error.
+  if ((ownerFuses & ~ALL_OWNER_FUSES) !== 0) {
+    throw new Error(
+      `[makeV1Name] fuses=0x${ownerFuses.toString(16)} contains bits outside the ` +
+        `owner-controlled set (0x${ALL_OWNER_FUSES.toString(16)}). Parent-controlled fuses ` +
+        `such as CAN_EXTEND_EXPIRY cannot be set on a .eth 2LD via wrapETH2LD; they are ` +
+        `granted by the parent through setSubnodeOwner/setChildFuses.`,
+    )
+  }
+
   console.log(
     `[makeV1Name] wrapping ${label}.eth (fuses=0x${ownerFuses.toString(16)}, type=${nameType})`,
   )
@@ -443,7 +530,7 @@ async function wrapName(
     data: encodeFunctionData({
       abi: NAME_WRAPPER_ABI,
       functionName: 'wrapETH2LD',
-      args: [label, ownerAddress, ownerFuses, V1_PUBLIC_RESOLVER],
+      args: [label, ownerAddress, ownerFuses, v1Resolver],
     }),
   })
   await publicClient.waitForTransactionReceipt({ hash: wrapTx })

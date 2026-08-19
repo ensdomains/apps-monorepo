@@ -161,7 +161,13 @@ services:
       anvil:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "/app/healthcheck.sh"]
+      # Not `/app/healthcheck.sh`: it probes `localhost`, which resolves to
+      # [::1] in this image while the status server binds 0.0.0.0 (IPv4 only),
+      # so the baked-in check always failed and the container sat permanently
+      # "unhealthy". Same rainbow-marker short-circuit, but over 127.0.0.1.
+      test:
+        - CMD-SHELL
+        - "[ -f /app/data/.rainbow_downloading ] || wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/status"
       interval: 30s
       timeout: 10s
       retries: 3
@@ -195,7 +201,10 @@ services:
     depends_on:
       - panoptes-indexer
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5655/health"]
+      # `/health` does not exist on this image (404) and `localhost` resolves to
+      # [::1] while the API binds IPv4 — the old check could never pass. GET
+      # /graphql over 127.0.0.1 returns 200 and is the endpoint the apps use.
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5655/graphql"]
       interval: 30s
       timeout: 10s
       retries: 3
