@@ -321,6 +321,25 @@ export const TokenPickerContent = () => {
     )
     .otherwise(() => null)
 
+  // Positive counterpart to the underfunded copy. A part- or fully-funded HCA
+  // changes both what the wallet is debited and how many prompts the user gets,
+  // and neither is legible from the token list — which shows wallet balances.
+  // Full coverage takes the no-permit branch in `computingHcaBudget`, so the
+  // approval step they saw last time simply will not appear; saying so up front
+  // is the difference between "it skipped a step" and "something went wrong".
+  const infoMessage = match(funding)
+    .with(
+      { isUnderfunded: false, hcaCredit: P.number.gt(0), walletDebit: 0 },
+      (f) =>
+        t`Your account already holds the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
+    )
+    .with(
+      { isUnderfunded: false, hcaCredit: P.number.gt(0) },
+      (f) =>
+        t`Your account already holds ${f.hcaCredit.toFixed(2)} USDC, so only ${f.walletDebit.toFixed(2)} USDC will be taken from your wallet.`,
+    )
+    .otherwise(() => null)
+
   return (
     <TokenPickerContentBase
       errorMessage={errorMessage}
@@ -356,6 +375,7 @@ export const TokenPickerContent = () => {
             }
           : undefined
       }
+      infoMessage={infoMessage}
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
@@ -371,6 +391,29 @@ export const TokenPickerContent = () => {
   )
 }
 
+/**
+ * The single message slot under the token list. The error wins when there is
+ * one — a "you are already funded" note printed beneath a funding failure is a
+ * contradiction, and the error is the half the user can act on.
+ */
+const PickerMessage = ({
+  errorMessage,
+  infoMessage,
+}: {
+  errorMessage?: string | null
+  infoMessage?: string | null
+}) => {
+  if (errorMessage) {
+    return <p className="text-center text-ens-error text-sm">{errorMessage}</p>
+  }
+  if (infoMessage) {
+    return (
+      <p className="text-center text-ens-blue-dark text-sm">{infoMessage}</p>
+    )
+  }
+  return null
+}
+
 export const TokenPickerContentBase = ({
   label,
   pricingLoading,
@@ -378,6 +421,7 @@ export const TokenPickerContentBase = ({
   isInPriceCooldown = false,
   selectedToken,
   errorMessage,
+  infoMessage,
   onSelectCoin,
   onNext,
   stablecoinBalances,
@@ -394,6 +438,13 @@ export const TokenPickerContentBase = ({
   isInPriceCooldown?: boolean
   selectedToken: SUPPORTED_TOKEN | undefined
   errorMessage?: string | null
+  /**
+   * Reassurance shown in the error slot when there is no error — currently the
+   * standing-HCA-balance note. Suppressed whenever `errorMessage` is set: a
+   * "you are already funded" line under a funding failure reads as a
+   * contradiction.
+   */
+  infoMessage?: string | null
   onSelectCoin: (coin: SUPPORTED_TOKEN) => void
   onNext: () => void
   stablecoinBalances: StablecoinBalance[]
@@ -559,11 +610,10 @@ export const TokenPickerContentBase = ({
             ))
             .otherwise(() => undefined)}
 
-          {errorMessage && (
-            <p className="wrap-anywhere text-center text-ens-error text-sm">
-              {errorMessage}
-            </p>
-          )}
+          <PickerMessage
+            errorMessage={errorMessage}
+            infoMessage={infoMessage}
+          />
 
           <div className="flex flex-col items-center gap-1.5">
             <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
