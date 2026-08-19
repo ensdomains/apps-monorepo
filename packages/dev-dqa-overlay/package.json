@@ -18,6 +18,6 @@
   "devDependencies": {
     "@types/react": "^19.2.7",
     "react": "^19.2.5",
-    "typescript": "catalog:typescript6"
+    "typescript": "catalog:"
   }
 }
