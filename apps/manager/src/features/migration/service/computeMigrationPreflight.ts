@@ -20,6 +20,7 @@ import {
 import {
   assertLockedPublicResolverSetMembership,
   assertMigrationHelperRuntimeCode,
+  assertNoLiveSubregistryOverwrite,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
@@ -214,6 +215,10 @@ export const computeMigrationPreflight = async (params: {
             await assertMigrationHelperRuntimeCode({ publicClient })
           }
           await assertLockedPublicResolverSetMembership({
+            publicClient,
+            names: classified,
+          })
+          await assertNoLiveSubregistryOverwrite({
             publicClient,
             names: classified,
           })

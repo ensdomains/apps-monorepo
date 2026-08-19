@@ -5,6 +5,7 @@ import {
   verifyStandaloneHca,
 } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { permissionedRegistryGetSubregistrySnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   type Address,
   type Hex,
@@ -12,10 +13,12 @@ import {
   keccak256,
   type PublicClient,
   parseAbi,
+  zeroAddress,
 } from 'viem'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
+import { computeExpectedWrapperRegistry } from './directMigrationRoutes'
 
 const verifiableFactoryAbi = parseAbi([
   'function verifyContract(address proxy) view returns (address implementation)',
@@ -56,13 +59,20 @@ export type MigrationContractInvariant =
   | 'resolver-implementation'
   | 'resolver-hca-root-roles'
   | 'public-resolver-set-membership'
+  | 'live-subregistry-overwrite'
 
 export class MigrationContractInvariantError extends TaggedError(
   'MigrationContractInvariantError',
 )<{
   readonly invariant: MigrationContractInvariant
-  readonly contractName: RequiredMigrationContractName | 'HCA' | 'OwnedResolver'
+  readonly contractName:
+    | RequiredMigrationContractName
+    | 'HCA'
+    | 'OwnedResolver'
+    | 'DestinationRegistry'
   readonly address: Address
+  /** The selected name the invariant was checked for, when it is name-scoped. */
+  readonly ensName?: string
   readonly expected?: string
   readonly actual?: string
   readonly cause?: unknown
@@ -206,6 +216,120 @@ export const assertLockedPublicResolverSetMembership = async (params: {
           actual: 'not-included',
         })
       }
+    }),
+  )
+}
+
+type SubregistryWrite = {
+  readonly ensName: string
+  /** Registry holding the name's entry once it lands in V2. */
+  readonly registry: Address
+  readonly label: string
+  /** The subregistry pointer this migration writes into that entry. */
+  readonly nextSubregistry: Address
+}
+
+const isChildName = (name: ClassifiedName): boolean =>
+  name.tokenType === 'locked-child' || name.tokenType === 'detached-child'
+
+/**
+ * Where a selected name's subregistry pointer gets written, or `null` when the
+ * destination registry is created by this same migration — a wrapper deployed
+ * mid-plan holds no entries, so it has nothing to detach.
+ */
+const subregistryWriteFor = (
+  name: ClassifiedName,
+  selectedNames: ReadonlySet<string>,
+): SubregistryWrite | null => {
+  // Locked names are re-pointed at their deterministic WrapperRegistry; every
+  // other route registers with `address(0)`.
+  const nextSubregistry =
+    name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child'
+      ? computeExpectedWrapperRegistry({ name: name.domain.name })
+      : zeroAddress
+
+  if (!isChildName(name)) {
+    return {
+      ensName: name.domain.name,
+      registry: V2_CONTRACTS.ETHRegistry,
+      label: name.label,
+      nextSubregistry,
+    }
+  }
+
+  if (!name.parentName || selectedNames.has(name.parentName)) return null
+
+  return {
+    ensName: name.domain.name,
+    registry: computeExpectedWrapperRegistry({ name: name.parentName }),
+    label: name.label,
+    nextSubregistry,
+  }
+}
+
+/**
+ * Refuse to migrate a name whose V2 entry already points at a live child
+ * registry (WEB-1249).
+ *
+ * Registering over an existing entry replaces its `subregistry` wholesale, so
+ * the registry that was there — and every subname inside it — is detached and
+ * stops resolving. Neither value this migration can write is safe: unlocked
+ * routes write `address(0)`, locked routes write the deterministic
+ * WrapperRegistry, and both discard whatever was configured. The pointer is
+ * only re-read here, before the wallet signs anything, so a name that gained a
+ * registry after selection fails closed instead of losing its subnames.
+ */
+export const assertNoLiveSubregistryOverwrite = async (params: {
+  readonly publicClient: PublicClient
+  readonly names: readonly ClassifiedName[]
+}): Promise<void> => {
+  const selectedNames = new Set(params.names.map((name) => name.domain.name))
+  const writes = params.names
+    .map((name) => subregistryWriteFor(name, selectedNames))
+    .filter((write): write is SubregistryWrite => write !== null)
+
+  await Promise.all(
+    writes.map(async (write) => {
+      // An undeployed destination has no entries. Missing parent wrappers are
+      // reported by `resolveDirectMigrationRoutes`, which knows the route.
+      const code = await params.publicClient.getCode({
+        address: write.registry,
+      })
+      if (!hasCode(code)) return
+
+      let current: Address
+      try {
+        current = await params.publicClient.readContract({
+          address: write.registry,
+          abi: permissionedRegistryGetSubregistrySnippet,
+          functionName: 'getSubregistry',
+          args: [write.label],
+        })
+      } catch (cause) {
+        throw new MigrationContractInvariantError({
+          invariant: 'live-subregistry-overwrite',
+          contractName: 'DestinationRegistry',
+          address: write.registry,
+          ensName: write.ensName,
+          expected: write.nextSubregistry,
+          actual: 'unverified',
+          cause,
+        })
+      }
+
+      if (isAddressEqual(current, zeroAddress)) return
+      // Already pointing where this migration would write it: re-running the
+      // plan is a no-op rather than a detach.
+      if (isAddressEqual(current, write.nextSubregistry)) return
+
+      throw new MigrationContractInvariantError({
+        invariant: 'live-subregistry-overwrite',
+        contractName: 'DestinationRegistry',
+        address: write.registry,
+        ensName: write.ensName,
+        expected: write.nextSubregistry,
+        actual: current,
+      })
     }),
   )
 }

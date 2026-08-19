@@ -80,12 +80,20 @@ type SubregistryConfiguratorProps = {
   name: string
   onCancel: () => void
   onComplete?: () => void
+  /**
+   * Run immediately before each write, which is skipped when this resolves
+   * `false`. The configure flow uses it to prove the name still has no registry
+   * (WEB-1249); the reconfigure flow, where replacing one is the whole point,
+   * omits it.
+   */
+  assertWritable?: () => Promise<boolean>
 }
 
 export const SubregistryConfigurator = ({
   name,
   onCancel,
   onComplete,
+  assertWritable,
 }: SubregistryConfiguratorProps) => {
   const [registryOption, setRegistryOption] = useState<RegistryOption>('deploy')
   const [contractAddress, setContractAddress] = useState('')
@@ -151,15 +159,20 @@ export const SubregistryConfigurator = ({
     )
   }
 
-  const handleSetSubregistryAfterDeployStart = () => {
+  // Also never awaited by the modal — see `handleDeploySubregistryStart`.
+  const handleSetSubregistryAfterDeployStart = async () => {
     const deployed = deployedSubregistryAddressRef.current
     if (!deployed) return
     if (isSetSubregistryPending || isSetSubregistrySuccess) return
+    // Checked again here, not just at submit: the deploy step sits between the
+    // two, leaving a whole block time for the slot to be filled.
+    if (assertWritable && !(await assertWritable())) return
     setSubregistry(deployed)
   }
 
-  const handleSetSubregistryStart = () => {
+  const handleSetSubregistryStart = async () => {
     if (!customSubregistryAddress) return
+    if (assertWritable && !(await assertWritable())) return
     setSubregistry(customSubregistryAddress)
   }
 
@@ -182,8 +195,11 @@ export const SubregistryConfigurator = ({
     )
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (useCustomRegistry && !isAddress(contractAddress)) return
+    // Gates the deploy too, not just the set: there is no reason to pay for a
+    // registry that may not legally be pointed at anything.
+    if (assertWritable && !(await assertWritable())) return
     openTransactionModal()
   }
 
@@ -221,7 +237,7 @@ export const SubregistryConfigurator = ({
         className="flex flex-col gap-5 border border-border rounded-lg p-5"
         onSubmit={(e) => {
           e.preventDefault()
-          handleSubmit()
+          void handleSubmit()
         }}
       >
         <RadioGroup

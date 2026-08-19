@@ -17,6 +17,7 @@ import {
 import {
   assertLockedPublicResolverSetMembership,
   assertMigrationHelperRuntimeCode,
+  assertNoLiveSubregistryOverwrite,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
@@ -36,6 +37,7 @@ vi.mock('./migrationInvariants', async (importActual) => ({
   ...(await importActual<typeof import('./migrationInvariants')>()),
   assertLockedPublicResolverSetMembership: vi.fn(),
   assertMigrationHelperRuntimeCode: vi.fn(),
+  assertNoLiveSubregistryOverwrite: vi.fn(),
   assertRequiredMigrationContractCode: vi.fn(),
   checkMigrationHcaReadiness: vi.fn(),
   checkDeterministicMigrationResolverReadiness: vi.fn(),
@@ -57,6 +59,9 @@ const assertMigrationHelperRuntimeCodeMock = vi.mocked(
 )
 const assertLockedPublicResolverSetMembershipMock = vi.mocked(
   assertLockedPublicResolverSetMembership,
+)
+const assertNoLiveSubregistryOverwriteMock = vi.mocked(
+  assertNoLiveSubregistryOverwrite,
 )
 const checkMigrationHcaReadinessMock = vi.mocked(checkMigrationHcaReadiness)
 const getMigrationResolverAddressMock = vi.mocked(getMigrationResolverAddress)
@@ -147,6 +152,12 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       publicClient: expect.anything(),
     })
     expect(assertLockedPublicResolverSetMembershipMock).toHaveBeenCalledWith({
+      publicClient: expect.anything(),
+      names: expect.any(Array),
+    })
+    // Every selected name is checked for a live registry before the wallet is
+    // asked to sign, so a migration cannot detach one (WEB-1249).
+    expect(assertNoLiveSubregistryOverwriteMock).toHaveBeenCalledWith({
       publicClient: expect.anything(),
       names: expect.any(Array),
     })
