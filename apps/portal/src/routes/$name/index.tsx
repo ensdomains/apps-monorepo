@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
+import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
@@ -9,6 +9,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { nameHeadingClassName, PageHeading } from '@/components/PageHeading'
+import { DnsClaimableMessage } from '@/features/dns-import/components/DnsClaimableMessage'
 import { RecentHistoryTimeline } from '@/features/history/components/RecentHistoryTimeline'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
@@ -130,8 +131,6 @@ const Profile = ({
     protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
   })
 
-  const navigate = useNavigate()
-
   const migrationQuery = useMigrationStatus(name, {
     enabled: ownerQuery.data?.protocolVersion === 'ENSv1',
   })
@@ -206,29 +205,11 @@ const Profile = ({
       )
     }
 
-    // Case 3: A DNS 2LD with no registry entry — offer the import flow.
+    // Case 3: A DNS 2LD with no registry entry — offer the import flow, or
+    // the custom-TLD notice when the TLD operator runs its own integration.
     // (The availability query below is .eth-only, so this must come first.)
     if (isClaimable(name)) {
-      return (
-        <AvailableNameMessage
-          name={name}
-          description={
-            <p>
-              This DNS name can be imported to ENS — free off-chain, or onchain
-              with a token.
-            </p>
-          }
-          actionButton={{
-            label: 'Import name',
-            onClick: () =>
-              void navigate({
-                to: '/import/$name',
-                params: { name },
-                search: { type: 'offchain', step: 'start' },
-              }),
-          }}
-        />
-      )
+      return <DnsClaimableMessage name={name} />
     }
 
     // Case 4: It's a .eth 2LD - check availability

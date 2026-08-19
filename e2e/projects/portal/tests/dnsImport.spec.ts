@@ -7,11 +7,25 @@
  * states, and URL-based resume, not proof submission (real DNSSEC signatures
  * cannot be forged against the oracle).
  */
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import {
+  type Address,
+  encodeFunctionData,
+  labelhash,
+  parseAbi,
+  zeroAddress,
+  zeroHash,
+} from 'viem'
 import {
   connectWithHeadlessWallet,
   expect,
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
+import {
+  publicClient,
+  testClient,
+  walletClient,
+} from '../../../helpers/anvil-client.js'
 import {
   dohInsecure,
   dohNxDomain,
@@ -48,6 +62,62 @@ const respondWith =
     // TLD validation (e.g. `xyz`) and anything else: DNSSEC-enabled.
     return dohSecure(qname, [])
   }
+
+const V1_REGISTRY =
+  ensL1Contracts[supportedL1Chains.sepolia].ensLegacyRegistry.address
+
+const REGISTRY_ABI = parseAbi([
+  'function owner(bytes32 node) view returns (address)',
+  'function setSubnodeOwner(bytes32 node, bytes32 label, address owner)',
+])
+
+/**
+ * Claim a TLD node in the v1 registry for a custom operator (what `.art`,
+ * `.hiphop` etc. did) by impersonating the registry root owner. Returns a
+ * skip reason when the environment lacks the v1 registry state.
+ */
+async function seedCustomTld(
+  tld: string,
+  operator: Address,
+): Promise<string | null> {
+  const code = await publicClient
+    .getCode({ address: V1_REGISTRY })
+    .catch(() => undefined)
+  if (!code || code === '0x') {
+    return `v1 registry ${V1_REGISTRY} has no code in this environment`
+  }
+
+  const rootOwner = await publicClient.readContract({
+    address: V1_REGISTRY,
+    abi: REGISTRY_ABI,
+    functionName: 'owner',
+    args: [zeroHash],
+  })
+  if (rootOwner === zeroAddress) {
+    return 'v1 registry root node has no owner in this environment'
+  }
+
+  await testClient.setBalance({
+    address: rootOwner,
+    value: 1_000_000_000_000_000_000n,
+  })
+  await testClient.impersonateAccount({ address: rootOwner })
+  try {
+    const hash = await walletClient.sendTransaction({
+      account: rootOwner,
+      to: V1_REGISTRY,
+      data: encodeFunctionData({
+        abi: REGISTRY_ABI,
+        functionName: 'setSubnodeOwner',
+        args: [zeroHash, labelhash(tld), operator],
+      }),
+    })
+    await publicClient.waitForTransactionReceipt({ hash })
+  } finally {
+    await testClient.stopImpersonatingAccount({ address: rootOwner })
+  }
+  return null
+}
 
 test.describe('DNS import flow', () => {
   test('overview shows the import CTA and opens the flow', async ({ page }) => {
@@ -144,6 +214,33 @@ test.describe('DNS import flow', () => {
     await expect(page.getByText('Ownership verified')).toBeVisible({
       timeout: 30_000,
     })
+  })
+
+  test('custom TLDs are blocked from importing', async ({ page }) => {
+    // A TLD whose operator claimed the TLD node in the registry (like
+    // .hiphop) runs a custom ENS integration — no import CTA, no flow.
+    const tld = `e2ecustom${Date.now() % 1_000_000}`
+    const domain = `onshow.${tld}`
+    const operator = '0x04ebA57401184A97C919b0B6b4e8dDE263BCb920' as Address
+
+    const skipReason = await seedCustomTld(tld, operator)
+    test.skip(skipReason !== null, skipReason ?? undefined)
+
+    // DNSSEC-wise the TLD looks perfectly valid — the block must come from
+    // the onchain TLD-node ownership, not the DoH checks.
+    await mockDnsOverHttps(page, (qname) => dohSecure(qname, []))
+
+    await page.goto(`${PORTAL_APP_URL}/${domain}`)
+    await expect(
+      page.getByText(`.${tld} names can't be imported here`),
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByRole('button', { name: 'Import name' })).toBeHidden()
+
+    await page.goto(`${PORTAL_APP_URL}/import/${domain}`)
+    await expect(
+      page.getByText(`.${tld} names can't be imported here`),
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByRole('button', { name: 'Begin' })).toBeHidden()
   })
 
   test('offchain path shows the ENS1 record with the official resolver', async ({

@@ -4,8 +4,10 @@ import { match } from 'ts-pattern'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { isClaimable } from '@/utils/ens/tldHelpers'
+import { getTLD, isClaimable } from '@/utils/ens/tldHelpers'
+import { getDnsTldStatusQueryOptions } from '../queries/getDnsTldStatus'
 import type { DnsImportStep, DnsImportType } from '../types'
+import { CustomTldMessage } from './CustomTldMessage'
 import { EnableDnssec } from './EnableDnssec'
 import { SelectImportType } from './SelectImportType'
 import { VerifyOwnership } from './VerifyOwnership'
@@ -31,6 +33,10 @@ export const DnsImportFlow = ({
   readonly onSearchChange: (patch: Partial<DnsImportSearch>) => void
 }) => {
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
+  const tldStatusQuery = useQuery({
+    ...getDnsTldStatusQueryOptions({ tld: getTLD(name) }),
+    enabled: isClaimable(name),
+  })
 
   if (!isClaimable(name)) {
     return (
@@ -48,8 +54,14 @@ export const DnsImportFlow = ({
     )
   }
 
-  if (ownerQuery.isLoading) {
+  if (ownerQuery.isLoading || tldStatusQuery.isLoading) {
     return <LoadingSpinner title="Checking name…" />
+  }
+
+  // TLDs whose operator claimed the TLD node run a custom ENS integration —
+  // neither import path applies (see getDnsTldStatus).
+  if (tldStatusQuery.data?.type === 'custom') {
+    return <CustomTldMessage tld={getTLD(name)} />
   }
 
   if (ownerQuery.data) {
