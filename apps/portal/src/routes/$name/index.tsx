@@ -162,7 +162,10 @@ const Profile = ({
     return (
       <ErrorMessage
         title="Could not validate TLD"
-        description={`Checking DNSSEC for .${tld} failed. Try refreshing the page.`}
+        description={
+          dnsSecQuery.error.message ||
+          `Checking DNSSEC for .${tld} failed. Try refreshing the page.`
+        }
       />
     )
   }
