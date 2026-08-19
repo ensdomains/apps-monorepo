@@ -387,6 +387,14 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+
+  /* Lower third-party widget z-index so they don't overlay drawers/dialogs */
+  .intercom-lightweight-app,
+  .intercom-namespace,
+  [class^="PostHogSurvey"] {
+    position: relative;
+    z-index: 40;
+  }
 }
 
 @theme {
