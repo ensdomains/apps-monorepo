@@ -82,7 +82,7 @@ export interface SaveRecordsParams {
   before: ServiceRecordSnapshot
   after: ServiceRecordSnapshot
   /** Clear the target node before applying the before-to-after diff. */
-  clearRecords?: boolean
+  readonly shouldClearRecords?: boolean
   signer: Signer
   accountAddress: Address
   publicClient: PublicClient
@@ -126,7 +126,7 @@ interface BuildRecordsUpdateRequestParams {
   readonly name: string
   readonly before: ServiceRecordSnapshot
   readonly after: ServiceRecordSnapshot
-  readonly clearRecords?: boolean
+  readonly shouldClearRecords?: boolean
   readonly signer: Signer
   readonly accountAddress: Address
   readonly publicClient: PublicClient
@@ -143,7 +143,7 @@ export interface BuildRecordsUpdateCallsParams {
   readonly name: string
   readonly before: ServiceRecordSnapshot
   readonly after: ServiceRecordSnapshot
-  readonly clearRecords?: boolean
+  readonly shouldClearRecords?: boolean
   readonly publicClient: PublicClient
   readonly resolverAddress: Address
 }
@@ -374,13 +374,19 @@ function createTransactionRequest(
 export async function buildRecordsUpdateCalls(
   params: BuildRecordsUpdateCallsParams,
 ): Promise<BuildRecordsUpdateCallsResult> {
-  const { name, before, after, clearRecords, publicClient, resolverAddress } =
-    params
+  const {
+    name,
+    before,
+    after,
+    shouldClearRecords,
+    publicClient,
+    resolverAddress,
+  } = params
 
   const changes = computeRecordChanges(before, after)
 
   const hasChanges =
-    clearRecords ||
+    shouldClearRecords ||
     changes.texts.length > 0 ||
     changes.coins.length > 0 ||
     changes.contentHash !== undefined ||
@@ -403,7 +409,7 @@ export async function buildRecordsUpdateCalls(
   const ensParams: Parameters<typeof setRecordsWriteParameters>[1] = {
     name,
     resolverAddress,
-    clearRecords,
+    clearRecords: shouldClearRecords,
   }
 
   if (changes.texts.length > 0) {

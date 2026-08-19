@@ -174,7 +174,7 @@ export async function setupControlledResolver({
       name,
       before,
       after,
-      clearRecords: true,
+      shouldClearRecords: true,
       signer,
       accountAddress: ownerAddress,
       publicClient,

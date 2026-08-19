@@ -122,7 +122,7 @@ describe('setupControlledResolver', () => {
         signer,
         accountAddress: OWNER,
         resolverAddress: RESOLVER,
-        clearRecords: true,
+        shouldClearRecords: true,
         ...snapshots,
       }),
     )
@@ -207,7 +207,7 @@ describe('setupControlledResolver', () => {
     expect(writeRecords).toHaveBeenCalledWith(
       expect.objectContaining({
         ...emptySnapshots,
-        clearRecords: true,
+        shouldClearRecords: true,
         resolverAddress: RESOLVER,
       }),
     )

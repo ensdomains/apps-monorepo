@@ -25,7 +25,7 @@ describe('buildRecordsUpdateCalls', () => {
         ],
         coins: [],
       },
-      clearRecords: true,
+      shouldClearRecords: true,
       publicClient,
       resolverAddress: RESOLVER,
     })
