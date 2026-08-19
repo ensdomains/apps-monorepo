@@ -16,7 +16,7 @@ const method = (id: string): PaymentMethod => ({
  * never mutate in place — the guarantee immer used to provide here.
  */
 const transition = (
-  paymentMethods: PaymentMethod[],
+  paymentMethods: readonly PaymentMethod[],
   event: Parameters<typeof paymentMethodsStore.transition>[1],
 ) => {
   const before = {
