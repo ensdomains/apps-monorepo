@@ -156,6 +156,17 @@ const Profile = ({
     return <LoadingSpinner title="Validating TLD..." />
   }
 
+  // A failed DNSSEC lookup is an error, not a verdict on the TLD — only a
+  // completed check that returns false may declare the TLD invalid.
+  if (!isEthTld && dnsSecQuery.isError) {
+    return (
+      <ErrorMessage
+        title="Could not validate TLD"
+        description={`Checking DNSSEC for .${tld} failed. Try refreshing the page.`}
+      />
+    )
+  }
+
   // IMPORTANT: Check TLD validity FIRST, before showing any profile data
   // Even if owner data exists, we shouldn't show profiles for invalid TLDs
   if (!isTldValid) {

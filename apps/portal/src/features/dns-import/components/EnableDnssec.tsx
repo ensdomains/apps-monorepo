@@ -38,11 +38,18 @@ export const EnableDnssec = ({
             description="You'll need to visit your domain registrar to enable DNSSEC."
           />
           <div className="flex items-center gap-3">
-            <StatusChip tone="warning" className="flex-1">
-              {dnssecQuery.isLoading
-                ? 'Checking DNSSEC…'
-                : 'DNSSEC not enabled'}
-            </StatusChip>
+            {/* A failed check is not "not enabled" — surface it as an error. */}
+            {dnssecQuery.isError ? (
+              <StatusChip tone="danger" className="flex-1">
+                DNSSEC check failed — refresh to retry
+              </StatusChip>
+            ) : (
+              <StatusChip tone="warning" className="flex-1">
+                {dnssecQuery.isLoading
+                  ? 'Checking DNSSEC…'
+                  : 'DNSSEC not enabled'}
+              </StatusChip>
+            )}
             <RefreshButton
               onClick={() => void dnssecQuery.refetch()}
               isRefreshing={dnssecQuery.isRefetching}
