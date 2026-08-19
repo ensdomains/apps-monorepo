@@ -1,10 +1,5 @@
-import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
-import {
-  type Address,
-  isAddressEqual,
-  type PublicClient,
-  type WalletClient,
-} from 'viem'
+import type { EOASigner } from '@ens-apps/transaction-manager'
+import type { Address, PublicClient, WalletClient } from 'viem'
 import { assign, type SnapshotFrom, setup } from 'xstate'
 import type {
   SaveRecordsParams,
@@ -15,6 +10,7 @@ import {
   newEmptyProfileRecords,
   transformToServiceFormat,
 } from '@/features/profile/utils/transformRecords'
+import { hasOwnerWallet } from '@/lib/wallet'
 import {
   type GeneralField,
   getDefaultVisibleFields,
@@ -23,20 +19,13 @@ import {
 const ETH_COIN_TYPE = 60
 
 export interface SaveDeps {
-  readonly accountAddress?: Address | null
   readonly chainId: number
   readonly name: string
   readonly owner?: Address
   readonly ownerAddress?: Address | null
   readonly publicClient: PublicClient
   readonly retryCount?: number
-  /**
-   * The account context's signer. Used ONLY by the resolver-setup path, which
-   * is an HCA intent by construction. In-place record writes go out from
-   * `walletClient` — see `getPendingSave`.
-   */
-  readonly signer?: Signer | null
-  /** Connected owner wallet; the sender for in-place record writes. */
+  /** Connected owner wallet; the sender for every profile write. */
   readonly walletClient?: WalletClient | null
   /**
    * When true, deploy/assign a controlled resolver and apply the before→after
@@ -60,7 +49,7 @@ interface PendingSetupSave {
   readonly name: string
   readonly chainId: number
   readonly ownerAddress: Address
-  readonly signer: RhinestoneSigner
+  readonly signer: EOASigner
   readonly publicClient: PublicClient
 }
 
@@ -93,37 +82,6 @@ type EditProfileDialogEvent =
       ethAddressChanged?: boolean
     }
 
-/**
- * Require a bound account that matches the owner. An account-less client
- * (possible mid-reconnect) gives no way to verify the wallet controls the owner
- * address, and a client bound to a *different* EOA (mid account switch) means
- * the sender has diverged from the address `resolverWriteAccess` probed — the
- * write would revert on-chain instead of blocking here with a "wallet not
- * ready" message.
- */
-export const hasOwnerWallet = (
-  walletClient: WalletClient | null | undefined,
-  ownerAddress: Address | null | undefined,
-) =>
-  !!walletClient?.account &&
-  !!ownerAddress &&
-  isAddressEqual(walletClient.account.address, ownerAddress)
-
-const getMissingAccount = (event: EditProfileDialogEvent) => {
-  if (event.type !== 'SAVE_REQUESTED') return false
-
-  // Each path has a different sender: setup rides the HCA signer, an in-place
-  // record write is a plain transaction from the connected owner wallet.
-  return event.deps.needsResolverSetup
-    ? !event.deps.signer || !event.deps.accountAddress
-    : !hasOwnerWallet(event.deps.walletClient, event.deps.ownerAddress)
-}
-
-const getMissingSetupSigner = (event: EditProfileDialogEvent) =>
-  event.type === 'SAVE_REQUESTED' &&
-  Boolean(event.deps.needsResolverSetup) &&
-  (event.deps.signer?.type !== 'rhinestone' || !event.deps.ownerAddress)
-
 const getPendingSave = (
   savedRecords: ProfileRecords,
   currentRecords: ProfileRecords,
@@ -135,7 +93,7 @@ const getPendingSave = (
     ethCoinValue(before.coins) !== ethCoinValue(after.coins)
 
   if (deps.needsResolverSetup) {
-    if (deps.signer?.type !== 'rhinestone' || !deps.ownerAddress) {
+    if (!hasOwnerWallet(deps.walletClient, deps.ownerAddress)) {
       throw new Error('Please finish connecting your wallet, then try again')
     }
 
@@ -147,8 +105,8 @@ const getPendingSave = (
       ethAddressChanged,
       name: deps.name,
       chainId: deps.chainId,
-      ownerAddress: deps.ownerAddress,
-      signer: deps.signer,
+      ownerAddress: deps.walletClient.account.address,
+      signer: { type: 'eoa', walletClient: deps.walletClient },
       publicClient: deps.publicClient,
     }
   }
@@ -167,13 +125,7 @@ const getPendingSave = (
   // `InvalidSignature()`; an owner-signed one needs USDC for the intent fee
   // that registration leaves the HCA without, with no funding leg here to
   // cover it.
-  const walletClient = deps.walletClient
-  const walletAccount = walletClient?.account
-  if (
-    !walletClient ||
-    !walletAccount ||
-    !hasOwnerWallet(walletClient, deps.ownerAddress)
-  ) {
+  if (!hasOwnerWallet(deps.walletClient, deps.ownerAddress)) {
     throw new Error('Account not ready. Please wait for wallet to connect.')
   }
 
@@ -184,8 +136,8 @@ const getPendingSave = (
       name: deps.name,
       before,
       after,
-      signer: { type: 'eoa', walletClient },
-      accountAddress: walletAccount.address,
+      signer: { type: 'eoa', walletClient: deps.walletClient },
+      accountAddress: deps.walletClient.account.address,
       publicClient: deps.publicClient,
       chainId: deps.chainId,
       resolverAddress: savedRecords.resolverAddress,
@@ -206,11 +158,6 @@ const saveRequestedTransitions = [
     actions: 'clearSaveState',
   },
   {
-    guard: 'missingSetupSigner',
-    target: 'idle',
-    actions: 'clearSaveState',
-  },
-  {
     target: 'saving',
     actions: 'assignPendingSave',
   },
@@ -225,8 +172,9 @@ export const editProfileDialogMachine = setup({
   guards: {
     missingOwner: ({ event }) =>
       event.type === 'SAVE_REQUESTED' && !event.deps.owner,
-    missingAccount: ({ event }) => getMissingAccount(event),
-    missingSetupSigner: ({ event }) => getMissingSetupSigner(event),
+    missingAccount: ({ event }) =>
+      event.type === 'SAVE_REQUESTED' &&
+      !hasOwnerWallet(event.deps.walletClient, event.deps.ownerAddress),
   },
   actions: {
     openDialog: assign({

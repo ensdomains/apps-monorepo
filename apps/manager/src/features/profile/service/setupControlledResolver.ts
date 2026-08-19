@@ -1,7 +1,6 @@
 import {
   type Call,
-  getSmartAccountAddress,
-  type RhinestoneSigner,
+  type EOASigner,
   type TransactionRequest,
   transactionManager,
   waitForTransaction,
@@ -13,43 +12,94 @@ import {
   findExistingPermRes,
   simulateOwnedPermResAddress,
 } from '@/features/migration/service/ensureOwnedPermRes'
+import { checkMigrationResolverReadiness } from '@/features/migration/service/migrationInvariants'
 import { buildSetResolverCall } from './changeResolver'
 import {
-  buildRecordsUpdateCalls,
   type ServiceRecordSnapshot,
+  saveRecords,
 } from './profileRecordTransactions'
+import { canSetNameResolver } from './setResolverAccess'
+
+export class ResolverChangeNotAuthorizedError extends Error {
+  constructor() {
+    super('Resolver change not authorized')
+    this.name = 'ResolverChangeNotAuthorizedError'
+  }
+}
+
+export class OwnedResolverNotReadyError extends Error {
+  constructor(options?: { readonly cause?: unknown }) {
+    super('Owned resolver is not ready', options)
+    this.name = 'OwnedResolverNotReadyError'
+  }
+}
+
+const assertOwnedResolverReady = async ({
+  resolver,
+  ownerAddress,
+  publicClient,
+}: {
+  readonly resolver: Address
+  readonly ownerAddress: Address
+  readonly publicClient: PublicClient
+}) => {
+  const readiness = await checkMigrationResolverReadiness({
+    resolver,
+    hca: ownerAddress,
+    wallet: ownerAddress,
+    publicClient,
+  }).catch((cause) => {
+    throw new OwnedResolverNotReadyError({ cause })
+  })
+
+  if (readiness.status !== 'verified' || !readiness.walletHasWildcardRoles) {
+    throw new OwnedResolverNotReadyError()
+  }
+}
+
+const hasRecords = ({
+  texts,
+  coins,
+  contentHash,
+  abi,
+}: ServiceRecordSnapshot): boolean =>
+  texts.length > 0 ||
+  coins.length > 0 ||
+  Boolean(contentHash?.trim()) ||
+  Boolean(abi?.trim())
 
 export interface SetupControlledResolverParams {
   /** ENS name, with or without the `.eth` suffix */
-  name: string
-  signer: RhinestoneSigner
-  ownerAddress: Address
-  publicClient: PublicClient
-  chainId: number
+  readonly name: string
+  /** Owner EOA signer. Every resolver-setup step is sent by this wallet. */
+  readonly signer: EOASigner
+  readonly ownerAddress: Address
+  readonly publicClient: PublicClient
+  readonly chainId: number
   /**
-   * Record diff to write to the freshly-controlled resolver. A freshly
-   * deployed/assigned resolver starts empty, so callers typically pass an
-   * empty `before` and the desired final records as `after`. When both are
-   * empty the record-write step is omitted (deploy + setResolver only).
+   * Record diff to write to the controlled resolver. The target node is cleared
+   * atomically with the diff so a retry cannot expose records from an earlier
+   * failed attempt. A fresh resolver with empty snapshots skips the redundant
+   * clear, while an existing resolver is always cleared before reuse.
    */
-  before: ServiceRecordSnapshot
-  after: ServiceRecordSnapshot
+  readonly before: ServiceRecordSnapshot
+  readonly after: ServiceRecordSnapshot
   /** Transaction-manager description. Defaults to a generic setup label. */
-  description?: string
+  readonly description?: string
 }
 
 /**
  * Give the connected owner a resolver they control on a transferred `name`,
- * point the name at it, and optionally write records — one atomic
- * intent: deploy the owned resolver (skipped when it already exists),
- * `setResolver`, record write. The owned resolver's address is deterministic
- * (CREATE2 keyed off the owner's salt and the smart account as deployer), so
- * it's predicted up front and the later calls point at it before it's mined.
+ * seed the requested records, then point the name at it. Every step is sent by
+ * the owner EOA because the V2 registry authorizes `setResolver` against the
+ * actual caller. The target node is cleared and seeded before the registry
+ * pointer changes so a rejected record transaction cannot leave the live name
+ * on an empty resolver, and a retry cannot publish stale attempted values.
  *
  * Only supports `.eth` 2LDs — subnames live in a parent registry we can't
  * deploy or point at, so this throws for them before submitting anything.
  *
- * Resolves with the resolver address once the intent is confirmed.
+ * Resolves with the resolver address once the final transaction is confirmed.
  */
 export async function setupControlledResolver({
   name,
@@ -68,70 +118,82 @@ export async function setupControlledResolver({
     )
   }
 
-  const smartAccount = getSmartAccountAddress(signer)
-
   const existing = await findExistingPermRes({
     eoa: ownerAddress,
-    deployer: smartAccount,
     publicClient,
   })
   const resolver =
     existing ??
     (await simulateOwnedPermResAddress({
       eoa: ownerAddress,
-      deployer: smartAccount,
       publicClient,
     }))
 
-  const hasRecordsToWrite =
-    before.texts.length > 0 ||
-    before.coins.length > 0 ||
-    Boolean(before.contentHash?.trim()) ||
-    Boolean(before.abi?.trim()) ||
-    after.texts.length > 0 ||
-    after.coins.length > 0 ||
-    Boolean(after.contentHash?.trim()) ||
-    Boolean(after.abi?.trim())
+  const setResolverCall = buildSetResolverCall({ name, newResolver: resolver })
+  const canRepoint = await canSetNameResolver({
+    name,
+    resolver,
+    ownerAddress,
+    publicClient,
+  })
 
-  const recordCalls = hasRecordsToWrite
-    ? (
-        await buildRecordsUpdateCalls({
-          name,
-          before,
-          after,
-          publicClient,
-          resolverAddress: resolver,
-        })
-      ).calls
-    : []
-
-  const calls: Call[] = [
-    ...(existing ? [] : [buildDeployOwnedPermResCall(ownerAddress)]),
-    buildSetResolverCall({ name, newResolver: resolver }),
-    ...recordCalls,
-  ]
-
-  const request: TransactionRequest = {
-    type: 'rhinestone-intent',
-    from: smartAccount,
-    chainId,
-    // User-paid in USDC out of the HCA's own balance; this deployment offers
-    // no gas sponsorship. See `signer.types.ts`.
-    rhinestoneParams: { calls, feeAsset: 'USDC' },
+  if (!canRepoint) {
+    throw new ResolverChangeNotAuthorizedError()
   }
 
-  const txId = transactionManager.startTransaction(
-    { type: 'custom', request },
-    signer,
-    {
-      description,
+  const sendOwnerTransaction = async (call: Call): Promise<void> => {
+    const request: TransactionRequest = {
+      type: 'eoa',
+      from: ownerAddress,
+      chainId,
+      ...call,
+    }
+
+    const transactionId = transactionManager.startTransaction(
+      { type: 'custom', request },
+      signer,
+      {
+        description,
+        publicClient,
+        chainId,
+        operation: 'setup-controlled-resolver',
+        name,
+      },
+    )
+    await waitForTransaction(transactionId)
+  }
+
+  if (!existing) {
+    await sendOwnerTransaction(buildDeployOwnedPermResCall(ownerAddress))
+  }
+
+  await assertOwnedResolverReady({ resolver, ownerAddress, publicClient })
+
+  if (existing || hasRecords(before) || hasRecords(after)) {
+    await saveRecords({
+      name,
+      before,
+      after,
+      clearRecords: true,
+      signer,
+      accountAddress: ownerAddress,
       publicClient,
       chainId,
-      operation: 'setup-controlled-resolver',
-      name,
-    },
-  )
-  await waitForTransaction(txId)
+      resolverAddress: resolver,
+    })
+  }
+
+  const canStillRepoint = await canSetNameResolver({
+    name,
+    resolver,
+    ownerAddress,
+    publicClient,
+  })
+  if (!canStillRepoint) {
+    throw new ResolverChangeNotAuthorizedError()
+  }
+
+  await sendOwnerTransaction(setResolverCall)
 
   return resolver
 }

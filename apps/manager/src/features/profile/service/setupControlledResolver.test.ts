@@ -1,9 +1,7 @@
-import type { Address, PublicClient } from 'viem'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { Address, PublicClient, WalletClient } from 'viem'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@ens-apps/transaction-manager', () => ({
-  getSmartAccountAddress: (signer: { config: { accountAddress: Address } }) =>
-    signer.config.accountAddress,
   transactionManager: { startTransaction: vi.fn(() => 'tx-bundle') },
   waitForTransaction: vi.fn(async () => ({ hash: '0xhash' })),
 }))
@@ -12,28 +10,40 @@ vi.mock('@/features/migration/service/ensureOwnedPermRes', () => ({
   findExistingPermRes: vi.fn(),
   simulateOwnedPermResAddress: vi.fn(async () => RESOLVER),
 }))
+vi.mock('@/features/migration/service/migrationInvariants', () => ({
+  checkMigrationResolverReadiness: vi.fn(async () => ({
+    status: 'verified',
+    walletHasWildcardRoles: true,
+  })),
+}))
 vi.mock('./changeResolver', () => ({
   buildSetResolverCall: vi.fn(() => SET_RESOLVER_CALL),
 }))
 vi.mock('./profileRecordTransactions', () => ({
-  buildRecordsUpdateCalls: vi.fn(async () => ({
-    calls: RECORD_CALLS,
-    description: 'records',
-  })),
+  saveRecords: vi.fn(async () => ({ hash: '0xrecords' })),
+}))
+vi.mock('./setResolverAccess', () => ({
+  canSetNameResolver: vi.fn(async () => true),
 }))
 
 import {
-  type RhinestoneSigner,
+  type EOASigner,
   transactionManager,
+  waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import {
   buildDeployOwnedPermResCall,
   findExistingPermRes,
 } from '@/features/migration/service/ensureOwnedPermRes'
-import { buildRecordsUpdateCalls } from './profileRecordTransactions'
-import { setupControlledResolver } from './setupControlledResolver'
+import { checkMigrationResolverReadiness } from '@/features/migration/service/migrationInvariants'
+import { saveRecords } from './profileRecordTransactions'
+import { canSetNameResolver } from './setResolverAccess'
+import {
+  OwnedResolverNotReadyError,
+  ResolverChangeNotAuthorizedError,
+  setupControlledResolver,
+} from './setupControlledResolver'
 
-const SMART_ACCOUNT = '0x2222222222222222222222222222222222222222' as Address
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
 const DEPLOY_CALL = {
@@ -46,94 +56,124 @@ const SET_RESOLVER_CALL = {
   data: '0xsetresolver' as const,
   value: 0n,
 }
-const RECORD_CALLS = [{ to: RESOLVER, data: '0xrecord' as const, value: 0n }]
 const CHAIN_ID = 11155111
 const publicClient = {} as PublicClient
 
-const smartSigner: RhinestoneSigner = {
-  type: 'rhinestone',
-  account: {} as never,
-  config: { accountAddress: SMART_ACCOUNT, rhinestoneApiKey: 'k' },
+const signer: EOASigner = {
+  type: 'eoa',
+  walletClient: { account: { address: OWNER } } as WalletClient,
 }
 
 const snapshots = {
   before: { texts: [], coins: [] },
-  after: { texts: [], coins: [{ coinType: 60, value: SMART_ACCOUNT }] },
+  after: { texts: [], coins: [{ coinType: 60, value: OWNER }] },
 }
 
-const start = vi.mocked(transactionManager.startTransaction)
-const mockedFindExisting = vi.mocked(findExistingPermRes)
-const mockedDeployCall = vi.mocked(buildDeployOwnedPermResCall)
-const mockedBuildRecords = vi.mocked(buildRecordsUpdateCalls)
+const startTransaction = vi.mocked(transactionManager.startTransaction)
+const findExisting = vi.mocked(findExistingPermRes)
+const deployOwnedResolver = vi.mocked(buildDeployOwnedPermResCall)
+const writeRecords = vi.mocked(saveRecords)
+const checkSetResolverAccess = vi.mocked(canSetNameResolver)
+const checkResolverReadiness = vi.mocked(checkMigrationResolverReadiness)
 
-afterEach(() => {
+const submittedRequests = () =>
+  startTransaction.mock.calls.map(([intent]) =>
+    'request' in intent ? intent.request : intent,
+  )
+
+beforeEach(() => {
   vi.clearAllMocks()
+  findExisting.mockResolvedValue(null)
+  checkSetResolverAccess.mockResolvedValue(true)
 })
 
 describe('setupControlledResolver', () => {
-  it('bundles deploy + setResolver + records into one user-paid intent', async () => {
-    mockedFindExisting.mockResolvedValue(null)
-
-    const resolver = await setupControlledResolver({
-      name: 'leon.eth',
-      signer: smartSigner,
-      ownerAddress: OWNER,
-      publicClient,
-      chainId: CHAIN_ID,
-      ...snapshots,
-    })
-
-    expect(resolver).toBe(RESOLVER)
-    expect(mockedFindExisting).toHaveBeenCalledWith({
-      eoa: OWNER,
-      deployer: SMART_ACCOUNT,
-      publicClient,
-    })
-    expect(mockedDeployCall).toHaveBeenCalledWith(OWNER)
-    expect(start).toHaveBeenCalledTimes(1)
-    const [intent] = start.mock.calls[0] ?? []
-    expect(intent).toEqual({
-      type: 'custom',
-      request: {
-        type: 'rhinestone-intent',
-        from: SMART_ACCOUNT,
+  it('deploys, writes records, then sets the resolver from the owner EOA', async () => {
+    await expect(
+      setupControlledResolver({
+        name: 'leon.eth',
+        signer,
+        ownerAddress: OWNER,
+        publicClient,
         chainId: CHAIN_ID,
-        rhinestoneParams: {
-          calls: [DEPLOY_CALL, SET_RESOLVER_CALL, ...RECORD_CALLS],
-          feeAsset: 'USDC',
-        },
-      },
+        ...snapshots,
+      }),
+    ).resolves.toBe(RESOLVER)
+
+    expect(findExisting).toHaveBeenCalledWith({
+      eoa: OWNER,
+      publicClient,
     })
+    expect(deployOwnedResolver).toHaveBeenCalledWith(OWNER)
+    expect(checkResolverReadiness).toHaveBeenCalledWith({
+      resolver: RESOLVER,
+      hca: OWNER,
+      wallet: OWNER,
+      publicClient,
+    })
+    expect(checkSetResolverAccess).toHaveBeenCalledTimes(2)
+    expect(submittedRequests()).toEqual([
+      { type: 'eoa', from: OWNER, chainId: CHAIN_ID, ...DEPLOY_CALL },
+      { type: 'eoa', from: OWNER, chainId: CHAIN_ID, ...SET_RESOLVER_CALL },
+    ])
+    expect(writeRecords).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'leon.eth',
+        signer,
+        accountAddress: OWNER,
+        resolverAddress: RESOLVER,
+        clearRecords: true,
+        ...snapshots,
+      }),
+    )
+    expect(startTransaction.mock.invocationCallOrder[0]).toBeLessThan(
+      writeRecords.mock.invocationCallOrder[0] ?? 0,
+    )
+    expect(writeRecords.mock.invocationCallOrder[0]).toBeLessThan(
+      startTransaction.mock.invocationCallOrder[1] ?? 0,
+    )
   })
 
-  it('omits the deploy call when the owned resolver already exists', async () => {
-    mockedFindExisting.mockResolvedValue(RESOLVER)
+  it('skips deployment when an owner-controlled resolver already exists', async () => {
+    findExisting.mockResolvedValue(RESOLVER)
 
     await setupControlledResolver({
       name: 'leon.eth',
-      signer: smartSigner,
+      signer,
       ownerAddress: OWNER,
       publicClient,
       chainId: CHAIN_ID,
       ...snapshots,
     })
 
-    expect(mockedDeployCall).not.toHaveBeenCalled()
-    const [intent] = start.mock.calls[0] ?? []
-    const calls = (
-      intent as unknown as {
-        request: { rhinestoneParams: { calls: unknown[] } }
-      }
-    ).request.rhinestoneParams.calls
-    expect(calls).toEqual([SET_RESOLVER_CALL, ...RECORD_CALLS])
+    expect(deployOwnedResolver).not.toHaveBeenCalled()
+    expect(submittedRequests()).toEqual([
+      { type: 'eoa', from: OWNER, chainId: CHAIN_ID, ...SET_RESOLVER_CALL },
+    ])
+  })
+
+  it('does not repoint the name when writing records fails', async () => {
+    findExisting.mockResolvedValue(RESOLVER)
+    writeRecords.mockRejectedValueOnce(new Error('user rejected'))
+
+    await expect(
+      setupControlledResolver({
+        name: 'leon.eth',
+        signer,
+        ownerAddress: OWNER,
+        publicClient,
+        chainId: CHAIN_ID,
+        ...snapshots,
+      }),
+    ).rejects.toThrow('user rejected')
+
+    expect(submittedRequests()).toEqual([])
   })
 
   it('omits the record write when both snapshots are empty', async () => {
-    mockedFindExisting.mockResolvedValue(null)
-
     await setupControlledResolver({
       name: 'leon.eth',
-      signer: smartSigner,
+      signer,
       ownerAddress: OWNER,
       publicClient,
       chainId: CHAIN_ID,
@@ -141,21 +181,141 @@ describe('setupControlledResolver', () => {
       after: { texts: [], coins: [] },
     })
 
-    expect(mockedBuildRecords).not.toHaveBeenCalled()
-    const [intent] = start.mock.calls[0] ?? []
-    const calls = (
-      intent as unknown as {
-        request: { rhinestoneParams: { calls: unknown[] } }
-      }
-    ).request.rhinestoneParams.calls
-    expect(calls).toEqual([DEPLOY_CALL, SET_RESOLVER_CALL])
+    expect(writeRecords).not.toHaveBeenCalled()
+    expect(submittedRequests()).toEqual([
+      { type: 'eoa', from: OWNER, chainId: CHAIN_ID, ...DEPLOY_CALL },
+      { type: 'eoa', from: OWNER, chainId: CHAIN_ID, ...SET_RESOLVER_CALL },
+    ])
+  })
+
+  it('clears an existing resolver node even when both snapshots are empty', async () => {
+    findExisting.mockResolvedValue(RESOLVER)
+    const emptySnapshots = {
+      before: { texts: [], coins: [] },
+      after: { texts: [], coins: [] },
+    }
+
+    await setupControlledResolver({
+      name: 'leon.eth',
+      signer,
+      ownerAddress: OWNER,
+      publicClient,
+      chainId: CHAIN_ID,
+      ...emptySnapshots,
+    })
+
+    expect(writeRecords).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...emptySnapshots,
+        clearRecords: true,
+        resolverAddress: RESOLVER,
+      }),
+    )
+  })
+
+  it('stops before the first transaction when the owner cannot set the resolver', async () => {
+    checkSetResolverAccess.mockResolvedValue(false)
+
+    await expect(
+      setupControlledResolver({
+        name: 'leon.eth',
+        signer,
+        ownerAddress: OWNER,
+        publicClient,
+        chainId: CHAIN_ID,
+        ...snapshots,
+      }),
+    ).rejects.toBeInstanceOf(ResolverChangeNotAuthorizedError)
+
+    expect(startTransaction).not.toHaveBeenCalled()
+    expect(writeRecords).not.toHaveBeenCalled()
+  })
+
+  it('does not use an existing resolver that fails readiness checks', async () => {
+    findExisting.mockResolvedValue(RESOLVER)
+    checkResolverReadiness.mockResolvedValueOnce({
+      status: 'deployment-required',
+      resolver: RESOLVER,
+    })
+
+    await expect(
+      setupControlledResolver({
+        name: 'leon.eth',
+        signer,
+        ownerAddress: OWNER,
+        publicClient,
+        chainId: CHAIN_ID,
+        ...snapshots,
+      }),
+    ).rejects.toBeInstanceOf(OwnedResolverNotReadyError)
+
+    expect(startTransaction).not.toHaveBeenCalled()
+    expect(writeRecords).not.toHaveBeenCalled()
+  })
+
+  it('rechecks resolver authority before the final transaction', async () => {
+    findExisting.mockResolvedValue(RESOLVER)
+    checkSetResolverAccess
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false)
+
+    await expect(
+      setupControlledResolver({
+        name: 'leon.eth',
+        signer,
+        ownerAddress: OWNER,
+        publicClient,
+        chainId: CHAIN_ID,
+        ...snapshots,
+      }),
+    ).rejects.toBeInstanceOf(ResolverChangeNotAuthorizedError)
+
+    expect(writeRecords).toHaveBeenCalledOnce()
+    expect(startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('stops before the first transaction when the access preflight is unavailable', async () => {
+    findExisting.mockResolvedValue(RESOLVER)
+    checkSetResolverAccess.mockRejectedValue(new Error('rpc unavailable'))
+
+    await expect(
+      setupControlledResolver({
+        name: 'leon.eth',
+        signer,
+        ownerAddress: OWNER,
+        publicClient,
+        chainId: CHAIN_ID,
+        ...snapshots,
+      }),
+    ).rejects.toThrow('rpc unavailable')
+
+    expect(startTransaction).not.toHaveBeenCalled()
+    expect(writeRecords).not.toHaveBeenCalled()
+  })
+
+  it('surfaces a resolver transaction failure', async () => {
+    findExisting.mockResolvedValue(RESOLVER)
+    vi.mocked(waitForTransaction).mockRejectedValueOnce(
+      new Error('execution reverted: Unauthorized'),
+    )
+
+    await expect(
+      setupControlledResolver({
+        name: 'leon.eth',
+        signer,
+        ownerAddress: OWNER,
+        publicClient,
+        chainId: CHAIN_ID,
+        ...snapshots,
+      }),
+    ).rejects.toThrow('execution reverted: Unauthorized')
   })
 
   it('rejects subnames before doing any on-chain work', async () => {
     await expect(
       setupControlledResolver({
         name: 'sub.leon.eth',
-        signer: smartSigner,
+        signer,
         ownerAddress: OWNER,
         publicClient,
         chainId: CHAIN_ID,
@@ -163,7 +323,7 @@ describe('setupControlledResolver', () => {
       }),
     ).rejects.toThrow(/subname/i)
 
-    expect(start).not.toHaveBeenCalled()
-    expect(mockedFindExisting).not.toHaveBeenCalled()
+    expect(startTransaction).not.toHaveBeenCalled()
+    expect(findExisting).not.toHaveBeenCalled()
   })
 })

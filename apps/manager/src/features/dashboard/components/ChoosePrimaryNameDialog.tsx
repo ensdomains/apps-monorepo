@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
-import { getAddress, isAddressEqual } from 'viem'
+import { getAddress } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
@@ -33,12 +33,17 @@ import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
-import { setupControlledResolver } from '@/features/profile/service/setupControlledResolver'
+import {
+  OwnedResolverNotReadyError,
+  ResolverChangeNotAuthorizedError,
+  setupControlledResolver,
+} from '@/features/profile/service/setupControlledResolver'
 import {
   type SmartAccountContextValue,
   useSmartAccountContext,
 } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
+import { hasOwnerWallet } from '@/lib/wallet'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { resolveDomainLabel } from '../utils'
 import {
@@ -54,6 +59,22 @@ interface ChoosePrimaryNameDialogProps {
 type PrimaryNameDomain = DomainsQuery['domains'][number]
 type PrimaryNameQueryVariables = Parameters<typeof getDomainsQuery>[0]
 type SelectedNameRecords = Parameters<typeof getEthAddressFromRecords>[0]
+
+const getSetupResolverErrorMessage = (
+  error: Error | null,
+  messages: {
+    readonly notAuthorized: string
+    readonly notReady: string
+  },
+): string | undefined => {
+  if (error instanceof ResolverChangeNotAuthorizedError) {
+    return messages.notAuthorized
+  }
+  if (error instanceof OwnedResolverNotReadyError) {
+    return messages.notReady
+  }
+  return error?.message
+}
 
 const PrimaryNameSkeletonList = () => (
   <div className="flex flex-col gap-2">
@@ -200,10 +221,7 @@ const useUpdateEthAddressMutation = ({
       // Require the wallet still bound to the owner: `resolverWriteAccess`
       // probed from that address, so a mid-switch wallet would revert on-chain.
       const { walletClient } = account
-      if (
-        !walletClient?.account ||
-        !isAddressEqual(walletClient.account.address, walletAddress)
-      ) {
+      if (!hasOwnerWallet(walletClient, walletAddress)) {
         return
       }
 
@@ -250,7 +268,7 @@ const useUpdateEthAddressMutation = ({
 
 /**
  * Set up a resolver this wallet can write to, then seed the ETH address.
- * One sponsored intent; runs before set-primary when write access is missing.
+ * Owner-EOA transactions; runs before set-primary when write access is missing.
  */
 const useSetupResolverMutation = ({
   account,
@@ -265,25 +283,23 @@ const useSetupResolverMutation = ({
 
   return useMutation({
     mutationFn: async () => {
-      const { signer } = account
       if (!selectedName || !account.ownerAddress) return
 
-      if (signer?.type !== 'rhinestone') {
+      const { walletClient } = account
+      if (!hasOwnerWallet(walletClient, account.ownerAddress)) {
         throw new Error(t`Please finish connecting your wallet, then try again`)
       }
 
-      const walletAddress = account.ownerAddress as Address
-
       await setupControlledResolver({
         name: selectedName,
-        signer,
-        ownerAddress: walletAddress,
+        signer: { type: 'eoa', walletClient },
+        ownerAddress: account.ownerAddress,
         publicClient: publicClient as PublicClient,
         chainId,
         before: { texts: [], coins: [] },
         after: {
           texts: [],
-          coins: [{ coinType: 60, value: getAddress(walletAddress) }],
+          coins: [{ coinType: 60, value: getAddress(account.ownerAddress) }],
         },
       })
     },
@@ -449,7 +465,7 @@ export const ChoosePrimaryNameDialog = ({
   const runConfirm = async () => {
     if (!selectedName || !account.ownerAddress) return
 
-    if (!account.signer || !account.accountAddress) {
+    if (!hasOwnerWallet(account.walletClient, account.ownerAddress)) {
       toast.error(t`Wallet isn’t ready yet. Try again in a moment.`)
       return
     }
@@ -477,7 +493,7 @@ export const ChoosePrimaryNameDialog = ({
   const handleConfirm = () => {
     if (!selectedName || !account.ownerAddress) return
 
-    if (!account.signer || !account.accountAddress) {
+    if (!hasOwnerWallet(account.walletClient, account.ownerAddress)) {
       toast.error(t`Wallet isn’t ready yet. Try again in a moment.`)
       return
     }
@@ -509,7 +525,10 @@ export const ChoosePrimaryNameDialog = ({
     !hasChanges ||
     !selectedName
   const actionErrorMessage =
-    setupResolverMutation.error?.message ??
+    getSetupResolverErrorMessage(setupResolverMutation.error, {
+      notAuthorized: t`Your wallet does not have permission to change the resolver for this name.`,
+      notReady: t`The replacement resolver could not be verified. Please try again.`,
+    }) ??
     updateEthAddressMutation.error?.message ??
     primaryNameErrorMessage
 
