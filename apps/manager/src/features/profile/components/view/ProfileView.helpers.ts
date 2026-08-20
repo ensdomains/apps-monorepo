@@ -191,7 +191,7 @@ export const getPrimaryContactItems = (
     return primaryContactItems.slice(0, limit)
   }
 
-  return [...records.contact, ...records.social]
+  return records.contact
     .flatMap((record) => {
       const item = toContactItem(record)
       return item ? [item] : []
