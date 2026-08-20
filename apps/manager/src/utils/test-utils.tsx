@@ -11,7 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createClient, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { mainnet } from 'viem/chains'
-import { afterEach, beforeEach } from 'vitest'
+import { afterEach, beforeEach, vi } from 'vitest'
 
 import { hashFn } from 'wagmi/query'
 
@@ -84,8 +84,10 @@ class ImagePreloadStub extends EventTarget {
  * starts with an empty list and the real constructor is restored afterwards.
  */
 export const stubImagePreload = () => {
+  // Mutated in place on purpose: the caller captures this reference once at
+  // describe scope, so clearing it between tests (rather than replacing the
+  // array) is what keeps that reference live.
   const probes: ImagePreloadStub[] = []
-  const originalImage = window.Image
 
   class TrackedImage extends ImagePreloadStub {
     constructor() {
@@ -96,11 +98,11 @@ export const stubImagePreload = () => {
 
   beforeEach(() => {
     probes.length = 0
-    window.Image = TrackedImage as unknown as typeof window.Image
+    vi.stubGlobal('Image', TrackedImage)
   })
 
   afterEach(() => {
-    window.Image = originalImage
+    vi.unstubAllGlobals()
   })
 
   return probes
