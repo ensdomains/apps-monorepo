@@ -17,7 +17,7 @@
     "viem": "catalog:"
   },
   "devDependencies": {
-    "typescript": "catalog:typescript6",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   }
 }

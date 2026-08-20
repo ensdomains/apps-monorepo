@@ -1,6 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { ClientOnly, createFileRoute } from '@tanstack/react-router'
-import { useSelector } from '@xstate/react'
+import { useSelector } from '@xstate/store-react'
 import { LinkButton } from '@/components/ui/button'
 import { PaymentMethodList } from '@/features/payment/components'
 import { paymentMethodsStore } from '@/features/payment/stores/payment-methods'
