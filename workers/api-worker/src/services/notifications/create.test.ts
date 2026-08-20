@@ -44,7 +44,8 @@ describe('shouldCreateExternalDeliveriesForNotification', () => {
     const payload = {
       name: 'example.eth',
       expiryDate: Date.now(),
-      isOwner: true,
+      protocol: 'v2' as const,
+      stage: 'expiry-7d' as const,
       watchReason: 'owned' as const,
     }
 

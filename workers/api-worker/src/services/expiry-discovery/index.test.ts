@@ -8,7 +8,7 @@ vi.mock('./indexer.js', () => ({
 import { KV_KEY } from '#core/kv/index.js'
 import { runExpiryDiscoveryCron } from './index.js'
 import { fetchExpiringNamesPage } from './indexer.js'
-import { STAGES } from './stages.js'
+import { getDefaultCursorForStage, STAGES } from './stages.js'
 
 class MockKV {
   private store = new Map<string, string>()
@@ -31,6 +31,14 @@ class MockKV {
 
 type CursorState = Record<string, { expiry_timestamp: number }>
 
+const defaultCursorsAt = (nowSec: number): CursorState =>
+  Object.fromEntries(
+    STAGES.map((stage) => [
+      stage.id,
+      { expiry_timestamp: getDefaultCursorForStage(stage, nowSec) },
+    ]),
+  )
+
 describe('runExpiryDiscoveryCron', () => {
   beforeEach(() => {
     vi.mocked(fetchExpiringNamesPage).mockReset()
@@ -38,13 +46,13 @@ describe('runExpiryDiscoveryCron', () => {
     vi.setSystemTime(new Date('2026-02-11T12:00:00Z'))
   })
 
-  it('enqueues events and persists stage cursors', async () => {
+  it('enqueues events with v2 protocol and persists stage cursors', async () => {
     const sendBatch = vi.fn(
       async (_messages: Array<{ body: unknown }>) => undefined,
     )
     vi.mocked(fetchExpiringNamesPage).mockImplementation(
       ({ stage, cursor }) => {
-        if (stage.id === '30d') {
+        if (stage.id === 'expiry-30d') {
           return okAsync({
             domains: [
               { name: 'alpha.eth', expiryDate: cursor + 100, owner: '0xabc' },
@@ -69,20 +77,114 @@ describe('runExpiryDiscoveryCron', () => {
 
     const firstBatch = sendBatch.mock.calls[0]?.[0] as
       | Array<{
-          body: { includeFavorites: boolean; stage: string; type: string }
+          body: {
+            includeFavorites: boolean
+            protocol: string
+            stage: string
+            type: string
+          }
         }>
       | undefined
     expect(firstBatch).toBeDefined()
     expect(firstBatch?.[0].body.type).toBe('name_expiring')
     expect(firstBatch?.[0].body.includeFavorites).toBe(false)
-    expect(firstBatch?.[0].body.stage).toBe('30d')
+    expect(firstBatch?.[0].body.stage).toBe('expiry-30d')
+    expect(firstBatch?.[0].body.protocol).toBe('v2')
 
     const cursors = (await env.KV.get(
       KV_KEY.EXPIRY_DISCOVERY.CURSORS,
       'json',
     )) as CursorState
-    expect(cursors['30d'].expiry_timestamp).toBeGreaterThan(
-      cursors['7d'].expiry_timestamp,
+    expect(cursors['expiry-30d'].expiry_timestamp).toBeGreaterThan(
+      cursors['expiry-7d'].expiry_timestamp,
+    )
+  })
+
+  it('emits grace and premium stages at v2 lifecycle offsets', async () => {
+    const sendBatch = vi.fn(
+      async (_messages: Array<{ body: unknown }>) => undefined,
+    )
+    const nowSec = Math.floor(new Date('2026-02-11T12:00:00Z').getTime() / 1000)
+    const kv = new MockKV()
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
+      ...defaultCursorsAt(nowSec),
+      'grace-start': { expiry_timestamp: nowSec - 50 },
+      'grace-7d': { expiry_timestamp: nowSec - 21 * 86_400 - 50 },
+      'grace-1d': { expiry_timestamp: nowSec - 27 * 86_400 - 50 },
+      'premium-start': { expiry_timestamp: nowSec - 28 * 86_400 - 50 },
+    })
+
+    vi.mocked(fetchExpiringNamesPage).mockImplementation(
+      ({ stage, cursor }) => {
+        if (stage.id === 'grace-start') {
+          return okAsync({
+            domains: [{ name: 'grace-start.eth', expiryDate: cursor + 10 }],
+            hasMore: false,
+          })
+        }
+        if (stage.id === 'grace-7d') {
+          return okAsync({
+            domains: [{ name: 'grace-7d.eth', expiryDate: cursor + 10 }],
+            hasMore: false,
+          })
+        }
+        if (stage.id === 'grace-1d') {
+          return okAsync({
+            domains: [{ name: 'grace-1d.eth', expiryDate: cursor + 10 }],
+            hasMore: false,
+          })
+        }
+        if (stage.id === 'premium-start') {
+          return okAsync({
+            domains: [{ name: 'premium.eth', expiryDate: cursor + 10 }],
+            hasMore: false,
+          })
+        }
+
+        return okAsync({ domains: [], hasMore: false })
+      },
+    )
+
+    const env = {
+      KV: kv,
+      EVENT_INGESTION_QUEUE: { sendBatch },
+    } as unknown as CloudflareBindings
+
+    const result = await runExpiryDiscoveryCron(env)
+
+    expect(result.isOk()).toBe(true)
+
+    const bodies = sendBatch.mock.calls.flatMap((call) =>
+      (
+        call[0] as Array<{
+          body: { name: string; protocol: string; stage: string }
+        }>
+      ).map((message) => message.body),
+    )
+
+    expect(bodies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'grace-start.eth',
+          stage: 'grace-start',
+          protocol: 'v2',
+        }),
+        expect.objectContaining({
+          name: 'grace-7d.eth',
+          stage: 'grace-7d',
+          protocol: 'v2',
+        }),
+        expect.objectContaining({
+          name: 'grace-1d.eth',
+          stage: 'grace-1d',
+          protocol: 'v2',
+        }),
+        expect.objectContaining({
+          name: 'premium.eth',
+          stage: 'premium-start',
+          protocol: 'v2',
+        }),
+      ]),
     )
   })
 
@@ -92,12 +194,16 @@ describe('runExpiryDiscoveryCron', () => {
     )
 
     const kv = new MockKV()
-    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
-      '30d': { expiry_timestamp: 111 },
-      '7d': { expiry_timestamp: 222 },
-      '1d': { expiry_timestamp: 333 },
-      expired: { expiry_timestamp: 444 },
-    })
+    const seeded = {
+      'expiry-30d': { expiry_timestamp: 111 },
+      'expiry-7d': { expiry_timestamp: 222 },
+      'expiry-1d': { expiry_timestamp: 333 },
+      'grace-start': { expiry_timestamp: 444 },
+      'grace-7d': { expiry_timestamp: 555 },
+      'grace-1d': { expiry_timestamp: 666 },
+      'premium-start': { expiry_timestamp: 777 },
+    }
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, seeded)
 
     const env = {
       KV: kv,
@@ -111,12 +217,7 @@ describe('runExpiryDiscoveryCron', () => {
       KV_KEY.EXPIRY_DISCOVERY.CURSORS,
       'json',
     )) as CursorState
-    expect(cursors).toEqual({
-      '30d': { expiry_timestamp: 111 },
-      '7d': { expiry_timestamp: 222 },
-      '1d': { expiry_timestamp: 333 },
-      expired: { expiry_timestamp: 444 },
-    })
+    expect(cursors).toEqual(seeded)
   })
 
   it('skips indexer calls when cursor is already caught up', async () => {
@@ -124,10 +225,13 @@ describe('runExpiryDiscoveryCron', () => {
 
     const kv = new MockKV()
     kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
-      '30d': { expiry_timestamp: nowSec + 31 * 86_400 },
-      '7d': { expiry_timestamp: nowSec + 8 * 86_400 },
-      '1d': { expiry_timestamp: nowSec + 2 * 86_400 },
-      expired: { expiry_timestamp: nowSec },
+      'expiry-30d': { expiry_timestamp: nowSec + 31 * 86_400 },
+      'expiry-7d': { expiry_timestamp: nowSec + 8 * 86_400 },
+      'expiry-1d': { expiry_timestamp: nowSec + 2 * 86_400 },
+      'grace-start': { expiry_timestamp: nowSec },
+      'grace-7d': { expiry_timestamp: nowSec - 21 * 86_400 },
+      'grace-1d': { expiry_timestamp: nowSec - 27 * 86_400 },
+      'premium-start': { expiry_timestamp: nowSec - 28 * 86_400 },
     })
 
     const env = {
@@ -148,11 +252,11 @@ describe('runExpiryDiscoveryCron', () => {
 
     vi.mocked(fetchExpiringNamesPage).mockImplementation(
       ({ stage, cursor }) => {
-        if (stage.id === '7d') {
+        if (stage.id === 'expiry-7d') {
           return errAsync(new Error('indexer failed') as never)
         }
 
-        if (stage.id === '1d') {
+        if (stage.id === 'expiry-1d') {
           return okAsync({
             domains: [
               { name: 'beta.eth', expiryDate: cursor + 50, owner: '0xdef' },
@@ -181,8 +285,8 @@ describe('runExpiryDiscoveryCron', () => {
     )) as CursorState
     const nowSec = Math.floor(new Date('2026-02-11T12:00:00Z').getTime() / 1000)
 
-    expect(cursors['1d'].expiry_timestamp).toBe(nowSec + 50)
-    expect(cursors['7d'].expiry_timestamp).toBe(nowSec)
+    expect(cursors['expiry-1d'].expiry_timestamp).toBe(nowSec + 50)
+    expect(cursors['expiry-7d'].expiry_timestamp).toBe(nowSec)
   })
 
   it('chunks queue batches at 100 messages', async () => {
@@ -192,7 +296,7 @@ describe('runExpiryDiscoveryCron', () => {
 
     vi.mocked(fetchExpiringNamesPage).mockImplementation(
       ({ stage, cursor }) => {
-        if (stage.id !== '30d') {
+        if (stage.id !== 'expiry-30d') {
           return okAsync({ domains: [], hasMore: false })
         }
 
@@ -235,7 +339,8 @@ describe('runExpiryDiscoveryCron', () => {
     const result = await runExpiryDiscoveryCron(env)
 
     expect(result.isOk()).toBe(true)
-    // `expired` starts at now on first run, so it is immediately caught up.
-    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(STAGES.length - 1)
+    // At/after-expiry stages start at their upper bound on first run.
+    const backfillStages = STAGES.filter((stage) => stage.offsetDays > 0)
+    expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(backfillStages.length)
   })
 })

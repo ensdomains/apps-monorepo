@@ -34,6 +34,8 @@ export const pushTemplates: {
         url: `https://app.ens.domains/${payload.name}`,
         name: payload.name,
         expiryDate: payload.expiryDate,
+        protocol: payload.protocol ?? null,
+        stage: payload.stage ?? null,
       },
     }
   },

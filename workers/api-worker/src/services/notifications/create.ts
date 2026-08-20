@@ -58,7 +58,7 @@ export function shouldCreateExternalDeliveriesForNotification(
       const watchReason: WatchReason =
         // Prefer explicit watch reason (new flow)
         nameExpiryPayload.watchReason ??
-        // Fallback for old payloads / tests
+        // Fallback for old payloads that only stored isOwner
         (nameExpiryPayload.isOwner ? 'owned' : 'favourited')
 
       switch (watchReason) {

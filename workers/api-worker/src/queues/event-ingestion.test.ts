@@ -28,32 +28,32 @@ import {
 
 const mockGetDatabase = vi.mocked(getDatabase)
 
+const expiryEvent = (overrides: Partial<ExpiryEvent> = {}): ExpiryEvent => ({
+  type: 'name_expiring',
+  name: 'alpha.eth',
+  expiryDate: 1_700_000_000,
+  stage: 'expiry-7d',
+  protocol: 'v2',
+  owner: '0xabc',
+  includeFavorites: true,
+  ...overrides,
+})
+
 describe('event-ingestion helpers', () => {
   it('builds deterministic idempotency keys', () => {
-    const event: ExpiryEvent = {
-      type: 'name_expiring',
-      name: 'alpha.eth',
-      expiryDate: 1_700_000_000,
-      stage: '7d',
-      owner: '0xabc',
-      includeFavorites: true,
-    }
+    const event = expiryEvent({ stage: 'expiry-7d' })
 
     expect(buildIdempotencyKey(event, 'user-1')).toBe(
-      'name-expiry:user-1:alpha.eth:7d:1700000000',
+      'name-expiry:user-1:alpha.eth:expiry-7d:1700000000',
     )
+    expect(
+      buildIdempotencyKey(expiryEvent({ stage: 'grace-7d' }), 'user-1'),
+    ).toBe('name-expiry:user-1:alpha.eth:grace-7d:1700000000')
   })
 
   it('collects owner and favourites with owner priority', () => {
     const recipients = collectRecipientsForEvent(
-      {
-        type: 'name_expiring',
-        name: 'alpha.eth',
-        expiryDate: 1,
-        stage: '1d',
-        owner: '0xabc',
-        includeFavorites: true,
-      },
+      expiryEvent({ stage: 'expiry-1d' }),
       new Map([['0xabc', 'user-owner']]),
       new Map([['alpha.eth', new Set(['user-owner', 'user-fav'])]]),
     )
@@ -118,7 +118,8 @@ describe('handleEventIngestionQueue', () => {
       type: 'name_expiring',
       name: 'alpha.eth',
       expiryDate: 1_700_000_000,
-      stage: '7d',
+      stage: 'expiry-7d',
+      protocol: 'v2',
       owner: '0xabc',
       includeFavorites: true,
     })
@@ -138,7 +139,8 @@ describe('handleEventIngestionQueue', () => {
           payload: {
             name: 'alpha.eth',
             expiryDate: 1_700_000_000_000,
-            isOwner: true,
+            protocol: 'v2',
+            stage: 'expiry-7d',
             watchReason: 'owned',
           },
         },
@@ -168,6 +170,23 @@ describe('handleEventIngestionQueue', () => {
     await handleEventIngestionQueue(batch, env)
 
     expect(dbFixture.notificationsInsertValues).toHaveLength(1)
+    expect(dbFixture.notificationsInsertValues[0]).toMatchObject({
+      kind: 'name-expiry',
+      payload: {
+        name: 'alpha.eth',
+        expiryDate: 1_700_000_000_000,
+        protocol: 'v2',
+        stage: 'expiry-7d',
+        watchReason: 'owned',
+      },
+    })
+    expect(
+      (
+        dbFixture.notificationsInsertValues[0] as {
+          payload: { isOwner?: boolean }
+        }
+      ).payload.isOwner,
+    ).toBeUndefined()
     expect(dbFixture.deliveriesInsertValues).toHaveLength(1)
     expect(emailQueue.sendBatch).toHaveBeenCalledTimes(1)
     expect(eventMessage.ack).toHaveBeenCalledTimes(1)
@@ -179,7 +198,8 @@ describe('handleEventIngestionQueue', () => {
       type: 'name_expiring',
       name: 'alpha.eth',
       expiryDate: 1_700_000_000,
-      stage: '7d',
+      stage: 'expiry-7d',
+      protocol: 'v2',
       owner: '0xabc',
       includeFavorites: true,
     })
@@ -199,7 +219,8 @@ describe('handleEventIngestionQueue', () => {
           payload: {
             name: 'alpha.eth',
             expiryDate: 1_700_000_000_000,
-            isOwner: true,
+            protocol: 'v2',
+            stage: 'expiry-7d',
             watchReason: 'owned',
           },
         },
@@ -238,7 +259,8 @@ describe('handleEventIngestionQueue', () => {
       type: 'name_expiring',
       name: 'alpha.eth',
       expiryDate: 1_700_000_000,
-      stage: '7d',
+      stage: 'expiry-7d',
+      protocol: 'v2',
       owner: '0xabc',
       includeFavorites: true,
     })
@@ -269,7 +291,8 @@ describe('handleEventIngestionQueue', () => {
       type: 'name_expiring',
       name: 'alpha.eth',
       expiryDate: 1_700_000_000,
-      stage: '7d',
+      stage: 'expiry-7d',
+      protocol: 'v2',
       owner: undefined,
       includeFavorites: true,
     })
@@ -288,7 +311,8 @@ describe('handleEventIngestionQueue', () => {
       payload: {
         name: 'alpha.eth',
         expiryDate: 1_700_000_000_000,
-        isOwner: false,
+        protocol: 'v2',
+        stage: 'expiry-7d',
         watchReason: 'favourited',
       },
     }))
@@ -339,7 +363,8 @@ describe('handleEventIngestionQueue', () => {
       type: 'name_expiring',
       name: 'alpha.eth',
       expiryDate: 1_700_000_000,
-      stage: '7d',
+      stage: 'expiry-7d',
+      protocol: 'v2',
       owner: '0xabc',
       includeFavorites: true,
     })
@@ -356,7 +381,8 @@ describe('handleEventIngestionQueue', () => {
           payload: {
             name: 'alpha.eth',
             expiryDate: 1_700_000_000_000,
-            isOwner: true,
+            protocol: 'v2',
+            stage: 'expiry-7d',
             watchReason: 'owned',
           },
         },
@@ -407,7 +433,8 @@ describe('handleEventIngestionQueue', () => {
       type: 'name_expiring',
       name: 'alpha.eth',
       expiryDate: 1_700_000_000,
-      stage: '7d',
+      stage: 'expiry-7d',
+      protocol: 'v2',
       owner: '0xabc',
       includeFavorites: true,
     })
@@ -424,7 +451,8 @@ describe('handleEventIngestionQueue', () => {
           payload: {
             name: 'alpha.eth',
             expiryDate: 1_700_000_000_000,
-            isOwner: true,
+            protocol: 'v2',
+            stage: 'expiry-7d',
             watchReason: 'owned',
           },
         },
@@ -465,7 +493,8 @@ describe('handleEventIngestionQueue', () => {
       type: 'name_expiring',
       name: 'alpha.eth',
       expiryDate: 1_700_000_000,
-      stage: '7d',
+      stage: 'expiry-7d',
+      protocol: 'v2',
       owner: '0xabc',
       includeFavorites: true,
     })
@@ -479,5 +508,119 @@ describe('handleEventIngestionQueue', () => {
 
     expect(message.retry).toHaveBeenCalledTimes(1)
     expect(message.ack).not.toHaveBeenCalled()
+  })
+
+  it('preserves protocol and stage for grace lifecycle events', async () => {
+    const message = makeQueueMessage<ExpiryEvent>(
+      expiryEvent({
+        stage: 'grace-7d',
+        protocol: 'v2',
+      }),
+    )
+    const batch = makeQueueBatch('app-api-worker-event-ingestion', [message])
+
+    const dbFixture = makeMockDb({
+      users: [{ id: 'user-1', address: '0xabc' }],
+      favorites: [],
+      insertedNotifications: [
+        {
+          id: 'notif-1',
+          user_id: 'user-1',
+          kind: 'name-expiry',
+          payload: {
+            name: 'alpha.eth',
+            expiryDate: 1_700_000_000_000,
+            protocol: 'v2',
+            stage: 'grace-7d',
+            watchReason: 'owned',
+          },
+        },
+      ],
+      userChannels: [],
+      userSettings: [],
+    })
+    mockGetDatabase.mockReturnValue(dbFixture.db as never)
+
+    await handleEventIngestionQueue(batch, makeMockEnv())
+
+    expect(dbFixture.notificationsInsertValues[0]).toMatchObject({
+      payload: {
+        protocol: 'v2',
+        stage: 'grace-7d',
+        watchReason: 'owned',
+      },
+      idempotency_key: 'name-expiry:user-1:alpha.eth:grace-7d:1700000000',
+    })
+  })
+
+  it('maps legacy stage ids onto the new lifecycle names', async () => {
+    const message = makeQueueMessage({
+      type: 'name_expiring',
+      name: 'alpha.eth',
+      expiryDate: 1_700_000_000,
+      stage: 'expired',
+      owner: '0xabc',
+      includeFavorites: true,
+    })
+    const batch = makeQueueBatch('app-api-worker-event-ingestion', [message])
+
+    const dbFixture = makeMockDb({
+      users: [{ id: 'user-1', address: '0xabc' }],
+      favorites: [],
+      insertedNotifications: [],
+      userChannels: [],
+      userSettings: [],
+    })
+    mockGetDatabase.mockReturnValue(dbFixture.db as never)
+
+    await handleEventIngestionQueue(batch, makeMockEnv())
+
+    expect(dbFixture.notificationsInsertValues[0]).toMatchObject({
+      payload: {
+        protocol: 'v2',
+        stage: 'grace-start',
+        watchReason: 'owned',
+      },
+      idempotency_key: 'name-expiry:user-1:alpha.eth:grace-start:1700000000',
+    })
+    expect(message.ack).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps owner and favourite routing independent of stage', async () => {
+    const message = makeQueueMessage<ExpiryEvent>(
+      expiryEvent({
+        stage: 'premium-start',
+        owner: '0xabc',
+        includeFavorites: true,
+      }),
+    )
+    const batch = makeQueueBatch('app-api-worker-event-ingestion', [message])
+
+    const dbFixture = makeMockDb({
+      users: [{ id: 'user-owner', address: '0xabc' }],
+      favorites: [
+        { user_id: 'user-owner', name: 'alpha.eth' },
+        { user_id: 'user-fav', name: 'alpha.eth' },
+      ],
+      insertedNotifications: [],
+      userChannels: [],
+      userSettings: [],
+    })
+    mockGetDatabase.mockReturnValue(dbFixture.db as never)
+
+    await handleEventIngestionQueue(batch, makeMockEnv())
+
+    expect(dbFixture.notificationsInsertValues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          user_id: 'user-owner',
+          payload: expect.objectContaining({ watchReason: 'owned' }),
+        }),
+        expect.objectContaining({
+          user_id: 'user-fav',
+          payload: expect.objectContaining({ watchReason: 'favourited' }),
+        }),
+      ]),
+    )
   })
 })

@@ -226,7 +226,8 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
         payload: {
           name: event.name,
           expiryDate: event.expiryDate * 1000,
-          isOwner: watchReason === 'owned',
+          protocol: event.protocol,
+          stage: event.stage,
           watchReason,
         },
         idempotency_key: idempotencyKey,
@@ -331,7 +332,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
   for (const notification of insertedNotifications) {
     const payload = notification.payload as {
       watchReason?: WatchReason
-      isOwner: boolean
+      isOwner?: boolean
     }
 
     const watchReason: WatchReason =

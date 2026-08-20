@@ -15,6 +15,16 @@ export {
 export type { ChannelType } from './channels'
 export { channelDefinitions } from './channels'
 export type {
+  NameExpiryProtocol,
+  NameExpiryStage,
+  NameExpiryWatchReason,
+} from './kinds/name-expiry'
+export {
+  nameExpiryProtocolSchema,
+  nameExpiryStageSchema,
+  nameExpiryWatchReasonSchema,
+} from './kinds/name-expiry'
+export type {
   AnyBroadcastNotificationPayload,
   AnyChannelData,
   AnyNotificationPayload,

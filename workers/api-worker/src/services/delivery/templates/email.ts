@@ -23,7 +23,10 @@ export const emailTemplates: {
       expiryDays: Math.ceil(
         (payload.expiryDate - Date.now()) / (1000 * 60 * 60 * 24),
       ),
-      isOwner: payload.isOwner,
+      isOwner: payload.watchReason === 'owned',
+      watchReason: payload.watchReason,
+      protocol: payload.protocol,
+      stage: payload.stage,
     },
     subject: 'Domain Expiration Alert',
   }),

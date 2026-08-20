@@ -41,6 +41,7 @@ function buildExpiryEvents(
     name: domain.name,
     expiryDate: domain.expiryDate,
     stage: stage.id,
+    protocol: 'v2',
     owner: domain.owner,
     includeFavorites: stage.includeFavorites,
   }))

@@ -30,9 +30,10 @@ export const telegramTemplates: {
       (payload.expiryDate - Date.now()) / (1000 * 60 * 60 * 24),
     )
 
-    const ownerText = payload.isOwner
-      ? `Your domain \`${payload.name}\` will expire in *${daysLeft} days*.\n\nDon't forget to renew your domain!`
-      : `The domain \`${payload.name}\` you're watching will expire in *${daysLeft} days*.`
+    const ownerText =
+      payload.watchReason === 'owned'
+        ? `Your domain \`${payload.name}\` will expire in *${daysLeft} days*.\n\nDon't forget to renew your domain!`
+        : `The domain \`${payload.name}\` you're watching will expire in *${daysLeft} days*.`
 
     return {
       text: `⚠️ *Domain Expiration Alert*\n\n${ownerText}`,
