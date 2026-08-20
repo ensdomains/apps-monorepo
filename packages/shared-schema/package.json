@@ -18,7 +18,7 @@
     "valibot": "^1.2.0"
   },
   "devDependencies": {
-    "typescript": "catalog:typescript6",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   }
 }

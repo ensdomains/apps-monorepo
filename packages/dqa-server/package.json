@@ -23,7 +23,7 @@
     "@types/node": "^22.10.0",
     "@types/ws": "^8.5.13",
     "html-to-image": "1.11.13",
-    "typescript": "catalog:typescript6",
+    "typescript": "catalog:",
     "vite": "^8.0.10"
   }
 }

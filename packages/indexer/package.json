@@ -21,7 +21,7 @@
     "@graphql-codegen/typescript": "^5.0.2",
     "@graphql-codegen/typescript-document-nodes": "^5.0.6",
     "@graphql-codegen/typescript-operations": "^5.0.2",
-    "typescript": "catalog:typescript6"
+    "typescript": "catalog:"
   },
   "keywords": [],
   "dependencies": {
