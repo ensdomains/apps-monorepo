@@ -87,18 +87,20 @@ describe('ProfileView helpers', () => {
     ])
   })
 
-  it('falls back to the first populated contact and social records when no primary contacts are set', () => {
+  it('excludes profile header records when falling back to contact and social records', () => {
     const records = makeRecords({
       contact: [
         { key: 'location', value: 'Canada' },
+        { key: 'timezone', value: 'UTC-5' },
         { key: 'email', value: 'person@example.com' },
+        { key: 'phone', value: '+1 555 0100' },
       ],
       social: [{ key: 'com.github', value: 'ensdomains' }],
     })
 
     expect(getPrimaryContactItems(records, 3).map((item) => item.key)).toEqual([
-      'location',
       'email',
+      'phone',
       'com.github',
     ])
   })

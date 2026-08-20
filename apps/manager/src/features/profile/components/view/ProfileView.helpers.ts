@@ -15,6 +15,10 @@ import { parsePrimaryContactKeys } from '../dialogs/edit-profile/tabs/contact/re
 
 const ETH_COIN_TYPE = 60
 const DOMAIN_LIKE_URL = /^[\w.-]+\.[a-z]{2,}(?:[/#?].*)?$/i
+const PROFILE_HEADER_ONLY_RECORD_KEYS: ReadonlySet<string> = new Set([
+  'location',
+  'timezone',
+])
 const COMPACT_MONTH_LABELS = [
   'JAN',
   'FEB',
@@ -150,6 +154,8 @@ const getRecordFromRecords = (
 const toContactItem = (
   record: TextRecordValue,
 ): ProfileContactItem | undefined => {
+  if (PROFILE_HEADER_ONLY_RECORD_KEYS.has(record.key)) return undefined
+
   const recordDef = getRecordDef(record.key)
   const displayValue = getRecordDisplayValue(recordDef, record.value)
 
