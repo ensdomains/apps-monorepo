@@ -183,6 +183,9 @@ describe('routing', () => {
       expect(extractNameFromPath('/register')).toBeNull()
       expect(extractNameFromPath('/tld')).toBeNull()
       expect(extractNameFromPath('/addr')).toBeNull()
+      // The DNS import flow lives at /import/$name — never the name "import".
+      expect(extractNameFromPath('/import')).toBeNull()
+      expect(extractNameFromPath('/import/example.com')).toBeNull()
     })
 
     it('should return null for reserved route subpages', () => {
