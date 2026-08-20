@@ -1,5 +1,5 @@
 import { Check, Copy } from 'lucide-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { DnsRecordSpec } from '../helpers/records'
 
@@ -28,7 +28,7 @@ const Row = ({
   children,
 }: {
   readonly label: string
-  readonly children: React.ReactNode
+  readonly children: ReactNode
 }) => (
   <div className="flex items-start gap-6">
     <span className="w-16 shrink-0 text-muted-foreground">{label}</span>
@@ -45,7 +45,7 @@ export const DnsRecordTable = ({
   foundRow,
 }: {
   readonly record: DnsRecordSpec
-  readonly foundRow: React.ReactNode
+  readonly foundRow: ReactNode
 }) => (
   <div className="rounded-xl border p-6 flex flex-col gap-4 text-sm">
     <div className="flex flex-col sm:flex-row gap-4 sm:gap-12">

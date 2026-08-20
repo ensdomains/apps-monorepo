@@ -13,7 +13,6 @@ import type { Page } from '@playwright/test'
 
 export const DNS_TYPE = {
   TXT: 16,
-  RRSIG: 46,
 } as const
 
 export type DohRecord = {
@@ -59,30 +58,6 @@ export const dohInsecure = (name: string): DohResponse =>
 /** NXDOMAIN — the queried name does not exist. */
 export const dohNxDomain = (name: string): DohResponse =>
   baseResponse(name, { Status: 3 })
-
-/**
- * A validated `ENS1` TXT answer for `name`, in the shape ensjs's
- * `getDnsOffchainData` expects: the quoted TXT record plus an RRSIG whose
- * label count matches (wildcard-expansion check).
- */
-export const ens1Answers = (
-  name: string,
-  resolver: string,
-  context: string,
-): DohRecord[] => [
-  {
-    name,
-    type: DNS_TYPE.TXT,
-    TTL: 300,
-    data: `"ENS1 ${resolver} ${context}"`,
-  },
-  {
-    name,
-    type: DNS_TYPE.RRSIG,
-    TTL: 300,
-    data: `TXT 13 ${name.split('.').length} 300 20330101000000 20240101000000 12345 ${name}. e2emocksig==`,
-  },
-]
 
 /** The `_ens.<domain>` TXT answer (`a=<address>`) read by `getDnsOwner`. */
 export const ensOwnerAnswers = (

@@ -198,18 +198,17 @@ export const useDnsImportTransactions = ({
       await waitForTransaction(txId)
     })
 
+  const dnsImportData = importDataQuery.data
+
   const claimTransaction: Transaction = {
     id: claimId,
     title: mode === 'claim' ? 'Import name' : 'Import for DNS owner',
     transactionName: `Import ${name}`,
     intent: {
       prepare:
-        importDataQuery.data && connectedAddress
+        dnsImportData && connectedAddress
           ? ({ walletClient }) => {
-              const call = buildClaimCall(
-                // biome-ignore lint/style/noNonNullAssertion: guarded above
-                importDataQuery.data!,
-              )
+              const call = buildClaimCall(dnsImportData)
               return toEoaCustomIntent({
                 from: walletClient.account.address,
                 to: call.to,
@@ -263,9 +262,7 @@ export const useDnsImportTransactions = ({
   return {
     transactions,
     startImport,
-    importDataQuery,
     isReady:
-      !!importDataQuery.data &&
-      (mode !== 'claim' || approvalQuery.data !== undefined),
+      !!dnsImportData && (mode !== 'claim' || approvalQuery.data !== undefined),
   }
 }

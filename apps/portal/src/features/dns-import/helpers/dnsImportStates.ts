@@ -12,7 +12,7 @@ import { isAddressEqual } from 'viem'
 
 /**
  * The "Found" row state on the verify-ownership step, derived from the DNS
- * lookup result. `none`/`invalid`/`dnssec-failure` block progressing;
+ * lookup result. `none`/`invalid` block progressing;
  * `mismatch` still allows importing (the name just won't point to the
  * connected address); `verified` unlocks the happy path.
  */

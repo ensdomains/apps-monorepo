@@ -1,5 +1,5 @@
 import { CheckCircle2, RefreshCw, TriangleAlert } from 'lucide-react'
-import type * as React from 'react'
+import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -9,7 +9,7 @@ export const StepHeadingCard = ({
   description,
 }: {
   readonly title: string
-  readonly description: React.ReactNode
+  readonly description: ReactNode
 }) => (
   <div className="rounded-xl bg-neutral-2 p-6 flex flex-col gap-3">
     <h2 className="font-serif text-3xl font-normal leading-none tracking-[-0.02em]">
@@ -25,7 +25,7 @@ export const StepSuccessCard = ({
   description,
 }: {
   readonly title: string
-  readonly description: React.ReactNode
+  readonly description: ReactNode
 }) => (
   <div className="rounded-xl bg-message-success-fill text-message-success-text p-6 flex items-start gap-3">
     <CheckCircle2 className="size-6 shrink-0 mt-0.5" strokeWidth={1.5} />
@@ -44,7 +44,7 @@ export const StepDangerCard = ({
   description,
 }: {
   readonly title: string
-  readonly description: React.ReactNode
+  readonly description: ReactNode
 }) => (
   <div className="rounded-xl bg-message-danger-fill text-message-danger-text p-6 flex items-start gap-3">
     <TriangleAlert className="size-6 shrink-0 mt-0.5" strokeWidth={1.5} />
@@ -64,7 +64,7 @@ export const StatusChip = ({
   className,
 }: {
   readonly tone: 'warning' | 'danger' | 'success'
-  readonly children: React.ReactNode
+  readonly children: ReactNode
   readonly className?: string
 }) => (
   <div
