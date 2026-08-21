@@ -111,7 +111,7 @@ describe('computeNamePricingDisplay', () => {
         THREE_YEARS,
         0n,
       )
-      expect(result.priceValue).toBe('$5.00/year')
+      expect(result.priceValue).toBe('≈ $5.00/year')
       expect(result.priceValue).not.toContain('×')
     })
 
@@ -141,7 +141,21 @@ describe('computeNamePricingDisplay', () => {
       )
 
       expect(result.registrationPeriod).toBe('1 year')
-      expect(result.priceValue).toBe(`${result.total}/year`)
+      expect(result.priceValue).toBe(`≈ ${result.total}/year`)
+    })
+
+    it('marks the rate approximate: rounding it back out misses the total', () => {
+      // $27.0198 over 6 years is $4.5033/year, which prints as $4.50 — and
+      // $4.50 × 6 reads as $27.00, two cents under what is charged.
+      const result = computeNamePricingDisplay(
+        selectedName('hello.eth'),
+        mockPrice(27.0198),
+        6 * CONTRACT_SECONDS_PER_YEAR,
+        0n,
+      )
+
+      expect(result.priceValue).toBe('≈ $4.50/year')
+      expect(result.total).toBe('$27.02')
     })
 
     it('shows actual base for 1-year durations', () => {
@@ -152,7 +166,7 @@ describe('computeNamePricingDisplay', () => {
         ONE_YEAR,
         0n,
       )
-      expect(result.priceValue).toBe('$8.00/year')
+      expect(result.priceValue).toBe('≈ $8.00/year')
     })
   })
 

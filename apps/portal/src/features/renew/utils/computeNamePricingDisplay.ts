@@ -87,9 +87,13 @@ export function computeNamePricingDisplay(
       : 0
   const discountAmount = Math.max(undiscountedBase - actualPrice, 0)
 
+  // `≈` because the rate is the total divided by the term and then rounded to
+  // cents: multiplying it back out misses the total by up to half a cent per
+  // year (6 × $4.5033 is $27.02, but the rounded $4.50 × 6 reads as $27.00).
+  // The total below is the exact charge; this row is a comparison figure.
   const priceValue =
     Math.round(years * 12) >= 12
-      ? `${formatUsd(effectivePerYear)}/year`
+      ? `≈ ${formatUsd(effectivePerYear)}/year`
       : formatUsd(effectivePerYear)
 
   return {
