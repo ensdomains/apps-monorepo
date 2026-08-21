@@ -341,12 +341,9 @@ const getMissingMigrationApprovals = async (params: {
 }): Promise<readonly MigrationApproval[]> => {
   const { ctx, plan } = params
   const basicNeeds = approvalNeedsFor(plan.groups)
-  const needs = {
-    ...basicNeeds,
-    requiresManagerRestoration: plan.classified.some(
-      (name) => name.managerAddress !== null,
-    ),
-  }
+  // Automatic manager restoration is disabled, so ETHRegistry must never be
+  // approved for manager grants during migration.
+  const needs = { ...basicNeeds, requiresManagerRestoration: false }
   const status = await checkMigrationApprovals({
     eoa: ctx.walletAddress,
     hcaAddress: ctx.hcaAddress,

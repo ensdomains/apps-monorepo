@@ -5,9 +5,8 @@
 Following HCA registration support in #989, ENS v2 migration now uses the
 remediated standalone HCA deployment and the HCA-aware MigrationHelper on
 Sepolia. The connected wallet remains the name owner while each gas-safe HCA
-batch calls MigrationHelper once, restores legacy manager access, and replays
-records. Fresh HCA setup and required permissions are handled in-flow, with
-execution paid in Sepolia ETH.
+batch calls MigrationHelper once and replays records. Fresh HCA setup and
+required permissions are handled in-flow, with execution paid in Sepolia ETH.
 
 ## Wallet confirmations
 
@@ -27,12 +26,10 @@ path, the common cases are:
 
 The count includes the migration batch, required permission grants, automatic
 operator-permission cleanup, and HCA deployment when needed. NFT approvals are
-granted to MigrationHelper; the ETHRegistry manager-restoration approval is
-granted to the HCA. One unwrapped name uses a per-token ERC-721 approval, which
-clears automatically when the transfer succeeds. Multiple unwrapped names use
-one temporary operator approval. A missing ETHRegistry approval adds a grant
-and a cleanup confirmation. Every additional gas-safe atomic batch adds one
-confirmation.
+granted to MigrationHelper. One unwrapped name uses a per-token ERC-721
+approval, which clears automatically when the transfer succeeds. Multiple
+unwrapped names use one temporary operator approval. Every additional gas-safe
+atomic batch adds one confirmation.
 
 ## Operator notes
 
@@ -46,8 +43,7 @@ confirmation.
 - Migration uses a wallet-paid EOA transaction to
   `StandaloneHCA.executeByOwner(...)`; it does not use `wallet_sendCalls`, Warp,
   or a registration session. Each gas batch contains one
-  `MigrationHelper.migrate(...)` call plus manager restoration and resolver
-  replay calls.
+  `MigrationHelper.migrate(...)` call plus resolver replay calls.
 - MigrationHelper resolves the certified HCA caller back to its EOA owner and
   checks that owner's ERC-721/ERC-1155 approvals to the helper. Unwrapped,
   unlocked, locked 2LD, and child inputs are grouped into one helper call while
@@ -55,8 +51,8 @@ confirmation.
 - Expected wrapper registries are derived recursively from VerifiableFactory.
   Locked hierarchies execute parent-first and fail closed when a required parent
   is missing, conflicting, uncertified, or cyclic.
-- A name is reported complete only after its v2 owner, resolver, manager roles,
-  resolver roles, and replayed records have been verified on-chain.
+- A name is reported complete only after its v2 owner, resolver, resolver roles,
+  and replayed records have been verified on-chain.
 - Every atomic batch gets a durable intent marker before its wallet prompt, and
   its transaction hash replaces that marker before receipt polling. A
   confirmed-success batch that fails post-state verification is blocked from
@@ -67,11 +63,9 @@ confirmation.
 - Custom resolvers are preserved. Locked names whose replaceable resolver is
   absent from the live `PublicResolverSet` remain blocked.
 - Operator approvals created by the migration are temporary and are revoked
-  automatically after the atomic batches verify. This includes NFT access for
-  MigrationHelper and any manager-restoration access for the HCA. If cleanup is
-  rejected or fails, the recovery action remains labelled
-  `Revoke temporary HCA access`. Per-token approvals clear automatically when
-  their transfers succeed.
+  automatically after the atomic batches verify. If cleanup is rejected or
+  fails, the recovery action remains labelled `Revoke temporary HCA access`.
+  Per-token approvals clear automatically when their transfers succeed.
 - Text, address, contenthash, and ABI records are read from the V1 resolver,
   replayed in the HCA batch, and verified on-chain before completion.
 - The rollout remains behind the existing migration feature flag.
@@ -80,10 +74,11 @@ confirmation.
 
 QA should cover fresh and existing HCAs; unwrapped, unlocked wrapped, locked
 2LD, and locked/detached descendant names; parent-first locked hierarchies;
-legacy managers and records; multiple gas batches and retry reconciliation;
-transaction speed-up/replacement; complete atomic rollback; automatic
-token-approval clearing; operator-approval cleanup and cleanup retry. No
-migration E2E implementation is included in this change.
+transferred names whose previous registrant remains the V1 manager; records;
+multiple gas batches and retry reconciliation; transaction speed-up/replacement;
+complete atomic rollback; automatic token-approval clearing; operator-approval
+cleanup and cleanup retry. No migration E2E implementation is included in this
+change.
 
 ## Release gate
 

@@ -8,7 +8,6 @@ import { type Address, type Hex, namehash, type PublicClient } from 'viem'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import {
   GAS_HEURISTIC,
-  GRANT_ROLES_GAS,
   MULTICALL_OVERHEAD,
   PER_BATCH_OVERHEAD,
   SETABI_GAS,
@@ -107,9 +106,6 @@ const previewAtomicBatchGas = (params: {
         break
       case 'wallet-co-admin-grant':
         gas += 70_000n
-        break
-      case 'manager-role-grant':
-        gas += GRANT_ROLES_GAS
         break
       case 'profile-replay': {
         const classified = params.classifiedByName.get(execution.name)

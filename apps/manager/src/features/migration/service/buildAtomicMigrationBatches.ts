@@ -27,7 +27,6 @@ import {
   flattenProfileInnerCalls,
   wrapInnerCallsAsMulticall,
 } from './buildProfileReplayCalls'
-import { buildRoleGrantCall } from './buildRoleGrantCalls'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
 import {
   type DirectMigrationRoute,
@@ -54,7 +53,6 @@ export type AtomicMigrationExecutionPhase =
   | 'resolver-deployment'
   | 'wallet-co-admin-grant'
   | 'migrate'
-  | 'manager-role-grant'
   | 'profile-replay'
 
 export type AtomicMigrationInnerExecution = {
@@ -605,25 +603,9 @@ const buildNameExecution = (params: {
     )
   }
 
-  if (classified.managerAddress) {
-    innerExecutions.push({
-      phase: 'manager-role-grant',
-      name,
-      names: [name],
-      call: buildRoleGrantCall(classified),
-    })
-    verificationExpectations.push({
-      id: expectationId(name, 'manager-role'),
-      type: 'manager-role',
-      name,
-      label: classified.label,
-      registry: V2_CONTRACTS.ETHRegistry,
-      resource: labelToCanonicalId(classified.label),
-      account: classified.managerAddress,
-      roleBitmap: ROLE_SET_RESOLVER,
-    })
-  }
-
+  // Manager restoration is intentionally omitted. A transferred name's V1
+  // registry owner may be the previous registrant, so it cannot authorize a
+  // persistent V2 role grant.
   const profileEntry = profileForName(classified, profiles)
   if (profileEntry) {
     const profileCalls = flattenProfileInnerCalls(
@@ -775,7 +757,6 @@ export const buildAtomicMigrationInnerExecutions = (params: {
     ...executionsForPhase('resolver-deployment'),
     ...executionsForPhase('wallet-co-admin-grant'),
     ...helperExecutions,
-    ...executionsForPhase('manager-role-grant'),
     ...executionsForPhase('profile-replay'),
   ]
 }

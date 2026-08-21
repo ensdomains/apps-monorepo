@@ -43,7 +43,6 @@ vi.mock('./migrationInvariants', async (importActual) => ({
     () => '0x00000000000000000000000000000000000000ce',
   ),
 }))
-
 const getV1ProfileKeysMock = vi.mocked(getV1ProfileKeys)
 const checkMigrationApprovalsMock = vi.mocked(checkMigrationApprovals)
 const checkResolverReadinessMock = vi.mocked(
@@ -135,11 +134,12 @@ describe('computeMigrationPreflight — skipApprovalPhase', () => {
 })
 
 describe('computeMigrationPreflight — HCA approvals', () => {
-  it('plans a token approval and manager approval when missing', async () => {
+  it('never plans manager restoration from an indexed registry owner', async () => {
+    const indexedManager: Address = '0x00000000000000000000000000000000000000aa'
     const result = await run({
       domain: {
         isWrapped: false,
-        ownerId: '0x00000000000000000000000000000000000000aa',
+        ownerId: indexedManager,
       },
       hcaAddress: HCA,
       hcaApprovals: {
@@ -150,17 +150,16 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       },
     })
 
-    expect(result.requiresManagerRestoration).toBe(true)
+    expect(result.requiresManagerRestoration).toBe(false)
     expect(result.skipApprovalPhase).toBe(false)
     expect(result.migrationApprovals?.map((approval) => approval.id)).toEqual([
       'base-registrar:hca-token',
-      'eth-registry:hca',
     ])
     expect(checkMigrationApprovalsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         eoa: EOA,
         hcaAddress: HCA,
-        needs: expect.objectContaining({ requiresManagerRestoration: true }),
+        needs: expect.objectContaining({ requiresManagerRestoration: false }),
       }),
     )
     expect(assertRequiredMigrationContractCodeMock).toHaveBeenCalledOnce()

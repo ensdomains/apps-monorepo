@@ -159,13 +159,6 @@ export const classifyName = (
     const tokenHolder = toAddress(registrant.id)
     if (!tokenHolder) return null
 
-    const registryOwnerAddress = toAddress(domain.owner.id)
-    const managerAddress: Address | null =
-      registryOwnerAddress &&
-      registryOwnerAddress.toLowerCase() !== registrant.id.toLowerCase()
-        ? registryOwnerAddress
-        : null
-
     return {
       type: 'classified',
       name: {
@@ -181,7 +174,9 @@ export const classifyName = (
           fuses: 0n,
           v1ResolverAddress,
         }),
-        managerAddress,
+        // Never carry V1 manager authority into V2 automatically. After a
+        // transfer, the registry owner can still be the previous registrant.
+        managerAddress: null,
       },
     }
   }

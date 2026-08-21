@@ -19,6 +19,7 @@ import { V2_CONTRACTS } from '../contracts/addresses'
 import { dnsEncodeName } from '../utils/dnsEncodeName'
 import { makeClassified } from './_fixtures'
 import {
+  type AtomicMigrationInnerExecution,
   AtomicMigrationNameGasLimitExceededError,
   buildAtomicMigrationBatches,
   buildAtomicMigrationInnerExecutions,
@@ -127,7 +128,54 @@ const decodeOwnerExecutions = (data: Hex): readonly OwnerExecution[] => {
 }
 
 describe('buildAtomicMigrationBatches', () => {
-  it('keeps parent-before-child order and wraps complete per-name executions', async () => {
+  it("never grants V2 roles to an unwrapped name's previous manager", async () => {
+    const transferred = makeName('gifted.eth', {
+      tokenType: 'unwrapped',
+      parentName: 'eth',
+      managerAddress: MANAGER,
+    })
+
+    const plan = await buildPlan({ classified: [transferred] })
+    const batch = plan.batches[0]
+    assert(batch)
+
+    expect(batch.innerExecutions.map(({ phase }) => phase)).not.toContain(
+      'manager-role-grant',
+    )
+    expect(
+      batch.verificationExpectations.map(({ type }) => type),
+    ).not.toContain('manager-role')
+  })
+
+  it('drops injected legacy manager grants when finalizing a batch', async () => {
+    const plan = await buildPlan()
+    const batch = plan.batches[0]
+    assert(batch)
+    const nameExecution = batch.nameExecutions[0]
+    assert(nameExecution)
+
+    const legacyGrant = {
+      phase: 'manager-role-grant',
+      name: nameExecution.classified.domain.name,
+      names: [nameExecution.classified.domain.name],
+      call: { to: MANAGER, value: 0n, data: '0x' },
+    } as unknown as AtomicMigrationInnerExecution
+    const finalized = buildAtomicMigrationInnerExecutions({
+      nameExecutions: [
+        {
+          ...nameExecution,
+          innerExecutions: [...nameExecution.innerExecutions, legacyGrant],
+        },
+      ],
+    })
+
+    expect(finalized).not.toContain(legacyGrant)
+    expect(finalized.map(({ phase }) => phase)).not.toContain(
+      'manager-role-grant',
+    )
+  })
+
+  it('keeps parent-before-child order without restoring a supplied manager', async () => {
     const parent = makeName('parent.eth', {
       tokenType: 'locked-2ld',
       parentName: 'eth',
@@ -161,11 +209,9 @@ describe('buildAtomicMigrationBatches', () => {
       'resolver-deployment',
       'wallet-co-admin-grant',
       'migrate',
-      'manager-role-grant',
       'profile-replay',
     ])
     expect(batch.innerExecutions.map((execution) => execution.name)).toEqual([
-      'parent.eth',
       'parent.eth',
       'parent.eth',
       'parent.eth',
@@ -229,7 +275,6 @@ describe('buildAtomicMigrationBatches', () => {
       'name-owner-roles',
       'wrapper-subregistry',
       'wrapper-root-roles',
-      'manager-role',
       'profile-text',
       'profile-address',
       'profile-contenthash',

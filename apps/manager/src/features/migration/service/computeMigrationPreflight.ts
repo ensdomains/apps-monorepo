@@ -202,9 +202,10 @@ export const computeMigrationPreflight = async (params: {
   const groups = groupClassifiedNames(classified)
 
   const needs = approvalNeedsFor(groups)
-  const requiresManagerRestoration = classified.some(
-    (name) => name.managerAddress !== null,
-  )
+  // Automatic manager restoration is intentionally disabled. A V1 registry
+  // manager can be the previous registrant of a transferred name, so treating
+  // it as authorization would grant that account persistent V2 roles.
+  const requiresManagerRestoration = false
   const namesToOwnedPermRes = classified.filter(
     (n) => n.resolverStrategy === 'to-owned-permres',
   )

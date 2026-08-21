@@ -102,7 +102,7 @@ describe('classifyName — grace period registrations', () => {
 })
 
 describe('classifyName — token type', () => {
-  it('unwrapped 2LD: keeps custom v1 resolver, flags manager when registry owner differs', () => {
+  it('unwrapped 2LD: keeps custom v1 resolver without trusting the indexed manager', () => {
     const n = classified(classify())
     expect(n.tokenType).toBe('unwrapped')
     expect(n.v1ResolverAddress).toBe(RESOLVER)
@@ -111,9 +111,7 @@ describe('classifyName — token type', () => {
     expect(n.tokenHolder.toLowerCase()).toBe(OWNER.toLowerCase())
 
     const MANAGER = '0x0000000000000000000000000000000000000099'
-    expect(
-      classified(classify({ ownerId: MANAGER })).managerAddress?.toLowerCase(),
-    ).toBe(MANAGER.toLowerCase())
+    expect(classified(classify({ ownerId: MANAGER })).managerAddress).toBeNull()
   })
 
   it('unwrapped with no v1 resolver routes to owned-permres', () => {
