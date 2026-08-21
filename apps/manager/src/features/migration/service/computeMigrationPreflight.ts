@@ -15,6 +15,8 @@ import {
   checkMigrationApprovals,
   type MigrationApproval,
   type MigrationApprovalStatus,
+  type MigrationCleanupApproval,
+  planMigrationApprovalCleanup,
   planMigrationApprovals,
 } from '@/features/migration/service/migrationApprovals'
 import {
@@ -44,9 +46,10 @@ export type MigrationPreflight = {
   nameWrapperApproved: boolean
   /** HCA-specific approval state, populated when an HCA address is available. */
   hcaApprovalStatus?: MigrationApprovalStatus
-  /** Missing grants only; confirmed operator entries remain available to the HCA. */
+  /** Missing grants required by the current migration. */
   migrationApprovals?: readonly MigrationApproval[]
-  requiresManagerRestoration?: boolean
+  /** Historical direct-HCA permissions that must be revoked before migration. */
+  migrationCleanupApprovals?: readonly MigrationCleanupApproval[]
   /** Deterministic HCA resolver, including deploy/role readiness. */
   hcaResolverReadiness?: MigrationResolverReadiness
   hcaResolverAddress?: Address
@@ -103,7 +106,6 @@ const computeApprovalPreflight = async (params: {
   readonly eoa: Address
   readonly hcaAddress?: Address
   readonly needs: ApprovalNeeds
-  readonly requiresManagerRestoration: boolean
   readonly wagmiConfig: WagmiConfig
 }): Promise<{
   readonly skipApprovalPhase: boolean
@@ -111,9 +113,9 @@ const computeApprovalPreflight = async (params: {
   readonly nameWrapperApproved: boolean
   readonly hcaApprovalStatus?: MigrationApprovalStatus
   readonly migrationApprovals?: readonly MigrationApproval[]
+  readonly migrationCleanupApprovals?: readonly MigrationCleanupApproval[]
 }> => {
-  const { eoa, hcaAddress, needs, requiresManagerRestoration, wagmiConfig } =
-    params
+  const { eoa, hcaAddress, needs, wagmiConfig } = params
   if (!hcaAddress) {
     return {
       skipApprovalPhase: false,
@@ -125,12 +127,16 @@ const computeApprovalPreflight = async (params: {
   const hcaApprovalStatus = await checkMigrationApprovals({
     eoa,
     hcaAddress,
-    needs: { ...needs, requiresManagerRestoration },
+    needs,
     wagmiConfig,
   })
   const migrationApprovals = planMigrationApprovals({
     hcaAddress,
-    needs: { ...needs, requiresManagerRestoration },
+    needs,
+    status: hcaApprovalStatus,
+  })
+  const migrationCleanupApprovals = planMigrationApprovalCleanup({
+    hcaAddress,
     status: hcaApprovalStatus,
   })
   return {
@@ -143,6 +149,7 @@ const computeApprovalPreflight = async (params: {
     nameWrapperApproved: hcaApprovalStatus.nameWrapperHcaApproved,
     hcaApprovalStatus,
     migrationApprovals,
+    migrationCleanupApprovals,
   }
 }
 
@@ -202,10 +209,21 @@ export const computeMigrationPreflight = async (params: {
   const groups = groupClassifiedNames(classified)
 
   const needs = approvalNeedsFor(groups)
-  // Automatic manager restoration is intentionally disabled. A V1 registry
-  // manager can be the previous registrant of a transferred name, so treating
-  // it as authorization would grant that account persistent V2 roles.
-  const requiresManagerRestoration = false
+  if (classified.length === 0) {
+    const approvalPreflight = await computeApprovalPreflight({
+      eoa,
+      hcaAddress,
+      needs,
+      wagmiConfig,
+    })
+    return {
+      preExistingOwnedPermRes: null,
+      skipFetchProfilesPhase: true,
+      ...approvalPreflight,
+      directMigrationRoutes: new Map(),
+    }
+  }
+
   const namesToOwnedPermRes = classified.filter(
     (n) => n.resolverStrategy === 'to-owned-permres',
   )
@@ -228,7 +246,6 @@ export const computeMigrationPreflight = async (params: {
       eoa,
       hcaAddress,
       needs,
-      requiresManagerRestoration,
       wagmiConfig,
     }),
     computeProfilePreflight(namesToOwnedPermRes),
@@ -254,7 +271,6 @@ export const computeMigrationPreflight = async (params: {
     ...resolverPreflight,
     ...approvalPreflight,
     ...profilePreflight,
-    requiresManagerRestoration,
     directMigrationRoutes,
     hcaReadiness,
   }

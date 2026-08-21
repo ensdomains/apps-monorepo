@@ -3,6 +3,7 @@ import type { QueryKey } from '@tanstack/react-query'
 export const isMigrationQueryKey = (key: QueryKey): boolean => {
   const first = key[0]
   if (first === 'migration-preflight') return true
+  if (first === 'migration-gas-estimate') return true
   if (
     typeof first === 'object' &&
     first !== null &&

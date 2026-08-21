@@ -132,10 +132,6 @@ const useStepDescriptionText = (
           'name-wrapper:hca',
           () => `${t`Approve your migration account in your wallet`}...`,
         )
-        .with(
-          'eth-registry:hca',
-          () => `${t`Approve manager restoration in your wallet`}...`,
-        )
         .exhaustive(),
     )
     .with({ kind: 'atomic-batch' }, ({ index, total, count }) =>

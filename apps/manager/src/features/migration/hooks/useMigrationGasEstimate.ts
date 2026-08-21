@@ -46,6 +46,19 @@ const formatEstimatedEth = (wei: bigint): string => {
   return trimmedFraction.length > 0 ? `${whole}.${trimmedFraction}` : whole
 }
 
+const canBuildPlan = (params: {
+  readonly ownerAddress: Address | undefined
+  readonly hcaAddress: Address | undefined
+  readonly hasPublicClient: boolean
+  readonly selectedNameCount: number
+  readonly domainCount: number
+}): boolean => {
+  if (!params.ownerAddress || !params.hcaAddress || !params.hasPublicClient) {
+    return false
+  }
+  return params.selectedNameCount === 0 || params.domainCount > 0
+}
+
 export const useMigrationGasEstimate = ({
   ownerAddress,
   hcaAddress,
@@ -71,12 +84,13 @@ export const useMigrationGasEstimate = ({
       revision: selectionRevisionRef.current.revision + 1,
     }
   }
-  const enabled =
-    !!ownerAddress &&
-    !!hcaAddress &&
-    !!publicClient &&
-    selectedNames.length > 0 &&
-    domains.length > 0
+  const enabled = canBuildPlan({
+    ownerAddress,
+    hcaAddress,
+    hasPublicClient: !!publicClient,
+    selectedNameCount: selectedNames.length,
+    domainCount: domains.length,
+  })
 
   const query = useQuery({
     queryKey: [

@@ -184,6 +184,40 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
 })
 
 describe('buildMigrationPlan resolver preservation', () => {
+  it('builds cleanup-only work without deploying the HCA', async () => {
+    const preflight: MigrationPreflight = {
+      preExistingOwnedPermRes: null,
+      skipApprovalPhase: true,
+      skipFetchProfilesPhase: true,
+      baseRegistrarApproved: true,
+      nameWrapperApproved: true,
+      migrationApprovals: [],
+      migrationCleanupApprovals: [
+        {
+          kind: 'operator',
+          id: 'eth-registry:hca',
+          contractAddress: HCA,
+          operatorAddress: HCA,
+        },
+      ],
+      hcaReadiness: { status: 'deployment-required', hca: HCA },
+    }
+
+    const plan = await buildMigrationPlan({
+      domains: [],
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      preflight,
+    })
+
+    expect(plan.hcaDeploymentRequired).toBe(false)
+    expect(plan.classified).toEqual([])
+    expect(plan.stepDescriptors).toEqual([
+      { type: 'cleanup', approvalId: 'eth-registry:hca' },
+    ])
+  })
+
   it('never routes a custom resolver to the HCA resolver from a partial inventory', async () => {
     const domain = makeDomain({ resolverAddress: CUSTOM_RESOLVER })
     const preflight: MigrationPreflight = {

@@ -20,15 +20,15 @@ path, the common cases are:
 
 | Selection | Existing HCA | Fresh HCA |
 | --- | ---: | ---: |
-| One unwrapped name | 2 | 3 |
-| Wrapped names or multiple unwrapped names | 3 | 4 |
+| Selected names that need a helper permission | 2 | 3 |
 | Required permissions already exist | 1 | 2 |
 
-The count includes the migration batch, required permission grants, automatic
-operator-permission cleanup, and HCA deployment when needed. NFT approvals are
-granted to MigrationHelper. One unwrapped name uses a per-token ERC-721
-approval, which clears automatically when the transfer succeeds. Multiple
-unwrapped names use one temporary operator approval. Every additional gas-safe
+The count includes the migration batch, required permission grants, and HCA
+deployment when needed. A confirmed legacy ETHRegistry approval for the HCA
+adds one cleanup confirmation before migration. NFT approvals are granted to
+MigrationHelper. One unwrapped name uses a per-token ERC-721 approval, which
+clears automatically when the transfer succeeds. Multiple unwrapped names use
+one reusable operator approval to MigrationHelper. Every additional gas-safe
 atomic batch adds one confirmation.
 
 ## Operator notes
@@ -62,10 +62,11 @@ atomic batch adds one confirmation.
   source-token ownership before it can rebuild an incomplete batch.
 - Custom resolvers are preserved. Locked names whose replaceable resolver is
   absent from the live `PublicResolverSet` remain blocked.
-- Operator approvals created by the migration are temporary and are revoked
-  automatically after the atomic batches verify. If cleanup is rejected or
-  fails, the recovery action remains labelled `Revoke temporary HCA access`.
-  Per-token approvals clear automatically when their transfers succeed.
+- New migrations never grant the HCA direct ETHRegistry operator access. Any
+  confirmed legacy approval for the current HCA is detected independently and
+  revoked before migration continues. If cleanup is rejected or fails, the
+  recovery action remains labelled `Revoke temporary HCA access`. Per-token
+  approvals clear automatically when their transfers succeed.
 - Text, address, contenthash, and ABI records are read from the V1 resolver,
   replayed in the HCA batch, and verified on-chain before completion.
 - The rollout remains behind the existing migration feature flag.
@@ -76,8 +77,9 @@ QA should cover fresh and existing HCAs; unwrapped, unlocked wrapped, locked
 2LD, and locked/detached descendant names; parent-first locked hierarchies;
 transferred names whose previous registrant remains the V1 manager; records;
 multiple gas batches and retry reconciliation; transaction speed-up/replacement;
-complete atomic rollback; automatic token-approval clearing; operator-approval
-cleanup and cleanup retry. No migration E2E implementation is included in this
+complete atomic rollback; automatic token-approval clearing; legacy
+operator-approval cleanup before migration and cleanup retry. No migration E2E
+implementation is included in this
 change.
 
 ## Release gate

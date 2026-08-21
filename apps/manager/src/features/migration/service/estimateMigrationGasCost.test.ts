@@ -5,6 +5,7 @@ import type { MigrationPlan } from './buildMigrationPlan'
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type {
   MigrationApproval,
+  MigrationCleanupApproval,
   MigrationOperatorApprovalId,
 } from './migrationApprovals'
 
@@ -26,6 +27,13 @@ const makeTokenApproval = (tokenId = 1n): MigrationApproval => ({
   contractAddress: contract,
   operatorAddress: account,
   tokenId,
+})
+
+const makeCleanupApproval = (): MigrationCleanupApproval => ({
+  kind: 'operator',
+  id: 'eth-registry:hca',
+  contractAddress: contract,
+  operatorAddress: account,
 })
 
 const makeAtomicBatch = (estimatedGas: bigint): AtomicMigrationBatch =>
@@ -52,6 +60,7 @@ const makePlan = (overrides: Partial<MigrationPlan> = {}): MigrationPlan =>
       baseRegistrarApproved: true,
       nameWrapperApproved: true,
       migrationApprovals: [],
+      migrationCleanupApprovals: [],
     },
     ownedPermRes: null,
     profiles: new Map(),
@@ -135,13 +144,13 @@ describe('estimateMigrationGasCost', () => {
     expect(estimate.transactionCount).toBe(2)
   })
 
-  it('manager restoration adds one persistent grant confirmation', async () => {
+  it('legacy manager cleanup adds one revocation confirmation', async () => {
     const publicClient = makePublicClient({ maxFeePerGas: 2n })
     const basePlan = makePlan({ atomicBatches: [makeAtomicBatch(100n)] })
     const managerPlan = makePlan({
       preflight: {
         ...basePlan.preflight,
-        migrationApprovals: [makeOperatorApproval('eth-registry:hca')],
+        migrationCleanupApprovals: [makeCleanupApproval()],
       },
       atomicBatches: [makeAtomicBatch(100n)],
     })
@@ -161,6 +170,7 @@ describe('estimateMigrationGasCost', () => {
       throw new Error('expected ready estimates')
     }
     expect(manager.transactionCount - base.transactionCount).toBe(1)
+    expect(manager.gasUnits - base.gasUnits).toBe(55_000n)
   })
 
   it('every additional atomic batch adds one confirmation', async () => {

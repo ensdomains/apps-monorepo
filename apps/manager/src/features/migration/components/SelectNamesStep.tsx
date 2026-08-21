@@ -22,6 +22,15 @@ type SelectNamesStepProps = {
   readonly onNext: () => boolean | Promise<boolean>
 }
 
+const isCleanupOnlyEstimate = (
+  gasEstimate: MigrationGasEstimateState,
+  totalSelected: number,
+): boolean =>
+  totalSelected === 0 &&
+  gasEstimate.status === 'ready' &&
+  gasEstimate.plan.classified.length === 0 &&
+  (gasEstimate.plan.preflight.migrationCleanupApprovals?.length ?? 0) > 0
+
 export const SelectNamesStep = ({
   gasEstimate,
   gasFundingStatus,
@@ -45,6 +54,7 @@ export const SelectNamesStep = ({
     toggleAll,
   } = useNameSelection({ eligible, isPending, onNamesChange })
 
+  const isCleanupOnly = isCleanupOnlyEstimate(gasEstimate, totalSelected)
   const isEstimatingGas = totalSelected > 0 && gasEstimate.status === 'loading'
   const isWaitingForGasEstimate =
     totalSelected > 0 && gasEstimate.status !== 'ready'
@@ -52,13 +62,14 @@ export const SelectNamesStep = ({
   // on-chain, so block "Upgrade" until then — otherwise the owner can start a
   // migration that fails for lack of gas before the ETH has landed.
   const isWaitingForGasFunding =
-    totalSelected > 0 && gasFundingStatus === 'funding'
-  const isUpgradeDisabled =
-    totalSelected === 0 ||
-    isPending ||
-    isStarting ||
-    isWaitingForGasEstimate ||
-    isWaitingForGasFunding
+    (totalSelected > 0 || isCleanupOnly) && gasFundingStatus === 'funding'
+  const isUpgradeDisabled = isCleanupOnly
+    ? isStarting || isWaitingForGasFunding
+    : totalSelected === 0 ||
+      isPending ||
+      isStarting ||
+      isWaitingForGasEstimate ||
+      isWaitingForGasFunding
   const showBulkSelection = shouldShowBulkSelection(visibleCount)
   const showNameSearch = shouldShowNameSearch(visibleCount)
   const isCompactLayout = shouldUseCompactSelectionLayout(visibleCount)
@@ -122,6 +133,7 @@ export const SelectNamesStep = ({
 
       <SelectNamesStepFooter
         gasEstimate={gasEstimate}
+        isCleanupOnly={isCleanupOnly}
         isEstimatingGas={isEstimatingGas}
         isStarting={isStarting}
         isUpgradeDisabled={isUpgradeDisabled}

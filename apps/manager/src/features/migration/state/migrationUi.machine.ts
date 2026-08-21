@@ -135,10 +135,16 @@ export const migrationUiMachine = setup({
     }),
   },
   guards: {
-    hasSelection: ({ event }) =>
-      event.type === 'migration.start' && event.plan.classified.length > 0,
+    hasMigrationWork: ({ event }) =>
+      event.type === 'migration.start' &&
+      (event.plan.classified.length > 0 ||
+        (event.plan.preflight.migrationCleanupApprovals?.length ?? 0) > 0 ||
+        event.plan.stepDescriptors.some(
+          (descriptor) => descriptor.type === 'cleanup',
+        )),
     isOnlyFailures: ({ event, context }) =>
       event.type === 'migration.complete' &&
+      (context.plan?.classified.length ?? 0) > 0 &&
       event.result.txHashes.length === 0 &&
       context.migratedNames.length === 0,
   },
@@ -235,7 +241,7 @@ export const migrationUiMachine = setup({
         },
         'migration.start': {
           target: 'migrate',
-          guard: 'hasSelection',
+          guard: 'hasMigrationWork',
           actions: 'captureMigrationStart',
         },
       },

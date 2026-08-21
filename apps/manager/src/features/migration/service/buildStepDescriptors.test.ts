@@ -4,6 +4,7 @@ import type { AtomicMigrationBatch } from './buildAtomicMigrationBatches'
 import { buildStepDescriptors } from './buildStepDescriptors'
 import type {
   MigrationApproval,
+  MigrationCleanupApproval,
   MigrationOperatorApprovalId,
 } from './migrationApprovals'
 
@@ -27,6 +28,13 @@ const tokenApproval = (tokenId = 1n): MigrationApproval => ({
   tokenId,
 })
 
+const cleanupApproval = (): MigrationCleanupApproval => ({
+  kind: 'operator',
+  id: 'eth-registry:hca',
+  contractAddress: CONTRACT,
+  operatorAddress: HCA,
+})
+
 const batches = (
   ...namesByBatch: readonly (readonly string[])[]
 ): readonly AtomicMigrationBatch[] =>
@@ -42,6 +50,7 @@ describe('buildStepDescriptors', () => {
       buildStepDescriptors({
         hcaDeploymentRequired: true,
         approvals: [tokenApproval()],
+        cleanupApprovals: [],
         atomicBatches: batches(['alice.eth']),
         registrationApprovalTargets: registrationApprovalTargets([
           1n,
@@ -65,6 +74,7 @@ describe('buildStepDescriptors', () => {
       buildStepDescriptors({
         hcaDeploymentRequired: false,
         approvals: [tokenApproval()],
+        cleanupApprovals: [],
         atomicBatches: batches(['alice.eth']),
         registrationApprovalTargets: registrationApprovalTargets([
           1n,
@@ -79,6 +89,7 @@ describe('buildStepDescriptors', () => {
       buildStepDescriptors({
         hcaDeploymentRequired: false,
         approvals: [operatorApproval('name-wrapper:hca')],
+        cleanupApprovals: [],
         atomicBatches: batches(['alice.eth', 'bob.eth']),
         registrationApprovalTargets: [],
       }),
@@ -93,24 +104,25 @@ describe('buildStepDescriptors', () => {
       buildStepDescriptors({
         hcaDeploymentRequired: false,
         approvals: [],
+        cleanupApprovals: [],
         atomicBatches: batches(['alice.eth']),
         registrationApprovalTargets: [],
       }),
     ).toEqual([{ type: 'atomic-batch', index: 0, total: 1, count: 1 }])
   })
 
-  it('adds and removes a temporary manager approval around the migration batch', () => {
+  it('revokes legacy manager access before the migration batch', () => {
     expect(
       buildStepDescriptors({
         hcaDeploymentRequired: false,
-        approvals: [operatorApproval('eth-registry:hca')],
+        approvals: [],
+        cleanupApprovals: [cleanupApproval()],
         atomicBatches: batches(['alice.eth']),
         registrationApprovalTargets: [],
       }),
     ).toEqual([
-      { type: 'approval', approvalId: 'eth-registry:hca', count: undefined },
-      { type: 'atomic-batch', index: 0, total: 1, count: 1 },
       { type: 'cleanup', approvalId: 'eth-registry:hca' },
+      { type: 'atomic-batch', index: 0, total: 1, count: 1 },
     ])
   })
 
@@ -119,6 +131,7 @@ describe('buildStepDescriptors', () => {
       buildStepDescriptors({
         hcaDeploymentRequired: false,
         approvals: [],
+        cleanupApprovals: [],
         atomicBatches: batches(['alice.eth'], ['bob.eth']),
         registrationApprovalTargets: [],
       }),
@@ -133,6 +146,7 @@ describe('buildStepDescriptors', () => {
       buildStepDescriptors({
         hcaDeploymentRequired: false,
         approvals: [],
+        cleanupApprovals: [],
         atomicBatches: [],
         registrationApprovalTargets: [],
       }),
@@ -144,6 +158,7 @@ describe('buildStepDescriptors', () => {
       buildStepDescriptors({
         hcaDeploymentRequired: false,
         approvals: [tokenApproval(1n), tokenApproval(2n)],
+        cleanupApprovals: [],
         atomicBatches: batches(['alice.eth', 'bob.eth']),
         registrationApprovalTargets: registrationApprovalTargets(
           [1n, 'alice.eth'],

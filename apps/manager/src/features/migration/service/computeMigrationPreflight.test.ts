@@ -134,6 +134,30 @@ describe('computeMigrationPreflight — skipApprovalPhase', () => {
 })
 
 describe('computeMigrationPreflight — HCA approvals', () => {
+  it('discovers cleanup-only work without requiring migration infrastructure', async () => {
+    checkMigrationApprovalsMock.mockResolvedValueOnce(ALL_HCA_APPROVED)
+
+    const result = await computeMigrationPreflight({
+      eoa: EOA,
+      hcaAddress: HCA,
+      domains: [],
+      wagmiConfig: {} as WagmiConfig,
+      publicClient: {} as PublicClient,
+    })
+
+    expect(result.migrationApprovals).toEqual([])
+    expect(result.migrationCleanupApprovals?.map(({ id }) => id)).toEqual([
+      'eth-registry:hca',
+    ])
+    expect(result.preExistingOwnedPermRes).toBeNull()
+    expect(result.skipFetchProfilesPhase).toBe(true)
+    expect(result.directMigrationRoutes).toEqual(new Map())
+    expect(result.hcaReadiness).toBeUndefined()
+    expect(assertRequiredMigrationContractCodeMock).not.toHaveBeenCalled()
+    expect(assertMigrationHelperRuntimeCodeMock).not.toHaveBeenCalled()
+    expect(checkMigrationHcaReadinessMock).not.toHaveBeenCalled()
+  })
+
   it('never plans manager restoration from an indexed registry owner', async () => {
     const indexedManager: Address = '0x00000000000000000000000000000000000000aa'
     const result = await run({
@@ -150,18 +174,23 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       },
     })
 
-    expect(result.requiresManagerRestoration).toBe(false)
     expect(result.skipApprovalPhase).toBe(false)
     expect(result.migrationApprovals?.map((approval) => approval.id)).toEqual([
       'base-registrar:hca-token',
     ])
+    expect(
+      result.migrationCleanupApprovals?.map((approval) => approval.id),
+    ).toEqual([])
     expect(checkMigrationApprovalsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         eoa: EOA,
         hcaAddress: HCA,
-        needs: expect.objectContaining({ requiresManagerRestoration: false }),
+        needs: expect.objectContaining({ hasUnwrapped: true }),
       }),
     )
+    expect(
+      checkMigrationApprovalsMock.mock.calls[0]?.[0].needs,
+    ).not.toHaveProperty('requiresManagerRestoration')
     expect(assertRequiredMigrationContractCodeMock).toHaveBeenCalledOnce()
     expect(assertMigrationHelperRuntimeCodeMock).toHaveBeenCalledWith({
       publicClient: expect.anything(),
@@ -173,6 +202,22 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     expect(checkMigrationHcaReadinessMock).toHaveBeenCalledWith(
       expect.objectContaining({ hca: HCA, expectedOwner: EOA }),
     )
+  })
+
+  it('records an existing ETHRegistry HCA approval only for cleanup', async () => {
+    const result = await run({
+      hcaAddress: HCA,
+      hcaApprovals: {
+        ...ALL_HCA_APPROVED,
+        ethRegistryHcaApproved: true,
+      },
+    })
+
+    expect(result.skipApprovalPhase).toBe(true)
+    expect(result.migrationApprovals).toEqual([])
+    expect(
+      result.migrationCleanupApprovals?.map((approval) => approval.id),
+    ).toEqual(['eth-registry:hca'])
   })
 
   it('checks locked known resolvers against the pinned PublicResolverSet', async () => {

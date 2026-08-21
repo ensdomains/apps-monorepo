@@ -21,7 +21,11 @@ import {
   type TransactionReceipt,
 } from 'viem'
 
-import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
+import {
+  BASE_REGISTRAR_ABI,
+  NAME_WRAPPER_ABI,
+  OPERATOR_APPROVAL_ABI,
+} from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { EXECUTION_TARGET_GAS, TARGET_GAS } from './batchMigrate.constants'
 import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
@@ -37,8 +41,9 @@ import {
   type MigrationApproval,
   type MigrationCleanupApproval,
   migrationApprovalKey,
+  migrationCleanupApprovalForHca,
+  planMigrationApprovalCleanup,
   planMigrationApprovals,
-  requiresMigrationApprovalCleanup,
 } from './migrationApprovals'
 import {
   loadPendingAtomicMigrationIntents,
@@ -330,8 +335,6 @@ const approvalDescription = (approval: MigrationApproval): string => {
       return 'Allowing the migration helper to migrate registrations'
     case 'name-wrapper:hca':
       return 'Allowing the migration helper to migrate wrapped names'
-    case 'eth-registry:hca':
-      return 'Allowing your HCA to restore managers'
   }
 }
 
@@ -340,10 +343,7 @@ const getMissingMigrationApprovals = async (params: {
   readonly plan: MigrationPlan
 }): Promise<readonly MigrationApproval[]> => {
   const { ctx, plan } = params
-  const basicNeeds = approvalNeedsFor(plan.groups)
-  // Automatic manager restoration is disabled, so ETHRegistry must never be
-  // approved for manager grants during migration.
-  const needs = { ...basicNeeds, requiresManagerRestoration: false }
+  const needs = approvalNeedsFor(plan.groups)
   const status = await checkMigrationApprovals({
     eoa: ctx.walletAddress,
     hcaAddress: ctx.hcaAddress,
@@ -357,9 +357,58 @@ const getMissingMigrationApprovals = async (params: {
   })
 }
 
+const getCurrentMigrationCleanupApprovals = async (params: {
+  readonly wagmiConfig: WagmiConfig
+  readonly walletAddress: Address
+  readonly hcaAddress: Address
+}): Promise<readonly MigrationCleanupApproval[]> => {
+  const status = await checkMigrationApprovals({
+    eoa: params.walletAddress,
+    hcaAddress: params.hcaAddress,
+    needs: {
+      hasUnwrapped: false,
+      unwrappedTokenIds: [],
+      hasWrapped: false,
+    },
+    wagmiConfig: params.wagmiConfig,
+  })
+  return planMigrationApprovalCleanup({
+    hcaAddress: params.hcaAddress,
+    status,
+  })
+}
+
 const sortedApprovalKeys = (
   approvals: readonly MigrationApproval[],
 ): string[] => approvals.map(migrationApprovalKey).sort()
+
+const sortedCleanupApprovalKeys = (
+  approvals: readonly MigrationCleanupApproval[],
+): string[] => approvals.map(migrationApprovalKey).sort()
+
+const assertMigrationCleanupPlanCurrent = (params: {
+  readonly planned: readonly MigrationCleanupApproval[]
+  readonly current: readonly MigrationCleanupApproval[]
+  readonly required: boolean
+}): void => {
+  if (!params.required) return
+
+  const plannedApprovalKeys = sortedCleanupApprovalKeys(params.planned)
+  const currentApprovalKeys = sortedCleanupApprovalKeys(params.current)
+  const matches =
+    plannedApprovalKeys.length === currentApprovalKeys.length &&
+    plannedApprovalKeys.every(
+      (approvalKey, index) => approvalKey === currentApprovalKeys[index],
+    )
+  if (matches) return
+
+  throw new MigrationPlanChangedError({
+    message:
+      'Migration permissions changed after the preview. Return to selection to review the updated confirmation estimate.',
+    plannedApprovalKeys,
+    currentApprovalKeys,
+  })
+}
 
 const assertMigrationApprovalPlanCurrent = async (params: {
   readonly ctx: MigrationCtx
@@ -441,38 +490,140 @@ const ensureMigrationApprovals = async (params: {
 }
 
 const cleanupDescription = (_approval: MigrationCleanupApproval): string =>
-  'Removing manager-restoration access from your HCA'
+  'Removing legacy migration access from your HCA'
+
+const readConfirmedMigrationCleanupApprovals = async (params: {
+  readonly publicClient: PublicClient
+  readonly walletAddress: Address
+  readonly hcaAddress: Address
+  readonly blockNumber?: bigint
+}): Promise<readonly MigrationCleanupApproval[]> => {
+  const approved = await params.publicClient.readContract({
+    address: V2_CONTRACTS.ETHRegistry,
+    abi: OPERATOR_APPROVAL_ABI,
+    functionName: 'isApprovedForAll',
+    args: [params.walletAddress, params.hcaAddress],
+    blockNumber: params.blockNumber,
+  })
+  return approved ? [migrationCleanupApprovalForHca(params.hcaAddress)] : []
+}
 
 const revokeTemporaryOperatorApprovals = async (params: {
   readonly ctx: MigrationCtx
-  readonly plan: MigrationPlan
+  readonly planned: readonly MigrationCleanupApproval[]
+  readonly current: readonly MigrationCleanupApproval[]
 }): Promise<readonly Hex[]> => {
-  const temporaryOperators = (
-    params.plan.preflight.migrationApprovals ?? []
-  ).filter(requiresMigrationApprovalCleanup)
   const hashes: Hex[] = []
+  const currentByKey = new Map(
+    params.current.map((approval) => [
+      migrationApprovalKey(approval),
+      approval,
+    ]),
+  )
+  const orderedApprovals = [
+    ...params.planned.map((approval) => ({
+      approval,
+      current: currentByKey.get(migrationApprovalKey(approval)),
+    })),
+    ...params.current
+      .filter(
+        (approval) =>
+          !params.planned.some(
+            (planned) =>
+              migrationApprovalKey(planned) === migrationApprovalKey(approval),
+          ),
+      )
+      .map((approval) => ({ approval, current: approval })),
+  ]
 
-  for (const approval of temporaryOperators) {
+  for (const { approval, current } of orderedApprovals) {
+    if (!current) {
+      params.ctx.tracker.next()
+      params.ctx.tracker.emit('Temporary access already removed')
+      continue
+    }
     const description = cleanupDescription(approval)
     try {
-      const { hash } = await submitCall(
+      const { hash, receipt } = await submitCall(
         params.ctx,
         buildMigrationOperatorApprovalRevocationCall(approval),
         description,
       )
+      const approvalsStillActive = await readConfirmedMigrationCleanupApprovals(
+        {
+          publicClient: params.ctx.publicClient,
+          walletAddress: params.ctx.walletAddress,
+          hcaAddress: approval.operatorAddress,
+          blockNumber: receipt.blockNumber,
+        },
+      )
+      if (approvalsStillActive.length > 0) {
+        throw new Error(
+          'The confirmed transaction did not revoke legacy HCA access',
+        )
+      }
       hashes.push(hash)
       params.ctx.tracker.next()
       params.ctx.tracker.emit('Temporary access removed', hash)
     } catch (cause) {
       throw new MigrationCleanupError({
         message:
-          'Your names were upgraded, but temporary migration access still needs to be revoked.',
+          'Temporary HCA access must be revoked before migration can continue.',
         cause,
       })
     }
   }
 
   return hashes
+}
+
+const revokeNewlyConfirmedMigrationCleanupApprovals = async (params: {
+  readonly ctx: MigrationCtx
+  readonly afterHash?: Hex
+  readonly forceRevocation: boolean
+  readonly verificationBatches: MigrationPlan['atomicBatches']
+}): Promise<readonly Hex[]> => {
+  const { ctx } = params
+  if (params.forceRevocation) {
+    return revokeTemporaryOperatorApprovals({
+      ctx,
+      planned: [],
+      current: [migrationCleanupApprovalForHca(ctx.hcaAddress)],
+    })
+  }
+
+  let current: readonly MigrationCleanupApproval[]
+  try {
+    const blockNumber = params.afterHash
+      ? (
+          await ctx.publicClient.getTransactionReceipt({
+            hash: params.afterHash,
+          })
+        ).blockNumber
+      : await ctx.publicClient.getBlockNumber()
+    if (!params.afterHash) {
+      for (const batch of params.verificationBatches) {
+        await verifyAtomicMigrationBatch({
+          publicClient: ctx.publicClient,
+          batch,
+          blockNumber,
+        })
+      }
+    }
+    current = await readConfirmedMigrationCleanupApprovals({
+      publicClient: ctx.publicClient,
+      walletAddress: ctx.walletAddress,
+      hcaAddress: ctx.hcaAddress,
+      blockNumber,
+    })
+  } catch (cause) {
+    throw new MigrationCleanupError({
+      message: 'Unable to confirm that legacy HCA access is removed.',
+      cause,
+    })
+  }
+
+  return revokeTemporaryOperatorApprovals({ ctx, planned: [], current })
 }
 
 const removeNames = <T extends { readonly domain: { readonly name: string } }>(
@@ -1137,13 +1288,38 @@ export const executeMigration = async (params: {
   } = params
   const { classified, ineligible } = plan
 
-  if (classified.length === 0 && !params.reconcileBeforeSubmit) {
-    return {
-      completed: 0,
-      txHashes: [],
-      ineligible: [...ineligible],
-    }
+  const cleanupDescriptorIds = new Set(
+    plan.stepDescriptors
+      .filter((descriptor) => descriptor.type === 'cleanup')
+      .map((descriptor) => descriptor.approvalId),
+  )
+  const cleanupPlanned =
+    (plan.preflight.migrationCleanupApprovals?.length ?? 0) > 0 ||
+    cleanupDescriptorIds.has('eth-registry:hca')
+  const plannedCleanupApprovals = cleanupPlanned
+    ? [migrationCleanupApprovalForHca(plan.hcaAddress)]
+    : []
+
+  let currentCleanupApprovals: readonly MigrationCleanupApproval[]
+  try {
+    currentCleanupApprovals = await getCurrentMigrationCleanupApprovals({
+      wagmiConfig,
+      walletAddress: plan.migrationOwner,
+      hcaAddress: plan.hcaAddress,
+    })
+  } catch (error) {
+    throw wrapMigrationError(error, 'Checking legacy HCA access')
   }
+
+  assertMigrationCleanupPlanCurrent({
+    planned: plannedCleanupApprovals,
+    current: currentCleanupApprovals,
+    required: !params.reconcileBeforeSubmit,
+  })
+
+  const unplannedCleanupSteps = currentCleanupApprovals.filter(
+    (approval) => !cleanupDescriptorIds.has(approval.id),
+  ).length
 
   const ctx: MigrationCtx = {
     wagmiConfig,
@@ -1151,9 +1327,27 @@ export const executeMigration = async (params: {
     signer,
     walletAddress: plan.migrationOwner,
     hcaAddress: plan.hcaAddress,
-    tracker: createTracker(onProgress, plan.stepDescriptors.length),
+    tracker: createTracker(
+      onProgress,
+      plan.stepDescriptors.length + unplannedCleanupSteps,
+    ),
   }
-  const txHashes: Hex[] = []
+  const txHashes: Hex[] = [
+    ...(await revokeTemporaryOperatorApprovals({
+      ctx,
+      planned: plannedCleanupApprovals,
+      current: currentCleanupApprovals,
+    })),
+  ]
+
+  if (classified.length === 0 && !params.reconcileBeforeSubmit) {
+    ctx.tracker.complete('Migration complete', txHashes.at(-1))
+    return {
+      completed: 0,
+      txHashes,
+      ineligible: [...ineligible],
+    }
+  }
 
   const executionPlan = await prepareExecutionPlan({
     reconcileBeforeSubmit: params.reconcileBeforeSubmit ?? false,
@@ -1201,9 +1395,14 @@ export const executeMigration = async (params: {
     )
   }
   txHashes.push(
-    ...(await revokeTemporaryOperatorApprovals({
+    ...(await revokeNewlyConfirmedMigrationCleanupApprovals({
       ctx,
-      plan,
+      afterHash: txHashes.at(-1),
+      forceRevocation:
+        Boolean(params.reconcileBeforeSubmit) &&
+        txHashes.length === 0 &&
+        plan.atomicBatches.length === 0,
+      verificationBatches: plan.atomicBatches,
     })),
   )
   ctx.tracker.complete('Migration complete', txHashes.at(-1))

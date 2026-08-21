@@ -10,6 +10,8 @@ import {
   checkMigrationApprovals,
   type MigrationApprovalStatus,
   migrationApprovalForId,
+  migrationCleanupApprovalForHca,
+  planMigrationApprovalCleanup,
   planMigrationApprovals,
 } from './migrationApprovals'
 
@@ -45,7 +47,9 @@ beforeEach(() => {
 })
 
 describe('checkMigrationApprovals', () => {
-  it('skips reads and treats irrelevant permissions as satisfied', async () => {
+  it('always checks for legacy direct-HCA access', async () => {
+    readContractsMock.mockResolvedValueOnce([true] as never)
+
     await expect(
       checkMigrationApprovals({
         eoa: EOA,
@@ -54,7 +58,6 @@ describe('checkMigrationApprovals', () => {
           hasUnwrapped: false,
           unwrappedTokenIds: [],
           hasWrapped: false,
-          requiresManagerRestoration: false,
         },
         wagmiConfig: WAGMI,
       }),
@@ -64,10 +67,23 @@ describe('checkMigrationApprovals', () => {
       nameWrapperHcaApproved: true,
       ethRegistryHcaApproved: true,
     })
-    expect(readContractsMock).not.toHaveBeenCalled()
+    const options = readContractsMock.mock.calls[0]?.[1] as unknown as {
+      contracts: readonly {
+        readonly address: Address
+        readonly args: readonly unknown[]
+        readonly functionName: string
+      }[]
+    }
+    expect(options.contracts).toEqual([
+      expect.objectContaining({
+        address: V2_CONTRACTS.ETHRegistry,
+        args: [EOA, HCA],
+        functionName: 'isApprovedForAll',
+      }),
+    ])
   })
 
-  it('checks helper NFT approvals and the HCA manager approval in one batch', async () => {
+  it('checks helper NFT approvals and legacy HCA access in one batch', async () => {
     readContractsMock.mockResolvedValueOnce([
       false,
       V2_CONTRACTS.MigrationHelper,
@@ -84,7 +100,6 @@ describe('checkMigrationApprovals', () => {
           hasUnwrapped: true,
           unwrappedTokenIds: [TOKEN_ONE, TOKEN_TWO],
           hasWrapped: true,
-          requiresManagerRestoration: true,
         },
         wagmiConfig: WAGMI,
       }),
@@ -144,7 +159,6 @@ describe('planMigrationApprovals', () => {
     hasUnwrapped: unwrappedTokenIds.length > 0,
     unwrappedTokenIds,
     hasWrapped: false,
-    requiresManagerRestoration: false,
   })
 
   it('uses per-token approval for one missing registration', () => {
@@ -211,7 +225,7 @@ describe('planMigrationApprovals', () => {
     ).toEqual([])
   })
 
-  it('adds only missing wrapped-name and manager HCA operators', () => {
+  it('never adds a direct ETHRegistry HCA grant', () => {
     expect(
       planMigrationApprovals({
         hcaAddress: HCA,
@@ -219,11 +233,24 @@ describe('planMigrationApprovals', () => {
           hasUnwrapped: false,
           unwrappedTokenIds: [],
           hasWrapped: true,
-          requiresManagerRestoration: true,
         },
-        status: statusFor([], { nameWrapperHcaApproved: true }),
+        status: statusFor([]),
       }).map((approval) => approval.id),
-    ).toEqual(['eth-registry:hca'])
+    ).toEqual(['name-wrapper:hca'])
+  })
+})
+
+describe('planMigrationApprovalCleanup', () => {
+  it.each([
+    [true, ['eth-registry:hca']],
+    [false, []],
+  ] as const)('maps ETHRegistry approval state %s to cleanup-only work', (ethRegistryHcaApproved, expectedIds) => {
+    expect(
+      planMigrationApprovalCleanup({
+        hcaAddress: HCA,
+        status: statusFor([], { ethRegistryHcaApproved }),
+      }).map((approval) => approval.id),
+    ).toEqual(expectedIds)
   })
 })
 
@@ -255,16 +282,12 @@ describe('approval calldata', () => {
     expect(decoded.args).toEqual([V2_CONTRACTS.MigrationHelper, true])
   })
 
-  it('encodes operator revocation after migration', () => {
-    const approval = migrationApprovalForId({
-      id: 'name-wrapper:hca',
-      hcaAddress: HCA,
-    })
-    if (approval.kind !== 'operator') throw new Error('Expected operator')
+  it('encodes legacy HCA revocation before migration', () => {
+    const approval = migrationCleanupApprovalForHca(HCA)
     const decoded = decodeFunctionData({
       abi: OPERATOR_APPROVAL_ABI,
       data: buildMigrationOperatorApprovalRevocationCall(approval).data,
     })
-    expect(decoded.args).toEqual([V2_CONTRACTS.MigrationHelper, false])
+    expect(decoded.args).toEqual([HCA, false])
   })
 })

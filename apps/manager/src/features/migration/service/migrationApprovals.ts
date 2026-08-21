@@ -17,7 +17,6 @@ export type MigrationApprovalNeeds = {
   readonly hasUnwrapped: boolean
   readonly unwrappedTokenIds: readonly bigint[]
   readonly hasWrapped: boolean
-  readonly requiresManagerRestoration: boolean
 }
 
 export type MigrationTokenApprovalStatus = {
@@ -35,9 +34,10 @@ export type MigrationApprovalStatus = {
 export type MigrationOperatorApprovalId =
   | 'base-registrar:hca'
   | 'name-wrapper:hca'
-  | 'eth-registry:hca'
 
-export type MigrationApprovalId =
+export type MigrationCleanupApprovalId = 'eth-registry:hca'
+
+export type MigrationGrantApprovalId =
   | MigrationOperatorApprovalId
   | 'base-registrar:hca-token'
 
@@ -59,30 +59,23 @@ export type MigrationTokenApproval = {
 /**
  * A missing permission required by an HCA-batched helper migration.
  *
- * The historical approval IDs remain stable for persisted UI step keys. NFT
- * approvals target MigrationHelper; only manager restoration targets the HCA.
+ * NFT approvals target MigrationHelper. Direct ETHRegistry access for the HCA
+ * is cleanup-only and is intentionally excluded from this grant type.
  */
 export type MigrationApproval =
   | MigrationOperatorApproval
   | MigrationTokenApproval
 
-export type MigrationCleanupApproval = MigrationOperatorApproval & {
+export type MigrationCleanupApproval = {
+  readonly kind: 'operator'
   readonly id: 'eth-registry:hca'
+  readonly contractAddress: Address
+  readonly operatorAddress: Address
 }
-
-/**
- * Only direct HCA permissions are temporary. MigrationHelper approvals are
- * intentionally reusable: the helper resolves every caller back to its
- * certified owner before it can move that owner's V1 names.
- */
-export const requiresMigrationApprovalCleanup = (
-  approval: MigrationApproval,
-): approval is MigrationCleanupApproval =>
-  approval.kind === 'operator' && approval.id === 'eth-registry:hca'
 
 /** Build a required migration permission from the trusted deployment data. */
 export const migrationApprovalForId = (params: {
-  readonly id: MigrationApprovalId
+  readonly id: MigrationGrantApprovalId
   readonly hcaAddress: Address
   readonly tokenId?: bigint
 }): MigrationApproval => {
@@ -113,15 +106,18 @@ export const migrationApprovalForId = (params: {
         contractAddress: V1_CONTRACTS.NameWrapper,
         operatorAddress: V2_CONTRACTS.MigrationHelper,
       }
-    case 'eth-registry:hca':
-      return {
-        kind: 'operator',
-        id: params.id,
-        contractAddress: V2_CONTRACTS.ETHRegistry,
-        operatorAddress: params.hcaAddress,
-      }
   }
 }
+
+/** Build the historical direct-HCA permission that must only be revoked. */
+export const migrationCleanupApprovalForHca = (
+  hcaAddress: Address,
+): MigrationCleanupApproval => ({
+  kind: 'operator',
+  id: 'eth-registry:hca',
+  contractAddress: V2_CONTRACTS.ETHRegistry,
+  operatorAddress: hcaAddress,
+})
 
 type OperatorStatusKey = Exclude<
   keyof MigrationApprovalStatus,
@@ -140,7 +136,9 @@ type ApprovalRead =
     }
 type ApprovalContract = Parameters<typeof readContracts>[1]['contracts'][number]
 
-export const migrationApprovalKey = (approval: MigrationApproval): string =>
+export const migrationApprovalKey = (
+  approval: MigrationApproval | MigrationCleanupApproval,
+): string =>
   approval.kind === 'erc721-token'
     ? `${approval.id}:${approval.tokenId}`
     : `${approval.contractAddress.toLowerCase()}:${approval.operatorAddress.toLowerCase()}`
@@ -183,14 +181,15 @@ export const checkMigrationApprovals = async (params: {
     })
   }
 
-  if (needs.requiresManagerRestoration) {
-    reads.push({
-      kind: 'operator',
-      key: 'ethRegistryHcaApproved',
-      contractAddress: V2_CONTRACTS.ETHRegistry,
-      operatorAddress: hcaAddress,
-    })
-  }
+  // Manager restoration is disabled, but older interrupted migrations may
+  // have left this broad HCA permission behind. Always read it as cleanup
+  // debt; it must never be treated as a grant required by the current plan.
+  reads.push({
+    kind: 'operator',
+    key: 'ethRegistryHcaApproved',
+    contractAddress: V2_CONTRACTS.ETHRegistry,
+    operatorAddress: hcaAddress,
+  })
 
   const initialStatus: MigrationApprovalStatus = {
     baseRegistrarHcaApproved: !needs.hasUnwrapped,
@@ -199,10 +198,8 @@ export const checkMigrationApprovals = async (params: {
       approved: !needs.hasUnwrapped,
     })),
     nameWrapperHcaApproved: !needs.hasWrapped,
-    ethRegistryHcaApproved: !needs.requiresManagerRestoration,
+    ethRegistryHcaApproved: false,
   }
-  if (reads.length === 0) return initialStatus
-
   const contracts: ApprovalContract[] = reads.map((read) =>
     read.kind === 'operator'
       ? {
@@ -317,14 +314,16 @@ export const planMigrationApprovals = (params: {
       migrationApprovalForId({ id: 'name-wrapper:hca', hcaAddress }),
     )
   }
-  if (needs.requiresManagerRestoration && !status.ethRegistryHcaApproved) {
-    approvals.push(
-      migrationApprovalForId({ id: 'eth-registry:hca', hcaAddress }),
-    )
-  }
-
   return approvals
 }
+
+export const planMigrationApprovalCleanup = (params: {
+  readonly hcaAddress: Address
+  readonly status: MigrationApprovalStatus
+}): readonly MigrationCleanupApproval[] =>
+  params.status.ethRegistryHcaApproved
+    ? [migrationCleanupApprovalForHca(params.hcaAddress)]
+    : []
 
 export const buildMigrationApprovalCall = (
   approval: MigrationApproval,
@@ -351,9 +350,9 @@ export const buildMigrationApprovalCall = (
   }
 }
 
-/** Revoke an operator permission created temporarily for migration. */
+/** Revoke historical direct-HCA migration permission. */
 export const buildMigrationOperatorApprovalRevocationCall = (
-  approval: MigrationOperatorApproval,
+  approval: MigrationCleanupApproval,
 ): Call => {
   return {
     to: approval.contractAddress,

@@ -38,6 +38,12 @@ const HCA_CLIENT = {
   getInitData: vi.fn(),
 } as unknown as Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
 const REFRESH_ACCOUNT = vi.fn<() => Promise<void>>()
+const CLEANUP_APPROVAL = {
+  kind: 'operator' as const,
+  id: 'eth-registry:hca' as const,
+  contractAddress: OWNER,
+  operatorAddress: SCA,
+}
 const domain = (id: string): V1Domain =>
   ({
     id,
@@ -107,6 +113,15 @@ const start = (domains: V1Domain[] = [domain('alice')]) => {
   return actor
 }
 
+const cleanupOnlyPlan = (): MigrationPlan =>
+  makePlan([], {
+    preflight: {
+      ...makePlan([]).preflight,
+      migrationCleanupApprovals: [CLEANUP_APPROVAL],
+    },
+    stepDescriptors: [{ type: 'cleanup', approvalId: CLEANUP_APPROVAL.id }],
+  })
+
 const migrationResult = (
   overrides: Partial<MigrationResult> = {},
 ): MigrationResult => ({
@@ -158,6 +173,31 @@ describe('migrationUiMachine', () => {
         refreshAccount: REFRESH_ACCOUNT,
       })
       expect(actor.getSnapshot().value).toBe('select')
+    })
+
+    it('transitions to migrate for a cleanup-only plan', () => {
+      executeMigrationMock.mockImplementation(() => new Promise(() => {}))
+      const actor = createActor(migrationUiMachine, {
+        input: { wagmiConfig: WAGMI },
+      })
+      actor.start()
+      actor.send({
+        type: 'migration.start',
+        plan: cleanupOnlyPlan(),
+        signer: SIGNER,
+        hcaClient: HCA_CLIENT,
+        refreshAccount: REFRESH_ACCOUNT,
+      })
+
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'running' })
+      expect(executeMigrationMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          plan: expect.objectContaining({
+            classified: [],
+            hcaDeploymentRequired: false,
+          }),
+        }),
+      )
     })
   })
 
@@ -243,6 +283,27 @@ describe('migrationUiMachine', () => {
       expect(actor.getSnapshot().value).toBe('success')
       expect(actor.getSnapshot().context.migratedNames).toEqual(['alice.eth'])
       expect(actor.getSnapshot().context.txHashes).toEqual([])
+    })
+
+    it('treats an already-clean cleanup-only plan as success', async () => {
+      executeMigrationMock.mockResolvedValueOnce(
+        migrationResult({ completed: 0, txHashes: [] }),
+      )
+      const actor = createActor(migrationUiMachine, {
+        input: { wagmiConfig: WAGMI },
+      })
+      actor.start()
+      actor.send({
+        type: 'migration.start',
+        plan: cleanupOnlyPlan(),
+        signer: SIGNER,
+        hcaClient: HCA_CLIENT,
+        refreshAccount: REFRESH_ACCOUNT,
+      })
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(actor.getSnapshot().value).toBe('success')
+      expect(actor.getSnapshot().context.migratedNames).toEqual([])
     })
 
     it('resetAll returns to select and wipes context on done', async () => {

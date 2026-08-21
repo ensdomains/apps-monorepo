@@ -1,5 +1,5 @@
 import { match, P } from 'ts-pattern'
-import type { MigrationApprovalId } from '@/features/migration/service/migrationApprovals'
+import type { MigrationGrantApprovalId } from '@/features/migration/service/migrationApprovals'
 import type { MigrationStepDescriptor } from '@/features/migration/service/migrationService'
 
 export const VISIBLE_PLANKS = 6
@@ -76,7 +76,7 @@ export type StepDescription =
   | { readonly kind: 'progress'; readonly text: string }
   | { readonly kind: 'preparing' }
   | { readonly kind: 'deploy-hca' }
-  | { readonly kind: 'approval'; readonly approvalId: MigrationApprovalId }
+  | { readonly kind: 'approval'; readonly approvalId: MigrationGrantApprovalId }
   | {
       readonly kind: 'atomic-batch'
       readonly index: number

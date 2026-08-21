@@ -1,9 +1,10 @@
 import type { AtomicMigrationBatch } from './buildAtomicMigrationBatches'
 import type {
   MigrationApproval,
-  MigrationApprovalId,
+  MigrationCleanupApproval,
+  MigrationCleanupApprovalId,
+  MigrationGrantApprovalId,
 } from './migrationApprovals'
-import { requiresMigrationApprovalCleanup } from './migrationApprovals'
 
 type RegistrationApprovalTarget = {
   readonly name: string
@@ -14,7 +15,7 @@ export type MigrationStepDescriptor =
   | { readonly type: 'deploy-hca' }
   | {
       readonly type: 'approval'
-      readonly approvalId: MigrationApprovalId
+      readonly approvalId: MigrationGrantApprovalId
       readonly count?: number
       readonly name?: string
       readonly tokenId?: bigint
@@ -27,12 +28,13 @@ export type MigrationStepDescriptor =
     }
   | {
       readonly type: 'cleanup'
-      readonly approvalId: MigrationApprovalId
+      readonly approvalId: MigrationCleanupApprovalId
     }
 
 export type BuildStepDescriptorsParams = {
   readonly hcaDeploymentRequired: boolean
   readonly approvals: readonly MigrationApproval[]
+  readonly cleanupApprovals: readonly MigrationCleanupApproval[]
   readonly atomicBatches: readonly AtomicMigrationBatch[]
   readonly registrationApprovalTargets: readonly RegistrationApprovalTarget[]
 }
@@ -47,6 +49,10 @@ export const buildStepDescriptors = (
       name,
     ]),
   )
+
+  for (const approval of params.cleanupApprovals) {
+    descriptors.push({ type: 'cleanup', approvalId: approval.id })
+  }
 
   if (params.hcaDeploymentRequired) {
     descriptors.push({ type: 'deploy-hca' })
@@ -80,11 +86,6 @@ export const buildStepDescriptors = (
       total: params.atomicBatches.length,
       count: batch.names.length,
     })
-  }
-
-  for (const approval of params.approvals) {
-    if (!requiresMigrationApprovalCleanup(approval)) continue
-    descriptors.push({ type: 'cleanup', approvalId: approval.id })
   }
 
   return descriptors

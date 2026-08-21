@@ -97,10 +97,7 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
     case 'cleanup-failed':
       return (
         <div>
-          <Trans>
-            Your names were upgraded, but temporary HCA access still needs to be
-            revoked.
-          </Trans>
+          <Trans>Legacy HCA access must be revoked to finish safely.</Trans>
         </div>
       )
     case 'profile-fetch-failed':
@@ -187,7 +184,8 @@ export const MigrationPage = () => {
     false,
   )
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
-  const isMigrationSuccess = step === 'success'
+  const isCleanupSuccess = step === 'success' && migratedNames.length === 0
+  const isMigrationSuccess = step === 'success' && !isCleanupSuccess
   const dialogOpen =
     migrationNftEnabled && (isMigrationSuccess || isPreviewOpen)
   const dialogNames = isMigrationSuccess ? migratedNames : selectedNames
@@ -221,6 +219,15 @@ export const MigrationPage = () => {
 
     setIsPreviewOpen(false)
   }, [isMigrationSuccess, uiActor, navigate])
+
+  const handleCleanupSuccessClose = useCallback(() => {
+    uiActor.send({ type: 'done' })
+  }, [uiActor])
+
+  const handleFailureBack = useCallback(() => {
+    invalidateMigrationQueries(queryClient)
+    uiActor.send({ type: 'cancel' })
+  }, [queryClient, uiActor])
 
   const handleViewProfile = useCallback(
     (profileName?: string) => {
@@ -362,7 +369,7 @@ export const MigrationPage = () => {
             >
               <button
                 className="rounded-sm bg-ens-garnet-900/10 px-4 py-3 font-semi-mono text-ens-garnet-900 text-sm uppercase tracking-[1.68px]"
-                onClick={() => uiActor.send({ type: 'cancel' })}
+                onClick={handleFailureBack}
                 type="button"
               >
                 <Trans>Back</Trans>
@@ -381,14 +388,35 @@ export const MigrationPage = () => {
             </motion.div>
           </ResultLayout>
         ))
-        .with('success', () =>
-          migrationNftEnabled ? null : (
+        .with('success', () => {
+          if (isCleanupSuccess) {
+            return (
+              <ResultLayout>
+                <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
+                  <Trans>Legacy access revoked</Trans>
+                </p>
+                <p className="max-w-md text-center text-ens-garnet-900/70 leading-normal">
+                  <Trans>
+                    The old direct HCA migration permission has been removed.
+                  </Trans>
+                </p>
+                <button
+                  className="rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
+                  onClick={handleCleanupSuccessClose}
+                  type="button"
+                >
+                  <Trans>Continue</Trans>
+                </button>
+              </ResultLayout>
+            )
+          }
+          return migrationNftEnabled ? null : (
             <PlainMigrationSuccessDialog
               migratedNameCount={dialogNames.length}
               onContinue={handleSuccessClose}
             />
-          ),
-        )
+          )
+        })
         .exhaustive()}
 
       {migrationNftEnabled ? (

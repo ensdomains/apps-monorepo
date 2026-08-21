@@ -78,16 +78,6 @@ const StepCopy = ({ step }: StepCopyProps) =>
         </p>
       </>
     ))
-    .with({ type: 'approval', approvalId: 'eth-registry:hca' }, () => (
-      <>
-        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
-          <Trans>Approve manager restoration</Trans>
-        </h3>
-        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-          <Trans>Restore the existing managers for your names.</Trans>
-        </p>
-      </>
-    ))
     .with({ type: 'atomic-batch' }, ({ count, index, total }) => (
       <>
         <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
@@ -114,7 +104,9 @@ const StepCopy = ({ step }: StepCopyProps) =>
           <Trans>Revoke temporary HCA access</Trans>
         </h3>
         <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-          <Trans>Remove the temporary permission after the upgrade.</Trans>
+          <Trans>
+            Remove a legacy migration permission before the upgrade.
+          </Trans>
         </p>
       </>
     ))

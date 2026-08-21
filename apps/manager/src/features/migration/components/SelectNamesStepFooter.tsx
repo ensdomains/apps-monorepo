@@ -7,26 +7,45 @@ import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
 
 type GasEstimateMessageProps = {
   readonly gasEstimate: MigrationGasEstimateState
+  readonly isCleanupOnly: boolean
   readonly isWaitingForGasFunding: boolean
   readonly totalSelected: number
 }
 
 const GasEstimateMessage = ({
   gasEstimate,
+  isCleanupOnly,
   isWaitingForGasFunding,
   totalSelected,
 }: GasEstimateMessageProps) => {
-  if (totalSelected === 0) return null
-
   // The gas drip request only resolves once any sepETH top-up is confirmed
   // on-chain. Surface it so the owner knows why the button is briefly blocked.
   if (isWaitingForGasFunding) {
     return (
       <p>
-        <Trans>Preparing your wallet with gas for the upgrade...</Trans>
+        <Trans>Preparing your wallet with gas for this transaction...</Trans>
       </p>
     )
   }
+
+  if (isCleanupOnly && gasEstimate.status === 'ready') {
+    return (
+      <p>
+        <Trans>
+          A legacy migration permission is still active. Remove it with{' '}
+          <WalletConfirmationStepsDialog
+            steps={gasEstimate.plan.stepDescriptors}
+          />
+          . Estimated network fee:{' '}
+          <strong className="font-semibold">
+            ~{gasEstimate.formattedEth} ETH
+          </strong>
+          .
+        </Trans>
+      </p>
+    )
+  }
+  if (totalSelected === 0) return null
 
   return match(gasEstimate)
     .with({ status: 'loading' }, () => (
@@ -61,6 +80,7 @@ const GasEstimateMessage = ({
 }
 
 type UpgradeButtonLabelProps = {
+  readonly isCleanupOnly: boolean
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
   readonly isWaitingForGasFunding: boolean
@@ -68,14 +88,16 @@ type UpgradeButtonLabelProps = {
 }
 
 const UpgradeButtonLabel = ({
+  isCleanupOnly,
   isEstimatingGas,
   isStarting,
   isWaitingForGasFunding,
   totalSelected,
 }: UpgradeButtonLabelProps) => {
   if (isStarting) return <Trans>Starting...</Trans>
-  if (isEstimatingGas) return <Trans>Estimating...</Trans>
   if (isWaitingForGasFunding) return <Trans>Preparing wallet...</Trans>
+  if (isCleanupOnly) return <Trans>Revoke legacy HCA access</Trans>
+  if (isEstimatingGas) return <Trans>Estimating...</Trans>
   return (
     <Plural
       one="Upgrade # name"
@@ -87,6 +109,7 @@ const UpgradeButtonLabel = ({
 
 type SelectNamesStepFooterProps = {
   readonly gasEstimate: MigrationGasEstimateState
+  readonly isCleanupOnly: boolean
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
   readonly isUpgradeDisabled: boolean
@@ -98,6 +121,7 @@ type SelectNamesStepFooterProps = {
 
 export const SelectNamesStepFooter = ({
   gasEstimate,
+  isCleanupOnly,
   isEstimatingGas,
   isStarting,
   isUpgradeDisabled,
@@ -117,6 +141,7 @@ export const SelectNamesStepFooter = ({
       <div className="flex max-w-107.5 flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
         <GasEstimateMessage
           gasEstimate={gasEstimate}
+          isCleanupOnly={isCleanupOnly}
           isWaitingForGasFunding={isWaitingForGasFunding}
           totalSelected={totalSelected}
         />
@@ -137,6 +162,7 @@ export const SelectNamesStepFooter = ({
           type="button"
         >
           <UpgradeButtonLabel
+            isCleanupOnly={isCleanupOnly}
             isEstimatingGas={isEstimatingGas}
             isStarting={isStarting}
             isWaitingForGasFunding={isWaitingForGasFunding}
