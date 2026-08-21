@@ -1,6 +1,9 @@
 import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
-import { nameExpiryDefinition } from './name-expiry'
+import {
+  nameExpiryDefinition,
+  nameExpiryNoticeKindFromStage,
+} from './name-expiry'
 
 const parse = (payload: unknown) =>
   v.safeParse(nameExpiryDefinition.payloadSchema, payload)
@@ -62,5 +65,17 @@ describe('name-expiry payload schema', () => {
         watchReason: 'owned',
       }).success,
     ).toBe(false)
+  })
+})
+
+describe('nameExpiryNoticeKindFromStage', () => {
+  it('groups stages into user-facing notice kinds', () => {
+    expect(nameExpiryNoticeKindFromStage('expiry-30d')).toBe('pre-expiry')
+    expect(nameExpiryNoticeKindFromStage('expiry-7d')).toBe('pre-expiry')
+    expect(nameExpiryNoticeKindFromStage('expiry-1d')).toBe('pre-expiry')
+    expect(nameExpiryNoticeKindFromStage('grace-start')).toBe('grace-start')
+    expect(nameExpiryNoticeKindFromStage('grace-7d')).toBe('grace-ending')
+    expect(nameExpiryNoticeKindFromStage('grace-1d')).toBe('grace-ending')
+    expect(nameExpiryNoticeKindFromStage('premium-start')).toBe('premium-start')
   })
 })

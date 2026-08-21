@@ -102,7 +102,8 @@ export const NotificationPreferencesFields = ({
               checked={field.state.value}
               description={
                 <Trans>
-                  You'll be notified 30, 7, and 1 day before expiry.
+                  You'll be notified before expiry, during the grace period, and
+                  when a name enters the temporary premium period.
                 </Trans>
               }
               disabled={preferences.isRefetching}
@@ -134,7 +135,10 @@ export const NotificationPreferencesFields = ({
             <PreferenceCard
               checked={field.state.value}
               description={
-                <Trans>Get notified when names you favorited expire.</Trans>
+                <Trans>
+                  Get notified when names you favorited are expiring or in their
+                  grace period.
+                </Trans>
               }
               disabled={preferences.isRefetching}
               icon={<MSymbol className="ms-wght-300" symbol="favorite" />}

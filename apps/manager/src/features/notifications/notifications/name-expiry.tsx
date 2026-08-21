@@ -1,9 +1,9 @@
 import { Link } from '@tanstack/react-router'
+import { match } from 'ts-pattern'
 import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
 import { NameCardTemplate } from '@/features/notifications/shared/templates'
-import { isRenewableName } from '@/features/renew/utils/renewableName'
-import { formatExpiryTime } from '@/utils/time'
 import type { KindComponent } from './contracts'
+import { getNameExpiryPresentation } from './name-expiry.presentation'
 
 export const NameExpiryComponent: KindComponent<'name-expiry'> = ({
   payload,
@@ -14,51 +14,44 @@ export const NameExpiryComponent: KindComponent<'name-expiry'> = ({
   onMarkAsRead,
   onRemove,
 }) => {
-  const expiry = formatExpiryTime(payload.expiryDate)
-  const isRenewable = isRenewableName(payload.name)
-  const action = isRenewable ? (
-    expiry.isExpired ? (
+  const presentation = getNameExpiryPresentation(payload)
+  const actionClassName = getNotificationActionButtonClass(layout)
+  const action = match(presentation.action)
+    .with('renew', () => (
       <Link
-        className={getNotificationActionButtonClass(layout)}
+        className={actionClassName}
         onClick={onAction}
-        params={{
-          name: payload.name,
-        }}
+        params={{ name: payload.name }}
+        to={presentation.renewTo}
+      >
+        {presentation.actionLabel}
+      </Link>
+    ))
+    .with('register', () => (
+      <Link
+        className={actionClassName}
+        onClick={onAction}
+        params={{ name: payload.name }}
         to="/register/$name"
       >
-        Register Name
+        {presentation.actionLabel}
       </Link>
-    ) : (
-      <Link
-        className={getNotificationActionButtonClass(layout)}
-        onClick={onAction}
-        params={{
-          name: payload.name,
-        }}
-        to="/renew/$name"
-      >
-        Renew Now
-      </Link>
-    )
-  ) : undefined
-  const description = isRenewable
-    ? expiry.isExpired
-      ? 'This name has expired and is now available to register.'
-      : 'This name is expiring soon and should be renewed as soon as possible.'
-    : "This name can't be renewed in Manager."
+    ))
+    .with('none', () => undefined)
+    .exhaustive()
 
   return (
     <NameCardTemplate
       action={action}
       category="Expiry"
       categoryTone="warning"
-      description={description}
+      description={presentation.description}
       layout={layout}
       name={payload.name}
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}
       seen={seen}
-      statusText={expiry.text}
+      statusText={presentation.statusText}
       timestamp={timestamp}
     />
   )

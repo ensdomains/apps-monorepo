@@ -3,6 +3,7 @@ import type {
   PersonalNotificationPayloads,
   SupportedNotifications,
 } from '@ens-apps/shared-schema/notifications'
+import { buildNameExpiryEmailContent } from './name-expiry.js'
 
 export type EmailTemplate<K extends SupportedNotifications<'email'>> = (
   payload: PersonalNotificationPayloads[K],
@@ -15,21 +16,16 @@ export type EmailTemplate<K extends SupportedNotifications<'email'>> = (
 export const emailTemplates: {
   [K in SupportedNotifications<'email'>]: EmailTemplate<K>
 } = {
-  'name-expiry': (payload) => ({
-    templateId: env.SENDGRID_TEMPLATE_IDS['name-expiry'],
-    dynamicData: {
-      name: payload.name,
-      expiryDate: new Date(payload.expiryDate).toLocaleDateString(),
-      expiryDays: Math.ceil(
-        (payload.expiryDate - Date.now()) / (1000 * 60 * 60 * 24),
-      ),
-      isOwner: payload.watchReason === 'owned',
-      watchReason: payload.watchReason,
-      protocol: payload.protocol,
-      stage: payload.stage,
-    },
-    subject: 'Domain Expiration Alert',
-  }),
+  'name-expiry': (payload) => {
+    const content = buildNameExpiryEmailContent(payload, {
+      managerAppUrl: env.MANAGER_APP_URL,
+    })
+    return {
+      templateId: env.SENDGRID_TEMPLATE_IDS['name-expiry'],
+      dynamicData: content.dynamicData,
+      subject: content.subject,
+    }
+  },
 
   'name-transferred': (payload) => ({
     templateId: env.SENDGRID_TEMPLATE_IDS['name-transferred'],

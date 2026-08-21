@@ -15,11 +15,14 @@ export {
 export type { ChannelType } from './channels'
 export { channelDefinitions } from './channels'
 export type {
+  NameExpiryNoticeKind,
   NameExpiryProtocol,
   NameExpiryStage,
   NameExpiryWatchReason,
 } from './kinds/name-expiry'
 export {
+  nameExpiryNoticeKindFromStage,
+  nameExpiryNoticeKindSchema,
   nameExpiryProtocolSchema,
   nameExpiryStageSchema,
   nameExpiryWatchReasonSchema,

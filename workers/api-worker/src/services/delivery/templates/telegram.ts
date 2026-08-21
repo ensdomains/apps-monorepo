@@ -1,7 +1,17 @@
+import { env } from 'cloudflare:workers'
 import type {
   PersonalNotificationPayloads,
   SupportedNotifications,
 } from '@ens-apps/shared-schema/notifications'
+import { match } from 'ts-pattern'
+import {
+  buildNameExpiryDeliveryContext,
+  formatCalendarDate,
+  formatDayCount,
+  type NameExpiryDeliveryContext,
+  type NameExpiryRenderOptions,
+} from './name-expiry.js'
+import { escapeHtml } from './sanitize.js'
 
 type TelegramMessage = {
   text: string
@@ -15,48 +25,80 @@ type TelegramMessage = {
   >
 }
 
-// Template function type
 export type TelegramTemplate<K extends SupportedNotifications<'telegram'>> = (
   payload: PersonalNotificationPayloads[K],
 ) => TelegramMessage
 
-// Define all telegram templates
-// TypeScript will error if we miss a notification that telegram supports
+const telegramCode = (value: string): string =>
+  `<code>${escapeHtml(value)}</code>`
+
+const telegramBold = (value: string): string => `<b>${escapeHtml(value)}</b>`
+
+const nameExpiryTelegramCopy = (context: NameExpiryDeliveryContext) =>
+  match(context.noticeKind)
+    .with('pre-expiry', () => ({
+      title: 'Domain expiration alert',
+      body: `${telegramCode(context.name)} expires in ${telegramBold(formatDayCount(context.daysUntilExpiry))}.`,
+      buttonText: 'Renew Now',
+      url: context.renewUrl,
+    }))
+    .with('grace-start', () => ({
+      title: 'Grace period started',
+      body: `${telegramCode(context.name)} has expired but can still be renewed until ${telegramBold(formatCalendarDate(context.graceEndDate))}.`,
+      buttonText: 'Renew Now',
+      url: context.renewUrl,
+    }))
+    .with('grace-ending', () => ({
+      title: 'Grace period ending soon',
+      body: `${telegramCode(context.name)} grace period ends in ${telegramBold(formatDayCount(context.daysUntilGraceEnd))}. Renew now to keep the name.`,
+      buttonText: 'Renew Now',
+      url: context.renewUrl,
+    }))
+    .with('premium-start', () => ({
+      title: 'Grace period ended',
+      body: `${telegramCode(context.name)} is no longer in its grace period and has entered the temporary premium window.`,
+      buttonText: 'Register Name',
+      url: context.registerUrl,
+    }))
+    .exhaustive()
+
+export const buildNameExpiryTelegramMessage = (
+  payload: PersonalNotificationPayloads['name-expiry'],
+  options: NameExpiryRenderOptions,
+): TelegramMessage => {
+  const copy = nameExpiryTelegramCopy(
+    buildNameExpiryDeliveryContext(payload, options),
+  )
+  return {
+    text: `⚠️ ${telegramBold(copy.title)}\n\n${copy.body}`,
+    parseMode: 'HTML',
+    buttons: [
+      [
+        {
+          text: copy.buttonText,
+          url: copy.url,
+        },
+      ],
+    ],
+  }
+}
+
 export const telegramTemplates: {
   [K in SupportedNotifications<'telegram'>]: TelegramTemplate<K>
 } = {
-  'name-expiry': (payload) => {
-    const daysLeft = Math.ceil(
-      (payload.expiryDate - Date.now()) / (1000 * 60 * 60 * 24),
-    )
-
-    const ownerText =
-      payload.watchReason === 'owned'
-        ? `Your domain \`${payload.name}\` will expire in *${daysLeft} days*.\n\nDon't forget to renew your domain!`
-        : `The domain \`${payload.name}\` you're watching will expire in *${daysLeft} days*.`
-
-    return {
-      text: `⚠️ *Domain Expiration Alert*\n\n${ownerText}`,
-      parseMode: 'Markdown',
-      buttons: [
-        [
-          {
-            text: '🔄 Renew Now',
-            url: `https://app.ens.domains/${payload.name}`,
-          },
-        ],
-      ],
-    }
-  },
+  'name-expiry': (payload) =>
+    buildNameExpiryTelegramMessage(payload, {
+      managerAppUrl: env.MANAGER_APP_URL,
+    }),
 
   'name-transferred': (payload) => {
     return {
       text:
-        `🔄 *Domain Transfer*\n\n` +
-        `Your domain \`${payload.name}\` has been transferred.\n\n` +
-        `To: \`${payload.to}\`\n` +
-        `Transaction: \`${payload.txHash}\``,
-      parseMode: 'Markdown',
+        `🔄 ${telegramBold('Domain Transfer')}\n\n` +
+        `Your domain ${telegramCode(payload.name)} has been transferred.\n\n` +
+        `To: ${telegramCode(payload.to)}\n` +
+        `Transaction: ${telegramCode(payload.txHash)}`,
+      parseMode: 'HTML',
       buttons: [
         [
           {
