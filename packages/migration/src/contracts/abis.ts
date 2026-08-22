@@ -9,6 +9,16 @@ const nameWrapperGetApprovedSnippet = parseAbi([
   'function getApproved(uint256 id) view returns (address)',
 ])
 
+/**
+ * ENSv1 legacy `ENSRegistry`. `owner(node)` is the live "manager" (controller) of a name —
+ * the delegate allowed to set its resolver. The registrant can revoke it at any time via
+ * `BaseRegistrar.reclaim`, so it is the only authoritative source for who holds the role
+ * *now*; the V1 subgraph reports whoever held it when it last indexed.
+ */
+export const ENS_REGISTRY_V1_ABI = parseAbi([
+  'function owner(bytes32 node) view returns (address)',
+])
+
 export const NAME_WRAPPER_ABI = [
   ...erc1155Abi,
   ...nameWrapperGetDataSnippet,

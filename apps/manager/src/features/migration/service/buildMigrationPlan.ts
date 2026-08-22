@@ -43,6 +43,7 @@ import {
 } from './directMigrationRoutes'
 import { resolverFor } from './encodeMigration'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
+import { resolveLiveManagers } from './preflightChecks'
 import {
   getV1ProfileKeys,
   type V1Domain,
@@ -325,7 +326,16 @@ export const buildMigrationPlan = async (params: {
     params
 
   const classifiedNamesResult = classifyNames([...domains], migrationOwner)
-  const classified = classifiedNamesResult.classified
+  // `classifyName` copies the manager out of the V1 subgraph's `domain.owner.id`, and
+  // `buildRoleGrantCall` turns it into `grantRoles(name, ROLE_SET_RESOLVER, …)`. An index
+  // reports whoever held the role when it last synced, so after a `BaseRegistrar.reclaim`
+  // it names an address the registrant has already revoked — and the plan would restore
+  // that address's resolver control on V2. Confirm every manager against the live legacy
+  // registry before it can reach the batch builder.
+  const classified = await resolveLiveManagers(
+    publicClient,
+    classifiedNamesResult.classified,
+  )
   await assertLockedResolverReplacementRecordSafety(classified, publicClient)
   const directRoutes =
     preflight.directMigrationRoutes ??

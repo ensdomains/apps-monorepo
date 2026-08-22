@@ -12,7 +12,10 @@ export {
   type MigrationTokenType,
 } from './service/classifyNames'
 export {
+  checkLiveManagers,
   type EligibilityResult,
+  type LiveManagerResult,
+  resolveLiveManagers,
   runEligibilityChecks,
 } from './service/preflightChecks'
 export type { V1Domain } from './service/v1SubgraphClient'

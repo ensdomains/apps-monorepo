@@ -62,6 +62,7 @@ const LOCKED_2LD_FUSES =
 function buildV1Domain(params: {
   label: string
   ownerAddress: string
+  managerAddress?: string
   type?: V1NameType
   hasRecords?: boolean
   fuses?: number
@@ -105,9 +106,14 @@ function buildV1Domain(params: {
           : hasRecords || isWrapped
             ? { id: V1_PUBLIC_RESOLVER, address: V1_PUBLIC_RESOLVER }
             : null,
-    // For unwrapped: owner is the EOA. For wrapped: owner is the NameWrapper.
+    // For unwrapped: owner is the legacy-registry manager — normally the EOA, but a
+    // delegated name has a distinct manager, and a *lagging* subgraph reports whoever
+    // held that role when it last indexed. `managerAddress` models both.
+    // For wrapped: owner is the NameWrapper.
     owner: {
-      id: isWrapped ? V1_NAME_WRAPPER : owner,
+      id: isWrapped
+        ? V1_NAME_WRAPPER
+        : (params.managerAddress?.toLowerCase() ?? owner),
     },
     // registrant is always the EOA (BaseRegistrar ERC-721 holder or original registrant)
     registrant: { id: owner },
@@ -143,6 +149,14 @@ export type MockV1Name = {
   name: string
   /** EOA address that owns this V1 name */
   ownerAddress: string
+  /**
+   * Legacy-registry manager (`domain.owner.id`) reported for an unwrapped name.
+   * Defaults to `ownerAddress`. Set it to a *different* address to model a
+   * delegated name — or a subgraph snapshot that has not yet indexed a manager
+   * change, which is what the stale-manager migration test needs.
+   * Ignored for wrapped names, where the registry owner is the NameWrapper.
+   */
+  managerAddress?: string
   /** V1 name type — must match what was passed to makeV1Name */
   type?: V1NameType
   /**
@@ -255,6 +269,7 @@ export async function mockV1Subgraph(
       return buildV1Domain({
         label,
         ownerAddress: n.ownerAddress,
+        managerAddress: n.managerAddress,
         type: n.type,
         fuses: n.fuses,
         hasRecords: Boolean(n.records),

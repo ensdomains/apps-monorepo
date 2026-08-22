@@ -3,7 +3,11 @@ import { permissionedRegistryGetStatusSnippet } from '@ensdomains/ensjs-abi/v2/p
 import type { Address, PublicClient } from 'viem'
 import { zeroAddress } from 'viem'
 import { sepoliaWithEns } from '../chain'
-import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
+import {
+  BASE_REGISTRAR_ABI,
+  ENS_REGISTRY_V1_ABI,
+  NAME_WRAPPER_ABI,
+} from '../contracts/abis'
 import { batchedMulticall } from './batchedMulticall'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
 import { GRACE_PERIOD_SECONDS } from './constants'
@@ -19,6 +23,10 @@ const NAME_WRAPPER = getChainContractAddress({
 const ETH_REGISTRY_V2 = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensRegistry',
+})
+const ENS_REGISTRY_V1 = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensLegacyRegistry',
 })
 const RESERVED_STATUS = 1
 
@@ -179,6 +187,118 @@ export const checkPremigrationReservation = async (
   return ids
 }
 
+export type LiveManagerResult = {
+  /** domain id → live manager, or `null` when the registrant holds the role itself. */
+  readonly managers: ReadonlyMap<string, Address | null>
+  /** domain ids whose live manager could not be read. */
+  readonly unreadable: ReadonlySet<string>
+}
+
+/**
+ * Re-derive each name's V1 manager from the **live** legacy registry.
+ *
+ * `classifyName` takes `managerAddress` from the V1 subgraph's `domain.owner.id`, and the
+ * migration plan turns that address into a real privilege: `grantRoles(name,
+ * ROLE_SET_RESOLVER, managerAddress)` on the V2 registry. An index is not an authority —
+ * it reports whoever held the role when it last synced. After a `BaseRegistrar.reclaim`
+ * the two disagree for as long as indexing lags (widened by the five-minute client cache),
+ * and granting from the stale value hands resolver control of the name to an address the
+ * registrant already revoked.
+ *
+ * So every candidate address is confirmed against `ENSRegistry.owner(node)` before it can
+ * become a grant. Only names the snapshot claims *have* a manager are read: when it
+ * reports none the plan appends no grant, and there is no authorization to check.
+ *
+ * Fails closed. An unreadable name is reported in `unreadable` and dropped from the
+ * eligible set rather than migrated on unverified data — the alternative is granting a
+ * privilege we could not confirm.
+ */
+export const checkLiveManagers = async (
+  publicClient: PublicClient,
+  names: readonly ClassifiedName[],
+  failed?: Set<string>,
+): Promise<LiveManagerResult> => {
+  const managers = new Map<string, Address | null>()
+  const unreadable = new Set<string>()
+
+  const candidates = names.filter((name) => name.managerAddress !== null)
+  if (candidates.length === 0) return { managers, unreadable }
+
+  const results = await batchedMulticall<Address>(
+    publicClient,
+    candidates.map((name) => ({
+      address: ENS_REGISTRY_V1,
+      abi: ENS_REGISTRY_V1_ABI,
+      functionName: 'owner' as const,
+      args: [name.domain.id as `0x${string}`] as const,
+    })),
+  )
+
+  for (const [index, name] of candidates.entries()) {
+    const result = results[index]
+    if (!result || result.status === 'failure') {
+      console.warn(
+        `[migration] live V1 manager read failed for ${name.domain.id}; ` +
+          'refusing to migrate on unverified manager data',
+      )
+      unreadable.add(name.domain.id)
+      failed?.add(name.domain.id)
+      continue
+    }
+    // Mirrors `classifyName`: the role is only a *delegation* when it sits with someone
+    // other than the registrant, and only then does the plan restore it.
+    const liveOwner = result.result
+    managers.set(
+      name.domain.id,
+      liveOwner.toLowerCase() === name.tokenHolder.toLowerCase()
+        ? null
+        : liveOwner,
+    )
+  }
+
+  return { managers, unreadable }
+}
+
+/** Replace a name's snapshot-derived manager with the live one. */
+const withLiveManager = (
+  name: ClassifiedName,
+  managers: ReadonlyMap<string, Address | null>,
+): ClassifiedName => {
+  if (!managers.has(name.domain.id)) return name
+  const live = managers.get(name.domain.id) ?? null
+  if (live === name.managerAddress) return name
+  if (live?.toLowerCase() === name.managerAddress?.toLowerCase()) return name
+  console.warn(
+    `[migration] ${name.domain.name}: subgraph reported manager ` +
+      `${name.managerAddress}, live registry says ${live ?? 'none'} — using live`,
+  )
+  return { ...name, managerAddress: live }
+}
+
+/**
+ * Return `names` with every manager re-derived from the live legacy registry.
+ *
+ * Call this before building a migration plan: the plan converts `managerAddress` into a
+ * real `grantRoles` call, so it must never be built from the subgraph's copy.
+ *
+ * Throws when a manager cannot be read. A plan that grants a privilege we could not
+ * confirm is worse than a flow the user has to retry — and unlike the eligibility path
+ * there is no per-name bucket here to drop the name into.
+ */
+export const resolveLiveManagers = async (
+  publicClient: PublicClient,
+  names: readonly ClassifiedName[],
+): Promise<ClassifiedName[]> => {
+  const { managers, unreadable } = await checkLiveManagers(publicClient, names)
+  if (unreadable.size > 0) {
+    throw new Error(
+      `Could not read the live V1 manager for ${[...unreadable].join(', ')} — ` +
+        'refusing to build a migration that grants roles from unverified data.',
+    )
+  }
+  return names.map((name) => withLiveManager(name, managers))
+}
+
 const frozenApprovalCandidates = (
   names: readonly ClassifiedName[],
 ): ClassifiedName[] =>
@@ -206,19 +326,26 @@ export const runEligibilityChecks = async (
   const frozenCandidates = frozenApprovalCandidates(names)
   const failedIds = new Set<string>()
 
-  const [migratedIds, frozenIds, notPremigratedIds] = await Promise.all([
-    checkOwnership(publicClient, names, migrationOwner, failedIds),
-    checkFrozenApproval(publicClient, frozenCandidates, failedIds),
-    checkPremigrationReservation(publicClient, names, failedIds),
-  ])
+  const [migratedIds, frozenIds, notPremigratedIds, liveManagers] =
+    await Promise.all([
+      checkOwnership(publicClient, names, migrationOwner, failedIds),
+      checkFrozenApproval(publicClient, frozenCandidates, failedIds),
+      checkPremigrationReservation(publicClient, names, failedIds),
+      checkLiveManagers(publicClient, names, failedIds),
+    ])
 
   return {
-    eligible: names.filter(
-      (n) =>
-        !frozenIds.has(n.domain.id) &&
-        !migratedIds.has(n.domain.id) &&
-        !notPremigratedIds.has(n.domain.id),
-    ),
+    // Eligible names carry the LIVE manager, never the subgraph's copy — it is about to
+    // become an on-chain role grant.
+    eligible: names
+      .filter(
+        (n) =>
+          !frozenIds.has(n.domain.id) &&
+          !migratedIds.has(n.domain.id) &&
+          !notPremigratedIds.has(n.domain.id) &&
+          !liveManagers.unreadable.has(n.domain.id),
+      )
+      .map((n) => withLiveManager(n, liveManagers.managers)),
     frozen: names.filter((n) => frozenIds.has(n.domain.id)),
     alreadyMigrated: names.filter((n) => migratedIds.has(n.domain.id)),
     notPremigrated: names.filter((n) => notPremigratedIds.has(n.domain.id)),

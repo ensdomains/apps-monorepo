@@ -1,1 +1,1 @@
-export { runEligibilityChecks } from '@ens-apps/migration'
+export { resolveLiveManagers, runEligibilityChecks } from '@ens-apps/migration'

@@ -24,6 +24,14 @@ import {
 } from './migrationInvariants'
 import { getV1ProfileKeys } from './v1SubgraphClient'
 
+// The preflight now confirms each name's manager against the live V1 registry before
+// deciding whether a manager-restoration confirmation is needed. These tests cover
+// approval planning, so pass the classified names through unchanged — manager freshness
+// is covered in packages/migration's preflightChecks.test.ts.
+vi.mock('./preflightChecks', async (importActual) => ({
+  ...(await importActual<typeof import('./preflightChecks')>()),
+  resolveLiveManagers: vi.fn(async (_client, names) => names),
+}))
 vi.mock('./v1SubgraphClient', async (importActual) => ({
   ...(await importActual<typeof import('./v1SubgraphClient')>()),
   getV1ProfileKeys: vi.fn(),

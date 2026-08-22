@@ -13,6 +13,9 @@
     "seed:name": "tsx scripts/seed-name.ts",
     "seed:premium": "tsx scripts/seed-temp-premium.ts",
     "seed:managed-name": "tsx scripts/seed-managed-name.ts",
+    "reclaim:v1-manager": "tsx scripts/reclaim-v1-manager.ts",
+    "resolver:roles": "tsx scripts/resolver-roles.ts",
+    "authority": "tsx scripts/transfer-authority.ts",
     "lint": "biome check"
   },
   "postinstall": "playwright install --with-deps chromium",

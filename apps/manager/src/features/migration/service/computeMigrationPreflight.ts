@@ -27,6 +27,7 @@ import {
   type MigrationHcaReadiness,
   type MigrationResolverReadiness,
 } from '@/features/migration/service/migrationInvariants'
+import { resolveLiveManagers } from '@/features/migration/service/preflightChecks'
 import type {
   V1Domain,
   V1ProfileKeys,
@@ -198,7 +199,14 @@ export const computeMigrationPreflight = async (params: {
 }): Promise<MigrationPreflight> => {
   const { eoa, hcaAddress, domains, wagmiConfig, publicClient } = params
 
-  const { classified } = classifyNames([...domains], eoa)
+  // Live managers, for the same reason `buildMigrationPlan` uses them: the confirmation
+  // estimate has to describe the batch that will actually be built. Deriving
+  // `requiresManagerRestoration` from the subgraph's copy while the plan derives it from
+  // the chain makes the two disagree, and the flow aborts with "permissions changed".
+  const classified = await resolveLiveManagers(
+    publicClient,
+    classifyNames([...domains], eoa).classified,
+  )
   const groups = groupClassifiedNames(classified)
 
   const needs = approvalNeedsFor(groups)
