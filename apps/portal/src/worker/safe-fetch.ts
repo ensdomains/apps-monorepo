@@ -64,12 +64,26 @@ function isIpLiteral(hostname: string): boolean {
 }
 
 /**
+ * Canonical form of a URL host for comparison: lowercase, trailing dots
+ * stripped.
+ *
+ * The trailing dot matters: the WHATWG URL parser keeps it in `.host`, but DNS
+ * resolves `example.com.` to the same records as `example.com` — so a plain
+ * string compare would let a trailing-dot spelling of our own host slip past
+ * the self-host guard and recurse into the worker anyway.
+ */
+function normalizeHost(host: string): string {
+  return host.toLowerCase().replace(/\.+$/, '')
+}
+
+/**
  * Validate a single URL before it is dereferenced. Returns `null` when the URL
  * is safe to fetch, or the reason it was rejected.
  *
  * `selfHost` is the worker's own host: an avatar pointing back at `/og/<name>`
  * would make the worker recurse into itself, with each hop spawning a fresh
- * invocation.
+ * invocation. Both sides are compared via {@link normalizeHost}, so every
+ * DNS-equivalent spelling of that host (trailing-dot FQDNs, casing) is caught.
  */
 function checkFetchableUrl(
   raw: string,
@@ -85,7 +99,7 @@ function checkFetchableUrl(
   if (url.protocol !== 'https:') return 'scheme'
   if (url.username || url.password) return 'credentials'
   if (isIpLiteral(url.hostname)) return 'ip-literal'
-  if (selfHost && url.host.toLowerCase() === selfHost.toLowerCase()) {
+  if (selfHost && normalizeHost(url.host) === normalizeHost(selfHost)) {
     return 'self-host'
   }
 

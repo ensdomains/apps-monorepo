@@ -490,6 +490,65 @@ describe('resolveAvatarDataUri (worker)', () => {
       expect(fetchSpy).not.toHaveBeenCalled()
     })
 
+    // DNS treats a trailing dot as the root label, so `portal.example.` and
+    // `portal.example` resolve to the same records — but WHATWG URL parsing
+    // keeps the dot in `.host`. A bare string compare would let the trailing-
+    // dot spelling of our own host through and recurse into the worker anyway;
+    // alternating spellings across two names would defeat the per-request
+    // check entirely.
+    it.each([
+      ['a single trailing dot', 'https://portal.example./og/victim.eth.png'],
+      ['multiple trailing dots', 'https://portal.example../og/victim.eth.png'],
+      ['trailing dot and uppercase', 'https://PORTAL.EXAMPLE./og/x.eth.png'],
+    ])('rejects the worker’s own host with %s', async (_label, record) => {
+      const result = await resolveAvatarDataUri(
+        client,
+        record,
+        'portal.example',
+      )
+
+      expect(result).toBeNull()
+      expect(fetchSpy).not.toHaveBeenCalled()
+    })
+
+    it('blocks a redirect into a trailing-dot spelling of the worker’s host', async () => {
+      // Re-validation must apply the same normalisation on every hop.
+      fetchSpy.mockResolvedValueOnce(
+        redirectResponse('https://portal.example./og/victim.eth.png'),
+      )
+
+      const result = await resolveAvatarDataUri(
+        client,
+        'https://cdn.example/cat.png',
+        'portal.example',
+      )
+
+      expect(result).toBeNull()
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([
+      ['a hostname sharing our prefix', 'https://xportal.example/a.png'],
+      [
+        'a hostname sharing our suffix',
+        'https://portal.example.evil.com/a.png',
+      ],
+    ])('still allows %s', async (_label, record) => {
+      // Host normalisation must not widen the guard past the exact host.
+      fetchSpy.mockResolvedValueOnce(
+        streamingResponse(new Uint8Array([1]), { contentType: 'image/png' }),
+      )
+
+      const result = await resolveAvatarDataUri(
+        client,
+        record,
+        'portal.example',
+      )
+
+      expect(result).toBe(`data:image/png;base64,${btoa('\x01')}`)
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+    })
+
     it('follows a redirect to an allowed host', async () => {
       fetchSpy
         .mockResolvedValueOnce(redirectResponse('https://cdn2.example/cat.png'))
