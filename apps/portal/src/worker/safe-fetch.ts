@@ -51,6 +51,10 @@ type UrlRejection =
  * obtaining an IP-SAN certificate and then choosing not to put a name in front
  * of it. Reserved IPs can't clear that bar at all, since CAs are barred from
  * issuing for them.
+ *
+ * Expects a {@link normalizeHost}-ed hostname. The parser folds away a *single*
+ * trailing dot on an IPv4-shaped host but keeps two or more, so `169.254.169.254..`
+ * would otherwise sail past the anchored pattern below.
  */
 function isIpLiteral(hostname: string): boolean {
   // IPv6 literals are always bracketed in a URL host.
@@ -64,16 +68,29 @@ function isIpLiteral(hostname: string): boolean {
 }
 
 /**
- * Canonical form of a URL host for comparison: lowercase, trailing dots
- * stripped.
+ * Canonical form of a URL host for comparison: lowercase, port removed,
+ * trailing dots stripped.
  *
- * The trailing dot matters: the WHATWG URL parser keeps it in `.host`, but DNS
- * resolves `example.com.` to the same records as `example.com` — so a plain
- * string compare would let a trailing-dot spelling of our own host slip past
- * the self-host guard and recurse into the worker anyway.
+ * Three spellings of one origin have to collapse together here, and leaving
+ * any of them uncollapsed reopens the guards below:
+ *
+ * - **Casing** — DNS is case-insensitive. The URL parser already lowercases
+ *   what it parses, but `selfHost` reaches us as a caller-supplied string.
+ * - **Port** — Cloudflare proxies HTTPS on 2053/2083/2087/2096/8443 as well as
+ *   443, and all of them route back to this worker. `URL.host` carries a
+ *   non-default port, so `portal.example:8443` would otherwise read as a
+ *   different origin than `portal.example`.
+ * - **Trailing dots** — the parser keeps them on names (it folds a single one
+ *   only for IPv4-shaped hosts), yet DNS resolves `example.com.` to the same
+ *   records as `example.com`.
+ *
+ * Order matters: the port comes off before the dots, so `example.com.:8443`
+ * reduces to `example.com` rather than stopping at `example.com.`.
  */
 function normalizeHost(host: string): string {
-  return host.toLowerCase().replace(/\.+$/, '')
+  // A `:` in a host is either a port separator or inside a bracketed IPv6
+  // literal — and those end in `]` — so this only ever strips a port.
+  return host.toLowerCase().replace(/:\d+$/, '').replace(/\.+$/, '')
 }
 
 /**
@@ -82,8 +99,16 @@ function normalizeHost(host: string): string {
  *
  * `selfHost` is the worker's own host: an avatar pointing back at `/og/<name>`
  * would make the worker recurse into itself, with each hop spawning a fresh
- * invocation. Both sides are compared via {@link normalizeHost}, so every
- * DNS-equivalent spelling of that host (trailing-dot FQDNs, casing) is caught.
+ * invocation. Both sides go through {@link normalizeHost}, so casing, an
+ * explicit port, and trailing-dot spellings all reduce to the same string —
+ * without that, two names whose avatars name different spellings of this
+ * worker bounce into each other forever, since each invocation only knows the
+ * spelling it was reached on.
+ *
+ * The check only covers the hostname the current request arrived on. This
+ * worker also answers on its `workers.dev` and preview hostnames, and an
+ * avatar naming one of those is not recognised as self — closing that needs a
+ * configured list of our own hostnames rather than the request's. See WEB-672.
  */
 function checkFetchableUrl(
   raw: string,
@@ -98,8 +123,8 @@ function checkFetchableUrl(
 
   if (url.protocol !== 'https:') return 'scheme'
   if (url.username || url.password) return 'credentials'
-  if (isIpLiteral(url.hostname)) return 'ip-literal'
-  if (selfHost && normalizeHost(url.host) === normalizeHost(selfHost)) {
+  if (isIpLiteral(normalizeHost(url.hostname))) return 'ip-literal'
+  if (selfHost && normalizeHost(url.hostname) === normalizeHost(selfHost)) {
     return 'self-host'
   }
 
