@@ -8,6 +8,8 @@ import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { RecentHistoryTimeline } from '@/features/history/components/RecentHistoryTimeline'
+import { getNameHistoryTimelineQueryOptions } from '@/features/history/hooks/useNameHistoryTimeline'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
@@ -17,7 +19,6 @@ import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
 import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
 import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
-import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { RecordCount } from '@/features/profile/components/RecordCount'
 import { RegistryCard } from '@/features/profile/components/RegistryCard'
 import { ResolverCard } from '@/features/profile/components/ResolverCard'
@@ -66,6 +67,9 @@ export const Route = createFileRoute('/$name/')({
     const tld = getTLD(params.name)
     return Promise.all([
       queryClient.prefetchQuery(getProfileQueryOptions({ name: params.name })),
+      queryClient.prefetchQuery(
+        getNameHistoryTimelineQueryOptions({ name: params.name }),
+      ),
       ...(tld !== 'eth'
         ? [queryClient.prefetchQuery(getDnsSecEnabledQueryOptions({ tld }))]
         : []),
@@ -430,7 +434,7 @@ const Profile = ({
       </div>
 
       {/* History */}
-      <RecentActivity name={name} protocolVersion={resolvedProtocolVersion} />
+      <RecentHistoryTimeline name={name} />
     </div>
   )
 }
