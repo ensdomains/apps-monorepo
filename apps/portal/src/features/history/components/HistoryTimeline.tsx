@@ -9,13 +9,12 @@ import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilte
 import { Button } from '@/components/ui/button'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { buildEventTypeGroups, filterActions } from '../filterTimeline'
-import { formatTimelineDate } from '../formatTimelineDate'
 import {
   getNameHistoryTimelineQueryOptions,
   HISTORY_TIMELINE_PAGE_SIZE,
 } from '../hooks/useNameHistoryTimeline'
 import { summarizeEvents } from '../summarize/summarizeEvents'
-import { ActionSummaryRow } from './ActionSummaryRow'
+import { ActionTimeline, TimelineFrame } from './ActionTimeline'
 
 interface HistoryTimelineProps {
   readonly name: string
@@ -119,30 +118,18 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
           description="No events match the selected filters. Try widening the date range or clearing the event filter."
         />
       ) : (
-        <div className="relative min-w-0 overflow-x-clip overflow-y-visible pr-3 [--detail-indent:36px] [--rail-x:12px] [--tier2-indent:30px] lg:[--detail-indent:224px] lg:[--rail-x:151px] lg:[--tier2-indent:182px]">
+        <TimelineFrame>
           {events && events.length >= HISTORY_TIMELINE_PAGE_SIZE && (
             <p className="mb-3 text-muted-foreground text-p">
               Showing the most recent {events.length} events.
             </p>
           )}
-          <div className="relative flex flex-col">
-            {filteredActions.map((action, index) => (
-              <ActionSummaryRow
-                key={action.txHash}
-                action={action}
-                isOpen={openIds.has(action.txHash)}
-                onToggle={() => toggleAction(action.txHash)}
-                connectRailAbove={index > 0}
-                connectRailBelow={index < filteredActions.length - 1}
-                showDate={
-                  index === 0 ||
-                  formatTimelineDate(filteredActions[index - 1].timestamp) !==
-                    formatTimelineDate(action.timestamp)
-                }
-              />
-            ))}
-          </div>
-        </div>
+          <ActionTimeline
+            actions={filteredActions}
+            openIds={openIds}
+            onToggle={toggleAction}
+          />
+        </TimelineFrame>
       )}
     </div>
   )
