@@ -37,7 +37,6 @@ describe('PageHeading', () => {
       </PageHeading>,
     )
 
-    // The `/` is aria-hidden, so the heading reads as its two real segments.
     expect(
       screen.getByRole('heading', {
         level: 1,
@@ -51,8 +50,8 @@ describe('PageHeading', () => {
       'data-params',
       JSON.stringify({ name: 'jooooe.eth' }),
     )
-    // Hover is an underline rather than a colour shift (Figma 2471:43259).
     expect(link).toHaveClass('hover:underline')
+    expect(link).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-ring')
   })
 
   it('renders no breadcrumb on an overview page', () => {

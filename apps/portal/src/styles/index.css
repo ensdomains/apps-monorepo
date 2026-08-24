@@ -410,9 +410,7 @@
   --text-h1: 2rem; /* 32px */
   --text-h1--line-height: 2.375rem; /* 38px */
   --text-h1--font-weight: 400;
-  /* A Name rendered inside an `h1` is always ABC Marist at 36/38 — one step
-     larger than the Grotesk `h1` it sits beside. Annotated in Figma on the
-     "h1 breadcrumb" spec (node 2470:37050). */
+  /* A Name inside an `h1` is ABC Marist at 36/38, not the Grotesk `h1`. */
   --text-h1-name: 2.25rem; /* 36px */
   --text-h1-name--line-height: 2.375rem; /* 38px */
   --text-h1-name--font-weight: 400;

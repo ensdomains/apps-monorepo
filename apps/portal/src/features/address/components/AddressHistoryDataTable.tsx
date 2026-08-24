@@ -116,8 +116,6 @@ export const AddressHistoryDataTable = ({
 
   return (
     <div className="flex flex-col gap-8">
-      {/* The table's own count heading is suppressed so the breadcrumb `h1`
-          stays the page's only heading; the count moves into it. */}
       <PageHeading parent={{ type: 'addr', addr: address }}>
         {`History (${eventCount})`}
       </PageHeading>
