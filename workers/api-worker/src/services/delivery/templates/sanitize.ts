@@ -3,7 +3,7 @@
  * Do not invent extra escaping for Handlebars: `{{name}}` already HTML-escapes
  * the substituted value and does not re-parse it as template syntax.
  */
-
+// biome-ignore lint/suspicious/noControlCharactersInRegex: strip C0 so names cannot inject newlines
 const C0_CONTROLS = /[\u0000-\u001F\u007F]/g
 
 const HTML_ESCAPES: Record<string, string> = {
