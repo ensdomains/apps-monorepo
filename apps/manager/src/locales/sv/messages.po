@@ -1009,6 +1009,10 @@ msgstr "Favoriter"
 msgid "Favourites"
 msgstr ""
 
+#: src/features/profile/components/view/ProfileFeaturedSocialSection.tsx
+msgid "Featured"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx
 msgid "Fee at this moment"
 msgstr ""

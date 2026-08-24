@@ -21,8 +21,8 @@ export const PrimaryContactButton = ({
     <motion.button
       aria-label={
         selected
-          ? `Remove ${label} from primary contact methods`
-          : `Add ${label} to primary contact methods`
+          ? `Remove ${label} from featured social profiles`
+          : `Feature ${label} on your profile`
       }
       aria-pressed={selected}
       className="flex h-11 w-8 shrink-0 items-center justify-center rounded-sm p-1 outline-none focus-visible:ring-3 focus-visible:ring-ens-lapis-500/50 disabled:cursor-not-allowed"
