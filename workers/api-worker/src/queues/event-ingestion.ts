@@ -6,6 +6,7 @@ import { fromPromise, ok } from 'neverthrow'
 import { v7 as uuidv7 } from 'uuid'
 import * as v from 'valibot'
 import { getDatabase, intoDbResult, TABLE } from '#core/database/index.js'
+import { getExpiryStageRank } from '#services/expiry-discovery/stages.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
 import { type ExpiryEvent, expiryEventSchema } from '#types/events/index.js'
 import { chunk } from '#utils/chunk.js'
@@ -72,6 +73,45 @@ export function buildIdempotencyKey(
   return `name-expiry:${userId}:${event.name}:${event.stage}:${event.expiryDate}`
 }
 
+function overlappingStageKey(event: ExpiryEvent): string {
+  return `${event.name}:${event.expiryDate}`
+}
+
+/**
+ * If a lagged discovery run enqueues the same name at several stages, keep
+ * only the most advanced lifecycle stage. Happy-path reminders still fire on
+ * later days because those events arrive in later batches.
+ */
+export function collapseOverlappingStageEvents(
+  events: ExpiryEvent[],
+): ExpiryEvent[] {
+  const selected = new Map<string, ExpiryEvent>()
+
+  for (const event of events) {
+    const key = overlappingStageKey(event)
+    const existing = selected.get(key)
+    if (!existing) {
+      selected.set(key, event)
+      continue
+    }
+
+    const keepEvent =
+      getExpiryStageRank(event.stage) >= getExpiryStageRank(existing.stage)
+        ? event
+        : existing
+    const droppedEvent = keepEvent === event ? existing : event
+
+    selected.set(key, {
+      ...keepEvent,
+      includeFavorites:
+        keepEvent.includeFavorites || droppedEvent.includeFavorites,
+      owner: keepEvent.owner ?? droppedEvent.owner,
+    })
+  }
+
+  return Array.from(selected.values())
+}
+
 export function collectRecipientsForEvent(
   event: ExpiryEvent,
   ownerToUserId: Map<string, string>,
@@ -113,18 +153,30 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
     return ok(undefined)
   }
 
+  const events = collapseOverlappingStageEvents(ctx.events)
+  const collapsedCount = ctx.events.length - events.length
   const db = getDatabase(ctx.env)
-  const stageCounts = countByStage(ctx.events)
+  const stageCounts = countByStage(events)
+
+  if (collapsedCount > 0) {
+    logger.warn('Collapsed overlapping expiry stages for the same name', {
+      originalEventCount: ctx.events.length,
+      eventCount: events.length,
+      collapsedCount,
+    })
+  }
 
   logger.debug('Processing expiry events', {
-    eventCount: ctx.events.length,
+    eventCount: events.length,
+    originalEventCount: ctx.events.length,
+    collapsedCount,
     stageCounts,
   })
 
   // Resolve recipients in two set-based lookups to avoid per-event DB round trips.
   const ownerAddresses = Array.from(
     new Set(
-      ctx.events
+      events
         .map((event) => event.owner?.toLowerCase())
         .filter((owner): owner is string => Boolean(owner)),
     ),
@@ -132,7 +184,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
 
   const favoriteNames = Array.from(
     new Set(
-      ctx.events
+      events
         .filter((event) => event.includeFavorites)
         .map((event) => event.name),
     ),
@@ -191,7 +243,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
   const existingIdempotencyKeys = new Set<string>()
   let duplicateIdempotencyCount = 0
 
-  for (const event of ctx.events) {
+  for (const event of events) {
     const recipients = collectRecipientsForEvent(
       event,
       ownerToUserId,
@@ -237,7 +289,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
 
   if (notificationsToInsert.length === 0) {
     logger.debug('No recipients found for expiry events', {
-      eventCount: ctx.events.length,
+      eventCount: events.length,
       duplicateIdempotencyCount,
     })
     return ok(undefined)
@@ -268,7 +320,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
 
   if (insertedNotifications.length === 0) {
     logger.debug('All notifications already exist (idempotency conflict)', {
-      eventCount: ctx.events.length,
+      eventCount: events.length,
     })
     return ok(undefined)
   }
@@ -478,7 +530,9 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
   }
 
   logger.info('Processed expiry event batch', {
-    eventCount: ctx.events.length,
+    eventCount: events.length,
+    originalEventCount: ctx.events.length,
+    collapsedCount,
     stageCounts,
     duplicateIdempotencyCount,
     insertedNotifications: insertedNotifications.length,

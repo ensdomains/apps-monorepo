@@ -11,6 +11,7 @@ import {
 import { fetchExpiringNamesPage } from './indexer.js'
 import {
   type ExpiryStageConfig,
+  getQueryCursorForStage,
   getUpperBoundForStage,
   STAGES,
 } from './stages.js'
@@ -54,13 +55,16 @@ const processStage = ResultFn(async function* (ctx: {
   nowSec: number
 }) {
   const upperBound = getUpperBoundForStage(ctx.stage, ctx.nowSec)
-  const lagSec = Math.max(0, upperBound - ctx.cursor)
+  const queryCursor = getQueryCursorForStage(ctx.stage, ctx.cursor, ctx.nowSec)
+  const clampedBySec = Math.max(0, queryCursor - ctx.cursor)
+  const lagSec = Math.max(0, upperBound - queryCursor)
 
   // Cursor already caught up with the stage window.
-  if (ctx.cursor >= upperBound) {
+  if (queryCursor >= upperBound) {
     logger.debug('Expiry stage skipped (cursor caught up)', {
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
+      queryCursor,
       upperBound,
     })
     return ok({
@@ -75,9 +79,20 @@ const processStage = ResultFn(async function* (ctx: {
     } satisfies StageRunMetrics)
   }
 
+  if (clampedBySec > 0) {
+    logger.warn('Expiry stage cursor clamped to exclusive window', {
+      stageId: ctx.stage.id,
+      storedCursor: ctx.cursor,
+      queryCursor,
+      upperBound,
+      clampedBySec,
+    })
+  }
+
   logger.debug('Processing expiry stage window', {
     stageId: ctx.stage.id,
     cursorStart: ctx.cursor,
+    queryCursor,
     upperBound,
     lagSec,
   })
@@ -85,7 +100,7 @@ const processStage = ResultFn(async function* (ctx: {
   const page = yield* fetchExpiringNamesPage({
     env: ctx.env,
     stage: ctx.stage,
-    cursor: ctx.cursor,
+    cursor: queryCursor,
     upperBound,
   })
 
@@ -93,12 +108,13 @@ const processStage = ResultFn(async function* (ctx: {
     logger.debug('Expiry stage returned no domains', {
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
+      queryCursor,
       upperBound,
     })
     return ok({
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
-      cursorEnd: ctx.cursor,
+      cursorEnd: queryCursor,
       upperBound,
       enqueuedCount: 0,
       pageDomainCount: 0,
@@ -134,7 +150,7 @@ const processStage = ResultFn(async function* (ctx: {
   return ok({
     stageId: ctx.stage.id,
     cursorStart: ctx.cursor,
-    cursorEnd: lastExpiryDate ?? ctx.cursor,
+    cursorEnd: lastExpiryDate ?? queryCursor,
     upperBound,
     enqueuedCount: events.length,
     pageDomainCount: page.domains.length,

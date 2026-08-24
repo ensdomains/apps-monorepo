@@ -21,6 +21,7 @@ vi.mock('#core/database/index.js', async () => {
 import { getDatabase } from '#core/database/index.js'
 import {
   buildIdempotencyKey,
+  collapseOverlappingStageEvents,
   collectRecipientsForEvent,
   handleEventIngestionQueue,
   shouldCreateExternalDeliveries,
@@ -60,6 +61,27 @@ describe('event-ingestion helpers', () => {
 
     expect(recipients.get('user-owner')).toBe('owned')
     expect(recipients.get('user-fav')).toBe('favourited')
+  })
+
+  it('keeps only the most advanced overlapping stage for a name', () => {
+    const collapsed = collapseOverlappingStageEvents([
+      expiryEvent({ stage: 'expiry-30d', includeFavorites: false }),
+      expiryEvent({ stage: 'expiry-7d', includeFavorites: true }),
+      expiryEvent({ stage: 'grace-start', includeFavorites: true }),
+      expiryEvent({ name: 'other.eth', stage: 'expiry-30d' }),
+    ])
+
+    expect(collapsed).toEqual([
+      expect.objectContaining({
+        name: 'alpha.eth',
+        stage: 'grace-start',
+        includeFavorites: true,
+      }),
+      expect.objectContaining({
+        name: 'other.eth',
+        stage: 'expiry-30d',
+      }),
+    ])
   })
 
   it('evaluates delivery settings by watch reason', () => {
@@ -584,6 +606,54 @@ describe('handleEventIngestionQueue', () => {
       idempotency_key: 'name-expiry:user-1:alpha.eth:grace-start:1700000000',
     })
     expect(message.ack).toHaveBeenCalledTimes(1)
+  })
+
+  it('inserts one notification when the same name arrives at multiple stages', async () => {
+    const messages = [
+      makeQueueMessage<ExpiryEvent>(
+        expiryEvent({ stage: 'expiry-30d', includeFavorites: false }),
+      ),
+      makeQueueMessage<ExpiryEvent>(
+        expiryEvent({ stage: 'expiry-7d', includeFavorites: true }),
+      ),
+      makeQueueMessage<ExpiryEvent>(
+        expiryEvent({ stage: 'grace-start', includeFavorites: true }),
+      ),
+    ]
+    const batch = makeQueueBatch('app-api-worker-event-ingestion', messages)
+
+    const dbFixture = makeMockDb({
+      users: [{ id: 'user-1', address: '0xabc' }],
+      favorites: [],
+      insertedNotifications: [
+        {
+          id: 'notif-1',
+          user_id: 'user-1',
+          kind: 'name-expiry',
+          payload: {
+            name: 'alpha.eth',
+            expiryDate: 1_700_000_000_000,
+            protocol: 'v2',
+            stage: 'grace-start',
+            watchReason: 'owned',
+          },
+        },
+      ],
+      userChannels: [],
+      userSettings: [],
+    })
+    mockGetDatabase.mockReturnValue(dbFixture.db as never)
+
+    await handleEventIngestionQueue(batch, makeMockEnv())
+
+    expect(dbFixture.notificationsInsertValues).toHaveLength(1)
+    expect(dbFixture.notificationsInsertValues[0]).toMatchObject({
+      payload: { stage: 'grace-start' },
+      idempotency_key: 'name-expiry:user-1:alpha.eth:grace-start:1700000000',
+    })
+    for (const message of messages) {
+      expect(message.ack).toHaveBeenCalledTimes(1)
+    }
   })
 
   it('keeps owner and favourite routing independent of stage', async () => {

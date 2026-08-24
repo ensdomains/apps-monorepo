@@ -2,7 +2,11 @@ import { V2_GRACE_PERIOD_DAYS } from '@ens-apps/utils/gracePeriod'
 import { describe, expect, it } from 'vitest'
 import {
   getDefaultCursorForStage,
+  getExpiryStageRank,
+  getLowerBoundForStage,
+  getQueryCursorForStage,
   getUpperBoundForStage,
+  MAX_STAGE_CATCH_UP_SECONDS,
   STAGES,
 } from './stages.js'
 
@@ -90,6 +94,64 @@ describe('expiry stages', () => {
     // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
     expect(getDefaultCursorForStage(byId.get('premium-start')!, nowSec)).toBe(
       nowSec - 28 * DAY,
+    )
+  })
+
+  it('uses exclusive windows so lagged cursors cannot overlap stages', () => {
+    const nowSec = 1_700_000_000
+    const byId = new Map(STAGES.map((stage) => [stage.id, stage]))
+
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
+    expect(getLowerBoundForStage(byId.get('expiry-30d')!, nowSec)).toBe(
+      nowSec + 7 * DAY,
+    )
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
+    expect(getLowerBoundForStage(byId.get('expiry-7d')!, nowSec)).toBe(
+      nowSec + DAY,
+    )
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
+    expect(getLowerBoundForStage(byId.get('expiry-1d')!, nowSec)).toBe(nowSec)
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
+    expect(getLowerBoundForStage(byId.get('grace-start')!, nowSec)).toBe(
+      nowSec - 21 * DAY,
+    )
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
+    expect(getLowerBoundForStage(byId.get('grace-7d')!, nowSec)).toBe(
+      nowSec - 27 * DAY,
+    )
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
+    expect(getLowerBoundForStage(byId.get('grace-1d')!, nowSec)).toBe(
+      nowSec - 28 * DAY,
+    )
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
+    expect(getLowerBoundForStage(byId.get('premium-start')!, nowSec)).toBe(
+      nowSec - 28 * DAY - MAX_STAGE_CATCH_UP_SECONDS,
+    )
+  })
+
+  it('clamps lagged cursors up to the exclusive window without lowering a caught-up cursor', () => {
+    const nowSec = 1_700_000_000
+    const byId = new Map(STAGES.map((stage) => [stage.id, stage]))
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
+    const expiry30d = byId.get('expiry-30d')!
+
+    expect(getQueryCursorForStage(expiry30d, nowSec - 200 * DAY, nowSec)).toBe(
+      nowSec + 7 * DAY,
+    )
+    expect(getQueryCursorForStage(expiry30d, nowSec + 10 * DAY, nowSec)).toBe(
+      nowSec + 10 * DAY,
+    )
+    expect(getQueryCursorForStage(expiry30d, nowSec + 31 * DAY, nowSec)).toBe(
+      nowSec + 31 * DAY,
+    )
+  })
+
+  it('ranks lifecycle stages from furthest-future to furthest-past', () => {
+    expect(getExpiryStageRank('expiry-30d')).toBeLessThan(
+      getExpiryStageRank('expiry-7d'),
+    )
+    expect(getExpiryStageRank('grace-start')).toBeLessThan(
+      getExpiryStageRank('premium-start'),
     )
   })
 })

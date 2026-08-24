@@ -57,11 +57,47 @@ export const STAGES: ExpiryStageConfig[] = [
   },
 ]
 
+/**
+ * Premium-start has no closer stage, so catch-up is capped. Without this, a
+ * lagged cursor would notify every name that already left grace.
+ */
+export const MAX_STAGE_CATCH_UP_SECONDS = 2 * SECONDS_PER_DAY
+
 export function getUpperBoundForStage(
   stage: ExpiryStageConfig,
   nowSec: number,
 ) {
   return nowSec + stage.offsetDays * SECONDS_PER_DAY
+}
+
+/**
+ * Exclusive lower bound for this stage's window: the next closer stage's upper
+ * bound. A name therefore belongs to at most one stage per cron run, even when
+ * cursors have lagged across multiple lifecycle thresholds.
+ */
+export function getLowerBoundForStage(
+  stage: ExpiryStageConfig,
+  nowSec: number,
+) {
+  const stageIndex = STAGES.findIndex((candidate) => candidate.id === stage.id)
+  const closerStage = stageIndex >= 0 ? STAGES[stageIndex + 1] : undefined
+  if (closerStage) {
+    return getUpperBoundForStage(closerStage, nowSec)
+  }
+
+  return getUpperBoundForStage(stage, nowSec) - MAX_STAGE_CATCH_UP_SECONDS
+}
+
+export function getQueryCursorForStage(
+  stage: ExpiryStageConfig,
+  cursor: number,
+  nowSec: number,
+) {
+  return Math.max(cursor, getLowerBoundForStage(stage, nowSec))
+}
+
+export function getExpiryStageRank(stageId: ExpiryStageId): number {
+  return STAGES.findIndex((stage) => stage.id === stageId)
 }
 
 /**

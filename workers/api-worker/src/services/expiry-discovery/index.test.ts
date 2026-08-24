@@ -8,7 +8,11 @@ vi.mock('./indexer.js', () => ({
 import { KV_KEY } from '#core/kv/index.js'
 import { runExpiryDiscoveryCron } from './index.js'
 import { fetchExpiringNamesPage } from './indexer.js'
-import { getDefaultCursorForStage, STAGES } from './stages.js'
+import {
+  getDefaultCursorForStage,
+  getLowerBoundForStage,
+  STAGES,
+} from './stages.js'
 
 class MockKV {
   private store = new Map<string, string>()
@@ -188,7 +192,7 @@ describe('runExpiryDiscoveryCron', () => {
     )
   })
 
-  it('keeps cursor unchanged for empty stage pages', async () => {
+  it('snaps lagged empty-page cursors forward to the exclusive window', async () => {
     vi.mocked(fetchExpiringNamesPage).mockReturnValue(
       okAsync({ domains: [], hasMore: false }),
     )
@@ -202,6 +206,45 @@ describe('runExpiryDiscoveryCron', () => {
       'grace-7d': { expiry_timestamp: 555 },
       'grace-1d': { expiry_timestamp: 666 },
       'premium-start': { expiry_timestamp: 777 },
+    }
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, seeded)
+
+    const env = {
+      KV: kv,
+      EVENT_INGESTION_QUEUE: { sendBatch: vi.fn(async () => undefined) },
+    } as unknown as CloudflareBindings
+
+    const result = await runExpiryDiscoveryCron(env)
+
+    expect(result.isOk()).toBe(true)
+    const nowSec = Math.floor(new Date('2026-02-11T12:00:00Z').getTime() / 1000)
+    const cursors = (await kv.get(
+      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
+      'json',
+    )) as CursorState
+
+    for (const stage of STAGES) {
+      expect(cursors[stage.id].expiry_timestamp).toBe(
+        getLowerBoundForStage(stage, nowSec),
+      )
+    }
+  })
+
+  it('keeps in-window cursors unchanged for empty stage pages', async () => {
+    vi.mocked(fetchExpiringNamesPage).mockReturnValue(
+      okAsync({ domains: [], hasMore: false }),
+    )
+
+    const nowSec = Math.floor(new Date('2026-02-11T12:00:00Z').getTime() / 1000)
+    const kv = new MockKV()
+    const seeded = {
+      'expiry-30d': { expiry_timestamp: nowSec + 10 * 86_400 },
+      'expiry-7d': { expiry_timestamp: nowSec + 3 * 86_400 },
+      'expiry-1d': { expiry_timestamp: nowSec + 3_600 },
+      'grace-start': { expiry_timestamp: nowSec - 3_600 },
+      'grace-7d': { expiry_timestamp: nowSec - 22 * 86_400 },
+      'grace-1d': { expiry_timestamp: nowSec - 27 * 86_400 - 3_600 },
+      'premium-start': { expiry_timestamp: nowSec - 28 * 86_400 - 3_600 },
     }
     kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, seeded)
 
@@ -337,10 +380,89 @@ describe('runExpiryDiscoveryCron', () => {
     } as unknown as CloudflareBindings
 
     const result = await runExpiryDiscoveryCron(env)
+    const nowSec = Math.floor(new Date('2026-02-11T12:00:00Z').getTime() / 1000)
 
     expect(result.isOk()).toBe(true)
     // At/after-expiry stages start at their upper bound on first run.
     const backfillStages = STAGES.filter((stage) => stage.offsetDays > 0)
     expect(fetchExpiringNamesPage).toHaveBeenCalledTimes(backfillStages.length)
+    expect(fetchExpiringNamesPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: expect.objectContaining({ id: 'expiry-30d' }),
+        cursor: nowSec + 7 * 86_400,
+      }),
+    )
+  })
+
+  it('enqueues each lagged name once for its current exclusive stage', async () => {
+    const sendBatch = vi.fn(
+      async (_messages: Array<{ body: unknown }>) => undefined,
+    )
+    const nowSec = Math.floor(new Date('2026-02-11T12:00:00Z').getTime() / 1000)
+    const day = 86_400
+    const kv = new MockKV()
+    kv.seed(
+      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
+      Object.fromEntries(
+        STAGES.map((stage) => [
+          stage.id,
+          { expiry_timestamp: nowSec - 200 * day },
+        ]),
+      ),
+    )
+
+    const domains = [
+      { name: 'idx-expiry-30d.eth', expiryDate: nowSec + 30 * day - 600 },
+      { name: 'idx-expiry-7d.eth', expiryDate: nowSec + 7 * day - 600 },
+      { name: 'idx-expiry-1d.eth', expiryDate: nowSec + 1 * day - 600 },
+      { name: 'idx-grace-start.eth', expiryDate: nowSec - 600 },
+      { name: 'idx-grace-7d.eth', expiryDate: nowSec - 21 * day - 600 },
+      { name: 'idx-grace-1d.eth', expiryDate: nowSec - 27 * day - 600 },
+      { name: 'idx-premium.eth', expiryDate: nowSec - 28 * day - 600 },
+      { name: 'idx-ancient.eth', expiryDate: nowSec - 40 * day },
+    ]
+
+    vi.mocked(fetchExpiringNamesPage).mockImplementation(
+      ({ cursor, upperBound }) =>
+        okAsync({
+          domains: domains.filter(
+            (domain) =>
+              domain.expiryDate > cursor && domain.expiryDate <= upperBound,
+          ),
+          hasMore: false,
+        }),
+    )
+
+    const env = {
+      KV: kv,
+      EVENT_INGESTION_QUEUE: { sendBatch },
+    } as unknown as CloudflareBindings
+
+    const result = await runExpiryDiscoveryCron(env)
+
+    expect(result.isOk()).toBe(true)
+
+    const bodies = sendBatch.mock.calls.flatMap((call) =>
+      (
+        call[0] as Array<{
+          body: { name: string; stage: string }
+        }>
+      ).map((message) => message.body),
+    )
+
+    const byName = Object.fromEntries(
+      bodies.map((body) => [body.name, body.stage]),
+    )
+    expect(byName).toEqual({
+      'idx-expiry-30d.eth': 'expiry-30d',
+      'idx-expiry-7d.eth': 'expiry-7d',
+      'idx-expiry-1d.eth': 'expiry-1d',
+      'idx-grace-start.eth': 'grace-start',
+      'idx-grace-7d.eth': 'grace-7d',
+      'idx-grace-1d.eth': 'grace-1d',
+      'idx-premium.eth': 'premium-start',
+    })
+    expect(bodies).toHaveLength(7)
+    expect(result._unsafeUnwrap().totalEnqueued).toBe(7)
   })
 })
