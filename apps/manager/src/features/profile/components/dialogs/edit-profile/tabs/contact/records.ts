@@ -8,6 +8,7 @@ import {
   maxPrimaryContactMethods,
   primaryContactRecordKey,
   primaryContactsRecordKey,
+  socialContactMethodKeys,
 } from './constants'
 
 export const getRecordsForMethod = (
@@ -65,7 +66,7 @@ const getPrimaryContactErrorMessage = ({
   readonly value: string
 }): string | undefined =>
   isPrimary && value.trim() === ''
-    ? `Add ${label} before pinning it as a primary contact method.`
+    ? `Add ${label} before featuring it on your profile.`
     : undefined
 
 export const getContactMethodErrorMessage = ({
@@ -113,7 +114,7 @@ export const getContactMethodNoticeMessage = (
 export const getContactValidationIssues = (
   values: ProfileRecords,
 ): ContactValidationIssue[] => {
-  const primaryContactKeys = parsePrimaryContactKeys(values.base)
+  const primaryContactKeys = getPrimarySocialContactKeys(values.base)
 
   return contactMethods.flatMap((method) => {
     if (
@@ -168,6 +169,13 @@ export const parsePrimaryContactKeys = (
   const primaryContact = base[primaryContactRecordKey]?.trim()
   return primaryContact ? normalizePrimaryContactKeys([primaryContact]) : []
 }
+
+export const getPrimarySocialContactKeys = (
+  base: ProfileRecords['base'],
+): ContactMethodKey[] =>
+  parsePrimaryContactKeys(base).filter((key) =>
+    socialContactMethodKeys.has(key),
+  )
 
 export const getBaseWithPrimaryContactKeys = (
   base: ProfileRecords['base'],

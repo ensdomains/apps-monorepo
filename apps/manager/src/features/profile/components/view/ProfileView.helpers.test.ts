@@ -4,8 +4,9 @@ import {
   formatChainSpecificAddress,
   formatProfileDetailDate,
   getChainSpecificAddresses,
+  getContactItems,
+  getFeaturedSocialItems,
   getMainReceivingAddress,
-  getPrimaryContactItems,
   getReceivingAddressChains,
   getSafeProfileLinks,
   getSecondarySocialRecords,
@@ -57,7 +58,7 @@ describe('ProfileView helpers', () => {
     )
   })
 
-  it('uses ENSIP-18 primary contact keys before falling back to contact records', () => {
+  it('keeps contact records separate from featured social records', () => {
     const records = makeRecords({
       base: {
         'domains.ens.primary-contacts': JSON.stringify([
@@ -73,21 +74,23 @@ describe('ProfileView helpers', () => {
       ],
     })
 
-    expect(getPrimaryContactItems(records)).toMatchObject([
-      {
-        displayValue: 'ernieth',
-        key: 'com.twitter',
-        label: 'X (Twitter)',
-      },
+    expect(getContactItems(records)).toMatchObject([
       {
         displayValue: 'person@example.com',
         key: 'email',
         label: 'Email Address',
       },
     ])
+    expect(getFeaturedSocialItems(records)).toMatchObject([
+      {
+        displayValue: 'ernieth',
+        key: 'com.twitter',
+        label: 'X (Twitter)',
+      },
+    ])
   })
 
-  it('uses only non-header contact records for fallback contacts', () => {
+  it('shows only non-header records as contact cards', () => {
     const records = makeRecords({
       contact: [
         { key: 'location', value: 'Canada' },
@@ -98,7 +101,7 @@ describe('ProfileView helpers', () => {
       social: [{ key: 'com.github', value: 'ensdomains' }],
     })
 
-    expect(getPrimaryContactItems(records, 3).map((item) => item.key)).toEqual([
+    expect(getContactItems(records).map((item) => item.key)).toEqual([
       'email',
       'phone',
     ])
@@ -107,7 +110,7 @@ describe('ProfileView helpers', () => {
     ])
   })
 
-  it('does not create fallback contacts from header records or unstarred socials', () => {
+  it('does not create contact cards from header records or unstarred socials', () => {
     const records = makeRecords({
       contact: [
         { key: 'location', value: 'Canada' },
@@ -119,11 +122,11 @@ describe('ProfileView helpers', () => {
       ],
     })
 
-    expect(getPrimaryContactItems(records)).toEqual([])
+    expect(getContactItems(records)).toEqual([])
     expect(getSecondarySocialRecords(records)).toEqual(records.social)
   })
 
-  it('excludes primary contacts from the social records', () => {
+  it('moves starred socials from Social to Featured', () => {
     const records = makeRecords({
       base: {
         'domains.ens.primary-contacts': JSON.stringify([
@@ -141,6 +144,10 @@ describe('ProfileView helpers', () => {
     expect(getSecondarySocialRecords(records)).toEqual([
       { key: 'org.telegram', value: 'erni_eth' },
     ])
+    expect(getContactItems(records).map((item) => item.key)).toEqual(['email'])
+    expect(getFeaturedSocialItems(records).map((item) => item.key)).toEqual([
+      'com.twitter',
+    ])
   })
 
   it('keeps social records secondary when configured primary contacts do not resolve', () => {
@@ -156,9 +163,7 @@ describe('ProfileView helpers', () => {
       ],
     })
 
-    expect(getPrimaryContactItems(records).map((item) => item.key)).toEqual([
-      'email',
-    ])
+    expect(getContactItems(records).map((item) => item.key)).toEqual(['email'])
     expect(getSecondarySocialRecords(records)).toEqual([
       { key: 'org.telegram', value: 'erni_eth' },
       { key: 'com.github', value: 'ensdomains' },
@@ -176,9 +181,7 @@ describe('ProfileView helpers', () => {
       ],
     })
 
-    expect(getPrimaryContactItems(records).map((item) => item.key)).toEqual([
-      'email',
-    ])
+    expect(getContactItems(records).map((item) => item.key)).toEqual(['email'])
     expect(getSecondarySocialRecords(records)).toEqual([
       { key: 'org.telegram', value: 'erni_eth' },
       { key: 'com.github', value: 'ensdomains' },
