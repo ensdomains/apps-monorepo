@@ -111,7 +111,7 @@ describe('computeNamePricingDisplay', () => {
         THREE_YEARS,
         0n,
       )
-      expect(result.priceValue).toBe('≈ $5.00/year')
+      expect(result.priceValue).toBe('$5.00/year')
       expect(result.priceValue).not.toContain('×')
     })
 
@@ -141,7 +141,7 @@ describe('computeNamePricingDisplay', () => {
       )
 
       expect(result.registrationPeriod).toBe('1 year')
-      expect(result.priceValue).toBe(`≈ ${result.total}/year`)
+      expect(result.priceValue).toBe(`${result.total}/year`)
     })
 
     it('marks the rate approximate: rounding it back out misses the total', () => {
@@ -166,7 +166,43 @@ describe('computeNamePricingDisplay', () => {
         ONE_YEAR,
         0n,
       )
-      expect(result.priceValue).toBe('≈ $8.00/year')
+      expect(result.priceValue).toBe('$8.00/year')
+    })
+  })
+
+  describe('label accuracy', () => {
+    it('does not claim a tier the term has not reached', () => {
+      // 5 years 11 months: rounds to 6, but only 5 whole years are bought.
+      const almostSix = 6 * CONTRACT_SECONDS_PER_YEAR - 30 * 86400
+
+      expect(
+        computeNamePricingDisplay(
+          selectedName('hello.eth'),
+          mockPrice(27),
+          almostSix,
+          0n,
+        ).discountSublabel,
+      ).toBe('5+ yr discount price')
+    })
+
+    it('marks the rate approximate only when it cannot reconcile', () => {
+      const exact = computeNamePricingDisplay(
+        selectedName('hello.eth'),
+        mockPrice(27),
+        6 * CONTRACT_SECONDS_PER_YEAR,
+        0n,
+      )
+      const rounded = computeNamePricingDisplay(
+        selectedName('hello.eth'),
+        mockPrice(27.0198),
+        6 * CONTRACT_SECONDS_PER_YEAR,
+        0n,
+      )
+
+      expect(exact.priceValue).toBe('$4.50/year')
+      expect(exact.total).toBe('$27.00')
+      expect(rounded.priceValue).toBe('≈ $4.50/year')
+      expect(rounded.total).toBe('$27.02')
     })
   })
 

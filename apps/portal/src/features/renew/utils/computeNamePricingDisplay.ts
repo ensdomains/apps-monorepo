@@ -57,8 +57,9 @@ export function computeNamePricingDisplay(
 
   const years = duration / CONTRACT_SECONDS_PER_YEAR
   const roundedYears = Math.round(years)
-  const discountSublabel =
-    roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
+  // Tiers apply from a whole year reached, so floor rather than round: a term
+  // of 5 years 11 months has not bought the 6-year tier and must not claim it.
+  const tierYears = Math.floor(years + 1e-6)
 
   const actualPrice = Number(formatUnits(price.base, price.decimals))
   // Quote the rate over the whole years the summary says you are buying, not
@@ -87,13 +88,23 @@ export function computeNamePricingDisplay(
       : 0
   const discountAmount = Math.max(undiscountedBase - actualPrice, 0)
 
-  // `≈` because the rate is the total divided by the term and then rounded to
-  // cents: multiplying it back out misses the total by up to half a cent per
-  // year (6 × $4.5033 is $27.02, but the rounded $4.50 × 6 reads as $27.00).
-  // The total below is the exact charge; this row is a comparison figure.
+  const discountSublabel =
+    tierYears >= 2 ? `${tierYears}+ yr discount price` : undefined
+
+  // The rate is the total over the term, rounded to cents, so multiplying it
+  // back out can miss the total by up to half a cent per year ($4.5033/yr
+  // prints as $4.50, and $4.50 × 6 reads as $27.00 against a $27.02 charge).
+  // Mark it `≈` only when that actually happens — most terms reconcile exactly,
+  // and an approximation sign on an exact figure is its own inaccuracy.
+  const totalUsd = Number(
+    formatUnits(price.base + price.premium, price.decimals),
+  )
+  const quotedPerYear = Math.round(effectivePerYear * 100) / 100
+  const reconciles = Math.abs(quotedPerYear * roundedYears - totalUsd) < 0.005
+
   const priceValue =
     Math.round(years * 12) >= 12
-      ? `≈ ${formatUsd(effectivePerYear)}/year`
+      ? `${reconciles ? '' : '≈ '}${formatUsd(effectivePerYear)}/year`
       : formatUsd(effectivePerYear)
 
   return {
