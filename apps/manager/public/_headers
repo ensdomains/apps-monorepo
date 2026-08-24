@@ -1,16 +1,6 @@
-# Defense-in-depth headers for static assets served directly by the assets
-# binding (these paths bypass Start request middleware, so the CSP/header
-# middleware in src/start.ts can't reach them). Document-level CSP already
-# governs sub-resource loading, so no CSP here.
-/assets/*
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  X-Frame-Options: DENY
-/icons/*
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  X-Frame-Options: DENY
-/frens/*
+# Static assets bypass the Start request middleware, so they don't get the
+# headers set in src/start.ts. CSP is document-level, so none needed here.
+/*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY

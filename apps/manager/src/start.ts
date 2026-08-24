@@ -1,17 +1,14 @@
 /**
- * TanStack Start global configuration.
- *
- * Applies CSP + security headers on every request handled by Start (SSR,
- * server routes, server functions). Production only for the CSP itself so
- * Vite HMR (`unsafe-eval` + ws) keeps working in `vite dev` — same exemption
- * portal gets by mounting CSP only on its Cloudflare worker.
+ * TanStack Start global configuration — applies CSP + security headers to
+ * every request Start handles. CSP is production-only so Vite HMR keeps
+ * working in `vite dev`.
  */
 
 import { createMiddleware, createStart } from '@tanstack/react-start'
 import { setResponseHeader } from '@tanstack/react-start/server'
 import {
-  buildCspWithFrameAncestors,
-  cspHeaderName,
+  buildCsp,
+  CSP_HEADER_NAME,
   POSTHOG_CSP_REPORT_ENDPOINT,
   SECURITY_HEADER_VALUES,
 } from './server/csp'
@@ -28,8 +25,7 @@ declare module '@tanstack/router-core' {
 
 const securityHeadersMiddleware = createMiddleware().server(
   ({ next, request }) => {
-    // Always set the clickjacking / MIME / referrer baselines (cheap, no
-    // HMR interaction). CSP is production-only.
+    // Baselines are safe in dev; only the CSP interferes with HMR.
     for (const [name, value] of Object.entries(SECURITY_HEADER_VALUES)) {
       setResponseHeader(name, value)
     }
@@ -38,19 +34,10 @@ const securityHeadersMiddleware = createMiddleware().server(
       return next()
     }
 
-    const bytes = new Uint8Array(16)
-    crypto.getRandomValues(bytes)
-    let binary = ''
-    for (const byte of bytes) {
-      binary += String.fromCharCode(byte)
-    }
-    const cspNonce = btoa(binary)
+    const cspNonce = crypto.randomUUID()
 
     // Report-Only until the build sets VITE_CSP_ENFORCE=1 (see csp.ts).
-    setResponseHeader(
-      cspHeaderName(),
-      buildCspWithFrameAncestors({ nonce: cspNonce }),
-    )
+    setResponseHeader(CSP_HEADER_NAME, buildCsp(cspNonce))
     setResponseHeader(
       'Reporting-Endpoints',
       `posthog="${POSTHOG_CSP_REPORT_ENDPOINT}"`,

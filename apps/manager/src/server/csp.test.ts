@@ -1,12 +1,11 @@
 import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
 import { describe, expect, it } from 'vitest'
 import {
-  buildCspWithFrameAncestors,
-  buildCspWithoutFrameAncestors,
+  buildCsp,
+  CSP_HEADER_NAME,
   CSP_REPORT_ONLY,
-  cspHeaderName,
   originFromEnvUrl,
-  withSecurityHeaders,
+  SECURITY_HEADER_VALUES,
 } from './csp'
 
 const TEST_NONCE = 'test-nonce-abc123'
@@ -25,12 +24,7 @@ function parseDirectives(policy: string): Record<string, string[]> {
   )
 }
 
-const header = parseDirectives(
-  buildCspWithFrameAncestors({ nonce: TEST_NONCE }),
-)
-const meta = parseDirectives(
-  buildCspWithoutFrameAncestors({ nonce: TEST_NONCE }),
-)
+const header = parseDirectives(buildCsp(TEST_NONCE))
 
 describe('csp', () => {
   describe('security invariants', () => {
@@ -51,11 +45,7 @@ describe('csp', () => {
 
     it('forbids framing via both frame-ancestors and X-Frame-Options', () => {
       expect(header['frame-ancestors']).toEqual(["'none'"])
-      expect(
-        withSecurityHeaders(new Response('hi'), {
-          nonce: TEST_NONCE,
-        }).headers.get('X-Frame-Options'),
-      ).toBe('DENY')
+      expect(SECURITY_HEADER_VALUES['X-Frame-Options']).toBe('DENY')
     })
   })
 
@@ -117,31 +107,6 @@ describe('csp', () => {
     })
   })
 
-  describe('header vs. meta split', () => {
-    it('emits header-only directives only in the header', () => {
-      expect(header['frame-ancestors']).toEqual(["'none'"])
-      expect(meta['frame-ancestors']).toBeUndefined()
-
-      expect(header['report-to']).toEqual(['posthog'])
-      expect(header['report-uri']?.[0]).toContain(
-        'https://eu.i.posthog.com/report/',
-      )
-      expect(meta['report-to']).toBeUndefined()
-      expect(meta['report-uri']).toBeUndefined()
-    })
-
-    it('keeps upgrade-insecure-requests in both (valid in a meta tag)', () => {
-      expect(header).toHaveProperty('upgrade-insecure-requests')
-      expect(meta).toHaveProperty('upgrade-insecure-requests')
-    })
-
-    it('omits frame-ancestors from the meta policy', () => {
-      expect(
-        buildCspWithoutFrameAncestors({ nonce: TEST_NONCE }),
-      ).not.toContain('frame-ancestors')
-    })
-  })
-
   describe('originFromEnvUrl', () => {
     it('extracts the origin from an absolute URL, dropping path/query', () => {
       expect(
@@ -164,34 +129,14 @@ describe('csp', () => {
     })
   })
 
-  describe('withSecurityHeaders', () => {
-    it('sets the CSP and standard security headers', () => {
-      const result = withSecurityHeaders(new Response('hi'), {
-        nonce: TEST_NONCE,
+  describe('security headers', () => {
+    it('sets the standard baselines', () => {
+      expect(SECURITY_HEADER_VALUES).toEqual({
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
       })
-
-      expect(result.headers.get(cspHeaderName())).toBe(
-        buildCspWithFrameAncestors({ nonce: TEST_NONCE }),
-      )
-      expect(result.headers.get('Reporting-Endpoints')).toMatch(
-        /^posthog="https:\/\/eu\.i\.posthog\.com\/report\//,
-      )
-      expect(result.headers.get('X-Content-Type-Options')).toBe('nosniff')
-      expect(result.headers.get('Referrer-Policy')).toBe(
-        'strict-origin-when-cross-origin',
-      )
-      expect(result.headers.get('Permissions-Policy')).toBe(
-        'geolocation=(), microphone=(), camera=()',
-      )
-    })
-
-    it('preserves the original response body and status', async () => {
-      const result = withSecurityHeaders(
-        new Response('body', { status: 201, statusText: 'Created' }),
-        { nonce: TEST_NONCE },
-      )
-      expect(result.status).toBe(201)
-      expect(await result.text()).toBe('body')
     })
   })
 
@@ -227,37 +172,16 @@ describe('csp', () => {
   })
 
   describe('rollout mode', () => {
-    it('maps the rollout mode to the right response header', () => {
-      expect(cspHeaderName(true)).toBe('Content-Security-Policy-Report-Only')
-      expect(cspHeaderName(false)).toBe('Content-Security-Policy')
+    it('defaults to report-only so an unflagged build cannot break prod', () => {
+      expect(CSP_REPORT_ONLY).toBe(true)
+      expect(CSP_HEADER_NAME).toBe('Content-Security-Policy-Report-Only')
     })
 
-    it('defaults to report-only until VITE_CSP_ENFORCE=1', () => {
-      // Guards the rollout: an accidental flip to enforcing is the exact
-      // failure mode that got portal's CSP reverted.
-      expect(CSP_REPORT_ONLY).toBe(import.meta.env?.VITE_CSP_ENFORCE !== '1')
-    })
-
-    it('reports violations in report-only mode, so misses are observable', () => {
+    it('reports violations, so misses are observable in either mode', () => {
       // Report-Only blocks nothing but still delivers reports — the whole
-      // point of the rollout. Both directives must survive into the header.
+      // point of the rollout. Both directives stay on when enforcing too.
       expect(header['report-to']).toEqual(['posthog'])
       expect(header['report-uri']?.[0]).toContain('eu.i.posthog.com/report/')
-
-      const result = withSecurityHeaders(new Response('hi'), {
-        nonce: TEST_NONCE,
-      })
-      expect(result.headers.get('Reporting-Endpoints')).toBeTruthy()
-    })
-
-    it('never sets both the enforcing and report-only headers', () => {
-      const result = withSecurityHeaders(new Response('hi'), {
-        nonce: TEST_NONCE,
-      })
-      const other = CSP_REPORT_ONLY
-        ? 'Content-Security-Policy'
-        : 'Content-Security-Policy-Report-Only'
-      expect(result.headers.get(other)).toBeNull()
     })
   })
 })
