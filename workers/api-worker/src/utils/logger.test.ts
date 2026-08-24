@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   type ErrorLike,
+  formatHumanLog,
   getErrorCause,
   isErrorLike,
+  logger,
   serializeError,
   serializeLogValue,
 } from './logger.js'
@@ -216,5 +218,96 @@ describe('logger serializers', () => {
 
     expect(serialized.count).toBe('1')
     expect(serialized.self).toBe('[circular]')
+  })
+})
+
+describe('formatHumanLog', () => {
+  it('renders a compact header for logs without meta', () => {
+    const formatted = formatHumanLog(
+      {
+        timestamp: '2026-08-24T12:22:01.441Z',
+        level: 'info',
+        message: 'Delivery job queued',
+      },
+      { color: false },
+    )
+
+    const [header, ...rest] = formatted.split('\n')
+    expect(header).toMatch(/^\d{2}:\d{2}:\d{2}\.\d{3}/)
+    expect(header).toContain('INFO')
+    expect(header).toContain('Delivery job queued')
+    expect(rest).toEqual([])
+  })
+
+  it('pretty-prints nested meta, arrays, and stack traces', () => {
+    const formatted = formatHumanLog(
+      {
+        timestamp: '2026-08-24T12:22:01.441Z',
+        level: 'error',
+        message: 'Internal server error',
+        path: '/notifications',
+        retry: false,
+        attempts: 3,
+        tags: ['email', 'expiry'],
+        error: {
+          type: 'TypeError',
+          message: 'boom',
+          stack: 'TypeError: boom\n    at handleRequest (index.ts:33:5)',
+        },
+        jobs: [{ id: 'job-1' }, { id: 'job-2' }],
+      },
+      { color: false },
+    )
+
+    expect(formatted).toContain('ERROR  Internal server error')
+    expect(formatted).toContain('    path: /notifications')
+    expect(formatted).toContain('    retry: false')
+    expect(formatted).toContain('    attempts: 3')
+    expect(formatted).toContain('    tags: [email, expiry]')
+    expect(formatted).toContain('    error:')
+    expect(formatted).toContain('      type: TypeError')
+    expect(formatted).toContain('      message: boom')
+    expect(formatted).toContain('      stack:')
+    expect(formatted).toContain('        TypeError: boom')
+    expect(formatted).toContain('            at handleRequest (index.ts:33:5)')
+    expect(formatted).toContain('    jobs:')
+    expect(formatted).toContain('      - id: job-1')
+    expect(formatted).toContain('      - id: job-2')
+  })
+
+  it('includes ansi colors when enabled', () => {
+    const formatted = formatHumanLog(
+      {
+        timestamp: '2026-08-24T12:22:01.441Z',
+        level: 'warn',
+        message: 'Retrying indexer request',
+        status: 503,
+      },
+      { color: true },
+    )
+
+    expect(formatted).toContain('\x1b[')
+    expect(formatted).toContain('Retrying indexer request')
+    expect(formatted).toContain('status')
+  })
+})
+
+describe('Logger output', () => {
+  it('emits single-line json outside development', () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    logger.info('hello', { count: 1n })
+
+    expect(spy).toHaveBeenCalledTimes(1)
+    const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+      level?: string
+      message?: string
+      count?: string
+    }
+    expect(payload.level).toBe('info')
+    expect(payload.message).toBe('hello')
+    expect(payload.count).toBe('1')
+
+    spy.mockRestore()
   })
 })

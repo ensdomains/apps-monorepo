@@ -268,7 +268,204 @@ export function serializeLogValue(
   return value
 }
 
+const ANSI = {
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  red: '\x1b[31m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  magenta: '\x1b[35m',
+  cyan: '\x1b[36m',
+  gray: '\x1b[90m',
+} as const
+
+const LEVEL_COLORS: Record<LogLevel, string> = {
+  trace: ANSI.gray,
+  debug: ANSI.cyan,
+  info: ANSI.green,
+  warn: ANSI.yellow,
+  error: ANSI.red,
+}
+
+const CONSOLE_METHOD: Record<LogLevel, 'debug' | 'info' | 'warn' | 'error'> = {
+  trace: 'debug',
+  debug: 'debug',
+  info: 'info',
+  warn: 'warn',
+  error: 'error',
+}
+
+const META_INDENT = '    '
+
+function paint(enabled: boolean, code: string, text: string): string {
+  if (!enabled) {
+    return text
+  }
+  return `${code}${text}${ANSI.reset}`
+}
+
+function isLogLevel(value: unknown): value is LogLevel {
+  return typeof value === 'string' && _LEVELS.includes(value as LogLevel)
+}
+
+/** Formats an ISO timestamp as a compact local clock time for terminal output. */
+function formatClockTime(timestamp: unknown): string {
+  const date =
+    typeof timestamp === 'string' || typeof timestamp === 'number'
+      ? new Date(timestamp)
+      : new Date(Number.NaN)
+
+  if (Number.isNaN(date.getTime())) {
+    return '--:--:--.---'
+  }
+
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  const milliseconds = String(date.getMilliseconds()).padStart(3, '0')
+  return `${hours}:${minutes}:${seconds}.${milliseconds}`
+}
+
+function formatLevelLabel(level: unknown, color: boolean): string {
+  const normalized = isLogLevel(level) ? level : 'info'
+  const label = normalized.toUpperCase().padEnd(5, ' ')
+  return paint(color, `${ANSI.bold}${LEVEL_COLORS[normalized]}`, label)
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+/**
+ * Pretty-prints a single log value in a YAML-ish style so nested errors and
+ * stack traces stay readable in the terminal.
+ */
+function formatHumanValue(
+  value: unknown,
+  indent: string,
+  color: boolean,
+): string {
+  if (value === null) {
+    return paint(color, ANSI.dim, 'null')
+  }
+
+  if (typeof value === 'boolean') {
+    return paint(color, ANSI.magenta, String(value))
+  }
+
+  if (typeof value === 'number') {
+    return paint(color, ANSI.yellow, String(value))
+  }
+
+  if (typeof value === 'string') {
+    if (!value.includes('\n')) {
+      return value
+    }
+
+    return value
+      .split('\n')
+      .map((line) => `${indent}${paint(color, ANSI.dim, line)}`)
+      .join('\n')
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return paint(color, ANSI.dim, '[]')
+    }
+
+    const allPrimitive = value.every(
+      (item) => item === null || typeof item !== 'object',
+    )
+    if (allPrimitive) {
+      return `[${value.map((item) => formatHumanValue(item, indent, color)).join(', ')}]`
+    }
+
+    return value
+      .map((item) => {
+        const formatted = formatHumanValue(item, `${indent}  `, color)
+        return `${indent}- ${formatted.trimStart()}`
+      })
+      .join('\n')
+  }
+
+  if (isPlainObject(value)) {
+    const entries = Object.entries(value)
+    if (entries.length === 0) {
+      return paint(color, ANSI.dim, '{}')
+    }
+
+    return formatHumanFields(value, indent, color)
+  }
+
+  return String(value)
+}
+
+function formatHumanFields(
+  fields: Record<string, unknown>,
+  indent: string,
+  color: boolean,
+): string {
+  return Object.entries(fields)
+    .map(([key, nested]) => {
+      const keyLabel = paint(color, ANSI.cyan, key)
+
+      if (typeof nested === 'string' && nested.includes('\n')) {
+        return `${indent}${keyLabel}:\n${formatHumanValue(nested, `${indent}  `, color)}`
+      }
+
+      if (
+        Array.isArray(nested) &&
+        nested.some((item) => typeof item === 'object')
+      ) {
+        return `${indent}${keyLabel}:\n${formatHumanValue(nested, `${indent}  `, color)}`
+      }
+
+      if (isPlainObject(nested) && Object.keys(nested).length > 0) {
+        return `${indent}${keyLabel}:\n${formatHumanValue(nested, `${indent}  `, color)}`
+      }
+
+      return `${indent}${keyLabel}: ${formatHumanValue(nested, `${indent}  `, color)}`
+    })
+    .join('\n')
+}
+
+export type HumanLogOptions = {
+  color?: boolean
+}
+
+/**
+ * Renders a structured log entry as a colorized, multi-line terminal string.
+ *
+ * Used in development only — production keeps single-line JSON for log drains.
+ */
+export function formatHumanLog(
+  entry: Record<string, unknown>,
+  options: HumanLogOptions = {},
+): string {
+  const color = options.color ?? true
+  const { timestamp, level, message, ...meta } = entry
+  const time = paint(color, ANSI.dim, formatClockTime(timestamp))
+  const levelLabel = formatLevelLabel(level, color)
+  const messageText = paint(
+    color,
+    ANSI.bold,
+    typeof message === 'string' ? message : String(message ?? ''),
+  )
+  const header = `${time}  ${levelLabel}  ${messageText}`
+
+  if (Object.keys(meta).length === 0) {
+    return header
+  }
+
+  return `${header}\n${formatHumanFields(meta, META_INDENT, color)}`
+}
+
 export class Logger {
+  // Vite sets MODE to "development" for `vite dev`, "production" for builds,
+  // and "test" for Vitest. Pretty-printing on DEV would also fire in tests.
+  private readonly useHumanLogs = import.meta.env.MODE === 'development'
+
   private shouldLog(_level: LogLevel): boolean {
     // Temporarily allow all levels for debugging in production.
     return true
@@ -303,6 +500,13 @@ export class Logger {
       message,
       ...meta,
     }
+
+    if (this.useHumanLogs) {
+      const serialized = serializeLogValue(logEntry) as Record<string, unknown>
+      console[CONSOLE_METHOD[level]](formatHumanLog(serialized))
+      return
+    }
+
     console.log(this.serialize(logEntry))
   }
 
