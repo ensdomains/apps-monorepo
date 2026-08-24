@@ -177,6 +177,17 @@ export const getPrimarySocialContactKeys = (
     socialContactMethodKeys.has(key),
   )
 
+export const getBaseWithPrimarySocialContactKeys = (
+  base: ProfileRecords['base'],
+  socialKeys: readonly ContactMethodKey[],
+): ProfileRecords['base'] =>
+  getBaseWithPrimaryContactKeys(base, [
+    ...parsePrimaryContactKeys(base).filter(
+      (key) => !socialContactMethodKeys.has(key),
+    ),
+    ...socialKeys,
+  ])
+
 export const getBaseWithPrimaryContactKeys = (
   base: ProfileRecords['base'],
   keys: readonly ContactMethodKey[],

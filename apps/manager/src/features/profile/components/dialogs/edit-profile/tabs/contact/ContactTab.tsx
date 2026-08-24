@@ -15,7 +15,7 @@ import {
 } from './constants'
 import { PrimaryContactCapacityIndicator } from './PrimaryContactCapacityIndicator'
 import {
-  getBaseWithPrimaryContactKeys,
+  getBaseWithPrimarySocialContactKeys,
   getContactMethodErrorMessage,
   getContactMethodNoticeMessage,
   getIsPrimaryContactToggleDisabled,
@@ -68,7 +68,7 @@ export const ContactTab = ({
   const selectedPrimaryContactCount = primaryContactKeys.length
 
   const updatePrimaryContactKeys = (keys: readonly ContactMethodKey[]) => {
-    onBaseChange(getBaseWithPrimaryContactKeys(values.base, keys))
+    onBaseChange(getBaseWithPrimarySocialContactKeys(values.base, keys))
   }
 
   const removePrimaryContact = (method: ContactMethod) => {

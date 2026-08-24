@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { contactMethods, defaultEnabledContactMethodKeys } from './constants'
 import * as contactRecordHelpers from './records'
 import {
+  getBaseWithPrimarySocialContactKeys,
   getContactMethodErrorMessage,
   getContactMethodNoticeMessage,
   getContactValidationIssues,
@@ -159,6 +160,24 @@ describe('contact record helpers', () => {
   })
 
   describe('featured social validation', () => {
+    it('preserves non-social primary contacts when featured socials change', () => {
+      expect(
+        getBaseWithPrimarySocialContactKeys(
+          {
+            'domains.ens.primary-contacts': JSON.stringify([
+              'email',
+              'com.twitter',
+            ]),
+            'primary-contact': 'email',
+          },
+          ['com.github'],
+        ),
+      ).toEqual({
+        'domains.ens.primary-contacts': JSON.stringify(['email', 'com.github']),
+        'primary-contact': 'email',
+      })
+    })
+
     it('treats only social methods as star-selectable contact methods', () => {
       expect(
         getPrimarySocialContactKeys({
