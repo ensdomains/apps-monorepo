@@ -22,7 +22,6 @@
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@rhinestone/sdk": "catalog:",
-    "@xstate/react": "^4.0.0-beta.12",
     "idb": "^8.0.3",
     "neverthrow": "^8.1.1",
     "valibot": "^1.2.0",
@@ -37,7 +36,7 @@
   "devDependencies": {
     "@types/react": "^19.0.6",
     "react": "^19.2.5",
-    "typescript": "catalog:typescript6",
+    "typescript": "catalog:",
     "vitest": "catalog:",
     "wagmi": "catalog:"
   }
