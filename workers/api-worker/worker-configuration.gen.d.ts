@@ -14,7 +14,7 @@ declare namespace Cloudflare {
 		DLQ: Queue;
 		CHAIN: "sepolia";
 		BASE_URL: "https://app-api.ens.dev";
-		ENS_INDEXER_GRAPHQL_URL: "https://graphql.ens.dev/";
+		ENS_INDEXER_GRAPHQL_URL: "https://staging-graphql.ens.dev/";
 		MANAGER_APP_URL: "https://app.ens.dev";
 		POSTHOG: { host: string; unique_searches_endpoint: string; };
 		VAPID_SUBJECT: "mailto:notifications@ens.domains";

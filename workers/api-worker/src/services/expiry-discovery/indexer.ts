@@ -5,7 +5,7 @@ import * as v from 'valibot'
 import { logger } from '#utils/logger.js'
 import type { ExpiryStageConfig } from './stages.js'
 
-const DEFAULT_INDEXER_URL = 'https://graphql.ens.dev/'
+const DEFAULT_INDEXER_URL = 'https://staging-graphql.ens.dev/'
 export const PAGE_SIZE = 1000
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 300
