@@ -8,6 +8,7 @@ import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { nameHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
@@ -259,9 +260,7 @@ const Profile = ({
             canExtend={graceCanExtend}
           />
           <div className="flex flex-row justify-between items-center">
-            <h1 className="font-serif text-4xl font-medium leading-none">
-              {name}
-            </h1>
+            <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
             <ExtendNameButton name={name} protocolVersion="ENSv2" />
           </div>
         </div>
@@ -370,7 +369,7 @@ const Profile = ({
 
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
-        <h1 className="font-serif text-4xl font-medium leading-none">{name}</h1>
+        <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
         {resolvedProtocolVersion !== 'ENSv1' && (
           <ExtendNameButton
             name={name}

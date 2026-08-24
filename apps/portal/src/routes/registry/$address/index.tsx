@@ -14,6 +14,7 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Skeleton } from '@/components/ui/skeleton'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
@@ -89,7 +90,7 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-6">
-        <h1 className="text-h1">Registry Contract</h1>
+        <PageHeading>Registry Contract</PageHeading>
         <div className="flex lg:items-center flex-col lg:flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
           <EntityBadge variant="default" label="type" className="font-normal">
             PermissionedRegistry

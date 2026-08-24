@@ -14,6 +14,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import {
   InputGroup,
   InputGroupAddon,
@@ -77,7 +78,9 @@ function RouteComponent() {
     return (
       <>
         <header className="flex flex-col gap-4">
-          <h1 className="text-h1">Address Resolution</h1>
+          <PageHeading parent={{ type: 'addr', addr: address }}>
+            Address Resolution
+          </PageHeading>
         </header>
         <NoResultsMessage
           title="No names found"
@@ -92,7 +95,9 @@ function RouteComponent() {
     <>
       <header className="flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-h1">Address Resolution</h1>
+          <PageHeading parent={{ type: 'addr', addr: address }}>
+            Address Resolution
+          </PageHeading>
         </div>
         <InputGroup className="bg-background rounded-sm">
           <InputGroupInput

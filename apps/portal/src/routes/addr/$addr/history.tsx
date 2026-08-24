@@ -72,6 +72,7 @@ function RouteComponent() {
 
   return (
     <AddressHistoryDataTable
+      address={addr}
       history={{
         v1Events: v1Data,
         v2Events: v2Data,

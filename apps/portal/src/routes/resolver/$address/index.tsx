@@ -9,6 +9,7 @@ import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { addressHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
@@ -60,9 +61,12 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-h2 md:text-h1">
-        Resolver {truncateAddress(address, 6, 4, '...')}
-      </h1>
+      <PageHeading>
+        Resolver{' '}
+        <span className={addressHeadingClassName}>
+          {truncateAddress(address)}
+        </span>
+      </PageHeading>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <CounterCard to="/resolver/$address/nodes" params={{ address }}>

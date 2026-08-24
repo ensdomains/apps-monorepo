@@ -407,9 +407,15 @@
   /* Type scale — 1:1 with the ENS Builder / Figma type styles (WEB-595).
      Weights 360/425 are real instances on the Grotesk variable wght axis
      (see fonts.css). */
-  --text-h1: 2.125rem; /* 34px */
+  --text-h1: 2rem; /* 32px */
   --text-h1--line-height: 2.375rem; /* 38px */
-  --text-h1--font-weight: 425;
+  --text-h1--font-weight: 400;
+  /* A Name rendered inside an `h1` is always ABC Marist at 36/38 — one step
+     larger than the Grotesk `h1` it sits beside. Annotated in Figma on the
+     "h1 breadcrumb" spec (node 2470:37050). */
+  --text-h1-name: 2.25rem; /* 36px */
+  --text-h1-name--line-height: 2.375rem; /* 38px */
+  --text-h1-name--font-weight: 400;
   --text-h2: 1.5rem; /* 24px */
   --text-h2--line-height: 1;
   --text-h2--font-weight: 425;
