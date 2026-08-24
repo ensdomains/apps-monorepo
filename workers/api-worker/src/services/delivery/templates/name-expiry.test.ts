@@ -38,17 +38,20 @@ describe('name-expiry email mapping', () => {
     expect(subject).toBe('Domain expiration alert')
     expect(dynamicData).toMatchObject({
       name: 'alice.eth',
-      protocol: 'v2',
-      stage: 'expiry-7d',
-      lifecycleState: 'expiring',
       daysUntilExpiry: 7,
       daysUntilGraceEnd: 35,
-      renewUrl: `${TEST_APP_URL}/renew/alice.eth`,
-      registerUrl: `${TEST_APP_URL}/register/alice.eth`,
+      isOwner: true,
+      isPreExpiry: true,
+      isGraceStart: false,
+      isGraceEnding: false,
+      isPremiumStart: false,
     })
     expect(dynamicData.graceEndDate).toBe(
       getGraceEndDate(expiryDate, 'v2').toLocaleDateString(),
     )
+    expect(dynamicData).not.toHaveProperty('renewUrl')
+    expect(dynamicData).not.toHaveProperty('registerUrl')
+    expect(JSON.stringify(dynamicData)).not.toMatch(/https?:/)
   })
 
   it('exposes grace-start dynamic data', () => {
@@ -59,8 +62,11 @@ describe('name-expiry email mapping', () => {
 
     expect(subject).toBe('Domain grace period started')
     expect(dynamicData).toMatchObject({
-      stage: 'grace-start',
-      lifecycleState: 'grace',
+      isOwner: true,
+      isPreExpiry: false,
+      isGraceStart: true,
+      isGraceEnding: false,
+      isPremiumStart: false,
       daysUntilExpiry: 0,
       daysUntilGraceEnd: 28,
     })
@@ -76,8 +82,8 @@ describe('name-expiry email mapping', () => {
 
     expect(subject).toBe('Domain grace period ending soon')
     expect(dynamicData).toMatchObject({
-      stage: 'grace-1d',
-      lifecycleState: 'grace',
+      isGraceEnding: true,
+      isGraceStart: false,
       daysUntilGraceEnd: 1,
     })
   })
@@ -91,23 +97,30 @@ describe('name-expiry email mapping', () => {
 
     expect(subject).toBe('Domain grace period ended')
     expect(dynamicData).toMatchObject({
-      stage: 'premium-start',
-      lifecycleState: 'premium',
+      isPremiumStart: true,
+      isGraceStart: false,
       daysUntilGraceEnd: 0,
-      registerUrl: `${TEST_APP_URL}/register/alice.eth`,
     })
+    expect(dynamicData).not.toHaveProperty('registerUrl')
   })
 
-  it('leaves the name unescaped for Handlebars and URL-encodes path segments', () => {
+  it('leaves the name unescaped for Handlebars', () => {
     const { dynamicData } = buildNameExpiryEmailContent(
       payload({ name: '{{constructor}}.eth' }),
       options(expiryDate),
     )
 
     expect(dynamicData.name).toBe('{{constructor}}.eth')
-    expect(dynamicData.renewUrl).toBe(
-      `${TEST_APP_URL}/renew/%7B%7Bconstructor%7D%7D.eth`,
+  })
+
+  it('marks favourite watchers as not owners', () => {
+    const { dynamicData } = buildNameExpiryEmailContent(
+      payload({ watchReason: 'favourited', stage: 'grace-start' }),
+      options(expiryDate),
     )
+
+    expect(dynamicData.isOwner).toBe(false)
+    expect(dynamicData.isGraceStart).toBe(true)
   })
 })
 

@@ -112,18 +112,14 @@ export const buildNameExpiryEmailContent = (
       // pre-escaping would double-encode, and values are not re-parsed as templates.
       name: context.name,
       expiryDate: formatCalendarDate(context.expiryDate),
-      protocol: context.protocol,
-      stage: context.stage,
       graceEndDate: formatCalendarDate(context.graceEndDate),
-      lifecycleState: context.lifecycleState,
       daysUntilExpiry: context.daysUntilExpiry,
       daysUntilGraceEnd: context.daysUntilGraceEnd,
-      renewUrl: context.renewUrl,
-      registerUrl: context.registerUrl,
-      // Kept for the currently deployed SendGrid template until it is updated.
-      expiryDays: context.daysUntilExpiry,
       isOwner: payload.watchReason === 'owned',
-      watchReason: payload.watchReason,
+      isPreExpiry: context.noticeKind === 'pre-expiry',
+      isGraceStart: context.noticeKind === 'grace-start',
+      isGraceEnding: context.noticeKind === 'grace-ending',
+      isPremiumStart: context.noticeKind === 'premium-start',
     },
     subject: nameExpiryEmailSubject(context),
   }
