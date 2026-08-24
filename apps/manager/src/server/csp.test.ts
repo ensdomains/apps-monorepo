@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCspWithFrameAncestors,
   buildCspWithoutFrameAncestors,
+  CSP_REPORT_ONLY,
+  cspHeaderName,
   originFromEnvUrl,
   withSecurityHeaders,
 } from './csp'
@@ -168,7 +170,7 @@ describe('csp', () => {
         nonce: TEST_NONCE,
       })
 
-      expect(result.headers.get('Content-Security-Policy')).toBe(
+      expect(result.headers.get(cspHeaderName())).toBe(
         buildCspWithFrameAncestors({ nonce: TEST_NONCE }),
       )
       expect(result.headers.get('Reporting-Endpoints')).toMatch(
@@ -190,6 +192,72 @@ describe('csp', () => {
       )
       expect(result.status).toBe(201)
       expect(await result.text()).toBe('body')
+    })
+  })
+
+  describe('runtime-resolved origins', () => {
+    it('allowlists both DNS-over-HTTPS hosts ensjs may use', () => {
+      // cloudflare-dns.com and 1.1.1.1 are the same service on different
+      // hosts; CSP matches on host, so listing only one fails closed and
+      // surfaces as "Invalid TLD" rather than a visible network error.
+      expect(header['connect-src']).toContain('https://cloudflare-dns.com')
+      expect(header['connect-src']).toContain('https://1.1.1.1')
+    })
+
+    it('allowlists the CCIP-read batch and verifier gateways', () => {
+      // viem fans OffchainLookup batches out to these from the browser; a miss
+      // surfaces as ResolverError("HTTP request failed."), not a CSP error.
+      expect(header['connect-src']).toContain('https://*.ens.xyz')
+      expect(header['connect-src']).toContain('https://*.3668.io')
+      expect(header['connect-src']).toContain('https://lb.drpc.org')
+    })
+
+    it('allowlists every subgraph origin ensjs resolves internally', async () => {
+      const { ensL1Subgraphs } = await import('@ensdomains/ensjs/chain')
+      for (const { ens } of Object.values(ensL1Subgraphs)) {
+        expect(header['connect-src']).toContain(new URL(ens.url).origin)
+      }
+    })
+
+    it('allowlists every fallback RPC the viem transport can reach', () => {
+      for (const url of SEPOLIA_FALLBACK_RPC_URLS) {
+        expect(header['connect-src']).toContain(new URL(url).origin)
+      }
+    })
+  })
+
+  describe('rollout mode', () => {
+    it('maps the rollout mode to the right response header', () => {
+      expect(cspHeaderName(true)).toBe('Content-Security-Policy-Report-Only')
+      expect(cspHeaderName(false)).toBe('Content-Security-Policy')
+    })
+
+    it('defaults to report-only until VITE_CSP_ENFORCE=1', () => {
+      // Guards the rollout: an accidental flip to enforcing is the exact
+      // failure mode that got portal's CSP reverted.
+      expect(CSP_REPORT_ONLY).toBe(import.meta.env?.VITE_CSP_ENFORCE !== '1')
+    })
+
+    it('reports violations in report-only mode, so misses are observable', () => {
+      // Report-Only blocks nothing but still delivers reports — the whole
+      // point of the rollout. Both directives must survive into the header.
+      expect(header['report-to']).toEqual(['posthog'])
+      expect(header['report-uri']?.[0]).toContain('eu.i.posthog.com/report/')
+
+      const result = withSecurityHeaders(new Response('hi'), {
+        nonce: TEST_NONCE,
+      })
+      expect(result.headers.get('Reporting-Endpoints')).toBeTruthy()
+    })
+
+    it('never sets both the enforcing and report-only headers', () => {
+      const result = withSecurityHeaders(new Response('hi'), {
+        nonce: TEST_NONCE,
+      })
+      const other = CSP_REPORT_ONLY
+        ? 'Content-Security-Policy'
+        : 'Content-Security-Policy-Report-Only'
+      expect(result.headers.get(other)).toBeNull()
     })
   })
 })

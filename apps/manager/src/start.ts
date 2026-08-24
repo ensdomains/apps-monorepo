@@ -11,6 +11,7 @@ import { createMiddleware, createStart } from '@tanstack/react-start'
 import { setResponseHeader } from '@tanstack/react-start/server'
 import {
   buildCspWithFrameAncestors,
+  cspHeaderName,
   POSTHOG_CSP_REPORT_ENDPOINT,
   SECURITY_HEADER_VALUES,
 } from './server/csp'
@@ -45,8 +46,9 @@ const securityHeadersMiddleware = createMiddleware().server(
     }
     const cspNonce = btoa(binary)
 
+    // Report-Only until the build sets VITE_CSP_ENFORCE=1 (see csp.ts).
     setResponseHeader(
-      'Content-Security-Policy',
+      cspHeaderName(),
       buildCspWithFrameAncestors({ nonce: cspNonce }),
     )
     setResponseHeader(

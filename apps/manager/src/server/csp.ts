@@ -17,6 +17,7 @@
  */
 
 import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
+import { ensL1Subgraphs } from '@ensdomains/ensjs/chain'
 import { getGlobalStartContext } from '@tanstack/react-start'
 import { DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN } from '@/features/migration/commemorative-nft/config'
 
@@ -63,6 +64,15 @@ const OVERRIDE_CONNECT_ORIGINS = [
   DQA_ORIGIN?.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:'),
 ].filter((origin): origin is string => origin != null)
 
+// Subgraph origins, derived from ensjs' own chain config rather than hardcoded.
+// `getNameHistory` (@ensdomains/ensjs/subgraph, used by profileRegistration.ts)
+// resolves its endpoint from this table, so the host is ensjs' to change: it is
+// v1-graphql.ens.dev on Sepolia today but a *.ensnode.io host on mainnet.
+// Deriving both means the mainnet cutover can't silently fail closed.
+const SUBGRAPH_ORIGINS = Object.values(ensL1Subgraphs).map(
+  ({ ens }) => new URL(ens.url).origin,
+)
+
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
 const DEFAULT_CONNECT_HOSTS = [
@@ -103,6 +113,27 @@ const DEFAULT_CONNECT_HOSTS = [
   'wss://*.walletconnect.org',
   // Reown AppKit (formerly Web3Modal) config + analytics API
   'https://api.web3modal.org',
+  // Subgraph endpoints ensjs resolves internally (see SUBGRAPH_ORIGINS).
+  ...SUBGRAPH_ORIGINS,
+  // DNS-over-HTTPS resolvers — ensjs `getDnsTxtRecords` (via
+  // @ens-apps/utils/dnssec, used by profile/service/dnsSecEnabled.ts) defaults
+  // to cloudflare-dns.com. Portal shipped only 1.1.1.1 — the same service on a
+  // different host, which CSP does not cover — and every DNS check failed
+  // closed, rendering valid DNS names as "Invalid TLD". Both hosts are listed.
+  'https://cloudflare-dns.com',
+  'https://1.1.1.1',
+  // CCIP-Read (ERC-3668) gateways — viem follows the UniversalResolver's
+  // OffchainLookup reverts from the browser (getRecords in
+  // profile/service/profileRecords.ts and profileEthAddress.ts), so every
+  // gateway origin must be allowlisted or resolution fails with a generic
+  // "HTTP request failed." buried in a ResolverError. The UR hands out the ENS
+  // batch gateway (*.ens.xyz) tagged `x-batch-gateway:true`, which makes viem
+  // fan the batch out to the per-chain verifier gateways directly: Unruggable's
+  // *.3668.io and its drpc-load-balanced mirror lb.drpc.org (the gateway host —
+  // distinct from the lb.drpc.live RPC above).
+  'https://*.ens.xyz',
+  'https://*.3668.io',
+  'https://lb.drpc.org',
 ] as const
 
 const CONNECT_HOSTS = [
@@ -184,6 +215,44 @@ export function buildCspWithFrameAncestors(options: CspBuildOptions): string {
   return `${[...baseDirectives(options), ...HEADER_ONLY_DIRECTIVES].join('; ')};`
 }
 
+/**
+ * Rollout mode. The policy ships as `Content-Security-Policy-Report-Only`
+ * unless the build explicitly opts into enforcement with `VITE_CSP_ENFORCE=1`.
+ *
+ * This default is deliberate. The set of origins a page actually contacts is
+ * decided at runtime by our dependencies, not by anything greppable: viem fans
+ * CCIP-read batches out to whatever gateways the UniversalResolver returns,
+ * ensjs picks its own DoH and subgraph hosts, wallet SDKs reach their own APIs.
+ * A statically-authored allowlist is therefore always a guess, and every miss
+ * fails closed and silently — it surfaces as a broken feature, not a CSP error.
+ *
+ * Portal learned this the hard way: it shipped enforcing, was reverted, and
+ * then needed six follow-up prod fixes over two months (blocked deployment
+ * override origins, a stale PostHog hash, the Reown AppKit host, PostHog's
+ * runtime script injection, the CCIP-read gateways, and cloudflare-dns.com).
+ *
+ * Report-Only sends the identical policy but blocks nothing, while still
+ * delivering violations to PostHog via `report-to` / `report-uri`. Run it
+ * against real traffic, fix what the dashboard shows, then set
+ * `VITE_CSP_ENFORCE=1` to turn it on for real.
+ */
+export const CSP_REPORT_ONLY = import.meta.env?.VITE_CSP_ENFORCE !== '1'
+
+/**
+ * The response header the policy is delivered under.
+ *
+ * NOTE: there is no `<meta>` equivalent of Report-Only — a `<meta http-equiv>`
+ * CSP is *always* enforcing. That is why `routes/__root.tsx` omits the CSP meta
+ * tag entirely while in report-only mode; emitting it would enforce the policy
+ * in the browser while this header politely reported, which is exactly the
+ * breakage the rollout is designed to avoid.
+ */
+export function cspHeaderName(reportOnly: boolean = CSP_REPORT_ONLY): string {
+  return reportOnly
+    ? 'Content-Security-Policy-Report-Only'
+    : 'Content-Security-Policy'
+}
+
 /** Per-request CSP nonce set by security-headers middleware in `src/start.ts`. */
 export function getCspNonce(): string | undefined {
   return getGlobalStartContext()?.cspNonce
@@ -203,10 +272,7 @@ export function withSecurityHeaders(
   options: CspBuildOptions,
 ): Response {
   const result = new Response(response.body, response)
-  result.headers.set(
-    'Content-Security-Policy',
-    buildCspWithFrameAncestors(options),
-  )
+  result.headers.set(cspHeaderName(), buildCspWithFrameAncestors(options))
   result.headers.set(
     'Reporting-Endpoints',
     `posthog="${POSTHOG_CSP_REPORT_ENDPOINT}"`,

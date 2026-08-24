@@ -12,7 +12,11 @@ import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL, MSymbol } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { RootProviders } from '@/lib/RootProviders'
-import { buildCspWithoutFrameAncestors, getCspNonce } from '@/server/csp'
+import {
+  buildCspWithoutFrameAncestors,
+  CSP_REPORT_ONLY,
+  getCspNonce,
+} from '@/server/csp'
 import appCss from '@/styles/index.css?url'
 
 type RootRouterContext = {
@@ -29,6 +33,27 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
     // DEV — Vite HMR needs eval/ws that the production policy forbids.
     const cspNonce = import.meta.env.DEV ? undefined : getCspNonce()
 
+    // A <meta http-equiv> CSP is ALWAYS enforcing — there is no Report-Only
+    // form of it. During the report-only rollout the meta tag must therefore be
+    // omitted, or it would block in the browser while the header merely
+    // reported. See CSP_REPORT_ONLY in server/csp.ts.
+    const cspMeta =
+      cspNonce && !CSP_REPORT_ONLY
+        ? [
+            {
+              httpEquiv: 'Content-Security-Policy' as const,
+              content: buildCspWithoutFrameAncestors({ nonce: cspNonce }),
+            },
+          ]
+        : []
+
+    // TanStack Start's client runtime reads the nonce back off this tag
+    // (`meta[property="csp-nonce"]` in router-core's ssr-client) so scripts it
+    // injects after hydration carry it. Emitted in both rollout modes.
+    const cspNonceMeta = cspNonce
+      ? [{ property: 'csp-nonce' as const, content: cspNonce }]
+      : []
+
     return {
       meta: [
         {
@@ -42,14 +67,8 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
           title: 'ENS App',
         },
         { name: 'theme-color', content: '#0082BB' },
-        ...(cspNonce
-          ? [
-              {
-                httpEquiv: 'Content-Security-Policy' as const,
-                content: buildCspWithoutFrameAncestors({ nonce: cspNonce }),
-              },
-            ]
-          : []),
+        ...cspNonceMeta,
+        ...cspMeta,
       ],
       links: [
         {
