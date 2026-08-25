@@ -23,48 +23,26 @@ type NameTreeRowsProps = {
 }
 
 type NameTreeConnectorProps = {
-  readonly depth: number
   readonly isFirst: boolean
   readonly isLast: boolean
 }
 
-const NameTreeConnector = ({
-  depth,
-  isFirst,
-  isLast,
-}: NameTreeConnectorProps) => {
-  const startsAtParentAvatar = isFirst
-    ? depth === 1
-      ? '-top-1'
-      : '-top-1.5'
-    : 'top-0'
-
-  return (
+const NameTreeConnector = ({ isFirst, isLast }: NameTreeConnectorProps) => (
+  <span
+    aria-hidden
+    className="pointer-events-none absolute inset-y-0 left-0 w-7.5 text-ens-garnet-900 opacity-30"
+  >
+    {!isLast && (
+      <span className="absolute top-0 -bottom-4 left-0 w-px bg-current" />
+    )}
     <span
-      aria-hidden
-      className="pointer-events-none absolute inset-y-0 left-0 w-8 text-ens-garnet-900 opacity-30"
-    >
-      {!isLast && (
-        <span
-          className={cn(
-            'absolute bottom-0 left-0 w-px bg-current',
-            startsAtParentAvatar,
-          )}
-        />
+      className={cn(
+        'absolute left-0 w-7.5 rounded-bl-md border-current border-b border-l',
+        isFirst ? '-top-4 h-[34.5px]' : 'top-0 h-[18.5px]',
       )}
-      <span
-        className={cn(
-          'absolute left-0 w-8 rounded-bl-md border-current border-b border-l',
-          isFirst
-            ? depth === 1
-              ? '-top-1 h-[26px]'
-              : '-top-1.5 h-7'
-            : 'top-0 h-5.5',
-        )}
-      />
-    </span>
-  )
-}
+    />
+  </span>
+)
 
 const NameTreeRows = ({
   depth,
@@ -75,9 +53,10 @@ const NameTreeRows = ({
   <ul
     className={cn(
       'flex min-w-0 flex-col',
-      depth === 0 ? 'gap-2' : 'gap-0',
-      depth === 1 && 'ml-[65.5px]',
-      depth > 1 && 'ml-[23.5px]',
+      'gap-4',
+      depth > 0 && 'mt-4',
+      depth === 1 && 'ml-14.5',
+      depth > 1 && 'ml-4.5',
     )}
   >
     {nodes.map((node, index) => {
@@ -86,16 +65,10 @@ const NameTreeRows = ({
       const isLast = index === nodes.length - 1
       return (
         <li
-          className={cn('relative min-w-0', depth > 0 && 'pl-6')}
+          className={cn('relative min-w-0', depth > 0 && 'pl-7.5')}
           key={node.item.domain.id}
         >
-          {depth > 0 && (
-            <NameTreeConnector
-              depth={depth}
-              isFirst={isFirst}
-              isLast={isLast}
-            />
-          )}
+          {depth > 0 && <NameTreeConnector isFirst={isFirst} isLast={isLast} />}
           <NameRow
             depth={depth}
             isSelected={selected.has(name)}
