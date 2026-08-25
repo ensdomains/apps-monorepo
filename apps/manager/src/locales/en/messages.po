@@ -615,6 +615,14 @@ msgstr "Continue to profile"
 msgid "Continue to Settings"
 msgstr "Continue to Settings"
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Continue without signing in"
+msgstr "Continue without signing in"
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Continue without signing in?"
+msgstr "Continue without signing in?"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
 msgid "Cooldown fee"
 msgstr "Cooldown fee"
@@ -750,6 +758,10 @@ msgstr "Does not expire"
 #: src/components/NameFallbackCard.tsx
 msgid "doesn't exist"
 msgstr "doesn't exist"
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Domain transfer and expiry notifications"
+msgstr "Domain transfer and expiry notifications"
 
 #: src/features/bulk-renew/components/SuccessStep.tsx
 msgid "Done"
@@ -2002,6 +2014,10 @@ msgstr "Save Preferences"
 msgid "Save Profile"
 msgstr "Save Profile"
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Saved favorites and searches"
+msgstr "Saved favorites and searches"
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
 msgid "Saving"
@@ -2475,6 +2491,10 @@ msgstr "This upgrade is split into {atomicBatchCount} gas-safe atomic batches. E
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr "Times shown in your local time zone ({timezoneLabel})"
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "To enable these features later, open your wallet menu and select Verify wallet ownership."
+msgstr "To enable these features later, open your wallet menu and select Verify wallet ownership."
+
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "To enable, go to your browser's site settings for this page and allow notifications."
 msgstr "To enable, go to your browser's site settings for this page and allow notifications."
@@ -2876,6 +2896,10 @@ msgstr "You can now receive notifications at this email address."
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "You can preview the card after migrating one name, mint immediately, or return from your Dashboard or canonical profile later."
 msgstr "You can preview the card after migrating one name, mint immediately, or return from your Dashboard or canonical profile later."
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "You can still use the manager, but these features won't be available:"
+msgstr "You can still use the manager, but these features won't be available:"
 
 #: src/features/migration/components/MigrationModal.tsx
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"

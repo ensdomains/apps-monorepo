@@ -102,11 +102,46 @@ export const BackendAuthModal = () => {
           </Button>
 
           {signIn.isError && (
-            <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">
-              <p className="text-destructive text-sm">
-                <Trans>Failed to sign in. Please try again.</Trans>
-              </p>
-            </div>
+            <>
+              <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">
+                <p className="text-destructive text-sm">
+                  <Trans>Failed to sign in. Please try again.</Trans>
+                </p>
+              </div>
+              <div className="rounded-lg border border-ens-lapis-dust/50 bg-ens-lapis-dust/20 p-4">
+                <p className="font-medium text-sm">
+                  <Trans>Continue without signing in?</Trans>
+                </p>
+                <p className="mt-1 text-muted-foreground text-sm">
+                  <Trans>
+                    You can still use the manager, but these features won't be
+                    available:
+                  </Trans>
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground text-sm">
+                  <li>
+                    <Trans>Domain transfer and expiry notifications</Trans>
+                  </li>
+                  <li>
+                    <Trans>Saved favorites and searches</Trans>
+                  </li>
+                </ul>
+                <p className="mt-3 text-muted-foreground text-xs">
+                  <Trans>
+                    To enable these features later, open your wallet menu and
+                    select Verify wallet ownership.
+                  </Trans>
+                </p>
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => backendAuthStore.trigger.dismissModal()}
+                size="lg"
+                variant="outline"
+              >
+                <Trans>Continue without signing in</Trans>
+              </Button>
+            </>
           )}
           {!walletClient && !isDisconnecting && (
             <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">

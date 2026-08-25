@@ -620,6 +620,14 @@ msgstr ""
 msgid "Continue to Settings"
 msgstr ""
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Continue without signing in"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Continue without signing in?"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
 msgid "Cooldown fee"
 msgstr ""
@@ -754,6 +762,10 @@ msgstr ""
 
 #: src/components/NameFallbackCard.tsx
 msgid "doesn't exist"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Domain transfer and expiry notifications"
 msgstr ""
 
 #: src/features/bulk-renew/components/SuccessStep.tsx
@@ -2007,6 +2019,10 @@ msgstr ""
 msgid "Save Profile"
 msgstr ""
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Saved favorites and searches"
+msgstr ""
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
 msgid "Saving"
@@ -2480,6 +2496,10 @@ msgstr ""
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr ""
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "To enable these features later, open your wallet menu and select Verify wallet ownership."
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "To enable, go to your browser's site settings for this page and allow notifications."
 msgstr ""
@@ -2880,6 +2900,10 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "You can preview the card after migrating one name, mint immediately, or return from your Dashboard or canonical profile later."
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "You can still use the manager, but these features won't be available:"
 msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx

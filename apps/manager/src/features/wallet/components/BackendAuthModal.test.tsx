@@ -54,7 +54,13 @@ const pressKeys = (keys: string[]) => {
   }
 }
 
-const showModal = ({ isPending = false }: { isPending?: boolean } = {}) => {
+const showModal = ({
+  isError = false,
+  isPending = false,
+}: {
+  isError?: boolean
+  isPending?: boolean
+} = {}) => {
   wagmiMock.useConnection.mockReturnValue({ isConnected: true })
   wagmiMock.useWalletClient.mockReturnValue({
     data: { account: { address: '0xabc' } },
@@ -62,7 +68,7 @@ const showModal = ({ isPending = false }: { isPending?: boolean } = {}) => {
   smartAccountMock.useSmartAccountContextSafe.mockReturnValue(null)
   useMutationMock.mockReturnValue({
     isPending,
-    isError: false,
+    isError,
     mutateAsync: vi.fn(),
   })
   walletDisconnectMock.disconnect.mockReset()
@@ -135,6 +141,36 @@ describe('BackendAuthModal', () => {
       screen.getByRole('alertdialog', { name: 'Verify your wallet' }),
     ).toBeInTheDocument()
     expect(backendAuthStore.get().context.modalDismissed).toBe(false)
+  })
+
+  it('shows a dismiss action after sign-in fails', () => {
+    showModal({ isError: true })
+
+    render(<BackendAuthModal />)
+
+    expect(
+      screen.getByRole('button', { name: 'Continue without signing in' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "You can still use the manager, but these features won't be available:",
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Domain transfer and expiry notifications'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Saved favorites and searches')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'To enable these features later, open your wallet menu and select Verify wallet ownership.',
+      ),
+    ).toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue without signing in' }),
+    )
+
+    expect(backendAuthStore.get().context.modalDismissed).toBe(true)
   })
 
   it('disconnects the wallet so the user can switch accounts', () => {
