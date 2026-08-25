@@ -164,10 +164,10 @@ function RouteComponent() {
               ))}
           </dd>
 
-          <dt className="text-muted-foreground flex items-center min-h-9 self-start">
+          <dt className="text-ui text-muted-foreground flex items-center h-10 self-start">
             Referenced by
           </dt>
-          <dd className="flex flex-wrap items-center gap-x-2 min-h-9 self-start -mt-2">
+          <dd className="flex flex-wrap items-center gap-x-2 gap-y-2 min-h-10 self-start">
             {referencedByNames.length > 0 ? (
               referencedByNames.map((name) => (
                 <EntityBadge key={name} variant="name" name={name} showAvatar>
