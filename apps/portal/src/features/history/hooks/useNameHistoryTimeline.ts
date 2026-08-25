@@ -144,6 +144,24 @@ type GetNameHistoryTimelineParameters = {
 
 type DomainWithEvents = { events: TimelineIndexerEvent[] }
 
+/**
+ * The feed plus the name's total event count.
+ *
+ * The count is read from the indexer's `eventsCount` rather than the length of
+ * `events`, which is bounded by `first` — a preview that renders a handful of
+ * rows still needs to say how much history there is behind them.
+ *
+ * It counts v2 events only. The v1 subgraph exposes no total, and adding the
+ * number of v1 events *fetched* would make the figure move with `first` (it
+ * bounds each v1 collection separately) rather than describe the name. So a
+ * name with v1 history reads low, and `0` means "no v2 history to count" —
+ * callers should hide the figure rather than print a zero.
+ */
+export type NameHistoryTimeline = {
+  readonly events: TimelineIndexerEvent[]
+  readonly totalCount: number
+}
+
 export const V1_PROTOCOL = 'v1'
 
 export const HISTORY_TIMELINE_PAGE_SIZE = 100
@@ -201,6 +219,7 @@ const HISTORY_TIMELINE_QUERY = gql`
     $orderDirection: OrderDirection
   ) {
     domains(where: { name: $name }, first: 1) {
+      eventsCount
       events(first: $first, orderBy: timestamp, orderDirection: $orderDirection) {
         ...TimelineEvent
       }
@@ -240,22 +259,28 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     Promise.all([
       graphqlIndexerClient
         .request<{
-          domains: (DomainWithEvents & { subdomains: DomainWithEvents[] })[]
+          domains: (DomainWithEvents & {
+            eventsCount: number
+            subdomains: DomainWithEvents[]
+          })[]
         }>(HISTORY_TIMELINE_QUERY, {
           name: normalizedName,
           first,
           orderDirection,
         })
         .then(({ domains: [domain] }) => {
-          if (!domain) return []
+          if (!domain) return { events: [], eventsCount: 0 }
           // A child's registration can also be attributed to the parent.
           const seen = new Set(domain.events.map((event) => event.id))
-          return [
-            ...domain.events,
-            ...domain.subdomains
-              .flatMap(({ events }) => events)
-              .filter((event) => !seen.has(event.id)),
-          ]
+          return {
+            events: [
+              ...domain.events,
+              ...domain.subdomains
+                .flatMap(({ events }) => events)
+                .filter((event) => !seen.has(event.id)),
+            ],
+            eventsCount: domain.eventsCount,
+          }
         }),
       fetchV1NameHistory({
         subgraphUrl: client.chain.subgraphs.ens.url,
@@ -292,12 +317,24 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   // so the merge can hold several times it. Truncation happens on
   // transaction boundaries because `summarizeEvents` groups by transaction: a
   // half-included transaction would be summarized from a subset of its events.
-  return ok(
-    truncateToTransactions(
-      [...v2Events, ...v1Events].sort((a, b) => b.timestamp - a.timestamp),
-      first,
-    ),
+  // Truncate from the same end the caller ordered by: an `asc` request wants
+  // the name's *earliest* transactions, so cutting the tail off a desc-sorted
+  // merge would drop exactly what it asked for. Events always come back
+  // newest-first regardless, since that is the order the timeline renders.
+  const merged = [...v2Events.events, ...v1Events].sort((a, b) =>
+    orderDirection === 'asc'
+      ? a.timestamp - b.timestamp
+      : b.timestamp - a.timestamp,
   )
+  const kept = truncateToTransactions(merged, first)
+
+  return ok({
+    events:
+      orderDirection === 'asc'
+        ? [...kept].sort((a, b) => b.timestamp - a.timestamp)
+        : kept,
+    totalCount: v2Events.eventsCount,
+  })
 })
 
 const getNameHistoryTimelineQueryKey = createQueryKey<

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Calendar, ChevronDown, ChevronUp, ListFilter } from 'lucide-react'
 import { useState } from 'react'
+import type { Hex } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -26,15 +27,14 @@ interface HistoryTimelineProps {
  * filters and an expand-all toggle.
  */
 export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
-  const {
-    data: events,
-    isLoading,
-    error,
-  } = useQuery(getNameHistoryTimelineQueryOptions({ name }))
+  const { data, isLoading, error } = useQuery(
+    getNameHistoryTimelineQueryOptions({ name }),
+  )
+  const events = data?.events
 
   const [dateRange, setDateRange] = useState<DateRange>({})
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
-  const [openIds, setOpenIds] = useState<ReadonlySet<string>>(new Set())
+  const [openIds, setOpenIds] = useState<ReadonlySet<Hex>>(new Set())
 
   const actions = events ? summarizeEvents(events) : []
   const eventTypeGroups = buildEventTypeGroups(events ?? [])
@@ -44,7 +44,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
     filteredActions.length > 0 &&
     filteredActions.every((action) => openIds.has(action.txHash))
 
-  const toggleAction = (id: string) =>
+  const toggleAction = (id: Hex) =>
     setOpenIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)

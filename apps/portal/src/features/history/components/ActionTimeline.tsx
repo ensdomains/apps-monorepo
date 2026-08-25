@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { cn } from '@/lib/utils'
+import type { Hex } from 'viem'
 import { formatTimelineDate } from '../formatTimelineDate'
 import type { Action } from '../summarize/summarize.types'
 import { ActionSummaryRow } from './ActionSummaryRow'
@@ -12,25 +12,18 @@ import { ActionSummaryRow } from './ActionSummaryRow'
  */
 export const TimelineFrame = ({
   children,
-  className,
 }: {
   readonly children: ReactNode
-  readonly className?: string
 }) => (
-  <div
-    className={cn(
-      'relative min-w-0 overflow-x-clip overflow-y-visible pr-3 [--detail-indent:36px] [--rail-x:12px] [--tier2-indent:30px] lg:[--detail-indent:224px] lg:[--rail-x:151px] lg:[--tier2-indent:182px]',
-      className,
-    )}
-  >
+  <div className="relative min-w-0 overflow-x-clip overflow-y-visible pr-3 [--detail-indent:36px] [--rail-x:12px] [--tier2-indent:30px] lg:[--detail-indent:224px] lg:[--rail-x:151px] lg:[--tier2-indent:182px]">
     {children}
   </div>
 )
 
 interface ActionTimelineProps {
   readonly actions: readonly Action[]
-  readonly openIds: ReadonlySet<string>
-  readonly onToggle: (txHash: string) => void
+  readonly openIds: ReadonlySet<Hex>
+  readonly onToggle: (txHash: Hex) => void
   /**
    * Continue the rail past the edge of this group. Set when the group is one of
    * several inside a frame (e.g. the Overview splits recent rows from the
