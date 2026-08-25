@@ -187,8 +187,7 @@ const HISTORY_TIMELINE_CHILD_LIMIT = 25
  *
  * The values are our own constants, never user input.
  */
-const buildHistoryTimelineQuery = (eventTypes?: readonly string[]) => gql`
-  fragment TimelineEvent on Event {
+const TIMELINE_EVENT_FRAGMENT = `  fragment TimelineEvent on Event {
     id
     type
     name
@@ -214,7 +213,10 @@ const buildHistoryTimelineQuery = (eventTypes?: readonly string[]) => gql`
     asNameUnwrapped { node owner }
     asFusesSet { node fuses }
     asExpiryUpdated { node tokenId expiry }
-  }
+  }`
+
+const buildHistoryTimelineQuery = (eventTypes?: readonly string[]) => gql`
+  ${TIMELINE_EVENT_FRAGMENT}
 
   query getNameHistoryTimeline(
     $name: String!
@@ -247,6 +249,127 @@ const buildHistoryTimelineQuery = (eventTypes?: readonly string[]) => gql`
     }
   }
 `
+
+/**
+ * Complete events for the blocks a scoped read matched, unscoped.
+ *
+ * A scoped query answers "which transactions touched these types", but its rows
+ * must still describe the *whole* transaction — the label, the event count and
+ * the expanded detail all read from `action.events`, so summarizing from the
+ * scoped subset alone would state things that aren't true of the transaction.
+ *
+ * The blocks come from the scoped pass and every event of a transaction shares
+ * one, so this is bounded by the transactions actually shown. It has to run
+ * against the root `events` field: the nested `domain.events` selection honours
+ * `type_in` and silently ignores every other filter (verified against staging
+ * for `blockNumber_gte/lte` and `or` — both returned the unfiltered feed).
+ */
+const buildHydrationQuery = (blocks: readonly number[]) => gql`
+  ${TIMELINE_EVENT_FRAGMENT}
+
+  query hydrateTimelineTransactions($namehash: String!) {
+    events(
+      first: ${HISTORY_TIMELINE_PAGE_SIZE}
+      orderBy: timestamp
+      orderDirection: desc
+      where: {
+        namehash: $namehash
+        or: [${blocks
+          .map(
+            (block) =>
+              `{ blockNumber_gte: ${block}, blockNumber_lte: ${block} }`,
+          )
+          .join(', ')}]
+      }
+    ) {
+      ...TimelineEvent
+    }
+  }
+`
+
+/**
+ * Re-read the transactions a scoped pass matched, with every event they contain.
+ *
+ * Keeps only the matched transactions — the scope still decides which rows
+ * appear — but each one is now complete, so label, event count and expanded
+ * detail all describe the real transaction.
+ */
+const hydrateTransactions = ResultFn(async function* ({
+  scoped,
+  name,
+  namehash: node,
+  subgraphUrl,
+  contracts,
+}: {
+  readonly scoped: readonly TimelineIndexerEvent[]
+  readonly name: string
+  readonly namehash: Hex
+  readonly subgraphUrl: string
+  readonly contracts: Parameters<typeof adaptV1Events>[0]['contracts']
+}) {
+  if (scoped.length === 0) return ok([] as TimelineIndexerEvent[])
+
+  const wanted = new Set(
+    scoped.map((event) => event.transactionHash.toLowerCase()),
+  )
+  const v2Blocks = [
+    ...new Set(
+      scoped
+        .filter((event) => event.protocol !== V1_PROTOCOL)
+        .map((event) => event.blockNumber),
+    ),
+  ]
+  const v1TransactionIds = [
+    ...new Set(
+      scoped
+        .filter((event) => event.protocol === V1_PROTOCOL)
+        .map((event) => event.transactionHash),
+    ),
+  ]
+
+  const [v2Full, v1Raw] = yield* fromPromise(
+    Promise.all([
+      v2Blocks.length === 0
+        ? Promise.resolve<TimelineIndexerEvent[]>([])
+        : graphqlIndexerClient
+            .request<{ events: TimelineIndexerEvent[] }>(
+              buildHydrationQuery(v2Blocks),
+              { namehash: node },
+            )
+            .then(({ events }) => events),
+      v1TransactionIds.length === 0
+        ? Promise.resolve([])
+        : fetchV1NameHistory({
+            subgraphUrl,
+            namehash: node,
+            first: HISTORY_TIMELINE_PAGE_SIZE,
+            orderDirection: 'desc',
+            transactionIds: v1TransactionIds,
+          }),
+    ]),
+    (e) => new GetNameHistoryTimelineError({ cause: e as ClientError }),
+  )
+
+  const v1Full =
+    v1Raw.length === 0
+      ? []
+      : adaptV1Events({
+          events: v1Raw,
+          blockTimestamps: yield* getBlockTimestamps({
+            blocks: v1Raw.map((event) => BigInt(event.blockNumber)),
+          }),
+          name,
+          namehash: node,
+          contracts,
+        })
+
+  // Blocks can hold more than the matched transaction, so narrow back down.
+  return ok(
+    [...v2Full, ...v1Full].filter((event) =>
+      wanted.has(event.transactionHash.toLowerCase()),
+    ),
+  )
+})
 
 const getNameHistoryTimeline = ResultFn(async function* ({
   name,
@@ -310,19 +433,21 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     blocks: v1Raw.map((event) => BigInt(event.blockNumber)),
   })
 
+  // Static chain constants, not lookups — the v1 subgraph records no emitting
+  // address, so the contract badge is reconstructed from these.
+  const v1Contracts = {
+    registry: client.chain.contracts.ensRegistry.address,
+    nameWrapper: client.chain.contracts.ensNameWrapper.address,
+    baseRegistrar:
+      client.chain.contracts.ensBaseRegistrarImplementation.address,
+  }
+
   const v1EventsAll = adaptV1Events({
     events: v1Raw,
     blockTimestamps,
     name: normalizedName,
     namehash: node,
-    // Static chain constants, not lookups — the v1 subgraph records no
-    // emitting address, so the contract badge is reconstructed from these.
-    contracts: {
-      registry: client.chain.contracts.ensRegistry.address,
-      nameWrapper: client.chain.contracts.ensNameWrapper.address,
-      baseRegistrar:
-        client.chain.contracts.ensBaseRegistrarImplementation.address,
-    },
+    contracts: v1Contracts,
   })
 
   // `fetchV1NameHistory` scopes resolver events in the query, but domain and
@@ -334,15 +459,37 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     ? v1EventsAll.filter((event) => eventTypes.includes(event.type))
     : v1EventsAll
 
-  return ok(
-    mergeTimeline({
-      v2Events: v2Result.events,
-      v1Events,
-      first,
-      orderDirection,
-      eventsCount: v2Result.eventsCount,
-    }),
-  )
+  const timeline = mergeTimeline({
+    v2Events: v2Result.events,
+    v1Events,
+    first,
+    orderDirection,
+    eventsCount: v2Result.eventsCount,
+  })
+
+  if (!eventTypes) return ok(timeline)
+
+  // A scoped read has selected only the matching events, so each transaction is
+  // present but incomplete. Re-read those transactions in full before they are
+  // summarized, or the row would describe a subset: "Set 2 records / 2 events"
+  // for a transaction that actually set five.
+  //
+  // The completeness flags stay as `mergeTimeline` computed them: hydration
+  // fills in the transactions already kept, it does not reach further back, so
+  // deriving `hasMore` from the hydrated count would compare a padded window
+  // against the merge that produced it.
+  const hydrated = yield* hydrateTransactions({
+    scoped: timeline.events,
+    name: normalizedName,
+    namehash: node,
+    subgraphUrl: client.chain.subgraphs.ens.url,
+    contracts: v1Contracts,
+  })
+
+  return ok({
+    ...timeline,
+    events: hydrated.sort((a, b) => b.timestamp - a.timestamp),
+  })
 })
 
 const getNameHistoryTimelineQueryKey = createQueryKey<

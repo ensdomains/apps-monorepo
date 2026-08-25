@@ -48,7 +48,9 @@ const V1_SCOPED_RESOLVER_EVENTS: Record<
 }
 
 /** Every record type in one window — what an unscoped read selects. */
-const ALL_RESOLVER_EVENTS = `events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
+const allResolverEvents = (
+  txFilter: string,
+) => `events(${txFilter}first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
             id
             blockNumber
             transactionID
@@ -118,6 +120,7 @@ export const fetchV1NameHistory = async ({
   first,
   orderDirection,
   eventTypes,
+  transactionIds,
 }: {
   readonly subgraphUrl: string
   readonly namehash: Hex
@@ -125,8 +128,17 @@ export const fetchV1NameHistory = async ({
   readonly orderDirection: 'asc' | 'desc'
   /** Restrict resolver events to these types — see `V1_SCOPED_RESOLVER_EVENTS`. */
   readonly eventTypes?: readonly string[]
+  /**
+   * Read these transactions in full, ignoring `eventTypes`. Used to re-read the
+   * transactions a scoped pass matched so their rows describe the whole
+   * transaction rather than just the matching events.
+   */
+  readonly transactionIds?: readonly string[]
 }): Promise<V1SubgraphEvent[]> => {
-  const collections = scopedCollections(eventTypes)
+  const collections = transactionIds ? null : scopedCollections(eventTypes)
+  const txFilter = transactionIds
+    ? `where: { transactionID_in: ${JSON.stringify(transactionIds)} }, `
+    : ''
   const { domain, resolvers } = await new GraphQLClient(
     subgraphUrl,
   ).request<V1SubgraphResult>(
@@ -144,7 +156,7 @@ export const fetchV1NameHistory = async ({
           collections
             ? ''
             : `domain(id: $id) {
-          events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
+          events(${txFilter}first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
             id
             blockNumber
             transactionID
@@ -161,7 +173,7 @@ export const fetchV1NameHistory = async ({
           }
           registration {
             cost
-            events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
+            events(${txFilter}first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
               id
               blockNumber
               transactionID
@@ -192,7 +204,7 @@ export const fetchV1NameHistory = async ({
           }`,
                   )
                   .join('\n          ')
-              : ALL_RESOLVER_EVENTS
+              : allResolverEvents(txFilter)
           }
         }
       }
