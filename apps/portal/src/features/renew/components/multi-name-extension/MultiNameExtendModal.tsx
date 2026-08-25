@@ -14,8 +14,8 @@ import type {
   MultiRenewalEntry,
   SelectedName,
 } from '../../hooks/useRenewalTransactions'
+import type { ExtensionSpan } from '../../utils/extensionDurationPicker'
 import { ExtendNameDisclaimer } from '../ExtendNameDisclaimer'
-import type { ExtensionSpanType } from '../ExtensionDurationOrExpiryPicker'
 import { MultiNameExtendSettings } from './MultiNameExtendSettings'
 import { MultiNameExtendSummary } from './MultiNameExtendSummary'
 import type { MultiNameTokenSelection } from './MultiNamePaymentTokenPicker'
@@ -41,14 +41,12 @@ export const MultiNameExtendModal = ({
   onExtend,
 }: MultiNameExtendModalProps) => {
   const [step, setStep] = useState<MultiNameExtendModalStep>('disclaimer')
-  const [spanType, setSpanType] = useState<ExtensionSpanType>('years')
-  const [duration, setDuration] = useState<number>(1)
+  const [span, setSpan] = useState<ExtensionSpan>({ type: 'years', years: 1 })
   const latestExpiry = getLatestRenewalExpiry(selectedNames)
 
   const { pricingData, total, totalDiscount, allLoaded } = useMultiNamePricing(
     selectedNames,
-    spanType,
-    duration,
+    span,
   )
   const renewals: readonly MultiRenewalEntry[] = pricingData.map((item) => ({
     selectedName: item.selectedName,
@@ -91,10 +89,8 @@ export const MultiNameExtendModal = ({
               totalDiscount={totalDiscount}
               allLoaded={allLoaded}
               latestExpiry={latestExpiry}
-              duration={duration}
-              setDuration={setDuration}
-              spanType={spanType}
-              setSpanType={setSpanType}
+              span={span}
+              setSpan={setSpan}
               onBack={() => setStep('disclaimer')}
               onNext={() => setStep('summary')}
             />

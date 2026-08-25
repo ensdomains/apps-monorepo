@@ -1,17 +1,13 @@
 import { formatUnits } from 'viem'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import { getEffectivePricePerYearUsd } from '@/features/register/utils/effectivePricePerYear'
-import {
-  getRegistrationDisplayDates,
-  getStartOfToday,
-} from '@/features/register/utils/registrationDuration'
+import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,
   formatRegistrationTotal,
 } from '@/features/register/utils/registrationPrice'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
-import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { dateToPlainDate } from '@/utils/temporal'
 import type { SelectedName } from '../hooks/useRenewalTransactions'
@@ -51,26 +47,35 @@ export function computeNamePricingDisplay(
   duration: number,
   baseRate: bigint,
 ): NamePricingDisplay {
-  const { registrationPeriod } = getRegistrationDisplayDates(duration)
-
-  const days = Math.floor(duration / 86400)
-  const baseDate = selectedName.expiryDate
-    ? dateToPlainDate(selectedName.expiryDate)
-    : getStartOfToday()
-  const newExpiryFormatted = formatExpiryDate(baseDate.add({ days }))
+  const { registrationPeriod, expiresFormatted: newExpiryFormatted } =
+    getRegistrationDisplayDates(
+      duration,
+      selectedName.expiryDate
+        ? dateToPlainDate(selectedName.expiryDate)
+        : undefined,
+    )
 
   const years = duration / CONTRACT_SECONDS_PER_YEAR
   const roundedYears = Math.round(years)
-  const discountSublabel =
-    roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
+  // Tiers apply from a whole year reached, so floor rather than round: a term
+  // of 5 years 11 months has not bought the 6-year tier and must not claim it.
+  const tierYears = Math.floor(years + 1e-6)
 
   const actualPrice = Number(formatUnits(price.base, price.decimals))
-  const effectivePerYear = getEffectivePricePerYearUsd({
-    priceBase: price.base,
-    priceDecimals: price.decimals,
-    durationSeconds: duration,
-    baseRate,
-  })
+  // Quote the rate over the whole years the summary says you are buying, not
+  // fractional contract years. A term crossing a leap day is 366 days = 1.002
+  // contract years, so dividing by that prints a per-year figure a cent under
+  // the total it sits next to. Falls back to the rate estimate while the price
+  // is still loading.
+  const effectivePerYear =
+    roundedYears >= 1 && actualPrice > 0
+      ? actualPrice / roundedYears
+      : getEffectivePricePerYearUsd({
+          priceBase: price.base,
+          priceDecimals: price.decimals,
+          durationSeconds: duration,
+          baseRate,
+        })
 
   const undiscountedBase =
     baseRate > 0n
@@ -83,9 +88,23 @@ export function computeNamePricingDisplay(
       : 0
   const discountAmount = Math.max(undiscountedBase - actualPrice, 0)
 
+  const discountSublabel =
+    tierYears >= 2 ? `${tierYears}+ yr discount price` : undefined
+
+  // The rate is the total over the term, rounded to cents, so multiplying it
+  // back out can miss the total by up to half a cent per year ($4.5033/yr
+  // prints as $4.50, and $4.50 × 6 reads as $27.00 against a $27.02 charge).
+  // Mark it `≈` only when that actually happens — most terms reconcile exactly,
+  // and an approximation sign on an exact figure is its own inaccuracy.
+  const totalUsd = Number(
+    formatUnits(price.base + price.premium, price.decimals),
+  )
+  const quotedPerYear = Math.round(effectivePerYear * 100) / 100
+  const reconciles = Math.abs(quotedPerYear * roundedYears - totalUsd) < 0.005
+
   const priceValue =
     Math.round(years * 12) >= 12
-      ? `${formatUsd(effectivePerYear)}/year`
+      ? `${reconciles ? '' : '≈ '}${formatUsd(effectivePerYear)}/year`
       : formatUsd(effectivePerYear)
 
   return {
