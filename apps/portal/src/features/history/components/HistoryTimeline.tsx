@@ -8,11 +8,12 @@ import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { Button } from '@/components/ui/button'
+import { TimelineFrame } from '@/components/ui/timeline'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { buildEventTypeGroups, filterActions } from '../filterTimeline'
 import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
 import { summarizeEvents } from '../summarize/summarizeEvents'
-import { ActionTimeline, TimelineFrame } from './ActionTimeline'
+import { ActionTimeline } from './ActionTimeline'
 
 interface HistoryTimelineProps {
   readonly name: string

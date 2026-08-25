@@ -7,10 +7,10 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Button } from '@/components/ui/button'
-import { Rail } from '@/components/ui/timeline'
+import { Rail, TimelineFrame } from '@/components/ui/timeline'
 import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
 import { summarizeEvents } from '../summarize/summarizeEvents'
-import { ActionTimeline, TimelineFrame } from './ActionTimeline'
+import { ActionTimeline } from './ActionTimeline'
 
 /** How many of the newest actions the Overview preview shows. */
 const RECENT_ACTION_LIMIT = 4
