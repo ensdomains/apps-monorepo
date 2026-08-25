@@ -132,9 +132,9 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
       ? firstAction
       : undefined
   // The break is drawn on evidence of hidden history, not on having something to
-  // pin. If the oldest-action query is unavailable, the recent window still
-  // knows it was bounded — it fetched fewer events than the name has — so the
-  // link out stays correct even without a row to anchor it.
+  // pin, so a failed oldest-action query still leaves the link out correct.
+  // `totalCount` counts v2 events only, so the last clause can only ever
+  // under-report; the action comparison is what covers a v1-only name.
   const hasHiddenActions =
     pinnedAction !== undefined ||
     actions.length > recent.length ||
@@ -174,6 +174,12 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
                 openIds={openIds}
                 onToggle={toggleAction}
                 connectAbove
+              />
+            )}
+            {!pinnedAction && firstQuery.error && (
+              <ErrorMessage
+                compact
+                description="Couldn't load the start of this name's history."
               />
             )}
           </>
