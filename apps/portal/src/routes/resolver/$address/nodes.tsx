@@ -18,6 +18,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -169,7 +170,9 @@ function RouteComponent() {
   if (nodes.length === 0)
     return (
       <div className="flex flex-col gap-8">
-        <h1 className="text-h2 md:text-h1">Nodes</h1>
+        <PageHeading parent={{ type: 'resolver', address: address as Address }}>
+          Nodes
+        </PageHeading>
         <NoResultsMessage
           title="No nodes yet"
           description="Names that resolve through this resolver will appear here."
@@ -180,7 +183,9 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-h2 md:text-h1">Nodes</h1>
+      <PageHeading parent={{ type: 'resolver', address: address as Address }}>
+        Nodes
+      </PageHeading>
 
       <InputGroup className="bg-background rounded-sm">
         <InputGroupAddon>

@@ -8,6 +8,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { ResolverAddUserSheet } from '@/features/resolver/components/ResolverAddUserSheet'
@@ -64,7 +65,9 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-h2 md:text-h1">Roles</h1>
+        <PageHeading parent={{ type: 'resolver', address: address as Address }}>
+          Roles
+        </PageHeading>
         {accountAddress && canManageRoles && (
           <Button
             variant="default"

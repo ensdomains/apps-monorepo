@@ -7,6 +7,7 @@ import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { SendNameForm } from '@/features/transfer/components/SendNameForm'
@@ -50,9 +51,9 @@ function RouteComponent() {
           Back
         </Link>
 
-        <h1 className="text-3xl font-medium leading-tight">
+        <PageHeading parent={{ type: 'name', name }}>
           Transfer ownership
-        </h1>
+        </PageHeading>
 
         {match({ data, address })
           .with(

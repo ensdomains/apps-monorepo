@@ -17,6 +17,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { Button } from '@/components/ui/button'
@@ -311,7 +312,9 @@ function RouteComponent() {
     return (
       <>
         <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
-          <h1 className="text-h1">Names</h1>
+          <PageHeading parent={{ type: 'addr', addr: address }}>
+            Names
+          </PageHeading>
         </header>
         <NoResultsMessage
           title="No names yet"
@@ -325,10 +328,11 @@ function RouteComponent() {
     <>
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row justify-between">
-          <h1 className="text-h1">
-            {hasActiveFilters ? `${nameCount} of ${totalCount}` : nameCount}{' '}
-            names
-          </h1>
+          <PageHeading parent={{ type: 'addr', addr: address }}>
+            {hasActiveFilters
+              ? `Names (${nameCount} of ${totalCount})`
+              : `Names (${totalCount})`}
+          </PageHeading>
         </div>
         {rowCount > 0 ? (
           <div className="flex flex-col lg:flex-row w-full lg:justify-between lg:items-center gap-4">
