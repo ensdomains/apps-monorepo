@@ -150,9 +150,14 @@ export const HistoryTimeline = ({
         />
       ) : (
         <TimelineFrame>
-          {!scope && data?.hasMore && events && (
+          {/* Shown in scoped views too: the per-facet window is where
+              truncation actually bites (the indexer exposes no cursor to page
+              past it), so suppressing this here would present a partial list
+              as the whole history. */}
+          {data?.hasMore && events && (
             <p className="mb-3 text-muted-foreground text-p">
-              Showing the most recent {events.length} events.
+              Showing the most recent {events.length}
+              {scope ? ' matching' : ''} events.
             </p>
           )}
           <ActionTimeline
