@@ -159,6 +159,13 @@ export const V1_PROTOCOL = 'v1'
 export const HISTORY_TIMELINE_PAGE_SIZE = 100
 
 /**
+ * The v1 subgraph's own ceiling on `first`, already relied on by the address
+ * history read. Only the hydration leaf climbs to it, and only for a single
+ * transaction it cannot split any smaller.
+ */
+const V1_SUBGRAPH_MAX_PAGE_SIZE = 1000
+
+/**
  * Direct children come from `subdomains`, not a `name_ends_with` suffix match:
  * the suffix also matches every deeper descendant, so `a.b.leon.eth` would land
  * in `leon.eth`'s timeline.
@@ -346,22 +353,35 @@ const fetchHydratedBlocks = async (
  * extra request. Splitting halves the transactions rather than paging, matching
  * the v2 path and keeping the halves disjoint, so their events never overlap.
  *
- * A single transaction that still saturates is left as-is — that would be one
- * transaction emitting more than a page of events for this name.
+ * A lone transaction cannot be split any further, so it is re-read once with
+ * the subgraph's maximum page size instead. Widening is safe here in a way it
+ * is not on v2: every collection is filtered to that one transaction, so a
+ * larger `first` can only surface events the transaction actually emitted, and
+ * cannot widen the query beyond it. The re-read is still best-effort — a
+ * narrower response beats failing the whole timeline.
  */
 const fetchHydratedV1Transactions = async (
   params: { readonly subgraphUrl: string; readonly namehash: Hex },
   transactionIds: readonly string[],
+  first: number = HISTORY_TIMELINE_PAGE_SIZE,
 ): Promise<V1SubgraphEvent[]> => {
   const events = await fetchV1NameHistory({
     ...params,
-    first: HISTORY_TIMELINE_PAGE_SIZE,
+    first,
     orderDirection: 'desc',
     transactionIds,
   })
 
-  if (events.length < HISTORY_TIMELINE_PAGE_SIZE || transactionIds.length === 1)
-    return events
+  if (events.length < first) return events
+
+  if (transactionIds.length === 1) {
+    if (first >= V1_SUBGRAPH_MAX_PAGE_SIZE) return events
+    return fetchHydratedV1Transactions(
+      params,
+      transactionIds,
+      V1_SUBGRAPH_MAX_PAGE_SIZE,
+    ).catch(() => events)
+  }
 
   const mid = Math.ceil(transactionIds.length / 2)
   const halves = await Promise.all([
