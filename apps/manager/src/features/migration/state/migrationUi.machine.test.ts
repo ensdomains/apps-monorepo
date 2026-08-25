@@ -55,6 +55,7 @@ const EMPTY_GROUPS: GroupedNames = {
 }
 
 const makeClassified = (d: V1Domain): ClassifiedName => ({
+  action: 'migrate',
   domain: d,
   tokenType: 'unwrapped',
   label: d.labelName ?? '',
@@ -69,28 +70,32 @@ const makeClassified = (d: V1Domain): ClassifiedName => ({
 const makePlan = (
   domains: V1Domain[],
   overrides: Partial<MigrationPlan> = {},
-): MigrationPlan => ({
-  hcaAddress: SCA,
-  hcaDeploymentRequired: false,
-  migrationOwner: OWNER,
-  domains,
-  classified: domains.map(makeClassified),
-  ineligible: [],
-  groups: EMPTY_GROUPS,
-  preflight: {
-    preExistingOwnedPermRes: null,
-    skipApprovalPhase: false,
-    skipFetchProfilesPhase: false,
-    baseRegistrarApproved: false,
-    nameWrapperApproved: false,
-  },
-  ownedPermRes: null,
-  profiles: new Map(),
-  atomicBatches: [],
-  stepDescriptors: [],
-  ...overrides,
-  directRoutes: overrides.directRoutes ?? new Map(),
-})
+): MigrationPlan => {
+  const classified = overrides.classified ?? domains.map(makeClassified)
+  return {
+    hcaAddress: SCA,
+    hcaDeploymentRequired: false,
+    migrationOwner: OWNER,
+    domains,
+    classified,
+    registryContext: classified,
+    ineligible: [],
+    groups: EMPTY_GROUPS,
+    preflight: {
+      preExistingOwnedPermRes: null,
+      skipApprovalPhase: false,
+      skipFetchProfilesPhase: false,
+      baseRegistrarApproved: false,
+      nameWrapperApproved: false,
+    },
+    ownedPermRes: null,
+    profiles: new Map(),
+    atomicBatches: [],
+    stepDescriptors: [],
+    ...overrides,
+    directRoutes: overrides.directRoutes ?? new Map(),
+  }
+}
 
 const start = (domains: V1Domain[] = [domain('alice')]) => {
   const actor = createActor(migrationUiMachine, {
@@ -111,6 +116,9 @@ const migrationResult = (
   overrides: Partial<MigrationResult> = {},
 ): MigrationResult => ({
   completed: 1,
+  migrated: 1,
+  copied: 0,
+  completedOperations: [{ name: 'alice.eth', action: 'migrate' }],
   txHashes: ['0xabc'] as readonly Hex[],
   ineligible: [],
   ...overrides,
@@ -204,7 +212,10 @@ describe('migrationUiMachine', () => {
   describe('migrate.running → success', () => {
     it('transitions directly to success when migration resolves', async () => {
       executeMigrationMock.mockImplementation(async (params) => {
-        params.onBatchComplete?.(['alice.eth'], '0xabc' as Hex)
+        params.onBatchComplete?.(
+          [{ name: 'alice.eth', action: 'migrate' }],
+          '0xabc' as Hex,
+        )
         return migrationResult()
       })
       const actor = start()
@@ -212,42 +223,71 @@ describe('migrationUiMachine', () => {
 
       expect(actor.getSnapshot().value).toBe('success')
       expect(actor.getSnapshot().context.txHashes).toEqual(['0xabc'])
-      expect(actor.getSnapshot().context.migratedNames).toEqual(['alice.eth'])
+      expect(actor.getSnapshot().context.completedOperations).toEqual([
+        { name: 'alice.eth', action: 'migrate' },
+      ])
     })
 
-    it('accumulates migratedNames across multiple batchComplete events', async () => {
+    it('accumulates migrate and copy operations across batchComplete events', async () => {
       executeMigrationMock.mockImplementation(async (params) => {
-        params.onBatchComplete?.(['a.eth'], '0x1' as Hex)
-        params.onBatchComplete?.(['b.eth', 'c.eth'], '0x2' as Hex)
-        params.onBatchComplete?.(['d.eth'], '0x3' as Hex)
-        return migrationResult()
+        params.onBatchComplete?.(
+          [{ name: 'a.eth', action: 'migrate' }],
+          '0x1' as Hex,
+        )
+        params.onBatchComplete?.(
+          [
+            { name: 'b.a.eth', action: 'copy' },
+            { name: 'c.a.eth', action: 'copy' },
+          ],
+          '0x2' as Hex,
+        )
+        params.onBatchComplete?.(
+          [{ name: 'd.eth', action: 'migrate' }],
+          '0x3' as Hex,
+        )
+        return migrationResult({
+          completed: 4,
+          migrated: 2,
+          copied: 2,
+          completedOperations: [
+            { name: 'a.eth', action: 'migrate' },
+            { name: 'b.a.eth', action: 'copy' },
+            { name: 'c.a.eth', action: 'copy' },
+            { name: 'd.eth', action: 'migrate' },
+          ],
+        })
       })
       const actor = start()
       await vi.advanceTimersByTimeAsync(0)
-      expect(actor.getSnapshot().context.migratedNames).toEqual([
-        'a.eth',
-        'b.eth',
-        'c.eth',
-        'd.eth',
+      expect(actor.getSnapshot().context.completedOperations).toEqual([
+        { name: 'a.eth', action: 'migrate' },
+        { name: 'b.a.eth', action: 'copy' },
+        { name: 'c.a.eth', action: 'copy' },
+        { name: 'd.eth', action: 'migrate' },
       ])
     })
 
     it('records a reconciled batch when no transaction hash is available', async () => {
       executeMigrationMock.mockImplementation(async (params) => {
-        params.onBatchComplete?.(['alice.eth'])
+        params.onBatchComplete?.([{ name: 'alice.eth', action: 'migrate' }])
         return migrationResult({ txHashes: [] })
       })
       const actor = start()
       await vi.advanceTimersByTimeAsync(0)
 
       expect(actor.getSnapshot().value).toBe('success')
-      expect(actor.getSnapshot().context.migratedNames).toEqual(['alice.eth'])
+      expect(actor.getSnapshot().context.completedOperations).toEqual([
+        { name: 'alice.eth', action: 'migrate' },
+      ])
       expect(actor.getSnapshot().context.txHashes).toEqual([])
     })
 
     it('resetAll returns to select and wipes context on done', async () => {
       executeMigrationMock.mockImplementation(async (params) => {
-        params.onBatchComplete?.(['alice.eth'], '0xabc' as Hex)
+        params.onBatchComplete?.(
+          [{ name: 'alice.eth', action: 'migrate' }],
+          '0xabc' as Hex,
+        )
         return migrationResult()
       })
       const actor = start()
@@ -256,7 +296,7 @@ describe('migrationUiMachine', () => {
       actor.send({ type: 'done' })
       expect(actor.getSnapshot().value).toBe('select')
       expect(actor.getSnapshot().context.plan).toBeUndefined()
-      expect(actor.getSnapshot().context.migratedNames).toEqual([])
+      expect(actor.getSnapshot().context.completedOperations).toEqual([])
       expect(actor.getSnapshot().context.txHashes).toEqual([])
     })
   })
@@ -264,7 +304,12 @@ describe('migrationUiMachine', () => {
   describe('migrate.failing → failure', () => {
     it('routes to failing when migration complete but no tx hashes (isOnlyFailures guard)', async () => {
       executeMigrationMock.mockResolvedValueOnce(
-        migrationResult({ txHashes: [] }),
+        migrationResult({
+          completed: 0,
+          migrated: 0,
+          completedOperations: [],
+          txHashes: [],
+        }),
       )
       const actor = start()
       await vi.advanceTimersByTimeAsync(0)
@@ -293,7 +338,10 @@ describe('migrationUiMachine', () => {
       actor.send({ type: 'selection.set', names: ['alice.eth', 'bob.eth'] })
 
       executeMigrationMock.mockImplementation(async (params) => {
-        params.onBatchComplete?.(['alice.eth'], '0xabc' as Hex)
+        params.onBatchComplete?.(
+          [{ name: 'alice.eth', action: 'migrate' }],
+          '0xabc' as Hex,
+        )
         throw new Error('boom')
       })
       actor.send({
@@ -306,7 +354,9 @@ describe('migrationUiMachine', () => {
 
       await vi.advanceTimersByTimeAsync(1500)
       expect(actor.getSnapshot().value).toBe('failure')
-      expect(actor.getSnapshot().context.migratedNames).toEqual(['alice.eth'])
+      expect(actor.getSnapshot().context.completedOperations).toEqual([
+        { name: 'alice.eth', action: 'migrate' },
+      ])
 
       executeMigrationMock.mockImplementation(() => new Promise(() => {}))
       actor.send({ type: 'retry' })

@@ -30,7 +30,13 @@ const tokenApproval = (tokenId = 1n): MigrationApproval => ({
 const batches = (
   ...namesByBatch: readonly (readonly string[])[]
 ): readonly AtomicMigrationBatch[] =>
-  namesByBatch.map((names) => ({ names }) as AtomicMigrationBatch)
+  namesByBatch.map(
+    (names) =>
+      ({
+        names,
+        operations: names.map((name) => ({ name, action: 'migrate' })),
+      }) as unknown as AtomicMigrationBatch,
+  )
 
 const registrationApprovalTargets = (
   ...targets: readonly (readonly [tokenId: bigint, name: string])[]
@@ -56,7 +62,14 @@ describe('buildStepDescriptors', () => {
         name: 'alice.eth',
         tokenId: 1n,
       },
-      { type: 'atomic-batch', index: 0, total: 1, count: 1 },
+      {
+        type: 'atomic-batch',
+        index: 0,
+        total: 1,
+        count: 1,
+        migrateCount: 1,
+        copyCount: 0,
+      },
     ])
   })
 
@@ -84,7 +97,14 @@ describe('buildStepDescriptors', () => {
       }),
     ).toEqual([
       { type: 'approval', approvalId: 'name-wrapper:hca', count: undefined },
-      { type: 'atomic-batch', index: 0, total: 1, count: 2 },
+      {
+        type: 'atomic-batch',
+        index: 0,
+        total: 1,
+        count: 2,
+        migrateCount: 2,
+        copyCount: 0,
+      },
     ])
   })
 
@@ -96,7 +116,16 @@ describe('buildStepDescriptors', () => {
         atomicBatches: batches(['alice.eth']),
         registrationApprovalTargets: [],
       }),
-    ).toEqual([{ type: 'atomic-batch', index: 0, total: 1, count: 1 }])
+    ).toEqual([
+      {
+        type: 'atomic-batch',
+        index: 0,
+        total: 1,
+        count: 1,
+        migrateCount: 1,
+        copyCount: 0,
+      },
+    ])
   })
 
   it('adds and removes a temporary manager approval around the migration batch', () => {
@@ -109,7 +138,14 @@ describe('buildStepDescriptors', () => {
       }),
     ).toEqual([
       { type: 'approval', approvalId: 'eth-registry:hca', count: undefined },
-      { type: 'atomic-batch', index: 0, total: 1, count: 1 },
+      {
+        type: 'atomic-batch',
+        index: 0,
+        total: 1,
+        count: 1,
+        migrateCount: 1,
+        copyCount: 0,
+      },
       { type: 'cleanup', approvalId: 'eth-registry:hca' },
     ])
   })
@@ -123,8 +159,22 @@ describe('buildStepDescriptors', () => {
         registrationApprovalTargets: [],
       }),
     ).toEqual([
-      { type: 'atomic-batch', index: 0, total: 2, count: 1 },
-      { type: 'atomic-batch', index: 1, total: 2, count: 1 },
+      {
+        type: 'atomic-batch',
+        index: 0,
+        total: 2,
+        count: 1,
+        migrateCount: 1,
+        copyCount: 0,
+      },
+      {
+        type: 'atomic-batch',
+        index: 1,
+        total: 2,
+        count: 1,
+        migrateCount: 1,
+        copyCount: 0,
+      },
     ])
   })
 
@@ -163,7 +213,42 @@ describe('buildStepDescriptors', () => {
         name: 'bob.eth',
         tokenId: 2n,
       },
-      { type: 'atomic-batch', index: 0, total: 1, count: 2 },
+      {
+        type: 'atomic-batch',
+        index: 0,
+        total: 1,
+        count: 2,
+        migrateCount: 2,
+        copyCount: 0,
+      },
+    ])
+  })
+
+  it('reports migrate and copy counts separately for confirmation UI', () => {
+    const batch = {
+      names: ['example.eth', 'foo.example.eth'],
+      operations: [
+        { name: 'example.eth', action: 'migrate' },
+        { name: 'foo.example.eth', action: 'copy' },
+      ],
+    } as unknown as AtomicMigrationBatch
+
+    expect(
+      buildStepDescriptors({
+        hcaDeploymentRequired: false,
+        approvals: [],
+        atomicBatches: [batch],
+        registrationApprovalTargets: [],
+      }),
+    ).toEqual([
+      {
+        type: 'atomic-batch',
+        index: 0,
+        total: 1,
+        count: 2,
+        migrateCount: 1,
+        copyCount: 1,
+      },
     ])
   })
 })

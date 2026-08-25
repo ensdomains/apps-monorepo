@@ -3,7 +3,13 @@ import {
   computeResolverAddress,
 } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { type Address, type Hex, namehash, type PublicClient } from 'viem'
+import {
+  type Address,
+  type Hex,
+  isAddressEqual,
+  namehash,
+  type PublicClient,
+} from 'viem'
 
 import { V2_CONTRACTS } from '../contracts/addresses'
 import {
@@ -30,6 +36,7 @@ import {
 import {
   type ClassifiedName,
   classifyNames,
+  type DirectClassifiedName,
   FUSES,
   type GroupedNames,
   groupClassifiedNames,
@@ -37,12 +44,28 @@ import {
   type IneligibleName,
 } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
+import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
 import {
   type DirectMigrationRoute,
   resolveDirectMigrationRoutes,
 } from './directMigrationRoutes'
 import { resolverFor } from './encodeMigration'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
+import { migrationApprovalForId } from './migrationApprovals'
+import {
+  loadPendingAtomicMigrationIntents,
+  loadSubmittedAtomicMigrationBatches,
+  type MigrationBatchJournalScope,
+  type MigrationJournalOperation,
+  type MigrationRecoverySnapshot,
+} from './migrationBatchJournal'
+import {
+  assertLockedPublicResolverSetMembership,
+  assertMigrationHelperRuntimeCode,
+  assertRequiredMigrationContractCode,
+  checkDeterministicMigrationResolverReadiness,
+  checkMigrationHcaReadiness,
+} from './migrationInvariants'
 import {
   getV1ProfileKeys,
   type V1Domain,
@@ -55,6 +78,8 @@ export type MigrationPlan = {
   readonly migrationOwner: Address
   readonly domains: readonly V1Domain[]
   readonly classified: readonly ClassifiedName[]
+  /** Immutable selected tree used to keep deterministic registry routes on retry. */
+  readonly registryContext: readonly ClassifiedName[]
   readonly ineligible: readonly IneligibleName[]
   readonly groups: GroupedNames
   readonly preflight: MigrationPreflight
@@ -63,6 +88,10 @@ export type MigrationPlan = {
   readonly directRoutes: ReadonlyMap<string, DirectMigrationRoute>
   readonly atomicBatches: readonly AtomicMigrationBatch[]
   readonly stepDescriptors: readonly MigrationStepDescriptor[]
+  /** Completed operations recovered from a durable cross-reload attempt. */
+  readonly priorCompletedOperations?: readonly MigrationJournalOperation[]
+  /** Reconcile durable intents/receipts and live V2 state before submitting. */
+  readonly requiresReconciliation?: boolean
 }
 
 const fetchProfilesForNames = async (params: {
@@ -86,52 +115,79 @@ const fetchProfilesForNames = async (params: {
   })
 }
 
+const STATIC_INNER_EXECUTION_GAS = {
+  'resolver-deployment': 240_000n,
+  'wallet-co-admin-grant': 70_000n,
+  'user-registry-deployment': 300_000n,
+  'user-registry-wallet-grant': 80_000n,
+  'user-registry-parent': 70_000n,
+  'copy-register': 0n,
+  'manager-role-grant': GRANT_ROLES_GAS,
+  migrate: 0n,
+} as const satisfies Partial<
+  Record<AtomicMigrationInnerExecution['phase'], bigint>
+>
+
+const profileReplayGas = (params: {
+  readonly execution: AtomicMigrationInnerExecution
+  readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
+  readonly profiles: ReadonlyMap<Hex, Profile>
+}): bigint => {
+  const classified = params.classifiedByName.get(params.execution.name)
+  if (!classified) return 0n
+  const profile = params.profiles.get(
+    profileMapKey(namehash(classified.domain.name)),
+  )
+  if (!profile) return 0n
+
+  return (
+    MULTICALL_OVERHEAD +
+    BigInt(profile.texts.length) * SETTEXT_GAS +
+    BigInt(profile.addresses.length) * SETADDR_GAS +
+    (profile.contentHash ? SETCONTENTHASH_GAS : 0n) +
+    BigInt(profile.abis.length) * SETABI_GAS
+  )
+}
+
+const innerExecutionGas = (params: {
+  readonly execution: AtomicMigrationInnerExecution
+  readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
+  readonly profiles: ReadonlyMap<Hex, Profile>
+}): bigint => {
+  if (params.execution.phase === 'profile-replay') {
+    return profileReplayGas(params)
+  }
+  return STATIC_INNER_EXECUTION_GAS[params.execution.phase]
+}
+
 const previewAtomicBatchGas = (params: {
   readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly names: readonly string[]
   readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
 }): bigint => {
-  let gas = PER_BATCH_OVERHEAD
-
-  for (const name of params.names) {
+  const nameGas = params.names.reduce((gas, name) => {
     const classified = params.classifiedByName.get(name)
-    if (!classified) continue
-    gas += GAS_HEURISTIC[classified.tokenType]
-  }
+    if (!classified) return gas
+    return (
+      gas +
+      (classified.action === 'migrate'
+        ? GAS_HEURISTIC[classified.tokenType]
+        : 200_000n)
+    )
+  }, 0n)
+  const executionGas = params.innerExecutions.reduce(
+    (gas, execution) =>
+      gas +
+      innerExecutionGas({
+        execution,
+        classifiedByName: params.classifiedByName,
+        profiles: params.profiles,
+      }),
+    0n,
+  )
 
-  for (const execution of params.innerExecutions) {
-    switch (execution.phase) {
-      case 'resolver-deployment':
-        gas += 240_000n
-        break
-      case 'wallet-co-admin-grant':
-        gas += 70_000n
-        break
-      case 'manager-role-grant':
-        gas += GRANT_ROLES_GAS
-        break
-      case 'profile-replay': {
-        const classified = params.classifiedByName.get(execution.name)
-        if (!classified) break
-        const profile = params.profiles.get(
-          profileMapKey(namehash(classified.domain.name)),
-        )
-        if (!profile) break
-        gas += MULTICALL_OVERHEAD
-        gas += BigInt(profile.texts.length) * SETTEXT_GAS
-        gas += BigInt(profile.addresses.length) * SETADDR_GAS
-        if (profile.contentHash) gas += SETCONTENTHASH_GAS
-        gas += BigInt(profile.abis.length) * SETABI_GAS
-        break
-      }
-      case 'migrate':
-        // Included above via GAS_HEURISTIC.
-        break
-    }
-  }
-
-  return gas
+  return PER_BATCH_OVERHEAD + nameGas + executionGas
 }
 
 export class LockedResolverRecordSafetyError extends TaggedError(
@@ -149,6 +205,17 @@ export class LockedResolverRecordSafetyError extends TaggedError(
   readonly contentHashRecordCount?: number
   readonly abiRecordCount?: number
   readonly cause?: unknown
+}> {}
+
+export class MigrationRecoveryPlanError extends TaggedError(
+  'MigrationRecoveryPlanError',
+)<{
+  readonly message: string
+  readonly reason:
+    | 'classification-changed'
+    | 'operation-mismatch'
+    | 'resolver-mismatch'
+    | 'profile-mismatch'
 }> {}
 
 type LockedResolverReplacement = {
@@ -326,10 +393,23 @@ export const buildMigrationPlan = async (params: {
 
   const classifiedNamesResult = classifyNames([...domains], migrationOwner)
   const classified = classifiedNamesResult.classified
+  const directNames = classified.filter(
+    (name): name is DirectClassifiedName => name.action === 'migrate',
+  )
   await assertLockedResolverReplacementRecordSafety(classified, publicClient)
   const directRoutes =
     preflight.directMigrationRoutes ??
-    (await resolveDirectMigrationRoutes({ publicClient, classified }))
+    (await resolveDirectMigrationRoutes({
+      publicClient,
+      classified: directNames,
+    }))
+  await assertCopyMigrationReadiness({
+    publicClient,
+    hca: hcaAddress,
+    wallet: migrationOwner,
+    remaining: classified,
+    registryContext: classified,
+  })
   const { ineligible } = classifiedNamesResult
   const groups = groupClassifiedNames([...classified])
   const namesToOwnedPermRes = classified.filter(
@@ -364,6 +444,7 @@ export const buildMigrationPlan = async (params: {
     hca: hcaAddress,
     wallet: migrationOwner,
     classified,
+    registryContext: classified,
     directRoutes,
     profiles,
     defaultResolver: V2_CONTRACTS.DefaultResolver,
@@ -399,6 +480,7 @@ export const buildMigrationPlan = async (params: {
     migrationOwner,
     domains,
     classified,
+    registryContext: classified,
     ineligible,
     groups,
     preflight,
@@ -407,6 +489,276 @@ export const buildMigrationPlan = async (params: {
     directRoutes,
     atomicBatches: atomicPlan.batches,
     stepDescriptors,
+  }
+}
+
+const assertRecoveryOperationsMatch = (params: {
+  readonly classified: readonly ClassifiedName[]
+  readonly snapshot: MigrationRecoverySnapshot
+}): void => {
+  const current = params.classified.map(({ domain, action }) => ({
+    name: domain.name,
+    action,
+  }))
+  if (
+    current.length !== params.snapshot.registryOperations.length ||
+    current.some(({ name, action }, index) => {
+      const expected = params.snapshot.registryOperations[index]
+      return expected?.name !== name || expected.action !== action
+    })
+  ) {
+    throw new MigrationRecoveryPlanError({
+      message:
+        'The durable migration tree no longer classifies to the recorded migrate/copy operations.',
+      reason: 'operation-mismatch',
+    })
+  }
+}
+
+const assertRecoveryProfilesComplete = (params: {
+  readonly classified: readonly ClassifiedName[]
+  readonly profiles: ReadonlyMap<Hex, Profile>
+}): void => {
+  const expectedNodes = new Set(
+    params.classified
+      .filter((name) => name.resolverStrategy === 'to-owned-permres')
+      .map((name) => profileMapKey(namehash(name.domain.name))),
+  )
+  const actualNodes = new Set(
+    [...params.profiles.keys()].map((node) => profileMapKey(node)),
+  )
+  if (
+    expectedNodes.size !== actualNodes.size ||
+    [...expectedNodes].some((node) => !actualNodes.has(node))
+  ) {
+    throw new MigrationRecoveryPlanError({
+      message:
+        'The durable migration record snapshot is incomplete or contains unexpected names.',
+      reason: 'profile-mismatch',
+    })
+  }
+}
+
+export const classifyMigrationRecoverySnapshot = (params: {
+  readonly snapshot: MigrationRecoverySnapshot
+  readonly migrationOwner: Address
+}): {
+  readonly registryContext: readonly ClassifiedName[]
+  readonly classified: readonly ClassifiedName[]
+} => {
+  const result = classifyNames(
+    [...params.snapshot.registryDomains],
+    params.migrationOwner,
+  )
+  if (
+    result.ineligible.length > 0 ||
+    result.classified.length !== params.snapshot.registryDomains.length
+  ) {
+    throw new MigrationRecoveryPlanError({
+      message:
+        'The durable migration source data no longer produces the complete selected tree.',
+      reason: 'classification-changed',
+    })
+  }
+  const registryContext = result.classified
+  assertRecoveryOperationsMatch({
+    classified: registryContext,
+    snapshot: params.snapshot,
+  })
+  assertRecoveryProfilesComplete({
+    classified: registryContext,
+    profiles: params.snapshot.profiles,
+  })
+  const remainingNames = new Set(
+    params.snapshot.remainingOperations.map(({ name }) => name),
+  )
+  const classified = registryContext.filter(({ domain }) =>
+    remainingNames.has(domain.name),
+  )
+  if (classified.length !== remainingNames.size) {
+    throw new MigrationRecoveryPlanError({
+      message: 'The durable remaining migration operations are incomplete.',
+      reason: 'operation-mismatch',
+    })
+  }
+  return { registryContext, classified }
+}
+
+/**
+ * Rebuild a migration plan from durable, data-only inputs after a page reload.
+ * The old calldata is never trusted. Every action is reclassified, deployment
+ * invariant is rechecked, and calls/receipt expectations are regenerated.
+ */
+export const buildMigrationRecoveryPlan = async (params: {
+  readonly snapshot: MigrationRecoverySnapshot
+  readonly hcaAddress: Address
+  readonly migrationOwner: Address
+  readonly publicClient: PublicClient
+}): Promise<MigrationPlan> => {
+  const { snapshot, hcaAddress, migrationOwner, publicClient } = params
+  const { registryContext, classified } = classifyMigrationRecoverySnapshot({
+    snapshot,
+    migrationOwner,
+  })
+
+  const chainId = publicClient.chain?.id ?? 11155111
+  const needsOwnedPermRes = registryContext.some(
+    (name) => name.resolverStrategy === 'to-owned-permres',
+  )
+  const expectedOwnedPermRes = needsOwnedPermRes
+    ? computeResolverAddress({ chainId, hca: hcaAddress })
+    : null
+  if (
+    (expectedOwnedPermRes === null) !== (snapshot.ownedPermRes === null) ||
+    (expectedOwnedPermRes !== null &&
+      snapshot.ownedPermRes !== null &&
+      !isAddressEqual(expectedOwnedPermRes, snapshot.ownedPermRes))
+  ) {
+    throw new MigrationRecoveryPlanError({
+      message:
+        'The durable migration resolver does not match the deterministic HCA resolver.',
+      reason: 'resolver-mismatch',
+    })
+  }
+
+  const directNames = classified.filter(
+    (name): name is DirectClassifiedName => name.action === 'migrate',
+  )
+  await assertRequiredMigrationContractCode({ publicClient })
+  if (directNames.length > 0) {
+    await assertMigrationHelperRuntimeCode({ publicClient })
+  }
+  await assertLockedPublicResolverSetMembership({
+    publicClient,
+    names: registryContext,
+  })
+  const [directRoutes, hcaReadiness, resolverReadiness] = await Promise.all([
+    resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
+    checkMigrationHcaReadiness({
+      publicClient,
+      hca: hcaAddress,
+      expectedOwner: migrationOwner,
+    }),
+    checkDeterministicMigrationResolverReadiness({
+      publicClient,
+      hca: hcaAddress,
+      wallet: migrationOwner,
+    }),
+  ])
+
+  const scope: MigrationBatchJournalScope = {
+    chainId,
+    owner: migrationOwner,
+    hca: hcaAddress,
+  }
+  const expectedActions = new Map(
+    snapshot.registryOperations.map(({ name, action }) => [name, action]),
+  )
+  const journaledOperations = [
+    ...loadPendingAtomicMigrationIntents(scope),
+    ...loadSubmittedAtomicMigrationBatches(scope),
+  ].flatMap(({ operations }) => operations)
+  const mismatchedAttempt = journaledOperations.find(
+    ({ name, action }) => expectedActions.get(name) !== action,
+  )
+  if (mismatchedAttempt) {
+    throw new MigrationRecoveryPlanError({
+      message: `The journaled ${mismatchedAttempt.action} action for ${mismatchedAttempt.name} does not match the durable migration tree.`,
+      reason: 'operation-mismatch',
+    })
+  }
+  const recordedAttemptNames = new Set(
+    journaledOperations.map(({ name }) => name),
+  )
+  await assertCopyMigrationReadiness({
+    publicClient,
+    hca: hcaAddress,
+    wallet: migrationOwner,
+    remaining: classified,
+    registryContext,
+    recordedAttemptNames,
+  })
+
+  const classifiedByName = new Map(
+    classified.map((name) => [name.domain.name, name] as const),
+  )
+  const atomicPlan = await buildAtomicMigrationBatches({
+    chainId,
+    hca: hcaAddress,
+    wallet: migrationOwner,
+    classified,
+    registryContext,
+    directRoutes,
+    profiles: snapshot.profiles,
+    defaultResolver: V2_CONTRACTS.DefaultResolver,
+    resolverDeployed: resolverReadiness.status === 'verified',
+    walletCoAdminGranted:
+      resolverReadiness.status === 'verified' &&
+      resolverReadiness.walletHasWildcardRoles,
+    maxOuterGas: TARGET_GAS,
+    estimateOuterGas: ({ names, innerExecutions }) =>
+      previewAtomicBatchGas({
+        classifiedByName,
+        profiles: snapshot.profiles,
+        names,
+        innerExecutions,
+      }),
+  })
+  const groups = groupClassifiedNames([...classified])
+  const plannedApprovals = snapshot.plannedApprovals.map((approval) =>
+    migrationApprovalForId({
+      id: approval.id,
+      hcaAddress,
+      ...(approval.tokenId === undefined ? {} : { tokenId: approval.tokenId }),
+    }),
+  )
+  const hcaDeploymentRequired = hcaReadiness.status === 'deployment-required'
+  const stepDescriptors = buildStepDescriptors({
+    hcaDeploymentRequired,
+    approvals: plannedApprovals,
+    atomicBatches: atomicPlan.batches,
+    registrationApprovalTargets: groups.unwrapped.map(({ domain }) => ({
+      name: domain.name,
+      tokenId: BigInt(domain.labelhash),
+    })),
+  })
+
+  return {
+    hcaAddress,
+    hcaDeploymentRequired,
+    migrationOwner,
+    domains: classified.map(({ domain }) => domain),
+    classified,
+    registryContext,
+    ineligible: [],
+    groups,
+    preflight: {
+      preExistingOwnedPermRes:
+        resolverReadiness.status === 'verified'
+          ? resolverReadiness.resolver
+          : null,
+      skipApprovalPhase: true,
+      skipFetchProfilesPhase: true,
+      baseRegistrarApproved: true,
+      nameWrapperApproved: true,
+      migrationApprovals: plannedApprovals,
+      requiresManagerRestoration: classified.some(
+        (name) => name.managerAddress !== null,
+      ),
+      hcaResolverReadiness: resolverReadiness,
+      ...(expectedOwnedPermRes
+        ? { hcaResolverAddress: expectedOwnedPermRes }
+        : {}),
+      hcaReadiness,
+      directMigrationRoutes: directRoutes,
+    },
+    ownedPermRes: expectedOwnedPermRes,
+    profiles: snapshot.profiles,
+    directRoutes,
+    atomicBatches: atomicPlan.batches,
+    stepDescriptors,
+    priorCompletedOperations: snapshot.completedOperations,
+    requiresReconciliation: true,
   }
 }
 
@@ -445,6 +797,10 @@ export const adjustPlanForRetry = (
         names: nameExecutions.map(
           (execution) => execution.classified.domain.name,
         ),
+        operations: nameExecutions.map(({ classified }) => ({
+          name: classified.domain.name,
+          action: classified.action,
+        })),
         nameExecutions,
         innerExecutions,
         outerCall: buildHcaOwnerExecutionCall({

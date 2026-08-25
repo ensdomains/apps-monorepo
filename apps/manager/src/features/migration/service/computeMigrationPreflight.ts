@@ -3,6 +3,7 @@ import type { Address, PublicClient } from 'viem'
 import {
   type ClassifiedName,
   classifyNames,
+  type DirectClassifiedName,
   groupClassifiedNames,
 } from '@/features/migration/service/classifyNames'
 import {
@@ -199,6 +200,9 @@ export const computeMigrationPreflight = async (params: {
   const { eoa, hcaAddress, domains, wagmiConfig, publicClient } = params
 
   const { classified } = classifyNames([...domains], eoa)
+  const directNames = classified.filter(
+    (name): name is DirectClassifiedName => name.action === 'migrate',
+  )
   const groups = groupClassifiedNames(classified)
 
   const needs = approvalNeedsFor(groups)
@@ -231,11 +235,13 @@ export const computeMigrationPreflight = async (params: {
       wagmiConfig,
     }),
     computeProfilePreflight(namesToOwnedPermRes),
-    resolveDirectMigrationRoutes({ publicClient, classified }),
+    resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
     hcaAddress
       ? (async () => {
           await assertRequiredMigrationContractCode({ publicClient })
-          await assertMigrationHelperRuntimeCode({ publicClient })
+          if (directNames.length > 0) {
+            await assertMigrationHelperRuntimeCode({ publicClient })
+          }
           await assertLockedPublicResolverSetMembership({
             publicClient,
             names: classified,

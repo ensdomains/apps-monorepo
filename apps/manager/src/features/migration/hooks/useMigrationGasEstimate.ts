@@ -1,14 +1,19 @@
+// biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: this hook keeps standard preview, durable recovery, account readiness, and query result states in one stable hook order.
 import { useQuery } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { type Address, formatEther, type PublicClient } from 'viem'
 import { usePublicClient } from 'wagmi'
 import {
   buildMigrationPlan,
+  buildMigrationRecoveryPlan,
   type MigrationPlan,
 } from '@/features/migration/service/buildMigrationPlan'
+import type { MigrationPreflight } from '@/features/migration/service/computeMigrationPreflight'
 import { estimateMigrationGasCost } from '@/features/migration/service/estimateMigrationGasCost'
+import type { MigrationRecoverySnapshot } from '@/features/migration/service/migrationBatchJournal'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { useMigrationPreflight } from './useMigrationPreflight'
+import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
 export type MigrationGasEstimateState =
   | { readonly status: 'idle' }
@@ -46,6 +51,53 @@ const formatEstimatedEth = (wei: bigint): string => {
   return trimmedFraction.length > 0 ? `${whole}.${trimmedFraction}` : whole
 }
 
+const buildEstimate = async (params: {
+  readonly ownerAddress: Address | undefined
+  readonly hcaAddress: Address | undefined
+  readonly publicClient: PublicClient | undefined
+  readonly recoverySnapshot: MigrationRecoverySnapshot | null
+  readonly recoverySelectionMatches: boolean
+  readonly domains: readonly V1Domain[]
+  readonly ensurePreflight: (
+    domains: readonly V1Domain[],
+    options: { readonly staleTime: number },
+  ) => Promise<MigrationPreflight>
+}) => {
+  const { ownerAddress, hcaAddress, publicClient } = params
+  if (!ownerAddress || !hcaAddress || !publicClient) {
+    throw new Error(
+      'Cannot estimate migration gas without a wallet and HCA address',
+    )
+  }
+  if (params.recoverySnapshot) {
+    if (!params.recoverySelectionMatches) {
+      throw new Error(
+        'Select every remaining name to safely resume this migration.',
+      )
+    }
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot: params.recoverySnapshot,
+      hcaAddress,
+      migrationOwner: ownerAddress,
+      publicClient,
+    })
+    const estimate = await estimateMigrationGasCost({ plan, publicClient })
+    return { estimate, plan }
+  }
+  const preflight = await params.ensurePreflight(params.domains, {
+    staleTime: 0,
+  })
+  const plan = await buildMigrationPlan({
+    domains: params.domains,
+    hcaAddress,
+    migrationOwner: ownerAddress,
+    publicClient,
+    preflight,
+  })
+  const estimate = await estimateMigrationGasCost({ plan, publicClient })
+  return { estimate, plan }
+}
+
 export const useMigrationGasEstimate = ({
   ownerAddress,
   hcaAddress,
@@ -58,8 +110,11 @@ export const useMigrationGasEstimate = ({
     eoa: ownerAddress,
     hcaAddress,
   })
+  const recoverySnapshot = useMigrationRecoverySnapshot()
 
-  const domains = selectDomainsFromNames(v1Names, selectedNames)
+  const domains = recoverySnapshot
+    ? recoverySnapshot.registryDomains
+    : selectDomainsFromNames(v1Names, selectedNames)
   const domainIds = domains
     .map((domain) => domain.id)
     .sort()
@@ -77,6 +132,12 @@ export const useMigrationGasEstimate = ({
     !!publicClient &&
     selectedNames.length > 0 &&
     domains.length > 0
+  const recoverySelectionMatches =
+    !recoverySnapshot ||
+    (selectedNames.length === recoverySnapshot.remainingOperations.length &&
+      recoverySnapshot.remainingOperations.every(({ name }) =>
+        selectedNames.includes(name),
+      ))
 
   const query = useQuery({
     queryKey: [
@@ -85,29 +146,24 @@ export const useMigrationGasEstimate = ({
       hcaAddress?.toLowerCase() ?? '',
       domainIds,
       selectionRevisionRef.current.revision,
+      recoverySnapshot
+        ? recoverySnapshot.remainingOperations
+            .map(({ name, action }) => `${action}:${name}`)
+            .join(',')
+        : '',
     ] as const,
     enabled,
     staleTime: 0,
-    queryFn: async () => {
-      if (!ownerAddress || !hcaAddress || !publicClient) {
-        throw new Error(
-          'Cannot estimate migration gas without a wallet and HCA address',
-        )
-      }
-      const preflight = await ensurePreflight(domains, { staleTime: 0 })
-      const plan = await buildMigrationPlan({
-        domains,
+    queryFn: () =>
+      buildEstimate({
+        ownerAddress,
         hcaAddress,
-        migrationOwner: ownerAddress,
-        publicClient: publicClient as unknown as PublicClient,
-        preflight,
-      })
-      const estimate = await estimateMigrationGasCost({
-        plan,
-        publicClient: publicClient as unknown as PublicClient,
-      })
-      return { estimate, plan }
-    },
+        publicClient: publicClient as unknown as PublicClient | undefined,
+        recoverySnapshot,
+        recoverySelectionMatches,
+        domains,
+        ensurePreflight,
+      }),
   })
 
   if (!enabled) {

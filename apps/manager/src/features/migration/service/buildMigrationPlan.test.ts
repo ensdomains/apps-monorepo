@@ -1,3 +1,4 @@
+import { computeResolverAddress } from '@ens-apps/smart-account'
 import { err, ok } from 'neverthrow'
 import { type Address, type Hex, namehash, type PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -6,6 +7,7 @@ import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
 import {
   assertLockedResolverReplacementRecordSafety,
   buildMigrationPlan,
+  buildMigrationRecoveryPlan,
 } from './buildMigrationPlan'
 import { FUSES } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
@@ -18,6 +20,30 @@ vi.mock('./v1SubgraphClient', async (importActual) => ({
 vi.mock('./buildAtomicMigrationBatches', async (importActual) => ({
   ...(await importActual<typeof import('./buildAtomicMigrationBatches')>()),
   buildAtomicMigrationBatches: vi.fn(),
+}))
+vi.mock('./copyMigrationReadiness', () => ({
+  assertCopyMigrationReadiness: vi.fn(() => Promise.resolve()),
+}))
+vi.mock('./migrationInvariants', async (importActual) => ({
+  ...(await importActual<typeof import('./migrationInvariants')>()),
+  assertRequiredMigrationContractCode: vi.fn(() => Promise.resolve()),
+  assertMigrationHelperRuntimeCode: vi.fn(() => Promise.resolve()),
+  assertLockedPublicResolverSetMembership: vi.fn(() => Promise.resolve()),
+  checkMigrationHcaReadiness: vi.fn(({ hca }) =>
+    Promise.resolve({ status: 'verified', hca, implementation: HCA }),
+  ),
+  checkDeterministicMigrationResolverReadiness: vi.fn(({ hca, publicClient }) =>
+    Promise.resolve({
+      status: 'verified',
+      resolver: computeResolverAddress({
+        chainId: publicClient.chain?.id ?? 11155111,
+        hca,
+      }),
+      implementation: HCA,
+      hcaHasRootRoles: true,
+      walletHasWildcardRoles: true,
+    }),
+  ),
 }))
 
 const getV1ProfileKeysMock = vi.mocked(getV1ProfileKeys)
@@ -213,6 +239,93 @@ describe('buildMigrationPlan resolver preservation', () => {
     expect(buildAtomicMigrationBatchesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         classified: [expect.objectContaining({ resolverStrategy: 'keep-v1' })],
+      }),
+    )
+  })
+})
+
+describe('buildMigrationRecoveryPlan', () => {
+  it('rebuilds unsent copies with their completed root retained only as registry context', async () => {
+    const root = makeDomain({
+      id: namehash('alice.eth'),
+      name: 'alice.eth',
+      labelName: 'alice',
+      resolverAddress: null,
+    })
+    const copy = makeDomain({
+      id: namehash('sub.alice.eth'),
+      name: 'sub.alice.eth',
+      labelName: 'sub',
+      parentName: 'alice.eth',
+      registrantId: null,
+      resolverAddress: null,
+    })
+    const ownedPermRes = computeResolverAddress({
+      chainId: 11155111,
+      hca: HCA,
+    })
+
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot: {
+        registryDomains: [root, copy],
+        registryOperations: [
+          { name: root.name, action: 'migrate' },
+          { name: copy.name, action: 'copy' },
+        ],
+        remainingOperations: [{ name: copy.name, action: 'copy' }],
+        completedOperations: [{ name: root.name, action: 'migrate' }],
+        profiles: new Map([
+          [
+            namehash(root.name),
+            { texts: [], addresses: [], contentHash: null, abis: [] },
+          ],
+          [
+            namehash(copy.name),
+            {
+              texts: [{ key: 'url', value: 'https://example.test' }],
+              addresses: [],
+              contentHash: null,
+              abis: [],
+            },
+          ],
+        ]),
+        ownedPermRes,
+        plannedApprovals: [{ id: 'eth-registry:hca' }],
+      },
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: { chain: { id: 11155111 } } as PublicClient,
+    })
+
+    expect(plan.classified).toEqual([
+      expect.objectContaining({
+        action: 'copy',
+        domain: expect.objectContaining({ name: copy.name }),
+        managerAddress: null,
+      }),
+    ])
+    expect(plan.registryContext.map(({ domain }) => domain.name)).toEqual([
+      root.name,
+      copy.name,
+    ])
+    expect(plan.priorCompletedOperations).toEqual([
+      { name: root.name, action: 'migrate' },
+    ])
+    expect(plan.requiresReconciliation).toBe(true)
+    expect(plan.preflight.migrationApprovals).toEqual([
+      expect.objectContaining({
+        kind: 'operator',
+        id: 'eth-registry:hca',
+        operatorAddress: HCA,
+      }),
+    ])
+    expect(buildAtomicMigrationBatchesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classified: [expect.objectContaining({ action: 'copy' })],
+        registryContext: [
+          expect.objectContaining({ action: 'migrate' }),
+          expect.objectContaining({ action: 'copy' }),
+        ],
       }),
     )
   })

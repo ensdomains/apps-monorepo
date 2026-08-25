@@ -7,100 +7,97 @@ import { getMigrationAvatarUrl } from './nameAvatar.helpers'
 type NameRowProps = {
   readonly item: ClassifiedName
   readonly isSelected: boolean
-  readonly indent: boolean
-  readonly interactive: boolean
-  readonly firstSubname?: boolean
+  readonly depth: number
   readonly onClick?: () => void
 }
 
-export const NameRow = ({
-  item,
-  isSelected,
-  indent,
-  interactive,
-  firstSubname = false,
-  onClick,
-}: NameRowProps) => {
-  const isSubname = indent && !interactive
-  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
-  const avatarUrl = getMigrationAvatarUrl(item.domain.name)
-  const showAvatar = failedAvatarUrl !== avatarUrl
+type AvatarStatus = 'loading' | 'loaded' | 'failed'
 
-  const content = (
-    <>
-      {isSubname ? (
-        <div
+export const NameRow = ({ item, isSelected, depth, onClick }: NameRowProps) => {
+  const [avatarStatus, setAvatarStatus] = useState<AvatarStatus>('loading')
+  const avatarUrl = getMigrationAvatarUrl(item.domain.name)
+  const isNested = depth > 0
+
+  const avatar = (
+    <span
+      className={cn(
+        'relative flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-ens-garnet-900/10',
+        isNested ? 'size-8' : 'size-9',
+      )}
+    >
+      <span className="font-semi-mono text-ens-garnet-900 text-xs">
+        {item.label[0]?.toUpperCase() ?? '?'}
+      </span>
+      {avatarStatus === 'failed' ? null : (
+        <img
+          alt=""
           aria-hidden
           className={cn(
-            'pointer-events-none absolute bottom-1/2 left-14.5 z-0 w-7.5 rounded-bl-md border-ens-garnet-900/30 border-b border-l',
-            firstSubname ? '-top-4' : '-top-10.25',
+            'absolute inset-0 size-full rounded-md object-cover transition-opacity duration-150 motion-reduce:transition-none',
+            avatarStatus === 'loaded' ? 'opacity-100' : 'opacity-0',
           )}
+          onError={() => setAvatarStatus('failed')}
+          onLoad={() => setAvatarStatus('loaded')}
+          src={avatarUrl}
         />
-      ) : (
-        <div
-          className={cn(
-            'flex size-7 shrink-0 items-center justify-center rounded-full border p-1 transition-colors',
-            isSelected
-              ? 'border-ens-garnet-900 bg-ens-garnet-900'
-              : 'border-ens-garnet-900/30 bg-transparent',
-          )}
-        >
-          <Check
-            className={cn(
-              'size-5 transition-opacity',
-              isSelected
-                ? 'text-white opacity-100'
-                : 'text-transparent opacity-0',
-            )}
-            strokeWidth={2.5}
-          />
-        </div>
       )}
-      <div className="relative z-10 flex size-9.25 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-ens-garnet-900/10">
-        <span className="font-semi-mono text-ens-garnet-900 text-xs">
-          {item.domain.labelName?.[0]?.toUpperCase() ?? '?'}
-        </span>
-        {showAvatar && (
-          <img
-            alt=""
-            aria-hidden
-            className="absolute inset-0 size-full rounded-sm object-cover"
-            onError={() => setFailedAvatarUrl(avatarUrl)}
-            src={avatarUrl}
-          />
-        )}
-      </div>
-      <div
-        className={cn(
-          'flex h-9.25 items-center rounded-xs border bg-white px-2 py-1 font-medium font-semi-mono text-base leading-[0.96] tracking-[-0.32px] md:text-[20px] md:tracking-[-0.4px]',
-          isSelected
-            ? 'border-ens-quartz-500/40 text-ens-quartz-500'
-            : 'border-ens-lapis-500 text-ens-lapis-500',
-        )}
-      >
-        {item.domain.name}
-      </div>
-    </>
+    </span>
   )
 
-  const rowClass = cn(
-    'relative flex items-center gap-3 outline-none focus-visible:[&>div:first-child]:ring-2 focus-visible:[&>div:first-child]:ring-ens-lapis-500/40 focus-visible:[&>div:first-child]:ring-offset-2',
-    isSubname && 'pl-22',
-    interactive ? 'cursor-pointer' : 'cursor-default',
+  const name = (
+    <span
+      className={cn(
+        'min-w-0 truncate font-medium font-semi-mono text-base leading-[0.96] tracking-[-0.32px] transition-colors duration-150 motion-reduce:transition-none md:text-[20px] md:tracking-[-0.4px]',
+        isSelected ? 'text-ens-quartz-500' : 'text-ens-lapis-500',
+      )}
+    >
+      {item.domain.name}
+    </span>
   )
 
-  if (interactive) {
+  if (isNested) {
     return (
-      <button
-        aria-pressed={isSelected}
-        className={rowClass}
-        onClick={onClick}
-        type="button"
+      <div
+        className="relative z-10 flex min-h-11 max-w-full items-center gap-3 px-2 py-1"
+        title={item.domain.name}
       >
-        {content}
-      </button>
+        {avatar}
+        {name}
+      </div>
     )
   }
 
-  return <div className={rowClass}>{content}</div>
+  return (
+    <button
+      aria-label={item.domain.name}
+      aria-pressed={isSelected}
+      className="group relative z-10 flex min-h-11 max-w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-1 text-left outline-none transition-colors duration-150 hover:bg-white/40 focus-visible:ring-2 focus-visible:ring-ens-lapis-500/40 focus-visible:ring-offset-1 active:bg-white/60 motion-reduce:transition-none"
+      onClick={onClick}
+      title={item.domain.name}
+      type="button"
+    >
+      <span
+        className={cn(
+          'flex shrink-0 items-center justify-center rounded-full border transition-colors duration-150 motion-reduce:transition-none',
+          'size-7 p-1',
+          isSelected
+            ? 'border-ens-garnet-900 bg-ens-garnet-900'
+            : 'border-ens-garnet-900/30 bg-transparent',
+        )}
+      >
+        <Check
+          className={cn(
+            'transition-opacity duration-150 motion-reduce:transition-none',
+            'size-5',
+            isSelected
+              ? 'text-white opacity-100'
+              : 'text-transparent opacity-0',
+          )}
+          strokeWidth={2.5}
+        />
+      </span>
+      {avatar}
+      {name}
+    </button>
+  )
 }

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  buildNameTreeIndex,
   collectAllSelectable,
   countVisibleRows,
   filterGroupsBySearch,
   filterOrphansBySearch,
-  toggleGroup as toggleGroupPure,
-  toggleName as toggleNamePure,
+  toggleTreeNode,
 } from '../components/selectNames.helpers'
 import type { ClassifiedName } from '../service/classifyNames'
 import { groupByParent } from '../service/groupByParent'
@@ -25,6 +25,10 @@ export const useNameSelection = ({
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const { groups, orphans } = useMemo(() => groupByParent(eligible), [eligible])
+  const treeIndex = useMemo(
+    () => buildNameTreeIndex(groups, orphans),
+    [groups, orphans],
+  )
   const allSelectable = useMemo(
     () => collectAllSelectable(groups, orphans),
     [groups, orphans],
@@ -61,23 +65,12 @@ export const useNameSelection = ({
   const toggleName = useCallback(
     (name: string) => {
       setSelected((prev) => {
-        const next = toggleNamePure(prev, name)
+        const next = toggleTreeNode(prev, name, treeIndex)
         onNamesChange([...next])
         return next
       })
     },
-    [onNamesChange],
-  )
-
-  const toggleGroup = useCallback(
-    (parentName: string, subnameNames: readonly string[]) => {
-      setSelected((prev) => {
-        const next = toggleGroupPure(prev, parentName, subnameNames)
-        onNamesChange([...next])
-        return next
-      })
-    },
-    [onNamesChange],
+    [onNamesChange, treeIndex],
   )
 
   const toggleAll = useCallback(() => {
@@ -110,7 +103,6 @@ export const useNameSelection = ({
     filteredGroups,
     filteredOrphans,
     toggleName,
-    toggleGroup,
     toggleAll,
   }
 }

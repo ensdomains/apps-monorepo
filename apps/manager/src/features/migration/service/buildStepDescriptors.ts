@@ -24,6 +24,8 @@ export type MigrationStepDescriptor =
       readonly index: number
       readonly total: number
       readonly count: number
+      readonly migrateCount: number
+      readonly copyCount: number
     }
   | {
       readonly type: 'cleanup'
@@ -74,11 +76,17 @@ export const buildStepDescriptors = (
   }
 
   for (const [index, batch] of params.atomicBatches.entries()) {
+    const migrateCount = batch.operations.filter(
+      ({ action }) => action === 'migrate',
+    ).length
+    const copyCount = batch.operations.length - migrateCount
     descriptors.push({
       type: 'atomic-batch',
       index,
       total: params.atomicBatches.length,
       count: batch.names.length,
+      migrateCount,
+      copyCount,
     })
   }
 

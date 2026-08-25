@@ -23,8 +23,8 @@ import {
 } from '@/features/migration/service/decodeMigrationError'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
+  useMigrationCompletedOperations,
   useMigrationLastError,
-  useMigrationMigratedNames,
   useMigrationSelectedNames,
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
@@ -170,7 +170,7 @@ export const MigrationPage = () => {
   const { uiActor } = useMigrationUiContext()
   const step = useMigrationStep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
-  const migratedNames = useMigrationMigratedNames(uiActor)
+  const completedOperations = useMigrationCompletedOperations(uiActor)
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
   const {
@@ -190,7 +190,8 @@ export const MigrationPage = () => {
   const isMigrationSuccess = step === 'success'
   const dialogOpen =
     migrationNftEnabled && (isMigrationSuccess || isPreviewOpen)
-  const dialogNames = isMigrationSuccess ? migratedNames : selectedNames
+  const completedNames = completedOperations.map(({ name }) => name)
+  const dialogNames = isMigrationSuccess ? completedNames : selectedNames
   const gasEstimate = useMigrationGasEstimate({
     ownerAddress: ownerAddress as Address | undefined,
     hcaAddress: hcaAddress as Address | undefined,

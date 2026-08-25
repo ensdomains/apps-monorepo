@@ -13,12 +13,15 @@ const ROOT_REGISTRY: Address = '0x0000000000000000000000000000000000000010'
 const PARENT_REGISTRY: Address = '0x0000000000000000000000000000000000000011'
 const MID_REGISTRY: Address = '0x0000000000000000000000000000000000000012'
 const WRAPPER_REGISTRY: Address = '0x0000000000000000000000000000000000000013'
+const USER_REGISTRY: Address = '0x0000000000000000000000000000000000000014'
 const FACTORY: Address = '0x0000000000000000000000000000000000000020'
 const RESOLVER: Address = '0x0000000000000000000000000000000000000021'
 const RESOLVER_IMPLEMENTATION: Address =
   '0x0000000000000000000000000000000000000022'
 const WRAPPER_IMPLEMENTATION: Address =
   '0x0000000000000000000000000000000000000023'
+const USER_REGISTRY_IMPLEMENTATION: Address =
+  '0x0000000000000000000000000000000000000024'
 const HCA: Address = '0x0000000000000000000000000000000000000030'
 const WALLET: Address = '0x0000000000000000000000000000000000000031'
 const MANAGER: Address = '0x0000000000000000000000000000000000000032'
@@ -27,6 +30,7 @@ const RECORD_VALUE = '0x1234' as Hex
 const CONTENT_HASH = '0xe301' as Hex
 const ABI_VALUE = '0x5b5d' as Hex
 const RESOURCE = 123n
+const EXPIRY = 4_294_967_295n
 const ROLES_ALL = (1n << 256n) - 1n
 // RegistryRolesLib uses nybble-packed roles: SET_RESOLVER is the seventh
 // nybble, not the seventh contiguous bit.
@@ -191,6 +195,68 @@ const expectations = [
     resolver: RESOLVER,
     contentType: 1n,
     value: ABI_VALUE,
+  },
+] as const satisfies readonly AtomicMigrationVerificationExpectation[]
+
+const copiedNameRegistryPath = {
+  type: 'parent-subregistry',
+  rootRegistry: ROOT_REGISTRY,
+  parentName: 'parent.eth',
+  parentLabels: ['parent'],
+  label: 'foo',
+  resource: RESOURCE,
+} as const
+
+const copyExpectations = [
+  {
+    id: 'copy:user-registry-implementation',
+    type: 'user-registry-implementation',
+    name: 'foo.parent.eth',
+    registry: USER_REGISTRY,
+    factory: FACTORY,
+    expectedImplementation: USER_REGISTRY_IMPLEMENTATION,
+    deployer: HCA,
+    salt: 1n,
+  },
+  {
+    id: 'copy:user-registry-hca-roles',
+    type: 'user-registry-root-roles',
+    name: 'foo.parent.eth',
+    registry: USER_REGISTRY,
+    account: HCA,
+    roleBitmap: ROLES_ALL,
+  },
+  {
+    id: 'copy:user-registry-wallet-roles',
+    type: 'user-registry-root-roles',
+    name: 'foo.parent.eth',
+    registry: USER_REGISTRY,
+    account: WALLET,
+    roleBitmap: ROLES_ALL,
+  },
+  {
+    id: 'copy:user-registry-parent',
+    type: 'user-registry-parent',
+    name: 'foo.parent.eth',
+    registry: USER_REGISTRY,
+    expectedParentRegistry: PARENT_REGISTRY,
+    expectedParentLabel: 'foo',
+  },
+  {
+    id: 'copy:name-subregistry',
+    type: 'name-subregistry',
+    name: 'foo.parent.eth',
+    label: 'foo',
+    registryPath: copiedNameRegistryPath,
+    expectedSubregistry: USER_REGISTRY,
+  },
+  {
+    id: 'copy:name-expiry',
+    type: 'name-expiry',
+    name: 'foo.parent.eth',
+    registryPath: copiedNameRegistryPath,
+    resource: RESOURCE,
+    expectedExpiry: EXPIRY,
   },
 ] as const satisfies readonly AtomicMigrationVerificationExpectation[]
 
@@ -402,6 +468,211 @@ describe('verifyAtomicMigrationBatch', () => {
       verification: {
         results: [{ expectationId: 'name:wrapper', satisfied: false }],
       },
+    })
+  })
+
+  it('verifies copied-name UserRegistry state and exact active expiry at the receipt block', async () => {
+    const readContract = vi.fn(async (request: ReadRequest) => {
+      switch (request.functionName) {
+        case 'verifyContract':
+          return USER_REGISTRY_IMPLEMENTATION
+        case 'hasRootRoles':
+          return true
+        case 'getParent':
+          return [PARENT_REGISTRY, 'foo'] as const
+        case 'getSubregistry':
+          if (request.address === ROOT_REGISTRY) return PARENT_REGISTRY
+          if (request.address === PARENT_REGISTRY) return USER_REGISTRY
+          throw new Error('unexpected subregistry read')
+        case 'getState':
+          return {
+            status: 2,
+            expiry: EXPIRY,
+            latestOwner: WALLET,
+            tokenId: 1n,
+            resource: RESOURCE,
+          }
+        default:
+          throw new Error(`unexpected read: ${request.functionName}`)
+      }
+    })
+    const getCode = vi.fn(() => Promise.resolve('0x01' as const))
+    const publicClient = { getCode, readContract } as unknown as PublicClient
+
+    await expect(
+      verifyAtomicMigrationBatch({
+        publicClient,
+        batch: { index: 10, verificationExpectations: copyExpectations },
+        blockNumber: 789n,
+      }),
+    ).resolves.toEqual({
+      batchIndex: 10,
+      status: 'confirmed',
+      results: copyExpectations.map(({ id }) => ({
+        expectationId: id,
+        satisfied: true,
+      })),
+    })
+
+    expect(getCode).toHaveBeenCalledTimes(1)
+    expect(getCode).toHaveBeenCalledWith({
+      address: USER_REGISTRY,
+      blockNumber: 789n,
+    })
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: FACTORY,
+        functionName: 'verifyContract',
+        args: [USER_REGISTRY],
+        blockNumber: 789n,
+      }),
+    )
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: USER_REGISTRY,
+        functionName: 'hasRootRoles',
+        args: [ROLES_ALL, HCA],
+        blockNumber: 789n,
+      }),
+    )
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: USER_REGISTRY,
+        functionName: 'hasRootRoles',
+        args: [ROLES_ALL, WALLET],
+        blockNumber: 789n,
+      }),
+    )
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: USER_REGISTRY,
+        functionName: 'getParent',
+        blockNumber: 789n,
+      }),
+    )
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: PARENT_REGISTRY,
+        functionName: 'getSubregistry',
+        args: ['foo'],
+        blockNumber: 789n,
+      }),
+    )
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: PARENT_REGISTRY,
+        functionName: 'getState',
+        args: [RESOURCE],
+        blockNumber: 789n,
+      }),
+    )
+  })
+
+  it('rejects an uncertified deterministic UserRegistry implementation', async () => {
+    const readContract = vi.fn(() => Promise.resolve(WRAPPER_IMPLEMENTATION))
+    const publicClient = {
+      getCode: vi.fn(() => Promise.resolve('0x01')),
+      readContract,
+    } as unknown as PublicClient
+
+    const error = await verifyAtomicMigrationBatch({
+      publicClient,
+      batch: {
+        index: 11,
+        verificationExpectations: [copyExpectations[0]],
+      },
+    }).catch((cause: unknown) => cause)
+
+    expect(error).toBeInstanceOf(AtomicMigrationBatchVerificationError)
+    expect(error).toMatchObject({
+      failures: [{ expectationId: 'copy:user-registry-implementation' }],
+    })
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: FACTORY,
+        functionName: 'verifyContract',
+        args: [USER_REGISTRY],
+      }),
+    )
+  })
+
+  it('rejects mismatched UserRegistry parent, subregistry pointer, and inactive name state', async () => {
+    const checkedExpectations = [
+      copyExpectations[3],
+      copyExpectations[4],
+      copyExpectations[5],
+    ] as const
+    const readContract = vi.fn(async (request: ReadRequest) => {
+      switch (request.functionName) {
+        case 'getParent':
+          return [ROOT_REGISTRY, 'wrong-label'] as const
+        case 'getSubregistry':
+          if (request.address === ROOT_REGISTRY) return PARENT_REGISTRY
+          return WRAPPER_REGISTRY
+        case 'getState':
+          return {
+            status: 1,
+            expiry: EXPIRY,
+            latestOwner: WALLET,
+            tokenId: 1n,
+            resource: RESOURCE,
+          }
+        default:
+          throw new Error(`unexpected read: ${request.functionName}`)
+      }
+    })
+    const publicClient = {
+      getCode: vi.fn(() => Promise.resolve('0x01')),
+      readContract,
+    } as unknown as PublicClient
+
+    const error = await verifyAtomicMigrationBatch({
+      publicClient,
+      batch: { index: 12, verificationExpectations: checkedExpectations },
+    }).catch((cause: unknown) => cause)
+
+    expect(error).toBeInstanceOf(AtomicMigrationBatchVerificationError)
+    expect(error).toMatchObject({
+      failures: [
+        { expectationId: 'copy:user-registry-parent' },
+        { expectationId: 'copy:name-subregistry' },
+        { expectationId: 'copy:name-expiry' },
+      ],
+    })
+  })
+
+  it.each([
+    ['expiry', { status: 2, expiry: EXPIRY + 1n, resource: RESOURCE }],
+    ['resource', { status: 2, expiry: EXPIRY, resource: RESOURCE + 1n }],
+  ] as const)('rejects a copied name with a mismatched %s in getState', async (_field, state) => {
+    const readContract = vi.fn((request: ReadRequest) => {
+      if (request.functionName === 'getSubregistry') {
+        return Promise.resolve(PARENT_REGISTRY)
+      }
+      if (request.functionName === 'getState') {
+        return Promise.resolve({
+          ...state,
+          latestOwner: WALLET,
+          tokenId: 1n,
+        })
+      }
+      return Promise.reject(
+        new Error(`unexpected read: ${request.functionName}`),
+      )
+    })
+    const publicClient = { readContract } as unknown as PublicClient
+
+    const error = await verifyAtomicMigrationBatch({
+      publicClient,
+      batch: {
+        index: 13,
+        verificationExpectations: [copyExpectations[5]],
+      },
+    }).catch((cause: unknown) => cause)
+
+    expect(error).toBeInstanceOf(AtomicMigrationBatchVerificationError)
+    expect(error).toMatchObject({
+      failures: [{ expectationId: 'copy:name-expiry' }],
     })
   })
 })

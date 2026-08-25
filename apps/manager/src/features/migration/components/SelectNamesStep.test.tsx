@@ -8,13 +8,21 @@ import type { ClassifiedName } from '../service/classifyNames'
 
 const makeName = (
   fullName: string,
-  tokenType: ClassifiedName['tokenType'],
+  tokenType: ClassifiedName['tokenType'] | 'unlocked-child',
+  action: 'copy' | 'migrate' = 'migrate',
 ): ClassifiedName => {
   const label = fullName.split('.')[0] ?? fullName
   const parentName = fullName.includes('.')
     ? fullName.split('.').slice(1).join('.')
     : null
   return {
+    action,
+    ...(action === 'copy'
+      ? {
+          copySource: 'name-wrapper' as const,
+          sourceExpiry: 4_102_444_800n,
+        }
+      : {}),
     domain: {
       id: fullName,
       name: fullName,
@@ -33,7 +41,7 @@ const makeName = (
 
 const eligibleFixture: readonly ClassifiedName[] = [
   makeName('sub1234.eth', 'unwrapped'),
-  makeName('gm.sub1234.eth', 'locked-child'),
+  makeName('gm.sub1234.eth', 'unlocked-child', 'copy'),
   makeName('sub123.eth', 'unwrapped'),
   makeName('one.eth', 'unwrapped'),
   makeName('two.eth', 'unwrapped'),
@@ -82,10 +90,12 @@ const renderStep = ({
 
 describe('SelectNamesStep', () => {
   it('seeds all visible names (parent + subnames + orphans) as selected', () => {
-    const { onNamesChange, getByText } = renderStep()
+    const { onNamesChange, getByText, queryByText } = renderStep()
     expect(getByText('sub1234.eth')).toBeInTheDocument()
     expect(getByText('gm.sub1234.eth')).toBeInTheDocument()
     expect(getByText('sub123.eth')).toBeInTheDocument()
+    expect(queryByText('Copy')).not.toBeInTheDocument()
+    expect(queryByText('Migrate')).not.toBeInTheDocument()
     const lastCall = onNamesChange.mock.calls.at(-1)?.[0] ?? []
     expect([...lastCall].sort()).toEqual(
       eligibleFixture.map((item) => item.domain.name).sort(),
@@ -114,13 +124,9 @@ describe('SelectNamesStep', () => {
     expect(lastCall).toContain('gm.sub1234.eth')
   })
 
-  it('subname rows are not individually interactive', () => {
-    const { onNamesChange, getByText } = renderStep()
-    const subnameText = getByText('gm.sub1234.eth')
-    expect(subnameText.closest('button')).toBeNull()
-    const callsBefore = onNamesChange.mock.calls.length
-    fireEvent.click(subnameText)
-    expect(onNamesChange.mock.calls.length).toBe(callsBefore)
+  it('renders subnames without individual selection controls', () => {
+    const { getByText } = renderStep()
+    expect(getByText('gm.sub1234.eth').closest('button')).toBeNull()
   })
 
   it('searching a subname keeps the parent visible for context', () => {

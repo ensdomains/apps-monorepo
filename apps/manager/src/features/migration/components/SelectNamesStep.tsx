@@ -41,7 +41,6 @@ export const SelectNamesStep = ({
     filteredGroups,
     filteredOrphans,
     toggleName,
-    toggleGroup,
     toggleAll,
   } = useNameSelection({ eligible, isPending, onNamesChange })
 
@@ -112,7 +111,6 @@ export const SelectNamesStep = ({
             showBulkSelection={showBulkSelection}
             showNameSearch={showNameSearch}
             toggleAll={toggleAll}
-            toggleGroup={toggleGroup}
             toggleName={toggleName}
             totalSelected={totalSelected}
             visibleCount={visibleCount}

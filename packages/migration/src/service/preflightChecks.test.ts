@@ -1,4 +1,4 @@
-import { type Address, zeroAddress } from 'viem'
+import { type Address, namehash, zeroAddress } from 'viem'
 import { multicall } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -60,6 +60,70 @@ describe('checkOwnership', () => {
       OWNER,
     )
     expect([...ids]).toEqual(['0xb1'])
+  })
+
+  it('checks a wrapped copy against NameWrapper ownership and live expiry without transferability rules', async () => {
+    const expiry = futureWrapperExpiry()
+    multicallMock.mockResolvedValueOnce([
+      ok([OWNER, Number(FUSES.IS_DOT_ETH), expiry] as const),
+    ])
+    const copy = makeClassified({
+      id: '0xa1',
+      name: 'sub.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'unlocked-child',
+      sourceExpiry: expiry,
+    })
+
+    const ids = await checkOwnership(publicClient, [copy], OWNER)
+
+    expect(ids.size).toBe(0)
+    expect(multicallMock.mock.calls[0]?.[1].contracts[0]).toMatchObject({
+      functionName: 'getData',
+      args: [0xa1n],
+    })
+  })
+
+  it('marks a wrapped copy when its live NameWrapper expiry has passed', async () => {
+    multicallMock.mockResolvedValueOnce([ok([OWNER, 0, 100n] as const)])
+    const copy = makeClassified({
+      id: '0xa1',
+      name: 'sub.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'unlocked-child',
+    })
+
+    const ids = await checkOwnership(publicClient, [copy], OWNER)
+
+    expect([...ids]).toEqual(['0xa1'])
+  })
+
+  it('checks a registry-only copy through LegacyRegistry.owner(namehash)', async () => {
+    multicallMock.mockResolvedValueOnce([ok(OWNER), ok(OTHER)])
+    const owned = makeClassified({
+      id: '0xa1',
+      name: 'owned.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'registry-child',
+    })
+    const transferred = makeClassified({
+      id: '0xb1',
+      name: 'transferred.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'registry-child',
+    })
+
+    const ids = await checkOwnership(publicClient, [owned, transferred], OWNER)
+
+    expect([...ids]).toEqual(['0xb1'])
+    expect(multicallMock.mock.calls[0]?.[1].contracts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          functionName: 'owner',
+          args: [namehash('owned.alice.eth')],
+        }),
+      ]),
+    )
   })
 
   it('marks wrapped names whose on-chain wrapper expiry is in the past', async () => {
@@ -150,6 +214,17 @@ describe('checkFrozenApproval', () => {
     expect([...ids]).toEqual(['0xa1'])
     warn.mockRestore()
   })
+
+  it('never reads approval state for copy operations', async () => {
+    const copy = makeClassified({
+      tokenType: 'unlocked-child',
+      fuses: FUSES.CANNOT_APPROVE,
+    })
+
+    expect((await checkFrozenApproval(publicClient, [copy])).size).toBe(0)
+    expect(copy.action).toBe('copy')
+    expect(multicallMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('checkPremigrationReservation', () => {
@@ -184,6 +259,15 @@ describe('checkPremigrationReservation', () => {
 
     expect([...ids]).toEqual(['0xa1'])
     expect([...failed]).toEqual(['0xa1'])
+  })
+
+  it('skips premigration reservations for copy operations', async () => {
+    const copy = makeClassified({ tokenType: 'registry-child' })
+
+    const ids = await checkPremigrationReservation(publicClient, [copy])
+
+    expect(ids.size).toBe(0)
+    expect(multicallMock).not.toHaveBeenCalled()
   })
 })
 
@@ -255,6 +339,159 @@ describe('runEligibilityChecks', () => {
 
     expect(result.eligible).toEqual([])
     expect(result.notPremigrated).toEqual([A])
+    expect(result.failed).toEqual([])
+  })
+
+  it('skips copy-only approval and reservation reads but fails closed without its route', async () => {
+    const copy = makeClassified({
+      id: '0xa1',
+      name: 'sub.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'registry-child',
+    })
+    multicallMock.mockResolvedValueOnce([ok(OWNER)])
+
+    const result = await runEligibilityChecks(publicClient, [copy], OWNER)
+
+    expect(result.eligible).toEqual([])
+    expect(result.alreadyMigrated).toEqual([copy])
+    expect(result.failed).toEqual([copy])
+    expect(result.frozen).toEqual([])
+    expect(result.notPremigrated).toEqual([])
+    expect(multicallMock).toHaveBeenCalledOnce()
+    expect(multicallMock.mock.calls[0]?.[1].contracts).toHaveLength(1)
+  })
+
+  it('keeps an owned arbitrary-depth copy route eligible when its migrating root is live', async () => {
+    const root = makeClassified({
+      id: '0xa1',
+      name: 'alice.eth',
+      parentName: 'eth',
+    })
+    const child = makeClassified({
+      id: '0xb1',
+      name: 'foo.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'registry-child',
+    })
+    const grandchild = makeClassified({
+      id: '0xc1',
+      name: 'bar.foo.alice.eth',
+      parentName: 'foo.alice.eth',
+      tokenType: 'registry-child',
+    })
+    multicallMock
+      .mockResolvedValueOnce([ok(OWNER), ok(OWNER), ok(OWNER)])
+      .mockResolvedValueOnce([ok(1)])
+
+    const result = await runEligibilityChecks(
+      publicClient,
+      [grandchild, root, child],
+      OWNER,
+    )
+
+    expect(result.eligible).toEqual([grandchild, root, child])
+    expect(result.alreadyMigrated).toEqual([])
+    expect(result.failed).toEqual([])
+  })
+
+  it('removes every descendant copy when live ownership rejects the migrating root', async () => {
+    const root = makeClassified({
+      id: '0xa1',
+      name: 'alice.eth',
+      parentName: 'eth',
+    })
+    const child = makeClassified({
+      id: '0xb1',
+      name: 'foo.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'registry-child',
+    })
+    const grandchild = makeClassified({
+      id: '0xc1',
+      name: 'bar.foo.alice.eth',
+      parentName: 'foo.alice.eth',
+      tokenType: 'registry-child',
+    })
+    multicallMock
+      .mockResolvedValueOnce([ok(OTHER), ok(OWNER), ok(OWNER)])
+      .mockResolvedValueOnce([ok(1)])
+
+    const result = await runEligibilityChecks(
+      publicClient,
+      [root, child, grandchild],
+      OWNER,
+    )
+
+    expect(result.eligible).toEqual([])
+    expect(result.alreadyMigrated).toEqual([root, child, grandchild])
+    expect(result.failed).toEqual([])
+  })
+
+  it('removes descendant copies when the migrating root is no longer reserved', async () => {
+    const root = makeClassified({
+      id: '0xa1',
+      name: 'alice.eth',
+      parentName: 'eth',
+    })
+    const child = makeClassified({
+      id: '0xb1',
+      name: 'foo.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'registry-child',
+    })
+    multicallMock
+      .mockResolvedValueOnce([ok(OWNER), ok(OWNER)])
+      .mockResolvedValueOnce([ok(0)])
+
+    const result = await runEligibilityChecks(
+      publicClient,
+      [root, child],
+      OWNER,
+    )
+
+    expect(result.eligible).toEqual([])
+    expect(result.notPremigrated).toEqual([root])
+    expect(result.alreadyMigrated).toEqual([child])
+    expect(result.failed).toEqual([])
+  })
+
+  it('removes only the blocked copy subtree when a middle ancestor changes owner', async () => {
+    const root = makeClassified({
+      id: '0xa1',
+      name: 'alice.eth',
+      parentName: 'eth',
+    })
+    const child = makeClassified({
+      id: '0xb1',
+      name: 'foo.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'registry-child',
+    })
+    const grandchild = makeClassified({
+      id: '0xc1',
+      name: 'bar.foo.alice.eth',
+      parentName: 'foo.alice.eth',
+      tokenType: 'registry-child',
+    })
+    const sibling = makeClassified({
+      id: '0xd1',
+      name: 'baz.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'registry-child',
+    })
+    multicallMock
+      .mockResolvedValueOnce([ok(OWNER), ok(OTHER), ok(OWNER), ok(OWNER)])
+      .mockResolvedValueOnce([ok(1)])
+
+    const result = await runEligibilityChecks(
+      publicClient,
+      [root, child, grandchild, sibling],
+      OWNER,
+    )
+
+    expect(result.eligible).toEqual([root, sibling])
+    expect(result.alreadyMigrated).toEqual([child, grandchild])
     expect(result.failed).toEqual([])
   })
 })

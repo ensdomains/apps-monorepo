@@ -1,6 +1,8 @@
 import { Trans } from '@lingui/react/macro'
 import { match } from 'ts-pattern'
 import type { useNameSelection } from '@/features/migration/hooks/useNameSelection'
+import type { NameTreeNode } from '@/features/migration/service/groupByParent'
+import { cn } from '@/lib/utils'
 import { NameListSkeleton } from './NameListSkeleton'
 import { NameRow } from './NameRow'
 
@@ -8,15 +10,111 @@ type NameSelectionState = ReturnType<typeof useNameSelection>
 
 type SelectNamesStepNameListProps = Pick<
   NameSelectionState,
-  | 'filteredGroups'
-  | 'filteredOrphans'
-  | 'search'
-  | 'selected'
-  | 'toggleGroup'
-  | 'toggleName'
+  'filteredGroups' | 'filteredOrphans' | 'search' | 'selected' | 'toggleName'
 > & {
   readonly isPending: boolean
 }
+
+type NameTreeRowsProps = {
+  readonly depth: number
+  readonly nodes: readonly NameTreeNode[]
+  readonly selected: ReadonlySet<string>
+  readonly toggleName: (name: string) => void
+}
+
+type NameTreeConnectorProps = {
+  readonly depth: number
+  readonly isFirst: boolean
+  readonly isLast: boolean
+}
+
+const NameTreeConnector = ({
+  depth,
+  isFirst,
+  isLast,
+}: NameTreeConnectorProps) => {
+  const startsAtParentAvatar = isFirst
+    ? depth === 1
+      ? '-top-1'
+      : '-top-1.5'
+    : 'top-0'
+
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-y-0 left-0 w-8 text-ens-garnet-900 opacity-30"
+    >
+      {!isLast && (
+        <span
+          className={cn(
+            'absolute bottom-0 left-0 w-px bg-current',
+            startsAtParentAvatar,
+          )}
+        />
+      )}
+      <span
+        className={cn(
+          'absolute left-0 w-8 rounded-bl-md border-current border-b border-l',
+          isFirst
+            ? depth === 1
+              ? '-top-1 h-[26px]'
+              : '-top-1.5 h-7'
+            : 'top-0 h-5.5',
+        )}
+      />
+    </span>
+  )
+}
+
+const NameTreeRows = ({
+  depth,
+  nodes,
+  selected,
+  toggleName,
+}: NameTreeRowsProps) => (
+  <ul
+    className={cn(
+      'flex min-w-0 flex-col',
+      depth === 0 ? 'gap-2' : 'gap-0',
+      depth === 1 && 'ml-[65.5px]',
+      depth > 1 && 'ml-[23.5px]',
+    )}
+  >
+    {nodes.map((node, index) => {
+      const name = node.item.domain.name
+      const isFirst = index === 0
+      const isLast = index === nodes.length - 1
+      return (
+        <li
+          className={cn('relative min-w-0', depth > 0 && 'pl-6')}
+          key={node.item.domain.id}
+        >
+          {depth > 0 && (
+            <NameTreeConnector
+              depth={depth}
+              isFirst={isFirst}
+              isLast={isLast}
+            />
+          )}
+          <NameRow
+            depth={depth}
+            isSelected={selected.has(name)}
+            item={node.item}
+            onClick={depth === 0 ? () => toggleName(name) : undefined}
+          />
+          {node.children.length > 0 && (
+            <NameTreeRows
+              depth={depth + 1}
+              nodes={node.children}
+              selected={selected}
+              toggleName={toggleName}
+            />
+          )}
+        </li>
+      )
+    })}
+  </ul>
+)
 
 export const SelectNamesStepNameList = ({
   filteredGroups,
@@ -24,7 +122,6 @@ export const SelectNamesStepNameList = ({
   isPending,
   search,
   selected,
-  toggleGroup,
   toggleName,
 }: SelectNamesStepNameListProps) =>
   match({
@@ -46,40 +143,11 @@ export const SelectNamesStepNameList = ({
         </p>
       </div>
     ))
-    .otherwise(() => [
-      ...filteredGroups.flatMap((group) => {
-        const parentName = group.parent.domain.name
-        const parentSelected = selected.has(parentName)
-        const subnameNames = group.subnames.map((s) => s.domain.name)
-        return [
-          <NameRow
-            indent={false}
-            interactive={true}
-            isSelected={parentSelected}
-            item={group.parent}
-            key={group.parent.domain.id}
-            onClick={() => toggleGroup(parentName, subnameNames)}
-          />,
-          ...group.subnames.map((sub, idx) => (
-            <NameRow
-              firstSubname={idx === 0}
-              indent={true}
-              interactive={false}
-              isSelected={parentSelected}
-              item={sub}
-              key={sub.domain.id}
-            />
-          )),
-        ]
-      }),
-      ...filteredOrphans.map((orphan) => (
-        <NameRow
-          indent={false}
-          interactive={true}
-          isSelected={selected.has(orphan.domain.name)}
-          item={orphan}
-          key={orphan.domain.id}
-          onClick={() => toggleName(orphan.domain.name)}
-        />
-      )),
-    ])
+    .otherwise(() => (
+      <NameTreeRows
+        depth={0}
+        nodes={[...filteredGroups, ...filteredOrphans]}
+        selected={selected}
+        toggleName={toggleName}
+      />
+    ))

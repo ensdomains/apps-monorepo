@@ -19,11 +19,18 @@ const verifiableFactoryAbi = parseAbi([
 ])
 
 const permissionedRegistryReadAbi = parseAbi([
+  'struct State { uint8 status; uint64 expiry; address latestOwner; uint256 tokenId; uint256 resource; }',
   'function getSubregistry(string label) view returns (address)',
   'function getOwner(uint256 anyId) view returns (address)',
   'function getResolver(string label) view returns (address)',
   'function hasRoles(uint256 anyId, uint256 roleBitmap, address account) view returns (bool)',
+  'function hasRootRoles(uint256 roleBitmap, address account) view returns (bool)',
+  'function getParent() view returns (address parent, string label)',
+  'function getState(uint256 anyId) view returns (State state)',
 ])
+
+/** `IPermissionedRegistry.Status.REGISTERED`. */
+const STATUS_REGISTERED = 2
 
 const permissionedResolverReadAbi = parseAbi([
   'function hasRootRoles(uint256 roleBitmap, address account) view returns (bool)',
@@ -333,6 +340,73 @@ const checkExpectation = async (
         ],
         ...block,
       })
+    }
+    case 'user-registry-implementation': {
+      if (!(await hasContractCode(context, expectation.registry))) return false
+      const implementation = await context.publicClient.readContract({
+        address: expectation.factory,
+        abi: verifiableFactoryAbi,
+        functionName: 'verifyContract',
+        args: [expectation.registry],
+        ...block,
+      })
+      return isAddressEqual(implementation, expectation.expectedImplementation)
+    }
+    case 'user-registry-root-roles': {
+      if (!(await hasContractCode(context, expectation.registry))) return false
+      return context.publicClient.readContract({
+        address: expectation.registry,
+        abi: permissionedRegistryReadAbi,
+        functionName: 'hasRootRoles',
+        args: [expectation.roleBitmap, expectation.account],
+        ...block,
+      })
+    }
+    case 'user-registry-parent': {
+      if (!(await hasContractCode(context, expectation.registry))) return false
+      const [parentRegistry, parentLabel] =
+        await context.publicClient.readContract({
+          address: expectation.registry,
+          abi: permissionedRegistryReadAbi,
+          functionName: 'getParent',
+          ...block,
+        })
+      return (
+        isAddressEqual(parentRegistry, expectation.expectedParentRegistry) &&
+        parentLabel === expectation.expectedParentLabel
+      )
+    }
+    case 'name-subregistry': {
+      const registry = await resolveRegistryPath(
+        context,
+        expectation.registryPath,
+      )
+      const subregistry = await context.publicClient.readContract({
+        address: registry,
+        abi: permissionedRegistryReadAbi,
+        functionName: 'getSubregistry',
+        args: [expectation.label],
+        ...block,
+      })
+      return isAddressEqual(subregistry, expectation.expectedSubregistry)
+    }
+    case 'name-expiry': {
+      const registry = await resolveRegistryPath(
+        context,
+        expectation.registryPath,
+      )
+      const state = await context.publicClient.readContract({
+        address: registry,
+        abi: permissionedRegistryReadAbi,
+        functionName: 'getState',
+        args: [expectation.resource],
+        ...block,
+      })
+      return (
+        state.status === STATUS_REGISTERED &&
+        state.expiry === expectation.expectedExpiry &&
+        state.resource === expectation.resource
+      )
     }
     case 'manager-role': {
       const registry = await resolveRegistryForName(
