@@ -294,6 +294,41 @@ const buildHydrationQuery = (blocks: readonly number[]) => gql`
  * appear — but each one is now complete, so label, event count and expanded
  * detail all describe the real transaction.
  */
+/**
+ * Read every event in `blocks`, splitting the request when it saturates.
+ *
+ * `first` bounds this window independently of the scoped pass, so a set of
+ * blocks holding more than a page of events would silently lose its oldest
+ * transactions — the rows would vanish, or keep the incomplete details this
+ * whole step exists to repair. A full page means the window may have cut
+ * something, so the blocks are halved and re-read until each response fits.
+ *
+ * Splitting rather than paging because this indexer ignores `skip`: verified
+ * against staging that `skip: 5` returns the same five events as `skip: 0`.
+ *
+ * A single block that still saturates is left as-is — that would be one name
+ * emitting more than a page of events in one block.
+ */
+const fetchHydratedBlocks = async (
+  node: Hex,
+  blocks: readonly number[],
+): Promise<TimelineIndexerEvent[]> => {
+  const { events } = await graphqlIndexerClient.request<{
+    events: TimelineIndexerEvent[]
+  }>(buildHydrationQuery(blocks), { namehash: node })
+
+  if (events.length < HISTORY_TIMELINE_PAGE_SIZE || blocks.length === 1) {
+    return events
+  }
+
+  const mid = Math.ceil(blocks.length / 2)
+  const halves = await Promise.all([
+    fetchHydratedBlocks(node, blocks.slice(0, mid)),
+    fetchHydratedBlocks(node, blocks.slice(mid)),
+  ])
+  return halves.flat()
+}
+
 const hydrateTransactions = ResultFn(async function* ({
   scoped,
   name,
@@ -331,12 +366,7 @@ const hydrateTransactions = ResultFn(async function* ({
     Promise.all([
       v2Blocks.length === 0
         ? Promise.resolve<TimelineIndexerEvent[]>([])
-        : graphqlIndexerClient
-            .request<{ events: TimelineIndexerEvent[] }>(
-              buildHydrationQuery(v2Blocks),
-              { namehash: node },
-            )
-            .then(({ events }) => events),
+        : fetchHydratedBlocks(node, v2Blocks),
       v1TransactionIds.length === 0
         ? Promise.resolve([])
         : fetchV1NameHistory({
