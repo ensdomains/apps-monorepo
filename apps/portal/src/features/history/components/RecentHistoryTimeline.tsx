@@ -86,7 +86,10 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
       return next
     })
 
-  if (recentQuery.isLoading) return <LoadingMessage />
+  // Both windows gate the timeline: the oldest action decides whether the gap
+  // renders at all, so drawing before it settles would show a complete-looking
+  // history and then push a gap and another row in underneath it.
+  if (recentQuery.isLoading || firstQuery.isLoading) return <LoadingMessage />
 
   if (recentQuery.error) {
     return (
@@ -122,9 +125,20 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
   const firstAction = firstQuery.data
     ? summarizeEvents(firstQuery.data.events).at(-1)
     : undefined
-  const hasHiddenActions =
-    firstAction !== undefined &&
+  // Only pin it when it isn't already one of the rows above.
+  const pinnedAction =
+    firstAction &&
     !recent.some((action) => action.txHash === firstAction.txHash)
+      ? firstAction
+      : undefined
+  // The break is drawn on evidence of hidden history, not on having something to
+  // pin. If the oldest-action query is unavailable, the recent window still
+  // knows it was bounded — it fetched fewer events than the name has — so the
+  // link out stays correct even without a row to anchor it.
+  const hasHiddenActions =
+    pinnedAction !== undefined ||
+    actions.length > recent.length ||
+    recentQuery.data.events.length < totalCount
 
   return (
     <RecentHistoryShell name={name}>
@@ -154,12 +168,14 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
                 {totalCount > 0 && ` (${totalCount} events)`}
               </div>
             </div>
-            <ActionTimeline
-              actions={[firstAction]}
-              openIds={openIds}
-              onToggle={toggleAction}
-              connectAbove
-            />
+            {pinnedAction && (
+              <ActionTimeline
+                actions={[pinnedAction]}
+                openIds={openIds}
+                onToggle={toggleAction}
+                connectAbove
+              />
+            )}
           </>
         )}
       </TimelineFrame>
