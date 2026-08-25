@@ -1,3 +1,4 @@
+import { applyPastedNameSearch } from '@ens-apps/utils/normalizePastedNameSearch'
 import { useLingui } from '@lingui/react/macro'
 import { Loader2Icon } from 'lucide-react'
 import {
@@ -7,7 +8,6 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { applyPastedNameSearch } from '@/utils/normalizePastedNameSearch'
 import { tw } from '@/utils/tailwind'
 
 type SearchInputProps = Omit<

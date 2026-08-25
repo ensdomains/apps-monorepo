@@ -1,3 +1,4 @@
+import { applyPastedNameSearch } from '@ens-apps/utils/normalizePastedNameSearch'
 import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys'
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
@@ -24,7 +25,6 @@ import { useDebouncedValue } from '@/hooks/useDebounce'
 import { cn } from '@/lib/utils'
 import { useSearchResults } from '../hooks/useSearchResults'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
-import { applyPastedNameSearch } from '../utils/normalizePastedNameSearch'
 import { SearchModalContent } from './SearchModalContent'
 import { SearchResultsList } from './SearchResultsList'
 

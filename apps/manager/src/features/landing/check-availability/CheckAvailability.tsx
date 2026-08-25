@@ -1,3 +1,4 @@
+import { applyPastedNameSearch } from '@ens-apps/utils/normalizePastedNameSearch'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -24,7 +25,6 @@ import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useDebounce } from '@/hooks/useDebounce'
 import { truncateToMaxBytes } from '@/utils/domain'
-import { applyPastedNameSearch } from '@/utils/normalizePastedNameSearch'
 
 const dropdownAnimation = {
   initial: { opacity: 0, y: -8, scale: 0.98 },
