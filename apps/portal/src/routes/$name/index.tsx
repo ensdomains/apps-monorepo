@@ -380,7 +380,7 @@ const Profile = ({
       </div>
 
       {/* Profile | metadata | counters at xl; counters wrap to their own row below that */}
-      <div className="grid grid-cols-1 lg:grid-cols-[180px_minmax(min-content,1fr)] xl:grid-cols-[180px_auto_300px] xl:justify-between gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(min-content,1fr)] xl:grid-cols-[240px_auto_300px] xl:justify-between gap-3">
         {/* Left: avatar + bio + socials */}
         <NameProfileCard name={name} stacked />
 
