@@ -237,6 +237,9 @@ importers:
       '@tanstack/react-start':
         specifier: ^1.167.42
         version: 1.167.42(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+      '@tanstack/router-core':
+        specifier: ^1.168.15
+        version: 1.168.15
       '@wagmi/core':
         specifier: 'catalog:'
         version: 3.6.4(@tanstack/query-core@5.90.12)(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(use-sync-external-store@1.6.0(react@19.2.5))(viem@2.52.2(typescript@7.0.2)(zod@3.25.76))
@@ -1524,12 +1527,12 @@ packages:
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@e96662c':
-    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@e96662c}
+    resolution: {integrity: sha512-TvCwLBeBVnWXQEEyPZtev5xyF6vzHDq2xFjBT7915Rb1EeLa7jVhPj8GkToR7Khj5Q2vSLJFwyuGr2ANOJc/iQ==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@e96662c}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e96662c':
-    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e96662c}
+    resolution: {integrity: sha512-QAiH82yxpnGsp3khP7LRQZOaaJDbfCCdySJLeYmCLUBibGQ8MdKaUzKCfEZV3VKtqPcEDSsSKBlnFOt35Fee8w==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e96662c}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:
