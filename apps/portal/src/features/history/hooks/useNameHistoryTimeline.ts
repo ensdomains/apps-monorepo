@@ -9,7 +9,7 @@ import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { mergeTimeline } from '../mergeTimeline'
-import { adaptV1Events } from '../v1/adaptV1Events'
+import { adaptV1Events, type V1SubgraphEvent } from '../v1/adaptV1Events'
 import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
 
 /**
@@ -329,6 +329,48 @@ const fetchHydratedBlocks = async (
   return halves.flat()
 }
 
+/**
+ * Read the v1 transactions a scoped pass matched, splitting when it saturates.
+ *
+ * Same bound as the v2 hydration above, for the same reason: `first` applies to
+ * each collection in the query independently of the scoped pass, so a set of
+ * transactions holding more than a page of events would silently lose its
+ * oldest ones — the rows would keep the incomplete details this whole step
+ * exists to repair. It is more reachable here than on v2, because one
+ * record-setting transaction can emit a dozen `TextChanged` on its own.
+ *
+ * A full page is only *evidence* of a cut, not proof: the response is flattened
+ * across collections, so 100 events spread over several of them may be
+ * complete. It is the right test anyway — a total under the page size proves no
+ * single collection reached its window, and the cost of being wrong is one
+ * extra request. Splitting halves the transactions rather than paging, matching
+ * the v2 path and keeping the halves disjoint, so their events never overlap.
+ *
+ * A single transaction that still saturates is left as-is — that would be one
+ * transaction emitting more than a page of events for this name.
+ */
+const fetchHydratedV1Transactions = async (
+  params: { readonly subgraphUrl: string; readonly namehash: Hex },
+  transactionIds: readonly string[],
+): Promise<V1SubgraphEvent[]> => {
+  const events = await fetchV1NameHistory({
+    ...params,
+    first: HISTORY_TIMELINE_PAGE_SIZE,
+    orderDirection: 'desc',
+    transactionIds,
+  })
+
+  if (events.length < HISTORY_TIMELINE_PAGE_SIZE || transactionIds.length === 1)
+    return events
+
+  const mid = Math.ceil(transactionIds.length / 2)
+  const halves = await Promise.all([
+    fetchHydratedV1Transactions(params, transactionIds.slice(0, mid)),
+    fetchHydratedV1Transactions(params, transactionIds.slice(mid)),
+  ])
+  return halves.flat()
+}
+
 const hydrateTransactions = ResultFn(async function* ({
   scoped,
   name,
@@ -368,14 +410,11 @@ const hydrateTransactions = ResultFn(async function* ({
         ? Promise.resolve<TimelineIndexerEvent[]>([])
         : fetchHydratedBlocks(node, v2Blocks),
       v1TransactionIds.length === 0
-        ? Promise.resolve([])
-        : fetchV1NameHistory({
-            subgraphUrl,
-            namehash: node,
-            first: HISTORY_TIMELINE_PAGE_SIZE,
-            orderDirection: 'desc',
-            transactionIds: v1TransactionIds,
-          }),
+        ? Promise.resolve<V1SubgraphEvent[]>([])
+        : fetchHydratedV1Transactions(
+            { subgraphUrl, namehash: node },
+            v1TransactionIds,
+          ),
     ]),
     (e) => new GetNameHistoryTimelineError({ cause: e as ClientError }),
   )
