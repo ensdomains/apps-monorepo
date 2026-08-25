@@ -299,6 +299,7 @@ const getNameHistoryTimeline = ResultFn(async function* ({
         namehash: node,
         first,
         orderDirection,
+        eventTypes,
       }),
     ]),
     (e) => new GetNameHistoryTimelineError({ cause: e as ClientError }),
@@ -324,10 +325,11 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     },
   })
 
-  // The v1 subgraph's event unions take no type filter, so the scope is applied
-  // after adapting — `adaptV1Events` is what renames some v1 types into their v2
-  // equivalents, so filtering any earlier would compare against the wrong
-  // vocabulary.
+  // `fetchV1NameHistory` scopes resolver events in the query, but domain and
+  // registration events share one unscoped window, so they are dropped here.
+  // This runs after adapting because `adaptV1Events` is what renames some v1
+  // types into their v2 equivalents — filtering earlier would compare against
+  // the wrong vocabulary.
   const v1Events = eventTypes
     ? v1EventsAll.filter((event) => eventTypes.includes(event.type))
     : v1EventsAll

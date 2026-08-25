@@ -7,7 +7,9 @@ type V1SubgraphResult = {
     events: V1SubgraphEvent[]
     registration?: { cost?: string | null; events: V1SubgraphEvent[] } | null
   } | null
-  resolvers: { events: V1SubgraphEvent[] }[]
+  // Scoped reads select concrete collections (`addrChangeds`, …) instead of the
+  // `events` interface, so the shape is "some event lists, keyed by selection".
+  resolvers: Record<string, V1SubgraphEvent[]>[]
 }
 
 /**
@@ -17,6 +19,82 @@ type V1SubgraphResult = {
  * most, well under the cap.
  */
 const RESOLVERS_PER_NAME = 100
+
+/**
+ * Scoped resolver-event selections, keyed by the type the *adapter* produces
+ * (`adaptV1Events` renames `MulticoinAddrChanged` to `AddressChanged`), so
+ * callers name the same types they use everywhere else.
+ *
+ * A scoped read has to select these concrete collections rather than filter the
+ * `events` interface afterwards: `first` bounds that interface across all
+ * record types at once, so a resolver with a lot of newer `TextChanged` would
+ * push older address changes out of the window before any client-side filter
+ * could see them. Each collection gets its own window instead.
+ *
+ * Types with no entry here fall back to the unscoped `events` selection, which
+ * still carries that caveat — add them as scoped views need them.
+ */
+const V1_SCOPED_RESOLVER_EVENTS: Record<string, string> = {
+  AddrChanged: 'addrChangeds',
+  AddressChanged: 'multicoinAddrChangeds',
+  NameChanged: 'nameChangeds',
+  TextChanged: 'textChangeds',
+}
+
+/** The unscoped resolver-events selection: every record type, one window. */
+const RESOLVER_EVENTS_FRAGMENT = `events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
+            id
+            blockNumber
+            transactionID
+            type: __typename
+            resolverId
+            ... on AddrChanged { addr { id } }
+            ... on MulticoinAddrChanged { coinType multiaddr: addr }
+            ... on NameChanged { name }
+            ... on AbiChanged { contentType }
+            ... on PubkeyChanged { x y }
+            ... on TextChanged { key value }
+            ... on ContenthashChanged { hash }
+            ... on InterfaceChanged { interfaceID implementer }
+            ... on AuthorisationChanged { owner target isAuthorized }
+            ... on VersionChanged { version }
+          }`
+
+/** Per-collection payload, matching the inline fragments on `events`. */
+const V1_SCOPED_RESOLVER_FIELDS: Record<string, string> = {
+  addrChangeds: 'addr { id }',
+  multicoinAddrChangeds: 'coinType multiaddr: addr',
+  nameChangeds: 'name',
+  textChangeds: 'key value',
+}
+
+/**
+ * The resolver-events part of the query: one bounded selection per scoped
+ * collection, or the whole `events` interface when unscoped (or when the scope
+ * names a type with no concrete collection above).
+ */
+const resolverEventsSelection = (eventTypes: readonly string[] | undefined) => {
+  const collections = eventTypes?.map((type) => V1_SCOPED_RESOLVER_EVENTS[type])
+  if (!collections || collections.some((collection) => !collection)) {
+    return RESOLVER_EVENTS_FRAGMENT
+  }
+  return [...new Set(collections)]
+    .map(
+      (collection) => `${collection}(
+            first: $first
+            orderBy: blockNumber
+            orderDirection: $orderDirection
+          ) {
+            id
+            blockNumber
+            transactionID
+            type: __typename
+            resolverId
+            ${V1_SCOPED_RESOLVER_FIELDS[collection]}
+          }`,
+    )
+    .join('\n          ')
+}
 
 /**
  * Fetch a name's v1 history as one flat event list — the registry / registrar /
@@ -53,11 +131,14 @@ export const fetchV1NameHistory = async ({
   namehash,
   first,
   orderDirection,
+  eventTypes,
 }: {
   readonly subgraphUrl: string
   readonly namehash: Hex
   readonly first: number
   readonly orderDirection: 'asc' | 'desc'
+  /** Restrict resolver events to these types — see `V1_SCOPED_RESOLVER_EVENTS`. */
+  readonly eventTypes?: readonly string[]
 }): Promise<V1SubgraphEvent[]> => {
   const { domain, resolvers } = await new GraphQLClient(
     subgraphUrl,
@@ -99,23 +180,7 @@ export const fetchV1NameHistory = async ({
           }
         }
         resolvers(where: { domain: $id }, first: $resolvers) {
-          events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
-            id
-            blockNumber
-            transactionID
-            type: __typename
-            resolverId
-            ... on AddrChanged { addr { id } }
-            ... on MulticoinAddrChanged { coinType multiaddr: addr }
-            ... on NameChanged { name }
-            ... on AbiChanged { contentType }
-            ... on PubkeyChanged { x y }
-            ... on TextChanged { key value }
-            ... on ContenthashChanged { hash }
-            ... on InterfaceChanged { interfaceID implementer }
-            ... on AuthorisationChanged { owner target isAuthorized }
-            ... on VersionChanged { version }
-          }
+          ${resolverEventsSelection(eventTypes)}
         }
       }
     `,
@@ -129,6 +194,6 @@ export const fetchV1NameHistory = async ({
     ...(domain?.registration?.events ?? []).map((event) =>
       event.type === 'NameRegistered' ? { ...event, cost } : event,
     ),
-    ...(resolvers ?? []).flatMap(({ events }) => events),
+    ...(resolvers ?? []).flatMap((resolver) => Object.values(resolver).flat()),
   ]
 }

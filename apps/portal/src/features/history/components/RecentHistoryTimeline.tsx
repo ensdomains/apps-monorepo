@@ -157,9 +157,12 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
         />
         {hasHiddenActions && (
           <>
-            <div className="relative py-3">
+            <div className="relative py-2.5">
               <Rail className="inset-y-0" connection="dashed" />
-              <div className="pl-(--label-x) text-neutral-7 text-p">
+              {/* 14px / 0.02em / neutral-7 are the Figma values for this row
+                  (Explorer-V1 node 2075:16136), a step down from the 15px
+                  `text-p` token used for row content. */}
+              <div className="pl-(--label-x) text-[14px] text-neutral-7 tracking-[0.02em]">
                 See{' '}
                 <Link
                   to="/$name/history"
