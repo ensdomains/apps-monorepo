@@ -1,7 +1,7 @@
 import { getRegistrarAddress } from '@ens-apps/l2-primary/v1'
 import { defaultReverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/defaultReverseRegistrar'
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
 import {
   ArrowLeftRight,
@@ -32,9 +32,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { RecentActivity } from '@/features/profile/components/RecentActivity'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { DEFAULT_REVERSE_REGISTRAR_ADDRESS } from '@/features/reverse-resolution/config'
@@ -48,14 +47,15 @@ import { names } from '@/lib/reverseRegistrarChainId'
 import { cn, fromCoinType } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
-import type { ProtocolVersion } from '@/utils/types'
 import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
 import { L1_VERIFICATION_LAG_ESTIMATES } from './networks'
 import type { AddressResolutionRow } from './types'
 
-// The sidebar's history covers the name's resolution records only — address
-// record writes and (v1) reverse-name changes — not transfers/registrations.
-const ADDRESS_HISTORY_EVENT_TYPES = ['AddressChanged', 'NameChanged'] as const
+// The sidebar's history covers address-record writes only. `AddrChanged` is
+// v1's ETH-only event and stays distinct from v2's multicoin `AddressChanged`
+// all the way through the timeline's descriptors, so both belong here or a v1
+// name's resolution history filters down to nothing.
+const ADDRESS_HISTORY_EVENT_TYPES = ['AddressChanged', 'AddrChanged'] as const
 
 const coinNetworkName = (coinType: number, fallback: string) => {
   try {
@@ -316,7 +316,6 @@ const ResolutionDetails = ({
   hasResolver,
   saveLabel,
   onSave,
-  protocolVersion,
   canSetPrimaryName,
   isSettingPrimaryName,
   onSetPrimaryName,
@@ -331,7 +330,6 @@ const ResolutionDetails = ({
   hasResolver: boolean
   saveLabel: string
   onSave: () => void
-  protocolVersion: ProtocolVersion | undefined
   canSetPrimaryName: boolean
   isSettingPrimaryName: boolean
   onSetPrimaryName: () => void
@@ -400,15 +398,15 @@ const ResolutionDetails = ({
           icon={icon}
           label={label}
         />
-        {protocolVersion && (
-          <div className="border-t pt-6">
-            <RecentActivity
-              name={name}
-              protocolVersion={protocolVersion}
-              eventTypes={ADDRESS_HISTORY_EVENT_TYPES}
-            />
-          </div>
-        )}
+        <div className="border-t pt-6">
+          <HistoryTimeline
+            name={name}
+            scope={ADDRESS_HISTORY_EVENT_TYPES}
+            heading={<h2 className="text-caps text-foreground">History</h2>}
+            emptyTitle="No resolution history"
+            emptyDescription="Address record changes will appear here as they happen."
+          />
+        </div>
       </div>
     </div>
   )
@@ -428,7 +426,6 @@ const useAddressRecordEditor = (
   resolverAddress: Address | undefined,
 ) => {
   const { address: connectedAddress, isConnected } = useConnection()
-  const { data: owner } = useQuery(getEnsOwnerQueryOptions({ name }))
   const queryClient = useQueryClient()
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const {
@@ -616,7 +613,6 @@ const useAddressRecordEditor = (
   return {
     canEdit,
     canSetPrimaryName,
-    protocolVersion: owner?.protocolVersion,
     hasResolver: !!resolverAddress,
     addressInput,
     setAddressInput,
@@ -684,7 +680,6 @@ export const AddressResolutionSidebar: FC<
               hasResolver={editor.hasResolver}
               saveLabel={editor.saveLabel}
               onSave={editor.onSave}
-              protocolVersion={editor.protocolVersion}
               canSetPrimaryName={editor.canSetPrimaryName}
               isSettingPrimaryName={editor.isSettingPrimaryName}
               onSetPrimaryName={editor.onSetPrimaryName}

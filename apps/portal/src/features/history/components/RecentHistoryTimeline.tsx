@@ -1,6 +1,6 @@
 import { useQueries } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Clock } from 'lucide-react'
+import { History } from 'lucide-react'
 import { useState } from 'react'
 import type { Hex } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -43,12 +43,12 @@ const RecentHistoryShell = ({
   readonly name: string
   readonly children: React.ReactNode
 }) => (
-  <div className="flex w-full min-w-0 flex-col gap-4">
+  <div className="flex w-full min-w-0 flex-col gap-3">
     <div className="flex min-h-7 items-center justify-between gap-4">
-      <h2 className="text-foreground text-h2">Recent History</h2>
+      <h2 className="text-foreground text-heading">Recent History</h2>
       <Button variant="outline" size="xs" asChild>
         <Link to="/$name/history" params={{ name }}>
-          <Clock className="size-4" />
+          <History className="size-4" />
           Full history
         </Link>
       </Button>

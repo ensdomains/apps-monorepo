@@ -140,6 +140,16 @@ type GetNameHistoryTimelineParameters = {
   readonly name: string
   readonly first?: number
   readonly orderDirection?: 'asc' | 'desc'
+  /**
+   * Restrict the feed to these event types, for the per-facet views (address
+   * resolution, ownership, …).
+   *
+   * This has to be applied in the query, not client-side: `first` bounds the
+   * *whole* feed, so a name with a lot of unrelated churn (fox.eth has 66
+   * `TextChanged`) pushes its handful of address events out of the window
+   * before any client-side filter gets to see them.
+   */
+  readonly eventTypes?: readonly string[]
 }
 
 type DomainWithEvents = { events: TimelineIndexerEvent[] }
@@ -166,7 +176,21 @@ export const HISTORY_TIMELINE_PAGE_SIZE = 100
  */
 const HISTORY_TIMELINE_CHILD_LIMIT = 25
 
-const HISTORY_TIMELINE_QUERY = gql`
+/**
+ * The event-type filter has to be inlined into the query text rather than
+ * passed as a variable: this indexer silently DROPS a `where` on the nested
+ * `events` field when its value arrives via variables (verified against
+ * staging for a list variable, a scalar variable and a whole-`EventFilter`
+ * variable — all returned the unfiltered feed, no error). Inline literals
+ * filter correctly, which is why the `subdomains` selection below already
+ * spells its own `type_in` out longhand.
+ *
+ * The values are our own constants, never user input.
+ */
+const eventTypeFilter = (eventTypes: readonly string[] | undefined) =>
+  eventTypes ? `where: { type_in: ${JSON.stringify(eventTypes)} }` : ''
+
+const buildHistoryTimelineQuery = (eventTypes?: readonly string[]) => gql`
   fragment TimelineEvent on Event {
     id
     type
@@ -202,10 +226,17 @@ const HISTORY_TIMELINE_QUERY = gql`
   ) {
     domains(where: { name: $name }, first: 1) {
       eventsCount
-      events(first: $first, orderBy: timestamp, orderDirection: $orderDirection) {
+      events(first: $first, orderBy: timestamp, orderDirection: $orderDirection ${eventTypeFilter(eventTypes)}) {
         ...TimelineEvent
       }
-      subdomains(first: ${HISTORY_TIMELINE_CHILD_LIMIT}) {
+      ${
+        // A child's registration is attributed to the parent on the full feed
+        // only. A scoped view asked for specific event types, and a subdomain
+        // `LabelRegistered` is never one of them — it has its own `type_in`, so
+        // it would otherwise slip past the scope filter entirely.
+        eventTypes
+          ? ''
+          : `subdomains(first: ${HISTORY_TIMELINE_CHILD_LIMIT}) {
         events(
           first: 1
           orderBy: timestamp
@@ -214,6 +245,7 @@ const HISTORY_TIMELINE_QUERY = gql`
         ) {
           ...TimelineEvent
         }
+      }`
       }
     }
   }
@@ -223,6 +255,7 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   name,
   first = HISTORY_TIMELINE_PAGE_SIZE,
   orderDirection = 'desc',
+  eventTypes,
 }: GetNameHistoryTimelineParameters) {
   const client = yield* safeGetClient()
   const normalizedName = (() => {
@@ -243,9 +276,9 @@ const getNameHistoryTimeline = ResultFn(async function* ({
         .request<{
           domains: (DomainWithEvents & {
             eventsCount: number
-            subdomains: DomainWithEvents[]
+            subdomains?: DomainWithEvents[]
           })[]
-        }>(HISTORY_TIMELINE_QUERY, {
+        }>(buildHistoryTimelineQuery(eventTypes), {
           name: normalizedName,
           first,
           orderDirection,
@@ -257,7 +290,7 @@ const getNameHistoryTimeline = ResultFn(async function* ({
           return {
             events: [
               ...domain.events,
-              ...domain.subdomains
+              ...(domain.subdomains ?? [])
                 .flatMap(({ events }) => events)
                 .filter((event) => !seen.has(event.id)),
             ],
@@ -279,7 +312,7 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     blocks: v1Raw.map((event) => BigInt(event.blockNumber)),
   })
 
-  const v1Events = adaptV1Events({
+  const v1EventsAll = adaptV1Events({
     events: v1Raw,
     blockTimestamps,
     name: normalizedName,
@@ -293,6 +326,14 @@ const getNameHistoryTimeline = ResultFn(async function* ({
         client.chain.contracts.ensBaseRegistrarImplementation.address,
     },
   })
+
+  // The v1 subgraph's event unions take no type filter, so the scope is applied
+  // after adapting — `adaptV1Events` is what renames some v1 types into their v2
+  // equivalents, so filtering any earlier would compare against the wrong
+  // vocabulary.
+  const v1Events = eventTypes
+    ? v1EventsAll.filter((event) => eventTypes.includes(event.type))
+    : v1EventsAll
 
   return ok(
     mergeTimeline({
