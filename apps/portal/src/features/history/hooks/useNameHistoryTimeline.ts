@@ -187,9 +187,6 @@ const HISTORY_TIMELINE_CHILD_LIMIT = 25
  *
  * The values are our own constants, never user input.
  */
-const eventTypeFilter = (eventTypes: readonly string[] | undefined) =>
-  eventTypes ? `where: { type_in: ${JSON.stringify(eventTypes)} }` : ''
-
 const buildHistoryTimelineQuery = (eventTypes?: readonly string[]) => gql`
   fragment TimelineEvent on Event {
     id
@@ -226,7 +223,7 @@ const buildHistoryTimelineQuery = (eventTypes?: readonly string[]) => gql`
   ) {
     domains(where: { name: $name }, first: 1) {
       eventsCount
-      events(first: $first, orderBy: timestamp, orderDirection: $orderDirection ${eventTypeFilter(eventTypes)}) {
+      events(first: $first, orderBy: timestamp, orderDirection: $orderDirection ${eventTypes ? `where: { type_in: ${JSON.stringify(eventTypes)} }` : ''}) {
         ...TimelineEvent
       }
       ${
@@ -270,7 +267,7 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   // Each source returns `[]` for a name the other owns, so an empty result is
   // normal and only a genuine failure rejects — same all-or-nothing behaviour
   // the page had before the timeline.
-  const [v2Events, v1Raw] = yield* fromPromise(
+  const [v2Result, v1Raw] = yield* fromPromise(
     Promise.all([
       graphqlIndexerClient
         .request<{
@@ -337,11 +334,11 @@ const getNameHistoryTimeline = ResultFn(async function* ({
 
   return ok(
     mergeTimeline({
-      v2Events: v2Events.events,
+      v2Events: v2Result.events,
       v1Events,
       first,
       orderDirection,
-      eventsCount: v2Events.eventsCount,
+      eventsCount: v2Result.eventsCount,
     }),
   )
 })

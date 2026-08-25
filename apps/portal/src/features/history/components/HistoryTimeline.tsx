@@ -10,41 +10,16 @@ import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilte
 import { Button } from '@/components/ui/button'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { buildEventTypeGroups, filterActions } from '../filterTimeline'
-import {
-  getNameHistoryTimelineQueryOptions,
-  type TimelineIndexerEvent,
-} from '../hooks/useNameHistoryTimeline'
+import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
 import { summarizeEvents } from '../summarize/summarizeEvents'
 import { ActionTimeline, TimelineFrame } from './ActionTimeline'
-
-/**
- * Narrow the feed to a facet of the name's history.
- *
- * Scoping reuses the event-type filter: an action shows when its transaction
- * touched one of the scoped types, and its other events stay in the detail view
- * so the row still describes the whole transaction. The Event chip narrows
- * *within* the scope, so its options come from the scoped events rather than
- * every type the name has ever emitted.
- */
-const applyScope = (
-  events: readonly TimelineIndexerEvent[] | undefined,
-  scope: readonly string[] | undefined,
-) => {
-  const all = events ?? []
-  return {
-    actions: filterActions(summarizeEvents(all), {}, scope ?? []),
-    eventTypeGroups: buildEventTypeGroups(
-      scope ? all.filter((event) => scope.includes(event.type)) : all,
-    ),
-  }
-}
 
 interface HistoryTimelineProps {
   readonly name: string
   /**
-   * Restrict the timeline to transactions containing at least one of these
-   * event types — how the per-facet views (address resolution, ownership, …)
-   * show their slice of the name's history. Omit for the full feed.
+   * Restrict the timeline to these event types — how the per-facet views
+   * (address resolution, ownership, …) show their slice of the name's history.
+   * Omit for the full feed.
    */
   readonly scope?: readonly string[]
   /** Left side of the header bar; defaults to the page-level "History" title. */
@@ -60,9 +35,9 @@ interface HistoryTimelineProps {
  * semantic actions, and renders the three-tier nested timeline with date / event-type
  * filters and an expand-all toggle.
  *
- * Every view runs the same per-name query, so a facet view is a cache hit off
- * whatever the Overview or History page already fetched; `scope` narrows the
- * summarized actions client-side rather than refetching a filtered feed.
+ * `scope` is pushed down into the query, so a facet view fetches only its own
+ * event types — `first` bounds the whole feed, and a name with unrelated churn
+ * would otherwise spend the window before its facet's events were reached.
  */
 export const HistoryTimeline = ({
   name,
@@ -81,7 +56,8 @@ export const HistoryTimeline = ({
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [openIds, setOpenIds] = useState<ReadonlySet<Hex>>(new Set())
 
-  const { actions, eventTypeGroups } = applyScope(events, scope)
+  const actions = summarizeEvents(events ?? [])
+  const eventTypeGroups = buildEventTypeGroups(events ?? [])
   const filteredActions = filterActions(actions, dateRange, selectedTypes)
 
   const allExpanded =
