@@ -333,6 +333,19 @@ const getNameHistoryTimeline = ResultFn(async function* ({
       orderDirection === 'asc'
         ? [...kept].sort((a, b) => b.timestamp - a.timestamp)
         : kept,
+    // Whether history exists beyond this window — which callers cannot work out
+    // from `events.length`, because truncating on a transaction boundary
+    // routinely returns fewer than `first` from a window that was in fact full,
+    // so a saturated read looks like a complete one from outside.
+    //
+    // `totalCount` answers the same question for v2 only — a v1-only name
+    // reports 0 — so this is the sole completeness signal for those names.
+    //
+    // It errs toward `true`: a window filled exactly by the name's oldest
+    // transaction reads as saturated without anything being left behind. That
+    // costs a "see full history" break that leads somewhere truthful, where
+    // erring the other way would hide history and claim the name has none.
+    hasMore: merged.length >= first || merged.length > kept.length,
     totalCount: v2Events.eventsCount,
   })
 })

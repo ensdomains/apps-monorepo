@@ -10,10 +10,7 @@ import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilte
 import { Button } from '@/components/ui/button'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { buildEventTypeGroups, filterActions } from '../filterTimeline'
-import {
-  getNameHistoryTimelineQueryOptions,
-  HISTORY_TIMELINE_PAGE_SIZE,
-} from '../hooks/useNameHistoryTimeline'
+import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
 import { summarizeEvents } from '../summarize/summarizeEvents'
 import { ActionTimeline, TimelineFrame } from './ActionTimeline'
 
@@ -119,7 +116,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
         />
       ) : (
         <TimelineFrame>
-          {events && events.length >= HISTORY_TIMELINE_PAGE_SIZE && (
+          {data?.hasMore && events && (
             <p className="mb-3 text-muted-foreground text-p">
               Showing the most recent {events.length} events.
             </p>

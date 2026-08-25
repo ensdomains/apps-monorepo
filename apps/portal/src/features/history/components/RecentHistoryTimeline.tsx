@@ -133,11 +133,15 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
       : undefined
   // The break is drawn on evidence of hidden history, not on having something to
   // pin, so a failed oldest-action query still leaves the link out correct.
-  // `totalCount` counts v2 events only, so the last clause can only ever
-  // under-report; the action comparison is what covers a v1-only name.
+  // `totalCount` counts v2 events only, so that clause can only ever
+  // under-report — `hasMore` is what covers a v1-only name, whose count is
+  // always 0. Without it, a name whose recent window is full but summarizes to
+  // no more than `RECENT_ACTION_LIMIT` actions would render as a complete
+  // history once the oldest-action query failed.
   const hasHiddenActions =
     pinnedAction !== undefined ||
     actions.length > recent.length ||
+    recentQuery.data.hasMore ||
     recentQuery.data.events.length < totalCount
 
   return (
