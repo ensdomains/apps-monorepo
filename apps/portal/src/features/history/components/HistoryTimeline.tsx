@@ -162,10 +162,11 @@ export const HistoryTimeline = ({
               one transaction, so counting events would put a figure above the
               list that nothing in it adds up to.
 
-              Shown in scoped views too: the per-facet window is where
-              truncation actually bites (the indexer exposes no cursor to page
-              past it), so suppressing this here would present a partial list
-              as the whole history. */}
+              Tied to `showFilters` because both mark a standalone History view:
+              there, the note is the only thing saying the window is capped (the
+              indexer exposes no cursor to page past it). An embedded section
+              hides both and discloses through its "Full history" link instead,
+              the way the Overview's preview does. */}
           {showFilters && data?.hasMore && (
             <p className="mb-3 text-muted-foreground text-p">
               Showing the most recent {filteredActions.length}
