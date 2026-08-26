@@ -8,7 +8,7 @@ import { namehash, normalize } from 'viem/ens'
 import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { truncateToTransactions } from '../truncateToTransactions'
+import { mergeTimeline } from '../mergeTimeline'
 import { adaptV1Events } from '../v1/adaptV1Events'
 import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
 
@@ -143,24 +143,6 @@ type GetNameHistoryTimelineParameters = {
 }
 
 type DomainWithEvents = { events: TimelineIndexerEvent[] }
-
-/**
- * The feed plus the name's total event count.
- *
- * The count is read from the indexer's `eventsCount` rather than the length of
- * `events`, which is bounded by `first` — a preview that renders a handful of
- * rows still needs to say how much history there is behind them.
- *
- * It counts v2 events only. The v1 subgraph exposes no total, and adding the
- * number of v1 events *fetched* would make the figure move with `first` (it
- * bounds each v1 collection separately) rather than describe the name. So a
- * name with v1 history reads low, and `0` means "no v2 history to count" —
- * callers should hide the figure rather than print a zero.
- */
-export type NameHistoryTimeline = {
-  readonly events: TimelineIndexerEvent[]
-  readonly totalCount: number
-}
 
 export const V1_PROTOCOL = 'v1'
 
@@ -312,42 +294,15 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     },
   })
 
-  // `first` bounds each source's query independently — one v2 collection plus
-  // one v1 collection per registry / registrar / resolver-the-name-ever-used —
-  // so the merge can hold several times it. Truncation happens on
-  // transaction boundaries because `summarizeEvents` groups by transaction: a
-  // half-included transaction would be summarized from a subset of its events.
-  // Truncate from the same end the caller ordered by: an `asc` request wants
-  // the name's *earliest* transactions, so cutting the tail off a desc-sorted
-  // merge would drop exactly what it asked for. Events always come back
-  // newest-first regardless, since that is the order the timeline renders.
-  const merged = [...v2Events.events, ...v1Events].sort((a, b) =>
-    orderDirection === 'asc'
-      ? a.timestamp - b.timestamp
-      : b.timestamp - a.timestamp,
+  return ok(
+    mergeTimeline({
+      v2Events: v2Events.events,
+      v1Events,
+      first,
+      orderDirection,
+      eventsCount: v2Events.eventsCount,
+    }),
   )
-  const kept = truncateToTransactions(merged, first)
-
-  return ok({
-    events:
-      orderDirection === 'asc'
-        ? [...kept].sort((a, b) => b.timestamp - a.timestamp)
-        : kept,
-    // Whether history exists beyond this window — which callers cannot work out
-    // from `events.length`, because truncating on a transaction boundary
-    // routinely returns fewer than `first` from a window that was in fact full,
-    // so a saturated read looks like a complete one from outside.
-    //
-    // `totalCount` answers the same question for v2 only — a v1-only name
-    // reports 0 — so this is the sole completeness signal for those names.
-    //
-    // It errs toward `true`: a window filled exactly by the name's oldest
-    // transaction reads as saturated without anything being left behind. That
-    // costs a "see full history" break that leads somewhere truthful, where
-    // erring the other way would hide history and claim the name has none.
-    hasMore: merged.length >= first || merged.length > kept.length,
-    totalCount: v2Events.eventsCount,
-  })
 })
 
 const getNameHistoryTimelineQueryKey = createQueryKey<

@@ -61,8 +61,9 @@ const RecentHistoryShell = ({
  * full History page, trimmed to the newest few actions with the oldest one
  * (usually the registration) pinned below a "see full history" gap.
  *
- * It runs the *same* query as `HistoryTimeline`, so opening Full history is a
- * cache hit rather than a second round trip.
+ * Its windows are much smaller than the History page's, so the two do not share
+ * a query key — opening Full history is a fresh fetch behind the rows already on
+ * screen, not a cache hit.
  */
 export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
   const [recentQuery, firstQuery] = useQueries({
@@ -118,7 +119,7 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
     )
   }
 
-  const { totalCount } = recentQuery.data
+  const { totalCount, hasV1History } = recentQuery.data
   const recent = actions.slice(0, RECENT_ACTION_LIMIT)
   // Summarized actions come back newest-first, so the name's first action is
   // the last one of the ascending window.
@@ -169,7 +170,9 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
                 >
                   full History
                 </Link>
-                {totalCount > 0 && ` (${totalCount} events)`}
+                {/* The count is v2-only, so a name with any v1 history would
+                    print a figure that omits all of it. */}
+                {totalCount > 0 && !hasV1History && ` (${totalCount} events)`}
               </div>
             </div>
             {pinnedAction && (
