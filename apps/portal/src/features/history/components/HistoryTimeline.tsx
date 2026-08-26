@@ -25,7 +25,7 @@ interface HistoryTimelineViewProps {
   /** Whether history exists beyond `events`, i.e. show the truncation note. */
   readonly hasMore?: boolean
   /** Whether `events` is one facet of a larger feed — wording of that note. */
-  readonly scoped?: boolean
+  readonly isScoped?: boolean
   /** Left side of the header bar; defaults to the page-level "History" title. */
   readonly heading?: ReactNode
   /** Rendered after the filter chips, e.g. a "Full history" link. */
@@ -54,7 +54,7 @@ interface HistoryTimelineViewProps {
 export const HistoryTimelineView = ({
   events,
   hasMore = false,
-  scoped = false,
+  isScoped = false,
   heading,
   action,
   showFilters = true,
@@ -164,7 +164,7 @@ export const HistoryTimelineView = ({
           {showFilters && hasMore && (
             <p className="mb-3 text-muted-foreground text-p">
               Showing the most recent {filteredActions.length}
-              {scoped ? ' matching' : ''} transactions.
+              {isScoped ? ' matching' : ''} transactions.
             </p>
           )}
           <ActionTimeline
@@ -181,7 +181,7 @@ export const HistoryTimelineView = ({
 interface HistoryTimelineProps
   extends Omit<
     HistoryTimelineViewProps,
-    'events' | 'hasMore' | 'scoped' | 'includeSubjectName'
+    'events' | 'hasMore' | 'isScoped' | 'includeSubjectName'
   > {
   readonly name: string
   /**
@@ -224,7 +224,7 @@ export const HistoryTimeline = ({
     <HistoryTimelineView
       events={data?.events ?? []}
       hasMore={data?.hasMore}
-      scoped={scope != null}
+      isScoped={scope != null}
       {...viewProps}
     />
   )
