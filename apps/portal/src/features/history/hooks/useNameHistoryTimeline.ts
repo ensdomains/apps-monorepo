@@ -192,7 +192,7 @@ const HISTORY_TIMELINE_CHILD_LIMIT = 25
  * `TimelineEventType` is what keeps that safe: only the timeline's own event
  * types can reach the query text, never a caller's string.
  */
-const TIMELINE_EVENT_FRAGMENT = `  fragment TimelineEvent on Event {
+export const TIMELINE_EVENT_FRAGMENT = `  fragment TimelineEvent on Event {
     id
     type
     name
