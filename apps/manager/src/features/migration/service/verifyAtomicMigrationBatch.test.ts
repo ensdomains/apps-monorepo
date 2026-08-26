@@ -520,9 +520,7 @@ describe('verifyAtomicMigrationBatch', () => {
       blockNumber: 789n,
     })
     expect(
-      readContract.mock.calls
-        .map(([request]) => request.functionName)
-        .toSorted(),
+      readContract.mock.calls.map(([request]) => request.functionName).sort(),
     ).toEqual([
       'getParent',
       'getState',
