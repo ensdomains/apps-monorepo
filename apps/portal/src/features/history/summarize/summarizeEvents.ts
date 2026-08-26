@@ -137,28 +137,29 @@ const describeGroup = (
   }
 }
 
-type SummarizeOptions = {
-  readonly includeSubjectName?: boolean
-}
-
 /** Turn a flat list of raw indexer events into tier-1 semantic actions, one per transaction. */
 export const summarizeEvents = (
   events: readonly TimelineIndexerEvent[],
-  { includeSubjectName = false }: SummarizeOptions = {},
+  /**
+   * `includeSubjectName` leads each row with the name it concerns, for feeds
+   * whose rows have different subjects (a registry's labels) — see
+   * `withSubjectName`.
+   */
+  {
+    includeSubjectName = false,
+  }: { readonly includeSubjectName?: boolean } = {},
 ): Action[] => {
   const relevant = events.filter((event) => !IGNORED_TYPES.has(event.type))
 
   const actions = groupByTransaction(relevant).map((group): Action => {
     const byRank = [...group].sort((a, b) => rankOf(b) - rankOf(a))
-    const described = describeGroup(group, byRank)
+    const { slots, ...described } = describeGroup(group, byRank)
     return {
       txHash: group[0].transactionHash,
       timestamp: Math.max(...group.map((event) => event.timestamp)),
       events: group,
       ...described,
-      slots: includeSubjectName
-        ? withSubjectName(described.slots, byRank[0])
-        : described.slots,
+      slots: includeSubjectName ? withSubjectName(slots, byRank[0]) : slots,
     }
   })
 

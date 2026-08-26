@@ -5,7 +5,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { HistoryTimelineView } from '@/features/history/components/HistoryTimeline'
 import { getNameRegistriesQueryOptions } from '../../hooks/useNameRegistryDiscovery'
-import { getRegistryHistoryTimelineQueryOptions } from '../../hooks/useRegistryEvents'
+import { getRegistryHistoryTimelineQueryOptions } from '../../hooks/useRegistryHistoryTimeline'
 
 /**
  * History timeline for a registry contract, given its address.
@@ -34,8 +34,8 @@ export const RegistryHistoryByAddress = ({
   if (error) {
     return (
       <ErrorMessage
-        compact
-        description="Error fetching registry history. Please refresh the page."
+        title="Error loading registry history"
+        description={error.cause?.message}
       />
     )
   }
