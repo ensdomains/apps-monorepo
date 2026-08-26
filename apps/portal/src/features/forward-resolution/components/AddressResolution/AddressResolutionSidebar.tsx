@@ -51,10 +51,16 @@ import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
 import { L1_VERIFICATION_LAG_ESTIMATES } from './networks'
 import type { AddressResolutionRow } from './types'
 
-// The sidebar's history covers address-record writes only. `AddrChanged` is
-// v1's ETH-only event and stays distinct from v2's multicoin `AddressChanged`
-// all the way through the timeline's descriptors, so both belong here or a v1
-// name's resolution history filters down to nothing.
+// Address-record writes only, forward direction. `AddrChanged` is v1's ETH-only
+// event and stays distinct from v2's multicoin `AddressChanged` all the way
+// through the timeline's descriptors, so both belong here or a v1 name's
+// resolution history filters down to nothing.
+//
+// `NameChanged` is deliberately absent: on a v1 resolver that is the *reverse*
+// record (`name()`), which answers "what name does this address claim", not
+// "what address does this name resolve to". It belongs to primary-name history,
+// and listing it here would put reverse writes under a forward-resolution
+// heading whose empty state promises address record changes.
 const ADDRESS_HISTORY_EVENT_TYPES = ['AddressChanged', 'AddrChanged'] as const
 
 const coinNetworkName = (coinType: number, fallback: string) => {

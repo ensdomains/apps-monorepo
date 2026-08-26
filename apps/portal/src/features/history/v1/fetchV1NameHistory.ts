@@ -71,7 +71,9 @@ const allResolverEvents = `events(first: $first, orderBy: blockNumber, orderDire
  * — or when the scope names a type with no collection above, in which case the
  * whole interface is selected and filtered client-side.
  */
-const scopedCollections = (eventTypes: readonly string[] | undefined) => {
+export const scopedCollections = (
+  eventTypes: readonly string[] | undefined,
+) => {
   if (!eventTypes) return null
   const entries = eventTypes.map((type) => V1_SCOPED_RESOLVER_EVENTS[type])
   if (entries.some((entry) => !entry)) return null
@@ -83,10 +85,39 @@ const scopedCollections = (eventTypes: readonly string[] | undefined) => {
 }
 
 /**
- * Fetch a name's v1 history as one flat event list — the registry / registrar /
- * resolver split is a quirk of the subgraph schema and carries no meaning once
- * the events are grouped by transaction. Returns `[]` (not an error) when the
- * subgraph has no record of the name, the common case for a v2-native name.
+ * Flatten the subgraph's registry / registrar / resolver split into one event
+ * list — the split is a quirk of the schema and carries no meaning once events
+ * are grouped by transaction.
+ *
+ * `cost` lives on the `Registration`, not on its `NameRegistered` event (the
+ * subgraph writes it from a second handler), so it is folded onto that event
+ * here — the adapter only ever sees events.
+ */
+export const flattenV1Response = (
+  { domain, resolvers }: V1SubgraphResult,
+  collections: ReturnType<typeof scopedCollections>,
+): V1SubgraphEvent[] => {
+  const cost = domain?.registration?.cost
+
+  return [
+    ...(domain?.events ?? []),
+    ...(domain?.registration?.events ?? []).map((event) =>
+      event.type === 'NameRegistered' ? { ...event, cost } : event,
+    ),
+    // Read back by the same keys the query asked for — `Object.values()` would
+    // sweep up any non-event field a later edit adds to this selection.
+    ...(resolvers ?? []).flatMap((resolver) =>
+      (collections?.map(({ collection }) => collection) ?? ['events']).flatMap(
+        (key) => resolver[key] ?? [],
+      ),
+    ),
+  ]
+}
+
+/**
+ * Fetch a name's v1 history as one flat event list. Returns `[]` (not an error)
+ * when the subgraph has no record of the name — the common case for a v2-native
+ * name.
  *
  * This deliberately does not go through ensjs's `getNameHistory`: that action
  * flattens `{ id }` references with `id.split('-')[0]`, which returns the chain
@@ -108,9 +139,7 @@ const scopedCollections = (eventTypes: readonly string[] | undefined) => {
  * event names its own resolver via `resolverId`, so the flat list stays
  * unambiguous.
  *
- * `cost` lives on the `Registration` entity rather than on the `NameRegistered`
- * event (the subgraph writes it from a second handler), so it is folded onto
- * that event here — the adapter only ever sees events.
+ * The response is shaped into that flat list by `flattenV1Response`.
  */
 export const fetchV1NameHistory = async ({
   subgraphUrl,
@@ -200,19 +229,5 @@ export const fetchV1NameHistory = async ({
     { id: namehash, first, resolvers: RESOLVERS_PER_NAME, orderDirection },
   )
 
-  const cost = domain?.registration?.cost
-
-  return [
-    ...(domain?.events ?? []),
-    ...(domain?.registration?.events ?? []).map((event) =>
-      event.type === 'NameRegistered' ? { ...event, cost } : event,
-    ),
-    // Read back by the same keys the query asked for — `Object.values()` would
-    // sweep up any non-event field a later edit adds to this selection.
-    ...(resolvers ?? []).flatMap((resolver) =>
-      (collections?.map(({ collection }) => collection) ?? ['events']).flatMap(
-        (key) => resolver[key] ?? [],
-      ),
-    ),
-  ]
+  return flattenV1Response({ domain, resolvers }, collections)
 }
