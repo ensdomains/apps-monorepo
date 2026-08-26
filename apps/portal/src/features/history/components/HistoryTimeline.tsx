@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { Button } from '@/components/ui/button'
@@ -81,7 +82,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
   return (
     <div className="flex w-full min-w-0 flex-col gap-4 sm:gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <h1 className="text-4xl">History</h1>
+        <PageHeading parent={{ type: 'name', name }}>History</PageHeading>
         <div className="flex flex-wrap items-center gap-2">
           <TableDateRangeFilter
             label="Date range"

@@ -14,6 +14,7 @@ import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import {
   InputGroup,
   InputGroupAddon,
@@ -95,7 +96,9 @@ function RouteComponent() {
     return (
       <>
         <header className="flex flex-col gap-4">
-          <h1 className="text-h1">Reverse resolution</h1>
+          <PageHeading parent={{ type: 'addr', addr: address }}>
+            Reverse resolution
+          </PageHeading>
         </header>
         <NoResultsMessage
           title="No reverse records yet"
@@ -109,7 +112,9 @@ function RouteComponent() {
     <>
       <header className="flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-h1">Reverse resolution</h1>
+          <PageHeading parent={{ type: 'addr', addr: address }}>
+            Reverse resolution
+          </PageHeading>
         </div>
         <InputGroup className="bg-background rounded-sm">
           <InputGroupInput

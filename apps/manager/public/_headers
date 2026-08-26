@@ -1,0 +1,6 @@
+# Static assets bypass the Start request middleware, so they don't get the
+# headers set in src/start.ts. CSP is document-level, so none needed here.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY

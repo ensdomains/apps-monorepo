@@ -14,6 +14,7 @@ import React, { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -205,11 +206,9 @@ export const SubnamesTable = ({
     <>
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row items-center gap-2">
-          <h1 className="text-h1 flex-1">
-            {subnames.length > 0
-              ? `${subnames.length} subname${subnames.length !== 1 ? 's' : ''}`
-              : 'Subnames'}
-          </h1>
+          <PageHeading parent={{ type: 'name', name }} className="flex-1">
+            {subnames.length > 0 ? `Subnames (${subnames.length})` : 'Subnames'}
+          </PageHeading>
           {canCreateSubname && (
             <Button variant="default" asChild>
               <Link to="/$name/create-subname" params={{ name }}>

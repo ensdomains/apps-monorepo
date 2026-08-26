@@ -6,7 +6,6 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { cn } from '@/lib/utils'
 import { parseLabelsAndParent } from '@/utils/ens/parseLabelsAndParent'
 import {
   filterEvmChains,
@@ -91,7 +90,7 @@ export const NameProfileCard = ({
       }
     >
       <NameAvatar name={name} />
-      <div className={cn('flex flex-col gap-4', stacked && 'max-w-35.5')}>
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-0.5">
           {!stacked && (
             <h2 className="text-h2 w-max">
