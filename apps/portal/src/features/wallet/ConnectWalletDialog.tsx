@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
 import { cn } from '@/lib/utils'
-import { wagmiConfig } from '@/lib/wagmi'
+import { APP_CHAINS } from '@/lib/wagmi'
 import {
   isCoinbase,
   isConnectionCancelled,
@@ -189,7 +189,10 @@ export const ConnectWalletDialog = ({
       // Connect on a supported chain so wallets that default to mainnet land on
       // the right chain from the first connect.
       const walletChainId = await connector.getChainId()
-      const chainId = resolveConnectChainId(walletChainId, wagmiConfig.chains)
+      // APP_CHAINS, not wagmiConfig.chains: the latter also lists mainnet to
+      // keep WalletConnect sessions settleable, and targeting it would strand a
+      // mainnet wallet there instead of switching it to Sepolia.
+      const chainId = resolveConnectChainId(walletChainId, APP_CHAINS)
       if (usesOwnModal) await syncWalletConnectTheme(connector)
       await connectAsync({ connector, chainId })
       onOpenChange(false)
