@@ -1,75 +1,67 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { ClockIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { NoResultsMessage } from '@/components/NoResultsMessage'
-import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
-import type { SubgraphEvent } from '@/utils/history/groupEventsByTransactionId'
+import { LoadingMessage } from '@/components/LoadingMessage'
+import { Button } from '@/components/ui/button'
+import { HistoryTimelineView } from '@/features/history/components/HistoryTimeline'
 import { getNameRegistriesQueryOptions } from '../../hooks/useNameRegistryDiscovery'
-import { getRegistryEventsQueryOptions } from '../../hooks/useRegistryEvents'
+import { getRegistryHistoryTimelineQueryOptions } from '../../hooks/useRegistryHistoryTimeline'
 
 /**
- * History table for a registry contract, given its address. Reuses
- * `NameSubgraphHistory` by mapping indexer `RegistryEvent`s onto the
- * `SubgraphEvent` shape it consumes via the `v2Events` prop — the events
- * already carry timestamps, so only the transaction sender ("From") is
- * fetched downstream.
+ * History timeline for a registry contract, given its address.
+ *
+ * Keyed on the contract rather than a name so it shows everything the registry
+ * emitted about its labels (subname registrations, subregistry links, role
+ * grants) — the name-keyed timeline would only return the slice the indexer
+ * attributes to the registry's own name.
  */
 export const RegistryHistoryByAddress = ({
   address,
-  name,
-  enableHeader,
+  heading,
+  action,
+  showFilters,
 }: {
   address: Address
-  name: string
-  enableHeader?: boolean
+  /** Left side of the header bar; defaults to the page-level "History" title. */
+  heading?: ReactNode
+  /** Rendered after the filter chips, e.g. a "Full history" link. */
+  action?: ReactNode
+  /** Show the date / event-type chips and the truncation note. */
+  showFilters?: boolean
 }) => {
-  const {
-    data: events,
-    isLoading: isLoadingEvents,
-    error: eventsError,
-  } = useQuery(getRegistryEventsQueryOptions({ address }))
+  const { data, isLoading, error } = useQuery(
+    getRegistryHistoryTimelineQueryOptions({ address }),
+  )
 
-  if (isLoadingEvents) {
-    return <LoadingSpinner title="Loading registry history..." />
-  }
-  if (eventsError) {
+  if (isLoading) return <LoadingMessage />
+  if (error) {
     return (
       <ErrorMessage
-        compact
-        description="Error fetching registry history. Please refresh the page."
+        title="Error loading registry history"
+        description={error.cause?.message}
       />
     )
   }
 
-  if (!events || events.length === 0)
-    return (
-      <NoResultsMessage
-        title="No history yet"
-        description="Events for this registry will appear here."
-        className="mx-0"
-      />
-    )
-
-  const v2Events: SubgraphEvent[] = events.map((event) => ({
-    transactionID: event.transactionHash,
-    blockNumber: event.blockNumber,
-    id: event.id,
-    type: event.type,
-    timestamp: BigInt(event.timestamp),
-  }))
-
   return (
-    <NameSubgraphHistory
-      name={name}
-      v2Events={v2Events}
-      enableHeader={enableHeader}
+    <HistoryTimelineView
+      events={data?.events ?? []}
+      hasMore={data?.hasMore}
+      includeSubjectName
+      heading={heading}
+      action={action}
+      showFilters={showFilters}
+      emptyTitle="No history yet"
+      emptyDescription="Events for this registry will appear here."
     />
   )
 }
 
 /**
- * History table for a name's own registry contract. Discovers the address
+ * History timeline for a name's own registry contract. Discovers the address
  * via `getNameRegistriesQueryOptions` (which returns registries ordered
  * `[name, ...ancestors, root]`, so the name's own registry is at index 0)
  * and delegates to `RegistryHistoryByAddress`.
@@ -83,20 +75,35 @@ export const RegistryHistory = ({ name }: { name: string }) => {
   const address = registries?.at(0) ?? null
   const hasRegistry = !!address && address !== zeroAddress
 
-  if (isLoadingRegistries) {
-    return <LoadingSpinner title="Loading registry history..." />
-  }
+  if (isLoadingRegistries) return <LoadingMessage />
 
   if (registriesError) {
     return (
       <ErrorMessage
-        compact
-        description="Error fetching registry history. Please refresh the page."
+        title="Error loading registry history"
+        description={registriesError.cause?.message}
       />
     )
   }
 
   if (!hasRegistry) return null
 
-  return <RegistryHistoryByAddress address={address} name={name} />
+  // An embedded section, so it hides the filter chips and truncation note and
+  // discloses through the "Full history" link instead — the same shape the
+  // resolver page and the registry overview use.
+  return (
+    <RegistryHistoryByAddress
+      address={address}
+      showFilters={false}
+      heading={<h2 className="text-caps text-foreground">History</h2>}
+      action={
+        <Button variant="outline" size="xs" asChild>
+          <Link to="/registry/$address/history" params={{ address }}>
+            <ClockIcon className="size-4" />
+            Full history
+          </Link>
+        </Button>
+      }
+    />
+  )
 }
