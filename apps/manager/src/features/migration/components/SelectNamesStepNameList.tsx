@@ -35,12 +35,14 @@ const NameTreeConnector = ({ isFirst, isLast }: NameTreeConnectorProps) => (
     {!isLast && (
       <span className="absolute top-0 -bottom-4 left-0 w-px bg-current" />
     )}
-    <span
-      className={cn(
-        'absolute left-0 w-7.5 rounded-bl-md border-current border-b border-l',
-        isFirst ? '-top-4 h-[34.5px]' : 'top-0 h-[18.5px]',
-      )}
-    />
+    <span className="absolute top-0 left-0 h-9.25 w-7.5">
+      <span
+        className={cn(
+          'absolute right-0 bottom-1/2 left-0 rounded-bl-md border-current border-b border-l',
+          isFirst ? '-top-4' : 'top-0',
+        )}
+      />
+    </span>
   </span>
 )
 
