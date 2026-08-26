@@ -9,6 +9,7 @@ import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { mergeTimeline } from '../mergeTimeline'
+import type { TimelineEventType } from '../summarize/descriptors'
 import { adaptV1Events } from '../v1/adaptV1Events'
 import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
 
@@ -140,6 +141,19 @@ type GetNameHistoryTimelineParameters = {
   readonly name: string
   readonly first?: number
   readonly orderDirection?: 'asc' | 'desc'
+  /**
+   * Restrict the feed to these event types, for the per-facet views (address
+   * resolution, ownership, …).
+   *
+   * This has to be applied in the query, not client-side: `first` bounds the
+   * *whole* feed, so a name with a lot of unrelated churn (fox.eth has 66
+   * `TextChanged`) pushes its handful of address events out of the window
+   * before any client-side filter gets to see them.
+   *
+   * Typed as a union rather than `string[]` because the values are inlined
+   * into the query text — see `buildHistoryTimelineQuery`.
+   */
+  readonly eventTypes?: readonly TimelineEventType[]
 }
 
 type DomainWithEvents = { events: TimelineIndexerEvent[] }
@@ -166,8 +180,19 @@ export const HISTORY_TIMELINE_PAGE_SIZE = 100
  */
 const HISTORY_TIMELINE_CHILD_LIMIT = 25
 
-const HISTORY_TIMELINE_QUERY = gql`
-  fragment TimelineEvent on Event {
+/**
+ * The event-type filter has to be inlined into the query text rather than
+ * passed as a variable: this indexer silently DROPS a `where` on the nested
+ * `events` field when its value arrives via variables (verified against
+ * staging for a list variable, a scalar variable and a whole-`EventFilter`
+ * variable — all returned the unfiltered feed, no error). Inline literals
+ * filter correctly, which is why the `subdomains` selection below already
+ * spells its own `type_in` out longhand.
+ *
+ * `TimelineEventType` is what keeps that safe: only the timeline's own event
+ * types can reach the query text, never a caller's string.
+ */
+const TIMELINE_EVENT_FRAGMENT = `  fragment TimelineEvent on Event {
     id
     type
     name
@@ -193,7 +218,12 @@ const HISTORY_TIMELINE_QUERY = gql`
     asNameUnwrapped { node owner }
     asFusesSet { node fuses }
     asExpiryUpdated { node tokenId expiry }
-  }
+  }`
+
+const buildHistoryTimelineQuery = (
+  eventTypes?: readonly TimelineEventType[],
+) => gql`
+  ${TIMELINE_EVENT_FRAGMENT}
 
   query getNameHistoryTimeline(
     $name: String!
@@ -202,10 +232,17 @@ const HISTORY_TIMELINE_QUERY = gql`
   ) {
     domains(where: { name: $name }, first: 1) {
       eventsCount
-      events(first: $first, orderBy: timestamp, orderDirection: $orderDirection) {
+      events(first: $first, orderBy: timestamp, orderDirection: $orderDirection ${eventTypes ? `where: { type_in: ${JSON.stringify(eventTypes)} }` : ''}) {
         ...TimelineEvent
       }
-      subdomains(first: ${HISTORY_TIMELINE_CHILD_LIMIT}) {
+      ${
+        // A child's registration is attributed to the parent on the full feed
+        // only. A scoped view asked for specific event types, and a subdomain
+        // `LabelRegistered` is never one of them — it has its own `type_in`, so
+        // it would otherwise slip past the scope filter entirely.
+        eventTypes
+          ? ''
+          : `subdomains(first: ${HISTORY_TIMELINE_CHILD_LIMIT}) {
         events(
           first: 1
           orderBy: timestamp
@@ -214,6 +251,7 @@ const HISTORY_TIMELINE_QUERY = gql`
         ) {
           ...TimelineEvent
         }
+      }`
       }
     }
   }
@@ -223,6 +261,7 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   name,
   first = HISTORY_TIMELINE_PAGE_SIZE,
   orderDirection = 'desc',
+  eventTypes,
 }: GetNameHistoryTimelineParameters) {
   const client = yield* safeGetClient()
   const normalizedName = (() => {
@@ -237,15 +276,15 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   // Each source returns `[]` for a name the other owns, so an empty result is
   // normal and only a genuine failure rejects — same all-or-nothing behaviour
   // the page had before the timeline.
-  const [v2Events, v1Raw] = yield* fromPromise(
+  const [v2Result, v1Raw] = yield* fromPromise(
     Promise.all([
       graphqlIndexerClient
         .request<{
           domains: (DomainWithEvents & {
             eventsCount: number
-            subdomains: DomainWithEvents[]
+            subdomains?: DomainWithEvents[]
           })[]
-        }>(HISTORY_TIMELINE_QUERY, {
+        }>(buildHistoryTimelineQuery(eventTypes), {
           name: normalizedName,
           first,
           orderDirection,
@@ -257,7 +296,7 @@ const getNameHistoryTimeline = ResultFn(async function* ({
           return {
             events: [
               ...domain.events,
-              ...domain.subdomains
+              ...(domain.subdomains ?? [])
                 .flatMap(({ events }) => events)
                 .filter((event) => !seen.has(event.id)),
             ],
@@ -269,6 +308,7 @@ const getNameHistoryTimeline = ResultFn(async function* ({
         namehash: node,
         first,
         orderDirection,
+        eventTypes,
       }),
     ]),
     (e) => new GetNameHistoryTimelineError({ cause: e as ClientError }),
@@ -279,28 +319,42 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     blocks: v1Raw.map((event) => BigInt(event.blockNumber)),
   })
 
-  const v1Events = adaptV1Events({
+  // Static chain constants, not lookups — the v1 subgraph records no emitting
+  // address, so the contract badge is reconstructed from these.
+  const v1Contracts = {
+    registry: client.chain.contracts.ensRegistry.address,
+    nameWrapper: client.chain.contracts.ensNameWrapper.address,
+    baseRegistrar:
+      client.chain.contracts.ensBaseRegistrarImplementation.address,
+  }
+
+  const v1EventsAll = adaptV1Events({
     events: v1Raw,
     blockTimestamps,
     name: normalizedName,
     namehash: node,
-    // Static chain constants, not lookups — the v1 subgraph records no
-    // emitting address, so the contract badge is reconstructed from these.
-    contracts: {
-      registry: client.chain.contracts.ensRegistry.address,
-      nameWrapper: client.chain.contracts.ensNameWrapper.address,
-      baseRegistrar:
-        client.chain.contracts.ensBaseRegistrarImplementation.address,
-    },
+    contracts: v1Contracts,
   })
+
+  // `fetchV1NameHistory` scopes resolver events in the query, but domain and
+  // registration events share one unscoped window, so they are dropped here.
+  // This runs after adapting because `adaptV1Events` is what renames some v1
+  // types into their v2 equivalents — filtering earlier would compare against
+  // the wrong vocabulary.
+  const scopedTypes = eventTypes && new Set<string>(eventTypes)
+  const v1Events = scopedTypes
+    ? v1EventsAll.filter((event) => scopedTypes.has(event.type))
+    : v1EventsAll
 
   return ok(
     mergeTimeline({
-      v2Events: v2Events.events,
+      v2Events: v2Result.events,
       v1Events,
       first,
       orderDirection,
-      eventsCount: v2Events.eventsCount,
+      // `eventsCount` is the name's whole history, so it describes `events`
+      // only on an unscoped read.
+      eventsCount: eventTypes ? undefined : v2Result.eventsCount,
     }),
   )
 })
