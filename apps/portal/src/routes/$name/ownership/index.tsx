@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { ClockIcon } from 'lucide-react'
 import { isAddressEqual } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import { Button } from '@/components/ui/button'
+import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
@@ -18,6 +19,31 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { useCanTransferName } from '@/features/transfer/hooks/useCanTransferName'
 import { is2LD, isRegistrable } from '@/utils/ens/tldHelpers'
+
+/**
+ * The ownership facet of the name's history: registration, renewals, expiry and
+ * every kind of owner change — the registry's owner, the registrar's registrant
+ * and the wrapper's owner/fuses. Resolver and record writes are the Resolver
+ * page's facet, so they stay out of this one.
+ *
+ * Named by the types the summarize engine sees, which for v1 means their
+ * post-adapter names — `adaptV1Events` renames the registry's `Transfer` to
+ * `RegistryTransfer` and `ExpiryExtended` to `ExpiryUpdated`.
+ */
+const OWNERSHIP_HISTORY_EVENT_TYPES = [
+  'LabelRegistered',
+  'NameRegistered',
+  'NameRenewed',
+  'ExpiryUpdated',
+  'NewOwner',
+  'Transfer',
+  'RegistryTransfer',
+  'NameTransferred',
+  'WrappedTransfer',
+  'NameWrapped',
+  'NameUnwrapped',
+  'FusesSet',
+] as const
 
 export const Route = createFileRoute('/$name/ownership/')({
   component: RouteComponent,
@@ -135,7 +161,21 @@ function RouteComponent() {
         )}
         <ParentName asRow name={name} />
       </div>
-      <NameSubgraphHistory category="domain" name={name} />
+      <HistoryTimeline
+        name={name}
+        scope={OWNERSHIP_HISTORY_EVENT_TYPES}
+        heading={<h2 className="text-caps text-foreground">History</h2>}
+        emptyTitle="No ownership history"
+        emptyDescription="Registrations, renewals and transfers for this name will appear here as they happen."
+        action={
+          <Button variant="outline" size="xs" asChild>
+            <Link to="/$name/history" params={{ name }}>
+              <ClockIcon className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
     </div>
   )
 }
