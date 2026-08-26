@@ -44,6 +44,7 @@ export const RegistryHistoryByAddress = ({
     <HistoryTimelineView
       events={data?.events ?? []}
       hasMore={data?.hasMore}
+      includeSubjectName
       heading={heading}
       action={action}
       emptyTitle="No history yet"

@@ -34,6 +34,11 @@ interface HistoryTimelineViewProps {
   readonly showFilters?: boolean
   readonly emptyTitle?: string
   readonly emptyDescription?: string
+  /**
+   * Prefix rows with the name they concern. For feeds whose rows have
+   * different subjects (a registry's labels) — see `summarizeEvents`.
+   */
+  readonly includeSubjectName?: boolean
 }
 
 /**
@@ -55,12 +60,13 @@ export const HistoryTimelineView = ({
   showFilters = true,
   emptyTitle = 'No history yet',
   emptyDescription = "This name doesn't have any recorded history. Activity will appear here once transactions are made.",
+  includeSubjectName = false,
 }: HistoryTimelineViewProps) => {
   const [dateRange, setDateRange] = useState<DateRange>({})
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [openIds, setOpenIds] = useState<ReadonlySet<Hex>>(new Set())
 
-  const actions = summarizeEvents(events)
+  const actions = summarizeEvents(events, { includeSubjectName })
   const eventTypeGroups = buildEventTypeGroups(events)
   const filteredActions = filterActions(actions, dateRange, selectedTypes)
 
@@ -173,7 +179,10 @@ export const HistoryTimelineView = ({
 }
 
 interface HistoryTimelineProps
-  extends Omit<HistoryTimelineViewProps, 'events' | 'hasMore' | 'scoped'> {
+  extends Omit<
+    HistoryTimelineViewProps,
+    'events' | 'hasMore' | 'scoped' | 'includeSubjectName'
+  > {
   readonly name: string
   /**
    * Restrict the timeline to these event types — how the per-facet views
