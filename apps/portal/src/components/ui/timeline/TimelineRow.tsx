@@ -2,6 +2,11 @@ import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { TimelineDisclosure } from './TimelineDisclosure'
 
+export type RailConnection = boolean | 'dashed'
+
+const DASHED_PATTERN =
+  'bg-fixed bg-[repeating-linear-gradient(to_bottom,var(--color-neutral-2)_0_5px,transparent_5px_10px)]'
+
 type TimelineRowProps = {
   readonly isOpen?: boolean
   readonly hoverHighlight?: boolean
@@ -9,20 +14,26 @@ type TimelineRowProps = {
   readonly className?: string
   readonly children: ReactNode
   readonly disclosure?: ReactNode
-  readonly connectRailAbove?: boolean
-  readonly connectRailBelow?: boolean
+  readonly connectRailAbove?: RailConnection
+  readonly connectRailBelow?: RailConnection
 }
 
-/** Skip toggle when the click landed on a nested link/button/chip action. */
 const isInteractiveTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
   target.closest('a,button,[data-stop-toggle]') !== null
 
-const Rail = ({ className }: { readonly className?: string }) => (
+export const Rail = ({
+  className,
+  connection = true,
+}: {
+  readonly className?: string
+  readonly connection?: RailConnection
+}) => (
   <span
     aria-hidden
     className={cn(
-      'pointer-events-none absolute left-(--rail-x) w-0.5 bg-neutral-2',
+      'pointer-events-none absolute left-(--rail-x) w-0.5',
+      connection === 'dashed' ? DASHED_PATTERN : 'bg-neutral-2',
       className,
     )}
   />
@@ -57,8 +68,12 @@ export const TimelineRow = ({
       <div
         className={cn('relative', connectRailBelow && !hasDisclosure && 'pb-2')}
       >
-        {connectRailAbove && <Rail className="top-0 h-1/2" />}
-        {connectRailBelow && <Rail className="top-1/2 bottom-0" />}
+        {connectRailAbove && (
+          <Rail className="top-0 h-1/2" connection={connectRailAbove} />
+        )}
+        {connectRailBelow && (
+          <Rail className="top-1/2 bottom-0" connection={connectRailBelow} />
+        )}
         {/* biome-ignore lint/a11y/useSemanticElements: cannot use <button> — row contains nested links/chips. */}
         <div
           role="button"
@@ -78,7 +93,9 @@ export const TimelineRow = ({
 
       {hasDisclosure && (
         <div className={cn('relative', connectRailBelow && 'pb-2')}>
-          {connectRailBelow && <Rail className="inset-y-0" />}
+          {connectRailBelow && (
+            <Rail className="inset-y-0" connection={connectRailBelow} />
+          )}
           <TimelineDisclosure isOpen={isOpen}>{disclosure}</TimelineDisclosure>
         </div>
       )}

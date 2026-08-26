@@ -8,7 +8,7 @@ import { namehash, normalize } from 'viem/ens'
 import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { truncateToTransactions } from '../truncateToTransactions'
+import { mergeTimeline } from '../mergeTimeline'
 import { adaptV1Events } from '../v1/adaptV1Events'
 import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
 
@@ -201,6 +201,7 @@ const HISTORY_TIMELINE_QUERY = gql`
     $orderDirection: OrderDirection
   ) {
     domains(where: { name: $name }, first: 1) {
+      eventsCount
       events(first: $first, orderBy: timestamp, orderDirection: $orderDirection) {
         ...TimelineEvent
       }
@@ -240,22 +241,28 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     Promise.all([
       graphqlIndexerClient
         .request<{
-          domains: (DomainWithEvents & { subdomains: DomainWithEvents[] })[]
+          domains: (DomainWithEvents & {
+            eventsCount: number
+            subdomains: DomainWithEvents[]
+          })[]
         }>(HISTORY_TIMELINE_QUERY, {
           name: normalizedName,
           first,
           orderDirection,
         })
         .then(({ domains: [domain] }) => {
-          if (!domain) return []
+          if (!domain) return { events: [], eventsCount: 0 }
           // A child's registration can also be attributed to the parent.
           const seen = new Set(domain.events.map((event) => event.id))
-          return [
-            ...domain.events,
-            ...domain.subdomains
-              .flatMap(({ events }) => events)
-              .filter((event) => !seen.has(event.id)),
-          ]
+          return {
+            events: [
+              ...domain.events,
+              ...domain.subdomains
+                .flatMap(({ events }) => events)
+                .filter((event) => !seen.has(event.id)),
+            ],
+            eventsCount: domain.eventsCount,
+          }
         }),
       fetchV1NameHistory({
         subgraphUrl: client.chain.subgraphs.ens.url,
@@ -287,16 +294,14 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     },
   })
 
-  // `first` bounds each source's query independently — one v2 collection plus
-  // one v1 collection per registry / registrar / resolver-the-name-ever-used —
-  // so the merge can hold several times it. Truncation happens on
-  // transaction boundaries because `summarizeEvents` groups by transaction: a
-  // half-included transaction would be summarized from a subset of its events.
   return ok(
-    truncateToTransactions(
-      [...v2Events, ...v1Events].sort((a, b) => b.timestamp - a.timestamp),
+    mergeTimeline({
+      v2Events: v2Events.events,
+      v1Events,
       first,
-    ),
+      orderDirection,
+      eventsCount: v2Events.eventsCount,
+    }),
   )
 })
 
