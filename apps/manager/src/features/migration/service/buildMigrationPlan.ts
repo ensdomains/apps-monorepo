@@ -76,7 +76,6 @@ export type MigrationPlan = {
   readonly hcaAddress: Address
   readonly hcaDeploymentRequired: boolean
   readonly migrationOwner: Address
-  readonly domains: readonly V1Domain[]
   readonly classified: readonly ClassifiedName[]
   /** Immutable selected tree used to keep deterministic registry routes on retry. */
   readonly registryContext: readonly ClassifiedName[]
@@ -98,8 +97,10 @@ const fetchProfilesForNames = async (params: {
   namesToOwnedPermRes: readonly ClassifiedName[]
   preflight: MigrationPreflight
   publicClient: PublicClient
+  signal?: AbortSignal
 }): Promise<Map<Hex, Profile>> => {
-  const { namesToOwnedPermRes, preflight, publicClient } = params
+  const { namesToOwnedPermRes, preflight, publicClient, signal } = params
+  signal?.throwIfAborted()
   if (namesToOwnedPermRes.length === 0 || preflight.skipFetchProfilesPhase) {
     return new Map()
   }
@@ -112,6 +113,7 @@ const fetchProfilesForNames = async (params: {
       })),
     publicClient,
     profileKeys: preflight.profileKeys,
+    signal,
   })
 }
 
@@ -280,6 +282,7 @@ const fetchLockedResolverProfiles = async (params: {
   readonly candidates: readonly LockedResolverReplacement[]
   readonly profileKeys: readonly V1ProfileKeys[]
   readonly publicClient: PublicClient
+  readonly signal?: AbortSignal
 }): Promise<ReadonlyMap<Hex, Profile>> => {
   try {
     return await fetchV1Profiles({
@@ -289,6 +292,7 @@ const fetchLockedResolverProfiles = async (params: {
       })),
       publicClient: params.publicClient,
       profileKeys: params.profileKeys,
+      signal: params.signal,
     })
   } catch (cause) {
     const first = params.candidates[0]
@@ -352,13 +356,17 @@ const assertLockedResolverProfilesEmpty = (
 export const assertLockedResolverReplacementRecordSafety = async (
   classified: readonly ClassifiedName[],
   publicClient: PublicClient,
+  signal?: AbortSignal,
 ): Promise<void> => {
+  signal?.throwIfAborted()
   const candidates = lockedResolverReplacementsWithoutAtomicReplay(classified)
   if (candidates.length === 0) return
 
   const result = await getV1ProfileKeys(
     candidates.map(({ name }) => name.domain.id),
+    { signal },
   )
+  signal?.throwIfAborted()
   if (result.isErr()) {
     const first = candidates[0]
     if (!first) return
@@ -377,7 +385,9 @@ export const assertLockedResolverReplacementRecordSafety = async (
     candidates,
     profileKeys: result.value,
     publicClient,
+    signal,
   })
+  signal?.throwIfAborted()
   assertLockedResolverProfilesEmpty(candidates, profiles)
 }
 
@@ -387,22 +397,36 @@ export const buildMigrationPlan = async (params: {
   migrationOwner: Address
   publicClient: PublicClient
   preflight: MigrationPreflight
+  signal?: AbortSignal
 }): Promise<MigrationPlan> => {
-  const { domains, hcaAddress, migrationOwner, publicClient, preflight } =
-    params
+  const {
+    domains,
+    hcaAddress,
+    migrationOwner,
+    publicClient,
+    preflight,
+    signal,
+  } = params
+  signal?.throwIfAborted()
 
   const classifiedNamesResult = classifyNames([...domains], migrationOwner)
   const classified = classifiedNamesResult.classified
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )
-  await assertLockedResolverReplacementRecordSafety(classified, publicClient)
+  await assertLockedResolverReplacementRecordSafety(
+    classified,
+    publicClient,
+    signal,
+  )
+  signal?.throwIfAborted()
   const directRoutes =
     preflight.directMigrationRoutes ??
     (await resolveDirectMigrationRoutes({
       publicClient,
       classified: directNames,
     }))
+  signal?.throwIfAborted()
   await assertCopyMigrationReadiness({
     publicClient,
     hca: hcaAddress,
@@ -410,6 +434,7 @@ export const buildMigrationPlan = async (params: {
     remaining: classified,
     registryContext: classified,
   })
+  signal?.throwIfAborted()
   const { ineligible } = classifiedNamesResult
   const groups = groupClassifiedNames([...classified])
   const namesToOwnedPermRes = classified.filter(
@@ -430,7 +455,9 @@ export const buildMigrationPlan = async (params: {
     namesToOwnedPermRes,
     preflight,
     publicClient,
+    signal,
   })
+  signal?.throwIfAborted()
 
   const classifiedByName = new Map(
     classified.map((name) => [name.domain.name, name] as const),
@@ -459,6 +486,7 @@ export const buildMigrationPlan = async (params: {
         innerExecutions,
       }),
   })
+  signal?.throwIfAborted()
 
   const approvals = preflight.migrationApprovals ?? []
   const hcaDeploymentRequired =
@@ -478,7 +506,6 @@ export const buildMigrationPlan = async (params: {
     hcaAddress,
     hcaDeploymentRequired,
     migrationOwner,
-    domains,
     classified,
     registryContext: classified,
     ineligible,
@@ -594,8 +621,10 @@ export const buildMigrationRecoveryPlan = async (params: {
   readonly hcaAddress: Address
   readonly migrationOwner: Address
   readonly publicClient: PublicClient
+  readonly signal?: AbortSignal
 }): Promise<MigrationPlan> => {
-  const { snapshot, hcaAddress, migrationOwner, publicClient } = params
+  const { snapshot, hcaAddress, migrationOwner, publicClient, signal } = params
+  signal?.throwIfAborted()
   const { registryContext, classified } = classifyMigrationRecoverySnapshot({
     snapshot,
     migrationOwner,
@@ -625,13 +654,16 @@ export const buildMigrationRecoveryPlan = async (params: {
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )
   await assertRequiredMigrationContractCode({ publicClient })
+  signal?.throwIfAborted()
   if (directNames.length > 0) {
     await assertMigrationHelperRuntimeCode({ publicClient })
+    signal?.throwIfAborted()
   }
   await assertLockedPublicResolverSetMembership({
     publicClient,
     names: registryContext,
   })
+  signal?.throwIfAborted()
   const [directRoutes, hcaReadiness, resolverReadiness] = await Promise.all([
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
     checkMigrationHcaReadiness({
@@ -645,6 +677,7 @@ export const buildMigrationRecoveryPlan = async (params: {
       wallet: migrationOwner,
     }),
   ])
+  signal?.throwIfAborted()
 
   const scope: MigrationBatchJournalScope = {
     chainId,
@@ -678,6 +711,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     registryContext,
     recordedAttemptNames,
   })
+  signal?.throwIfAborted()
 
   const classifiedByName = new Map(
     classified.map((name) => [name.domain.name, name] as const),
@@ -704,6 +738,7 @@ export const buildMigrationRecoveryPlan = async (params: {
         innerExecutions,
       }),
   })
+  signal?.throwIfAborted()
   const groups = groupClassifiedNames([...classified])
   const plannedApprovals = snapshot.plannedApprovals.map((approval) =>
     migrationApprovalForId({
@@ -727,24 +762,13 @@ export const buildMigrationRecoveryPlan = async (params: {
     hcaAddress,
     hcaDeploymentRequired,
     migrationOwner,
-    domains: classified.map(({ domain }) => domain),
     classified,
     registryContext,
     ineligible: [],
     groups,
     preflight: {
-      preExistingOwnedPermRes:
-        resolverReadiness.status === 'verified'
-          ? resolverReadiness.resolver
-          : null,
-      skipApprovalPhase: true,
       skipFetchProfilesPhase: true,
-      baseRegistrarApproved: true,
-      nameWrapperApproved: true,
       migrationApprovals: plannedApprovals,
-      requiresManagerRestoration: classified.some(
-        (name) => name.managerAddress !== null,
-      ),
       hcaResolverReadiness: resolverReadiness,
       ...(expectedOwnedPermRes
         ? { hcaResolverAddress: expectedOwnedPermRes }
@@ -771,13 +795,11 @@ export const adjustPlanForRetry = (
   const remainingClassified = plan.classified.filter(
     (c) => !migratedSet.has(c.domain.name),
   )
-  const remainingDomains = plan.domains.filter((d) => !migratedSet.has(d.name))
 
   if (remainingClassified.length === 0) {
     return {
       ...plan,
       classified: [],
-      domains: remainingDomains,
       atomicBatches: [],
       stepDescriptors: [],
     }
@@ -827,7 +849,6 @@ export const adjustPlanForRetry = (
   return {
     ...plan,
     classified: remainingClassified,
-    domains: remainingDomains,
     groups,
     atomicBatches: remainingAtomicBatches,
     stepDescriptors,

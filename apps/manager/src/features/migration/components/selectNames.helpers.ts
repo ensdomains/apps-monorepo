@@ -36,44 +36,32 @@ export const collectAllSelectable = (
   return all
 }
 
-export type NameTreeIndex = {
-  readonly ancestorsByName: ReadonlyMap<string, readonly string[]>
-  readonly subtreeNamesByName: ReadonlyMap<string, ReadonlySet<string>>
-}
-
-export const buildNameTreeIndex = (
+export const buildRootSubtreeIndex = (
   groups: readonly NameTreeNode[],
   orphans: readonly NameTreeNode[],
-): NameTreeIndex => {
-  const ancestorsByName = new Map<string, readonly string[]>()
-  const subtreeNamesByName = new Map<string, ReadonlySet<string>>()
-
-  const indexNode = (
-    node: NameTreeNode,
-    ancestors: readonly string[],
-  ): ReadonlySet<string> => {
-    const name = node.item.domain.name
-    ancestorsByName.set(name, ancestors)
-
-    const subtreeNames = new Set<string>([name])
+): ReadonlyMap<string, ReadonlySet<string>> => {
+  const rootSubtrees = new Map<string, ReadonlySet<string>>()
+  const collectSubtree = (node: NameTreeNode): ReadonlySet<string> => {
+    const subtreeNames = new Set<string>([node.item.domain.name])
     for (const child of node.children) {
-      const childSubtree = indexNode(child, [...ancestors, name])
+      const childSubtree = collectSubtree(child)
       for (const childName of childSubtree) subtreeNames.add(childName)
     }
-    subtreeNamesByName.set(name, subtreeNames)
     return subtreeNames
   }
 
-  for (const root of [...groups, ...orphans]) indexNode(root, [])
-  return { ancestorsByName, subtreeNamesByName }
+  for (const root of [...groups, ...orphans]) {
+    rootSubtrees.set(root.item.domain.name, collectSubtree(root))
+  }
+  return rootSubtrees
 }
 
-export const toggleTreeNode = (
+export const toggleRootSubtree = (
   prev: ReadonlySet<string>,
   name: string,
-  index: NameTreeIndex,
+  rootSubtrees: ReadonlyMap<string, ReadonlySet<string>>,
 ): Set<string> => {
-  const subtreeNames = index.subtreeNamesByName.get(name)
+  const subtreeNames = rootSubtrees.get(name)
   if (!subtreeNames) return new Set(prev)
 
   const next = new Set(prev)
@@ -82,9 +70,6 @@ export const toggleTreeNode = (
     return next
   }
 
-  for (const ancestor of index.ancestorsByName.get(name) ?? []) {
-    next.add(ancestor)
-  }
   for (const subtreeName of subtreeNames) next.add(subtreeName)
   return next
 }
@@ -119,11 +104,3 @@ const filterTreesBySearch = (
 export const filterGroupsBySearch = filterTreesBySearch
 
 export const filterOrphansBySearch = filterTreesBySearch
-
-const countTreeRows = (nodes: readonly NameTreeNode[]): number =>
-  nodes.reduce((count, node) => count + 1 + countTreeRows(node.children), 0)
-
-export const countVisibleRows = (
-  groups: readonly NameTreeNode[],
-  orphans: readonly NameTreeNode[],
-): number => countTreeRows(groups) + countTreeRows(orphans)

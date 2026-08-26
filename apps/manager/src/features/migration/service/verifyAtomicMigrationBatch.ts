@@ -9,7 +9,6 @@ import {
 
 import type {
   AtomicMigrationBatch,
-  AtomicMigrationBatchVerification,
   AtomicMigrationRegistryPath,
   AtomicMigrationVerificationExpectation,
 } from './buildAtomicMigrationBatches'
@@ -44,10 +43,14 @@ const wrapperRegistryReadAbi = parseAbi([
   'function getWrappedNode() view returns (bytes32)',
 ])
 
-export type ConfirmedAtomicMigrationBatchVerification = Extract<
-  AtomicMigrationBatchVerification,
-  { readonly status: 'confirmed' }
->
+export type ConfirmedAtomicMigrationBatchVerification = {
+  readonly batchIndex: number
+  readonly status: 'confirmed'
+  readonly results: readonly {
+    readonly expectationId: string
+    readonly satisfied: boolean
+  }[]
+}
 
 export type AtomicMigrationExpectationFailure = {
   readonly expectationId: string

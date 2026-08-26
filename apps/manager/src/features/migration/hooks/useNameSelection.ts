@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  buildNameTreeIndex,
+  buildRootSubtreeIndex,
   collectAllSelectable,
-  countVisibleRows,
   filterGroupsBySearch,
   filterOrphansBySearch,
-  toggleTreeNode,
+  toggleRootSubtree,
 } from '../components/selectNames.helpers'
 import type { ClassifiedName } from '../service/classifyNames'
 import { groupByParent } from '../service/groupByParent'
@@ -25,8 +24,8 @@ export const useNameSelection = ({
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const { groups, orphans } = useMemo(() => groupByParent(eligible), [eligible])
-  const treeIndex = useMemo(
-    () => buildNameTreeIndex(groups, orphans),
+  const rootSubtrees = useMemo(
+    () => buildRootSubtreeIndex(groups, orphans),
     [groups, orphans],
   )
   const allSelectable = useMemo(
@@ -65,12 +64,12 @@ export const useNameSelection = ({
   const toggleName = useCallback(
     (name: string) => {
       setSelected((prev) => {
-        const next = toggleTreeNode(prev, name, treeIndex)
+        const next = toggleRootSubtree(prev, name, rootSubtrees)
         onNamesChange([...next])
         return next
       })
     },
-    [onNamesChange, treeIndex],
+    [onNamesChange, rootSubtrees],
   )
 
   const toggleAll = useCallback(() => {
@@ -84,7 +83,6 @@ export const useNameSelection = ({
     })
   }, [allSelectable, onNamesChange])
 
-  const allSelectableCount = countVisibleRows(groups, orphans)
   const currentSelected = useMemo(
     () => new Set([...selected].filter((name) => allSelectable.has(name))),
     [allSelectable, selected],
@@ -98,7 +96,7 @@ export const useNameSelection = ({
     setSearch,
     selected: currentSelected,
     totalSelected: currentSelected.size,
-    visibleCount: allSelectableCount,
+    visibleCount: allSelectable.size,
     allSelected,
     filteredGroups,
     filteredOrphans,

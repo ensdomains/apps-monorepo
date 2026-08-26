@@ -93,8 +93,6 @@ export type AtomicMigrationRegistryPath =
       readonly type: 'parent-subregistry'
       readonly rootRegistry: Address
       readonly parentName: string
-      /** Labels traversed from ETHRegistry to the immediate parent registry. */
-      readonly parentLabels: readonly string[]
       readonly label: string
       readonly resource: bigint
     }
@@ -340,22 +338,6 @@ export type EstimateAtomicMigrationOuterGas = (
   request: AtomicMigrationOuterGasEstimateRequest,
 ) => bigint | Promise<bigint>
 
-export type AtomicMigrationExpectationResult = {
-  readonly expectationId: string
-  readonly satisfied: boolean
-}
-
-export type AtomicMigrationBatchVerification =
-  | {
-      readonly batchIndex: number
-      readonly status: 'reverted'
-    }
-  | {
-      readonly batchIndex: number
-      readonly status: 'confirmed'
-      readonly results: readonly AtomicMigrationExpectationResult[]
-    }
-
 export class AtomicMigrationNameGasLimitExceededError extends Error {
   readonly ensName: string
   readonly estimatedGas: bigint
@@ -428,7 +410,6 @@ const registryPathFor = (name: ClassifiedName): AtomicMigrationRegistryPath => {
     type: 'parent-subregistry',
     rootRegistry: V2_CONTRACTS.ETHRegistry,
     parentName: name.parentName,
-    parentLabels: name.parentName.split('.').slice(0, -1).reverse(),
     label: name.label,
     resource,
   }

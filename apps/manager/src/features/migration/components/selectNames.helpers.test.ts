@@ -3,16 +3,15 @@ import { makeClassified } from '../service/_fixtures'
 import type { ClassifiedName } from '../service/classifyNames'
 import type { NameTreeNode } from '../service/groupByParent'
 import {
-  buildNameTreeIndex,
+  buildRootSubtreeIndex,
   collectAllSelectable,
-  countVisibleRows,
   filterGroupsBySearch,
   filterOrphansBySearch,
   shouldShowBulkSelection,
   shouldShowNameSearch,
   shouldUseCompactSelectionLayout,
   shouldUseSmallSelectionCard,
-  toggleTreeNode,
+  toggleRootSubtree,
 } from './selectNames.helpers'
 
 const name = (
@@ -68,49 +67,45 @@ describe('collectAllSelectable', () => {
   })
 })
 
-describe('buildNameTreeIndex', () => {
-  it('indexes ancestors and complete subtrees once', () => {
-    const index = buildNameTreeIndex([groupedTree], [])
+describe('buildRootSubtreeIndex', () => {
+  it('indexes each interactive root with its complete subtree', () => {
+    const index = buildRootSubtreeIndex([groupedTree], [tree('orphan.eth')])
 
-    expect(index.ancestorsByName.get('deep.x.a.eth')).toEqual([
-      'a.eth',
-      'x.a.eth',
-    ])
-    expect(index.subtreeNamesByName.get('x.a.eth')).toEqual(
-      new Set(['x.a.eth', 'deep.x.a.eth']),
+    expect(index.get('a.eth')).toEqual(
+      new Set(['a.eth', 'x.a.eth', 'deep.x.a.eth', 'y.a.eth']),
     )
+    expect(index.get('orphan.eth')).toEqual(new Set(['orphan.eth']))
+    expect(index.has('x.a.eth')).toBe(false)
   })
 })
 
-describe('toggleTreeNode', () => {
-  const index = buildNameTreeIndex([groupedTree], [])
-
-  it('selects a node, its required ancestors, and its subtree', () => {
-    expect(toggleTreeNode(new Set(), 'x.a.eth', index)).toEqual(
-      new Set(['a.eth', 'x.a.eth', 'deep.x.a.eth']),
-    )
-  })
+describe('toggleRootSubtree', () => {
+  const index = buildRootSubtreeIndex([groupedTree], [])
 
   it('selects the entire tree when selecting its root', () => {
-    expect(toggleTreeNode(new Set(), 'a.eth', index)).toEqual(
+    expect(toggleRootSubtree(new Set(), 'a.eth', index)).toEqual(
       new Set(['a.eth', 'x.a.eth', 'deep.x.a.eth', 'y.a.eth']),
     )
   })
 
-  it('deselects only the node subtree and preserves ancestors and siblings', () => {
-    const selected = new Set(['a.eth', 'x.a.eth', 'deep.x.a.eth', 'y.a.eth'])
+  it('deselects the entire root subtree and preserves other selections', () => {
+    const selected = new Set([
+      'a.eth',
+      'x.a.eth',
+      'deep.x.a.eth',
+      'y.a.eth',
+      'other.eth',
+    ])
 
-    expect(toggleTreeNode(selected, 'x.a.eth', index)).toEqual(
-      new Set(['a.eth', 'y.a.eth']),
+    expect(toggleRootSubtree(selected, 'a.eth', index)).toEqual(
+      new Set(['other.eth']),
     )
-    expect(selected).toEqual(
-      new Set(['a.eth', 'x.a.eth', 'deep.x.a.eth', 'y.a.eth']),
-    )
+    expect(selected.has('a.eth')).toBe(true)
   })
 
   it('returns an unchanged copy when the name is not indexed', () => {
     const selected = new Set(['a.eth'])
-    const next = toggleTreeNode(selected, 'missing.eth', index)
+    const next = toggleRootSubtree(selected, 'missing.eth', index)
 
     expect(next).toEqual(selected)
     expect(next).not.toBe(selected)
@@ -166,21 +161,6 @@ describe('filterOrphansBySearch', () => {
     expect(filtered[0]?.children[0]?.item.domain.name).toBe(
       'deep.one.missing.eth',
     )
-  })
-})
-
-describe('countVisibleRows', () => {
-  it('counts every recursive group and orphan row', () => {
-    expect(
-      countVisibleRows(
-        [groupedTree, tree('b.eth')],
-        [tree('o.missing.eth', [tree('deep.o.missing.eth')])],
-      ),
-    ).toBe(7)
-  })
-
-  it('is zero for no input', () => {
-    expect(countVisibleRows([], [])).toBe(0)
   })
 })
 

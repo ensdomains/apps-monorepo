@@ -15,11 +15,7 @@ vi.mock('wagmi', async (importOriginal) => {
 vi.mock('@/features/migration/service/computeMigrationPreflight', () => ({
   computeMigrationPreflight: vi.fn(),
   EMPTY_PREFLIGHT: {
-    preExistingOwnedPermRes: null,
-    skipApprovalPhase: false,
     skipFetchProfilesPhase: false,
-    baseRegistrarApproved: false,
-    nameWrapperApproved: false,
   },
 }))
 
@@ -63,11 +59,7 @@ describe('useMigrationPreflight', () => {
     )
     const preflight = await result.current.ensure([domain('alice')])
     expect(preflight).toEqual({
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
     })
     expect(computeMigrationPreflightMock).not.toHaveBeenCalled()
   })
@@ -80,39 +72,26 @@ describe('useMigrationPreflight', () => {
     })
     const preflight = await result.current.ensure([domain('alice')])
     expect(preflight).toEqual({
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
     })
     expect(computeMigrationPreflightMock).not.toHaveBeenCalled()
   })
 
   it('delegates to computeMigrationPreflight and returns its result', async () => {
     computeMigrationPreflightMock.mockResolvedValueOnce({
-      preExistingOwnedPermRes:
-        '0x00000000000000000000000000000000000000f0' as const,
-      skipApprovalPhase: true,
       skipFetchProfilesPhase: true,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
     })
     const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
       wrapper,
     })
     const preflight = await result.current.ensure([domain('alice')])
-    expect(preflight.skipApprovalPhase).toBe(true)
+    expect(preflight.skipFetchProfilesPhase).toBe(true)
     expect(computeMigrationPreflightMock).toHaveBeenCalledTimes(1)
   })
 
   it('caches across calls with the same inputs (no duplicate compute)', async () => {
     computeMigrationPreflightMock.mockResolvedValue({
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
     })
     const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
       wrapper,
@@ -125,11 +104,7 @@ describe('useMigrationPreflight', () => {
 
   it('cache key is invariant under domain ordering (sorts ids)', async () => {
     computeMigrationPreflightMock.mockResolvedValue({
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
     })
     const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
       wrapper,
@@ -141,11 +116,7 @@ describe('useMigrationPreflight', () => {
 
   it('recomputes cached preflight when requested with staleTime 0', async () => {
     computeMigrationPreflightMock.mockResolvedValue({
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
     })
     const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
       wrapper,

@@ -1,6 +1,6 @@
 // biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: this hook keeps standard preview, durable recovery, account readiness, and query result states in one stable hook order.
 import { useQuery } from '@tanstack/react-query'
-import { useRef } from 'react'
+import { useMemo } from 'react'
 import { type Address, formatEther, type PublicClient } from 'viem'
 import { usePublicClient } from 'wagmi'
 import {
@@ -37,12 +37,30 @@ type UseMigrationGasEstimateParams = {
   readonly enabled?: boolean
 }
 
+const GAS_ESTIMATE_QUIET_PERIOD_MS = 200
+
 const selectDomainsFromNames = (
   v1Names: readonly V1Domain[],
-  selectedNames: readonly string[],
+  selectedNames: ReadonlySet<string>,
 ): V1Domain[] => {
-  const selected = new Set(selectedNames)
-  return v1Names.filter((domain) => selected.has(domain.name))
+  return v1Names.filter((domain) => selectedNames.has(domain.name))
+}
+
+const waitForStableSelection = (signal: AbortSignal): Promise<void> => {
+  signal.throwIfAborted()
+
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      signal.removeEventListener('abort', handleAbort)
+      resolve()
+    }, GAS_ESTIMATE_QUIET_PERIOD_MS)
+    const handleAbort = () => {
+      clearTimeout(timeoutId)
+      reject(signal.reason)
+    }
+
+    signal.addEventListener('abort', handleAbort, { once: true })
+  })
 }
 
 const formatEstimatedEth = (wei: bigint): string => {
@@ -59,12 +77,17 @@ const buildEstimate = async (params: {
   readonly recoverySnapshot: MigrationRecoverySnapshot | null
   readonly recoverySelectionMatches: boolean
   readonly domains: readonly V1Domain[]
+  readonly signal: AbortSignal
   readonly ensurePreflight: (
     domains: readonly V1Domain[],
-    options: { readonly staleTime: number },
+    options: {
+      readonly signal: AbortSignal
+      readonly staleTime: number
+    },
   ) => Promise<MigrationPreflight>
 }) => {
   const { ownerAddress, hcaAddress, publicClient } = params
+  params.signal.throwIfAborted()
   if (!ownerAddress || !hcaAddress || !publicClient) {
     throw new Error(
       'Cannot estimate migration gas without a wallet and HCA address',
@@ -81,21 +104,29 @@ const buildEstimate = async (params: {
       hcaAddress,
       migrationOwner: ownerAddress,
       publicClient,
+      signal: params.signal,
     })
+    params.signal.throwIfAborted()
     const estimate = await estimateMigrationGasCost({ plan, publicClient })
+    params.signal.throwIfAborted()
     return { estimate, plan }
   }
   const preflight = await params.ensurePreflight(params.domains, {
+    signal: params.signal,
     staleTime: 0,
   })
+  params.signal.throwIfAborted()
   const plan = await buildMigrationPlan({
     domains: params.domains,
     hcaAddress,
     migrationOwner: ownerAddress,
     publicClient,
     preflight,
+    signal: params.signal,
   })
+  params.signal.throwIfAborted()
   const estimate = await estimateMigrationGasCost({ plan, publicClient })
+  params.signal.throwIfAborted()
   return { estimate, plan }
 }
 
@@ -114,20 +145,29 @@ export const useMigrationGasEstimate = ({
   })
   const recoverySnapshot = useMigrationRecoverySnapshot()
 
-  const domains = recoverySnapshot
-    ? recoverySnapshot.registryDomains
-    : selectDomainsFromNames(v1Names, selectedNames)
-  const domainIds = domains
-    .map((domain) => domain.id)
-    .sort()
-    .join(',')
-  const selectionRevisionRef = useRef({ domainIds: '', revision: 0 })
-  if (selectionRevisionRef.current.domainIds !== domainIds) {
-    selectionRevisionRef.current = {
-      domainIds,
-      revision: selectionRevisionRef.current.revision + 1,
-    }
-  }
+  const selectedNameSet = useMemo(() => new Set(selectedNames), [selectedNames])
+  const selectedNamesKey = useMemo(
+    () => [...selectedNames].sort(),
+    [selectedNames],
+  )
+  const domains = useMemo(
+    () =>
+      recoverySnapshot
+        ? recoverySnapshot.registryDomains
+        : selectDomainsFromNames(v1Names, selectedNameSet),
+    [recoverySnapshot, selectedNameSet, v1Names],
+  )
+  const domainIds = useMemo(
+    () => domains.map((domain) => domain.id).sort(),
+    [domains],
+  )
+  const recoveryOperations = useMemo(
+    () =>
+      recoverySnapshot?.remainingOperations.map(
+        ({ name, action }) => `${action}:${name}`,
+      ) ?? [],
+    [recoverySnapshot],
+  )
   const enabled =
     estimateEnabled &&
     !!ownerAddress &&
@@ -139,28 +179,28 @@ export const useMigrationGasEstimate = ({
     !recoverySnapshot ||
     (selectedNames.length === recoverySnapshot.remainingOperations.length &&
       recoverySnapshot.remainingOperations.every(({ name }) =>
-        selectedNames.includes(name),
+        selectedNameSet.has(name),
       ))
 
   const query = useQuery({
     queryKey: [
       'migration-gas-estimate',
-      ownerAddress?.toLowerCase() ?? '',
-      hcaAddress?.toLowerCase() ?? '',
-      domainIds,
-      selectionRevisionRef.current.revision,
-      recoverySnapshot
-        ? recoverySnapshot.remainingOperations
-            .map(({ name, action }) => `${action}:${name}`)
-            .join(',')
-        : '',
+      {
+        ownerAddress: ownerAddress?.toLowerCase() ?? '',
+        hcaAddress: hcaAddress?.toLowerCase() ?? '',
+        domainIds,
+        selectedNames: selectedNamesKey,
+        recoveryOperations,
+      },
     ] as const,
     enabled,
+    gcTime: 0,
     staleTime: 0,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    queryFn: () =>
-      buildEstimate({
+    queryFn: async ({ signal }) => {
+      await waitForStableSelection(signal)
+      return buildEstimate({
         ownerAddress,
         hcaAddress,
         publicClient: publicClient as unknown as PublicClient | undefined,
@@ -168,7 +208,9 @@ export const useMigrationGasEstimate = ({
         recoverySelectionMatches,
         domains,
         ensurePreflight,
-      }),
+        signal,
+      })
+    },
   })
 
   if (!enabled) {
@@ -186,7 +228,7 @@ export const useMigrationGasEstimate = ({
     }
     return { status: 'idle' }
   }
-  if (query.isPending) return { status: 'loading' }
+  if (query.isPending || query.isFetching) return { status: 'loading' }
   if (query.isError || query.data?.estimate.status === 'error')
     return { status: 'error' }
   if (!query.data) return { status: 'idle' }

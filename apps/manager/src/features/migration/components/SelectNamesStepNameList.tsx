@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { type CSSProperties, memo } from 'react'
 import { match } from 'ts-pattern'
 import type { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import type { NameTreeNode } from '@/features/migration/service/groupByParent'
@@ -26,6 +27,12 @@ type NameTreeConnectorProps = {
   readonly isFirst: boolean
   readonly isLast: boolean
 }
+
+const LARGE_LIST_THRESHOLD = 100
+const OFFSCREEN_ROW_STYLE = {
+  containIntrinsicBlockSize: 'auto 37px',
+  contentVisibility: 'auto',
+} satisfies CSSProperties
 
 const NameTreeConnector = ({ isFirst, isLast }: NameTreeConnectorProps) => (
   <span
@@ -65,17 +72,22 @@ const NameTreeRows = ({
       const name = node.item.domain.name
       const isFirst = index === 0
       const isLast = index === nodes.length - 1
+      const shouldDeferOffscreenRow =
+        depth === 0 &&
+        nodes.length >= LARGE_LIST_THRESHOLD &&
+        node.children.length === 0
       return (
         <li
           className={cn('relative min-w-0', depth > 0 && 'pl-7.5')}
           key={node.item.domain.id}
+          style={shouldDeferOffscreenRow ? OFFSCREEN_ROW_STYLE : undefined}
         >
           {depth > 0 && <NameTreeConnector isFirst={isFirst} isLast={isLast} />}
           <NameRow
             depth={depth}
             isSelected={selected.has(name)}
             item={node.item}
-            onClick={depth === 0 ? () => toggleName(name) : undefined}
+            onToggle={depth === 0 ? toggleName : undefined}
           />
           {node.children.length > 0 && (
             <NameTreeRows
@@ -91,7 +103,7 @@ const NameTreeRows = ({
   </ul>
 )
 
-export const SelectNamesStepNameList = ({
+const SelectNamesStepNameListComponent = ({
   filteredGroups,
   filteredOrphans,
   isPending,
@@ -126,3 +138,5 @@ export const SelectNamesStepNameList = ({
         toggleName={toggleName}
       />
     ))
+
+export const SelectNamesStepNameList = memo(SelectNamesStepNameListComponent)

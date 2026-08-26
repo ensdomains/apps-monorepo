@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { ClassifiedName } from '../service/classifyNames'
 import { getMigrationAvatarUrl } from './nameAvatar.helpers'
@@ -8,10 +8,15 @@ type NameRowProps = {
   readonly item: ClassifiedName
   readonly isSelected: boolean
   readonly depth: number
-  readonly onClick?: () => void
+  readonly onToggle?: (name: string) => void
 }
 
-export const NameRow = ({ item, isSelected, depth, onClick }: NameRowProps) => {
+const NameRowComponent = ({
+  item,
+  isSelected,
+  depth,
+  onToggle,
+}: NameRowProps) => {
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
   const avatarUrl = getMigrationAvatarUrl(item.domain.name)
   const isNested = depth > 0
@@ -48,6 +53,8 @@ export const NameRow = ({ item, isSelected, depth, onClick }: NameRowProps) => {
             alt=""
             aria-hidden
             className="absolute inset-0 size-full rounded-sm object-cover"
+            decoding="async"
+            loading="lazy"
             onError={() => setFailedAvatarUrl(avatarUrl)}
             src={avatarUrl}
           />
@@ -84,7 +91,7 @@ export const NameRow = ({ item, isSelected, depth, onClick }: NameRowProps) => {
       aria-label={item.domain.name}
       aria-pressed={isSelected}
       className={rowClass}
-      onClick={onClick}
+      onClick={() => onToggle?.(item.domain.name)}
       title={item.domain.name}
       type="button"
     >
@@ -92,3 +99,5 @@ export const NameRow = ({ item, isSelected, depth, onClick }: NameRowProps) => {
     </button>
   )
 }
+
+export const NameRow = memo(NameRowComponent)

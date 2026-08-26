@@ -76,17 +76,12 @@ const makePlan = (
     hcaAddress: SCA,
     hcaDeploymentRequired: false,
     migrationOwner: OWNER,
-    domains,
     classified,
     registryContext: classified,
     ineligible: [],
     groups: EMPTY_GROUPS,
     preflight: {
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
     },
     ownedPermRes: null,
     profiles: new Map(),
@@ -174,7 +169,7 @@ describe('migrationUiMachine', () => {
       executeMigrationMock.mockImplementation(() => new Promise(() => {}))
       const actor = start()
       expect(actor.getSnapshot().value).toEqual({ migrate: 'running' })
-      expect(actor.getSnapshot().context.plan?.domains).toHaveLength(1)
+      expect(actor.getSnapshot().context.plan?.classified).toHaveLength(1)
       expect(actor.getSnapshot().context.plan?.migrationOwner).toBe(OWNER)
       expect(executeMigrationMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -363,7 +358,9 @@ describe('migrationUiMachine', () => {
 
       const ctx = actor.getSnapshot().context
       expect(ctx.selectedNames).toEqual(['bob.eth'])
-      expect(ctx.plan?.domains.map((d) => d.name)).toEqual(['bob.eth'])
+      expect(ctx.plan?.classified.map(({ domain }) => domain.name)).toEqual([
+        'bob.eth',
+      ])
       expect(ctx.lastError).toBeUndefined()
       expect(ctx.progress).toBeUndefined()
     })

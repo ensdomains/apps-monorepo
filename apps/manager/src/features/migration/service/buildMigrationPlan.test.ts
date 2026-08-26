@@ -213,11 +213,7 @@ describe('buildMigrationPlan resolver preservation', () => {
   it('never routes a custom resolver to the HCA resolver from a partial inventory', async () => {
     const domain = makeDomain({ resolverAddress: CUSTOM_RESOLVER })
     const preflight: MigrationPreflight = {
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: true,
       skipFetchProfilesPhase: true,
-      baseRegistrarApproved: true,
-      nameWrapperApproved: true,
       hcaReadiness: { status: 'deployment-required', hca: HCA },
     }
 

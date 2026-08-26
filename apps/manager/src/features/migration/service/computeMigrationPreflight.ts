@@ -15,7 +15,6 @@ import { approvalNeedsFor } from '@/features/migration/service/migrationApproval
 import {
   checkMigrationApprovals,
   type MigrationApproval,
-  type MigrationApprovalStatus,
   planMigrationApprovals,
 } from '@/features/migration/service/migrationApprovals'
 import {
@@ -38,16 +37,9 @@ import {
 } from '@/features/migration/service/v1SubgraphClient'
 
 export type MigrationPreflight = {
-  preExistingOwnedPermRes: Address | null
-  skipApprovalPhase: boolean
   skipFetchProfilesPhase: boolean
-  baseRegistrarApproved: boolean
-  nameWrapperApproved: boolean
-  /** HCA-specific approval state, populated when an HCA address is available. */
-  hcaApprovalStatus?: MigrationApprovalStatus
   /** Missing grants only; confirmed operator entries remain available to the HCA. */
   migrationApprovals?: readonly MigrationApproval[]
-  requiresManagerRestoration?: boolean
   /** Deterministic HCA resolver, including deploy/role readiness. */
   hcaResolverReadiness?: MigrationResolverReadiness
   hcaResolverAddress?: Address
@@ -59,11 +51,7 @@ export type MigrationPreflight = {
 }
 
 export const EMPTY_PREFLIGHT: MigrationPreflight = {
-  preExistingOwnedPermRes: null,
-  skipApprovalPhase: false,
   skipFetchProfilesPhase: false,
-  baseRegistrarApproved: false,
-  nameWrapperApproved: false,
 }
 
 type ApprovalNeeds = ReturnType<typeof approvalNeedsFor>
@@ -74,14 +62,13 @@ const computeResolverPreflight = async (params: {
   readonly needsOwnedPermRes: boolean
   readonly publicClient: PublicClient
 }): Promise<{
-  readonly preExistingOwnedPermRes: Address | null
   readonly hcaResolverReadiness?: MigrationResolverReadiness
   readonly hcaResolverAddress?: Address
 }> => {
   const { eoa, hcaAddress, needsOwnedPermRes, publicClient } = params
-  if (!needsOwnedPermRes) return { preExistingOwnedPermRes: null }
+  if (!needsOwnedPermRes) return {}
 
-  if (!hcaAddress) return { preExistingOwnedPermRes: null }
+  if (!hcaAddress) return {}
 
   const hcaResolverAddress = getMigrationResolverAddress(hcaAddress)
   const hcaResolverReadiness =
@@ -91,10 +78,6 @@ const computeResolverPreflight = async (params: {
       wallet: eoa,
     })
   return {
-    preExistingOwnedPermRes:
-      hcaResolverReadiness.status === 'verified'
-        ? hcaResolverReadiness.resolver
-        : null,
     hcaResolverReadiness,
     hcaResolverAddress,
   }
@@ -107,21 +90,11 @@ const computeApprovalPreflight = async (params: {
   readonly requiresManagerRestoration: boolean
   readonly wagmiConfig: WagmiConfig
 }): Promise<{
-  readonly skipApprovalPhase: boolean
-  readonly baseRegistrarApproved: boolean
-  readonly nameWrapperApproved: boolean
-  readonly hcaApprovalStatus?: MigrationApprovalStatus
   readonly migrationApprovals?: readonly MigrationApproval[]
 }> => {
   const { eoa, hcaAddress, needs, requiresManagerRestoration, wagmiConfig } =
     params
-  if (!hcaAddress) {
-    return {
-      skipApprovalPhase: false,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
-    }
-  }
+  if (!hcaAddress) return {}
 
   const hcaApprovalStatus = await checkMigrationApprovals({
     eoa,
@@ -135,24 +108,18 @@ const computeApprovalPreflight = async (params: {
     status: hcaApprovalStatus,
   })
   return {
-    skipApprovalPhase: migrationApprovals.length === 0,
-    baseRegistrarApproved:
-      hcaApprovalStatus.baseRegistrarHcaApproved ||
-      hcaApprovalStatus.unwrappedTokenApprovals.every(
-        ({ approved }) => approved,
-      ),
-    nameWrapperApproved: hcaApprovalStatus.nameWrapperHcaApproved,
-    hcaApprovalStatus,
     migrationApprovals,
   }
 }
 
 const computeProfilePreflight = async (
   namesToOwnedPermRes: readonly ClassifiedName[],
+  signal?: AbortSignal,
 ): Promise<{
   readonly skipFetchProfilesPhase: boolean
   readonly profileKeys?: readonly V1ProfileKeys[]
 }> => {
+  signal?.throwIfAborted()
   const namesWithSourceResolver = namesToOwnedPermRes.filter(
     (name) => name.v1ResolverAddress !== null,
   )
@@ -162,7 +129,9 @@ const computeProfilePreflight = async (
 
   const keysResult = await getV1ProfileKeys(
     namesWithSourceResolver.map((name) => name.domain.id),
+    { signal },
   )
+  signal?.throwIfAborted()
   if (keysResult.isErr()) {
     console.warn(
       '[migration] getV1ProfileKeys failed, defaulting to full profile fetch:',
@@ -196,8 +165,10 @@ export const computeMigrationPreflight = async (params: {
   domains: readonly V1Domain[]
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
+  signal?: AbortSignal
 }): Promise<MigrationPreflight> => {
-  const { eoa, hcaAddress, domains, wagmiConfig, publicClient } = params
+  const { eoa, hcaAddress, domains, wagmiConfig, publicClient, signal } = params
+  signal?.throwIfAborted()
 
   const { classified } = classifyNames([...domains], eoa)
   const directNames = classified.filter(
@@ -234,7 +205,7 @@ export const computeMigrationPreflight = async (params: {
       requiresManagerRestoration,
       wagmiConfig,
     }),
-    computeProfilePreflight(namesToOwnedPermRes),
+    computeProfilePreflight(namesToOwnedPermRes, signal),
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
     hcaAddress
       ? (async () => {
@@ -254,12 +225,12 @@ export const computeMigrationPreflight = async (params: {
         })()
       : Promise.resolve(undefined),
   ])
+  signal?.throwIfAborted()
 
   return {
     ...resolverPreflight,
     ...approvalPreflight,
     ...profilePreflight,
-    requiresManagerRestoration,
     directMigrationRoutes,
     hcaReadiness,
   }

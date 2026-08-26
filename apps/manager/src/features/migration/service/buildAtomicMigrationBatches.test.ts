@@ -300,7 +300,6 @@ describe('buildAtomicMigrationBatches', () => {
       type: 'parent-subregistry',
       rootRegistry: V2_CONTRACTS.ETHRegistry,
       parentName: 'parent.eth',
-      parentLabels: ['parent'],
     })
 
     const childOwnerRolesExpectation = batch.verificationExpectations.find(
@@ -509,7 +508,6 @@ describe('buildAtomicMigrationBatches', () => {
       registryPath: {
         type: 'parent-subregistry',
         parentName: 'foo.example.eth',
-        parentLabels: ['example', 'foo'],
       },
     })
     expect(
