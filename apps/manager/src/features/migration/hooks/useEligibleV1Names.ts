@@ -3,7 +3,10 @@ import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { useMigrationEligibility } from '@/features/migration/hooks/useMigrationEligibility'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
-import { classifyMigrationRecoverySnapshot } from '@/features/migration/service/buildMigrationPlan'
+import {
+  classifyMigrationRecoverySnapshot,
+  MigrationRecoveryPlanError,
+} from '@/features/migration/service/buildMigrationPlan'
 import {
   type ClassifiedName,
   classifyNames,
@@ -16,6 +19,19 @@ type UseEligibleV1NamesOptions = {
   readonly fallbackToClassified?: boolean
 }
 
+export type EligibleV1NamesRecoveryState =
+  | { readonly status: 'none' }
+  | { readonly status: 'recovering' }
+  | {
+      readonly status: 'stale'
+      readonly error: MigrationRecoveryPlanError
+    }
+
+type ClassificationState = {
+  readonly classified: readonly ClassifiedName[]
+  readonly recoveryState: EligibleV1NamesRecoveryState
+}
+
 export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
   const { enabled = true, fallbackToClassified = true } = options
   const { ownerAddress } = useSmartAccountContext()
@@ -24,18 +40,37 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
   const { data: v1NamesRaw, isPending: isV1Pending } = useV1Names({ enabled })
   const recoverySnapshot = useMigrationRecoverySnapshot()
 
-  const classified = useMemo<ClassifiedName[]>(() => {
-    if (!enabled || !resolvedOwnerAddress) return []
-    if (recoverySnapshot) {
-      return [
-        ...classifyMigrationRecoverySnapshot({
-          snapshot: recoverySnapshot,
-          migrationOwner: resolvedOwnerAddress as Address,
-        }).classified,
-      ]
+  const { classified, recoveryState } = useMemo<ClassificationState>(() => {
+    if (!enabled || !resolvedOwnerAddress) {
+      return { classified: [], recoveryState: { status: 'none' } }
     }
-    if (!v1NamesRaw) return []
-    return classifyNames(v1NamesRaw, resolvedOwnerAddress as Address).classified
+    if (recoverySnapshot) {
+      try {
+        return {
+          classified: [
+            ...classifyMigrationRecoverySnapshot({
+              snapshot: recoverySnapshot,
+              migrationOwner: resolvedOwnerAddress as Address,
+            }).classified,
+          ],
+          recoveryState: { status: 'recovering' },
+        }
+      } catch (error) {
+        if (!(error instanceof MigrationRecoveryPlanError)) throw error
+        return {
+          classified: [],
+          recoveryState: { status: 'stale', error },
+        }
+      }
+    }
+    if (!v1NamesRaw) {
+      return { classified: [], recoveryState: { status: 'none' } }
+    }
+    return {
+      classified: classifyNames(v1NamesRaw, resolvedOwnerAddress as Address)
+        .classified,
+      recoveryState: { status: 'none' },
+    }
   }, [enabled, recoverySnapshot, v1NamesRaw, resolvedOwnerAddress])
 
   const { data: eligibility, isPending: isEligibilityPending } =
@@ -54,6 +89,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
 
   return {
     eligible,
+    recoveryState,
     isPending:
       enabled &&
       !recoverySnapshot &&

@@ -50,7 +50,6 @@ import {
   requiresMigrationApprovalCleanup,
 } from './migrationApprovals'
 import {
-  clearMigrationBatchJournalScope,
   loadPendingAtomicMigrationIntents,
   loadSubmittedAtomicMigrationBatches,
   type MigrationBatchJournalScope,
@@ -59,6 +58,7 @@ import {
   persistMigrationRecoverySnapshot,
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
+  removeMigrationRecoverySnapshot,
   removePendingAtomicMigrationIntent,
   removeSubmittedAtomicMigrationBatch,
 } from './migrationBatchJournal'
@@ -289,6 +289,35 @@ const persistRecoveryPlan = (
 ): void => {
   if (!usesDurableCopyRecovery(plan)) return
   persistMigrationRecoverySnapshot(scope, recoverySnapshotFor(plan, remaining))
+}
+
+const clearCompletedRecoveryPlanJournal = (
+  scope: MigrationBatchJournalScope,
+  plan: MigrationPlan,
+): void => {
+  const expectedActions = new Map(
+    plan.registryContext.map(({ domain, action }) => [domain.name, action]),
+  )
+  const belongsToPlan = (
+    operations: readonly MigrationJournalOperation[],
+  ): boolean =>
+    operations.every(({ name, action }) => expectedActions.get(name) === action)
+
+  // Remove the snapshot first while retaining every receipt/intent. If cleanup
+  // is interrupted, retry evidence remains durable instead of leaving a stale
+  // snapshot whose final operation has already been verified.
+  removeMigrationRecoverySnapshot(scope)
+
+  for (const intent of loadPendingAtomicMigrationIntents(scope)) {
+    if (belongsToPlan(intent.operations)) {
+      removePendingAtomicMigrationIntent(scope, intent.id)
+    }
+  }
+  for (const submission of loadSubmittedAtomicMigrationBatches(scope)) {
+    if (belongsToPlan(submission.operations)) {
+      removeSubmittedAtomicMigrationBatch(scope, submission.hash)
+    }
+  }
 }
 
 const PENDING_TX_HASH = '0x0' as Hex
@@ -1596,7 +1625,7 @@ export const executeMigration = async (params: {
   ctx.tracker.complete('Migration complete', txHashes.at(-1))
 
   if (usesDurableCopyRecovery(plan)) {
-    clearMigrationBatchJournalScope(batchJournalScope(ctx))
+    clearCompletedRecoveryPlanJournal(batchJournalScope(ctx), plan)
   }
 
   const completedOperations = [

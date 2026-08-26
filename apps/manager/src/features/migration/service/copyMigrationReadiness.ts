@@ -166,10 +166,13 @@ const assertWrappedSourceFresh = async (params: {
       `"${copy.domain.name}" became locked after selection`,
     )
   }
-  if (
-    expiry !== copy.sourceExpiry ||
-    expiry <= BigInt(Math.floor(Date.now() / 1000))
-  ) {
+  // Parent-controlled NameWrapper subnames may retain an unset zero expiry.
+  // Once emancipated, the same value is already expired.
+  const hasNoIndependentExpiry =
+    expiry === 0n && !hasFuse(BigInt(fuses), FUSES.PARENT_CANNOT_CONTROL)
+  const sourceExpired =
+    !hasNoIndependentExpiry && expiry <= BigInt(Math.floor(Date.now() / 1000))
+  if (expiry !== copy.sourceExpiry || sourceExpired) {
     throw sourceError(
       copy,
       'source-expiry-changed',

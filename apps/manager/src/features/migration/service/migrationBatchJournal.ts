@@ -10,6 +10,47 @@ const STORAGE_KEY =
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
+type JournalListener = () => void
+
+const journalListeners = new Set<JournalListener>()
+let journalRevision = 0
+let removeStorageListener: (() => void) | null = null
+
+const emitJournalChange = (): void => {
+  journalRevision += 1
+  for (const listener of journalListeners) listener()
+}
+
+const startStorageListener = (): void => {
+  if (removeStorageListener || typeof window === 'undefined') return
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key !== null && event.key !== STORAGE_KEY) return
+    emitJournalChange()
+  }
+  window.addEventListener('storage', handleStorage)
+  removeStorageListener = () => {
+    window.removeEventListener('storage', handleStorage)
+    removeStorageListener = null
+  }
+}
+
+export const subscribeMigrationBatchJournal = (
+  listener: JournalListener,
+): (() => void) => {
+  journalListeners.add(listener)
+  startStorageListener()
+
+  return () => {
+    journalListeners.delete(listener)
+    if (journalListeners.size === 0) removeStorageListener?.()
+  }
+}
+
+export const getMigrationBatchJournalRevision = (): number => journalRevision
+
+export const getServerMigrationBatchJournalRevision = (): number => 0
+
 export type MigrationBatchJournalScope = {
   readonly chainId: number
   readonly owner: Address
@@ -472,9 +513,11 @@ const writeJournal = (
   if (!storage) throw new MigrationBatchJournalUnavailableError()
   if (journal.entries.length === 0) {
     storage.removeItem(STORAGE_KEY)
+    emitJournalChange()
     return
   }
   storage.setItem(STORAGE_KEY, JSON.stringify(journal))
+  emitJournalChange()
 }
 
 export const loadSubmittedAtomicMigrationBatches = (
@@ -603,22 +646,6 @@ export const removeMigrationRecoverySnapshot = (
         ? [{ scope: key, intents, submissions }]
         : []),
     ],
-  })
-}
-
-/**
- * Remove every durable migration entry for one wallet/HCA scope after the
- * complete flow, including temporary-access cleanup, has succeeded.
- */
-export const clearMigrationBatchJournalScope = (
-  scope: MigrationBatchJournalScope,
-  storage: StorageLike | null = getBrowserStorage(),
-): void => {
-  const journal = readJournal(storage)
-  const key = scopeKey(scope)
-  writeJournal(storage, {
-    version: JOURNAL_VERSION,
-    entries: journal.entries.filter((entry) => entry.scope !== key),
   })
 }
 

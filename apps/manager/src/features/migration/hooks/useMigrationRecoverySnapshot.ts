@@ -1,13 +1,16 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import {
+  getMigrationBatchJournalRevision,
+  getServerMigrationBatchJournalRevision,
   loadMigrationRecoverySnapshot,
   loadPendingAtomicMigrationIntents,
   loadSubmittedAtomicMigrationBatches,
   type MigrationBatchJournalScope,
   removeMigrationRecoverySnapshot,
+  subscribeMigrationBatchJournal,
 } from '../service/migrationBatchJournal'
 
 type RecoveryState = {
@@ -19,8 +22,15 @@ export const useMigrationRecoverySnapshot = () => {
   const publicClient = usePublicClient()
   const { ownerAddress, accountAddress: hcaAddress } = useSmartAccountContext()
   const chainId = publicClient?.chain?.id
+  const journalRevision = useSyncExternalStore(
+    subscribeMigrationBatchJournal,
+    getMigrationBatchJournalRevision,
+    getServerMigrationBatchJournalRevision,
+  )
 
   const recoveryState = useMemo<RecoveryState>(() => {
+    // The external-store revision deliberately invalidates this cached read.
+    void journalRevision
     if (
       !chainId ||
       !ownerAddress ||
@@ -46,7 +56,7 @@ export const useMigrationRecoverySnapshot = () => {
     return hasRecordedAttempt
       ? { snapshot, discardedScope: null }
       : { snapshot: null, discardedScope: scope }
-  }, [chainId, ownerAddress, hcaAddress])
+  }, [chainId, ownerAddress, hcaAddress, journalRevision])
 
   useEffect(() => {
     if (!recoveryState.discardedScope) return

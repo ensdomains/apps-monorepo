@@ -310,7 +310,11 @@ const classifyUnlockedWrapper = (
   if (!isDotEthSubname(domain, parentName)) return null
 
   const sourceExpiry = BigInt(wrappedDomain.expiryDate)
-  if (sourceExpiry <= nowSeconds) {
+  // Parent-controlled NameWrapper subnames may retain an unset zero expiry.
+  // Once emancipated, the same value is already expired.
+  const hasNoIndependentExpiry =
+    sourceExpiry === 0n && !hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL)
+  if (!hasNoIndependentExpiry && sourceExpiry <= nowSeconds) {
     return ineligible(domain, 'expired-registration')
   }
   if (!hasSupportedCopyResolver(v1ResolverAddress)) {

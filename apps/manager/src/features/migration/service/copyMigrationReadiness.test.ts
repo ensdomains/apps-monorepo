@@ -163,12 +163,15 @@ const registryCopy = (
     v1ResolverAddress: params.resolver ?? null,
   })
 
-const wrappedCopy = (resolver: Address | null = null): CopyClassifiedName =>
+const wrappedCopy = (
+  resolver: Address | null = null,
+  sourceExpiry = WRAPPED_EXPIRY,
+): CopyClassifiedName =>
   makeClassified({
     action: 'copy',
     tokenType: 'unlocked-child',
     copySource: 'name-wrapper',
-    sourceExpiry: WRAPPED_EXPIRY,
+    sourceExpiry,
     id: '0x03',
     name: 'wrapped.example.eth',
     label: 'wrapped',
@@ -209,6 +212,21 @@ const expectReason = async (
 }
 
 describe('assertCopyMigrationTopology', () => {
+  it('accepts an arbitrary-depth route to a selected unlocked 2LD', () => {
+    const root = migratingRoot('unlocked')
+    const parent = registryCopy()
+    const child = registryCopy({
+      id: '0x04',
+      name: 'bar.foo.example.eth',
+      label: 'bar',
+      parentName: 'foo.example.eth',
+    })
+
+    expect(() =>
+      assertCopyMigrationTopology([child, root, parent]),
+    ).not.toThrow()
+  })
+
   it('fails closed when an ancestor is missing', () => {
     const child = registryCopy({
       name: 'bar.foo.example.eth',
@@ -274,6 +292,60 @@ describe('assertCopySourcesFresh', () => {
       }),
       'source-owner-changed',
     )
+  })
+
+  it('accepts an unset zero expiry for a parent-controlled wrapped source', async () => {
+    const copy = wrappedCopy(null, 0n)
+
+    await expect(
+      assertCopySourcesFresh({
+        publicClient: sourceOnlyClient({ expiry: 0n }),
+        wallet: WALLET,
+        copies: [copy],
+      }),
+    ).resolves.toBeUndefined()
+  })
+
+  it('rejects zero expiry after the wrapped source is emancipated', async () => {
+    const copy = {
+      ...wrappedCopy(null, 0n),
+      fuses: FUSES.PARENT_CANNOT_CONTROL,
+    }
+
+    await expectReason(
+      assertCopySourcesFresh({
+        publicClient: sourceOnlyClient({
+          expiry: 0n,
+          fuses: FUSES.PARENT_CANNOT_CONTROL,
+        }),
+        wallet: WALLET,
+        copies: [copy],
+      }),
+      'source-expiry-changed',
+    )
+  })
+
+  it('rejects a nonzero wrapped expiry in the past', async () => {
+    const copy = wrappedCopy(null, 1n)
+
+    await expectReason(
+      assertCopySourcesFresh({
+        publicClient: sourceOnlyClient({ expiry: 1n }),
+        wallet: WALLET,
+        copies: [copy],
+      }),
+      'source-expiry-changed',
+    )
+  })
+
+  it('accepts the live registry owner with the non-expiring sentinel', async () => {
+    await expect(
+      assertCopySourcesFresh({
+        publicClient: sourceOnlyClient(),
+        wallet: WALLET,
+        copies: [registryCopy()],
+      }),
+    ).resolves.toBeUndefined()
   })
 
   it('rejects a registry-only source without the exact uint64 max expiry', async () => {

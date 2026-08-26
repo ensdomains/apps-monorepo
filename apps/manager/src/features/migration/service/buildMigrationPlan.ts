@@ -691,7 +691,10 @@ export const buildMigrationRecoveryPlan = async (params: {
     ...loadPendingAtomicMigrationIntents(scope),
     ...loadSubmittedAtomicMigrationBatches(scope),
   ].flatMap(({ operations }) => operations)
-  const mismatchedAttempt = journaledOperations.find(
+  const durableTreeOperations = journaledOperations.filter(({ name }) =>
+    expectedActions.has(name),
+  )
+  const mismatchedAttempt = durableTreeOperations.find(
     ({ name, action }) => expectedActions.get(name) !== action,
   )
   if (mismatchedAttempt) {
@@ -701,7 +704,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     })
   }
   const recordedAttemptNames = new Set(
-    journaledOperations.map(({ name }) => name),
+    durableTreeOperations.map(({ name }) => name),
   )
   await assertCopyMigrationReadiness({
     publicClient,

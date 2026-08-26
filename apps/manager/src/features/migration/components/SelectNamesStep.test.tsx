@@ -52,7 +52,11 @@ const eligibleFixture: readonly ClassifiedName[] = [
 ]
 
 vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
-  useEligibleV1Names: () => ({ eligible: eligibleFixture, isPending: false }),
+  useEligibleV1Names: () => ({
+    eligible: eligibleFixture,
+    isPending: false,
+    recoveryState: { status: 'none' },
+  }),
 }))
 
 // eslint-disable-next-line import/first

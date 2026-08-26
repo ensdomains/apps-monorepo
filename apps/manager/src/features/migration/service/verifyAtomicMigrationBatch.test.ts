@@ -532,7 +532,40 @@ describe('verifyAtomicMigrationBatch', () => {
     expect(readContract).toHaveBeenCalledWith(
       expect.objectContaining({
         address: FACTORY,
+        functionName: 'verifyContract',
         args: [USER_REGISTRY],
+        blockNumber: 789n,
+      }),
+    )
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: USER_REGISTRY,
+        functionName: 'hasRootRoles',
+        args: [ROLES_ALL, HCA],
+        blockNumber: 789n,
+      }),
+    )
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: USER_REGISTRY,
+        functionName: 'hasRootRoles',
+        args: [ROLES_ALL, WALLET],
+        blockNumber: 789n,
+      }),
+    )
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: USER_REGISTRY,
+        functionName: 'getParent',
+        blockNumber: 789n,
+      }),
+    )
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: PARENT_REGISTRY,
+        functionName: 'getSubregistry',
+        args: ['foo'],
+        blockNumber: 789n,
       }),
     )
     expect(readContract).toHaveBeenCalledWith(
@@ -540,6 +573,7 @@ describe('verifyAtomicMigrationBatch', () => {
         address: PARENT_REGISTRY,
         functionName: 'getState',
         args: [RESOURCE],
+        blockNumber: 789n,
       }),
     )
   })

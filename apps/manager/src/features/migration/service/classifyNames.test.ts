@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   makeClassified,
   makeDomain,
@@ -185,6 +185,17 @@ describe('classifyName — token type', () => {
       'locked-child' as const,
     ],
     [
+      'unlocked-child copy when a wrapped child can unwrap',
+      {
+        isWrapped: true,
+        name: 'sub.raffy.eth',
+        parentName: 'raffy.eth',
+        resolverAddress: null,
+        fuses: 0n,
+      },
+      'unlocked-child' as const,
+    ],
+    [
       'detached-child migration when PARENT_CANNOT_CONTROL burnt and parent is locked',
       {
         isWrapped: true,
@@ -347,6 +358,72 @@ describe('classifyName — resolver strategy for locked', () => {
 })
 
 describe('classifyNames', () => {
+  it('keeps WEB-390 zero-expiry wrapped children under a selected unlocked 2LD', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-04T16:50:36Z'))
+
+    try {
+      const domains: V1Domain[] = [
+        makeDomain({
+          id: '0x1',
+          name: '1year.eth',
+          labelName: '1year',
+          isWrapped: true,
+          fuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
+          wrappedExpiry: '1793477232',
+          resolverAddress: '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
+        }),
+        makeDomain({
+          id: '0x2',
+          name: 'test.1year.eth',
+          labelName: 'test',
+          parentName: '1year.eth',
+          parentFuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
+          isWrapped: true,
+          fuses: 0n,
+          wrappedExpiry: '0',
+          resolverAddress: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
+        }),
+      ]
+
+      const { classified: names, ineligible } = classifyNames(domains, OWNER)
+
+      expect(
+        names.map(({ domain, action, tokenType }) => [
+          domain.name,
+          action,
+          tokenType,
+        ]),
+      ).toEqual([
+        ['1year.eth', 'migrate', 'unlocked'],
+        ['test.1year.eth', 'copy', 'unlocked-child'],
+      ])
+      expect(names[1]).toMatchObject({
+        action: 'copy',
+        copySource: 'name-wrapper',
+        sourceExpiry: 0n,
+      })
+      expect(ineligible).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('rejects zero expiry after a wrapped child is emancipated', () => {
+    const result = classify({
+      name: 'sub.example.eth',
+      labelName: 'sub',
+      parentName: 'example.eth',
+      parentFuses: 0n,
+      isWrapped: true,
+      fuses: FUSES.PARENT_CANNOT_CONTROL,
+      wrappedExpiry: '0',
+      resolverAddress: null,
+    })
+
+    expect(ineligibleReason(result)).toBe('expired-registration')
+  })
+
   it('splits classified and ineligible across many inputs', () => {
     const domains: V1Domain[] = [
       makeDomain({ id: '0x1' }),

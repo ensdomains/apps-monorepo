@@ -11,6 +11,12 @@ import {
 } from './buildMigrationPlan'
 import { FUSES } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
+import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
+import {
+  type MigrationRecoverySnapshot,
+  persistPendingAtomicMigrationIntent,
+  persistSubmittedAtomicMigrationBatch,
+} from './migrationBatchJournal'
 import { getV1ProfileKeys } from './v1SubgraphClient'
 
 vi.mock('./v1SubgraphClient', async (importActual) => ({
@@ -48,6 +54,7 @@ vi.mock('./migrationInvariants', async (importActual) => ({
 
 const getV1ProfileKeysMock = vi.mocked(getV1ProfileKeys)
 const buildAtomicMigrationBatchesMock = vi.mocked(buildAtomicMigrationBatches)
+const assertCopyMigrationReadinessMock = vi.mocked(assertCopyMigrationReadiness)
 const HCA: Address = '0x00000000000000000000000000000000000000ca'
 const KNOWN_PUBLIC_RESOLVER: Address =
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d'
@@ -72,13 +79,63 @@ const lockedKnownResolver = () =>
     v1ResolverAddress: KNOWN_PUBLIC_RESOLVER,
   })
 
+const makeRecoveryTree = () => {
+  const root = makeDomain({
+    id: namehash('alice.eth'),
+    name: 'alice.eth',
+    labelName: 'alice',
+    resolverAddress: null,
+  })
+  const copy = makeDomain({
+    id: namehash('sub.alice.eth'),
+    name: 'sub.alice.eth',
+    labelName: 'sub',
+    parentName: 'alice.eth',
+    registrantId: null,
+    resolverAddress: null,
+  })
+  const snapshot = {
+    registryDomains: [root, copy],
+    registryOperations: [
+      { name: root.name, action: 'migrate' },
+      { name: copy.name, action: 'copy' },
+    ],
+    remainingOperations: [{ name: copy.name, action: 'copy' }],
+    completedOperations: [{ name: root.name, action: 'migrate' }],
+    profiles: new Map([
+      [
+        namehash(root.name),
+        { texts: [], addresses: [], contentHash: null, abis: [] },
+      ],
+      [
+        namehash(copy.name),
+        {
+          texts: [{ key: 'url', value: 'https://example.test' }],
+          addresses: [],
+          contentHash: null,
+          abis: [],
+        },
+      ],
+    ]),
+    ownedPermRes: computeResolverAddress({
+      chainId: 11155111,
+      hca: HCA,
+    }),
+    plannedApprovals: [{ id: 'eth-registry:hca' }],
+  } satisfies MigrationRecoverySnapshot
+  return { root, copy, snapshot }
+}
+
 beforeEach(() => {
+  localStorage.clear()
   getV1ProfileKeysMock.mockReset()
   buildAtomicMigrationBatchesMock.mockReset()
   buildAtomicMigrationBatchesMock.mockResolvedValue({
     resolver: HCA,
     batches: [],
   })
+  assertCopyMigrationReadinessMock.mockReset()
+  assertCopyMigrationReadinessMock.mockResolvedValue(undefined)
 })
 
 describe('assertLockedResolverReplacementRecordSafety', () => {
@@ -242,52 +299,10 @@ describe('buildMigrationPlan resolver preservation', () => {
 
 describe('buildMigrationRecoveryPlan', () => {
   it('rebuilds unsent copies with their completed root retained only as registry context', async () => {
-    const root = makeDomain({
-      id: namehash('alice.eth'),
-      name: 'alice.eth',
-      labelName: 'alice',
-      resolverAddress: null,
-    })
-    const copy = makeDomain({
-      id: namehash('sub.alice.eth'),
-      name: 'sub.alice.eth',
-      labelName: 'sub',
-      parentName: 'alice.eth',
-      registrantId: null,
-      resolverAddress: null,
-    })
-    const ownedPermRes = computeResolverAddress({
-      chainId: 11155111,
-      hca: HCA,
-    })
+    const { root, copy, snapshot } = makeRecoveryTree()
 
     const plan = await buildMigrationRecoveryPlan({
-      snapshot: {
-        registryDomains: [root, copy],
-        registryOperations: [
-          { name: root.name, action: 'migrate' },
-          { name: copy.name, action: 'copy' },
-        ],
-        remainingOperations: [{ name: copy.name, action: 'copy' }],
-        completedOperations: [{ name: root.name, action: 'migrate' }],
-        profiles: new Map([
-          [
-            namehash(root.name),
-            { texts: [], addresses: [], contentHash: null, abis: [] },
-          ],
-          [
-            namehash(copy.name),
-            {
-              texts: [{ key: 'url', value: 'https://example.test' }],
-              addresses: [],
-              contentHash: null,
-              abis: [],
-            },
-          ],
-        ]),
-        ownedPermRes,
-        plannedApprovals: [{ id: 'eth-registry:hca' }],
-      },
+      snapshot,
       hcaAddress: HCA,
       migrationOwner: OWNER,
       publicClient: { chain: { id: 11155111 } } as PublicClient,
@@ -324,5 +339,61 @@ describe('buildMigrationRecoveryPlan', () => {
         ],
       }),
     )
+  })
+
+  it('ignores journaled names outside the durable tree on reload', async () => {
+    const { copy, snapshot } = makeRecoveryTree()
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    persistPendingAtomicMigrationIntent(scope, {
+      id: 'current-copy-intent',
+      names: [copy.name],
+      operations: [{ name: copy.name, action: 'copy' }],
+    })
+    persistSubmittedAtomicMigrationBatch(scope, {
+      intentId: 'abandoned-direct-intent',
+      hash: `0x${'9'.repeat(64)}`,
+      names: ['unrelated.eth'],
+      operations: [{ name: 'unrelated.eth', action: 'migrate' }],
+    })
+
+    await expect(
+      buildMigrationRecoveryPlan({
+        snapshot,
+        hcaAddress: HCA,
+        migrationOwner: OWNER,
+        publicClient: { chain: { id: 11155111 } } as PublicClient,
+      }),
+    ).resolves.toBeDefined()
+
+    expect(assertCopyMigrationReadinessMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recordedAttemptNames: new Set([copy.name]),
+      }),
+    )
+  })
+
+  it('fails closed when a durable-tree name has a different journaled action', async () => {
+    const { copy, snapshot } = makeRecoveryTree()
+    persistPendingAtomicMigrationIntent(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        id: 'mismatched-copy-intent',
+        names: [copy.name],
+        operations: [{ name: copy.name, action: 'migrate' }],
+      },
+    )
+
+    await expect(
+      buildMigrationRecoveryPlan({
+        snapshot,
+        hcaAddress: HCA,
+        migrationOwner: OWNER,
+        publicClient: { chain: { id: 11155111 } } as PublicClient,
+      }),
+    ).rejects.toMatchObject({
+      name: 'MigrationRecoveryPlanError',
+      reason: 'operation-mismatch',
+    })
+    expect(assertCopyMigrationReadinessMock).not.toHaveBeenCalled()
   })
 })
