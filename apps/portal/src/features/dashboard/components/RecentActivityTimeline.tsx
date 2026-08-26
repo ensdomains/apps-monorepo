@@ -4,15 +4,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { HistoryTimelineView } from '@/features/history/components/HistoryTimeline'
 import { getRecentActivityTimelineQueryOptions } from '../hooks/useRecentActivityTimeline'
 
-/**
- * The homepage's Recent Activity: the same nested timeline rows as the History
- * page, driven by the protocol-wide event feed instead of one name's.
- *
- * `includeSubjectName` because every row here concerns a different name. The
- * date / event chips are hidden: this is a homepage preview of a feed that is
- * never complete, so filtering within the window would narrow an arbitrary
- * slice rather than the activity someone was looking for.
- */
+/** The homepage's Recent Activity — the History timeline over the global feed. */
 export const RecentActivityTimeline = () => {
   const { data, isLoading, error } = useQuery(
     getRecentActivityTimelineQueryOptions(),

@@ -17,10 +17,7 @@ class GetRecentActivityTimelineError extends TaggedError(
   cause: ClientError
 }> {}
 
-/**
- * Counts events, and one transaction bundles several of them (a registration
- * emits five), so this window is roughly a dozen timeline rows, not fifty.
- */
+/** Events, not rows — a transaction bundles several, so this is ~10 rows. */
 const EVENTS_LIMIT = 50
 
 const getRecentActivityTimeline = ResultFn(async function* () {
@@ -45,16 +42,9 @@ const getRecentActivityTimeline = ResultFn(async function* () {
     (e) => new GetRecentActivityTimelineError({ cause: e as ClientError }),
   )
 
-  // Types the timeline drops are excluded in the query because on the global
-  // feed they are most of the events (every registration is preceded by a
-  // `CommitmentMade`) — filtering after the fetch would spend the window on
-  // rows that never render. The filter is inlined into the query text rather
-  // than passed as a variable: this indexer drops a `where` that arrives via
-  // variables (see `buildHistoryTimelineQuery`).
-  //
-  // The window then has to be trimmed on a transaction boundary, or the row at
-  // the cutoff would be headlined from a subset of its events.
-  return ok(truncateToTransactions(events, EVENTS_LIMIT))
+  // One short of the window: a full response ends mid-transaction, and trimming
+  // at `EVENTS_LIMIT` is a no-op (the groups sum to exactly it).
+  return ok(truncateToTransactions(events, EVENTS_LIMIT - 1))
 })
 
 const getRecentActivityTimelineQueryKey = createQueryKey<
@@ -62,19 +52,7 @@ const getRecentActivityTimelineQueryKey = createQueryKey<
   Record<never, never>
 >('get-recent-activity-timeline')
 
-/**
- * The protocol-wide event feed behind the homepage's Recent Activity timeline.
- *
- * Unkeyed, unlike `getNameHistoryTimelineQueryOptions` and
- * `getRegistryHistoryTimelineQueryOptions`: it reads the indexer's root `events`
- * field, so its rows have many different subjects — which is why the timeline
- * renders it with `includeSubjectName`.
- *
- * v2-only. There is no v1 subgraph counterpart to merge in: the per-name query
- * can ask the subgraph about one namehash, but a protocol-wide feed would mean
- * interleaving two unbounded windows on timestamps the v1 subgraph doesn't even
- * record (see `adaptV1Events`).
- */
+/** The protocol-wide feed behind the homepage's Recent Activity. v2 only. */
 export const getRecentActivityTimelineQueryOptions = () =>
   resultQueryOptions({
     queryKey: getRecentActivityTimelineQueryKey({}),
