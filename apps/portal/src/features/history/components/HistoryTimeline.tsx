@@ -151,14 +151,18 @@ export const HistoryTimeline = ({
         />
       ) : (
         <TimelineFrame>
-          {/* Shown in scoped views too: the per-facet window is where
+          {/* Counts the rows on screen, not the events behind them: a row is
+              one transaction, so counting events would put a figure above the
+              list that nothing in it adds up to.
+
+              Shown in scoped views too: the per-facet window is where
               truncation actually bites (the indexer exposes no cursor to page
               past it), so suppressing this here would present a partial list
               as the whole history. */}
-          {data?.hasMore && events && (
+          {data?.hasMore && (
             <p className="mb-3 text-muted-foreground text-p">
-              Showing the most recent {events.length}
-              {scope ? ' matching' : ''} events.
+              Showing the most recent {filteredActions.length}
+              {scope ? ' matching' : ''} transactions.
             </p>
           )}
           <ActionTimeline
