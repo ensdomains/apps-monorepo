@@ -31,8 +31,7 @@ export const RecentActivityTimeline = () => {
 
   return (
     <HistoryTimelineView
-      events={data?.events ?? []}
-      hasMore={data?.hasMore}
+      events={data ?? []}
       includeSubjectName
       showFilters={false}
       heading={<h2 className="text-caps text-foreground">Recent Activity</h2>}
