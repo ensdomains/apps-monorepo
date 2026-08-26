@@ -1546,17 +1546,6 @@ export const executeMigration = async (params: {
   })
 
   if (executionPlan.classified.length > 0) {
-    if (usesDurableCopyRecovery(executionPlan)) {
-      // Revalidate the copied sources, their still-migrating 2LD roots, and
-      // every V2 route before any deployment or approval wallet prompt.
-      await assertCopyMigrationReadiness({
-        publicClient,
-        hca: ctx.hcaAddress,
-        wallet: ctx.walletAddress,
-        remaining: executionPlan.classified,
-        registryContext: executionPlan.registryContext,
-      })
-    }
     // Permission state is mutable outside this flow. Check the preview against
     // the latest chain state before opening the first wallet prompt, then use
     // the same snapshot for approval submission. Retries intentionally retain

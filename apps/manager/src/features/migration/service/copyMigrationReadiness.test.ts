@@ -116,7 +116,9 @@ const retryRead = (params: {
 }
 
 const makeClient = (params: {
-  readonly getCode?: (address: Address) => Hex | undefined
+  readonly getCode?: (
+    address: Address,
+  ) => Hex | undefined | Promise<Hex | undefined>
   readonly read: (request: ReadRequest) => unknown
 }): PublicClient =>
   ({
@@ -545,6 +547,75 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
         registryContext: [root, parent, child],
       }),
     ).resolves.toBeUndefined()
+  })
+
+  it('checks independent registry routes concurrently and reads each code address once', async () => {
+    const parent = copy
+    const child = registryCopy({
+      id: '0x04',
+      name: 'bar.foo.example.eth',
+      label: 'bar',
+      parentName: parent.domain.name,
+    })
+    const parentRegistry = computeUserRegistryAddress({
+      hca: HCA,
+      parentName: parent.domain.name,
+    })
+    let releaseRootRegistry: (() => void) | undefined
+    const rootRegistryGate = new Promise<void>((resolve) => {
+      releaseRootRegistry = resolve
+    })
+    const startedRegistryReads = new Set<string>()
+    const client = makeClient({
+      getCode: async (address) => {
+        if (sameAddress(address, V2_CONTRACTS.ETHRegistry)) {
+          return CONTRACT_CODE
+        }
+        startedRegistryReads.add(address.toLowerCase())
+        if (sameAddress(address, rootRegistry)) await rootRegistryGate
+        return undefined
+      },
+      read: ({ functionName }) => {
+        if (functionName === 'ownerOf' || functionName === 'owner')
+          return WALLET
+        if (functionName === 'resolver') return zeroAddress
+        if (functionName === 'getSubregistry') return zeroAddress
+        throw new Error(`Unexpected read: ${functionName}`)
+      },
+    })
+
+    const readiness = assertCopyMigrationReadiness({
+      publicClient: client,
+      hca: HCA,
+      wallet: WALLET,
+      remaining: [root, parent, child],
+      registryContext: [root, parent, child],
+    })
+
+    try {
+      await vi.waitFor(() => {
+        expect(startedRegistryReads).toEqual(
+          new Set([rootRegistry.toLowerCase(), parentRegistry.toLowerCase()]),
+        )
+      })
+    } finally {
+      releaseRootRegistry?.()
+    }
+    await expect(readiness).resolves.toBeUndefined()
+
+    const getCode = vi.mocked(client.getCode)
+    for (const address of [
+      V2_CONTRACTS.ETHRegistry,
+      rootRegistry,
+      parentRegistry,
+    ]) {
+      expect(
+        getCode.mock.calls.filter(([request]) =>
+          sameAddress(request.address, address),
+        ),
+      ).toHaveLength(1)
+    }
+    expect(getCode).toHaveBeenCalledTimes(3)
   })
 
   it('accepts an exact completed root registry only when its durable attempt is recorded', async () => {

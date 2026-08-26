@@ -198,6 +198,7 @@ export const MigrationPage = () => {
     accountError: hcaError,
     selectedNames,
     v1Names,
+    enabled: step === 'select',
   })
 
   // Top up the owner's sepETH on page entry — migration txs are all EOA-paid.

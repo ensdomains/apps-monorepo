@@ -479,19 +479,40 @@ const plannedRegistries = (params: {
     })
 }
 
-const hasCode = async (
-  publicClient: PublicClient,
-  address: Address,
-): Promise<boolean> => {
-  const code = await publicClient.getCode({ address })
-  return Boolean(code && code !== '0x')
+type HasCode = (address: Address) => Promise<boolean>
+
+const assertConcurrentChecks = async (
+  checks: readonly Promise<void>[],
+): Promise<void> => {
+  const results = await Promise.allSettled(checks)
+  const failure = results.find(
+    (result): result is PromiseRejectedResult => result.status === 'rejected',
+  )
+  if (failure) throw failure.reason
+}
+
+const createHasCode = (publicClient: PublicClient): HasCode => {
+  const cache = new Map<string, Promise<boolean>>()
+
+  return (address) => {
+    const key = address.toLowerCase()
+    const cached = cache.get(key)
+    if (cached) return cached
+
+    const pending = publicClient
+      .getCode({ address })
+      .then((code) => Boolean(code && code !== '0x'))
+    cache.set(key, pending)
+    return pending
+  }
 }
 
 const assertNewRegistrySlot = async (params: {
   readonly publicClient: PublicClient
   readonly planned: PlannedRegistry
+  readonly hasCode: HasCode
 }): Promise<void> => {
-  if (await hasCode(params.publicClient, params.planned.registry)) {
+  if (await params.hasCode(params.planned.registry)) {
     throw new CopyMigrationReadinessError({
       message: `The deterministic UserRegistry for "${params.planned.name.domain.name}" already exists`,
       reason: 'unexpected-registry',
@@ -499,7 +520,7 @@ const assertNewRegistrySlot = async (params: {
     })
   }
 
-  if (!(await hasCode(params.publicClient, params.planned.parentRegistry))) {
+  if (!(await params.hasCode(params.planned.parentRegistry))) {
     return
   }
   const current = await params.publicClient.readContract({
@@ -522,17 +543,18 @@ const assertExistingRegistry = async (params: {
   readonly hca: Address
   readonly wallet: Address
   readonly planned: PlannedRegistry
+  readonly hasCode: HasCode
 }): Promise<void> => {
   const { publicClient, hca, wallet, planned } = params
   const ensName = planned.name.domain.name
-  if (!(await hasCode(publicClient, planned.registry))) {
+  if (!(await params.hasCode(planned.registry))) {
     throw new CopyMigrationReadinessError({
       message: `The completed parent "${ensName}" is missing its UserRegistry`,
       reason: 'missing-registry',
       ensName,
     })
   }
-  if (!(await hasCode(publicClient, planned.parentRegistry))) {
+  if (!(await params.hasCode(planned.parentRegistry))) {
     throw new CopyMigrationReadinessError({
       message: `The parent registry route for "${ensName}" is missing`,
       reason: 'missing-registry',
@@ -610,6 +632,7 @@ const assertCopyTargetPristine = async (params: {
   readonly publicClient: PublicClient
   readonly hca: Address
   readonly copy: CopyClassifiedName
+  readonly hasCode: HasCode
 }): Promise<void> => {
   const parentName = params.copy.parentName
   if (!parentName) {
@@ -623,7 +646,7 @@ const assertCopyTargetPristine = async (params: {
     hca: params.hca,
     parentName,
   })
-  if (!(await hasCode(params.publicClient, parentRegistry))) return
+  if (!(await params.hasCode(parentRegistry))) return
 
   const state = await params.publicClient.readContract({
     address: parentRegistry,
@@ -651,6 +674,7 @@ const assertPlannedRegistryReadiness = async (params: {
   readonly planned: PlannedRegistry
   readonly isRemaining: boolean
   readonly hasRecordedAttempt: boolean
+  readonly hasCode: HasCode
 }): Promise<void> => {
   if (!params.isRemaining) {
     await assertExistingRegistry(params)
@@ -658,7 +682,7 @@ const assertPlannedRegistryReadiness = async (params: {
   }
   if (
     params.hasRecordedAttempt &&
-    (await hasCode(params.publicClient, params.planned.registry))
+    (await params.hasCode(params.planned.registry))
   ) {
     await assertExistingRegistry(params)
     return
@@ -673,30 +697,34 @@ const assertRegistryRoutesReady = async (params: {
   readonly registryContext: readonly ClassifiedName[]
   readonly remainingNames: ReadonlySet<string>
   readonly recordedAttemptNames?: ReadonlySet<string>
+  readonly hasCode: HasCode
 }): Promise<void> => {
-  for (const planned of plannedRegistries(params)) {
-    try {
-      await assertPlannedRegistryReadiness({
-        publicClient: params.publicClient,
-        hca: params.hca,
-        wallet: params.wallet,
-        planned,
-        isRemaining: params.remainingNames.has(
-          normalizedName(planned.name.domain.name),
-        ),
-        hasRecordedAttempt:
-          params.recordedAttemptNames?.has(planned.name.domain.name) ?? false,
-      })
-    } catch (cause) {
-      if (cause instanceof CopyMigrationReadinessError) throw cause
-      throw new CopyMigrationReadinessError({
-        message: `Could not verify the V2 UserRegistry route for "${planned.name.domain.name}"`,
-        reason: 'read-failed',
-        ensName: planned.name.domain.name,
-        cause,
-      })
-    }
-  }
+  await assertConcurrentChecks(
+    plannedRegistries(params).map(async (planned) => {
+      try {
+        await assertPlannedRegistryReadiness({
+          publicClient: params.publicClient,
+          hca: params.hca,
+          wallet: params.wallet,
+          planned,
+          isRemaining: params.remainingNames.has(
+            normalizedName(planned.name.domain.name),
+          ),
+          hasRecordedAttempt:
+            params.recordedAttemptNames?.has(planned.name.domain.name) ?? false,
+          hasCode: params.hasCode,
+        })
+      } catch (cause) {
+        if (cause instanceof CopyMigrationReadinessError) throw cause
+        throw new CopyMigrationReadinessError({
+          message: `Could not verify the V2 UserRegistry route for "${planned.name.domain.name}"`,
+          reason: 'read-failed',
+          ensName: planned.name.domain.name,
+          cause,
+        })
+      }
+    }),
+  )
 }
 
 const assertRemainingCopyTargetsPristine = async (params: {
@@ -704,25 +732,29 @@ const assertRemainingCopyTargetsPristine = async (params: {
   readonly hca: Address
   readonly copies: readonly CopyClassifiedName[]
   readonly recordedAttemptNames?: ReadonlySet<string>
+  readonly hasCode: HasCode
 }): Promise<void> => {
-  for (const copy of params.copies) {
-    if (params.recordedAttemptNames?.has(copy.domain.name)) continue
-    try {
-      await assertCopyTargetPristine({
-        publicClient: params.publicClient,
-        hca: params.hca,
-        copy,
-      })
-    } catch (cause) {
-      if (cause instanceof CopyMigrationReadinessError) throw cause
-      throw new CopyMigrationReadinessError({
-        message: `Could not prove that "${copy.domain.name}" is unused in V2`,
-        reason: 'read-failed',
-        ensName: copy.domain.name,
-        cause,
-      })
-    }
-  }
+  await assertConcurrentChecks(
+    params.copies.map(async (copy) => {
+      if (params.recordedAttemptNames?.has(copy.domain.name)) return
+      try {
+        await assertCopyTargetPristine({
+          publicClient: params.publicClient,
+          hca: params.hca,
+          copy,
+          hasCode: params.hasCode,
+        })
+      } catch (cause) {
+        if (cause instanceof CopyMigrationReadinessError) throw cause
+        throw new CopyMigrationReadinessError({
+          message: `Could not prove that "${copy.domain.name}" is unused in V2`,
+          reason: 'read-failed',
+          ensName: copy.domain.name,
+          cause,
+        })
+      }
+    }),
+  )
 }
 
 /**
@@ -743,32 +775,36 @@ export const assertCopyMigrationReadiness = async (params: {
     params.remaining.map((name) => normalizedName(name.domain.name)),
   )
   const remainingCopies = copyNames(params.remaining)
+  const hasCode = createHasCode(params.publicClient)
 
-  await assertRequiredMigratingRootsFresh({
-    publicClient: params.publicClient,
-    wallet: params.wallet,
-    registryContext: params.registryContext,
-    remainingNames,
-    recordedAttemptNames: params.recordedAttemptNames,
-  })
-  await assertCopySourcesFresh({
-    publicClient: params.publicClient,
-    wallet: params.wallet,
-    copies: remainingCopies,
-  })
-
-  await assertRegistryRoutesReady({
-    publicClient: params.publicClient,
-    hca: params.hca,
-    wallet: params.wallet,
-    registryContext: params.registryContext,
-    remainingNames,
-    recordedAttemptNames: params.recordedAttemptNames,
-  })
-  await assertRemainingCopyTargetsPristine({
-    publicClient: params.publicClient,
-    hca: params.hca,
-    copies: remainingCopies,
-    recordedAttemptNames: params.recordedAttemptNames,
-  })
+  await assertConcurrentChecks([
+    assertRequiredMigratingRootsFresh({
+      publicClient: params.publicClient,
+      wallet: params.wallet,
+      registryContext: params.registryContext,
+      remainingNames,
+      recordedAttemptNames: params.recordedAttemptNames,
+    }),
+    assertCopySourcesFresh({
+      publicClient: params.publicClient,
+      wallet: params.wallet,
+      copies: remainingCopies,
+    }),
+    assertRegistryRoutesReady({
+      publicClient: params.publicClient,
+      hca: params.hca,
+      wallet: params.wallet,
+      registryContext: params.registryContext,
+      remainingNames,
+      recordedAttemptNames: params.recordedAttemptNames,
+      hasCode,
+    }),
+    assertRemainingCopyTargetsPristine({
+      publicClient: params.publicClient,
+      hca: params.hca,
+      copies: remainingCopies,
+      recordedAttemptNames: params.recordedAttemptNames,
+      hasCode,
+    }),
+  ])
 }

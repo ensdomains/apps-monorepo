@@ -568,30 +568,22 @@ describe('executeMigration HCA orchestration', () => {
     expect(loadSubmittedAtomicMigrationBatches(scope)).toEqual([])
   })
 
-  it('revalidates the complete copy tree before opening an approval prompt', async () => {
+  it('revalidates the complete copy tree around estimation and submission', async () => {
     const parent = classifiedFor('alice')
     const copy = copyClassifiedFor()
-    const basePlan = planFromClassified([parent, copy], [parent, copy])
-    const plan = {
-      ...basePlan,
-      preflight: {
-        ...basePlan.preflight,
-        migrationApprovals: [APPROVAL],
-      },
-    }
-    mocks.planMigrationApprovals.mockReturnValue([APPROVAL])
+    const plan = planFromClassified([parent, copy], [parent, copy])
 
     await runExecute({ plan })
 
-    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(3)
+    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(2)
     expect(
       mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[0],
     ).toBeLessThan(
-      mocks.buildMigrationApprovalCall.mock.invocationCallOrder[0] ??
+      mocks.buildAtomicMigrationBatches.mock.invocationCallOrder[0] ??
         Number.POSITIVE_INFINITY,
     )
     expect(
-      mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[0],
+      mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[1],
     ).toBeLessThan(
       mocks.startTransaction.mock.invocationCallOrder[0] ??
         Number.POSITIVE_INFINITY,
@@ -1417,7 +1409,7 @@ describe('executeMigration HCA orchestration', () => {
       wallet: OWNER,
       copies: [copy],
     })
-    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(3)
+    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(2)
     expect(readContractMock).not.toHaveBeenCalledWith(
       expect.objectContaining({ functionName: 'ownerOf' }),
     )

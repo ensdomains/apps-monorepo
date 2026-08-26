@@ -34,6 +34,7 @@ type UseMigrationGasEstimateParams = {
   readonly accountError?: string | null
   readonly selectedNames: readonly string[]
   readonly v1Names: readonly V1Domain[]
+  readonly enabled?: boolean
 }
 
 const selectDomainsFromNames = (
@@ -104,6 +105,7 @@ export const useMigrationGasEstimate = ({
   accountError,
   selectedNames,
   v1Names,
+  enabled: estimateEnabled = true,
 }: UseMigrationGasEstimateParams): MigrationGasEstimateState => {
   const publicClient = usePublicClient()
   const { ensure: ensurePreflight } = useMigrationPreflight({
@@ -127,6 +129,7 @@ export const useMigrationGasEstimate = ({
     }
   }
   const enabled =
+    estimateEnabled &&
     !!ownerAddress &&
     !!hcaAddress &&
     !!publicClient &&
@@ -154,6 +157,8 @@ export const useMigrationGasEstimate = ({
     ] as const,
     enabled,
     staleTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     queryFn: () =>
       buildEstimate({
         ownerAddress,
