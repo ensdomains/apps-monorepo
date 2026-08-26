@@ -16,7 +16,7 @@ export const PrimaryContactCapacityIndicator = ({
   return (
     <div className="flex h-5.5 w-8 items-center justify-center">
       <span aria-live="polite" className="sr-only">
-        {selected} of {maximum} primary contact methods selected
+        {selected} of {maximum} featured social profiles selected
       </span>
       <motion.span
         animate={{ backgroundImage }}

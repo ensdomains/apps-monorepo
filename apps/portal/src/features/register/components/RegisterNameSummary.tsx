@@ -249,7 +249,7 @@ const PriceBreakdown = ({
                 {savePct > 0 ? (
                   <Badge variant="success">{`Save ${savePct}%`}</Badge>
                 ) : null}
-                <span>{`${formatUsd(pricePerYear)}/year`}</span>
+                <span>{`≈ ${formatUsd(pricePerYear)}/year`}</span>
               </span>
             }
           />

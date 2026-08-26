@@ -8,6 +8,7 @@ import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import {
   Combobox,
@@ -58,7 +59,9 @@ const PageHeader = ({ address }: PageHeaderProps) => (
         Back
       </Button>
     </Link>
-    <h1 className="text-h1">Create alias</h1>
+    <PageHeading parent={{ type: 'resolver', address: address as Address }}>
+      Create alias
+    </PageHeading>
   </div>
 )
 

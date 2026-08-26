@@ -24,7 +24,6 @@
   "settings": {
     // Required for biome to work in multi-root workspaces
     "biome.enabled": false,
-    "typescript.tsdk": "node_modules/typescript/lib",
     "i18n-ally.localesPaths": [
       "packages/locales",
       "packages/locales/locales"

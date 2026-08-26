@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
+import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
@@ -21,8 +23,10 @@ type AddressHistoryData = {
 }
 
 export const AddressHistoryDataTable = ({
+  address,
   history,
 }: {
+  address: Address
   history: AddressHistoryData
 }) => {
   // Transform and merge V1 and V2 events into a single sorted array
@@ -96,7 +100,9 @@ export const AddressHistoryDataTable = ({
   if (eventsDataWithTimestampsAndSenders.length === 0) {
     return (
       <div className="flex flex-col gap-8">
-        <h1 className="text-h1">History</h1>
+        <PageHeading parent={{ type: 'addr', addr: address }}>
+          History
+        </PageHeading>
         <NoResultsMessage
           title="No history yet"
           description="This address doesn't have any recorded history. Activity will appear here once transactions are made."
@@ -106,17 +112,25 @@ export const AddressHistoryDataTable = ({
     )
   }
 
+  const eventCount = eventsDataWithTimestampsAndSenders.length
+
   return (
-    <EventsDataTable<ENSEvent>
-      data={eventsDataWithTimestampsAndSenders}
-      name="" // Name will be extracted from individual transaction events in the sidebar
-      enableSidebar={true}
-      enableFilters={true}
-      enableSearch={true}
-      defaultNetwork={{
-        name: 'Sepolia',
-        icon: '/icons/eth.svg',
-      }}
-    />
+    <div className="flex flex-col gap-8">
+      <PageHeading parent={{ type: 'addr', addr: address }}>
+        {`History (${eventCount})`}
+      </PageHeading>
+      <EventsDataTable<ENSEvent>
+        data={eventsDataWithTimestampsAndSenders}
+        name="" // Name will be extracted from individual transaction events in the sidebar
+        enableSidebar={true}
+        enableFilters={true}
+        enableSearch={true}
+        enableTransactionCount={false}
+        defaultNetwork={{
+          name: 'Sepolia',
+          icon: '/icons/eth.svg',
+        }}
+      />
+    </div>
   )
 }

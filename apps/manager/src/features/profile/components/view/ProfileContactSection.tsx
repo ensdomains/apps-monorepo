@@ -9,10 +9,7 @@ import {
   profileCardCopyIconClassName,
   profileCardTrailingIconStrokeWidth,
 } from './ProfileCard'
-import {
-  getPrimaryContactItems,
-  type ProfileContactItem,
-} from './ProfileView.helpers'
+import { getContactItems, type ProfileContactItem } from './ProfileView.helpers'
 
 const contactCardSurfaceClassName =
   'rounded-xl border-[0.25px] border-ens-quartz-300 bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50'
@@ -29,7 +26,11 @@ const contactCopyIconClassName = cn(
 const contactCardPaddingClassName =
   'p-4 has-[>svg]:px-4 lg:landscape:p-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]'
 
-const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
+export const ProfileContactCard = ({
+  item,
+}: {
+  readonly item: ProfileContactItem
+}) => {
   const content = (
     <>
       <div className="flex w-full min-w-0 flex-col items-start gap-2">
@@ -84,14 +85,14 @@ export const ProfileContactSection = ({
 }: {
   readonly records: ProfileRecords
 }) => {
-  const contacts = getPrimaryContactItems(records)
+  const contacts = getContactItems(records)
   if (contacts.length === 0) return null
 
   return (
     <ProfileCard title={<Trans>Contact</Trans>}>
       <div className="grid grid-cols-2 gap-3 lg:landscape:grid-cols-3 lg:landscape:gap-6">
         {contacts.map((item) => (
-          <ContactCard item={item} key={item.key} />
+          <ProfileContactCard item={item} key={item.key} />
         ))}
       </div>
     </ProfileCard>

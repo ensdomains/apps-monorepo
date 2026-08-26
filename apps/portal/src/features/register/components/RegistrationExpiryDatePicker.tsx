@@ -24,6 +24,7 @@ type RegistrationExpiryDatePickerProps = {
   readonly onYearsPresetSelect: (years: number) => void
   readonly minDate: Temporal.PlainDate
   readonly maxDate: Temporal.PlainDate
+  readonly baseDate?: Temporal.PlainDate
   readonly name?: string
 }
 
@@ -33,6 +34,7 @@ export const RegistrationExpiryDatePicker = ({
   onYearsPresetSelect,
   minDate,
   maxDate,
+  baseDate,
   name,
 }: RegistrationExpiryDatePickerProps) => {
   const [isOpen, setIsOpen] = useState(false)
@@ -113,11 +115,12 @@ export const RegistrationExpiryDatePicker = ({
       </Popover>
       {name ? (
         <RegistrationDurationPresets
-          value={Math.round(
-            getYearsFromDuration(getDurationFromPickerDate(date)),
+          value={getYearsFromDuration(
+            getDurationFromPickerDate(date, baseDate),
           )}
           onSelect={handlePresetSelect}
           name={name}
+          baseDate={baseDate}
         />
       ) : null}
     </div>

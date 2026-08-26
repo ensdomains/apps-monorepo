@@ -80,12 +80,14 @@ export const ContactMethodRow = ({
           </p>
         ) : null}
       </div>
-      <PrimaryContactButton
-        disabled={disabled || primaryDisabled}
-        label={method.label}
-        onClick={() => onPrimaryChange(method, !primary)}
-        selected={primary}
-      />
+      {method.section === 'social' ? (
+        <PrimaryContactButton
+          disabled={disabled || primaryDisabled}
+          label={method.label}
+          onClick={() => onPrimaryChange(method, !primary)}
+          selected={primary}
+        />
+      ) : null}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import { Button } from '@/components/ui/button'
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
@@ -110,7 +111,7 @@ function RouteComponent() {
         />
       )}
       <div className="flex flex-row items-center justify-between">
-        <h1 className="text-h1">Ownership</h1>
+        <PageHeading parent={{ type: 'name', name }}>Ownership</PageHeading>
         {canTransfer && (
           <Button asChild className="gap-2">
             <Link params={{ name }} to="/$name/ownership/transfer">

@@ -1,3 +1,4 @@
+import { applyPastedNameSearch } from '@ens-apps/utils/normalizePastedNameSearch'
 import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys'
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
@@ -213,6 +214,9 @@ export const HomeSearchInput = ({
             placeholder="Search..."
             value={modalSearchValue}
             onValueChange={setModalSearchValue}
+            onPaste={(event) =>
+              applyPastedNameSearch(event, setModalSearchValue)
+            }
           />
           <SearchModalContent
             searchValue={trimmedModalSearch}
@@ -262,6 +266,7 @@ export const HomeSearchInput = ({
               onFocus={(e) => e.target.value.trim() && setMenuOpen(true)}
               onChange={(e) => setSearchValue(e.target.value)}
               onKeyDown={onSearchKeyDown}
+              onPaste={(event) => applyPastedNameSearch(event, setSearchValue)}
             />
             <InputGroupAddon align="inline-end">
               <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
@@ -324,6 +329,7 @@ export const HomeSearchInput = ({
           placeholder="Search..."
           value={modalSearchValue}
           onValueChange={setModalSearchValue}
+          onPaste={(event) => applyPastedNameSearch(event, setModalSearchValue)}
         />
         <SearchModalContent
           searchValue={trimmedModalSearch}

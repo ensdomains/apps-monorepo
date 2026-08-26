@@ -15,6 +15,7 @@ import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -298,7 +299,7 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       <header>
-        <h1 className="text-h1">Token Info</h1>
+        <PageHeading parent={{ type: 'name', name }}>Token Info</PageHeading>
       </header>
 
       {data?.protocolVersion === 'ENSv1' ? (

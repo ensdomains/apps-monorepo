@@ -6,7 +6,16 @@ import {
 } from '@intercom/messenger-js-sdk'
 import { PostHogProvider } from '@posthog/react'
 import { useHydrated } from '@tanstack/react-router'
-import posthog from 'posthog-js'
+// @posthog/react types its `client` prop with the `PostHog` type from the
+// default `posthog-js` build, which is a *nominally* distinct declaration from
+// the no-external build's `PostHog`. Import that type to cast at the provider
+// boundary below.
+import type { PostHog } from 'posthog-js'
+// Fully-bundled, no-external build so PostHog never lazy-loads extension
+// bundles via runtime <script> tags — our strict CSP blocks those. Same
+// approach as portal; see PostHog's CSP guide:
+// https://posthog.com/docs/advanced/content-security-policy
+import posthog from 'posthog-js/dist/module.full.no-external'
 import { useEffect } from 'react'
 import { useConnectionEffect } from 'wagmi'
 import { track, trackWithOptions } from './events'
@@ -166,5 +175,11 @@ export const PHProvider = ({
 
   if (!isHydrated) return <>{children}</>
 
-  return <PostHogProvider client={posthog}>{children}</PostHogProvider>
+  // Cast bridges the two posthog-js declaration files (see the type import
+  // note above); the runtime object is the real PostHog SDK either way.
+  return (
+    <PostHogProvider client={posthog as unknown as PostHog}>
+      {children}
+    </PostHogProvider>
+  )
 }

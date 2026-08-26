@@ -130,6 +130,12 @@ export const contactMethodKeys: ReadonlySet<ContactMethodKey> = new Set(
   contactMethods.map(({ key }) => key),
 )
 
+export const socialContactMethodKeys: ReadonlySet<ContactMethodKey> = new Set(
+  contactMethods
+    .filter(({ section }) => section === 'social')
+    .map(({ key }) => key),
+)
+
 export const rowMethods = rowMethodKeys.map((key) => {
   const method = contactMethodByKey.get(key)
   if (!method) {

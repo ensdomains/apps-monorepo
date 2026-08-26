@@ -6,6 +6,7 @@ import { getStorageAt } from 'viem/actions'
 import { decodeImplementationAddress } from '@/features/resolver/utils/permissionedResolver'
 import { resolveEnsOwner } from '@/utils/ens/resolveEnsOwner'
 import { resolveAvatarRecord } from './avatar'
+import { type AvatarBitmap, downscaleAvatar } from './avatar-image'
 import { createClient, type EnsClient } from './clients'
 import { safeFetch } from './safe-fetch'
 
@@ -37,6 +38,41 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
+/** Render an already-downscaled bitmap as the `data:` URI satori embeds. */
+function toDataUri({ bytes, contentType }: AvatarBitmap): string {
+  return `data:${contentType};base64,${bytesToBase64(bytes)}`
+}
+
+/**
+ * `data:<mime>;base64,<payload>` — the only inline form we can hand to the
+ * Images binding. Anything else (percent-encoded SVG, say) is passed through
+ * untouched, which is what happened to every inline avatar before WEB-1218.
+ */
+const BASE64_DATA_URI_RE = /^data:([^;,]+);base64,(.*)$/s
+
+/**
+ * Downscale an on-chain `data:` avatar.
+ *
+ * These skip {@link safeFetch} entirely, so they also skip its byte cap: the
+ * pixel cap from {@link downscaleAvatar} is the only bound on how much bitmap
+ * an NFT contract can push into the renderer.
+ */
+async function inlineAvatarDataUri(
+  uri: string,
+  images: ImagesBinding | undefined,
+): Promise<string> {
+  const match = BASE64_DATA_URI_RE.exec(uri)
+  if (!match) return uri
+
+  const downscaled = await downscaleAvatar(images, {
+    data: match[2],
+    contentType: match[1],
+    encoding: 'base64',
+  })
+
+  return downscaled ? toDataUri(downscaled) : uri
+}
+
 /**
  * Resolve an ENS `avatar` text record to an inline `data:` URI for OG rendering.
  *
@@ -46,11 +82,15 @@ function bytesToBase64(bytes: Uint8Array): string {
  *
  * `selfHost` is the worker's own host, rejected so an avatar pointing back at
  * `/og/<name>.png` can't make the worker recurse into itself.
+ *
+ * `images` is the Cloudflare Images binding used to cap the avatar's pixel
+ * dimensions (WEB-1218); without it the original bytes are embedded as-is.
  */
 export async function resolveAvatarDataUri(
   client: EnsClient,
   avatarRecord: string,
   selfHost?: string,
+  images?: ImagesBinding,
 ): Promise<string | null> {
   try {
     const resolved = await resolveAvatarRecord(client, avatarRecord, selfHost)
@@ -59,7 +99,9 @@ export async function resolveAvatarDataUri(
     // through without re-fetching (fetching a huge data: URI is itself abusable).
     // Still enforce the image/* requirement on the embedded MIME type.
     if (resolved.kind === 'inline') {
-      return resolved.uri.startsWith('data:image/') ? resolved.uri : null
+      return resolved.uri.startsWith('data:image/')
+        ? inlineAvatarDataUri(resolved.uri, images)
+        : null
     }
 
     const result = await safeFetch(resolved.url, {
@@ -69,7 +111,12 @@ export async function resolveAvatarDataUri(
     })
     if (!result) return null
 
-    return `data:${result.contentType};base64,${bytesToBase64(result.bytes)}`
+    const downscaled = await downscaleAvatar(images, {
+      data: result.bytes,
+      contentType: result.contentType,
+    })
+
+    return toDataUri(downscaled ?? result)
   } catch {
     return null
   }
@@ -159,7 +206,7 @@ export async function fetchEnsData(
       records.texts.find((r) => r.key === 'avatar')?.value ?? null
 
     const avatar = avatarRecord
-      ? await resolveAvatarDataUri(client, avatarRecord, selfHost)
+      ? await resolveAvatarDataUri(client, avatarRecord, selfHost, env.IMAGES)
       : null
 
     return {

@@ -5,6 +5,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { queryClient } from '@/utils/queryClient'
@@ -43,11 +44,9 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-h2 md:text-h1">
-        {events.length > 0
-          ? `${events.length} Event${events.length !== 1 ? 's' : ''}`
-          : 'History'}
-      </h1>
+      <PageHeading parent={{ type: 'resolver', address: address as Address }}>
+        {events.length > 0 ? `History (${events.length})` : 'History'}
+      </PageHeading>
 
       {events.length > 0 ? (
         <ResolverEventsTable events={events} enableSidebar />

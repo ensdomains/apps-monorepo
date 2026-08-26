@@ -7,25 +7,22 @@ import { cn } from '@/lib/utils'
 import { useNamePricing } from '../hooks/useNamePricing'
 import type { SelectedName } from '../hooks/useRenewalTransactions'
 import type { NamePricingDisplay } from '../utils/computeNamePricingDisplay'
-import type { ExtensionSpanType } from './ExtensionDurationOrExpiryPicker'
+import type { ExtensionSpan } from '../utils/extensionDurationPicker'
 
 type ExtendNameCheckoutSummaryProps = {
   readonly selectedName: SelectedName
-  readonly duration: number
-  readonly spanType: ExtensionSpanType
+  readonly span: ExtensionSpan
   readonly baseDate?: Temporal.PlainDate
 }
 
 export const ExtendNameCheckoutSummary = ({
   selectedName,
-  duration,
-  spanType,
+  span,
   baseDate,
 }: ExtendNameCheckoutSummaryProps) => {
   const { display, isLoading, isError, error } = useNamePricing(
     selectedName,
-    duration,
-    spanType,
+    span,
     baseDate,
   )
 

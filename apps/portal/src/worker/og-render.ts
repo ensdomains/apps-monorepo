@@ -5,9 +5,8 @@ import ensLogoSvg from '../assets/fonts/og/Logo.svg?raw'
 import shieldIconSvg from '../assets/fonts/og/shield-icon.svg?raw'
 import syncIconSvg from '../assets/fonts/og/sync-icon.svg?raw'
 import walletIconSvg from '../assets/fonts/og/wallet-icon.svg?raw'
-
+import { truncate, truncateAddress } from '../utils/routePaths'
 import { buildOgFontList, loadOgFonts, type OgFonts } from './fonts'
-import { truncate, truncateAddress } from './routing'
 
 const matchHtmlRegExp = /["'&<>]/
 
@@ -97,9 +96,10 @@ function getPageLabel(
  *
  * satori/resvg run in a WASM instance that is a per-isolate singleton whose
  * linear memory only ever grows, so a render can throw for reasons unrelated to
- * this particular request — an avatar large enough in *pixels* (the size cap in
- * `ens.ts` bounds encoded bytes, not decoded area) exhausts that heap on a warm
- * isolate while the same request succeeds on a cold one.
+ * this particular request: enough decoded pixels exhaust that heap on a warm
+ * isolate while the same request succeeds on a cold one. `avatar-image.ts` caps
+ * the one input whose pixel count we don't control, but that's an upper bound
+ * on the biggest contributor, not a guarantee about the heap.
  *
  * Nothing above this used to catch, so such a throw escaped to the runtime as a
  * 1101 and the card 500'd on `/<name>` and every subpage at once. Failures are

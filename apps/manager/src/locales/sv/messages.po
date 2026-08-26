@@ -260,10 +260,6 @@ msgstr ""
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "And more..."
-msgstr ""
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve {name}"
 msgstr ""
@@ -310,10 +306,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approving the payment token"
-msgstr ""
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Are you sure?"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
@@ -628,6 +620,14 @@ msgstr ""
 msgid "Continue to Settings"
 msgstr ""
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Continue without signing in"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Continue without signing in?"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
 msgid "Cooldown fee"
 msgstr ""
@@ -740,11 +740,16 @@ msgid "Did You Know?"
 msgstr "Visste du att?"
 
 #: src/features/navigation/Header/account/WalletSection.tsx
+#: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Disconnect"
 msgstr ""
 
 #: src/routes/wallet.tsx
 msgid "Disconnect Wallet"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Disconnecting..."
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
@@ -760,7 +765,7 @@ msgid "doesn't exist"
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Domain transfer & expiry notifications"
+msgid "Domain transfer and expiry notifications"
 msgstr ""
 
 #: src/features/bulk-renew/components/SuccessStep.tsx
@@ -1009,6 +1014,10 @@ msgstr "Favoriter"
 msgid "Favourites"
 msgstr ""
 
+#: src/features/profile/components/view/ProfileFeaturedSocialSection.tsx
+msgid "Featured"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx
 msgid "Fee at this moment"
 msgstr ""
@@ -1059,10 +1068,6 @@ msgstr ""
 
 #: src/features/migration/components/GameStep.tsx
 msgid "Getting ready..."
-msgstr ""
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Go Back"
 msgstr ""
 
 #: src/features/not-found/pages/NotFoundPage.tsx
@@ -2015,7 +2020,7 @@ msgid "Save Profile"
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Saved favorites & searches"
+msgid "Saved favorites and searches"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
@@ -2227,18 +2232,6 @@ msgstr ""
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
-msgstr ""
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Skip Anyway"
-msgstr ""
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Skip for now"
-msgstr ""
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
@@ -2501,6 +2494,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Times shown in your local time zone ({timezoneLabel})"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "To enable these features later, open your wallet menu and select Verify wallet ownership."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push.tsx
@@ -2906,7 +2903,7 @@ msgid "You can preview the card after migrating one name, mint immediately, or r
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
-msgid "You can verify later by clicking your profile in the navbar"
+msgid "You can still use the manager, but these features won't be available:"
 msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx
@@ -2939,10 +2936,6 @@ msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "You'll be notified 30, 7, and 1 day before expiry."
-msgstr ""
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "You'll miss:"
 msgstr ""
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
