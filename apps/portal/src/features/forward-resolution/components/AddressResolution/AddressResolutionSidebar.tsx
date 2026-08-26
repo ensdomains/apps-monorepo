@@ -56,12 +56,16 @@ import type { AddressResolutionRow } from './types'
 // through the timeline's descriptors, so both belong here or a v1 name's
 // resolution history filters down to nothing.
 //
-// `NameChanged` is deliberately absent: on a v1 resolver that is the *reverse*
-// record (`name()`), which answers "what name does this address claim", not
-// "what address does this name resolve to". It belongs to primary-name history,
-// and listing it here would put reverse writes under a forward-resolution
-// heading whose empty state promises address record changes.
-const ADDRESS_HISTORY_EVENT_TYPES = ['AddressChanged', 'AddrChanged'] as const
+// `NameChanged` is the v1 `name()` record written on *this* node, kept because
+// the sidebar covers the name's primary-name state alongside its addresses.
+// Note it is not where a primary name actually lives — that record sits on
+// `{address}.addr.reverse`, a different node this query never reads — so this
+// surfaces `name()` writes on the name itself, which are rare in practice.
+const ADDRESS_HISTORY_EVENT_TYPES = [
+  'AddressChanged',
+  'AddrChanged',
+  'NameChanged',
+] as const
 
 const coinNetworkName = (coinType: number, fallback: string) => {
   try {
@@ -410,7 +414,7 @@ const ResolutionDetails = ({
             scope={ADDRESS_HISTORY_EVENT_TYPES}
             heading={<h2 className="text-caps text-foreground">History</h2>}
             emptyTitle="No resolution history"
-            emptyDescription="Address record changes will appear here as they happen."
+            emptyDescription="Resolution record changes will appear here as they happen."
           />
         </div>
       </div>
