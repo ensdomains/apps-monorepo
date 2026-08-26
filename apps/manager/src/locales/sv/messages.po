@@ -1603,7 +1603,6 @@ msgid "Please connect your wallet first"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Please finish connecting your wallet, then try again"
 msgstr ""
 
@@ -2132,6 +2131,10 @@ msgstr ""
 msgid "Set up later"
 msgstr ""
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Set up this name’s resolver?"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböcker."
@@ -2280,8 +2283,8 @@ msgid "Stables accepted"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "Start a new profile for this name?"
-msgstr ""
+#~ msgid "Start a new profile for this name?"
+#~ msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Start typing to check if your perfect name is available"
@@ -2419,6 +2422,11 @@ msgstr ""
 msgid "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "The replacement resolver could not be verified. Please try again."
+msgstr ""
+
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "The token is tied to your eligible EOA. Migrating more names later does not create another commemorative NFT."
 msgstr ""
@@ -2469,12 +2477,12 @@ msgid "This name points to a different wallet. If you continue, we’ll update i
 msgstr ""
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "This name still has profile details from a previous owner. Continuing clears them and keeps only the changes you save."
-msgstr ""
+#~ msgid "This name still has profile details from a previous owner. Continuing clears them and keeps only the changes you save."
+#~ msgstr ""
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "This name still has profile details from a previous owner. To use it as your primary name, we’ll clear those details and keep only your wallet address."
-msgstr ""
+#~ msgid "This name still has profile details from a previous owner. To use it as your primary name, we’ll clear those details and keep only your wallet address."
+#~ msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "This page can only verify your email when opened from the link in the verification email."
@@ -2506,6 +2514,14 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
+msgstr ""
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "To save these changes, we’ll set a resolver your wallet controls and keep only the changes you save."
+msgstr ""
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "To use this as your primary name, we’ll set a resolver your wallet controls and keep only your wallet address."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
@@ -3040,6 +3056,11 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Your wallet does not have permission to change the resolver for this name."
 msgstr ""
 
 #: src/routes/wallet.tsx

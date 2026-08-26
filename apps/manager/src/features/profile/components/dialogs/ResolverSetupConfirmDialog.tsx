@@ -28,19 +28,18 @@ const getCopy = (
       title: <Trans>Set this as your primary name?</Trans>,
       description: (
         <Trans>
-          This name still has profile details from a previous owner. To use it
-          as your primary name, we’ll clear those details and keep only your
-          wallet address.
+          To use this as your primary name, we’ll set a resolver your wallet
+          controls and keep only your wallet address.
         </Trans>
       ),
       confirmLabel: <Trans>Replace & Continue</Trans>,
     }))
     .with('edit-profile', () => ({
-      title: <Trans>Start a new profile for this name?</Trans>,
+      title: <Trans>Set up this name’s resolver?</Trans>,
       description: (
         <Trans>
-          This name still has profile details from a previous owner. Continuing
-          clears them and keeps only the changes you save.
+          To save these changes, we’ll set a resolver your wallet controls and
+          keep only the changes you save.
         </Trans>
       ),
       confirmLabel: <Trans>Replace & Save</Trans>,

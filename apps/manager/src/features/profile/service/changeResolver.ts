@@ -8,10 +8,8 @@ const toLabel = (name: string): string => name.replace('.eth', '')
 /**
  * The `setResolver` call for an ENS V2 name.
  *
- * Only the call is built here, never submitted: its one consumer
- * (`setupControlledResolver`) batches it with a resolver deployment and a
- * record write into a single intent. The standalone `changeResolver` submitter
- * that used to live alongside this had no callers and is gone.
+ * Only the call is built here. Its consumer submits it after the replacement
+ * resolver has been deployed and seeded with the requested records.
  */
 export function buildSetResolverCall({
   name,
