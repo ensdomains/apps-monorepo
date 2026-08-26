@@ -28,6 +28,8 @@ interface HistoryTimelineProps {
   readonly heading?: ReactNode
   /** Rendered after the filter chips, e.g. a "Full history" link. */
   readonly action?: ReactNode
+  /** Show the date / event-type chips and the truncation note. */
+  readonly showFilters?: boolean
   readonly emptyTitle?: string
   readonly emptyDescription?: string
 }
@@ -46,20 +48,21 @@ export const HistoryTimeline = ({
   scope,
   heading,
   action,
+  showFilters = true,
   emptyTitle = 'No history yet',
   emptyDescription = "This name doesn't have any recorded history. Activity will appear here once transactions are made.",
 }: HistoryTimelineProps) => {
   const { data, isLoading, error } = useQuery(
     getNameHistoryTimelineQueryOptions({ name, eventTypes: scope }),
   )
-  const events = data?.events
+  const events = data?.events ?? []
 
   const [dateRange, setDateRange] = useState<DateRange>({})
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [openIds, setOpenIds] = useState<ReadonlySet<Hex>>(new Set())
 
-  const actions = summarizeEvents(events ?? [])
-  const eventTypeGroups = buildEventTypeGroups(events ?? [])
+  const actions = summarizeEvents(events)
+  const eventTypeGroups = buildEventTypeGroups(events)
   const filteredActions = filterActions(actions, dateRange, selectedTypes)
 
   const allExpanded =
@@ -113,24 +116,28 @@ export const HistoryTimeline = ({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         {heading ?? <h1 className="text-4xl">History</h1>}
         <div className="flex flex-wrap items-center gap-2">
-          <TableDateRangeFilter
-            label="Date range"
-            dateRange={dateRange}
-            onChange={setDateRange}
-            size="xs"
-            icon={Calendar}
-            hideValue
-          />
-          {eventTypeGroups.length > 0 && (
-            <TableMultiSelectFilter
-              label="Event"
-              groups={eventTypeGroups}
-              selectedValues={selectedTypes}
-              onChange={setSelectedTypes}
-              size="xs"
-              icon={ListFilter}
-              hideValue
-            />
+          {showFilters && (
+            <>
+              <TableDateRangeFilter
+                label="Date range"
+                dateRange={dateRange}
+                onChange={setDateRange}
+                size="xs"
+                icon={Calendar}
+                hideValue
+              />
+              {eventTypeGroups.length > 0 && (
+                <TableMultiSelectFilter
+                  label="Event"
+                  groups={eventTypeGroups}
+                  selectedValues={selectedTypes}
+                  onChange={setSelectedTypes}
+                  size="xs"
+                  icon={ListFilter}
+                  hideValue
+                />
+              )}
+            </>
           )}
           <Button variant="outline" onClick={toggleExpandAll} size="xs">
             {allExpanded ? (
@@ -155,11 +162,12 @@ export const HistoryTimeline = ({
               one transaction, so counting events would put a figure above the
               list that nothing in it adds up to.
 
-              Shown in scoped views too: the per-facet window is where
-              truncation actually bites (the indexer exposes no cursor to page
-              past it), so suppressing this here would present a partial list
-              as the whole history. */}
-          {data?.hasMore && (
+              Tied to `showFilters` because both mark a standalone History view:
+              there, the note is the only thing saying the window is capped (the
+              indexer exposes no cursor to page past it). An embedded section
+              hides both and discloses through its "Full history" link instead,
+              the way the Overview's preview does. */}
+          {showFilters && data?.hasMore && (
             <p className="mb-3 text-muted-foreground text-p">
               Showing the most recent {filteredActions.length}
               {scope ? ' matching' : ''} transactions.

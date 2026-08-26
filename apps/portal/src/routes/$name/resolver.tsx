@@ -10,20 +10,18 @@ import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { EditNoteIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { InfoRow } from '@/features/profile/components/InfoRow'
 import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { NAME_HISTORY_PAGE_SIZE } from '@/features/profile/hooks/useNameHistory'
-import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
@@ -40,8 +38,6 @@ import {
 import { wagmiConfig } from '@/lib/wagmi'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
-import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
-import { NameSubgraphHistory } from '../../components/table/NameSubgraphHistory/NameSubgraphHistory'
 
 export const Route = createFileRoute('/$name/resolver')({
   component: RouteComponent,
@@ -209,75 +205,14 @@ const ResolverInfoList = ({
   )
 }
 
-const HistorySection = ({
-  name,
-  protocolVersion,
-}: {
-  name: string
-  protocolVersion: NonNullable<GetEnsOwnerReturnType>['protocolVersion']
-}) => {
-  const v2HistoryQuery = useQuery({
-    ...getV2NameHistoryQueryOptions({ name, first: NAME_HISTORY_PAGE_SIZE }),
-    enabled: protocolVersion === 'ENSv2',
-  })
-
-  if (protocolVersion === 'ENSv2') {
-    if (v2HistoryQuery.isLoading) {
-      return <LoadingSpinner title="Loading history..." />
-    }
-
-    if (v2HistoryQuery.error) {
-      return (
-        <div className="text-sm text-destructive">
-          {v2HistoryQuery.error.cause?.message || v2HistoryQuery.error.message}
-        </div>
-      )
-    }
-
-    return (
-      <div className="flex flex-col gap-4">
-        <HistorySectionHeader
-          action={
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-neutral-7"
-              asChild
-            >
-              <Link to="/$name/history" params={{ name }}>
-                <ClockIcon className="size-4" />
-                Full history
-              </Link>
-            </Button>
-          }
-        />
-        <NameSubgraphHistory
-          name={name}
-          v2Events={transformV2EventsToSubgraphFormat(
-            v2HistoryQuery.data || [],
-          )}
-          enableHeader={false}
-        />
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <HistorySectionHeader
-        action={
-          <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
-            <Link to="/$name/history" params={{ name }}>
-              <ClockIcon className="size-4" />
-              Full history
-            </Link>
-          </Button>
-        }
-      />
-      <NameSubgraphHistory name={name} enableHeader={false} />
-    </div>
-  )
-}
+const RESOLVER_HISTORY_EVENT_TYPES = [
+  'ResolverUpdated',
+  'AddressChanged',
+  'AddrChanged',
+  'TextChanged',
+  'ContenthashChanged',
+  'NameChanged',
+] as const
 
 interface ResolverViewProps {
   name: string
@@ -349,7 +284,22 @@ const ResolverView = ({
         />
       )}
 
-      <HistorySection name={name} protocolVersion={ownerData.protocolVersion} />
+      <HistoryTimeline
+        name={name}
+        scope={RESOLVER_HISTORY_EVENT_TYPES}
+        showFilters={false}
+        emptyTitle="No resolver history"
+        emptyDescription="Resolver changes and record writes for this name will appear here as they happen."
+        heading={<h2 className="text-caps text-foreground">History</h2>}
+        action={
+          <Button variant="outline" size="xs" asChild>
+            <Link to="/$name/history" params={{ name }}>
+              <ClockIcon className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
     </div>
   )
 }
