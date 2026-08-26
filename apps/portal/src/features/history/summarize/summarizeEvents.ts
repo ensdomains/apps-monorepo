@@ -140,18 +140,46 @@ const describeGroup = (
 /** Turn a flat list of raw indexer events into tier-1 semantic actions, one per transaction. */
 export const summarizeEvents = (
   events: readonly TimelineIndexerEvent[],
+  /**
+   * `includeSubjectName` leads each row with the name it concerns, for feeds
+   * whose rows have different subjects (a registry's labels) — see
+   * `withSubjectName`.
+   */
+  {
+    includeSubjectName = false,
+  }: { readonly includeSubjectName?: boolean } = {},
 ): Action[] => {
   const relevant = events.filter((event) => !IGNORED_TYPES.has(event.type))
 
   const actions = groupByTransaction(relevant).map((group): Action => {
     const byRank = [...group].sort((a, b) => rankOf(b) - rankOf(a))
+    const { slots, ...described } = describeGroup(group, byRank)
     return {
       txHash: group[0].transactionHash,
       timestamp: Math.max(...group.map((event) => event.timestamp)),
       events: group,
-      ...describeGroup(group, byRank),
+      ...described,
+      slots: includeSubjectName ? withSubjectName(slots, byRank[0]) : slots,
     }
   })
 
   return actions.sort((a, b) => b.timestamp - a.timestamp)
+}
+
+/**
+ * Lead the row with the name it concerns, unless the descriptor already named
+ * something — an anonymous row in a multi-subject feed is the only ambiguous
+ * case, and prefixing the others would read as a duplicate.
+ */
+const withSubjectName = (
+  slots: readonly ActionSlot[],
+  primary: TimelineIndexerEvent,
+): readonly ActionSlot[] => {
+  if (!primary.name) return slots
+  if (slots.some((slot) => slot.kind === 'name')) return slots
+  const subject: ActionSlot = { kind: 'name', value: primary.name }
+  // "Unlink subregistry" and friends describe the subject alone; an arrow
+  // pointing at nothing would read as a dropped value.
+  if (slots.length === 0) return [subject]
+  return [subject, { kind: 'glyph', value: '→' }, ...slots]
 }
