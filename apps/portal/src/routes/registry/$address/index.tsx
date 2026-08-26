@@ -198,7 +198,7 @@ function RouteComponent() {
         </div>
       </div>
 
-      <RegistryHistoryByAddress address={address} name={registry.name} />
+      <RegistryHistoryByAddress address={address} />
     </div>
   )
 }

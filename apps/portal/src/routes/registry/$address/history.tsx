@@ -45,11 +45,9 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-h2 md:text-h1">History</h1>
       <RegistryHistoryByAddress
         address={address}
-        name={registry.name}
-        enableHeader={false}
+        heading={<h1 className="text-h2 md:text-h1">History</h1>}
       />
     </div>
   )
