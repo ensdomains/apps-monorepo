@@ -7,6 +7,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Button } from '@/components/ui/button'
+import { Rail } from '@/components/ui/timeline'
 import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
 import { summarizeEvents } from '../summarize/summarizeEvents'
 import { ActionTimeline, TimelineFrame } from './ActionTimeline'
@@ -152,16 +153,13 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
           actions={recent}
           openIds={openIds}
           onToggle={toggleAction}
-          connectBelow={hasHiddenActions}
+          connectBelow={hasHiddenActions && 'dashed'}
         />
         {hasHiddenActions && (
           <>
-            <div className="relative py-2">
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-y-0 left-(--rail-x) w-0 border-neutral-2 border-l-2 border-dashed"
-              />
-              <div className="pl-(--detail-indent) text-muted-foreground text-p">
+            <div className="relative py-3">
+              <Rail className="inset-y-0" connection="dashed" />
+              <div className="pl-(--label-x) text-neutral-7 text-p">
                 See{' '}
                 <Link
                   to="/$name/history"
@@ -180,7 +178,7 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
                 actions={[pinnedAction]}
                 openIds={openIds}
                 onToggle={toggleAction}
-                connectAbove
+                connectAbove="dashed"
               />
             )}
             {!pinnedAction && firstQuery.error && (
