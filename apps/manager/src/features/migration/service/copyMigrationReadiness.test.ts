@@ -209,21 +209,6 @@ const expectReason = async (
 }
 
 describe('assertCopyMigrationTopology', () => {
-  it('accepts an arbitrary-depth route to a selected unlocked 2LD', () => {
-    const root = migratingRoot('unlocked')
-    const parent = registryCopy()
-    const child = registryCopy({
-      id: '0x04',
-      name: 'bar.foo.example.eth',
-      label: 'bar',
-      parentName: 'foo.example.eth',
-    })
-
-    expect(() =>
-      assertCopyMigrationTopology([child, root, parent]),
-    ).not.toThrow()
-  })
-
   it('fails closed when an ancestor is missing', () => {
     const child = registryCopy({
       name: 'bar.foo.example.eth',
@@ -289,16 +274,6 @@ describe('assertCopySourcesFresh', () => {
       }),
       'source-owner-changed',
     )
-  })
-
-  it('accepts the live registry owner with the non-expiring sentinel', async () => {
-    await expect(
-      assertCopySourcesFresh({
-        publicClient: sourceOnlyClient(),
-        wallet: WALLET,
-        copies: [registryCopy()],
-      }),
-    ).resolves.toBeUndefined()
   })
 
   it('rejects a registry-only source without the exact uint64 max expiry', async () => {

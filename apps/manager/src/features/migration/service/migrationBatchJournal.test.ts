@@ -6,6 +6,7 @@ import {
   loadMigrationRecoverySnapshot,
   loadPendingAtomicMigrationIntents,
   loadSubmittedAtomicMigrationBatches,
+  type MigrationRecoverySnapshot,
   persistMigrationRecoverySnapshot,
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
@@ -46,7 +47,7 @@ describe('migration batch journal', () => {
       registrantId: null,
     })
     const copyNode = namehash(copy.name)
-    persistMigrationRecoverySnapshot(scope, {
+    const snapshot = {
       registryDomains: [root, copy],
       registryOperations: [
         { name: root.name, action: 'migrate' },
@@ -70,33 +71,10 @@ describe('migration batch journal', () => {
         { id: 'eth-registry:hca' },
         { id: 'base-registrar:hca-token', tokenId: 123n },
       ],
-    })
+    } satisfies MigrationRecoverySnapshot
 
-    expect(loadMigrationRecoverySnapshot(scope)).toEqual({
-      registryDomains: [root, copy],
-      registryOperations: [
-        { name: root.name, action: 'migrate' },
-        { name: copy.name, action: 'copy' },
-      ],
-      remainingOperations: [{ name: copy.name, action: 'copy' }],
-      completedOperations: [{ name: root.name, action: 'migrate' }],
-      profiles: new Map([
-        [
-          copyNode,
-          {
-            texts: [{ key: 'url', value: 'https://example.test' }],
-            addresses: [{ coinType: 60n, value: '0x1234' }],
-            contentHash: '0xe301',
-            abis: [{ contentType: 1n, value: '0x5b5d' }],
-          },
-        ],
-      ]),
-      ownedPermRes: '0x0000000000000000000000000000000000000004',
-      plannedApprovals: [
-        { id: 'eth-registry:hca' },
-        { id: 'base-registrar:hca-token', tokenId: 123n },
-      ],
-    })
+    persistMigrationRecoverySnapshot(scope, snapshot)
+    expect(loadMigrationRecoverySnapshot(scope)).toEqual(snapshot)
 
     persistPendingAtomicMigrationIntent(scope, {
       id: 'copy-intent',

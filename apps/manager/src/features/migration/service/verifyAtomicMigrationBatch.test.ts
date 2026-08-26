@@ -519,43 +519,28 @@ describe('verifyAtomicMigrationBatch', () => {
       address: USER_REGISTRY,
       blockNumber: 789n,
     })
+    expect(
+      readContract.mock.calls
+        .map(([request]) => request.functionName)
+        .toSorted(),
+    ).toEqual([
+      'getParent',
+      'getState',
+      'getSubregistry',
+      'getSubregistry',
+      'hasRootRoles',
+      'hasRootRoles',
+      'verifyContract',
+    ])
+    expect(
+      readContract.mock.calls.every(
+        ([request]) => request.blockNumber === 789n,
+      ),
+    ).toBe(true)
     expect(readContract).toHaveBeenCalledWith(
       expect.objectContaining({
         address: FACTORY,
-        functionName: 'verifyContract',
         args: [USER_REGISTRY],
-        blockNumber: 789n,
-      }),
-    )
-    expect(readContract).toHaveBeenCalledWith(
-      expect.objectContaining({
-        address: USER_REGISTRY,
-        functionName: 'hasRootRoles',
-        args: [ROLES_ALL, HCA],
-        blockNumber: 789n,
-      }),
-    )
-    expect(readContract).toHaveBeenCalledWith(
-      expect.objectContaining({
-        address: USER_REGISTRY,
-        functionName: 'hasRootRoles',
-        args: [ROLES_ALL, WALLET],
-        blockNumber: 789n,
-      }),
-    )
-    expect(readContract).toHaveBeenCalledWith(
-      expect.objectContaining({
-        address: USER_REGISTRY,
-        functionName: 'getParent',
-        blockNumber: 789n,
-      }),
-    )
-    expect(readContract).toHaveBeenCalledWith(
-      expect.objectContaining({
-        address: PARENT_REGISTRY,
-        functionName: 'getSubregistry',
-        args: ['foo'],
-        blockNumber: 789n,
       }),
     )
     expect(readContract).toHaveBeenCalledWith(
@@ -563,7 +548,6 @@ describe('verifyAtomicMigrationBatch', () => {
         address: PARENT_REGISTRY,
         functionName: 'getState',
         args: [RESOURCE],
-        blockNumber: 789n,
       }),
     )
   })

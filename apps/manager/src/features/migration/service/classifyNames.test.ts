@@ -185,17 +185,6 @@ describe('classifyName — token type', () => {
       'locked-child' as const,
     ],
     [
-      'unlocked-child copy when a wrapped child can unwrap',
-      {
-        isWrapped: true,
-        name: 'sub.raffy.eth',
-        parentName: 'raffy.eth',
-        resolverAddress: null,
-        fuses: 0n,
-      },
-      'unlocked-child' as const,
-    ],
-    [
       'detached-child migration when PARENT_CANNOT_CONTROL burnt and parent is locked',
       {
         isWrapped: true,

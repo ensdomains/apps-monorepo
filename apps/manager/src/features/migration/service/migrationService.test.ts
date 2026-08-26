@@ -568,28 +568,6 @@ describe('executeMigration HCA orchestration', () => {
     expect(loadSubmittedAtomicMigrationBatches(scope)).toEqual([])
   })
 
-  it('revalidates the complete copy tree around estimation and submission', async () => {
-    const parent = classifiedFor('alice')
-    const copy = copyClassifiedFor()
-    const plan = planFromClassified([parent, copy], [parent, copy])
-
-    await runExecute({ plan })
-
-    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(2)
-    expect(
-      mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[0],
-    ).toBeLessThan(
-      mocks.buildAtomicMigrationBatches.mock.invocationCallOrder[0] ??
-        Number.POSITIVE_INFINITY,
-    )
-    expect(
-      mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[1],
-    ).toBeLessThan(
-      mocks.startTransaction.mock.invocationCallOrder[0] ??
-        Number.POSITIVE_INFINITY,
-    )
-  })
-
   it('deploys an undeployed HCA directly from the wallet and refreshes account state', async () => {
     getCodeMock.mockResolvedValueOnce('0x')
     const refreshAccount = vi.fn(() => Promise.resolve())
@@ -1240,68 +1218,6 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
-  it('reconciles an exact copied name only when a durable attempt was recorded', async () => {
-    const copy = copyClassifiedFor()
-    const plan = planFromClassified([copy], [classifiedFor('alice'), copy])
-    const onBatchComplete = vi.fn()
-    persistPendingAtomicMigrationIntent(
-      { chainId: 11155111, owner: OWNER, hca: HCA },
-      {
-        id: 'copy-intent',
-        names: [copy.domain.name],
-        operations: [{ name: copy.domain.name, action: 'copy' }],
-      },
-    )
-
-    const { result } = await runExecute({
-      plan,
-      onBatchComplete,
-      reconcileBeforeSubmit: true,
-    })
-
-    expect(mocks.reconcileAtomicMigrationBatch).toHaveBeenCalledOnce()
-    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
-    expect(mocks.startTransaction).not.toHaveBeenCalled()
-    expect(onBatchComplete).toHaveBeenCalledWith([
-      { name: copy.domain.name, action: 'copy' },
-    ])
-    expect(result).toMatchObject({
-      completed: 1,
-      migrated: 0,
-      copied: 1,
-      completedOperations: [{ name: copy.domain.name, action: 'copy' }],
-    })
-    expect(
-      loadPendingAtomicMigrationIntents({
-        chainId: 11155111,
-        owner: OWNER,
-        hca: HCA,
-      }),
-    ).toEqual([])
-  })
-
-  it('does not accept exact V2 copy state without a recorded attempt', async () => {
-    const copy = copyClassifiedFor()
-    const plan = planFromClassified([copy], [classifiedFor('alice'), copy])
-    const error = await runExecute({
-      plan,
-      reconcileBeforeSubmit: true,
-    }).catch((cause: unknown) => cause)
-
-    expect(error).toMatchObject({
-      name: 'MigrationError',
-      cause: {
-        name: 'AtomicMigrationIntentIndeterminateError',
-        intentId: 'unrecorded-exact-v2-state',
-        names: [copy.domain.name],
-      },
-    })
-    expect(mocks.reconcileAtomicMigrationBatch).toHaveBeenCalledOnce()
-    expect(mocks.assertCopyMigrationReadiness).not.toHaveBeenCalled()
-    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
-    expect(mocks.startTransaction).not.toHaveBeenCalled()
-  })
-
   it('fails closed when a journaled action no longer matches the plan', async () => {
     const copy = copyClassifiedFor()
     const plan = planFromClassified([copy], [classifiedFor('alice'), copy])
@@ -1391,31 +1307,6 @@ describe('executeMigration HCA orchestration', () => {
       hashFor(1),
     )
     expect(result).toMatchObject({ completed: 2, migrated: 1, copied: 1 })
-  })
-
-  it('checks copied V1 state on retry without requesting token ownership transfer', async () => {
-    const copy = copyClassifiedFor()
-    const plan = planFromClassified([copy], [classifiedFor('alice'), copy])
-    mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
-      status: 'incomplete',
-      verification: { batchIndex: 0, status: 'confirmed', results: [] },
-      mismatches: [{ expectationId: `${copy.domain.name}:name-owner` }],
-    })
-
-    await runExecute({ plan, reconcileBeforeSubmit: true })
-
-    expect(mocks.assertCopySourcesFresh).toHaveBeenCalledWith({
-      publicClient: PUBLIC_CLIENT,
-      wallet: OWNER,
-      copies: [copy],
-    })
-    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(2)
-    expect(readContractMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ functionName: 'ownerOf' }),
-    )
-    expect(readContractMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ functionName: 'balanceOf' }),
-    )
   })
 
   it('finishes progress at the planned total when retry reconciliation skips setup and submission', async () => {

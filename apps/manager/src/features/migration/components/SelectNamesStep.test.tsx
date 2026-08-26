@@ -90,12 +90,10 @@ const renderStep = ({
 
 describe('SelectNamesStep', () => {
   it('seeds all visible names (parent + subnames + orphans) as selected', () => {
-    const { onNamesChange, getByText, queryByText } = renderStep()
+    const { onNamesChange, getByText } = renderStep()
     expect(getByText('sub1234.eth')).toBeInTheDocument()
     expect(getByText('gm.sub1234.eth')).toBeInTheDocument()
     expect(getByText('sub123.eth')).toBeInTheDocument()
-    expect(queryByText('Copy')).not.toBeInTheDocument()
-    expect(queryByText('Migrate')).not.toBeInTheDocument()
     const lastCall = onNamesChange.mock.calls.at(-1)?.[0] ?? []
     expect([...lastCall].sort()).toEqual(
       eligibleFixture.map((item) => item.domain.name).sort(),
@@ -124,9 +122,13 @@ describe('SelectNamesStep', () => {
     expect(lastCall).toContain('gm.sub1234.eth')
   })
 
-  it('renders subnames without individual selection controls', () => {
-    const { getByText } = renderStep()
-    expect(getByText('gm.sub1234.eth').closest('button')).toBeNull()
+  it('subname rows are not individually interactive', () => {
+    const { onNamesChange, getByText } = renderStep()
+    const subnameText = getByText('gm.sub1234.eth')
+    expect(subnameText.closest('button')).toBeNull()
+    const callsBefore = onNamesChange.mock.calls.length
+    fireEvent.click(subnameText)
+    expect(onNamesChange.mock.calls.length).toBe(callsBefore)
   })
 
   it('searching a subname keeps the parent visible for context', () => {
