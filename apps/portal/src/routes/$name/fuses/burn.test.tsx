@@ -131,7 +131,7 @@ describe('fuses/burn route', () => {
     render(<BurnRoute />)
 
     expect(
-      screen.getByRole('heading', { name: 'Burn fuses' }),
+      screen.getByRole('heading', { name: `${NAME} Burn fuses` }),
     ).toBeInTheDocument()
     expect(screen.getByText('Cannot Unwrap')).toBeInTheDocument()
     expect(screen.queryByText('Fuses cannot be burned')).not.toBeInTheDocument()
@@ -156,7 +156,7 @@ describe('fuses/burn route', () => {
       screen.getByText('Renew the name to burn fuses again.'),
     ).toBeInTheDocument()
     expect(
-      screen.queryByRole('heading', { name: 'Burn fuses' }),
+      screen.queryByRole('heading', { name: `${NAME} Burn fuses` }),
     ).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /Save changes/ }),
@@ -190,7 +190,7 @@ describe('fuses/burn route', () => {
     render(<BurnRoute />)
 
     expect(
-      screen.queryByRole('heading', { name: 'Burn fuses' }),
+      screen.queryByRole('heading', { name: `${NAME} Burn fuses` }),
     ).not.toBeInTheDocument()
   })
 
@@ -203,7 +203,7 @@ describe('fuses/burn route', () => {
 
     expect(screen.getByText('Failed to check expiry')).toBeInTheDocument()
     expect(
-      screen.queryByRole('heading', { name: 'Burn fuses' }),
+      screen.queryByRole('heading', { name: `${NAME} Burn fuses` }),
     ).not.toBeInTheDocument()
   })
 

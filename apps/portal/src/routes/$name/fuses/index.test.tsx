@@ -106,7 +106,9 @@ describe('fuses index route', () => {
     expect(screen.queryByText('Burn fuses')).not.toBeInTheDocument()
     expect(screen.getByText('This name has expired')).toBeInTheDocument()
     // The read-only view stays: fuse state is still worth seeing.
-    expect(screen.getByRole('heading', { name: 'Fuses' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: `${NAME} Fuses` }),
+    ).toBeInTheDocument()
     expect(screen.getByText('Parent Cannot Control')).toBeInTheDocument()
   })
 
