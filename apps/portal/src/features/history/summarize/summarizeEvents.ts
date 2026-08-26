@@ -1,6 +1,6 @@
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { DESCRIPTORS, humanizeType } from './descriptors'
-import type { Action, ActionSlot } from './summarize.types'
+import type { Action, ActionSlot, Descriptor } from './summarize.types'
 
 /** Event types that never surface as their own action (nor as filter options). */
 export const IGNORED_TYPES = new Set(['CommitmentMade'])
@@ -107,8 +107,14 @@ const describeGroup = (
   byRank: readonly TimelineIndexerEvent[],
 ): Pick<Action, 'icon' | 'label' | 'slots'> => {
   const built = byRank.flatMap((primary) => {
-    const descriptor = DESCRIPTORS[primary.type]
-    const result = descriptor?.build(primary)
+    // Indexed by a runtime type, not a known key: the object's own key type is
+    // what `TimelineEventType` is derived from, so the lookup takes the wider
+    // view of it.
+    const descriptor = (DESCRIPTORS as Record<string, Descriptor | undefined>)[
+      primary.type
+    ]
+    if (!descriptor) return []
+    const result = descriptor.build(primary)
     return result
       ? [{ primary, ...result, icon: result.icon ?? descriptor.icon }]
       : []
