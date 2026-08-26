@@ -9,7 +9,6 @@ import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { Button } from '@/components/ui/button'
 import { TimelineFrame } from '@/components/ui/timeline'
-import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { buildEventTypeGroups, filterActions } from '../filterTimeline'
 import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
@@ -29,52 +28,11 @@ interface HistoryTimelineProps {
   readonly heading?: ReactNode
   /** Rendered after the filter chips, e.g. a "Full history" link. */
   readonly action?: ReactNode
-  /**
-   * Show the date / event-type chips and the truncation note. Off for a section
-   * embedded in a wider page, where the feed is already narrowed by its scope
-   * and the full History page is one click away.
-   */
+  /** Show the date / event-type chips and the truncation note. */
   readonly showFilters?: boolean
   readonly emptyTitle?: string
   readonly emptyDescription?: string
 }
-
-/** The date-range and event-type chips, in the order the header bar shows them. */
-const FilterChips = ({
-  dateRange,
-  onDateRangeChange,
-  eventTypeGroups,
-  selectedTypes,
-  onTypesChange,
-}: {
-  readonly dateRange: DateRange
-  readonly onDateRangeChange: (range: DateRange) => void
-  readonly eventTypeGroups: FilterGroup[]
-  readonly selectedTypes: string[]
-  readonly onTypesChange: (types: string[]) => void
-}) => (
-  <>
-    <TableDateRangeFilter
-      label="Date range"
-      dateRange={dateRange}
-      onChange={onDateRangeChange}
-      size="xs"
-      icon={Calendar}
-      hideValue
-    />
-    {eventTypeGroups.length > 0 && (
-      <TableMultiSelectFilter
-        label="Event"
-        groups={eventTypeGroups}
-        selectedValues={selectedTypes}
-        onChange={onTypesChange}
-        size="xs"
-        icon={ListFilter}
-        hideValue
-      />
-    )}
-  </>
-)
 
 /**
  * The History timeline: fetches the widened event feed, summarizes raw events into
@@ -97,14 +55,14 @@ export const HistoryTimeline = ({
   const { data, isLoading, error } = useQuery(
     getNameHistoryTimelineQueryOptions({ name, eventTypes: scope }),
   )
-  const events = data?.events
+  const events = data?.events ?? []
 
   const [dateRange, setDateRange] = useState<DateRange>({})
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [openIds, setOpenIds] = useState<ReadonlySet<Hex>>(new Set())
 
-  const actions = summarizeEvents(events ?? [])
-  const eventTypeGroups = buildEventTypeGroups(events ?? [])
+  const actions = summarizeEvents(events)
+  const eventTypeGroups = buildEventTypeGroups(events)
   const filteredActions = filterActions(actions, dateRange, selectedTypes)
 
   const allExpanded =
@@ -159,13 +117,27 @@ export const HistoryTimeline = ({
         {heading ?? <h1 className="text-4xl">History</h1>}
         <div className="flex flex-wrap items-center gap-2">
           {showFilters && (
-            <FilterChips
-              dateRange={dateRange}
-              onDateRangeChange={setDateRange}
-              eventTypeGroups={eventTypeGroups}
-              selectedTypes={selectedTypes}
-              onTypesChange={setSelectedTypes}
-            />
+            <>
+              <TableDateRangeFilter
+                label="Date range"
+                dateRange={dateRange}
+                onChange={setDateRange}
+                size="xs"
+                icon={Calendar}
+                hideValue
+              />
+              {eventTypeGroups.length > 0 && (
+                <TableMultiSelectFilter
+                  label="Event"
+                  groups={eventTypeGroups}
+                  selectedValues={selectedTypes}
+                  onChange={setSelectedTypes}
+                  size="xs"
+                  icon={ListFilter}
+                  hideValue
+                />
+              )}
+            </>
           )}
           <Button variant="outline" onClick={toggleExpandAll} size="xs">
             {allExpanded ? (
@@ -193,9 +165,7 @@ export const HistoryTimeline = ({
               Shown in scoped views too: the per-facet window is where
               truncation actually bites (the indexer exposes no cursor to page
               past it), so suppressing this here would present a partial list
-              as the whole history. It goes with the filters: a section that
-              offers no way to narrow the feed has nothing to do with the
-              figure. */}
+              as the whole history. */}
           {showFilters && data?.hasMore && (
             <p className="mb-3 text-muted-foreground text-p">
               Showing the most recent {filteredActions.length}

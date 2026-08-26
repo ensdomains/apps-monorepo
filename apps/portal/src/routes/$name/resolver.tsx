@@ -214,27 +214,6 @@ const RESOLVER_HISTORY_EVENT_TYPES = [
   'NameChanged',
 ] as const
 
-const HistorySection = ({ name }: { name: string }) => (
-  <HistoryTimeline
-    name={name}
-    scope={RESOLVER_HISTORY_EVENT_TYPES}
-    showFilters={false}
-    emptyTitle="No resolver history"
-    emptyDescription="Resolver changes and record writes for this name will appear here as they happen."
-    heading={
-      <h2 className="text-caps leading-none text-foreground">History</h2>
-    }
-    action={
-      <Button variant="outline" size="xs" asChild>
-        <Link to="/$name/history" params={{ name }}>
-          <ClockIcon className="size-4" />
-          Full history
-        </Link>
-      </Button>
-    }
-  />
-)
-
 interface ResolverViewProps {
   name: string
   ownerData: NonNullable<GetEnsOwnerReturnType>
@@ -305,7 +284,22 @@ const ResolverView = ({
         />
       )}
 
-      <HistorySection name={name} />
+      <HistoryTimeline
+        name={name}
+        scope={RESOLVER_HISTORY_EVENT_TYPES}
+        showFilters={false}
+        emptyTitle="No resolver history"
+        emptyDescription="Resolver changes and record writes for this name will appear here as they happen."
+        heading={<h2 className="text-caps text-foreground">History</h2>}
+        action={
+          <Button variant="outline" size="xs" asChild>
+            <Link to="/$name/history" params={{ name }}>
+              <ClockIcon className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
     </div>
   )
 }
