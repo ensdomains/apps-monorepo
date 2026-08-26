@@ -22,7 +22,10 @@ import {
   prepareBurnFusesTransaction,
 } from '@/features/fuses/helpers/burnFuses'
 import { isFuseBurnt } from '@/features/fuses/utils/isFuseBurnt'
+import { GraceBanner } from '@/features/profile/components/GraceBanner'
+import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
@@ -61,6 +64,24 @@ function RouteComponent() {
     ...getWrapperDataQueryOptions({ name }),
   })
 
+  // A wrapped `.eth` 2LD stops accepting owner writes for its whole 90-day grace
+  // period: `canModifyName` returns false once `expiry - GRACE_PERIOD` has
+  // passed, so `setFuses` reverts with `Unauthorised` even though `ownerOf`
+  // still names the connected account as owner. Gate on this, not on ownership
+  // alone — the reverting call can't be estimated, so wallets fall back to a
+  // block-sized gas limit the RPC rejects as "gas limit too high", turning an
+  // expired name into an infra-looking error (WEB-1259). Only wrapped v1 names
+  // have fuses, so the v1 expiry is only worth looking up once we have one.
+  const grace = useGraceStatus({
+    name,
+    protocolVersion: wrapperDataQuery.data ? 'ENSv1' : undefined,
+  })
+  const { canExtend } = useCanExtend({
+    name,
+    protocolVersion: 'ENSv1',
+    enabled: grace.isInGrace,
+  })
+
   const [selectedChildFuses, setSelectedChildFuses] = useState<
     Set<ChildFuseKey>
   >(new Set())
@@ -72,7 +93,7 @@ function RouteComponent() {
   } = useTransactionModal()
   const txState = useActiveTransactionState()
 
-  if (wrapperDataQuery.isLoading) {
+  if (wrapperDataQuery.isLoading || grace.isLoading) {
     return <LoadingMessage />
   }
 
@@ -89,6 +110,31 @@ function RouteComponent() {
 
   if (!wrapperData) {
     return <V2NameMessage />
+  }
+
+  // Fail closed when the expiry lookup itself fails: `useGraceStatus` reports an
+  // error as `isExpired: false`, so carrying on would put an expired name back
+  // in front of the burn form — exactly what this route is gating against.
+  if (grace.error) {
+    return (
+      <ErrorMessage
+        title="Failed to check expiry"
+        description={grace.error.message}
+      />
+    )
+  }
+
+  // Checked before ownership: once a name drops out of grace the wrapper reports
+  // `address(0)` as its owner, and "you are not the owner" is a misleading way
+  // to tell the previous owner their registration lapsed.
+  if (grace.isExpired) {
+    return (
+      <ExpiredNameMessage
+        isInGrace={grace.isInGrace}
+        graceEndDate={grace.graceEndDate}
+        canExtend={canExtend}
+      />
+    )
   }
 
   const isOwner = address && wrapperData.owner === address
@@ -313,6 +359,39 @@ const V2NameMessage = () => (
       </>
     }
   />
+)
+
+const ExpiredNameMessage = ({
+  isInGrace,
+  graceEndDate,
+  canExtend,
+}: {
+  readonly isInGrace: boolean
+  readonly graceEndDate: Date | null
+  readonly canExtend: boolean
+}) => (
+  <div className="flex flex-col gap-6">
+    {isInGrace && graceEndDate && (
+      <GraceBanner graceEndDate={graceEndDate} canExtend={canExtend} />
+    )}
+    <MessageCard
+      icon={<AlertTriangle className="size-6" />}
+      title="Fuses cannot be burned"
+      description={
+        <>
+          <p>
+            This name has expired. The Name Wrapper rejects every owner change
+            on an expired name, so burning fuses would fail on-chain.
+          </p>
+          <p className="text-quartz-900/60 text-sm mt-2">
+            {isInGrace
+              ? 'Renew the name to burn fuses again.'
+              : 'This name is no longer registered.'}
+          </p>
+        </>
+      }
+    />
+  </div>
 )
 
 const NotOwnerMessage = () => (

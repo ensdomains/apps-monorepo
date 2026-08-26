@@ -24,6 +24,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { isFuseBurnt } from '@/features/fuses/utils/isFuseBurnt'
+import { GraceBanner } from '@/features/profile/components/GraceBanner'
+import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
+import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 import { cn } from '@/lib/utils'
 
@@ -127,7 +130,21 @@ function RouteComponent() {
     ...getWrapperDataQueryOptions({ name }),
   })
 
-  if (wrapperDataQuery.isLoading) {
+  // The wrapper refuses every owner write on an expired name (see the note in
+  // ./burn.tsx), so the burn CTA must not be offered while the name is in its
+  // grace period. Only wrapped v1 names have fuses, so the v1 expiry is only
+  // worth looking up once we know we have one.
+  const grace = useGraceStatus({
+    name,
+    protocolVersion: wrapperDataQuery.data ? 'ENSv1' : undefined,
+  })
+  const { canExtend } = useCanExtend({
+    name,
+    protocolVersion: 'ENSv1',
+    enabled: grace.isInGrace,
+  })
+
+  if (wrapperDataQuery.isLoading || grace.isLoading) {
     return <LoadingMessage />
   }
 
@@ -161,10 +178,25 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
+      {grace.isInGrace && grace.graceEndDate && (
+        <GraceBanner graceEndDate={grace.graceEndDate} canExtend={canExtend} />
+      )}
+      {/* A failed expiry lookup reads as `isExpired: false`, so the CTA below
+          fails closed on it exactly as ./burn.tsx does. Say why: a hidden
+          button with no explanation would leave the owner of a healthy name
+          with nothing to act on. */}
+      {grace.error && (
+        <ErrorMessage
+          compact
+          description="Couldn't check whether this name has expired, so burning fuses is unavailable. Refresh to try again."
+        />
+      )}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <PageHeading parent={{ type: 'name', name }}>Fuses</PageHeading>
-          {isOwner && (
+          {/* The wrapper refuses owner writes on an expired name, so offering
+              the burn flow would only route the user into a reverting tx. */}
+          {isOwner && !grace.isExpired && !grace.error && (
             <Button asChild variant="default" className="gap-2">
               <Link to="/$name/fuses/burn" params={{ name }}>
                 <Flame className="w-4 h-4 text-lapis-500" />
