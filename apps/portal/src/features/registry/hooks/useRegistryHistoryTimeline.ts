@@ -8,6 +8,7 @@ import {
   TIMELINE_EVENT_FRAGMENT,
   type TimelineIndexerEvent,
 } from '@/features/history/hooks/useNameHistoryTimeline'
+import { truncateToTransactions } from '@/features/history/truncateToTransactions'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
 class GetRegistryHistoryTimelineError extends TaggedError(
@@ -65,12 +66,19 @@ const getRegistryHistoryTimeline = ResultFn(async function* ({
   // yet indexed) — an empty timeline, not an error.
   const events = registry?.eventConnection.edges.map(({ node }) => node) ?? []
 
+  // The window is a count of events, but `summarizeEvents` groups by
+  // transaction — and a registry emits several events per transaction
+  // (LabelRegistered + Transfer + EACRolesChanged + ResolverUpdated for one
+  // subname registration). A cutoff landing inside one would headline it from
+  // a subset, so drop the partial transaction at the boundary.
+  const kept = truncateToTransactions(events, EVENTS_LIMIT)
+
   return ok({
-    events,
-    // Unlike the name timeline this is not truncated to whole transactions —
-    // the connection is already one contract's own feed — so a saturated
-    // window is the only signal that history was left behind.
-    hasMore: events.length >= EVENTS_LIMIT,
+    events: kept,
+    // Callers cannot infer this from `kept.length`: truncating on a
+    // transaction boundary routinely returns fewer than the limit from a
+    // window that was in fact full.
+    hasMore: events.length >= EVENTS_LIMIT || events.length > kept.length,
   })
 })
 
