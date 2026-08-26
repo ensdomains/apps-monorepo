@@ -9,7 +9,7 @@ import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { mergeTimeline } from '../mergeTimeline'
-import { adaptV1Events, type V1SubgraphEvent } from '../v1/adaptV1Events'
+import { adaptV1Events } from '../v1/adaptV1Events'
 import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
 
 /**
@@ -159,13 +159,6 @@ export const V1_PROTOCOL = 'v1'
 export const HISTORY_TIMELINE_PAGE_SIZE = 100
 
 /**
- * The v1 subgraph's own ceiling on `first`, already relied on by the address
- * history read. Only the hydration leaf climbs to it, and only for a single
- * transaction it cannot split any smaller.
- */
-const V1_SUBGRAPH_MAX_PAGE_SIZE = 1000
-
-/**
  * Direct children come from `subdomains`, not a `name_ends_with` suffix match:
  * the suffix also matches every deeper descendant, so `a.b.leon.eth` would land
  * in `leon.eth`'s timeline.
@@ -257,209 +250,6 @@ const buildHistoryTimelineQuery = (eventTypes?: readonly string[]) => gql`
   }
 `
 
-/**
- * Complete events for the blocks a scoped read matched, unscoped.
- *
- * A scoped query answers "which transactions touched these types", but its rows
- * must still describe the *whole* transaction — the label, the event count and
- * the expanded detail all read from `action.events`, so summarizing from the
- * scoped subset alone would state things that aren't true of the transaction.
- *
- * The blocks come from the scoped pass and every event of a transaction shares
- * one, so this is bounded by the transactions actually shown. It has to run
- * against the root `events` field: the nested `domain.events` selection honours
- * `type_in` and silently ignores every other filter (verified against staging
- * for `blockNumber_gte/lte` and `or` — both returned the unfiltered feed).
- */
-const buildHydrationQuery = (blocks: readonly number[]) => gql`
-  ${TIMELINE_EVENT_FRAGMENT}
-
-  query hydrateTimelineTransactions($namehash: String!) {
-    events(
-      first: ${HISTORY_TIMELINE_PAGE_SIZE}
-      orderBy: timestamp
-      orderDirection: desc
-      where: {
-        namehash: $namehash
-        or: [${blocks
-          .map(
-            (block) =>
-              `{ blockNumber_gte: ${block}, blockNumber_lte: ${block} }`,
-          )
-          .join(', ')}]
-      }
-    ) {
-      ...TimelineEvent
-    }
-  }
-`
-
-/**
- * Re-read the transactions a scoped pass matched, with every event they contain.
- *
- * Keeps only the matched transactions — the scope still decides which rows
- * appear — but each one is now complete, so label, event count and expanded
- * detail all describe the real transaction.
- */
-/**
- * Read every event in `blocks`, splitting the request when it saturates.
- *
- * `first` bounds this window independently of the scoped pass, so a set of
- * blocks holding more than a page of events would silently lose its oldest
- * transactions — the rows would vanish, or keep the incomplete details this
- * whole step exists to repair. A full page means the window may have cut
- * something, so the blocks are halved and re-read until each response fits.
- *
- * Splitting rather than paging because this indexer ignores `skip`: verified
- * against staging that `skip: 5` returns the same five events as `skip: 0`.
- *
- * A single block that still saturates is left as-is — that would be one name
- * emitting more than a page of events in one block.
- */
-const fetchHydratedBlocks = async (
-  node: Hex,
-  blocks: readonly number[],
-): Promise<TimelineIndexerEvent[]> => {
-  const { events } = await graphqlIndexerClient.request<{
-    events: TimelineIndexerEvent[]
-  }>(buildHydrationQuery(blocks), { namehash: node })
-
-  if (events.length < HISTORY_TIMELINE_PAGE_SIZE || blocks.length === 1) {
-    return events
-  }
-
-  const mid = Math.ceil(blocks.length / 2)
-  const halves = await Promise.all([
-    fetchHydratedBlocks(node, blocks.slice(0, mid)),
-    fetchHydratedBlocks(node, blocks.slice(mid)),
-  ])
-  return halves.flat()
-}
-
-/**
- * Read the v1 transactions a scoped pass matched, splitting when it saturates.
- *
- * Same bound as the v2 hydration above, for the same reason: `first` applies to
- * each collection in the query independently of the scoped pass, so a set of
- * transactions holding more than a page of events would silently lose its
- * oldest ones — the rows would keep the incomplete details this whole step
- * exists to repair. It is more reachable here than on v2, because one
- * record-setting transaction can emit a dozen `TextChanged` on its own.
- *
- * A full page is only *evidence* of a cut, not proof: the response is flattened
- * across collections, so 100 events spread over several of them may be
- * complete. It is the right test anyway — a total under the page size proves no
- * single collection reached its window, and the cost of being wrong is one
- * extra request. Splitting halves the transactions rather than paging, matching
- * the v2 path and keeping the halves disjoint, so their events never overlap.
- *
- * A lone transaction cannot be split any further, so it is re-read once with
- * the subgraph's maximum page size instead. Widening is safe here in a way it
- * is not on v2: every collection is filtered to that one transaction, so a
- * larger `first` can only surface events the transaction actually emitted, and
- * cannot widen the query beyond it. The re-read is still best-effort — a
- * narrower response beats failing the whole timeline.
- */
-const fetchHydratedV1Transactions = async (
-  params: { readonly subgraphUrl: string; readonly namehash: Hex },
-  transactionIds: readonly string[],
-  first: number = HISTORY_TIMELINE_PAGE_SIZE,
-): Promise<V1SubgraphEvent[]> => {
-  const events = await fetchV1NameHistory({
-    ...params,
-    first,
-    orderDirection: 'desc',
-    transactionIds,
-  })
-
-  if (events.length < first) return events
-
-  if (transactionIds.length === 1) {
-    if (first >= V1_SUBGRAPH_MAX_PAGE_SIZE) return events
-    return fetchHydratedV1Transactions(
-      params,
-      transactionIds,
-      V1_SUBGRAPH_MAX_PAGE_SIZE,
-    ).catch(() => events)
-  }
-
-  const mid = Math.ceil(transactionIds.length / 2)
-  const halves = await Promise.all([
-    fetchHydratedV1Transactions(params, transactionIds.slice(0, mid)),
-    fetchHydratedV1Transactions(params, transactionIds.slice(mid)),
-  ])
-  return halves.flat()
-}
-
-const hydrateTransactions = ResultFn(async function* ({
-  scoped,
-  name,
-  namehash: node,
-  subgraphUrl,
-  contracts,
-}: {
-  readonly scoped: readonly TimelineIndexerEvent[]
-  readonly name: string
-  readonly namehash: Hex
-  readonly subgraphUrl: string
-  readonly contracts: Parameters<typeof adaptV1Events>[0]['contracts']
-}) {
-  if (scoped.length === 0) return ok([] as TimelineIndexerEvent[])
-
-  const wanted = new Set(
-    scoped.map((event) => event.transactionHash.toLowerCase()),
-  )
-  const v2Blocks = [
-    ...new Set(
-      scoped
-        .filter((event) => event.protocol !== V1_PROTOCOL)
-        .map((event) => event.blockNumber),
-    ),
-  ]
-  const v1TransactionIds = [
-    ...new Set(
-      scoped
-        .filter((event) => event.protocol === V1_PROTOCOL)
-        .map((event) => event.transactionHash),
-    ),
-  ]
-
-  const [v2Full, v1Raw] = yield* fromPromise(
-    Promise.all([
-      v2Blocks.length === 0
-        ? Promise.resolve<TimelineIndexerEvent[]>([])
-        : fetchHydratedBlocks(node, v2Blocks),
-      v1TransactionIds.length === 0
-        ? Promise.resolve<V1SubgraphEvent[]>([])
-        : fetchHydratedV1Transactions(
-            { subgraphUrl, namehash: node },
-            v1TransactionIds,
-          ),
-    ]),
-    (e) => new GetNameHistoryTimelineError({ cause: e as ClientError }),
-  )
-
-  const v1Full =
-    v1Raw.length === 0
-      ? []
-      : adaptV1Events({
-          events: v1Raw,
-          blockTimestamps: yield* getBlockTimestamps({
-            blocks: v1Raw.map((event) => BigInt(event.blockNumber)),
-          }),
-          name,
-          namehash: node,
-          contracts,
-        })
-
-  // Blocks can hold more than the matched transaction, so narrow back down.
-  return ok(
-    [...v2Full, ...v1Full].filter((event) =>
-      wanted.has(event.transactionHash.toLowerCase()),
-    ),
-  )
-})
-
 const getNameHistoryTimeline = ResultFn(async function* ({
   name,
   first = HISTORY_TIMELINE_PAGE_SIZE,
@@ -548,37 +338,15 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     ? v1EventsAll.filter((event) => eventTypes.includes(event.type))
     : v1EventsAll
 
-  const timeline = mergeTimeline({
-    v2Events: v2Result.events,
-    v1Events,
-    first,
-    orderDirection,
-    eventsCount: v2Result.eventsCount,
-  })
-
-  if (!eventTypes) return ok(timeline)
-
-  // A scoped read has selected only the matching events, so each transaction is
-  // present but incomplete. Re-read those transactions in full before they are
-  // summarized, or the row would describe a subset: "Set 2 records / 2 events"
-  // for a transaction that actually set five.
-  //
-  // The completeness flags stay as `mergeTimeline` computed them: hydration
-  // fills in the transactions already kept, it does not reach further back, so
-  // deriving `hasMore` from the hydrated count would compare a padded window
-  // against the merge that produced it.
-  const hydrated = yield* hydrateTransactions({
-    scoped: timeline.events,
-    name: normalizedName,
-    namehash: node,
-    subgraphUrl: client.chain.subgraphs.ens.url,
-    contracts: v1Contracts,
-  })
-
-  return ok({
-    ...timeline,
-    events: hydrated.sort((a, b) => b.timestamp - a.timestamp),
-  })
+  return ok(
+    mergeTimeline({
+      v2Events: v2Result.events,
+      v1Events,
+      first,
+      orderDirection,
+      eventsCount: v2Result.eventsCount,
+    }),
+  )
 })
 
 const getNameHistoryTimelineQueryKey = createQueryKey<
