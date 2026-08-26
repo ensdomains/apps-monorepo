@@ -1,8 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { ClockIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { Button } from '@/components/ui/button'
 import { HistoryTimelineView } from '@/features/history/components/HistoryTimeline'
 import { getNameRegistriesQueryOptions } from '../../hooks/useNameRegistryDiscovery'
 import { getRegistryHistoryTimelineQueryOptions } from '../../hooks/useRegistryHistoryTimeline'
@@ -19,12 +22,15 @@ export const RegistryHistoryByAddress = ({
   address,
   heading,
   action,
+  showFilters,
 }: {
   address: Address
   /** Left side of the header bar; defaults to the page-level "History" title. */
   heading?: ReactNode
   /** Rendered after the filter chips, e.g. a "Full history" link. */
   action?: ReactNode
+  /** Show the date / event-type chips and the truncation note. */
+  showFilters?: boolean
 }) => {
   const { data, isLoading, error } = useQuery(
     getRegistryHistoryTimelineQueryOptions({ address }),
@@ -47,6 +53,7 @@ export const RegistryHistoryByAddress = ({
       includeSubjectName
       heading={heading}
       action={action}
+      showFilters={showFilters}
       emptyTitle="No history yet"
       emptyDescription="Events for this registry will appear here."
     />
@@ -81,11 +88,21 @@ export const RegistryHistory = ({ name }: { name: string }) => {
 
   if (!hasRegistry) return null
 
+  // An embedded section, so it hides the filter chips and truncation note and
+  // discloses through the "Full history" link instead — the same shape the
+  // resolver page and the registry overview use.
   return (
     <RegistryHistoryByAddress
       address={address}
-      heading={
-        <h2 className="text-caps leading-none text-foreground">History</h2>
+      showFilters={false}
+      heading={<h2 className="text-caps text-foreground">History</h2>}
+      action={
+        <Button variant="outline" size="xs" asChild>
+          <Link to="/registry/$address/history" params={{ address }}>
+            <ClockIcon className="size-4" />
+            Full history
+          </Link>
+        </Button>
       }
     />
   )
