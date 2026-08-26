@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { HomeSearchInput } from './HomeSearchInput'
@@ -236,6 +236,21 @@ describe('HomeSearchInput', () => {
       expect(
         screen.queryByText('View ENS name details'),
       ).not.toBeInTheDocument()
+    })
+
+    it('normalizes pasted two-word names by lowercasing and removing spaces', async () => {
+      vi.mocked(useIsMobile).mockReturnValue(false)
+
+      render(<HomeSearchInput />, { wrapper: createWrapper() })
+
+      const input = screen.getByPlaceholderText('Search...')
+      fireEvent.paste(input, {
+        clipboardData: {
+          getData: () => 'Hello World',
+        },
+      })
+
+      expect(input).toHaveValue('helloworld')
     })
 
     it('should update suggestions when input changes', async () => {

@@ -255,10 +255,6 @@ msgstr "An error occurred during verification"
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "And more..."
-msgstr "And more..."
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve {name}"
 msgstr "Approve {name}"
@@ -306,10 +302,6 @@ msgstr "Approving payment token"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approving the payment token"
 msgstr "Approving the payment token"
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Are you sure?"
-msgstr "Are you sure?"
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Auth address:"
@@ -623,6 +615,14 @@ msgstr "Continue to profile"
 msgid "Continue to Settings"
 msgstr "Continue to Settings"
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Continue without signing in"
+msgstr "Continue without signing in"
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Continue without signing in?"
+msgstr "Continue without signing in?"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
 msgid "Cooldown fee"
 msgstr "Cooldown fee"
@@ -735,12 +735,17 @@ msgid "Did You Know?"
 msgstr "Did You Know?"
 
 #: src/features/navigation/Header/account/WalletSection.tsx
+#: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Disconnect"
 msgstr "Disconnect"
 
 #: src/routes/wallet.tsx
 msgid "Disconnect Wallet"
 msgstr "Disconnect Wallet"
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Disconnecting..."
+msgstr "Disconnecting..."
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Do I have to upgrade my names? What happens if I don't?"
@@ -755,8 +760,8 @@ msgid "doesn't exist"
 msgstr "doesn't exist"
 
 #: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Domain transfer & expiry notifications"
-msgstr "Domain transfer & expiry notifications"
+msgid "Domain transfer and expiry notifications"
+msgstr "Domain transfer and expiry notifications"
 
 #: src/features/bulk-renew/components/SuccessStep.tsx
 msgid "Done"
@@ -1004,6 +1009,10 @@ msgstr "Favorites"
 msgid "Favourites"
 msgstr "Favourites"
 
+#: src/features/profile/components/view/ProfileFeaturedSocialSection.tsx
+msgid "Featured"
+msgstr "Featured"
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx
 msgid "Fee at this moment"
 msgstr "Fee at this moment"
@@ -1055,10 +1064,6 @@ msgstr "Get updated on the latest releases and features."
 #: src/features/migration/components/GameStep.tsx
 msgid "Getting ready..."
 msgstr "Getting ready..."
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Go Back"
-msgstr "Go Back"
 
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "Go back home"
@@ -1593,7 +1598,6 @@ msgid "Please connect your wallet first"
 msgstr "Please connect your wallet first"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Please finish connecting your wallet, then try again"
 msgstr "Please finish connecting your wallet, then try again"
 
@@ -2010,8 +2014,8 @@ msgid "Save Profile"
 msgstr "Save Profile"
 
 #: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Saved favorites & searches"
-msgstr "Saved favorites & searches"
+msgid "Saved favorites and searches"
+msgstr "Saved favorites and searches"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
@@ -2122,6 +2126,10 @@ msgstr "Set this as your primary name?"
 msgid "Set up later"
 msgstr "Set up later"
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Set up this name’s resolver?"
+msgstr "Set up this name’s resolver?"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Set which ENS name displays as your identity across apps and wallets."
@@ -2224,18 +2232,6 @@ msgstr "Sign the gasless payment approval in your wallet"
 msgid "Signing in..."
 msgstr "Signing in..."
 
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Skip Anyway"
-msgstr "Skip Anyway"
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Skip for now"
-msgstr "Skip for now"
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
-msgstr "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
-
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Smart Account"
 msgstr "Smart Account"
@@ -2282,8 +2278,8 @@ msgid "Stables accepted"
 msgstr "Stables accepted"
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "Start a new profile for this name?"
-msgstr "Start a new profile for this name?"
+#~ msgid "Start a new profile for this name?"
+#~ msgstr "Start a new profile for this name?"
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Start typing to check if your perfect name is available"
@@ -2421,6 +2417,11 @@ msgstr "The renewal could not be completed."
 msgid "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 msgstr "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "The replacement resolver could not be verified. Please try again."
+msgstr "The replacement resolver could not be verified. Please try again."
+
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "The token is tied to your eligible EOA. Migrating more names later does not create another commemorative NFT."
 msgstr "The token is tied to your eligible EOA. Migrating more names later does not create another commemorative NFT."
@@ -2471,12 +2472,12 @@ msgid "This name points to a different wallet. If you continue, we’ll update i
 msgstr "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "This name still has profile details from a previous owner. Continuing clears them and keeps only the changes you save."
-msgstr "This name still has profile details from a previous owner. Continuing clears them and keeps only the changes you save."
+#~ msgid "This name still has profile details from a previous owner. Continuing clears them and keeps only the changes you save."
+#~ msgstr "This name still has profile details from a previous owner. Continuing clears them and keeps only the changes you save."
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "This name still has profile details from a previous owner. To use it as your primary name, we’ll clear those details and keep only your wallet address."
-msgstr "This name still has profile details from a previous owner. To use it as your primary name, we’ll clear those details and keep only your wallet address."
+#~ msgid "This name still has profile details from a previous owner. To use it as your primary name, we’ll clear those details and keep only your wallet address."
+#~ msgstr "This name still has profile details from a previous owner. To use it as your primary name, we’ll clear those details and keep only your wallet address."
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "This page can only verify your email when opened from the link in the verification email."
@@ -2498,6 +2499,10 @@ msgstr "This upgrade is split into {atomicBatchCount} gas-safe atomic batches. E
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr "Times shown in your local time zone ({timezoneLabel})"
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "To enable these features later, open your wallet menu and select Verify wallet ownership."
+msgstr "To enable these features later, open your wallet menu and select Verify wallet ownership."
+
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "To enable, go to your browser's site settings for this page and allow notifications."
 msgstr "To enable, go to your browser's site settings for this page and allow notifications."
@@ -2505,6 +2510,14 @@ msgstr "To enable, go to your browser's site settings for this page and allow no
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
 msgstr "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "To save these changes, we’ll set a resolver your wallet controls and keep only the changes you save."
+msgstr "To save these changes, we’ll set a resolver your wallet controls and keep only the changes you save."
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "To use this as your primary name, we’ll set a resolver your wallet controls and keep only your wallet address."
+msgstr "To use this as your primary name, we’ll set a resolver your wallet controls and keep only your wallet address."
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
@@ -2901,8 +2914,8 @@ msgid "You can preview the card after migrating one name, mint immediately, or r
 msgstr "You can preview the card after migrating one name, mint immediately, or return from your Dashboard or canonical profile later."
 
 #: src/features/wallet/components/BackendAuthModal.tsx
-msgid "You can verify later by clicking your profile in the navbar"
-msgstr "You can verify later by clicking your profile in the navbar"
+msgid "You can still use the manager, but these features won't be available:"
+msgstr "You can still use the manager, but these features won't be available:"
 
 #: src/features/migration/components/MigrationModal.tsx
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
@@ -2935,10 +2948,6 @@ msgstr "You'll always see important notifications in the app."
 #: src/features/notifications/settings/preferences.tsx
 msgid "You'll be notified 30, 7, and 1 day before expiry."
 msgstr "You'll be notified 30, 7, and 1 day before expiry."
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "You'll miss:"
-msgstr "You'll miss:"
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "You're almost there!"
@@ -3043,6 +3052,11 @@ msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
 msgstr "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Your wallet does not have permission to change the resolver for this name."
+msgstr "Your wallet does not have permission to change the resolver for this name."
 
 #: src/routes/wallet.tsx
 msgid "Your wallet is successfully connected to the application"

@@ -118,7 +118,7 @@ describe('ChangeResolverForm', () => {
     render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
 
     expect(
-      screen.getByRole('heading', { name: 'Change resolver' }),
+      screen.getByRole('heading', { name: `${name} Change resolver` }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('switch', { name: /Use custom resolver/i }),

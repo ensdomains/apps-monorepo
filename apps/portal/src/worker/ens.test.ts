@@ -36,6 +36,51 @@ function redirectResponse(location: string): Response {
   return new Response(null, { status: 302, headers: { location } })
 }
 
+/**
+ * Images binding that reports a fixed transformed image, so a test can tell
+ * "the downscaled bytes were embedded" from "the originals were".
+ */
+function stubImages(bytes: Uint8Array, contentType = 'image/png') {
+  const input = vi.fn()
+  const image = () =>
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes)
+        controller.close()
+      },
+    })
+  const transformer = {
+    transform: () => transformer,
+    draw: () => transformer,
+    output: async () => ({
+      contentType: () => contentType,
+      image,
+      response: () => new Response(image()),
+    }),
+  }
+
+  return {
+    input,
+    images: {
+      input: (...args: unknown[]) => {
+        input(...args)
+        return transformer
+      },
+      // Oversized, so the transform is always reached — the skip for
+      // already-small avatars is covered in avatar-image.test.ts.
+      info: async (stream: ReadableStream<Uint8Array>) => {
+        await new Response(stream).arrayBuffer()
+        return {
+          format: 'image/png',
+          fileSize: 200 * 1024,
+          width: 1000,
+          height: 1000,
+        }
+      },
+    } as unknown as ImagesBinding,
+  }
+}
+
 describe('resolveOwner (worker)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -263,6 +308,97 @@ describe('resolveAvatarDataUri (worker)', () => {
 
     expect(result).toBeNull()
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  describe('avatar downscaling (WEB-1218)', () => {
+    it('embeds the downscaled image rather than the fetched original', async () => {
+      const { images } = stubImages(new Uint8Array([9, 9, 9]))
+      fetchSpy.mockResolvedValueOnce(
+        streamingResponse(new Uint8Array([1, 2, 3, 4]), {
+          contentType: 'image/png',
+        }),
+      )
+
+      const result = await resolveAvatarDataUri(
+        client,
+        'https://cdn.example/huge.png',
+        undefined,
+        images,
+      )
+
+      expect(result).toBe(`data:image/png;base64,${btoa('\x09\x09\x09')}`)
+    })
+
+    it('re-labels the data URI with the transform’s output type', async () => {
+      // A WebP source has to come back as something satori accepts, so the
+      // MIME type it is embedded under can't be the one we fetched.
+      const { images } = stubImages(new Uint8Array([9]), 'image/png')
+      fetchSpy.mockResolvedValueOnce(
+        streamingResponse(new Uint8Array([1]), { contentType: 'image/webp' }),
+      )
+
+      const result = await resolveAvatarDataUri(
+        client,
+        'https://cdn.example/cat.webp',
+        undefined,
+        images,
+      )
+
+      expect(result).toBe(`data:image/png;base64,${btoa('\x09')}`)
+    })
+
+    it('downscales an on-chain bitmap, which never passes the fetch cap', async () => {
+      const { images, input } = stubImages(new Uint8Array([9]))
+
+      const result = await resolveAvatarDataUri(
+        client,
+        'data:image/png;base64,AQIDBA==',
+        undefined,
+        images,
+      )
+
+      expect(result).toBe(`data:image/png;base64,${btoa('\x09')}`)
+      expect(input).toHaveBeenCalledWith(expect.anything(), {
+        encoding: 'base64',
+      })
+      expect(fetchSpy).not.toHaveBeenCalled()
+    })
+
+    it('leaves an inline SVG untouched', async () => {
+      const { images, input } = stubImages(new Uint8Array([9]))
+      const inline = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4='
+
+      const result = await resolveAvatarDataUri(
+        client,
+        inline,
+        undefined,
+        images,
+      )
+
+      expect(result).toBe(inline)
+      expect(input).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the fetched bytes when the transform fails', async () => {
+      const images = {
+        input: () => {
+          throw new Error('images not enabled for this account')
+        },
+        info: vi.fn(),
+      } as unknown as ImagesBinding
+      fetchSpy.mockResolvedValueOnce(
+        streamingResponse(new Uint8Array([1, 2]), { contentType: 'image/png' }),
+      )
+
+      const result = await resolveAvatarDataUri(
+        client,
+        'https://cdn.example/cat.png',
+        undefined,
+        images,
+      )
+
+      expect(result).toBe(`data:image/png;base64,${btoa('\x01\x02')}`)
+    })
   })
 
   describe('SSRF guards (WEB-672)', () => {

@@ -18,6 +18,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -214,11 +215,9 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-h2 md:text-h1">
-          {aliases.length > 0
-            ? `${aliases.length} alias${aliases.length !== 1 ? 'es' : ''}`
-            : 'Aliases'}
-        </h1>
+        <PageHeading parent={{ type: 'resolver', address: address as Address }}>
+          {aliases.length > 0 ? `Aliases (${aliases.length})` : 'Aliases'}
+        </PageHeading>
         {canSetAlias && (
           <Button asChild>
             <Link to="/resolver/$address/create-alias" params={{ address }}>

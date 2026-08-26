@@ -1,5 +1,5 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import posthog from 'posthog-js'
+import posthog from 'posthog-js/dist/module.full.no-external'
 import { useEffect } from 'react'
 import { useConnection, useConnectionEffect } from 'wagmi'
 import { track } from '@/lib/posthog/events'

@@ -122,6 +122,20 @@ describe('classifyName — token type', () => {
     expect(n.resolverStrategy).toBe('to-owned-permres')
   })
 
+  it('moves the legacy Sepolia PublicResolver while preserving a separate manager', () => {
+    const manager = '0x0000000000000000000000000000000000000099'
+    const n = classified(
+      classify({
+        ownerId: manager,
+        resolverAddress: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
+      }),
+    )
+
+    expect(n.tokenType).toBe('unwrapped')
+    expect(n.resolverStrategy).toBe('to-owned-permres')
+    expect(n.managerAddress?.toLowerCase()).toBe(manager.toLowerCase())
+  })
+
   it.each([
     [
       'unlocked when wrapped and CANNOT_UNWRAP not burnt',

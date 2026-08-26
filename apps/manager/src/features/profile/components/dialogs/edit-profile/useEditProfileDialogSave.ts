@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import type { Actor } from 'xstate'
@@ -27,14 +27,18 @@ import {
   saveRecords,
 } from '@/features/profile/service/profileRecordTransactions'
 import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
-import { setupControlledResolver } from '@/features/profile/service/setupControlledResolver'
+import {
+  OwnedResolverNotReadyError,
+  ResolverChangeNotAuthorizedError,
+  setupControlledResolver,
+} from '@/features/profile/service/setupControlledResolver'
 import type { ProfileRecords } from '@/features/profile/types'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
-import {
-  type editProfileDialogMachine,
-  hasOwnerWallet,
-  type PendingSave,
+import { hasOwnerWallet } from '@/lib/wallet'
+import type {
+  editProfileDialogMachine,
+  PendingSave,
 } from './EditProfileDialog.machine'
 import type {
   EditProfileForm,
@@ -82,15 +86,13 @@ interface SetupResolverMutationVariables {
 interface SaveBlockedPrerequisites {
   readonly hasOwner: boolean
   readonly hasAccount: boolean
-  readonly hasSetupSigner: boolean
 }
 
 const getSaveBlockedDescription = ({
   hasOwner,
   hasAccount,
-  hasSetupSigner,
 }: SaveBlockedPrerequisites) =>
-  match({ hasOwner, hasAccount, hasSetupSigner })
+  match({ hasOwner, hasAccount })
     .with(
       { hasOwner: false },
       () => t`Name owner is not available yet. Try again in a moment.`,
@@ -99,10 +101,6 @@ const getSaveBlockedDescription = ({
       { hasAccount: false },
       () =>
         t`Wallet account is not ready. Wait for your account to finish connecting, then try again.`,
-    )
-    .with(
-      { hasSetupSigner: false },
-      () => t`Please finish connecting your wallet, then try again`,
     )
     .otherwise(
       () => t`Something went wrong preparing the save. Please try again.`,
@@ -113,10 +111,21 @@ const ethCoinValue = (coins: readonly { coinType: number; value: string }[]) =>
 
 const toastSaveError = (error: unknown) => {
   toast.error(t`Cannot save profile`, {
-    description:
-      error instanceof Error
-        ? error.message
-        : t`Something went wrong preparing the save. Please try again.`,
+    description: match(error)
+      .with(
+        P.instanceOf(ResolverChangeNotAuthorizedError),
+        () =>
+          t`Your wallet does not have permission to change the resolver for this name.`,
+      )
+      .with(
+        P.instanceOf(OwnedResolverNotReadyError),
+        () =>
+          t`The replacement resolver could not be verified. Please try again.`,
+      )
+      .with(P.instanceOf(Error), (saveError) => saveError.message)
+      .otherwise(
+        () => t`Something went wrong preparing the save. Please try again.`,
+      ),
   })
 }
 
@@ -382,7 +391,6 @@ export const useEditProfileDialogSave = ({
         type: 'SAVE_REQUESTED',
         values: currentRecords,
         deps: {
-          accountAddress: account.accountAddress as Address | null,
           chainId,
           name,
           needsResolverSetup,
@@ -390,7 +398,6 @@ export const useEditProfileDialogSave = ({
           ownerAddress,
           publicClient: publicClient as PublicClient,
           retryCount: 0,
-          signer: account.signer,
           walletClient: account.walletClient,
         },
       })
@@ -405,23 +412,12 @@ export const useEditProfileDialogSave = ({
       toast.error(t`Cannot save profile`, {
         description: getSaveBlockedDescription({
           hasOwner: Boolean(owner),
-          // Mirrors the machine's `missingAccount` guard: setup needs the HCA
-          // signer, an in-place write needs a connected wallet still bound to
-          // the owner address.
-          hasAccount: needsResolverSetup
-            ? Boolean(account.signer && account.accountAddress)
-            : hasOwnerWallet(account.walletClient, ownerAddress),
-          hasSetupSigner: !(
-            needsResolverSetup &&
-            (account.signer?.type !== 'rhinestone' || !ownerAddress)
-          ),
+          hasAccount: hasOwnerWallet(account.walletClient, ownerAddress),
         }),
       })
       return null
     },
     [
-      account.accountAddress,
-      account.signer,
       account.walletClient,
       chainId,
       dialogActor,
