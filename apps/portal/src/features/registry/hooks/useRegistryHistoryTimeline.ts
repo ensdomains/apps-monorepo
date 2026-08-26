@@ -19,14 +19,12 @@ class GetRegistryHistoryTimelineError extends TaggedError(
 
 type GetRegistryHistoryTimelineParameters = {
   readonly address: Address
-  readonly orderDirection?: 'asc' | 'desc'
 }
 
 const EVENTS_LIMIT = 50
 
 const getRegistryHistoryTimeline = ResultFn(async function* ({
   address,
-  orderDirection = 'desc',
 }: GetRegistryHistoryTimelineParameters) {
   const { registry } = yield* fromPromise(
     graphqlIndexerClient.request<{
@@ -37,16 +35,12 @@ const getRegistryHistoryTimeline = ResultFn(async function* ({
       gql`
         ${TIMELINE_EVENT_FRAGMENT}
 
-        query getRegistryHistoryTimeline(
-          $address: String!
-          $first: Int
-          $orderDirection: OrderDirection
-        ) {
+        query getRegistryHistoryTimeline($address: String!, $first: Int) {
           registry(address: $address) {
             eventConnection(
               first: $first
               orderBy: timestamp
-              orderDirection: $orderDirection
+              orderDirection: desc
             ) {
               edges {
                 node {
@@ -57,7 +51,7 @@ const getRegistryHistoryTimeline = ResultFn(async function* ({
           }
         }
       `,
-      { address: address.toLowerCase(), first: EVENTS_LIMIT, orderDirection },
+      { address: address.toLowerCase(), first: EVENTS_LIMIT },
     ),
     (e) => new GetRegistryHistoryTimelineError({ cause: e as ClientError }),
   )
@@ -75,10 +69,10 @@ const getRegistryHistoryTimeline = ResultFn(async function* ({
 
   return ok({
     events: kept,
-    // Callers cannot infer this from `kept.length`: truncating on a
-    // transaction boundary routinely returns fewer than the limit from a
-    // window that was in fact full.
-    hasMore: events.length >= EVENTS_LIMIT || events.length > kept.length,
+    // Read off the fetched window, not `kept`: truncating on a transaction
+    // boundary routinely returns fewer than the limit from a window that was
+    // in fact full, so `kept.length` would under-report.
+    hasMore: events.length >= EVENTS_LIMIT,
   })
 })
 

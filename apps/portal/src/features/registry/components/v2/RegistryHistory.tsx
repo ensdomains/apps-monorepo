@@ -73,8 +73,8 @@ export const RegistryHistory = ({ name }: { name: string }) => {
   if (registriesError) {
     return (
       <ErrorMessage
-        compact
-        description="Error fetching registry history. Please refresh the page."
+        title="Error loading registry history"
+        description={registriesError.cause?.message}
       />
     )
   }
