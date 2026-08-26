@@ -76,12 +76,9 @@ export const scopedCollections = (
 ) => {
   if (!eventTypes) return null
   const entries = eventTypes.map((type) => V1_SCOPED_RESOLVER_EVENTS[type])
-  if (entries.some((entry) => !entry)) return null
-  return [
-    ...new Map(
-      entries.map((entry) => [entry?.collection ?? '', entry] as const),
-    ).values(),
-  ].filter((entry) => entry !== undefined)
+  const known = entries.filter((entry) => entry !== undefined)
+  if (known.length !== entries.length) return null
+  return [...new Map(known.map((entry) => [entry.collection, entry])).values()]
 }
 
 /**

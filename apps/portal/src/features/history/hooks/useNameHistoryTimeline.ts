@@ -9,6 +9,7 @@ import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { mergeTimeline } from '../mergeTimeline'
+import type { TimelineEventType } from '../summarize/descriptors'
 import { adaptV1Events } from '../v1/adaptV1Events'
 import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
 
@@ -148,8 +149,11 @@ type GetNameHistoryTimelineParameters = {
    * *whole* feed, so a name with a lot of unrelated churn (fox.eth has 66
    * `TextChanged`) pushes its handful of address events out of the window
    * before any client-side filter gets to see them.
+   *
+   * Typed as a union rather than `string[]` because the values are inlined
+   * into the query text — see `buildHistoryTimelineQuery`.
    */
-  readonly eventTypes?: readonly string[]
+  readonly eventTypes?: readonly TimelineEventType[]
 }
 
 type DomainWithEvents = { events: TimelineIndexerEvent[] }
@@ -185,7 +189,8 @@ const HISTORY_TIMELINE_CHILD_LIMIT = 25
  * filter correctly, which is why the `subdomains` selection below already
  * spells its own `type_in` out longhand.
  *
- * The values are our own constants, never user input.
+ * `TimelineEventType` is what keeps that safe: only the timeline's own event
+ * types can reach the query text, never a caller's string.
  */
 const TIMELINE_EVENT_FRAGMENT = `  fragment TimelineEvent on Event {
     id
@@ -215,7 +220,9 @@ const TIMELINE_EVENT_FRAGMENT = `  fragment TimelineEvent on Event {
     asExpiryUpdated { node tokenId expiry }
   }`
 
-const buildHistoryTimelineQuery = (eventTypes?: readonly string[]) => gql`
+const buildHistoryTimelineQuery = (
+  eventTypes?: readonly TimelineEventType[],
+) => gql`
   ${TIMELINE_EVENT_FRAGMENT}
 
   query getNameHistoryTimeline(
@@ -334,8 +341,9 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   // This runs after adapting because `adaptV1Events` is what renames some v1
   // types into their v2 equivalents — filtering earlier would compare against
   // the wrong vocabulary.
-  const v1Events = eventTypes
-    ? v1EventsAll.filter((event) => eventTypes.includes(event.type))
+  const scopedTypes = eventTypes && new Set<string>(eventTypes)
+  const v1Events = scopedTypes
+    ? v1EventsAll.filter((event) => scopedTypes.has(event.type))
     : v1EventsAll
 
   return ok(
@@ -344,7 +352,9 @@ const getNameHistoryTimeline = ResultFn(async function* ({
       v1Events,
       first,
       orderDirection,
-      eventsCount: v2Result.eventsCount,
+      // `eventsCount` is the name's whole history, so it describes `events`
+      // only on an unscoped read.
+      eventsCount: eventTypes ? undefined : v2Result.eventsCount,
     }),
   )
 })

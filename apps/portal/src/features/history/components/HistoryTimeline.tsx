@@ -12,6 +12,7 @@ import { TimelineFrame } from '@/components/ui/timeline'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { buildEventTypeGroups, filterActions } from '../filterTimeline'
 import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
+import type { TimelineEventType } from '../summarize/descriptors'
 import { summarizeEvents } from '../summarize/summarizeEvents'
 import { ActionTimeline } from './ActionTimeline'
 
@@ -22,7 +23,7 @@ interface HistoryTimelineProps {
    * (address resolution, ownership, …) show their slice of the name's history.
    * Omit for the full feed.
    */
-  readonly scope?: readonly string[]
+  readonly scope?: readonly TimelineEventType[]
   /** Left side of the header bar; defaults to the page-level "History" title. */
   readonly heading?: ReactNode
   /** Rendered after the filter chips, e.g. a "Full history" link. */

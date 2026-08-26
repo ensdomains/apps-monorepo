@@ -16,11 +16,10 @@ import { ActionTimeline } from './ActionTimeline'
 const RECENT_ACTION_LIMIT = 4
 
 /**
- * Event window for the preview. `first` counts raw events and
- * `truncateToTransactions` trims on transaction boundaries, so this is a
- * comfortable over-fetch for `RECENT_ACTION_LIMIT` actions rather than an exact
- * figure — but far short of the History page's own window, which the Overview
- * has no use for.
+ * Event window for the preview. `first` counts raw events and `mergeTimeline`
+ * trims on transaction boundaries, so this is a comfortable over-fetch for
+ * `RECENT_ACTION_LIMIT` actions rather than an exact figure — but far short of
+ * the History page's own window, which the Overview has no use for.
  */
 const RECENT_EVENT_WINDOW = 20
 
@@ -135,16 +134,14 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
       : undefined
   // The break is drawn on evidence of hidden history, not on having something to
   // pin, so a failed oldest-action query still leaves the link out correct.
-  // `totalCount` counts v2 events only, so that clause can only ever
-  // under-report — `hasMore` is what covers a v1-only name, whose count is
-  // always 0. Without it, a name whose recent window is full but summarizes to
-  // no more than `RECENT_ACTION_LIMIT` actions would render as a complete
-  // history once the oldest-action query failed.
+  // `hasMore` is what covers a v1-only name, whose `totalCount` is always 0:
+  // without it, a name whose recent window is full but summarizes to no more
+  // than `RECENT_ACTION_LIMIT` actions would render as a complete history once
+  // the oldest-action query failed.
   const hasHiddenActions =
     pinnedAction !== undefined ||
     actions.length > recent.length ||
-    recentQuery.data.hasMore ||
-    recentQuery.data.events.length < totalCount
+    recentQuery.data.hasMore
 
   return (
     <RecentHistoryShell name={name}>
@@ -173,7 +170,7 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
                 </Link>
                 {/* The count is v2-only, so a name with any v1 history would
                     print a figure that omits all of it. */}
-                {totalCount > 0 && !hasV1History && ` (${totalCount} events)`}
+                {!!totalCount && !hasV1History && ` (${totalCount} events)`}
               </div>
             </div>
             {pinnedAction && (
