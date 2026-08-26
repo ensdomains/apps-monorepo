@@ -7,8 +7,8 @@ type MergeTimelineParameters = {
   /** The per-source page size the two collections were fetched with. */
   readonly first: number
   readonly orderDirection: 'asc' | 'desc'
-  /** The v2 indexer's `eventsCount` for the name. */
-  readonly eventsCount: number
+  /** The v2 indexer's `eventsCount`, or `undefined` on a scoped read. */
+  readonly eventsCount: number | undefined
 }
 
 /**
@@ -16,7 +16,9 @@ type MergeTimelineParameters = {
  *
  * `totalCount` is read from the indexer's `eventsCount` rather than the length
  * of `events`, which is bounded by `first` — a preview that renders a handful
- * of rows still needs to say how much history there is behind them.
+ * of rows still needs to say how much history there is behind them. It is
+ * `undefined` on a scoped read, where that count describes the name's whole
+ * history and not the events beside it.
  *
  * It counts v2 events only. The v1 subgraph exposes no total, and adding the
  * number of v1 events *fetched* would make the figure move with `first` (it
@@ -27,7 +29,7 @@ type MergeTimelineParameters = {
  */
 export type NameHistoryTimeline = {
   readonly events: TimelineIndexerEvent[]
-  readonly totalCount: number
+  readonly totalCount: number | undefined
   /** Whether history exists beyond this window. */
   readonly hasMore: boolean
   /** Whether any v1 event was merged in, i.e. `totalCount` is incomplete. */
