@@ -82,7 +82,7 @@ export const TimelineRow = ({
           onClick={handleClick}
           onKeyDown={handleKeyDown}
           className={cn(
-            'group/row cursor-pointer select-none rounded-md transition-none lg:pr-3',
+            'group/row cursor-pointer select-none rounded-md transition-none @2xl/timeline:pr-3',
             hoverHighlight && 'hover:bg-neutral-1',
             className,
           )}
