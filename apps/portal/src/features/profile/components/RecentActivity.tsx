@@ -193,17 +193,13 @@ const V1RecentActivity = ({
   eventTypes,
 }: {
   name: string
-  eventTypes?: readonly string[]
+  eventTypes: readonly string[]
 }) => {
   const { data, isLoading, error } = useQuery(
     // The subgraph query has no event-type filter, so filtering happens
     // client-side below — fetch a deeper window so the filtered list isn't
     // starved by unrelated events (transfers, wraps, …).
-    getNameHistoryQueryOptions({
-      name,
-      first: eventTypes ? 10 : 3,
-      orderDirection: 'desc',
-    }),
+    getNameHistoryQueryOptions({ name, first: 10, orderDirection: 'desc' }),
   )
 
   if (isLoading) return <LoadingSpinner title="Loading..." />
@@ -220,9 +216,9 @@ const V1RecentActivity = ({
     ...data.domainEvents,
     ...(data.registrationEvents || []),
     ...(data.resolverEvents || []),
-  ].filter((event) => !eventTypes || eventTypes.includes(event.type))
+  ].filter((event) => eventTypes.includes(event.type))
 
-  if (eventTypes && events.length === 0) return <NoRecentActivity name={name} />
+  if (events.length === 0) return <NoRecentActivity name={name} />
 
   return (
     <RecentActivityShell name={name}>
@@ -238,7 +234,7 @@ const V2RecentActivity = ({
   eventTypes,
 }: {
   name: string
-  eventTypes?: readonly string[]
+  eventTypes: readonly string[]
 }) => {
   const { data, isLoading, error } = useQuery(
     getV2NameHistoryQueryOptions({
@@ -274,8 +270,8 @@ const V2RecentActivity = ({
 interface RecentActivityProps {
   name: string
   protocolVersion: ProtocolVersion
-  /** When set, only events of these types are shown (e.g. `AddressChanged`). */
-  eventTypes?: readonly string[]
+  /** Only events of these types are shown (e.g. `AddressChanged`). */
+  eventTypes: readonly string[]
 }
 
 export const RecentActivity = ({
