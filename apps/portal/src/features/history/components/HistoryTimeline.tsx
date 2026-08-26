@@ -9,6 +9,7 @@ import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { Button } from '@/components/ui/button'
 import { TimelineFrame } from '@/components/ui/timeline'
+import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { buildEventTypeGroups, filterActions } from '../filterTimeline'
 import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
@@ -28,9 +29,52 @@ interface HistoryTimelineProps {
   readonly heading?: ReactNode
   /** Rendered after the filter chips, e.g. a "Full history" link. */
   readonly action?: ReactNode
+  /**
+   * Show the date / event-type chips and the truncation note. Off for a section
+   * embedded in a wider page, where the feed is already narrowed by its scope
+   * and the full History page is one click away.
+   */
+  readonly showFilters?: boolean
   readonly emptyTitle?: string
   readonly emptyDescription?: string
 }
+
+/** The date-range and event-type chips, in the order the header bar shows them. */
+const FilterChips = ({
+  dateRange,
+  onDateRangeChange,
+  eventTypeGroups,
+  selectedTypes,
+  onTypesChange,
+}: {
+  readonly dateRange: DateRange
+  readonly onDateRangeChange: (range: DateRange) => void
+  readonly eventTypeGroups: FilterGroup[]
+  readonly selectedTypes: string[]
+  readonly onTypesChange: (types: string[]) => void
+}) => (
+  <>
+    <TableDateRangeFilter
+      label="Date range"
+      dateRange={dateRange}
+      onChange={onDateRangeChange}
+      size="xs"
+      icon={Calendar}
+      hideValue
+    />
+    {eventTypeGroups.length > 0 && (
+      <TableMultiSelectFilter
+        label="Event"
+        groups={eventTypeGroups}
+        selectedValues={selectedTypes}
+        onChange={onTypesChange}
+        size="xs"
+        icon={ListFilter}
+        hideValue
+      />
+    )}
+  </>
+)
 
 /**
  * The History timeline: fetches the widened event feed, summarizes raw events into
@@ -46,6 +90,7 @@ export const HistoryTimeline = ({
   scope,
   heading,
   action,
+  showFilters = true,
   emptyTitle = 'No history yet',
   emptyDescription = "This name doesn't have any recorded history. Activity will appear here once transactions are made.",
 }: HistoryTimelineProps) => {
@@ -113,23 +158,13 @@ export const HistoryTimeline = ({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         {heading ?? <h1 className="text-4xl">History</h1>}
         <div className="flex flex-wrap items-center gap-2">
-          <TableDateRangeFilter
-            label="Date range"
-            dateRange={dateRange}
-            onChange={setDateRange}
-            size="xs"
-            icon={Calendar}
-            hideValue
-          />
-          {eventTypeGroups.length > 0 && (
-            <TableMultiSelectFilter
-              label="Event"
-              groups={eventTypeGroups}
-              selectedValues={selectedTypes}
-              onChange={setSelectedTypes}
-              size="xs"
-              icon={ListFilter}
-              hideValue
+          {showFilters && (
+            <FilterChips
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+              eventTypeGroups={eventTypeGroups}
+              selectedTypes={selectedTypes}
+              onTypesChange={setSelectedTypes}
             />
           )}
           <Button variant="outline" onClick={toggleExpandAll} size="xs">
@@ -158,8 +193,10 @@ export const HistoryTimeline = ({
               Shown in scoped views too: the per-facet window is where
               truncation actually bites (the indexer exposes no cursor to page
               past it), so suppressing this here would present a partial list
-              as the whole history. */}
-          {data?.hasMore && (
+              as the whole history. It goes with the filters: a section that
+              offers no way to narrow the feed has nothing to do with the
+              figure. */}
+          {showFilters && data?.hasMore && (
             <p className="mb-3 text-muted-foreground text-p">
               Showing the most recent {filteredActions.length}
               {scope ? ' matching' : ''} transactions.
