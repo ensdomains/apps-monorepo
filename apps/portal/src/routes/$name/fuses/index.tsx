@@ -14,6 +14,7 @@ import { DataTable } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MessageCard } from '@/components/ui/message-card'
@@ -192,7 +193,7 @@ function RouteComponent() {
       )}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h1 className="text-h1">Fuses</h1>
+          <PageHeading parent={{ type: 'name', name }}>Fuses</PageHeading>
           {/* The wrapper refuses owner writes on an expired name, so offering
               the burn flow would only route the user into a reverting tx. */}
           {isOwner && !grace.isExpired && !grace.error && (

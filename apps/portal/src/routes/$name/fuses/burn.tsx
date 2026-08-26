@@ -13,6 +13,7 @@ import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { MessageCard } from '@/components/ui/message-card'
@@ -227,7 +228,7 @@ function RouteComponent() {
             Back
           </Link>
 
-          <h1 className="text-h1">Burn fuses</h1>
+          <PageHeading parent={{ type: 'name', name }}>Burn fuses</PageHeading>
 
           <div className="bg-muted rounded-sm p-6 flex gap-4 items-start">
             <AlertTriangle className="w-8 h-8 shrink-0" />

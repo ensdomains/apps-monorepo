@@ -14,6 +14,7 @@ import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { InfoRow } from '@/features/profile/components/InfoRow'
@@ -316,7 +317,7 @@ const ResolverView = ({
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-h1">Resolver</h1>
+        <PageHeading parent={{ type: 'name', name }}>Resolver</PageHeading>
         {address ? (
           <EditButtons
             address={address}
@@ -396,7 +397,7 @@ const NoResolverSet = ({
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-h1">Resolver</h1>
+      <PageHeading parent={{ type: 'name', name }}>Resolver</PageHeading>
       <div className="flex items-center gap-4 rounded-sm bg-accent-fill/40 p-6">
         <p className="flex-1 text-base text-muted-foreground">
           This name does not have a resolver set.

@@ -33,7 +33,7 @@ describe('csp', () => {
       expect(header['default-src']).toEqual(["'self'"])
       expect(header['object-src']).toEqual(["'none'"])
       expect(header['base-uri']).toEqual(["'self'"])
-      expect(header['form-action']).toEqual(["'self'"])
+      expect(header['form-action']?.[0]).toBe("'self'")
     })
 
     it('never allows unsafe script execution', () => {
@@ -105,6 +105,18 @@ describe('csp', () => {
       // Unruggable's drpc-load-balanced gateway host — not the RPC (.live).
       expect(connectSrc).toContain('https://lb.drpc.org')
     })
+
+    it('allowlists Intercom Messenger as wildcards', () => {
+      expect(connectSrc).toContain('https://*.intercom.io')
+      expect(connectSrc).toContain('wss://*.intercom.io')
+      expect(connectSrc).toContain('https://*.intercomcdn.com')
+      expect(connectSrc).toContain('https://*.intercom-messenger.com')
+      expect(connectSrc).toContain('wss://*.intercom-messenger.com')
+      expect(connectSrc).toContain('https://uploads.intercomusercontent.com')
+      // Bare hosts alongside the wildcard would be redundant and easily stale.
+      expect(connectSrc).not.toContain('https://api-iam.intercom.io')
+      expect(connectSrc).not.toContain('https://widget.intercom.io')
+    })
   })
 
   // img-src and script-src each encode a deliberate, non-obvious choice.
@@ -125,16 +137,44 @@ describe('csp', () => {
       )
     })
 
-    it('allowlists no third-party script hosts', () => {
-      // PostHog is pre-bundled (module.full.no-external) and served from 'self',
-      // so it no longer loads scripts from the analytics host. script-src must
-      // not regress to allowing an external script origin.
+    it('allowlists only Intercom as a third-party script host', () => {
+      // PostHog is pre-bundled (module.full.no-external) and served from 'self'.
+      // Intercom's messenger widget cannot be bundled — the SDK injects a
+      // <script src="https://widget.intercom.io/widget/..."> tag — so those
+      // exact hosts are the only third-party script origins. script-src must
+      // not regress to allowing the analytics host or a wildcard.
       expect(header['script-src']).toEqual([
         "'self'",
         "'wasm-unsafe-eval'",
+        'https://app.intercom.io',
+        'https://widget.intercom.io',
+        'https://js.intercomcdn.com',
         "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='",
       ])
       expect(header['script-src']).not.toContain('https://jakob.ens.domains')
+    })
+
+    it('allowlists Intercom fonts, frames, media, and form targets', () => {
+      expect(header['font-src']).toEqual([
+        "'self'",
+        'data:',
+        'https://js.intercomcdn.com',
+        'https://fonts.intercomcdn.com',
+      ])
+      expect(header['frame-src']).toContain('https://intercom-sheets.com')
+      expect(header['frame-src']).toContain(
+        'https://www.intercom-reporting.com',
+      )
+      expect(header['media-src']).toEqual([
+        "'self'",
+        'https://js.intercomcdn.com',
+        'https://downloads.intercomcdn.com',
+      ])
+      expect(header['form-action']).toEqual([
+        "'self'",
+        'https://intercom.help',
+        'https://api-iam.intercom.io',
+      ])
     })
   })
 

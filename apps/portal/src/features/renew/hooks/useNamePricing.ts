@@ -2,14 +2,17 @@ import { useQuery } from '@tanstack/react-query'
 import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
+import { getStartOfToday } from '@/features/register/utils/registrationDuration'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
-import type { ExtensionSpanType } from '../components/ExtensionDurationOrExpiryPicker'
 import {
   computeNamePricingDisplay,
   type NamePricingDisplay,
 } from '../utils/computeNamePricingDisplay'
+import {
+  type ExtensionSpan,
+  getExtensionDurationSeconds,
+} from '../utils/extensionDurationPicker'
 import { getRenewerAddress } from '../utils/renewer'
-import { getRenewalDurationSeconds } from './useMultiNamePricing'
 import type { SelectedName } from './useRenewalTransactions'
 
 export type NamePricingResult = {
@@ -23,16 +26,14 @@ export type NamePricingResult = {
 
 export function useNamePricing(
   selectedName: SelectedName,
-  duration: number,
-  spanType: ExtensionSpanType,
+  span: ExtensionSpan,
   baseDate?: Temporal.PlainDate,
   enabled = true,
 ): NamePricingResult {
-  const durationSeconds = getRenewalDurationSeconds({
-    spanType,
-    duration,
-    baseDate,
-  })
+  const durationSeconds = getExtensionDurationSeconds(
+    baseDate ?? getStartOfToday(),
+    span,
+  )
 
   const { data, isLoading, isError, error } = useQuery({
     ...getRenewalPriceQueryOptions({

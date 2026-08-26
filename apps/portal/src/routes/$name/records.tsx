@@ -4,6 +4,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { RecordList } from '@/features/records/components/RecordList'
@@ -51,7 +52,7 @@ function App() {
   if (!profileQuery.data) {
     return (
       <div className="flex flex-col gap-8">
-        <h1 className="text-h1">Records</h1>
+        <PageHeading parent={{ type: 'name', name }}>Records</PageHeading>
         <NoResultsMessage
           title="No records yet"
           description="This name doesn't have any records set. Records will appear here once they're configured."

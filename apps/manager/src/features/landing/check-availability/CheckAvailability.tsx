@@ -1,3 +1,4 @@
+import { applyPastedNameSearch } from '@ens-apps/utils/normalizePastedNameSearch'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -102,6 +103,9 @@ export const CheckAvailability = ({
           className="w-full"
           isLoading={isLoading}
           onChange={handleInputChange}
+          onPaste={(event) =>
+            applyPastedNameSearch(event, setInputValue, truncateToMaxBytes)
+          }
           placeholder=".eth"
           ref={inputRef}
           value={inputValue}

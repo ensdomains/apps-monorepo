@@ -10,6 +10,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -103,7 +104,7 @@ function EditRecordsPage() {
   if (!profileQuery.data) {
     return (
       <div className="flex flex-col gap-8">
-        <h1 className="text-h1">Edit records</h1>
+        <PageHeading parent={{ type: 'name', name }}>Edit records</PageHeading>
         <NoResultsMessage
           title="No records yet"
           description="This name doesn't have any records set. Records will appear here once they're configured."
@@ -362,7 +363,9 @@ const EditRecordsContent = ({
             Back to View
           </Button>
         </Link>
-        <h1 className="text-h1 mb-6">Edit records</h1>
+        <PageHeading parent={{ type: 'name', name }} className="mb-6">
+          Edit records
+        </PageHeading>
 
         {/* Add Record Form */}
         <div className="flex flex-col sm:flex-row gap-3">
