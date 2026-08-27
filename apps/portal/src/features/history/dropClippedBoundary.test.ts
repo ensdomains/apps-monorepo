@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  clippedBoundaryTimestamp,
-  dropClippedBoundary,
-} from './dropClippedBoundary'
+import { dropClippedBoundary } from './dropClippedBoundary'
 import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
 
 const event = (
@@ -23,14 +20,15 @@ const hashes = (events: readonly TimelineIndexerEvent[]) => [
 ]
 
 describe('dropClippedBoundary', () => {
-  it('passes a short response through untouched', () => {
-    const events = [event('a', 'TextChanged', 3), event('b', 'AddrChanged', 2)]
-    expect(dropClippedBoundary(events, 10)).toEqual(events)
+  it('keeps everything when the query reached the end of the feed', () => {
+    const events = [event('a', 'TextChanged', 2), event('b', 'AddrChanged', 1)]
+    expect(dropClippedBoundary(events, false)).toEqual(events)
   })
 
-  it('drops every transaction sharing the boundary timestamp, not just the last', () => {
-    // One block (t=1) holding two interleaved transactions, both clipped by the
-    // limit — the regression: `0xb` used to survive and read as complete.
+  it('drops every transaction in the boundary group, not just the last', () => {
+    // One block (t=1) holding two interleaved transactions, either of which may
+    // continue onto the next page. Dropping only `0xc` would leave `0xb`
+    // looking complete.
     const events = [
       event('a', 'TextChanged', 2),
       event('a', 'AddrChanged', 2),
@@ -39,8 +37,7 @@ describe('dropClippedBoundary', () => {
       event('b', 'AddrChanged', 1),
       event('c', 'AddrChanged', 1),
     ]
-    const kept = dropClippedBoundary(events, events.length)
-    expect(hashes(kept)).toEqual(['0xa'])
+    expect(hashes(dropClippedBoundary(events, true))).toEqual(['0xa'])
   })
 
   it('keeps transactions above the boundary whole', () => {
@@ -50,38 +47,13 @@ describe('dropClippedBoundary', () => {
       event('b', 'TextChanged', 2),
       event('c', 'NameRegistered', 1),
     ]
-    const kept = dropClippedBoundary(events, events.length)
+    const kept = dropClippedBoundary(events, true)
     expect(hashes(kept)).toEqual(['0xa', '0xb'])
     expect(kept).toHaveLength(3)
   })
 
-  it('returns the events untrimmed when the boundary is all there is', () => {
-    const events = [
-      event('a', 'TextChanged', 1),
-      event('a', 'AddrChanged', 1),
-      event('b', 'AddrChanged', 1),
-    ]
-    expect(dropClippedBoundary(events, events.length)).toEqual(events)
-  })
-})
-
-describe('clippedBoundaryTimestamp', () => {
-  it('is undefined for a short response', () => {
-    const events = [event('a', 'TextChanged', 1), event('a', 'AddrChanged', 1)]
-    expect(clippedBoundaryTimestamp(events, 10)).toBeUndefined()
-  })
-
-  it('is undefined when trimming leaves something complete', () => {
-    const events = [event('a', 'TextChanged', 2), event('b', 'AddrChanged', 1)]
-    expect(clippedBoundaryTimestamp(events, events.length)).toBeUndefined()
-  })
-
-  it('returns the timestamp when a full response is one group', () => {
-    const events = [
-      event('a', 'TextChanged', 7),
-      event('b', 'AddrChanged', 7),
-      event('a', 'AddrChanged', 7),
-    ]
-    expect(clippedBoundaryTimestamp(events, events.length)).toBe(7)
+  it('empties a page that is a single unfinished group', () => {
+    const events = [event('a', 'TextChanged', 1), event('b', 'AddrChanged', 1)]
+    expect(dropClippedBoundary(events, true)).toEqual([])
   })
 })
