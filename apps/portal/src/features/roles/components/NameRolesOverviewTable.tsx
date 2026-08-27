@@ -109,7 +109,7 @@ export const NameRolesOverviewTable = ({
   return (
     <Fragment>
       <div className="flex items-center justify-between">
-        <h3 className="text-caps leading-none">parent registry roles</h3>
+        <h3 className="text-caps leading-none">parent registry / roles</h3>
         {address && (
           <AddUserButton
             canManageRoles={canManageRoles}
