@@ -35,13 +35,6 @@ const PAGE_SIZE = EVENTS_LIMIT * 3
  */
 const MAX_PAGES = 3
 
-type EventConnection = {
-  eventConnection: {
-    pageInfo: { hasNextPage: boolean; endCursor: string | null }
-    edges: { node: TimelineIndexerEvent }[]
-  }
-}
-
 const recentActivityQuery = gql`
   ${TIMELINE_EVENT_FRAGMENT}
 
@@ -69,7 +62,12 @@ const recentActivityQuery = gql`
 const requestPage = (after?: string) =>
   fromPromise(
     graphqlIndexerClient
-      .request<EventConnection>(recentActivityQuery, {
+      .request<{
+        eventConnection: {
+          pageInfo: { hasNextPage: boolean; endCursor: string | null }
+          edges: { node: TimelineIndexerEvent }[]
+        }
+      }>(recentActivityQuery, {
         first: PAGE_SIZE,
         after,
       })
