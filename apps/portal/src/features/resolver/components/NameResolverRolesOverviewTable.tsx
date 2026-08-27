@@ -75,8 +75,10 @@ const ResolverRolesOverview = ({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-caps leading-none">{name} resolver / roles</h3>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h3 className="text-caps leading-none min-w-0 break-words">
+          {name} resolver / roles
+        </h3>
         <Button className="text-muted-foreground" variant="ghost" asChild>
           <Link
             params={{ address: resolverAddress }}

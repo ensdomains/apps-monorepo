@@ -41,8 +41,10 @@ export const NameRegistryRolesOverviewTable = ({ name }: { name: string }) => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-caps leading-none">{name} registry / roles</h3>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h3 className="text-caps leading-none min-w-0 break-words">
+          {name} registry / roles
+        </h3>
         <Button className="text-muted-foreground" variant="ghost" asChild>
           <Link params={{ address }} to="/registry/$address/roles">
             <ArrowUpRight className="size-5" />
