@@ -12,7 +12,8 @@ import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useRe
 
 /**
  * Read-only resolver roles for a name's resolver, for embedding on a name page.
- * Management happens on the resolver page itself, so the slider is disabled here.
+ * Management happens on the resolver page itself, so the slider is disabled here
+ * and a "View and manage" link points there instead.
  */
 export const NameResolverRolesOverviewTable = ({ name }: { name: string }) => {
   const {
@@ -75,14 +76,14 @@ const ResolverRolesOverview = ({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-caps leading-none">{name} resolver roles</h3>
+        <h3 className="text-caps leading-none">{name} resolver / roles</h3>
         <Button className="text-muted-foreground" variant="ghost" asChild>
           <Link
             params={{ address: resolverAddress }}
             to="/resolver/$address/roles"
           >
             <ArrowUpRight className="size-5" />
-            View
+            View and manage
           </Link>
         </Button>
       </div>

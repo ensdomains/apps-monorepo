@@ -11,7 +11,7 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 /**
  * Read-only registry roles for a name's own registry, for embedding on the name
  * roles page. Management happens on the registry page itself, so the slider is
- * disabled here and a "View" link points there instead.
+ * disabled here and a "View and manage" link points there instead.
  *
  * The roles page already gates on ENSv2 before rendering this, so registry
  * discovery (valid for V2 names only — see {@link getNameRegistriesQueryOptions})
@@ -42,11 +42,11 @@ export const NameRegistryRolesOverviewTable = ({ name }: { name: string }) => {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-caps leading-none">{name} registry roles</h3>
+        <h3 className="text-caps leading-none">{name} registry / roles</h3>
         <Button className="text-muted-foreground" variant="ghost" asChild>
           <Link params={{ address }} to="/registry/$address/roles">
             <ArrowUpRight className="size-5" />
-            View
+            View and manage
           </Link>
         </Button>
       </div>
