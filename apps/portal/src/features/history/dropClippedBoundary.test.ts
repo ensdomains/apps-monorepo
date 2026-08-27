@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { dropClippedBoundary } from './dropClippedBoundary'
+import {
+  clippedBoundaryTimestamp,
+  dropClippedBoundary,
+} from './dropClippedBoundary'
 import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
 
 const event = (
@@ -59,5 +62,26 @@ describe('dropClippedBoundary', () => {
       event('b', 'AddrChanged', 1),
     ]
     expect(dropClippedBoundary(events, events.length)).toEqual(events)
+  })
+})
+
+describe('clippedBoundaryTimestamp', () => {
+  it('is undefined for a short response', () => {
+    const events = [event('a', 'TextChanged', 1), event('a', 'AddrChanged', 1)]
+    expect(clippedBoundaryTimestamp(events, 10)).toBeUndefined()
+  })
+
+  it('is undefined when trimming leaves something complete', () => {
+    const events = [event('a', 'TextChanged', 2), event('b', 'AddrChanged', 1)]
+    expect(clippedBoundaryTimestamp(events, events.length)).toBeUndefined()
+  })
+
+  it('returns the timestamp when a full response is one group', () => {
+    const events = [
+      event('a', 'TextChanged', 7),
+      event('b', 'AddrChanged', 7),
+      event('a', 'AddrChanged', 7),
+    ]
+    expect(clippedBoundaryTimestamp(events, events.length)).toBe(7)
   })
 })

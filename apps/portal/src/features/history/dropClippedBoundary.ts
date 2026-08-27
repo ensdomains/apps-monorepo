@@ -26,8 +26,9 @@ import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
  * If the boundary group is the entire response, nothing in it is provably
  * complete — the cut could have fallen inside any of its transactions. The
  * events are returned untrimmed anyway, because an empty Recent Activity is a
- * worse answer than a possibly-clipped one. Callers should over-fetch (see
- * `FETCH_LIMIT`) so this needs a single block to fill the whole query.
+ * worse answer than a possibly-clipped one. Callers who can issue another query
+ * should test for that case with {@link clippedBoundaryTimestamp} first and
+ * widen, rather than rely on this fallback.
  *
  * `events` must be sorted by timestamp descending.
  */
@@ -42,4 +43,29 @@ export const dropClippedBoundary = (
     (event) => event.timestamp !== boundaryTimestamp,
   )
   return complete.length > 0 ? complete : events
+}
+
+/**
+ * The timestamp to re-query when trimming cannot salvage anything.
+ *
+ * Returns a value only when a full response is a single timestamp group, so
+ * {@link dropClippedBoundary} would have to hand back possibly-clipped
+ * transactions. Re-fetching with `timestamp_gte` at this value retrieves the
+ * whole group; if that response is itself short, the group is complete and
+ * nothing is clipped.
+ *
+ * `undefined` means the response either wasn't full or contains at least one
+ * timestamp above the boundary, and trimming alone is enough.
+ */
+export const clippedBoundaryTimestamp = (
+  events: readonly TimelineIndexerEvent[],
+  limit: number,
+): number | undefined => {
+  if (events.length < limit) return undefined
+
+  const boundaryTimestamp = events.at(-1)?.timestamp
+  const allAtBoundary = events.every(
+    (event) => event.timestamp === boundaryTimestamp,
+  )
+  return allAtBoundary ? boundaryTimestamp : undefined
 }
