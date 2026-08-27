@@ -42,9 +42,23 @@ const getRecentActivityTimeline = ResultFn(async function* () {
     (e) => new GetRecentActivityTimelineError({ cause: e as ClientError }),
   )
 
-  // One short of the window: a full response ends mid-transaction, and trimming
-  // at `EVENTS_LIMIT` is a no-op (the groups sum to exactly it).
-  return ok(truncateToTransactions(events, EVENTS_LIMIT - 1))
+  // A full response is cut off mid-transaction by `first`, and a block can
+  // interleave transactions, so the boundary one's events aren't contiguous —
+  // drop them by hash. Unless they're all there is: better partial than empty.
+  const boundaryHash =
+    events.length < EVENTS_LIMIT
+      ? undefined
+      : events.at(-1)?.transactionHash.toLowerCase()
+  const complete = events.filter(
+    (event) => event.transactionHash.toLowerCase() !== boundaryHash,
+  )
+
+  return ok(
+    truncateToTransactions(
+      complete.length > 0 ? complete : events,
+      EVENTS_LIMIT,
+    ),
+  )
 })
 
 const getRecentActivityTimelineQueryKey = createQueryKey<
