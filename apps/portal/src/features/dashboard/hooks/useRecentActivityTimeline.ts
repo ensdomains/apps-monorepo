@@ -95,8 +95,16 @@ const getRecentActivityTimeline = ResultFn(async function* () {
       break
   }
 
+  // Trimming removes everything when the paging cap is hit and all of it is
+  // still one block. Nothing there is provably complete — the block continues
+  // past what we fetched — so the choice is a possibly-clipped feed or an empty
+  // one, and an empty Recent Activity during the busiest block the protocol has
+  // ever had is the worse answer. Shows the newest transactions instead, of
+  // which at most the last is partial.
+  const trimmed = dropClippedBoundary(events, hasMore)
+
   return ok(
-    truncateToTransactions(dropClippedBoundary(events, hasMore), EVENTS_LIMIT),
+    truncateToTransactions(trimmed.length > 0 ? trimmed : events, EVENTS_LIMIT),
   )
 })
 
