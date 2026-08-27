@@ -4,9 +4,12 @@ import type { Address } from 'viem'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
-export const nameHeadingClassName = 'font-serif text-4xl font-medium'
+export const nameHeadingClassName =
+  'font-serif text-4xl font-medium leading-9.5'
 
 export const addressHeadingClassName = 'font-semi-mono'
+
+export const inlineAddressHeadingClassName = `${addressHeadingClassName} leading-none`
 
 export type PageHeadingParent =
   | { readonly type: 'name'; readonly name: string }
@@ -24,20 +27,16 @@ const ParentCrumbLabel = ({
 }) => {
   switch (parent.type) {
     case 'name':
-      return <span className={nameHeadingClassName}>{parent.name}</span>
+      return parent.name
     case 'addr':
-      return (
-        <span className={addressHeadingClassName}>
-          {truncateAddress(parent.addr)}
-        </span>
-      )
+      return truncateAddress(parent.addr)
     case 'registry':
-      return <>Registry Contract</>
+      return 'Registry Contract'
     case 'resolver':
       return (
         <>
           Resolver{' '}
-          <span className={addressHeadingClassName}>
+          <span className={inlineAddressHeadingClassName}>
             {truncateAddress(parent.address)}
           </span>
         </>
@@ -45,17 +44,25 @@ const ParentCrumbLabel = ({
   }
 }
 
+const crumbClassName = (parent: PageHeadingParent) => {
+  switch (parent.type) {
+    case 'name':
+      return nameHeadingClassName
+    case 'addr':
+      return addressHeadingClassName
+    default:
+      return undefined
+  }
+}
+
 const ParentCrumb = ({ parent }: { readonly parent: PageHeadingParent }) => {
   const label = <ParentCrumbLabel parent={parent} />
+  const className = cn(parentLinkClassName, crumbClassName(parent))
 
   switch (parent.type) {
     case 'name':
       return (
-        <Link
-          to="/$name"
-          params={{ name: parent.name }}
-          className={parentLinkClassName}
-        >
+        <Link to="/$name" params={{ name: parent.name }} className={className}>
           {label}
         </Link>
       )
@@ -64,7 +71,7 @@ const ParentCrumb = ({ parent }: { readonly parent: PageHeadingParent }) => {
         <Link
           to="/addr/$addr"
           params={{ addr: parent.addr }}
-          className={parentLinkClassName}
+          className={className}
         >
           {label}
         </Link>
@@ -74,7 +81,7 @@ const ParentCrumb = ({ parent }: { readonly parent: PageHeadingParent }) => {
         <Link
           to="/registry/$address"
           params={{ address: parent.address }}
-          className={parentLinkClassName}
+          className={className}
         >
           {label}
         </Link>
@@ -84,7 +91,7 @@ const ParentCrumb = ({ parent }: { readonly parent: PageHeadingParent }) => {
         <Link
           to="/resolver/$address"
           params={{ address: parent.address }}
-          className={parentLinkClassName}
+          className={className}
         >
           {label}
         </Link>
@@ -104,8 +111,8 @@ export const PageHeading = ({
 }) => (
   <h1
     className={cn(
-      'font-sans text-page-title leading-9.5 min-h-9.5 font-normal',
-      'flex flex-wrap items-baseline gap-x-2 min-w-0 break-words',
+      'font-sans text-page-title leading-9.5 font-normal',
+      'flex flex-wrap items-center gap-x-2 min-w-0 break-words',
       className,
     )}
   >
