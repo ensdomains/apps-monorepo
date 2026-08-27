@@ -21,6 +21,17 @@ class GetRecentActivityTimelineError extends TaggedError(
 /** Events, not rows — a transaction bundles several, so this is ~10 rows. */
 const EVENTS_LIMIT = 50
 
+/**
+ * Over-fetch so the trailing block can be discarded and still leave a full feed.
+ *
+ * `dropClippedBoundary` throws away the boundary block, and if that block is the
+ * entire response there is nothing provably complete left to show — it then has
+ * to hand back clipped transactions rather than nothing. Asking for several
+ * times what we render means that only happens if one block alone produces
+ * `FETCH_LIMIT` protocol-wide events, instead of merely `EVENTS_LIMIT`.
+ */
+const FETCH_LIMIT = EVENTS_LIMIT * 3
+
 const getRecentActivityTimeline = ResultFn(async function* () {
   const { events } = yield* fromPromise(
     graphqlIndexerClient.request<{ events: TimelineIndexerEvent[] }>(
@@ -38,14 +49,14 @@ const getRecentActivityTimeline = ResultFn(async function* () {
           }
         }
       `,
-      { first: EVENTS_LIMIT },
+      { first: FETCH_LIMIT },
     ),
     (e) => new GetRecentActivityTimelineError({ cause: e as ClientError }),
   )
 
   return ok(
     truncateToTransactions(
-      dropClippedBoundary(events, EVENTS_LIMIT),
+      dropClippedBoundary(events, FETCH_LIMIT),
       EVENTS_LIMIT,
     ),
   )

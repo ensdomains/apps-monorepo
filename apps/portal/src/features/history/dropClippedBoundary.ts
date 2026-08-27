@@ -15,8 +15,19 @@ import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
  * *at* the boundary is suspect. Trimming the whole boundary timestamp is
  * therefore the smallest cut that leaves only complete transactions.
  *
- * A short response wasn't clipped, so it passes through. If the boundary is all
- * there is, the events are returned untrimmed — better partial than empty.
+ * The cut is keyed on `timestamp` rather than `blockNumber` because `timestamp`
+ * is the sort key: ties are what the indexer orders arbitrarily, so the whole
+ * tied group is ambiguous. Where a chain lets two blocks share a timestamp,
+ * dropping only the trailing `blockNumber` would leave a clipped sibling block
+ * behind; dropping the timestamp group covers the block group as well.
+ *
+ * A short response wasn't clipped, so it passes through.
+ *
+ * If the boundary group is the entire response, nothing in it is provably
+ * complete — the cut could have fallen inside any of its transactions. The
+ * events are returned untrimmed anyway, because an empty Recent Activity is a
+ * worse answer than a possibly-clipped one. Callers should over-fetch (see
+ * `FETCH_LIMIT`) so this needs a single block to fill the whole query.
  *
  * `events` must be sorted by timestamp descending.
  */
