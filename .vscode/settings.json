@@ -14,7 +14,6 @@
   "eslint.enable": false,
   "prettier.enable": false,
   "deno.enable": false,
-  "typescript.tsdk": "node_modules/typescript/lib",
   "editor.codeActionsOnSave": {
     "source.organizeImports.biome": "explicit",
     "source.fixAll.biome": "explicit"
@@ -23,7 +22,7 @@
     "packages/locales/locales"
   ],
   "[typescript]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.defaultFormatter": "biomejs.biome",
     "editor.formatOnSave": true
   },
   "[typescriptreact]": {

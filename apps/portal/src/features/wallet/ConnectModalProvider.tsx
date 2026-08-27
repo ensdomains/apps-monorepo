@@ -22,8 +22,8 @@ const ConnectModalContext = createContext<ConnectModalContextValue | null>(null)
 // Stable no-op used when the provider isn't in the tree. In normal operation
 // `ConnectModalProvider` is mounted at the app root, so this only surfaces
 // after a hot-reload invalidates the context module (cleared by a page
-// reload). Degrade gracefully rather than crash the whole route — this mirrors
-// RainbowKit's forgiving `useConnectModal`, which no-ops outside its provider.
+// reload). Degrade gracefully rather than crash the whole route:
+// `useConnectModal` no-ops outside its provider.
 const NOOP_CONNECT_MODAL: ConnectModalContextValue = {
   openConnectModal: () => {},
   connectModalOpen: false,
@@ -31,8 +31,8 @@ const NOOP_CONNECT_MODAL: ConnectModalContextValue = {
 
 /**
  * Owns the custom wallet-selection modal and exposes it through
- * `useConnectModal()`, a drop-in replacement for RainbowKit's hook of the same
- * name (same `{ openConnectModal, connectModalOpen }` shape). Mount once, near
+ * `useConnectModal()` (stable `{ openConnectModal, connectModalOpen }` shape
+ * for all consumers). Mount once, near
  * the root, inside `WagmiProvider`.
  */
 export const ConnectModalProvider = ({ children }: { children: ReactNode }) => {

@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { contactMethods, defaultEnabledContactMethodKeys } from './constants'
 import * as contactRecordHelpers from './records'
 import {
+  getBaseWithPrimarySocialContactKeys,
   getContactMethodErrorMessage,
   getContactMethodNoticeMessage,
   getContactValidationIssues,
   getIsPrimaryContactToggleDisabled,
+  getPrimarySocialContactKeys,
 } from './records'
 
 describe('contact record helpers', () => {
@@ -81,7 +83,7 @@ describe('contact record helpers', () => {
       ).toBe(true)
     })
 
-    it('keeps selected contact methods enabled so they can be unpinned', () => {
+    it('keeps featured socials enabled so they can be unstarred', () => {
       expect(
         getIsPrimaryContactToggleDisabled({
           isPrimary: true,
@@ -91,18 +93,18 @@ describe('contact record helpers', () => {
     })
   })
 
-  describe('primary contact error message', () => {
-    it('requires a value when a contact method is pinned as primary', () => {
+  describe('featured social error message', () => {
+    it('requires a value when a social method is featured', () => {
       expect(
         getContactMethodErrorMessage({
           isPrimary: true,
           method: getContactMethod('com.twitter'),
           value: '',
         }),
-      ).toBe('Add Twitter before pinning it as a primary contact method.')
+      ).toBe('Add Twitter before featuring it on your profile.')
     })
 
-    it('does not return an error for unpinned empty contact methods', () => {
+    it('does not return an error for an unstarred empty social method', () => {
       expect(
         getContactMethodErrorMessage({
           isPrimary: false,
@@ -112,7 +114,7 @@ describe('contact record helpers', () => {
       ).toBeUndefined()
     })
 
-    it('does not return an error for pinned contact methods with a value', () => {
+    it('does not return an error for featured social methods with a value', () => {
       expect(
         getContactMethodErrorMessage({
           isPrimary: true,
@@ -157,8 +159,38 @@ describe('contact record helpers', () => {
     })
   })
 
-  describe('primary contact validation', () => {
-    it('returns validation issues for pinned empty primary contact methods', () => {
+  describe('featured social validation', () => {
+    it('preserves non-social primary contacts when featured socials change', () => {
+      expect(
+        getBaseWithPrimarySocialContactKeys(
+          {
+            'domains.ens.primary-contacts': JSON.stringify([
+              'email',
+              'com.twitter',
+            ]),
+            'primary-contact': 'email',
+          },
+          ['com.github'],
+        ),
+      ).toEqual({
+        'domains.ens.primary-contacts': JSON.stringify(['email', 'com.github']),
+        'primary-contact': 'email',
+      })
+    })
+
+    it('treats only social methods as star-selectable contact methods', () => {
+      expect(
+        getPrimarySocialContactKeys({
+          'domains.ens.primary-contacts': JSON.stringify([
+            'email',
+            'com.twitter',
+            'com.github',
+          ]),
+        }),
+      ).toEqual(['com.twitter', 'com.github'])
+    })
+
+    it('returns validation issues for empty featured social methods', () => {
       expect(
         getContactValidationIssues({
           addresses: [],
@@ -178,7 +210,7 @@ describe('contact record helpers', () => {
       ).toEqual([
         {
           key: 'com.twitter',
-          message: 'Add Twitter before pinning it as a primary contact method.',
+          message: 'Add Twitter before featuring it on your profile.',
         },
       ])
     })

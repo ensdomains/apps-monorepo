@@ -11,7 +11,8 @@
     "infra:down": "bash infra/scripts/start-local-env.sh --down",
     "seed:name": "tsx scripts/seed-name.ts",
     "seed:premium": "tsx scripts/seed-temp-premium.ts",
-    "seed:managed-name": "tsx scripts/seed-managed-name.ts"
+    "seed:managed-name": "tsx scripts/seed-managed-name.ts",
+    "lint": "biome check"
   },
   "postinstall": "playwright install --with-deps chromium",
   "dependencies": {
@@ -21,8 +22,6 @@
     "viem": "catalog:"
   },
   "devDependencies": {
-    "@browserbasehq/stagehand": "^3.0.8",
-    "@playwright/mcp": "^0.0.19",
     "@playwright/test": "1.58.2",
     "tsx": "^4.20.6"
   }

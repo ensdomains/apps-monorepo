@@ -5,16 +5,18 @@ import {
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
+import { useConnection } from 'wagmi'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
+import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 export const TokenPickerContent = () => {
-  const { label, uiActor } = useRenewalUiContext()
-  const { stablecoinBalances, isLoadingBalances, isConnected } =
-    useSmartAccountContext()
+  const { label, uiActor, protocol } = useRenewalUiContext()
+  const account = useSmartAccountContext()
+  const { isConnected: isEoaConnected } = useConnection()
+  const isConnected = protocol === 'v1' ? isEoaConnected : account.isConnected
   const [duration, selectedToken] = useSelector(
     uiActor,
     (state) => [state.context.duration, state.context.selectedToken] as const,
@@ -25,6 +27,7 @@ export const TokenPickerContent = () => {
       label,
       duration,
       selectedToken ?? TOKENS.USDC.symbol,
+      protocol,
     ),
     select: (data) =>
       decimalBigintToNumber(
@@ -40,7 +43,7 @@ export const TokenPickerContent = () => {
   return (
     <TokenPickerContentBase
       isConnected={isConnected}
-      isLoadingBalances={isLoadingBalances}
+      isLoadingBalances={account.isLoadingBalances}
       label={label}
       nextMessage={<Trans>Renew Name</Trans>}
       onNext={() => uiActor.send({ type: 'pricing.step.next' })}
@@ -48,7 +51,7 @@ export const TokenPickerContent = () => {
       pricingData={pricingQuery.data}
       pricingLoading={pricingQuery.isLoading}
       selectedToken={selectedToken}
-      stablecoinBalances={stablecoinBalances}
+      stablecoinBalances={account.stablecoinBalances}
     />
   )
 }

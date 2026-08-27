@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 import { useBulkRenew } from '../hooks/useBulkRenew'
 import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
 import type { BulkRenewName, Selection, SummaryRow } from '../types'
@@ -117,28 +116,11 @@ export const BulkRenewDialog = ({
 
   const receiptSummary = receipt ?? { rows: summaryRows, total: grandTotal }
 
-  // Bulk renewal needs a smart account to renew every name in one transaction;
-  // the dev-only EOA fork can't, so it's gated off with an explicit message.
-  const isUnsupported = isFeatureEnabled('USE_EOA')
-
+  // No smart-account gate: bulk renewal takes the direct-wallet route (the
+  // registrar charges `msg.sender`, and the scoped HCA session does not
+  // allowlist `renew`), so it works wherever a wallet is connected — including
+  // the EOA fork. Each name is its own transaction rather than one atomic batch.
   const renderBody = (): ReactNode => {
-    if (isUnsupported) {
-      return (
-        <>
-          <DialogHeader>
-            <DialogTitle className={dialogTitleClassName}>
-              <Trans>Bulk renewal unavailable</Trans>
-            </DialogTitle>
-          </DialogHeader>
-          <p className="font-sans text-ens-quartz-550 text-sm">
-            <Trans>
-              Bulk renewal requires a smart account so every name renews in a
-              single transaction. It isn’t available in EOA mode.
-            </Trans>
-          </p>
-        </>
-      )
-    }
     if (submit.phase === 'success') {
       return (
         <SuccessStep

@@ -85,7 +85,7 @@ const DEFAULT_CONNECT_HOSTS = [
   // NOTE: PostHog's script bundle is allowed separately via SCRIPT_HOSTS, which
   // stays an exact host — script-src must not use a wildcard.
   'https://*.ens.domains',
-  // DNS-over-HTTPS resolver — src/features/profile/hooks/useDnsSecEnabled.ts
+  // DNS-over-HTTPS resolver — packages/utils/src/dnssec.ts
   'https://1.1.1.1',
   // Etherscan API — proxy-contract verification fetch in
   // src/utils/blockExplorer/verifyProxyContract.ts (resolver/registry deploy).
@@ -101,7 +101,7 @@ const DEFAULT_CONNECT_HOSTS = [
   // the broad `img-src https:` below, so image hosts need no connect-src entry.
   'https://ipfs.io',
   'https://ipfs.euc.li',
-  // WalletConnect / RainbowKit relay, verify, pulse, explorer-api
+  // WalletConnect relay, verify, pulse, explorer-api
   'https://*.walletconnect.com',
   'wss://*.walletconnect.com',
   'https://*.walletconnect.org',
@@ -130,6 +130,16 @@ const DEFAULT_CONNECT_HOSTS = [
   'https://*.ens.xyz',
   'https://*.3668.io',
   'https://lb.drpc.org',
+  // Intercom Messenger — API, realtime websockets, and CDN uploads. Wildcards
+  // cover regional one-level hosts (api-iam.intercom.io, nexus-websocket-a.
+  // intercom.io) without listing every entry from Intercom's CSP guide:
+  // https://www.intercom.com/help/en/articles/3894-using-intercom-with-content-security-policy
+  'https://*.intercom.io',
+  'wss://*.intercom.io',
+  'https://*.intercomcdn.com',
+  'https://*.intercom-messenger.com',
+  'wss://*.intercom-messenger.com',
+  'https://uploads.intercomusercontent.com',
 ] as const
 
 // Static defaults plus any deployment-specific override origins. Deduped so an
@@ -138,19 +148,31 @@ const CONNECT_HOSTS = [
   ...new Set<string>([...DEFAULT_CONNECT_HOSTS, ...OVERRIDE_CONNECT_ORIGINS]),
 ]
 
-// No third-party script hosts. PostHog used to lazy-load its extension bundles
-// (recorder, surveys, dead-clicks, web-vitals) from the analytics host at
-// runtime, which required allowlisting it here — but the app now imports
+// Intercom's messenger-js-sdk injects
+// `<script src="https://widget.intercom.io/widget/{app_id}">`, which then loads
+// further scripts from js.intercomcdn.com. Unlike PostHog, this cannot be
+// pre-bundled — the widget must load from Intercom. Exact hosts only: script-src
+// must not use a wildcard.
+// https://www.intercom.com/help/en/articles/3894-using-intercom-with-content-security-policy
+const INTERCOM_SCRIPT_HOSTS = [
+  'https://app.intercom.io',
+  'https://widget.intercom.io',
+  'https://js.intercomcdn.com',
+] as const
+
+// PostHog used to lazy-load its extension bundles (recorder, surveys,
+// dead-clicks, web-vitals) from the analytics host at runtime, which required
+// allowlisting it here — but the app now imports
 // `posthog-js/dist/module.full.no-external` (see lib/posthog/provider.tsx), so
 // the entire SDK is in our own bundle (served from 'self') and nothing loads
 // from the analytics host. PostHog ingestion calls go over connect-src instead.
-// The DQA overlay script (QA/preview builds only) is the one exception —
-// plus cdnjs, which overlay.js uses as the fallback source for its
-// html-to-image capture library when the DQA server's vendored copy is
-// unavailable (see packages/dqa-server/public/overlay.js).
-const SCRIPT_HOSTS = DQA_ORIGIN
-  ? [DQA_ORIGIN, 'https://cdnjs.cloudflare.com']
-  : []
+// The DQA overlay script (QA/preview builds only) is the other exception. It
+// self-hosts every dependency — html-to-image is bundled into a lazy chunk
+// served from the same origin (see packages/dqa-server/vite.config.ts).
+const SCRIPT_HOSTS = [
+  ...INTERCOM_SCRIPT_HOSTS,
+  ...(DQA_ORIGIN ? [DQA_ORIGIN] : []),
+]
 
 // SHA-256 hashes of the inline scripts we allow (avoids 'unsafe-inline'). The
 // browser logs the expected hash in the CSP violation when it blocks a script.
@@ -186,14 +208,19 @@ const BASE_DIRECTIVES = [
   // subresources to https:, and browsers block mixed content on https pages
   // regardless, so a plaintext http: image can never actually load.
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
+  // Intercom Messenger webfonts.
+  "font-src 'self' data: https://js.intercomcdn.com https://fonts.intercomcdn.com",
   `connect-src 'self' ${CONNECT_HOSTS.join(' ')}`,
-  // WalletConnect renders its verify/modal in iframes.
-  "frame-src 'self' https://*.walletconnect.com https://*.walletconnect.org",
+  // WalletConnect renders its verify/modal in iframes. Intercom sheets/reporting
+  // frames are required for the messenger article viewer.
+  "frame-src 'self' https://*.walletconnect.com https://*.walletconnect.org https://intercom-sheets.com https://www.intercom-reporting.com",
+  // Intercom messenger audio/video attachments.
+  "media-src 'self' https://js.intercomcdn.com https://downloads.intercomcdn.com",
   "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  // Intercom ticket/help forms post to these hosts.
+  "form-action 'self' https://intercom.help https://api-iam.intercom.io",
   // Valid in both the header and a <meta> tag; upgrades any http subresource
   // request to https.
   'upgrade-insecure-requests',

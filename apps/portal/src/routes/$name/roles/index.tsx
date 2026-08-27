@@ -4,6 +4,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { NameRegistryRolesOverviewTable } from '@/features/registry/components/v2/NameRegistryRolesOverviewTable'
 import { NameResolverRolesOverviewTable } from '@/features/resolver/components/NameResolverRolesOverviewTable'
@@ -45,7 +46,7 @@ function RouteComponent() {
   if (owner?.protocolVersion !== 'ENSv2')
     return (
       <div className="flex flex-col gap-8">
-        <h1 className="text-h2 md:text-h1">Roles</h1>
+        <PageHeading parent={{ type: 'name', name }}>Roles</PageHeading>
         <NoResultsMessage
           title="Roles unavailable"
           description="Role management is only available for ENSv2 names."
@@ -56,7 +57,7 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-h2 md:text-h1">Roles</h1>
+      <PageHeading parent={{ type: 'name', name }}>Roles</PageHeading>
       <NameRegistryRolesOverviewTable name={name} />
       <NameResolverRolesOverviewTable name={name} />
       <NameRolesOverviewTable

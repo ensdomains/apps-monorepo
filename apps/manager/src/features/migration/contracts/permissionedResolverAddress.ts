@@ -35,5 +35,5 @@ export const getOwnedPermResInitCalldata = (admin: Address): Hex =>
   encodeFunctionData({
     abi: PERMISSIONED_RESOLVER_ABI,
     functionName: 'initialize',
-    args: [admin, ALL_ROLES],
+    args: [admin, ALL_ROLES, []],
   })

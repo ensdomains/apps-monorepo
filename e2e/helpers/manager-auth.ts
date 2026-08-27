@@ -1,13 +1,13 @@
-import { expect, type Page } from '@playwright/test'
 import {
   type Web3ProviderBackend,
   Web3RequestKind,
 } from '@ensdomains/headless-web3-provider'
+import { expect, type Page } from '@playwright/test'
 import type { Hash } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
 // ---------------------------------------------------------------------------
-// Connect wallet (RainbowKit + headless web3 provider)
+// Connect wallet (connect dialog + headless web3 provider)
 // ---------------------------------------------------------------------------
 
 /**
@@ -30,7 +30,7 @@ export const PERMITTED_SIGN_KINDS = [
 ] as const
 
 /**
- * Select "Headless Web3 Provider" in an already-open RainbowKit modal and
+ * Select "Headless Web3 Provider" in an already-open connect dialog and
  * authorize the queued permission + account requests.
  *
  * Use this when a connect modal has already been opened (e.g. the pricing
@@ -45,7 +45,7 @@ export async function authorizeHeadlessConnection(
   await headlessOption.waitFor({ state: 'visible', timeout: 10_000 })
   await headlessOption.click()
 
-  // RainbowKit asks the provider to confirm — authorize programmatically.
+  // The dialog asks the provider to confirm — authorize programmatically.
   // The headless provider queues RequestPermissions then RequestAccounts.
   await expect
     .poll(
@@ -56,19 +56,22 @@ export async function authorizeHeadlessConnection(
   await wallet.authorize(Web3RequestKind.RequestPermissions)
 
   await expect
-    .poll(() => wallet.getPendingRequestCount(Web3RequestKind.RequestAccounts), {
-      timeout: 15_000,
-    })
+    .poll(
+      () => wallet.getPendingRequestCount(Web3RequestKind.RequestAccounts),
+      {
+        timeout: 15_000,
+      },
+    )
     .toBeGreaterThanOrEqual(1)
   await wallet.authorize(Web3RequestKind.RequestAccounts)
 }
 
 /**
- * Connect the headless web3 wallet through the manager's RainbowKit modal.
+ * Connect the headless web3 wallet through the manager's connect dialog.
  *
  * Flow:
  *  1. Click the "Connect" button in the nav bar
- *  2. Select "Headless Web3 Provider" from the RainbowKit wallet list
+ *  2. Select "Headless Web3 Provider" from the wallet list
  *  3. Authorize the wallet_requestPermissions + eth_requestAccounts calls
  *
  * After this resolves the wallet is connected and the nav "Connect" button
@@ -89,15 +92,15 @@ export async function connectWithHeadlessWallet(
   await connectButton.waitFor({ state: 'visible', timeout: 15_000 })
 
   // The manager is an SSR app: the server-rendered Connect button can be
-  // clickable before wagmi/RainbowKit hydrate `openConnectModal`, so the
+  // clickable before the wallet layer hydrates `openConnectModal`, so the
   // first click is sometimes a no-op and the modal never opens. Retry
-  // opening until the RainbowKit dialog (with the injected-provider entry)
+  // opening until the connect dialog (with the injected-provider entry)
   // appears — this also absorbs any EIP-6963 discovery delay.
   const modal = page.getByRole('dialog')
   const headlessOption = page.getByText('Headless Web3 Provider')
   await expect(async () => {
     if (!(await modal.isVisible().catch(() => false))) {
-      await connectButton.click({ timeout: 5_000 }).catch(() => { })
+      await connectButton.click({ timeout: 5_000 }).catch(() => {})
     }
     await expect(headlessOption).toBeVisible({ timeout: 3_000 })
   }).toPass({ timeout: 40_000 })
@@ -123,7 +126,7 @@ export async function clickThroughEnableSessions(page: Page): Promise<void> {
     await enableBtn.waitFor({ state: 'visible', timeout: 30_000 })
     await enableBtn.click()
     const overlay = page.locator('[data-slot="dialog-overlay"]')
-    await overlay.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => { })
+    await overlay.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {})
   } catch {
     // Modal never appeared — sessions already enabled or feature flag off.
   }
@@ -134,9 +137,9 @@ export async function clickThroughEnableSessions(page: Page): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
- * Dismiss the app's BackendAuthModal (SIWE prompt) by clicking
- * "Skip for now" → "Skip Anyway". Idempotent: if the modal doesn't
- * appear within the timeout, returns silently.
+ * Dismiss the app's BackendAuthModal (SIWE prompt) by typing the hidden
+ * `SKIP` key sequence. Idempotent: if the modal doesn't appear within the
+ * timeout, returns silently.
  *
  * Why skip rather than complete:
  *   - SIWE requires reaching the backend API worker, which is not part
@@ -158,14 +161,10 @@ export async function dismissBackendAuthModal(
 ): Promise<void> {
   const timeout = options.timeout ?? 60_000
 
-  // The verification step's title is "Verify your wallet".
-  // The skip-confirmation step's title is "Are you sure?".
-  // We key off the "Skip for now" cancel button which is only present
-  // in the verification step.
-  const skipBtn = page.getByRole('button', { name: 'Skip for now' })
+  const dialog = page.getByRole('alertdialog', { name: 'Verify your wallet' })
 
   try {
-    await skipBtn.waitFor({ state: 'visible', timeout })
+    await dialog.waitFor({ state: 'visible', timeout })
   } catch {
     // Modal never appeared — already skipped/dismissed, EOA-only mode,
     // or feature disabled. Either way, nothing to do.
@@ -175,16 +174,8 @@ export async function dismissBackendAuthModal(
     return
   }
 
-  console.log(
-    '[manager-auth] BackendAuthModal visible — clicking "Skip for now"',
-  )
-  await skipBtn.click()
-
-  // The skip-confirmation step replaces the modal contents but keeps
-  // the dialog open. Click "Skip Anyway" to fully dismiss.
-  const skipAnywayBtn = page.getByRole('button', { name: 'Skip Anyway' })
-  await skipAnywayBtn.waitFor({ state: 'visible', timeout: 10_000 })
-  await skipAnywayBtn.click()
+  console.log('[manager-auth] BackendAuthModal visible — typing SKIP')
+  await page.keyboard.type('skip', { delay: 50 })
 
   // Wait for the dialog overlay to disappear so subsequent navigations
   // are clean and pointer-events on the page are restored.
@@ -244,7 +235,7 @@ export async function signInBackendAuthModal(
   })
 
   const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
-  await overlay.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => { })
+  await overlay.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {})
 }
 
 // ---------------------------------------------------------------------------

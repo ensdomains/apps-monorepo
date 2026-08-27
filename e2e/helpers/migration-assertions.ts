@@ -5,8 +5,9 @@
  * bypassing the subgraph. This gives reliable ground-truth verification that
  * the migration transaction actually landed correctly in the V2 registry.
  */
-import { type Address, keccak256, parseAbi, toHex, zeroAddress } from 'viem'
+
 import { expect } from '@playwright/test'
+import { type Address, keccak256, parseAbi, toHex, zeroAddress } from 'viem'
 import { publicClient } from './anvil-client.js'
 
 // ---------------------------------------------------------------------------
@@ -32,27 +33,27 @@ export const V2Status = {
   REGISTERED: 2,
 } as const
 
-export type V2StatusValue = typeof V2Status[keyof typeof V2Status]
+export type V2StatusValue = (typeof V2Status)[keyof typeof V2Status]
 
 // ---------------------------------------------------------------------------
 // Role bitmap constants (RegistryRolesLib)
 // ---------------------------------------------------------------------------
 export const REGISTRY_ROLES = {
-  ROLE_REGISTRAR:            1n << 0n,
-  ROLE_UNREGISTER:           1n << 1n,
-  ROLE_RENEW:                1n << 2n,
-  ROLE_SET_SUBREGISTRY:      1n << 3n,
-  ROLE_SET_RESOLVER:         1n << 4n,
-  ROLE_REGISTER_RESERVED:    1n << 5n,
-  ROLE_SET_PARENT:           1n << 6n,
-  ROLE_SET_URI:              1n << 7n,
-  ROLE_UPGRADE:              1n << 8n,
-  ROLE_CAN_TRANSFER_ADMIN:   1n << 9n,
+  ROLE_REGISTRAR: 1n << 0n,
+  ROLE_UNREGISTER: 1n << 1n,
+  ROLE_RENEW: 1n << 2n,
+  ROLE_SET_SUBREGISTRY: 1n << 3n,
+  ROLE_SET_RESOLVER: 1n << 4n,
+  ROLE_REGISTER_RESERVED: 1n << 5n,
+  ROLE_SET_PARENT: 1n << 6n,
+  ROLE_SET_URI: 1n << 7n,
+  ROLE_UPGRADE: 1n << 8n,
+  ROLE_CAN_TRANSFER_ADMIN: 1n << 9n,
   // Admin variants live at bit + 128
-  ROLE_REGISTRAR_ADMIN:      1n << 128n,
-  ROLE_UNREGISTER_ADMIN:     1n << 129n,
-  ROLE_RENEW_ADMIN:          1n << 130n,
-  ROLE_SET_RESOLVER_ADMIN:   1n << 132n,
+  ROLE_REGISTRAR_ADMIN: 1n << 128n,
+  ROLE_UNREGISTER_ADMIN: 1n << 129n,
+  ROLE_RENEW_ADMIN: 1n << 130n,
+  ROLE_SET_RESOLVER_ADMIN: 1n << 132n,
   ROLE_CAN_TRANSFER_ADMIN_A: 1n << 137n,
 } as const
 
@@ -106,7 +107,9 @@ export async function assertV2Reserved(label: string): Promise<void> {
  * Assert that a WrapperRegistry subregistry was created for a locked name.
  * The subregistry address should be non-zero after migration.
  */
-export async function assertWrapperRegistryCreated(label: string): Promise<void> {
+export async function assertWrapperRegistryCreated(
+  label: string,
+): Promise<void> {
   const subregistry = await publicClient.readContract({
     address: V2_ETH_REGISTRY,
     abi: ETH_REGISTRY_ABI,
@@ -140,7 +143,10 @@ export async function assertNoSubregistry(label: string): Promise<void> {
  * For names with records, this should be the V1 public resolver address
  * (records are preserved via resolver continuity, not re-written).
  */
-export async function assertV2Resolver(label: string, expectedResolver: Address): Promise<void> {
+export async function assertV2Resolver(
+  label: string,
+  expectedResolver: Address,
+): Promise<void> {
   const resolver = await publicClient.readContract({
     address: V2_ETH_REGISTRY,
     abi: ETH_REGISTRY_ABI,
@@ -176,7 +182,7 @@ export async function assertHasRoles(
   expect(
     missing,
     `Account ${account} is missing roles 0x${missing.toString(16)} on ${label}.eth ` +
-    `(actual=0x${actualBitmap.toString(16)}, expected=0x${expectedRoles.toString(16)})`,
+      `(actual=0x${actualBitmap.toString(16)}, expected=0x${expectedRoles.toString(16)})`,
   ).toBe(0n)
 }
 
@@ -199,7 +205,7 @@ export async function assertLacksRoles(
   expect(
     present,
     `Account ${account} unexpectedly has roles 0x${present.toString(16)} on ${label}.eth ` +
-    `(actual=0x${actualBitmap.toString(16)})`,
+      `(actual=0x${actualBitmap.toString(16)})`,
   ).toBe(0n)
 }
 

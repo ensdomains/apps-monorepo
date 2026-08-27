@@ -27,7 +27,7 @@ const req = http.request(
         process.exit(1)
       }
     })
-  }
+  },
 )
 req.on('error', () => process.exit(1))
 req.setTimeout(3000, () => {

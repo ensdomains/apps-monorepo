@@ -1,55 +1,88 @@
 /**
- * Rhinestone HCA smart-account initialization.
+ * Standalone-HCA account initialization.
  *
- * Pure async function that creates a Hidden Contract Account (HCA) via
- * the Rhinestone SDK (`@rhinestone/sdk@1.7.0`), ensures it is deployed
- * on-chain, and returns the live account + config.
+ * Creates (or adopts) the ENS **standalone** Hidden Contract Account via the
+ * patched Rhinestone SDK (`@rhinestone/sdk@1.8.0` + the standalone-HCA patch).
  *
- * HCA model (SDK 1.7.0):
- *   - `account: { type: 'hca' }` selects the audited HCA implementation
- *     (CREATE3 ERC-1967 proxy behind the ENS HCA factory).
- *   - `owners: { type: 'ens', … }` installs the ENS ownership validator
- *     (HCAModule, an OwnableValidator) at construction. The owning EOA (the
- *     connected wallet / Para account) signs every intent — there is **no
- *     ERC-7579 SmartSessions path**. The SDK throws
- *     `AccountConfigurationNotSupportedError` if you pass
- *     `experimental_sessions`, `recovery`, or extra `modules` for an HCA,
- *     because the account permanently locks its module set
- *     (`installModule` reverts `NoModuleChangeAllowed()`).
+ * Model (per the "HCA: New" handoff doc):
+ *   - `account: { type: 'hca', version: 'ens-standalone-1.1.0', … }` selects the
+ *     standalone implementation (a VerifiableFactory proxy over
+ *     `StandaloneHCAImplementation`, deployed by `StandaloneHCAFactory`).
+ *   - `owners: { type: 'ecdsa', accounts: [walletOwner], module: validator }` —
+ *     EXACTLY ONE ECDSA owner. No `ownerExpirations`, no `updateConfig`, no
+ *     `type: 'ens'` (that was the old ephemeral-owner model this replaces).
+ *   - `experimental_sessions: { enabled: true, module: validator }` — the
+ *     standalone validator supports scoped SmartSessions (the old locked-module
+ *     HCA did not).
+ *   - `userSalt: 0n`. No `initData` when creating fresh; the SDK derives the HCA
+ *     address from owner + implementation + salt. Registration may deploy it
+ *     lazily in the first Rhinestone request, while direct-owner flows can use
+ *     `getInitData()` to submit the same factory deployment from the wallet.
  *
- * At init time, every ENS operation is therefore an owner-signed,
- * relayer-sponsored Intent (gas is still sponsored — only the authorization
- * signature comes from the user). NOTE: prompt-free registration is added
- * separately, NOT via SmartSessions, by adding a time-boxed ephemeral OWNER to
- * the OwnableValidator via `updateConfig` (see ./session.ts and
- * ./registration-policy.ts). That owner-key "session" is distinct from the
- * SmartSessions module the SDK rejects above.
+ * Adopt-existing: if the derived address already has code, we verify the
+ * remediated factory's immutable `authorizedOwnerOf(HCA)` certificate plus the
+ * account's `owner()` / `accountId()` and
+ * `VerifiableFactory.verifyContract(...)`. On any mismatch we throw — we NEVER
+ * silently select a different HCA.
  *
- * The caller is responsible for:
- *   - Producing a viem `Account` from whatever wallet provider it uses
- *     (Para, MetaMask, hardware, etc.). Vendor-specific signing quirks
- *     (e.g. Para's 0/1 v-byte adjustment) are NOT this package's
- *     concern — wrap before passing in.
- *   - Reading env vars / wagmi config and threading them in as named
- *     parameters.
- *   - Surfacing progress and errors to the user via the optional
- *     `onProgress` / `onError` callbacks.
+ * The caller injects the viem `Account` (Para/MetaMask/hardware wrapping is the
+ * app's concern), the chain, and the Rhinestone API key + endpoint overrides.
  */
 
-import type { RhinestoneAccount } from '@rhinestone/sdk'
+import type { AccountProviderConfig, RhinestoneAccount } from '@rhinestone/sdk'
 import { RhinestoneSDK } from '@rhinestone/sdk'
-import { type Account, type Address, type Chain, maxUint48 } from 'viem'
+import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
+import {
+  type Account,
+  type Address,
+  type Chain,
+  decodeFunctionData,
+  encodeAbiParameters,
+  encodeFunctionData,
+  getAddress,
+  isAddressEqual,
+  keccak256,
+  type PublicClient,
+  parseAbi,
+} from 'viem'
+import { AccountInitError, AccountVerificationError } from '../../errors'
+import { computeVerifiableProxyAddress } from '../../verifiable-factory'
+import {
+  getDestinationContracts,
+  ONCHAIN_ACCOUNT_ID,
+  STANDALONE_HCA_VERSION,
+  USER_SALT,
+} from './manifest'
+import type { Call } from './registration-calls'
 
-/**
- * ENS HCA owner expiration sentinel.
- *
- * `owners.ownerExpirations[i]` is a `uint48` unix timestamp after which
- * owner `i` can no longer authorize the account. We pin owners to
- * `maxUint48` ("never expires") so the account stays usable for the full
- * lifetime of the connected wallet; ENS-name-tied expiry is enforced
- * elsewhere, not at the validator level. Matches the reference HCA flow.
- */
-const HCA_OWNER_NEVER_EXPIRES = Number(maxUint48)
+/** Standalone fields supplied by the ENS patch but absent from SDK 1.8 types. */
+export type StandaloneHcaAccount = Extract<
+  AccountProviderConfig,
+  { type: 'hca' }
+> & {
+  readonly version: typeof STANDALONE_HCA_VERSION
+  readonly factory: Address
+  readonly implementation: Address
+  readonly validator: Address
+  readonly verifiableFactory: Address
+  readonly proxyLogic: Address
+  readonly userSalt: bigint
+}
+
+/** Minimal reads against the deployed standalone HCA and its factories. */
+const standaloneHcaAbi = parseAbi([
+  'function owner() view returns (address)',
+  'function accountId() view returns (string)',
+])
+const standaloneHcaFactoryAbi = parseAbi([
+  'function authorizedOwnerOf(address hca) view returns (address)',
+  'function deploy(address owner, address hcaImplementation, uint256 userSalt) returns (address hca)',
+])
+const verifiableFactoryAbi = parseAbi([
+  'function verifyContract(address proxy) view returns (address implementation)',
+])
+
+export type RhinestoneInitError = AccountInitError | AccountVerificationError
 
 export interface RhinestoneInitConfig {
   readonly chain: Chain
@@ -57,243 +90,472 @@ export interface RhinestoneInitConfig {
 }
 
 export interface RhinestoneInitResult {
+  /** The live SDK account object. */
   readonly client: RhinestoneAccount
+  /** Deterministic HCA address. */
   readonly address: Address
+  /** The connected wallet (single ECDSA owner) address. */
   readonly ownerAddress: Address
+  /** Whether the HCA already had code on-chain at init time. */
+  readonly alreadyDeployed: boolean
   readonly config: RhinestoneInitConfig
+  /**
+   * Re-read deployment state and rebuild the SDK client. Call after submitting
+   * a direct factory deployment so the refreshed client is bound with
+   * `initData: { address }` and cannot emit a second deploy operation.
+   */
+  readonly refresh: () => ResultAsync<RhinestoneInitResult, RhinestoneInitError>
 }
-
-/**
- * Stage labels emitted via `onProgress` / `onError`. Stable contract —
- * callers can switch over these to drive UI copy.
- *
- *   - `deploying` — the HCA is not yet on-chain; we're submitting the
- *     sponsored Intent that runs the factory `createAccount(initData)`
- *     deploy.
- *   - `ready` — setup complete (only emitted via `onProgress`, never
- *     `onError`). Useful for closing out a "deploying…" toast.
- */
-export type InitProgressStage = 'deploying' | 'ready'
 
 export interface InitializeRhinestoneAccountParams {
-  /**
-   * Pre-built viem `Account` to use as the HCA owner (installed via the
-   * ENS ownership validator). The caller is responsible for wrapping
-   * vendor-specific accounts (e.g. Para's MPC signatures need v-byte
-   * adjustment) before passing in.
-   */
+  /** Pre-built viem `Account` used as the single ECDSA HCA owner. */
   readonly ownerAccount: Account
-
-  /**
-   * EOA address that owns the HCA. Usually `ownerAccount.address` but
-   * accepted explicitly so the caller doesn't have to second-guess
-   * (some wrapped accounts expose only the wrapped address, not the
-   * underlying EOA).
-   */
+  /** EOA address that owns the HCA (usually `ownerAccount.address`). */
   readonly eoaAddress: Address
-
-  /** Chain the HCA lives on. */
+  /** Registration chain the HCA lives on (Sepolia). */
   readonly chain: Chain
-
+  /** Public client for on-chain adopt-existing verification reads. */
+  readonly publicClient: PublicClient
   /** Rhinestone API key. Required. */
   readonly rhinestoneApiKey: string
-
-  /** Override the Rhinestone orchestrator endpoint (e.g. for local dev). */
+  /** Override the Rhinestone orchestrator endpoint (e.g. local `/orchestrator`). */
   readonly rhinestoneEndpointUrl?: string
-
   /** Per-chain RPC overrides for the SDK. */
   readonly rhinestoneCustomRpcUrls?: Record<number, string>
-
-  /** Progress callback for UX wiring. See `InitProgressStage`. */
-  readonly onProgress?: (stage: InitProgressStage) => void
-
-  /** Error callback for UX wiring. Re-throwing is NOT this hook's job — the function still throws after invoking it. */
-  readonly onError?: (
-    stage: Exclude<InitProgressStage, 'ready'>,
-    error: Error,
-  ) => void
+  /**
+   * @deprecated The remediated reverse adapter delegates authorization to
+   * `StandaloneHCAFactory.authorizedOwnerOf`; existing HCAs are now always
+   * factory-certified during initialization. Retained for source compatibility.
+   */
+  readonly requireTrustedForPrimary?: boolean
 }
 
-/**
- * Create a Rhinestone HCA smart account in-memory (no on-chain deploy).
- *
- * Returns the live SDK account object, deterministic address, and
- * config. The HCA is **not** deployed on-chain — call
- * `deployRhinestoneAccountCore` later to deploy when first needed.
- *
- * This split lets callers defer the on-chain deploy to the point of
- * first use (e.g. the registration commit step), avoiding wasted gas
- * if the user never registers.
- */
-export async function initializeRhinestoneAccountCore(
-  params: InitializeRhinestoneAccountParams,
-): Promise<RhinestoneInitResult> {
-  const {
-    ownerAccount,
-    eoaAddress,
-    chain,
-    rhinestoneApiKey,
-    rhinestoneEndpointUrl,
-    rhinestoneCustomRpcUrls,
-  } = params
-
-  if (!rhinestoneApiKey) {
-    throw new Error('rhinestoneApiKey is required')
-  }
-
-  const sdkOptions: ConstructorParameters<typeof RhinestoneSDK>[0] = {
-    apiKey: rhinestoneApiKey,
-    ...(rhinestoneEndpointUrl && { endpointUrl: rhinestoneEndpointUrl }),
-    ...(rhinestoneCustomRpcUrls && { customRpcUrls: rhinestoneCustomRpcUrls }),
-  }
-
-  const sdk = new RhinestoneSDK(sdkOptions)
-
-  const rhinestoneAccount = await sdk.createAccount({
-    account: { type: 'hca' },
-    owners: {
-      type: 'ens',
-      accounts: [ownerAccount],
-      ownerExpirations: [HCA_OWNER_NEVER_EXPIRES],
-    },
-  })
-
-  const accountAddress = rhinestoneAccount.getAddress() as Address
-
+/** Build the standalone-HCA account config block from the chain's manifest. */
+export function buildStandaloneAccountConfig(
+  chainId: number,
+): StandaloneHcaAccount {
+  const c = getDestinationContracts(chainId)
   return {
-    client: rhinestoneAccount,
-    address: accountAddress,
-    ownerAddress: eoaAddress,
-    config: {
-      chain,
-      rhinestoneApiKey,
-    },
+    type: 'hca',
+    version: STANDALONE_HCA_VERSION,
+    factory: c.standaloneHcaFactory,
+    implementation: c.standaloneHcaImplementation,
+    validator: c.hcaOwnerAndSessionValidator,
+    verifiableFactory: c.verifiableFactory,
+    proxyLogic: c.verifiableFactoryProxyLogic,
+    userSalt: USER_SALT,
   }
 }
 
-/**
- * Deploy a Rhinestone HCA on-chain if it is not already deployed.
- *
- * Pure async function that takes an already-created `RhinestoneAccount`
- * (in-memory) and ensures the deterministic CREATE3 proxy is deployed
- * on-chain via a sponsored Intent. The account itself holds no funds —
- * gas is paid by the Rhinestone Warp relayer; only the owner signs.
- *
- * This is separated from `initializeRhinestoneAccount` so callers can
- * defer deployment to the point of first use (e.g. the registration
- * commit step), avoiding wasted gas if the user never registers.
- */
-export async function deployRhinestoneAccountCore(
-  rhinestoneAccount: RhinestoneAccount,
-  chain: Chain,
-  onProgress?: (stage: 'deploying' | 'ready') => void,
-  onError?: (stage: 'deploying', error: Error) => void,
-): Promise<void> {
-  if (await rhinestoneAccount.isDeployed(chain)) {
-    onProgress?.('ready')
-    return
-  }
+/** A direct owner call can execute immediately, or needs the HCA deployed first. */
+export type HcaDirectExecutionReadiness =
+  | {
+      readonly status: 'ready'
+      readonly hca: Address
+    }
+  | {
+      readonly status: 'deployment-required'
+      readonly hca: Address
+      readonly deploymentCall: Call
+    }
 
-  onProgress?.('deploying')
-  try {
-    const { factory, factoryData } = rhinestoneAccount.getInitData()
-
-    const prepared = await rhinestoneAccount.prepareTransaction({
-      chain,
-      sponsored: true,
-      calls: [
-        {
-          to: factory,
-          value: 0n,
-          data: factoryData,
-        },
-      ],
-    })
-    const signed = await rhinestoneAccount.signTransaction(prepared)
-    const result = await rhinestoneAccount.submitTransaction(signed)
-
-    // `submitTransaction` only submits — it does not wait for the fill
-    // to land. Wait for execution so callers can treat a resolved
-    // promise as "the HCA is on-chain".
-    await rhinestoneAccount.waitForExecution(result)
-  } catch (error) {
-    const wrapped = error instanceof Error ? error : new Error(String(error))
-    onError?.('deploying', wrapped)
-    throw wrapped
-  }
-
-  onProgress?.('ready')
+export type BuildHcaDeploymentCallParams = {
+  readonly client: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
+  readonly chainId: number
+  readonly expectedHca: Address
+  readonly expectedOwner: Address
 }
 
-/**
- * Initialize a Rhinestone HCA smart account.
- *
- * Creates the in-memory SDK account and deploys it on-chain in a single
- * call. For lazy deployment (skip deploy at init, deploy later on first
- * use), call `initializeRhinestoneAccountCore` + `deployRhinestoneAccountCore`
- * separately.
- *
- * @throws when the SDK fails or the bootstrap deploy Intent fails.
- */
-export async function initializeRhinestoneAccount(
-  params: InitializeRhinestoneAccountParams,
-): Promise<RhinestoneInitResult> {
-  const {
-    ownerAccount,
-    eoaAddress,
-    chain,
-    rhinestoneApiKey,
-    rhinestoneEndpointUrl,
-    rhinestoneCustomRpcUrls,
-    onProgress,
-    onError,
-  } = params
+export class HcaDeploymentCallValidationError extends Error {
+  readonly field:
+    | 'factory'
+    | 'calldata'
+    | 'clientHca'
+    | 'derivedHca'
+    | 'owner'
+    | 'implementation'
+    | 'userSalt'
 
-  if (!rhinestoneApiKey) {
-    throw new Error('rhinestoneApiKey is required')
+  constructor(params: {
+    readonly field: HcaDeploymentCallValidationError['field']
+    readonly expected: string
+    readonly actual: string
+  }) {
+    super(
+      `HCA deployment ${params.field} mismatch (expected ${params.expected}, received ${params.actual})`,
+    )
+    this.name = 'HcaDeploymentCallValidationError'
+    this.field = params.field
   }
+}
 
-  // Gas sponsorship for the HCA is handled by the Rhinestone Warp
-  // orchestrator (intent-based, relayer-funded). We deliberately do not
-  // configure an ERC-4337 bundler here — HCA operations route through
-  // sponsored Intents, not bundled UserOps.
-  const sdkOptions: ConstructorParameters<typeof RhinestoneSDK>[0] = {
-    apiKey: rhinestoneApiKey,
-    ...(rhinestoneEndpointUrl && { endpointUrl: rhinestoneEndpointUrl }),
-    ...(rhinestoneCustomRpcUrls && { customRpcUrls: rhinestoneCustomRpcUrls }),
-  }
-
-  const sdk = new RhinestoneSDK(sdkOptions)
-
-  // Native HCA account: the ENS ownership validator is installed at
-  // construction by the factory. No `experimental_sessions` — the SDK
-  // rejects it for HCA accounts (the module set is permanently locked).
-  const rhinestoneAccount = await sdk.createAccount({
-    account: { type: 'hca' },
-    owners: {
-      type: 'ens',
-      accounts: [ownerAccount],
-      ownerExpirations: [HCA_OWNER_NEVER_EXPIRES],
-    },
-  })
-
-  const accountAddress = rhinestoneAccount.getAddress() as Address
-
-  // Deploy the HCA on-chain.
-  await deployRhinestoneAccountCore(
-    rhinestoneAccount,
-    chain,
-    onProgress,
-    onError,
+export const computeStandaloneHcaAddress = (params: {
+  readonly chainId: number
+  readonly owner: Address
+  readonly userSalt?: bigint
+}): Address => {
+  const contracts = getDestinationContracts(params.chainId)
+  const userSalt = params.userSalt ?? USER_SALT
+  const deploymentSalt = BigInt(
+    keccak256(
+      encodeAbiParameters(
+        [
+          { name: 'userSalt', type: 'uint256' },
+          { name: 'owner', type: 'address' },
+          { name: 'implementation', type: 'address' },
+        ],
+        [userSalt, params.owner, contracts.standaloneHcaImplementation],
+      ),
+    ),
   )
+  return computeVerifiableProxyAddress({
+    factory: contracts.verifiableFactory,
+    proxyLogic: contracts.verifiableFactoryProxyLogic,
+    deployer: contracts.standaloneHcaFactory,
+    salt: deploymentSalt,
+  })
+}
 
-  return {
-    client: rhinestoneAccount,
-    address: accountAddress,
-    ownerAddress: eoaAddress,
-    config: {
-      chain,
-      rhinestoneApiKey,
-    },
+/**
+ * Build the standalone factory call exposed by the SDK for direct deployment.
+ * This is useful before an EOA submits `executeByOwner(...)` directly, where
+ * there is no Rhinestone intent setup phase to deploy the counterfactual HCA.
+ */
+export function buildHcaDeploymentCall(
+  params: BuildHcaDeploymentCallParams,
+): Call {
+  const contracts = getDestinationContracts(params.chainId)
+  const { factory, factoryData } = params.client.getInitData()
+  if (!isAddressEqual(factory, contracts.standaloneHcaFactory)) {
+    throw new HcaDeploymentCallValidationError({
+      field: 'factory',
+      expected: contracts.standaloneHcaFactory,
+      actual: factory,
+    })
   }
+
+  const clientHca = params.client.getAddress()
+  if (!isAddressEqual(clientHca, params.expectedHca)) {
+    throw new HcaDeploymentCallValidationError({
+      field: 'clientHca',
+      expected: params.expectedHca,
+      actual: clientHca,
+    })
+  }
+
+  let decoded: ReturnType<
+    typeof decodeFunctionData<typeof standaloneHcaFactoryAbi>
+  >
+  try {
+    decoded = decodeFunctionData({
+      abi: standaloneHcaFactoryAbi,
+      data: factoryData,
+    })
+  } catch {
+    throw new HcaDeploymentCallValidationError({
+      field: 'calldata',
+      expected: 'StandaloneHCAFactory.deploy(owner, implementation, userSalt)',
+      actual: factoryData,
+    })
+  }
+  if (decoded.functionName !== 'deploy') {
+    throw new HcaDeploymentCallValidationError({
+      field: 'calldata',
+      expected: 'StandaloneHCAFactory.deploy(owner, implementation, userSalt)',
+      actual: decoded.functionName,
+    })
+  }
+
+  const [owner, implementation, userSalt] = decoded.args as readonly [
+    Address,
+    Address,
+    bigint,
+  ]
+  if (!isAddressEqual(owner, params.expectedOwner)) {
+    throw new HcaDeploymentCallValidationError({
+      field: 'owner',
+      expected: params.expectedOwner,
+      actual: owner,
+    })
+  }
+  if (!isAddressEqual(implementation, contracts.standaloneHcaImplementation)) {
+    throw new HcaDeploymentCallValidationError({
+      field: 'implementation',
+      expected: contracts.standaloneHcaImplementation,
+      actual: implementation,
+    })
+  }
+  if (userSalt !== USER_SALT) {
+    throw new HcaDeploymentCallValidationError({
+      field: 'userSalt',
+      expected: USER_SALT.toString(),
+      actual: userSalt.toString(),
+    })
+  }
+
+  const expectedFactoryData = encodeFunctionData({
+    abi: standaloneHcaFactoryAbi,
+    functionName: 'deploy',
+    args: [
+      params.expectedOwner,
+      contracts.standaloneHcaImplementation,
+      USER_SALT,
+    ],
+  })
+  if (factoryData.toLowerCase() !== expectedFactoryData.toLowerCase()) {
+    throw new HcaDeploymentCallValidationError({
+      field: 'calldata',
+      expected: expectedFactoryData,
+      actual: factoryData,
+    })
+  }
+
+  const derivedHca = computeStandaloneHcaAddress({
+    chainId: params.chainId,
+    owner,
+    userSalt,
+  })
+  if (!isAddressEqual(derivedHca, params.expectedHca)) {
+    throw new HcaDeploymentCallValidationError({
+      field: 'derivedHca',
+      expected: params.expectedHca,
+      actual: derivedHca,
+    })
+  }
+
+  return { to: factory, value: 0n, data: factoryData }
+}
+
+/**
+ * Describe whether a freshly initialized account is ready for direct owner
+ * execution. After sending `deploymentCall`, await its receipt and call the
+ * init result's `refresh()` before using its SDK client again.
+ */
+export function getHcaDirectExecutionReadiness(
+  account: Pick<
+    RhinestoneInitResult,
+    'client' | 'address' | 'ownerAddress' | 'alreadyDeployed' | 'config'
+  >,
+): HcaDirectExecutionReadiness {
+  if (account.alreadyDeployed) {
+    return { status: 'ready', hca: account.address }
+  }
+  return {
+    status: 'deployment-required',
+    hca: account.address,
+    deploymentCall: buildHcaDeploymentCall({
+      client: account.client,
+      chainId: account.config.chain.id,
+      expectedHca: account.address,
+      expectedOwner: account.ownerAddress,
+    }),
+  }
+}
+
+function makeSdk(params: {
+  chain: Chain
+  rhinestoneApiKey: string
+  rhinestoneEndpointUrl?: string
+  rhinestoneCustomRpcUrls?: Record<number, string>
+}): RhinestoneSDK {
+  const defaultRpcUrl = params.chain.rpcUrls.default.http[0]
+  const urls: Record<number, string> = {
+    ...(defaultRpcUrl ? { [params.chain.id]: defaultRpcUrl } : {}),
+    ...(params.rhinestoneCustomRpcUrls ?? {}),
+  }
+  return new RhinestoneSDK({
+    auth: { mode: 'apiKey', apiKey: params.rhinestoneApiKey },
+    provider: { type: 'custom', urls },
+    ...(params.rhinestoneEndpointUrl
+      ? { endpointUrl: params.rhinestoneEndpointUrl }
+      : {}),
+  })
+}
+
+/**
+ * Verify an already-deployed HCA matches what we expect before adopting it.
+ * Returns the verified current implementation. Throws `AccountVerificationError`
+ * (never silently adopts a mismatched account).
+ */
+export interface VerifyStandaloneHcaParams {
+  readonly publicClient: PublicClient
+  readonly hca: Address
+  readonly expectedOwner: Address
+  readonly chainId: number
+}
+
+export async function verifyStandaloneHca(
+  params: VerifyStandaloneHcaParams,
+): Promise<Address> {
+  const { publicClient, hca, expectedOwner, chainId } = params
+  const c = getDestinationContracts(chainId)
+
+  const [actualOwner, accountId, authorizedOwner, implementation] =
+    await Promise.all([
+      publicClient.readContract({
+        address: hca,
+        abi: standaloneHcaAbi,
+        functionName: 'owner',
+      }),
+      publicClient.readContract({
+        address: hca,
+        abi: standaloneHcaAbi,
+        functionName: 'accountId',
+      }),
+      publicClient.readContract({
+        address: c.standaloneHcaFactory,
+        abi: standaloneHcaFactoryAbi,
+        functionName: 'authorizedOwnerOf',
+        args: [hca],
+      }),
+      publicClient.readContract({
+        address: c.verifiableFactory,
+        abi: verifiableFactoryAbi,
+        functionName: 'verifyContract',
+        args: [hca],
+      }),
+    ])
+
+  if (getAddress(actualOwner) !== getAddress(expectedOwner)) {
+    throw new AccountVerificationError({
+      message: 'Existing HCA owner does not match the connected wallet',
+      field: 'owner',
+      expected: getAddress(expectedOwner),
+      actual: getAddress(actualOwner),
+    })
+  }
+
+  if (getAddress(authorizedOwner) !== getAddress(expectedOwner)) {
+    throw new AccountVerificationError({
+      message:
+        'Existing HCA factory authorization does not match the connected wallet',
+      field: 'authorizedOwner',
+      expected: getAddress(expectedOwner),
+      actual: getAddress(authorizedOwner),
+    })
+  }
+
+  if (accountId !== ONCHAIN_ACCOUNT_ID) {
+    throw new AccountVerificationError({
+      message: 'Existing HCA accountId does not match the standalone HCA',
+      field: 'accountId',
+      expected: ONCHAIN_ACCOUNT_ID,
+      actual: accountId,
+    })
+  }
+
+  // At launch the implementation must equal the configured initial
+  // implementation. (Post-upgrade, this expands to any DAO-approved
+  // implementation — tracked separately once upgrades exist.)
+  if (
+    getAddress(implementation) !== getAddress(c.standaloneHcaImplementation)
+  ) {
+    throw new AccountVerificationError({
+      message: 'Existing HCA implementation is not the expected implementation',
+      field: 'implementation',
+      expected: getAddress(c.standaloneHcaImplementation),
+      actual: getAddress(implementation),
+    })
+  }
+
+  return implementation
+}
+
+/**
+ * Initialize the standalone HCA in-memory, adopting an existing on-chain HCA
+ * when the derived address already has code.
+ *
+ * Does NOT deploy — the first Rhinestone request performs the lazy deploy.
+ */
+export function initializeRhinestoneAccount(
+  params: InitializeRhinestoneAccountParams,
+): ResultAsync<RhinestoneInitResult, RhinestoneInitError> {
+  if (!params.rhinestoneApiKey) {
+    return errAsync(
+      new AccountInitError({ message: 'rhinestoneApiKey is required' }),
+    )
+  }
+
+  return fromPromise(
+    (async () => {
+      const sdk = makeSdk(params)
+      const accountConfig = {
+        account: buildStandaloneAccountConfig(params.chain.id),
+        owners: {
+          type: 'ecdsa' as const,
+          accounts: [params.ownerAccount],
+          module: getDestinationContracts(params.chain.id)
+            .hcaOwnerAndSessionValidator,
+        },
+        experimental_sessions: {
+          enabled: true,
+          module: getDestinationContracts(params.chain.id)
+            .hcaOwnerAndSessionValidator,
+        },
+      }
+
+      // Derive the deterministic address with a no-initData config.
+      const candidate = await sdk.createAccount(accountConfig)
+      const hca = candidate.getAddress() as Address
+
+      const code = await params.publicClient.getCode({ address: hca })
+      const alreadyDeployed = Boolean(code && code !== '0x')
+
+      // Bind the account to its deploy state.
+      //
+      // The SDK's setup-ops (which include the factory deploy call) are gated by
+      // `initData`: when `initData: { address }` is set, `getInitCode` returns
+      // the address-only form → `getSetupOperationsAndDelegations` returns
+      // `setupOps: []` (no deploy). When `initData` is absent, the deploy op is
+      // included.
+      //
+      // Therefore:
+      //   - UNDEPLOYED HCA → NO initData, so the first (commit) action's
+      //     setup-ops deploy it.
+      //   - ALREADY-DEPLOYED HCA → initData: { address }, so no re-deploy op is
+      //     emitted (a re-deploy makes the intent's session signature invalid →
+      //     `InvalidSignature()`). This also covers the "existing HCA, new
+      //     session" case: the enable call runs, but the account is not
+      //     re-deployed.
+      //
+      // NOTE: this is evaluated per `initializeRhinestoneAccount` call. Once the
+      // commit deploys a previously-undeployed HCA, the caller must re-init so
+      // the reveal (and future registrations) use the deployed (initData)
+      // binding — see the manager's re-init on the smart-account machine.
+      if (alreadyDeployed) {
+        await verifyStandaloneHca({
+          publicClient: params.publicClient,
+          hca,
+          expectedOwner: params.eoaAddress,
+          chainId: params.chain.id,
+        })
+      }
+
+      const client = alreadyDeployed
+        ? await sdk.createAccount({
+            ...accountConfig,
+            initData: { address: hca },
+          })
+        : candidate
+
+      return {
+        client,
+        address: hca,
+        ownerAddress: params.eoaAddress,
+        alreadyDeployed,
+        config: {
+          chain: params.chain,
+          rhinestoneApiKey: params.rhinestoneApiKey,
+        },
+        refresh: () => initializeRhinestoneAccount(params),
+      }
+    })(),
+    (error: unknown) => {
+      if (error instanceof AccountVerificationError) return error
+      return new AccountInitError({
+        message: 'Failed to initialize standalone HCA account',
+        cause: error,
+      })
+    },
+  )
 }

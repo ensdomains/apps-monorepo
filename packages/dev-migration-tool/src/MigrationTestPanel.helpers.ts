@@ -15,11 +15,14 @@ import {
 } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import { userRegistryRegisterSnippet } from '@ensdomains/ensjs-abi/v2/userRegistry'
 import {
+  type Address,
   concat,
+  encodeAbiParameters,
   encodeFunctionData,
   hexToBytes,
   keccak256,
   toBytes,
+  toHex,
 } from 'viem'
 
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
@@ -46,11 +49,15 @@ export const V1_BASE_REGISTRAR_OWNER =
 export const V1_PUBLIC_RESOLVER =
   '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const
 
-// V2 contracts — sourced from ensjs Sepolia chain config (same source as addresses.ts).
-export const V2_ETH_REGISTRY_ADDR =
-  '0xdedb92913a25abe1f7bcdd85d8a344a43b398b67' as const
-export const V2_ETH_REGISTRAR_ADDR =
-  '0x8c2e866b439358c41ae05de9cbe8a00bfefaffca' as const
+// V2 contracts — sourced from the same ensjs Sepolia manifest as Manager's
+// destination contract table so fixture reservations cannot drift to a retired
+// deployment while the migration flow targets the active one.
+export const V2_ETH_REGISTRY_ADDR = ensjsSepolia.ensRegistry.address
+export const V2_ETH_REGISTRAR_ADDR = ensjsSepolia.ensEthRegistrar.address
+const V2_MIGRATION_CONTROLLERS = [
+  ensjsSepolia.ensUnlockedMigrationController.address,
+  ensjsSepolia.ensLockedMigrationController.address,
+] as const
 
 /** Anvil account #0 — always has 10 000 ETH on a fresh fork. */
 export const DEFAULT_ACCOUNT =
@@ -188,6 +195,24 @@ export function namehashFromLabelAndParent(
 
 // --- JSON-RPC helpers -------------------------------------------------------
 
+interface RpcReadCall {
+  readonly method: string
+  readonly params: unknown[]
+}
+
+interface RpcBatchResponse {
+  readonly id?: number
+  readonly result?: unknown
+  readonly error?: { readonly message?: string }
+}
+
+interface RpcBatchRequest extends RpcReadCall {
+  readonly jsonrpc: '2.0'
+  readonly id: number
+}
+
+const RPC_READ_BATCH_SIZE = 100
+
 export async function rpcCall(
   endpoint: string,
   method: string,
@@ -205,6 +230,90 @@ export async function rpcCall(
   }
   if (json.error) throw new Error(`RPC error: ${json.error.message}`)
   return json.result
+}
+
+/**
+ * Send read-only JSON-RPC calls in bounded batches. Batch responses may arrive
+ * in any order, so results are restored to input order by request id. If an RPC
+ * endpoint does not support batching, retry that chunk as individual reads;
+ * per-call failures stay `undefined` for the caller's existing fallback.
+ */
+async function fetchRpcReadBatch(
+  endpoint: string,
+  requests: readonly RpcBatchRequest[],
+): Promise<RpcBatchResponse[]> {
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requests),
+  })
+  if (!res.ok) throw new Error(`RPC HTTP ${res.status}: ${res.statusText}`)
+  const json: unknown = await res.json()
+  if (!Array.isArray(json))
+    throw new Error('RPC batch response is not an array')
+  return json as RpcBatchResponse[]
+}
+
+async function retryRpcReadChunk(
+  endpoint: string,
+  chunk: readonly RpcReadCall[],
+  results: (unknown | undefined)[],
+  offset: number,
+): Promise<void> {
+  for (const [index, call] of chunk.entries()) {
+    try {
+      results[offset + index] = await rpcCall(
+        endpoint,
+        call.method,
+        call.params,
+      )
+    } catch {
+      // Preserve the caller's per-name fallback for an unreadable entry.
+    }
+  }
+}
+
+function restoreRpcReadBatchOrder(
+  responses: readonly RpcBatchResponse[],
+  requests: readonly RpcBatchRequest[],
+  results: (unknown | undefined)[],
+  offset: number,
+): void {
+  const responsesById = new Map(
+    responses.flatMap((response) =>
+      typeof response.id === 'number' ? [[response.id, response] as const] : [],
+    ),
+  )
+  for (const [index, request] of requests.entries()) {
+    const response = responsesById.get(request.id)
+    if (response && !response.error) results[offset + index] = response.result
+  }
+}
+
+async function rpcReadBatch(
+  endpoint: string,
+  calls: readonly RpcReadCall[],
+): Promise<(unknown | undefined)[]> {
+  const results = new Array<unknown | undefined>(calls.length).fill(undefined)
+
+  for (let offset = 0; offset < calls.length; offset += RPC_READ_BATCH_SIZE) {
+    const chunk = calls.slice(offset, offset + RPC_READ_BATCH_SIZE)
+    const requests: RpcBatchRequest[] = chunk.map((call, index) => ({
+      jsonrpc: '2.0' as const,
+      id: offset + index + 1,
+      method: call.method,
+      params: call.params,
+    }))
+
+    try {
+      const responses = await fetchRpcReadBatch(endpoint, requests)
+      restoreRpcReadBatchOrder(responses, requests, results, offset)
+    } catch {
+      await retryRpcReadChunk(endpoint, chunk, results, offset)
+    }
+  }
+
+  return results
 }
 
 export async function sendTx(
@@ -421,69 +530,96 @@ export async function ensureFunded(endpoint: string): Promise<void> {
     )
   }
 
-  // Short-circuit if DEFAULT_ACCOUNT is already an authorized controller.
-  if (await isController(endpoint, DEFAULT_ACCOUNT)) return
-
-  // Read the LIVE registrar owner off the fork — it has been transferred on
-  // Sepolia, so the hardcoded constant is only a fallback if the read fails.
-  const registrarOwner =
-    (await readRegistrarOwner(endpoint)) ?? V1_BASE_REGISTRAR_OWNER
-
-  // Impersonate the BaseRegistrar owner to re-authorize DEFAULT_ACCOUNT as a controller
-  await rpcCall(endpoint, 'anvil_impersonateAccount', [registrarOwner])
-  try {
-    await sendTxFrom(
-      endpoint,
-      registrarOwner,
-      V1_BASE_REGISTRAR,
-      encodeFunctionData({
-        abi: baseRegistrarAddControllerSnippet,
-        functionName: 'addController',
-        args: [DEFAULT_ACCOUNT],
-      }),
-    )
-  } finally {
-    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [registrarOwner])
-  }
-
-  // Anvil includes reverted impersonated txs without throwing, so verify the
-  // grant actually landed rather than trusting the send. If it didn't, the
-  // owner we impersonated is wrong for this fork — fail loudly instead of
-  // silently registering phantom names later.
   if (!(await isController(endpoint, DEFAULT_ACCOUNT))) {
-    throw new Error(
-      `Failed to authorize ${DEFAULT_ACCOUNT} as a BaseRegistrar controller ` +
-        `(impersonated owner ${registrarOwner}). The registrar owner on this ` +
-        `fork may have changed again — check BaseRegistrar.owner().`,
-    )
+    // Read the LIVE registrar owner off the fork — it has been transferred on
+    // Sepolia, so the hardcoded constant is only a fallback if the read fails.
+    const registrarOwner =
+      (await readRegistrarOwner(endpoint)) ?? V1_BASE_REGISTRAR_OWNER
+
+    // Impersonate the BaseRegistrar owner to re-authorize DEFAULT_ACCOUNT as a controller
+    await rpcCall(endpoint, 'anvil_impersonateAccount', [registrarOwner])
+    try {
+      await sendTxFrom(
+        endpoint,
+        registrarOwner,
+        V1_BASE_REGISTRAR,
+        encodeFunctionData({
+          abi: baseRegistrarAddControllerSnippet,
+          functionName: 'addController',
+          args: [DEFAULT_ACCOUNT],
+        }),
+      )
+    } finally {
+      await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [
+        registrarOwner,
+      ])
+    }
+
+    // Anvil includes reverted impersonated txs without throwing, so verify the
+    // grant actually landed rather than trusting the send. If it didn't, the
+    // owner we impersonated is wrong for this fork — fail loudly instead of
+    // silently registering phantom names later.
+    if (!(await isController(endpoint, DEFAULT_ACCOUNT))) {
+      throw new Error(
+        `Failed to authorize ${DEFAULT_ACCOUNT} as a BaseRegistrar controller ` +
+          `(impersonated owner ${registrarOwner}). The registrar owner on this ` +
+          `fork may have changed again — check BaseRegistrar.owner().`,
+      )
+    }
   }
 
-  // Grant ROLE_REGISTRAR (bit 0 = 0x01) to the V2 migration controllers on the
-  // ensjs V2 ETH registry. They currently hold 0x10 (bit 4) but the registry's
-  // register() checks for bit 0. We write 0x11 directly into the _roles storage
-  // mapping (slot 2) to avoid needing an admin impersonation chain.
-  //
-  // Slot formula (nested mapping): keccak256(account ++ keccak256(resource ++ slot))
-  //   resource = 0 (ROOT_RESOURCE), slot = 2
-  //   intermediate = keccak256(pad(0,32) ++ pad(2,32))
-  //   final = keccak256(pad(account,32) ++ intermediate)
-  //
-  // Pre-computed:
-  //   intermediate = 0xac33ff75c19e70fe83507db0d683fd3465c996598dc972688b7ace676c89077b
-  //   UnlockedMigrationController slot = 0xd59cccd6b2c921fc9fa11f4c3ac64743360eafac52cb11cbdb0de007a5831390
-  //   LockedMigrationController slot   = 0xbd1b859b6507af3d538d435c6450a599eddca774c570dbcce49bbc071ef23a73
-  const ROLE_VALUE =
-    '0x0000000000000000000000000000000000000000000000000000000000000011'
-  await rpcCall(endpoint, 'anvil_setStorageAt', [
-    V2_ETH_REGISTRY_ADDR,
-    '0xd59cccd6b2c921fc9fa11f4c3ac64743360eafac52cb11cbdb0de007a5831390',
-    ROLE_VALUE,
-  ])
-  await rpcCall(endpoint, 'anvil_setStorageAt', [
-    V2_ETH_REGISTRY_ADDR,
-    '0xbd1b859b6507af3d538d435c6450a599eddca774c570dbcce49bbc071ef23a73',
-    ROLE_VALUE,
-  ])
+  // This must run even when the V1 controller grant already exists: Anvil and
+  // the names cookie can survive a deployment-address update during HMR.
+  await ensureV2MigrationControllerRoles(endpoint)
+}
+
+const ROOT_RESOURCE = 0n
+const V2_ROLES_STORAGE_SLOT = 2n
+const ROLE_REGISTER_RESERVED = 1n << 4n
+
+const V2_ROOT_ROLES_SLOT = keccak256(
+  encodeAbiParameters(
+    [{ type: 'uint256' }, { type: 'uint256' }],
+    [ROOT_RESOURCE, V2_ROLES_STORAGE_SLOT],
+  ),
+)
+
+function v2ControllerRoleStorageSlot(account: Address): `0x${string}` {
+  return keccak256(
+    encodeAbiParameters(
+      [{ type: 'address' }, { type: 'bytes32' }],
+      [account, V2_ROOT_ROLES_SLOT],
+    ),
+  )
+}
+
+/** Ensure both migration controllers can register reserved names on the fork. */
+async function ensureV2MigrationControllerRoles(
+  endpoint: string,
+): Promise<void> {
+  for (const controller of V2_MIGRATION_CONTROLLERS) {
+    const storageSlot = v2ControllerRoleStorageSlot(controller)
+    const stored = await rpcCall(endpoint, 'eth_getStorageAt', [
+      V2_ETH_REGISTRY_ADDR,
+      storageSlot,
+      'latest',
+    ])
+    if (typeof stored !== 'string' || !stored.startsWith('0x')) {
+      throw new Error(
+        `Unable to read V2 roles for migration controller ${controller}`,
+      )
+    }
+
+    const roles = BigInt(stored)
+    const rolesWithReservedRegistration = roles | ROLE_REGISTER_RESERVED
+    if (rolesWithReservedRegistration === roles) continue
+
+    await rpcCall(endpoint, 'anvil_setStorageAt', [
+      V2_ETH_REGISTRY_ADDR,
+      storageSlot,
+      toHex(rolesWithReservedRegistration, { size: 32 }),
+    ])
+  }
 }
 
 /**
@@ -500,6 +636,21 @@ export async function reserveInV2(
 ): Promise<void> {
   const now = await getBlockTimestamp(endpoint)
   if (expiryDate <= now) return // expired slot = AVAILABLE, controllers can't migrate
+  const currentStatus = await getV2NameStatus(endpoint, label)
+  if (currentStatus === V2_NAME_STATUS.RESERVED) return
+  if (currentStatus === V2_NAME_STATUS.REGISTERED) return
+  if (currentStatus !== V2_NAME_STATUS.AVAILABLE) {
+    throw new Error(`Unable to read the V2 registry status for ${label}.eth`)
+  }
+
+  await reserveKnownAvailableNameInV2(endpoint, label, expiryDate)
+}
+
+async function reserveKnownAvailableNameInV2(
+  endpoint: string,
+  label: string,
+  expiryDate: number,
+): Promise<void> {
   await rpcCall(endpoint, 'anvil_impersonateAccount', [V2_ETH_REGISTRAR_ADDR])
   try {
     const data = encodeFunctionData({
@@ -531,6 +682,16 @@ export async function reserveInV2(
     await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [
       V2_ETH_REGISTRAR_ADDR,
     ])
+  }
+
+  const updatedStatus = await getV2NameStatus(endpoint, label)
+  if (
+    updatedStatus !== V2_NAME_STATUS.RESERVED &&
+    updatedStatus !== V2_NAME_STATUS.REGISTERED
+  ) {
+    throw new Error(
+      `Failed to reserve ${label}.eth in the active V2 registry (status ${String(updatedStatus)})`,
+    )
   }
 }
 
@@ -674,6 +835,80 @@ export function buildMockDomain(name: ActiveName): unknown {
 
 // --- Anvil on-chain sync helpers --------------------------------------------
 
+const V2_NAME_STATUS = {
+  AVAILABLE: 0,
+  RESERVED: 1,
+  REGISTERED: 2,
+} as const
+
+const V2_GET_STATUS_ABI = [
+  {
+    type: 'function',
+    name: 'getStatus',
+    stateMutability: 'view',
+    inputs: [{ name: 'anyId', type: 'uint256' }],
+    outputs: [{ name: '', type: 'uint8' }],
+  },
+] as const
+
+function baseRegistrarReadCall(
+  selector: `0x${string}`,
+  label: string,
+): RpcReadCall {
+  const tokenIdPadded = labelhash(label).slice(2).padStart(64, '0')
+  return {
+    method: 'eth_call',
+    params: [
+      { to: V1_BASE_REGISTRAR, data: `${selector}${tokenIdPadded}` },
+      'latest',
+    ],
+  }
+}
+
+function v2StatusReadCall(label: string): RpcReadCall {
+  return {
+    method: 'eth_call',
+    params: [
+      {
+        to: V2_ETH_REGISTRY_ADDR,
+        data: encodeFunctionData({
+          abi: V2_GET_STATUS_ABI,
+          functionName: 'getStatus',
+          args: [BigInt(labelhash(label))],
+        }),
+      },
+      'latest',
+    ],
+  }
+}
+
+function decodeV2NameStatus(result: unknown): number | null {
+  try {
+    if (typeof result !== 'string' || result === '0x') return null
+    return Number(BigInt(result))
+  } catch {
+    return null
+  }
+}
+
+async function getV2NameStatuses(
+  endpoint: string,
+  labels: readonly string[],
+): Promise<(number | null)[]> {
+  const results = await rpcReadBatch(
+    endpoint,
+    labels.map((label) => v2StatusReadCall(label)),
+  )
+  return results.map(decodeV2NameStatus)
+}
+
+async function getV2NameStatus(
+  endpoint: string,
+  label: string,
+): Promise<number | null> {
+  return (await getV2NameStatuses(endpoint, [label]))[0] ?? null
+}
+
 /**
  * Returns true if the .eth label is registered in the official BaseRegistrar on
  * the Anvil fork (ownerOf returns a non-zero address). This is the same
@@ -683,18 +918,22 @@ export async function isNameOnAnvil(
   endpoint: string,
   label: string,
 ): Promise<boolean> {
-  const lh = labelhash(label)
-  const tokenIdPadded = lh.slice(2).padStart(64, '0')
-  const data = `0x6352211e${tokenIdPadded}` as `0x${string}` // ownerOf(uint256)
-  try {
-    const result = await rpcCall(endpoint, 'eth_call', [
-      { to: V1_BASE_REGISTRAR, data },
-      'latest',
-    ])
-    return typeof result === 'string' && result.length > 2 && result !== '0x'
-  } catch {
-    return false // reverted → not registered
-  }
+  return (await getNamesOnAnvil(endpoint, [label]))[0] ?? false
+}
+
+/** Read V1 registration existence in bounded JSON-RPC batches. */
+export async function getNamesOnAnvil(
+  endpoint: string,
+  labels: readonly string[],
+): Promise<boolean[]> {
+  const results = await rpcReadBatch(
+    endpoint,
+    labels.map((label) => baseRegistrarReadCall('0x6352211e', label)),
+  )
+  return results.map(
+    (result) =>
+      typeof result === 'string' && result.length > 2 && result !== '0x',
+  )
 }
 
 /**
@@ -710,20 +949,95 @@ export async function getOnchainExpiry(
   endpoint: string,
   label: string,
 ): Promise<number | null> {
-  const lh = labelhash(label)
-  const tokenIdPadded = lh.slice(2).padStart(64, '0')
-  const data = `0xd6e4fa86${tokenIdPadded}` as `0x${string}` // nameExpires(uint256)
-  try {
-    const result = await rpcCall(endpoint, 'eth_call', [
-      { to: V1_BASE_REGISTRAR, data },
-      'latest',
-    ])
-    if (typeof result !== 'string' || result === '0x') return null
-    const expiry = Number(BigInt(result))
-    return expiry > 0 ? expiry : null
-  } catch {
-    return null // reverted / unreadable → fall back to stored expiry
+  return (await getOnchainExpiries(endpoint, [label]))[0] ?? null
+}
+
+/** Read live BaseRegistrar expiries in bounded JSON-RPC batches. */
+export async function getOnchainExpiries(
+  endpoint: string,
+  labels: readonly string[],
+): Promise<(number | null)[]> {
+  const results = await rpcReadBatch(
+    endpoint,
+    labels.map((label) => baseRegistrarReadCall('0xd6e4fa86', label)),
+  )
+  return results.map((result) => {
+    try {
+      if (typeof result !== 'string' || result === '0x') return null
+      const expiry = Number(BigInt(result))
+      return expiry > 0 ? expiry : null
+    } catch {
+      return null
+    }
+  })
+}
+
+function fixtureReservationExpiry(name: ActiveName): number | null {
+  if (name.type === 'grace') return null
+  if (
+    name.type === 'grace-renewable-wrapped' ||
+    name.type === 'grace-renewable-unwrapped'
+  ) {
+    return name.expiryDate + PREMIGRATION_BONUS_PERIOD
   }
+  return name.expiryDate
+}
+
+interface ExistingFixtureReservation {
+  readonly nameIndex: number
+  readonly label: string
+  readonly expiryDate: number
+}
+
+async function getExistingFixtureReservationStatuses(
+  endpoint: string,
+  names: readonly ActiveName[],
+  existingNames: readonly boolean[],
+): Promise<
+  Map<number, ExistingFixtureReservation & { readonly status: number | null }>
+> {
+  const candidates = names.flatMap((name, nameIndex) => {
+    if (!existingNames[nameIndex]) return []
+    const expiryDate = fixtureReservationExpiry(name)
+    return expiryDate == null
+      ? []
+      : [{ nameIndex, label: name.label, expiryDate }]
+  })
+  if (candidates.length === 0) return new Map()
+
+  const now = await getBlockTimestamp(endpoint)
+  const activeCandidates = candidates.filter(
+    ({ expiryDate }) => expiryDate > now,
+  )
+  const statuses = await getV2NameStatuses(
+    endpoint,
+    activeCandidates.map(({ label }) => label),
+  )
+
+  return new Map(
+    activeCandidates.map((candidate, index) => [
+      candidate.nameIndex,
+      { ...candidate, status: statuses[index] ?? null },
+    ]),
+  )
+}
+
+async function ensureExistingFixtureReservation(
+  endpoint: string,
+  reservation: ExistingFixtureReservation & { readonly status: number | null },
+): Promise<void> {
+  if (reservation.status === V2_NAME_STATUS.RESERVED) return
+  if (reservation.status === V2_NAME_STATUS.REGISTERED) return
+  if (reservation.status !== V2_NAME_STATUS.AVAILABLE) {
+    throw new Error(
+      `Unable to read the V2 registry status for ${reservation.label}.eth`,
+    )
+  }
+  await reserveKnownAvailableNameInV2(
+    endpoint,
+    reservation.label,
+    reservation.expiryDate,
+  )
 }
 
 /**
@@ -735,9 +1049,26 @@ export async function ensureNamesOnAnvil(
   names: ActiveName[],
 ): Promise<ActiveName[]> {
   const result: ActiveName[] = []
-  for (const name of names) {
-    const exists = await isNameOnAnvil(endpoint, name.label)
+  const existingNames = await getNamesOnAnvil(
+    endpoint,
+    names.map((name) => name.label),
+  )
+
+  if (existingNames.some(Boolean))
+    await ensureV2MigrationControllerRoles(endpoint)
+
+  const existingReservations = await getExistingFixtureReservationStatuses(
+    endpoint,
+    names,
+    existingNames,
+  )
+
+  for (const [index, name] of names.entries()) {
+    const exists = existingNames[index] ?? false
     if (exists) {
+      const reservation = existingReservations.get(index)
+      if (reservation)
+        await ensureExistingFixtureReservation(endpoint, reservation)
       result.push(name)
     } else {
       const { label, expiryDate } = await createV1NameOnAnvil(

@@ -4,8 +4,8 @@ import {
 } from '@ens-apps/indexer/chain'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { walletConnect } from '@wagmi/connectors'
-import { createClient, fallback, http } from 'viem'
-import { sepolia } from 'viem/chains'
+import { fallback, http } from 'viem'
+import { mainnet, sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
@@ -57,6 +57,12 @@ export const customSepolia = {
 
 export const sepoliaWithEns = extendChainWithEns(customSepolia)
 
+// The chains the app actually operates on. Kept separate from `chains` below,
+// which is deliberately wider — see the note there. Connect-time chain
+// targeting must use THIS list, never `wagmiConfig.chains`, or a wallet sitting
+// on mainnet would be left there instead of being switched to Sepolia.
+export const APP_CHAINS = [sepoliaWithEns] as const
+
 // Injected wallets (MetaMask, Coinbase extension, Rabby, …) are discovered via
 // EIP-6963, so WalletConnect is the only explicit connector. We skip the
 // Coinbase SDK connector: its Smart Wallet is mainnet-only and breaks on Sepolia.
@@ -64,7 +70,15 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
-  chains: [sepoliaWithEns],
+  // Sepolia is the only chain the app uses; mainnet is here solely to keep
+  // WalletConnect sessions settleable. wagmi derives the connector's
+  // `optionalChains` from this list, so a Sepolia-only entry produces a
+  // proposal offering exactly `eip155:11155111`. A wallet without Sepolia
+  // enabled — Rainbow's default — can then grant nothing, reports
+  // "network: none", and the handshake dies with WalletConnect error 1005
+  // ("Invalid session settle request."). Offering mainnet guarantees a
+  // grantable network; the connect flow still targets Sepolia via APP_CHAINS.
+  chains: [sepoliaWithEns, mainnet],
   connectors: [
     walletConnect({
       projectId: WALLETCONNECT_PROJECT_ID,
@@ -75,9 +89,12 @@ export const wagmiConfig = createConfig({
     // Test-only: auto-signing wallet for Playwright/agents. Off in production.
     ...(isMockWalletEnabled ? [mockConnector] : []),
   ],
-  client: ({ chain }) =>
-    createClient({
-      chain,
-      transport: sepoliaFallbackTransport,
-    }),
+  // A per-chain `transports` map rather than a `client` factory: with more than
+  // one chain configured, the factory's `chain` argument is a union and
+  // createClient infers its `transport` parameter as `never`.
+  transports: {
+    [sepoliaWithEns.id]: sepoliaFallbackTransport,
+    // Present for WalletConnect session compatibility only; never read from.
+    [mainnet.id]: http(),
+  },
 })

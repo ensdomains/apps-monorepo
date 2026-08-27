@@ -1,30 +1,34 @@
 /**
- * Rhinestone HCA registration E2E test.
+ * Standalone-HCA registration E2E test (user-paid USDC, no gas sponsorship).
  *
- * With VITE_FF_USE_EOA=false (default) the registration machine routes
- * transactions through the Rhinestone Warp orchestrator. The flow is:
- *   1. deploy-resolver  (eth_signTypedData_v4 — SingleChainOps intent,
- *                        auto-authorized by PERMITTED_SIGN_KINDS)
- *   2. commit           (eth_signTypedData_v4 — same, auto-authorized)
- *   3. [commitment age wait — handled by the app]
- *   4. sign USDC permit (eth_signTypedData_v4 — EIP-2612 permit, auto-authorized)
- *   5. register+permit bundle (submitted by Rhinestone bundler, no user tx)
+ * With VITE_FF_USE_EOA=false (default) the registration machine routes through
+ * the scoped-SmartSession standalone HCA. The flow is:
+ *   1. session authorization (eth_signTypedData_v4 — the one multi-chain
+ *      authorization signed BEFORE route selection, via the EnableSessions gate)
+ *   2. USDC funding permit  (eth_signTypedData_v4 — EIP-2612, wallet → HCA budget)
+ *   3. commit leg           (session-signed request: permit + transferFrom +
+ *      enableSessionWithRefund + commit; deploys the HCA lazily)
+ *   4. [commitment age wait — handled by the app]
+ *   5. reveal batch         (session-signed: price re-read + deployProxy? →
+ *      approve → register(wallet) → setters → authorizeNameRoles; no user tx)
  *
- * The mockestrator impersonates the HCA on the Anvil fork to fill each intent.
- * It needs ETH in the HCA address to pay for impersonated gas — the fund script
- * (`e2e/infra/scripts/fund-rhinestone-account.sh`) must include the HCA for
- * Anvil account 0 (0xb0663…888b4), which is the E2E headless wallet owner.
+ * Two signatures, zero wallet transactions. The mockestrator impersonates the
+ * HCA on the Anvil fork to fill each intent; it needs ETH in the HCA address to
+ * pay impersonated gas (see `e2e/infra/scripts/fund-rhinestone-account.sh`).
  *
  * Prerequisites:
- *   - E2E infra running: `pnpm e2e:infra:up` (Anvil + Alto + Paymaster + Mockestrator)
- *   - Manager app with VITE_FF_USE_EOA=false and VITE_FF_USE_WARP_INFRA=true
+ *   - E2E infra running: `pnpm e2e:infra:up` (Anvil + Mockestrator)
+ *   - Anvil snapshot baked with the STANDALONE-HCA deployment (StandaloneHCA
+ *     Factory/Impl, HCAOwnerAndSessionValidator, new registrar/registry, Circle
+ *     USDC) and `mockestrator/chains.json` USDC/DAI pointed at those addresses.
+ *   - Manager app with VITE_FF_USE_EOA=false.
  */
 import {
-  test,
-  expect,
   authorizeTransactionsWhile,
+  test,
 } from '../../../fixtures/playwright.manager.fixture.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
+import { expectFlowSuccess } from '../../../helpers/flow-completion.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
@@ -41,7 +45,10 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     const searchInput = await findSearchInput(page)
     await searchInput.click()
     await searchInput.fill(nameOnly)
-    await page.getByText('Available').first().waitFor({ state: 'visible', timeout: 15_000 })
+    await page
+      .getByText('Available')
+      .first()
+      .waitFor({ state: 'visible', timeout: 15_000 })
     await page.getByText(DOMAIN_TO_REGISTER).click()
 
     await page.getByRole('button', { name: /pay with stablecoins/i }).click()
@@ -60,6 +67,10 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
 
     await page.getByRole('button', { name: /register name/i }).click()
 
+    // RegistrationDetails (including the completion banner) stays hidden while
+    // the parallel notification-settings region is waiting for a choice.
+    await page.getByRole('button', { name: 'Set up later' }).click()
+
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
 
     // The registration itself needs no eth_sendTransaction on the HCA path
@@ -74,12 +85,19 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
       wallet,
       () => registrationComplete,
     )
-    await expect(successBanner).toContainText('Registration Complete', { timeout: 240_000 })
+    await expectFlowSuccess(page, {
+      success: successBanner.filter({ hasText: 'Registration Complete' }),
+      failureTitle: 'Registration Failed',
+      timeout: 240_000,
+    })
     registrationComplete = true
     await authorizeSetupTxs
 
     if (mockIndexer.enabled) {
-      mockIndexer.addName({ name: DOMAIN_TO_REGISTER, owner: accounts.getAddress('user') })
+      mockIndexer.addName({
+        name: DOMAIN_TO_REGISTER,
+        owner: accounts.getAddress('user'),
+      })
     }
   })
 })

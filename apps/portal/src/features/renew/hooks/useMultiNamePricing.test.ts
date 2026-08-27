@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
-import {
-  getLatestRenewalExpiry,
-  getRenewalDurationSeconds,
-} from './useMultiNamePricing'
-
-const plainDate = (value: string) => Temporal.PlainDate.from(value)
+import { getLatestRenewalExpiry } from './useMultiNamePricing'
 
 describe('useMultiNamePricing pure helpers', () => {
   describe('getLatestRenewalExpiry', () => {
@@ -46,41 +40,6 @@ describe('useMultiNamePricing pure helpers', () => {
       ])
 
       expect(result).toBeNull()
-    })
-  })
-
-  describe('getRenewalDurationSeconds', () => {
-    it('converts years mode using CONTRACT_SECONDS_PER_YEAR', () => {
-      const result = getRenewalDurationSeconds({
-        spanType: 'years',
-        duration: 2,
-        baseDate: plainDate('2026-01-01'),
-      })
-
-      expect(result).toBe(2 * CONTRACT_SECONDS_PER_YEAR)
-    })
-
-    it('converts date mode using the provided target timestamp and base date', () => {
-      const result = getRenewalDurationSeconds({
-        spanType: 'date',
-        duration: new Date('2026-03-01T00:00:00.000Z').getTime(),
-        baseDate: plainDate('2026-01-01'),
-      })
-
-      // Jan 1 → Mar 1 2026 = 59 calendar days × 86400s (no +86399 offset —
-      // calendar-day arithmetic is exact, see getDurationFromPickerDate).
-      expect(result).toBe(59 * 86400)
-    })
-
-    it('throws for invalid date mode duration', () => {
-      expect(() =>
-        getRenewalDurationSeconds({
-          spanType: 'date',
-          duration: Number.NaN,
-          baseDate: plainDate('2026-01-01'),
-          dateModeReferenceDate: plainDate('2026-06-15'),
-        }),
-      ).toThrow('Date mode duration must be a valid timestamp')
     })
   })
 })

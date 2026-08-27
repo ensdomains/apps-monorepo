@@ -1,46 +1,42 @@
 'use client'
 
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { type Address, erc20Abi, formatUnits } from 'viem'
 import { getBalance, readContract } from 'viem/actions'
-import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
+import { sepolia } from 'viem/chains'
 import { publicClient } from '@/lib/wagmi'
-import { backendClient } from '@/utils/backend-client'
 import type { EthBalance, StablecoinBalance } from './types'
 
 /**
- * The stablecoins to read balances for, keyed by symbol → address. The api-worker
- * faucet is the source of truth: it mints whatever `/wallet/tokens` reports, so
- * reading those same addresses guarantees the UI can never drift from the faucet
- * (which happens when the deployed worker and the app are built against
- * different ensjs token-address pins). Falls back to the app's local
- * `SUPPORTED_TOKENS` if the endpoint is unavailable (e.g. an older worker
- * deployment that predates `/wallet/tokens`).
+ * The token the standalone-HCA route is paid in — the manifest's funding token,
+ * which is what the funding permit actually debits.
+ *
+ * Exported so the affordability gates can match balances against the SAME
+ * address this list is built from. They must not resolve the token
+ * independently: a lookup keyed on a different USDC would silently find nothing
+ * and read as "no balance" rather than failing loudly. Since #1037 the manifest
+ * token and `SUPPORTED_TOKENS.USDC` are both ensjs MockUSDC, but that equality
+ * is a deployment fact, not a guarantee — share the constant instead of
+ * relying on it.
  */
-function useFaucetTokens(): Record<string, Address> {
-  const { data } = useQuery({
-    queryKey: $qk({ $scope: 'wallet', $action: 'faucetTokens' }),
-    queryFn: async () => {
-      const response = await backendClient.wallet.tokens.$get()
-      if (!response.ok) {
-        throw new Error(`${response.status} ${response.statusText}`)
-      }
-      const { tokens } = await response.json()
-      return Object.fromEntries(
-        Object.entries(tokens).map(([symbol, t]) => [symbol, t.address]),
-      ) as Record<string, Address>
-    },
-    // Token addresses are effectively static for a given deployment.
-    staleTime: Number.POSITIVE_INFINITY,
-    gcTime: Number.POSITIVE_INFINITY,
-    retry: 1,
-  })
+export const HCA_PAYMENT_TOKEN: Address = getDestinationContracts(
+  sepolia.id,
+).usdc
 
-  // Until the faucet token list loads (or if it fails), fall back to the app's
-  // compiled-in addresses so balances still render.
-  return data ?? SUPPORTED_TOKENS
+/**
+ * The stablecoins to read balances for, keyed by symbol → address.
+ *
+ * Standalone-HCA path: the only supported payment token is the manifest funding
+ * token (the HCA validator's PAYMENT_TOKEN / SECONDARY_PAYMENT_TOKEN). The old
+ * mock-token faucet set (`/wallet/tokens` → MockUSDC/MockDAI) is not used —
+ * registrations pay in that one token, so it is the only balance the picker and
+ * low-balance checks care about.
+ */
+const HCA_BALANCE_TOKENS: Record<string, Address> = {
+  USDC: HCA_PAYMENT_TOKEN,
 }
 
 interface UseSmartAccountBalancesParams {
@@ -67,8 +63,6 @@ export function useSmartAccountBalances(
   const { accountAddress, ownerAddress } = params
 
   // Read balances against the exact tokens the faucet mints (see useFaucetTokens).
-  const faucetTokens = useFaucetTokens()
-
   const { data: smartAccountEthBalance, isLoading: isLoadingSmartAccountEth } =
     useQuery({
       queryKey: $qk({
@@ -106,15 +100,14 @@ export function useSmartAccountBalances(
       $scope: 'wallet',
       $action: 'stablecoinBalances',
       address: balanceAddress,
-      // Refetch if the faucet token set resolves/changes after the first read.
-      tokens: Object.values(faucetTokens).join(','),
+      tokens: Object.values(HCA_BALANCE_TOKENS).join(','),
     }),
     queryFn: async () => {
       logger.info('🔍 [CONTEXT] Fetching balances for:', balanceAddress)
       if (!balanceAddress) return []
 
       const results = await Promise.allSettled(
-        Object.entries(faucetTokens).map(
+        Object.entries(HCA_BALANCE_TOKENS).map(
           async ([tokenName, tokenAddress]): Promise<StablecoinBalance> => {
             const [balance, decimals] = await Promise.all([
               readContract(publicClient, {

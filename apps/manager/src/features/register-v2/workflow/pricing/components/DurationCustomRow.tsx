@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import {
   addMonths,
   addSeconds,
@@ -6,7 +7,7 @@ import {
   format,
   startOfDay,
 } from 'date-fns'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
@@ -15,8 +16,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import { getDurationExpiryDateForDisplay } from '@/features/register-v2/utils/time'
+import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import { cn } from '@/lib/utils'
 
 const getDurationFromSelectedDate = (date: Date, referenceDate: Date) =>
@@ -26,7 +27,7 @@ const getDurationFromSelectedDate = (date: Date, referenceDate: Date) =>
       86_400,
   )
 
-export const DurationCustomRow = ({
+export const DurationCustomRow = memo(function DurationCustomRow({
   selectedDuration,
   onDurationSet,
   isSelected,
@@ -39,7 +40,7 @@ export const DurationCustomRow = ({
   type: 'register' | 'renew'
   /** Registration: defaults to start of today. Renewal: pass current on-chain expiry (same as PricingSummaryCard). */
   referenceDate?: Date
-}) => {
+}) {
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
   const [defaultReferenceDate] = useState(() => {
     const value = new Date()
@@ -56,6 +57,20 @@ export const DurationCustomRow = ({
     referenceDate,
     MIN_REGISTER_DURATION_SECONDS,
   )
+
+  const selectMinimumDuration = () => {
+    const minDate = new Date(minSelectableDate)
+    minDate.setHours(0, 0, 0, 0)
+    onDurationSet(getDurationFromSelectedDate(minDate, referenceDate))
+  }
+
+  useHotkeySequence(['M', 'I', 'N'], selectMinimumDuration, {
+    enabled: isDatePopoverOpen,
+    ignoreInputs: true,
+    preventDefault: false,
+    stopPropagation: false,
+    timeout: 1000,
+  })
 
   return (
     <Popover onOpenChange={setIsDatePopoverOpen} open={isDatePopoverOpen}>
@@ -100,12 +115,6 @@ export const DurationCustomRow = ({
             return dateToCheck.getTime() < minDate.getTime()
           }}
           endMonth={addMonths(new Date(), 1200)}
-          minimumDate={minSelectableDate}
-          onMinimum={() => {
-            const minDate = new Date(minSelectableDate)
-            minDate.setHours(0, 0, 0, 0)
-            onDurationSet(getDurationFromSelectedDate(minDate, referenceDate))
-          }}
           onSelect={(date) => {
             if (!date) {
               return
@@ -114,10 +123,9 @@ export const DurationCustomRow = ({
             onDurationSet(getDurationFromSelectedDate(date, referenceDate))
           }}
           selected={expirationDate}
-          showMinimumButton
           startMonth={minSelectableDate}
         />
       </PopoverContent>
     </Popover>
   )
-}
+})

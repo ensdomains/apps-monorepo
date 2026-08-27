@@ -1,3 +1,4 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import {
   type SUPPORTED_TOKEN,
   TOKENS,
@@ -7,18 +8,29 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
-  type GetRegisterPriceErrorType as EnsGetRegisterPriceErrorType,
   type GetRenewPriceErrorType as EnsGetRenewPriceErrorType,
-  getRegisterPrice as ensGetRegisterPrice,
   getRenewPrice as ensGetRenewPrice,
 } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
+import { parseAbi } from 'viem'
+import { sepolia } from 'viem/chains'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 
 const ETH_REGISTRAR = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensEthRegistrar',
 })
+
+// Standalone-HCA registrar from the shared remediated deployment manifest + its
+// price getter. The displayed price
+// MUST come from the SAME registrar the HCA flow actually pays, in the SAME
+// token (Circle Sepolia USDC), so the quote the user sees matches what the
+// commit/reveal charges. The legacy ensjs `ensEthRegistrar` + mock USDC path
+// priced against a different contract and token.
+const HCA_CONTRACTS = getDestinationContracts(sepolia.id)
+const hcaRegistrarAbi = parseAbi([
+  'function getRegisterPrice(string label, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)',
+])
 
 // The contract computes the temporary premium from block.timestamp on every
 // call, so cart total / banner pill / chart `nowPoint` need to refetch to
@@ -28,17 +40,17 @@ const PRICING_REFETCH_INTERVAL_MS = 60_000
 export class GetRegisterPriceError extends TaggedError(
   'GetRegisterPriceError',
 )<{
-  readonly cause: EnsGetRegisterPriceErrorType
+  readonly cause: unknown
 }> {}
 
 export class MissingTokenError extends TaggedError('MissingTokenError')<
   Record<string, never>
 > {}
 
-// ENSv2 `ETHRegistrar.getRegisterPrice` derives the temporary premium from
-// on-chain state (time since `expiry + GRACE_PERIOD`) and returns it
-// unconditionally — no caller-supplied owner is needed to opt into the
-// premium curve, unlike the v1 oracle.
+// Standalone-HCA `ETHRegistrar.getRegisterPrice` derives the temporary premium
+// from on-chain state (time since `expiry + GRACE_PERIOD`) and returns
+// `(base, premium)`. Priced in Circle USDC against the HCA registrar so the
+// displayed quote matches what the commit/reveal actually charges.
 export const getRegisterPrice = ResultFn(async function* (
   label: string,
   durationInSeconds: number,
@@ -48,15 +60,14 @@ export const getRegisterPrice = ResultFn(async function* (
     return err(new MissingTokenError({}))
   }
 
-  const tokenInfo = TOKENS[token]
-  const { base, premium } = yield* fromPromise(
-    ensGetRegisterPrice(publicClient, {
-      label,
-      duration: BigInt(Math.ceil(durationInSeconds)),
-      paymentToken: tokenInfo.address,
+  const [base, premium] = yield* fromPromise(
+    publicClient.readContract({
+      address: HCA_CONTRACTS.ethRegistrar,
+      abi: hcaRegistrarAbi,
+      functionName: 'getRegisterPrice',
+      args: [label, BigInt(Math.ceil(durationInSeconds)), HCA_CONTRACTS.usdc],
     }),
-    (e) =>
-      new GetRegisterPriceError({ cause: e as EnsGetRegisterPriceErrorType }),
+    (e) => new GetRegisterPriceError({ cause: e }),
   )
 
   return ok({

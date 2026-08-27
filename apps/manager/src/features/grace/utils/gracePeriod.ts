@@ -1,15 +1,21 @@
 import { match, P } from 'ts-pattern'
+import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 
 export const MS_PER_DAY = 24 * 60 * 60 * 1000
 export const GRACE_PERIOD_DAYS = 90
 export const V2_GRACE_PERIOD_DAYS = 28
 export const PROMINENT_RENEW_THRESHOLD_DAYS = 30
 
-const graceDaysFor = (isV2: boolean): number =>
-  isV2 ? V2_GRACE_PERIOD_DAYS : GRACE_PERIOD_DAYS
+// v1 and v2 registrars give different grace windows, so callers pass the
+// protocol the name resolved to rather than a boolean that is easy to get
+// backwards or to leave defaulted.
+const graceDaysFor = (protocol: RenewalProtocol): number =>
+  protocol === 'v2' ? V2_GRACE_PERIOD_DAYS : GRACE_PERIOD_DAYS
 
-export const getGraceEndDate = (expiryDate: Date, isV2: boolean): Date =>
-  new Date(expiryDate.getTime() + graceDaysFor(isV2) * MS_PER_DAY)
+export const getGraceEndDate = (
+  expiryDate: Date,
+  protocol: RenewalProtocol,
+): Date => new Date(expiryDate.getTime() + graceDaysFor(protocol) * MS_PER_DAY)
 
 const normalizeExpiryDate = (
   expiryDate: Date | null | undefined,
@@ -18,7 +24,7 @@ const normalizeExpiryDate = (
 
 export const isInGracePeriod = (
   expiryDate: Date | null | undefined,
-  isV2: boolean,
+  protocol: RenewalProtocol,
   now: Date = new Date(),
 ): boolean => {
   const date = normalizeExpiryDate(expiryDate)
@@ -28,7 +34,7 @@ export const isInGracePeriod = (
       (value) => now <= value,
       () => false,
     )
-    .otherwise((value) => now < getGraceEndDate(value, isV2))
+    .otherwise((value) => now < getGraceEndDate(value, protocol))
 }
 
 /** V2 .eth 2LD: renew allowed until grace ends (portal `isExtendable2LD` for ENSv2). */
@@ -43,20 +49,20 @@ export const isRenewableV2EthName = (
     .with(
       { date: P.not(P.nullish) },
       ({ date: value }) =>
-        getGraceEndDate(value, true).getTime() > now.getTime(),
+        getGraceEndDate(value, 'v2').getTime() > now.getTime(),
     )
     .otherwise(() => false)
 }
 
 export const isPastGracePeriod = (
   expiryDate: Date | null | undefined,
-  isV2: boolean,
+  protocol: RenewalProtocol,
   now: Date = new Date(),
 ): boolean => {
   const date = normalizeExpiryDate(expiryDate)
   return match(date)
     .with(P.nullish, () => false)
-    .otherwise((value) => now >= getGraceEndDate(value, isV2))
+    .otherwise((value) => now >= getGraceEndDate(value, protocol))
 }
 
 export const getDaysSinceExpiry = (
@@ -67,14 +73,14 @@ export const getDaysSinceExpiry = (
 
 export const shouldShowProminentRenew = (
   expiryDate: Date | null | undefined,
-  isV2: boolean,
+  protocol: RenewalProtocol,
   now: Date = new Date(),
 ): boolean => {
   const date = normalizeExpiryDate(expiryDate)
   return match(date)
     .with(P.nullish, () => false)
     .when(
-      (value) => isInGracePeriod(value, isV2, now),
+      (value) => isInGracePeriod(value, protocol, now),
       () => true,
     )
     .otherwise((value) => {
@@ -87,15 +93,15 @@ export const shouldShowProminentRenew = (
 
 export const getDisplayExpiryDate = (
   expiryDate: Date | null | undefined,
-  isV2: boolean,
+  protocol: RenewalProtocol,
   now: Date = new Date(),
 ): Date | null => {
   const date = normalizeExpiryDate(expiryDate)
   return match(date)
     .with(P.nullish, () => null)
     .when(
-      (value) => isInGracePeriod(value, isV2, now),
-      (value) => getGraceEndDate(value, isV2),
+      (value) => isInGracePeriod(value, protocol, now),
+      (value) => getGraceEndDate(value, protocol),
     )
     .otherwise((value) => value)
 }
@@ -111,18 +117,18 @@ export type NameExpiryStatus = {
 
 export const getNameExpiryStatus = (
   expiryDate: Date | null | undefined,
-  isV2: boolean,
+  protocol: RenewalProtocol,
   now: Date = new Date(),
 ): NameExpiryStatus => {
   const date = normalizeExpiryDate(expiryDate)
-  const inGrace = date ? isInGracePeriod(date, isV2, now) : false
+  const inGrace = date ? isInGracePeriod(date, protocol, now) : false
 
   return {
     expiryDate: date,
     isInGrace: inGrace,
-    graceEndDate: date && inGrace ? getGraceEndDate(date, isV2) : null,
+    graceEndDate: date && inGrace ? getGraceEndDate(date, protocol) : null,
     daysSinceExpiry: date && inGrace ? getDaysSinceExpiry(date, now) : null,
-    displayExpiryDate: getDisplayExpiryDate(date, isV2, now),
-    isPastGrace: isPastGracePeriod(date, isV2, now),
+    displayExpiryDate: getDisplayExpiryDate(date, protocol, now),
+    isPastGrace: isPastGracePeriod(date, protocol, now),
   }
 }

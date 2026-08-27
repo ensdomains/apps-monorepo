@@ -17,8 +17,7 @@ import {
 import {
   getNamePricingQueryOptions,
   getSearchNameQueryOptions,
-} from '@/features/register/services/checkNameAvailabilityService'
-import { isFeatureEnabled } from '@/utils/feature-flags'
+} from '@/features/shared/service/checkNameAvailabilityService'
 import { tw } from '@/utils/tailwind'
 import { recordNameSearch } from './recordNameSearch'
 import { searchHistoryStore } from './useSearchHistory'
@@ -30,18 +29,10 @@ const LINK_OPTIONS = {
       params: { name },
     }),
   register: (name: string) =>
-    isFeatureEnabled('REGISTRATION_V2')
-      ? linkOptions({
-          to: '/register/$name',
-          params: { name },
-        })
-      : linkOptions({
-          to: '/register',
-          search: {
-            name,
-          },
-          reloadDocument: location.pathname === '/register',
-        }),
+    linkOptions({
+      to: '/register/$name',
+      params: { name },
+    }),
 } as const
 
 type NameSuggestionItemProps = {

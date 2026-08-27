@@ -18,7 +18,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
+import { PageHeading } from '@/components/PageHeading'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,7 +35,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
 import {
   getResolverOverviewQueryOptions,
@@ -125,7 +124,6 @@ function RouteComponent() {
   const [globalFilter, setGlobalFilter] = useState('')
   const [selectedNode, setSelectedNode] = useState<ResolverNode | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [tableView] = useTableViewSettings()
 
   const {
     data: resolver,
@@ -172,7 +170,9 @@ function RouteComponent() {
   if (nodes.length === 0)
     return (
       <div className="flex flex-col gap-8">
-        <h1 className="text-h2 md:text-h1">Nodes</h1>
+        <PageHeading parent={{ type: 'resolver', address: address as Address }}>
+          Nodes
+        </PageHeading>
         <NoResultsMessage
           title="No nodes yet"
           description="Names that resolve through this resolver will appear here."
@@ -183,7 +183,9 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-h2 md:text-h1">Nodes</h1>
+      <PageHeading parent={{ type: 'resolver', address: address as Address }}>
+        Nodes
+      </PageHeading>
 
       <InputGroup className="bg-background rounded-sm">
         <InputGroupAddon>
@@ -279,17 +281,11 @@ function RouteComponent() {
             <TableBody>
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className={stripedRowClassName(tableView.strippedRows)}
-                  >
+                  <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}
-                        className={cn(
-                          'px-6',
-                          tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
-                        )}
+                        className={cn('px-6', 'h-10 py-0')}
                       >
                         {flexRender(
                           cell.column.columnDef.cell,

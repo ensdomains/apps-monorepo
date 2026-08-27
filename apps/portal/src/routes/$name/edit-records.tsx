@@ -10,6 +10,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -23,6 +24,7 @@ import { EditRecordsTable } from '@/features/records/components/EditRecordsTable
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
 import { prepareSaveRecordsTransaction } from '@/features/records/helpers/saveRecords'
 import { transformPendingChangesToSetRecords } from '@/features/records/helpers/transformPendingChanges'
+import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsState'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
@@ -71,9 +73,13 @@ function EditRecordsPage() {
   // Get resolver address from the correct registry (V1 or V2)
   const { data: resolverAddress, isLoading: isResolverLoading } =
     useNameResolverAddress({ name })
+  const { canEdit, isLoading: isCanEditLoading } = useCanEditRecords({ name })
 
   const isLoading =
-    profileQuery.isLoading || ownerQuery.isLoading || isResolverLoading
+    profileQuery.isLoading ||
+    ownerQuery.isLoading ||
+    isResolverLoading ||
+    isCanEditLoading
 
   if (isLoading) return <LoadingMessage />
 
@@ -98,7 +104,7 @@ function EditRecordsPage() {
   if (!profileQuery.data) {
     return (
       <div className="flex flex-col gap-8">
-        <h1 className="text-h1">Edit records</h1>
+        <PageHeading parent={{ type: 'name', name }}>Edit records</PageHeading>
         <NoResultsMessage
           title="No records yet"
           description="This name doesn't have any records set. Records will appear here once they're configured."
@@ -135,11 +141,7 @@ function EditRecordsPage() {
     )
   }
 
-  // Check if connected address is the owner
-  const isOwner =
-    connectedAddress.toLowerCase() === ownerQuery.data.owner.toLowerCase()
-
-  if (!isOwner) {
+  if (!canEdit) {
     return (
       <div className="container mx-auto max-w-4xl px-4 py-8">
         <div className="flex items-center gap-2 mb-6">
@@ -153,11 +155,8 @@ function EditRecordsPage() {
           description={
             <>
               You don't have permission to edit records for{' '}
-              <strong>{name}</strong>. Only the owner (
-              <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">
-                {ownerQuery.data.owner}
-              </code>
-              ) can edit records.
+              <strong>{name}</strong>. Record edits require the relevant
+              resolver roles (or ownership on a non-permissioned resolver).
             </>
           }
         />
@@ -364,7 +363,9 @@ const EditRecordsContent = ({
             Back to View
           </Button>
         </Link>
-        <h1 className="text-h1 mb-6">Edit records</h1>
+        <PageHeading parent={{ type: 'name', name }} className="mb-6">
+          Edit records
+        </PageHeading>
 
         {/* Add Record Form */}
         <div className="flex flex-col sm:flex-row gap-3">

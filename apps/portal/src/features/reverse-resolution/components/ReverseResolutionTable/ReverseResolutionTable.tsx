@@ -15,20 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  type TableViewSettings,
-  useTableViewSettings,
-} from '@/features/profile/hooks/useTableViewSettings'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 import { columns } from './columns'
 import { ReverseResolutionSidebar } from './ReverseResolutionSidebar'
 
 export const ReverseResolutionTable = ({
-  defaultTableSettings,
   table,
   address,
 }: {
-  defaultTableSettings?: TableViewSettings
   table: TableData<ReverseResolutionResult>
   address: Address
 }) => {
@@ -38,8 +32,6 @@ export const ReverseResolutionTable = ({
   const [selectedCoinType, setSelectedCoinType] = useState<number | null>(null)
 
   const [open, setOpen] = useState(false)
-
-  const [tableView] = useTableViewSettings(defaultTableSettings)
 
   const { address: account } = useConnection()
 
@@ -107,7 +99,7 @@ export const ReverseResolutionTable = ({
                 <SidebarTriggerRow
                   key={row.id}
                   showMoreButton={canModify}
-                  {...{ row, tableView, setOpen, setClickedRow, open }}
+                  {...{ row, setOpen, setClickedRow, open }}
                 />
               ))
           ) : (

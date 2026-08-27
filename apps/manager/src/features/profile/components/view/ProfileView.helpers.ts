@@ -11,10 +11,14 @@ import type {
   TextRecordValue,
 } from '@/features/profile/types'
 import { safeHttpHref } from '@/features/profile/utils/safeUrl'
-import { parsePrimaryContactKeys } from '../dialogs/edit-profile/tabs/contact/records'
+import { getPrimarySocialContactKeys } from '../dialogs/edit-profile/tabs/contact/records'
 
 const ETH_COIN_TYPE = 60
 const DOMAIN_LIKE_URL = /^[\w.-]+\.[a-z]{2,}(?:[/#?].*)?$/i
+const PROFILE_HEADER_ONLY_RECORD_KEYS: ReadonlySet<string> = new Set([
+  'location',
+  'timezone',
+])
 const COMPACT_MONTH_LABELS = [
   'JAN',
   'FEB',
@@ -139,17 +143,17 @@ export const getSafeProfileLinks = (
     return href ? [{ ...link, href, displayHost: getDisplayHost(href) }] : []
   })
 
-const getRecordFromRecords = (
-  records: ProfileRecords,
+const getRecordByKey = (
+  records: readonly TextRecordValue[],
   key: string,
 ): TextRecordValue | undefined =>
-  [...records.contact, ...records.social].find(
-    (record) => record.key === key && record.value.trim() !== '',
-  )
+  records.find((record) => record.key === key && record.value.trim() !== '')
 
 const toContactItem = (
   record: TextRecordValue,
 ): ProfileContactItem | undefined => {
+  if (PROFILE_HEADER_ONLY_RECORD_KEYS.has(record.key)) return undefined
+
   const recordDef = getRecordDef(record.key)
   const displayValue = getRecordDisplayValue(recordDef, record.value)
 
@@ -167,30 +171,36 @@ const toContactItem = (
   }
 }
 
-export const getPrimaryContactItems = (
+export const getContactItems = (
   records: ProfileRecords,
-  limit = 3,
-): ProfileContactItem[] => {
-  const primaryContactItems = parsePrimaryContactKeys(records.base).flatMap(
-    (key) => {
-      const record = getRecordFromRecords(records, key)
-      if (!record) return []
+): ProfileContactItem[] =>
+  records.contact.flatMap((record) => {
+    const item = toContactItem(record)
+    return item ? [item] : []
+  })
 
-      const item = toContactItem(record)
-      return item ? [item] : []
-    },
+export const getFeaturedSocialItems = (
+  records: ProfileRecords,
+): ProfileContactItem[] =>
+  getPrimarySocialContactKeys(records.base).flatMap((key) => {
+    const record = getRecordByKey(records.social, key)
+    if (!record) return []
+
+    const item = toContactItem(record)
+    return item ? [item] : []
+  })
+
+export const getSecondarySocialRecords = (
+  records: ProfileRecords,
+): TextRecordValue[] => {
+  const primaryContactKeys = new Set<string>(
+    getPrimarySocialContactKeys(records.base),
   )
 
-  if (primaryContactItems.length > 0) {
-    return primaryContactItems.slice(0, limit)
-  }
-
-  return [...records.contact, ...records.social]
-    .flatMap((record) => {
-      const item = toContactItem(record)
-      return item ? [item] : []
-    })
-    .slice(0, limit)
+  return records.social.filter(
+    (record) =>
+      record.value.trim() !== '' && !primaryContactKeys.has(record.key),
+  )
 }
 
 const toAddressItem = (

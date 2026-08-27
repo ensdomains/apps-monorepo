@@ -260,64 +260,65 @@ export const RegistryEditUserSheet = ({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="sm:max-w-3xl bg-background overflow-y-auto p-0"
-      >
-        <div className="p-6 flex flex-col gap-6 h-full">
-          <SheetHeader className="p-0 pt-4 flex flex-row items-center justify-between gap-4">
-            <SheetTitle className="font-sans text-h2">{titleLabel}</SheetTitle>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleRemove}
-              disabled={removableRoles.length === 0 || isPending}
-            >
-              <Trash2 className="size-4" />
-              Remove user
-            </Button>
-          </SheetHeader>
-
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-            <Field>
-              <RegistryRolePermissionList
-                selectedRoles={selectedRoles}
-                callerAdminRoles={callerAdminRoles}
-                onToggle={toggleRole}
-                disabled={isPending}
-                idPrefix="edit-"
-              />
-              {submitFeedback && (
-                <FieldError className="mt-1.5">{submitFeedback}</FieldError>
-              )}
-            </Field>
-
-            {willLockOutAdmin && (
-              <Alert variant="warning">
-                <AlertDescription>
-                  You're the only Admin for{' '}
-                  {lockoutCount === 1 ? 'this role' : 'these roles'}. Removing{' '}
-                  {lockoutCount === 1 ? 'it' : 'them'} will permanently lock out
-                  admin control.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex justify-end">
-              <Button type="submit" variant="default" disabled={!hasChanges}>
-                {match({ isPending })
-                  .with({ isPending: true }, () => 'Saving...')
-                  .otherwise(() => 'Save')}
+      <SheetContent side="right" className="bg-background p-0">
+        <div className="h-full overflow-y-auto">
+          <div className="p-6 flex flex-col gap-6 h-full">
+            <SheetHeader className="p-0 flex flex-row items-center justify-between gap-4">
+              <SheetTitle className="font-sans text-h2">
+                {titleLabel}
+              </SheetTitle>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRemove}
+                disabled={removableRoles.length === 0 || isPending}
+              >
+                <Trash2 className="size-4" />
+                Remove user
               </Button>
-            </div>
-          </form>
+            </SheetHeader>
 
-          <RegistryUserRoleHistory
-            registryAddress={registryAddress}
-            account={account}
-          />
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+              <Field>
+                <RegistryRolePermissionList
+                  selectedRoles={selectedRoles}
+                  callerAdminRoles={callerAdminRoles}
+                  onToggle={toggleRole}
+                  disabled={isPending}
+                  idPrefix="edit-"
+                />
+                {submitFeedback && (
+                  <FieldError className="mt-1.5">{submitFeedback}</FieldError>
+                )}
+              </Field>
 
-          <TransactionModal transactions={buildModalTransactions()} />
+              {willLockOutAdmin && (
+                <Alert variant="warning">
+                  <AlertDescription>
+                    You're the only Admin for{' '}
+                    {lockoutCount === 1 ? 'this role' : 'these roles'}. Removing{' '}
+                    {lockoutCount === 1 ? 'it' : 'them'} will permanently lock
+                    out admin control.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex justify-end">
+                <Button type="submit" variant="default" disabled={!hasChanges}>
+                  {match({ isPending })
+                    .with({ isPending: true }, () => 'Saving...')
+                    .otherwise(() => 'Save')}
+                </Button>
+              </div>
+            </form>
+
+            <RegistryUserRoleHistory
+              registryAddress={registryAddress}
+              account={account}
+            />
+
+            <TransactionModal transactions={buildModalTransactions()} />
+          </div>
         </div>
       </SheetContent>
 

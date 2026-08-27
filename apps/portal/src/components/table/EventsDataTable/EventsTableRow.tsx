@@ -1,9 +1,7 @@
 import { flexRender, type Row } from '@tanstack/react-table'
 import type { Address } from 'viem'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { TableCell, TableRow } from '@/components/ui/table'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 import { extractFromAddress } from '@/utils/events/extractFromAddress'
 import type { BaseEvent, EventsTableData } from './types'
@@ -13,16 +11,11 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
 }: {
   row: Row<EventsTableData<TEvent>>
 }) => {
-  const [tableView] = useTableViewSettings()
-
   return (
     <>
-      <TableRow className={stripedRowClassName(tableView.strippedRows)}>
+      <TableRow>
         {row.getVisibleCells().map((cell) => (
-          <TableCell
-            key={cell.id}
-            className={cn('px-6', tableView.compact ? 'h-8 py-1' : 'h-10 py-2')}
-          >
+          <TableCell key={cell.id} className={cn('px-6', 'h-10 py-1')}>
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </TableCell>
         ))}
@@ -35,10 +28,7 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
           const eventAddress = extractFromAddress(eventDetails)
           const fromAddress = eventAddress ?? row.original.from
 
-          const cellClassName = cn(
-            'px-6',
-            tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
-          )
+          const cellClassName = cn('px-6', 'h-10 py-1')
           const totalColumns = row.getVisibleCells().length
           const trailingColSpan = totalColumns - 4 // 2 leading + 1 event type + 1 address
 
@@ -46,7 +36,6 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
             <TableRow
               // biome-ignore lint/suspicious/noArrayIndexKey: multiple events can share an id within one transaction, so transactionID-event.id is not guaranteed unique; the index disambiguates same-id siblings
               key={`${row.original.transactionID}-${event.id}-${index}`}
-              className={stripedRowClassName(false)}
             >
               <TableCell colSpan={2} className={cellClassName} />
 

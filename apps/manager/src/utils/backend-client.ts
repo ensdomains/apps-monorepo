@@ -1,7 +1,7 @@
 import { createStore } from '@xstate/store-react'
 import type { AppRouter } from 'api-worker/hc'
 import { hc } from 'hono/client'
-import posthog from 'posthog-js'
+import posthog from 'posthog-js/dist/module.full.no-external'
 import { persist } from './xstate-store'
 
 const BACKEND_AUTH_STORAGE_KEY = '@manager-v4/backend_auth'

@@ -91,7 +91,7 @@ describe('SubnamesTable', () => {
       />,
     )
 
-    expect(screen.getByText('1 subname')).toBeInTheDocument()
+    expect(screen.getByText('Subnames (1)')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument()
   })
 

@@ -28,11 +28,11 @@ export const Route = createFileRoute('/migration')({
 
 function RouteComponent() {
   return (
-    <RequireConnectedWallet>
-      <MigrationUiProvider>
+    <MigrationUiProvider>
+      <RequireConnectedWallet>
         <MigrationPage />
-      </MigrationUiProvider>
-    </RequireConnectedWallet>
+      </RequireConnectedWallet>
+    </MigrationUiProvider>
   )
 }
 
@@ -40,7 +40,7 @@ const MigrationRouteLoading = () => {
   return (
     <div
       aria-label="Loading migration"
-      className="flex h-[calc(100dvh-80px)] min-h-0 w-full flex-1 items-center justify-center" // 80px is the md+ Manager header height.
+      className="flex min-h-0 w-full flex-1 items-center justify-center"
       role="status"
     >
       <div

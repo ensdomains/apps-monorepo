@@ -16,12 +16,14 @@ describe('buildProfileReplayCalls helpers', () => {
     expect(flattenProfileInnerCalls(new Map())).toEqual([])
     expect(
       flattenProfileInnerCalls(
-        new Map<Hex, Profile>([[NODE, { texts: [], addresses: [] }]]),
+        new Map<Hex, Profile>([
+          [NODE, { texts: [], addresses: [], contentHash: null, abis: [] }],
+        ]),
       ),
     ).toEqual([])
   })
 
-  it('flattens text + addr calls and wraps them in resolver.multicall(bytes[])', () => {
+  it('flattens every supported record and wraps them in resolver.multicall(bytes[])', () => {
     const profile: Profile = {
       texts: [{ key: 'email', value: 'a@b.c' }],
       addresses: [
@@ -30,11 +32,13 @@ describe('buildProfileReplayCalls helpers', () => {
           value: '0x0000000000000000000000000000000000000abc' as Hex,
         },
       ],
+      contentHash: '0xe301' as Hex,
+      abis: [{ contentType: 1n, value: '0x5b5d' as Hex }],
     }
     const innerCalls = flattenProfileInnerCalls(
       new Map<Hex, Profile>([[NODE, profile]]),
     )
-    expect(innerCalls).toHaveLength(2)
+    expect(innerCalls).toHaveLength(4)
 
     const call = wrapInnerCallsAsMulticall(RESOLVER, innerCalls)
     expect(call.to).toBe(RESOLVER)
@@ -47,8 +51,8 @@ describe('buildProfileReplayCalls helpers', () => {
     expect(functionName).toBe('multicall')
     const [wrappedInnerCalls] = args as [readonly Hex[]]
     expect(wrappedInnerCalls).toEqual(innerCalls)
-    const [firstInner, secondInner] = wrappedInnerCalls
-    assert(firstInner && secondInner)
+    const [firstInner, secondInner, thirdInner, fourthInner] = wrappedInnerCalls
+    assert(firstInner && secondInner && thirdInner && fourthInner)
 
     const setText = decodeFunctionData({
       abi: PERMISSIONED_RESOLVER_ABI,
@@ -63,5 +67,19 @@ describe('buildProfileReplayCalls helpers', () => {
     })
     expect(setAddr.functionName).toBe('setAddr')
     expect((setAddr.args as [Hex, bigint, Hex])[1]).toBe(60n)
+
+    const setContenthash = decodeFunctionData({
+      abi: PERMISSIONED_RESOLVER_ABI,
+      data: thirdInner,
+    })
+    expect(setContenthash.functionName).toBe('setContenthash')
+    expect((setContenthash.args as [Hex, Hex])[1]).toBe('0xe301')
+
+    const setAbi = decodeFunctionData({
+      abi: PERMISSIONED_RESOLVER_ABI,
+      data: fourthInner,
+    })
+    expect(setAbi.functionName).toBe('setABI')
+    expect((setAbi.args as [Hex, bigint, Hex]).slice(1)).toEqual([1n, '0x5b5d'])
   })
 })

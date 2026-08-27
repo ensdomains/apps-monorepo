@@ -8,6 +8,7 @@ import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { nameHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
@@ -40,6 +41,7 @@ import {
 } from '@/utils/ens/tldHelpers'
 import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
+import { validateNameLength } from '@/utils/token/nameValidation'
 
 type NameSearch = {
   readonly registered?: boolean
@@ -205,7 +207,15 @@ const Profile = ({
     if (availabilityQuery.data?.isAvailable) {
       // .eth names can be registered
       if (isRegistrable(name)) {
-        return <AvailableNameMessage name={name} />
+        const lengthError = validateNameLength(name)
+        return lengthError ? (
+          <InvalidNameMessage
+            title="Name too short"
+            description={lengthError}
+          />
+        ) : (
+          <AvailableNameMessage name={name} />
+        )
       }
       // Other valid TLD names - DNS import not available on ENSv2 yet
       if (isClaimable(name)) {
@@ -250,9 +260,7 @@ const Profile = ({
             canExtend={graceCanExtend}
           />
           <div className="flex flex-row justify-between items-center">
-            <h1 className="font-serif text-4xl font-medium leading-none">
-              {name}
-            </h1>
+            <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
             <ExtendNameButton name={name} protocolVersion="ENSv2" />
           </div>
         </div>
@@ -307,7 +315,12 @@ const Profile = ({
   }
 
   if (availabilityQuery.data?.isAvailable && isRegistrable(name)) {
-    return <AvailableNameMessage name={name} />
+    const lengthError = validateNameLength(name)
+    return lengthError ? (
+      <InvalidNameMessage title="Name too short" description={lengthError} />
+    ) : (
+      <AvailableNameMessage name={name} />
+    )
   }
 
   // Profile query error - but we have owner, so name exists
@@ -356,7 +369,7 @@ const Profile = ({
 
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
-        <h1 className="font-serif text-4xl font-medium leading-none">{name}</h1>
+        <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
         {resolvedProtocolVersion !== 'ENSv1' && (
           <ExtendNameButton
             name={name}
@@ -365,8 +378,8 @@ const Profile = ({
         )}
       </div>
 
-      {/* Main section: profile | metadata rows | counters */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_2fr] gap-3">
+      {/* Profile | metadata | counters at xl; counters wrap to their own row below that */}
+      <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(min-content,1fr)] xl:grid-cols-[240px_auto_300px] xl:justify-between gap-3">
         {/* Left: avatar + bio + socials */}
         <NameProfileCard name={name} stacked />
 
@@ -398,8 +411,8 @@ const Profile = ({
           />
         </div>
 
-        {/* Right: counter cards */}
-        <div className="flex flex-col gap-3 shrink-0">
+        {/* Counter cards */}
+        <div className="grid grid-cols-1 gap-3 content-start sm:grid-cols-3 lg:col-span-2 xl:col-span-1 xl:grid-cols-1">
           <SubnameCount name={name} protocolVersion={resolvedProtocolVersion} />
           <ProtocolVersionWithCounter
             name={name}

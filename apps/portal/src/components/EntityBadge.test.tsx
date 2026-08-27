@@ -268,7 +268,7 @@ describe('EntityBadge hover chips', () => {
   })
 })
 
-describe('CopyChip clipboard interaction', () => {
+describe('EntityActionCopy clipboard interaction', () => {
   let writeText: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
@@ -299,13 +299,16 @@ describe('CopyChip clipboard interaction', () => {
     })
 
     expect(writeText).toHaveBeenCalledWith('0xabc')
-    // Copied state: label is suppressed, only the check icon remains.
-    expect(button).not.toHaveTextContent('Copy')
+    // Copied state swaps the icon and keeps the label: chips whose label is the
+    // value itself (an address in a hover card) must not resize mid-copy.
+    expect(button).toHaveTextContent('Copy')
+    expect(button.querySelector('.lucide-check')).not.toBeNull()
 
     await act(async () => {
       vi.advanceTimersByTime(2000)
     })
 
     expect(button).toHaveTextContent('Copy')
+    expect(button.querySelector('.lucide-check')).toBeNull()
   })
 })

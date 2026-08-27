@@ -6,7 +6,7 @@ import { makeClassified } from './_fixtures'
 import { buildRoleGrantCall } from './buildRoleGrantCalls'
 
 const MANAGER: Address = '0x0000000000000000000000000000000000000099'
-const ROLE_SET_RESOLVER = 1n << 12n
+const ROLE_SET_RESOLVER = 1n << 24n
 
 describe('buildRoleGrantCall', () => {
   it('targets the v2 ETHRegistry with ROLE_SET_RESOLVER for the manager', () => {

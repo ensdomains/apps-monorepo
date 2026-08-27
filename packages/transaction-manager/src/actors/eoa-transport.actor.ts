@@ -1,7 +1,8 @@
 import { logger } from '@ens-apps/utils/logger'
-import type { ResultAsync } from 'neverthrow'
-import { type Hash, UserRejectedRequestError } from 'viem'
+import { errAsync, type ResultAsync } from 'neverthrow'
+import { type Hash, isAddressEqual, UserRejectedRequestError } from 'viem'
 import {
+  SignerAddressMismatchError,
   TransactionSubmissionError,
   TransactionUserRejectedError,
 } from '../errors/transaction.errors'
@@ -23,11 +24,28 @@ export function submitEOATransaction(input: {
   signer: EOASigner
 }): ResultAsync<
   Hash,
-  TransactionSubmissionError | TransactionUserRejectedError
+  | TransactionSubmissionError
+  | TransactionUserRejectedError
+  | SignerAddressMismatchError
 > {
   const { request, signer } = input
   const { walletClient } = signer
   const eoaRequest = request as EOATransactionRequest
+
+  // Verify the request's declared `from` matches the account the wallet will
+  // actually sign with. Viem signs for whatever `account` we pass, so a
+  // divergence would sign with one key while attributing the tx to another —
+  // fail closed before the wallet is ever prompted.
+  const walletAddress = walletClient.account?.address
+  if (!walletAddress || !isAddressEqual(walletAddress, eoaRequest.from)) {
+    logger.error('EOA transaction from/account mismatch', {
+      from: eoaRequest.from,
+      walletAccount: walletAddress,
+    })
+    return errAsync(
+      new SignerAddressMismatchError(eoaRequest.from, walletAddress),
+    )
+  }
 
   // Build transaction params - either legacy (gasPrice) or EIP-1559 (maxFeePerGas)
   // biome-ignore lint/suspicious/noExplicitAny: txParams is built dynamically with conditional gas fields, not expressible as a single static type

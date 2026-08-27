@@ -6,5 +6,8 @@
   "files": [
     "locales",
     "index.js"
-  ]
+  ],
+  "scripts": {
+    "lint": "biome check"
+  }
 }

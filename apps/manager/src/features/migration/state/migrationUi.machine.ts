@@ -1,13 +1,8 @@
 import type { Signer } from '@ens-apps/transaction-manager'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
-import type { Address, Hex, PublicClient } from 'viem'
-import {
-  type ActorRefFrom,
-  assign,
-  fromCallback,
-  type SnapshotFrom,
-  setup,
-} from 'xstate'
+import type { Hex, PublicClient } from 'viem'
+import { assign, fromCallback, type SnapshotFrom, setup } from 'xstate'
 import {
   adjustPlanForRetry,
   type MigrationPlan,
@@ -31,7 +26,9 @@ type Context = {
   selectedNames: string[]
   plan?: MigrationPlan
   signer?: Signer
-  accountAddress?: Address
+  hcaClient?: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
+  refreshAccount?: () => Promise<void>
+  reconcileBeforeSubmit: boolean
   migratedNames: string[]
   txHashes: readonly Hex[]
   progress?: MigrationProgress
@@ -45,13 +42,14 @@ type Events =
       type: 'migration.start'
       plan: MigrationPlan
       signer: Signer
-      accountAddress: Address
+      hcaClient: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
+      refreshAccount: () => Promise<void>
     }
   | { type: 'migration.progress'; progress: MigrationProgress }
   | {
       type: 'migration.batchComplete'
       names: readonly string[]
-      txHash: Hex
+      txHash?: Hex
     }
   | {
       type: 'migration.complete'
@@ -66,6 +64,7 @@ const initialContext = (wagmiConfig: WagmiConfig): Context => ({
   wagmiConfig,
   selectedNames: [],
   plan: undefined,
+  reconcileBeforeSubmit: false,
   migratedNames: [],
   txHashes: [],
   progress: undefined,
@@ -90,7 +89,9 @@ export const migrationUiMachine = setup({
         wagmiConfig: WagmiConfig
         plan: MigrationPlan
         signer: Signer
-        accountAddress: Address
+        hcaClient: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
+        refreshAccount: () => Promise<void>
+        reconcileBeforeSubmit: boolean
       }
     >(({ input, sendBack }) => {
       let cancelled = false
@@ -100,7 +101,7 @@ export const migrationUiMachine = setup({
         sendBack({ type: 'migration.progress', progress })
       }
 
-      const onBatchComplete = (names: readonly string[], txHash: Hex) => {
+      const onBatchComplete = (names: readonly string[], txHash?: Hex) => {
         if (cancelled) return
         sendBack({ type: 'migration.batchComplete', names, txHash })
       }
@@ -110,9 +111,11 @@ export const migrationUiMachine = setup({
         wagmiConfig: input.wagmiConfig,
         publicClient: defaultPublicClient as PublicClient,
         signer: input.signer,
-        accountAddress: input.accountAddress,
+        hcaClient: input.hcaClient,
+        refreshAccount: input.refreshAccount,
         onProgress,
         onBatchComplete,
+        reconcileBeforeSubmit: input.reconcileBeforeSubmit,
       })
         .then((result) => {
           if (cancelled) return
@@ -149,7 +152,9 @@ export const migrationUiMachine = setup({
       return {
         plan: event.plan,
         signer: event.signer,
-        accountAddress: event.accountAddress,
+        hcaClient: event.hcaClient,
+        refreshAccount: event.refreshAccount,
+        reconcileBeforeSubmit: false,
         stepDescriptors: event.plan.stepDescriptors,
         progress: undefined,
         lastError: undefined,
@@ -170,10 +175,11 @@ export const migrationUiMachine = setup({
           existing.add(name)
         }
       }
-      const existingHashes = new Set(context.txHashes)
-      const nextHashes = existingHashes.has(event.txHash)
-        ? context.txHashes
-        : [...context.txHashes, event.txHash]
+      const nextHashes = event.txHash
+        ? new Set(context.txHashes).has(event.txHash)
+          ? context.txHashes
+          : [...context.txHashes, event.txHash]
+        : context.txHashes
       return {
         migratedNames: nextNames,
         txHashes: nextHashes,
@@ -202,6 +208,7 @@ export const migrationUiMachine = setup({
         plan: nextPlan,
         stepDescriptors: nextPlan.stepDescriptors,
         selectedNames: context.selectedNames.filter((n) => !migratedSet.has(n)),
+        reconcileBeforeSubmit: true,
         lastError: undefined,
         progress: undefined,
       }
@@ -242,14 +249,21 @@ export const migrationUiMachine = setup({
             id: 'runMigration',
             src: 'runMigration',
             input: ({ context }) => {
-              if (!context.plan || !context.signer || !context.accountAddress) {
+              if (
+                !context.plan ||
+                !context.signer ||
+                !context.hcaClient ||
+                !context.refreshAccount
+              ) {
                 throw new Error('Migration context is incomplete')
               }
               return {
                 wagmiConfig: context.wagmiConfig,
                 plan: context.plan,
                 signer: context.signer,
-                accountAddress: context.accountAddress,
+                hcaClient: context.hcaClient,
+                refreshAccount: context.refreshAccount,
+                reconcileBeforeSubmit: context.reconcileBeforeSubmit,
               }
             },
           },
@@ -264,7 +278,6 @@ export const migrationUiMachine = setup({
               {
                 target: 'failing',
                 guard: 'isOnlyFailures',
-                actions: 'recordCompletion',
               },
               {
                 target: '#migrationUi.success',
@@ -310,5 +323,4 @@ export const migrationUiMachine = setup({
   },
 })
 
-export type MigrationUiActor = ActorRefFrom<typeof migrationUiMachine>
 export type MigrationUiSnapshot = SnapshotFrom<typeof migrationUiMachine>

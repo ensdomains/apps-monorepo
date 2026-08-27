@@ -1,4 +1,23 @@
-import type { TokenRequest } from '@rhinestone/sdk'
+import type { ChainSessionConfig, TokenRequest } from '@rhinestone/sdk'
+
+/**
+ * There is deliberately NO sponsorship knob on this type.
+ *
+ * Gas sponsorship does not exist on the standalone-HCA deployment: every
+ * intent is user-paid in USDC out of the HCA's own balance, funded by an
+ * EIP-2612 permit (see `signer.types.ts`). The SDK still takes a `sponsored`
+ * argument, so the warp transport passes the user-paid shape and nothing else
+ * — see `UNSPONSORED` there. Callers cannot opt in, and there is no flag that
+ * turns it on, because asking for a subsidy no relayer here offers fails late
+ * and unhelpfully.
+ */
+
+/**
+ * Per-session enable payload for `experimental_session` signing. Derived via
+ * indexed access — the SDK does not export it from its public surface.
+ */
+export type SessionEnableData = NonNullable<ChainSessionConfig['enableData']>
+
 import type {
   Address,
   Chain,
@@ -58,9 +77,35 @@ export interface RhinestoneIntentParams {
    * summaries/telemetry; see {@link getPrimaryCall}. Must be non-empty.
    */
   readonly calls: readonly Call[]
-  sponsored?: boolean
+  /** Fee asset the HCA pays from. Defaults to USDC in the transport. */
+  readonly feeAsset?: 'USDC'
+  /**
+   * Per-request session enable payload. Present ONLY on the request that
+   * carries the on-chain `enableSessionWithRefund` call (the first HCA
+   * action); omitted once the session is enabled. Requires a signer with a
+   * `session` — the transport rejects it otherwise.
+   */
+  readonly sessionEnableData?: SessionEnableData
   /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
   readonly tokenRequests?: readonly TokenRequest[]
+  /**
+   * Balances that will land DURING this intent and so are invisible to the
+   * orchestrator when it plans, keyed by chain then token.
+   *
+   * The planner credits only what it can already see, and refuses to quote when
+   * the account cannot cover the fee. The standalone-HCA route funds the HCA
+   * from the owner's `permit` + `transferFrom` *inside* the same batch, so
+   * without this declaration the inflow does not exist as far as planning is
+   * concerned and the intent is rejected with `NO_PLAN_AVAILABLE` whenever the
+   * HCA's standing balance sits below the quoted fee.
+   *
+   * Declare ONLY the incoming amount. Listing funds the account already holds
+   * double-counts them and inflates the quote's input amount — see
+   * https://docs.rhinestone.dev/intents/guides/getting-a-quote#auxiliary-funds
+   */
+  readonly auxiliaryFunds?: Readonly<
+    Record<number, Readonly<Record<Address, bigint>>>
+  >
 }
 
 /**

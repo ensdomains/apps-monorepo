@@ -16,8 +16,10 @@ pre-commit:
       stage_fixed: true
       priority: 2
 
-# Pre-push hook: Ensure all files pass Biome checks before pushing (warnings only)
+# Pre-push hook: Ensure all files pass Biome checks before pushing.
+# This gate is real — it blocks the push on lint/format errors so you find
+# out here instead of in CI. Use `git push --no-verify` to bypass.
 pre-push:
   commands:
     biome-ci:
-      run: pnpm biome ci --formatter-enabled=true --linter-enabled=true || true
+      run: pnpm biome ci --formatter-enabled=true --linter-enabled=true

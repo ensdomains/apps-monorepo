@@ -1,7 +1,6 @@
 import { useActiveTransactions } from '@ens-apps/transaction-manager'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
-import { useConnection } from 'wagmi'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
@@ -18,7 +17,6 @@ type TransactionModalProps = {
 }
 
 export const TransactionModal = ({ transactions }: TransactionModalProps) => {
-  const { address } = useConnection()
   const txState = useActiveTransactionState()
   const activeTransactionsMap = useActiveTransactions()
 
@@ -76,7 +74,6 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
         {match(transactionModalContentState)
           .with({ type: 'overview' }, () => (
             <TransactionsOverviewContent
-              address={address}
               transactions={transactions}
               txState={txState}
               activeTransactionsMap={activeTransactionsMap}

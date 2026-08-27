@@ -1,7 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { NamePricingData } from '../../hooks/useMultiNamePricing'
-import type { ExtensionSpanType } from '../ExtensionDurationOrExpiryPicker'
+import type { ExtensionSpan } from '../../utils/extensionDurationPicker'
 import { ExtensionDurationOrExpiryPicker } from '../ExtensionDurationOrExpiryPicker'
 import { MultiNamePricingFooter } from './MultiNamePricingFooter'
 import { MultiNameSummaryCard } from './MultiNameSummaryCard'
@@ -12,10 +12,8 @@ type MultiNameExtendSettingsProps = {
   readonly totalDiscount: number
   readonly allLoaded: boolean
   readonly latestExpiry: Date | null
-  readonly duration: number
-  readonly setDuration: (duration: number) => void
-  readonly spanType: ExtensionSpanType
-  readonly setSpanType: (type: ExtensionSpanType) => void
+  readonly span: ExtensionSpan
+  readonly setSpan: (span: ExtensionSpan) => void
   readonly onBack: () => void
   readonly onNext: () => void
 }
@@ -26,21 +24,17 @@ export const MultiNameExtendSettings = ({
   totalDiscount,
   allLoaded,
   latestExpiry,
-  duration,
-  setDuration,
-  spanType,
-  setSpanType,
+  span,
+  setSpan,
   onBack,
   onNext,
 }: MultiNameExtendSettingsProps) => {
   return (
     <div className="space-y-6 mt-2">
       <ExtensionDurationOrExpiryPicker
-        duration={duration}
-        setDuration={setDuration}
+        span={span}
+        setSpan={setSpan}
         expiryDate={latestExpiry}
-        spanType={spanType}
-        setSpanType={setSpanType}
       />
 
       <div className="border border-border rounded-lg overflow-hidden">

@@ -122,6 +122,20 @@ describe('classifyName — token type', () => {
     expect(n.resolverStrategy).toBe('to-owned-permres')
   })
 
+  it('moves the legacy Sepolia PublicResolver while preserving a separate manager', () => {
+    const manager = '0x0000000000000000000000000000000000000099'
+    const n = classified(
+      classify({
+        ownerId: manager,
+        resolverAddress: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
+      }),
+    )
+
+    expect(n.tokenType).toBe('unwrapped')
+    expect(n.resolverStrategy).toBe('to-owned-permres')
+    expect(n.managerAddress?.toLowerCase()).toBe(manager.toLowerCase())
+  })
+
   it.each([
     [
       'unlocked when wrapped and CANNOT_UNWRAP not burnt',
@@ -213,12 +227,12 @@ describe('classifyName — resolver strategy for locked', () => {
       'keep-v1' as const,
     ],
     [
-      'to-owned-permres when CANNOT_SET_RESOLVER burnt but no v1 resolver',
+      'keep-v1 when CANNOT_SET_RESOLVER burnt and the v1 resolver is empty',
       {
         fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_SET_RESOLVER,
         resolverAddress: null,
       },
-      'to-owned-permres' as const,
+      'keep-v1' as const,
     ],
     [
       'keep-v1 with custom v1 resolver even without CANNOT_SET_RESOLVER',

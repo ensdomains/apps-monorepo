@@ -8,7 +8,6 @@ import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import { useRegistrationSuccessRedirect } from '@/features/register/hooks/useRegistrationSuccessRedirect'
 import { useRegistrationTransactions } from '@/features/register/hooks/useRegistrationTransactions'
 import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
@@ -16,7 +15,6 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useConnectModal } from '@/features/wallet/ConnectModalProvider'
 import { usePreventUnload } from '@/hooks/usePreventUnload'
-import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import {
   validateNameLength,
   validateRegistrableEthName,
@@ -38,7 +36,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   const { openConnectModal } = useConnectModal()
   const { openModal } = useTransactionModal()
 
-  const { transactions, isRegistering, isSuccess, selectedToken, startFlow } =
+  const { transactions, isRegistering, isSuccess, paid, startFlow } =
     useRegistrationTransactions({ name, duration })
 
   const registrableEthError = validateRegistrableEthName(name)
@@ -56,22 +54,11 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     refetchInterval: isSuccess ? false : 5000,
   })
 
-  // Fetch the final price so we can pass the paid amount to the overview.
-  const { data: price, isError: isPriceError } = useQuery({
-    ...getRegistrationPriceQueryOptions({
-      name,
-      duration,
-      token: selectedToken ? SUPPORTED_TOKENS[selectedToken] : undefined,
-    }),
-    enabled: isSuccess && Boolean(name) && duration > 0,
-  })
-
   useRegistrationSuccessRedirect({
     name,
     durationSeconds: duration,
     isSuccess,
-    price,
-    isPriceError,
+    paid,
   })
 
   const isNameTaken =
@@ -179,6 +166,10 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
           />
           <RegisterNameCheckoutSummary name={name} duration={duration} />
           <PaymentTokenSection
+            // The section snapshots the selected token WITH its quote, and the
+            // quote is duration-keyed — remount on duration change so a stale
+            // (lower) quote can never be carried into the approval.
+            key={duration}
             name={name}
             duration={duration}
             onConfirm={handleConfirm}

@@ -14,7 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { AddressResolutionSidebar } from './AddressResolutionSidebar'
 import { columns } from './columns'
 import type { AddressResolutionRow } from './types'
@@ -29,7 +28,6 @@ export const AddressResolutionTable = ({
   resolverAddress: Address | undefined
 }) => {
   const [open, setOpen] = useState(false)
-  const [tableView] = useTableViewSettings()
 
   // Track the selected row by coin type (a stable id) rather than the Row
   // object, so the open sheet reflects refetched data instead of a stale
@@ -82,7 +80,7 @@ export const AddressResolutionTable = ({
               .rows.map((row) => (
                 <SidebarTriggerRow
                   key={row.id}
-                  {...{ row, tableView, setOpen, setClickedRow, open }}
+                  {...{ row, setOpen, setClickedRow, open }}
                 />
               ))
           ) : (

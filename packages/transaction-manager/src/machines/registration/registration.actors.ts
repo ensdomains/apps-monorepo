@@ -7,38 +7,36 @@
 import {
   ethRegistrarCommitmentsSnippet,
   ethRegistrarCommitSnippet,
+  ethRegistrarGetRegisterPriceSnippet,
   ethRegistrarMakeCommitmentSnippet,
   ethRegistrarRegisterSnippet,
   ethRegistrarRenewSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
-import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
+import type {
+  Address,
+  Hash,
+  Hex,
+  MulticallErrorType,
+  PublicClient,
+  TransactionReceipt,
+} from 'viem'
 import {
   bytesToHex,
-  concatHex,
   decodeEventLog,
-  encodeAbiParameters,
   encodeFunctionData,
   erc20Abi,
-  getCreate2Address,
   isAddressEqual,
   keccak256,
-  pad,
   parseAbi,
-  parseSignature,
   stringToBytes,
   zeroAddress,
 } from 'viem'
-import {
-  getBlock,
-  getEip712Domain,
-  multicall,
-  readContract,
-  signTypedData,
-} from 'viem/actions'
+import { getBlock, multicall, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
+import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 
 // `MIN_COMMITMENT_AGE` is an immutable on ETHRegistrar; ensjs-abi does not (yet)
 // expose a dedicated snippet for it.
@@ -49,7 +47,8 @@ const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
 import {
   ENS_SEPOLIA_CONTRACTS,
   REFERER_ADDRESS,
-  SUPPORTED_TOKENS,
+  type TOKEN_SYMBOL,
+  TOKENS,
 } from '../../contracts/ens-sepolia'
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
@@ -61,70 +60,27 @@ type CommitmentData = {
   secret: Hash
 }
 
+// `PermissionedResolver.initialize` takes a third `setters` argument — a
+// multicall batch of setter calls run at init time. We pass an empty array:
+// the proxy is deployed with no initial records, exactly as before.
+// See contracts-v2 `src/resolver/PermissionedResolver.sol`.
 const DEDICATED_RESOLVER_INIT_ABI = parseAbi([
-  'function initialize(address owner, uint256 bitmap)',
+  'function initialize(address owner, uint256 bitmap, bytes[] setters)',
 ])
 
 const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
 )
 
-const verifiableFactoryProxyLogicSnippet = parseAbi([
-  'function proxyLogic() view returns (address)',
-])
-
 /**
- * Counterfactually compute the dedicated-resolver proxy address that
- * `VerifiableFactory.deployProxy(impl, salt, data)` will deploy, WITHOUT waiting
- * for the deploy transaction to mine. This lets the rhinestone flow batch
- * resolver-deploy + commit into a single Intent (the commitment needs the
- * resolver address up front).
- *
- * Mirrors the on-chain derivation exactly (verified against live ProxyDeployed
- * events):
- *   outerSalt    = keccak256(abi.encode(deployer, userSalt))
- *   creationCode = 0x3d604d80600a3d3981f3363d3d373d3d3d363d73 ++ proxyLogic(20)
- *                  ++ 5af43d82803e903d91602b57fd5bf3 ++ outerSalt(32)
- *   address      = CREATE2(factory, outerSalt, keccak256(creationCode))
- *
- * `deployer` is the account that calls `deployProxy` — i.e. the rhinestone HCA
- * (the `from`/sender of the Intent), NOT the EOA owner.
- *
- * See verifiable-factory `VerifiableFactory.sol` / `CloneProxyBytecode.sol`.
+ * The ERC-20 amount to approve for a single EOA registration/renewal at
+ * `price`. Deliberately NOT unlimited: the registrar pulls the live rent price
+ * (no max-price arg), which can drift slightly between quote and execution; we
+ * add 10% headroom to absorb that while keeping the allowance tightly scoped.
+ * (Used only on the pure-EOA `approve` path — the HCA path funds via permit.)
  */
-export async function predictResolverAddress(input: {
-  publicClient: PublicClient
-  deployer: Address
-  salt: bigint
-}): Promise<Address> {
-  const factory = ENS_SEPOLIA_CONTRACTS.VerifiableFactory
-  const proxyLogic = (await readContract(input.publicClient, {
-    address: factory,
-    abi: verifiableFactoryProxyLogicSnippet,
-    functionName: 'proxyLogic',
-  })) as Address
-
-  const outerSalt = keccak256(
-    encodeAbiParameters(
-      [{ type: 'address' }, { type: 'uint256' }],
-      [input.deployer, input.salt],
-    ),
-  )
-
-  // EIP-1167 clone creation code with the salt appended (CREATION_CODE_LENGTH
-  // = 0x57 = 87 bytes): creation stub + runtime + 20-byte logic + 32-byte salt.
-  const creationCode = concatHex([
-    '0x3d604d80600a3d3981f3363d3d373d3d3d363d73',
-    proxyLogic,
-    '0x5af43d82803e903d91602b57fd5bf3',
-    pad(outerSalt, { size: 32 }),
-  ])
-
-  return getCreate2Address({
-    from: factory,
-    salt: outerSalt,
-    bytecodeHash: keccak256(creationCode),
-  })
+function authorizedPaymentAmount(price: bigint): bigint {
+  return price + price / 10n
 }
 
 // ============================================================================
@@ -144,7 +100,7 @@ function getResolverInitCalldata(ownerAddress: Address): Hex {
   return encodeFunctionData({
     abi: DEDICATED_RESOLVER_INIT_ABI,
     functionName: 'initialize',
-    args: [ownerAddress, DEDICATED_RESOLVER_ROLE_BITMAP],
+    args: [ownerAddress, DEDICATED_RESOLVER_ROLE_BITMAP, []],
   })
 }
 
@@ -250,19 +206,8 @@ function encodeTokenApprovalData(
 }
 
 /**
- * EIP-2612 permit interface. This is a standard ERC-20 extension, so the ABI is
- * identical regardless of the token implementation: `nonces`/`name` are read to
- * build the EIP-712 domain + message, and `permit` is the call that consumes
- * the owner's off-chain signature to set an allowance with no owner-sent tx.
- */
-const erc2612Snippet = parseAbi([
-  'function nonces(address owner) view returns (uint256)',
-  'function name() view returns (string)',
-  'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
-])
-
-/**
- * A signed EIP-2612 permit, ready to be encoded into a `permit(...)` call.
+ * A signed EIP-2612 permit (shared type, produced by the HCA funding-permit
+ * actor and consumed when encoding the `permit(...)` call).
  */
 export type PermitSignature = {
   owner: Address
@@ -272,45 +217,6 @@ export type PermitSignature = {
   v: number
   r: Hex
   s: Hex
-}
-
-// Validity window for a permit signature. Comfortably covers the commitment
-// cooldown (~60s) plus relayer latency. Permits are single-use (nonce-bound),
-// so a generous deadline is not a replay risk.
-const PERMIT_DEADLINE_SECONDS = 60 * 60
-
-/**
- * The token amount to authorize (via EIP-2612 permit or ERC-20 approve) for a
- * single registration at `price`.
- *
- * Deliberately NOT unlimited: the registrar pulls the live rent price (there is
- * no max-price arg on `register`), which can drift slightly from the displayed
- * `price` between quoting and on-chain execution (~60s+ after commit, computed
- * live). We add 10% headroom to absorb that drift while keeping the allowance
- * tightly scoped — a stale/compromised registrar allowance can never pull more
- * than ~one registration's worth.
- */
-export function authorizedPaymentAmount(price: bigint): bigint {
-  return price + price / 10n
-}
-
-/**
- * Encode an EIP-2612 `permit` call from a signed permit.
- */
-function encodePermitData(permit: PermitSignature): Hex {
-  return encodeFunctionData({
-    abi: erc2612Snippet,
-    functionName: 'permit',
-    args: [
-      permit.owner,
-      permit.spender,
-      permit.value,
-      permit.deadline,
-      permit.v,
-      permit.r,
-      permit.s,
-    ],
-  })
 }
 
 /** Shared `ETHRegistrar.register` call for submit + gas estimate. */
@@ -352,8 +258,8 @@ export function encodeRegisterCall({
 /**
  * Get payment token address
  */
-function getPaymentTokenAddress(token: 'USDC' | 'DAI'): Address {
-  return SUPPORTED_TOKENS[token]
+function getPaymentTokenAddress(token: TOKEN_SYMBOL): Address {
+  return TOKENS[token].address
 }
 
 export function getSignerAddress(signer: Signer): Address {
@@ -367,11 +273,8 @@ export function getSignerAddress(signer: Signer): Address {
   }
 
   if (signer.type === 'rhinestone') {
-    if (signer.config.accountAddress) {
-      return signer.config.accountAddress
-    }
-    // Fallback to SDK method
-    return signer.account.getAddress() as Address
+    // Delegate so the cached-address verification lives in one place.
+    return getSmartAccountAddress(signer)
   }
 
   signer satisfies never
@@ -394,9 +297,8 @@ export function createTransactionRequest(params: {
   from: Address
   chainId: number
   calls: Call[]
-  sponsored?: boolean
 }): TransactionRequest {
-  const { signer, from, chainId, calls, sponsored } = params
+  const { signer, from, chainId, calls } = params
 
   if (calls.length === 0) {
     throw new Error('createTransactionRequest requires at least one call')
@@ -426,10 +328,7 @@ export function createTransactionRequest(params: {
       type: 'rhinestone-intent',
       from,
       chainId,
-      rhinestoneParams: {
-        calls,
-        sponsored: sponsored ?? true,
-      },
+      rhinestoneParams: { calls },
     }
   }
 
@@ -449,7 +348,6 @@ export function submitResolverDeploymentActor(input: {
   owner: Address
   signer: import('../..').Signer
   publicClient: PublicClient
-  sponsored?: boolean
   id?: string
 }): ResultAsync<{ txId: string; salt: bigint }, Error> {
   return ResultAsync.fromSafePromise(
@@ -464,7 +362,6 @@ export function submitResolverDeploymentActor(input: {
         calls: [
           encodeDeployDedicatedResolverCall({ owner: input.owner, salt }),
         ],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(
@@ -506,7 +403,7 @@ export function encodeDeployDedicatedResolverCall(input: {
       abi: VERIFIABLE_FACTORY_ABI,
       functionName: 'deployProxy',
       args: [
-        ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+        ENS_SEPOLIA_CONTRACTS.PermissionedResolverImpl,
         input.salt,
         getResolverInitCalldata(input.owner),
       ],
@@ -546,7 +443,7 @@ export function generateCommitmentActor(input: {
   owner: Address
   duration: bigint
   publicClient: PublicClient
-  selectedToken: 'USDC' | 'DAI'
+  selectedToken: TOKEN_SYMBOL
   resolverAddress: Address
 }): ResultAsync<CommitmentData, Error> {
   const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
@@ -570,7 +467,6 @@ export function submitCommitmentActor(input: {
   name: string
   duration: bigint
   publicClient: PublicClient
-  sponsored?: boolean
   id?: string
 }): ResultAsync<string, Error> {
   const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
@@ -607,7 +503,6 @@ export function submitCommitmentActor(input: {
             value: 0n,
           },
         ],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(
@@ -631,125 +526,16 @@ export function submitCommitmentActor(input: {
 }
 
 /**
- * Rhinestone-only: deploy the dedicated resolver AND submit the ENS commitment
- * in a SINGLE sponsored Intent.
- *
- * The resolver address is counterfactually predicted (see
- * `predictResolverAddress`) so the commitment — which must bind to the resolver
- * — can be generated before the resolver is mined. Both calls go in one
- * `calls[]` bundle; if the HCA isn't deployed yet, the Rhinestone SDK deploys it
- * inline via the account's factory initCode on this first Intent. This collapses
- * the old three-Intent setup (resolver-deploy, HCA-deploy, commit) into one
- * signature.
- *
- * Returns the bundle `txId`, the predicted `resolverAddress`, and the generated
- * `commitment` so the machine can poll the Intent and later submit the matching
- * register call.
- */
-export function submitResolverAndCommitmentActor(input: {
-  name: string
-  owner: Address
-  resolverOwner: Address
-  duration: bigint
-  selectedToken: 'USDC' | 'DAI'
-  signer: import('../..').Signer
-  publicClient: PublicClient
-  sponsored?: boolean
-  id?: string
-}): ResultAsync<
-  { txId: string; resolverAddress: Address; commitment: CommitmentData },
-  Error
-> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-
-  return fromPromise(
-    (async () => {
-      // The HCA (Intent sender) is the deployer that calls `deployProxy`, so it
-      // must be the CREATE2 `deployer` used to predict the resolver address.
-      const accountAddress = getSignerAddress(input.signer)
-
-      const salt = generateResolverSalt(input.name)
-      const initCalldata = getResolverInitCalldata(input.resolverOwner)
-
-      const resolverAddress = await predictResolverAddress({
-        publicClient: input.publicClient,
-        deployer: accountAddress,
-        salt,
-      })
-
-      const deployCalldata = encodeFunctionData({
-        abi: VERIFIABLE_FACTORY_ABI,
-        functionName: 'deployProxy',
-        args: [ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl, salt, initCalldata],
-      })
-
-      // Commitment binds to the (predicted) resolver, the owner, and the price
-      // token — exactly what the later `register` call will use.
-      const commitmentResult = await generateCommitment(
-        input.publicClient,
-        input.name,
-        input.owner,
-        input.duration,
-        resolverAddress,
-        registrarAddress,
-      )
-      if (commitmentResult.isErr()) {
-        throw commitmentResult.error
-      }
-      const commitment = commitmentResult.value
-
-      const commitmentData = encodeCommitmentData(commitment.commitment)
-
-      const request = createTransactionRequest({
-        signer: input.signer,
-        from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
-        // One Intent, two calls: deploy the resolver, then commit. Order matters
-        // only for atomicity here (commit doesn't read the resolver on-chain),
-        // but keeping deploy first mirrors the standalone flow.
-        calls: [
-          {
-            to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
-            data: deployCalldata,
-            value: 0n,
-          },
-          {
-            to: registrarAddress,
-            data: commitmentData,
-            value: 0n,
-          },
-        ],
-        sponsored: input.sponsored ?? true,
-      })
-
-      const txId = transactionManager.startTransaction(
-        { type: 'custom', request },
-        input.signer,
-        {
-          id: input.id,
-          description: `Set up registration for ${input.name}.eth`,
-          publicClient: input.publicClient,
-          timeout: 120_000,
-        },
-      )
-
-      return { txId, resolverAddress, commitment }
-    })(),
-    (error) =>
-      error instanceof Error
-        ? error
-        : new Error(`Failed to submit resolver+commitment bundle: ${error}`),
-  )
-}
-
-/**
  * Read MIN_COMMITMENT_AGE from the registrar contract so the cooldown timer
  * matches the deployment (60s on the production v2 ETHRegistrar).
  */
 export function readMinCommitmentAgeActor(input: {
   publicClient: PublicClient
+  /** Override for the standalone-HCA registrar; defaults to the EOA deployment. */
+  registrarAddress?: Address
 }): ResultAsync<bigint, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const registrarAddress =
+    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   return fromPromise(
     readContract(input.publicClient, {
       address: registrarAddress,
@@ -768,24 +554,79 @@ export function readMinCommitmentAgeActor(input: {
 
 /**
  * Read the current ERC20 allowance the spender (registrar) has on the user's
- * payment token. Used to skip the approval step when the user already
- * approved enough.
+ * payment token. Used by the renewal flows, whose price comes from the renew
+ * quote; the registration machine uses `readPaymentAuthorizationActor` below,
+ * which pairs the allowance with the live register price.
  */
 export function readPaymentTokenAllowanceActor(input: {
   owner: Address
-  selectedToken: 'USDC' | 'DAI'
+  selectedToken: TOKEN_SYMBOL
   publicClient: PublicClient
+  /** Spender to read the allowance for. Defaults to the legacy registrar. */
+  registrarAddress?: Address
+  /** Payment token to read. Defaults to the legacy mock token for the symbol. */
+  paymentTokenAddress?: Address
 }): ResultAsync<bigint, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-  const tokenAddress = getPaymentTokenAddress(input.selectedToken)
+  const registrarAddress =
+    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const tokenAddress =
+    input.paymentTokenAddress ?? getPaymentTokenAddress(input.selectedToken)
   return fromPromise(
     readContract(input.publicClient, {
       address: tokenAddress,
       abi: erc20Abi,
       functionName: 'allowance',
       args: [input.owner, registrarAddress],
-    }) as Promise<bigint>,
+    }),
     (error) => error as Error,
+  )
+}
+
+/**
+ * Read, in one round-trip, the registrar's current allowance on the user's
+ * payment token and the live register price. The approval must be for the live
+ * price, never the UI quote: the quote was taken when the token was picked,
+ * while the registrar pulls the CURRENT price at settlement, so an approval
+ * for a stale (lower) quote makes register revert ERC20InsufficientAllowance.
+ */
+export function readPaymentAuthorizationActor(input: {
+  owner: Address
+  name: string
+  duration: bigint
+  selectedToken: TOKEN_SYMBOL
+  publicClient: PublicClient
+  /** Spender/pricer to read. Defaults to the legacy registrar. */
+  registrarAddress?: Address
+  /** Payment token to read. Defaults to the legacy mock token for the symbol. */
+  paymentTokenAddress?: Address
+}): ResultAsync<{ allowance: bigint; livePrice: bigint }, MulticallErrorType> {
+  const registrarAddress =
+    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const tokenAddress =
+    input.paymentTokenAddress ?? getPaymentTokenAddress(input.selectedToken)
+  const label = input.name.replace('.eth', '')
+  return fromPromise(
+    (async () => {
+      const [allowance, [base, premium]] = await multicall(input.publicClient, {
+        allowFailure: false,
+        contracts: [
+          {
+            address: tokenAddress,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [input.owner, registrarAddress],
+          },
+          {
+            address: registrarAddress,
+            abi: ethRegistrarGetRegisterPriceSnippet,
+            functionName: 'getRegisterPrice',
+            args: [label, input.duration, tokenAddress],
+          },
+        ],
+      })
+      return { allowance, livePrice: base + premium }
+    })(),
+    (error) => error as MulticallErrorType,
   )
 }
 
@@ -799,8 +640,11 @@ export function verifyRegistrationActor(input: {
   owner: Address
   resolverAddress: Address
   publicClient: PublicClient
+  /** Override for the standalone-HCA registrar; defaults to the EOA deployment. */
+  registrarAddress?: Address
 }): ResultAsync<{ verified: boolean }, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const registrarAddress =
+    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   const cleanName = input.name.replace('.eth', '')
   return fromPromise(
     (async () => {
@@ -859,8 +703,11 @@ export function verifyRegistrationActor(input: {
 export function validateCommitmentActor(input: {
   commitment: CommitmentData
   publicClient: PublicClient
+  /** Override for the standalone-HCA registrar; defaults to the EOA deployment. */
+  registrarAddress?: Address
 }): ResultAsync<void, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const registrarAddress =
+    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return fromPromise(
     (async () => {
@@ -975,19 +822,24 @@ export function validateCommitmentActor(input: {
  */
 export function submitApprovalActor(input: {
   tokenPrice: bigint
-  selectedToken: 'USDC' | 'DAI'
+  selectedToken: TOKEN_SYMBOL
   signer: import('../..').Signer
   publicClient: PublicClient
-  sponsored?: boolean
   id?: string
+  /** Spender to approve. Defaults to the legacy registrar. */
+  registrarAddress?: Address
+  /** Token to approve. Defaults to the legacy mock token for the symbol. */
+  paymentTokenAddress?: Address
 }): ResultAsync<string, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const registrarAddress =
+    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
 
-      const tokenAddress = getPaymentTokenAddress(input.selectedToken)
+      const tokenAddress =
+        input.paymentTokenAddress ?? getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
       const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
       console.log(
@@ -1011,7 +863,6 @@ export function submitApprovalActor(input: {
             value: 0n,
           },
         ],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(
@@ -1042,10 +893,9 @@ export function submitRegistrationActor(input: {
   commitment: CommitmentData
   signer: import('../..').Signer
   duration: bigint
-  selectedToken: 'USDC' | 'DAI'
+  selectedToken: TOKEN_SYMBOL
   owner: Address
   publicClient: PublicClient
-  sponsored?: boolean
   resolverAddress: Address
   id?: string
 }): ResultAsync<string, Error> {
@@ -1085,7 +935,6 @@ export function submitRegistrationActor(input: {
         from: accountAddress,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [registerCall],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(
@@ -1105,214 +954,6 @@ export function submitRegistrationActor(input: {
       return txId
     })(),
     (error) => error as Error,
-  )
-}
-
-/**
- * Produce an EIP-2612 permit signature authorizing the registrar to pull the
- * payment token from the name owner (the EOA).
- *
- * This is an OFF-CHAIN signature (gasless): the EOA never sends a transaction.
- * The on-chain `permit` call is executed later inside the sponsored Warp bundle
- * (see {@link submitPermitAndRegistrationActor}), so the owner needs no native
- * ETH. `permit` validates the signature against `owner` rather than
- * `msg.sender`, so the HCA can carry the EOA's permit in a sponsored intent and
- * it still sets `allowance[EOA][registrar]`.
- */
-export function signPermitActor(input: {
-  owner: Address
-  selectedToken: 'USDC' | 'DAI'
-  value: bigint
-  approvalSigner: import('../..').Signer
-  publicClient: PublicClient
-}): ResultAsync<PermitSignature, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-  const tokenAddress = getPaymentTokenAddress(input.selectedToken)
-
-  // Permit signatures are an EOA capability — the rhinestone HCA can't produce
-  // one. The name owner is always the EOA, so an EOA `approvalSigner` is
-  // required here.
-  if (input.approvalSigner.type !== 'eoa') {
-    return errAsync(
-      new Error('Permit signing requires an EOA signer (the name owner).'),
-    )
-  }
-
-  const walletClient = input.approvalSigner.walletClient
-  const account = walletClient.account
-  if (!account) {
-    return errAsync(new Error('EOA wallet client has no account connected'))
-  }
-  if (!isAddressEqual(account.address, input.owner)) {
-    return errAsync(
-      new Error(
-        `Permit signer ${account.address} does not match the token owner ${input.owner}`,
-      ),
-    )
-  }
-
-  return fromPromise(
-    (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
-
-      const nonce = (await readContract(input.publicClient, {
-        address: tokenAddress,
-        abi: erc2612Snippet,
-        functionName: 'nonces',
-        args: [input.owner],
-      })) as bigint
-
-      // Resolve the EIP-712 domain. Prefer ERC-5267 `eip712Domain()` (exact
-      // name + version straight from the token); fall back to `name()` with
-      // version "1" (the OpenZeppelin ERC20Permit default) for tokens that
-      // don't implement ERC-5267.
-      let domain: {
-        name: string
-        version: string
-        chainId: number
-        verifyingContract: Address
-      }
-      try {
-        const resolved = await getEip712Domain(input.publicClient, {
-          address: tokenAddress,
-        })
-        domain = {
-          name: resolved.domain.name ?? '',
-          version: resolved.domain.version ?? '1',
-          chainId: Number(resolved.domain.chainId ?? chainId),
-          verifyingContract:
-            (resolved.domain.verifyingContract as Address) ?? tokenAddress,
-        }
-      } catch {
-        const name = (await readContract(input.publicClient, {
-          address: tokenAddress,
-          abi: erc2612Snippet,
-          functionName: 'name',
-        })) as string
-        domain = {
-          name,
-          version: '1',
-          chainId,
-          verifyingContract: tokenAddress,
-        }
-      }
-
-      const deadline = BigInt(
-        Math.floor(Date.now() / 1000) + PERMIT_DEADLINE_SECONDS,
-      )
-
-      const signature = await signTypedData(walletClient, {
-        account,
-        domain,
-        types: {
-          Permit: [
-            { name: 'owner', type: 'address' },
-            { name: 'spender', type: 'address' },
-            { name: 'value', type: 'uint256' },
-            { name: 'nonce', type: 'uint256' },
-            { name: 'deadline', type: 'uint256' },
-          ],
-        },
-        primaryType: 'Permit',
-        message: {
-          owner: input.owner,
-          spender: registrarAddress,
-          value: input.value,
-          nonce,
-          deadline,
-        },
-      })
-
-      const { r, s, v, yParity } = parseSignature(signature)
-
-      return {
-        owner: input.owner,
-        spender: registrarAddress,
-        value: input.value,
-        deadline,
-        v: Number(v ?? BigInt(yParity + 27)),
-        r,
-        s,
-      } satisfies PermitSignature
-    })(),
-    (error) => {
-      console.error('❌ [REGISTRATION ACTOR] Permit signing failed:', error)
-      return error instanceof Error ? error : new Error(String(error))
-    },
-  )
-}
-
-/**
- * Submit permit + register as a single batched, Warp-sponsored Rhinestone
- * intent. Only valid for rhinestone signers — the two calls execute atomically
- * in order, so the allowance set by `permit` is visible to `register` in the
- * same tx. The EOA paid no gas and sent no tx; it only signed the permit.
- */
-export function submitPermitAndRegistrationActor(input: {
-  permit: PermitSignature
-  selectedToken: 'USDC' | 'DAI'
-  name: string
-  commitment: CommitmentData
-  signer: import('../..').Signer
-  duration: bigint
-  owner: Address
-  publicClient: PublicClient
-  sponsored?: boolean
-  resolverAddress: Address
-  id?: string
-}): ResultAsync<string, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-
-  return fromPromise(
-    (async () => {
-      const accountAddress = getSignerAddress(input.signer)
-
-      const paymentToken = getPaymentTokenAddress(input.selectedToken)
-      const normalizedPaymentToken = paymentToken.toLowerCase() as Address
-
-      await assertPaymentTokenSupported(
-        input.publicClient,
-        registrarAddress,
-        normalizedPaymentToken,
-      )
-
-      const permitData = encodePermitData(input.permit)
-
-      const registerCall = encodeRegisterCall({
-        name: input.name,
-        owner: input.owner,
-        secret: input.commitment.secret,
-        duration: input.duration,
-        paymentToken: normalizedPaymentToken,
-        resolverAddress: input.resolverAddress,
-      })
-
-      const request = createTransactionRequest({
-        signer: input.signer,
-        from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
-        calls: [
-          { to: normalizedPaymentToken, data: permitData, value: 0n },
-          registerCall,
-        ],
-        sponsored: input.sponsored ?? true,
-      })
-
-      const txId = transactionManager.startTransaction(
-        { type: 'custom', request },
-        input.signer,
-        {
-          id: input.id,
-          description: `Register ${input.name}.eth`,
-          publicClient: input.publicClient,
-          timeout: 120_000,
-        },
-      )
-
-      return txId
-    })(),
-    (error: unknown) =>
-      error instanceof Error ? error : new Error(String(error)),
   )
 }
 
@@ -1358,67 +999,6 @@ export function pollTransactionStatusActor(input: {
   )
 }
 
-/**
- * Ensure the HCA is deployed on-chain before routing transactions through it.
- *
- * For Rhinestone signers: checks `account.isDeployed(chain)` and, if the
- * HCA is not yet on-chain, submits a sponsored Intent that runs the factory
- * `createAccount(initData)` deploy. For EOA signers or already-deployed
- * HCAs this is a no-op.
- *
- * The HCA holds no funds — gas is paid by the Warp relayer; only the owner
- * signs the Intent mandate once. Safe to call multiple times.
- */
-export function ensureHcaDeployedActor(input: {
-  signer: Signer
-}): ResultAsync<void, Error> {
-  if (input.signer.type !== 'rhinestone') {
-    return ResultAsync.fromSafePromise(Promise.resolve())
-  }
-
-  const { account, config } = input.signer
-  const chain = config.chain
-
-  if (!chain) {
-    return errAsync(new Error('Rhinestone signer missing chain config'))
-  }
-
-  return fromPromise(
-    (async () => {
-      if (await account.isDeployed(chain)) {
-        return
-      }
-
-      console.log(
-        '🔧 [ENSURE HCA] HCA not deployed, deploying via sponsored Intent...',
-      )
-
-      const { factory, factoryData } = account.getInitData()
-
-      const prepared = await account.prepareTransaction({
-        chain,
-        sponsored: true,
-        calls: [
-          {
-            to: factory,
-            value: 0n,
-            data: factoryData,
-          },
-        ],
-      })
-      const signed = await account.signTransaction(prepared)
-      const result = await account.submitTransaction(signed)
-      await account.waitForExecution(result)
-
-      console.log('✅ [ENSURE HCA] HCA deployed successfully')
-    })(),
-    (error) => {
-      console.error('❌ [ENSURE HCA] HCA deployment failed:', error)
-      return error instanceof Error ? error : new Error(String(error))
-    },
-  )
-}
-
 // ============================================================================
 // Renewal Actor Functions
 // ============================================================================
@@ -1432,7 +1012,7 @@ export function ensureHcaDeployedActor(input: {
 // This is the same payer the `register` flow authorizes, so renewal reuses the
 // exact allowance machinery: read `allowance[EOA][registrar]`, and either skip
 // (already enough), sign a gasless EIP-2612 permit batched with `renew` in one
-// sponsored intent (rhinestone/HCA), or do a plain on-chain `approve` (EOA).
+// intent (rhinestone/HCA), or do a plain on-chain `approve` (EOA).
 
 /**
  * Encode `renew(label, duration, paymentToken, referrer)` calldata.
@@ -1459,25 +1039,33 @@ function encodeRenewData(
 export function submitRenewActor(input: {
   label: string
   duration: bigint
-  selectedToken: 'USDC' | 'DAI'
+  selectedToken: TOKEN_SYMBOL
   signer: import('../..').Signer
   publicClient: PublicClient
-  sponsored?: boolean
+  renewerAddress?: Address
   id?: string
 }): ResultAsync<string, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  // Renewal is NOT an HCA flow — it is a plain wallet transaction against the
+  // selected canonical renewer. V2 callers keep the ETHRegistrar default;
+  // unmigrated V1 names explicitly target ETHRenewerV1.
+  const chainId = input.publicClient.chain?.id ?? sepolia.id
+  const renewerAddress =
+    input.renewerAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return fromPromise(
     (async () => {
       const accountAddress = getSignerAddress(input.signer)
 
+      // The registrar only accepts its own PAYMENT_TOKEN /
+      // SECONDARY_PAYMENT_TOKEN; `assertPaymentTokenSupported` below rejects
+      // anything else (e.g. DAI) before we spend gas on it.
       const paymentToken = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues.
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
 
       await assertPaymentTokenSupported(
         input.publicClient,
-        registrarAddress,
+        renewerAddress,
         normalizedPaymentToken,
       )
 
@@ -1490,9 +1078,8 @@ export function submitRenewActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
-        calls: [{ to: registrarAddress, data: renewData, value: 0n }],
-        sponsored: input.sponsored ?? true,
+        chainId,
+        calls: [{ to: renewerAddress, data: renewData, value: 0n }],
       })
 
       const txId = transactionManager.startTransaction(
@@ -1501,156 +1088,6 @@ export function submitRenewActor(input: {
         {
           id: input.id,
           description: `Renew ${input.label}.eth`,
-          publicClient: input.publicClient,
-          timeout: 120_000,
-        },
-      )
-
-      return txId
-    })(),
-    (error) => (error instanceof Error ? error : new Error(String(error))),
-  )
-}
-
-/**
- * Submit `permit` + `renew` as a single batched, Warp-sponsored Rhinestone
- * intent (rhinestone signers only). The two calls execute atomically in order,
- * so the allowance set by `permit` is visible to `renew` in the same tx — which
- * is exactly what prevents the "insufficient allowance" simulation failure that
- * the previous two-separate-intents approach produced. The EOA pays no gas and
- * sends no tx; it only signs the off-chain permit.
- */
-export function submitPermitAndRenewActor(input: {
-  permit: PermitSignature
-  selectedToken: 'USDC' | 'DAI'
-  label: string
-  duration: bigint
-  signer: import('../..').Signer
-  publicClient: PublicClient
-  sponsored?: boolean
-  id?: string
-}): ResultAsync<string, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-
-  return fromPromise(
-    (async () => {
-      const accountAddress = getSignerAddress(input.signer)
-
-      const paymentToken = getPaymentTokenAddress(input.selectedToken)
-      const normalizedPaymentToken = paymentToken.toLowerCase() as Address
-
-      await assertPaymentTokenSupported(
-        input.publicClient,
-        registrarAddress,
-        normalizedPaymentToken,
-      )
-
-      const permitData = encodePermitData(input.permit)
-      const renewData = encodeRenewData(
-        input.label,
-        input.duration,
-        normalizedPaymentToken,
-      )
-
-      const request = createTransactionRequest({
-        signer: input.signer,
-        from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
-        calls: [
-          { to: normalizedPaymentToken, data: permitData, value: 0n },
-          { to: registrarAddress, data: renewData, value: 0n },
-        ],
-        sponsored: input.sponsored ?? true,
-      })
-
-      const txId = transactionManager.startTransaction(
-        { type: 'custom', request },
-        input.signer,
-        {
-          id: input.id,
-          description: `Renew ${input.label}.eth`,
-          publicClient: input.publicClient,
-          timeout: 120_000,
-        },
-      )
-
-      return txId
-    })(),
-    (error) => (error instanceof Error ? error : new Error(String(error))),
-  )
-}
-
-/**
- * Submit an entire batch of renewals as ONE transaction. All `renew` calls (and
- * the optional EIP-2612 `permit`, prepended so its allowance is visible to the
- * renewals in the same tx) execute atomically in order. This is what WEB-427
- * requires — a single transaction for the whole batch — and is only possible on
- * a smart-account signer, since multi-call intents are a smart-account feature
- * (`createTransactionRequest` rejects EOA batches).
- */
-export function submitBatchRenewActor(input: {
-  items: readonly { label: string; duration: bigint }[]
-  selectedToken: 'USDC' | 'DAI'
-  signer: import('../..').Signer
-  publicClient: PublicClient
-  permit?: PermitSignature
-  sponsored?: boolean
-  id?: string
-}): ResultAsync<string, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-
-  return fromPromise(
-    (async () => {
-      if (input.items.length === 0) {
-        throw new Error('submitBatchRenewActor requires at least one name')
-      }
-
-      const accountAddress = getSignerAddress(input.signer)
-
-      const paymentToken = getPaymentTokenAddress(input.selectedToken)
-      const normalizedPaymentToken = paymentToken.toLowerCase() as Address
-
-      await assertPaymentTokenSupported(
-        input.publicClient,
-        registrarAddress,
-        normalizedPaymentToken,
-      )
-
-      const renewCalls: Call[] = input.items.map((item) => ({
-        to: registrarAddress,
-        data: encodeRenewData(
-          item.label,
-          item.duration,
-          normalizedPaymentToken,
-        ),
-        value: 0n,
-      }))
-
-      const calls: Call[] = input.permit
-        ? [
-            {
-              to: normalizedPaymentToken,
-              data: encodePermitData(input.permit),
-              value: 0n,
-            },
-            ...renewCalls,
-          ]
-        : renewCalls
-
-      const request = createTransactionRequest({
-        signer: input.signer,
-        from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
-        calls,
-        sponsored: input.sponsored ?? true,
-      })
-
-      const txId = transactionManager.startTransaction(
-        { type: 'custom', request },
-        input.signer,
-        {
-          id: input.id,
-          description: `Renew ${input.items.length} names`,
           publicClient: input.publicClient,
           timeout: 120_000,
         },

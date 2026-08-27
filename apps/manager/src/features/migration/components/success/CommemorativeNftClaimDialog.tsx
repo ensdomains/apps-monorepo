@@ -6,7 +6,7 @@ import { MigrationSuccessDialog } from '../MigrationSuccessDialog'
 type CommemorativeNftClaimDialogProps = {
   readonly context: 'migration' | 'mint-later'
   readonly migratedNameCount?: number
-  readonly onClose: (profileName: string | undefined) => void
+  readonly onClose: () => void
   readonly onViewProfile: (profileName: string | undefined) => void
   readonly open: boolean
   readonly ownerAddress: Address | undefined
@@ -37,7 +37,8 @@ const OpenCommemorativeNftClaimDialog = ({
     <MigrationSuccessDialog
       canMint={flow.canMint}
       context={context}
-      onClose={() => onClose(flow.eligibility?.profileName)}
+      migratedNameCount={migratedNameCount}
+      onClose={onClose}
       onMint={() => void flow.mint()}
       onRetry={() => void flow.retry()}
       onRevealComplete={flow.completeReveal}

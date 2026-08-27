@@ -4,6 +4,7 @@
   "scripts": {
     "check": "biome check",
     "check:fix": "biome check --fix",
+    "knip": "LINGUI_CONFIG=apps/manager/lingui.config.ts knip",
     "prepare": "lefthook install",
     "test": "pnpm test:portal",
     "test:all": "pnpm -r test",
@@ -36,7 +37,8 @@
   "packageManager": "pnpm@10.27.0",
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
-    "knip": "^5.70.2",
+    "@vitest/coverage-v8": "catalog:",
+    "knip": "^6.32.2",
     "lefthook": "^2.1.6",
     "wrangler": "catalog:"
   },
@@ -55,7 +57,8 @@
     ],
     "patchedDependencies": {
       "xstate": "patches/xstate.patch",
-      "class-variance-authority": "patches/class-variance-authority.patch"
+      "class-variance-authority": "patches/class-variance-authority.patch",
+      "@rhinestone/sdk@1.8.0": "patches/@rhinestone%2Fsdk@1.8.0.patch"
     },
     "overrides": {
       "available-typed-arrays": "npm:@socketregistry/available-typed-arrays@^1",

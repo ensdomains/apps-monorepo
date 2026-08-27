@@ -10,6 +10,45 @@ export interface WaitForTransactionResult {
 }
 
 /**
+ * Wait only until a transaction has been submitted and has a hash. This lets
+ * callers persist retry metadata before receipt polling completes.
+ */
+export async function waitForTransactionHash(txId: string): Promise<Hash> {
+  const txActor = transactionManager.getTransaction(txId)
+
+  if (!txActor) {
+    throw new Error(`Transaction ${txId} not found`)
+  }
+
+  const snapshot = txActor.getSnapshot()
+  if (snapshot.context.hash) return snapshot.context.hash
+  if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
+    throw snapshot.context.error || new Error(`Transaction ${txId} failed`)
+  }
+
+  return new Promise<Hash>((resolve, reject) => {
+    const subscription = txActor.subscribe((nextSnapshot) => {
+      if (nextSnapshot.context.hash) {
+        subscription.unsubscribe()
+        resolve(nextSnapshot.context.hash)
+        return
+      }
+
+      if (
+        typeof nextSnapshot.value === 'object' &&
+        'error' in nextSnapshot.value
+      ) {
+        subscription.unsubscribe()
+        reject(
+          nextSnapshot.context.error ||
+            new Error(`Transaction ${txId} failed during submission`),
+        )
+      }
+    })
+  })
+}
+
+/**
  * Wait for a transaction to complete and return its result.
  *
  * This is a Promise wrapper that subscribes to a transaction actor
@@ -36,14 +75,16 @@ export async function waitForTransaction(
   }
 
   const snapshot = txActor.getSnapshot()
+  const completedHash =
+    snapshot.context.receipt?.transactionHash ?? snapshot.context.hash
 
   // Already complete?
   if (
     (snapshot.matches?.('success' as never) || snapshot.value === 'success') &&
-    snapshot.context.hash
+    completedHash
   ) {
     return {
-      hash: snapshot.context.hash,
+      hash: completedHash,
       receipt: snapshot.context.receipt,
     }
   }
@@ -56,14 +97,17 @@ export async function waitForTransaction(
   // Subscribe and wait
   return new Promise<WaitForTransactionResult>((resolve, reject) => {
     const subscription = txActor.subscribe((nextSnapshot) => {
+      const completedHash =
+        nextSnapshot.context.receipt?.transactionHash ??
+        nextSnapshot.context.hash
       if (
         (nextSnapshot.matches?.('success' as never) ||
           nextSnapshot.value === 'success') &&
-        nextSnapshot.context.hash
+        completedHash
       ) {
         subscription.unsubscribe()
         resolve({
-          hash: nextSnapshot.context.hash,
+          hash: completedHash,
           receipt: nextSnapshot.context.receipt,
         })
         return

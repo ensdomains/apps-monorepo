@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useState } from 'react'
+import { type CSSProperties, useCallback, useEffect, useState } from 'react'
 import type { DqaApi, DqaPageSummary } from '../types'
 import { PANEL } from './panelTheme'
 
@@ -16,7 +16,9 @@ export function DqaPagesList({ api, currentUrl }: DqaPagesListProps) {
   const [pages, setPages] = useState<DqaPageSummary[]>([])
   const [loading, setLoading] = useState(true)
 
-  const refresh = () => {
+  // useCallback so the identity only changes with `api`: the effect below
+  // depends on it, and it is also passed straight to the Refresh button.
+  const refresh = useCallback(() => {
     if (!api?.getPages) {
       setLoading(false)
       return
@@ -26,12 +28,11 @@ export function DqaPagesList({ api, currentUrl }: DqaPagesListProps) {
       setPages(list)
       setLoading(false)
     })
-  }
+  }, [api])
 
   useEffect(() => {
     refresh()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api])
+  }, [refresh])
 
   if (!api?.getPages) {
     return (

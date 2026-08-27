@@ -93,6 +93,7 @@ export const RegistrationDurationOrExpiryPicker = ({
               setDuration(getDurationInSecondsFromYears(years))
             }
             name={name}
+            baseDate={anchor}
           />
         ) : (
           <RegistrationExpiryDatePicker
@@ -105,6 +106,7 @@ export const RegistrationDurationOrExpiryPicker = ({
             }
             minDate={getMinExpiryDateForPicker(anchor)}
             maxDate={getMaxExpiryDateForPicker(anchor)}
+            baseDate={anchor}
             name={name}
           />
         )}

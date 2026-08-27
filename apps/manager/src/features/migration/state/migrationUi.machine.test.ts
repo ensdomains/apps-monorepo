@@ -1,4 +1,5 @@
-import type { Call, Signer } from '@ens-apps/transaction-manager'
+import type { Signer } from '@ens-apps/transaction-manager'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -32,7 +33,11 @@ const OWNER: Address = '0x0000000000000000000000000000000000000001'
 const SCA: Address = '0x0000000000000000000000000000000000000002'
 const SIGNER = {} as Signer
 const WAGMI = {} as WagmiConfig
-
+const HCA_CLIENT = {
+  getAddress: vi.fn(),
+  getInitData: vi.fn(),
+} as unknown as Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
+const REFRESH_ACCOUNT = vi.fn<() => Promise<void>>()
 const domain = (id: string): V1Domain =>
   ({
     id,
@@ -65,6 +70,8 @@ const makePlan = (
   domains: V1Domain[],
   overrides: Partial<MigrationPlan> = {},
 ): MigrationPlan => ({
+  hcaAddress: SCA,
+  hcaDeploymentRequired: false,
   migrationOwner: OWNER,
   domains,
   classified: domains.map(makeClassified),
@@ -79,24 +86,10 @@ const makePlan = (
   },
   ownedPermRes: null,
   profiles: new Map(),
-  migrateCalls: [
-    {
-      to: '0x0000000000000000000000000000000000000000',
-      data: '0x',
-      value: 0n,
-    } as Call,
-  ],
-  batches: [
-    {
-      index: 0,
-      names: domains.map((d) => d.name),
-      estimatedGas: 0n,
-    },
-  ],
-  roleGrantCalls: [],
-  profileReplayCalls: [],
+  atomicBatches: [],
   stepDescriptors: [],
   ...overrides,
+  directRoutes: overrides.directRoutes ?? new Map(),
 })
 
 const start = (domains: V1Domain[] = [domain('alice')]) => {
@@ -108,7 +101,8 @@ const start = (domains: V1Domain[] = [domain('alice')]) => {
     type: 'migration.start',
     plan: makePlan(domains),
     signer: SIGNER,
-    accountAddress: SCA,
+    hcaClient: HCA_CLIENT,
+    refreshAccount: REFRESH_ACCOUNT,
   })
   return actor
 }
@@ -124,6 +118,7 @@ const migrationResult = (
 
 beforeEach(() => {
   executeMigrationMock.mockReset()
+  REFRESH_ACCOUNT.mockReset()
   vi.useFakeTimers()
 })
 
@@ -159,7 +154,8 @@ describe('migrationUiMachine', () => {
         type: 'migration.start',
         plan: makePlan([], { classified: [] }),
         signer: SIGNER,
-        accountAddress: SCA,
+        hcaClient: HCA_CLIENT,
+        refreshAccount: REFRESH_ACCOUNT,
       })
       expect(actor.getSnapshot().value).toBe('select')
     })
@@ -172,6 +168,14 @@ describe('migrationUiMachine', () => {
       expect(actor.getSnapshot().value).toEqual({ migrate: 'running' })
       expect(actor.getSnapshot().context.plan?.domains).toHaveLength(1)
       expect(actor.getSnapshot().context.plan?.migrationOwner).toBe(OWNER)
+      expect(executeMigrationMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          signer: SIGNER,
+          hcaClient: HCA_CLIENT,
+          refreshAccount: REFRESH_ACCOUNT,
+          reconcileBeforeSubmit: false,
+        }),
+      )
     })
 
     it('records progress events into context', async () => {
@@ -226,6 +230,19 @@ describe('migrationUiMachine', () => {
         'c.eth',
         'd.eth',
       ])
+    })
+
+    it('records a reconciled batch when no transaction hash is available', async () => {
+      executeMigrationMock.mockImplementation(async (params) => {
+        params.onBatchComplete?.(['alice.eth'])
+        return migrationResult({ txHashes: [] })
+      })
+      const actor = start()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(actor.getSnapshot().value).toBe('success')
+      expect(actor.getSnapshot().context.migratedNames).toEqual(['alice.eth'])
+      expect(actor.getSnapshot().context.txHashes).toEqual([])
     })
 
     it('resetAll returns to select and wipes context on done', async () => {
@@ -283,7 +300,8 @@ describe('migrationUiMachine', () => {
         type: 'migration.start',
         plan: makePlan([domain('alice'), domain('bob')]),
         signer: SIGNER,
-        accountAddress: SCA,
+        hcaClient: HCA_CLIENT,
+        refreshAccount: REFRESH_ACCOUNT,
       })
 
       await vi.advanceTimersByTimeAsync(1500)
@@ -298,6 +316,22 @@ describe('migrationUiMachine', () => {
       expect(ctx.plan?.domains.map((d) => d.name)).toEqual(['bob.eth'])
       expect(ctx.lastError).toBeUndefined()
       expect(ctx.progress).toBeUndefined()
+    })
+
+    it('enables reconciliation mode for retries', async () => {
+      executeMigrationMock.mockRejectedValueOnce(new Error('boom'))
+      const actor = start()
+      await vi.advanceTimersByTimeAsync(1500)
+
+      executeMigrationMock.mockImplementation(() => new Promise(() => {}))
+      actor.send({ type: 'retry' })
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(executeMigrationMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          reconcileBeforeSubmit: true,
+        }),
+      )
     })
 
     it('cancel returns to select and wipes context', async () => {

@@ -5,6 +5,10 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import { GracePeriodFavoriteButton } from '@/features/grace/components/GracePeriodFavoriteButton'
 import { V2_GRACE_PERIOD_DAYS } from '@/features/grace/utils/gracePeriod'
+import {
+  getRenewalRoute,
+  type RenewalProtocol,
+} from '@/features/renew/utils/renewalProtocol'
 
 export type GracePeriodBannerVariant =
   | 'primaryExpired'
@@ -18,6 +22,7 @@ type GracePeriodBannerProps = {
   readonly renewName: string
   readonly daysSinceExpiry?: number | null
   readonly isV2?: boolean
+  readonly renewProtocol?: RenewalProtocol
   /** Storybook / previews: render Renew without TanStack Router */
   readonly previewRenew?: boolean
 }
@@ -81,6 +86,7 @@ export const GracePeriodBanner = ({
   renewName,
   daysSinceExpiry = null,
   isV2 = true,
+  renewProtocol = 'v2',
   previewRenew = false,
 }: GracePeriodBannerProps) => {
   const formattedGraceEnd = formatDashboardDate(graceEndDate)
@@ -123,7 +129,7 @@ export const GracePeriodBanner = ({
             <LinkButton
               className={gracePeriodActionClassName}
               params={{ name: renewName }}
-              to="/renew/$name"
+              to={getRenewalRoute(renewProtocol)}
               variant="outline"
             >
               <Trans>Renew</Trans>
