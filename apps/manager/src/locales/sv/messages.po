@@ -659,6 +659,14 @@ msgid "Copy to clipboard"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Couldn’t check this name’s resolver. Please try again in a moment."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Couldn’t load this name’s records. Please try again in a moment."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t read the wallet address for {name}"
 msgstr ""
 
@@ -2282,10 +2290,6 @@ msgstr "Sortera efter"
 msgid "Stables accepted"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-#~ msgid "Start a new profile for this name?"
-#~ msgstr ""
-
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
@@ -2475,14 +2479,6 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 msgstr ""
-
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-#~ msgid "This name still has profile details from a previous owner. Continuing clears them and keeps only the changes you save."
-#~ msgstr ""
-
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-#~ msgid "This name still has profile details from a previous owner. To use it as your primary name, we’ll clear those details and keep only your wallet address."
-#~ msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "This page can only verify your email when opened from the link in the verification email."
