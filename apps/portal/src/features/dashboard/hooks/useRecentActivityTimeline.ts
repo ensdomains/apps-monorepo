@@ -99,13 +99,16 @@ const getRecentActivityTimeline = ResultFn(async function* () {
   // still one block. Nothing there is provably complete — the block continues
   // past what we fetched — so the choice is a possibly-clipped feed or an empty
   // one, and an empty Recent Activity during the busiest block the protocol has
-  // ever had is the worse answer. Shows the newest transactions instead, of
-  // which at most the last is partial.
+  // ever had is the worse answer. Shows the newest transactions instead, and
+  // reports the feed as truncated so it isn't presented as the whole story.
   const trimmed = dropClippedBoundary(events, hasMore)
+  const complete = trimmed.length > 0 ? trimmed : events
+  const shown = truncateToTransactions(complete, EVENTS_LIMIT)
 
-  return ok(
-    truncateToTransactions(trimmed.length > 0 ? trimmed : events, EVENTS_LIMIT),
-  )
+  return ok({
+    events: shown,
+    hasMore: hasMore || shown.length < complete.length,
+  })
 })
 
 const getRecentActivityTimelineQueryKey = createQueryKey<

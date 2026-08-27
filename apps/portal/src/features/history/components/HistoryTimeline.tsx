@@ -37,6 +37,12 @@ interface HistoryTimelineViewProps {
   readonly action?: ReactNode
   /** Show the date / event-type chips and the truncation note. */
   readonly showFilters?: boolean
+  /**
+   * Disclose that the window is capped, independently of `showFilters`. For a
+   * section that has no "Full history" link to disclose through — the homepage
+   * feed — and so would otherwise present a truncated list as the whole story.
+   */
+  readonly showTruncationNote?: boolean
   readonly emptyTitle?: string
   readonly emptyDescription?: string
   /**
@@ -63,6 +69,7 @@ export const HistoryTimelineView = ({
   heading,
   action,
   showFilters = true,
+  showTruncationNote = showFilters,
   emptyTitle = 'No history yet',
   emptyDescription = "This name doesn't have any recorded history. Activity will appear here once transactions are made.",
   includeSubjectName = false,
@@ -161,12 +168,12 @@ export const HistoryTimelineView = ({
               one transaction, so counting events would put a figure above the
               list that nothing in it adds up to.
 
-              Tied to `showFilters` because both mark a standalone History view:
-              there, the note is the only thing saying the window is capped (the
-              indexer exposes no cursor to page past it). An embedded section
-              hides both and discloses through its "Full history" link instead,
-              the way the Overview's preview does. */}
-          {showFilters && hasMore && (
+              Follows `showFilters` because both mark a standalone History view:
+              there, the note is the only thing saying the window is capped. An
+              embedded section hides both and discloses through its "Full
+              history" link instead, the way the Overview's preview does — bar
+              one with no such link, which opts in via `showTruncationNote`. */}
+          {showTruncationNote && hasMore && (
             <p className="mb-3 text-muted-foreground text-p">
               Showing the most recent {filteredActions.length}
               {isScoped ? ' matching' : ''} transactions.
