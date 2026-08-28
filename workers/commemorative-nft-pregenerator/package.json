@@ -1,18 +1,18 @@
 {
-  "name": "commemorative-nft-generator",
+  "name": "commemorative-nft-pregenerator",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "benchmark:gpu": "tsx src/gpuBenchmark.ts",
-    "capability:browser-run": "tsx src/browserRunCapability.ts",
-    "dev": "tsx watch src/server.ts",
-    "start": "node dist/server.js",
+    "generate": "tsx src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@openzeppelin/merkle-tree": "^1.0.8",
     "aws4fetch": "^1.0.20",
-    "playwright-core": "1.58.2"
+    "csv-parse": "^6.1.0",
+    "playwright": "1.58.2",
+    "viem": "catalog:"
   },
   "devDependencies": {
     "@types/node": "^24.3.1",

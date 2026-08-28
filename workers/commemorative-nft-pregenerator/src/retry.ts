@@ -8,18 +8,26 @@ export type RetryOptions = {
 const defaultSleep = (delayMs: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, delayMs))
 
+const validateRetryOptions = (options: RetryOptions): void => {
+  if (!Number.isSafeInteger(options.attempts) || options.attempts <= 0) {
+    throw new Error('Retry attempts must be a positive integer')
+  }
+  if (!Number.isSafeInteger(options.baseDelayMs) || options.baseDelayMs < 0) {
+    throw new Error('Retry base delay must be a non-negative integer')
+  }
+}
+
 export const withRetry = async <T>(
   operation: () => Promise<T>,
   options: RetryOptions,
 ): Promise<T> => {
+  validateRetryOptions(options)
   const sleep = options.sleep ?? defaultSleep
-  let lastError: unknown
 
   for (let attempt = 1; attempt <= options.attempts; attempt += 1) {
     try {
       return await operation()
     } catch (error) {
-      lastError = error
       const isLastAttempt = attempt === options.attempts
       const isRetryable = options.isRetryable?.(error) ?? true
       if (isLastAttempt || !isRetryable) throw error
@@ -28,5 +36,5 @@ export const withRetry = async <T>(
     }
   }
 
-  throw lastError
+  throw new Error('Retry operation exhausted unexpectedly')
 }

@@ -1,8 +1,0 @@
-.git
-.pnpm-store
-**/.env
-**/.dev.vars
-**/dist
-**/node_modules
-**/output
-**/snapshot*.csv

@@ -28,21 +28,6 @@
     }
   ],
 
-  "r2_buckets": [
-    {
-      "binding": "COMMEMORATIVE_NFT_BUCKET",
-      "bucket_name": "ensv2-commemorative-nft-staging"
-    }
-  ],
-
-  "workflows": [
-    {
-      "binding": "COMMEMORATIVE_NFT_GENERATION",
-      "name": "commemorative-nft-generation-staging",
-      "class_name": "CommemorativeNftGenerationWorkflow"
-    }
-  ],
-
   "queues": {
     "producers": [
       {
@@ -110,9 +95,6 @@
   "vars": {
     "CHAIN": "sepolia",
     "BASE_URL": "https://app-api.ens.dev",
-    "COMMEMORATIVE_NFT_CONTRACT_ADDRESS": "0xe49A9D706FCD82AA575496352B5633F80fBBC449",
-    "COMMEMORATIVE_NFT_GENERATOR_ORIGIN": "",
-    "COMMEMORATIVE_NFT_RENDERER_REVISION": "sha256:1571ef297695dea0e1b816bb27dc5302209124424cb224e8effdd0ac7a7a3102",
     "EMAIL_FROM_ADDRESS": "noreply@ens.dev",
     "ENS_INDEXER_GRAPHQL_URL": "https://graphql.ens.dev/",
     "MANAGER_APP_URL": "https://app.ens.dev",

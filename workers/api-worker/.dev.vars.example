@@ -1,6 +1,4 @@
 SEPOLIA_RPC_URL="https://lb.drpc.live/sepolia/<your-drpc-key>"
-COMMEMORATIVE_NFT_GENERATOR_ORIGIN="https://generator.example"
-COMMEMORATIVE_NFT_GENERATOR_AUTH_TOKEN=""
 WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB="postgresql://postgres:postgres@localhost/postgres"
 JWT_SECRET=""
 POSTHOG_PERSONAL_API_KEY=""

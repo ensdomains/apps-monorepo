@@ -13,10 +13,6 @@ export const KV_KEY = {
     // calls don't double-mint tokens (or race the funder's nonce).
     FUND_LOCK: (address: string) => `wallet:fund-lock:${address.toLowerCase()}`,
   },
-  COMMEMORATIVE_NFT: {
-    GENERATION_ADMISSION: (tokenId: string) =>
-      `commemorative-nft:generation-admission:${tokenId}`,
-  },
   NOTIFICATIONS: {
     EMAIL_VERIFICATION: (normalizedEmail: string) =>
       `notifications:email-verification:${normalizedEmail}`,

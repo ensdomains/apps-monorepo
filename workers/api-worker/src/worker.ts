@@ -6,8 +6,6 @@ import { handleScheduled } from './scheduled'
 import { logger } from './utils/logger'
 
 export type AppRouter = typeof router
-export { CommemorativeNftGenerationWorkflow } from './services/commemorative-nft/workflow'
-
 // @ts-expect-error
 BigInt.prototype.toJSON = function () {
   return this.toString()
