@@ -1,7 +1,7 @@
 import { useQueries } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { History } from 'lucide-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import type { Hex } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -40,7 +40,7 @@ const RecentHistoryShell = ({
   children,
 }: {
   readonly name: string
-  readonly children: React.ReactNode
+  readonly children: ReactNode
 }) => (
   <div className="flex w-full min-w-0 flex-col gap-3">
     <div className="flex min-h-7 items-center justify-between gap-4">
