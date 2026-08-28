@@ -19,6 +19,11 @@ import {
   type NameHistoryScope,
 } from './useNameHistoryTimeline'
 
+/** A tagged query error, whose `cause` carries the underlying `ClientError`. */
+export type TimelineQueryError = Error & {
+  readonly cause?: { readonly message?: string }
+}
+
 /**
  * What every timeline surface renders from, whichever feed is behind it.
  *
@@ -27,12 +32,8 @@ import {
  * counts the *feed*, filter included — not the loaded rows — so the break row's
  * "(N total)" describes what loading more would reach.
  */
-export type TimelineQueryError = Error & {
-  readonly cause?: { readonly message?: string }
-}
-
 export type HistoryTimelineModel = {
-  readonly actions: Action[]
+  readonly actions: readonly Action[]
   readonly events: readonly TimelineIndexerEvent[]
   readonly anchorAction: Action | undefined
   readonly totalCount: number | undefined
@@ -40,10 +41,6 @@ export type HistoryTimelineModel = {
   readonly loadMore: () => void
   readonly isLoadingMore: boolean
   readonly isLoading: boolean
-  /**
-   * The tagged error the query threw. `cause` is the underlying
-   * `GraphqlRequestError`, which is what the error messages quote.
-   */
   readonly error: TimelineQueryError | null
   /** The v1 window filled up, so older v1 history exists that nothing can reach. */
   readonly isV1Truncated: boolean

@@ -11,7 +11,6 @@ import { namehash, normalize } from 'viem/ens'
 import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import type { TimelineEventType } from '../summarize/descriptors'
 import {
   TIMELINE_EVENT_FRAGMENT,
   type TimelineIndexerEvent,
@@ -90,8 +89,16 @@ export type NameHistoryScope = {
    * Applied in the query rather than client-side: a page bounds the *whole*
    * feed, so a name with a lot of unrelated churn (fox.eth has 66 `TextChanged`)
    * would spend the window before its facet's events were reached.
+   *
+   * Plain strings, not `TimelineEventType`: the Event chip offers whatever the
+   * loaded feed contains, and the indexer emits types the summarize engine has
+   * no descriptor for (`VersionChanged`, `AbiChanged`, `PubkeyChanged` … — 21
+   * descriptors against a wider vocabulary), which `humanizeType` renders
+   * anyway. Narrowing here bought nothing but a cast at the call site that
+   * claimed those were descriptor keys. The values reach the query as a
+   * variable, so there is no injection surface to guard either.
    */
-  readonly eventTypes?: readonly TimelineEventType[]
+  readonly eventTypes?: readonly string[]
   /** Inclusive unix-second bounds from the Date range chip. */
   readonly from?: number
   readonly to?: number

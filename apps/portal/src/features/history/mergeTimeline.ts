@@ -46,22 +46,20 @@ export const mergeTimeline = ({
   // Inclusive: the horizon transaction is whole, so events sharing its
   // timestamp belong on screen with it.
   //
-  // `Infinity` covers the pathological page that trims to nothing (everything
-  // loaded so far is one unfinished transaction). Nothing is provably complete
-  // there, so nothing auxiliary may render — falling through to `undefined`
-  // would read as "fully loaded" and dump the whole v1 history on screen.
+  // `-Infinity` is "no horizon, show everything"; `+Infinity` covers the
+  // pathological page that trims to nothing (everything
+  // loaded so far is one unfinished transaction). Nothing is provably
+  // complete there, so nothing auxiliary may render — reading it as "fully
+  // loaded" would dump the whole v1 history on screen.
   const horizon = hasNextPage
     ? (paged.at(-1)?.timestamp ?? Number.POSITIVE_INFINITY)
-    : undefined
-
-  const withinHorizon =
-    horizon === undefined
-      ? auxiliaryEvents
-      : auxiliaryEvents.filter((event) => event.timestamp >= horizon)
+    : Number.NEGATIVE_INFINITY
 
   const seen = new Set(paged.map((event) => event.id))
   return [
     ...paged,
-    ...withinHorizon.filter((event) => !seen.has(event.id)),
+    ...auxiliaryEvents.filter(
+      (event) => event.timestamp >= horizon && !seen.has(event.id),
+    ),
   ].sort((a, b) => b.timestamp - a.timestamp)
 }

@@ -5,8 +5,6 @@ import { humanizeType } from './summarize/descriptors'
 import { IGNORED_TYPES } from './summarize/summarizeEvents'
 import type { TimelineIndexerEvent } from './timelineEvent'
 
-const SECONDS_PER_DAY = 86_400
-
 const plainDateToUnixSecondsUtc = (date: Temporal.PlainDate): number =>
   Math.floor(date.toZonedDateTime({ timeZone: 'UTC' }).epochMilliseconds / 1000)
 
@@ -20,7 +18,9 @@ const plainDateToUnixSecondsUtc = (date: Temporal.PlainDate): number =>
  * `Date`'s own instant instead would shift the boundary by the viewer's offset
  * and cut a day short for anyone west of UTC.
  *
- * `to` covers the whole of its day: the last second of it, not its midnight.
+ * `to` covers the whole of its day: one second short of the next day's
+ * midnight, reached with Temporal's own day arithmetic rather than by adding a
+ * literal 86,400.
  */
 export const dateRangeToTimestamps = (
   range: DateRange,
@@ -30,9 +30,7 @@ export const dateRangeToTimestamps = (
   }),
   ...(range.to && {
     to:
-      plainDateToUnixSecondsUtc(dateToPlainDate(range.to)) +
-      SECONDS_PER_DAY -
-      1,
+      plainDateToUnixSecondsUtc(dateToPlainDate(range.to).add({ days: 1 })) - 1,
   }),
 })
 
