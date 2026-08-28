@@ -28,7 +28,7 @@ type MergeTimelineParameters = {
  * v1 past.
  */
 export type NameHistoryTimeline = {
-  readonly events: TimelineIndexerEvent[]
+  readonly events: readonly TimelineIndexerEvent[]
   readonly totalCount: number | undefined
   /** Whether history exists beyond this window. */
   readonly hasMore: boolean

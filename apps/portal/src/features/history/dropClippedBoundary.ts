@@ -14,6 +14,15 @@ import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
  * complete by construction; the boundary group itself may continue onto the next
  * page, so it goes.
  *
+ * Keyed on `timestamp` rather than `blockNumber` because `timestamp` is the
+ * sort key, and a tie in the sort key is exactly what the indexer is free to
+ * order arbitrarily. The two are interchangeable while a chain gives each block
+ * its own second — they are 1:1 over every event this indexer currently serves
+ * — but if that ever stops holding, trimming by block would leave a sibling
+ * block the cut had also split, which is the bug this function exists to
+ * prevent. Trimming by timestamp can only ever discard extra complete
+ * transactions, which costs a few rows rather than a wrong headline.
+ *
  * `hasMore` is the caller's answer to "did the query see the end of the feed" —
  * a definitive `pageInfo.hasNextPage`, not a guess from the page being full.
  * When it is `false` nothing was cut and every event is returned.

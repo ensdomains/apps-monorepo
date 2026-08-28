@@ -30,9 +30,9 @@ const getRegistryHistoryTimeline = ResultFn(async function* ({
   const { registry } = yield* fromPromise(
     graphqlIndexerClient.request<{
       registry: {
-        eventConnection: {
-          pageInfo: { hasNextPage: boolean }
-          edges: { node: TimelineIndexerEvent }[]
+        readonly eventConnection: {
+          readonly pageInfo: { readonly hasNextPage: boolean }
+          readonly edges: readonly { readonly node: TimelineIndexerEvent }[]
         }
       } | null
     }>(
