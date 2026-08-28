@@ -1,10 +1,7 @@
 import { match } from 'ts-pattern'
 import { type Address, type Hex, isAddress } from 'viem'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
-import {
-  type TimelineIndexerEvent,
-  V1_PROTOCOL,
-} from '../hooks/useNameHistoryTimeline'
+import { type TimelineIndexerEvent, V1_PROTOCOL } from '../timelineEvent'
 
 /**
  * Adapts ENS v1 subgraph events into the shape the history timeline speaks

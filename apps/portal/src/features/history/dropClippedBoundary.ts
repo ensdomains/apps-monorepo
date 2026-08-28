@@ -1,4 +1,4 @@
-import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
+import type { TimelineIndexerEvent } from './timelineEvent'
 
 /**
  * Drop the trailing events a page boundary may have cut in half.
@@ -26,6 +26,11 @@ import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
  * `hasMore` is the caller's answer to "did the query see the end of the feed" —
  * a definitive `pageInfo.hasNextPage`, not a guess from the page being full.
  * When it is `false` nothing was cut and every event is returned.
+ *
+ * Under cursor paging the trim costs nothing at all: whatever it discards is
+ * returned by the next page, which resumes at the exact event the cut landed
+ * on. That is what makes trimming the whole boundary timestamp — rather than
+ * just the split transaction — the free choice as well as the safe one.
  *
  * `events` must be sorted by timestamp descending.
  */

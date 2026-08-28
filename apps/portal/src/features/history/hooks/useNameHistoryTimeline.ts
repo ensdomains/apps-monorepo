@@ -1,36 +1,46 @@
 import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import {
+  resultInfiniteQueryOptions,
+  resultQueryOptions,
+} from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
-import type { Address, Hex } from 'viem'
 import { namehash, normalize } from 'viem/ens'
 import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { mergeTimeline } from '../mergeTimeline'
 import type { TimelineEventType } from '../summarize/descriptors'
+import {
+  TIMELINE_EVENT_FRAGMENT,
+  type TimelineIndexerEvent,
+} from '../timelineEvent'
+import {
+  fetchTimelineEventPage,
+  getNextTimelinePageParam,
+  HISTORY_TIMELINE_PAGE_SIZE,
+  type TimelineEventFilter,
+} from '../timelineEventPage'
 import { adaptV1Events } from '../v1/adaptV1Events'
 import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
 
 /**
- * Widened per-name history query for the timeline.
+ * A name's history, in three reads.
  *
- * Unlike `getV2NameHistoryQueryOptions` (which selects only type/tx/timestamp/block),
- * this selects the emitting `contractAddress`, the raw `data` blob, and every typed
- * `as*` decoder the indexer exposes — everything the summarize engine needs to build
- * human-readable action labels and decoded-param detail views.
+ * **Paged** — the v2 indexer's top-level `eventConnection`, filtered to the
+ * name's namehash. This is the only source with a cursor, so it is what "load
+ * more" advances and what `totalCount` counts.
  *
- * Events are read from BOTH protocols and merged: the v2 indexer has no `domains`
- * row at all for a name that never migrated, so a v1-only name would otherwise
- * render an empty timeline. v1 events are normalized to this same shape by
- * `v1/adaptV1Events.ts`.
+ * **Auxiliary** — v1 subgraph events, plus the child registrations attributed to
+ * a parent. Neither can share the connection's cursor (the v1 subgraph is a
+ * different service, and a child's `LabelRegistered` carries the *child's*
+ * namehash), so both are read once, in full, and held to the paged source's
+ * horizon by `mergeTimeline`.
  *
- * TODO(indexer): add `from` (tx sender) to `Event` so the "by {actor}" / "initiated by"
- * lines are first-class instead of RPC-backfilled (see useTransactionSenders).
- * TODO(indexer): add typed decoders for ContenthashChanged / NameChanged so those
- * actions don't rely on parsing the raw `data` JSON (see summarize/decodeRawData.ts).
+ * **Anchor** — the same connection read ascending, for the name's first action.
+ * Both designs pin it below the break so a truncated history still shows where
+ * the name began.
  */
 
 class GetNameHistoryTimelineError extends TaggedError(
@@ -40,137 +50,9 @@ class GetNameHistoryTimelineError extends TaggedError(
 }> {}
 
 /**
- * On-chain integer params. The v2 indexer sends these as JSON numbers, but v1
- * values are adapted from subgraph strings and must not round-trip through
- * `Number` — a uint64 expiry or uint256 coin type exceeds
- * `Number.MAX_SAFE_INTEGER`. Nothing does arithmetic on them; they are
- * stringified for the decoded-param table, which handles either.
- */
-type OnChainInt = number | bigint | null
-
-export type TimelineDecoded = {
-  readonly asAddressChanged?: {
-    address?: string | null
-    coinType?: OnChainInt
-    resolver?: string | null
-    namehash?: string | null
-  } | null
-  readonly asTextChanged?: {
-    key?: string | null
-    value?: string | null
-    resolver?: string | null
-    namehash?: string | null
-  } | null
-  readonly asTransfer?: {
-    from?: string | null
-    to?: string | null
-    id?: string | null
-    operator?: string | null
-    value?: string | null
-  } | null
-  readonly asRegistryTransfer?: {
-    node?: string | null
-    owner?: string | null
-  } | null
-  readonly asLabelRegistered?: {
-    name?: string | null
-    owner?: string | null
-    registry?: string | null
-    tokenId?: string | null
-    sender?: string | null
-    canonicalId?: string | null
-    expiry?: OnChainInt
-  } | null
-  readonly asNameRegistered?: {
-    name?: string | null
-    label?: string | null
-    owner?: string | null
-    cost?: string | null
-    baseCost?: string | null
-    premium?: string | null
-    referrer?: string | null
-    expires?: OnChainInt
-  } | null
-  readonly asNameRenewed?: {
-    id?: string | null
-    expires?: OnChainInt
-  } | null
-  readonly asResolverUpdated?: {
-    resolver?: string | null
-    sender?: string | null
-    tokenId?: string | null
-  } | null
-  readonly asReverseClaimed?: {
-    address?: string | null
-    node?: string | null
-  } | null
-  readonly asNameWrapped?: {
-    node?: string | null
-    owner?: string | null
-    fuses?: OnChainInt
-    expiry?: OnChainInt
-  } | null
-  readonly asNameUnwrapped?: {
-    node?: string | null
-    owner?: string | null
-  } | null
-  readonly asFusesSet?: { node?: string | null; fuses?: OnChainInt } | null
-  readonly asExpiryUpdated?: {
-    node?: string | null
-    tokenId?: string | null
-    expiry?: OnChainInt
-  } | null
-}
-
-export type TimelineIndexerEvent = TimelineDecoded & {
-  readonly id: string
-  readonly type: string
-  readonly name?: string | null
-  readonly namehash?: string | null
-  readonly protocol?: string | null
-  readonly transactionHash: Hex
-  readonly blockNumber: number
-  readonly timestamp: number
-  readonly contractAddress?: Address | null
-  readonly key?: string | null
-  readonly value?: string | null
-  /** Raw JSON blob of decoded params — fallback for event types without an `as*` decoder. */
-  readonly data?: string | null
-}
-
-type GetNameHistoryTimelineParameters = {
-  readonly name: string
-  readonly first?: number
-  readonly orderDirection?: 'asc' | 'desc'
-  /**
-   * Restrict the feed to these event types, for the per-facet views (address
-   * resolution, ownership, …).
-   *
-   * This has to be applied in the query, not client-side: `first` bounds the
-   * *whole* feed, so a name with a lot of unrelated churn (fox.eth has 66
-   * `TextChanged`) pushes its handful of address events out of the window
-   * before any client-side filter gets to see them.
-   *
-   * Typed as a union rather than `string[]` because the values are inlined
-   * into the query text — see `buildHistoryTimelineQuery`.
-   */
-  readonly eventTypes?: readonly TimelineEventType[]
-}
-
-type DomainWithEvents = { readonly events: readonly TimelineIndexerEvent[] }
-
-export const V1_PROTOCOL = 'v1'
-
-export const HISTORY_TIMELINE_PAGE_SIZE = 100
-
-/**
  * Direct children come from `subdomains`, not a `name_ends_with` suffix match:
  * the suffix also matches every deeper descendant, so `a.b.leon.eth` would land
  * in `leon.eth`'s timeline.
- *
- * `first` is passed explicitly so the page size is ours: omitting it falls back
- * to the indexer's own default (10 at time of writing), which can change
- * server-side without a deploy here.
  *
  * These are not the *newest* children — `subdomains` accepts `orderBy` /
  * `orderDirection` but ignores them, always sorting by name — so a parent with
@@ -182,68 +64,131 @@ export const HISTORY_TIMELINE_PAGE_SIZE = 100
 const HISTORY_TIMELINE_CHILD_LIMIT = 25
 
 /**
- * The event-type filter has to be inlined into the query text rather than
- * passed as a variable: this indexer silently DROPS a `where` on the nested
- * `events` field when its value arrives via variables (verified against
- * staging for a list variable, a scalar variable and a whole-`EventFilter`
- * variable — all returned the unfiltered feed, no error). Inline literals
- * filter correctly, which is why the `subdomains` selection below already
- * spells its own `type_in` out longhand.
+ * Per-collection window for the v1 subgraph read.
  *
- * `TimelineEventType` is what keeps that safe: only the timeline's own event
- * types can reach the query text, never a caller's string.
+ * v1 history has no cursor to page: `fetchV1NameHistory` fans out into sibling
+ * `events(first:)` selections across the domain, its registration and every
+ * resolver it ever used, and there is no ordering that makes one offset
+ * meaningful across all of them. So it is read once, generously, and the read
+ * reports whether it saturated rather than quietly truncating — see
+ * `v1Saturated` below.
  */
-export const TIMELINE_EVENT_FRAGMENT = `  fragment TimelineEvent on Event {
-    id
-    type
-    name
-    namehash
-    protocol
-    transactionHash
-    blockNumber
-    timestamp
-    contractAddress
-    key
-    value
-    data
-    asAddressChanged { address coinType resolver namehash }
-    asTextChanged { key value resolver namehash }
-    asTransfer { from to id operator value }
-    asRegistryTransfer { node owner }
-    asLabelRegistered { name owner registry tokenId sender canonicalId expiry }
-    asNameRegistered { name label owner cost baseCost premium referrer expires }
-    asNameRenewed { id expires }
-    asResolverUpdated { resolver sender tokenId }
-    asReverseClaimed { address node }
-    asNameWrapped { node owner fuses expiry }
-    asNameUnwrapped { node owner }
-    asFusesSet { node fuses }
-    asExpiryUpdated { node tokenId expiry }
-  }`
+const V1_HISTORY_WINDOW = 500
 
-const buildHistoryTimelineQuery = (
-  eventTypes?: readonly TimelineEventType[],
-) => gql`
+/**
+ * Window for the ascending anchor read. Wide enough that the oldest *complete*
+ * transaction is inside it, narrow enough to stay cheap — the anchor is one row.
+ */
+const ANCHOR_WINDOW = 20
+
+export type NameHistoryScope = {
+  readonly name: string
+  /**
+   * Restrict the feed to these event types, for the per-facet views (address
+   * resolution, ownership, …) and the Event filter chip.
+   *
+   * Applied in the query rather than client-side: a page bounds the *whole*
+   * feed, so a name with a lot of unrelated churn (fox.eth has 66 `TextChanged`)
+   * would spend the window before its facet's events were reached.
+   */
+  readonly eventTypes?: readonly TimelineEventType[]
+  /** Inclusive unix-second bounds from the Date range chip. */
+  readonly from?: number
+  readonly to?: number
+}
+
+/**
+ * Normalize a name, tolerating one the UGC layer never normalized — matching
+ * what the page's other queries key on.
+ */
+const normalizeOrLower = (name: string): string => {
+  try {
+    return normalize(name)
+  } catch {
+    return name.toLowerCase()
+  }
+}
+
+const toEventFilter = ({
+  name,
+  eventTypes,
+  from,
+  to,
+}: NameHistoryScope): TimelineEventFilter => ({
+  namehash: namehash(normalizeOrLower(name)),
+  ...(eventTypes && { type_in: eventTypes }),
+  ...(from !== undefined && { timestamp_gte: from }),
+  ...(to !== undefined && { timestamp_lte: to }),
+})
+
+// ---------------------------------------------------------------- paged feed
+
+const getNameHistoryPagesQueryKey = createQueryKey<
+  'get-name-history-pages',
+  NameHistoryScope
+>('get-name-history-pages')
+
+/** The name's own events, newest first, one page per `fetchNextPage`. */
+export const getNameHistoryPagesQueryOptions = (scope: NameHistoryScope) =>
+  resultInfiniteQueryOptions({
+    queryKey: getNameHistoryPagesQueryKey(scope),
+    queryFn: ({ queryKey: [, scope], pageParam }) =>
+      fetchTimelineEventPage({
+        where: toEventFilter(scope),
+        first: HISTORY_TIMELINE_PAGE_SIZE,
+        after: pageParam,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: getNextTimelinePageParam,
+  })
+
+// ------------------------------------------------------------------- anchor
+
+const getNameHistoryAnchorQueryKey = createQueryKey<
+  'get-name-history-anchor',
+  NameHistoryScope
+>('get-name-history-anchor')
+
+/**
+ * The oldest slice of the name's history — the pinned row below the break.
+ *
+ * Reads with the same filter as the paged feed, so a scoped facet anchors on
+ * *its* first event rather than on a registration it does not show.
+ */
+export const getNameHistoryAnchorQueryOptions = (scope: NameHistoryScope) =>
+  resultQueryOptions({
+    queryKey: getNameHistoryAnchorQueryKey(scope),
+    queryFn: ({ queryKey: [, scope] }) =>
+      fetchTimelineEventPage({
+        where: toEventFilter(scope),
+        first: ANCHOR_WINDOW,
+        orderDirection: 'asc',
+      }).map(({ events }) =>
+        // Ascending out of the indexer; the timeline renders newest-first.
+        [...events].sort((a, b) => b.timestamp - a.timestamp),
+      ),
+  })
+
+// --------------------------------------------------------- auxiliary sources
+
+type DomainWithEvents = { events: TimelineIndexerEvent[] }
+
+/**
+ * A child's registration is attributed to the parent on the full feed only. A
+ * scoped view asked for specific event types, and a subdomain `LabelRegistered`
+ * is never one of them, so it would otherwise slip past the scope filter.
+ *
+ * `type_in` stays an inline literal here: this indexer silently drops a `where`
+ * on the *nested* `events` field when it arrives by variable (verified against
+ * staging for a list, a scalar and a whole-`EventFilter` variable — all returned
+ * the unfiltered feed, no error). Only the top-level connection is unaffected.
+ */
+const childRegistrationsQuery = gql`
   ${TIMELINE_EVENT_FRAGMENT}
 
-  query getNameHistoryTimeline(
-    $name: String!
-    $first: Int
-    $orderDirection: OrderDirection
-  ) {
+  query getNameChildRegistrations($name: String!) {
     domains(where: { name: $name }, first: 1) {
-      eventsCount
-      events(first: $first, orderBy: timestamp, orderDirection: $orderDirection ${eventTypes ? `where: { type_in: ${JSON.stringify(eventTypes)} }` : ''}) {
-        ...TimelineEvent
-      }
-      ${
-        // A child's registration is attributed to the parent on the full feed
-        // only. A scoped view asked for specific event types, and a subdomain
-        // `LabelRegistered` is never one of them — it has its own `type_in`, so
-        // it would otherwise slip past the scope filter entirely.
-        eventTypes
-          ? ''
-          : `subdomains(first: ${HISTORY_TIMELINE_CHILD_LIMIT}) {
+      subdomains(first: ${String(HISTORY_TIMELINE_CHILD_LIMIT)}) {
         events(
           first: 1
           orderBy: timestamp
@@ -252,63 +197,54 @@ const buildHistoryTimelineQuery = (
         ) {
           ...TimelineEvent
         }
-      }`
       }
     }
   }
 `
 
-const getNameHistoryTimeline = ResultFn(async function* ({
+type NameHistoryAuxiliary = {
+  readonly events: TimelineIndexerEvent[]
+  /**
+   * Whether the v1 read filled its window, i.e. the name may have v1 history
+   * this does not carry. Surfaced rather than hidden — a v1 name has no cursor
+   * to offer a "load more".
+   */
+  readonly v1Saturated: boolean
+}
+
+/**
+ * The name's history that the paged connection cannot reach: v1 subgraph events
+ * and child registrations.
+ *
+ * Keyed without a cursor and fetched once, so paging the v2 feed never refetches
+ * either of them.
+ */
+const getNameHistoryAuxiliary = ResultFn(async function* ({
   name,
-  first = HISTORY_TIMELINE_PAGE_SIZE,
-  orderDirection = 'desc',
   eventTypes,
-}: GetNameHistoryTimelineParameters) {
+}: NameHistoryScope) {
   const client = yield* safeGetClient()
-  const normalizedName = (() => {
-    try {
-      return normalize(name)
-    } catch {
-      return name.toLowerCase()
-    }
-  })()
+  const normalizedName = normalizeOrLower(name)
   const node = namehash(normalizedName)
 
   // Each source returns `[]` for a name the other owns, so an empty result is
-  // normal and only a genuine failure rejects — same all-or-nothing behaviour
-  // the page had before the timeline.
-  const [v2Result, v1Raw] = yield* fromPromise(
+  // normal and only a genuine failure rejects.
+  const [children, v1Raw] = yield* fromPromise(
     Promise.all([
-      graphqlIndexerClient
-        .request<{
-          domains: readonly (DomainWithEvents & {
-            readonly eventsCount: number
-            readonly subdomains?: readonly DomainWithEvents[]
-          })[]
-        }>(buildHistoryTimelineQuery(eventTypes), {
-          name: normalizedName,
-          first,
-          orderDirection,
-        })
-        .then(({ domains: [domain] }) => {
-          if (!domain) return { events: [], eventsCount: 0 }
-          // A child's registration can also be attributed to the parent.
-          const seen = new Set(domain.events.map((event) => event.id))
-          return {
-            events: [
-              ...domain.events,
-              ...(domain.subdomains ?? [])
-                .flatMap(({ events }) => events)
-                .filter((event) => !seen.has(event.id)),
-            ],
-            eventsCount: domain.eventsCount,
-          }
-        }),
+      eventTypes
+        ? Promise.resolve([])
+        : graphqlIndexerClient
+            .request<{
+              domains: { subdomains?: DomainWithEvents[] }[]
+            }>(childRegistrationsQuery, { name: normalizedName })
+            .then(({ domains: [domain] }) =>
+              (domain?.subdomains ?? []).flatMap(({ events }) => events),
+            ),
       fetchV1NameHistory({
         subgraphUrl: client.chain.subgraphs.ens.url,
         namehash: node,
-        first,
-        orderDirection,
+        first: V1_HISTORY_WINDOW,
+        orderDirection: 'desc',
         eventTypes,
       }),
     ]),
@@ -322,19 +258,17 @@ const getNameHistoryTimeline = ResultFn(async function* ({
 
   // Static chain constants, not lookups — the v1 subgraph records no emitting
   // address, so the contract badge is reconstructed from these.
-  const v1Contracts = {
-    registry: client.chain.contracts.ensRegistry.address,
-    nameWrapper: client.chain.contracts.ensNameWrapper.address,
-    baseRegistrar:
-      client.chain.contracts.ensBaseRegistrarImplementation.address,
-  }
-
   const v1EventsAll = adaptV1Events({
     events: v1Raw,
     blockTimestamps,
     name: normalizedName,
     namehash: node,
-    contracts: v1Contracts,
+    contracts: {
+      registry: client.chain.contracts.ensRegistry.address,
+      nameWrapper: client.chain.contracts.ensNameWrapper.address,
+      baseRegistrar:
+        client.chain.contracts.ensBaseRegistrarImplementation.address,
+    },
   })
 
   // `fetchV1NameHistory` scopes resolver events in the query, but domain and
@@ -347,28 +281,22 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     ? v1EventsAll.filter((event) => scopedTypes.has(event.type))
     : v1EventsAll
 
-  return ok(
-    mergeTimeline({
-      v2Events: v2Result.events,
-      v1Events,
-      first,
-      orderDirection,
-      // `eventsCount` is the name's whole history, so it describes `events`
-      // only on an unscoped read.
-      eventsCount: eventTypes ? undefined : v2Result.eventsCount,
-    }),
-  )
+  return ok({
+    events: [...v1Events, ...children],
+    // Compared against the raw response, not the scoped subset: the window
+    // bounds what the subgraph returned, and a filter applied afterwards can
+    // only shrink it.
+    v1Saturated: v1Raw.length >= V1_HISTORY_WINDOW,
+  } satisfies NameHistoryAuxiliary)
 })
 
-const getNameHistoryTimelineQueryKey = createQueryKey<
-  'get-name-history-timeline',
-  GetNameHistoryTimelineParameters
->('get-name-history-timeline')
+const getNameHistoryAuxiliaryQueryKey = createQueryKey<
+  'get-name-history-auxiliary',
+  NameHistoryScope
+>('get-name-history-auxiliary')
 
-export const getNameHistoryTimelineQueryOptions = (
-  params: GetNameHistoryTimelineParameters,
-) =>
+export const getNameHistoryAuxiliaryQueryOptions = (scope: NameHistoryScope) =>
   resultQueryOptions({
-    queryKey: getNameHistoryTimelineQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getNameHistoryTimeline(params),
+    queryKey: getNameHistoryAuxiliaryQueryKey(scope),
+    queryFn: ({ queryKey: [, scope] }) => getNameHistoryAuxiliary(scope),
   })

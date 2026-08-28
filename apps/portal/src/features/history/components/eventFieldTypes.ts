@@ -1,8 +1,5 @@
-import type {
-  TimelineDecoded,
-  TimelineIndexerEvent,
-} from '../hooks/useNameHistoryTimeline'
 import { parseEventData } from '../summarize/decodeRawData'
+import type { TimelineDecoded, TimelineIndexerEvent } from '../timelineEvent'
 
 /**
  * Solidity types for the indexer's decoded event payloads, keyed by event type.

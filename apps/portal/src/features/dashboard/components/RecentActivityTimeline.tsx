@@ -1,34 +1,60 @@
-import { useQuery } from '@tanstack/react-query'
+import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { HistoryTimelineView } from '@/features/history/components/HistoryTimeline'
+import { useTimelinePagesModel } from '@/features/history/hooks/useHistoryTimeline'
+import { IGNORED_TYPES } from '@/features/history/summarize/summarizeEvents'
+import {
+  fetchTimelineEventPage,
+  getNextTimelinePageParam,
+  HISTORY_TIMELINE_PAGE_SIZE,
+} from '@/features/history/timelineEventPage'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
-import { getRecentActivityTimelineQueryOptions } from '../hooks/useRecentActivityTimeline'
 
-/** The homepage's Recent Activity — the History timeline over the global feed. */
+/**
+ * The homepage's Recent Activity — the History timeline over the protocol-wide
+ * feed.
+ *
+ * The same paged `eventConnection` every other timeline reads, with no subject
+ * filter, so it inherits the cursor, the boundary trim and an honest
+ * `hasNextPage` rather than the over-fetch loop it used to need to guess at them.
+ *
+ * No anchor row: a protocol-wide feed has no first registration to pin. The
+ * break loads more in place, since there is no per-subject History page to send
+ * the reader to.
+ */
 export const RecentActivityTimeline = () => {
-  const { data, isLoading, error } = useQuery(
-    getRecentActivityTimelineQueryOptions(),
+  const model = useTimelinePagesModel(
+    resultInfiniteQueryOptions({
+      queryKey: ['get-recent-activity-timeline'] as const,
+      queryFn: ({ pageParam }) =>
+        fetchTimelineEventPage({
+          where: { type_not_in: [...IGNORED_TYPES] },
+          first: HISTORY_TIMELINE_PAGE_SIZE,
+          after: pageParam,
+        }),
+      initialPageParam: undefined as string | undefined,
+      getNextPageParam: getNextTimelinePageParam,
+      refetchInterval: 30_000,
+      staleTime: 15_000,
+    }),
   )
 
-  if (isLoading) return <LoadingMessage />
+  if (model.isLoading) return <LoadingMessage />
 
-  if (error) {
+  if (model.error) {
     return (
       <ErrorMessage
         title="Error loading recent activity"
-        description={extractErrorMessage(error, '')}
+        description={extractErrorMessage(model.error, '')}
       />
     )
   }
 
   return (
     <HistoryTimelineView
-      events={data?.events ?? []}
-      hasMore={data?.hasMore}
-      includeSubjectName
-      showFilters={false}
-      showTruncationNote
+      model={model}
+      breakContent="load-more"
       heading={<h2 className="text-caps text-foreground">Recent Activity</h2>}
       emptyTitle="No recent activity"
       emptyDescription="Events will appear here as they happen."

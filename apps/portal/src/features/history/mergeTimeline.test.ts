@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  type TimelineIndexerEvent,
-  V1_PROTOCOL,
-} from './hooks/useNameHistoryTimeline'
 import { mergeTimeline } from './mergeTimeline'
+import { type TimelineIndexerEvent, V1_PROTOCOL } from './timelineEvent'
 
 const event = (
   tx: string,
@@ -23,136 +20,98 @@ const v1Event = (tx: string, type: string, timestamp: number) =>
   event(tx, type, timestamp, V1_PROTOCOL)
 
 const merge = (params: Partial<Parameters<typeof mergeTimeline>[0]>) =>
-  mergeTimeline({
-    v2Events: [],
-    v1Events: [],
-    first: 10,
-    orderDirection: 'desc',
-    eventsCount: 0,
-    ...params,
-  })
+  mergeTimeline({ pagedEvents: [], hasNextPage: false, ...params })
+
+const ids = (events: readonly TimelineIndexerEvent[]) => events.map((e) => e.id)
 
 describe('mergeTimeline', () => {
-  it('interleaves both protocols newest-first', () => {
-    const result = merge({
-      v2Events: [event('c', 'TextChanged', 3)],
-      v1Events: [
+  it('interleaves both sources newest-first once the feed is fully loaded', () => {
+    const events = merge({
+      pagedEvents: [event('c', 'TextChanged', 3)],
+      auxiliaryEvents: [
         v1Event('a', 'NameRegistered', 1),
-        v1Event('b', 'Transfer', 2),
+        v1Event('b', 'AddrChanged', 2),
       ],
-      eventsCount: 1,
     })
-
-    expect(result.events.map((e) => e.transactionHash)).toEqual([
-      '0xc',
-      '0xb',
-      '0xa',
-    ])
+    expect(events.map((e) => e.timestamp)).toEqual([3, 2, 1])
   })
 
-  describe('asc', () => {
-    it('keeps the oldest transactions and still returns them newest-first', () => {
-      // A desc merge truncated from the tail would keep 0xd/0xc — exactly the
-      // opposite of what an ascending caller asked for.
-      const result = merge({
-        v2Events: [
-          event('a', 'NameRegistered', 1),
-          event('b', 'AddrChanged', 2),
-          event('c', 'TextChanged', 3),
-          event('d', 'TextChanged', 4),
-        ],
-        first: 2,
-        orderDirection: 'asc',
-        eventsCount: 4,
-      })
-
-      expect(result.events.map((e) => e.transactionHash)).toEqual([
-        '0xb',
-        '0xa',
-      ])
+  it('withholds auxiliary events older than the horizon', () => {
+    // Another page is coming, so the feed is only complete down to t=5. The v1
+    // registration at t=1 belongs below rows that have not been fetched — it
+    // must not surface above them.
+    const events = merge({
+      pagedEvents: [
+        event('c', 'TextChanged', 9),
+        event('b', 'AddrChanged', 5),
+        event('a', 'Transfer', 4),
+      ],
+      auxiliaryEvents: [v1Event('v1', 'NameRegistered', 1)],
+      hasNextPage: true,
     })
-
-    it('does not split a transaction at the oldest end', () => {
-      const result = merge({
-        v2Events: [
-          event('a', 'NameRegistered', 1),
-          event('a', 'AddrChanged', 1),
-          event('b', 'TextChanged', 2),
-        ],
-        first: 2,
-        orderDirection: 'asc',
-        eventsCount: 3,
-      })
-
-      expect(result.events.map((e) => e.transactionHash)).toEqual([
-        '0xa',
-        '0xa',
-      ])
-    })
+    // `0xa` is the clipped boundary transaction, so the feed is complete only
+    // down to `0xb`'s t=5 and the v1 event stays back.
+    expect(ids(events)).toEqual(['c-TextChanged-9', 'b-AddrChanged-5'])
   })
 
-  describe('hasMore', () => {
-    it('is false when the window holds the name entirely', () => {
-      expect(
-        merge({
-          v2Events: [event('a', 'NameRegistered', 1)],
-          first: 10,
-          eventsCount: 1,
-        }).hasMore,
-      ).toBe(false)
-    })
+  it('reveals a withheld auxiliary event once paging reaches it', () => {
+    const pagedEvents = [
+      event('c', 'TextChanged', 9),
+      event('b', 'AddrChanged', 5),
+    ]
+    const auxiliaryEvents = [v1Event('v1', 'NameRegistered', 1)]
 
-    it('is true on a saturated window even when nothing was truncated', () => {
-      // The merge exactly fills `first`, so `events.length` alone reads as a
-      // complete history — the signal callers cannot derive themselves.
-      const result = merge({
-        v2Events: [event('a', 'TextChanged', 2), event('b', 'TextChanged', 1)],
-        first: 2,
-        eventsCount: 40,
-      })
-
-      expect(result.events).toHaveLength(2)
-      expect(result.hasMore).toBe(true)
-    })
-
-    it('is true when truncation dropped a transaction', () => {
-      const result = merge({
-        v2Events: [
-          event('a', 'TextChanged', 3),
-          event('b', 'TextChanged', 2),
-          event('b', 'AddrChanged', 2),
-        ],
-        first: 2,
-        eventsCount: 3,
-      })
-
-      expect(result.events).toHaveLength(1)
-      expect(result.hasMore).toBe(true)
-    })
-  })
-
-  describe('a v1-only name', () => {
-    it('reports v1 history so callers can hide the v2-only count', () => {
-      const result = merge({
-        v2Events: [],
-        v1Events: [
-          v1Event('a', 'NameRegistered', 1),
-          v1Event('b', 'Transfer', 2),
-        ],
-        eventsCount: 0,
-      })
-
-      expect(result.events).toHaveLength(2)
-      expect(result.hasV1History).toBe(true)
-      // The v2 indexer has no `domains` row for the name at all.
-      expect(result.totalCount).toBe(0)
-    })
-  })
-
-  it('leaves hasV1History false for a v2-only name', () => {
     expect(
-      merge({ v2Events: [event('a', 'LabelRegistered', 1)], eventsCount: 1 })
-        .hasV1History,
-    ).toBe(false)
+      ids(merge({ pagedEvents, auxiliaryEvents, hasNextPage: true })),
+    ).not.toContain('v1-NameRegistered-1')
+    expect(
+      ids(merge({ pagedEvents, auxiliaryEvents, hasNextPage: false })),
+    ).toContain('v1-NameRegistered-1')
+  })
+
+  it('keeps auxiliary events that sit on the horizon', () => {
+    // The horizon transaction is whole, so a v1 event sharing its timestamp
+    // belongs on screen beside it rather than one page later.
+    const events = merge({
+      pagedEvents: [event('b', 'AddrChanged', 5), event('a', 'Transfer', 4)],
+      auxiliaryEvents: [v1Event('v1', 'NewResolver', 5)],
+      hasNextPage: true,
+    })
+    expect(ids(events)).toContain('v1-NewResolver-5')
+  })
+
+  it('withholds everything auxiliary when no paged transaction is complete', () => {
+    // The whole page is one unfinished transaction, so nothing is provably
+    // complete — falling through to "fully loaded" would dump the v1 history on
+    // screen above history that has not been read.
+    const events = merge({
+      pagedEvents: [event('a', 'TextChanged', 9), event('a', 'AddrChanged', 9)],
+      auxiliaryEvents: [v1Event('v1', 'NameRegistered', 1)],
+      hasNextPage: true,
+    })
+    expect(events).toEqual([])
+  })
+
+  it('drops an auxiliary event the paged feed already carries', () => {
+    // A child registration can be attributed to the parent and also be in the
+    // parent's own feed.
+    const shared = event('x', 'LabelRegistered', 7)
+    const events = merge({
+      pagedEvents: [shared],
+      auxiliaryEvents: [{ ...shared }],
+    })
+    expect(events).toHaveLength(1)
+  })
+
+  it('trims the clipped boundary transaction while more pages remain', () => {
+    const events = merge({
+      pagedEvents: [
+        event('a', 'TextChanged', 3),
+        event('b', 'AddrChanged', 2),
+        event('b', 'TextChanged', 2),
+      ],
+      hasNextPage: true,
+    })
+    expect(ids(events)).toEqual(['a-TextChanged-3'])
   })
 })
