@@ -1,3 +1,4 @@
+import { escapeHtml } from '@ens-apps/og/markup'
 import { getPageTitle, TITLE_SUFFIX } from './utils/pageTitle'
 import {
   extractAddrFromPath,
@@ -13,7 +14,6 @@ import { withSecurityHeaders } from './worker/csp'
 import { fetchEnsData, fetchIsPermissionedResolver } from './worker/ens'
 import { MetaTagInjector, TitleRewriter } from './worker/html-rewriter'
 import {
-  escapeHtml,
   renderAddressOgImage,
   renderDefaultOgImage,
   renderOgImage,

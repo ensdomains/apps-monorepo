@@ -30,6 +30,7 @@
     "@ens-apps/dev-tools": "workspace:*",
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/migration": "workspace:*",
+    "@ens-apps/og": "workspace:*",
     "@ens-apps/shared-schema": "workspace:*",
     "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",
@@ -91,7 +92,6 @@
     "vaul": "^1.1.2",
     "viem": "catalog:",
     "wagmi": "catalog:",
-    "workers-og": "^0.0.27",
     "xstate": "catalog:"
   },
   "devDependencies": {

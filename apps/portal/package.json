@@ -30,6 +30,7 @@
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
     "@ens-apps/migration": "workspace:*",
+    "@ens-apps/og": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.4",
@@ -88,7 +89,6 @@
     "use-local-storage-state": "^20.0.0",
     "viem": "catalog:",
     "wagmi": "catalog:",
-    "workers-og": "^0.0.27",
     "xstate": "catalog:"
   },
   "devDependencies": {

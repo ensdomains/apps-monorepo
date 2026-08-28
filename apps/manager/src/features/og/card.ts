@@ -1,40 +1,19 @@
-import { ImageResponse } from 'workers-og'
+import { escapeHtml } from '@ens-apps/og/markup'
+import {
+  OG_CARD_HEIGHT,
+  OG_CARD_WIDTH,
+  renderOgCard,
+} from '@ens-apps/og/render'
 import ensMarkSvg from '@/assets/og/ens-mark.svg?raw'
 import { fitOgChipName } from './chipName'
 import { loadOgFonts } from './fonts'
 import { GENERIC_OG_PALETTE, getOgPalette, type OgPalette } from './palette'
-
-const CARD_WIDTH = 1200
-const CARD_HEIGHT = 630
 
 /** Mark and wordmark sizes for the two header scales in the design. */
 const HEADER_SIZES = {
   large: { gap: 35.84, markHeight: 114.325, markWidth: 103.219, text: 96 },
   small: { gap: 22.4, markHeight: 71.453, markWidth: 64.512, text: 60 },
 } as const
-
-const ESCAPE_HTML_RE = /["&'<>]/g
-const ESCAPE_HTML_CHARS = new Map([
-  ['"', '&quot;'],
-  ['&', '&amp;'],
-  ["'", '&#39;'],
-  ['<', '&lt;'],
-  ['>', '&gt;'],
-])
-
-/**
- * Escape a value interpolated into the card markup.
- *
- * Every dynamic value on a card — the name, its avatar URI, its `theme` record
- * — is attacker-controlled for any name someone can register, and the markup is
- * parsed as HTML before it reaches satori.
- */
-function escapeHtml(value: string): string {
-  return value.replace(
-    ESCAPE_HTML_RE,
-    (char) => ESCAPE_HTML_CHARS.get(char) ?? char,
-  )
-}
 
 /** The ENS mark as an inline `data:` URI, recoloured for the card's palette. */
 function markDataUri(color: string): string {
@@ -88,55 +67,17 @@ function renderChip(
 /** The card frame every variant is drawn inside. */
 function renderCard(palette: OgPalette, body: string): string {
   return `
-    <div style="display: flex; flex-direction: column; width: ${CARD_WIDTH}px; height: ${CARD_HEIGHT}px; padding: 80px 120px; box-sizing: border-box; background-color: ${palette.backgroundFrom}; background-image: linear-gradient(185deg, ${palette.backgroundFrom} 7%, ${palette.backgroundTo} 146%);">
+    <div style="display: flex; flex-direction: column; width: ${OG_CARD_WIDTH}px; height: ${OG_CARD_HEIGHT}px; padding: 80px 120px; box-sizing: border-box; background-color: ${palette.backgroundFrom}; background-image: linear-gradient(185deg, ${palette.backgroundFrom} 7%, ${palette.backgroundTo} 146%);">
       ${body}
     </div>`
 }
 
-/**
- * Strip the whitespace between the card's tags.
- *
- * satori keeps inter-element whitespace as a real (zero-width) flex child, so
- * indented markup gains a leading child on every row and `gap` opens a gap
- * before the first element that should be there. Collapsing it is what makes
- * the templates below safe to indent.
- */
-function collapseMarkup(html: string): string {
-  return html.replace(/>\s+</g, '><').trim()
-}
-
-/**
- * Rasterise a card, or `null` when the render fails.
- *
- * satori and resvg run in a WASM instance whose linear memory only ever grows,
- * so a render can throw for reasons unrelated to the card being drawn — an
- * oversized avatar on a warm isolate, say. Callers degrade to the generic card
- * rather than letting that surface as a broken image on the page.
- */
-async function rasterise(
+/** Rasterise card markup with this app's fonts. */
+async function renderCardImage(
   html: string,
   requestUrl: string,
 ): Promise<Response | null> {
-  let body: ArrayBuffer
-  try {
-    body = await new ImageResponse(collapseMarkup(html), {
-      fonts: await loadOgFonts(requestUrl),
-      height: CARD_HEIGHT,
-      width: CARD_WIDTH,
-    }).arrayBuffer()
-  } catch {
-    return null
-  }
-
-  // workers-og can also fail by producing no bytes rather than by throwing.
-  if (body.byteLength === 0) return null
-
-  return new Response(body, {
-    headers: {
-      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-      'Content-Type': 'image/png',
-    },
-  })
+  return renderOgCard(html, { fonts: await loadOgFonts(requestUrl) })
 }
 
 /** The un-themed app card, used for every route that isn't a name. */
@@ -148,7 +89,7 @@ export function renderGenericOgImage(
       ${renderHeader(GENERIC_OG_PALETTE, 'large')}
     </div>`
 
-  return rasterise(renderCard(GENERIC_OG_PALETTE, body), requestUrl)
+  return renderCardImage(renderCard(GENERIC_OG_PALETTE, body), requestUrl)
 }
 
 export type NameOgCard = {
@@ -188,5 +129,5 @@ export function renderNameOgImage(
       ${chip}
     </div>`
 
-  return rasterise(renderCard(palette, body), requestUrl)
+  return renderCardImage(renderCard(palette, body), requestUrl)
 }

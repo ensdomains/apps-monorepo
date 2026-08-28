@@ -1,4 +1,5 @@
-import { ImageResponse } from 'workers-og'
+import { escapeHtml } from '@ens-apps/og/markup'
+import { renderOgCard } from '@ens-apps/og/render'
 
 import ensMarkSvg from '../assets/fonts/og/ens-mark.svg?raw'
 import ensLogoSvg from '../assets/fonts/og/Logo.svg?raw'
@@ -6,49 +7,7 @@ import shieldIconSvg from '../assets/fonts/og/shield-icon.svg?raw'
 import syncIconSvg from '../assets/fonts/og/sync-icon.svg?raw'
 import walletIconSvg from '../assets/fonts/og/wallet-icon.svg?raw'
 import { truncate, truncateAddress } from '../utils/routePaths'
-import { buildOgFontList, loadOgFonts, type OgFonts } from './fonts'
-
-const matchHtmlRegExp = /["'&<>]/
-
-export function escapeHtml(str: string): string {
-  const match = matchHtmlRegExp.exec(str)
-
-  if (!match) return String(str)
-
-  let escapeChar: string
-  let html = ''
-  let index = 0
-  let lastIndex = 0
-
-  for (index = match.index; index < str.length; index++) {
-    switch (str.charCodeAt(index)) {
-      case 34: // "
-        escapeChar = '&quot;'
-        break
-      case 38: // &
-        escapeChar = '&amp;'
-        break
-      case 39: // '
-        escapeChar = '&#39;'
-        break
-      case 60: // <
-        escapeChar = '&lt;'
-        break
-      case 62: // >
-        escapeChar = '&gt;'
-        break
-      default:
-        continue
-    }
-
-    if (lastIndex !== index) html += str.substring(lastIndex, index)
-
-    lastIndex = index + 1
-    html += escapeChar
-  }
-
-  return lastIndex !== index ? html + str.substring(lastIndex, index) : html
-}
+import { loadOgFonts } from './fonts'
 
 const NAME_SUBPAGE_LABELS: Record<string, string> = {
   ownership: 'Ownership',
@@ -89,47 +48,6 @@ function getPageLabel(
     ? (labels[subpage] ??
         `${subpage.charAt(0).toUpperCase()}${subpage.slice(1)}`)
     : defaultLabel
-}
-
-/**
- * Rasterise a card, or `null` when the render fails.
- *
- * satori/resvg run in a WASM instance that is a per-isolate singleton whose
- * linear memory only ever grows, so a render can throw for reasons unrelated to
- * this particular request: enough decoded pixels exhaust that heap on a warm
- * isolate while the same request succeeds on a cold one. `avatar-image.ts` caps
- * the one input whose pixel count we don't control, but that's an upper bound
- * on the biggest contributor, not a guarantee about the heap.
- *
- * Nothing above this used to catch, so such a throw escaped to the runtime as a
- * 1101 and the card 500'd on `/<name>` and every subpage at once. Failures are
- * reported as `null` instead, and callers degrade to something renderable.
- */
-async function renderOgResponse(
-  html: string,
-  fonts: OgFonts,
-): Promise<Response | null> {
-  let buf: ArrayBuffer
-  try {
-    const imageResponse = new ImageResponse(html, {
-      width: 1200,
-      height: 630,
-      fonts: buildOgFontList(fonts),
-    })
-    buf = await imageResponse.arrayBuffer()
-  } catch {
-    return null
-  }
-
-  // workers-og can also fail by producing no bytes rather than throwing.
-  if (buf.byteLength === 0) return null
-
-  return new Response(buf, {
-    headers: {
-      'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-    },
-  })
 }
 
 function renderOgHeader(): string {
@@ -217,13 +135,15 @@ export async function renderOgImage(
 ): Promise<Response | null> {
   const fonts = await loadOgFonts(env, requestUrl)
 
-  const rendered = await renderOgResponse(
+  const rendered = await renderOgCard(
     nameOgHtml(name, avatar, owner, subpage),
-    fonts,
+    {
+      fonts,
+    },
   )
   if (rendered || !avatar) return rendered
 
-  return renderOgResponse(nameOgHtml(name, null, owner, subpage), fonts)
+  return renderOgCard(nameOgHtml(name, null, owner, subpage), { fonts })
 }
 
 export async function renderAddressOgImage(
@@ -260,7 +180,7 @@ export async function renderAddressOgImage(
     </div>
   `
 
-  return renderOgResponse(html, fonts)
+  return renderOgCard(html, { fonts })
 }
 
 /**
@@ -307,7 +227,7 @@ async function renderContractOgImage(params: {
     </div>
   `
 
-  return renderOgResponse(html, fonts)
+  return renderOgCard(html, { fonts })
 }
 
 /** Resolver card subtitle — "Permissioned Resolver" for audited instances. */
@@ -379,7 +299,7 @@ export async function renderDefaultOgImage(
     </div>
   `
 
-  return renderOgResponse(html, fonts)
+  return renderOgCard(html, { fonts })
 }
 
 export async function renderTldOgImage(
@@ -407,5 +327,5 @@ export async function renderTldOgImage(
     </div>
   `
 
-  return renderOgResponse(html, fonts)
+  return renderOgCard(html, { fonts })
 }

@@ -1,61 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// og-render imports workers-og, which loads a WASM module at import time that
-// the node test environment can't resolve. Stub it, recording the HTML each
-// render was handed and letting a test decide how that render behaves — that
-// hook is what drives the degradation paths below.
+// og-render renders through @ens-apps/og, which pulls in a WASM module the node
+// test environment can't resolve. Stub the renderer, recording the HTML each
+// card was built from and letting a test decide how that render resolves — that
+// hook is what drives the degradation paths below. Whether a card rasterises at
+// all is the package's own concern, and tested there.
 const og = vi.hoisted(() => ({
   htmls: [] as string[],
-  render: (_html: string): ArrayBuffer => new ArrayBuffer(8),
+  render: (_html: string): Response | null =>
+    new Response(new ArrayBuffer(8), {
+      headers: { 'Content-Type': 'image/png' },
+    }),
 }))
 
-vi.mock('workers-og', () => ({
-  ImageResponse: class {
-    readonly html: string
-    constructor(html: string) {
-      this.html = html
-      og.htmls.push(html)
-    }
-    arrayBuffer(): Promise<ArrayBuffer> {
-      return Promise.resolve(og.render(this.html))
-    }
+vi.mock('@ens-apps/og/render', () => ({
+  OG_CARD_HEIGHT: 630,
+  OG_CARD_WIDTH: 1200,
+  renderOgCard: (html: string) => {
+    og.htmls.push(html)
+    return Promise.resolve(og.render(html))
   },
 }))
 
 const {
-  escapeHtml,
   resolverSubtitle,
   resolverPageLabel,
   registryPageLabel,
   renderOgImage,
 } = await import('./og-render')
-
-describe('escapeHtml', () => {
-  it('escapes the five HTML-sensitive characters', () => {
-    expect(escapeHtml('&')).toBe('&amp;')
-    expect(escapeHtml('<')).toBe('&lt;')
-    expect(escapeHtml('>')).toBe('&gt;')
-    expect(escapeHtml('"')).toBe('&quot;')
-    expect(escapeHtml("'")).toBe('&#39;')
-  })
-
-  it('neutralizes a single-quote attribute breakout', () => {
-    expect(escapeHtml("vitalik' onerror='alert(1)")).toBe(
-      'vitalik&#39; onerror=&#39;alert(1)',
-    )
-  })
-
-  it('does not double-escape ampersands in its own output', () => {
-    // a combined input confirms neither replacement double-escapes the
-    // other's output — notably the & inside the &#39; emitted for '
-    expect(escapeHtml("a&'b")).toBe('a&amp;&#39;b')
-  })
-
-  it('leaves slashes untouched so base64 data: URIs survive intact', () => {
-    const url = 'data:image/png;base64,iVBOR/w0KGgo+AAAA=='
-    expect(escapeHtml(url)).toBe(url)
-  })
-})
 
 describe('resolverSubtitle', () => {
   it('labels permissioned resolvers', () => {
@@ -113,7 +85,10 @@ describe('renderOgImage', () => {
 
   beforeEach(() => {
     og.htmls = []
-    og.render = () => new ArrayBuffer(8)
+    og.render = () =>
+      new Response(new ArrayBuffer(8), {
+        headers: { 'Content-Type': 'image/png' },
+      })
   })
 
   it('renders a PNG when the avatar renders', async () => {
@@ -125,13 +100,15 @@ describe('renderOgImage', () => {
     expect(og.htmls[0]).toContain(AVATAR)
   })
 
-  it('retries without the avatar when rendering it throws', async () => {
+  it('retries without the avatar when that card fails to render', async () => {
     // An avatar is the one element of the card sized by someone else, so it is
-    // the part a render realistically dies on — see renderOgResponse.
-    og.render = (html) => {
-      if (html.includes(AVATAR)) throw new Error('Out of memory')
-      return new ArrayBuffer(8)
-    }
+    // the part a render realistically dies on — see renderOgCard.
+    og.render = (html) =>
+      html.includes(AVATAR)
+        ? null
+        : new Response(new ArrayBuffer(8), {
+            headers: { 'Content-Type': 'image/png' },
+          })
 
     const res = await renderName()
 
@@ -143,18 +120,8 @@ describe('renderOgImage', () => {
     expect(og.htmls[1]).toContain('>S</div>')
   })
 
-  it('retries when the avatar render yields no bytes instead of throwing', async () => {
-    og.render = (html) =>
-      html.includes(AVATAR) ? new ArrayBuffer(0) : new ArrayBuffer(8)
-
-    expect((await renderName())?.status).toBe(200)
-    expect(og.htmls).toHaveLength(2)
-  })
-
   it('reports null when the card fails to render with or without the avatar', async () => {
-    og.render = () => {
-      throw new Error('Out of memory')
-    }
+    og.render = () => null
 
     // null, not a throw: an uncaught error here reaches the runtime as a 1101,
     // which breaks the card on the name page and every subpage at once.
@@ -163,9 +130,7 @@ describe('renderOgImage', () => {
   })
 
   it('does not retry a card that never had an avatar', async () => {
-    og.render = () => {
-      throw new Error('Out of memory')
-    }
+    og.render = () => null
 
     expect(
       await renderOgImage('snowman.eth', null, OWNER, URL_, env),
