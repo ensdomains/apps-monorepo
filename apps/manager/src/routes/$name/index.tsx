@@ -19,7 +19,7 @@ import { profileRegistrationQuery } from '@/features/profile/service/profileRegi
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { parseName } from '@/features/register-v2/utils/name-parser'
-import { seo } from '@/utils/seo'
+import { nameOgImageUrl, seo } from '@/utils/seo'
 
 // `/register/$name` redirects straight back here when the registrar says the
 // name isn't free, so every hand off to it is gated on this.
@@ -136,6 +136,7 @@ export const Route = createFileRoute('/$name/')({
       meta: seo({
         title: `${name} - ENS Profile`,
         description: metaDescription,
+        image: nameOgImageUrl(name),
       }),
     }
   },
