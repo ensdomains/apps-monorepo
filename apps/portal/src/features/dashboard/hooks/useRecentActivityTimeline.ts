@@ -64,8 +64,11 @@ const requestPage = (after?: string) =>
     graphqlIndexerClient
       .request<{
         eventConnection: {
-          pageInfo: { hasNextPage: boolean; endCursor: string | null }
-          edges: { node: TimelineIndexerEvent }[]
+          readonly pageInfo: {
+            readonly hasNextPage: boolean
+            readonly endCursor: string | null
+          }
+          readonly edges: readonly { readonly node: TimelineIndexerEvent }[]
         }
       }>(recentActivityQuery, {
         first: PAGE_SIZE,

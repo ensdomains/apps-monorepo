@@ -3,13 +3,16 @@ import type { Hex } from 'viem'
 import type { V1SubgraphEvent } from './adaptV1Events'
 
 type V1SubgraphResult = {
-  domain: {
-    events: V1SubgraphEvent[]
-    registration?: { cost?: string | null; events: V1SubgraphEvent[] } | null
+  readonly domain: {
+    readonly events: readonly V1SubgraphEvent[]
+    readonly registration?: {
+      readonly cost?: string | null
+      readonly events: readonly V1SubgraphEvent[]
+    } | null
   } | null
   // Scoped reads select concrete collections (`addrChangeds`, …) instead of the
   // `events` interface, so the shape is "some event lists, keyed by selection".
-  resolvers: Record<string, V1SubgraphEvent[]>[]
+  readonly resolvers: readonly Record<string, readonly V1SubgraphEvent[]>[]
 }
 
 /**

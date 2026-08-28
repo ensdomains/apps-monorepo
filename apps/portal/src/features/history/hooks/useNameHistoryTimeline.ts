@@ -156,7 +156,7 @@ type GetNameHistoryTimelineParameters = {
   readonly eventTypes?: readonly TimelineEventType[]
 }
 
-type DomainWithEvents = { events: TimelineIndexerEvent[] }
+type DomainWithEvents = { readonly events: readonly TimelineIndexerEvent[] }
 
 export const V1_PROTOCOL = 'v1'
 
@@ -280,9 +280,9 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     Promise.all([
       graphqlIndexerClient
         .request<{
-          domains: (DomainWithEvents & {
-            eventsCount: number
-            subdomains?: DomainWithEvents[]
+          domains: readonly (DomainWithEvents & {
+            readonly eventsCount: number
+            readonly subdomains?: readonly DomainWithEvents[]
           })[]
         }>(buildHistoryTimelineQuery(eventTypes), {
           name: normalizedName,
