@@ -23,7 +23,7 @@ catalog:
   # Optional peer dep of @wagmi/connectors (walletConnect connector). Since wagmi
   # v3 all connector deps are optional peers, and autoInstallPeers is false, so it
   # must be declared explicitly or the prod bundle fails to resolve it at runtime.
-  "@walletconnect/ethereum-provider": ^2.23.10
+  "@walletconnect/ethereum-provider": ~2.21.1
   # wagmi pins @wagmi/core and @wagmi/connectors to exact versions, so these
   # three only ever move together — bumping one alone just re-duplicates the
   # tree at wagmi's pinned version.
