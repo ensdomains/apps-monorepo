@@ -3,7 +3,6 @@ import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { dateToPlainDate } from '@/utils/temporal'
 import { humanizeType } from './summarize/descriptors'
 import { IGNORED_TYPES } from './summarize/summarizeEvents'
-import type { TimelineIndexerEvent } from './timelineEvent'
 
 const plainDateToUnixSecondsUtc = (date: Temporal.PlainDate): number =>
   Math.floor(date.toZonedDateTime({ timeZone: 'UTC' }).epochMilliseconds / 1000)
@@ -35,19 +34,17 @@ export const dateRangeToTimestamps = (
 })
 
 /**
- * Build the "Event" multi-select options from the event types present in the
- * data.
+ * Build the "Event" multi-select options from the types a name actually has.
  *
- * Derived from what has loaded rather than from the descriptor vocabulary, so
- * the list stays short and relevant — but that means loading another page can
- * add an option.
- * TODO(indexer): expose the distinct event types for a name so the chip can
- * offer the whole set up front.
+ * Takes the types rather than events because they must come from a read that
+ * does *not* carry the user's current selection — see
+ * `getNameEventTypesQueryOptions`. Deriving them from the rendered feed is what
+ * made the list collapse to the selected item.
  */
 export const buildEventTypeGroups = (
-  events: readonly TimelineIndexerEvent[],
+  eventTypes: readonly string[],
 ): FilterGroup[] => {
-  const types = [...new Set(events.map((event) => event.type))]
+  const types = [...new Set(eventTypes)]
     .filter((type) => !IGNORED_TYPES.has(type))
     .sort()
   if (types.length === 0) return []

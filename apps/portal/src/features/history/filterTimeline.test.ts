@@ -1,14 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { buildEventTypeGroups, dateRangeToTimestamps } from './filterTimeline'
-import type { TimelineIndexerEvent } from './timelineEvent'
-
-const event = (type: string, id: string): TimelineIndexerEvent => ({
-  id,
-  type,
-  transactionHash: `0x${id}` as const,
-  blockNumber: 1,
-  timestamp: 1,
-})
 
 const utcSeconds = (iso: string) => Math.floor(Date.parse(iso) / 1000)
 
@@ -47,9 +38,9 @@ describe('dateRangeToTimestamps', () => {
 describe('buildEventTypeGroups', () => {
   it('returns one sorted, de-duplicated group of the types present', () => {
     const groups = buildEventTypeGroups([
-      event('TextChanged', '1'),
-      event('AddrChanged', '2'),
-      event('TextChanged', '3'),
+      'TextChanged',
+      'AddrChanged',
+      'TextChanged',
     ])
     expect(groups).toHaveLength(1)
     expect(groups[0].options.map((o) => o.value)).toEqual([
@@ -59,7 +50,7 @@ describe('buildEventTypeGroups', () => {
   })
 
   it('omits types the timeline never renders', () => {
-    expect(buildEventTypeGroups([event('CommitmentMade', '1')])).toEqual([])
+    expect(buildEventTypeGroups(['CommitmentMade'])).toEqual([])
   })
 
   it('returns no group when there is nothing to filter by', () => {

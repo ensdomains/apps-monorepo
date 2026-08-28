@@ -208,15 +208,10 @@ export const HistoryTimeline = ({
   const [dateRange, setDateRange] = useState<DateRange>({})
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
 
-  // A facet view is already scoped; the chip narrows within it rather than
-  // replacing it, so a selection outside the facet cannot widen the feed.
-  const eventTypes = selectedTypes.length
-    ? (scope?.filter((type) => selectedTypes.includes(type)) ?? selectedTypes)
-    : scope
-
   const model = useNameHistoryTimeline({
     name,
-    eventTypes,
+    scope,
+    selectedTypes,
     ...dateRangeToTimestamps(dateRange),
     withAnchor: canLoadMore,
   })
@@ -232,7 +227,7 @@ export const HistoryTimeline = ({
     )
   }
 
-  const eventTypeGroups = buildEventTypeGroups(model.events)
+  const eventTypeGroups = buildEventTypeGroups(model.eventTypes)
 
   return (
     <HistoryTimelineView

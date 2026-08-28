@@ -175,6 +175,104 @@ export const getNameHistoryAnchorQueryOptions = (scope: NameHistoryScope) =>
       ),
   })
 
+// ------------------------------------------------------------ type vocabulary
+
+/**
+ * How many events from *each end* of the name's history the Event chip's option
+ * list is derived from.
+ *
+ * Read from both ends rather than one wide descending window: the types that
+ * only ever occur once sit at the *start* of a name's history — `NameRegistered`,
+ * `LabelReserved` — so a newest-first window on a busy name drops exactly the
+ * options people most want to filter by. Measured against staging,
+ * `LabelReserved` was invisible from the newest end alone.
+ *
+ * The width is set from a measured coverage curve rather than a guess: against
+ * the protocol-wide feed, 25 per end already surfaced every distinct type, and
+ * 50/100/250 added nothing while costing 15KB/30KB/74KB. 50 is double the
+ * observed plateau, so it keeps headroom and stays ~15KB at the cap.
+ *
+ * Hardcoding the vocabulary instead would mean ~28 fixed options against the 5
+ * a typical name actually has — every extra one a dead end that renders "No
+ * matching history".
+ */
+const EVENT_TYPES_WINDOW = 50
+
+const nameEventTypesQuery = gql`
+  query getNameEventTypes($where: EventFilter, $first: Int) {
+    newest: eventConnection(
+      first: $first
+      orderBy: timestamp
+      orderDirection: desc
+      where: $where
+    ) {
+      edges {
+        node {
+          type
+        }
+      }
+    }
+    oldest: eventConnection(
+      first: $first
+      orderBy: timestamp
+      orderDirection: asc
+      where: $where
+    ) {
+      edges {
+        node {
+          type
+        }
+      }
+    }
+  }
+`
+
+const getNameEventTypesQueryKey = createQueryKey<
+  'get-name-event-types',
+  NameHistoryScope
+>('get-name-event-types')
+
+/**
+ * The event types the Event chip offers.
+ *
+ * Read *without* the user's current selection in the `where`, which is the
+ * whole point: the feed query is filtered server-side now, so deriving the
+ * options from its results would collapse the list to whatever is already
+ * selected — pick one type and the other options vanish, with no way back.
+ * The date range is left out for the same reason, so narrowing a range cannot
+ * make an option disappear underneath the cursor.
+ *
+ * A facet's `scope` *is* applied: the ownership view should only ever offer
+ * ownership types.
+ */
+export const getNameEventTypesQueryOptions = (scope: NameHistoryScope) =>
+  resultQueryOptions({
+    queryKey: getNameEventTypesQueryKey(scope),
+    queryFn: ({ queryKey: [, scope] }) =>
+      fromPromise(
+        graphqlIndexerClient
+          .request<
+            Record<
+              'newest' | 'oldest',
+              {
+                readonly edges: readonly { readonly node: { type: string } }[]
+              } | null
+            >
+          >(nameEventTypesQuery, {
+            where: toEventFilter(scope),
+            first: EVENT_TYPES_WINDOW,
+          })
+          .then(({ newest, oldest }) => [
+            ...new Set(
+              [...(newest?.edges ?? []), ...(oldest?.edges ?? [])].map(
+                ({ node }) => node.type,
+              ),
+            ),
+          ]),
+        (e) => new GetNameHistoryTimelineError({ cause: e as ClientError }),
+      ),
+  })
+
 // --------------------------------------------------------- auxiliary sources
 
 /**

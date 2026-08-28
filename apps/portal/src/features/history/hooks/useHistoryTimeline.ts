@@ -10,13 +10,12 @@ import type { Hex } from 'viem'
 import { mergeTimeline } from '../mergeTimeline'
 import type { Action } from '../summarize/summarize.types'
 import { summarizeEvents } from '../summarize/summarizeEvents'
-import type { TimelineIndexerEvent } from '../timelineEvent'
 import type { TimelinePage } from '../timelineEventPage'
 import {
+  getNameEventTypesQueryOptions,
   getNameHistoryAnchorQueryOptions,
   getNameHistoryAuxiliaryQueryOptions,
   getNameHistoryPagesQueryOptions,
-  type NameHistoryScope,
 } from './useNameHistoryTimeline'
 
 /** A tagged query error, whose `cause` carries the underlying `ClientError`. */
@@ -34,7 +33,9 @@ export type TimelineQueryError = Error & {
  */
 export type HistoryTimelineModel = {
   readonly actions: readonly Action[]
-  readonly events: readonly TimelineIndexerEvent[]
+  /** Every event type this name has, for the Event chip. Never narrowed by the
+   * current selection — that is what made the chip collapse to one option. */
+  readonly eventTypes: readonly string[]
   readonly anchorAction: Action | undefined
   readonly totalCount: number | undefined
   readonly hasMore: boolean
@@ -110,7 +111,7 @@ export const useTimelinePagesModel = <
 
   return {
     actions,
-    events,
+    eventTypes: [],
     anchorAction: undefined,
     totalCount,
     hasMore: hasNextPage,
@@ -125,7 +126,15 @@ export const useTimelinePagesModel = <
   }
 }
 
-type UseNameHistoryTimelineParameters = NameHistoryScope & {
+type UseNameHistoryTimelineParameters = {
+  readonly name: string
+  /** The facet's own event types (ownership, resolver, …); stable per surface. */
+  readonly scope?: readonly string[]
+  /** The user's Event-chip selection, narrowing within `scope`. */
+  readonly selectedTypes?: readonly string[]
+  /** Inclusive unix-second bounds from the Date range chip. */
+  readonly from?: number
+  readonly to?: number
   /** Cap the rendered rows, for the Overview's preview. */
   readonly limit?: number
   /** Skip the ascending anchor read where nothing pins it (no break is drawn). */
@@ -140,15 +149,35 @@ type UseNameHistoryTimelineParameters = NameHistoryScope & {
  * refetch the v1 subgraph, and the anchor never changes as pages load.
  */
 export const useNameHistoryTimeline = ({
+  name,
+  scope,
+  selectedTypes,
+  from,
+  to,
   limit,
   withAnchor = true,
-  ...scope
 }: UseNameHistoryTimelineParameters): HistoryTimelineModel => {
-  const pagesQuery = useInfiniteQuery(getNameHistoryPagesQueryOptions(scope))
-  const [auxiliaryQuery, anchorQuery] = useQueries({
+  // A facet is already scoped; the chip narrows within it rather than replacing
+  // it, so a selection outside the facet cannot widen the feed.
+  const eventTypes = selectedTypes?.length
+    ? (scope?.filter((type) => selectedTypes.includes(type)) ?? selectedTypes)
+    : scope
+
+  const feedScope = { name, eventTypes, from, to }
+  // The auxiliary sources are read whole and never paged, so they are keyed on
+  // the facet alone and narrowed in memory below. Putting the chip selection in
+  // their key would refetch the v1 subgraph on every toggle, and would hide the
+  // v1 types the chip needs to offer.
+  const facetScope = { name, eventTypes: scope }
+
+  const pagesQuery = useInfiniteQuery(
+    getNameHistoryPagesQueryOptions(feedScope),
+  )
+  const [auxiliaryQuery, anchorQuery, eventTypesQuery] = useQueries({
     queries: [
-      getNameHistoryAuxiliaryQueryOptions(scope),
-      { ...getNameHistoryAnchorQueryOptions(scope), enabled: withAnchor },
+      getNameHistoryAuxiliaryQueryOptions(facetScope),
+      { ...getNameHistoryAnchorQueryOptions(feedScope), enabled: withAnchor },
+      getNameEventTypesQueryOptions(facetScope),
     ],
   })
   const { openIds, toggleAction, setAllOpen } = useActionDisclosure()
@@ -159,13 +188,15 @@ export const useNameHistoryTimeline = ({
     totalCount: pagedTotalCount,
   } = flattenTimelinePages(pagesQuery.data)
 
-  // The date range is part of the paged query's `where`, but the auxiliary
-  // sources are read whole and unfiltered — apply it to them here so the rows
-  // on screen and the count beside them describe the same feed.
-  const auxiliaryEvents = (auxiliaryQuery.data?.events ?? []).filter(
+  // The paged query carries the filters in its `where`; the auxiliary sources
+  // are read whole, so the same narrowing happens here — in memory, which is
+  // exact for them because there is no window to fall out of.
+  const auxiliaryAll = auxiliaryQuery.data?.events ?? []
+  const auxiliaryEvents = auxiliaryAll.filter(
     (event) =>
-      (scope.from === undefined || event.timestamp >= scope.from) &&
-      (scope.to === undefined || event.timestamp <= scope.to),
+      (from === undefined || event.timestamp >= from) &&
+      (to === undefined || event.timestamp <= to) &&
+      (!eventTypes || eventTypes.includes(event.type)),
   )
 
   const events = mergeTimeline({ pagedEvents, auxiliaryEvents, hasNextPage })
@@ -190,7 +221,11 @@ export const useNameHistoryTimeline = ({
 
   return {
     actions,
-    events,
+    // v1 types come from the auxiliary read, which the connection cannot see.
+    eventTypes: [
+      ...(eventTypesQuery.data ?? []),
+      ...auxiliaryAll.map((event) => event.type),
+    ],
     anchorAction,
     totalCount,
     // The break is drawn on evidence of hidden history, not on having something

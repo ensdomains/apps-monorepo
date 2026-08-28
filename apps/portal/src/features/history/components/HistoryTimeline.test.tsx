@@ -52,7 +52,7 @@ const model = (
   over: Partial<HistoryTimelineModel> = {},
 ): HistoryTimelineModel => ({
   actions: [action('a', 'Set text record', 300)],
-  events: [],
+  eventTypes: [],
   anchorAction: undefined,
   totalCount: undefined,
   hasMore: false,
