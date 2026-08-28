@@ -1,85 +1,61 @@
-import type {
-  DataTag,
-  InfiniteData,
-  QueryFunctionContext,
-  QueryKey,
-  UndefinedInitialDataInfiniteOptions,
-  UseInfiniteQueryOptions,
+import {
+  type InfiniteData,
+  infiniteQueryOptions,
+  type QueryKey,
+  type UseInfiniteQueryOptions,
 } from '@tanstack/react-query'
 import type { ResultQueryFunction } from './query'
 import type { ResultError } from './shared'
 
 /**
- * The paginated sibling of `UseResultQueryOptions`: everything
- * `useInfiniteQuery` takes, but with a `queryFn` that returns a
- * `Result`/`ResultAsync` instead of a bare value.
- *
- * `ResultQueryFunction` already carries a `TPageParam` generic that
- * `resultQueryOptions` leaves at `never` — this is what supplies it, so the
- * `queryFn` sees a typed `pageParam` in its context.
- */
-export type UseResultInfiniteQueryOptions<
-  TQueryFnData,
-  TError extends ResultError,
-  TData = InfiniteData<TQueryFnData>,
-  TQueryKey extends QueryKey = QueryKey,
-  TPageParam = unknown,
-> = Omit<
-  UseInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey, TPageParam>,
-  'queryFn'
-> & {
-  queryFn: ResultQueryFunction<TQueryFnData, TError, TQueryKey, TPageParam>
-}
-
-/**
  * `resultQueryOptions` for a cursor-paginated feed.
  *
- * Unwraps each page's `Result` the same way — value out, tagged error thrown —
- * so `error` on the hook is the tagged error and not a rejected `Result`. Page
- * plumbing (`initialPageParam`, `getNextPageParam`) passes through untouched.
+ * Unwraps each page's `Result` — value out, tagged error thrown — so `error` on
+ * the hook is the tagged error rather than a rejected `Result`.
+ *
+ * That unwrap is the only reason this exists, and it has to happen here rather
+ * than at the call site: TypeScript cannot infer an error type from a function
+ * that *throws*, so calling `infiniteQueryOptions` directly collapses `TError`
+ * to `Error` — whose `cause` is `unknown` — and every caller loses the typed
+ * cause it branches on. Taking a `Result`-returning `queryFn` is what keeps
+ * `TError` inferable, exactly as `resultQueryOptions` does for a single page.
+ *
+ * Everything else — page params, the `DataTag` on the returned key — is
+ * `infiniteQueryOptions`' own job and passes straight through.
  */
-export function resultInfiniteQueryOptions<
+export const resultInfiniteQueryOptions = <
   TQueryFnData,
   TError extends ResultError,
-  TData = InfiniteData<TQueryFnData>,
-  TQueryKey extends QueryKey = QueryKey,
-  TPageParam = unknown,
->(
-  options: UseResultInfiniteQueryOptions<
+  TQueryKey extends QueryKey,
+  TPageParam,
+>({
+  queryFn,
+  ...rest
+}: Omit<
+  UseInfiniteQueryOptions<
     TQueryFnData,
     TError,
-    TData,
+    InfiniteData<TQueryFnData>,
     TQueryKey,
     TPageParam
   >,
-): UndefinedInitialDataInfiniteOptions<
-  TQueryFnData,
-  TError,
-  TData,
-  TQueryKey,
-  TPageParam
+  'queryFn'
 > & {
-  queryKey: DataTag<TQueryKey, InfiniteData<TQueryFnData>, TError>
-}
-
-export function resultInfiniteQueryOptions({
-  queryFn: rawQueryFn,
-  ...rest
-}: UseResultInfiniteQueryOptions<
-  unknown,
-  ResultError,
-  InfiniteData<unknown>,
-  QueryKey,
-  unknown
->) {
-  return {
+  queryFn: ResultQueryFunction<TQueryFnData, TError, TQueryKey, TPageParam>
+}) =>
+  infiniteQueryOptions<
+    TQueryFnData,
+    TError,
+    InfiniteData<TQueryFnData>,
+    TQueryKey,
+    TPageParam
+  >({
     ...rest,
-    queryFn: (context: QueryFunctionContext<QueryKey, unknown>) =>
-      rawQueryFn(context).match(
+    queryFn: (context) =>
+      queryFn(context).match(
         (value) => value,
         (error) => {
           throw error
         },
       ),
-  }
-}
+  })

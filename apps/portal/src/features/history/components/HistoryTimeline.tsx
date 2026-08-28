@@ -232,8 +232,6 @@ export const HistoryTimeline = ({
   }
 
   const eventTypeGroups = buildEventTypeGroups(model.events)
-  const isFiltered =
-    selectedTypes.length > 0 || !!dateRange.from || !!dateRange.to
 
   return (
     <HistoryTimelineView
@@ -270,7 +268,7 @@ export const HistoryTimeline = ({
         )
       }
       {...viewProps}
-      {...(isFiltered && {
+      {...((selectedTypes.length > 0 || !!dateRange.from || !!dateRange.to) && {
         emptyTitle: 'No matching history',
         emptyDescription:
           'No events match the selected filters. Try widening the date range or clearing the event filter.',

@@ -33,16 +33,21 @@ export type TimelinePage = {
 }
 
 /**
- * `getNextPageParam` for every timeline feed.
+ * The cursor plumbing every paginated timeline feed shares.
  *
- * Returning `undefined` is what tells TanStack there is no next page, so a
- * connection that reports `hasNextPage` without an `endCursor` stops rather
- * than refetching page one forever.
+ * `getNextPageParam` returning `undefined` is what tells TanStack there is no
+ * next page, so a connection that reports `hasNextPage` without an `endCursor`
+ * stops rather than refetching page one forever.
+ *
+ * `initialPageParam` is annotated rather than left bare because TanStack infers
+ * the page-param type from it: plain `undefined` would type the cursor as
+ * `undefined` and reject the `after` it is threaded into.
  */
-export const getNextTimelinePageParam = (
-  last: TimelinePage,
-): string | undefined =>
-  last.hasNextPage ? (last.endCursor ?? undefined) : undefined
+export const timelinePageParams = {
+  initialPageParam: undefined as string | undefined,
+  getNextPageParam: (last: TimelinePage) =>
+    last.hasNextPage ? (last.endCursor ?? undefined) : undefined,
+}
 
 /**
  * The default page size, and the figure the History page's break row quotes:

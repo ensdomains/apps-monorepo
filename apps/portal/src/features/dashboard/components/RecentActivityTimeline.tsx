@@ -1,4 +1,5 @@
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { HistoryTimelineView } from '@/features/history/components/HistoryTimeline'
@@ -6,10 +7,14 @@ import { useTimelinePagesModel } from '@/features/history/hooks/useHistoryTimeli
 import { IGNORED_TYPES } from '@/features/history/summarize/summarizeEvents'
 import {
   fetchTimelineEventPage,
-  getNextTimelinePageParam,
   HISTORY_TIMELINE_PAGE_SIZE,
+  timelinePageParams,
 } from '@/features/history/timelineEventPage'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
+
+const recentActivityTimelineQueryKey = createQueryKey(
+  'get-recent-activity-timeline',
+)
 
 /**
  * The homepage's Recent Activity — the History timeline over the protocol-wide
@@ -26,15 +31,14 @@ import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 export const RecentActivityTimeline = () => {
   const model = useTimelinePagesModel(
     resultInfiniteQueryOptions({
-      queryKey: ['get-recent-activity-timeline'] as const,
+      queryKey: recentActivityTimelineQueryKey(),
       queryFn: ({ pageParam }) =>
         fetchTimelineEventPage({
           where: { type_not_in: [...IGNORED_TYPES] },
           first: HISTORY_TIMELINE_PAGE_SIZE,
           after: pageParam,
         }),
-      initialPageParam: undefined as string | undefined,
-      getNextPageParam: getNextTimelinePageParam,
+      ...timelinePageParams,
       refetchInterval: 30_000,
       staleTime: 15_000,
     }),

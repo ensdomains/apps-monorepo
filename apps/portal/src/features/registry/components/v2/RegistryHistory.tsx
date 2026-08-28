@@ -1,4 +1,5 @@
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ClockIcon } from 'lucide-react'
@@ -11,11 +12,16 @@ import { HistoryTimelineView } from '@/features/history/components/HistoryTimeli
 import { useTimelinePagesModel } from '@/features/history/hooks/useHistoryTimeline'
 import {
   fetchTimelineEventPage,
-  getNextTimelinePageParam,
   HISTORY_TIMELINE_PAGE_SIZE,
+  timelinePageParams,
 } from '@/features/history/timelineEventPage'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { getNameRegistriesQueryOptions } from '../../hooks/useNameRegistryDiscovery'
+
+const registryHistoryTimelineQueryKey = createQueryKey<
+  'get-registry-history-timeline',
+  { readonly address: Address }
+>('get-registry-history-timeline')
 
 /**
  * History timeline for a registry contract, given its address.
@@ -47,15 +53,14 @@ export const RegistryHistoryByAddress = ({
   // and `after` was ignored, so page two repeated page one.
   const model = useTimelinePagesModel(
     resultInfiniteQueryOptions({
-      queryKey: ['get-registry-history-timeline', { address }] as const,
+      queryKey: registryHistoryTimelineQueryKey({ address }),
       queryFn: ({ queryKey: [, { address }], pageParam }) =>
         fetchTimelineEventPage({
           where: { contractAddress: address.toLowerCase() },
           first: HISTORY_TIMELINE_PAGE_SIZE,
           after: pageParam,
         }),
-      initialPageParam: undefined as string | undefined,
-      getNextPageParam: getNextTimelinePageParam,
+      ...timelinePageParams,
     }),
   )
 

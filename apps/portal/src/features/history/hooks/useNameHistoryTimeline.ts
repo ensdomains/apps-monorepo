@@ -18,9 +18,9 @@ import {
 } from '../timelineEvent'
 import {
   fetchTimelineEventPage,
-  getNextTimelinePageParam,
   HISTORY_TIMELINE_PAGE_SIZE,
   type TimelineEventFilter,
+  timelinePageParams,
 } from '../timelineEventPage'
 import { adaptV1Events } from '../v1/adaptV1Events'
 import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
@@ -138,8 +138,7 @@ export const getNameHistoryPagesQueryOptions = (scope: NameHistoryScope) =>
         first: HISTORY_TIMELINE_PAGE_SIZE,
         after: pageParam,
       }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: getNextTimelinePageParam,
+    ...timelinePageParams,
   })
 
 // ------------------------------------------------------------------- anchor
@@ -171,8 +170,6 @@ export const getNameHistoryAnchorQueryOptions = (scope: NameHistoryScope) =>
 
 // --------------------------------------------------------- auxiliary sources
 
-type DomainWithEvents = { events: TimelineIndexerEvent[] }
-
 /**
  * A child's registration is attributed to the parent on the full feed only. A
  * scoped view asked for specific event types, and a subdomain `LabelRegistered`
@@ -202,16 +199,6 @@ const childRegistrationsQuery = gql`
   }
 `
 
-type NameHistoryAuxiliary = {
-  readonly events: TimelineIndexerEvent[]
-  /**
-   * Whether the v1 read filled its window, i.e. the name may have v1 history
-   * this does not carry. Surfaced rather than hidden — a v1 name has no cursor
-   * to offer a "load more".
-   */
-  readonly v1Saturated: boolean
-}
-
 /**
  * The name's history that the paged connection cannot reach: v1 subgraph events
  * and child registrations.
@@ -235,7 +222,9 @@ const getNameHistoryAuxiliary = ResultFn(async function* ({
         ? Promise.resolve([])
         : graphqlIndexerClient
             .request<{
-              domains: { subdomains?: DomainWithEvents[] }[]
+              domains: {
+                subdomains?: { events: TimelineIndexerEvent[] }[]
+              }[]
             }>(childRegistrationsQuery, { name: normalizedName })
             .then(({ domains: [domain] }) =>
               (domain?.subdomains ?? []).flatMap(({ events }) => events),
@@ -283,11 +272,15 @@ const getNameHistoryAuxiliary = ResultFn(async function* ({
 
   return ok({
     events: [...v1Events, ...children],
+    // Whether the v1 read filled its window, i.e. the name may have v1 history
+    // this does not carry. Surfaced rather than hidden — a v1 name has no
+    // cursor to offer a "load more".
+    //
     // Compared against the raw response, not the scoped subset: the window
     // bounds what the subgraph returned, and a filter applied afterwards can
     // only shrink it.
     v1Saturated: v1Raw.length >= V1_HISTORY_WINDOW,
-  } satisfies NameHistoryAuxiliary)
+  })
 })
 
 const getNameHistoryAuxiliaryQueryKey = createQueryKey<
