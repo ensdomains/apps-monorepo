@@ -1,5 +1,6 @@
 import { Calendar, ChevronDown, ChevronUp, ListFilter } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
+import { match, P } from 'ts-pattern'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -115,13 +116,15 @@ export const HistoryTimelineView = ({
     )
   }
 
-  // Only pin the anchor when it isn't already one of the rows above.
-  const pinnedAction =
-    hasMore &&
-    anchorAction &&
-    !actions.some((a) => a.txHash === anchorAction.txHash)
-      ? anchorAction
-      : undefined
+  // Pin the anchor only when there is hidden history to pin it below, and it
+  // isn't already one of the rows above.
+  const pinnedAction = match({ hasMore, anchorAction })
+    .with({ hasMore: true, anchorAction: P.nonNullable }, ({ anchorAction }) =>
+      actions.some((shown) => shown.txHash === anchorAction.txHash)
+        ? undefined
+        : anchorAction,
+    )
+    .otherwise(() => undefined)
   const showBreak = hasMore && breakContent != null
 
   return (
