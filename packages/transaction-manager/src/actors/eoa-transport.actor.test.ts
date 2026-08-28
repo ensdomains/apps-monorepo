@@ -110,7 +110,7 @@ describe('submitEOATransaction', () => {
     expect(sendTransaction).not.toHaveBeenCalled()
   })
 
-  it('pins the request chain on the viem call so viem asserts it live', async () => {
+  it("passes a real Chain so viem's assertCurrentChain runs", async () => {
     sendTransaction.mockResolvedValueOnce('0xhash')
 
     await submitEOATransaction({
@@ -118,9 +118,9 @@ describe('submitEOATransaction', () => {
       signer: eoaSigner(ACCOUNT),
     })
 
-    // `chain` must be a real Chain, never `null`: viem skips
-    // `assertCurrentChain` entirely when it is null, which is what let a
-    // wrong-chain wallet through.
+    // Never `null`: viem skips `assertCurrentChain` entirely when `chain` is
+    // null, which is what let a wrong-chain wallet through. Passing the chain
+    // is what makes viem re-check it against a live `eth_chainId` at send time.
     const [, params] = sendTransaction.mock.calls[0] as [
       unknown,
       { chain: unknown },
@@ -139,6 +139,9 @@ describe('submitEOATransaction', () => {
     expect(error).toBeInstanceOf(ChainIdMismatchError)
     expect((error as ChainIdMismatchError).expected).toBe(sepolia.id)
     expect((error as ChainIdMismatchError).actual).toBe(mainnet.id)
+    // Portal renders `error.message` verbatim in the transaction modal, so it
+    // has to name the network rather than print a bare id.
+    expect(error.message).toContain(mainnet.name)
     expect(sendTransaction).not.toHaveBeenCalled()
   })
 

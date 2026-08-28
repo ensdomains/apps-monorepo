@@ -61,18 +61,18 @@ export function submitEOATransaction(input: {
   // `syncConnectedChain: false`) yields `undefined` — and the transaction was
   // then broadcast, and paid for, on that chain.
   //
-  // Pinning the request's own chain closes both halves: we reject here when the
-  // wallet declares nothing or declares the wrong chain, and viem rejects at
-  // send time if the provider has moved since.
+  // Passing a real `Chain` keeps that guard switched on. The two checks cover
+  // different things and both are needed: we prove `walletClient.chain` is the
+  // request's chain here, and viem then re-checks that same chain against a
+  // live `eth_chainId` at send time — catching a provider that moves in
+  // between.
   const walletChain = walletClient.chain
   if (!walletChain || walletChain.id !== eoaRequest.chainId) {
     logger.error('EOA transaction chain mismatch', {
       requestChainId: eoaRequest.chainId,
       walletChainId: walletChain?.id,
     })
-    return errAsync(
-      new ChainIdMismatchError(eoaRequest.chainId, walletChain?.id),
-    )
+    return errAsync(new ChainIdMismatchError(eoaRequest.chainId, walletChain))
   }
 
   // Build transaction params - either legacy (gasPrice) or EIP-1559 (maxFeePerGas)

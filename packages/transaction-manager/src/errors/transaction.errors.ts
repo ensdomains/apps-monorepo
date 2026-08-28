@@ -1,6 +1,6 @@
 import { YieldableError } from '@ens-apps/utils/neverthrow'
 import type { ITaggedError } from '@ens-apps/utils/neverthrow/error-classes'
-import type { Address, Hash } from 'viem'
+import type { Address, Chain, Hash } from 'viem'
 import type { TransactionRequest } from '../types/transaction.types'
 
 // Base error class for transaction errors
@@ -263,20 +263,32 @@ export class SignerAddressMismatchError
  *   - Rhinestone/Warp: `config.chain` must be defined and equal
  *     `request.chainId`. It is passed to the orchestrator as both source and
  *     target chain, so defaulting it silently re-routes the intent.
+ *
+ * The message is read by people, not just logs: portal renders `error.message`
+ * verbatim as the transaction modal's summary
+ * (`TransactionStateContent.tsx`). Hence the signer's `Chain` rather than its
+ * id — "your wallet is on Ethereum" beats "signer is on 1". The ids stay on
+ * `expected`/`actual` for callers that need to branch.
  */
 export class ChainIdMismatchError
   extends TransactionError
   implements ITaggedError
 {
   readonly _tag = 'ChainIdMismatchError'
-  constructor(
-    /** The chain the request was prepared for (`request.chainId`). */
-    public readonly expected: number,
-    /** The chain the signer would actually submit on, if it declares one. */
-    public readonly actual: number | undefined,
-  ) {
+  /** The chain the request was prepared for (`request.chainId`). */
+  readonly expected: number
+  /** The chain the signer would actually submit on, if it declares one. */
+  readonly actual: number | undefined
+
+  constructor(expected: number, actual: Chain | undefined) {
     super(
-      `Chain mismatch: request targets chain ${expected} but signer is on ${actual ?? 'an undeclared chain'}`,
+      `Chain mismatch: this transaction is for chain ${expected}, but your wallet is on ${
+        actual
+          ? `${actual.name} (${actual.id})`
+          : 'a network this app does not support'
+      }.`,
     )
+    this.expected = expected
+    this.actual = actual?.id
   }
 }

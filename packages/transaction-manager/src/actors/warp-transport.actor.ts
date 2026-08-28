@@ -66,13 +66,19 @@ export function submitWarpTransaction(
   // which silently re-routed the whole intent away from the chain the calls
   // were built for. Assert instead — the session digest binds a chain on-chain
   // and would fail with an opaque `InvalidSignature()` at best.
+  //
+  // This cannot fire today: manager is the only warp consumer and sets
+  // `config.chain` to `customSepolia` unconditionally, with `request.chainId`
+  // derived from the same constant. So this states the invariant rather than
+  // closing a live hole — the EOA guard is the one that bites — and keeps the
+  // next signer wiring from quietly reintroducing the default.
   const chain = config.chain
   if (!chain || chain.id !== request.chainId) {
     logger.error('Warp intent chain mismatch', {
       requestChainId: request.chainId,
       signerChainId: chain?.id,
     })
-    return errAsync(new ChainIdMismatchError(request.chainId, chain?.id))
+    return errAsync(new ChainIdMismatchError(request.chainId, chain))
   }
 
   const { calls, feeAsset, sessionEnableData, tokenRequests, auxiliaryFunds } =
