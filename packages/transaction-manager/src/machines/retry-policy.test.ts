@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ChainIdMismatchError,
   SignerAddressMismatchError,
   TransactionUserRejectedError,
 } from '../errors/transaction.errors'
@@ -38,6 +39,12 @@ describe('isRetryableSubmissionError', () => {
       isRetryableSubmissionError(
         new SignerAddressMismatchError(request, '0x1', '0x2'),
       ),
+    ).toBe(false)
+  })
+
+  it('does not retry a chain mismatch', () => {
+    expect(
+      isRetryableSubmissionError(new ChainIdMismatchError(1, 11155111)),
     ).toBe(false)
   })
 
