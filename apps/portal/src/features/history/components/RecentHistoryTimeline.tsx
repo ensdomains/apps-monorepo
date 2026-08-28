@@ -2,6 +2,7 @@ import { useQueries } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { History } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
+import { match, P } from 'ts-pattern'
 import type { Hex } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -9,6 +10,7 @@ import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Button } from '@/components/ui/button'
 import { Rail, TimelineFrame } from '@/components/ui/timeline'
 import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
+import type { Action } from '../summarize/summarize.types'
 import { summarizeEvents } from '../summarize/summarizeEvents'
 import { ActionTimeline } from './ActionTimeline'
 
@@ -127,11 +129,15 @@ export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
     ? summarizeEvents(firstQuery.data.events).at(-1)
     : undefined
   // Only pin it when it isn't already one of the rows above.
-  const pinnedAction =
-    firstAction &&
-    !recent.some((action) => action.txHash === firstAction.txHash)
-      ? firstAction
-      : undefined
+  const pinnedAction = match(firstAction)
+    .with(P.nullish, () => undefined)
+    .with(
+      P.when((action: Action) =>
+        recent.some((shown) => shown.txHash === action.txHash),
+      ),
+      () => undefined,
+    )
+    .otherwise((action) => action)
   // The break is drawn on evidence of hidden history, not on having something to
   // pin, so a failed oldest-action query still leaves the link out correct.
   // `hasMore` is what covers a v1-only name, whose `totalCount` is always 0:
