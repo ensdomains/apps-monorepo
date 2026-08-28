@@ -4,6 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
+import { dropClippedBoundary } from '@/features/history/dropClippedBoundary'
 import {
   TIMELINE_EVENT_FRAGMENT,
   type TimelineIndexerEvent,
@@ -29,7 +30,10 @@ const getRegistryHistoryTimeline = ResultFn(async function* ({
   const { registry } = yield* fromPromise(
     graphqlIndexerClient.request<{
       registry: {
-        eventConnection: { edges: { node: TimelineIndexerEvent }[] }
+        eventConnection: {
+          pageInfo: { hasNextPage: boolean }
+          edges: { node: TimelineIndexerEvent }[]
+        }
       } | null
     }>(
       gql`
@@ -42,6 +46,9 @@ const getRegistryHistoryTimeline = ResultFn(async function* ({
               orderBy: timestamp
               orderDirection: desc
             ) {
+              pageInfo {
+                hasNextPage
+              }
               edges {
                 node {
                   ...TimelineEvent
@@ -59,21 +66,19 @@ const getRegistryHistoryTimeline = ResultFn(async function* ({
   // null = the indexer has no record for this address (not a registry, or not
   // yet indexed) — an empty timeline, not an error.
   const events = registry?.eventConnection.edges.map(({ node }) => node) ?? []
+  const hasMore = registry?.eventConnection.pageInfo.hasNextPage ?? false
 
   // The window is a count of events, but `summarizeEvents` groups by
   // transaction — and a registry emits several events per transaction
   // (LabelRegistered + Transfer + EACRolesChanged + ResolverUpdated for one
-  // subname registration). A cutoff landing inside one would headline it from
-  // a subset, so drop the partial transaction at the boundary.
-  const kept = truncateToTransactions(events, EVENTS_LIMIT)
+  // subname registration). The query cut can land inside one, so the trailing
+  // block goes before the display cut is applied on transaction boundaries.
+  const kept = truncateToTransactions(
+    dropClippedBoundary(events, hasMore),
+    EVENTS_LIMIT,
+  )
 
-  return ok({
-    events: kept,
-    // Read off the fetched window, not `kept`: truncating on a transaction
-    // boundary routinely returns fewer than the limit from a window that was
-    // in fact full, so `kept.length` would under-report.
-    hasMore: events.length >= EVENTS_LIMIT,
-  })
+  return ok({ events: kept, hasMore })
 })
 
 const getRegistryHistoryTimelineQueryKey = createQueryKey<
