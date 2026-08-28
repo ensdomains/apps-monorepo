@@ -41,7 +41,7 @@ export const mergeTimeline = ({
   pagedEvents,
   auxiliaryEvents = [],
   hasNextPage,
-}: MergeTimelineParameters): TimelineIndexerEvent[] => {
+}: MergeTimelineParameters): readonly TimelineIndexerEvent[] => {
   const paged = dropClippedBoundary(pagedEvents, hasNextPage)
   // Inclusive: the horizon transaction is whole, so events sharing its
   // timestamp belong on screen with it.

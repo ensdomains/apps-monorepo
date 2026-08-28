@@ -33,7 +33,7 @@ export type TimelineQueryError = Error & {
 
 export type HistoryTimelineModel = {
   readonly actions: Action[]
-  readonly events: TimelineIndexerEvent[]
+  readonly events: readonly TimelineIndexerEvent[]
   readonly anchorAction: Action | undefined
   readonly totalCount: number | undefined
   readonly hasMore: boolean

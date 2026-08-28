@@ -21,7 +21,7 @@ class GetTimelineEventPageError extends TaggedError(
  * registry's.
  */
 export type TimelinePage = {
-  readonly events: TimelineIndexerEvent[]
+  readonly events: readonly TimelineIndexerEvent[]
   readonly endCursor: string | null
   readonly hasNextPage: boolean
   /**
@@ -126,10 +126,13 @@ const requestPage = ({
   fromPromise(
     graphqlIndexerClient
       .request<{
-        eventConnection: {
-          pageInfo: { hasNextPage: boolean; endCursor: string | null }
-          edges: { node: TimelineIndexerEvent }[]
-          totalCount?: number | null
+        readonly eventConnection: {
+          readonly pageInfo: {
+            readonly hasNextPage: boolean
+            readonly endCursor: string | null
+          }
+          readonly edges: readonly { readonly node: TimelineIndexerEvent }[]
+          readonly totalCount?: number | null
         } | null
       }>(timelineEventPageQuery, { where, first, after, orderDirection })
       .then(

@@ -223,7 +223,9 @@ const getNameHistoryAuxiliary = ResultFn(async function* ({
         : graphqlIndexerClient
             .request<{
               domains: {
-                subdomains?: { events: TimelineIndexerEvent[] }[]
+                readonly subdomains?: readonly {
+                  readonly events: readonly TimelineIndexerEvent[]
+                }[]
               }[]
             }>(childRegistrationsQuery, { name: normalizedName })
             .then(({ domains: [domain] }) =>
