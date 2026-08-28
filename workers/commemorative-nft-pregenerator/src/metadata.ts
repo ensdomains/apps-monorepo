@@ -42,11 +42,12 @@ const appendOriginPath = (origin: string | URL, path: string): string => {
 
 const createRendererUrl = (
   origin: string | URL,
-  tokenId: string,
+  metadataUrl: string,
   label: string,
 ): string => {
   const url = parseHttpUrl(origin, label)
-  url.searchParams.set('tokenId', tokenId)
+  url.searchParams.set('tokenURI', metadataUrl)
+  url.searchParams.set('transparent', '1')
   return url.toString()
 }
 
@@ -66,18 +67,20 @@ export const getTokenUrls = (
   options: TokenUrlOptions,
 ): TokenUrls => {
   const paths = getTokenArtifactPaths(tokenId)
+  const metadata = appendOriginPath(options.assetOrigin, paths.metadata)
+  const image = appendOriginPath(options.assetOrigin, paths.image)
   const rendererUrl = createRendererUrl(
     options.rendererOrigin,
-    tokenId,
+    metadata,
     'Renderer origin',
   )
 
   return {
-    metadata: appendOriginPath(options.assetOrigin, paths.metadata),
-    image: appendOriginPath(options.assetOrigin, paths.image),
+    metadata,
+    image,
     animation: rendererUrl,
     external: options.externalOrigin
-      ? createRendererUrl(options.externalOrigin, tokenId, 'External origin')
+      ? createRendererUrl(options.externalOrigin, metadata, 'External origin')
       : rendererUrl,
   }
 }

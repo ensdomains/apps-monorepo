@@ -60,10 +60,3 @@ export const getCommemorativeNftFlowStatus = (
   if (input.claimed === undefined) return 'loadingEligibility'
   return 'readyToMint'
 }
-
-export const shouldPollCommemorativeNftAssets = (params: {
-  readonly open: boolean
-  readonly flowStatus: CommemorativeNftFlowStatus
-  readonly metadataUrl: string | undefined
-}): boolean =>
-  params.open && params.flowStatus === 'minted' && !!params.metadataUrl

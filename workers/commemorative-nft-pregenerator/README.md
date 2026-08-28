@@ -3,8 +3,9 @@
 One-off WEB-6 pipeline for producing static commemorative NFT PNG and JSON
 artifacts. The current CLI is intentionally hard-capped at 100 items.
 
-This workspace is separate from the legacy `commemorative-nft-generator`
-runtime service so the API/Workflow cleanup can land as a deliberate follow-up.
+This is the only commemorative NFT media-generation path. Assets are generated
+offline and published as immutable static objects; there is no runtime GPU,
+video, API preparation, or Workflow generation service.
 
 The generator loads and validates the complete snapshot, builds the complete
 OpenZeppelin Merkle tree, checks the reviewed root, and only then renders the
@@ -34,6 +35,10 @@ It generates a fresh output tree and publishes it to the fixed staging target:
 - Public staging origin: `https://pub-43406b099825402eb42ecfb3494a902b.r2.dev`
 
 The credentials should be a bucket-scoped R2 API token. Never commit them.
+The public bucket must retain the read-only browser CORS policy checked in at
+`r2-cors.json`; Manager reads metadata and PNG assets directly from R2.
+The metadata `animation_url` uses the deployed renderer's `tokenURI` contract
+and points that parameter at the matching immutable R2 JSON object.
 
 For local renderer development, build `ens_renderer`, serve its `dist/`
 directory, omit `--upload`, and add both of these options:

@@ -88,6 +88,12 @@ describe('csp', () => {
     it('keeps image-only hosts out of connect-src', () => {
       expect(connectSrc).not.toContain('https://i.pinimg.com')
     })
+
+    it('allows fetching immutable commemorative NFT metadata from R2', () => {
+      expect(connectSrc).toContain(
+        'https://pub-43406b099825402eb42ecfb3494a902b.r2.dev',
+      )
+    })
   })
 
   describe('host-handling choices', () => {

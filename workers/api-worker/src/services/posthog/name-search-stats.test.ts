@@ -24,7 +24,7 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
               'api/environments/test/query_endpoints/unique-searches/run/',
           },
           POSTHOG_PERSONAL_API_KEY: 'secret',
-        } as CloudflareBindings,
+        } as unknown as CloudflareBindings,
         'vitalik.eth',
       ),
     ).resolves.toMatchObject({ value: 17 })
@@ -65,7 +65,7 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
               'api/environments/test/query_endpoints/unique-searches/run/',
           },
           POSTHOG_PERSONAL_API_KEY: 'secret',
-        } as CloudflareBindings,
+        } as unknown as CloudflareBindings,
         'july24.eth',
       ),
     ).resolves.toMatchObject({ value: 4 })
@@ -92,7 +92,7 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
               'api/environments/test/query_endpoints/unique-searches/run/',
           },
           POSTHOG_PERSONAL_API_KEY: 'secret',
-        } as CloudflareBindings,
+        } as unknown as CloudflareBindings,
         'vitalik.eth',
       ),
     ).resolves.toMatchObject({ value: 42 })
@@ -110,7 +110,7 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
               'api/environments/test/query_endpoints/unique-searches/run/',
           },
           POSTHOG_PERSONAL_API_KEY: 'secret',
-        } as CloudflareBindings,
+        } as unknown as CloudflareBindings,
         'vitalik.eth',
       ),
     ).resolves.toMatchObject({ value: 0 })

@@ -12,9 +12,7 @@ export const COMMEMORATIVE_NFT_SEPOLIA_ADDRESS = getAddress(
 export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
   'https://ens-renderer.pages.dev'
 export const DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN =
-  'https://app-api.ens.dev/v1/commemorative-nft'
-export const DEFAULT_COMMEMORATIVE_NFT_ELIGIBILITY_ORIGIN =
-  'https://pub-43406b099825402eb42ecfb3494a902b.r2.dev/eligibility'
+  'https://pub-43406b099825402eb42ecfb3494a902b.r2.dev'
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 
@@ -27,9 +25,6 @@ export const getCommemorativeNftConfig = () => ({
   assetOrigin:
     optionalOrigin(import.meta.env.VITE_COMMEMORATIVE_NFT_ASSET_ORIGIN) ??
     DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN,
-  eligibilityOrigin:
-    optionalOrigin(import.meta.env.VITE_COMMEMORATIVE_NFT_ELIGIBILITY_ORIGIN) ??
-    DEFAULT_COMMEMORATIVE_NFT_ELIGIBILITY_ORIGIN,
   rendererOrigin:
     optionalOrigin(import.meta.env.VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN) ??
     DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
@@ -43,12 +38,6 @@ export const getCommemorativeNftContractAddress = (
 export const getCommemorativeNftTokenId = (ownerAddress: Address): bigint =>
   BigInt(keccak256(ownerAddress))
 
-export const buildCommemorativeNftEligibilityUrl = (
-  eligibilityOrigin: string,
-  ownerAddress: Address,
-): string =>
-  `${trimTrailingSlash(eligibilityOrigin)}/${ownerAddress.toLowerCase()}.json`
-
 export const buildCommemorativeNftAssets = (
   assetOrigin: string | undefined,
   ownerAddress: Address,
@@ -59,18 +48,9 @@ export const buildCommemorativeNftAssets = (
   const origin = trimTrailingSlash(assetOrigin)
 
   return {
-    metadataUrl: `${origin}/${tokenId}.json`,
-    imageUrl: `${origin}/${tokenId}.png`,
-    animationUrl: `${origin}/${tokenId}.mp4`,
+    metadataUrl: `${origin}/token/${tokenId}.json`,
+    imageUrl: `${origin}/token/${tokenId}.png`,
   }
-}
-
-export const buildCommemorativeNftPrepareUrl = (
-  assetOrigin: string,
-  ownerAddress: Address,
-): string => {
-  const tokenId = getCommemorativeNftTokenId(ownerAddress).toString()
-  return `${trimTrailingSlash(assetOrigin)}/${tokenId}/prepare`
 }
 
 const rendererAttributes = (traits: CommemorativeNftEligibility['traits']) => [

@@ -7,12 +7,6 @@ import {
 import { Trans } from '@lingui/react/macro'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { type ReactNode, useEffect } from 'react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { startCommemorativeNftAssetDownload } from '../../commemorative-nft/assets'
@@ -80,14 +74,7 @@ const SocialControl = ({
 const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
   const { copy } = useCopyFeedback()
   const externalUrl = state.card.shareUrls.external
-  const hasDownloadAssets =
-    !!state.card.assets.imageUrl || !!state.card.assets.animationUrl
-  const downloadsPreparing =
-    state.status === 'minted' && state.card.downloadsReady === false
-  const hasDownload =
-    state.status === 'minted' &&
-    state.card.downloadsReady !== false &&
-    hasDownloadAssets
+  const hasDownload = state.status === 'minted' && !!state.card.assets.imageUrl
 
   return (
     <fieldset className="relative z-10 flex shrink-0 flex-col gap-2 border-0 p-0">
@@ -116,62 +103,24 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
           <Trans>Copy link</Trans>
         </span>
       </button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            aria-busy={downloadsPreparing}
-            className={socialControlClassName}
-            disabled={!hasDownload}
-            type="button"
-          >
-            <MSymbol className="ms-wght-500 text-[20px]" symbol="download" />
-            <span className="sr-only">
-              {downloadsPreparing ? (
-                <Trans>Preparing PNG and MP4 downloads</Trans>
-              ) : state.status !== 'minted' && hasDownloadAssets ? (
-                <Trans>PNG and MP4 downloads are available after minting</Trans>
-              ) : (
-                <Trans>Download NFT</Trans>
-              )}
-            </span>
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="font-mono">
-          <DropdownMenuItem
-            disabled={!hasDownload || !state.card.assets.imageUrl}
-            onSelect={() => {
-              const assetUrl = state.card.assets.imageUrl
-              if (!assetUrl) return
-              startCommemorativeNftAssetDownload({
-                assetUrl,
-                filename: 'ensv2-commemorative-nft.png',
-              })
-            }}
-          >
-            <MSymbol symbol="image" />
-            <Trans>Download PNG</Trans>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={!hasDownload || !state.card.assets.animationUrl}
-            onSelect={() => {
-              const assetUrl = state.card.assets.animationUrl
-              if (!assetUrl) return
-              startCommemorativeNftAssetDownload({
-                assetUrl,
-                filename: 'ensv2-commemorative-nft.mp4',
-              })
-            }}
-          >
-            <MSymbol symbol="movie" />
-            <Trans>Download MP4</Trans>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {downloadsPreparing ? (
-        <span className="sr-only" role="status">
-          <Trans>Preparing PNG and MP4 downloads</Trans>
+      <button
+        className={socialControlClassName}
+        disabled={!hasDownload}
+        onClick={() => {
+          const assetUrl = state.card.assets.imageUrl
+          if (!assetUrl) return
+          startCommemorativeNftAssetDownload({
+            assetUrl,
+            filename: 'ensv2-commemorative-nft.png',
+          })
+        }}
+        type="button"
+      >
+        <MSymbol className="ms-wght-500 text-[20px]" symbol="download" />
+        <span className="sr-only">
+          <Trans>Download PNG</Trans>
         </span>
-      ) : null}
+      </button>
     </fieldset>
   )
 }
@@ -256,10 +205,12 @@ const ArtworkCard = ({
   readonly state: CardDialogState
   readonly onRevealComplete?: () => void
 }) => {
-  const rendererUrl = buildCommemorativeNftRendererUrl({
-    eligibility: state.card.eligibility,
-    rendererOrigin: getCommemorativeNftConfig().rendererOrigin,
-  })
+  const rendererUrl =
+    state.card.assets.animationUrl ??
+    buildCommemorativeNftRendererUrl({
+      eligibility: state.card.eligibility,
+      rendererOrigin: getCommemorativeNftConfig().rendererOrigin,
+    })
 
   return (
     <motion.div

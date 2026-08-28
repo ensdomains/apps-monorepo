@@ -25,7 +25,7 @@ export type CommemorativeNftAssets = {
 }
 
 export type CommemorativeNftEligibilitySource =
-  | 'remote'
+  | 'static'
   | 'dev-fixture'
   | 'preview'
 

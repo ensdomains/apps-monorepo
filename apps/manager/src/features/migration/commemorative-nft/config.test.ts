@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN,
   DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
   getCommemorativeNftConfig,
 } from './config'
@@ -25,6 +26,14 @@ describe('commemorative NFT config', () => {
 
     expect(getCommemorativeNftConfig().rendererOrigin).toBe(
       DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
+    )
+  })
+
+  it('uses the immutable R2 origin by default', () => {
+    vi.stubEnv('VITE_COMMEMORATIVE_NFT_ASSET_ORIGIN', '')
+
+    expect(getCommemorativeNftConfig().assetOrigin).toBe(
+      DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN,
     )
   })
 })

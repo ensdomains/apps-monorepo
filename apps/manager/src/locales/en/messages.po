@@ -768,14 +768,6 @@ msgid "Done"
 msgstr "Done"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Download MP4"
-msgstr "Download MP4"
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Download NFT"
-msgstr "Download NFT"
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Download PNG"
 msgstr "Download PNG"
 
@@ -1609,10 +1601,6 @@ msgstr "Please sign in to telegram in the popup window."
 msgid "Please wait while we verify your email address."
 msgstr "Please wait while we verify your email address."
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "PNG and MP4 downloads are available after minting"
-msgstr "PNG and MP4 downloads are available after minting"
-
 #: src/features/notifications/settings/preferences.tsx
 msgid "Preferences"
 msgstr "Preferences"
@@ -1624,10 +1612,6 @@ msgstr "Preferences updated"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing commitment"
 msgstr "Preparing commitment"
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Preparing PNG and MP4 downloads"
-msgstr "Preparing PNG and MP4 downloads"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing the commitment"

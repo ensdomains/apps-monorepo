@@ -9,7 +9,7 @@ export const STAGING_R2_BUCKET_NAME = 'ensv2-commemorative-nft-staging'
 export const STAGING_ASSET_ORIGIN =
   'https://pub-43406b099825402eb42ecfb3494a902b.r2.dev'
 export const DEFAULT_CAPTURE_RENDERER_ORIGIN = 'https://ens-renderer.pages.dev'
-export const DEFAULT_METADATA_RENDERER_ORIGIN = 'https://nft.ens.domains'
+export const DEFAULT_METADATA_RENDERER_ORIGIN = DEFAULT_CAPTURE_RENDERER_ORIGIN
 export const PINNED_RENDERER_REVISION =
   'sha256:ea7ce759a4a51a69b4e5365f4c286f44deb58a72c964a7189f02ff92d5a63cba'
 

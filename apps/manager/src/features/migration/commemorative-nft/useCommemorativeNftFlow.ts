@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useReducedMotion } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Address, Hex } from 'viem'
@@ -7,12 +7,7 @@ import type {
   CommemorativeNftCardData,
   MigrationSuccessDialogState,
 } from '../components/success/MigrationSuccessDialog.types'
-import { startCommemorativeNftAssetPreparationAfterReceipt } from './assets'
 import { buildCommemorativeNftCardData } from './cardData'
-import {
-  buildCommemorativeNftPrepareUrl,
-  getCommemorativeNftConfig,
-} from './config'
 import {
   claimCommemorativeNft,
   decodeCommemorativeNftClaimError,
@@ -24,12 +19,8 @@ import {
   getCommemorativeNftClaimedStatus,
   getCommemorativeNftFlowStatus,
   isCommemorativeNftClaimResultFresh,
-  shouldPollCommemorativeNftAssets,
 } from './flowState'
-import {
-  commemorativeNftAssetsReadyQueryOptions,
-  invalidateCommemorativeNftStatus,
-} from './queries'
+import { invalidateCommemorativeNftStatus } from './queries'
 import type { CommemorativeNftEligibility } from './types'
 import { useCommemorativeNftAvailability } from './useCommemorativeNftAvailability'
 
@@ -51,12 +42,12 @@ const getClaimErrorMessage = (error: unknown): string =>
   decodeCommemorativeNftClaimError(error).message
 
 const getEffectiveEligibility = (params: {
-  readonly remoteEligibility?: CommemorativeNftEligibility
+  readonly staticEligibility?: CommemorativeNftEligibility
   readonly preview: boolean
   readonly ownerAddress?: Address
   readonly previewProfileName?: string
 }): CommemorativeNftEligibility | undefined => {
-  if (params.remoteEligibility) return params.remoteEligibility
+  if (params.staticEligibility) return params.staticEligibility
   if (!params.preview) return undefined
   return createCommemorativeNftPreviewEligibility({
     ownerAddress: params.ownerAddress,
@@ -148,8 +139,6 @@ export const useCommemorativeNftFlow = ({
   const [txHash, setTxHash] = useState<Hex | undefined>()
   const [awaitingClaim, setAwaitingClaim] = useState(false)
   const [migratedAt, setMigratedAt] = useState(() => new Date())
-  const assetOrigin = getCommemorativeNftConfig().assetOrigin
-
   const availability = useCommemorativeNftAvailability({
     ownerAddress,
     enabled: open,
@@ -175,18 +164,18 @@ export const useCommemorativeNftFlow = ({
     })
   }, [claimReadBoundary.key, claimedDataUpdatedAt, claimReadKey, open])
 
-  const remoteEligibility =
+  const staticEligibility =
     availability.eligibility.data?.status === 'eligible'
       ? availability.eligibility.data.eligibility
       : undefined
   const eligibility = useMemo<CommemorativeNftEligibility | undefined>(() => {
     return getEffectiveEligibility({
-      remoteEligibility,
+      staticEligibility,
       preview,
       ownerAddress,
       previewProfileName,
     })
-  }, [ownerAddress, preview, previewProfileName, remoteEligibility])
+  }, [ownerAddress, preview, previewProfileName, staticEligibility])
 
   const eligibilityKey = eligibility
     ? `${eligibility.ownerAddress}:${eligibility.rendererName}`
@@ -226,17 +215,10 @@ export const useCommemorativeNftFlow = ({
       })
       setTxHash(hash)
       setAwaitingClaim(true)
-      await startCommemorativeNftAssetPreparationAfterReceipt({
-        prepareUrl: buildCommemorativeNftPrepareUrl(
-          assetOrigin,
-          eligibility.ownerAddress,
-        ),
-        waitForReceipt: () =>
-          waitForCommemorativeNftClaimReceipt({
-            wagmiConfig,
-            chainId: availability.chainId,
-            hash,
-          }),
+      await waitForCommemorativeNftClaimReceipt({
+        wagmiConfig,
+        chainId: availability.chainId,
+        hash,
       })
       return hash
     },
@@ -301,17 +283,6 @@ export const useCommemorativeNftFlow = ({
     claimPending: claimMutation.isPending || awaitingClaim,
     claimError: claimMutation.isError || availability.claimed.isError,
   })
-  const assetReadiness = useQuery(
-    commemorativeNftAssetsReadyQueryOptions({
-      metadataUrl: eligibility?.assets.metadataUrl,
-      poll: shouldPollCommemorativeNftAssets({
-        open,
-        flowStatus,
-        metadataUrl: eligibility?.assets.metadataUrl,
-      }),
-    }),
-  )
-
   const card = useMemo<CommemorativeNftCardData | undefined>(() => {
     if (!eligibility) return undefined
 
@@ -323,10 +294,8 @@ export const useCommemorativeNftFlow = ({
       migratedNameCount,
       minted: claimed,
       ownerAddress: eligibility.ownerAddress,
-      downloadsReady: assetReadiness.data === true,
     })
   }, [
-    assetReadiness.data,
     availability.chainId,
     artworkUrl,
     claimed,

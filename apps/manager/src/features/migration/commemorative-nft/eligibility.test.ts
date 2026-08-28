@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   buildCommemorativeNftAssets,
-  buildCommemorativeNftEligibilityUrl,
   buildCommemorativeNftRendererUrl,
   getCommemorativeNftTokenId,
 } from './config'
@@ -14,6 +13,7 @@ import {
 const ownerAddress = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 const proof =
   '0x017995f95e79303c1853e326b15e6dcc16e6aa20f07372e4f0ab63c0b84f2631'
+const tokenId = getCommemorativeNftTokenId(ownerAddress).toString()
 
 const traits = {
   Era: 'DeFi',
@@ -23,19 +23,10 @@ const traits = {
   Rarity: 'Common',
   Seed: 742_941_409,
 } as const
+const metadataUrl = `https://assets.example/token/${tokenId}.json`
+const animationUrl = `https://ens-renderer.pages.dev/?tokenURI=${encodeURIComponent(metadataUrl)}&transparent=1`
 
 describe('commemorative NFT eligibility', () => {
-  it('builds a lowercase address URL', () => {
-    expect(
-      buildCommemorativeNftEligibilityUrl(
-        'https://eligibility.example/',
-        ownerAddress,
-      ),
-    ).toBe(
-      'https://eligibility.example/0x03ba34f6ea1496fa316873cf8350a3f7ead317ef.json',
-    )
-  })
-
   it('parses direct traits and derives persistent assets', () => {
     const result = parseCommemorativeNftEligibility({
       ownerAddress,
@@ -43,8 +34,11 @@ describe('commemorative NFT eligibility', () => {
       payload: {
         address: ownerAddress,
         name: 'yoginth.eth',
+        token_id: tokenId,
         proof: [proof],
         traits,
+        image: 'https://other.example/not-used.png',
+        animation_url: animationUrl,
         external_url: 'https://renderer.example/token/1',
       },
     })
@@ -52,8 +46,9 @@ describe('commemorative NFT eligibility', () => {
     expect(result.profileName).toBe('yoginth.eth')
     expect(result.traits).toEqual(traits)
     expect(result.assets.externalUrl).toBe('https://renderer.example/token/1')
-    expect(result.assets.metadataUrl).toContain(
-      getCommemorativeNftTokenId(ownerAddress).toString(),
+    expect(result.assets.animationUrl).toBe(animationUrl)
+    expect(result.assets.imageUrl).toBe(
+      `https://assets.example/token/${tokenId}.png`,
     )
   })
 
@@ -63,6 +58,7 @@ describe('commemorative NFT eligibility', () => {
       payload: {
         address: ownerAddress,
         name: 'unwrappedyogi',
+        token_id: tokenId,
         profile_name: 'yoginth.eth',
         proof: [proof],
         attributes: Object.entries(traits).map(([trait_type, value]) => ({
@@ -83,6 +79,7 @@ describe('commemorative NFT eligibility', () => {
         ownerAddress,
         payload: {
           name: 'yoginth.eth',
+          token_id: tokenId,
           proof: [proof],
           traits,
         },
@@ -90,17 +87,20 @@ describe('commemorative NFT eligibility', () => {
     ).toThrow(CommemorativeNftEligibilityError)
   })
 
-  it('treats HTTP 404 as ineligible', async () => {
+  it('fetches static token metadata and treats HTTP 404 as ineligible', async () => {
     const fetcher = vi
       .fn()
       .mockResolvedValue(new Response(null, { status: 404 }))
     await expect(
       fetchCommemorativeNftEligibility({
         ownerAddress,
-        eligibilityOrigin: 'https://eligibility.example',
+        assetOrigin: 'https://assets.example/',
         fetcher,
       }),
     ).resolves.toEqual({ status: 'ineligible' })
+    expect(fetcher).toHaveBeenCalledWith(
+      `https://assets.example/token/${tokenId}.json`,
+    )
   })
 
   it('rejects malformed proofs and renderer traits', () => {
@@ -110,11 +110,44 @@ describe('commemorative NFT eligibility', () => {
         payload: {
           address: ownerAddress,
           name: 'yoginth.eth',
+          token_id: tokenId,
           proof: ['0x1234'],
           traits: { ...traits, Seed: -1 },
         },
       }),
     ).toThrow(CommemorativeNftEligibilityError)
+  })
+
+  it('rejects metadata for a different token ID', () => {
+    expect(() =>
+      parseCommemorativeNftEligibility({
+        ownerAddress,
+        payload: {
+          address: ownerAddress,
+          name: 'yoginth.eth',
+          token_id: '1',
+          proof: [proof],
+          traits,
+        },
+      }),
+    ).toThrow(CommemorativeNftEligibilityError)
+  })
+
+  it('ignores animation URLs that do not load the static token metadata', () => {
+    const result = parseCommemorativeNftEligibility({
+      ownerAddress,
+      assetOrigin: 'https://assets.example',
+      payload: {
+        address: ownerAddress,
+        name: 'yoginth.eth',
+        token_id: tokenId,
+        proof: [proof],
+        traits,
+        animation_url: 'https://ens-renderer.pages.dev/?tokenId=1',
+      },
+    })
+
+    expect(result.assets.animationUrl).toBeUndefined()
   })
 
   it('derives stable token asset URLs', () => {
@@ -123,9 +156,10 @@ describe('commemorative NFT eligibility', () => {
       'https://assets.example/',
       ownerAddress,
     )
-    expect(assets.imageUrl).toMatch(/\.png$/)
-    expect(assets.animationUrl).toMatch(/\.mp4$/)
-    expect(assets.metadataUrl).toMatch(/\.json$/)
+    expect(assets).toEqual({
+      imageUrl: `https://assets.example/token/${tokenId}.png`,
+      metadataUrl: `https://assets.example/token/${tokenId}.json`,
+    })
   })
 
   it('builds a renderer URL from validated public traits', () => {
@@ -134,6 +168,7 @@ describe('commemorative NFT eligibility', () => {
       payload: {
         address: ownerAddress,
         name: 'yoginth.eth',
+        token_id: tokenId,
         proof: [proof],
         traits,
       },
