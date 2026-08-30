@@ -30,17 +30,15 @@ import {
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
 import { expectFlowSuccess } from '../../../helpers/flow-completion.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
+import { assertV2Registered } from '../../../helpers/migration-assertions.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
 const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
 
 test.describe('ENS name registration (Rhinestone HCA)', () => {
-  test('registers a name via Rhinestone HCA headless wallet', async ({
-    connectedPage: page,
-    mockIndexer,
-    accounts,
-    wallet,
-  }) => {
+  test('registers a name via Rhinestone HCA headless wallet', {
+    tag: ['@scenario:A2'],
+  }, async ({ connectedPage: page, mockIndexer, accounts, wallet }) => {
     const nameOnly = DOMAIN_TO_REGISTER.replace(/\.eth$/i, '')
     const searchInput = await findSearchInput(page)
     await searchInput.click()
@@ -92,6 +90,11 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     })
     registrationComplete = true
     await authorizeSetupTxs
+
+    // The completion banner is app-rendered text; the registry is the
+    // ground truth. Confirms the HCA-signed reveal batch actually landed
+    // the registration on chain, not just that the UI believes it did.
+    await assertV2Registered(nameOnly)
 
     if (mockIndexer.enabled) {
       mockIndexer.addName({

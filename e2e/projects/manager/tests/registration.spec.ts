@@ -88,4 +88,25 @@ test.describe('ENS name registration', () => {
     registrationComplete = true
     await authorizeAll
   })
+
+  /**
+   * A10 — `apps/manager/src/routes/register/$name.tsx`'s loader checks
+   * availability before ever rendering the registration UI, and redirects
+   * straight to the profile route for a name that isn't available. This
+   * tests the loader's own behaviour, not a rendered "unavailable" message.
+   */
+  test('redirects to the profile page when the name is already registered', {
+    tag: ['@scenario:A10'],
+  }, async ({ connectedPage: page, makeName }) => {
+    const name = await makeName({ label: 'already-registered-a10' })
+
+    await page.goto(`${MANAGER_APP_URL}/register/${name}`)
+
+    await page.waitForURL(new RegExp(`/${name.replace(/\./g, '\\.')}$`), {
+      timeout: 15_000,
+    })
+    // Confirms the redirect landed on a real profile render, not a blank
+    // route or an error boundary that happens to match the URL pattern.
+    await expect(page.getByText(name).first()).toBeVisible({ timeout: 15_000 })
+  })
 })

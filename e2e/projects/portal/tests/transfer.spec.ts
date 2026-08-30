@@ -1,12 +1,12 @@
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { getAddressRecord } from '@ensdomains/ensjs/public'
-import { hasRoles } from '@ensdomains/ensjs/public/v2'
-import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
+import { getOwner, hasRoles } from '@ensdomains/ensjs/public/v2'
 import { setRecords } from '@ensdomains/ensjs/wallet'
 import {
   permissionedRegistryGetResolverSnippet,
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2'
+import { Web3RequestKind } from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import {
   type Address,
@@ -34,6 +34,7 @@ import { authorizeTransaction } from '../../../helpers/portal-auth.js'
 import {
   assertLacksRoles,
   assertRoleBitmap,
+  grantNameRoles,
   readNameRoles,
 } from '../../../helpers/role-assertions.js'
 import {
@@ -62,13 +63,19 @@ function getOwnerClient(ownerPrivateKey: Hash) {
  * registry — used to snapshot state before a transfer and confirm it's
  * unchanged after.
  */
-/** On-chain ERC-1155 owner of a 2LD in the `.eth` registry. */
+/**
+ * On-chain owner of a 2LD in the `.eth` registry.
+ *
+ * Goes through `getOwner` (`UniversalResolver.findOwner`, name-keyed) rather
+ * than a precomputed `ownerOf(labelToCanonicalId(label))`: the registry bumps
+ * the token's low-order version bits on at least some registry-level writes
+ * (grantRoles, confirmed by probe — see F8's comment), which makes a
+ * statically-computed token id go stale and read back as unowned even though
+ * the name has a real owner. Name-keyed resolution can't go stale this way.
+ */
 function ownerOfName(label: string): Promise<Address> {
-  return publicClient.readContract({
-    address: ETH_REGISTRY,
-    abi: parseAbi(['function ownerOf(uint256 id) view returns (address)']),
-    functionName: 'ownerOf',
-    args: [labelToCanonicalId(label)],
+  return getOwner(publicClient as never, {
+    name: `${label}.eth`,
   }) as Promise<Address>
 }
 
@@ -195,7 +202,7 @@ test.describe('Portal name transfer', () => {
 
     // ── 3. Authorize the on-chain transfer ────────────────────────────
     // A name fresh from `makeName` always has a resolver attached (the
-    // shared DEDICATED_RESOLVER), and SendNameForm's "Detach the resolver"
+    // shared V1_PUBLIC_RESOLVER), and SendNameForm's "Detach the resolver"
     // option defaults to on whenever a resolver is set — so even this
     // hands-off transfer detaches it before the token moves (see
     // buildTransferPlan.ts).
@@ -486,12 +493,9 @@ test.describe('Portal name transfer', () => {
     })
   })
 
-  test('keeps the resolver and registry attached when both detach options are turned off', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-    makeName,
-  }) => {
+  test('keeps the resolver and registry attached when both detach options are turned off', {
+    tag: ['@scenario:F9'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
 
     await connectWithHeadlessWallet(page, wallet)
@@ -624,14 +628,14 @@ test.describe('Portal name transfer', () => {
   })
 
   test('repoints the ETH address at the recipient when the resolver is kept', {
-    tag: ['@scenario:F12'],
+    tag: ['@scenario:F12', '@scenario:F9'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(240_000)
 
     await connectWithHeadlessWallet(page, wallet)
 
     // A dedicated resolver proxy (deployed because `records` is non-empty) is
-    // required — the shared DEDICATED_RESOLVER doesn't grant this owner write
+    // required — the shared V1_PUBLIC_RESOLVER doesn't grant this owner write
     // access, and `set-eth-addr` writes through the resolver, not the registry.
     const name = await makeName({
       label: 'test9-set-eth-addr',
@@ -697,6 +701,415 @@ test.describe('Portal name transfer', () => {
       coin: 60,
     })
     expect(ethAddress?.value?.toLowerCase()).toBe(recipient.toLowerCase())
+  })
+
+  /**
+   * F9 — the remaining detach-toggle combinations.
+   *
+   * `buildTransferPlan.ts` exposes exactly 3 booleans (setEthAddress,
+   * detachResolver, detachRegistry), so 2³ = 8 raw combinations — but
+   * `SendNameForm` disables `setEthAddress` whenever `detachResolver` is on,
+   * and `buildTransferPlan` independently ignores it there too, so those two
+   * rows are UI-unreachable duplicates of each other. That leaves 6 distinct,
+   * reachable plans. Three are already covered above and by F1/F7 (both
+   * default-on with no registry target, and the T,F,F row via F12); these
+   * three close the remaining rows — see coverage/handoff.md, iteration 15.
+   */
+  test('detaches the registry alone when the resolver is explicitly kept', {
+    tag: ['@scenario:F9'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(180_000)
+
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({
+      label: 'test-f9-registry-only',
+      owner: 'user',
+    })
+    const label = name.replace(/\.eth$/, '')
+    const recipient = accounts.getAddress('user2')
+
+    const subregistryAddress = await deployAndAttachSubregistry(
+      { label },
+      privateKeyToAccount(accounts.getPrivateKey('user')),
+    )
+    const [originalResolver] = await readResolverAndSubregistry(label)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    // Both default on whenever they have a target — keep the resolver by
+    // turning its switch off, leave the registry switch on the default.
+    const detachResolverSwitch = page.getByRole('switch', {
+      name: /Detach the resolver/,
+    })
+    await expect(detachResolverSwitch).toBeVisible({ timeout: 15_000 })
+    await detachResolverSwitch.click()
+    await expect(
+      page.getByRole('switch', { name: /Detach the registry/ }),
+    ).toBeChecked()
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await transferButton.click()
+
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'detach-registry'),
+      transferTxId(name, 'transfer-token'),
+    ])
+    await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
+      timeout: 30_000,
+    })
+    await expectOwnerOnNamePages(page, name, recipient)
+
+    const [resolverAfter, subregistryAfter] =
+      await readResolverAndSubregistry(label)
+    expect(resolverAfter.toLowerCase()).toBe(originalResolver.toLowerCase())
+    expect(subregistryAfter).toBe(zeroAddress)
+    expect(subregistryAddress).not.toBe(zeroAddress)
+  })
+
+  test('updates the ETH address and detaches the registry when the resolver is kept', {
+    tag: ['@scenario:F9'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(180_000)
+
+    await connectWithHeadlessWallet(page, wallet)
+
+    // Needs a dedicated resolver proxy (via `records`) for the same reason as
+    // F12: the shared V1_PUBLIC_RESOLVER doesn't grant this owner write access,
+    // and `set-eth-addr` writes through the resolver.
+    const name = await makeName({
+      label: 'test-f9-addr-and-registry',
+      owner: 'user',
+      records: [{ key: 'description', value: 'seed' }],
+    })
+    const label = name.replace(/\.eth$/, '')
+    const owner = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+
+    const [resolverAddress] = await readResolverAndSubregistry(label)
+    await setEthAddressRecord(
+      name,
+      resolverAddress,
+      owner,
+      accounts.getPrivateKey('user'),
+    )
+    await deployAndAttachSubregistry(
+      { label },
+      privateKeyToAccount(accounts.getPrivateKey('user')),
+    )
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    const detachResolverSwitch = page.getByRole('switch', {
+      name: /Detach the resolver/,
+    })
+    const setEthAddressSwitch = page.getByRole('switch', {
+      name: /Set the ETH address to the recipient/,
+    })
+    await expect(detachResolverSwitch).toBeVisible({ timeout: 15_000 })
+    await detachResolverSwitch.click()
+    // Freed by turning detachResolver off, and on by default once enabled.
+    await expect(setEthAddressSwitch).toBeChecked()
+    await expect(
+      page.getByRole('switch', { name: /Detach the registry/ }),
+    ).toBeChecked()
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await transferButton.click()
+
+    await driveTransactionsToSuccess(page, wallet, [
+      `transfer-${name}-set-eth-addr`,
+      transferTxId(name, 'detach-registry'),
+      transferTxId(name, 'transfer-token'),
+    ])
+    await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
+      timeout: 30_000,
+    })
+    await expectOwnerOnNamePages(page, name, recipient)
+
+    const [resolverAfter, subregistryAfter] =
+      await readResolverAndSubregistry(label)
+    expect(resolverAfter.toLowerCase()).toBe(resolverAddress.toLowerCase())
+    expect(subregistryAfter).toBe(zeroAddress)
+    const ethAddress = await getAddressRecord(publicClient as never, {
+      name,
+      coin: 60,
+    })
+    expect(ethAddress?.value?.toLowerCase()).toBe(recipient.toLowerCase())
+  })
+
+  test('detaches both the resolver and the registry on their defaults', {
+    tag: ['@scenario:F9'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(180_000)
+
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({ label: 'test-f9-both-detach', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    const recipient = accounts.getAddress('user2')
+
+    await deployAndAttachSubregistry(
+      { label },
+      privateKeyToAccount(accounts.getPrivateKey('user')),
+    )
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    // Both switches default on with a target present — leave them untouched.
+    await expect(
+      page.getByRole('switch', { name: /Detach the resolver/ }),
+    ).toBeChecked()
+    await expect(
+      page.getByRole('switch', { name: /Detach the registry/ }),
+    ).toBeChecked()
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await transferButton.click()
+
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'detach-resolver'),
+      transferTxId(name, 'detach-registry'),
+      transferTxId(name, 'transfer-token'),
+    ])
+    await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
+      timeout: 30_000,
+    })
+    await expectOwnerOnNamePages(page, name, recipient)
+
+    const [resolverAfter, subregistryAfter] =
+      await readResolverAndSubregistry(label)
+    expect(resolverAfter).toBe(zeroAddress)
+    expect(subregistryAfter).toBe(zeroAddress)
+  })
+
+  /**
+   * F8 — the V2 analogue of "sync manager": registry control (roles) and
+   * token ownership are asserted separately. F7 already proves the sender's
+   * *own* roles move with the token; this proves a manager who was never the
+   * owner keeps their roles exactly as granted, untouched by a transfer that
+   * has nothing to do with them.
+   */
+  test('leaves a third-party manager role grant untouched by a transfer', {
+    tag: ['@scenario:F8'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(180_000)
+
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({
+      label: 'test-f8-manager-split',
+      owner: 'user',
+    })
+    const label = name.replace(/\.eth$/, '')
+    const recipient = accounts.getAddress('user2')
+    const manager = accounts.getAddress('user3')
+
+    await grantNameRoles(
+      { label },
+      manager,
+      ['ROLE_SET_RESOLVER'],
+      privateKeyToAccount(accounts.getPrivateKey('user')),
+    )
+    const managerRolesBefore = (await readNameRoles({ label }, manager)).decoded
+    expect(managerRolesBefore).toContain('ROLE_SET_RESOLVER')
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await transferButton.click()
+
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'detach-resolver'),
+      transferTxId(name, 'transfer-token'),
+    ])
+    await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
+      timeout: 30_000,
+    })
+    await expectOwnerOnNamePages(page, name, recipient)
+
+    // The token moved; the manager's independently-granted role did not.
+    await assertRoleBitmap({ label }, manager, managerRolesBefore)
+  })
+
+  /**
+   * F14 — interrupted after step 1 of N. Covers the same-session case: a
+   * wallet prompt is rejected mid-flow, and the app must say what already
+   * executed and let the user resume without redoing it. Cross-reload
+   * persistence is a separate claim the app does not implement —
+   * `useRecoveredTransactions` exists in `packages/transaction-manager` but
+   * has no caller in `apps/portal/src` — recorded as a product gap in
+   * `docs/e2e-defects.md` rather than asserted here.
+   */
+  test('shows what already executed and lets the user resume after a rejected step', {
+    tag: ['@scenario:F14'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(300_000)
+
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({
+      label: 'test-f14-interrupted',
+      owner: 'user',
+    })
+    const label = name.replace(/\.eth$/, '')
+    const owner = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+
+    const detachId = transferTxId(name, 'detach-resolver')
+    const transferId = transferTxId(name, 'transfer-token')
+    const successCount = new Map<string, number>()
+    page.on('console', (msg) => {
+      const text = msg.text()
+      for (const id of [detachId, transferId]) {
+        if (text.includes(`Transaction ${id} state: success`)) {
+          successCount.set(id, (successCount.get(id) ?? 0) + 1)
+        }
+      }
+    })
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await transferButton.click()
+
+    const dialog = page.locator('[data-slot="dialog-content"]')
+    await expect(dialog).toBeVisible({ timeout: 30_000 })
+
+    // Reaches the next point where a wallet request can be triggered, then
+    // triggers it — mirroring `driveTransactionsToSuccess`'s own two ways a
+    // step becomes actionable: an explicit "Open wallet" button, or (for
+    // every transaction but the last, which auto-starts — see that
+    // function's comment) a "Waiting..." button with a clickable icon
+    // button just before it. Stops right after triggering, before
+    // authorizing, so the caller can choose authorize vs reject.
+    const triggerWalletRequest = async (timeoutMs = 90_000) => {
+      const deadline = Date.now() + timeoutMs
+      const openWalletButton = dialog.getByRole('button', {
+        name: /open wallet/i,
+      })
+      const waitingButton = dialog.getByRole('button', {
+        name: /^Waiting\.\.\.$/i,
+      })
+      while (Date.now() < deadline) {
+        if (await openWalletButton.isVisible().catch(() => false)) {
+          await openWalletButton.click()
+          return
+        }
+        if (await waitingButton.isVisible().catch(() => false)) {
+          const iconWalletButton = waitingButton.locator(
+            'xpath=preceding-sibling::button[1]',
+          )
+          if (await iconWalletButton.isVisible().catch(() => false)) {
+            await iconWalletButton.click()
+            return
+          }
+        } else {
+          const primaryButton = dialog.getByRole('button', {
+            name: /^(Start|Next)$/i,
+          })
+          if (
+            (await primaryButton.isVisible().catch(() => false)) &&
+            (await primaryButton.isEnabled().catch(() => false))
+          ) {
+            await primaryButton.click()
+            continue
+          }
+        }
+        await page.waitForTimeout(500)
+      }
+      throw new Error(
+        `triggerWalletRequest: no wallet trigger appeared within ${timeoutMs}ms`,
+      )
+    }
+
+    // ── Step 1 of 2 (detach-resolver): authorize normally ──────────────
+    await triggerWalletRequest()
+    await authorizeTransaction(wallet, 60_000)
+    await expect
+      .poll(() => successCount.get(detachId) ?? 0, { timeout: 30_000 })
+      .toBe(1)
+
+    // ── Step 2 of 2 (transfer-token): the wallet prompt is rejected ────
+    await triggerWalletRequest()
+    await expect
+      .poll(
+        () => wallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+        {
+          timeout: 15_000,
+        },
+      )
+      .toBeGreaterThanOrEqual(1)
+    await wallet.reject(Web3RequestKind.SendTransaction)
+
+    // The interruption must be visible and recoverable, not a silent hang.
+    // A rejected request bounces the dialog back to the step overview,
+    // which is itself the "what already executed" surface: it lists both
+    // steps with their real status rather than losing track of step 1.
+    await expect(dialog.getByText('Detach resolver')).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(dialog.getByText('Done', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Failed', { exact: true })).toBeVisible()
+    const retryButton = dialog.getByRole('button', { name: 'Retry' })
+    await expect(retryButton).toBeVisible()
+
+    // Step 1's effect already landed and is durable; step 2 has not — the
+    // interruption must not leave the name half-transferred.
+    const [resolverAfterStep1] = await readResolverAndSubregistry(label)
+    expect(resolverAfterStep1).toBe(zeroAddress)
+    expect((await ownerOfName(label)).toLowerCase()).toBe(owner.toLowerCase())
+
+    // ── Resume: retry step 2 only ───────────────────────────────────────
+    // "Retry" only navigates to step 2's screen — like step 1, it
+    // auto-triggers the wallet request as soon as that screen is active.
+    await retryButton.click()
+    await expect
+      .poll(
+        () => wallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+        {
+          timeout: 15_000,
+        },
+      )
+      .toBeGreaterThanOrEqual(1)
+    await authorizeTransaction(wallet, 60_000)
+
+    // KNOWN DEFECT E2E-003 (docs/e2e-defects.md): retrying a step whose
+    // wallet prompt was previously rejected deterministically fails here —
+    // "Failed to submit transaction: An unknown RPC error occurred" — every
+    // time, not intermittently. Per rule 1, the assertion stays exactly what
+    // a working resume requires; it must start passing when the defect is
+    // fixed, not be weakened to match the current broken behaviour.
+    await expect(
+      dialog.getByText('Transaction Error'),
+      'E2E-003: resubmitting a rejected step should succeed cleanly, not fail at the RPC layer',
+    ).toBeHidden({ timeout: 30_000 })
+
+    await expect
+      .poll(() => successCount.get(transferId) ?? 0, { timeout: 30_000 })
+      .toBe(1)
+    await expect(async () => {
+      const doneButton = dialog.getByRole('button', { name: /^Done$/i })
+      await expect(doneButton).toBeEnabled({ timeout: 2_000 })
+      await doneButton.click()
+    }).toPass({ timeout: 60_000 })
+
+    await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
+      timeout: 30_000,
+    })
+    await expectOwnerOnNamePages(page, name, recipient)
+
+    // Idempotent resume: step 1 never re-ran even though the flow stalled
+    // and was resumed after it had already succeeded.
+    expect(successCount.get(detachId)).toBe(1)
   })
 })
 
@@ -932,7 +1345,7 @@ test.describe('Portal name transfer — migrated V1 names', () => {
   })
 
   test('hands the full role set to the recipient and leaves the sender none', {
-    tag: ['@scenario:F7'],
+    tag: ['@scenario:F7', '@scenario:F9'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
     await connectWithHeadlessWallet(page, wallet)

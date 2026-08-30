@@ -5,6 +5,710 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 22 — 2026-08-30 · B12 probed and reverted; no landing this time
+
+**Batch:** R1 continued — attempted B12 (renew with insufficient balance).
+
+**Result:** PASS 0. **Ratchet unchanged at R1 8, total 54.** Nothing landed
+this iteration; the attempted test was written, found to test the wrong
+thing, and cleanly removed rather than committed half-working. Repo is at the
+same state as the end of iteration 21, plus this note.
+
+**In flight: nothing.**
+
+### B12 — genuinely harder than it looks, not a quick add
+
+Traced the mechanism fully: renewal's payment step
+(`features/renew/workflow/pricing/components/TokenPickerContent.tsx`)
+delegates to the same `TokenPickerContentBase` registration uses, and
+`TokenListItem.tsx` *does* render real "insufficient" copy — red balance
+text, an explicit "Need $X.XX" line, a `disabled` button — so the oracle
+("blocked with the right copy") is answerable in principle.
+
+Two ways to reach that state, both dead ends here:
+
+1. **Drive the price up instead of the balance down** (to avoid touching a
+   shared, persistent-state funded account). Tried it: the renewal calendar
+   caps at `minSelectableDate + 365×100 days` (`RenewToDatePopover.tsx`), and
+   even at that ~100-year maximum the quoted price was **$449.55** — nowhere
+   near the funded account's ~$10,000 USDC. Confirmed by screenshot, not
+   assumption. This path cannot reach insufficiency at all through the UI.
+2. **Reduce the balance instead.** The connected user's *displayed* balance
+   is the HCA's (`useSmartAccountContext().stablecoinBalances`), and only one
+   HCA is funded by the infra scripts (the one derived from the default
+   `user` EOA). Draining it (even temporarily, restored in a `finally`) risks
+   leaving every *other* test in this long session underfunded if the
+   process dies before the restore runs — real risk, not hypothetical, given
+   how many balance-dependent tests this session has already run.
+   Connecting as a different named account (`user2`/`user3`/`user4`) would
+   sidestep this cleanly — untouched account, untouched HCA, genuinely
+   unfunded — but the manager fixture has no account-switching helper
+   (checked `playwright.manager.fixture.ts` and `helpers/manager-auth.ts` —
+   nothing like the portal's `wallets.switchTo`). Building one wasn't a
+   same-iteration-sized job.
+
+Not blocked-env — the UI feature genuinely exists and could be tested with
+either a manager-side account-switch helper or a careful temporary-drain
+helper with a hard `finally`. Just bigger than this batch. Test written,
+verified it exercised the wrong thing (screenshot confirms $449.55 total,
+"Save $349.65" — comfortably affordable), then removed rather than kept
+half-working or weakened to pass.
+
+### Also checked — B18's remaining entry points need their own probe
+
+B18 wants "profile, dashboard row, address page, deep link" all producing
+the same on-chain expiry. Profile and deep-link are already exercised (B1,
+B3/B5/B11). Dashboard: `routes/dashboard.tsx` has no direct "Renew" text —
+it's a thin wrapper over a feature component not yet located. A
+`RenewNameButton.tsx` component exists (`features/renew/components/`) but a
+repo grep found no importer of it outside its own file and locale strings —
+worth checking whether it's actually wired up anywhere before assuming
+dashboard-row renewal is reachable at all. Not investigated further this
+iteration.
+
+### Next
+
+B18's dashboard-row and address-page entry points (start by finding
+`RenewNameButton`'s actual call site, if any — it may be dead code, which
+would itself be worth knowing). B6 (grace banner — check the wall-clock
+blocker from iterations 19–20 first). B13 (portal-side, unexplored this
+session). A5's price-arithmetic half (iteration 18), the A3–A9/A17–A20
+EOA-blocker probe (iteration 17), and the `register()` intermittent-revert
+root cause (iteration 21) are all still open.
+
+---
+
+## Iteration 21 — 2026-08-30 · B11 landed, and the recurring harness flake is now diagnosed
+
+**Batch:** R1 continued — B11 (renew deep link: connected, disconnected,
+unregistered).
+
+**Result:** PASS 1 (B11, all three cases). **Ratchet unchanged at R1 8, total
+54** — B11 was already counted terminal from a shared-tag test added
+mid-batch; the two new tests corroborate it, not increment it. Verified: all
+three cases green together, twice.
+
+**In flight: nothing.**
+
+### Landed
+
+- **B11** — three tests, all `@scenario:B11`, one case each:
+  - *Connected*: the existing B5 test already reaches an active name entirely
+    via the `/renew/$name` deep link while connected — just needed the second
+    tag, not a new test.
+  - *Unregistered*: `apps/manager/src/routes/renew/$name.tsx`'s loader
+    throws when `profileExpiryQuery` reports no v2 protocol (exactly what a
+    never-registered name reports), and the route's own `errorComponent`
+    (`RenewalRouteError`) renders a real, informative page — "This name
+    can't be renewed here" + Back-to-profile / Try-again — not a stack trace.
+    New test locks that in.
+  - *Disconnected*: the loader doesn't gate on wallet connection at all — a
+    disconnected visitor reaches the same page a connected one would, with
+    the connect affordance surfacing where payment normally goes (same
+    `isConnected` mechanism the registration flow's token picker uses). New
+    test confirms the page renders correctly rather than erroring.
+
+  Wrote all three before tagging any of them `@scenario:B11`: the "all tests
+  sharing a tag must pass" semantic (iteration 11) protects against a tagged
+  test failing, but says nothing about a REQUIRED case never being written at
+  all — tagging after only 2 of 3 would have read as done while a case sat
+  silently unverified.
+
+### FIXED — the recurring harness flake (iterations 18–20), root-caused
+
+Four prior data points all showed the same shape: `makeV1Name`'s rule-5/6
+harness check failing with a confusing "registrar doesn't own this name"
+message, always clean on an immediate isolated re-run, and (once I started
+looking) always paired with `reserveInV2 ... (expiry=0)` in the log —
+distinct from a healthy run's real Unix timestamp.
+
+Root cause: `makeV1Name.ts`'s `waitForTx` awaited
+`publicClient.waitForTransactionReceipt` and discarded the result without
+checking `receipt.status`. viem resolves that call identically for a
+reverted and a successful transaction — it does not throw on revert. So when
+`register()`'s transaction reverted (confirmed — see below), the fixture
+sailed on as if it had succeeded, read `nameExpires` straight after (correctly
+getting 0, since nothing was ever registered), and only the harness
+assertion several steps downstream ever noticed, with a message describing
+the *symptom* rather than the revert itself.
+
+**Fixed**: `waitForTx` now checks `receipt.status` and throws immediately,
+naming the reverted tx hash, if it isn't `'success'`. All 8 of the file's
+existing call sites already discarded the return value, so this was a
+zero-risk change. Verified twice: it reproduced *immediately* on the very
+next run after the fix landed — this time as a clean, instant "[makeV1Name]
+transaction 0x52f4… reverted" at the real call site
+(`makeV1Name.ts:416`, the `register` call), confirmed genuine (not a stale
+RPC read) since a plain re-run afterward succeeded normally.
+
+**Not fixed — still open**: *why* `register()` reverts intermittently.
+Candidates not chased: a nonce race against `ensureV1ControllersAuthorised`'s
+own grant transactions, or contention on the shared owner EOA under this
+session's unusually high volume of back-to-back V1 registrations. Whoever
+picks this up next has a reproducible, immediate repro path now (keep
+re-running `harness-manager.spec.ts` — it surfaced roughly 1 time in 6 runs
+this session) instead of a confusing downstream symptom to work backward
+from.
+
+### Next
+
+B6 (grace banner) — check the wall-clock-vs-fork blocker from iterations
+19–20 before attempting; it likely inherits B4's exact problem, not a drift
+one. B12 (insufficient balance), B13 (portal-side, unexplored this session),
+B18 (multi-entry-point) remain open. A5's price-arithmetic half (iteration
+18), the A3–A9/A17–A20 EOA-blocker probe (iteration 17), and the actual
+`register()` intermittent-revert root cause above are all still undone.
+
+---
+
+## Iteration 20 — 2026-08-30 · B5 landed; correcting iteration 19's B4 diagnosis
+
+**Batch:** R1 continued — infra was reset before this iteration (owner
+requested it, following iteration 19's drift finding), then B5.
+
+**Result:** PASS 1 (B5). **Ratchet: R1 6 → 7, total 52 → 53.** Verified on
+two consecutive green runs.
+
+**In flight: nothing.**
+
+### Infra reset — clean
+
+`pnpm e2e:infra:down` + `pnpm e2e:infra:up`. Fresh fork's clock measured
+~0.08 real-days ahead of wall-clock (i.e., negligible — just RPC/setup
+latency), down from iteration 19's ~171 days. Manager harness gate re-verified
+green immediately after (rule 6's `test.fail()` still correctly red, same as
+every prior iteration).
+
+### CORRECTION to iteration 19 — B4 is not a drift problem, and a reset does
+### not fix it
+
+Attempted B4 again on the fresh fork, reasoning the reset would resolve it.
+It didn't, and re-deriving why turned up a sharper, permanent diagnosis than
+last iteration's:
+
+`fixtures/makeV2Name.ts`'s negative-`duration` path always registers for
+exactly `MIN_REGISTRATION_DURATION` (28 days — genuinely the V2 registrar's
+contract-enforced floor, confirmed by the fixture's own comment, not a
+fixture convenience default) from **the fork's current time**, then advances
+the fork's clock past the resulting expiry. That advance is chain-only. The
+manager's `isPastGracePeriod` reads `new Date()` — the real wall clock, with
+no override. So a freshly-registered name's stored expiry is always
+`(fork's now) + 28 days`, and on a fork whose clock tracks real time (as it
+now does, and as it always will immediately after a reset), that is always
+**28 real days in the future** relative to whoever is running the test. No
+`duration` value closes that gap — the fixture cannot register a name with a
+shorter real-world duration, because the registrar won't accept one. Iteration
+19's framing ("the drift will keep growing, a reset would help") was wrong in
+the specific way that matters: **a reset doesn't help either**, because the
+mechanism was never about drift specifically — drift only ever made the
+already-impossible gap bigger. This needs `apps/manager` to gain its own
+`VITE_TIME_TRAVEL`-equivalent (matching the portal) before B4 — or B6, or
+anything else keyed off "is this expired *right now*" — can be tested at all.
+Still **blocked-env, owner sugh01**; pushing the same expiry to iteration
+19's original 2026-09-06, since the actual fix (app work) hasn't started.
+
+### Landed
+
+- **B5** (renewal calendar never offers a date before current expiry) —
+  new test against `RenewToDatePopover.tsx` (shared by bulk and single-name
+  renewal). Two wrong turns worth recording so the next person doesn't repeat
+  them:
+  1. The "previous month" nav button is **not** disabled at the boundary —
+     the calendar opens on the pre-selected duration (default "1 year"), not
+     its own minimum, so plenty of legitimate back-navigation exists before
+     hitting the real limit. Clicking it in a loop is also unstable:
+     `captionLayout="dropdown"`'s invisible overlay `<select>` starts
+     intercepting the button's pointer events after a few clicks. Fixed by
+     driving the caption's month/year `<select>`s directly instead.
+  2. Disabled days use a real HTML `disabled` attribute, not `aria-disabled`
+     — the Tailwind class `aria-disabled:opacity-50` in `calendar.tsx` is a
+     styling hook that also fires off the native attribute, not evidence of
+     which attribute is actually set. `toBeDisabled()`, not
+     `toHaveAttribute('aria-disabled', 'true')`.
+
+  Final oracle: ask the calendar for *today's* month (a date the fixture
+  never even attempts to reach) via the selects; `startMonth=
+  {minSelectableDate}` clamps the request forward to the earliest reachable
+  month instead of erroring, and that month's first day cell is still
+  disabled — proof the boundary holds however the calendar is driven, not
+  just under the one navigation path already tried.
+
+### Learned — do not re-derive
+
+- **The harness flake from iterations 18–19 recurred twice more** this
+  iteration (`makeV1Name` rule 5, then rule 6), both times clean on an
+  isolated re-run. One new detail worth keeping: a failing run's log showed
+  `reserveInV2 ... (expiry=0)` where every passing run shows a real Unix
+  timestamp. Whatever the intermittent fault is, this is the first concrete
+  signal pointing at *where* — the V1 registration or the read immediately
+  after it, not the reservation step itself. Still not chased (four data
+  points now, all transient), but worth giving to whoever eventually does.
+
+### Next
+
+B6 (grace banner) — check the same wall-clock-vs-fork blocker before
+attempting it; it likely inherits B4's exact problem. B11 (renew deep link),
+B12 (insufficient balance), B13 (portal-side, subname renew role gate — a
+different app, unexplored this session), B18 (multi-entry-point) remain open.
+A5's price-arithmetic half (iteration 18) and the A3–A9/A17–A20 EOA-blocker
+probe (iteration 17) are both still undone.
+
+---
+
+## Iteration 19 — 2026-08-30 · B3 landed, B4 genuinely can't be built right now
+
+**Batch:** R1 continued — B3 and B4, the two grace-period renewal scenarios
+flagged as "next" last iteration.
+
+**Result:** PASS 1 (B3, both day-1 and day-27 cases) · blocked-env 1 (B4, new
+— see below). **Ratchet: R1 5 → 6, total 51 → 52.** Verified on two
+consecutive full green runs.
+
+**In flight: nothing.**
+
+### Landed
+
+- **B3** (grace-period renewal extends from the name's *stored* expiry, not
+  "now") — new test, not an untagged find this time. Entered via
+  `/renew/$name` directly rather than the profile page: `/p/$name` renders
+  "doesn't exist" for a grace-period name (it isn't built to show one), while
+  `apps/manager/src/routes/renew/$name.tsx`'s loader reads expiry straight
+  from chain and is grace-aware by design. Same before/after `getExpiry`
+  delta oracle as B1, run at day 1 and day 27 of the 28-day V2 grace window
+  (`V2_GRACE_PERIOD_DAYS`, `apps/manager/src/features/grace/utils/
+  gracePeriod.ts`) — both landed on exactly +28 days from the *original*
+  expiry, which is what rules out a "based on now" bug (that would have
+  inflated the delta by however many grace-days had already elapsed).
+
+### NEW BLOCKER — B4 needs the fork's clock and the manager's wall clock to
+### agree, and this session has pushed them ~171+ days apart
+
+B4 ("extend after grace" → the `/renew/$name` route should redirect to
+`/register/$name`) failed twice, and the second failure ruled out "just needs
+a bigger gap": `apps/manager/src/features/grace/utils/gracePeriod.ts`'s
+`isPastGracePeriod` compares against the manager's own `new Date()` — real
+wall-clock time, always, since (checked) the manager has no
+`VITE_TIME_TRAVEL` clock sync in any of its env files, unlike the portal.
+`fixtures/makeV2Name.ts` computes a negative-duration name's stored expiry as
+**`(the fork's current block timestamp) + 28 days`, always** — the "gap"
+parameter only advances the fork's clock further past that same fixed expiry;
+it does not and cannot push the expiry itself earlier. So the stored expiry
+is only ever "days past grace" **from the fork's own frame** — from the
+manager's wall-clock frame, it is `(fork_now − real_now) + 28` days in the
+*future*, and grows every time any test in the suite advances fork time.
+
+Measured mid-session: fork was ~171 real-days ahead of the wall clock, and
+climbing. No `duration` value fixes this — I tried, computing the gap from
+both clocks (drift + registration + grace + buffer ≈ 241 days) and it still
+produced an expiry ~200 days in the manager's future, because the arithmetic
+above shows the fixture's expiry is drift-independent by construction. This
+is a real, structural mismatch between two pieces of infrastructure, not a
+test bug — recorded as **blocked-env, owner sugh01, expires 2026-09-06**.
+Fixes are either the manager adopting portal's `VITE_TIME_TRAVEL` clock sync,
+or resetting the fork so the two clocks start close together again (which a
+long enough session — like this one — will always eventually undo).
+
+**Likely affects more than B4.** Anything on the manager side that computes
+"is X true right now" from a stored on-chain timestamp — B6 (grace banner),
+the temp-premium display tests already flagged as `describe.skip`-ed in
+iteration 18 — inherits the same risk once fork drift is large enough. Not
+individually confirmed; a pattern to watch, not a closure.
+
+### Learned — do not re-derive
+
+- **A second instance of iteration 18's title-matching bug, different root
+  cause.** `coverage/reconcile.ts`'s `scanSpec` reads titles as static source
+  text — a `test()` call inside a `for` loop with a template-literal title
+  (`` `extends... day ${daysSinceExpiry}` ``) never matches either concrete
+  title Playwright actually runs, and both instances silently reported
+  `excluded` rather than `PASS`. Different mechanism from the apostrophe bug
+  (that one truncated a string; this one never resolves an interpolation at
+  all), same symptom (a coverage-count mismatch, not a visible error) and
+  same fix shape: write parameterised cases as separate literal `test()`
+  calls with a shared helper function, never a loop over the title itself.
+- **A harness gate flake recurred** (`makeV1Name: rule 5`, then later
+  `rule 5` again in a different run) — passed clean both times on an isolated
+  re-run immediately after. Still not reproducible, still not chased; two
+  data points now instead of one, both transient. Confirmed it is *not* the
+  clock-drift finding above — the isolated re-run passed at a point where
+  drift was, if anything, larger than at the original failure.
+- The profile page (`/p/$name`) and the direct renewal route (`/renew/$name`)
+  are **not interchangeable entry points** for a grace-period name — only the
+  latter is grace-aware. Worth remembering before assuming "click Renew from
+  the profile" generalizes to every renewal scenario.
+
+### Next
+
+B4 is genuinely blocked until the ruling above lands — do not retry it with a
+larger gap. B5 (renew cannot reduce expiry), B6 (grace banner — check the
+clock-drift risk first), B11 (renew deep link), B12 (insufficient balance),
+B13 (subname renew role gate), B18 (multi-entry-point) remain open and
+untouched. A5's price-arithmetic half (from iteration 18) and the A3–A9/
+A17–A20 EOA-blocker probe (from iteration 17) are both still undone.
+
+---
+
+## Iteration 18 — 2026-08-29 · B1, and B-series' free wins are exhausted
+
+**Batch:** R1 continued — B-series (renewal). Chose it over resuming the A-series
+probe because it's completely independent of iteration 17's EOA blocker.
+
+**Result:** PASS 1 (B1). **Ratchet: R1 4 → 5, total 50 → 51.** Verified on two
+consecutive green runs (a third run's harness gate hit a one-off flake —
+`makeV1Name: rule 5` — re-run in isolation immediately after and passed clean;
+not reproducible, not treated as a regression).
+
+**In flight: nothing.**
+
+### Landed
+
+- **B1** (extend an owned name — expiry arithmetic) — `profile.spec.ts`'s
+  "extend owned name by 28 days" was untagged and, like iteration 16/17's
+  finds, already drove the real flow. Its only assertion was a UI text match
+  (pre-computed expiry string reappearing post-renewal) — same shape as B2's
+  already-accepted oracle, but B1's registry wording is explicitly the
+  arithmetic itself ("new expiry = old + duration"), so I added a real
+  before/after chain read (`getExpiry` on the current `.eth` V2 registry) and
+  asserted the delta is exactly 28 days in seconds. Did not touch B2 to match
+  — out of scope, and it's already terminal.
+
+### Checked and genuinely exhausted — do not re-grep this
+
+Every renewal/extend-titled test in both apps, tagged or not: only 4 exist
+total (`profile.spec.ts`'s two extend tests, both now spoken for as B1/B2, and
+one migration-premium.spec.ts renewal test that's moot — that file is in the
+manager project's `testIgnore`, same class as A11). B3–B18 (16 rows) have
+**zero** existing coverage to harvest; each needs a real new test.
+
+### Probed, not attempted — bigger than a quick add
+
+- **A5** (payment token picker) — confirmed via source
+  (`packages/transaction-manager/src/contracts/ens-sepolia.ts`): the manager's
+  register-v2 picker is deliberately USDC-only — "DAI is deliberately absent:
+  offering it in a picker produces quotes the registrar rejects at
+  settlement" — and the "Stables accepted" footer hardcodes a single USDC
+  icon regardless of wallet balances. The "unsupported token absent" half of
+  A5's oracle is a cheap, static assertion. The other half — "quoted total =
+  base × oracle ratio" — needs a chain-level `getRegisterPrice`-equivalent
+  read cross-checked against the UI's parsed price text, which I did not want
+  to rush; tagging a test that only checked absence and skipped the price
+  arithmetic would be exactly the partial-tag rule 2 forbids. Next session:
+  the read is the same `getRegisterPrice(label, duration, token)` shape
+  `makeName.ts` already calls.
+- **Bulk-renew** (`apps/manager/src/features/bulk-renew`, likely B8/B9/B10)
+  and **auto-renewal** (`apps/manager/src/features/auto-renewal`, likely
+  Y5/Y6) — real, shipped features with **zero** e2e coverage, tagged or not.
+  Bigger than a quick add; each needs its own probe of the UI flow before
+  writing anything.
+
+### Learned — do not re-derive
+
+- A transient failure in `harness-manager.spec.ts`'s `makeV1Name: rule 5`
+  (unrelated to anything this session touched) did not reproduce on an
+  isolated re-run. After many hours and dozens of runs against the same
+  long-lived Anvil fork this session started, some flake in the V1 fixture
+  path is plausible from accumulated state — worth knowing if it recurs, not
+  yet worth chasing.
+
+### Next
+
+A5's price-arithmetic half, or B3 (grace-period extend) as the next fresh
+B-series test — B3 needs a name already in grace, which `makeName`'s negative-
+duration support already provides (see `harness-expired` in any harness run
+this session). Bulk-renew and auto-renewal are higher-value but need their own
+probe first. The iteration-17 EOA-blocker probe (A3–A9, A17–A20) is still
+undone if nothing above looks better.
+
+---
+
+## Iteration 17 — 2026-08-29 · first R1 batch, and a real infra blocker on A1
+
+**Batch:** R1 (financial) — the first attention this tier has had. R0's
+remaining 69 rows are still G*-blocked on iteration 14's unanswered ruling
+question 2; R1 has 47 untouched rows (A1–A25 registration, B1–B18 renewal,
+Y1–Y7 payment methods) and was the natural next target.
+
+**Result:** PASS 2 (A2, A10) · blocked-env 1 (A1, new — see below) ·
+**Ratchet: R1 2 → 4, total 48 → 50.** Both PASS verified on two consecutive
+green runs.
+
+**In flight: nothing.**
+
+### Landed — two more untagged-but-already-correct tests, same pattern as iteration 16
+
+- **A10** — `apps/manager/src/routes/register/$name.tsx`'s loader redirects
+  an already-registered name straight to its profile route before the
+  registration UI ever renders. New test, tags the loader's own behaviour
+  directly (URL assertion), not a rendered message.
+- **A2** (Register via Rhinestone HCA) — `registration-rhinestone.spec.ts`
+  already drove the full standalone-HCA flow (two signatures, zero wallet
+  transactions, mockestrator-filled intents) and asserted only the UI's
+  "Registration Complete" banner. Strengthened with `assertV2Registered`
+  (direct `getStatus()` read on the *current* `.eth` V2 registry — the same
+  helper `migration-fuses.spec.ts` uses, sourced from `ensL1Contracts` to
+  avoid the superseded-registry trap its own header comment documents) before
+  tagging it. Same shape as iteration 16's F8/F9 finds: a real, working test
+  sitting untagged.
+
+### NEW BLOCKER — A1 (and probably several A-series siblings) needs a manager
+### instance this environment doesn't have
+
+A1's oracle is a specific stage spine — `deployingResolver →
+preparingCommitment → committingTransaction → commitmentCooldown →
+checkingAllowance → approvingToken → registeringDomain → success` — which is
+**only reachable in pure-EOA mode**. `apps/manager`'s `VITE_FF_USE_EOA` is a
+Vite build-time env var (`apps/manager/src/utils/feature-flags.ts`), baked in
+when the dev server starts, with no runtime/URL override. Every checked-in
+env file (`.env`, `.env.local`, `.env.ci`, `.env.example`) — including the
+`.env.local` this session created from `.env.ci` for the harness gate in
+iteration 16 — sets it `false`, which routes through the Rhinestone/HCA
+machine (A2's spine) instead. Confirmed directly: `grep VITE_FF_USE_EOA
+apps/manager/.env.local` → `false`, on the instance these tests just ran
+against.
+
+There is exactly one `MANAGER_APP_URL` in `projects/manager/playwright.config.ts`
+— no second project/webServer pointed at an EOA-mode instance — so A1 cannot
+be exercised without either restarting the dev server with the flag flipped
+(which would make A2's already-passing HCA-path test unrunnable in the same
+session) or standing up a second manager instance on another port. Neither is
+a test-authoring decision; recorded as **blocked-env, owner sugh01, expires
+2026-09-05** (5 working days, per goal §10).
+
+**Likely affects more than A1.** A3–A9, A17–A20 read as EOA-path-specific in
+the catalogue's oracle language (stage names, "no orphaned commitment" for a
+wallet-driven flow); A15/A21/A22 look signer-agnostic and probably aren't
+blocked by this. None of the siblings were individually confirmed — this is
+a pattern to check systematically before the next R1 batch, not a blanket
+closure of the area.
+
+### Learned — do not re-derive
+
+- **`e2e/helpers/console-monitor.ts` is dead code for fine-grained stage
+  detection.** It filters on `[REGISTRATION IN PROGRESS]`, a prefix that does
+  not exist anywhere in current source, and `[TRANSACTION MANAGER]`, which
+  does exist but only logs 4 of the 8 registration stages (via fixed
+  transaction ids `tx-reg-{deploy-resolver,commit,approve,register}`), never
+  the outer XState stage name itself. Every state has a `logTransition` entry
+  action, but it logs the triggering *event* and tx-id context, not the
+  arrived-at *state name* — so `deployingResolver`/`preparingCommitment`/
+  `commitmentCooldown`/`checkingAllowance` never appear as matchable console
+  text under any prefix. Its `onStateChange` callback appears in
+  `registration-rhinestone.spec.ts` too, decorative and unasserted. A future
+  attempt at A1's exact spine will need either the sub-transaction ids above
+  (covers 4 of 8 stages) plus the unique `🗑️ [REGISTRATION] Cleared snapshot`
+  line for outer `success`, or a DOM-level read of `stageLabel` text from
+  `txStageMessages.ts` (distinct per stage, but not asserted to survive fast
+  transitions under automine — unverified).
+- **`getState()`/`getStatus()` on the V2 `.eth` registry is signer-agnostic**
+  — same read for a name registered via EOA, HCA, or the test fixtures. Use
+  `helpers/migration-assertions.ts`'s `assertV2Registered(label)` rather than
+  re-deriving the registry address; its own header comment documents a
+  superseded registry still live on the fork that answers a *different*,
+  plausible-looking status for the same label.
+
+### Next
+
+Systematically probe A3–A9/A17–A20 against the EOA blocker above (quick — it's
+one grep-and-read each, not a full implementation) before spending a batch
+assuming they're reachable. A15 (label validation, pure `parseName` logic,
+signer-agnostic) and A22 (two-tab race) are worth a look independent of the
+EOA question. B-series (renewal, 17 rows) and Y-series (payment methods, 7
+rows) are completely untouched and independent of this blocker. Both apps'
+`temporaryPremium.spec.ts` files are entirely `test.describe.skip`-ed with no
+reason recorded and weak oracles even if unskipped (checks "a $ amount is
+visible", not `LibHalving`'s exact value) — worth its own investigation
+before claiming A13/A14, not assumed to be quick.
+
+---
+
+## Iteration 16 — 2026-08-29 · R0 batch: F6/F8/F9/F14, one new defect, one false-alarm ruled out
+
+**Batch:** the unblocked remainder of R0 transfer/fuses work (F6, F8, F9, F14,
+I5) — chosen because G* (59 rows) stays blocked on iteration 14's ruling
+question 2, which nobody has answered yet.
+
+**Result:** PASS 3 (I5, F8, F9) · DEFECT 1 (F14, new — E2E-003) · PRODUCT-GAP 1
+(F6, no machine-terminal state exists for it yet — see below) · EXEMPT 0.
+**Ratchet: R0 10 → 14, total 44 → 48.** Verified: every PASS test run green
+twice consecutively; F14 confirmed failing at the *same* assertion across
+three separate runs (deterministic, not a flake).
+
+**In flight: nothing.**
+
+### Probed first, per §7 — one turned out not to exist
+
+- **F6 (batch transfer)** — the names dashboard has real multi-select
+  checkboxes, but the only bulk action wired to the selection is *Extend*.
+  No batch-transfer route, button, or modal exists, and `safeBatchTransferFrom`
+  has zero call sites in `apps/portal/src`. **PRODUCT-GAP**, not test debt —
+  recorded in `docs/e2e-defects.md` under a new "Product gaps" section, since
+  `scenarios.ts`'s only machine-terminal disposition besides PASS/DEFECT is
+  `exempt`, and that means something different (a human-approved decision not
+  to test, not "the app can't do this"). Closing that schema gap is a
+  reasonable next HW-tier item but wasn't done here — out of scope for a
+  scenario batch.
+- **F9 (detach-toggle combinations)** — the catalogue's "2³ minus the
+  impossible" underclaimed slightly: there really are 3 toggles
+  (`setEthAddress`/`detachResolver`/`detachRegistry`), and exactly one pair of
+  the 8 raw combinations collapses to a UI-unreachable duplicate (SendNameForm
+  disables `setEthAddress` whenever `detachResolver` is on), leaving 6
+  distinct plans. 3 were already covered incidentally by F1/F7/F12 (now also
+  tagged `@scenario:F9` — the "all tests carrying a tag must pass" semantic
+  from iteration 11 makes this safe); the other 3 are new tests here.
+- **F8 (manager/owner split)** — real and testable: `isManagerRoleSettable`,
+  `RolesAddUserSheet`, and `/$name/roles` are a first-class, named concept
+  distinct from token ownership.
+
+### FINDING, then RULED OUT — a role grant does not corrupt ownership
+
+Repro: register a name, grant `ROLE_SET_RESOLVER` to a third party via
+`grantNameRoles` (the same `grantRolesWriteParameters` the portal's own grant
+flow uses), then read `ownerOf(labelToCanonicalId(label))` — it comes back
+**zero**, on a name that plainly has an owner. First read as a severe product
+defect (silent ownership loss from an everyday role grant) and treated as a
+stop-the-batch S1 candidate per goal §16.5.
+
+**It is not a defect.** `ownerOf(baseId + 1)` returns the correct owner —
+the registry bumps a low-order **token-id version** on at least some
+registry-level writes (grantRoles among them), and a statically precomputed
+`labelToCanonicalId(label)` goes stale the moment that happens. The app's own
+ownership lookup (`getOwner` / `UniversalResolver.findOwner`, name-keyed, not
+token-id-keyed) is immune to this by construction — confirmed by probe, owner
+read correctly across the same grant.
+
+**Fixed as a test-side issue, not filed as a defect:** `transfer.spec.ts`'s
+shared `ownerOfName()` — used by F1, F7, F8, F9's six tests, F12, and F14 —
+now goes through `getOwner` instead of a raw `ownerOf(labelToCanonicalId(...))`
+call. All previously-passing callers re-verified green after the change; no
+regression. **Lesson worth keeping**: a static token id computed once at
+registration time is not safe to reuse after *any* intervening registry
+write, not just a transfer. Worth a note if `GA11` (name-data mismatch, label
+≠ tokenId) ever gets probed — this may be the same mechanism.
+
+### NEW DEFECT — E2E-003 (S2), retry-after-reject is broken
+
+`docs/e2e-defects.md` has the full entry. Short version: reject a transfer
+step's wallet prompt (`wallet.reject(Web3RequestKind.SendTransaction)`), then
+click the app's own "Retry" and authorize again — it deterministically fails
+at the RPC layer ("Failed to submit transaction: An unknown RPC error
+occurred"), every run, not intermittently. Step 1's effect stays durable and
+correctly reported (not S1 — nothing is lost or corrupted, the user is just
+stuck on the retry). Not chased to a confirmed root cause; `transaction.
+machine.ts`'s own "nonce too low" guard comment is the strongest lead, since
+both transfer steps share one signer and a resubmission reuses `context.
+request` rather than re-preparing it. The regression test is committed and
+tagged `@scenario:F14`, asserting `Transaction Error` becomes hidden after the
+retry — currently and correctly red.
+
+### Learned — do not re-derive
+
+- **A test title with any of `'`, `"`, `` ` `` inside it silently breaks the
+  reconciler**, even if you pick a different delimiter — `scanSpec`'s title
+  regex (`coverage/reconcile.ts`) is `/['"`]([^'"`]+)['"`]/`, which excludes
+  *all three* quote characters from the captured content, not just its own
+  delimiter. A title with an apostrophe (`"...manager's roles..."`) truncates
+  at the apostrophe, the truncated title never matches playwright's real
+  title, and the scenario silently reports **`excluded`** — a real, CI-failing
+  state, not a cosmetic one. Caught here by a coverage-count mismatch (+3
+  expected, +2 observed) rather than by any visible error. Avoid apostrophes
+  (and any quote character) in `@scenario:`-tagged test titles until someone
+  fixes the regex; this is worth an HW-tier fix on its own, since the next
+  person to hit it won't have a reason to suspect punctuation.
+- **Playwright's JSON `--list` reporter strips the leading `@` from `tag:`
+  array tags** (`@scenario:F8` → `"scenario:F8"` in `spec.tags`). This means
+  `listExecutable()`'s tag-keyed fallback (`executable.get('tag::'+tag)`) can
+  never match anything from that path — the *only* reason scenario matching
+  works at all is the primary `file::title` key. Not a bug I fixed (the
+  primary path covers it and touching the shared reconciler was out of scope
+  for a scenario batch), but worth knowing before trusting the tag-based
+  fallback for anything.
+- **A step can auto-start the moment its screen becomes active** — not just
+  "every transaction but the last," as `driveTransactionsToSuccess`'s comment
+  suggested; both steps of a 2-step transfer auto-triggered here. The tell is
+  a `button:disabled` reading "Waiting..." with a clickable icon button
+  immediately preceding it in the DOM, rather than a labelled "Open wallet"
+  button. A rejected step also returns the dialog to the **overview** screen
+  (row badges "Done"/"Failed", bottom button relabelled "Retry"), not back to
+  the per-step screen ("Try again") — different screen, different button text,
+  same underlying state.
+
+### Next
+
+Per iteration 14/15: ruling question 2 (V1 repoint scope — all four
+constants at once, or controller+registrar first) is still open and still
+blocks all 59 `G*` migration rows. Nothing in this iteration depended on it or
+answered it. Once ruled on: implement the repoint, verify
+`unwrapped`/`wrapped`/`locked` against `harness-manager.spec.ts`'s
+`test.fail()` gate turning red. Until then, R2 (38 not-started) and R3 (69
+not-started) remain valid, unblocked work — R3 in particular has had zero
+attention all suite.
+
+---
+
+## Iteration 15 — 2026-08-29 · ruling question 1 settled — `0x640294a2…` identified
+
+**Batch:** resolve iteration 14's ruling question 1, the disputed identity of
+`0x640294a2b2d87e7f522db3e3e3e876764bce170d`. Question 2 (repoint scope) is
+**not** addressed here and still needs a ruling.
+
+**Result:** identity settled by direct on-chain evidence, not inference.
+
+### What it actually is
+
+Sepolia Etherscan shows it as a **verified `PublicResolver`**, deployed 165
+days before this writing by `0xffFffFFfFF52D316B7Bd028358089bc8066b8f80`, with
+constructor arguments:
+
+| constructor arg | value | matches |
+|---|---|---|
+| `_ens` | `0x7e89b563f936c68c31a360840eb7f9a4aacaf014` | `V1_ENS_REGISTRY` (makeV1Name.ts) |
+| `wrapperAddress` | `0xc7e033b8836e4bd55d069d113f018b98478cb091` | `V1_NAME_WRAPPER` (makeV1Name.ts) |
+| `_trustedETHController` | `0xf42df26c1b222bee5a6b78cbb8bbfaa0ba07786a` | `V1_ETH_REGISTRAR_CONTROLLER` (makeV1Name.ts) |
+
+All three match this project's own V1 fixture-stack constants exactly. It is
+not a third, unidentified contract — it is **the PublicResolver deployed
+alongside this project's own V1 fixture stack**, correctly named
+`V1_PUBLIC_RESOLVER` in `makeV1Name.ts`. `makeName.ts`'s `DEDICATED_RESOLVER`
+was the wrong name for the same address, not evidence of a second contract.
+
+Also settled while probing it: its `supportsInterface` is a correctly-behaving
+ERC165 (returns `false` for `0xffffffff` and garbage selectors), and it
+answers `AddrResolver`/`AddressResolver`/`TextResolver`/`NameResolver`/
+`PubkeyResolver`/`ABIResolver` but not `IExtendedResolver` — consistent with
+being an older-generation PublicResolver, and with iteration 13's finding that
+it is not writable by a V2 name's owner (its authorisation checks the V1
+registry, not the V2 one), which is exactly why `makeName.ts` deploys a
+separate per-name PermissionedResolver proxy whenever a test needs to write
+records.
+
+### Fixed
+
+- `fixtures/makeName.ts` — deleted the duplicate `DEDICATED_RESOLVER` literal
+  and its now-stale "DISPUTED" comment; imports `V1_PUBLIC_RESOLVER` from
+  `makeV1Name.ts` instead. One name, one binding.
+- `scripts/check-address-literals.ts` — replaced the OPEN FINDING /
+  `conflictAcceptedUntil` waiver (already expired as of this date) with a
+  settled single-name entry. **Rule-7 gate re-verified green** after the fix,
+  with no conflicting-binding warning.
+- Updated the two comments in `projects/portal/tests/transfer.spec.ts` that
+  still said `DEDICATED_RESOLVER`.
+
+### What this does NOT settle
+
+Ruling question 2 from iteration 14 — whether the V1 repoint covers all four
+constants at once or controller+registrar first — is untouched. That decision
+still blocks the 59 `G*` migration rows and needs a human call, per iteration
+14's reasoning (the two pairs sit on different ENS registries).
+
+### Next
+
+Per iteration 14: once question 2 is ruled on, implement the repoint and
+verify `unwrapped`/`wrapped`/`locked` against `harness-manager.spec.ts` — its
+`test.fail()` gate going red is the success signal. Until then, R2 (38
+not-started) and R3 (69 not-started) remain valid, unblocked work.
+
+---
+
 ## Iteration 14 — 2026-08-12 · the grant is reproducible now · **LOOP STOPPED, needs a ruling**
 
 **Batch:** implement iteration 13's recipe.
