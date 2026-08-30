@@ -16,6 +16,7 @@ with its original, unweakened assertion).
 
 | ID | Scenario | App | Sev | Summary | Expected (oracle) | Repro | Issue | Status |
 |---|---|---|---|---|---|---|---|---|
+| E2E-003 | F14 | portal | S2 | Retrying a transfer step whose wallet prompt was previously rejected deterministically fails — "Failed to submit transaction: An unknown RPC error occurred", every run, not intermittent | Clicking "Retry" on a step the user previously cancelled should resubmit and succeed like a first attempt; instead the resubmission itself fails at the RPC layer. Reproduced with `wallet.reject(Web3RequestKind.SendTransaction)` on the second of two transfer steps, then clicking Retry and authorizing — see the test for the exact repro. Not chased to a Solidity/viem root cause; `transaction.machine.ts`'s own "nonce too low" guard comment (submitting state, onError) is the most likely lead, since both steps share one signer and a resubmitted step reuses `context.request` rather than re-preparing it. Not S1: step 1's effect (resolver detached) is real and durable, and does not corrupt anything — the user is only stuck on this one retry, not left in a broken on-chain state | `pnpm e2e:portal --grep "shows what already executed and lets the user resume after a rejected step"` | _pending_ | open |
 | E2E-002 | F5 | portal | S1 | Transfer to a non-receiver contract detaches the resolver irreversibly, then hangs — token never moves, no error shown | `buildTransferPlan` must not execute `detach-resolver` before a `transfer-token` that cannot succeed; `test_safeTransferFrom_invalidReceiver` must surface as an error, not a stall (plan §5.F F5, and the S1 rule in e2e-goal.md) | `pnpm e2e:portal --grep "@scenario:F5"` | _pending_ | open |
 | E2E-001 | F1 | portal | S1 | Migrated locked V1 name offered a `detach-registry` step its owner cannot execute — `detach-resolver` had already run irreversibly | Owner lacks `ROLE_SET_SUBREGISTRY` on the locked name's `WrapperRegistry`, so `buildTransferPlan` must not offer the step. Measured in [`transfer-web446-test-plan.md`](./transfer-web446-test-plan.md) §2 finding F1 | `pnpm e2e:portal --grep "without offering the registry detach it cannot perform"` | _pending_ | fixed |
 
@@ -24,6 +25,23 @@ Status legend for the row above: **fixed** = the code fix landed
 the regression test is committed (`ff2d85b30`), but this register will not say
 `verified` until that test is observed green in a run recorded by
 `pnpm e2e:coverage --results`.
+
+---
+
+## Product gaps
+
+Not defects and not environment blockers — the app simply does not offer an
+affordance the catalogue describes. Per `e2e-build-goal.md` §10, this is a
+finding against the product, not test debt, and is tracked here so it is not
+silently forgotten. `scenarios.ts` has no dedicated machine-terminal state for
+this disposition yet (only `exempt`, which means something different — a
+human-approved decision not to test — not "the app can't do this"); until that
+schema gap is closed, these rows stay `not-started` in the ratchet and this
+table is the durable record.
+
+| Scenario | App | Summary | What's missing | Investigated |
+|---|---|---|---|---|
+| F6 | portal | Batch transfer (multiple names), incl. one-error-aborts-all `safeBatchTransferFrom` semantics | The names dashboard (`routes/addr/$addr/names.tsx`) has real multi-select row checkboxes, but the only bulk action wired to the selection is **Extend** (renewal). There is no batch-transfer button, route, or modal, and a repo-wide search of `apps/portal/src` for `safeBatchTransferFrom`/`batchTransfer` returns zero hits — the frontend never calls that entrypoint. `SendNameForm.tsx` (the only transfer UI) takes exactly one `name` prop. | 2026-08-29 |
 
 ---
 
