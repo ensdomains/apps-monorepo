@@ -60,13 +60,11 @@ async function runMigrationFlow(
   const upgradeButton = page
     .getByRole('button', { name: 'Upgrade Names' })
     .first()
-  // This button's visibility depends on the client-side eligibility check
-  // (packages/migration/src/service/preflightChecks.ts) resolving, not just
-  // the mocked subgraph responding — see coverage/handoff.md iteration 24 for
-  // an unresolved intermittent failure here, suspected but not confirmed to
-  // be related to VITE_FF_USE_EOA / the smart-account owner address. 10s was
-  // observed to be too tight at least once for unrelated reasons (a large
-  // shared fork slowing the dashboard's own name-listing query).
+  // Intermittently slow/absent — see coverage/handoff.md iteration 24/25 for
+  // the investigation. Ruled out so far: mocked subgraph correctness, infra/
+  // indexer staleness, VITE_FF_USE_EOA (must stay false — migration is tested
+  // through Rhinestone), and the EnableSessions smart-session gate (confirmed
+  // absent — 0 count — when this failed, so it isn't blocking on that modal).
   await upgradeButton.waitFor({ state: 'visible', timeout: 30_000 })
   await upgradeButton.click()
 
