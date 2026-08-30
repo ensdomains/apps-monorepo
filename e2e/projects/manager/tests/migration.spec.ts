@@ -25,6 +25,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import {
   authorizeTransaction,
+  authorizeTransactionsWhile,
   expect,
   test,
 } from '../../../fixtures/playwright.manager.fixture.js'
@@ -59,23 +60,44 @@ async function runMigrationFlow(
   const upgradeButton = page
     .getByRole('button', { name: 'Upgrade Names' })
     .first()
-  await upgradeButton.waitFor({ state: 'visible', timeout: 10_000 })
+  // This button's visibility depends on the client-side eligibility check
+  // (packages/migration/src/service/preflightChecks.ts) resolving, not just
+  // the mocked subgraph responding — see coverage/handoff.md iteration 24 for
+  // an unresolved intermittent failure here, suspected but not confirmed to
+  // be related to VITE_FF_USE_EOA / the smart-account owner address. 10s was
+  // observed to be too tight at least once for unrelated reasons (a large
+  // shared fork slowing the dashboard's own name-listing query).
+  await upgradeButton.waitFor({ state: 'visible', timeout: 30_000 })
   await upgradeButton.click()
 
   await page.waitForTimeout(2_000)
 
-  const confirmButton = page.getByRole('button', { name: 'Upgrade Names' })
+  const confirmButton = page.getByRole('button', {
+    name: /^Upgrade \d+ names?$/,
+  })
   await confirmButton.waitFor({ state: 'visible', timeout: 10_000 })
-  // Authorize the migration transaction concurrently with clicking confirm
-  await Promise.all([
-    confirmButton.click(),
-    authorizeTransaction(wallet, 90_000),
-  ])
 
-  const successIndicator = page.getByText("You're on ENS v2!")
+  // The confirm screen names how many wallet confirmations to expect (e.g.
+  // "Expected: 2 wallet confirmations") — the migration batch is often more
+  // than one sequential eth_sendTransaction. Poll and authorize whatever
+  // arrives until the success screen shows, rather than authorizing a single
+  // fixed count.
+  let migrationComplete = false
+  const authorizeAll = authorizeTransactionsWhile(
+    page,
+    wallet,
+    () => migrationComplete,
+  )
+  await confirmButton.click()
+
+  const successIndicator = page.getByRole('heading', {
+    name: /your names? (has|have) been upgraded/i,
+  })
   await successIndicator.waitFor({ state: 'visible', timeout: 60_000 })
+  migrationComplete = true
+  await authorizeAll
 
-  const doneButton = page.getByRole('button', { name: 'Done' })
+  const doneButton = page.getByRole('button', { name: 'Open Dashboard' })
   await doneButton.waitFor({ state: 'visible', timeout: 10_000 })
   await doneButton.click()
 }
