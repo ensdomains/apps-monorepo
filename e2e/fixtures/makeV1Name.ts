@@ -34,55 +34,57 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import {
+  APP_V1_BASE_REGISTRAR,
+  APP_V1_CONTROLLER,
+  APP_V1_NAME_WRAPPER,
+  ensureV1ControllersAuthorised,
+} from './v1-controller-auth.js'
 
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 
 // ---------------------------------------------------------------------------
 // V1 Contract addresses (Sepolia fork)
 // ---------------------------------------------------------------------------
-// NOTE: these point at a *different* V1 deployment from the one the apps read.
-// `apps/manager/.../checkHelperApprovals.ts` resolves
-// `ensBaseRegistrarImplementation` / `ensNameWrapper` through ensjs, giving
-// 0x57f1887a… / 0x0635513f…, while these are 0x64096092… / 0xc7e033b8…. Both
-// deployments are live on the fork, so registration succeeds — into a
-// registrar the migration UI never reads. Every name this fixture creates is
-// therefore invisible to the app under test, which is the root reason §5.G is
-// untestable.
+// REPOINTED (iteration 23, ruling from iteration 14: all four constants at
+// once, not staged). Previously this fixture registered into a *different*,
+// fixture-only V1 deployment — same code, twice deployed — while the
+// migration UI resolves `ensBaseRegistrarImplementation` / `ensNameWrapper`
+// through ensjs. Every name the fixture made was therefore invisible to the
+// app under test, which was the root reason §5.G (59 rows) stayed untestable.
 //
-// Switching them IS essentially address-only — the earlier note here guessed
-// "fee, commitment age or parameter semantics" and that was wrong. Measured
-// (e2e/scripts/probe-v1-*.mts, iteration 13):
+// `V1_ETH_REGISTRAR_CONTROLLER` / `V1_BASE_REGISTRAR` / `V1_NAME_WRAPPER` are
+// now the exact same values `v1-controller-auth.ts` calls `APP_V1_*` — single
+// source, not a second copy of the same literals. `ensureV1ControllersAuthorised()`
+// (below, called once per `makeV1Name`) is the reproducible grant iteration 14
+// asked for: `base.addController(controller)` for `register`, and
+// `base.addController(nameWrapper)` for `wrapETH2LD` (the wrapper calls back
+// into the registrar). Proven in iteration 13 (`scripts/probe-v1-*.mts`) and
+// already exercised every harness run since as `v1-controller-auth: both
+// grants land on the canonical registrar, and are idempotent`.
 //
-//   - the two controllers are the same code twice deployed: identical bytecode
-//     size (9739), the same `register` selector (0xef9c8805), identical
-//     minCommitmentAge (60) / maxCommitmentAge (86400) and identical rentPrice
-//   - `register` on the ensjs controller reverted with **no data at all** — no
-//     reason string, no custom-error selector. That is the signature of a bare
-//     `require(...)` with no message, and `BaseRegistrarImplementation`'s
-//     `onlyController` is exactly that
-//   - `base.controllers(ensjsController)` was `false`. Granting it via
-//     `addController` (impersonating `base.owner()`) makes `register` simulate
-//     OK on the ensjs controller
+// `V1_ENS_REGISTRY` moves to ensjs's `ensLegacyRegistry` — the fourth constant
+// the ruling covers. Note `wrapper.controllers(controller)` is `false` on
+// both the old and new pairs, so it was never a requirement and needs no
+// equivalent grant.
 //
-// Remaining gap for wrapped/locked names: `base.controllers(nameWrapper)` is
-// `false` on the canonical pair and `true` on the pair this fixture uses, which
-// is what `wrapETH2LD` needs since the wrapper calls back into the registrar.
-// Note `wrapper.controllers(controller)` is false on BOTH pairs, so it is not a
-// requirement. Full recipe and status in e2e/coverage/handoff.md (iteration 13).
-//
-// Still pointing at the old deployment until that grant is implemented as a
-// reproducible fixture/infra step rather than a probe side effect — a
-// half-rewired fixture is worse than a consistently wrong one.
-const V1_ETH_REGISTRAR_CONTROLLER =
-  '0xF42dF26c1b222bee5a6B78cBB8bbfaa0Ba07786a' as const
-export const V1_BASE_REGISTRAR =
-  '0x6409609247722761b8ba96371485de92a6d7b83b' as Address
-export const V1_NAME_WRAPPER =
-  '0xc7e033b8836e4bd55d069d113f018b98478cb091' as Address
+// KNOWN GAP, not fixed here: `V1_PUBLIC_RESOLVER` is unaffected by this
+// repoint (still the same address) and is fine as a placeholder resolver —
+// reads work regardless of which registry points at it. But `setV1Records`
+// (GR* scenarios only) writes `setText`/`setAddr` directly to it as the
+// name's owner, and this resolver's own authorisation is hardcoded to the
+// *old* fixture registry (confirmed via its constructor args on Sepolia
+// Etherscan, iteration 15) — a node registered in the new canonical registry
+// has no ownership record in the resolver's own `_ens`, so those writes will
+// revert post-repoint. Unwrapped/wrapped/locked registration and migration
+// (the other ~47 of the 59 `G*` rows) do not go through this path at all.
+// See coverage/handoff.md, iteration 23.
+const V1_ETH_REGISTRAR_CONTROLLER = APP_V1_CONTROLLER
+export const V1_BASE_REGISTRAR = APP_V1_BASE_REGISTRAR
+export const V1_NAME_WRAPPER = APP_V1_NAME_WRAPPER
 export const V1_PUBLIC_RESOLVER =
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address
-export const V1_ENS_REGISTRY =
-  '0x7e89b563f936c68c31a360840eb7f9a4aacaf014' as Address
+export const V1_ENS_REGISTRY = ensjsSepolia.ensLegacyRegistry.address
 
 // ---------------------------------------------------------------------------
 // V2 Contract addresses — used by reserveInV2()
@@ -281,8 +283,25 @@ export async function reserveInV2(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+/**
+ * Waits for inclusion AND checks the receipt's own status — `viem`'s
+ * `waitForTransactionReceipt` resolves for a reverted tx exactly like a
+ * successful one, so a caller that only awaits it (as every call site here
+ * used to) never learns a step silently reverted. Measured effect when this
+ * was missing: an intermittent revert in `register` (root cause not yet
+ * pinned down) surfaced only minutes later, as `nameExpires` reading back 0
+ * in a harness assertion several steps downstream, rather than here where
+ * it actually happened. Same "read back and throw" discipline as rule 5
+ * elsewhere in this fixture, applied to the write itself.
+ */
 async function waitForTx(hash: Hash) {
-  return publicClient.waitForTransactionReceipt({ hash })
+  const receipt = await publicClient.waitForTransactionReceipt({ hash })
+  if (receipt.status !== 'success') {
+    throw new Error(
+      `[makeV1Name] transaction ${hash} reverted (status: ${receipt.status}) — see the receipt for details`,
+    )
+  }
+  return receipt
 }
 
 type RegistrationStruct = readonly [
@@ -319,6 +338,10 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
     console.log(
       `[makeV1Name] registering V1 name ${uniqueLabel}.eth (duration=${duration}s, type=${config.type ?? 'unwrapped'})`,
     )
+
+    // Idempotent and memoised — cheap to call every time, and required since
+    // this fixture now registers into the canonical registrar the app reads.
+    await ensureV1ControllersAuthorised()
 
     // ── 0. Fund owner if needed ────────────────────────────────────
     const balance = await publicClient.getBalance({ address: ownerAddress })
@@ -395,6 +418,14 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
         args: [regStruct],
       }),
       value: (price * 110n) / 100n,
+      // Explicit, generous limit — `eth_estimateGas` intermittently
+      // undershot this call (observed via debug_traceTransaction: "out of
+      // gas" with an estimated ~166k limit against real usage north of
+      // 190k). register()'s cost is state-dependent — it walks nested
+      // STATICCALLs into the price oracle for premium computation — so the
+      // estimate isn't stable across runs. This was the standing
+      // intermittent V1 register revert (root-caused iteration 23).
+      gas: 500_000n,
     })
     await waitForTx(registerTx)
 

@@ -204,24 +204,17 @@ test.describe('Harness integrity — manager', () => {
   test('makeV1Name: rule 6 — the name is visible in the registrar the app reads', async ({
     accounts,
   }) => {
-    // KNOWN BROKEN — this is the blocker on all 61 G* rows.
-    //
-    // `makeV1Name` registers into V1_BASE_REGISTRAR (0x64096092…) while the
-    // migration code resolves `ensBaseRegistrarImplementation` through ensjs
-    // (0x57f1887a…). Both are deployed on the fork, so registration succeeds
-    // and every name is invisible to the app. Specs paper over it by
-    // route-mocking the V1 subgraph, which is why the suite above it stayed
-    // green — the mock answers for a name the chain-reading half cannot find.
-    //
-    // Marked `fail` rather than skipped so it is *executed* every run and this
-    // annotation cannot outlive the bug: fix the fixture and this goes red with
-    // "expected to fail but passed". At that point delete the annotation and
-    // unblock the G* matrix.
-    //
-    // Not weakening the assertion — the assertion below is the correct one and
-    // is unchanged. Only its expected outcome is recorded as currently-failing.
-    test.fail()
-
+    // FIXED — iteration 23. `makeV1Name` used to register into a fixture-only
+    // V1 deployment while the migration code resolved
+    // `ensBaseRegistrarImplementation` through ensjs — same code, twice
+    // deployed on the fork, so registration succeeded into a registrar the
+    // app could never see. `V1_BASE_REGISTRAR` is now imported from
+    // `v1-controller-auth.ts`'s `APP_V1_BASE_REGISTRAR` (the ruling from
+    // iteration 14: repoint all four V1 constants at once), so this
+    // assertion — unchanged since it was written, per rule 1 — passes for
+    // real instead of via `test.fail()`. That flip ("expected to fail but
+    // passed") was the signal iteration 4 designed this test to produce; this
+    // is that moment, and the annotation is gone.
     const before = await takeSnapshot()
     try {
       const makeV1Name = createMakeV1Name({
@@ -271,24 +264,24 @@ test.describe('Harness integrity — manager', () => {
     }
   })
 
-  test('the two V1 registrars are genuinely different deployments, both live', async () => {
-    // Guards the premise of the test above. If these ever became the same
-    // address, the rule-6 failure would be about something else entirely and
-    // the diagnosis above would silently become wrong.
+  test('makeV1Name and the app read the same V1 registrar', async () => {
+    // Replaces the pre-iteration-23 "the two V1 registrars are genuinely
+    // different deployments" test, which guarded the *old*, now-fixed
+    // mismatch — it would have failed forever after the repoint, for a
+    // reason with nothing to do with a regression. This guards the opposite,
+    // current invariant: if `V1_BASE_REGISTRAR` and `APP_V1_BASE_REGISTRAR`
+    // ever diverge again (e.g. someone edits one without the other), rule 6
+    // above goes back to failing for the old reason, silently, unless
+    // something here calls it out directly.
     expect(
       V1_BASE_REGISTRAR.toLowerCase(),
-      'makeV1Name and the app now point at the same V1 registrar — re-read the rule-6 test above, its explanation no longer applies',
-    ).not.toBe(APP_V1_BASE_REGISTRAR.toLowerCase())
+      'makeV1Name and the app now point at different V1 registrars — the iteration 23 repoint has regressed, and rule 6 above will start failing for the pre-iteration-23 reason',
+    ).toBe(APP_V1_BASE_REGISTRAR.toLowerCase())
 
-    for (const [label, address] of [
-      ['fixture', V1_BASE_REGISTRAR],
-      ['app', APP_V1_BASE_REGISTRAR],
-    ] as const) {
-      const code = await publicClient.getBytecode({ address })
-      expect(
-        code && code !== '0x',
-        `the ${label} V1 registrar ${address} has no bytecode — the fork is not what this suite assumes`,
-      ).toBeTruthy()
-    }
+    const code = await publicClient.getBytecode({ address: V1_BASE_REGISTRAR })
+    expect(
+      code && code !== '0x',
+      `the V1 registrar ${V1_BASE_REGISTRAR} has no bytecode — the fork is not what this suite assumes`,
+    ).toBeTruthy()
   })
 })

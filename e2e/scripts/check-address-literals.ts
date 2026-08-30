@@ -100,30 +100,17 @@ const ALLOWED: Record<string, Allowance> = {
       'Multicall3 — same address on every chain by construction. Used in transfer.spec.ts as a contract that cannot receive ERC-1155 (F5 / E2E-002), where the point is precisely that it is a known non-receiver.',
   },
 
-  // ── The pinned V1 deployment. `makeV1Name.ts` is the single source; the
-  // header comment there explains why these are NOT the ensjs addresses and
-  // what has to happen before they can be. Duplicating any of them elsewhere
-  // is what this gate exists to prevent.
-  '0xf42df26c1b222bee5a6b78cbb8bbfaa0ba07786a': {
-    reason:
-      'V1 ETHRegistrarController, pinned deployment — see makeV1Name.ts header',
-  },
-  '0x6409609247722761b8ba96371485de92a6d7b83b': {
-    reason: 'V1 BaseRegistrar, pinned deployment — see makeV1Name.ts header',
-  },
-  '0xc7e033b8836e4bd55d069d113f018b98478cb091': {
-    reason: 'V1 NameWrapper, pinned deployment — see makeV1Name.ts header',
-  },
-  '0x7e89b563f936c68c31a360840eb7f9a4aacaf014': {
-    reason: 'V1 ENSRegistry, pinned deployment — see makeV1Name.ts header',
-  },
-
-  // ── OPEN FINDING. Bound to two contradictory identities.
+  // ── The V1 deployment. `V1_ETH_REGISTRAR_CONTROLLER` / `V1_BASE_REGISTRAR`
+  // / `V1_NAME_WRAPPER` / `V1_ENS_REGISTRY` in `makeV1Name.ts` are no longer
+  // literals here at all — as of iteration 23 they're imported from
+  // `v1-controller-auth.ts`'s `APP_V1_*` (themselves derived from
+  // `ensL1Contracts`) or from `ensjsSepolia.ensLegacyRegistry`, the same
+  // canonical addresses the apps read. `V1_PUBLIC_RESOLVER` is the one
+  // address that genuinely stays a literal — it isn't in ensjs's config at
+  // all (see below) — so it's the only entry left in this block.
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d': {
     reason:
-      'DISPUTED. Declared as `V1_PUBLIC_RESOLVER` in fixtures/makeV1Name.ts and as `DEDICATED_RESOLVER` (a V2 resolver) in fixtures/makeName.ts. It cannot be both. Measured on the fork 2026-08-11: it is a deployed resolver answering ERC165/addr/text/contenthash but NOT IExtendedResolver; 15115 bytes, codehash 0xd1d78319; it is absent from ensL1Contracts[sepolia] entirely; and its bytecode differs from ensPublicResolver (0x5239A812, 14001B), ensPermissionedResolverImpl (0x9EAe5C27, 17597B) and the resolver the V1 registry returns for `eth` (0x18CB116a, 10700B). So it is a third contract under two names, and at least one of the two names is wrong. Blocks trusting any GR* record-replay result. See coverage/handoff.md, iteration 2.',
-    owner: 'sugh01',
-    conflictAcceptedUntil: '2026-08-18',
+      "V1 PublicResolver, pinned deployment, absent from ensL1Contracts entirely (settled 2026-08-29, coverage/handoff.md iteration 15 — verified on Sepolia Etherscan as a real, verified PublicResolver deployed for this project's own former V1 fixture stack, constructor args matching that stack's old controller/registry/wrapper). Still fine as a placeholder resolver post-repoint (iteration 23) since reads do not check authorisation — only setV1Records' writes do, and those are a known, separately-tracked gap for GR* scenarios specifically. See makeV1Name.ts header.",
   },
 
   // ── HCA account, derived outside the e2e dependency graph.
