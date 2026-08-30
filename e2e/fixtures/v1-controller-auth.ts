@@ -123,14 +123,24 @@ async function grant(candidate: Address, what: string): Promise<void> {
   }
 }
 
-let done: Promise<void> | undefined
+let inFlight: Promise<void> | undefined
 
 /**
- * Idempotent, once per process. Safe to call from any fixture that needs to
- * write to the canonical V1 deployment.
+ * Idempotent on **chain state**, not on process lifetime — every call reads
+ * `controllers(candidate)` fresh and only sends a grant for what is actually
+ * missing right now. Safe to call from any fixture that needs to write to the
+ * canonical V1 deployment.
+ *
+ * Deliberately does NOT cache "already granted" across calls: a caller that
+ * wraps its own test in `evm_snapshot`/`evm_revert` (as the harness gate does)
+ * rolls the grant back on-chain when it reverts, and a process-lifetime cache
+ * would then lie to every later call in the same worker, letting `register()`
+ * sail into a data-less `onlyController` revert. `inFlight` here only
+ * collapses concurrent callers onto one read-modify-write pass; it is not a
+ * "done forever" flag.
  */
 export function ensureV1ControllersAuthorised(): Promise<void> {
-  done ??= (async () => {
+  inFlight = (inFlight ?? Promise.resolve()).then(async () => {
     const targets: [Address, string][] = [
       [APP_V1_CONTROLLER, 'ETHRegistrarController (register)'],
       [APP_V1_NAME_WRAPPER, 'NameWrapper (wrapETH2LD)'],
@@ -140,8 +150,8 @@ export function ensureV1ControllersAuthorised(): Promise<void> {
       console.log(`[v1-auth] granting addController → ${what} (${candidate})`)
       await grant(candidate, what)
     }
-  })()
-  return done
+  })
+  return inFlight
 }
 
 /** Current state of both grants — for the harness gate to assert on. */

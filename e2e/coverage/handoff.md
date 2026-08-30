@@ -5,6 +5,92 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 23 — 2026-08-30 · V1 repoint landed (all four constants, per the iteration-14 ruling), two real bugs found and fixed
+
+**Batch:** unblock, not a scenario batch — repoint `makeV1Name`'s V1 controller,
+base registrar, name wrapper, and registry constants from the fixture-only
+deployment to the canonical one the apps actually read (ensjs's
+`ensEthRegistrarController` / `ensBaseRegistrarImplementation` / `ensNameWrapper`
+/ `ensLegacyRegistry`), all at once per the user's explicit ruling on iteration
+14's blocked question. This is the standing blocker on all 59 `G*` migration
+scenarios (§5.G), so per the goal's own exception rule an unblock here outranks
+a normal in-tier batch.
+
+**Result:** PASS 0 new scenarios — this batch is fixture/harness work, not
+scenario coverage. **Ratchet unchanged: R0 14 · R1 8 · R2 26 · R3 1 · R4 0,
+total 54.** What changed is that the 59 `G*` rows are now reachable through a
+fixture that writes to the registrar the migration UI reads, which they were
+not before.
+
+**In flight: nothing.** Harness gate (`specs/harness-manager.spec.ts`) verified
+green over 17+ consecutive runs after the fixes below (previously failing
+1-in-3 to 1-in-4 runs).
+
+### What changed
+
+- `v1-controller-auth.ts` / `makeV1Name.ts`: `V1_ETH_REGISTRAR_CONTROLLER`,
+  `V1_BASE_REGISTRAR`, `V1_NAME_WRAPPER`, `V1_ENS_REGISTRY` now import the
+  `APP_V1_*` constants directly — single source, not a second copy of the same
+  literals. `V1_PUBLIC_RESOLVER` is unchanged (see known gap below).
+- `harness-manager.spec.ts`: removed the `test.fail()` annotation from rule 6
+  (it now passes for real instead of via the documented "expected fail"), and
+  replaced the now-structurally-false "two different registrars" test with a
+  regression guard asserting `makeV1Name` and the app agree on the same V1
+  registrar.
+- `check-address-literals.ts`: dropped the four stale allowlist entries for the
+  old fixture-only addresses (now imported, not literal); kept only the
+  `V1_PUBLIC_RESOLVER` entry.
+
+### Two real bugs found while landing this, not pre-existing flakiness
+
+Wiring `ensureV1ControllersAuthorised()` into `makeV1Name` was the first time
+anything besides its own dedicated harness test called it from outside a
+single, isolated snapshot/revert — and that surfaced two bugs the isolated
+test never could:
+
+1. **Stale process-lifetime memoization** (`v1-controller-auth.ts`). The
+   function cached a resolved promise after its first successful grant
+   (`done ??= (async () => {...})()`). Every caller here wraps itself in
+   `evm_snapshot`/`evm_revert` (rule 5/6 tests, and now every `makeV1Name`
+   call), and a revert undoes the on-chain grant — but the JS-level cache kept
+   reporting "already done," so the *next* call skipped re-checking entirely
+   and `register()` died in `onlyController` with a data-less revert. Fixed by
+   re-reading chain state (`controllers(candidate)`) on every call instead of
+   trusting a permanent cache; `inFlight` now only collapses concurrent
+   callers onto one pass, it does not mean "done forever."
+2. **Gas-estimation undershoot on `register()`** (`makeV1Name.ts`). Even after
+   fix #1, the harness gate still failed intermittently (~1-in-4 to 1-in-5
+   runs) with the exact same symptom: a data-less `register()` revert. Added
+   temporary `debug_traceTransaction` instrumentation and caught it live — the
+   trace showed `"error": "out of gas"`, tx gas limit ~166k (from
+   `eth_estimateGas`) against real usage north of 190k. `register()`'s cost is
+   state-dependent — nested `STATICCALL`s into the price oracle for premium
+   computation — so viem's auto-estimate isn't stable run to run. Fixed with
+   an explicit `gas: 500_000n` on the register transaction. Confirmed: 17+
+   consecutive green runs after this fix, versus 5 failures in the first 15
+   runs with only fix #1 applied.
+
+Both fixes are now permanent (not one-off probe fixes on a live fork) since
+they live in the fixture and auth helper, not in a throwaway script.
+
+### Known gap, not fixed here
+
+`V1_PUBLIC_RESOLVER` writes (`setV1Records`, `GR*` scenarios only) go through
+the resolver as the node's owner, and that resolver's own authorisation is
+hardcoded to the *old* fixture registry (Etherscan-verified, iteration 15) — a
+node registered in the new canonical registry has no ownership record in the
+resolver's own internal state, so those specific writes will revert
+post-repoint. This affects only the `GR*` subset; the other ~47 of the 59 `G*`
+rows (registration and migration) do not go through this path. Documented in
+`makeV1Name.ts`'s header; not addressed this iteration — needs its own probe.
+
+**Next:** run the `G*` migration specs (59 rows) against the now-repointed
+fixture — this is the actual scenario batch the last several iterations have
+been building toward. Expect the `GR*` subset (resolver writes) to need the
+follow-up above.
+
+---
+
 ## Iteration 22 — 2026-08-30 · B12 probed and reverted; no landing this time
 
 **Batch:** R1 continued — attempted B12 (renew with insufficient balance).
