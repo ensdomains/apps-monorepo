@@ -109,6 +109,67 @@ first, its toast-only assertion is the lowest oracle rank).
 
 ---
 
+## Iteration 25 — 2026-08-31 · two more "Upgrade Names" hypotheses tested and ruled out; root cause still open
+
+**Batch:** continuation of iteration 24's investigation into the intermittent
+"Upgrade Names" dashboard button. No new scenarios attempted; this is pure
+root-cause work on the standing blocker for the whole `G*` matrix.
+
+**Result:** PASS 0. **Ratchet unchanged: total 54.** Two more hypotheses
+tested, both ruled out. `migration.spec.ts` unchanged in the run config
+(still excluded); one small comment update in the file to reflect the two
+new ruled-out leads.
+
+**In flight: nothing.** No code changes landed this iteration beyond the
+comment — everything tested was reverted.
+
+### Hypothesis: EnableSessions smart-session gate — ruled out
+
+Traced the app's own Rhinestone/HCA machinery
+(`MigrationPage.tsx` → `useEligibleV1Names` → `useSmartAccountContext()`'s
+`ownerAddress`) and found `registration-rhinestone.spec.ts` documents a
+one-time "Enable Sessions" authorization modal that can take 30-60s to appear
+on a fresh HCA, gated on `smartAccount.isAccountReady`
+(`manager-auth.ts`'s `clickThroughEnableSessions`). Reasoned this could
+explain the intermittent failure: an earlier, long-lived part of this same
+session may have already granted that on-chain session before the mid-session
+`infra:down`/`up` + volume wipe (iteration 24) wiped it, so later isolated
+reruns would hit the gate for the first time — and migration.spec.ts never
+calls the click-through helper at all.
+
+Added `clickThroughEnableSessions(page)` right after navigating to
+`/dashboard`, with diagnostic logging. Result: **the button was never
+present (count 0) at the point of the failure** — the modal genuinely does
+not appear on this path. Reverted the addition (kept the file's comment
+noting this is ruled out, since it was a reasonable and specific enough
+theory that it's worth recording so nobody retries it identically).
+
+### Also directly confirmed: `useEligibleV1Names`'s owner resolution is not the naive mismatch
+
+Read `useEligibleV1Names.ts`: `resolvedOwnerAddress = ownerAddress ?? address`,
+where `ownerAddress` comes from `useSmartAccountContext()`. Browser console
+capture (iteration 24's network trace) showed balance-fetching logged against
+the raw EOA (`0xf39Fd6…`), not a separate smart-account owner key, in this
+headless/mock-wallet setup — consistent with the user's correction that
+Rhinestone is the right path and not itself the problem. This doesn't
+contradict iteration 24's ruling; it just confirms there's no simple
+address-string mismatch to find here — whatever's intermittent is in timing
+or state, not in which address gets compared.
+
+**Root cause still open.** Ruled out so far, cumulative: subgraph mock
+correctness, infra/indexer staleness (full reset + volume wipe),
+`VITE_FF_USE_EOA` (must stay `false`, per explicit ruling), the EnableSessions
+gate (confirmed absent when this fails). **Next concrete step, not another
+guess:** instrument `useEligibleV1Names`/`useMigrationEligibility` directly
+(a temporary `console.log` of `classified`, `eligibility`, and `isPending` on
+each render) and capture a passing run next to a failing run side by side —
+so far every diagnostic has confirmed inputs are correct up to the network
+layer; the gap is somewhere in the client-side query/render pipeline between
+"mocked data arrives correctly" and "banner decides whether to show," and
+that needs render-level visibility, not another network or infra check.
+
+---
+
 ## Iteration 23 — 2026-08-30 · V1 repoint landed (all four constants, per the iteration-14 ruling), two real bugs found and fixed
 
 **Batch:** unblock, not a scenario batch — repoint `makeV1Name`'s V1 controller,
