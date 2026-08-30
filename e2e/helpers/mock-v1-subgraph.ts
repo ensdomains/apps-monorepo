@@ -2,11 +2,19 @@
  * Mock V1 Subgraph — intercepts the ENS V1 subgraph requests in the browser
  * and injects locally-registered V1 names into the response.
  *
- * The migration UI queries `https://ensnode-api-sepolia-staging-v1.up.railway.app/subgraph`
- * for V1 names. Since our test names are registered on the local Anvil fork
- * (not the real Sepolia), the subgraph doesn't see them. This helper uses
- * Playwright's `page.route()` to intercept those requests and inject our
- * test domain(s) into the response.
+ * The migration UI queries `https://v1-graphql.ens.dev/subgraph` for V1
+ * names (`apps/manager/src/features/migration/service/v1SubgraphClient.ts`).
+ * Since our test names are registered on the local Anvil fork (not the real
+ * Sepolia), the subgraph doesn't see them. This helper uses Playwright's
+ * `page.route()` to intercept those requests and inject our test domain(s)
+ * into the response.
+ *
+ * The URL here must track the app's client exactly: it drifted once already
+ * (this file pointed at a since-retired `…railway.app/subgraph` staging
+ * host while the app had moved to `v1-graphql.ens.dev`), and because
+ * `page.route()` silently no-ops on a non-matching pattern rather than
+ * erroring, every migration.spec.ts test kept "passing" its own timeout as a
+ * plain hang instead of failing loudly on the mismatch.
  */
 import type { Page } from '@playwright/test'
 import { keccak256, namehash, toHex } from 'viem'
@@ -23,7 +31,7 @@ import {
 // is exactly how the same registry ended up with three different addresses
 // across three files.
 
-const V1_SUBGRAPH_URL = 'ensnode-api-sepolia-staging-v1.up.railway.app/subgraph'
+const V1_SUBGRAPH_URL = 'v1-graphql.ens.dev/subgraph'
 
 /**
  * Fuse values matching the NameWrapper contract.

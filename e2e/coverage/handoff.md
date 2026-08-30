@@ -5,6 +5,113 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 24 — 2026-08-30 · migration.spec.ts audited (B4 bootstrap step): three real bugs fixed, blocked on a structural env conflict
+
+**Batch:** with the V1 repoint landed (iteration 23), attempted to run the
+59-row `G*` migration matrix. `projects/manager/tests/migration.spec.ts`
+already exists (7 tests, unwrapped/wrapped/locked/batch/records/edit) but is
+excluded from every playwright config via
+`testIgnore: /temporaryPremium|migration|notification/` — the comment there
+cites exactly the `makeV1Name` fault iteration 23 fixed. This iteration is the
+goal's own §6 B4 bootstrap step ("Audit the inherited specs") applied to this
+file, done before any new `G*` tags are written.
+
+**Result:** PASS 0 new scenarios, 3 real test bugs found and fixed, 1
+structural blocker found and escalated. **Ratchet unchanged: total 54.**
+`migration.spec.ts` stays excluded from the run config — it is not yet
+reliably green, so nothing here is tagged.
+
+**In flight: nothing landed as broken.** The fixes below are real and kept;
+the file's exclusion is unchanged pending the escalation.
+
+### Three real, confirmed bugs fixed
+
+1. **Stale subgraph mock URL** (`helpers/mock-v1-subgraph.ts`). The mock
+   intercepted `https://ensnode-api-sepolia-staging-v1.up.railway.app/subgraph`
+   — a retired staging host. The app's actual client
+   (`apps/manager/src/features/migration/service/v1SubgraphClient.ts:7`) has
+   long since moved to `https://v1-graphql.ens.dev/subgraph`. `page.route()`
+   silently no-ops on a non-matching pattern (no error), so every
+   migration.spec.ts test was hanging on a plain, unmocked timeout rather than
+   failing loudly on the mismatch — this alone likely explains why the file
+   was never revisited after being excluded. Fixed: URL updated, and a comment
+   added warning that this string must track the app's client by hand.
+2. **Two stale UI-copy selectors** (`migration.spec.ts`'s `runMigrationFlow`).
+   The confirm button's label changed from a static "Upgrade Names" to a
+   dynamic "Upgrade N name(s)"; the success screen's copy changed from "You're
+   on ENS v2!" / "Done" to a "Your name(s) have been upgraded!" dialog with an
+   "Open Dashboard" button. Both updated to match current copy (the second
+   with a case-insensitive singular/plural regex).
+3. **Single-authorization assumption** (same function). The confirm screen
+   itself states how many wallet confirmations to expect (e.g. "Expected: 2
+   wallet confirmations"), but the test authorized exactly one
+   `eth_sendTransaction` and then waited on the success screen — hanging
+   forever at "2/2" once the real flow needed a second confirmation. Fixed by
+   switching to `authorizeTransactionsWhile` (already used elsewhere in this
+   suite for exactly this shape of problem), polling and authorizing whatever
+   arrives until the success heading appears.
+
+With all three fixed, the full flow (register V1 name → mock subgraph →
+dashboard → confirm → authorize → success dialog) **completed for real, once**
+— confirmed by the "Your name has been upgraded!" screenshot, not asserted
+from a hunch.
+
+### Blocker found: the dashboard's own "Upgrade Names" button is intermittent, not yet root-caused
+
+Across repeated single-test reruns (same test, same code, no other change),
+the very first assertion — the dashboard's "Upgrade Names" button becoming
+visible — passed 3 times then failed 3 times in a row, including after:
+
+- a full `infra:down`/`infra:up` cycle (ruled out: fresh anvil, same result)
+- additionally wiping the `infra_panoptes-data` / `infra_dqa-data` Docker
+  volumes and letting the indexer fully resync to chain tip (ruled out:
+  confirmed via `docker logs` — indexer reached 100%, and separately confirmed
+  via browser network capture that the mocked subgraph response is correct and
+  contains our freshly-registered name every time, mocked or not)
+- bumping the wait timeout 10s → 30s (helped once, for an unrelated reason —
+  see below — but did not fix the recurring failure)
+
+**Leading, unconfirmed hypothesis:** `apps/manager/.env.local` has
+`VITE_FF_USE_EOA=false` (intentionally, per its own comment, to exercise the
+Rhinestone/HCA smart-account path that other suites — e.g.
+registration-rhinestone.spec.ts — depend on). Migration's on-chain eligibility
+check (`packages/migration/src/service/preflightChecks.ts`'s `checkOwnership`)
+compares the V1 name's real on-chain owner against a `migrationOwner` address
+that may resolve to the smart-account address rather than the raw EOA
+`makeV1Name` actually registers to — this is the exact same class of problem
+already on record as project memory
+(`manager-local-mock-wallet-use-eoa.md`: "`/migration` spins forever without
+`VITE_FF_USE_EOA=true`") and matches iteration 17's A1 finding almost exactly,
+just discovered again independently here for the migration surface.
+
+**This is NOT confirmed**, because a real, complete migration succeeded once
+under this exact unchanged config — if eligibility always failed on the
+smart-account mismatch, that success shouldn't have been possible. Whether
+`VITE_FF_USE_EOA` really is the dependent variable, or something else times
+out or races only sometimes, was not resolved before this iteration's time
+budget ran out on this one line of investigation.
+
+**Why this wasn't pushed further this iteration:** `VITE_FF_USE_EOA` is a
+Vite build-time env flag, global to the whole dev server — flipping it would
+require restarting the manager dev server and could break every
+currently-green Rhinestone-dependent test in this suite
+(registration-rhinestone.spec.ts, and any harness test that depends on
+smart-account auto-funding). That is exactly the kind of change the goal's
+"escalate, do not guess" rule covers: it needs a decision (run migration e2e
+in a second, EOA-only dev-server configuration? make the eligibility check
+env-aware? something else?), not a unilateral flip.
+
+**Next:** get a ruling on how to run `migration.spec.ts` against the correct
+owner address (second dev-server config vs. app-side fix vs. something else),
+then finish the B4 audit (records-preservation test, batch test, edit-after
+test still need the same three fixes applied and re-verification), then tag
+and land the `G*` rows this file actually covers (candidates: GW1 unwrapped,
+GW2/GW3 wrapped/locked, GS-something for batch, GU4 for post-migration edit —
+per the file's own existing comment, GU4 needs a chain-read oracle upgrade
+first, its toast-only assertion is the lowest oracle rank).
+
+---
+
 ## Iteration 23 — 2026-08-30 · V1 repoint landed (all four constants, per the iteration-14 ruling), two real bugs found and fixed
 
 **Batch:** unblock, not a scenario batch — repoint `makeV1Name`'s V1 controller,
