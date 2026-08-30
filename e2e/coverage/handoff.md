@@ -5,7 +5,7 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
-## Iteration 24 — 2026-08-30 · migration.spec.ts audited (B4 bootstrap step): three real bugs fixed, blocked on a structural env conflict
+## Iteration 24 — 2026-08-30 · migration.spec.ts audited (B4 bootstrap step): three real bugs fixed, one env hypothesis raised and ruled out
 
 **Batch:** with the V1 repoint landed (iteration 23), attempted to run the
 59-row `G*` migration matrix. `projects/manager/tests/migration.spec.ts`
@@ -17,7 +17,8 @@ goal's own §6 B4 bootstrap step ("Audit the inherited specs") applied to this
 file, done before any new `G*` tags are written.
 
 **Result:** PASS 0 new scenarios, 3 real test bugs found and fixed, 1
-structural blocker found and escalated. **Ratchet unchanged: total 54.**
+intermittent failure still open (one hypothesis tested and explicitly ruled
+out by the user — see below). **Ratchet unchanged: total 54.**
 `migration.spec.ts` stays excluded from the run config — it is not yet
 reliably green, so nothing here is tagged.
 
@@ -71,38 +72,34 @@ visible — passed 3 times then failed 3 times in a row, including after:
 - bumping the wait timeout 10s → 30s (helped once, for an unrelated reason —
   see below — but did not fix the recurring failure)
 
-**Leading, unconfirmed hypothesis:** `apps/manager/.env.local` has
-`VITE_FF_USE_EOA=false` (intentionally, per its own comment, to exercise the
-Rhinestone/HCA smart-account path that other suites — e.g.
-registration-rhinestone.spec.ts — depend on). Migration's on-chain eligibility
-check (`packages/migration/src/service/preflightChecks.ts`'s `checkOwnership`)
-compares the V1 name's real on-chain owner against a `migrationOwner` address
-that may resolve to the smart-account address rather than the raw EOA
-`makeV1Name` actually registers to — this is the exact same class of problem
-already on record as project memory
-(`manager-local-mock-wallet-use-eoa.md`: "`/migration` spins forever without
-`VITE_FF_USE_EOA=true`") and matches iteration 17's A1 finding almost exactly,
-just discovered again independently here for the migration surface.
+**Hypothesis raised and ruled out this iteration:** suspected
+`apps/manager/.env.local`'s `VITE_FF_USE_EOA=false` — migration's on-chain
+eligibility check (`packages/migration/src/service/preflightChecks.ts`'s
+`checkOwnership`) compares the V1 name's real on-chain owner against a
+`migrationOwner` address that might resolve to the smart-account address
+rather than the raw EOA `makeV1Name` registers to, matching project memory
+(`manager-local-mock-wallet-use-eoa.md`) and iteration 17's A1 finding. Tested
+directly: flipped the flag to `true`, restarted the dev server — **explicit
+ruling from the user: this is wrong, `VITE_FF_USE_EOA` must stay `false` and
+migration must be tested through Rhinestone, not EOA.** Reverted immediately
+(the flag lives only in a gitignored `.env.local`, so nothing landed). Do
+**not** revisit this flag as a fix for migration flakiness — if the
+smart-account owner really is the mismatch, the fix has to be on the
+eligibility-check/fixture side (e.g. `makeV1Name` registering to the
+smart-account address, or `checkOwnership` resolving the right address for a
+V1-sourced name), never a global env flip.
 
-**This is NOT confirmed**, because a real, complete migration succeeded once
-under this exact unchanged config — if eligibility always failed on the
-smart-account mismatch, that success shouldn't have been possible. Whether
-`VITE_FF_USE_EOA` really is the dependent variable, or something else times
-out or races only sometimes, was not resolved before this iteration's time
-budget ran out on this one line of investigation.
+**Root cause of the intermittent "Upgrade Names" button still open.** Ruled
+out: subgraph mock correctness (network-captured, confirmed correct every
+run), infra/indexer staleness (full reset + volume wipe, no change),
+`VITE_FF_USE_EOA` (see above). Not yet tried: tracing
+`useMigrationEligibility`/`checkOwnership`'s actual `migrationOwner` argument
+under Rhinestone (unchanged, correct config) across a passing vs. a failing
+run, to see what actually differs — this is the next concrete step, not
+another environment guess.
 
-**Why this wasn't pushed further this iteration:** `VITE_FF_USE_EOA` is a
-Vite build-time env flag, global to the whole dev server — flipping it would
-require restarting the manager dev server and could break every
-currently-green Rhinestone-dependent test in this suite
-(registration-rhinestone.spec.ts, and any harness test that depends on
-smart-account auto-funding). That is exactly the kind of change the goal's
-"escalate, do not guess" rule covers: it needs a decision (run migration e2e
-in a second, EOA-only dev-server configuration? make the eligibility check
-env-aware? something else?), not a unilateral flip.
-
-**Next:** get a ruling on how to run `migration.spec.ts` against the correct
-owner address (second dev-server config vs. app-side fix vs. something else),
+**Next:** trace `checkOwnership`'s `migrationOwner` value across a
+passing/failing run pair under the correct (unchanged) Rhinestone config,
 then finish the B4 audit (records-preservation test, batch test, edit-after
 test still need the same three fixes applied and re-verification), then tag
 and land the `G*` rows this file actually covers (candidates: GW1 unwrapped,
