@@ -5,6 +5,115 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 26 — 2026-08-31 · root cause confirmed and filed as E2E-004: an app-side query-stability bug, not test or infra
+
+**Batch:** continuation of the "Upgrade Names" investigation (iterations
+24-25). This closes it out: a real root cause, filed as a defect, not another
+ruled-out guess.
+
+**Result:** PASS 0 new scenarios. **Ratchet unchanged: total 54.** Defect
+E2E-004 filed (`docs/e2e-defects.md`). `migration.spec.ts` stays excluded from
+the run config — an app bug that makes a query never settle cannot be made to
+pass reliably by any test-side change, so per rule 6 nothing here can be
+marked terminal yet.
+
+**In flight: nothing.** All diagnostic instrumentation (in both the app hook
+and the test) was reverted; only a comment pointing at E2E-004 remains in
+`migration.spec.ts`.
+
+### Confirmed: `useEligibleV1Names`'s eligibility query never settles
+
+Per iteration 25's own "next concrete step," added temporary render-level
+`console.log` instrumentation directly to
+`apps/manager/src/features/migration/hooks/useEligibleV1Names.ts` (gated
+behind a `window.__MIG_DIAG__` flag set only from the test via
+`page.addInitScript`, so it only ever ran in this diagnostic session) and
+captured a full render timeline from a failing run.
+
+The evidence: `classifiedLen` correctly reaches `1` (the mocked V1 name is
+classified fine), but `isEligibilityPending` was logged `true` on **every
+single one of 56 consecutive renders** captured before the test's 30s timeout
+— never once `false` — while the derived `eligibleLen` flickered `0 → 1 → 0 →
+1` in between. That combination (a query whose own `isPending` never resolves
+to `false`, yet whose data visibly changes) is consistent with
+`useMigrationEligibility`'s query key — built from `names.map(n =>
+n.domain.id)`, recomputed inline on every render — being unstable enough to
+keep restarting the query before it can settle. The UI's decision to show or
+hide the "Upgrade Names" banner ends up sampling whichever phase of that
+oscillation happens to be current at render time — which is exactly why the
+same test, unchanged, passes about half the time and fails the other half; it
+was never really about environment, infra, or timing at all.
+
+Filed as **E2E-004** (S2 — core flow blocked, no workaround, but not S1: no
+funds or state are at risk, the user just can't reliably start a migration).
+Not chased further into the exact key-hashing mechanism inside
+`useMigrationEligibility`/`qk(...)` — that's an app-side React Query
+debugging session, not something the e2e harness can resolve, and rule 5
+("never fix the app") applies squarely here.
+
+**Next:** this specific blocker is now fully diagnosed and handed off — no
+further investigation needed from here unless the app team wants repro help.
+Move on to the rest of the B4 audit iteration 24 already scoped (the
+records-preservation, batch, and edit-after tests in `migration.spec.ts` still
+need the same three UI-copy/authorization fixes iteration 24 made to the
+first test), and re-attempt tagging `G*` rows once E2E-004 is fixed and
+verified — GW1 (unwrapped) is otherwise ready to tag today, blocked only on
+E2E-004 itself, since the harness fixture and mock are both confirmed correct.
+
+---
+
+## Iteration 25 — 2026-08-31 · two more "Upgrade Names" hypotheses tested and ruled out; root cause still open
+
+**Batch:** continuation of iteration 24's investigation into the intermittent
+"Upgrade Names" dashboard button. No new scenarios attempted; this is pure
+root-cause work on the standing blocker for the whole `G*` matrix.
+
+**Result:** PASS 0. **Ratchet unchanged: total 54.** Two more hypotheses
+tested, both ruled out. `migration.spec.ts` unchanged in the run config
+(still excluded); one small comment update in the file to reflect the two
+new ruled-out leads.
+
+**In flight: nothing.** No code changes landed this iteration beyond the
+comment — everything tested was reverted.
+
+### Hypothesis: EnableSessions smart-session gate — ruled out
+
+Traced the app's own Rhinestone/HCA machinery
+(`MigrationPage.tsx` → `useEligibleV1Names` → `useSmartAccountContext()`'s
+`ownerAddress`) and found `registration-rhinestone.spec.ts` documents a
+one-time "Enable Sessions" authorization modal that can take 30-60s to appear
+on a fresh HCA, gated on `smartAccount.isAccountReady`
+(`manager-auth.ts`'s `clickThroughEnableSessions`). Reasoned this could
+explain the intermittent failure: an earlier, long-lived part of this same
+session may have already granted that on-chain session before the mid-session
+`infra:down`/`up` + volume wipe (iteration 24) wiped it, so later isolated
+reruns would hit the gate for the first time — and migration.spec.ts never
+calls the click-through helper at all.
+
+Added `clickThroughEnableSessions(page)` right after navigating to
+`/dashboard`, with diagnostic logging. Result: **the button was never
+present (count 0) at the point of the failure** — the modal genuinely does
+not appear on this path. Reverted the addition (kept the file's comment
+noting this is ruled out, since it was a reasonable and specific enough
+theory that it's worth recording so nobody retries it identically).
+
+### Also directly confirmed: `useEligibleV1Names`'s owner resolution is not the naive mismatch
+
+Read `useEligibleV1Names.ts`: `resolvedOwnerAddress = ownerAddress ?? address`,
+where `ownerAddress` comes from `useSmartAccountContext()`. Browser console
+capture (iteration 24's network trace) showed balance-fetching logged against
+the raw EOA (`0xf39Fd6…`), not a separate smart-account owner key, in this
+headless/mock-wallet setup — consistent with the user's correction that
+Rhinestone is the right path and not itself the problem. This doesn't
+contradict iteration 24's ruling; it just confirms there's no simple
+address-string mismatch to find here — whatever's intermittent is in timing
+or state, not in which address gets compared.
+
+**Root cause found in iteration 26** (see above) — was open at the time this
+section was written.
+
+---
+
 ## Iteration 24 — 2026-08-30 · migration.spec.ts audited (B4 bootstrap step): three real bugs fixed, one env hypothesis raised and ruled out
 
 **Batch:** with the V1 repoint landed (iteration 23), attempted to run the
@@ -106,67 +215,6 @@ and land the `G*` rows this file actually covers (candidates: GW1 unwrapped,
 GW2/GW3 wrapped/locked, GS-something for batch, GU4 for post-migration edit —
 per the file's own existing comment, GU4 needs a chain-read oracle upgrade
 first, its toast-only assertion is the lowest oracle rank).
-
----
-
-## Iteration 25 — 2026-08-31 · two more "Upgrade Names" hypotheses tested and ruled out; root cause still open
-
-**Batch:** continuation of iteration 24's investigation into the intermittent
-"Upgrade Names" dashboard button. No new scenarios attempted; this is pure
-root-cause work on the standing blocker for the whole `G*` matrix.
-
-**Result:** PASS 0. **Ratchet unchanged: total 54.** Two more hypotheses
-tested, both ruled out. `migration.spec.ts` unchanged in the run config
-(still excluded); one small comment update in the file to reflect the two
-new ruled-out leads.
-
-**In flight: nothing.** No code changes landed this iteration beyond the
-comment — everything tested was reverted.
-
-### Hypothesis: EnableSessions smart-session gate — ruled out
-
-Traced the app's own Rhinestone/HCA machinery
-(`MigrationPage.tsx` → `useEligibleV1Names` → `useSmartAccountContext()`'s
-`ownerAddress`) and found `registration-rhinestone.spec.ts` documents a
-one-time "Enable Sessions" authorization modal that can take 30-60s to appear
-on a fresh HCA, gated on `smartAccount.isAccountReady`
-(`manager-auth.ts`'s `clickThroughEnableSessions`). Reasoned this could
-explain the intermittent failure: an earlier, long-lived part of this same
-session may have already granted that on-chain session before the mid-session
-`infra:down`/`up` + volume wipe (iteration 24) wiped it, so later isolated
-reruns would hit the gate for the first time — and migration.spec.ts never
-calls the click-through helper at all.
-
-Added `clickThroughEnableSessions(page)` right after navigating to
-`/dashboard`, with diagnostic logging. Result: **the button was never
-present (count 0) at the point of the failure** — the modal genuinely does
-not appear on this path. Reverted the addition (kept the file's comment
-noting this is ruled out, since it was a reasonable and specific enough
-theory that it's worth recording so nobody retries it identically).
-
-### Also directly confirmed: `useEligibleV1Names`'s owner resolution is not the naive mismatch
-
-Read `useEligibleV1Names.ts`: `resolvedOwnerAddress = ownerAddress ?? address`,
-where `ownerAddress` comes from `useSmartAccountContext()`. Browser console
-capture (iteration 24's network trace) showed balance-fetching logged against
-the raw EOA (`0xf39Fd6…`), not a separate smart-account owner key, in this
-headless/mock-wallet setup — consistent with the user's correction that
-Rhinestone is the right path and not itself the problem. This doesn't
-contradict iteration 24's ruling; it just confirms there's no simple
-address-string mismatch to find here — whatever's intermittent is in timing
-or state, not in which address gets compared.
-
-**Root cause still open.** Ruled out so far, cumulative: subgraph mock
-correctness, infra/indexer staleness (full reset + volume wipe),
-`VITE_FF_USE_EOA` (must stay `false`, per explicit ruling), the EnableSessions
-gate (confirmed absent when this fails). **Next concrete step, not another
-guess:** instrument `useEligibleV1Names`/`useMigrationEligibility` directly
-(a temporary `console.log` of `classified`, `eligibility`, and `isPending` on
-each render) and capture a passing run next to a failing run side by side —
-so far every diagnostic has confirmed inputs are correct up to the network
-layer; the gap is somewhere in the client-side query/render pipeline between
-"mocked data arrives correctly" and "banner decides whether to show," and
-that needs render-level visibility, not another network or infra check.
 
 ---
 

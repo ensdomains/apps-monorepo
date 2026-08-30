@@ -60,11 +60,11 @@ async function runMigrationFlow(
   const upgradeButton = page
     .getByRole('button', { name: 'Upgrade Names' })
     .first()
-  // Intermittently slow/absent — see coverage/handoff.md iteration 24/25 for
-  // the investigation. Ruled out so far: mocked subgraph correctness, infra/
-  // indexer staleness, VITE_FF_USE_EOA (must stay false — migration is tested
-  // through Rhinestone), and the EnableSessions smart-session gate (confirmed
-  // absent — 0 count — when this failed, so it isn't blocking on that modal).
+  // E2E-004 (docs/e2e-defects.md): useEligibleV1Names/useMigrationEligibility
+  // never settles isPending=false — the eligible-names list flickers between
+  // empty and populated across renders, so this button intermittently never
+  // appears within any fixed timeout. App bug, not a test or infra issue
+  // (confirmed via render-level instrumentation — see the defect entry).
   await upgradeButton.waitFor({ state: 'visible', timeout: 30_000 })
   await upgradeButton.click()
 
