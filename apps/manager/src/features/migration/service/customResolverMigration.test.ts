@@ -7,6 +7,7 @@ import {
   type Hex,
   namehash,
   type PublicClient,
+  zeroAddress,
 } from 'viem'
 import { sepolia } from 'viem/chains'
 import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -15,7 +16,7 @@ import { MIGRATION_HELPER_ABI } from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { type DomainOverrides, makeDomain, OWNER } from './_fixtures'
 import { buildMigrationPlan } from './buildMigrationPlan'
-import { type ClassifiedName, FUSES } from './classifyNames'
+import { FUSES, type MigrationTokenType } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import {
   computeExpectedWrapperRegistry,
@@ -61,7 +62,7 @@ const V1_PROFILE: Profile = {
 
 const publicClient = { chain: { id: sepolia.id } } as PublicClient
 
-const routeFor = (tokenType: ClassifiedName['tokenType']) =>
+const routeFor = (tokenType: MigrationTokenType) =>
   new Map<string, DirectMigrationRoute>([
     [
       NAME,
@@ -81,21 +82,15 @@ const routeFor = (tokenType: ClassifiedName['tokenType']) =>
     ],
   ])
 
-const preflightFor = (
-  tokenType: ClassifiedName['tokenType'],
-): MigrationPreflight => ({
-  preExistingOwnedPermRes: null,
-  skipApprovalPhase: true,
+const preflightFor = (tokenType: MigrationTokenType): MigrationPreflight => ({
   skipFetchProfilesPhase: false,
-  baseRegistrarApproved: true,
-  nameWrapperApproved: true,
   hcaReadiness: { status: 'deployment-required', hca: HCA },
   directMigrationRoutes: routeFor(tokenType),
 })
 
 const planFor = async (
   overrides: DomainOverrides,
-  tokenType: ClassifiedName['tokenType'] = 'unwrapped',
+  tokenType: MigrationTokenType = 'unwrapped',
 ) =>
   buildMigrationPlan({
     domains: [
@@ -194,9 +189,25 @@ describe('migrating a V1 name whose resolver is not a known public resolver', ()
     const expectationTypes = batch.verificationExpectations.map(
       (expectation) => expectation.type,
     )
-    expect(expectationTypes).toEqual(['name-owner', 'name-resolver'])
+    // `name-subregistry` is written for every non-locked name since subname
+    // migration landed: an unwrapped 2LD with no copied children must end up
+    // with the zero subregistry, which is as much a post-condition as its owner
+    // and resolver. It is not a record expectation, so it does not weaken what
+    // this test is about — the two `profile-*` assertions below are the oracle
+    // for "no records were replayed".
+    expect(expectationTypes).toEqual([
+      'name-owner',
+      'name-resolver',
+      'name-subregistry',
+    ])
     expect(expectationTypes).not.toContain('profile-text')
     expect(expectationTypes).not.toContain('profile-address')
+
+    const subregistryExpectation = batch.verificationExpectations.find(
+      (expectation) => expectation.type === 'name-subregistry',
+    )
+    assert(subregistryExpectation?.type === 'name-subregistry')
+    expect(subregistryExpectation.expectedSubregistry).toBe(zeroAddress)
 
     const resolverExpectation = batch.verificationExpectations.find(
       (expectation) => expectation.type === 'name-resolver',
