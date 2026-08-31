@@ -68,6 +68,8 @@ const LOCKED_2LD_FUSES =
   FUSES.CANNOT_UNWRAP | FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH // 196609
 
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
+/** `wrapETH2LD` adds this to the registrar expiry when it stores the wrapper's. */
+const DOT_ETH_GRACE_PERIOD_SECONDS = 90 * 24 * 60 * 60
 
 const labelhashOf = (label: string) => keccak256(toHex(label))
 
@@ -104,6 +106,21 @@ export type MockV1NodeKind =
        * the NameWrapper actually reports.
        */
       readonly ownerFuses?: number
+      /**
+       * The NameWrapper's expiry, which for a wrapped `.eth` 2LD is the
+       * REGISTRAR expiry plus the 90-day grace period — `wrapETH2LD` adds it.
+       * The two are different numbers and the app compares this one exactly:
+       * `assertUnlockedMigratingRootFresh` re-reads `NameWrapper.getData` before
+       * planning a copy and rejects the whole migration with
+       * `source-expiry-changed` if it disagrees with the subgraph.
+       *
+       * It defaults to `expiryDate + 90 days`, which is the right SHAPE but
+       * cannot be exact — the registration expiry is set by the block timestamp
+       * at registration, not by the clock here. So any test that migrates a copy
+       * under a wrapped parent must read the real value off chain and pass it
+       * (`readWrapperExpiry` in `makeV1Subname.ts`).
+       */
+      readonly wrapperExpiry?: number
     }
   | {
       readonly kind: 'wrapped-child'
@@ -266,6 +283,24 @@ function flattenTree(tree: MockV1Tree, now: number): FlatNode[] {
 }
 
 /**
+ * The expiry the NameWrapper reports.
+ *
+ * For a wrapped `.eth` 2LD this is NOT the registration expiry: `wrapETH2LD`
+ * stores `registrar.nameExpires(id) + GRACE_PERIOD`. Reporting the registration
+ * expiry here — which this mock used to do — puts the subgraph 90 days behind
+ * the chain, and `assertUnlockedMigratingRootFresh` compares them exactly
+ * before planning a copy, so the whole migration fails `source-expiry-changed`
+ * with nothing on screen but "Gas estimate unavailable".
+ *
+ * A subname's wrapper expiry has no grace period; it is whatever
+ * `setSubnodeOwner` stored, clamped to the parent's.
+ */
+function wrapperExpiryOf(node: MockV1Node, expiry: number): number {
+  if (node.kind !== 'registration') return expiry
+  return node.wrapperExpiry ?? expiry + DOT_ETH_GRACE_PERIOD_SECONDS
+}
+
+/**
  * Which resolver a node reports. An explicit `null` is meaningful — it is the
  * eligible state for a copy — so this distinguishes "unset" from "none".
  */
@@ -339,7 +374,10 @@ function buildV1Domain(flat: FlatNode, ownerAddress: string, now: number) {
         }
       : null,
     wrappedDomain: isWrapped
-      ? { expiryDate: String(expiry), fuses: fusesOf(node) }
+      ? {
+          expiryDate: String(wrapperExpiryOf(node, expiry)),
+          fuses: fusesOf(node),
+        }
       : null,
   }
 }

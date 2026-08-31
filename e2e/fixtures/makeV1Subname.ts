@@ -75,6 +75,27 @@ export type V1SubnameConfig = {
   expiryOffset?: number
 }
 
+/**
+ * The expiry the NameWrapper actually holds for `fullName`.
+ *
+ * Any test that migrates a COPY under a wrapped parent must pass this into the
+ * subgraph mock rather than computing it. Two reasons it cannot be guessed:
+ * a wrapped `.eth` 2LD's wrapper expiry is the registrar expiry plus a 90-day
+ * grace period, and the registrar expiry itself comes from the block timestamp
+ * at registration. The app re-reads this value and compares it exactly with
+ * what the subgraph reported, failing the migration with `source-expiry-changed`
+ * on any disagreement.
+ */
+export async function readWrapperExpiry(fullName: string): Promise<bigint> {
+  const [, , expiry] = await publicClient.readContract({
+    address: V1_NAME_WRAPPER,
+    abi: NAME_WRAPPER_ABI,
+    functionName: 'getData',
+    args: [BigInt(namehash(fullName))],
+  })
+  return expiry
+}
+
 // ---------------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------------

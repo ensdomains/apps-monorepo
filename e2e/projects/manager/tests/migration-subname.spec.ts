@@ -33,7 +33,11 @@ import { privateKeyToAccount } from 'viem/accounts'
 
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import { makeV1RegistrySubname } from '../../../fixtures/makeV1RegistrySubname.js'
-import { CHILD_FUSES, makeV1Subname } from '../../../fixtures/makeV1Subname.js'
+import {
+  CHILD_FUSES,
+  makeV1Subname,
+  readWrapperExpiry,
+} from '../../../fixtures/makeV1Subname.js'
 import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
 import {
   assertCopyExpiry,
@@ -177,6 +181,15 @@ test.describe('ENS V1 → V2 subname migration', () => {
       expiry: childExpiry,
     })
 
+    // Read both wrapper expiries off chain rather than computing them. The app
+    // re-reads the parent's before planning a copy and compares it EXACTLY with
+    // what the subgraph reported — and a wrapped 2LD's wrapper expiry is the
+    // registrar expiry plus a 90-day grace period, off a block timestamp we do
+    // not control. Guessing it fails the whole migration with
+    // `source-expiry-changed`, visible only as "Gas estimate unavailable".
+    const parentWrapperExpiry = await readWrapperExpiry(parent)
+    const childWrapperExpiry = await readWrapperExpiry(child)
+
     await mockV1Subgraph(page, {
       ownerAddress: HEADLESS_USER_ADDRESS,
       roots: [
@@ -184,12 +197,13 @@ test.describe('ENS V1 → V2 subname migration', () => {
           kind: 'registration',
           label: labelOf(parent),
           type: 'wrapped',
+          wrapperExpiry: Number(parentWrapperExpiry),
           children: [
             {
               kind: 'wrapped-child',
               label: 'sub',
               fuses: CHILD_FUSES.UNLOCKED_CHILD,
-              expiryDate: Number(childExpiry),
+              expiryDate: Number(childWrapperExpiry),
             },
           ],
         },
@@ -202,7 +216,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
     await assertUserRegistryAttached(parent)
     await assertCopyRegistered(child, HEADLESS_USER_ADDRESS)
     // Unlike a registry child, this one carries its own wrapper expiry across.
-    await assertCopyExpiry(child, childExpiry)
+    await assertCopyExpiry(child, childWrapperExpiry)
   })
 
   // -------------------------------------------------------------------------
