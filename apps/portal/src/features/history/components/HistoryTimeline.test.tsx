@@ -174,6 +174,32 @@ describe('HistoryTimelineView', () => {
     expect(screen.queryByText('Register name')).toBeNull()
   })
 
+  it('discloses a failed source even with no rows to show', () => {
+    // "No history yet" must not stand in for history we simply could not load.
+    render(
+      <HistoryTimelineView
+        model={model({
+          actions: [],
+          sourcesError: Object.assign(new Error('subgraph down'), {
+            cause: { message: 'subgraph down' },
+          }),
+        })}
+      />,
+    )
+    expect(screen.getByText(/No history yet/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Couldn't load all of this name's history/),
+    ).toBeInTheDocument()
+  })
+
+  it('withholds the total when a source is known short', () => {
+    const truncated = model({ hasMore: true, totalCount: undefined })
+    render(<HistoryTimelineView model={truncated} breakContent="load-more" />)
+    // A lower bound must not render as "(N total)".
+    expect(screen.queryByText(/total\)/)).toBeNull()
+    expect(screen.getByText('Load more')).toBeInTheDocument()
+  })
+
   it('discloses a failed source instead of passing the gap off as complete', () => {
     render(
       <HistoryTimelineView

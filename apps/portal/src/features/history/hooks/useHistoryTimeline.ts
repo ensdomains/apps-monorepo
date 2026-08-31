@@ -115,8 +115,10 @@ const useTimelineModel = (
       summarizeEvents(
         [...anchorEvents, ...auxiliaryEvents].sort(newestFirst),
       ).at(-1),
+    // Withheld entirely when either source is known short, rather than
+    // presenting a lower bound as an exact count.
     totalCount:
-      pagedTotalCount === undefined
+      pagedTotalCount === undefined || isV1Truncated || sourcesError
         ? undefined
         : pagedTotalCount + auxiliaryEvents.length,
     hasMore: hasNextPage || allActions.length > actions.length,

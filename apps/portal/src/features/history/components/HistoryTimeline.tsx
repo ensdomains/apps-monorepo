@@ -99,6 +99,25 @@ export const HistoryTimelineView = ({
       <TimelineBreak>{breakContent}</TimelineBreak>
     )
 
+  // Rendered by both branches: a failed source with nothing to show is exactly
+  // when "No history yet" would otherwise pass unavailable history off as none.
+  const disclosures = (
+    <>
+      {isV1Truncated && (
+        <p className="text-muted-foreground text-p">
+          This name has more ENSv1 history than can be read in one request; the
+          oldest of it is not shown.
+        </p>
+      )}
+      {sourcesError && (
+        <ErrorMessage
+          compact
+          description="Couldn't load all of this name's history — ENSv1 events, the first event or the event filters may be missing."
+        />
+      )}
+    </>
+  )
+
   // Still offer the break with no rows: a page whose boundary trim empties it
   // would otherwise dead-end on "No history yet" with more to come and nothing
   // to click.
@@ -112,6 +131,7 @@ export const HistoryTimelineView = ({
           className="mx-0 my-0"
         />
         {showBreak && <TimelineFrame>{breakRow}</TimelineFrame>}
+        {disclosures}
       </div>
     )
   }
@@ -146,18 +166,7 @@ export const HistoryTimelineView = ({
         )}
       </TimelineFrame>
 
-      {isV1Truncated && (
-        <p className="text-muted-foreground text-p">
-          This name has more ENSv1 history than can be read in one request; the
-          oldest of it is not shown.
-        </p>
-      )}
-      {sourcesError && (
-        <ErrorMessage
-          compact
-          description="Couldn't load all of this name's history — ENSv1 events, the first event or the event filters may be missing."
-        />
-      )}
+      {disclosures}
     </div>
   )
 }
