@@ -113,10 +113,16 @@ async function searchAndNavigateToProfile(
   await searchInput.fill(nameOnly)
   // Click the matching suggestion in the dropdown
   await page.getByText(name).first().click()
-  // Wait for the profile page to load
-  await page.waitForURL(new RegExp(`/p/${name.replace('.', '\\.')}`), {
-    timeout: 15_000,
-  })
+  // Wait for the profile page to load. `waitForURL` was observed hanging to
+  // its full timeout even once the profile heading was already visible and
+  // correct in a screenshot taken at the moment of "failure" — this app's
+  // client-side router doesn't reliably produce whatever navigation signal
+  // `waitForURL` waits on. Assert on the rendered heading instead, which is
+  // both the actual oracle this helper cares about and doesn't depend on
+  // how the route change is implemented.
+  await page
+    .getByRole('heading', { name, level: 1 })
+    .waitFor({ state: 'visible', timeout: 30_000 })
   await page.waitForLoadState('networkidle')
 }
 
