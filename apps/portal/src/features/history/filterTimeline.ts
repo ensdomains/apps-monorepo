@@ -8,18 +8,11 @@ const plainDateToUnixSecondsUtc = (date: Temporal.PlainDate): number =>
   Math.floor(date.toZonedDateTime({ timeZone: 'UTC' }).epochMilliseconds / 1000)
 
 /**
- * The Date range chip as inclusive unix-second bounds for the query's
- * `timestamp_gte` / `timestamp_lte`.
+ * The Date range chip as inclusive `timestamp_gte` / `timestamp_lte` bounds.
  *
- * The picker hands back a `Date` standing for a calendar day, and events are
- * dated by their UTC calendar day everywhere else in the timeline
- * (`unixSecondsToPlainDateUtc`), so both ends are anchored in UTC. Reading the
- * `Date`'s own instant instead would shift the boundary by the viewer's offset
- * and cut a day short for anyone west of UTC.
- *
- * `to` covers the whole of its day: one second short of the next day's
- * midnight, reached with Temporal's own day arithmetic rather than by adding a
- * literal 86,400.
+ * Anchored in UTC because events are dated by their UTC calendar day everywhere
+ * else (`unixSecondsToPlainDateUtc`); reading the picker `Date`'s own instant
+ * would cut a day short for anyone west of UTC.
  */
 export const dateRangeToTimestamps = (
   range: DateRange,
@@ -34,12 +27,9 @@ export const dateRangeToTimestamps = (
 })
 
 /**
- * Build the "Event" multi-select options from the types a name actually has.
- *
- * Takes the types rather than events because they must come from a read that
- * does *not* carry the user's current selection — see
- * `getNameEventTypesQueryOptions`. Deriving them from the rendered feed is what
- * made the list collapse to the selected item.
+ * Takes types rather than events because they must come from a read that does
+ * *not* carry the current selection — deriving them from the rendered feed made
+ * the list collapse to whatever was selected. See `getNameEventTypesQueryOptions`.
  */
 export const buildEventTypeGroups = (
   eventTypes: readonly string[],

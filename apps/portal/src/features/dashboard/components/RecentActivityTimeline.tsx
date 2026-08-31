@@ -17,16 +17,9 @@ const recentActivityTimelineQueryKey = createQueryKey(
 )
 
 /**
- * The homepage's Recent Activity — the History timeline over the protocol-wide
- * feed.
- *
- * The same paged `eventConnection` every other timeline reads, with no subject
- * filter, so it inherits the cursor, the boundary trim and an honest
- * `hasNextPage` rather than the over-fetch loop it used to need to guess at them.
- *
- * No anchor row: a protocol-wide feed has no first registration to pin. The
- * break loads more in place, since there is no per-subject History page to send
- * the reader to.
+ * The homepage's Recent Activity: the shared timeline over the protocol-wide
+ * feed. No anchor — there is no first registration to pin — and the break loads
+ * in place, since there is no per-subject History page to link to.
  */
 export const RecentActivityTimeline = () => {
   const model = useTimelinePagesModel(

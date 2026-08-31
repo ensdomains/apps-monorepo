@@ -1,23 +1,13 @@
 import type { Address, Hex } from 'viem'
 
 /**
- * The timeline's shared event vocabulary: the widened `Event` selection every
- * history surface reads, and the shape it decodes into.
- *
- * It lives below the hooks rather than inside one of them because three
- * different `eventConnection` fields feed the same timeline — the protocol-wide
- * one on the homepage, a name's, and a registry's — and the paged fetch layer
- * they share has to be able to reach this without importing a hook.
- *
- * TODO(indexer): add `from` (tx sender) to `Event` so the "by {actor}" /
- * "initiated by" lines are first-class instead of RPC-backfilled (see
- * useTransactionSenders).
- * TODO(indexer): add typed decoders for ContenthashChanged / NameChanged so
- * those actions don't rely on parsing the raw `data` JSON (see
- * summarize/decodeRawData.ts).
+ * TODO(indexer): add `from` (tx sender) to `Event` so the "by {actor}" lines are
+ * first-class instead of RPC-backfilled (see useTransactionSenders).
+ * TODO(indexer): add typed decoders for ContenthashChanged / NameChanged so those
+ * actions don't rely on parsing the raw `data` JSON (see summarize/decodeRawData.ts).
  */
 
-/** Marks an event adapted from the v1 subgraph rather than read from the v2 indexer. */
+/** Marks an event adapted from the v1 subgraph rather than the v2 indexer. */
 export const V1_PROTOCOL = 'v1'
 
 /**
@@ -118,10 +108,6 @@ export type TimelineIndexerEvent = TimelineDecoded & {
   /** Raw JSON blob of decoded params — fallback for event types without an `as*` decoder. */
   readonly data?: string | null
 }
-/**
- * Every field the summarize engine needs: the emitting `contractAddress`, the
- * raw `data` blob, and each typed `as*` decoder the indexer exposes.
- */
 export const TIMELINE_EVENT_FRAGMENT = `  fragment TimelineEvent on Event {
     id
     type

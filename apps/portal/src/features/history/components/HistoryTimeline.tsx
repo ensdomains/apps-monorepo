@@ -20,34 +20,21 @@ import { TimelineBreak, TimelineLoadMore } from './TimelineBreak'
 
 interface HistoryTimelineViewProps {
   readonly model: HistoryTimelineModel
-  /**
-   * What fills the break above the anchor row. `'load-more'` fetches the next
-   * page in place (the History page); a node links out instead (the Overview's
-   * "See full History"). Omitted where there is nothing to reach.
-   */
+  /** `'load-more'` fetches in place; a node links out instead. */
   readonly breakContent?: 'load-more' | ReactNode
-  /**
-   * Left side of the header bar. Optional because this view is feed-agnostic
-   * and has no subject to title itself with — `HistoryTimeline` supplies the
-   * page-level "History" title for a name.
-   */
+  /** Left of the header bar; this view is feed-agnostic and has no subject of its own. */
   readonly heading?: ReactNode
   /** Rendered after the filter chips, e.g. a "Full history" link. */
   readonly action?: ReactNode
-  /** The date / event-type chips, when the surface owns filter state. */
   readonly filters?: ReactNode
   readonly emptyTitle?: string
   readonly emptyDescription?: string
 }
 
 /**
- * The History timeline UI: the loaded action rows, a break where history
- * continues off screen, and the feed's first action pinned below it.
- *
- * Presentational — it owns only the expand-all toggle, so any feed can drive it
- * (a name's history, a registry contract's, the protocol-wide homepage one).
- * Everything that needs the query — paging, filters, the anchor — arrives on
- * `model`.
+ * The loaded rows, a break where history continues off screen, and the feed's
+ * first action pinned below it. Presentational — everything that needs the query
+ * arrives on `model`.
  */
 export const HistoryTimelineView = ({
   model,
@@ -77,8 +64,7 @@ export const HistoryTimelineView = ({
   const toggleExpandAll = () =>
     setAllOpen(allExpanded ? [] : actions.map((a) => a.txHash))
 
-  // Rendered when there are rows too, not only when a slot is filled: "Expand
-  // all" is a control of the list, and a surface can supply no heading at all.
+  // Rendered when there are rows too: "Expand all" is a control of the list.
   const header = (heading != null ||
     action != null ||
     filters != null ||
@@ -115,12 +101,9 @@ export const HistoryTimelineView = ({
       <TimelineBreak>{breakContent}</TimelineBreak>
     )
 
-  // Still offer the break with no rows to show. A page whose boundary trim
-  // empties it — one block filling the whole page — otherwise dead-ends on
-  // "No history yet" while the feed reports more to come, with nothing to
-  // click. Rare (staging's busiest block is 16 events against a page of 100)
-  // but a dead end, and cheaper to rule out here than to chase with extra
-  // requests in the fetch layer.
+  // Still offer the break with no rows: a page whose boundary trim empties it
+  // would otherwise dead-end on "No history yet" with more to come and nothing
+  // to click.
   if (actions.length === 0) {
     return (
       <div className="flex w-full min-w-0 flex-col gap-4">
@@ -135,8 +118,7 @@ export const HistoryTimelineView = ({
     )
   }
 
-  // Pin the anchor only when there is hidden history to pin it below, and it
-  // isn't already one of the rows above.
+  // Only when there is hidden history below it, and it isn't already a row above.
   const pinnedAction = match({ hasMore, anchorAction })
     .with({ hasMore: true, anchorAction: P.nonNullable }, ({ anchorAction }) =>
       actions.some((shown) => shown.txHash === anchorAction.txHash)
@@ -179,30 +161,19 @@ export const HistoryTimelineView = ({
 interface HistoryTimelineProps
   extends Omit<HistoryTimelineViewProps, 'model' | 'filters' | 'breakContent'> {
   readonly name: string
-  /**
-   * Restrict the timeline to these event types — how the per-facet views
-   * (address resolution, ownership, …) show their slice of the name's history.
-   * Omit for the full feed.
-   */
+  /** How the per-facet views show their slice; omit for the full feed. */
   readonly scope?: readonly TimelineEventType[]
-  /** Show the date / event-type chips. */
   readonly showFilters?: boolean
   /**
-   * Offer "Load more" in place. On by default: every surface this drives reads
-   * a *page*, so without it a scoped facet would cap silently at the page size
-   * with nothing on screen saying so. The Overview opts out via
-   * `RecentHistoryTimeline`, which links to the History page instead.
+   * On by default: every surface this drives reads a *page*, so without it a
+   * scoped facet would cap silently with nothing on screen saying so.
    */
   readonly canLoadMore?: boolean
 }
 
 /**
- * A name's History timeline.
- *
- * Owns the filter state because the filters are part of the *query*, not a pass
- * over loaded rows: they go into the connection's `where`, so `totalCount` and
- * every page after them describe the filtered feed. Changing one is a new query
- * key, which resets paging for free.
+ * Owns the filter state because filters are part of the *query*, not a pass over
+ * loaded rows. Changing one is a new query key, which resets paging for free.
  */
 export const HistoryTimeline = ({
   name,

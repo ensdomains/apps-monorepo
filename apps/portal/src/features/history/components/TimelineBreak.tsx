@@ -3,18 +3,11 @@ import { Rail } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
 
 /**
- * The gap in a timeline where history exists but is not on screen.
+ * The gap where history exists but is not on screen. Figma Explorer-V1
+ * `2075:16136` (Overview) and `2539:49421` (History) are the same row.
  *
- * A row with no date and no icon, joined to the rows above and below by a
- * *dashed* rail — the rail keeps running because the history does, and the dash
- * is what says the run is not continuous. Figma Explorer-V1 nodes `2075:16136`
- * (Overview) and `2539:49421` (History page) are the same row; only the text
- * inside it differs.
- *
- * 14px / 0.02em / neutral-7 are the Figma values, a step down from the 15px
- * `text-p` token used for row content. Alignment comes from `--label-x`, the
- * same variable the action rows start their label at, so the break lines up
- * with the text above it rather than with the rail.
+ * 14px / 0.02em / neutral-7 are the Figma values; `--label-x` is what the action
+ * rows start their label at, so the break lines up with the text above it.
  */
 export const TimelineBreak = ({
   children,
@@ -29,27 +22,15 @@ export const TimelineBreak = ({
   </div>
 )
 
-/**
- * The underlined, interactive half of a break row — "Load 100 more", "full
- * History". A `<button>` and a `<Link>` have to look identical here, so the
- * styling lives in one place.
- */
+/** A `<button>` and a `<Link>` must look identical here, so this lives in one place. */
 export const timelineBreakActionClassName =
   'underline [text-underline-position:from-font] hover:text-foreground disabled:cursor-default disabled:no-underline disabled:opacity-60'
 
 /**
- * "Load more events (N total)".
- *
- * Deliberately quotes no increment, unlike the Figma copy's "Load 100 more":
- * the page size bounds a *v2 fetch*, and what actually appears is that page
- * plus every auxiliary (v1, child-registration) event the new horizon
- * uncovers. On fox.eth a 50-event page rendered 107 events, and the click after
- * it added 138 more — so any number here would be wrong for exactly the names
- * that need paging most. The total is the honest figure and is verified against
- * what renders.
- *
- * While a page is in flight the label says so in place, keeping the row height
- * and the rail unbroken.
+ * Quotes no increment, unlike Figma's "Load 100 more": the page size bounds a v2
+ * fetch, but what appears is that page plus whatever the new horizon uncovers —
+ * on fox.eth a 50-event page rendered 107 rows' worth, and the next click added
+ * 138 more. Any number here would be wrong for the names that most need paging.
  */
 export const TimelineLoadMore = ({
   totalCount,

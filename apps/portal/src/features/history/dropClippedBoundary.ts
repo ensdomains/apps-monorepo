@@ -27,10 +27,8 @@ import type { TimelineIndexerEvent } from './timelineEvent'
  * a definitive `pageInfo.hasNextPage`, not a guess from the page being full.
  * When it is `false` nothing was cut and every event is returned.
  *
- * Under cursor paging the trim costs nothing at all: whatever it discards is
- * returned by the next page, which resumes at the exact event the cut landed
- * on. That is what makes trimming the whole boundary timestamp — rather than
- * just the split transaction — the free choice as well as the safe one.
+ * Under cursor paging the trim costs nothing: whatever it discards comes back
+ * with the next page.
  *
  * `events` must be sorted by timestamp descending.
  */

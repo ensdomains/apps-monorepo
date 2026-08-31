@@ -45,12 +45,10 @@ export const RegistryHistoryByAddress = ({
   /** Rendered after the filter chips, e.g. a "Full history" link. */
   action?: ReactNode
 }) => {
-  // Read through the *top-level* connection filtered on `contractAddress`, not
-  // through `registry(address:) { eventConnection }`. The two return the same
-  // feed (verified against staging: identical `totalCount` and identical first
-  // 200 ids in the same order), but the nested field silently drops every
-  // variable-supplied argument — `first` came back as the server's default 100
-  // and `after` was ignored, so page two repeated page one.
+  // The top-level connection filtered on `contractAddress`, not
+  // `registry(address:) { eventConnection }`: same feed (verified — identical
+  // totalCount and first 200 ids), but the nested field drops variable arguments,
+  // so `first` fell back to the default and `after` was ignored.
   const model = useTimelinePagesModel(
     resultInfiniteQueryOptions({
       queryKey: registryHistoryTimelineQueryKey({ address }),

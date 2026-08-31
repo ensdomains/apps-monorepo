@@ -116,15 +116,10 @@ export const flattenV1Response = (
 }
 
 /**
- * Whether any single collection came back full — i.e. the subgraph had more to
- * give and the window cut it off.
- *
- * `first` bounds each sibling selection *independently*, so the flattened total
- * routinely exceeds it with nothing truncated: a name with events on three
- * resolvers can return three windows' worth and still be complete. Comparing the
- * flat length against the window instead is what produced a false "ENSv1 history
- * is truncated" warning on fox.eth, whose 172 v1 events all fit inside a
- * 100-wide window.
+ * Whether any single collection came back full. `first` bounds each sibling
+ * selection *independently*, so the flattened total routinely exceeds it with
+ * nothing truncated — comparing that total instead falsely reported fox.eth's
+ * 172 complete v1 events as truncated.
  */
 export const v1CollectionsSaturated = (
   { domain, resolvers }: V1SubgraphResult,
@@ -142,8 +137,7 @@ export const v1CollectionsSaturated = (
   ].some((list) => (list?.length ?? 0) >= first)
 
 /**
- * Fetch a name's v1 history as one flat event list, with a flag for whether any
- * collection saturated its window. Returns `[]` (not an error)
+ * Fetch a name's v1 history as one flat event list. Returns `[]` (not an error)
  * when the subgraph has no record of the name — the common case for a v2-native
  * name.
  *

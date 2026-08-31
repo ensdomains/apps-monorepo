@@ -2,44 +2,24 @@ import { dropClippedBoundary } from './dropClippedBoundary'
 import type { TimelineIndexerEvent } from './timelineEvent'
 
 type MergeTimelineParameters = {
-  /**
-   * Events loaded from the paged source, in connection order (newest first).
-   * Only this source has a cursor, so it alone decides how far back the feed
-   * can be trusted.
-   */
+  /** The paged source, newest first. The only one with a cursor. */
   readonly pagedEvents: readonly TimelineIndexerEvent[]
-  /**
-   * Events from sources that are read once and in full — a name's v1 subgraph
-   * history, and the child registrations attributed to a parent. They have no
-   * cursor of their own, so they are held back to the horizon rather than
-   * appearing beneath history that has not loaded yet.
-   */
+  /** Sources read once and whole: v1 history, a parent's child registrations. */
   readonly auxiliaryEvents?: readonly TimelineIndexerEvent[]
-  /** `pageInfo.hasNextPage` of the last loaded page. */
   readonly hasNextPage: boolean
 }
 
 /**
- * Merge one paged source with the auxiliary sources beside it into a single
- * newest-first feed.
+ * Merge the paged source with the unpaged ones beside it, newest first.
  *
- * **The horizon.** While the paged source reports another page, the feed is only
- * complete down to its oldest fully-loaded transaction. An auxiliary event older
- * than that would render *below* history that has not been fetched yet — a v1
- * registration sitting under a gap where a dozen unloaded v2 rows belong — so
- * everything past the horizon is withheld until paging reaches back past it.
- * Loading the next page moves the horizon down and reveals them in place.
+ * **The horizon.** While more pages remain, the feed is only complete down to
+ * the oldest fully-loaded transaction. An auxiliary event older than that would
+ * render *below* history not yet fetched — a v1 registration sitting under a gap
+ * where unloaded v2 rows belong — so it is withheld until paging reaches past it.
  *
- * When the paged source is exhausted there is no horizon and everything renders.
- *
- * Deduplicated by event id as insurance only — the sources cannot actually
- * overlap. A child's `LabelRegistered` carries the *child's* namehash, so the
- * parent's connection never returns it (verified: `where: { domain: "eth" }`
- * yields eth's own 5 events, not its 120k subdomains'), and v1 ids come from a
- * different service in a different shape. If that ever stops holding, this is
- * what keeps a row from counting an event twice.
- *
- * Returns the renderable feed, newest first, whole transactions only.
+ * The id dedupe is insurance: the sources cannot actually overlap, since a
+ * child's `LabelRegistered` carries the child's namehash and v1 ids come from a
+ * different service.
  */
 export const mergeTimeline = ({
   pagedEvents,
@@ -47,14 +27,9 @@ export const mergeTimeline = ({
   hasNextPage,
 }: MergeTimelineParameters): readonly TimelineIndexerEvent[] => {
   const paged = dropClippedBoundary(pagedEvents, hasNextPage)
-  // Inclusive: the horizon transaction is whole, so events sharing its
-  // timestamp belong on screen with it.
-  //
-  // `-Infinity` is "no horizon, show everything". `+Infinity` covers the
-  // pathological page that trims to nothing — everything loaded so far is one
-  // unfinished transaction, so nothing is provably complete and nothing
-  // auxiliary may render; reading that as "fully loaded" would dump the whole
-  // v1 history on screen.
+  // `-Infinity` shows everything; `+Infinity` withholds everything, for the page
+  // that trims to nothing — nothing there is provably complete, and reading that
+  // as "fully loaded" would dump the whole v1 history on screen.
   const horizon = hasNextPage
     ? (paged.at(-1)?.timestamp ?? Number.POSITIVE_INFINITY)
     : Number.NEGATIVE_INFINITY

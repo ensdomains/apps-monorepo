@@ -25,21 +25,9 @@ import { adaptV1Events } from '../v1/adaptV1Events'
 import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
 
 /**
- * A name's history, in three reads.
- *
- * **Paged** — the v2 indexer's top-level `eventConnection`, filtered to the
- * name's namehash. This is the only source with a cursor, so it is what "load
- * more" advances and what `totalCount` counts.
- *
- * **Auxiliary** — v1 subgraph events, plus the child registrations attributed to
- * a parent. Neither can share the connection's cursor (the v1 subgraph is a
- * different service, and a child's `LabelRegistered` carries the *child's*
- * namehash), so both are read once, in full, and held to the paged source's
- * horizon by `mergeTimeline`.
- *
- * **Anchor** — the same connection read ascending, for the name's first action.
- * Both designs pin it below the break so a truncated history still shows where
- * the name began.
+ * A name's history in three reads: the paged v2 `eventConnection`; the auxiliary
+ * v1 + child-registration events, which have no cursor and are read whole; and
+ * an ascending read for the anchor row.
  */
 
 class GetNameHistoryTimelineError extends TaggedError(
@@ -49,58 +37,32 @@ class GetNameHistoryTimelineError extends TaggedError(
 }> {}
 
 /**
- * Direct children come from `subdomains`, not a `name_ends_with` suffix match:
- * the suffix also matches every deeper descendant, so `a.b.leon.eth` would land
- * in `leon.eth`'s timeline.
- *
- * These are not the *newest* children — `subdomains` accepts `orderBy` /
- * `orderDirection` but ignores them, always sorting by name — so a parent with
- * more children than this contributes its alphabetically-first ones. Sorting
- * client-side would mean fetching every child, the unbounded query this limit
- * exists to avoid.
+ * `subdomains` ignores `orderBy`/`orderDirection` and always sorts by name, so a
+ * parent with more children than this contributes its alphabetically-first ones.
  * TODO(indexer): honour `orderBy: createdAt` on `subdomains`.
  */
 const HISTORY_TIMELINE_CHILD_LIMIT = 25
 
 /**
- * Per-collection window for the v1 subgraph read.
- *
- * v1 history has no cursor to page: `fetchV1NameHistory` fans out into sibling
- * `events(first:)` selections across the domain, its registration and every
- * resolver it ever used, and there is no ordering that makes one offset
- * meaningful across all of them. So it is read once and the read reports whether
- * it saturated rather than quietly truncating — see `v1Saturated` below.
- *
- * This is the width the query has always been issued at, and the one the
- * subgraph's complexity limit is known to accept — `fetchV1NameHistory` notes
- * that the query is rejected outright when `$first` is left unsupplied and each
- * sibling selection is costed at its worst case. Widening it is not free.
+ * Per-collection window for the v1 subgraph read, which has no cursor to page.
+ * This is the width the query has always shipped at and the one the subgraph's
+ * complexity limit is known to accept — widening it is not free.
  */
 const V1_HISTORY_WINDOW = 100
 
-/**
- * Window for the ascending anchor read. Wide enough that the oldest *complete*
- * transaction is inside it, narrow enough to stay cheap — the anchor is one row.
- */
+/** Ascending window for the anchor read — wide enough to hold the oldest transaction. */
 const ANCHOR_WINDOW = 20
 
 export type NameHistoryScope = {
   readonly name: string
   /**
-   * Restrict the feed to these event types, for the per-facet views (address
-   * resolution, ownership, …) and the Event filter chip.
+   * Applied in the query, not client-side: a page bounds the *whole* feed, so a
+   * name with unrelated churn would spend the window before its facet's events
+   * were reached.
    *
-   * Applied in the query rather than client-side: a page bounds the *whole*
-   * feed, so a name with a lot of unrelated churn (fox.eth has 66 `TextChanged`)
-   * would spend the window before its facet's events were reached.
-   *
-   * Plain strings, not `TimelineEventType`: the Event chip offers whatever the
-   * loaded feed contains, and the indexer emits types the summarize engine has
-   * no descriptor for (`VersionChanged`, `AbiChanged`, `PubkeyChanged` … — 21
-   * descriptors against a wider vocabulary), which `humanizeType` renders
-   * anyway. Narrowing here bought nothing but a cast at the call site that
-   * claimed those were descriptor keys. The values reach the query as a
-   * variable, so there is no injection surface to guard either.
+   * Plain strings rather than `TimelineEventType` because the indexer emits
+   * types the summarize engine has no descriptor for (`VersionChanged`,
+   * `AbiChanged`, …), which `humanizeType` renders anyway.
    */
   readonly eventTypes?: readonly string[]
   /** Inclusive unix-second bounds from the Date range chip. */
@@ -108,10 +70,7 @@ export type NameHistoryScope = {
   readonly to?: number
 }
 
-/**
- * Normalize a name, tolerating one the UGC layer never normalized — matching
- * what the page's other queries key on.
- */
+/** Tolerates a name the UGC layer never normalized, as the page's other queries do. */
 const normalizeOrLower = (name: string): string => {
   try {
     return normalize(name)
@@ -139,7 +98,6 @@ const getNameHistoryPagesQueryKey = createQueryKey<
   NameHistoryScope
 >('get-name-history-pages')
 
-/** The name's own events, newest first, one page per `fetchNextPage`. */
 export const getNameHistoryPagesQueryOptions = (scope: NameHistoryScope) =>
   resultInfiniteQueryOptions({
     queryKey: getNameHistoryPagesQueryKey(scope),
@@ -160,10 +118,8 @@ const getNameHistoryAnchorQueryKey = createQueryKey<
 >('get-name-history-anchor')
 
 /**
- * The oldest slice of the name's history — the pinned row below the break.
- *
- * Reads with the same filter as the paged feed, so a scoped facet anchors on
- * *its* first event rather than on a registration it does not show.
+ * The oldest slice of the name's history, for the pinned row. Uses the same
+ * filter as the feed so a scoped facet anchors on *its* first event.
  */
 export const getNameHistoryAnchorQueryOptions = (scope: NameHistoryScope) =>
   resultQueryOptions({
@@ -182,23 +138,10 @@ export const getNameHistoryAnchorQueryOptions = (scope: NameHistoryScope) =>
 // ------------------------------------------------------------ type vocabulary
 
 /**
- * How many events from *each end* of the name's history the Event chip's option
- * list is derived from.
- *
- * Read from both ends rather than one wide descending window: the types that
- * only ever occur once sit at the *start* of a name's history — `NameRegistered`,
- * `LabelReserved` — so a newest-first window on a busy name drops exactly the
- * options people most want to filter by. Measured against staging,
- * `LabelReserved` was invisible from the newest end alone.
- *
- * The width is set from a measured coverage curve rather than a guess: against
- * the protocol-wide feed, 25 per end already surfaced every distinct type, and
- * 50/100/250 added nothing while costing 15KB/30KB/74KB. 50 is double the
- * observed plateau, so it keeps headroom and stays ~15KB at the cap.
- *
- * Hardcoding the vocabulary instead would mean ~28 fixed options against the 5
- * a typical name actually has — every extra one a dead end that renders "No
- * matching history".
+ * Events sampled from *each end* for the Event chip. Both ends because the
+ * once-only types sit at the *start* of a history (`NameRegistered`,
+ * `LabelReserved` — the latter was invisible from the newest end alone). 50
+ * because coverage plateaued at 25 in measurement; wider only cost bytes.
  */
 const EVENT_TYPES_WINDOW = 50
 
@@ -237,17 +180,10 @@ const getNameEventTypesQueryKey = createQueryKey<
 >('get-name-event-types')
 
 /**
- * The event types the Event chip offers.
- *
- * Read *without* the user's current selection in the `where`, which is the
- * whole point: the feed query is filtered server-side now, so deriving the
- * options from its results would collapse the list to whatever is already
- * selected — pick one type and the other options vanish, with no way back.
- * The date range is left out for the same reason, so narrowing a range cannot
- * make an option disappear underneath the cursor.
- *
- * A facet's `scope` *is* applied: the ownership view should only ever offer
- * ownership types.
+ * Read *without* the current selection or date range in the `where`. The feed is
+ * filtered server-side, so deriving options from its results collapsed the list
+ * to whatever was already selected, with no way back. A facet's `scope` is
+ * applied — the ownership view should only offer ownership types.
  */
 export const getNameEventTypesQueryOptions = (scope: NameHistoryScope) =>
   resultQueryOptions({
@@ -280,14 +216,12 @@ export const getNameEventTypesQueryOptions = (scope: NameHistoryScope) =>
 // --------------------------------------------------------- auxiliary sources
 
 /**
- * A child's registration is attributed to the parent on the full feed only. A
- * scoped view asked for specific event types, and a subdomain `LabelRegistered`
- * is never one of them, so it would otherwise slip past the scope filter.
+ * A child's registration is attributed to the parent on the full feed only — a
+ * scoped view asked for specific types, and a subdomain `LabelRegistered` is
+ * never one of them.
  *
- * `type_in` stays an inline literal here: this indexer silently drops a `where`
- * on the *nested* `events` field when it arrives by variable (verified against
- * staging for a list, a scalar and a whole-`EventFilter` variable — all returned
- * the unfiltered feed, no error). Only the top-level connection is unaffected.
+ * `type_in` stays an inline literal: nested fields drop variable-supplied
+ * arguments (see `TimelineEventFilter`).
  */
 const childRegistrationsQuery = gql`
   ${TIMELINE_EVENT_FRAGMENT}
@@ -308,13 +242,7 @@ const childRegistrationsQuery = gql`
   }
 `
 
-/**
- * The name's history that the paged connection cannot reach: v1 subgraph events
- * and child registrations.
- *
- * Keyed without a cursor and fetched once, so paging the v2 feed never refetches
- * either of them.
- */
+/** What the paged connection cannot reach: v1 events and child registrations. */
 const getNameHistoryAuxiliary = ResultFn(async function* ({
   name,
   eventTypes,
@@ -323,8 +251,7 @@ const getNameHistoryAuxiliary = ResultFn(async function* ({
   const normalizedName = normalizeOrLower(name)
   const node = namehash(normalizedName)
 
-  // Each source returns `[]` for a name the other owns, so an empty result is
-  // normal and only a genuine failure rejects.
+  // Each source returns `[]` for a name the other owns; only a genuine failure rejects.
   const [children, v1Raw] = yield* fromPromise(
     Promise.all([
       eventTypes
@@ -356,8 +283,7 @@ const getNameHistoryAuxiliary = ResultFn(async function* ({
     blocks: v1Raw.events.map((event) => BigInt(event.blockNumber)),
   })
 
-  // Static chain constants, not lookups — the v1 subgraph records no emitting
-  // address, so the contract badge is reconstructed from these.
+  // The v1 subgraph records no emitting address, so the badge is rebuilt from these.
   const v1EventsAll = adaptV1Events({
     events: v1Raw.events,
     blockTimestamps,
@@ -383,13 +309,6 @@ const getNameHistoryAuxiliary = ResultFn(async function* ({
 
   return ok({
     events: [...v1Events, ...children],
-    // Whether the v1 read filled a window, i.e. the name may have v1 history
-    // this does not carry. Surfaced rather than hidden — a v1 name has no
-    // cursor to offer a "load more".
-    //
-    // Reported per collection by the fetch, not inferred from the flattened
-    // length here: `first` bounds each sibling selection separately, so the
-    // total legitimately exceeds it — see `v1CollectionsSaturated`.
     v1Saturated: v1Raw.saturated,
   })
 })

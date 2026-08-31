@@ -15,12 +15,8 @@ interface RecentHistoryTimelineProps {
 }
 
 /**
- * The Overview page's history preview: the same rows as the full History page,
- * trimmed to the newest few actions with the first one (usually the
- * registration) pinned below the break.
- *
- * The break links out rather than loading in place — Figma Explorer-V1 node
- * `2075:16136`. Everything else is the shared timeline.
+ * The Overview preview: the shared timeline trimmed to the newest few actions,
+ * whose break links out rather than loading in place (Figma `2075:16136`).
  */
 export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
   const model = useNameHistoryTimeline({ name, limit: RECENT_ACTION_LIMIT })
