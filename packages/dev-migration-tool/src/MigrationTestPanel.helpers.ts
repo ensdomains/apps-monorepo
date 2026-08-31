@@ -315,6 +315,10 @@ export type PresetType =
   | 'detached-child'
   | 'wrapped-subname'
   | 'unwrapped-subname'
+  | 'copy-nested'
+  | 'copy-orphan'
+  | 'copy-locked-parent'
+  | 'copy-unsupported-resolver'
   | 'locked-no-transfer'
   | 'locked-no-resolver'
 
@@ -332,15 +336,73 @@ export type PresetType =
  * unwrapped). `child` is present only for presets that also OFFER a child;
  * `emancipated` creates one on-chain but deliberately does not offer it.
  */
+/**
+ * One descendant beneath a preset's 2LD, to any depth.
+ *
+ * `fuses` is the FULL bitmap written to the child; nothing is OR'd in. That
+ * matters because PARENT_CANNOT_CONTROL is exactly the bit that decides
+ * `detached-child` (a token migration) from `unlocked-child` (a copy), and
+ * because the NameWrapper refuses to burn PCC unless the parent has
+ * CANNOT_UNWRAP — so a preset asking for the wrong combination reverts.
+ */
+export type PresetNodeShape = {
+  /** Label is `${labelPrefix}-${rootLabel}`. Distinct per level. */
+  readonly labelPrefix: string
+  /** false = registry-only subname, no NameWrapper involvement. */
+  readonly wrapped: boolean
+  readonly fuses: number
+  readonly records?: boolean
+  /**
+   * Which resolver the node reports. `'none'` (the default for a descendant) is
+   * a real, ELIGIBLE state for a copy — `hasSupportedCopyResolver(null)` is
+   * true. `'custom'` points at an unrecognised resolver, which is how the
+   * `unsupported-resolver` fixture is built.
+   */
+  readonly resolver?: 'record' | 'custom' | 'none'
+  /**
+   * Whether this node is offered to the migration flow at all. `false` creates
+   * it on chain but keeps it out of the subgraph injection — which is how a
+   * name whose parent is missing from the selection is expressed.
+   */
+  readonly offer?: boolean
+  readonly descendants?: readonly PresetNodeShape[]
+}
+
 export type PresetShape = {
   readonly parentWrapped: boolean
   readonly parentFuses: number
-  readonly child?: {
-    /** false = registry-only subname, no NameWrapper involvement. */
-    readonly wrapped: boolean
-    readonly fuses: number
-  }
+  /** Whether the 2LD itself is offered. `false` = it exists but is not injected. */
+  readonly offerParent?: boolean
+  /** Expiry offset for the 2LD, in seconds from now. Defaults to one year. */
+  readonly parentExpiryOffset?: number
+  readonly descendants?: readonly PresetNodeShape[]
 }
+
+/** Default child label for a preset's single first-level descendant. */
+const DEFAULT_CHILD_PREFIX = 'sub'
+
+/**
+ * The three descendant shapes the migration routes actually distinguish.
+ * Named once so a preset declares intent rather than fuse arithmetic.
+ */
+/** PCC + CANNOT_UNWRAP under a locked parent -> `locked-child`, a token migration. */
+const LOCKED_CHILD_SHAPE = {
+  labelPrefix: DEFAULT_CHILD_PREFIX,
+  wrapped: true,
+  fuses: PARENT_CANNOT_CONTROL | CANNOT_UNWRAP,
+} as const satisfies PresetNodeShape
+/** No fuses. Under an unwrapped/unlocked 2LD -> `copy` / `unlocked-child`. */
+const UNLOCKED_CHILD_SHAPE = {
+  labelPrefix: DEFAULT_CHILD_PREFIX,
+  wrapped: true,
+  fuses: 0,
+} as const satisfies PresetNodeShape
+/** No wrapper token at all. Under an unwrapped 2LD -> `copy` / `registry-child`. */
+const REGISTRY_CHILD_SHAPE = {
+  labelPrefix: DEFAULT_CHILD_PREFIX,
+  wrapped: false,
+  fuses: 0,
+} as const satisfies PresetNodeShape
 
 const EMANCIPATED_2LD = PARENT_CANNOT_CONTROL | IS_DOT_ETH
 const LOCKED_2LD = EMANCIPATED_2LD | CANNOT_UNWRAP
@@ -366,7 +428,14 @@ export const PRESET_SHAPES: Record<PresetType, PresetShape> = {
   'grace-renewable-unwrapped': { parentWrapped: false, parentFuses: 0 },
   // Creates an emancipated child on-chain but offers only the parent, so `child`
   // is intentionally absent. Use `subname` to migrate a child.
-  emancipated: { parentWrapped: true, parentFuses: LOCKED_2LD },
+  // Creates an emancipated child on chain but deliberately does NOT offer it —
+  // the point of this preset is a 2LD that has descendants the flow must ignore.
+  // Use `subname` to migrate a child.
+  emancipated: {
+    parentWrapped: true,
+    parentFuses: LOCKED_2LD,
+    descendants: [{ ...LOCKED_CHILD_SHAPE, offer: false }],
+  },
   managed: { parentWrapped: false, parentFuses: 0 },
   records: { parentWrapped: false, parentFuses: 0 },
   // Same shape as `records` — only the resolver differs, which is the whole
@@ -375,33 +444,86 @@ export const PRESET_SHAPES: Record<PresetType, PresetShape> = {
   subname: {
     parentWrapped: true,
     parentFuses: LOCKED_2LD,
-    child: { wrapped: true, fuses: PARENT_CANNOT_CONTROL | CANNOT_UNWRAP },
+    descendants: [LOCKED_CHILD_SHAPE],
   },
   'subname-records': {
     parentWrapped: true,
     parentFuses: LOCKED_2LD,
-    child: { wrapped: true, fuses: PARENT_CANNOT_CONTROL | CANNOT_UNWRAP },
+    descendants: [{ ...LOCKED_CHILD_SHAPE, records: true }],
   },
   // PCC burned but NOT CANNOT_UNWRAP, under a locked parent -> `detached-child`,
   // which routes to the parent's certified WrapperRegistry.
   'detached-child': {
     parentWrapped: true,
     parentFuses: LOCKED_2LD,
-    child: { wrapped: true, fuses: PARENT_CANNOT_CONTROL },
+    descendants: [
+      {
+        labelPrefix: DEFAULT_CHILD_PREFIX,
+        wrapped: true,
+        fuses: PARENT_CANNOT_CONTROL,
+      },
+    ],
   },
-  // No PCC at all: the parent can still control it, so migration must reject it
-  // as `unlocked-subname`.
+  // Unlocked (emancipated but not locked) 2LD + a child with NO fuses. Since
+  // subname migration landed this is `copy` / `unlocked-child`: the child has no
+  // transferable token, so it is RE-CREATED in a deterministic UserRegistry
+  // under the parent, carrying its own wrappedDomain.expiryDate as the V2
+  // expiry. It used to be rejected as ineligible `unlocked-subname`, a reason
+  // no code path emits any more.
   'wrapped-subname': {
     parentWrapped: true,
     parentFuses: EMANCIPATED_2LD,
-    child: { wrapped: true, fuses: 0 },
+    descendants: [UNLOCKED_CHILD_SHAPE],
   },
-  // Registry-only child of an unwrapped parent. `classifyName` returns a bare
-  // null for this, so it vanishes without even an ineligible entry.
+  // Registry-only child of an unwrapped parent — no NameWrapper token at all.
+  // Also a copy since subname migration landed (`registry-child`), re-created
+  // with expiry MAX_UINT64 because it has no V1 expiry of its own. It used to
+  // vanish silently, with `classifyName` returning a bare null.
   'unwrapped-subname': {
     parentWrapped: false,
     parentFuses: 0,
-    child: { wrapped: false, fuses: 0 },
+    descendants: [REGISTRY_CHILD_SHAPE],
+  },
+  // Two levels of copy beneath one unwrapped 2LD: a UserRegistry is deployed
+  // per copy PARENT, so this exercises the chained case and `hasCompleteCopyRoute`
+  // walking up more than one link.
+  'copy-nested': {
+    parentWrapped: false,
+    parentFuses: 0,
+    descendants: [
+      {
+        ...REGISTRY_CHILD_SHAPE,
+        descendants: [{ ...REGISTRY_CHILD_SHAPE, labelPrefix: 'deep' }],
+      },
+    ],
+  },
+  // The 2LD exists on chain but is NOT offered, so the child has no migrating
+  // ancestor. `hasCompleteCopyRoute` demotes it to ineligible `missing-parent`.
+  'copy-orphan': {
+    parentWrapped: false,
+    parentFuses: 0,
+    offerParent: false,
+    descendants: [REGISTRY_CHILD_SHAPE],
+  },
+  // The sharpest rule the copy route adds: a copy needs an `unwrapped` or
+  // `unlocked` 2LD ancestor, so a child under a LOCKED 2LD is not a copy at all.
+  // Creating it is legal — only BURNING PCC needs the parent locked.
+  'copy-locked-parent': {
+    parentWrapped: true,
+    parentFuses: LOCKED_2LD,
+    descendants: [UNLOCKED_CHILD_SHAPE],
+  },
+  // A copy always rewrites the resolver to the owner's PermissionedResolver, so
+  // it cannot carry an unrecognised one across -> ineligible
+  // `unsupported-resolver`. The `good` sibling is the control: it must still be
+  // offered, which is what proves the rejection is about the resolver.
+  'copy-unsupported-resolver': {
+    parentWrapped: false,
+    parentFuses: 0,
+    descendants: [
+      { ...REGISTRY_CHILD_SHAPE, labelPrefix: 'bad', resolver: 'custom' },
+      { ...REGISTRY_CHILD_SHAPE, labelPrefix: 'good' },
+    ],
   },
   'locked-no-transfer': {
     parentWrapped: true,
@@ -413,9 +535,114 @@ export const PRESET_SHAPES: Record<PresetType, PresetShape> = {
   },
 }
 
-/** Presets that also OFFER a child for migration. */
+/**
+ * One node of a preset, resolved against a concrete root label.
+ *
+ * Everything downstream — the on-chain writes, the subgraph mock, the profile
+ * rows, the panel's name list — is derived from this single walk. That is
+ * deliberate: when the mock and the chain were computed separately they drifted
+ * (the `records` preset was created unwrapped but described as wrapped, so
+ * `classifyNames` read it as a locked 2LD holding an ERC-1155 that did not
+ * exist and the name silently vanished). One source, one shape.
+ */
+export type PresetNode = {
+  /** Label path, leaf first: `['deep-dev1', 'sub-dev1', 'dev1']`. */
+  readonly labels: readonly string[]
+  readonly fullName: string
+  readonly node: `0x${string}`
+  readonly label: string
+  readonly parentNode: `0x${string}`
+  readonly parentFullName: string
+  readonly depth: number
+  readonly wrapped: boolean
+  readonly fuses: number
+  readonly records: boolean
+  readonly resolver: 'record' | 'custom' | 'none'
+  readonly offer: boolean
+  /** The immediate parent's wrapper state, which the classifier reads. */
+  readonly parentWrapped: boolean
+  readonly parentFuses: number
+}
+
+/** Which resolver a preset's 2LD reports. */
+const rootResolverKind = (type: PresetType): 'record' | 'custom' | 'none' => {
+  if (!presetHasParentRecords(type)) return 'none'
+  return type === 'custom-resolver' ? 'custom' : 'record'
+}
+
+/** namehash of a label path given leaf-first (`['sub','alice']` → sub.alice.eth). */
+export const nodeForPath = (labels: readonly string[]): `0x${string}` =>
+  [...labels]
+    .reverse()
+    .reduce<`0x${string}`>(
+      (acc, l) => namehashFromLabelAndParent(labelhash(l), acc),
+      ETH_NODE,
+    )
+
+/**
+ * Every name a preset puts on chain, parent first.
+ *
+ * Parent-first matters for more than tidiness: descendants can only be created
+ * once their parent exists, and `hasCompleteCopyRoute` walks *up* from a copy,
+ * so a missing link is always an earlier entry in this list.
+ */
+export const walkPreset = (
+  rootLabel: string,
+  type: PresetType,
+): readonly PresetNode[] => {
+  const shape = PRESET_SHAPES[type]
+  const out: PresetNode[] = []
+
+  const root: PresetNode = {
+    labels: [rootLabel],
+    fullName: `${rootLabel}.eth`,
+    node: nodeForPath([rootLabel]),
+    label: rootLabel,
+    parentNode: ETH_NODE,
+    parentFullName: 'eth',
+    depth: 0,
+    wrapped: shape.parentWrapped,
+    fuses: shape.parentFuses,
+    records: presetHasParentRecords(type),
+    resolver: rootResolverKind(type),
+    offer: shape.offerParent ?? true,
+    parentWrapped: false,
+    parentFuses: 0,
+  }
+  out.push(root)
+
+  const visit = (node: PresetNode, descendants: readonly PresetNodeShape[]) => {
+    for (const child of descendants) {
+      const label = `${child.labelPrefix}-${rootLabel}`
+      const labels = [label, ...node.labels]
+      const entry: PresetNode = {
+        labels,
+        fullName: `${label}.${node.fullName}`,
+        node: nodeForPath(labels),
+        label,
+        parentNode: node.node,
+        parentFullName: node.fullName,
+        depth: node.depth + 1,
+        wrapped: child.wrapped,
+        fuses: child.fuses,
+        records: child.records ?? false,
+        resolver: child.resolver ?? (child.records ? 'record' : 'none'),
+        offer: child.offer ?? true,
+        parentWrapped: node.wrapped,
+        parentFuses: node.fuses,
+      }
+      out.push(entry)
+      visit(entry, child.descendants ?? [])
+    }
+  }
+  visit(root, shape.descendants ?? [])
+
+  return out
+}
+
+/** Presets that put at least one descendant on chain, offered or not. */
 export const presetHasSubname = (type: PresetType): boolean =>
-  PRESET_SHAPES[type].child !== undefined
+  (PRESET_SHAPES[type].descendants ?? []).length > 0
 /** Presets whose 2LD carries V1 records. */
 export const presetHasParentRecords = (type: PresetType): boolean =>
   type === 'records' || type === 'subname-records' || type === 'custom-resolver'
@@ -427,20 +654,11 @@ export const presetHasParentRecords = (type: PresetType): boolean =>
  */
 export const recordResolverFor = (type: PresetType): Address =>
   type === 'custom-resolver' ? V1_CUSTOM_RESOLVER : V1_RECORD_RESOLVER
-/** Presets whose child carries V1 records. */
-export const presetHasSubnameRecords = (type: PresetType): boolean =>
-  type === 'subname-records'
-/** Child label convention, shared by creation and the subgraph mock. */
-export const childLabelFor = (parentLabel: string): string =>
-  `sub-${parentLabel}`
 /** Every ENS name a preset puts in front of the migration flow. */
 export const fullNamesFor = (name: {
   label: string
   type: PresetType
-}): string[] =>
-  presetHasSubname(name.type)
-    ? [`${name.label}.eth`, `${childLabelFor(name.label)}.${name.label}.eth`]
-    : [`${name.label}.eth`]
+}): string[] => walkPreset(name.label, name.type).map((n) => n.fullName)
 
 export interface ActiveName {
   label: string
@@ -527,15 +745,39 @@ export const PRESETS: { type: PresetType; label: string; title: string }[] = [
   },
   {
     type: 'wrapped-subname',
-    label: 'Wrapped sub',
+    label: 'Copy sub (wrapped)',
     title:
-      "Emancipated 2LD + child with NO fuses (parent can still control it) -> must be rejected as ineligible 'unlocked-subname'.",
+      "Unlocked (emancipated, not locked) 2LD + child with NO fuses -> action 'copy', tokenType 'unlocked-child'. The child has no transferable token, so it is RE-CREATED in a deterministic UserRegistry under the parent, carrying its own wrappedDomain.expiryDate as the V2 expiry. Used to be rejected as 'unlocked-subname' — a reason nothing emits any more.",
   },
   {
     type: 'unwrapped-subname',
-    label: 'Registry sub',
+    label: 'Copy sub (registry)',
     title:
-      'Unwrapped 2LD + registry-only child (no NameWrapper token) -> classifyName returns bare null, so it vanishes with no ineligible reason at all.',
+      "Unwrapped 2LD + registry-only child (no NameWrapper token) -> action 'copy', tokenType 'registry-child'. Ownership is proven via LegacyRegistry.owner(namehash), not a token, and it is re-created with expiry MAX_UINT64 since it has no V1 expiry of its own. Used to vanish silently.",
+  },
+  {
+    type: 'copy-nested',
+    label: 'Copy nested',
+    title:
+      'Unwrapped 2LD -> registry 3LD -> registry 4LD, all copies. A UserRegistry is deployed per copy PARENT, so this is the chained case: resolution walks ETHRegistry -> UserRegistry(2LD) -> UserRegistry(3LD).',
+  },
+  {
+    type: 'copy-orphan',
+    label: 'Copy orphan',
+    title:
+      "Registry-only child whose 2LD is created on chain but NOT offered. hasCompleteCopyRoute finds no migrating ancestor -> ineligible 'missing-parent'. Expect an EMPTY list: seed another preset alongside it, or you cannot tell this from a broken subgraph mock.",
+  },
+  {
+    type: 'copy-locked-parent',
+    label: 'Copy -locked',
+    title:
+      "LOCKED 2LD + child with no fuses. The copy route requires an 'unwrapped' or 'unlocked' 2LD ancestor, so the child is ineligible 'missing-parent' while the 2LD still migrates as 'locked-2ld'. The sharpest new rule in the subname PR.",
+  },
+  {
+    type: 'copy-unsupported-resolver',
+    label: 'Copy -res',
+    title:
+      "Unwrapped 2LD + two registry children: 'bad-' on an unrecognised resolver -> ineligible 'unsupported-resolver', and 'good-' with no resolver -> eligible. A copy always rewrites the resolver to the owner's PermissionedResolver and cannot carry an unknown one across. The good sibling is the control.",
   },
   {
     type: 'locked-no-transfer',
@@ -566,10 +808,49 @@ export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
   subname: '#4338ca',
   'subname-records': '#6d28d9',
   'detached-child': '#0369a1',
-  'wrapped-subname': '#b91c1c',
-  'unwrapped-subname': '#7f1d1d',
+  // The copy family. Teal, deliberately not the red these two used to wear:
+  // both are now ELIGIBLE routes, not rejections.
+  'wrapped-subname': '#0d9488',
+  'unwrapped-subname': '#0f766e',
+  'copy-nested': '#115e59',
+  'copy-orphan': '#9f1239',
+  'copy-locked-parent': '#9d174d',
+  'copy-unsupported-resolver': '#831843',
   'locked-no-transfer': '#991b1b',
   'locked-no-resolver': '#a21caf',
+}
+
+/**
+ * Which migration route each preset is meant to exercise. Purely descriptive —
+ * the panel groups its buttons by this so a 23-button strip stays readable, and
+ * it puts the expected outcome next to the button that produces it.
+ */
+export const PRESET_FAMILY: Record<
+  PresetType,
+  'migrate' | 'copy' | 'ineligible'
+> = {
+  unwrapped: 'migrate',
+  wrapped: 'migrate',
+  locked: 'migrate',
+  'locked-all': 'ineligible',
+  grace: 'migrate',
+  'grace-renewable-wrapped': 'migrate',
+  'grace-renewable-unwrapped': 'migrate',
+  emancipated: 'migrate',
+  managed: 'migrate',
+  records: 'migrate',
+  'custom-resolver': 'migrate',
+  subname: 'migrate',
+  'subname-records': 'migrate',
+  'detached-child': 'migrate',
+  'wrapped-subname': 'copy',
+  'unwrapped-subname': 'copy',
+  'copy-nested': 'copy',
+  'copy-orphan': 'ineligible',
+  'copy-locked-parent': 'ineligible',
+  'copy-unsupported-resolver': 'ineligible',
+  'locked-no-transfer': 'ineligible',
+  'locked-no-resolver': 'migrate',
 }
 
 // --- ABI fragments ----------------------------------------------------------
@@ -871,7 +1152,7 @@ const registrySetSubnodeOwnerSnippet = parseAbi([
  */
 export async function createRegistryOnlySubname(
   endpoint: string,
-  parentLabel: string,
+  parentNode: `0x${string}`,
   sublabel: string,
 ): Promise<void> {
   await sendTx(
@@ -880,23 +1161,23 @@ export async function createRegistryOnlySubname(
     encodeFunctionData({
       abi: registrySetSubnodeOwnerSnippet,
       functionName: 'setSubnodeOwner',
-      args: [nodeForLabel(parentLabel), labelhash(sublabel), DEFAULT_ACCOUNT],
+      args: [parentNode, labelhash(sublabel), DEFAULT_ACCOUNT],
     }),
   )
 }
 
 /**
  * Create a wrapped child with an explicit fuse set. Unlike
- * `createEmancipatedSubname` this does not assume PCC|CANNOT_UNWRAP, so it can
- * produce the `detached-child` (PCC only) and `wrapped-subname` (no fuses)
- * states as well.
+ * Takes the parent NODE rather than a label, so it works at any depth. It does
+ * not assume PCC|CANNOT_UNWRAP, so it produces `detached-child` (PCC only) and
+ * the copy states (no fuses) as well.
  *
  * NOTE: burning PARENT_CANNOT_CONTROL requires the parent to have CANNOT_UNWRAP
  * burned first, so callers must match `PRESET_SHAPES`.
  */
 export async function createWrappedSubnameWithFuses(
   endpoint: string,
-  parentLabel: string,
+  parentNode: `0x${string}`,
   sublabel: string,
   fuses: number,
 ): Promise<void> {
@@ -908,7 +1189,7 @@ export async function createWrappedSubnameWithFuses(
       abi: nameWrapperSetSubnodeOwnerSnippet,
       functionName: 'setSubnodeOwner',
       args: [
-        nodeForLabel(parentLabel),
+        parentNode,
         sublabel,
         DEFAULT_ACCOUNT,
         fuses,
@@ -917,13 +1198,6 @@ export async function createWrappedSubnameWithFuses(
     }),
   )
 }
-
-/** namehash of `sub-<label>.<label>.eth`. */
-export const childNodeForLabel = (label: string): `0x${string}` =>
-  namehashFromLabelAndParent(
-    labelhash(childLabelFor(label)),
-    nodeForLabel(label),
-  )
 
 /**
  * Put a "user deployed this themselves" resolver on the fork at
@@ -965,11 +1239,17 @@ export async function ensureCustomResolverDeployed(
  * PublicResolver is NameWrapper-aware, so when the registry owner is the wrapper
  * it authorises `nameWrapper.ownerOf(node)` — which is this account.
  */
-export async function writeV1Records(
+/**
+ * Point a node at a resolver without writing any records.
+ *
+ * The write goes through the NameWrapper for a wrapped node and the registry
+ * for an unwrapped one, because that is who owns the node in the V1 registry.
+ */
+export async function setV1Resolver(
   endpoint: string,
   node: `0x${string}`,
   isWrapped: boolean,
-  resolver: Address = V1_RECORD_RESOLVER,
+  resolver: Address,
 ): Promise<void> {
   await sendTx(
     endpoint,
@@ -980,6 +1260,15 @@ export async function writeV1Records(
       args: [node, resolver],
     }),
   )
+}
+
+export async function writeV1Records(
+  endpoint: string,
+  node: `0x${string}`,
+  isWrapped: boolean,
+  resolver: Address = V1_RECORD_RESOLVER,
+): Promise<void> {
+  await setV1Resolver(endpoint, node, isWrapped, resolver)
 
   for (const { key, value } of QA_RECORD_TEXTS) {
     await sendTx(
@@ -1263,28 +1552,6 @@ export async function setNameFuses(
   )
 }
 
-export async function createEmancipatedSubname(
-  endpoint: string,
-  parentLabel: string,
-  sublabel: string,
-): Promise<void> {
-  const parentLh = labelhash(parentLabel)
-  const parentNode = namehashFromLabelAndParent(parentLh, ETH_NODE)
-  const now = await getBlockTimestamp(endpoint)
-  const expiry = BigInt(now + ONE_YEAR * 2)
-  const subFuses = PARENT_CANNOT_CONTROL | CANNOT_UNWRAP
-
-  await sendTx(
-    endpoint,
-    V1_NAME_WRAPPER,
-    encodeFunctionData({
-      abi: nameWrapperSetSubnodeOwnerSnippet,
-      functionName: 'setSubnodeOwner',
-      args: [parentNode, sublabel, DEFAULT_ACCOUNT, subFuses, expiry],
-    }),
-  )
-}
-
 /** Read the live BaseRegistrar `owner()` off the fork; null if the call fails. */
 export async function readRegistrarOwner(
   endpoint: string,
@@ -1538,12 +1805,109 @@ async function reserveKnownAvailableNameInV2(
  * Top-level dispatch — creates the V1 name on Anvil, reserves it in V2,
  * and returns { label, expiryDate } for the active names list.
  */
+/**
+ * Create every node of a preset that declares descendants, driven by
+ * `walkPreset` so the chain and the subgraph mock cannot disagree about what
+ * exists.
+ *
+ * Ordering is load-bearing in two places:
+ *
+ *  - the 2LD's own fuses are burned BEFORE any descendant, because the
+ *    NameWrapper refuses to burn PARENT_CANNOT_CONTROL on a child unless the
+ *    parent already has CANNOT_UNWRAP;
+ *  - `walkPreset` yields parent-first, so a descendant's parent always exists
+ *    by the time `setSubnodeOwner` is called for it.
+ */
+/** Write each descendant on chain, parent-first (the walk already orders them). */
+async function createDescendants(
+  endpoint: string,
+  descendants: readonly PresetNode[],
+): Promise<void> {
+  for (const node of descendants) {
+    if (node.wrapped) {
+      await createWrappedSubnameWithFuses(
+        endpoint,
+        node.parentNode,
+        node.label,
+        node.fuses,
+      )
+    } else {
+      await createRegistryOnlySubname(endpoint, node.parentNode, node.label)
+    }
+  }
+}
+
+/**
+ * Point every node that declares a resolver at it, and write records where the
+ * node asks for them.
+ *
+ * A node can declare a resolver WITHOUT records — that is exactly the
+ * `unsupported-resolver` fixture. It still has to be set on chain, or the
+ * subgraph mock would report a resolver the chain does not have, which is the
+ * mock/chain divergence this whole walk exists to prevent.
+ */
+async function writeNodeResolvers(
+  endpoint: string,
+  nodes: readonly PresetNode[],
+): Promise<void> {
+  for (const node of nodes) {
+    if (node.resolver === 'none') continue
+    if (node.resolver === 'custom') await ensureCustomResolverDeployed(endpoint)
+    const resolver =
+      node.resolver === 'custom' ? V1_CUSTOM_RESOLVER : V1_RECORD_RESOLVER
+    if (node.records) {
+      await writeV1Records(endpoint, node.node, node.wrapped, resolver)
+    } else {
+      await setV1Resolver(endpoint, node.node, node.wrapped, resolver)
+    }
+  }
+}
+
+async function createPresetTreeOnAnvil(
+  endpoint: string,
+  label: string,
+  type: PresetType,
+): Promise<{ label: string; expiryDate: number }> {
+  const shape = PRESET_SHAPES[type]
+  const nodes = walkPreset(label, type)
+  const [root, ...descendants] = nodes
+  if (!root) throw new Error(`walkPreset(${type}) produced no root`)
+
+  await registerV1Name(endpoint, label, shape.parentWrapped)
+  // `wrapETH2LD` burns PCC|IS_DOT_ETH itself; only the owner-controlled bits
+  // are settable, and only on a wrapped name.
+  const ownerBits = childSettableFuses(shape.parentFuses)
+  if (shape.parentWrapped && ownerBits !== 0) {
+    await setNameFuses(endpoint, label, ownerBits)
+  }
+
+  await createDescendants(endpoint, descendants)
+  await writeNodeResolvers(endpoint, nodes)
+
+  const ts = await getBlockTimestamp(endpoint)
+  const expiryDate = ts + ONE_YEAR
+  // Reserve with the SAME resolver the 2LD's records went to, so the explorer
+  // reads the resolver the records are actually on rather than reporting zero.
+  await reserveInV2(
+    endpoint,
+    label,
+    expiryDate,
+    root.records ? recordResolverFor(type) : undefined,
+  )
+  return { label, expiryDate }
+}
+
 export async function createV1NameOnAnvil(
   endpoint: string,
   label: string,
   type: PresetType,
 ): Promise<{ label: string; expiryDate: number }> {
   await ensureFunded(endpoint)
+  // Every preset with descendants goes through one walk-driven path. The
+  // per-preset arms this replaced each restated the same three steps and could
+  // only ever reach depth 1, because the builders hardcoded the parent as a 2LD.
+  if (presetHasSubname(type))
+    return createPresetTreeOnAnvil(endpoint, label, type)
   switch (type) {
     case 'unwrapped': {
       await registerV1Name(endpoint, label, false)
@@ -1654,70 +2018,6 @@ export async function createV1NameOnAnvil(
       await reserveInV2(endpoint, label, expiryDate)
       return { label, expiryDate }
     }
-    case 'unwrapped-subname': {
-      // Parent stays UNWRAPPED so the child can be created directly in the V1
-      // registry, with no wrapper token — the `eth-unwrapped-subname` state.
-      await registerV1Name(endpoint, label, false)
-      await createRegistryOnlySubname(endpoint, label, childLabelFor(label))
-      const ts = await getBlockTimestamp(endpoint)
-      const expiryDate = ts + ONE_YEAR
-      await reserveInV2(endpoint, label, expiryDate)
-      return { label, expiryDate }
-    }
-    case 'wrapped-subname': {
-      // Parent emancipated but NOT locked, child with no fuses at all, so the
-      // parent retains control and migration must reject it.
-      await registerV1Name(endpoint, label, true)
-      await createWrappedSubnameWithFuses(
-        endpoint,
-        label,
-        childLabelFor(label),
-        0,
-      )
-      const ts = await getBlockTimestamp(endpoint)
-      const expiryDate = ts + ONE_YEAR
-      await reserveInV2(endpoint, label, expiryDate)
-      return { label, expiryDate }
-    }
-    case 'detached-child': {
-      await registerV1Name(endpoint, label, true)
-      await setNameFuses(endpoint, label, CANNOT_UNWRAP)
-      await createWrappedSubnameWithFuses(
-        endpoint,
-        label,
-        childLabelFor(label),
-        PARENT_CANNOT_CONTROL,
-      )
-      const ts = await getBlockTimestamp(endpoint)
-      const expiryDate = ts + ONE_YEAR
-      await reserveInV2(endpoint, label, expiryDate)
-      return { label, expiryDate }
-    }
-    case 'subname':
-    case 'subname-records': {
-      // Parent must burn CANNOT_UNWRAP before it can emancipate a child, and the
-      // child needs CANNOT_UNWRAP itself to classify as `locked-child` rather
-      // than being rejected as `unlocked-subname`.
-      await registerV1Name(endpoint, label, true)
-      await setNameFuses(endpoint, label, CANNOT_UNWRAP)
-      await createEmancipatedSubname(endpoint, label, childLabelFor(label))
-      if (type === 'subname-records') {
-        // Both nodes are owned by the NameWrapper in the V1 registry.
-        await writeV1Records(endpoint, nodeForLabel(label), true)
-        await writeV1Records(endpoint, childNodeForLabel(label), true)
-      }
-      const ts = await getBlockTimestamp(endpoint)
-      const expiryDate = ts + ONE_YEAR
-      // Same-resolver reservation for the record-bearing variant, so the
-      // explorer reads the resolver the records are actually on.
-      await reserveInV2(
-        endpoint,
-        label,
-        expiryDate,
-        type === 'subname-records' ? recordResolverFor(type) : undefined,
-      )
-      return { label, expiryDate }
-    }
     case 'managed': {
       // Registrant stays DEFAULT_ACCOUNT (holds the ERC-721); reclaim() moves the
       // V1 registry owner to a different address, which is what makes
@@ -1730,17 +2030,73 @@ export async function createV1NameOnAnvil(
       await reserveInV2(endpoint, label, expiryDate)
       return { label, expiryDate }
     }
-    case 'emancipated': {
-      const sublabel = `sub-${label}`
-      await registerV1Name(endpoint, label, true)
-      await setNameFuses(endpoint, label, CANNOT_UNWRAP)
-      await createEmancipatedSubname(endpoint, label, sublabel)
-      const ts = await getBlockTimestamp(endpoint)
-      const expiryDate = ts + ONE_YEAR
-      await reserveInV2(endpoint, label, expiryDate)
-      return { label, expiryDate }
-    }
   }
+  // Unreachable: `presetHasSubname` handled every descendant preset above and
+  // the switch is exhaustive over the rest. A new PresetType that forgets both
+  // lands here rather than silently returning undefined.
+  throw new Error(`createV1NameOnAnvil: unhandled preset "${type}"`)
+}
+
+// --- Copy-target state ------------------------------------------------------
+
+/**
+ * Whether a preset's copy targets are still clean enough to migrate.
+ *
+ * A copy is re-created inside a `UserRegistry` whose address is derived from
+ * `namehash(parentName)`, so re-migrating the SAME name lands in the same slot
+ * every time. `copyMigrationReadiness` then fails closed — `subregistry-conflict`
+ * if the .eth registry already points at something, `v2-name-history` if the
+ * child already has a state entry there — and the app surfaces none of that:
+ * the Upgrade button simply stays disabled under "Gas estimate unavailable".
+ *
+ * Reading it here turns a dead button into a visible reason.
+ */
+export type CopyTargetState = 'pristine' | 'registry-deployed' | 'registered'
+
+/**
+ * Read whether the 2LD already has a subregistry in the .eth registry.
+ *
+ * This is `assertNewRegistrySlot`'s first check. A non-zero answer means a
+ * previous run of this same label already deployed the parent's UserRegistry,
+ * and a fresh-plan migration of it will be refused.
+ */
+export async function readCopyTargetState(
+  endpoint: string,
+  label: string,
+): Promise<CopyTargetState> {
+  const data = encodeFunctionData({
+    abi: parseAbi([
+      'function getSubregistry(string label) view returns (address)',
+    ]),
+    functionName: 'getSubregistry',
+    args: [label],
+  })
+  const result = (await rpcCall(endpoint, 'eth_call', [
+    { to: V2_ETH_REGISTRY_ADDR, data },
+    'latest',
+  ])) as string | null
+  if (!result || result === '0x') return 'pristine'
+  const subregistry = `0x${result.slice(-40)}`
+  if (/^0x0+$/.test(subregistry)) return 'pristine'
+  return 'registry-deployed'
+}
+
+/**
+ * Clear the deterministic UserRegistry slot for `label` so a copy preset can be
+ * migrated again.
+ *
+ * This wipes the CODE at the predicted proxy address. It does not, and cannot,
+ * undo the `.eth` registry's subregistry pointer or the child's state entry —
+ * those live in the parent registry, which is the point of `v2-name-history`
+ * being a fail-closed check. For a genuine reset, re-seed the preset under a
+ * fresh label (every press of a preset button mints one), which lands in a
+ * different slot because the salt is keyed on `namehash(parentName)`.
+ */
+export async function resetCopyTarget(
+  endpoint: string,
+  registry: Address,
+): Promise<void> {
+  await rpcCall(endpoint, 'anvil_setCode', [registry, '0x'])
 }
 
 // --- Subgraph mock ----------------------------------------------------------
@@ -1797,66 +2153,75 @@ export function buildMockDomain(name: ActiveName): unknown {
 }
 
 /**
- * The emancipated child of a `subname*` preset, shaped so `classifyNames` reads
- * it as `locked-child`: wrapped-owned by this account, CANNOT_UNWRAP burned, and
- * a `parent` whose own `wrappedDomain.fuses` also has CANNOT_UNWRAP (which is
- * what the detached-child branch inspects).
+ * One descendant of a preset, at any depth, shaped from its `walkPreset` entry.
  *
- * Subnames have no `registration` — that is 2LD-only, and supplying one would
- * make the expiry checks treat this as a .eth registration.
+ * Every field here is what makes `classifyName` take one branch rather than
+ * another, and each was previously derived from a depth-1-only assumption:
+ *
+ * - `owner.id` is the NameWrapper for a wrapped node and the EOA otherwise.
+ *   `classifyWithoutActiveWrapper` reads it as the REGISTRY owner, which is the
+ *   whole gate in front of the `registry-child` copy branch.
+ * - `parent.wrappedDomain.fuses` carries the immediate parent's real fuses —
+ *   the only way `classifyUnlockedWrapper` can tell `detached-child` (a token
+ *   migration under a locked parent) from `unlocked-child` (a copy).
+ * - `registration` and `registrant` are 2LD-only. Supplying them on a child
+ *   makes `hasExpiredDotEthRegistration` treat it as a .eth registration.
+ * - a null resolver is a real, ELIGIBLE state for a copy.
  */
-export function buildMockChildDomain(name: ActiveName): unknown {
-  const shape = PRESET_SHAPES[name.type]
-  const child = shape.child
-  if (!child) throw new Error(`${name.type} does not define a child`)
-
-  const parentNode = nodeForLabel(name.label)
-  const sublabel = childLabelFor(name.label)
-  const childLh = labelhash(sublabel)
+export function buildMockDescendantDomain(
+  name: ActiveName,
+  node: PresetNode,
+): unknown {
   const now = Math.floor(Date.now() / 1000)
   const owner = DEFAULT_ACCOUNT.toLowerCase()
+  const resolver =
+    node.resolver === 'none'
+      ? null
+      : node.resolver === 'custom'
+        ? V1_CUSTOM_RESOLVER
+        : V1_RECORD_RESOLVER
 
   return {
-    id: childNodeForLabel(name.label),
-    labelName: sublabel,
-    labelhash: childLh,
-    name: `${sublabel}.${name.label}.eth`,
+    id: node.node,
+    labelName: node.label,
+    labelhash: labelhash(node.label),
+    name: node.fullName,
     isMigrated: false,
     createdAt: String(now - 3600),
     resolvedAddress: null,
-    resolver: resolverRefFor(
-      presetHasSubnameRecords(name.type),
-      false,
-      recordResolverFor(name.type),
-    ),
-    // A registry-only subname is owned directly in the V1 registry and has no
-    // wrapper token at all, which is what makes `classifyName` drop it silently.
-    owner: { id: child.wrapped ? V1_NAME_WRAPPER.toLowerCase() : owner },
-    // Subnames never have a .eth registration — that is 2LD-only.
+    resolver: resolver ? { id: resolver, address: resolver } : null,
+    owner: { id: node.wrapped ? V1_NAME_WRAPPER.toLowerCase() : owner },
     registrant: null,
-    wrappedOwner: child.wrapped ? { id: owner } : null,
+    wrappedOwner: node.wrapped ? { id: owner } : null,
     parent: {
-      name: `${name.label}.eth`,
-      id: parentNode,
-      wrappedDomain: shape.parentWrapped
+      name: node.parentFullName,
+      id: node.parentNode,
+      wrappedDomain: node.parentWrapped
         ? {
             expiryDate: String(name.expiryDate),
-            fuses: shape.parentFuses,
+            fuses: node.parentFuses,
           }
         : null,
     },
     registration: null,
-    wrappedDomain: child.wrapped
-      ? { expiryDate: String(name.expiryDate), fuses: child.fuses }
+    wrappedDomain: node.wrapped
+      ? { expiryDate: String(name.expiryDate), fuses: node.fuses }
       : null,
   }
 }
 
 /** Every subgraph domain a single active name contributes (2LD, plus child). */
 export function buildMockDomains(name: ActiveName): unknown[] {
-  const domains: unknown[] = [buildMockDomain(name)]
-  if (presetHasSubname(name.type)) domains.push(buildMockChildDomain(name))
-  return domains
+  // `offer: false` nodes exist on chain but are deliberately withheld from the
+  // injection — that is how a name whose parent is missing from the selection
+  // is built, and it is the whole point of the `copy-orphan` preset.
+  return walkPreset(name.label, name.type)
+    .filter((node) => node.offer)
+    .map((node) =>
+      node.depth === 0
+        ? buildMockDomain(name)
+        : buildMockDescendantDomain(name, node),
+    )
 }
 
 /**
@@ -1889,11 +2254,9 @@ export function buildMockProfileRows(name: ActiveName): MockProfileRow[] {
     contentHash: QA_RECORD_CONTENTHASH,
     abiChangeds: [{ contentType: Number(QA_RECORD_ABI.contentType) }],
   })
-  if (presetHasParentRecords(name.type)) {
-    rows.push({ id: nodeForLabel(name.label), resolver: keys() })
-  }
-  if (presetHasSubnameRecords(name.type)) {
-    rows.push({ id: childNodeForLabel(name.label), resolver: keys() })
+  for (const node of walkPreset(name.label, name.type)) {
+    if (node.records && node.offer)
+      rows.push({ id: node.node, resolver: keys() })
   }
   return rows
 }
