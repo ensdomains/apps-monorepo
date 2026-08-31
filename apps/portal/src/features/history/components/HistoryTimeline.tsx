@@ -15,7 +15,6 @@ import { buildEventTypeGroups, dateRangeToTimestamps } from '../filterTimeline'
 import type { HistoryTimelineModel } from '../hooks/useHistoryTimeline'
 import { useNameHistoryTimeline } from '../hooks/useHistoryTimeline'
 import type { TimelineEventType } from '../summarize/descriptors'
-import { HISTORY_TIMELINE_PAGE_SIZE } from '../timelineEventPage'
 import { ActionTimeline } from './ActionTimeline'
 import { TimelineBreak, TimelineLoadMore } from './TimelineBreak'
 
@@ -141,7 +140,6 @@ export const HistoryTimelineView = ({
         {showBreak &&
           (breakContent === 'load-more' ? (
             <TimelineLoadMore
-              pageSize={HISTORY_TIMELINE_PAGE_SIZE}
               totalCount={totalCount}
               isLoading={isLoadingMore}
               onLoadMore={loadMore}

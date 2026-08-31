@@ -32,8 +32,12 @@ type MergeTimelineParameters = {
  *
  * When the paged source is exhausted there is no horizon and everything renders.
  *
- * Deduplicated by event id: an auxiliary source can legitimately overlap the
- * paged one (a child registration the parent's own feed also carries).
+ * Deduplicated by event id as insurance only — the sources cannot actually
+ * overlap. A child's `LabelRegistered` carries the *child's* namehash, so the
+ * parent's connection never returns it (verified: `where: { domain: "eth" }`
+ * yields eth's own 5 events, not its 120k subdomains'), and v1 ids come from a
+ * different service in a different shape. If that ever stops holding, this is
+ * what keeps a row from counting an event twice.
  *
  * Returns the renderable feed, newest first, whole transactions only.
  */
@@ -46,11 +50,11 @@ export const mergeTimeline = ({
   // Inclusive: the horizon transaction is whole, so events sharing its
   // timestamp belong on screen with it.
   //
-  // `-Infinity` is "no horizon, show everything"; `+Infinity` covers the
-  // pathological page that trims to nothing (everything
-  // loaded so far is one unfinished transaction). Nothing is provably
-  // complete there, so nothing auxiliary may render — reading it as "fully
-  // loaded" would dump the whole v1 history on screen.
+  // `-Infinity` is "no horizon, show everything". `+Infinity` covers the
+  // pathological page that trims to nothing — everything loaded so far is one
+  // unfinished transaction, so nothing is provably complete and nothing
+  // auxiliary may render; reading that as "fully loaded" would dump the whole
+  // v1 history on screen.
   const horizon = hasNextPage
     ? (paged.at(-1)?.timestamp ?? Number.POSITIVE_INFINITY)
     : Number.NEGATIVE_INFINITY

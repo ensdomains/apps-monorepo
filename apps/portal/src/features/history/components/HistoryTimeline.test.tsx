@@ -80,7 +80,7 @@ describe('HistoryTimelineView', () => {
         breakContent="load-more"
       />,
     )
-    expect(screen.getByText(/Load 100 more/)).toBeInTheDocument()
+    expect(screen.getByText('Load more')).toBeInTheDocument()
     expect(screen.getByText(/events \(681 total\)/)).toBeInTheDocument()
   })
 
@@ -92,7 +92,7 @@ describe('HistoryTimelineView', () => {
         breakContent="load-more"
       />,
     )
-    await userEvent.click(screen.getByRole('button', { name: /Load 100 more/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Load more' }))
     expect(loadMore).toHaveBeenCalledOnce()
   })
 
@@ -105,7 +105,7 @@ describe('HistoryTimelineView', () => {
     )
     const button = screen.getByRole('button', { name: 'Loading…' })
     expect(button).toBeDisabled()
-    expect(screen.queryByText(/Load 100 more/)).toBeNull()
+    expect(screen.queryByText('Load more')).toBeNull()
   })
 
   it('renders a link break instead when the surface points elsewhere', () => {

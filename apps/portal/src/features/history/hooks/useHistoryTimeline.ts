@@ -213,18 +213,32 @@ export const useNameHistoryTimeline = ({
   const allActions = summarizeEvents(events)
   const actions = limit === undefined ? allActions : allActions.slice(0, limit)
 
-  // Summarized actions come back newest-first, so the name's first action is
-  // the last of the ascending window.
-  const anchorAction = anchorQuery.data
-    ? summarizeEvents(anchorQuery.data).at(-1)
+  // The anchor read only sees the v2 connection, so on a migrated name its
+  // oldest event is the *v2* registration — not where the name actually began.
+  // fox.eth pinned "Aug 12, 2026 Register name" while its real first event is
+  // an ENSv1 registration from Apr 2024. The auxiliary sources are fetched
+  // whole, so their oldest event is authoritative and folds in here.
+  //
+  // Summarized actions come back newest-first, so the first action is the last
+  // of them.
+  const anchorAction = withAnchor
+    ? summarizeEvents(
+        [...(anchorQuery.data ?? []), ...auxiliaryEvents].sort(
+          (a, b) => b.timestamp - a.timestamp,
+        ),
+      ).at(-1)
     : undefined
 
   return {
     actions,
     // v1 types come from the auxiliary read, which the connection cannot see.
+    // Deduplicated here rather than downstream: the auxiliary list is every v1
+    // event the name has (172 on fox.eth) and is overwhelmingly repeats.
     eventTypes: [
-      ...(eventTypesQuery.data ?? []),
-      ...auxiliaryAll.map((event) => event.type),
+      ...new Set([
+        ...(eventTypesQuery.data ?? []),
+        ...auxiliaryAll.map((event) => event.type),
+      ]),
     ],
     anchorAction,
     totalCount,

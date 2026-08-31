@@ -38,19 +38,24 @@ export const timelineBreakActionClassName =
   'underline [text-underline-position:from-font] hover:text-foreground disabled:cursor-default disabled:no-underline disabled:opacity-60'
 
 /**
- * "Load N more events (M total)".
+ * "Load more events (N total)".
  *
- * The count is the feed's, not the loaded rows' — it is what pressing this
- * would work through. While a page is in flight the label says so in place,
- * keeping the row height and the rail unbroken.
+ * Deliberately quotes no increment, unlike the Figma copy's "Load 100 more":
+ * the page size bounds a *v2 fetch*, and what actually appears is that page
+ * plus every auxiliary (v1, child-registration) event the new horizon
+ * uncovers. On fox.eth a 50-event page rendered 107 events, and the click after
+ * it added 138 more — so any number here would be wrong for exactly the names
+ * that need paging most. The total is the honest figure and is verified against
+ * what renders.
+ *
+ * While a page is in flight the label says so in place, keeping the row height
+ * and the rail unbroken.
  */
 export const TimelineLoadMore = ({
-  pageSize,
   totalCount,
   isLoading,
   onLoadMore,
 }: {
-  readonly pageSize: number
   readonly totalCount: number | undefined
   readonly isLoading: boolean
   readonly onLoadMore: () => void
@@ -62,7 +67,7 @@ export const TimelineLoadMore = ({
       disabled={isLoading}
       className={cn(timelineBreakActionClassName, 'cursor-pointer')}
     >
-      {isLoading ? 'Loading…' : `Load ${pageSize} more`}
+      {isLoading ? 'Loading…' : 'Load more'}
     </button>
     {!isLoading && ' events'}
     {totalCount !== undefined && ` (${totalCount} total)`}

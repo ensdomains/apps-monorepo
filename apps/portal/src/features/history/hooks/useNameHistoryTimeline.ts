@@ -68,11 +68,15 @@ const HISTORY_TIMELINE_CHILD_LIMIT = 25
  * v1 history has no cursor to page: `fetchV1NameHistory` fans out into sibling
  * `events(first:)` selections across the domain, its registration and every
  * resolver it ever used, and there is no ordering that makes one offset
- * meaningful across all of them. So it is read once, generously, and the read
- * reports whether it saturated rather than quietly truncating — see
- * `v1Saturated` below.
+ * meaningful across all of them. So it is read once and the read reports whether
+ * it saturated rather than quietly truncating — see `v1Saturated` below.
+ *
+ * This is the width the query has always been issued at, and the one the
+ * subgraph's complexity limit is known to accept — `fetchV1NameHistory` notes
+ * that the query is rejected outright when `$first` is left unsupplied and each
+ * sibling selection is costed at its worst case. Widening it is not free.
  */
-const V1_HISTORY_WINDOW = 500
+const V1_HISTORY_WINDOW = 100
 
 /**
  * Window for the ascending anchor read. Wide enough that the oldest *complete*
@@ -349,13 +353,13 @@ const getNameHistoryAuxiliary = ResultFn(async function* ({
 
   // v1 events carry no timestamp; the timeline sorts and dates on one.
   const blockTimestamps = yield* getBlockTimestamps({
-    blocks: v1Raw.map((event) => BigInt(event.blockNumber)),
+    blocks: v1Raw.events.map((event) => BigInt(event.blockNumber)),
   })
 
   // Static chain constants, not lookups — the v1 subgraph records no emitting
   // address, so the contract badge is reconstructed from these.
   const v1EventsAll = adaptV1Events({
-    events: v1Raw,
+    events: v1Raw.events,
     blockTimestamps,
     name: normalizedName,
     namehash: node,
@@ -379,14 +383,14 @@ const getNameHistoryAuxiliary = ResultFn(async function* ({
 
   return ok({
     events: [...v1Events, ...children],
-    // Whether the v1 read filled its window, i.e. the name may have v1 history
+    // Whether the v1 read filled a window, i.e. the name may have v1 history
     // this does not carry. Surfaced rather than hidden — a v1 name has no
     // cursor to offer a "load more".
     //
-    // Compared against the raw response, not the scoped subset: the window
-    // bounds what the subgraph returned, and a filter applied afterwards can
-    // only shrink it.
-    v1Saturated: v1Raw.length >= V1_HISTORY_WINDOW,
+    // Reported per collection by the fetch, not inferred from the flattened
+    // length here: `first` bounds each sibling selection separately, so the
+    // total legitimately exceeds it — see `v1CollectionsSaturated`.
+    v1Saturated: v1Raw.saturated,
   })
 })
 
