@@ -102,14 +102,16 @@ const useTimelineModel = (
   const pagedEvents = pages.flatMap((page) => page.events)
   const events = mergeTimeline({ pagedEvents, auxiliaryEvents, hasNextPage })
 
-  // Counted by id, the way `mergeTimeline` merges. The sources are not supposed
-  // to overlap — a child's `LabelRegistered` carries the child's namehash, so
-  // the parent's connection never returns it — but counting raw length would
-  // inflate the total past what renders if that ever stopped holding.
-  const pagedIds = new Set(pagedEvents.map((event) => event.id))
-  const auxiliaryCount = auxiliaryEvents.filter(
-    (event) => !pagedIds.has(event.id),
-  ).length
+  // Summed, not deduplicated: the two sets are disjoint by construction. The
+  // paged connection filters on the subject's own namehash, so a child's
+  // `LabelRegistered` (which carries the *child's*) can never appear in it, and
+  // v1 events come from a different service in a different id shape. Verified
+  // against staging — `eth` reports 5 events against 168,090 subdomains; were
+  // child registrations in the parent's feed that count could not be 5.
+  //
+  // Deduplicating against loaded pages only would be worse than not trying: it
+  // cannot see an id on a page still unfetched, so the total would shift as you
+  // page rather than being stably right.
   const allActions = summarizeEvents(events, { includeSubjectName })
   const actions = limit === undefined ? allActions : allActions.slice(0, limit)
 
@@ -127,7 +129,7 @@ const useTimelineModel = (
     totalCount:
       pagedTotalCount === undefined || isTruncated || sourcesError
         ? undefined
-        : pagedTotalCount + auxiliaryCount,
+        : pagedTotalCount + auxiliaryEvents.length,
     hasMore: hasNextPage || allActions.length > actions.length,
     loadMore: () => void pagesQuery.fetchNextPage(),
     isLoadingMore: pagesQuery.isFetchingNextPage,
