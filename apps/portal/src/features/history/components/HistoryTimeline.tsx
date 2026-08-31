@@ -52,7 +52,7 @@ export const HistoryTimelineView = ({
     openIds,
     toggleAction,
     setAllOpen,
-    isV1Truncated,
+    isTruncated,
     sourcesError,
   } = model
 
@@ -103,10 +103,10 @@ export const HistoryTimelineView = ({
   // when "No history yet" would otherwise pass unavailable history off as none.
   const disclosures = (
     <>
-      {isV1Truncated && (
+      {isTruncated && (
         <p className="text-muted-foreground text-p">
-          This name has more ENSv1 history than can be read in one request; the
-          oldest of it is not shown.
+          Some of this name's history is too large to read in one request and is
+          not shown, so the event count is omitted.
         </p>
       )}
       {sourcesError && (

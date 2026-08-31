@@ -37,7 +37,8 @@ export type HistoryTimelineModel = {
   readonly isLoading: boolean
   readonly error: TimelineQueryError | null
   readonly sourcesError: TimelineQueryError | null
-  readonly isV1Truncated: boolean
+  /** A bounded source hit its cap, so any total derived from it is a lower bound. */
+  readonly isTruncated: boolean
   readonly openIds: ReadonlySet<Hex>
   readonly toggleAction: (txHash: Hex) => void
   readonly setAllOpen: (txHashes: readonly Hex[]) => void
@@ -52,7 +53,7 @@ type TimelineSources = {
   readonly eventTypes?: readonly string[]
   readonly limit?: number
   readonly includeSubjectName?: boolean
-  readonly isV1Truncated?: boolean
+  readonly isTruncated?: boolean
   readonly isLoadingSources?: boolean
   readonly sourcesError?: TimelineQueryError | null
 }
@@ -87,7 +88,7 @@ const useTimelineModel = (
     eventTypes = [],
     limit,
     includeSubjectName = false,
-    isV1Truncated = false,
+    isTruncated = false,
     isLoadingSources = false,
     sourcesError = null,
   }: TimelineSources = {},
@@ -124,7 +125,7 @@ const useTimelineModel = (
     // Withheld entirely when either source is known short, rather than
     // presenting a lower bound as an exact count.
     totalCount:
-      pagedTotalCount === undefined || isV1Truncated || sourcesError
+      pagedTotalCount === undefined || isTruncated || sourcesError
         ? undefined
         : pagedTotalCount + auxiliaryCount,
     hasMore: hasNextPage || allActions.length > actions.length,
@@ -135,7 +136,7 @@ const useTimelineModel = (
     isLoading: pagesQuery.isLoading || isLoadingSources,
     error: pagesQuery.error,
     sourcesError,
-    isV1Truncated,
+    isTruncated,
   }
 }
 
@@ -216,7 +217,7 @@ export const useNameHistoryTimeline = ({
       ]),
     ],
     limit,
-    isV1Truncated: auxiliaryQuery.data?.v1Saturated ?? false,
+    isTruncated: auxiliaryQuery.data?.isTruncated ?? false,
     isLoadingSources: auxiliaryQuery.isLoading,
     sourcesError:
       auxiliaryQuery.error ?? anchorQuery.error ?? eventTypesQuery.error,

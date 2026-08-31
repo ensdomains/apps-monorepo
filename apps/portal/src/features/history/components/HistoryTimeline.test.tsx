@@ -61,7 +61,7 @@ const model = (
   isLoading: false,
   error: null,
   sourcesError: null,
-  isV1Truncated: false,
+  isTruncated: false,
   openIds: new Set(),
   toggleAction: vi.fn(),
   setAllOpen: vi.fn(),
@@ -216,9 +216,23 @@ describe('HistoryTimelineView', () => {
     ).toBeInTheDocument()
   })
 
-  it('discloses v1 history the subgraph window could not reach', () => {
-    render(<HistoryTimelineView model={model({ isV1Truncated: true })} />)
-    expect(screen.getByText(/more ENSv1 history/)).toBeInTheDocument()
+  it('discloses a capped source and withholds the total', () => {
+    // Any bounded whole-read source — the v1 window, the 25-child cap — makes
+    // the total a lower bound, so it must not render as exact.
+    render(
+      <HistoryTimelineView
+        model={model({
+          isTruncated: true,
+          hasMore: true,
+          totalCount: undefined,
+        })}
+        breakContent="load-more"
+      />,
+    )
+    expect(
+      screen.getByText(/too large to read in one request/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/total\)/)).toBeNull()
   })
 
   it('expands and collapses every loaded row at once', async () => {

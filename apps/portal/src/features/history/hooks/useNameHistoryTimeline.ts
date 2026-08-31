@@ -255,7 +255,7 @@ const getNameHistoryAuxiliary = ResultFn(async function* ({
   const [children, v1Raw] = yield* fromPromise(
     Promise.all([
       eventTypes
-        ? Promise.resolve([])
+        ? Promise.resolve({ events: [], saturated: false })
         : graphqlIndexerClient
             .request<{
               domains: {
@@ -264,9 +264,13 @@ const getNameHistoryAuxiliary = ResultFn(async function* ({
                 }[]
               }[]
             }>(childRegistrationsQuery, { name: normalizedName })
-            .then(({ domains: [domain] }) =>
-              (domain?.subdomains ?? []).flatMap(({ events }) => events),
-            ),
+            .then(({ domains: [domain] }) => {
+              const subdomains = domain?.subdomains ?? []
+              return {
+                events: subdomains.flatMap(({ events }) => events),
+                saturated: subdomains.length >= HISTORY_TIMELINE_CHILD_LIMIT,
+              }
+            }),
       fetchV1NameHistory({
         subgraphUrl: client.chain.subgraphs.ens.url,
         namehash: node,
@@ -308,8 +312,11 @@ const getNameHistoryAuxiliary = ResultFn(async function* ({
     : v1EventsAll
 
   return ok({
-    events: [...v1Events, ...children],
-    v1Saturated: v1Raw.saturated,
+    events: [...v1Events, ...children.events],
+    // Every bounded whole-read source folds in here. A source that hit its cap
+    // makes the event total a lower bound, so the view must not print it as
+    // exact — see `totalCount` in `useHistoryTimeline`.
+    isTruncated: v1Raw.saturated || children.saturated,
   })
 })
 
