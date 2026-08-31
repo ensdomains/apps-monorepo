@@ -108,6 +108,21 @@ describe('HistoryTimelineView', () => {
     expect(screen.queryByText('Load more')).toBeNull()
   })
 
+  it('still offers the break when a page trims to no rows', async () => {
+    // A page whose boundary trim empties it (one block filling the page) used
+    // to dead-end on "No history yet" with more to come and nothing to click.
+    const loadMore = vi.fn()
+    render(
+      <HistoryTimelineView
+        model={model({ actions: [], hasMore: true, totalCount: 400, loadMore })}
+        breakContent="load-more"
+      />,
+    )
+    expect(screen.getByText(/No history yet/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Load more' }))
+    expect(loadMore).toHaveBeenCalledOnce()
+  })
+
   it('renders a link break instead when the surface points elsewhere', () => {
     render(
       <HistoryTimelineView

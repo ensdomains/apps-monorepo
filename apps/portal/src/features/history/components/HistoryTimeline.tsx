@@ -102,6 +102,25 @@ export const HistoryTimelineView = ({
     </div>
   )
 
+  const showBreak = hasMore && breakContent != null
+
+  const breakRow =
+    breakContent === 'load-more' ? (
+      <TimelineLoadMore
+        totalCount={totalCount}
+        isLoading={isLoadingMore}
+        onLoadMore={loadMore}
+      />
+    ) : (
+      <TimelineBreak>{breakContent}</TimelineBreak>
+    )
+
+  // Still offer the break with no rows to show. A page whose boundary trim
+  // empties it — one block filling the whole page — otherwise dead-ends on
+  // "No history yet" while the feed reports more to come, with nothing to
+  // click. Rare (staging's busiest block is 16 events against a page of 100)
+  // but a dead end, and cheaper to rule out here than to chase with extra
+  // requests in the fetch layer.
   if (actions.length === 0) {
     return (
       <div className="flex w-full min-w-0 flex-col gap-4">
@@ -111,6 +130,7 @@ export const HistoryTimelineView = ({
           description={emptyDescription}
           className="mx-0 my-0"
         />
+        {showBreak && <TimelineFrame>{breakRow}</TimelineFrame>}
       </div>
     )
   }
@@ -124,8 +144,6 @@ export const HistoryTimelineView = ({
         : anchorAction,
     )
     .otherwise(() => undefined)
-  const showBreak = hasMore && breakContent != null
-
   return (
     <div className="flex w-full min-w-0 flex-col gap-4 sm:gap-6">
       {header}
@@ -137,16 +155,7 @@ export const HistoryTimelineView = ({
           onToggle={toggleAction}
           connectBelow={showBreak && 'dashed'}
         />
-        {showBreak &&
-          (breakContent === 'load-more' ? (
-            <TimelineLoadMore
-              totalCount={totalCount}
-              isLoading={isLoadingMore}
-              onLoadMore={loadMore}
-            />
-          ) : (
-            <TimelineBreak>{breakContent}</TimelineBreak>
-          ))}
+        {showBreak && breakRow}
         {pinnedAction && (
           <ActionTimeline
             actions={[pinnedAction]}

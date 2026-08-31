@@ -273,7 +273,7 @@ export const getNameEventTypesQueryOptions = (scope: NameHistoryScope) =>
               ),
             ),
           ]),
-        (e) => new GetNameHistoryTimelineError({ cause: e as ClientError }),
+        (e) => new GetNameHistoryTimelineError({ cause: e as GraphqlRequestError }),
       ),
   })
 

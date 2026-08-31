@@ -1,9 +1,8 @@
 import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { gql } from '@urql/core'
-import { fromPromise, ok } from 'neverthrow'
+import { fromPromise } from 'neverthrow'
 import { graphqlIndexerClient } from '@/lib/indexer'
-import { dropClippedBoundary } from './dropClippedBoundary'
 import {
   TIMELINE_EVENT_FRAGMENT,
   type TimelineIndexerEvent,
@@ -155,51 +154,13 @@ const requestPage = ({
   )
 
 /**
- * How many extra requests one page may make before giving up on finding a whole
- * transaction.
+ * Fetch one page of a cursor-paginated event feed.
  *
- * A page renders by transaction, so a page whose events are *all* one
- * unfinished transaction has nothing to show — the timeline would come up empty
- * beside a "Load more" row. Continuing reaches the rest of that transaction.
- *
- * This only fires for a single transaction emitting more than a page of ENS
- * events, e.g. a bulk multicall setting 100+ records. It is not a general
- * over-fetch: the ordinary page holds many transactions, so the boundary trim
- * always leaves something and exactly one request is made.
+ * Deliberately does not chase a page whose boundary trim empties it — every
+ * event sharing one timestamp, i.e. a single block filling the whole page.
+ * That would be a network workaround for a rendering problem: the view offers
+ * "Load more" whenever the feed has another page, so an empty page is a click
+ * away from resolving itself rather than a dead end. Measured against staging,
+ * the busiest block holds 16 events against a page of 100.
  */
-const MAX_CONTINUATIONS = 2
-
-/**
- * Fetch one page of a cursor-paginated event feed, continuing only while the
- * page holds no complete transaction.
- *
- * The accumulated events come back under the *last* response's cursor and
- * `hasNextPage`, so the result still behaves as a single page to its caller and
- * composes with `getNextTimelinePageParam` unchanged.
- */
-export const fetchTimelineEventPage = ResultFn(async function* (
-  params: FetchTimelineEventPageParameters,
-) {
-  let page = yield* requestPage(params)
-
-  for (
-    let attempt = 0;
-    attempt < MAX_CONTINUATIONS &&
-    page.hasNextPage &&
-    dropClippedBoundary(page.events, page.hasNextPage).length === 0;
-    attempt++
-  ) {
-    const continuation = yield* requestPage({
-      ...params,
-      after: page.endCursor ?? undefined,
-    })
-    page = {
-      events: [...page.events, ...continuation.events],
-      endCursor: continuation.endCursor,
-      hasNextPage: continuation.hasNextPage,
-      totalCount: continuation.totalCount ?? page.totalCount,
-    }
-  }
-
-  return ok(page)
-})
+export const fetchTimelineEventPage = requestPage
