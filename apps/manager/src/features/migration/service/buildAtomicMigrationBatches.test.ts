@@ -3,6 +3,7 @@ import {
   getDestinationContracts,
   ROLES_ALL,
 } from '@ens-apps/smart-account'
+import { userRegistryRegisterSnippet } from '@ensdomains/ensjs-abi/v2/userRegistry'
 import {
   type Address,
   decodeFunctionData,
@@ -10,6 +11,7 @@ import {
   type Hex,
   namehash,
   parseAbi,
+  zeroAddress,
 } from 'viem'
 import { sepolia } from 'viem/chains'
 import { assert, describe, expect, it, vi } from 'vitest'
@@ -31,6 +33,12 @@ import {
   type DirectMigrationRoute,
 } from './directMigrationRoutes'
 import type { Profile } from './fetchV1Profiles'
+import {
+  buildRegisterCopiedSubnameCall,
+  buildUserRegistrySetupCalls,
+  computeUserRegistryAddress,
+  computeUserRegistrySalt,
+} from './userRegistryMigration'
 
 const HCA: Address = '0x00000000000000000000000000000000000000a1'
 const WALLET: Address = '0x00000000000000000000000000000000000000b1'
@@ -66,31 +74,34 @@ const directRoutesFor = (
   classified: readonly ClassifiedName[],
 ): ReadonlyMap<string, DirectMigrationRoute> =>
   new Map(
-    classified.map((name) => {
-      const isChild =
-        name.tokenType === 'locked-child' || name.tokenType === 'detached-child'
-      const createsWrapper =
-        name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child'
-      const receiver = isChild
-        ? computeExpectedWrapperRegistry({ name: name.parentName ?? 'eth' })
-        : name.tokenType === 'locked-2ld'
-          ? V2_CONTRACTS.LockedMigrationController
-          : V2_CONTRACTS.UnlockedMigrationController
-      return [
-        name.domain.name,
-        {
-          name: name.domain.name,
-          receiver,
-          parentDependency: isChild ? name.parentName : null,
-          expectedWrapperRegistry: createsWrapper
-            ? computeExpectedWrapperRegistry({ name: name.domain.name })
-            : null,
-          receiverReadiness: isChild
-            ? 'created-earlier-in-plan'
-            : 'migration-controller',
-        } satisfies DirectMigrationRoute,
-      ] as const
-    }),
+    classified
+      .filter((name) => name.action === 'migrate')
+      .map((name) => {
+        const isChild =
+          name.tokenType === 'locked-child' ||
+          name.tokenType === 'detached-child'
+        const createsWrapper =
+          name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child'
+        const receiver = isChild
+          ? computeExpectedWrapperRegistry({ name: name.parentName ?? 'eth' })
+          : name.tokenType === 'locked-2ld'
+            ? V2_CONTRACTS.LockedMigrationController
+            : V2_CONTRACTS.UnlockedMigrationController
+        return [
+          name.domain.name,
+          {
+            name: name.domain.name,
+            receiver,
+            parentDependency: isChild ? name.parentName : null,
+            expectedWrapperRegistry: createsWrapper
+              ? computeExpectedWrapperRegistry({ name: name.domain.name })
+              : null,
+            receiverReadiness: isChild
+              ? 'created-earlier-in-plan'
+              : 'migration-controller',
+          } satisfies DirectMigrationRoute,
+        ] as const
+      }),
   )
 
 const buildPlan = (
@@ -295,7 +306,6 @@ describe('buildAtomicMigrationBatches', () => {
       type: 'parent-subregistry',
       rootRegistry: V2_CONTRACTS.ETHRegistry,
       parentName: 'parent.eth',
-      parentLabels: ['parent'],
     })
 
     const childOwnerRolesExpectation = batch.verificationExpectations.find(
@@ -373,6 +383,284 @@ describe('buildAtomicMigrationBatches', () => {
     ])
   })
 
+  it('builds an arbitrary-depth copy tree in dependency-safe calldata order', async () => {
+    const root = makeName('example.eth', {
+      action: 'migrate',
+      tokenType: 'unwrapped',
+      parentName: 'eth',
+      label: 'example',
+    })
+    const fooExpiry = 2_000_000_000n
+    const foo = makeName('foo.example.eth', {
+      action: 'copy',
+      tokenType: 'unlocked-child',
+      parentName: 'example.eth',
+      label: 'foo',
+      sourceExpiry: fooExpiry,
+    })
+    const registryExpiry = (1n << 64n) - 1n
+    const bar = makeName('bar.foo.example.eth', {
+      action: 'copy',
+      tokenType: 'registry-child',
+      parentName: 'foo.example.eth',
+      label: 'bar',
+      sourceExpiry: registryExpiry,
+    })
+    const fooNode = namehash(foo.domain.name) as Hex
+    const fooProfile: Profile = {
+      texts: [{ key: 'url', value: 'https://example.com/foo' }],
+      addresses: [{ coinType: 60n, value: PROFILE_ADDRESS }],
+      contentHash: '0xe301' as Hex,
+      abis: [{ contentType: 1n, value: '0x5b5d' as Hex }],
+    }
+
+    const plan = await buildPlan({
+      // Deliberately reverse the input to prove graph ordering is authoritative.
+      classified: [bar, foo, root],
+      profiles: new Map([[fooNode, fooProfile]]),
+      resolverDeployed: true,
+      walletCoAdminGranted: true,
+    })
+    const batch = plan.batches[0]
+    assert(batch)
+
+    const exampleRegistry = computeUserRegistryAddress({
+      hca: HCA,
+      parentName: root.domain.name,
+    })
+    const fooRegistry = computeUserRegistryAddress({
+      hca: HCA,
+      parentName: foo.domain.name,
+    })
+    const exampleSetup = buildUserRegistrySetupCalls({
+      hca: HCA,
+      parentName: root.domain.name,
+      parentRegistry: V2_CONTRACTS.ETHRegistry,
+      parentLabel: root.label,
+      wallet: WALLET,
+    })
+    const fooSetup = buildUserRegistrySetupCalls({
+      hca: HCA,
+      parentName: foo.domain.name,
+      parentRegistry: exampleRegistry,
+      parentLabel: foo.label,
+      wallet: WALLET,
+    })
+    expect(batch.names).toEqual([
+      'example.eth',
+      'foo.example.eth',
+      'bar.foo.example.eth',
+    ])
+    expect(batch.operations).toEqual([
+      { name: 'example.eth', action: 'migrate' },
+      { name: 'foo.example.eth', action: 'copy' },
+      { name: 'bar.foo.example.eth', action: 'copy' },
+    ])
+    expect(
+      batch.innerExecutions.map(({ phase, name }) => ({ phase, name })),
+    ).toEqual([
+      { phase: 'user-registry-deployment', name: 'example.eth' },
+      { phase: 'user-registry-deployment', name: 'foo.example.eth' },
+      { phase: 'user-registry-wallet-grant', name: 'example.eth' },
+      { phase: 'user-registry-wallet-grant', name: 'foo.example.eth' },
+      { phase: 'user-registry-parent', name: 'example.eth' },
+      { phase: 'user-registry-parent', name: 'foo.example.eth' },
+      { phase: 'migrate', name: 'example.eth' },
+      { phase: 'copy-register', name: 'foo.example.eth' },
+      { phase: 'copy-register', name: 'bar.foo.example.eth' },
+      { phase: 'profile-replay', name: 'foo.example.eth' },
+    ])
+
+    const helperExecution = batch.innerExecutions.find(
+      ({ phase }) => phase === 'migrate',
+    )
+    assert(helperExecution)
+    expect(helperExecution.names).toEqual(['example.eth'])
+    const decodedMigrate = decodeFunctionData({
+      abi: MIGRATION_HELPER_ABI,
+      data: helperExecution.call.data,
+    })
+    expect(decodedMigrate.functionName).toBe('migrate')
+    expect(decodedMigrate.args).toEqual([
+      [
+        {
+          label: 'example',
+          owner: getAddress(WALLET),
+          subregistry: getAddress(exampleRegistry),
+          resolver: getAddress(plan.resolver),
+        },
+      ],
+      [],
+      [],
+      [],
+    ])
+
+    const fooCopyCall = buildRegisterCopiedSubnameCall({
+      registry: exampleRegistry,
+      label: 'foo',
+      owner: WALLET,
+      childRegistry: fooRegistry,
+      resolver: plan.resolver,
+      expiry: fooExpiry,
+    })
+    const barCopyCall = buildRegisterCopiedSubnameCall({
+      registry: fooRegistry,
+      label: 'bar',
+      owner: WALLET,
+      childRegistry: zeroAddress,
+      resolver: plan.resolver,
+      expiry: registryExpiry,
+    })
+    expect(batch.innerExecutions.slice(0, 9).map(({ call }) => call)).toEqual([
+      exampleSetup[0],
+      fooSetup[0],
+      exampleSetup[1],
+      fooSetup[1],
+      exampleSetup[2],
+      fooSetup[2],
+      helperExecution.call,
+      fooCopyCall,
+      barCopyCall,
+    ])
+
+    const rootExecution = batch.nameExecutions.find(
+      ({ classified }) => classified.domain.name === 'example.eth',
+    )
+    const fooExecution = batch.nameExecutions.find(
+      ({ classified }) => classified.domain.name === 'foo.example.eth',
+    )
+    const barExecution = batch.nameExecutions.find(
+      ({ classified }) => classified.domain.name === 'bar.foo.example.eth',
+    )
+    assert(rootExecution)
+    assert(fooExecution)
+    assert(barExecution)
+    expect(rootExecution.migrationData).toMatchObject({
+      subregistry: exampleRegistry,
+      owner: WALLET,
+      resolver: plan.resolver,
+    })
+    expect(fooExecution).toMatchObject({
+      directRoute: null,
+      migrationData: null,
+    })
+    expect(barExecution).toMatchObject({
+      directRoute: null,
+      migrationData: null,
+    })
+
+    const [fooRegistration, barRegistration] = batch.innerExecutions.filter(
+      ({ phase }) => phase === 'copy-register',
+    )
+    assert(fooRegistration)
+    assert(barRegistration)
+    expect(fooRegistration.call.to).toBe(exampleRegistry)
+    expect(barRegistration.call.to).toBe(fooRegistry)
+    const decodedFooRegistration = decodeFunctionData({
+      abi: userRegistryRegisterSnippet,
+      data: fooRegistration.call.data,
+    })
+    const decodedBarRegistration = decodeFunctionData({
+      abi: userRegistryRegisterSnippet,
+      data: barRegistration.call.data,
+    })
+    expect(decodedFooRegistration.args[0]).toBe('foo')
+    expect(decodedFooRegistration.args[5]).toBe(fooExpiry)
+    expect(decodedBarRegistration.args[0]).toBe('bar')
+    expect(decodedBarRegistration.args[5]).toBe(registryExpiry)
+
+    const expectationFor = (
+      type: (typeof batch.verificationExpectations)[number]['type'],
+      name: string,
+    ) =>
+      batch.verificationExpectations.find(
+        (expectation) => expectation.type === type && expectation.name === name,
+      )
+
+    expect(
+      expectationFor('user-registry-implementation', 'example.eth'),
+    ).toMatchObject({
+      registry: exampleRegistry,
+      factory: V2_CONTRACTS.VerifiableFactory,
+      expectedImplementation: V2_CONTRACTS.UserRegistryImpl,
+      deployer: HCA,
+      salt: computeUserRegistrySalt('example.eth'),
+    })
+    expect(
+      expectationFor('user-registry-parent', 'foo.example.eth'),
+    ).toMatchObject({
+      registry: fooRegistry,
+      expectedParentRegistry: exampleRegistry,
+      expectedParentLabel: 'foo',
+    })
+    expect(
+      batch.verificationExpectations.filter(
+        (expectation) =>
+          expectation.type === 'user-registry-root-roles' &&
+          expectation.name === 'foo.example.eth',
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        registry: fooRegistry,
+        account: HCA,
+        roleBitmap: ROLES_ALL,
+      }),
+      expect.objectContaining({
+        registry: fooRegistry,
+        account: WALLET,
+        roleBitmap: ROLES_ALL,
+      }),
+    ])
+    expect(expectationFor('name-subregistry', 'example.eth')).toMatchObject({
+      expectedSubregistry: exampleRegistry,
+    })
+    expect(expectationFor('name-subregistry', 'foo.example.eth')).toMatchObject(
+      {
+        expectedSubregistry: fooRegistry,
+      },
+    )
+    expect(
+      expectationFor('name-subregistry', 'bar.foo.example.eth'),
+    ).toMatchObject({
+      expectedSubregistry: zeroAddress,
+    })
+
+    expect(expectationFor('name-owner', 'bar.foo.example.eth')).toMatchObject({
+      expectedOwner: WALLET,
+      registryPath: {
+        type: 'parent-subregistry',
+        parentName: 'foo.example.eth',
+      },
+    })
+    expect(expectationFor('name-resolver', 'foo.example.eth')).toMatchObject({
+      expectedResolver: plan.resolver,
+    })
+    expect(expectationFor('name-owner-roles', 'foo.example.eth')).toMatchObject(
+      {
+        account: WALLET,
+        roleBitmap: ROLES_ALL,
+      },
+    )
+    expect(expectationFor('name-expiry', 'foo.example.eth')).toMatchObject({
+      expectedExpiry: fooExpiry,
+    })
+    expect(expectationFor('name-expiry', 'bar.foo.example.eth')).toMatchObject({
+      expectedExpiry: registryExpiry,
+    })
+    expect(
+      batch.verificationExpectations.filter(
+        (expectation) => expectation.name === 'foo.example.eth',
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'profile-text' }),
+        expect.objectContaining({ type: 'profile-address' }),
+        expect.objectContaining({ type: 'profile-contenthash' }),
+        expect.objectContaining({ type: 'profile-abi' }),
+      ]),
+    )
+  })
+
   it('derives locked owner and WrapperRegistry root roles from NameWrapper fuses', () => {
     expect(lockedNameOwnerRoleBitmap(FUSES.CANNOT_UNWRAP)).toBe(
       ROLE_SET_RESOLVER | (ROLE_SET_RESOLVER << 128n) | ROLE_CAN_TRANSFER_ADMIN,
@@ -430,7 +718,10 @@ describe('buildAtomicMigrationBatches', () => {
 
   it('omits one-time setup calls when resolver invariants are already satisfied', async () => {
     const plan = await buildPlan({
-      classified: [makeName('alice.eth'), makeName('bob.eth')],
+      classified: [
+        makeName('alice.eth', { tokenType: 'unlocked' }),
+        makeName('bob.eth'),
+      ],
       resolverDeployed: true,
       walletCoAdminGranted: true,
     })
@@ -448,8 +739,37 @@ describe('buildAtomicMigrationBatches', () => {
       'wallet-name-roles',
       'name-owner',
       'name-resolver',
+      'name-subregistry',
       'name-owner',
       'name-resolver',
+      'name-subregistry',
+    ])
+
+    const helperExecution = batch.innerExecutions[0]
+    assert(helperExecution)
+    const decodedMigrate = decodeFunctionData({
+      abi: MIGRATION_HELPER_ABI,
+      data: helperExecution.call.data,
+    })
+    expect(decodedMigrate.args[0]).toEqual([
+      expect.objectContaining({ label: 'bob', subregistry: zeroAddress }),
+    ])
+    expect(decodedMigrate.args[1]).toEqual([
+      [expect.objectContaining({ label: 'alice', subregistry: zeroAddress })],
+    ])
+    expect(
+      batch.verificationExpectations.filter(
+        (expectation) => expectation.type === 'name-subregistry',
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        name: 'alice.eth',
+        expectedSubregistry: zeroAddress,
+      }),
+      expect.objectContaining({
+        name: 'bob.eth',
+        expectedSubregistry: zeroAddress,
+      }),
     ])
   })
 
@@ -496,6 +816,89 @@ describe('buildAtomicMigrationBatches', () => {
         ),
       ),
     ).toEqual(['alice.eth', 'bob.eth', 'carol.eth'])
+  })
+
+  it('splits a copy tree only after each node setup and registration unit', async () => {
+    const root = makeName('example.eth', {
+      action: 'migrate',
+      tokenType: 'unwrapped',
+      parentName: 'eth',
+      label: 'example',
+    })
+    const foo = makeName('foo.example.eth', {
+      action: 'copy',
+      tokenType: 'unlocked-child',
+      parentName: 'example.eth',
+      label: 'foo',
+      sourceExpiry: 2_000_000_000n,
+    })
+    const bar = makeName('bar.foo.example.eth', {
+      action: 'copy',
+      tokenType: 'registry-child',
+      parentName: 'foo.example.eth',
+      label: 'bar',
+      sourceExpiry: (1n << 64n) - 1n,
+    })
+    const estimateOuterGas = vi.fn(
+      ({ names }: { names: readonly string[] }) => BigInt(names.length) * 100n,
+    )
+
+    const plan = await buildPlan({
+      classified: [bar, root, foo],
+      resolverDeployed: true,
+      walletCoAdminGranted: true,
+      maxOuterGas: 200n,
+      estimateOuterGas,
+    })
+
+    expect(plan.batches.map(({ names }) => names)).toEqual([
+      ['example.eth', 'foo.example.eth'],
+      ['bar.foo.example.eth'],
+    ])
+    expect(plan.batches.map(({ operations }) => operations)).toEqual([
+      [
+        { name: 'example.eth', action: 'migrate' },
+        { name: 'foo.example.eth', action: 'copy' },
+      ],
+      [{ name: 'bar.foo.example.eth', action: 'copy' }],
+    ])
+    expect(
+      plan.batches.map((batch) =>
+        batch.innerExecutions.map(({ phase, name }) => ({ phase, name })),
+      ),
+    ).toEqual([
+      [
+        { phase: 'user-registry-deployment', name: 'example.eth' },
+        { phase: 'user-registry-deployment', name: 'foo.example.eth' },
+        { phase: 'user-registry-wallet-grant', name: 'example.eth' },
+        { phase: 'user-registry-wallet-grant', name: 'foo.example.eth' },
+        { phase: 'user-registry-parent', name: 'example.eth' },
+        { phase: 'user-registry-parent', name: 'foo.example.eth' },
+        { phase: 'migrate', name: 'example.eth' },
+        { phase: 'copy-register', name: 'foo.example.eth' },
+      ],
+      [{ phase: 'copy-register', name: 'bar.foo.example.eth' }],
+    ])
+    expect(
+      plan.batches.flatMap((batch) =>
+        batch.innerExecutions.filter(
+          ({ call }) =>
+            call.to.toLowerCase() ===
+            V2_CONTRACTS.MigrationHelper.toLowerCase(),
+        ),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        phase: 'migrate',
+        names: ['example.eth'],
+      }),
+    ])
+
+    for (const batch of plan.batches) {
+      expect(decodeOwnerExecutions(batch.outerCall.data)).toHaveLength(
+        batch.innerExecutions.length,
+      )
+    }
   })
 
   it('seeds execution from the preview boundary instead of estimating every prefix', async () => {

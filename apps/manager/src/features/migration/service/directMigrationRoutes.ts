@@ -10,7 +10,7 @@ import {
 } from 'viem'
 
 import { V2_CONTRACTS } from '../contracts/addresses'
-import type { ClassifiedName } from './classifyNames'
+import type { DirectClassifiedName } from './classifyNames'
 
 const verifiableFactoryAbi = parseAbi([
   'function verifyContract(address proxy) view returns (address implementation)',
@@ -58,10 +58,10 @@ export class DirectMigrationRouteError extends TaggedError(
   readonly cause?: unknown
 }> {}
 
-const isChild = (name: ClassifiedName): boolean =>
+const isChild = (name: DirectClassifiedName): boolean =>
   name.tokenType === 'locked-child' || name.tokenType === 'detached-child'
 
-const createsWrapperRegistry = (name: ClassifiedName): boolean =>
+const createsWrapperRegistry = (name: DirectClassifiedName): boolean =>
   name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child'
 
 const labelsForEthName = (name: string): readonly string[] => {
@@ -114,10 +114,10 @@ export const computeExpectedWrapperRegistry = (params: {
 
 /** Stable topological ordering used before gas partitioning. */
 export const orderDirectMigrationNamesParentFirst = (
-  classified: readonly ClassifiedName[],
+  classified: readonly DirectClassifiedName[],
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: keeping duplicate, dependency, and cycle validation in the same topological pass preserves the fail-closed ordering invariant.
-): readonly ClassifiedName[] => {
-  const byName = new Map<string, ClassifiedName>()
+): readonly DirectClassifiedName[] => {
+  const byName = new Map<string, DirectClassifiedName>()
   for (const name of classified) {
     if (byName.has(name.domain.name)) {
       throw new DirectMigrationRouteError({
@@ -129,7 +129,7 @@ export const orderDirectMigrationNamesParentFirst = (
     byName.set(name.domain.name, name)
   }
 
-  const childrenByParent = new Map<string, readonly ClassifiedName[]>()
+  const childrenByParent = new Map<string, readonly DirectClassifiedName[]>()
   const inDegree = new Map<string, number>(
     classified.map((name) => [name.domain.name, 0]),
   )
@@ -163,7 +163,7 @@ export const orderDirectMigrationNamesParentFirst = (
   const queue = classified.filter(
     (name) => (inDegree.get(name.domain.name) ?? 0) === 0,
   )
-  const ordered: ClassifiedName[] = []
+  const ordered: DirectClassifiedName[] = []
 
   for (let cursor = 0; cursor < queue.length; cursor += 1) {
     const name = queue[cursor]
@@ -302,7 +302,7 @@ const verifyExistingWrapperChain = async (params: {
  */
 export const resolveDirectMigrationRoutes = async (params: {
   readonly publicClient: PublicClient
-  readonly classified: readonly ClassifiedName[]
+  readonly classified: readonly DirectClassifiedName[]
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: route selection keeps all parent-readiness branches together so every child is assigned exactly one verified receiver.
 }): Promise<ReadonlyMap<string, DirectMigrationRoute>> => {
   const ordered = orderDirectMigrationNamesParentFirst(params.classified)

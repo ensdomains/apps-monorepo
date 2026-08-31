@@ -64,6 +64,7 @@ describe('assertRequiredMigrationContractCode', () => {
 
   it.each([
     ['PublicResolverSet', V2_CONTRACTS.PublicResolverSet],
+    ['UserRegistryImpl', V2_CONTRACTS.UserRegistryImpl],
     ['WrapperRegistryImpl', V2_CONTRACTS.WrapperRegistryImpl],
   ] as const)('identifies %s when the configured contract is missing code', async (contractName, missingAddress) => {
     const publicClient = makePublicClient()

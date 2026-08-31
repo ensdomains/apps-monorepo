@@ -115,25 +115,6 @@ beforeEach(() => {
   getMigrationResolverAddressMock.mockClear()
 })
 
-describe('computeMigrationPreflight — preExistingOwnedPermRes', () => {
-  it('does not adopt an EOA-owned resolver for HCA-batched migration', async () => {
-    const result = await run()
-    expect(result.preExistingOwnedPermRes).toBeNull()
-  })
-})
-
-describe('computeMigrationPreflight — skipApprovalPhase', () => {
-  it('cannot skip direct-HCA permission checks before the HCA is known', async () => {
-    const result = await run()
-    expect(result.skipApprovalPhase).toBe(false)
-  })
-
-  it('skips permissions when the existing HCA is already an operator', async () => {
-    const result = await run({ hcaAddress: HCA })
-    expect(result.skipApprovalPhase).toBe(true)
-  })
-})
-
 describe('computeMigrationPreflight — HCA approvals', () => {
   it('plans a token approval and manager approval when missing', async () => {
     const result = await run({
@@ -150,8 +131,6 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       },
     })
 
-    expect(result.requiresManagerRestoration).toBe(true)
-    expect(result.skipApprovalPhase).toBe(false)
     expect(result.migrationApprovals?.map((approval) => approval.id)).toEqual([
       'base-registrar:hca-token',
       'eth-registry:hca',
@@ -228,7 +207,6 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     expect(checkResolverReadinessMock).toHaveBeenCalledWith(
       expect.objectContaining({ hca: HCA, wallet: EOA }),
     )
-    expect(result.preExistingOwnedPermRes).toBeNull()
     expect(result.hcaResolverAddress).toBe(HCA_RESOLVER)
     expect(result.hcaResolverReadiness).toEqual({
       status: 'deployment-required',

@@ -47,4 +47,20 @@ describe('approvalNeedsFor', () => {
       hasWrapped: false,
     })
   })
+
+  it('does not request NameWrapper approval for copy-only descendants', () => {
+    const copy = makeClassified({
+      action: 'copy',
+      name: 'foo.alice.eth',
+      label: 'foo',
+      parentName: 'alice.eth',
+    })
+
+    expect(
+      approvalNeedsFor({
+        ...emptyGroups(),
+        childNames: new Map([['alice.eth', [copy]]]),
+      }).hasWrapped,
+    ).toBe(false)
+  })
 })

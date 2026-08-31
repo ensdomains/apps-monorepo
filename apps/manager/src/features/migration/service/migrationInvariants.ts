@@ -36,6 +36,7 @@ export type RequiredMigrationContractName =
   | 'VerifiableFactory'
   | 'VerifiableFactoryProxyLogic'
   | 'PermissionedResolverImpl'
+  | 'UserRegistryImpl'
   | 'UnlockedMigrationController'
   | 'LockedMigrationController'
   | 'MigrationHelper'
@@ -73,6 +74,7 @@ export const REQUIRED_MIGRATION_CONTRACTS = [
   ['VerifiableFactory', V2_CONTRACTS.VerifiableFactory],
   ['VerifiableFactoryProxyLogic', V2_CONTRACTS.VerifiableFactoryProxyLogic],
   ['PermissionedResolverImpl', V2_CONTRACTS.PermissionedResolverImpl],
+  ['UserRegistryImpl', V2_CONTRACTS.UserRegistryImpl],
   ['UnlockedMigrationController', V2_CONTRACTS.UnlockedMigrationController],
   ['LockedMigrationController', V2_CONTRACTS.LockedMigrationController],
   ['MigrationHelper', V2_CONTRACTS.MigrationHelper],

@@ -297,7 +297,10 @@ const matchMigrationRevert = (data: Hex, depth = 0): MigrationError | null => {
 export const decodeMigrationError = (err: unknown): MigrationError => {
   if (isUserRejection(err)) return { type: 'user-rejected' }
 
-  if (hasNamedError(err, 'MigrationPlanChangedError')) {
+  if (
+    hasNamedError(err, 'MigrationPlanChangedError') ||
+    hasNamedError(err, 'CopyMigrationReadinessError')
+  ) {
     return { type: 'plan-changed' }
   }
   if (hasNamedError(err, 'MigrationCleanupError')) {

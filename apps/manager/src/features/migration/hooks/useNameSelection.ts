@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  buildRootSubtreeIndex,
   collectAllSelectable,
-  countVisibleRows,
   filterGroupsBySearch,
   filterOrphansBySearch,
-  toggleGroup as toggleGroupPure,
-  toggleName as toggleNamePure,
+  toggleRootSubtree,
 } from '../components/selectNames.helpers'
 import type { ClassifiedName } from '../service/classifyNames'
 import { groupByParent } from '../service/groupByParent'
@@ -25,6 +24,10 @@ export const useNameSelection = ({
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const { groups, orphans } = useMemo(() => groupByParent(eligible), [eligible])
+  const rootSubtrees = useMemo(
+    () => buildRootSubtreeIndex(groups, orphans),
+    [groups, orphans],
+  )
   const allSelectable = useMemo(
     () => collectAllSelectable(groups, orphans),
     [groups, orphans],
@@ -61,23 +64,12 @@ export const useNameSelection = ({
   const toggleName = useCallback(
     (name: string) => {
       setSelected((prev) => {
-        const next = toggleNamePure(prev, name)
+        const next = toggleRootSubtree(prev, name, rootSubtrees)
         onNamesChange([...next])
         return next
       })
     },
-    [onNamesChange],
-  )
-
-  const toggleGroup = useCallback(
-    (parentName: string, subnameNames: readonly string[]) => {
-      setSelected((prev) => {
-        const next = toggleGroupPure(prev, parentName, subnameNames)
-        onNamesChange([...next])
-        return next
-      })
-    },
-    [onNamesChange],
+    [onNamesChange, rootSubtrees],
   )
 
   const toggleAll = useCallback(() => {
@@ -91,7 +83,6 @@ export const useNameSelection = ({
     })
   }, [allSelectable, onNamesChange])
 
-  const allSelectableCount = countVisibleRows(groups, orphans)
   const currentSelected = useMemo(
     () => new Set([...selected].filter((name) => allSelectable.has(name))),
     [allSelectable, selected],
@@ -105,12 +96,11 @@ export const useNameSelection = ({
     setSearch,
     selected: currentSelected,
     totalSelected: currentSelected.size,
-    visibleCount: allSelectableCount,
+    visibleCount: allSelectable.size,
     allSelected,
     filteredGroups,
     filteredOrphans,
     toggleName,
-    toggleGroup,
     toggleAll,
   }
 }

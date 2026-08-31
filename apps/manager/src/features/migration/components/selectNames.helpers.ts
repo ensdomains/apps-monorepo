@@ -1,5 +1,4 @@
-import type { ClassifiedName } from '../service/classifyNames'
-import type { NameGroup } from '../service/groupByParent'
+import type { NameTreeNode } from '../service/groupByParent'
 
 export const BULK_SELECTION_THRESHOLD = 15
 export const NAME_SEARCH_THRESHOLD = 9
@@ -20,69 +19,88 @@ export const shouldUseSmallSelectionCard = (eligibleCount: number): boolean =>
   eligibleCount > 0 && eligibleCount <= SMALL_SELECTION_LAYOUT_THRESHOLD
 
 export const collectAllSelectable = (
-  groups: readonly NameGroup[],
-  orphans: readonly ClassifiedName[],
+  groups: readonly NameTreeNode[],
+  orphans: readonly NameTreeNode[],
 ): Set<string> => {
   const all = new Set<string>()
-  for (const group of groups) {
-    all.add(group.parent.domain.name)
-    for (const sub of group.subnames) all.add(sub.domain.name)
+
+  const collect = (nodes: readonly NameTreeNode[]) => {
+    for (const node of nodes) {
+      all.add(node.item.domain.name)
+      collect(node.children)
+    }
   }
-  for (const orphan of orphans) all.add(orphan.domain.name)
+
+  collect(groups)
+  collect(orphans)
   return all
 }
 
-export const toggleName = (
-  prev: ReadonlySet<string>,
-  name: string,
-): Set<string> => {
-  const next = new Set(prev)
-  if (next.has(name)) next.delete(name)
-  else next.add(name)
-  return next
+export const buildRootSubtreeIndex = (
+  groups: readonly NameTreeNode[],
+  orphans: readonly NameTreeNode[],
+): ReadonlyMap<string, ReadonlySet<string>> => {
+  const rootSubtrees = new Map<string, ReadonlySet<string>>()
+  const collectSubtree = (node: NameTreeNode): ReadonlySet<string> => {
+    const subtreeNames = new Set<string>([node.item.domain.name])
+    for (const child of node.children) {
+      const childSubtree = collectSubtree(child)
+      for (const childName of childSubtree) subtreeNames.add(childName)
+    }
+    return subtreeNames
+  }
+
+  for (const root of [...groups, ...orphans]) {
+    rootSubtrees.set(root.item.domain.name, collectSubtree(root))
+  }
+  return rootSubtrees
 }
 
-export const toggleGroup = (
+export const toggleRootSubtree = (
   prev: ReadonlySet<string>,
-  parentName: string,
-  subnameNames: readonly string[],
+  name: string,
+  rootSubtrees: ReadonlyMap<string, ReadonlySet<string>>,
 ): Set<string> => {
+  const subtreeNames = rootSubtrees.get(name)
+  if (!subtreeNames) return new Set(prev)
+
   const next = new Set(prev)
-  if (next.has(parentName)) {
-    next.delete(parentName)
-    for (const sub of subnameNames) next.delete(sub)
-  } else {
-    next.add(parentName)
-    for (const sub of subnameNames) next.add(sub)
+  if (next.has(name)) {
+    for (const subtreeName of subtreeNames) next.delete(subtreeName)
+    return next
   }
+
+  for (const subtreeName of subtreeNames) next.add(subtreeName)
   return next
 }
 
 const matchesQuery = (name: string, q: string): boolean =>
   name.toLowerCase().includes(q)
 
-export const filterGroupsBySearch = (
-  groups: readonly NameGroup[],
+const filterNodeBySearch = (
+  node: NameTreeNode,
   searchLower: string,
-): readonly NameGroup[] => {
-  if (!searchLower) return groups
-  return groups.filter(
-    (g) =>
-      matchesQuery(g.parent.domain.name, searchLower) ||
-      g.subnames.some((s) => matchesQuery(s.domain.name, searchLower)),
-  )
+): NameTreeNode | null => {
+  if (matchesQuery(node.item.domain.name, searchLower)) return node
+
+  const children = node.children.flatMap((child) => {
+    const filtered = filterNodeBySearch(child, searchLower)
+    return filtered ? [filtered] : []
+  })
+  return children.length > 0 ? { ...node, children } : null
 }
 
-export const filterOrphansBySearch = (
-  orphans: readonly ClassifiedName[],
+const filterTreesBySearch = (
+  nodes: readonly NameTreeNode[],
   searchLower: string,
-): readonly ClassifiedName[] => {
-  if (!searchLower) return orphans
-  return orphans.filter((o) => matchesQuery(o.domain.name, searchLower))
+): readonly NameTreeNode[] => {
+  if (!searchLower) return nodes
+  return nodes.flatMap((node) => {
+    const filtered = filterNodeBySearch(node, searchLower)
+    return filtered ? [filtered] : []
+  })
 }
 
-export const countVisibleRows = (
-  groups: readonly NameGroup[],
-  orphans: readonly ClassifiedName[],
-): number =>
-  groups.reduce((acc, g) => acc + 1 + g.subnames.length, 0) + orphans.length
+export const filterGroupsBySearch = filterTreesBySearch
+
+export const filterOrphansBySearch = filterTreesBySearch

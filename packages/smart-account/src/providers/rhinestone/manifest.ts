@@ -53,6 +53,8 @@ export interface DestinationContracts {
   readonly lockedMigrationController: Address
   /** Allowlist used to identify legacy public resolvers during migration. */
   readonly publicResolverSet: Address
+  /** Implementation deployed for user registries recreated during migration. */
+  readonly userRegistryImpl: Address
   /** Implementation deployed for wrapper registries created by locked migration. */
   readonly wrapperRegistryImpl: Address
   /** Replacement/default resolver written during migration. */
@@ -113,6 +115,7 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     verifiableFactoryDeployBlock: 11_383_823n,
     rootRegistry: '0x8115186E8f2E0B0281e86ab91f0f48Ba90364354',
     publicResolverSet: '0xf2794eBD70C1fa74094A9eC653DA1c2dF9f5a5A9',
+    userRegistryImpl: ensjsSepolia.ensUserRegistryImpl.address,
     wrapperRegistryImpl: '0x433F81a3E8921Fc868ae1A04576f135d9A75B0f2',
     publicResolverV2: '0xe7B9A25607E02da8145E4eB1836CA539e53F11f7',
 

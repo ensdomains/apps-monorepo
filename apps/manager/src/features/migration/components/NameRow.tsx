@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { ClassifiedName } from '../service/classifyNames'
 import { getMigrationAvatarUrl } from './nameAvatar.helpers'
@@ -7,36 +7,24 @@ import { getMigrationAvatarUrl } from './nameAvatar.helpers'
 type NameRowProps = {
   readonly item: ClassifiedName
   readonly isSelected: boolean
-  readonly indent: boolean
-  readonly interactive: boolean
-  readonly firstSubname?: boolean
-  readonly onClick?: () => void
+  readonly depth: number
+  readonly onToggle?: (name: string) => void
 }
 
-export const NameRow = ({
+const NameRowComponent = ({
   item,
   isSelected,
-  indent,
-  interactive,
-  firstSubname = false,
-  onClick,
+  depth,
+  onToggle,
 }: NameRowProps) => {
-  const isSubname = indent && !interactive
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
   const avatarUrl = getMigrationAvatarUrl(item.domain.name)
+  const isNested = depth > 0
   const showAvatar = failedAvatarUrl !== avatarUrl
 
   const content = (
     <>
-      {isSubname ? (
-        <div
-          aria-hidden
-          className={cn(
-            'pointer-events-none absolute bottom-1/2 left-14.5 z-0 w-7.5 rounded-bl-md border-ens-garnet-900/30 border-b border-l',
-            firstSubname ? '-top-4' : '-top-10.25',
-          )}
-        />
-      ) : (
+      {!isNested && (
         <div
           className={cn(
             'flex size-7 shrink-0 items-center justify-center rounded-full border p-1 transition-colors',
@@ -65,6 +53,8 @@ export const NameRow = ({
             alt=""
             aria-hidden
             className="absolute inset-0 size-full rounded-sm object-cover"
+            decoding="async"
+            loading="lazy"
             onError={() => setFailedAvatarUrl(avatarUrl)}
             src={avatarUrl}
           />
@@ -84,23 +74,30 @@ export const NameRow = ({
   )
 
   const rowClass = cn(
-    'relative flex items-center gap-3 outline-none focus-visible:[&>div:first-child]:ring-2 focus-visible:[&>div:first-child]:ring-ens-lapis-500/40 focus-visible:[&>div:first-child]:ring-offset-2',
-    isSubname && 'pl-22',
-    interactive ? 'cursor-pointer' : 'cursor-default',
+    'relative flex max-w-full items-center gap-3 outline-none focus-visible:[&>div:first-child]:ring-2 focus-visible:[&>div:first-child]:ring-ens-lapis-500/40 focus-visible:[&>div:first-child]:ring-offset-2',
+    isNested ? 'cursor-default' : 'cursor-pointer',
   )
 
-  if (interactive) {
+  if (isNested) {
     return (
-      <button
-        aria-pressed={isSelected}
-        className={rowClass}
-        onClick={onClick}
-        type="button"
-      >
+      <div className={rowClass} title={item.domain.name}>
         {content}
-      </button>
+      </div>
     )
   }
 
-  return <div className={rowClass}>{content}</div>
+  return (
+    <button
+      aria-label={item.domain.name}
+      aria-pressed={isSelected}
+      className={rowClass}
+      onClick={() => onToggle?.(item.domain.name)}
+      title={item.domain.name}
+      type="button"
+    >
+      {content}
+    </button>
+  )
 }
+
+export const NameRow = memo(NameRowComponent)

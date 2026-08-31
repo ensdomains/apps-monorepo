@@ -107,10 +107,6 @@ export const SelectNamesStepFooter = ({
   visibleCount,
 }: SelectNamesStepFooterProps) => {
   const nftCopyEnabled = isFeatureEnabled('COMMEMORATIVE_NFT_COPY')
-  const atomicBatchCount =
-    gasEstimate.status === 'ready'
-      ? (gasEstimate.plan.atomicBatches?.length ?? 0)
-      : 0
 
   return (
     <div className="sticky inset-x-0 bottom-0 z-20 flex min-h-36 w-full shrink-0 flex-col items-stretch justify-start gap-4 bg-ens-garnet-200 px-5 pt-4 pb-14 sm:min-h-28.75 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8 lg:px-37.5">
@@ -120,14 +116,6 @@ export const SelectNamesStepFooter = ({
           isWaitingForGasFunding={isWaitingForGasFunding}
           totalSelected={totalSelected}
         />
-        {atomicBatchCount > 1 && (
-          <p>
-            <Trans>
-              This upgrade is split into {atomicBatchCount} gas-safe atomic
-              batches. Each batch needs a wallet confirmation.
-            </Trans>
-          </p>
-        )}
       </div>
       <div className="flex w-full flex-col gap-1 sm:w-auto">
         <button
