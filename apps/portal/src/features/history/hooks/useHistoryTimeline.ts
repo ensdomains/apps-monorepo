@@ -36,6 +36,7 @@ export type HistoryTimelineModel = {
   readonly isLoadingMore: boolean
   readonly isLoading: boolean
   readonly error: TimelineQueryError | null
+  readonly sourcesError: TimelineQueryError | null
   readonly isV1Truncated: boolean
   readonly openIds: ReadonlySet<Hex>
   readonly toggleAction: (txHash: Hex) => void
@@ -53,6 +54,7 @@ type TimelineSources = {
   readonly includeSubjectName?: boolean
   readonly isV1Truncated?: boolean
   readonly isLoadingSources?: boolean
+  readonly sourcesError?: TimelineQueryError | null
 }
 
 const newestFirst = (a: TimelineIndexerEvent, b: TimelineIndexerEvent) =>
@@ -87,6 +89,7 @@ const useTimelineModel = (
     includeSubjectName = false,
     isV1Truncated = false,
     isLoadingSources = false,
+    sourcesError = null,
   }: TimelineSources = {},
 ): HistoryTimelineModel => {
   const disclosure = useActionDisclosure()
@@ -121,6 +124,7 @@ const useTimelineModel = (
     isLoadingMore: pagesQuery.isFetchingNextPage,
     isLoading: pagesQuery.isLoading || isLoadingSources,
     error: pagesQuery.error,
+    sourcesError,
     isV1Truncated,
   }
 }
@@ -147,7 +151,7 @@ type UseNameHistoryTimelineParameters = {
   readonly from?: number
   readonly to?: number
   readonly limit?: number
-  readonly withAnchor?: boolean
+  readonly shouldFetchAnchor?: boolean
 }
 
 export const useNameHistoryTimeline = ({
@@ -157,7 +161,7 @@ export const useNameHistoryTimeline = ({
   from,
   to,
   limit,
-  withAnchor = true,
+  shouldFetchAnchor = true,
 }: UseNameHistoryTimelineParameters): HistoryTimelineModel => {
   // The chip narrows within the facet rather than replacing it, so a selection
   // outside the facet cannot widen the feed.
@@ -177,7 +181,10 @@ export const useNameHistoryTimeline = ({
   const [auxiliaryQuery, anchorQuery, eventTypesQuery] = useQueries({
     queries: [
       getNameHistoryAuxiliaryQueryOptions(facetScope),
-      { ...getNameHistoryAnchorQueryOptions(feedScope), enabled: withAnchor },
+      {
+        ...getNameHistoryAnchorQueryOptions(feedScope),
+        enabled: shouldFetchAnchor,
+      },
       getNameEventTypesQueryOptions(facetScope),
     ],
   })
@@ -191,7 +198,7 @@ export const useNameHistoryTimeline = ({
         (to === undefined || event.timestamp <= to) &&
         (!eventTypes || eventTypes.includes(event.type)),
     ),
-    anchorEvents: withAnchor ? (anchorQuery.data ?? []) : undefined,
+    anchorEvents: shouldFetchAnchor ? (anchorQuery.data ?? []) : undefined,
     eventTypes: [
       ...new Set([
         ...(eventTypesQuery.data ?? []),
@@ -201,5 +208,7 @@ export const useNameHistoryTimeline = ({
     limit,
     isV1Truncated: auxiliaryQuery.data?.v1Saturated ?? false,
     isLoadingSources: auxiliaryQuery.isLoading,
+    sourcesError:
+      auxiliaryQuery.error ?? anchorQuery.error ?? eventTypesQuery.error,
   })
 }

@@ -20,11 +20,8 @@ import { TimelineBreak, TimelineLoadMore } from './TimelineBreak'
 
 interface HistoryTimelineViewProps {
   readonly model: HistoryTimelineModel
-  /** `'load-more'` fetches in place; a node links out instead. */
   readonly breakContent?: 'load-more' | ReactNode
-  /** Left of the header bar; this view is feed-agnostic and has no subject of its own. */
   readonly heading?: ReactNode
-  /** Rendered after the filter chips, e.g. a "Full history" link. */
   readonly action?: ReactNode
   readonly filters?: ReactNode
   readonly emptyTitle?: string
@@ -56,6 +53,7 @@ export const HistoryTimelineView = ({
     toggleAction,
     setAllOpen,
     isV1Truncated,
+    sourcesError,
   } = model
 
   const allExpanded =
@@ -154,6 +152,12 @@ export const HistoryTimelineView = ({
           oldest of it is not shown.
         </p>
       )}
+      {sourcesError && (
+        <ErrorMessage
+          compact
+          description="Couldn't load all of this name's history — ENSv1 events, the first event or the event filters may be missing."
+        />
+      )}
     </div>
   )
 }
@@ -161,13 +165,8 @@ export const HistoryTimelineView = ({
 interface HistoryTimelineProps
   extends Omit<HistoryTimelineViewProps, 'model' | 'filters' | 'breakContent'> {
   readonly name: string
-  /** How the per-facet views show their slice; omit for the full feed. */
   readonly scope?: readonly TimelineEventType[]
   readonly showFilters?: boolean
-  /**
-   * On by default: every surface this drives reads a *page*, so without it a
-   * scoped facet would cap silently with nothing on screen saying so.
-   */
   readonly canLoadMore?: boolean
 }
 
@@ -191,7 +190,7 @@ export const HistoryTimeline = ({
     scope,
     selectedTypes,
     ...dateRangeToTimestamps(dateRange),
-    withAnchor: canLoadMore,
+    shouldFetchAnchor: canLoadMore,
   })
 
   if (model.isLoading) return <LoadingMessage />

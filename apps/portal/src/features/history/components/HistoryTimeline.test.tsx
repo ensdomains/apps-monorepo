@@ -60,6 +60,7 @@ const model = (
   isLoadingMore: false,
   isLoading: false,
   error: null,
+  sourcesError: null,
   isV1Truncated: false,
   openIds: new Set(),
   toggleAction: vi.fn(),
@@ -171,6 +172,22 @@ describe('HistoryTimelineView', () => {
       />,
     )
     expect(screen.queryByText('Register name')).toBeNull()
+  })
+
+  it('discloses a failed source instead of passing the gap off as complete', () => {
+    render(
+      <HistoryTimelineView
+        model={model({
+          sourcesError: Object.assign(new Error('subgraph down'), {
+            cause: { message: 'subgraph down' },
+          }),
+          totalCount: 9,
+        })}
+      />,
+    )
+    expect(
+      screen.getByText(/Couldn't load all of this name's history/),
+    ).toBeInTheDocument()
   })
 
   it('discloses v1 history the subgraph window could not reach', () => {
