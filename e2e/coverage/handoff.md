@@ -5,6 +5,71 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 27 — 2026-08-31 · E2E-004 withdrawn — the real fix was the local indexer mock, not an app bug
+
+**Batch:** correction to iteration 26. The user flagged from memory that
+migration testing had needed the indexer mocked before, and asked for a
+proper check rather than taking the filed defect at face value. That check
+overturned it.
+
+**Result:** E2E-004 withdrawn (see `docs/e2e-defects.md`). The real fix:
+`e2e/.env` (local, untracked-until-now) had `E2E_MOCK_INDEXER=false` while
+`.env.ci` has it `true`. `UpgradeBanner.tsx`'s `useMigratedNamesCount` queries
+the local Panoptes indexer directly (`getMigratedNamesCount`, separate from
+the V1 subgraph `mockV1Subgraph` already handled) and also gates the banner's
+render — with the real, locally-drift-prone Panoptes hit instead of the mock,
+that gate never settled reliably. Fixed `e2e/.env`'s `E2E_MOCK_INDEXER` to
+`true` (matching CI); the "Upgrade Names" button was then visible in **8
+consecutive runs, zero failures**, each completing in ~32s (versus 5-6 minutes
+of timeouts before). One more real bug found and fixed along the way:
+`searchAndNavigateToProfile`'s `page.waitForURL` never resolved even once the
+target page had visibly, correctly rendered (confirmed via a screenshot taken
+at the "timeout" — the profile heading was already on screen) — swapped for
+asserting on the rendered heading directly, which is both more robust and a
+better oracle.
+
+**Ratchet unchanged: total 54.** `migration.spec.ts` stays excluded from the
+run config: with these fixes, the first test ("migrate an unwrapped V1 name")
+is now fully verified (8+ consecutive green runs, well past the two-run bar),
+but running the full file surfaced two more distinct issues in the other six
+tests that are NOT yet fixed:
+- **"V1 records are preserved after migration"** fails with a bare
+  `ExecutionRevertedError` — this matches the already-documented,
+  already-known gap from iteration 23 (`makeV1Name.ts`'s header): `setV1Records`
+  writes through `V1_PUBLIC_RESOLVER`, whose own authorization is hardcoded to
+  the pre-repoint fixture registry. Not new; not fixed here; already tracked.
+- **"pre-registered V1 name is not available for new registration" (A11)**
+  and **"can edit profile after migration"** both fail on stale
+  locators/assertions (`toBeVisible`/`not.toBeVisible` mismatches, an
+  `element(s) not found`) — genuinely new findings, not yet investigated.
+  Same class of problem iteration 24 found three of in the shared
+  `runMigrationFlow` helper, just in code paths that helper doesn't cover.
+
+**In flight: nothing broken** — the two landed fixes (`e2e/.env`,
+`searchAndNavigateToProfile`) are real, verified, and safe: spot-checked with
+a full `profile.spec.ts` run afterward (15 passed, 2 failed on pre-existing,
+unrelated calendar/transaction-timeout issues already on record from earlier
+in this session, 2 skipped) to confirm the indexer-mock flip doesn't regress
+anything else. `E2E_MOCK_INDEXER=true` already governs CI for the whole
+suite, so this local change is bringing local dev in line with CI, not
+introducing new behavior.
+
+**Lesson for next time:** the render-level instrumentation in iteration 26
+was real, correctly executed, and still pointed at the wrong layer — it
+proved the *symptom* (a query that doesn't settle) but not which query was
+actually responsible, because the eligibility hook and the migrated-count
+hook are siblings feeding the same banner. When a render-level trace confirms
+oscillation, check every data dependency of the component making the
+render decision, not just the one hook already under suspicion.
+
+**Next:** investigate and fix the A11 and edit-profile stale-locator
+failures (same audit `runMigrationFlow`'s fixes already covered for the other
+five tests), then the file can be fully re-enabled and `G*` rows tagged —
+GW1 (unwrapped) is ready to tag the moment the file itself is turned back on,
+since that specific test is the one already fully verified.
+
+---
+
 ## Iteration 26 — 2026-08-31 · root cause confirmed and filed as E2E-004: an app-side query-stability bug, not test or infra
 
 **Batch:** continuation of the "Upgrade Names" investigation (iterations
