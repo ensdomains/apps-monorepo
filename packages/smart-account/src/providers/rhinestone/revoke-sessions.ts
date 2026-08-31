@@ -104,6 +104,85 @@ export interface RevokeSessionsResult {
   readonly deploymentTransactionHash?: Hex
 }
 
+/** Reads and writes must agree on the chain, or a passing precondition says
+ *  nothing about where the transaction lands. */
+function assertChain(params: RevokeSessionsParams): void {
+  const { chain } = params
+  if (
+    params.walletClient.chain?.id !== chain.id ||
+    params.publicClient.chain?.id !== chain.id
+  ) {
+    throw new RevokeFailure(
+      'wrong-chain',
+      `Wallet must be on ${chain.name} (chain ${chain.id}) to revoke sessions`,
+    )
+  }
+}
+
+/** Send one owner transaction and require a successful receipt. */
+async function sendAndConfirm(
+  params: RevokeSessionsParams,
+  account: NonNullable<WalletClient['account']>,
+  call: Call,
+  failureMessage: string,
+): Promise<Hex> {
+  const hash = await params.walletClient.sendTransaction({
+    account,
+    chain: params.chain,
+    to: call.to,
+    value: call.value,
+    data: call.data,
+  })
+  const receipt = await params.publicClient.waitForTransactionReceipt({ hash })
+  if (receipt.status !== 'success') {
+    throw new RevokeFailure('transaction-failed', failureMessage)
+  }
+  return hash
+}
+
+/** Deploy the HCA when it has no code, or refuse if no deployment call exists. */
+async function ensureDeployed(
+  params: RevokeSessionsParams,
+  account: NonNullable<WalletClient['account']>,
+): Promise<Hex | undefined> {
+  const code = await params.publicClient.getCode({ address: params.hca })
+  if (code && code !== '0x') return undefined
+  if (!params.deploymentCall) {
+    throw new RevokeFailure(
+      'not-deployed',
+      'HCA is not deployed, so there is nothing to revoke on-chain. Its stored authorization stays usable once the account is deployed — pass a deploymentCall to revoke completely.',
+    )
+  }
+  return sendAndConfirm(
+    params,
+    account,
+    params.deploymentCall,
+    'HCA deployment transaction reverted',
+  )
+}
+
+/**
+ * `onlyOwner` compares msg.sender to the account's immutable owner, so a
+ * mismatch reverts CallerNotOwner(). Check first to fail with a readable
+ * message instead of an opaque wallet error.
+ */
+async function assertOwner(
+  params: RevokeSessionsParams,
+  owner: Address,
+): Promise<void> {
+  const [onChainOwner] = await params.publicClient.readContract({
+    address: params.hca,
+    abi: standaloneHcaRevokeAbi,
+    functionName: 'ownerAndSessionNonce',
+  })
+  if (!isAddressEqual(onChainOwner, owner)) {
+    throw new RevokeFailure(
+      'not-owner',
+      `Connected wallet ${owner} is not the HCA owner ${onChainOwner}`,
+    )
+  }
+}
+
 /**
  * Revoke every session for an HCA, then drop the local record.
  *
@@ -119,80 +198,17 @@ export function revokeSessionsOnChain(
       if (!account) {
         throw new RevokeFailure('unknown', 'Wallet client has no account')
       }
-      const { chain } = params
-      // Reads and writes must agree on the chain, or a passing precondition
-      // says nothing about where the transaction lands.
-      const walletChainId = params.walletClient.chain?.id
-      const publicChainId = params.publicClient.chain?.id
-      if (walletChainId !== chain.id || publicChainId !== chain.id) {
-        throw new RevokeFailure(
-          'wrong-chain',
-          `Wallet must be on ${chain.name} (chain ${chain.id}) to revoke sessions`,
-        )
-      }
+      assertChain(params)
 
-      const code = await params.publicClient.getCode({ address: params.hca })
-      const isDeployed = Boolean(code && code !== '0x')
+      const deploymentTransactionHash = await ensureDeployed(params, account)
+      await assertOwner(params, account.address)
 
-      let deploymentTransactionHash: Hex | undefined
-      if (!isDeployed) {
-        if (!params.deploymentCall) {
-          throw new RevokeFailure(
-            'not-deployed',
-            'HCA is not deployed, so there is nothing to revoke on-chain. Its stored authorization stays usable once the account is deployed — pass a deploymentCall to revoke completely.',
-          )
-        }
-        deploymentTransactionHash = await params.walletClient.sendTransaction({
-          account,
-          chain,
-          to: params.deploymentCall.to,
-          value: params.deploymentCall.value,
-          data: params.deploymentCall.data,
-        })
-        const deployReceipt =
-          await params.publicClient.waitForTransactionReceipt({
-            hash: deploymentTransactionHash,
-          })
-        if (deployReceipt.status !== 'success') {
-          throw new RevokeFailure(
-            'transaction-failed',
-            'HCA deployment transaction reverted',
-          )
-        }
-      }
-
-      // `onlyOwner` compares msg.sender to the account's immutable owner, so a
-      // mismatch reverts CallerNotOwner(). Check first to fail with a readable
-      // message instead of an opaque wallet error.
-      const [onChainOwner] = await params.publicClient.readContract({
-        address: params.hca,
-        abi: standaloneHcaRevokeAbi,
-        functionName: 'ownerAndSessionNonce',
-      })
-      if (!isAddressEqual(onChainOwner, account.address)) {
-        throw new RevokeFailure(
-          'not-owner',
-          `Connected wallet ${account.address} is not the HCA owner ${onChainOwner}`,
-        )
-      }
-
-      const call = buildRevokeSessionsCall({ hca: params.hca })
-      const transactionHash = await params.walletClient.sendTransaction({
+      const transactionHash = await sendAndConfirm(
+        params,
         account,
-        chain,
-        to: call.to,
-        value: call.value,
-        data: call.data,
-      })
-      const receipt = await params.publicClient.waitForTransactionReceipt({
-        hash: transactionHash,
-      })
-      if (receipt.status !== 'success') {
-        throw new RevokeFailure(
-          'transaction-failed',
-          'revokeSessions transaction reverted',
-        )
-      }
+        buildRevokeSessionsCall({ hca: params.hca }),
+        'revokeSessions transaction reverted',
+      )
 
       // Only now is the stored record genuinely dead.
       removeSession(params.hca)
