@@ -300,6 +300,79 @@ function PresetButtons({
   )
 }
 
+/** The name picker plus its per-name actions and copy-target state. */
+function SelectedNameActions({
+  activeNames,
+  busy,
+  copyState,
+  isCopyPreset,
+  onMigrate,
+  onRemove,
+  onSelect,
+  selectedName,
+}: {
+  readonly activeNames: readonly ActiveName[]
+  readonly busy: boolean
+  readonly copyState: CopyTargetState
+  readonly isCopyPreset: boolean
+  readonly onMigrate: (name: ActiveName) => void
+  readonly onRemove: (id: string) => void
+  readonly onSelect: (id: string) => void
+  readonly selectedName: ActiveName | null
+}) {
+  return (
+    <>
+      <select
+        value={selectedName?.id ?? ''}
+        onChange={(e) => onSelect(e.target.value)}
+        style={selectStyle}
+        disabled={busy}
+      >
+        {activeNames.map((n) => (
+          <option key={n.id} value={n.id}>
+            {n.label}.eth ({n.type})
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        disabled={busy || !selectedName}
+        onClick={() => selectedName && onMigrate(selectedName)}
+        style={smallChipStyle('#0080bc')}
+        title={selectedName ? `Migrate ${selectedName.label}.eth` : ''}
+      >
+        Migrate
+      </button>
+      {/* A copy lands in a UserRegistry whose address derives from
+          namehash(parentName), so re-migrating the same label hits the same slot
+          and `copyMigrationReadiness` refuses it. The app shows none of that —
+          just a disabled button under "Gas estimate unavailable". */}
+      {isCopyPreset && (
+        <span
+          style={copyStateChipStyle(copyState)}
+          title={
+            copyState === 'pristine'
+              ? 'No subregistry on the 2LD yet — a fresh copy plan will be accepted.'
+              : 'This 2LD already has a subregistry, so a fresh copy plan is refused (subregistry-conflict / v2-name-history). Seed the preset again for a new label.'
+          }
+        >
+          {copyState === 'pristine' ? 'pristine' : 'already migrated'}
+        </span>
+      )}
+      <button
+        type="button"
+        disabled={!selectedName}
+        onClick={() => selectedName && onRemove(selectedName.id)}
+        style={smallChipStyle('#737373')}
+        title="Remove selected"
+      >
+        ×
+      </button>
+      <span style={sepStyle} />
+    </>
+  )
+}
+
 /** Inner UI — preset buttons, name list, migrate actions. No wrapper or positioning. */
 export function MigrationPanelContent() {
   const endpoint = MIGRATION_TOOL_RPC
@@ -405,56 +478,16 @@ export function MigrationPanelContent() {
       {/* Row 2: name picker + migrate actions + anvil */}
       <div style={rowStyle}>
         {activeNames.length > 0 ? (
-          <>
-            <select
-              value={selectedName?.id ?? ''}
-              onChange={(e) => setSelectedId(e.target.value)}
-              style={selectStyle}
-              disabled={busy}
-            >
-              {activeNames.map((n) => (
-                <option key={n.id} value={n.id}>
-                  {n.label}.eth ({n.type})
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              disabled={busy || !selectedName}
-              onClick={() => selectedName && migrateSingle(selectedName)}
-              style={smallChipStyle('#0080bc')}
-              title={selectedName ? `Migrate ${selectedName.label}.eth` : ''}
-            >
-              Migrate
-            </button>
-            {/* A copy lands in a UserRegistry whose address derives from
-                namehash(parentName), so re-migrating the same label hits the
-                same slot and `copyMigrationReadiness` refuses it. The app shows
-                none of that — just a disabled button under "Gas estimate
-                unavailable" — so surface it here. */}
-            {isCopyPreset && (
-              <span
-                style={copyStateChipStyle(copyState)}
-                title={
-                  copyState === 'pristine'
-                    ? 'No subregistry on the 2LD yet — a fresh copy plan will be accepted.'
-                    : 'This 2LD already has a subregistry, so a fresh copy plan is refused (subregistry-conflict / v2-name-history). Seed the preset again for a new label.'
-                }
-              >
-                {copyState === 'pristine' ? 'pristine' : 'already migrated'}
-              </span>
-            )}
-            <button
-              type="button"
-              disabled={!selectedName}
-              onClick={() => selectedName && removeName(selectedName.id)}
-              style={smallChipStyle('#737373')}
-              title="Remove selected"
-            >
-              ×
-            </button>
-            <span style={sepStyle} />
-          </>
+          <SelectedNameActions
+            activeNames={activeNames}
+            busy={busy}
+            copyState={copyState}
+            isCopyPreset={isCopyPreset}
+            onMigrate={migrateSingle}
+            onRemove={removeName}
+            onSelect={setSelectedId}
+            selectedName={selectedName}
+          />
         ) : (
           <span style={emptyStyle}>no names</span>
         )}
