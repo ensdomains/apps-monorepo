@@ -2,6 +2,7 @@ import {
   type InfiniteData,
   type QueryKey,
   type UseInfiniteQueryOptions,
+  type UseInfiniteQueryResult,
   useInfiniteQuery,
   useQueries,
 } from '@tanstack/react-query'
@@ -10,6 +11,7 @@ import type { Hex } from 'viem'
 import { mergeTimeline } from '../mergeTimeline'
 import type { Action } from '../summarize/summarize.types'
 import { summarizeEvents } from '../summarize/summarizeEvents'
+import type { TimelineIndexerEvent } from '../timelineEvent'
 import type { TimelinePage } from '../timelineEventPage'
 import {
   getNameEventTypesQueryOptions,
@@ -26,7 +28,6 @@ export type TimelineQueryError = Error & {
 /** What every timeline surface renders from, whichever feed is behind it. */
 export type HistoryTimelineModel = {
   readonly actions: readonly Action[]
-  /** Never narrowed by the current selection — that collapsed the chip to one option. */
   readonly eventTypes: readonly string[]
   readonly anchorAction: Action | undefined
   readonly totalCount: number | undefined
@@ -35,43 +36,96 @@ export type HistoryTimelineModel = {
   readonly isLoadingMore: boolean
   readonly isLoading: boolean
   readonly error: TimelineQueryError | null
-  /** A v1 collection filled its window, so older v1 history exists unreachably. */
   readonly isV1Truncated: boolean
   readonly openIds: ReadonlySet<Hex>
   readonly toggleAction: (txHash: Hex) => void
   readonly setAllOpen: (txHashes: readonly Hex[]) => void
 }
 
+/** Everything a feed may have beside its paged source. */
+type TimelineSources = {
+  /** Read whole, no cursor of their own: v1 history, child registrations. */
+  readonly auxiliaryEvents?: readonly TimelineIndexerEvent[]
+  /** Ascending slice for the pinned row; `undefined` pins nothing. */
+  readonly anchorEvents?: readonly TimelineIndexerEvent[]
+  readonly eventTypes?: readonly string[]
+  readonly limit?: number
+  readonly includeSubjectName?: boolean
+  readonly isV1Truncated?: boolean
+  readonly isLoadingSources?: boolean
+}
+
+const newestFirst = (a: TimelineIndexerEvent, b: TimelineIndexerEvent) =>
+  b.timestamp - a.timestamp
+
 const useActionDisclosure = () => {
   const [openIds, setOpenIds] = useState<ReadonlySet<Hex>>(new Set())
 
-  const toggleAction = (txHash: Hex) =>
-    setOpenIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(txHash)) next.delete(txHash)
-      else next.add(txHash)
-      return next
-    })
-
-  const setAllOpen = (txHashes: readonly Hex[]) => setOpenIds(new Set(txHashes))
-
-  return { openIds, toggleAction, setAllOpen }
-}
-
-const flattenTimelinePages = (data: InfiniteData<TimelinePage> | undefined) => {
-  const pages = data?.pages ?? []
-  const last = pages.at(-1)
   return {
-    events: pages.flatMap((page) => page.events),
-    hasNextPage: last?.hasNextPage ?? false,
-    totalCount: last?.totalCount,
+    openIds,
+    toggleAction: (txHash: Hex) =>
+      setOpenIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(txHash)) next.delete(txHash)
+        else next.add(txHash)
+        return next
+      }),
+    setAllOpen: (txHashes: readonly Hex[]) => setOpenIds(new Set(txHashes)),
   }
 }
 
-/**
- * A feed that is nothing but its paged source — the homepage, a registry. No v1
- * to merge and no registration to anchor on.
- */
+const useTimelineModel = (
+  pagesQuery: UseInfiniteQueryResult<
+    InfiniteData<TimelinePage>,
+    TimelineQueryError
+  >,
+  {
+    auxiliaryEvents = [],
+    anchorEvents,
+    eventTypes = [],
+    limit,
+    includeSubjectName = false,
+    isV1Truncated = false,
+    isLoadingSources = false,
+  }: TimelineSources = {},
+): HistoryTimelineModel => {
+  const disclosure = useActionDisclosure()
+
+  const pages = pagesQuery.data?.pages ?? []
+  const hasNextPage = pages.at(-1)?.hasNextPage ?? false
+  const pagedTotalCount = pages.at(-1)?.totalCount
+
+  const events = mergeTimeline({
+    pagedEvents: pages.flatMap((page) => page.events),
+    auxiliaryEvents,
+    hasNextPage,
+  })
+  const allActions = summarizeEvents(events, { includeSubjectName })
+  const actions = limit === undefined ? allActions : allActions.slice(0, limit)
+
+  return {
+    ...disclosure,
+    actions,
+    eventTypes,
+    anchorAction:
+      anchorEvents &&
+      summarizeEvents(
+        [...anchorEvents, ...auxiliaryEvents].sort(newestFirst),
+      ).at(-1),
+    totalCount:
+      pagedTotalCount === undefined
+        ? undefined
+        : pagedTotalCount + auxiliaryEvents.length,
+    hasMore: hasNextPage || allActions.length > actions.length,
+    loadMore: () => void pagesQuery.fetchNextPage(),
+    isLoadingMore: pagesQuery.isFetchingNextPage,
+    isLoading: pagesQuery.isLoading || isLoadingSources,
+    error: pagesQuery.error,
+    isV1Truncated,
+  }
+}
+
+/** A feed that is nothing but its paged source — the homepage, a registry. */
 export const useTimelinePagesModel = <
   TError extends TimelineQueryError,
   TQueryKey extends QueryKey,
@@ -83,52 +137,19 @@ export const useTimelinePagesModel = <
     TQueryKey,
     string | undefined
   >,
-): HistoryTimelineModel => {
-  const pagesQuery = useInfiniteQuery(options)
-  const { openIds, toggleAction, setAllOpen } = useActionDisclosure()
-
-  const {
-    events: pagedEvents,
-    hasNextPage,
-    totalCount,
-  } = flattenTimelinePages(pagesQuery.data)
-  const events = mergeTimeline({ pagedEvents, hasNextPage })
-  const actions = summarizeEvents(events, { includeSubjectName: true })
-
-  return {
-    actions,
-    eventTypes: [],
-    anchorAction: undefined,
-    totalCount,
-    hasMore: hasNextPage,
-    loadMore: () => void pagesQuery.fetchNextPage(),
-    isLoadingMore: pagesQuery.isFetchingNextPage,
-    isLoading: pagesQuery.isLoading,
-    error: pagesQuery.error,
-    isV1Truncated: false,
-    openIds,
-    toggleAction,
-    setAllOpen,
-  }
-}
+): HistoryTimelineModel =>
+  useTimelineModel(useInfiniteQuery(options), { includeSubjectName: true })
 
 type UseNameHistoryTimelineParameters = {
   readonly name: string
-  /** The facet's own event types (ownership, resolver, …); stable per surface. */
   readonly scope?: readonly string[]
-  /** The Event-chip selection, narrowing within `scope`. */
   readonly selectedTypes?: readonly string[]
   readonly from?: number
   readonly to?: number
-  /** Cap the rendered rows, for the Overview's preview. */
   readonly limit?: number
   readonly withAnchor?: boolean
 }
 
-/**
- * Separate queries on purpose: paging the feed must not refetch the v1 subgraph,
- * and the anchor does not change as pages load.
- */
 export const useNameHistoryTimeline = ({
   name,
   scope,
@@ -160,70 +181,25 @@ export const useNameHistoryTimeline = ({
       getNameEventTypesQueryOptions(facetScope),
     ],
   })
-  const { openIds, toggleAction, setAllOpen } = useActionDisclosure()
 
-  const {
-    events: pagedEvents,
-    hasNextPage,
-    totalCount: pagedTotalCount,
-  } = flattenTimelinePages(pagesQuery.data)
-
-  // The paged query filters in its `where`; the whole-read sources filter here.
   const auxiliaryAll = auxiliaryQuery.data?.events ?? []
-  const auxiliaryEvents = auxiliaryAll.filter(
-    (event) =>
-      (from === undefined || event.timestamp >= from) &&
-      (to === undefined || event.timestamp <= to) &&
-      (!eventTypes || eventTypes.includes(event.type)),
-  )
 
-  const events = mergeTimeline({ pagedEvents, auxiliaryEvents, hasNextPage })
-
-  // The connection counts only what it can reach, so v1 and child registrations
-  // are added back.
-  const totalCount =
-    pagedTotalCount === undefined
-      ? undefined
-      : pagedTotalCount + auxiliaryEvents.length
-
-  const allActions = summarizeEvents(events)
-  const actions = limit === undefined ? allActions : allActions.slice(0, limit)
-
-  // The anchor read sees only v2, so on a migrated name its oldest event is the
-  // *v2* registration — fox.eth pinned Aug 2026 over its real Apr 2024 ENSv1
-  // start. The whole-read sources are authoritative for the tail, so they fold in.
-  const anchorAction = withAnchor
-    ? summarizeEvents(
-        [...(anchorQuery.data ?? []), ...auxiliaryEvents].sort(
-          (a, b) => b.timestamp - a.timestamp,
-        ),
-      ).at(-1)
-    : undefined
-
-  return {
-    actions,
-    // v1 types come from the auxiliary read; deduped here because that list is
-    // every v1 event the name has and is overwhelmingly repeats.
+  return useTimelineModel(pagesQuery, {
+    auxiliaryEvents: auxiliaryAll.filter(
+      (event) =>
+        (from === undefined || event.timestamp >= from) &&
+        (to === undefined || event.timestamp <= to) &&
+        (!eventTypes || eventTypes.includes(event.type)),
+    ),
+    anchorEvents: withAnchor ? (anchorQuery.data ?? []) : undefined,
     eventTypes: [
       ...new Set([
         ...(eventTypesQuery.data ?? []),
         ...auxiliaryAll.map((event) => event.type),
       ]),
     ],
-    anchorAction,
-    totalCount,
-    // Drawn on evidence of hidden history, not on having something to pin.
-    hasMore: hasNextPage || allActions.length > actions.length,
-    loadMore: () => void pagesQuery.fetchNextPage(),
-    isLoadingMore: pagesQuery.isFetchingNextPage,
-    // v1 gates first paint too, or a v2-only history would render and then have
-    // older rows pushed in underneath it.
-    isLoading: pagesQuery.isLoading || auxiliaryQuery.isLoading,
-    // An auxiliary failure costs v1 rows, not the timeline.
-    error: pagesQuery.error,
+    limit,
     isV1Truncated: auxiliaryQuery.data?.v1Saturated ?? false,
-    openIds,
-    toggleAction,
-    setAllOpen,
-  }
+    isLoadingSources: auxiliaryQuery.isLoading,
+  })
 }
