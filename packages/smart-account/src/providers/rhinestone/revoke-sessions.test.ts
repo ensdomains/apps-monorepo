@@ -1,7 +1,7 @@
 /**
  * @vitest-environment happy-dom
  */
-import type { Address, Hex, PublicClient, WalletClient } from 'viem'
+import type { Address, Chain, Hex, PublicClient, WalletClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildRevokeSessionsCall,
@@ -13,6 +13,7 @@ import type { RhinestoneStoredSession } from './types'
 const HCA: Address = '0xaAaA000000000000000000000000000000000001'
 const OWNER: Address = '0x1111111111111111111111111111111111111111'
 const OTHER: Address = '0x2222222222222222222222222222222222222222'
+const CHAIN = { id: 11155111, name: 'Sepolia' } as unknown as Chain
 const TX: Hex = `0x${'ab'.repeat(32)}`
 const DEPLOY_TX: Hex = `0x${'cd'.repeat(32)}`
 
@@ -44,10 +45,13 @@ function makeClients(
     code?: Hex
     owner?: Address
     receiptStatus?: 'success' | 'reverted'
+    walletChainId?: number
+    publicChainId?: number
   } = {},
 ) {
   const sendTransaction = vi.fn().mockResolvedValue(TX)
   const publicClient = {
+    chain: { id: overrides.publicChainId ?? CHAIN.id },
     getCode: vi.fn().mockResolvedValue(overrides.code ?? '0x6080'),
     readContract: vi.fn().mockResolvedValue([overrides.owner ?? OWNER, 0n]),
     waitForTransactionReceipt: vi
@@ -56,7 +60,7 @@ function makeClients(
   }
   const walletClient = {
     account: { address: OWNER },
-    chain: { id: 11155111 },
+    chain: { id: overrides.walletChainId ?? CHAIN.id },
     sendTransaction,
   }
   return {
@@ -88,6 +92,7 @@ describe('revokeSessionsOnChain', () => {
     const result = await revokeSessionsOnChain({
       publicClient,
       walletClient,
+      chain: CHAIN,
       hca: HCA,
     })
 
@@ -108,6 +113,7 @@ describe('revokeSessionsOnChain', () => {
     const result = await revokeSessionsOnChain({
       publicClient,
       walletClient,
+      chain: CHAIN,
       hca: HCA,
     })
 
@@ -126,6 +132,7 @@ describe('revokeSessionsOnChain', () => {
     const result = await revokeSessionsOnChain({
       publicClient,
       walletClient,
+      chain: CHAIN,
       hca: HCA,
     })
 
@@ -144,6 +151,7 @@ describe('revokeSessionsOnChain', () => {
     const result = await revokeSessionsOnChain({
       publicClient,
       walletClient,
+      chain: CHAIN,
       hca: HCA,
     })
 
@@ -151,6 +159,27 @@ describe('revokeSessionsOnChain', () => {
     expect(result._unsafeUnwrapErr().reason).toBe('not-deployed')
     expect(sendTransaction).not.toHaveBeenCalled()
     // The authorization outlives our copy, so the row stays until it is real.
+    expect(getSession(HCA)).not.toBeNull()
+  })
+
+  it('refuses when the wallet is on a different chain than the HCA', async () => {
+    saveSession(makeSession())
+    // Sending here would be worse than failing: the HCA has no code on another
+    // chain, so the call would succeed as a no-op and look like a revocation.
+    const { publicClient, walletClient, sendTransaction } = makeClients({
+      walletChainId: 1,
+    })
+
+    const result = await revokeSessionsOnChain({
+      publicClient,
+      walletClient,
+      chain: CHAIN,
+      hca: HCA,
+    })
+
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().reason).toBe('wrong-chain')
+    expect(sendTransaction).not.toHaveBeenCalled()
     expect(getSession(HCA)).not.toBeNull()
   })
 
@@ -164,6 +193,7 @@ describe('revokeSessionsOnChain', () => {
     const result = await revokeSessionsOnChain({
       publicClient,
       walletClient,
+      chain: CHAIN,
       hca: HCA,
       deploymentCall: { to: OTHER, value: 0n, data: '0xdeadbeef' },
     })

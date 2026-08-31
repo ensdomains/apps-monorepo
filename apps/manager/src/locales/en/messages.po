@@ -435,6 +435,7 @@ msgstr "Can you share your order number?"
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
+#: src/features/wallet/components/RevokeSessionsModal.tsx
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -619,6 +620,10 @@ msgstr "Connect wallet {0} to resume registering {label}.eth. Starting over from
 msgid "Connect your wallet"
 msgstr "Connect your wallet"
 
+#: src/lib/smart-account/SmartAccountContext.tsx
+msgid "Connect your wallet to revoke sessions."
+msgstr "Connect your wallet to revoke sessions."
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Connected"
 msgstr "Connected"
@@ -704,6 +709,10 @@ msgstr "Couldn’t read the wallet address for {name}"
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't restore your upgrade progress. Reload to check the latest state."
 msgstr "Couldn't restore your upgrade progress. Reload to check the latest state."
+
+#: src/lib/smart-account/SmartAccountContext.tsx
+msgid "Couldn't revoke sessions. Please try again."
+msgstr "Couldn't revoke sessions. Please try again."
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't verify your name records. Please try again."
@@ -1900,6 +1909,10 @@ msgstr "Remove from favorites"
 msgid "Remove notification"
 msgstr "Remove notification"
 
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Remove saved session"
+msgstr "Remove saved session"
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Remove Telegram Contact Method?"
 msgstr "Remove Telegram Contact Method?"
@@ -2096,6 +2109,19 @@ msgstr "Review access granted during ENS name upgrades."
 #: src/features/dashboard/components/TemporaryMigrationAccessNotice.tsx
 msgid "Review permissions"
 msgstr "Review permissions"
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Revoke sessions"
+msgstr "Revoke sessions"
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Revoke smart sessions"
+msgstr "Revoke smart sessions"
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Revoking…"
+msgstr "Revoking…"
 
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
 #: src/features/bulk-renew/components/DurationPresets.tsx
@@ -2335,6 +2361,10 @@ msgstr "Sign the gasless payment approval in your wallet"
 msgid "Signing in..."
 msgstr "Signing in..."
 
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Smart account"
+msgstr "Smart account"
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Smart Account"
 msgstr "Smart Account"
@@ -2456,6 +2486,11 @@ msgstr "Subtotal:"
 msgid "Support"
 msgstr "Support"
 
+#. placeholder {0}: appChain.name
+#: src/lib/smart-account/SmartAccountContext.tsx
+msgid "Switch your wallet to {0} to revoke sessions."
+msgstr "Switch your wallet to {0} to revoke sessions."
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Telegram"
 msgstr "Telegram"
@@ -2511,6 +2546,10 @@ msgstr "The commemorative NFT is not available right now."
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "The commemorative NFT is not available yet."
 msgstr "The commemorative NFT is not available yet."
+
+#: src/lib/smart-account/SmartAccountContext.tsx
+msgid "The connected wallet doesn't own this smart account."
+msgstr "The connected wallet doesn't own this smart account."
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "The eligibility proof could not be verified."
@@ -2584,6 +2623,10 @@ msgstr "This browser cannot safely coordinate your mint. Try an up-to-date brows
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This commemorative NFT has already been minted."
 msgstr "This commemorative NFT has already been minted."
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "This ends every active session for this account, on every device."
+msgstr "This ends every active session for this account, on every device."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "This is taking longer than expected."
@@ -2687,6 +2730,7 @@ msgstr "Try again"
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 #: src/features/renew/workflow/result/FailureStep.tsx
 #: src/features/wallet/components/EnableSessionModal.tsx
+#: src/features/wallet/components/RevokeSessionsModal.tsx
 msgid "Try Again"
 msgstr "Try Again"
 
@@ -2705,6 +2749,10 @@ msgstr "Unfinished registration"
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "unique searches in the last 30 days"
 msgstr "unique searches in the last 30 days"
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Unlike enabling a session, this is a transaction from your wallet, so it costs gas. Your next registration will ask you to sign a new session."
+msgstr "Unlike enabling a session, this is a transaction from your wallet, so it costs gas. Your next registration will ask you to sign a new session."
 
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Unread only"
@@ -3053,6 +3101,10 @@ msgstr "You approve"
 msgid "You can buy this name at any point during the {periodDays}-day cooldown."
 msgstr "You can buy this name at any point during the {periodDays}-day cooldown."
 
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "You can remove the saved session from this browser. If you think it was copied elsewhere, revoke again after your first registration."
+msgstr "You can remove the saved session from this browser. If you think it was copied elsewhere, revoke again after your first registration."
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "You can still use the manager, but these features won't be available:"
 msgstr "You can still use the manager, but these features won't be available:"
@@ -3230,6 +3282,10 @@ msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your saved upgrade needs attention"
 msgstr "Your saved upgrade needs attention"
+
+#: src/lib/smart-account/SmartAccountContext.tsx
+msgid "Your smart account isn't deployed yet, so no session is active on-chain."
+msgstr "Your smart account isn't deployed yet, so no session is active on-chain."
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "Your upgrades are still being verified. Check again in a moment."

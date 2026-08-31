@@ -26,6 +26,7 @@ export class SessionEnableError extends TaggedError('SessionEnableError')<{
 export type SessionRevokeReason =
   | 'not-deployed'
   | 'not-owner'
+  | 'wrong-chain'
   | 'transaction-failed'
   | 'unknown'
 

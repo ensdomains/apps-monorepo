@@ -526,6 +526,13 @@ export const SmartAccountContextProvider = ({
 
   const [isEnablingSession, setIsEnablingSession] = useState(false)
   const [sessionError, setSessionError] = useState<string | null>(null)
+  // Mirrors `accountAddress` for async callbacks that must know the CURRENT
+  // account rather than the one captured when they started.
+  const accountAddressRef = useRef<Address | null>(null)
+  useEffect(() => {
+    accountAddressRef.current = accountAddress
+  }, [accountAddress])
+
   const [isRevokingSession, setIsRevokingSession] = useState(false)
   const [revokeError, setRevokeError] = useState<string | null>(null)
   const [revokeErrorReason, setRevokeErrorReason] =
@@ -671,15 +678,28 @@ export const SmartAccountContextProvider = ({
       setRevokeError(t`Connect your wallet to revoke sessions.`)
       return false
     }
+    // The transaction can outlive the account it was started for: an owner
+    // switch mid-flight tears down this HCA and hydrates the next owner's
+    // session. Applying this result then would clear a valid session belonging
+    // to someone else and force a needless re-authorization, so every state
+    // update below is gated on the account still being the one we revoked for.
+    const revokedAccount = accountAddress
+    const isStillCurrent = () => accountAddressRef.current === revokedAccount
+
     setIsRevokingSession(true)
     setRevokeError(null)
     setRevokeErrorReason(null)
     const result = await revokeSessionsOnChain({
       walletClient: wagmiWalletClient as WalletClient,
       publicClient: wagmiPublicClient as PublicClient,
-      hca: accountAddress,
+      chain: appChain,
+      hca: revokedAccount,
     })
+    // The spinner is global, so always clear it — no revoke is in flight for
+    // whatever account is current now. Only the session/error state below is
+    // account-specific and therefore gated.
     setIsRevokingSession(false)
+    if (!isStillCurrent()) return result.isOk()
     return result.match(
       () => {
         // `revokeSessionsOnChain` already dropped the stored row; clear the
@@ -698,7 +718,9 @@ export const SmartAccountContextProvider = ({
             ? t`Your smart account isn't deployed yet, so no session is active on-chain.`
             : error.reason === 'not-owner'
               ? t`The connected wallet doesn't own this smart account.`
-              : t`Couldn't revoke sessions. Please try again.`,
+              : error.reason === 'wrong-chain'
+                ? t`Switch your wallet to ${appChain.name} to revoke sessions.`
+                : t`Couldn't revoke sessions. Please try again.`,
         )
         return false
       },

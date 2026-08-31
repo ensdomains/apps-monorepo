@@ -72,9 +72,9 @@ export const RevokeSessionsModal = ({
         <div className="flex flex-col items-center gap-4 py-2">
           <div className="flex size-16 items-center justify-center rounded-full bg-ens-gray-one">
             {isRevoking ? (
-              <Loader2 className="animate-spin text-ens-blue" size={32} />
+              <Loader2 className="size-8 animate-spin text-ens-blue" />
             ) : (
-              <ShieldOff className="text-ens-blue" size={32} />
+              <ShieldOff className="size-8 text-ens-blue" />
             )}
           </div>
 

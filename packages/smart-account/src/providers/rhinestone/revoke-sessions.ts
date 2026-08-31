@@ -23,6 +23,7 @@
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import {
   type Address,
+  type Chain,
   encodeFunctionData,
   type Hex,
   isAddressEqual,
@@ -71,6 +72,17 @@ export function buildRevokeSessionsCall(params: {
 export interface RevokeSessionsParams {
   readonly walletClient: WalletClient
   readonly publicClient: PublicClient
+  /**
+   * The chain the HCA lives on, and the ONLY chain this may transact against.
+   *
+   * The app pins its public client to the registration chain while the wallet
+   * client follows whatever network the wallet is on, so the two can diverge.
+   * Sending there would be worse than failing: the HCA address has no code on
+   * another chain, so `revokeSessions()` would succeed as a no-op, report a
+   * confirmed receipt, and let us clear the session while the real ones stay
+   * live. Both clients are checked against this before anything is sent.
+   */
+  readonly chain: Chain
   readonly hca: Address
   /**
    * Deploy the HCA first when it has no code yet, from
@@ -107,7 +119,17 @@ export function revokeSessionsOnChain(
       if (!account) {
         throw new RevokeFailure('unknown', 'Wallet client has no account')
       }
-      const chain = params.walletClient.chain
+      const { chain } = params
+      // Reads and writes must agree on the chain, or a passing precondition
+      // says nothing about where the transaction lands.
+      const walletChainId = params.walletClient.chain?.id
+      const publicChainId = params.publicClient.chain?.id
+      if (walletChainId !== chain.id || publicChainId !== chain.id) {
+        throw new RevokeFailure(
+          'wrong-chain',
+          `Wallet must be on ${chain.name} (chain ${chain.id}) to revoke sessions`,
+        )
+      }
 
       const code = await params.publicClient.getCode({ address: params.hca })
       const isDeployed = Boolean(code && code !== '0x')
