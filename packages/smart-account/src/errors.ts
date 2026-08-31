@@ -15,6 +15,27 @@ export class SessionEnableError extends TaggedError('SessionEnableError')<{
   cause?: unknown
 }> {}
 
+/**
+ * Why an owner-signed on-chain session revocation could not complete.
+ *
+ * `not-deployed` is NOT a benign "nothing to do": no session is enabled yet,
+ * but a leaked stored record still carries an authorization signed against
+ * nonce 0, and deployment is permissionless — so the UI must offer to deploy
+ * and revoke rather than quietly report success.
+ */
+export type SessionRevokeReason =
+  | 'not-deployed'
+  | 'not-owner'
+  | 'transaction-failed'
+  | 'unknown'
+
+/** Raised when the owner-signed on-chain session revocation fails. */
+export class SessionRevokeError extends TaggedError('SessionRevokeError')<{
+  message: string
+  reason: SessionRevokeReason
+  cause?: unknown
+}> {}
+
 /** Raised when restoring a stored session fails (e.g. expired). */
 export class SessionRestoreError extends TaggedError('SessionRestoreError')<{
   message: string

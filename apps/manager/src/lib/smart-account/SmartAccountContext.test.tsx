@@ -8,7 +8,7 @@
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import './SmartAccountContext.mocks'
@@ -18,7 +18,13 @@ import './SmartAccountContext.mocks'
 vi.mock('@ens-apps/smart-account', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@ens-apps/smart-account')>()
-  return { ...actual, removeSessionsByOwner: vi.fn() }
+  return {
+    ...actual,
+    removeSessionsByOwner: vi.fn(),
+    // WEB-674: the on-chain revoke is a real owner transaction; stub it so the
+    // context's success/failure branches can be exercised without a chain.
+    revokeSessionsOnChain: vi.fn(),
+  }
 })
 
 // Keep the dev-only Anvil owner setup out of these tests.
@@ -28,7 +34,12 @@ vi.mock('@ens-apps/dev-time-travel', async (importOriginal) => {
   return { ...actual, isTimeTravelEnabled: () => false }
 })
 
-import { removeSessionsByOwner } from '@ens-apps/smart-account'
+import {
+  removeSessionsByOwner,
+  revokeSessionsOnChain,
+  SessionRevokeError,
+} from '@ens-apps/smart-account'
+import { errAsync, okAsync } from 'neverthrow'
 import { useWalletClient } from 'wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { initializeRhinestoneAccount } from './rhinestone'
@@ -40,6 +51,9 @@ import {
 
 const removeSessionsByOwnerMock =
   removeSessionsByOwner as unknown as ReturnType<typeof vi.fn>
+
+const revokeSessionsOnChainMock =
+  revokeSessionsOnChain as unknown as ReturnType<typeof vi.fn>
 
 const fundPost = backendClient.wallet.fund.$post as unknown as ReturnType<
   typeof vi.fn
@@ -336,6 +350,91 @@ describe('SmartAccountContext', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 50))
       expect(removeSessionsByOwnerMock).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('session revocation (WEB-674)', () => {
+    const connectWallet = async () => {
+      vi.mocked(useWalletClient).mockReturnValue({
+        data: {
+          account: { address: '0xExternalWallet12345678901234567890123456' },
+        },
+      } as any)
+      const { result } = renderHook(() => useSmartAccountContext(), {
+        wrapper: createWrapper(),
+      })
+      await waitFor(() => {
+        expect(result.current.isAccountReady).toBe(true)
+      })
+      return result
+    }
+
+    it('reports success and drops the in-memory session once the receipt confirms', async () => {
+      revokeSessionsOnChainMock.mockReturnValue(
+        okAsync({ transactionHash: `0x${'ab'.repeat(32)}` }),
+      )
+      const result = await connectWallet()
+
+      let revoked: boolean | undefined
+      await act(async () => {
+        revoked = await result.current.revokeSession()
+      })
+
+      expect(revoked).toBe(true)
+      expect(revokeSessionsOnChainMock).toHaveBeenCalledTimes(1)
+      expect(result.current.activeStoredSession).toBeNull()
+      expect(result.current.revokeError).toBeNull()
+      expect(result.current.isRevokingSession).toBe(false)
+    })
+
+    it('surfaces a localized error and stays failed when the revoke reverts', async () => {
+      revokeSessionsOnChainMock.mockReturnValue(
+        errAsync(
+          new SessionRevokeError({
+            message: 'revokeSessions transaction reverted',
+            reason: 'transaction-failed',
+          }),
+        ),
+      )
+      const result = await connectWallet()
+
+      let revoked: boolean | undefined
+      await act(async () => {
+        revoked = await result.current.revokeSession()
+      })
+
+      expect(revoked).toBe(false)
+      expect(result.current.revokeError).toBeTruthy()
+      // The raw chain message must not leak to the user.
+      expect(result.current.revokeError).not.toContain('revokeSessions')
+      expect(result.current.revokeErrorReason).toBe('transaction-failed')
+      expect(result.current.isRevokingSession).toBe(false)
+    })
+
+    it('exposes the not-deployed reason so the UI can offer a local clear', async () => {
+      revokeSessionsOnChainMock.mockReturnValue(
+        errAsync(
+          new SessionRevokeError({
+            message: 'HCA is not deployed',
+            reason: 'not-deployed',
+          }),
+        ),
+      )
+      const result = await connectWallet()
+
+      await act(async () => {
+        await result.current.revokeSession()
+      })
+
+      expect(result.current.revokeErrorReason).toBe('not-deployed')
+
+      // The escape hatch clears local state without claiming a revocation.
+      await act(async () => {
+        result.current.forgetLocalSession()
+      })
+      expect(result.current.activeStoredSession).toBeNull()
+      expect(result.current.revokeError).toBeNull()
+      expect(result.current.revokeErrorReason).toBeNull()
     })
   })
 })

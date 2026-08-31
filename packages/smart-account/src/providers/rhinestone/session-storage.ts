@@ -88,7 +88,19 @@ export function saveSession(session: RhinestoneStoredSession): void {
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(next))
 }
 
-/** Remove a session by smart-account address. */
+/**
+ * Forget a session by smart-account address.
+ *
+ * LOCAL ONLY — this is not a revocation. It drops our copy of the record; a
+ * key already exfiltrated from this device stays a valid session signer until
+ * `validUntil` elapses. Worse, the stored record carries the owner-signed
+ * enable authorization, which `_validateSessionEnableProof` accepts without
+ * ever reading the on-chain session slot — so a leaked copy can (re-)enable
+ * itself. The only true revocation is `StandaloneSingleOwnerHCA.revokeSessions()`,
+ * which bumps the account session nonce that both the proof check and the
+ * permission ID derive from. That is `onlyOwner` and unreachable from the
+ * account's own execution paths, so it needs a direct owner EOA transaction.
+ */
 export function removeSession(accountAddress: Address): void {
   if (!hasWindow()) return
   const normalized = accountAddress.toLowerCase()
@@ -98,7 +110,7 @@ export function removeSession(accountAddress: Address): void {
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(next))
 }
 
-/** Remove all sessions for an owner EOA. */
+/** Forget all sessions for an owner EOA. LOCAL ONLY — see `removeSession`. */
 export function removeSessionsByOwner(ownerAddress: Address): void {
   if (!hasWindow()) return
   const normalized = ownerAddress.toLowerCase()
@@ -108,7 +120,7 @@ export function removeSessionsByOwner(ownerAddress: Address): void {
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(next))
 }
 
-/** Clear all stored sessions. */
+/** Forget every stored session. LOCAL ONLY — see `removeSession`. */
 export function clearAllSessions(): void {
   if (!hasWindow()) return
   localStorage.removeItem(SESSION_STORAGE_KEY)
