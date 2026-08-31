@@ -5,6 +5,12 @@
 @font-face {
   font-family: "ABCMonumentGrotesk";
   src: url("@/assets/fonts/abc-monument-grotesk-variable.woff2") format("woff2");
+  /* Match the portal's declaration for this same variable asset (wght axis
+     verified via fonttools: 200–1000). Evergreen browsers already use the full
+     axis when the descriptor is omitted (`auto`); declaring it guards UAs that
+     default the descriptor to 400 and would clamp intermediate weights such as
+     font-ens-book (450). */
+  font-weight: 200 1000;
 }
 
 /* ===============================

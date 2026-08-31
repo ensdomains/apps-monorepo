@@ -27,14 +27,15 @@ const FeePill = ({
 }: FeePillProps) => (
   <div
     className={tw(
-      'relative rounded-xl px-4 py-3',
+      'relative rounded-xl px-4',
       variant === 'base' ? 'bg-[#effafe]' : 'bg-ens-lapis-100',
       pillShadow,
+      layout === 'row' && 'flex min-h-11.5 items-center gap-3 py-2',
       layout === 'column' &&
-        'flex min-h-[78px] w-full flex-col items-center justify-center gap-1.5',
+        'flex min-h-[78px] w-full flex-col items-center justify-center gap-1.5 py-3',
     )}
   >
-    <span className="font-medium text-[#595755] text-xs leading-normal tracking-tight">
+    <span className="font-medium text-ens-quartz-500 text-xs leading-normal tracking-ens-wide">
       {label}
     </span>
     <div className="flex items-center gap-0.5">

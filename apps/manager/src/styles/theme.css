@@ -9,6 +9,14 @@
   --leading-ens-tight: 112%;
   --leading-ens-normal: 120%;
 
+  /* Letter spacing */
+  --tracking-ens-wide: 0.015em;
+
+  /* Font weights. ABCMonumentGrotesk is a variable font, so weights off the
+     100-step scale are reachable; 450 sits between normal (400) and medium
+     (500). */
+  --font-weight-ens-book: 450;
+
   /* Experimental new brand colors */
   --color-ens-lapis-100: #dbf0f8;
   --color-ens-lapis-300: #80c4e0;
