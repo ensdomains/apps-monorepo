@@ -31,6 +31,22 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   ),
 }))
 
+// A name row's description is a loading skeleton until its availability check
+// answers, and which TLD rows exist at all depends on live DNSSEC lookups.
+// Unmocked, both reach the network: the assertions below only held while those
+// calls happened to answer inside `waitFor`, so CI — where they don't — saw a
+// lone `.eth` row still showing its skeleton.
+vi.mock('../hooks/useSuggestionTlds', () => ({
+  useSuggestionTlds: () => ({ validTlds: ['eth'], isLoading: false }),
+}))
+
+vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
+  getNameAvailabilityQueryOptions: (params: { name: string }) => ({
+    queryKey: ['check-name-availability', params],
+    queryFn: () => Promise.resolve({ isAvailable: false, name: params.name }),
+  }),
+}))
+
 vi.mock('@/features/profile/hooks/useEnsOwner', () => ({
   getEnsOwnerQueryOptions: ({ name }: { name: string }) => ({
     queryKey: ['get-ens-owner', { name }],
