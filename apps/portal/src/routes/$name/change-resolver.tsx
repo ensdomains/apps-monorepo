@@ -5,6 +5,7 @@ import { zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { PageHeading } from '@/components/PageHeading'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
@@ -30,7 +31,7 @@ const PageLayout = ({
         Back
       </Button>
     </Link>
-    <h1 className="text-h1">Change resolver</h1>
+    <PageHeading parent={{ type: 'name', name }}>Change resolver</PageHeading>
     {children}
   </div>
 )

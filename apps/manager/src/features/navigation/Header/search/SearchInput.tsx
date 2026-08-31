@@ -1,3 +1,4 @@
+import { applyPastedNameSearch } from '@ens-apps/utils/normalizePastedNameSearch'
 import { useLingui } from '@lingui/react/macro'
 import { Loader2Icon } from 'lucide-react'
 import {
@@ -54,6 +55,7 @@ export const SearchInput = ({
         type="text"
         value={searchValue}
         {...props}
+        onPaste={(event) => applyPastedNameSearch(event, setSearchValue)}
       />
       {isLoading ? (
         <InputGroupAddon align="inline-end">

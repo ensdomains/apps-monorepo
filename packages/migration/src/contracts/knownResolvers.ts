@@ -7,6 +7,8 @@ const KNOWN_PUBLIC_RESOLVERS: readonly Address[] = [
     chain: sepoliaWithEns,
     contract: 'ensPublicResolver',
   }),
+  // Legacy Sepolia V1 PublicResolver used by migration fixtures.
+  '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
   '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d',
   '0xc30ba2bd21583605d815826c3807e8224e398e10',

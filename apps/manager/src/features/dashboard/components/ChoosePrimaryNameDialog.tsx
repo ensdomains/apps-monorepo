@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
-import { getAddress, isAddressEqual } from 'viem'
+import { getAddress } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
@@ -33,17 +33,23 @@ import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
-import { setupControlledResolver } from '@/features/profile/service/setupControlledResolver'
+import {
+  OwnedResolverNotReadyError,
+  ResolverChangeNotAuthorizedError,
+  setupControlledResolver,
+} from '@/features/profile/service/setupControlledResolver'
 import {
   type SmartAccountContextValue,
   useSmartAccountContext,
 } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
+import { hasOwnerWallet } from '@/lib/wallet'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { resolveDomainLabel } from '../utils'
 import {
   getEthAddressFromRecords,
-  hasMatchingEthAddress,
+  isConfirmBlocked,
+  shouldUpdateEthAddress,
 } from './ChoosePrimaryNameDialog.handlers'
 
 interface ChoosePrimaryNameDialogProps {
@@ -54,6 +60,22 @@ interface ChoosePrimaryNameDialogProps {
 type PrimaryNameDomain = DomainsQuery['domains'][number]
 type PrimaryNameQueryVariables = Parameters<typeof getDomainsQuery>[0]
 type SelectedNameRecords = Parameters<typeof getEthAddressFromRecords>[0]
+
+const getSetupResolverErrorMessage = (
+  error: Error | null,
+  messages: {
+    readonly notAuthorized: string
+    readonly notReady: string
+  },
+): string | undefined => {
+  if (error instanceof ResolverChangeNotAuthorizedError) {
+    return messages.notAuthorized
+  }
+  if (error instanceof OwnedResolverNotReadyError) {
+    return messages.notReady
+  }
+  return error?.message
+}
 
 const PrimaryNameSkeletonList = () => (
   <div className="flex flex-col gap-2">
@@ -200,10 +222,7 @@ const useUpdateEthAddressMutation = ({
       // Require the wallet still bound to the owner: `resolverWriteAccess`
       // probed from that address, so a mid-switch wallet would revert on-chain.
       const { walletClient } = account
-      if (
-        !walletClient?.account ||
-        !isAddressEqual(walletClient.account.address, walletAddress)
-      ) {
+      if (!hasOwnerWallet(walletClient, walletAddress)) {
         return
       }
 
@@ -250,7 +269,7 @@ const useUpdateEthAddressMutation = ({
 
 /**
  * Set up a resolver this wallet can write to, then seed the ETH address.
- * One sponsored intent; runs before set-primary when write access is missing.
+ * Owner-EOA transactions; runs before set-primary when write access is missing.
  */
 const useSetupResolverMutation = ({
   account,
@@ -265,25 +284,23 @@ const useSetupResolverMutation = ({
 
   return useMutation({
     mutationFn: async () => {
-      const { signer } = account
       if (!selectedName || !account.ownerAddress) return
 
-      if (signer?.type !== 'rhinestone') {
+      const { walletClient } = account
+      if (!hasOwnerWallet(walletClient, account.ownerAddress)) {
         throw new Error(t`Please finish connecting your wallet, then try again`)
       }
 
-      const walletAddress = account.ownerAddress as Address
-
       await setupControlledResolver({
         name: selectedName,
-        signer,
-        ownerAddress: walletAddress,
+        signer: { type: 'eoa', walletClient },
+        ownerAddress: account.ownerAddress,
         publicClient: publicClient as PublicClient,
         chainId,
         before: { texts: [], coins: [] },
         after: {
           texts: [],
-          coins: [{ coinType: 60, value: getAddress(walletAddress) }],
+          coins: [{ coinType: 60, value: getAddress(account.ownerAddress) }],
         },
       })
     },
@@ -292,21 +309,6 @@ const useSetupResolverMutation = ({
     },
   })
 }
-
-const shouldUpdateEthAddress = ({
-  selectedName,
-  isLoadingRecords,
-  selectedNameRecords,
-  ownerAddress,
-}: {
-  readonly selectedName: string | null
-  readonly isLoadingRecords: boolean
-  readonly selectedNameRecords: SelectedNameRecords
-  readonly ownerAddress?: string
-}) =>
-  Boolean(selectedName) &&
-  !isLoadingRecords &&
-  !hasMatchingEthAddress(selectedNameRecords, ownerAddress)
 
 const getPrimaryNameQueryVariables = (
   address: string | undefined,
@@ -392,14 +394,18 @@ export const ChoosePrimaryNameDialog = ({
     [allDomains, reverseName],
   )
 
-  const { data: selectedNameRecords, isLoading: isLoadingRecords } = useQuery({
+  const {
+    data: selectedNameRecords,
+    isSuccess: recordsSettled,
+    isError: isRecordsError,
+  } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
     enabled: open && !!selectedName,
   })
   const existingEthAddress = getEthAddressFromRecords(selectedNameRecords)
   const needsEthAddressUpdate = shouldUpdateEthAddress({
     selectedName,
-    isLoadingRecords,
+    recordsSettled,
     selectedNameRecords,
     ownerAddress: account.ownerAddress ?? undefined,
   })
@@ -426,10 +432,15 @@ export const ChoosePrimaryNameDialog = ({
 
   // No write access → confirm, then set up a controlled resolver before primary.
   const resolverBlocked = resolverWriteAccess.data === false
-  const resolverAccessPending =
-    Boolean(selectedName) &&
-    Boolean(account.ownerAddress) &&
-    resolverWriteAccess.isLoading
+
+  // Only set up a resolver when a forward write actually needs one. When the ETH
+  // record already points at this wallet, setting primary writes nothing but the
+  // reverse record, which the reverse registrar authorizes on `msg.sender` — so
+  // it lands whoever owns the name. The picker is indexer-fed and lags a
+  // transfer, so a name this wallet no longer owns can still be offered; without
+  // the `needsEthAddressUpdate` half the dialog offers to replace a resolver it
+  // has since lost `ROLE_SET_RESOLVER` on, and the setup reverts in simulation.
+  const needsResolverSetup = resolverBlocked && needsEthAddressUpdate
 
   // Set selected name to current primary on mount
   useEffect(() => {
@@ -449,13 +460,13 @@ export const ChoosePrimaryNameDialog = ({
   const runConfirm = async () => {
     if (!selectedName || !account.ownerAddress) return
 
-    if (!account.signer || !account.accountAddress) {
+    if (!hasOwnerWallet(account.walletClient, account.ownerAddress)) {
       toast.error(t`Wallet isn’t ready yet. Try again in a moment.`)
       return
     }
 
     try {
-      if (resolverBlocked) {
+      if (needsResolverSetup) {
         await setupResolverMutation.mutateAsync()
       } else if (needsEthAddressUpdate) {
         await updateEthAddressMutation.mutateAsync()
@@ -477,12 +488,12 @@ export const ChoosePrimaryNameDialog = ({
   const handleConfirm = () => {
     if (!selectedName || !account.ownerAddress) return
 
-    if (!account.signer || !account.accountAddress) {
+    if (!hasOwnerWallet(account.walletClient, account.ownerAddress)) {
       toast.error(t`Wallet isn’t ready yet. Try again in a moment.`)
       return
     }
 
-    if (resolverBlocked) {
+    if (needsResolverSetup) {
       setSetupConfirmOpen(true)
       return
     }
@@ -499,17 +510,36 @@ export const ChoosePrimaryNameDialog = ({
 
   const hasChanges = selectedName !== reverseName
 
-  const showEthAddressInfo = needsEthAddressUpdate && !resolverBlocked
+  const showEthAddressInfo = needsEthAddressUpdate && !needsResolverSetup
   const isPreparing =
     updateEthAddressMutation.isPending || setupResolverMutation.isPending
-  const confirmDisabled =
-    isSubmitting ||
-    isPreparing ||
-    resolverAccessPending ||
-    !hasChanges ||
-    !selectedName
+  const confirmDisabled = isConfirmBlocked({
+    isSubmitting,
+    isPreparing,
+    resolverAccessSettled: resolverWriteAccess.isSuccess,
+    recordsSettled,
+    hasChanges,
+    selectedName,
+  })
   const actionErrorMessage =
-    setupResolverMutation.error?.message ??
+    // Probe failures first: both choose the branch, so neither can be silent —
+    // confirm is disabled and nothing else would say why.
+    match({ isRecordsError, isAccessError: resolverWriteAccess.isError })
+      .with(
+        { isRecordsError: true },
+        () =>
+          t`Couldn’t load this name’s records. Please try again in a moment.`,
+      )
+      .with(
+        { isAccessError: true },
+        () =>
+          t`Couldn’t check this name’s resolver. Please try again in a moment.`,
+      )
+      .otherwise(() => undefined) ??
+    getSetupResolverErrorMessage(setupResolverMutation.error, {
+      notAuthorized: t`Your wallet does not have permission to change the resolver for this name.`,
+      notReady: t`The replacement resolver could not be verified. Please try again.`,
+    }) ??
     updateEthAddressMutation.error?.message ??
     primaryNameErrorMessage
 

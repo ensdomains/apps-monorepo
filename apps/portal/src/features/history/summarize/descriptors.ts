@@ -59,7 +59,7 @@ const resolvedNameSlot = (
       eventName,
   )
 
-export const DESCRIPTORS: Record<string, Descriptor> = {
+export const DESCRIPTORS = {
   AddressChanged: {
     icon: 'address',
     build: (primary) => ({
@@ -340,4 +340,12 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
       ],
     }),
   },
-}
+} satisfies Record<string, Descriptor>
+
+/**
+ * The event types the timeline knows how to describe. Scoped reads name these,
+ * and the values are inlined into the indexer query text (see
+ * `buildHistoryTimelineQuery`), so this union is what guarantees only our own
+ * constants ever reach it.
+ */
+export type TimelineEventType = keyof typeof DESCRIPTORS

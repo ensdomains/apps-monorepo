@@ -7,11 +7,13 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { addressHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import { Button } from '@/components/ui/button'
 import { getV2HistoryForAddressQueryOptions } from '@/features/address/components/hooks/useV2HistoryForAddress'
 import { NameList } from '@/features/dashboard/components/NameList'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
+import { cn } from '@/lib/utils'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
 import { queryClient } from '@/utils/queryClient'
@@ -109,7 +111,9 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2 lg:flex-row justify-between items-baseline">
-        <h1 className="text-h2 md:text-h1 break-all">{addr}</h1>
+        <PageHeading className={cn(addressHeadingClassName, 'break-all')}>
+          {addr}
+        </PageHeading>
         {isViewingConnectedWallet && (
           <Button variant="default" onClick={() => disconnect()}>
             Disconnect

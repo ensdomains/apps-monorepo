@@ -1,6 +1,6 @@
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { DESCRIPTORS, humanizeType } from './descriptors'
-import type { Action, ActionSlot } from './summarize.types'
+import type { Action, ActionSlot, Descriptor } from './summarize.types'
 
 /** Event types that never surface as their own action (nor as filter options). */
 export const IGNORED_TYPES = new Set(['CommitmentMade'])
@@ -107,8 +107,14 @@ const describeGroup = (
   byRank: readonly TimelineIndexerEvent[],
 ): Pick<Action, 'icon' | 'label' | 'slots'> => {
   const built = byRank.flatMap((primary) => {
-    const descriptor = DESCRIPTORS[primary.type]
-    const result = descriptor?.build(primary)
+    // Indexed by a runtime type, not a known key: the object's own key type is
+    // what `TimelineEventType` is derived from, so the lookup takes the wider
+    // view of it.
+    const descriptor = (DESCRIPTORS as Record<string, Descriptor | undefined>)[
+      primary.type
+    ]
+    if (!descriptor) return []
+    const result = descriptor.build(primary)
     return result
       ? [{ primary, ...result, icon: result.icon ?? descriptor.icon }]
       : []
@@ -134,18 +140,46 @@ const describeGroup = (
 /** Turn a flat list of raw indexer events into tier-1 semantic actions, one per transaction. */
 export const summarizeEvents = (
   events: readonly TimelineIndexerEvent[],
+  /**
+   * `includeSubjectName` leads each row with the name it concerns, for feeds
+   * whose rows have different subjects (a registry's labels) — see
+   * `withSubjectName`.
+   */
+  {
+    includeSubjectName = false,
+  }: { readonly includeSubjectName?: boolean } = {},
 ): Action[] => {
   const relevant = events.filter((event) => !IGNORED_TYPES.has(event.type))
 
   const actions = groupByTransaction(relevant).map((group): Action => {
     const byRank = [...group].sort((a, b) => rankOf(b) - rankOf(a))
+    const { slots, ...described } = describeGroup(group, byRank)
     return {
       txHash: group[0].transactionHash,
       timestamp: Math.max(...group.map((event) => event.timestamp)),
       events: group,
-      ...describeGroup(group, byRank),
+      ...described,
+      slots: includeSubjectName ? withSubjectName(slots, byRank[0]) : slots,
     }
   })
 
   return actions.sort((a, b) => b.timestamp - a.timestamp)
+}
+
+/**
+ * Lead the row with the name it concerns, unless the descriptor already named
+ * something — an anonymous row in a multi-subject feed is the only ambiguous
+ * case, and prefixing the others would read as a duplicate.
+ */
+const withSubjectName = (
+  slots: readonly ActionSlot[],
+  primary: TimelineIndexerEvent,
+): readonly ActionSlot[] => {
+  if (!primary.name) return slots
+  if (slots.some((slot) => slot.kind === 'name')) return slots
+  const subject: ActionSlot = { kind: 'name', value: primary.name }
+  // "Unlink subregistry" and friends describe the subject alone; an arrow
+  // pointing at nothing would read as a dropped value.
+  if (slots.length === 0) return [subject]
+  return [subject, { kind: 'glyph', value: '→' }, ...slots]
 }

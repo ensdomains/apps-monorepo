@@ -1,24 +1,21 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
 import {
   getBaseRateForName,
   getBaseRatesQueryOptions,
 } from '@/features/register/hooks/useBaseRate'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
-import {
-  getDurationFromPickerDate,
-  getDurationInSecondsFromYears,
-  getStartOfToday,
-} from '@/features/register/utils/registrationDuration'
+import { getStartOfToday } from '@/features/register/utils/registrationDuration'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { dateToPlainDate } from '@/utils/temporal'
-import type { ExtensionSpanType } from '../components/ExtensionDurationOrExpiryPicker'
 import {
   computeNamePricingDisplay,
   type NamePricingDisplay,
 } from '../utils/computeNamePricingDisplay'
-import { getExtensionTargetDate } from '../utils/extensionDurationPicker'
+import {
+  type ExtensionSpan,
+  getExtensionDurationSeconds,
+} from '../utils/extensionDurationPicker'
 import { getRenewerAddress } from '../utils/renewer'
 import type { SelectedName } from './useRenewalTransactions'
 
@@ -38,13 +35,6 @@ export type MultiNamePricingResult = {
   readonly allLoaded: boolean
 }
 
-type RenewalDurationInput = {
-  readonly spanType: ExtensionSpanType
-  readonly duration: number
-  readonly baseDate?: Temporal.PlainDate
-  readonly dateModeReferenceDate?: Temporal.PlainDate
-}
-
 export const getLatestRenewalExpiry = (
   selectedNames: readonly SelectedName[],
 ): Date | null =>
@@ -53,67 +43,19 @@ export const getLatestRenewalExpiry = (
     return !max || selectedName.expiryDate > max ? selectedName.expiryDate : max
   }, null)
 
-export const getRenewalDurationSeconds = ({
-  spanType,
-  duration,
-  baseDate,
-  dateModeReferenceDate,
-}: RenewalDurationInput): number => {
-  if (spanType === 'years') {
-    return getDurationInSecondsFromYears(duration, baseDate)
-  }
-
-  const targetDate = getExtensionTargetDate({
-    baseDate: dateModeReferenceDate ?? baseDate ?? getStartOfToday(),
-    duration,
-    spanType: 'date',
-  })
-
-  return getDurationFromPickerDate(targetDate, baseDate)
-}
-
 export function useMultiNamePricing(
   selectedNames: readonly SelectedName[],
-  spanType: ExtensionSpanType,
-  duration: number,
+  span: ExtensionSpan,
 ): MultiNamePricingResult {
-  const renewalInputs = useMemo(() => {
-    const today = getStartOfToday()
-
-    if (spanType === 'years') {
-      return selectedNames.map((selectedName) => {
-        const base = selectedName.expiryDate
-          ? dateToPlainDate(selectedName.expiryDate)
-          : today
-        return {
-          selectedName,
-          duration: getRenewalDurationSeconds({
-            spanType,
-            duration,
-            baseDate: base,
-          }),
-        }
-      })
-    }
-
-    const latestExpiry = getLatestRenewalExpiry(selectedNames)
-    const latestBaseDate = latestExpiry ? dateToPlainDate(latestExpiry) : today
-
-    return selectedNames.map((selectedName) => {
-      const base = selectedName.expiryDate
+  const renewalInputs = selectedNames.map((selectedName) => ({
+    selectedName,
+    duration: getExtensionDurationSeconds(
+      selectedName.expiryDate
         ? dateToPlainDate(selectedName.expiryDate)
-        : today
-      return {
-        selectedName,
-        duration: getRenewalDurationSeconds({
-          spanType,
-          duration,
-          baseDate: base,
-          dateModeReferenceDate: latestBaseDate,
-        }),
-      }
-    })
-  }, [duration, selectedNames, spanType])
+        : getStartOfToday(),
+      span,
+    ),
+  }))
 
   const priceQueries = useQueries({
     queries: renewalInputs.map((renewal) =>

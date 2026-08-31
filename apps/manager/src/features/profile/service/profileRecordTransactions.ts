@@ -81,6 +81,8 @@ export interface SaveRecordsParams {
   name: string
   before: ServiceRecordSnapshot
   after: ServiceRecordSnapshot
+  /** Clear the target node before applying the before-to-after diff. */
+  readonly shouldClearRecords?: boolean
   signer: Signer
   accountAddress: Address
   publicClient: PublicClient
@@ -124,6 +126,7 @@ interface BuildRecordsUpdateRequestParams {
   readonly name: string
   readonly before: ServiceRecordSnapshot
   readonly after: ServiceRecordSnapshot
+  readonly shouldClearRecords?: boolean
   readonly signer: Signer
   readonly accountAddress: Address
   readonly publicClient: PublicClient
@@ -140,6 +143,7 @@ export interface BuildRecordsUpdateCallsParams {
   readonly name: string
   readonly before: ServiceRecordSnapshot
   readonly after: ServiceRecordSnapshot
+  readonly shouldClearRecords?: boolean
   readonly publicClient: PublicClient
   readonly resolverAddress: Address
 }
@@ -362,9 +366,7 @@ function createTransactionRequest(
  * Build the resolver `multicall` write for a record diff, without submitting it.
  *
  * Returns the raw call(s) (today: a single multicall to the resolver) plus a
- * human description, so callers can either submit them alone or batch them into
- * a larger intent — e.g. deploy + setResolver + record write for a freshly
- * transferred name.
+ * human description so callers can submit them through the appropriate signer.
  *
  * @throws RecordsValidationError if the final records fail validation
  * @throws Error if the diff is empty
@@ -372,11 +374,19 @@ function createTransactionRequest(
 export async function buildRecordsUpdateCalls(
   params: BuildRecordsUpdateCallsParams,
 ): Promise<BuildRecordsUpdateCallsResult> {
-  const { name, before, after, publicClient, resolverAddress } = params
+  const {
+    name,
+    before,
+    after,
+    shouldClearRecords,
+    publicClient,
+    resolverAddress,
+  } = params
 
   const changes = computeRecordChanges(before, after)
 
   const hasChanges =
+    shouldClearRecords ||
     changes.texts.length > 0 ||
     changes.coins.length > 0 ||
     changes.contentHash !== undefined ||
@@ -399,6 +409,7 @@ export async function buildRecordsUpdateCalls(
   const ensParams: Parameters<typeof setRecordsWriteParameters>[1] = {
     name,
     resolverAddress,
+    clearRecords: shouldClearRecords,
   }
 
   if (changes.texts.length > 0) {

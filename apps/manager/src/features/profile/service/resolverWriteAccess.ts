@@ -41,8 +41,7 @@ const canWriteEthAddressRecord = async (
     },
   )
   try {
-    // Probe from the EOA owner: the resolver authorizes the EOA even when the
-    // real write is sent by its smart account (which the resolver unwraps).
+    // Probe from the same owner EOA used by profile record writes.
     await publicClient.call({
       account: ownerAddress,
       to: resolverAddress,

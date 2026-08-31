@@ -7,6 +7,7 @@ import type { Address } from 'viem'
 import { isAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -220,7 +221,7 @@ export const ChangeResolverForm = ({
         </Button>
       </Link>
 
-      <h1 className="text-h1">Change resolver</h1>
+      <PageHeading parent={{ type: 'name', name }}>Change resolver</PageHeading>
 
       <div className="flex items-center gap-3">
         <Switch

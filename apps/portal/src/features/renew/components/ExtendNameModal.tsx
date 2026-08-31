@@ -16,10 +16,10 @@ import type {
   SelectedName,
   StartFlowConfig,
 } from '../hooks/useRenewalTransactions'
+import type { ExtensionSpan } from '../utils/extensionDurationPicker'
 import { ExtendNameConfirmation } from './ExtendNameConfirmation'
 import { ExtendNameDisclaimer } from './ExtendNameDisclaimer'
 import { ExtendNameSettings } from './ExtendNameSettings'
-import type { ExtensionSpanType } from './ExtensionDurationOrExpiryPicker'
 
 type ExtendNameModalProps = {
   readonly open: boolean
@@ -37,15 +37,13 @@ export const ExtendNameModal = ({
   onExtend,
 }: ExtendNameModalProps) => {
   const [step, setStep] = useState<ExtendNameModalStep>('disclaimer')
-  const [spanType, setSpanType] = useState<ExtensionSpanType>('years')
-  const [duration, setDuration] = useState<number>(1)
+  const [span, setSpan] = useState<ExtensionSpan>({ type: 'years', years: 1 })
   const baseDate = selectedName.expiryDate
     ? dateToPlainDate(selectedName.expiryDate)
     : undefined
   const { durationSeconds, price } = useNamePricing(
     selectedName,
-    duration,
-    spanType,
+    span,
     baseDate,
     open,
   )
@@ -98,10 +96,8 @@ export const ExtendNameModal = ({
           .with('settings', () => (
             <ExtendNameSettings
               selectedName={selectedName}
-              duration={duration}
-              setDuration={setDuration}
-              spanType={spanType}
-              setSpanType={setSpanType}
+              span={span}
+              setSpan={setSpan}
               baseDate={baseDate}
               onBack={isOwner ? undefined : () => setStep('disclaimer')}
               onNext={() => setStep('confirm')}

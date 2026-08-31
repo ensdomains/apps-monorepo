@@ -21,8 +21,8 @@ interface AccountBadgeProps {
 /** Full value on desktop, truncated on mobile — for hashes/addresses in expanded detail. */
 export const FullOnDesktop = ({ value }: { value: string }) => (
   <>
-    <span className="lg:hidden">{truncateAddress(value)}</span>
-    <span className="hidden lg:inline">{value}</span>
+    <span className="@2xl/timeline:hidden">{truncateAddress(value)}</span>
+    <span className="hidden @2xl/timeline:inline">{value}</span>
   </>
 )
 
