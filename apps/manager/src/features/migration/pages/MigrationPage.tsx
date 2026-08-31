@@ -97,6 +97,16 @@ const formatMigrationError = (
           </Trans>
         </div>
       )
+    case 'subregistry-conflict':
+      return (
+        <div>
+          <Trans>
+            One of your names now has its own subname registry. Upgrading it
+            would detach that registry and its subnames, so nothing was
+            submitted. Refresh and select your names again.
+          </Trans>
+        </div>
+      )
     case 'cleanup-failed':
       return (
         <div>

@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   assertCopySourcesFresh: vi.fn(),
   reconcileAtomicMigrationBatch: vi.fn(),
   verifyAtomicMigrationBatch: vi.fn(),
+  assertNoLiveSubregistryOverwrite: vi.fn(),
 }))
 
 vi.mock('@ens-apps/smart-account', async (importOriginal) => ({
@@ -54,6 +55,7 @@ vi.mock('./migrationApprovals', async (importOriginal) => ({
 
 vi.mock('./migrationInvariants', () => ({
   checkDeterministicMigrationResolverReadiness: mocks.checkResolverReadiness,
+  assertNoLiveSubregistryOverwrite: mocks.assertNoLiveSubregistryOverwrite,
 }))
 
 vi.mock('./copyMigrationReadiness', () => ({
@@ -377,6 +379,7 @@ beforeEach(() => {
       value: 0n,
     }),
   )
+  mocks.assertNoLiveSubregistryOverwrite.mockResolvedValue(undefined)
   mocks.checkResolverReadiness.mockResolvedValue({
     status: 'verified',
     resolver: RESOLVER,
@@ -933,6 +936,56 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.verifyStandaloneHca).not.toHaveBeenCalled()
     expect(mocks.startTransaction).not.toHaveBeenCalled()
     expect(mocks.buildMigrationApprovalCall).not.toHaveBeenCalled()
+  })
+
+  it('blocks a name that gained a live subregistry before the first wallet prompt', async () => {
+    mocks.assertNoLiveSubregistryOverwrite.mockRejectedValueOnce(
+      Object.assign(new Error('live subregistry'), {
+        name: 'MigrationContractInvariantError',
+        invariant: 'live-subregistry-overwrite',
+      }),
+    )
+
+    await expect(runExecute()).rejects.toMatchObject({
+      invariant: 'live-subregistry-overwrite',
+    })
+
+    expect(mocks.assertNoLiveSubregistryOverwrite).toHaveBeenCalledWith({
+      publicClient: PUBLIC_CLIENT,
+      names: [expect.objectContaining({ label: 'alice' })],
+    })
+    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('re-checks the pointer on a retry, which never re-runs preflight', async () => {
+    // A retry rebuilds the stored plan for whatever is left, so the only
+    // subregistry verdict it would otherwise carry is the one from selection.
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
+      status: 'incomplete',
+      verification: {
+        batchIndex: 0,
+        status: 'confirmed',
+        results: [{ expectationId: 'alice.eth:name-owner', satisfied: false }],
+      },
+      mismatches: [{ expectationId: 'alice.eth:name-owner' }],
+    })
+    mocks.assertNoLiveSubregistryOverwrite.mockRejectedValueOnce(
+      Object.assign(new Error('live subregistry'), {
+        name: 'MigrationContractInvariantError',
+        invariant: 'live-subregistry-overwrite',
+      }),
+    )
+
+    await expect(
+      runExecute({ reconcileBeforeSubmit: true }),
+    ).rejects.toMatchObject({ invariant: 'live-subregistry-overwrite' })
+
+    expect(mocks.assertNoLiveSubregistryOverwrite).toHaveBeenCalledWith({
+      publicClient: PUBLIC_CLIENT,
+      names: [expect.objectContaining({ label: 'alice' })],
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
   it('does not emit batchComplete until all post-state verification succeeds', async () => {

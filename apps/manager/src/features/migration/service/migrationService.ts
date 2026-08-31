@@ -62,7 +62,10 @@ import {
   removePendingAtomicMigrationIntent,
   removeSubmittedAtomicMigrationBatch,
 } from './migrationBatchJournal'
-import { checkDeterministicMigrationResolverReadiness } from './migrationInvariants'
+import {
+  assertNoLiveSubregistryOverwrite,
+  checkDeterministicMigrationResolverReadiness,
+} from './migrationInvariants'
 import {
   describeRecoveredOperations,
   describeUpgradeOperations,
@@ -1567,6 +1570,19 @@ export const executeMigration = async (params: {
   })
 
   if (executionPlan.classified.length > 0) {
+    // Re-read every destination pointer this plan writes, immediately before
+    // the first wallet prompt. Preflight checks it too, but that verdict is as
+    // old as the preview the user has been reading — and a retry rebuilds the
+    // stored plan without ever re-running preflight. A name that gained a
+    // registry in between would otherwise have that pointer replaced, detaching
+    // the registry and every subname inside it (WEB-1249). A pointer already
+    // equal to what this plan writes passes, so a resumed migration is never
+    // blocked by its own earlier batches.
+    await assertNoLiveSubregistryOverwrite({
+      publicClient,
+      names: executionPlan.classified,
+    })
+
     // Permission state is mutable outside this flow. Check the preview against
     // the latest chain state before opening the first wallet prompt, then use
     // the same snapshot for approval submission. Retries intentionally retain

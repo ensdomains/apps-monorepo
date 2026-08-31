@@ -9,6 +9,7 @@ export type MigrationError =
   | { type: 'generic'; message: string }
   | { type: 'plan-changed' }
   | { type: 'retry-blocked' }
+  | { type: 'subregistry-conflict' }
   | { type: 'cleanup-failed' }
   | {
       type: 'profile-fetch-failed'
@@ -80,6 +81,9 @@ const findTimeoutError = (
 
 const hasNamedError = (err: unknown, name: string): boolean =>
   walkCauseChain(err).some((error) => error.name === name)
+
+const findNamedError = (err: unknown, name: string): Error | undefined =>
+  walkCauseChain(err).find((error) => error.name === name)
 
 const asHexData = (value: unknown): Hex | null =>
   typeof value === 'string' && value.startsWith('0x') ? (value as Hex) : null
@@ -317,6 +321,16 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
     ].some((name) => hasNamedError(err, name))
   ) {
     return { type: 'retry-blocked' }
+  }
+
+  // Refused rather than failed: a selected name already points at a live child
+  // registry, so migrating it would detach that registry (WEB-1249).
+  const invariant = findNamedError(err, 'MigrationContractInvariantError')
+  if (
+    (invariant as { invariant?: string } | undefined)?.invariant ===
+    'live-subregistry-overwrite'
+  ) {
+    return { type: 'subregistry-conflict' }
   }
 
   const timeout = findTimeoutError(err)
