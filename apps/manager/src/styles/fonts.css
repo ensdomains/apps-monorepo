@@ -9,7 +9,7 @@
      verified via fonttools: 200–1000). Evergreen browsers already use the full
      axis when the descriptor is omitted (`auto`); declaring it guards UAs that
      default the descriptor to 400 and would clamp intermediate weights such as
-     font-ens-book (450). */
+     font-ens-450 (450). */
   font-weight: 200 1000;
 }
 
