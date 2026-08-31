@@ -209,7 +209,6 @@ export const useCheckAvailability = ({
     isInCooldown,
     primaryName: primaryNameQuery.data ?? null,
     isPrimaryNameLoading: primaryNameQuery.isLoading,
-    selectedName: availabilityQuery.data?.name ?? null,
     isAvailable: availabilityQuery.data?.isAvailable ?? false,
     isSearching: availabilityQuery.isFetching,
     isDebouncing,

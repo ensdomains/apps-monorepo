@@ -52,7 +52,6 @@ export const CheckAvailability = ({
     premiumLabel,
     isInCooldown,
     primaryName,
-    selectedName,
     isLoading,
     error,
   } = useCheckAvailability({ inputValue, debouncedInput: debouncedValue })
@@ -69,7 +68,7 @@ export const CheckAvailability = ({
 
   // Determine which name to fetch profile data for
   const profileName = match(displayState)
-    .with({ type: 'unavailable' }, () => selectedName)
+    .with({ type: 'unavailable' }, ({ domainName }) => domainName)
     .with({ type: 'address' }, () => primaryName ?? null)
     .otherwise(() => null)
 
@@ -138,9 +137,9 @@ export const CheckAvailability = ({
                     {...dropdownAnimation}
                   >
                     <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
-                      <div className="size-12 shrink-0 overflow-hidden rounded-md">
+                      <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-ens-quartz-50">
                         <PatternAvatar
-                          className="size-full min-h-0 min-w-0"
+                          className="size-full rounded-md border-none bg-transparent p-0 shadow-none"
                           name={state.domainName}
                         />
                       </div>
@@ -242,11 +241,13 @@ export const CheckAvailability = ({
                   >
                     <Link params={{ name: state.domainName }} to="/$name">
                       <DomainResultCard
+                        avatarUrl={profileAvatar}
                         clickable
                         domainName={state.domainName}
                         status={domainResultStatusFromGrace(
                           getProfileExpiryResultStatus(profileExpiry).isInGrace,
                         )}
+                        themeColor={themeColor}
                       />
                     </Link>
                   </motion.div>
