@@ -164,13 +164,13 @@ export const invariants: Invariant[] = [
     statement:
       'Totality — every input lands in exactly one visible bucket. No silent nulls, and every declared reason is producible.',
     rationale:
-      'A name that vanishes from *both* the eligible and ineligible lists is invisible to the user and to any flow-shaped test. Three of `classifyNames`’ eight ineligibility reasons are currently dead code.',
+      'A name that vanishes from *both* the eligible and ineligible lists is invisible to the user and to any flow-shaped test. Two of `classifyNames`’ ten ineligibility reasons are dead code — and the app surfaces no ineligible list at all, so "ineligible" is only ever observable as absence.',
     sites: [
       site(
         'INV3',
         'classify-names',
-        'classifyNames — 5 token types, 8 reasons',
-        'every one of the 13 getNameType states lands in exactly one bucket, and each of the 8 declared reasons is either produced by some input or recorded as unreachable (registry-only → GS4, frozen-approval → GW11, already-migrated → GM5)',
+        'classifyNames — 7 token types, 10 reasons',
+        'every getNameType state lands in exactly one bucket, and each of the 10 declared reasons is either produced by some input or recorded as unreachable. The subname-migration PR added the `unlocked-child` and `registry-child` copy token types and the `invalid-label` (GS13) and `unsupported-resolver` (GS16) reasons, and made `unlocked-subname` dead alongside `registry-only` — both of those shapes are now eligible copies (GS3, GS4). Still tracked as unreachable: registry-only, unlocked-subname. Produced elsewhere: frozen-approval → GW11, already-migrated → GM5, missing-parent → GS9',
       ),
       site(
         'INV3',

@@ -267,15 +267,31 @@ write a scenario for it.
 |---|---|---|
 | GS1 | locked 2LD + locked child, both selected | both migrate, **parent first** |
 | GS2 | locked 2LD + emancipated child | child → `detached-child` via the parent's `WrapperRegistry` |
-| GS3 | wrapped subname (PCC not burned) | ineligible `unlocked-subname` |
-| GS4 | unwrapped subname (registry-only) | currently a **silent drop** — declared reason `registry-only` is never emitted (INV3) |
+| GS3 | wrapped subname (PCC not burned), under an unlocked 2LD | **`copy`/`unlocked-child`** — re-created in the parent's `UserRegistry`, carrying its wrapper expiry |
+| GS4 | unwrapped subname (registry-only) | **`copy`/`registry-child`** — re-created with expiry `MAX_UINT64` |
 | GS5 | pcc-expired subname | define expected, then assert |
 | GS6 | 3 levels: locked 2LD → locked child → locked grandchild | parent-first across 3; recursive WrapperRegistry derivation |
-| GS7 | child selected **without** its parent | must fail closed with "upgrade `<parent>` first" |
+| GS7 | child selected **without** its parent | impossible by construction — descendant rows are not interactive; toggling a root toggles its subtree |
 | GS8 | locked 2LD with many children | ordering × batching |
-| GS9 | emancipated 3LD whose parent has not migrated | ineligible with the parent-must-migrate-first reason |
-| GS10 | unlocked 3LD | not migratable; must be registered directly |
+| GS9 | subname whose parent is absent from the selection | not offered — `hasCompleteCopyRoute` demotes it to `missing-parent` |
+| GS10 | unlocked 3LD | migratable as a **copy** under an unwrapped/unlocked 2LD; still not under a locked one (GS15) |
 | GS11 | mixed batch: 7 unwrapped + 8 unlocked + 9 locked | all 24 in one flow |
+| GS12 | copy child whose V1 expiry has passed | ineligible `expired-registration` (a zero expiry without PCC is **not** expired) |
+| GS13 | copy child with an empty / >255-byte / dotted label | ineligible `invalid-label` |
+| GS14 | 3 levels of copy: unwrapped 2LD → registry 3LD → registry 4LD | a `UserRegistry` per copy parent, chained |
+| GS15 | subname under a **locked** 2LD | **not** a copy — stays on the WrapperRegistry token route |
+| GS16 | copy child on an unrecognised V1 resolver | ineligible `unsupported-resolver`; the parent still migrates |
+| GS17 | copy re-run against a dirty deterministic registry slot | fails closed: `subregistry-conflict` / `v2-name-history` / `uncertified-registry` |
+| GS18 | copy child owned by a different address than its parent | not offered |
+
+**GS3, GS4 and GS10 were rewritten** when subname migration landed. All three
+previously described the name as rejected; all three are now the copy route.
+A copy has no transferable token, so it is *re-created* in a deterministic
+per-parent `UserRegistry` rather than migrated — and survives classification
+only if an `unwrapped` or `unlocked` .eth 2LD ancestor is migrating in the same
+run. The app renders no ineligible list, so every negative here is observable
+only as **absence**, and must be asserted alongside a control name that is
+expected to appear.
 
 #### GR — records (INV2 territory — highest severity found here)
 

@@ -93,6 +93,10 @@ const ALLOWED: Record<string, Allowance> = {
   '0x1234567890abcdef1234567890abcdef12345678': {
     reason: 'placeholder sentinel in the agent-name seed script',
   },
+  '0x00000000000000000000000000000000deadbe11': {
+    reason:
+      'Deliberately unrecognised resolver in migration-subname.spec.ts (GS16). The point is that it is NOT in KNOWN_PUBLIC_RESOLVERS, so it cannot come from a config — sourcing it from ensjs would defeat the fixture. Never called: classification only compares the address against the allowlist.',
+  },
 
   // ── Canonical cross-chain deployments, identical on every network.
   '0xca11bde05977b3631167028862be2a173976ca11': {

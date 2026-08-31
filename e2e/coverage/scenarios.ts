@@ -1170,15 +1170,19 @@ const migrationGS: Scenario[] = suite('G.GS', 'migration', 'manager', 'P3', [
     'child classified `detached-child`; registered via the parent WrapperRegistry',
     { planId: 'G5' },
   ],
+  // GS3/GS4/GS10 previously described the pre-subname-migration product, where
+  // these three shapes were all rejected. They are now the COPY route: the name
+  // has no transferable token, so it is re-created in a deterministic
+  // per-parent `UserRegistry` rather than migrated.
   [
     'GS3',
-    'Wrapped subname with PCC not burned',
-    'ineligible with reason `unlocked-subname`, surfaced',
+    'Wrapped subname with PCC not burned, under an unlocked 2LD',
+    'eligible as `copy`/`unlocked-child` — re-created in the parent UserRegistry, carrying its NameWrapper wrappedDomain.expiryDate as the V2 expiry (NOT the sentinel)',
   ],
   [
     'GS4',
     'Unwrapped subname (registry-only)',
-    'currently a silent drop — declared reason `registry-only` is never emitted (INV3 dead-reason site)',
+    'eligible as `copy`/`registry-child` — ownership proven via LegacyRegistry.owner(namehash), re-created with expiry MAX_UINT64 since it has no V1 expiry of its own',
   ],
   [
     'GS5',
@@ -1194,7 +1198,7 @@ const migrationGS: Scenario[] = suite('G.GS', 'migration', 'manager', 'P3', [
   [
     'GS7',
     'Child selected without its parent',
-    'fails closed with an "upgrade <parent> first" reason — never a partial migration',
+    'impossible by construction — a descendant row is not interactive (no button role, no aria-pressed) and toggling its root toggles the whole subtree, so a child can never be selected or deselected on its own',
     { planId: 'G6' },
   ],
   [
@@ -1204,15 +1208,52 @@ const migrationGS: Scenario[] = suite('G.GS', 'migration', 'manager', 'P3', [
   ],
   [
     'GS9',
-    'Emancipated 3LD whose parent has not migrated',
-    'ineligible with the parent-must-migrate-first reason',
+    'Subname whose parent is absent from the selection',
+    'not offered at all — `hasCompleteCopyRoute` walks up from the copy and, finding no classified `unwrapped`/`unlocked` 2LD ancestor, demotes it to ineligible `missing-parent`. Assert alongside a control name that IS offered, or the absence passes vacuously',
     { planId: 'G6' },
   ],
   [
     'GS10',
     'Unlocked 3LD',
-    'not migratable — must be registered directly (case study §Unlocked.4)',
+    'migratable as a `copy` under an unwrapped/unlocked 2LD (superseded case study §Unlocked.4, which predates the copy route); still NOT migratable under a locked 2LD — see GS15',
     { planId: 'G7' },
+  ],
+  // GS12-GS18 are the copy route's own state space, which had no rows before
+  // the subname-migration PR because the route did not exist.
+  [
+    'GS12',
+    'Copy child whose V1 expiry has already passed',
+    'ineligible `expired-registration`. Note the escape: a parent-controlled NameWrapper subname legitimately carries a ZERO expiry, so zero-and-no-PCC must NOT be treated as expired',
+  ],
+  [
+    'GS13',
+    'Copy child whose label is empty, >255 bytes, or contains a dot',
+    'ineligible `invalid-label`. Only the length case can exist on chain — a dotted label cannot, so testing it requires the mock to knowingly diverge',
+  ],
+  [
+    'GS14',
+    'Three levels of copy: unwrapped 2LD → registry 3LD → registry 4LD',
+    'a UserRegistry per copy parent, chained — resolution walks ETHRegistry → UserRegistry(2LD) → UserRegistry(3LD), and every level renders in the recursive selection tree',
+  ],
+  [
+    'GS15',
+    'Subname under a LOCKED 2LD',
+    'NOT a copy — stays on the `locked-child`/`detached-child` WrapperRegistry token route. Both routes leave a non-zero subregistry, so the oracle must be the factory implementation pointer, not mere non-zero-ness',
+  ],
+  [
+    'GS16',
+    'Copy child whose V1 resolver is not a known public resolver',
+    'ineligible `unsupported-resolver` — a copy always rewrites the resolver to the owner PermissionedResolver and cannot carry an unknown one across. The PARENT must still migrate',
+  ],
+  [
+    'GS17',
+    'Copy re-run against a dirty deterministic UserRegistry slot',
+    '`copyMigrationReadiness` fails closed with `subregistry-conflict` / `v2-name-history` / `uncertified-registry` rather than writing over prior state',
+  ],
+  [
+    'GS18',
+    'Copy child owned by a different address than the migrating parent',
+    'not offered — classification keys the registry-child branch on `domain.owner.id` matching the connected wallet',
   ],
   [
     'GS11',
