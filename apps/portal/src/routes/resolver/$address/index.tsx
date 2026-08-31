@@ -9,7 +9,10 @@ import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { addressHeadingClassName, PageHeading } from '@/components/PageHeading'
+import {
+  inlineAddressHeadingClassName,
+  PageHeading,
+} from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
@@ -63,7 +66,7 @@ function RouteComponent() {
     <div className="flex flex-col gap-8">
       <PageHeading>
         Resolver{' '}
-        <span className={addressHeadingClassName}>
+        <span className={inlineAddressHeadingClassName}>
           {truncateAddress(address)}
         </span>
       </PageHeading>

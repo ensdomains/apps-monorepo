@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Calendar, ChevronDown, ChevronUp, ListFilter } from 'lucide-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
+import type { Hex } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -8,45 +9,84 @@ import { PageHeading } from '@/components/PageHeading'
 import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { Button } from '@/components/ui/button'
+import { TimelineFrame } from '@/components/ui/timeline'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { buildEventTypeGroups, filterActions } from '../filterTimeline'
-import { formatTimelineDate } from '../formatTimelineDate'
 import {
   getNameHistoryTimelineQueryOptions,
-  HISTORY_TIMELINE_PAGE_SIZE,
+  type TimelineIndexerEvent,
 } from '../hooks/useNameHistoryTimeline'
+import type { TimelineEventType } from '../summarize/descriptors'
 import { summarizeEvents } from '../summarize/summarizeEvents'
-import { ActionSummaryRow } from './ActionSummaryRow'
+import { ActionTimeline } from './ActionTimeline'
 
-interface HistoryTimelineProps {
-  readonly name: string
+interface HistoryTimelineViewProps {
+  /** The raw event feed; summarized into actions here, one row per transaction. */
+  readonly events: readonly TimelineIndexerEvent[]
+  /** Whether history exists beyond `events`, i.e. show the truncation note. */
+  readonly hasMore?: boolean
+  /** Whether `events` is one facet of a larger feed — wording of that note. */
+  readonly isScoped?: boolean
+  /**
+   * Left side of the header bar. Optional here because this view is feed-agnostic
+   * and has no subject to title itself with — `HistoryTimeline` supplies the
+   * page-level "History" title for a name.
+   */
+  readonly heading?: ReactNode
+  /** Rendered after the filter chips, e.g. a "Full history" link. */
+  readonly action?: ReactNode
+  /** Show the date / event-type chips and the truncation note. */
+  readonly showFilters?: boolean
+  /**
+   * Disclose that the window is capped, independently of `showFilters`. For a
+   * section that has no "Full history" link to disclose through — the homepage
+   * feed — and so would otherwise present a truncated list as the whole story.
+   */
+  readonly showTruncationNote?: boolean
+  readonly emptyTitle?: string
+  readonly emptyDescription?: string
+  /**
+   * Prefix rows with the name they concern. For feeds whose rows have
+   * different subjects (a registry's labels) — see `summarizeEvents`.
+   */
+  readonly includeSubjectName?: boolean
 }
 
 /**
- * The History timeline: fetches the widened event feed, summarizes raw events into
- * semantic actions, and renders the three-tier nested timeline with date / event-type
- * filters and an expand-all toggle.
+ * The History timeline UI: summarizes raw events into semantic actions and
+ * renders the nested timeline with date / event-type filter chips and an
+ * expand-all toggle.
+ *
+ * Presentational — it owns the filter and expansion state but does no
+ * fetching, so any feed of `TimelineIndexerEvent`s can drive it (a name's
+ * history via `HistoryTimeline`, a registry contract's via
+ * `RegistryHistoryByAddress`).
  */
-export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
-  const {
-    data: events,
-    isLoading,
-    error,
-  } = useQuery(getNameHistoryTimelineQueryOptions({ name }))
-
+export const HistoryTimelineView = ({
+  events,
+  hasMore = false,
+  isScoped = false,
+  heading,
+  action,
+  showFilters = true,
+  showTruncationNote = showFilters,
+  emptyTitle = 'No history yet',
+  emptyDescription = "This name doesn't have any recorded history. Activity will appear here once transactions are made.",
+  includeSubjectName = false,
+}: HistoryTimelineViewProps) => {
   const [dateRange, setDateRange] = useState<DateRange>({})
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
-  const [openIds, setOpenIds] = useState<ReadonlySet<string>>(new Set())
+  const [openIds, setOpenIds] = useState<ReadonlySet<Hex>>(new Set())
 
-  const actions = events ? summarizeEvents(events) : []
-  const eventTypeGroups = buildEventTypeGroups(events ?? [])
+  const actions = summarizeEvents(events, { includeSubjectName })
+  const eventTypeGroups = buildEventTypeGroups(events)
   const filteredActions = filterActions(actions, dateRange, selectedTypes)
 
   const allExpanded =
     filteredActions.length > 0 &&
     filteredActions.every((action) => openIds.has(action.txHash))
 
-  const toggleAction = (id: string) =>
+  const toggleAction = (id: Hex) =>
     setOpenIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -59,6 +99,129 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
       allExpanded ? new Set() : new Set(filteredActions.map((a) => a.txHash)),
     )
 
+  if (actions.length === 0) {
+    return (
+      <div className="flex w-full min-w-0 flex-col gap-4">
+        {heading != null && (
+          <div className="flex min-h-7 items-center justify-between gap-4">
+            {heading}
+            {action}
+          </div>
+        )}
+        <NoResultsMessage
+          title={emptyTitle}
+          description={emptyDescription}
+          className="mx-0 my-0"
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-4 sm:gap-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        {heading}
+        <div className="flex flex-wrap items-center gap-2">
+          {showFilters && (
+            <>
+              <TableDateRangeFilter
+                label="Date range"
+                dateRange={dateRange}
+                onChange={setDateRange}
+                size="xs"
+                icon={Calendar}
+                hideValue
+              />
+              {eventTypeGroups.length > 0 && (
+                <TableMultiSelectFilter
+                  label="Event"
+                  groups={eventTypeGroups}
+                  selectedValues={selectedTypes}
+                  onChange={setSelectedTypes}
+                  size="xs"
+                  icon={ListFilter}
+                  hideValue
+                />
+              )}
+            </>
+          )}
+          <Button variant="outline" onClick={toggleExpandAll} size="xs">
+            {allExpanded ? (
+              <ChevronUp className="size-4" />
+            ) : (
+              <ChevronDown className="size-4" />
+            )}
+            {allExpanded ? 'Collapse all' : 'Expand all'}
+          </Button>
+          {action}
+        </div>
+      </div>
+
+      {filteredActions.length === 0 ? (
+        <NoResultsMessage
+          title="No matching history"
+          description="No events match the selected filters. Try widening the date range or clearing the event filter."
+        />
+      ) : (
+        <TimelineFrame>
+          {/* Counts the rows on screen, not the events behind them: a row is
+              one transaction, so counting events would put a figure above the
+              list that nothing in it adds up to.
+
+              Follows `showFilters` because both mark a standalone History view:
+              there, the note is the only thing saying the window is capped. An
+              embedded section hides both and discloses through its "Full
+              history" link instead, the way the Overview's preview does — bar
+              one with no such link, which opts in via `showTruncationNote`. */}
+          {showTruncationNote && hasMore && (
+            <p className="mb-3 text-muted-foreground text-p">
+              Showing the most recent {filteredActions.length}
+              {isScoped ? ' matching' : ''} transactions.
+            </p>
+          )}
+          <ActionTimeline
+            actions={filteredActions}
+            openIds={openIds}
+            onToggle={toggleAction}
+          />
+        </TimelineFrame>
+      )}
+    </div>
+  )
+}
+
+interface HistoryTimelineProps
+  extends Omit<
+    HistoryTimelineViewProps,
+    'events' | 'hasMore' | 'isScoped' | 'includeSubjectName'
+  > {
+  readonly name: string
+  /**
+   * Restrict the timeline to these event types — how the per-facet views
+   * (address resolution, ownership, …) show their slice of the name's history.
+   * Omit for the full feed.
+   */
+  readonly scope?: readonly TimelineEventType[]
+}
+
+/**
+ * A name's History timeline: fetches the widened event feed and hands it to
+ * `HistoryTimelineView`.
+ *
+ * `scope` is pushed down into the query, so a facet view fetches only its own
+ * event types — `first` bounds the whole feed, and a name with unrelated churn
+ * would otherwise spend the window before its facet's events were reached.
+ */
+export const HistoryTimeline = ({
+  name,
+  scope,
+  heading,
+  ...viewProps
+}: HistoryTimelineProps) => {
+  const { data, isLoading, error } = useQuery(
+    getNameHistoryTimelineQueryOptions({ name, eventTypes: scope }),
+  )
+
   if (isLoading) return <LoadingMessage />
 
   if (error) {
@@ -70,81 +233,17 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
     )
   }
 
-  if (actions.length === 0) {
-    return (
-      <NoResultsMessage
-        title="No history yet"
-        description="This name doesn't have any recorded history. Activity will appear here once transactions are made."
-      />
-    )
-  }
-
   return (
-    <div className="flex w-full min-w-0 flex-col gap-4 sm:gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <PageHeading parent={{ type: 'name', name }}>History</PageHeading>
-        <div className="flex flex-wrap items-center gap-2">
-          <TableDateRangeFilter
-            label="Date range"
-            dateRange={dateRange}
-            onChange={setDateRange}
-            size="xs"
-            icon={Calendar}
-            hideValue
-          />
-          {eventTypeGroups.length > 0 && (
-            <TableMultiSelectFilter
-              label="Event"
-              groups={eventTypeGroups}
-              selectedValues={selectedTypes}
-              onChange={setSelectedTypes}
-              size="xs"
-              icon={ListFilter}
-              hideValue
-            />
-          )}
-          <Button variant="outline" onClick={toggleExpandAll} size="xs">
-            {allExpanded ? (
-              <ChevronUp className="size-4" />
-            ) : (
-              <ChevronDown className="size-4" />
-            )}
-            {allExpanded ? 'Collapse all' : 'Expand all'}
-          </Button>
-        </div>
-      </div>
-
-      {filteredActions.length === 0 ? (
-        <NoResultsMessage
-          title="No matching history"
-          description="No events match the selected filters. Try widening the date range or clearing the event filter."
-        />
-      ) : (
-        <div className="relative min-w-0 overflow-x-clip overflow-y-visible pr-3 [--detail-indent:36px] [--rail-x:12px] [--tier2-indent:30px] lg:[--detail-indent:224px] lg:[--rail-x:151px] lg:[--tier2-indent:182px]">
-          {events && events.length >= HISTORY_TIMELINE_PAGE_SIZE && (
-            <p className="mb-3 text-muted-foreground text-p">
-              Showing the most recent {events.length} events.
-            </p>
-          )}
-          <div className="relative flex flex-col">
-            {filteredActions.map((action, index) => (
-              <ActionSummaryRow
-                key={action.txHash}
-                action={action}
-                isOpen={openIds.has(action.txHash)}
-                onToggle={() => toggleAction(action.txHash)}
-                connectRailAbove={index > 0}
-                connectRailBelow={index < filteredActions.length - 1}
-                showDate={
-                  index === 0 ||
-                  formatTimelineDate(filteredActions[index - 1].timestamp) !==
-                    formatTimelineDate(action.timestamp)
-                }
-              />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    <HistoryTimelineView
+      events={data?.events ?? []}
+      hasMore={data?.hasMore}
+      isScoped={scope != null}
+      heading={
+        heading ?? (
+          <PageHeading parent={{ type: 'name', name }}>History</PageHeading>
+        )
+      }
+      {...viewProps}
+    />
   )
 }
