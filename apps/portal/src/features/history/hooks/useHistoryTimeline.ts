@@ -98,11 +98,17 @@ const useTimelineModel = (
   const hasNextPage = pages.at(-1)?.hasNextPage ?? false
   const pagedTotalCount = pages.at(-1)?.totalCount
 
-  const events = mergeTimeline({
-    pagedEvents: pages.flatMap((page) => page.events),
-    auxiliaryEvents,
-    hasNextPage,
-  })
+  const pagedEvents = pages.flatMap((page) => page.events)
+  const events = mergeTimeline({ pagedEvents, auxiliaryEvents, hasNextPage })
+
+  // Counted by id, the way `mergeTimeline` merges. The sources are not supposed
+  // to overlap — a child's `LabelRegistered` carries the child's namehash, so
+  // the parent's connection never returns it — but counting raw length would
+  // inflate the total past what renders if that ever stopped holding.
+  const pagedIds = new Set(pagedEvents.map((event) => event.id))
+  const auxiliaryCount = auxiliaryEvents.filter(
+    (event) => !pagedIds.has(event.id),
+  ).length
   const allActions = summarizeEvents(events, { includeSubjectName })
   const actions = limit === undefined ? allActions : allActions.slice(0, limit)
 
@@ -120,10 +126,12 @@ const useTimelineModel = (
     totalCount:
       pagedTotalCount === undefined || isV1Truncated || sourcesError
         ? undefined
-        : pagedTotalCount + auxiliaryEvents.length,
+        : pagedTotalCount + auxiliaryCount,
     hasMore: hasNextPage || allActions.length > actions.length,
     loadMore: () => void pagesQuery.fetchNextPage(),
     isLoadingMore: pagesQuery.isFetchingNextPage,
+    // The sources gate first paint too, or a paged-only history would render
+    // and then have older rows pushed in underneath it.
     isLoading: pagesQuery.isLoading || isLoadingSources,
     error: pagesQuery.error,
     sourcesError,
