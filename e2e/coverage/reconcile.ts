@@ -53,6 +53,10 @@ const PROJECT_CONFIGS = [
     project: 'manager-premium',
     config: 'projects/manager/playwright.premium.config.ts',
   },
+  {
+    project: 'manager-migration',
+    config: 'projects/manager/playwright.migration.config.ts',
+  },
   { project: 'portal', config: 'projects/portal/playwright.config.ts' },
   { project: 'cross-app', config: 'projects/cross-app/playwright.config.ts' },
 ]
