@@ -1,7 +1,8 @@
+import { logger } from '@ens-apps/utils/logger'
 import { Wallet } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import type { Connector } from 'wagmi'
-import { useConnect, useConnectors } from 'wagmi'
+import { useConnect, useConnectors, useSwitchChain } from 'wagmi'
 import {
   Dialog,
   DialogContent,
@@ -12,12 +13,12 @@ import { getResolvedThemeMode } from '@/hooks/useTheme'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import {
+  connectOnSupportedChain,
   isCoinbase,
   isConnectionCancelled,
   isMetaMask,
   METAMASK_DOWNLOAD_URL,
   normalizeConnectError,
-  resolveConnectChainId,
   WALLETCONNECT_ID,
 } from './connect.helpers'
 import { CoinbaseIcon, MetaMaskIcon, WalletConnectIcon } from './WalletIcons'
@@ -120,6 +121,7 @@ export const ConnectWalletDialog = ({
 }: ConnectWalletDialogProps) => {
   const connectors = useConnectors()
   const { mutateAsync: connectAsync } = useConnect()
+  const { switchChainAsync } = useSwitchChain()
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -186,12 +188,16 @@ export const ConnectWalletDialog = ({
     }
 
     try {
-      // Connect on a supported chain so wallets that default to mainnet land on
-      // the right chain from the first connect.
-      const walletChainId = await connector.getChainId()
-      const chainId = resolveConnectChainId(walletChainId, wagmiConfig.chains)
       if (usesOwnModal) await syncWalletConnectTheme(connector)
-      await connectAsync({ connector, chainId })
+      // Leaves the wallet on a chain the app supports, without handing
+      // WalletConnect a target chain up front — that deadlocks wagmi's
+      // connector. See `connectOnSupportedChain`.
+      await connectOnSupportedChain(connector, wagmiConfig.chains, {
+        connect: connectAsync,
+        switchChain: switchChainAsync,
+        onChainSwitchFailed: (error) =>
+          logger.error('[wallet] connected, but chain switch failed', error),
+      })
       onOpenChange(false)
     } catch (e) {
       handleConnectError(e, usesOwnModal)
