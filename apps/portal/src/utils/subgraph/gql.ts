@@ -11,7 +11,7 @@
  */
 export const gql = (
   chunks: TemplateStringsArray,
-  ...variables: unknown[]
+  ...variables: readonly unknown[]
 ): string =>
   chunks.reduce(
     (acc, chunk, index) =>
