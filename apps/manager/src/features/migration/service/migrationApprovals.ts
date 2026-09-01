@@ -81,17 +81,15 @@ export const requiresMigrationApprovalCleanup = (
 ): approval is MigrationCleanupApproval =>
   approval.kind === 'operator' && approval.id === 'eth-registry:hca'
 
-/** Every temporary HCA operator grant a migration may leave on-chain. */
-const temporaryHcaOperatorApprovals = (
+/** The temporary HCA operator grant a migration may leave on-chain. */
+export const migrationCleanupApprovalFor = (
   hcaAddress: Address,
-): readonly MigrationCleanupApproval[] => [
-  {
-    kind: 'operator',
-    id: 'eth-registry:hca',
-    contractAddress: V2_CONTRACTS.ETHRegistry,
-    operatorAddress: hcaAddress,
-  },
-]
+): MigrationCleanupApproval => ({
+  kind: 'operator',
+  id: 'eth-registry:hca',
+  contractAddress: V2_CONTRACTS.ETHRegistry,
+  operatorAddress: hcaAddress,
+})
 
 /**
  * Reads which temporary HCA operator grants are currently live on-chain.
@@ -107,7 +105,7 @@ export const getGrantedMigrationCleanupApprovals = async (params: {
   readonly hcaAddress: Address
   readonly publicClient: Pick<PublicClient, 'readContract'>
 }): Promise<readonly MigrationCleanupApproval[]> => {
-  const candidates = temporaryHcaOperatorApprovals(params.hcaAddress)
+  const candidates = [migrationCleanupApprovalFor(params.hcaAddress)]
   const grantedFlags = await Promise.all(
     candidates.map((approval) =>
       params.publicClient.readContract({

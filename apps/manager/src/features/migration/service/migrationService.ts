@@ -38,16 +38,23 @@ import {
 } from './copyMigrationReadiness'
 import { decodeMigrationError } from './decodeMigrationError'
 import { resolveDirectMigrationRoutes } from './directMigrationRoutes'
+import {
+  loadMigrationApprovalCleanupObligation,
+  recordMigrationApprovalCleanupGrantHash,
+  recordMigrationApprovalCleanupRequired,
+  recordMigrationApprovalCleanupRevocationHash,
+  removeMigrationApprovalCleanupObligation,
+} from './migrationApprovalCleanupJournal'
 import { approvalNeedsFor } from './migrationApprovalNeeds'
 import {
   buildMigrationApprovalCall,
   buildMigrationOperatorApprovalRevocationCall,
   checkMigrationApprovals,
-  getGrantedMigrationCleanupApprovals,
   type MigrationApproval,
   type MigrationCleanupApproval,
   migrationApprovalKey,
   planMigrationApprovals,
+  requiresMigrationApprovalCleanup,
 } from './migrationApprovals'
 import {
   loadPendingAtomicMigrationIntents,
@@ -63,6 +70,7 @@ import {
   removeSubmittedAtomicMigrationBatch,
 } from './migrationBatchJournal'
 import { checkDeterministicMigrationResolverReadiness } from './migrationInvariants'
+import { readMigrationApprovalCleanupStatus } from './readMigrationApprovalCleanupStatus'
 import {
   reconcileAtomicMigrationBatch,
   verifyAtomicMigrationBatch,
@@ -512,10 +520,69 @@ const assertMigrationApprovalPlanCurrent = async (params: {
   return missing
 }
 
+const submitMigrationApproval = async (params: {
+  readonly ctx: MigrationCtx
+  readonly approval: MigrationApproval
+  readonly onTemporaryApprovalAttempt?: (
+    approval: MigrationCleanupApproval,
+  ) => void
+}): Promise<Hex> => {
+  const { approval, ctx } = params
+  const description = approvalDescription(approval)
+  const cleanupApproval = requiresMigrationApprovalCleanup(approval)
+    ? approval
+    : null
+  const cleanupScope = cleanupApproval ? batchJournalScope(ctx) : null
+  let cleanupObligationCreatedForAttempt = false
+  let submittedTemporaryApprovalHash: Hex | undefined
+
+  try {
+    if (cleanupApproval && cleanupScope) {
+      const existing = loadMigrationApprovalCleanupObligation(cleanupScope)
+      recordMigrationApprovalCleanupRequired(cleanupScope)
+      cleanupObligationCreatedForAttempt = existing === null
+      params.onTemporaryApprovalAttempt?.(cleanupApproval)
+    }
+    const { hash } = await submitCall(
+      ctx,
+      buildMigrationApprovalCall(approval),
+      description,
+      cleanupScope
+        ? (submittedHash) => {
+            // Set the in-memory marker before the durable update. If the write
+            // itself fails, the base obligation still survives and the failure
+            // path must revoke unconditionally.
+            submittedTemporaryApprovalHash = submittedHash
+            recordMigrationApprovalCleanupGrantHash(cleanupScope, submittedHash)
+          }
+        : undefined,
+    )
+    return hash
+  } catch (error) {
+    if (
+      cleanupScope &&
+      cleanupObligationCreatedForAttempt &&
+      !submittedTemporaryApprovalHash &&
+      isUserRejection(error)
+    ) {
+      try {
+        removeMigrationApprovalCleanupObligation(cleanupScope)
+      } catch {
+        // A stale no-op cleanup prompt is safer than deleting uncertain
+        // evidence when storage cannot confirm removal.
+      }
+    }
+    throw wrapMigrationError(error, description)
+  }
+}
+
 const ensureMigrationApprovals = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
   readonly currentMissing?: readonly MigrationApproval[]
+  readonly onTemporaryApprovalAttempt?: (
+    approval: MigrationCleanupApproval,
+  ) => void
 }): Promise<readonly Hex[]> => {
   const { ctx, plan } = params
   const missing =
@@ -548,19 +615,14 @@ const ensureMigrationApprovals = async (params: {
       ctx.tracker.emit('Permission already confirmed')
       continue
     }
-    const description = approvalDescription(approval)
-    try {
-      const { hash } = await submitCall(
-        ctx,
-        buildMigrationApprovalCall(approval),
-        description,
-      )
-      hashes.push(hash)
-      ctx.tracker.next()
-      ctx.tracker.emit('Permission confirmed', hash)
-    } catch (error) {
-      throw wrapMigrationError(error, description)
-    }
+    const hash = await submitMigrationApproval({
+      ctx,
+      approval,
+      onTemporaryApprovalAttempt: params.onTemporaryApprovalAttempt,
+    })
+    hashes.push(hash)
+    ctx.tracker.next()
+    ctx.tracker.emit('Permission confirmed', hash)
   }
   return hashes
 }
@@ -570,16 +632,15 @@ const cleanupDescription = (_approval: MigrationCleanupApproval): string =>
 
 const revokeTemporaryOperatorApprovals = async (params: {
   readonly ctx: MigrationCtx
+  readonly forcedApprovals?: readonly MigrationCleanupApproval[]
 }): Promise<readonly Hex[]> => {
-  // Revocation targets are re-derived from live chain state, never from the
-  // preview plan: the preflight lists missing grants only, so a grant left
-  // behind by an interrupted earlier session would drop out of a rebuilt plan
-  // and stay live forever while the migration reports success.
-  let temporaryOperators: readonly MigrationCleanupApproval[]
+  const cleanupScope = batchJournalScope(params.ctx)
+  let status: Awaited<ReturnType<typeof readMigrationApprovalCleanupStatus>>
   try {
-    temporaryOperators = await getGrantedMigrationCleanupApprovals({
+    status = await readMigrationApprovalCleanupStatus({
       eoa: params.ctx.walletAddress,
       hcaAddress: params.ctx.hcaAddress,
+      chainId: cleanupScope.chainId,
       publicClient: params.ctx.publicClient,
     })
   } catch (cause) {
@@ -589,16 +650,63 @@ const revokeTemporaryOperatorApprovals = async (params: {
       cause,
     })
   }
+
+  if (status.pendingRevocationHash) {
+    throw new MigrationCleanupError({
+      message:
+        'Temporary migration access is still being revoked. Wait for the pending transaction to confirm.',
+      cause: new Error(
+        `Pending cleanup transaction ${status.pendingRevocationHash}`,
+      ),
+    })
+  }
+
+  // Live state, durable obligations, and current-run attempts are all valid
+  // cleanup evidence. The durable/current-run paths deliberately revoke even
+  // when `latest` reports false because the grant may be pending at an earlier
+  // EOA nonce.
+  const temporaryOperators = [
+    ...new Map(
+      [...status.approvals, ...(params.forcedApprovals ?? [])].map(
+        (approval) => [migrationApprovalKey(approval), approval] as const,
+      ),
+    ).values(),
+  ]
   const hashes: Hex[] = []
 
   for (const approval of temporaryOperators) {
     const description = cleanupDescription(approval)
     try {
+      try {
+        // Historical live grants predate the journal. Recording before the
+        // wallet prompt gives their revocation the same reload protection.
+        recordMigrationApprovalCleanupRequired(cleanupScope)
+      } catch {
+        // Cleanup must remain possible when the existing record is corrupt or
+        // storage is unavailable. The on-chain false write is still safe.
+      }
       const { hash } = await submitCall(
         params.ctx,
         buildMigrationOperatorApprovalRevocationCall(approval),
         description,
+        (submittedHash) => {
+          try {
+            recordMigrationApprovalCleanupRevocationHash(
+              cleanupScope,
+              submittedHash,
+            )
+          } catch {
+            // Once broadcast, continue tracking the receipt. The durable grant
+            // marker (when available) remains until confirmation.
+          }
+        },
       )
+      try {
+        removeMigrationApprovalCleanupObligation(cleanupScope)
+      } catch {
+        // The confirmed on-chain revocation is the security boundary; stale
+        // local evidence can only cause another harmless cleanup offer.
+      }
       hashes.push(hash)
       params.ctx.tracker.next()
       params.ctx.tracker.emit('Temporary access removed', hash)
@@ -614,14 +722,6 @@ const revokeTemporaryOperatorApprovals = async (params: {
   return hashes
 }
 
-/**
- * Revokes any standing temporary HCA operator grant from live chain state,
- * without a migration plan or name selection. This is the recovery path for
- * a wallet whose migration was interrupted after its final name migrated:
- * no eligible v1 names remain, so no migration run would ever fire the
- * in-flow cleanup again. Returns the revocation transaction hashes (empty
- * when nothing is standing).
- */
 /**
  * A run with nothing to migrate still heals chain state: an interrupted
  * earlier session may have left the temporary registry-wide grant standing
@@ -1629,17 +1729,18 @@ export const executeMigration = async (params: {
   }
 
   const txHashes: Hex[] = []
+  const attemptedCleanupApprovals: MigrationCleanupApproval[] = []
 
-  const executionPlan = await prepareExecutionPlan({
-    reconcileBeforeSubmit,
-    publicClient,
-    plan,
-    ctx,
-    onBatchComplete,
-  })
+  try {
+    const executionPlan = await prepareExecutionPlan({
+      reconcileBeforeSubmit,
+      publicClient,
+      plan,
+      ctx,
+      onBatchComplete,
+    })
 
-  if (executionPlan.classified.length > 0) {
-    try {
+    if (executionPlan.classified.length > 0) {
       // Permission state is mutable outside this flow. Check the preview
       // against the latest chain state before opening the first wallet
       // prompt, then use the same snapshot for approval submission. Retries
@@ -1663,6 +1764,17 @@ export const executeMigration = async (params: {
         ctx,
         plan: executionPlan,
         currentMissing,
+        onTemporaryApprovalAttempt: (approval) => {
+          if (
+            !attemptedCleanupApprovals.some(
+              (attempted) =>
+                migrationApprovalKey(attempted) ===
+                migrationApprovalKey(approval),
+            )
+          ) {
+            attemptedCleanupApprovals.push(approval)
+          }
+        },
       })
       txHashes.push(...approvalHashes)
 
@@ -1680,22 +1792,30 @@ export const executeMigration = async (params: {
           retryPermissionHeadLag: approvalHashes.length > 0,
         })),
       )
-    } catch (error) {
-      // The temporary HCA grant may already be live even though this run
-      // failed. Attempt the revocation now, while the user is still present —
-      // an abandoned failure would otherwise leave a standing registry-wide
-      // operator approval. The original failure always wins; a declined or
-      // failed revocation is retried by the next run, which re-derives the
-      // cleanup set from chain state.
-      try {
-        txHashes.push(...(await revokeTemporaryOperatorApprovals({ ctx })))
-      } catch {
-        // Intentionally swallowed: surface the original migration error.
-      }
-      throw error
     }
+  } catch (error) {
+    // A temporary grant may already be pending or live even if plan recovery,
+    // a later wallet prompt, or verification failed. The durable obligation
+    // and current-run fallback make this safe against RPC head lag.
+    try {
+      txHashes.push(
+        ...(await revokeTemporaryOperatorApprovals({
+          ctx,
+          forcedApprovals: attemptedCleanupApprovals,
+        })),
+      )
+    } catch {
+      // Intentionally swallowed: the dashboard recovery surface owns the
+      // durable follow-up while the original migration error stays visible.
+    }
+    throw error
   }
-  txHashes.push(...(await revokeTemporaryOperatorApprovals({ ctx })))
+  txHashes.push(
+    ...(await revokeTemporaryOperatorApprovals({
+      ctx,
+      forcedApprovals: attemptedCleanupApprovals,
+    })),
+  )
   ctx.tracker.complete('Migration complete', txHashes.at(-1))
 
   if (usesDurableCopyRecovery(plan)) {

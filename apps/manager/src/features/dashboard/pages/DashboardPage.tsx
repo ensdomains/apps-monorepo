@@ -130,7 +130,7 @@ export const DashboardPage = () => {
           />
         </motion.div>
         {migrationEnabled && <MigrationProgressBanner />}
-        {migrationEnabled && <RevokeTemporaryAccessBanner />}
+        <RevokeTemporaryAccessBanner />
         <motion.div
           className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"
           {...stagger(4, shouldReduceMotion)}

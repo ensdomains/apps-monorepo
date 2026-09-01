@@ -3062,6 +3062,10 @@ msgstr "Your registration is in progress. Leaving may interrupt it. Are you sure
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 
+#: src/features/migration/components/RevokeTemporaryAccessBanner.tsx
+msgid "Your revocation is pending. This notice will disappear after it is confirmed."
+msgstr "Your revocation is pending. This notice will disappear after it is confirmed."
+
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your saved progress is unchanged. Contact ENS support before trying the upgrade again."
 msgstr "Your saved progress is unchanged. Contact ENS support before trying the upgrade again."

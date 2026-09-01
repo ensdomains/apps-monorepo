@@ -1,10 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
-import type { Address, PublicClient } from 'viem'
+import { useSyncExternalStore } from 'react'
+import type { Address } from 'viem'
 import { usePublicClient } from 'wagmi'
 import {
-  getGrantedMigrationCleanupApprovals,
-  type MigrationCleanupApproval,
-} from '@/features/migration/service/migrationApprovals'
+  getMigrationApprovalCleanupJournalRevision,
+  getServerMigrationApprovalCleanupJournalRevision,
+  subscribeMigrationApprovalCleanupJournal,
+} from '@/features/migration/service/migrationApprovalCleanupJournal'
+import {
+  type MigrationApprovalCleanupStatus,
+  readMigrationApprovalCleanupStatus,
+} from '@/features/migration/service/readMigrationApprovalCleanupStatus'
 
 export const STANDING_MIGRATION_CLEANUP_QUERY_KEY = 'migration-standing-cleanup'
 
@@ -29,21 +35,36 @@ export const useStandingMigrationCleanup = ({
   enabled = true,
 }: HookParams) => {
   const publicClient = usePublicClient()
+  const chainId = publicClient?.chain?.id
+  const journalRevision = useSyncExternalStore(
+    subscribeMigrationApprovalCleanupJournal,
+    getMigrationApprovalCleanupJournalRevision,
+    getServerMigrationApprovalCleanupJournalRevision,
+  )
 
-  return useQuery<readonly MigrationCleanupApproval[]>({
+  return useQuery<MigrationApprovalCleanupStatus>({
     queryKey: [
       STANDING_MIGRATION_CLEANUP_QUERY_KEY,
+      chainId ?? 0,
       ownerAddress?.toLowerCase() ?? '',
       hcaAddress?.toLowerCase() ?? '',
+      journalRevision,
     ] as const,
-    enabled: enabled && !!ownerAddress && !!hcaAddress && !!publicClient,
-    refetchOnWindowFocus: false,
+    enabled:
+      enabled && !!chainId && !!ownerAddress && !!hcaAddress && !!publicClient,
+    refetchInterval: (query) =>
+      query.state.data?.pendingRevocationHash ? 4_000 : false,
+    refetchOnReconnect: 'always',
+    refetchOnWindowFocus: 'always',
     queryFn: () => {
-      if (!ownerAddress || !hcaAddress || !publicClient) return []
-      return getGrantedMigrationCleanupApprovals({
+      if (!chainId || !ownerAddress || !hcaAddress || !publicClient) {
+        return { approvals: [] }
+      }
+      return readMigrationApprovalCleanupStatus({
         eoa: ownerAddress,
         hcaAddress,
-        publicClient: publicClient as unknown as PublicClient,
+        chainId,
+        publicClient,
       })
     },
   })
