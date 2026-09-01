@@ -52,7 +52,7 @@ type TimelineSources = {
   readonly anchorEvents?: readonly TimelineIndexerEvent[]
   readonly eventTypes?: readonly string[]
   readonly limit?: number
-  readonly selectedTypes?: ReadonlySet<string>
+  readonly selectedTypes?: readonly string[]
   readonly includeSubjectName?: boolean
   readonly isTruncated?: boolean
   readonly isLoadingSources?: boolean
@@ -115,9 +115,10 @@ const useTimelineModel = (
   // cannot see an id on a page still unfetched, so the total would shift as you
   // page rather than being stably right.
   const summarized = summarizeEvents(events, { includeSubjectName })
-  const allActions = selectedTypes
+  const kept = selectedTypes?.length && new Set(selectedTypes)
+  const allActions = kept
     ? summarized.filter((action) =>
-        action.events.some((event) => selectedTypes.has(event.type)),
+        action.events.some((event) => kept.has(event.type)),
       )
     : summarized
   const actions = limit === undefined ? allActions : allActions.slice(0, limit)
@@ -137,7 +138,7 @@ const useTimelineModel = (
       pagedTotalCount === undefined ||
       isTruncated ||
       sourcesError ||
-      selectedTypes
+      selectedTypes?.length
         ? undefined
         : pagedTotalCount + auxiliaryEvents.length,
     hasMore: hasNextPage || allActions.length > actions.length,
@@ -191,7 +192,6 @@ export const useNameHistoryTimeline = ({
   // selection in this key would refetch the v1 subgraph on every toggle, and
   // hide the v1 types the chip needs to offer.
   const facetScope = { name, eventTypes: scope }
-  const selected = selectedTypes?.length ? new Set(selectedTypes) : undefined
 
   const pagesQuery = useInfiniteQuery(
     getNameHistoryPagesQueryOptions(feedScope),
@@ -224,7 +224,7 @@ export const useNameHistoryTimeline = ({
       ]),
     ],
     limit,
-    selectedTypes: selected,
+    selectedTypes,
     isTruncated: auxiliaryQuery.data?.isTruncated ?? false,
     isLoadingSources: auxiliaryQuery.isLoading,
     sourcesError:
