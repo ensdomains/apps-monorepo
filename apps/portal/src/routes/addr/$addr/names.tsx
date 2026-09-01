@@ -45,7 +45,6 @@ import {
   getNameStatus,
   getSelectedNames,
   isExtendable2LD,
-  MS_PER_SECOND,
 } from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import {
@@ -55,6 +54,7 @@ import {
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
+import { mergeNamesData } from '@/utils/names/mergeNamesData'
 import { queryClient } from '@/utils/queryClient'
 
 const STATUS_FILTER_GROUPS: FilterGroup[] = [
@@ -175,34 +175,7 @@ function RouteComponent() {
     ],
   })
 
-  const data = useMemo((): NameRow[] => {
-    const v1Names: NameRow[] = (v1NamesQuery.data || []).map(
-      ({ name, expiryDate, relation }) => ({
-        name,
-        expiryDate: expiryDate?.date ?? null,
-        roleBitmap: null,
-        v1Roles: {
-          // For wrapped names: wrappedOwner controls both ownership and management
-          // For unwrapped names: registrant is Owner, registry owner is Manager
-          owner: relation.registrant || relation.wrappedOwner,
-          manager: relation.owner || relation.wrappedOwner,
-        },
-        protocolVersion: 'ENSv1',
-      }),
-    )
-
-    const v2Names: NameRow[] = (v2NamesQuery.data || []).map(
-      ({ name, expiryDate, roleBitmap }) => ({
-        name,
-        expiryDate: expiryDate ? new Date(expiryDate * MS_PER_SECOND) : null,
-        roleBitmap,
-        v1Roles: null,
-        protocolVersion: 'ENSv2',
-      }),
-    )
-
-    return [...v1Names, ...v2Names]
-  }, [v1NamesQuery.data, v2NamesQuery.data])
+  const data: NameRow[] = mergeNamesData(v1NamesQuery.data, v2NamesQuery.data)
 
   // Apply filters to data
   const filteredData = useMemo(() => {
