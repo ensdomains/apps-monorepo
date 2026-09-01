@@ -52,6 +52,7 @@ type TimelineSources = {
   readonly anchorEvents?: readonly TimelineIndexerEvent[]
   readonly eventTypes?: readonly string[]
   readonly limit?: number
+  readonly selectedTypes?: ReadonlySet<string>
   readonly includeSubjectName?: boolean
   readonly isTruncated?: boolean
   readonly isLoadingSources?: boolean
@@ -87,6 +88,7 @@ const useTimelineModel = (
     anchorEvents,
     eventTypes = [],
     limit,
+    selectedTypes,
     includeSubjectName = false,
     isTruncated = false,
     isLoadingSources = false,
@@ -96,8 +98,8 @@ const useTimelineModel = (
   const disclosure = useActionDisclosure()
 
   const pages = pagesQuery.data?.pages ?? []
-  const hasNextPage = pages.at(-1)?.hasNextPage ?? false
   const pagedTotalCount = pages.at(-1)?.totalCount
+  const hasNextPage = pagesQuery.hasNextPage
 
   const pagedEvents = pages.flatMap((page) => page.events)
   const events = mergeTimeline({ pagedEvents, auxiliaryEvents, hasNextPage })
@@ -112,7 +114,12 @@ const useTimelineModel = (
   // Deduplicating against loaded pages only would be worse than not trying: it
   // cannot see an id on a page still unfetched, so the total would shift as you
   // page rather than being stably right.
-  const allActions = summarizeEvents(events, { includeSubjectName })
+  const summarized = summarizeEvents(events, { includeSubjectName })
+  const allActions = selectedTypes
+    ? summarized.filter((action) =>
+        action.events.some((event) => selectedTypes.has(event.type)),
+      )
+    : summarized
   const actions = limit === undefined ? allActions : allActions.slice(0, limit)
 
   return {
@@ -124,10 +131,13 @@ const useTimelineModel = (
       summarizeEvents(
         [...anchorEvents, ...auxiliaryEvents].sort(newestFirst),
       ).at(-1),
-    // Withheld entirely when either source is known short, rather than
-    // presenting a lower bound as an exact count.
+    // Withheld when a source is known short, rather than presenting a lower
+    // bound as an exact count.
     totalCount:
-      pagedTotalCount === undefined || isTruncated || sourcesError
+      pagedTotalCount === undefined ||
+      isTruncated ||
+      sourcesError ||
+      selectedTypes
         ? undefined
         : pagedTotalCount + auxiliaryEvents.length,
     hasMore: hasNextPage || allActions.length > actions.length,
@@ -176,17 +186,12 @@ export const useNameHistoryTimeline = ({
   limit,
   shouldFetchAnchor = true,
 }: UseNameHistoryTimelineParameters): HistoryTimelineModel => {
-  // The chip narrows within the facet rather than replacing it, so a selection
-  // outside the facet cannot widen the feed.
-  const eventTypes = selectedTypes?.length
-    ? (scope?.filter((type) => selectedTypes.includes(type)) ?? selectedTypes)
-    : scope
-
-  const feedScope = { name, eventTypes, from, to }
+  const feedScope = { name, eventTypes: scope, from, to }
   // Keyed on the facet alone and narrowed in memory below: putting the chip
   // selection in this key would refetch the v1 subgraph on every toggle, and
   // hide the v1 types the chip needs to offer.
   const facetScope = { name, eventTypes: scope }
+  const selected = selectedTypes?.length ? new Set(selectedTypes) : undefined
 
   const pagesQuery = useInfiniteQuery(
     getNameHistoryPagesQueryOptions(feedScope),
@@ -209,7 +214,7 @@ export const useNameHistoryTimeline = ({
       (event) =>
         (from === undefined || event.timestamp >= from) &&
         (to === undefined || event.timestamp <= to) &&
-        (!eventTypes || eventTypes.includes(event.type)),
+        (!scope || scope.includes(event.type)),
     ),
     anchorEvents: shouldFetchAnchor ? (anchorQuery.data ?? []) : undefined,
     eventTypes: [
@@ -219,6 +224,7 @@ export const useNameHistoryTimeline = ({
       ]),
     ],
     limit,
+    selectedTypes: selected,
     isTruncated: auxiliaryQuery.data?.isTruncated ?? false,
     isLoadingSources: auxiliaryQuery.isLoading,
     sourcesError:

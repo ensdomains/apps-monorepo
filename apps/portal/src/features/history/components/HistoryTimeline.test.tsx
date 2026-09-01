@@ -69,6 +69,19 @@ const model = (
 })
 
 describe('HistoryTimelineView', () => {
+  it('keeps a matched transaction whole rather than narrowing it', () => {
+    const register: Action = {
+      ...action('r', 'Register name', 5),
+      events: [
+        { type: 'NameRegistered', id: 'r-1' },
+        { type: 'TextChanged', id: 'r-2' },
+      ] as never,
+    }
+    render(<HistoryTimelineView model={model({ actions: [register] })} />)
+    expect(screen.getAllByText('Register name').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Set text record')).toBeNull()
+  })
+
   it('shows no break when the whole feed is on screen', () => {
     render(<HistoryTimelineView model={model()} breakContent="load-more" />)
     expect(screen.queryByRole('button', { name: /Load/ })).toBeNull()
