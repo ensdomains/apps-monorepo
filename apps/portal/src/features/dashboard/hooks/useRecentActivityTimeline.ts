@@ -25,7 +25,7 @@ const EVENTS_LIMIT = 50
  * Over-fetch so that dropping the unfinished trailing block still leaves a full
  * feed, and a second request is rarely needed.
  */
-const PAGE_SIZE = EVENTS_LIMIT * 3
+const PAGE_SIZE = EVENTS_LIMIT * 2
 
 /**
  * Ceiling on requests per load. Only reached if every page fetched so far is one
