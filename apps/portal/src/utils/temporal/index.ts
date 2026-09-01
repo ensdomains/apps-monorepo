@@ -36,3 +36,11 @@ export const unixSecondsToPlainDateUtc = (
   Temporal.Instant.fromEpochMilliseconds(seconds * 1000)
     .toZonedDateTimeISO('UTC')
     .toPlainDate()
+
+/**
+ * Normalize an `Invalid Date` to `null` — a name with no expiry reports
+ * `max(uint64)`, which overflows the Date range but is still truthy, so it
+ * reaches `dateToPlainDate` and throws on the `NaN` getters.
+ */
+export const toValidDate = (date: Date | null | undefined): Date | null =>
+  date && !Number.isNaN(date.getTime()) ? date : null
