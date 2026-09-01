@@ -5,7 +5,6 @@
     "check": "biome check",
     "check:fix": "biome check --fix",
     "knip": "LINGUI_CONFIG=apps/manager/lingui.config.ts knip",
-    "nft:pregenerate": "node --import ./workers/commemorative-nft-pregenerator/node_modules/tsx/dist/loader.mjs workers/commemorative-nft-pregenerator/src/index.ts",
     "prepare": "lefthook install",
     "test": "pnpm test:portal",
     "test:all": "pnpm -r test",
