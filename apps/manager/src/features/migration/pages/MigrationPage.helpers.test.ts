@@ -4,6 +4,7 @@ import { isMigrationQueryKey } from './MigrationPage.helpers'
 describe('isMigrationQueryKey', () => {
   it.each([
     ['legacy preflight key', ['migration-preflight', { x: 1 }], true],
+    ['standing cleanup key', ['migration-standing-cleanup', { x: 1 }], true],
     [
       'qk-scoped migration key',
       [{ $scope: 'migration', kind: 'foo' }, { x: 1 }],

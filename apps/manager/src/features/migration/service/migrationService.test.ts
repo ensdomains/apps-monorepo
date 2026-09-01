@@ -75,6 +75,11 @@ import type {
 import type { MigrationPlan } from './buildMigrationPlan'
 import type { ClassifiedName, CopyClassifiedName } from './classifyNames'
 import { groupClassifiedNames } from './classifyNames'
+import {
+  loadMigrationApprovalCleanupObligation,
+  recordMigrationApprovalCleanupGrantHash,
+  recordMigrationApprovalCleanupRequired,
+} from './migrationApprovalCleanupJournal'
 import type { MigrationApproval } from './migrationApprovals'
 import {
   loadMigrationRecoverySnapshot,
@@ -101,6 +106,11 @@ const FACTORY: Address = '0x0000000000000000000000000000000000000003'
 const RESOLVER: Address = '0x0000000000000000000000000000000000000004'
 const V1_RESOLVER: Address = '0x0000000000000000000000000000000000000005'
 const APPROVAL_CONTRACT: Address = '0x0000000000000000000000000000000000000006'
+const CLEANUP_SCOPE = {
+  chainId: 11155111,
+  owner: OWNER,
+  hca: HCA,
+} as const
 
 const DEPLOY_DATA: Hex = '0xd3ad'
 const OUTER_DATA: Hex = '0xcafe'
@@ -1654,6 +1664,134 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
+  it('records cleanup debt before opening the temporary approval wallet prompt', async () => {
+    mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
+    const plan = {
+      ...planFor(),
+      preflight: {
+        ...planFor().preflight,
+        migrationApprovals: [MANAGER_APPROVAL],
+      },
+    }
+    const events: string[] = []
+    const originalSetItem = localStorage.setItem.bind(localStorage)
+    const storageSpy = vi
+      .spyOn(localStorage, 'setItem')
+      .mockImplementation((key, value) => {
+        if (key.includes('approval-cleanup')) events.push('cleanup-recorded')
+        return originalSetItem(key, value)
+      })
+    mocks.startTransaction.mockImplementation(() => {
+      events.push('wallet-opened')
+      return `tx-${events.filter((event) => event === 'wallet-opened').length - 1}`
+    })
+
+    try {
+      await runExecute({ plan })
+    } finally {
+      storageSpy.mockRestore()
+    }
+
+    expect(events.indexOf('cleanup-recorded')).toBeGreaterThanOrEqual(0)
+    expect(events.indexOf('cleanup-recorded')).toBeLessThan(
+      events.indexOf('wallet-opened'),
+    )
+  })
+
+  it('blocks the temporary grant when durable cleanup storage cannot be written', async () => {
+    mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
+    const plan = {
+      ...planFor(),
+      preflight: {
+        ...planFor().preflight,
+        migrationApprovals: [MANAGER_APPROVAL],
+      },
+    }
+    const storageSpy = vi
+      .spyOn(localStorage, 'setItem')
+      .mockImplementationOnce(() => {
+        throw new Error('storage unavailable')
+      })
+
+    try {
+      await expect(runExecute({ plan })).rejects.toMatchObject({
+        name: 'MigrationError',
+      })
+    } finally {
+      storageSpy.mockRestore()
+    }
+
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+    expect(loadMigrationApprovalCleanupObligation(CLEANUP_SCOPE)).toBeNull()
+  })
+
+  it('revokes from durable debt when the submitted grant is not visible at the RPC head', async () => {
+    mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
+    const plan = {
+      ...planFor(),
+      preflight: {
+        ...planFor().preflight,
+        migrationApprovals: [MANAGER_APPROVAL],
+      },
+    }
+
+    const { result } = await runExecute({ plan })
+
+    expect(ethRegistryOperatorGranted).toBe(false)
+    expect(revocationCalls()).toHaveLength(1)
+    expect(result.txHashes).toEqual([hashFor(1), hashFor(2), hashFor(3)])
+    expect(loadMigrationApprovalCleanupObligation(CLEANUP_SCOPE)).toBeNull()
+  })
+
+  it('retains durable debt when head-lag cleanup is rejected', async () => {
+    mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
+    mocks.waitForTransactionHash.mockImplementation((txId: string) =>
+      txId === 'tx-2'
+        ? Promise.reject(new Error('cleanup rejected'))
+        : Promise.resolve(
+            hashFor(Number.parseInt(txId.slice('tx-'.length), 10) + 1),
+          ),
+    )
+    const plan = {
+      ...planFor(),
+      preflight: {
+        ...planFor().preflight,
+        migrationApprovals: [MANAGER_APPROVAL],
+      },
+    }
+
+    await expect(runExecute({ plan })).rejects.toMatchObject({
+      name: 'MigrationCleanupError',
+    })
+
+    expect(revocationCalls()).toHaveLength(1)
+    expect(loadMigrationApprovalCleanupObligation(CLEANUP_SCOPE)).toMatchObject(
+      { grantHash: hashFor(1) },
+    )
+  })
+
+  it('removes a newly-created obligation after definitive grant rejection', async () => {
+    mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
+    const rejection = Object.assign(new Error('User rejected the request'), {
+      name: 'UserRejectedRequestError',
+    })
+    mocks.waitForTransactionHash.mockRejectedValueOnce(rejection)
+    const plan = {
+      ...planFor(),
+      preflight: {
+        ...planFor().preflight,
+        migrationApprovals: [MANAGER_APPROVAL],
+      },
+    }
+
+    await expect(runExecute({ plan })).rejects.toMatchObject({
+      name: 'MigrationUserRejectedError',
+    })
+
+    expect(revocationCalls()).toHaveLength(0)
+    expect(loadMigrationApprovalCleanupObligation(CLEANUP_SCOPE)).toBeNull()
+  })
+
   it('revokes a temporary operator approval after a successful migration', async () => {
     mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
     ethRegistryOperatorGranted = true
@@ -1666,6 +1804,12 @@ describe('executeMigration HCA orchestration', () => {
         status: 'success',
         blockNumber: 122n,
       } as TransactionReceipt)
+    mocks.waitForTransaction.mockImplementation((txId: string) => {
+      if (txId === 'tx-2') ethRegistryOperatorGranted = false
+      return Promise.resolve({
+        hash: hashFor(Number.parseInt(txId.slice('tx-'.length), 10) + 1),
+      })
+    })
 
     const plan = {
       ...planFor(),
@@ -1682,6 +1826,8 @@ describe('executeMigration HCA orchestration', () => {
     )
     expect(result.completed).toBe(1)
     expect(result.txHashes).toEqual([hashFor(1), hashFor(2), hashFor(3)])
+    expect(ethRegistryOperatorGranted).toBe(false)
+    expect(loadMigrationApprovalCleanupObligation(CLEANUP_SCOPE)).toBeNull()
   })
 
   it('surfaces cleanup rejection for the dedicated recovery action', async () => {
@@ -1813,6 +1959,23 @@ describe('executeMigration HCA orchestration', () => {
 })
 
 describe('revokeStandingTemporaryHcaAccess', () => {
+  it('revokes a pending grant from durable debt even while the RPC reports false', async () => {
+    recordMigrationApprovalCleanupRequired(CLEANUP_SCOPE)
+    recordMigrationApprovalCleanupGrantHash(CLEANUP_SCOPE, hashFor(90))
+
+    const hashes = await revokeStandingTemporaryHcaAccess({
+      wagmiConfig: WAGMI,
+      publicClient: PUBLIC_CLIENT,
+      signer: SIGNER,
+      walletAddress: OWNER,
+      hcaAddress: HCA,
+    })
+
+    expect(hashes).toHaveLength(1)
+    expect(revocationCalls()).toHaveLength(1)
+    expect(loadMigrationApprovalCleanupObligation(CLEANUP_SCOPE)).toBeNull()
+  })
+
   it('revokes a standing grant without any migration plan', async () => {
     ethRegistryOperatorGranted = true
 

@@ -53,6 +53,7 @@ import {
   type MigrationApproval,
   type MigrationCleanupApproval,
   migrationApprovalKey,
+  migrationCleanupApprovalFor,
   planMigrationApprovals,
   requiresMigrationApprovalCleanup,
 } from './migrationApprovals'
@@ -541,7 +542,6 @@ const submitMigrationApproval = async (params: {
       const existing = loadMigrationApprovalCleanupObligation(cleanupScope)
       recordMigrationApprovalCleanupRequired(cleanupScope)
       cleanupObligationCreatedForAttempt = existing === null
-      params.onTemporaryApprovalAttempt?.(cleanupApproval)
     }
     const { hash } = await submitCall(
       ctx,
@@ -553,6 +553,9 @@ const submitMigrationApproval = async (params: {
             // itself fails, the base obligation still survives and the failure
             // path must revoke unconditionally.
             submittedTemporaryApprovalHash = submittedHash
+            if (cleanupApproval) {
+              params.onTemporaryApprovalAttempt?.(cleanupApproval)
+            }
             recordMigrationApprovalCleanupGrantHash(cleanupScope, submittedHash)
           }
         : undefined,
@@ -665,13 +668,10 @@ const revokeTemporaryOperatorApprovals = async (params: {
   // cleanup evidence. The durable/current-run paths deliberately revoke even
   // when `latest` reports false because the grant may be pending at an earlier
   // EOA nonce.
-  const temporaryOperators = [
-    ...new Map(
-      [...status.approvals, ...(params.forcedApprovals ?? [])].map(
-        (approval) => [migrationApprovalKey(approval), approval] as const,
-      ),
-    ).values(),
-  ]
+  const temporaryOperators =
+    status.approvals.length > 0 || (params.forcedApprovals?.length ?? 0) > 0
+      ? [migrationCleanupApprovalFor(params.ctx.hcaAddress)]
+      : []
   const hashes: Hex[] = []
 
   for (const approval of temporaryOperators) {
