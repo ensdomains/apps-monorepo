@@ -6,7 +6,8 @@ import { logger } from '#utils/logger.js'
 import type { ExpiryStageConfig } from './stages.js'
 
 const DEFAULT_INDEXER_URL = 'https://staging-graphql.ens.dev/'
-export const PAGE_SIZE = 1000
+export const PROCESS_PAGE_SIZE = 1000
+export const QUERY_PAGE_SIZE = PROCESS_PAGE_SIZE + 1
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 300
 
@@ -16,7 +17,7 @@ const expiringNamesQuery = gql`
       where: { expiry_gt: $cursor, expiry_lte: $upper_bound }
       orderBy: expiryDate
       orderDirection: asc
-      first: ${PAGE_SIZE}
+      first: ${QUERY_PAGE_SIZE}
     ) {
       name
       expiryDate
@@ -143,7 +144,7 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
 
   return ok({
     domains,
-    hasMore: parsedResponse.domains.length === PAGE_SIZE,
+    hasMore: parsedResponse.domains.length === QUERY_PAGE_SIZE,
   })
 })
 

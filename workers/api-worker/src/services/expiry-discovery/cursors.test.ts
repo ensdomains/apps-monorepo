@@ -7,6 +7,7 @@ import {
   storeNotificationCursors,
 } from './cursors.js'
 import { getDefaultCursorForStage, STAGES } from './stages.js'
+import { requireStoredValue } from './test-helpers.js'
 
 const DAY = 86_400
 
@@ -117,9 +118,9 @@ describe('notification cursors', () => {
 
     expect(writeResult.isOk()).toBe(true)
 
-    const stored = kv.readRaw(KV_KEY.EXPIRY_DISCOVERY.CURSORS)
-    expect(stored).toBeTruthy()
-    // biome-ignore lint/style/noNonNullAssertion: test assertion - stored verified truthy above
-    expect(JSON.parse(stored!)).toEqual(cursors)
+    const stored = requireStoredValue(
+      kv.readRaw(KV_KEY.EXPIRY_DISCOVERY.CURSORS),
+    )
+    expect(JSON.parse(stored)).toEqual(cursors)
   })
 })

@@ -48,9 +48,9 @@ const env = {
   CHAIN: 'sepolia',
   SEPOLIA_RPC_URL: 'https://rpc.example',
   POSTHOG: {
-    host: 'https://posthog.example',
+    host: 'https://posthog.example' as string,
     unique_searches_endpoint:
-      'api/environments/test/query_endpoints/unique-searches/run/',
+      'api/environments/test/query_endpoints/unique-searches/run/' as string,
   },
   POSTHOG_PERSONAL_API_KEY: 'secret',
 } as CloudflareBindings

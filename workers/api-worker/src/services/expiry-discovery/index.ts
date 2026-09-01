@@ -8,7 +8,8 @@ import {
   type NotificationCursors,
   storeNotificationCursors,
 } from './cursors.js'
-import { fetchExpiringNamesPage } from './indexer.js'
+import { reportExpiryTimestampOverflow } from './overflow-alert.js'
+import { fetchProcessableExpiringNames } from './page.js'
 import {
   type ExpiryStageConfig,
   getQueryCursorForStage,
@@ -97,12 +98,21 @@ const processStage = ResultFn(async function* (ctx: {
     lagSec,
   })
 
-  const page = yield* fetchExpiringNamesPage({
+  const page = yield* fetchProcessableExpiringNames({
     env: ctx.env,
     stage: ctx.stage,
     cursor: queryCursor,
     upperBound,
   })
+
+  if (page.overflow) {
+    await reportExpiryTimestampOverflow({
+      env: ctx.env,
+      stageId: ctx.stage.id,
+      expiryTimestamp: page.overflow.expiryTimestamp,
+      processedCount: page.overflow.processedCount,
+    })
+  }
 
   if (page.domains.length === 0) {
     logger.debug('Expiry stage returned no domains', {
@@ -114,12 +124,12 @@ const processStage = ResultFn(async function* (ctx: {
     return ok({
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
-      cursorEnd: queryCursor,
+      cursorEnd: page.cursorEnd,
       upperBound,
       enqueuedCount: 0,
       pageDomainCount: 0,
       chunkCount: 0,
-      hasMore: false,
+      hasMore: page.hasMore,
     } satisfies StageRunMetrics)
   }
 
@@ -150,7 +160,7 @@ const processStage = ResultFn(async function* (ctx: {
   return ok({
     stageId: ctx.stage.id,
     cursorStart: ctx.cursor,
-    cursorEnd: lastExpiryDate ?? queryCursor,
+    cursorEnd: page.cursorEnd,
     upperBound,
     enqueuedCount: events.length,
     pageDomainCount: page.domains.length,

@@ -19,7 +19,7 @@ export type ExpiryStageConfig = {
   includeFavorites: boolean
 }
 
-export const STAGES: ExpiryStageConfig[] = [
+const STAGE_DEFINITIONS: ExpiryStageConfig[] = [
   {
     id: 'expiry-30d',
     offsetDays: 30,
@@ -58,6 +58,14 @@ export const STAGES: ExpiryStageConfig[] = [
 ]
 
 /**
+ * Lifecycle order is furthest-future → furthest-past (`offsetDays` descending).
+ * Source insertion order is not part of the contract.
+ */
+export const STAGES: ExpiryStageConfig[] = [...STAGE_DEFINITIONS].sort(
+  (left, right) => right.offsetDays - left.offsetDays,
+)
+
+/**
  * Premium-start has no closer stage, so catch-up is capped. Without this, a
  * lagged cursor would notify every name that already left grace.
  */
@@ -71,6 +79,26 @@ export function getUpperBoundForStage(
 }
 
 /**
+ * Next lifecycle stage with a strictly smaller `offsetDays` (closer to / past
+ * expiry). Independent of `STAGES` array position.
+ */
+export function getCloserStage(
+  stage: ExpiryStageConfig,
+  stages: readonly ExpiryStageConfig[] = STAGES,
+): ExpiryStageConfig | undefined {
+  let closer: ExpiryStageConfig | undefined
+
+  for (const candidate of stages) {
+    if (candidate.offsetDays >= stage.offsetDays) continue
+    if (!closer || candidate.offsetDays > closer.offsetDays) {
+      closer = candidate
+    }
+  }
+
+  return closer
+}
+
+/**
  * Exclusive lower bound for this stage's window: the next closer stage's upper
  * bound. A name therefore belongs to at most one stage per cron run, even when
  * cursors have lagged across multiple lifecycle thresholds.
@@ -78,9 +106,9 @@ export function getUpperBoundForStage(
 export function getLowerBoundForStage(
   stage: ExpiryStageConfig,
   nowSec: number,
+  stages: readonly ExpiryStageConfig[] = STAGES,
 ) {
-  const stageIndex = STAGES.findIndex((candidate) => candidate.id === stage.id)
-  const closerStage = stageIndex >= 0 ? STAGES[stageIndex + 1] : undefined
+  const closerStage = getCloserStage(stage, stages)
   if (closerStage) {
     return getUpperBoundForStage(closerStage, nowSec)
   }
@@ -92,8 +120,9 @@ export function getQueryCursorForStage(
   stage: ExpiryStageConfig,
   cursor: number,
   nowSec: number,
+  stages: readonly ExpiryStageConfig[] = STAGES,
 ) {
-  return Math.max(cursor, getLowerBoundForStage(stage, nowSec))
+  return Math.max(cursor, getLowerBoundForStage(stage, nowSec, stages))
 }
 
 export function getExpiryStageRank(stageId: ExpiryStageId): number {

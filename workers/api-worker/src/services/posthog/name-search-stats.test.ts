@@ -19,11 +19,11 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
       getUniqueSearchesLast30dFromPostHog(
         {
           POSTHOG: {
-            host: 'https://posthog.example',
+            host: 'https://posthog.example' as string,
             unique_searches_endpoint:
-              'api/environments/test/query_endpoints/unique-searches/run/',
+              'api/environments/test/query_endpoints/unique-searches/run/' as string,
           },
-          POSTHOG_PERSONAL_API_KEY: 'secret',
+          POSTHOG_PERSONAL_API_KEY: 'secret' as string,
         } as CloudflareBindings,
         'vitalik.eth',
       ),
@@ -60,11 +60,11 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
       getUniqueSearchesLast30dFromPostHog(
         {
           POSTHOG: {
-            host: 'https://posthog.example',
+            host: 'https://posthog.example' as string,
             unique_searches_endpoint:
-              'api/environments/test/query_endpoints/unique-searches/run/',
+              'api/environments/test/query_endpoints/unique-searches/run/' as string,
           },
-          POSTHOG_PERSONAL_API_KEY: 'secret',
+          POSTHOG_PERSONAL_API_KEY: 'secret' as string,
         } as CloudflareBindings,
         'july24.eth',
       ),
@@ -87,11 +87,11 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
       getUniqueSearchesLast30dFromPostHog(
         {
           POSTHOG: {
-            host: 'https://posthog.example',
+            host: 'https://posthog.example' as string,
             unique_searches_endpoint:
-              'api/environments/test/query_endpoints/unique-searches/run/',
+              'api/environments/test/query_endpoints/unique-searches/run/' as string,
           },
-          POSTHOG_PERSONAL_API_KEY: 'secret',
+          POSTHOG_PERSONAL_API_KEY: 'secret' as string,
         } as CloudflareBindings,
         'vitalik.eth',
       ),
@@ -105,9 +105,9 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
       getUniqueSearchesLast30dFromPostHog(
         {
           POSTHOG: {
-            host: 'https://posthog.example',
+            host: 'https://posthog.example' as string,
             unique_searches_endpoint:
-              'api/environments/test/query_endpoints/unique-searches/run/',
+              'api/environments/test/query_endpoints/unique-searches/run/' as string,
           },
           POSTHOG_PERSONAL_API_KEY: 'secret',
         } as CloudflareBindings,

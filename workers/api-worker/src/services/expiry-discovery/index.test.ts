@@ -1,9 +1,13 @@
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('./indexer.js', () => ({
-  fetchExpiringNamesPage: vi.fn(),
-}))
+vi.mock('./indexer.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./indexer.js')>()
+  return {
+    ...actual,
+    fetchExpiringNamesPage: vi.fn(),
+  }
+})
 
 import { KV_KEY } from '#core/kv/index.js'
 import { runExpiryDiscoveryCron } from './index.js'
@@ -13,6 +17,7 @@ import {
   getLowerBoundForStage,
   STAGES,
 } from './stages.js'
+import { requireStoredCursors } from './test-helpers.js'
 
 class MockKV {
   private store = new Map<string, string>()
@@ -95,10 +100,9 @@ describe('runExpiryDiscoveryCron', () => {
     expect(firstBatch?.[0].body.stage).toBe('expiry-30d')
     expect(firstBatch?.[0].body.protocol).toBe('v2')
 
-    const cursors = (await env.KV.get(
-      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
-      'json',
-    )) as CursorState
+    const cursors = requireStoredCursors(
+      await env.KV.get(KV_KEY.EXPIRY_DISCOVERY.CURSORS, 'json'),
+    )
     expect(cursors['expiry-30d'].expiry_timestamp).toBeGreaterThan(
       cursors['expiry-7d'].expiry_timestamp,
     )
@@ -218,10 +222,9 @@ describe('runExpiryDiscoveryCron', () => {
 
     expect(result.isOk()).toBe(true)
     const nowSec = Math.floor(new Date('2026-02-11T12:00:00Z').getTime() / 1000)
-    const cursors = (await kv.get(
-      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
-      'json',
-    )) as CursorState
+    const cursors = requireStoredCursors(
+      await kv.get(KV_KEY.EXPIRY_DISCOVERY.CURSORS, 'json'),
+    )
 
     for (const stage of STAGES) {
       expect(cursors[stage.id].expiry_timestamp).toBe(
@@ -256,10 +259,9 @@ describe('runExpiryDiscoveryCron', () => {
     const result = await runExpiryDiscoveryCron(env)
 
     expect(result.isOk()).toBe(true)
-    const cursors = (await kv.get(
-      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
-      'json',
-    )) as CursorState
+    const cursors = requireStoredCursors(
+      await kv.get(KV_KEY.EXPIRY_DISCOVERY.CURSORS, 'json'),
+    )
     expect(cursors).toEqual(seeded)
   })
 
@@ -322,10 +324,9 @@ describe('runExpiryDiscoveryCron', () => {
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap().failedStages).toBe(1)
 
-    const cursors = (await env.KV.get(
-      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
-      'json',
-    )) as CursorState
+    const cursors = requireStoredCursors(
+      await env.KV.get(KV_KEY.EXPIRY_DISCOVERY.CURSORS, 'json'),
+    )
     const nowSec = Math.floor(new Date('2026-02-11T12:00:00Z').getTime() / 1000)
 
     expect(cursors['expiry-1d'].expiry_timestamp).toBe(nowSec + 50)
