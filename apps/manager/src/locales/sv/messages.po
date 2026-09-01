@@ -773,7 +773,7 @@ msgid "Done"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Download PNG"
+msgid "Download WebP"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx

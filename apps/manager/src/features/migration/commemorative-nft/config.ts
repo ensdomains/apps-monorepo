@@ -49,7 +49,7 @@ export const buildCommemorativeNftAssets = (
 
   return {
     metadataUrl: `${origin}/token/${tokenId}.json`,
-    imageUrl: `${origin}/token/${tokenId}.png`,
+    imageUrl: `${origin}/token/${tokenId}.webp`,
   }
 }
 

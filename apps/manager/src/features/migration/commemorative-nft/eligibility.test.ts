@@ -48,7 +48,7 @@ describe('commemorative NFT eligibility', () => {
     expect(result.assets.externalUrl).toBe('https://renderer.example/token/1')
     expect(result.assets.animationUrl).toBe(animationUrl)
     expect(result.assets.imageUrl).toBe(
-      `https://assets.example/token/${tokenId}.png`,
+      `https://assets.example/token/${tokenId}.webp`,
     )
   })
 
@@ -157,7 +157,7 @@ describe('commemorative NFT eligibility', () => {
       ownerAddress,
     )
     expect(assets).toEqual({
-      imageUrl: `https://assets.example/token/${tokenId}.png`,
+      imageUrl: `https://assets.example/token/${tokenId}.webp`,
       metadataUrl: `https://assets.example/token/${tokenId}.json`,
     })
   })

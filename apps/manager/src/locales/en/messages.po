@@ -768,8 +768,8 @@ msgid "Done"
 msgstr "Done"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Download PNG"
-msgstr "Download PNG"
+msgid "Download WebP"
+msgstr "Download WebP"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/view/ProfileEditAction.tsx

@@ -111,14 +111,14 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
           if (!assetUrl) return
           startCommemorativeNftAssetDownload({
             assetUrl,
-            filename: 'ensv2-commemorative-nft.png',
+            filename: 'ensv2-commemorative-nft.webp',
           })
         }}
         type="button"
       >
         <MSymbol className="ms-wght-500 text-[20px]" symbol="download" />
         <span className="sr-only">
-          <Trans>Download PNG</Trans>
+          <Trans>Download WebP</Trans>
         </span>
       </button>
     </fieldset>
