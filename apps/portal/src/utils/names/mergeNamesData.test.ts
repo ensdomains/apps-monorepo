@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { V1Name, V2Name } from './mergeNamesData'
 import { mergeNamesData } from './mergeNamesData'
 
-const MAX_UINT64 = Number(2n ** 64n - 1n)
+const NO_EXPIRY_SECONDS = Number(2n ** 64n - 1n)
 
 const defaultRelation = {
   owner: false,
@@ -94,7 +94,7 @@ describe('mergeNamesData', () => {
       [
         {
           name: 'lau.eth',
-          expiryDate: { date: new Date(MAX_UINT64 * 1000) },
+          expiryDate: { date: new Date(NO_EXPIRY_SECONDS * 1000) },
           relation: defaultRelation,
         },
       ],
@@ -107,7 +107,7 @@ describe('mergeNamesData', () => {
   it('should handle a V2 name with a max-uint64 expiry', () => {
     const result = mergeNamesData(
       [],
-      [{ name: 'forever.eth', subdomains: [], expiryDate: MAX_UINT64 }],
+      [{ name: 'forever.eth', subdomains: [], expiryDate: NO_EXPIRY_SECONDS }],
     )
 
     expect(result[0]?.expiryDate).toBeNull()
