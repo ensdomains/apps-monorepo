@@ -68,6 +68,8 @@ const publicClientWithProfileResults = (
 ): PublicClient =>
   ({
     multicall: vi.fn(() => Promise.resolve(results)),
+    // No standing temporary HCA operator grant unless a test overrides this.
+    readContract: vi.fn(() => Promise.resolve(false)),
   }) as unknown as PublicClient
 
 const lockedKnownResolver = () =>
@@ -278,7 +280,10 @@ describe('buildMigrationPlan resolver preservation', () => {
       domains: [domain],
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        readContract: vi.fn(() => Promise.resolve(false)),
+      } as unknown as PublicClient,
       preflight,
     })
 
@@ -305,7 +310,10 @@ describe('buildMigrationRecoveryPlan', () => {
       snapshot,
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        readContract: vi.fn(() => Promise.resolve(false)),
+      } as unknown as PublicClient,
     })
 
     expect(plan.classified).toEqual([
@@ -361,7 +369,10 @@ describe('buildMigrationRecoveryPlan', () => {
         snapshot,
         hcaAddress: HCA,
         migrationOwner: OWNER,
-        publicClient: { chain: { id: 11155111 } } as PublicClient,
+        publicClient: {
+          chain: { id: 11155111 },
+          readContract: vi.fn(() => Promise.resolve(false)),
+        } as unknown as PublicClient,
       }),
     ).resolves.toBeDefined()
 
@@ -388,7 +399,10 @@ describe('buildMigrationRecoveryPlan', () => {
         snapshot,
         hcaAddress: HCA,
         migrationOwner: OWNER,
-        publicClient: { chain: { id: 11155111 } } as PublicClient,
+        publicClient: {
+          chain: { id: 11155111 },
+          readContract: vi.fn(() => Promise.resolve(false)),
+        } as unknown as PublicClient,
       }),
     ).rejects.toMatchObject({
       name: 'MigrationRecoveryPlanError',

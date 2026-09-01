@@ -73,12 +73,25 @@ const ALL_HCA_APPROVED: MigrationApprovalStatus = {
   ethRegistryHcaApproved: true,
 }
 
+const makePublicClient = (
+  opts: { readonly ethRegistryGranted?: boolean } = {},
+): PublicClient =>
+  ({
+    readContract: vi.fn(({ functionName }: { functionName: string }) =>
+      Promise.resolve(
+        functionName === 'isApprovedForAll' &&
+          (opts.ethRegistryGranted ?? false),
+      ),
+    ),
+  }) as unknown as PublicClient
+
 const run = (
   opts: {
     domain?: Parameters<typeof makeDomain>[0]
     profileKeys?: Result<unknown, unknown>
     hcaAddress?: Address
     hcaApprovals?: MigrationApprovalStatus
+    ethRegistryGranted?: boolean
   } = {},
 ) => {
   if (opts.hcaAddress) {
@@ -100,7 +113,9 @@ const run = (
     hcaAddress: opts.hcaAddress,
     domains: [makeDomain({ resolverAddress: RESOLVER, ...opts.domain })],
     wagmiConfig: {} as WagmiConfig,
-    publicClient: {} as PublicClient,
+    publicClient: makePublicClient({
+      ethRegistryGranted: opts.ethRegistryGranted,
+    }),
   })
 }
 
@@ -135,6 +150,10 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       'base-registrar:hca-token',
       'eth-registry:hca',
     ])
+    // The planned temporary grant is also owed a revocation at the end.
+    expect(
+      result.migrationApprovalCleanups?.map((approval) => approval.id),
+    ).toEqual(['eth-registry:hca'])
     expect(checkMigrationApprovalsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         eoa: EOA,
@@ -156,7 +175,7 @@ describe('computeMigrationPreflight — HCA approvals', () => {
   })
 
   it('checks locked known resolvers against the pinned PublicResolverSet', async () => {
-    const publicClient = {} as PublicClient
+    const publicClient = makePublicClient()
     checkMigrationApprovalsMock.mockResolvedValueOnce(ALL_HCA_APPROVED)
     assertRequiredMigrationContractCodeMock.mockResolvedValueOnce()
     assertMigrationHelperRuntimeCodeMock.mockResolvedValueOnce()
@@ -190,6 +209,31 @@ describe('computeMigrationPreflight — HCA approvals', () => {
         }),
       ],
     })
+  })
+
+  it('plans a revocation for a standing grant left by an interrupted earlier session', async () => {
+    // Immunefi #89461: the grant is live on-chain, so no approval is planned —
+    // but a revocation must still be owed for this run.
+    const result = await run({
+      hcaAddress: HCA,
+      hcaApprovals: ALL_HCA_APPROVED,
+      ethRegistryGranted: true,
+    })
+
+    expect(result.migrationApprovals).toEqual([])
+    expect(
+      result.migrationApprovalCleanups?.map((approval) => approval.id),
+    ).toEqual(['eth-registry:hca'])
+  })
+
+  it('plans no revocation when no temporary grant is planned or standing', async () => {
+    const result = await run({
+      hcaAddress: HCA,
+      hcaApprovals: ALL_HCA_APPROVED,
+    })
+
+    expect(result.migrationApprovals).toEqual([])
+    expect(result.migrationApprovalCleanups).toEqual([])
   })
 
   it('derives the HCA resolver and never log-scans for an EOA resolver', async () => {

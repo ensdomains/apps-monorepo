@@ -14,8 +14,12 @@ import { ProfileFetchError } from '@/features/migration/service/fetchV1Profiles'
 import { approvalNeedsFor } from '@/features/migration/service/migrationApprovalNeeds'
 import {
   checkMigrationApprovals,
+  getGrantedMigrationCleanupApprovals,
   type MigrationApproval,
+  type MigrationCleanupApproval,
+  migrationApprovalKey,
   planMigrationApprovals,
+  requiresMigrationApprovalCleanup,
 } from '@/features/migration/service/migrationApprovals'
 import {
   assertLockedPublicResolverSetMembership,
@@ -40,6 +44,13 @@ export type MigrationPreflight = {
   skipFetchProfilesPhase: boolean
   /** Missing grants only; confirmed operator entries remain available to the HCA. */
   migrationApprovals?: readonly MigrationApproval[]
+  /**
+   * Temporary HCA grants owed a revocation at the end of this run: grants
+   * planned above plus standing grants left by an interrupted earlier
+   * session. Execution re-derives the final set from live chain state; this
+   * list keeps the step preview and gas estimate honest.
+   */
+  migrationApprovalCleanups?: readonly MigrationCleanupApproval[]
   /** Deterministic HCA resolver, including deploy/role readiness. */
   hcaResolverReadiness?: MigrationResolverReadiness
   hcaResolverAddress?: Address
@@ -89,26 +100,46 @@ const computeApprovalPreflight = async (params: {
   readonly needs: ApprovalNeeds
   readonly requiresManagerRestoration: boolean
   readonly wagmiConfig: WagmiConfig
+  readonly publicClient: PublicClient
 }): Promise<{
   readonly migrationApprovals?: readonly MigrationApproval[]
+  readonly migrationApprovalCleanups?: readonly MigrationCleanupApproval[]
 }> => {
-  const { eoa, hcaAddress, needs, requiresManagerRestoration, wagmiConfig } =
-    params
-  if (!hcaAddress) return {}
-
-  const hcaApprovalStatus = await checkMigrationApprovals({
+  const {
     eoa,
     hcaAddress,
-    needs: { ...needs, requiresManagerRestoration },
+    needs,
+    requiresManagerRestoration,
     wagmiConfig,
-  })
+    publicClient,
+  } = params
+  if (!hcaAddress) return {}
+
+  const [hcaApprovalStatus, grantedCleanups] = await Promise.all([
+    checkMigrationApprovals({
+      eoa,
+      hcaAddress,
+      needs: { ...needs, requiresManagerRestoration },
+      wagmiConfig,
+    }),
+    // Read unconditionally: an interrupted earlier session may have left a
+    // temporary grant standing even when this run does not need it.
+    getGrantedMigrationCleanupApprovals({ eoa, hcaAddress, publicClient }),
+  ])
   const migrationApprovals = planMigrationApprovals({
     hcaAddress,
     needs: { ...needs, requiresManagerRestoration },
     status: hcaApprovalStatus,
   })
+  const cleanupByKey = new Map(
+    [
+      ...migrationApprovals.filter(requiresMigrationApprovalCleanup),
+      ...grantedCleanups,
+    ].map((approval) => [migrationApprovalKey(approval), approval]),
+  )
   return {
     migrationApprovals,
+    migrationApprovalCleanups: [...cleanupByKey.values()],
   }
 }
 
@@ -204,6 +235,7 @@ export const computeMigrationPreflight = async (params: {
       needs,
       requiresManagerRestoration,
       wagmiConfig,
+      publicClient,
     }),
     computeProfilePreflight(namesToOwnedPermRes, signal),
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),

@@ -67,6 +67,7 @@ vi.mock('./verifyAtomicMigrationBatch', async (importOriginal) => ({
   verifyAtomicMigrationBatch: mocks.verifyAtomicMigrationBatch,
 }))
 
+import { V2_CONTRACTS } from '../contracts/addresses'
 import type {
   AtomicMigrationNameExecution,
   BuildAtomicMigrationBatchesParams,
@@ -86,6 +87,7 @@ import {
   executeMigration,
   type MigrationProgress,
   type OnBatchComplete,
+  revokeStandingTemporaryHcaAccess,
 } from './migrationService'
 import type { V1Domain } from './v1SubgraphClient'
 import {
@@ -120,6 +122,8 @@ const HCA_CLIENT = {
 const getCodeMock = vi.fn()
 const estimateGasMock = vi.fn()
 const readContractMock = vi.fn()
+/** Simulated ETHRegistry.isApprovedForAll(owner, hca) chain state. */
+let ethRegistryOperatorGranted = false
 const getTransactionReceiptMock = vi.fn()
 const waitForReceiptMock = vi.fn()
 const PUBLIC_CLIENT = {
@@ -143,6 +147,18 @@ const MANAGER_APPROVAL: MigrationApproval = {
   contractAddress: APPROVAL_CONTRACT,
   operatorAddress: HCA,
 }
+
+// setApprovalForAll(operator, false): selector plus an all-zero final word.
+const REVOKE_SELECTOR = '0xa22cb465'
+const revocationCalls = () =>
+  mocks.startTransaction.mock.calls.filter((call) => {
+    const data = (call?.[0] as { request?: { data?: string } })?.request?.data
+    return (
+      typeof data === 'string' &&
+      data.startsWith(REVOKE_SELECTOR) &&
+      data.slice(-64) === '0'.repeat(64)
+    )
+  })
 
 const hashFor = (value: number): Hex =>
   `0x${value.toString(16).padStart(64, '0')}` as Hex
@@ -431,10 +447,13 @@ beforeEach(() => {
 
   getCodeMock.mockResolvedValue('0x6000')
   estimateGasMock.mockResolvedValue(500_000n)
+  ethRegistryOperatorGranted = false
   readContractMock.mockImplementation(
     ({ functionName }: { functionName: string }) => {
       if (functionName === 'ownerOf') return Promise.resolve(OWNER)
       if (functionName === 'balanceOf') return Promise.resolve(1n)
+      if (functionName === 'isApprovedForAll')
+        return Promise.resolve(ethRegistryOperatorGranted)
       return Promise.resolve(true)
     },
   )
@@ -524,6 +543,7 @@ describe('executeMigration HCA orchestration', () => {
       },
     }
     mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
+    ethRegistryOperatorGranted = true
     mocks.waitForTransactionHash
       .mockResolvedValueOnce(hashFor(1))
       .mockResolvedValueOnce(hashFor(2))
@@ -782,6 +802,7 @@ describe('executeMigration HCA orchestration', () => {
 
   it('keeps temporary-approval cleanup within the planned step count', async () => {
     mocks.planMigrationApprovals.mockReturnValue([APPROVAL, MANAGER_APPROVAL])
+    ethRegistryOperatorGranted = true
     const plan = {
       ...planFor(),
       preflight: {
@@ -1441,6 +1462,7 @@ describe('executeMigration HCA orchestration', () => {
   })
 
   it('finishes progress at the planned total when retry reconciliation skips setup and submission', async () => {
+    ethRegistryOperatorGranted = true
     const plan = {
       ...planFor(),
       hcaDeploymentRequired: true,
@@ -1634,6 +1656,7 @@ describe('executeMigration HCA orchestration', () => {
 
   it('revokes a temporary operator approval after a successful migration', async () => {
     mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
+    ethRegistryOperatorGranted = true
     waitForReceiptMock
       .mockResolvedValueOnce({
         status: 'success',
@@ -1663,6 +1686,7 @@ describe('executeMigration HCA orchestration', () => {
 
   it('surfaces cleanup rejection for the dedicated recovery action', async () => {
     mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
+    ethRegistryOperatorGranted = true
     mocks.waitForTransactionHash.mockImplementation((txId: string) =>
       txId === 'tx-2'
         ? Promise.reject(new Error('cleanup rejected'))
@@ -1684,7 +1708,66 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.verifyAtomicMigrationBatch).toHaveBeenCalledOnce()
   })
 
-  it('returns immediately when no eligible names remain', async () => {
+  it('revokes a standing grant left by an interrupted earlier session even when the rebuilt plan omits it', async () => {
+    // Session B of Immunefi #89461: the grant is already live on-chain, so
+    // preflight plans no approvals and a preflight-derived cleanup list would
+    // be empty. The revocation must come from live chain state instead.
+    ethRegistryOperatorGranted = true
+
+    const { result } = await runExecute()
+
+    expect(result.completed).toBe(1)
+    const revocations = revocationCalls()
+    expect(revocations).toHaveLength(1)
+    const request = (
+      revocations[0]?.[0] as {
+        request: { from: string; to: string; data: string }
+      }
+    ).request
+    expect(request.from).toBe(OWNER)
+    expect(request.to).toBe(V2_CONTRACTS.ETHRegistry)
+    expect(request.data.toLowerCase()).toContain(HCA.slice(2).toLowerCase())
+  })
+
+  it('still attempts the revocation when the atomic batch leg fails', async () => {
+    // Session A of Immunefi #89461: the grant lands, then a later wallet
+    // prompt or verification fails. The revocation must not be skipped.
+    ethRegistryOperatorGranted = true
+    mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
+    mocks.verifyAtomicMigrationBatch.mockRejectedValue(
+      new AtomicMigrationBatchVerificationError({
+        message: 'owner mismatch',
+        batchIndex: 0,
+        verification: { batchIndex: 0, status: 'confirmed', results: [] },
+        failures: [],
+      }),
+    )
+    const plan = {
+      ...planFor(),
+      preflight: {
+        ...planFor().preflight,
+        migrationApprovals: [MANAGER_APPROVAL],
+      },
+    }
+
+    await expect(runExecute({ plan })).rejects.toMatchObject({
+      name: 'MigrationError',
+    })
+
+    expect(revocationCalls()).toHaveLength(1)
+  })
+
+  it('surfaces the batch failure, not a cleanup error, when the best-effort revocation also fails', async () => {
+    ethRegistryOperatorGranted = true
+    mocks.waitForTransactionHash.mockRejectedValue(new Error('rpc down'))
+
+    const error = await runExecute().catch((cause: unknown) => cause)
+
+    expect(error).toMatchObject({ name: 'MigrationError' })
+    expect(revocationCalls()).toHaveLength(1)
+  })
+
+  it('submits no transactions when no eligible names remain and no grant is standing', async () => {
     const result = await executeMigration({
       plan: planFor([]),
       wagmiConfig: WAGMI,
@@ -1704,6 +1787,66 @@ describe('executeMigration HCA orchestration', () => {
       ineligible: [],
     })
     expect(getCodeMock).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('revokes a standing grant even when no eligible names remain', async () => {
+    // Stranded state: an interrupted earlier session granted the temporary
+    // operator approval and every v1 name has since been migrated, so this
+    // run has nothing to migrate — the revocation must still happen.
+    ethRegistryOperatorGranted = true
+
+    const result = await executeMigration({
+      plan: planFor([]),
+      wagmiConfig: WAGMI,
+      publicClient: PUBLIC_CLIENT,
+      signer: SIGNER,
+      hcaClient: HCA_CLIENT,
+      refreshAccount: vi.fn(),
+      onProgress: vi.fn(),
+    })
+
+    expect(result.completed).toBe(0)
+    expect(revocationCalls()).toHaveLength(1)
+    expect(result.txHashes).toHaveLength(1)
+  })
+})
+
+describe('revokeStandingTemporaryHcaAccess', () => {
+  it('revokes a standing grant without any migration plan', async () => {
+    ethRegistryOperatorGranted = true
+
+    const hashes = await revokeStandingTemporaryHcaAccess({
+      wagmiConfig: WAGMI,
+      publicClient: PUBLIC_CLIENT,
+      signer: SIGNER,
+      walletAddress: OWNER,
+      hcaAddress: HCA,
+    })
+
+    expect(hashes).toHaveLength(1)
+    const revocations = revocationCalls()
+    expect(revocations).toHaveLength(1)
+    const request = (
+      revocations[0]?.[0] as {
+        request: { to: string; from: string; data: string }
+      }
+    ).request
+    expect(request.from).toBe(OWNER)
+    expect(request.to).toBe(V2_CONTRACTS.ETHRegistry)
+    expect(request.data.toLowerCase()).toContain(HCA.slice(2).toLowerCase())
+  })
+
+  it('submits nothing when no grant is standing', async () => {
+    const hashes = await revokeStandingTemporaryHcaAccess({
+      wagmiConfig: WAGMI,
+      publicClient: PUBLIC_CLIENT,
+      signer: SIGNER,
+      walletAddress: OWNER,
+      hcaAddress: HCA,
+    })
+
+    expect(hashes).toEqual([])
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 })

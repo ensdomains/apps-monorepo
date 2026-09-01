@@ -6,6 +6,7 @@ import {
   erc721Abi,
   isAddress,
   isAddressEqual,
+  type PublicClient,
 } from 'viem'
 import { OPERATOR_APPROVAL_ABI } from '@/features/migration/contracts/abis'
 import {
@@ -79,6 +80,46 @@ export const requiresMigrationApprovalCleanup = (
   approval: MigrationApproval,
 ): approval is MigrationCleanupApproval =>
   approval.kind === 'operator' && approval.id === 'eth-registry:hca'
+
+/** Every temporary HCA operator grant a migration may leave on-chain. */
+const temporaryHcaOperatorApprovals = (
+  hcaAddress: Address,
+): readonly MigrationCleanupApproval[] => [
+  {
+    kind: 'operator',
+    id: 'eth-registry:hca',
+    contractAddress: V2_CONTRACTS.ETHRegistry,
+    operatorAddress: hcaAddress,
+  },
+]
+
+/**
+ * Reads which temporary HCA operator grants are currently live on-chain.
+ *
+ * Revocation must be planned from this read, never from a plan's preflight:
+ * `preflight.migrationApprovals` lists missing grants only, so a grant left
+ * behind by an interrupted earlier session drops out of a rebuilt plan and
+ * would otherwise never be revoked — leaving a standing registry-wide
+ * operator approval over every v2 name the wallet owns.
+ */
+export const getGrantedMigrationCleanupApprovals = async (params: {
+  readonly eoa: Address
+  readonly hcaAddress: Address
+  readonly publicClient: Pick<PublicClient, 'readContract'>
+}): Promise<readonly MigrationCleanupApproval[]> => {
+  const candidates = temporaryHcaOperatorApprovals(params.hcaAddress)
+  const grantedFlags = await Promise.all(
+    candidates.map((approval) =>
+      params.publicClient.readContract({
+        address: approval.contractAddress,
+        abi: OPERATOR_APPROVAL_ABI,
+        functionName: 'isApprovedForAll',
+        args: [params.eoa, approval.operatorAddress],
+      }),
+    ),
+  )
+  return candidates.filter((_, index) => grantedFlags[index] === true)
+}
 
 /** Build a required migration permission from the trusted deployment data. */
 export const migrationApprovalForId = (params: {

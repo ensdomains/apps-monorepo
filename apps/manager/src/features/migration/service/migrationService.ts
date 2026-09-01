@@ -43,11 +43,11 @@ import {
   buildMigrationApprovalCall,
   buildMigrationOperatorApprovalRevocationCall,
   checkMigrationApprovals,
+  getGrantedMigrationCleanupApprovals,
   type MigrationApproval,
   type MigrationCleanupApproval,
   migrationApprovalKey,
   planMigrationApprovals,
-  requiresMigrationApprovalCleanup,
 } from './migrationApprovals'
 import {
   loadPendingAtomicMigrationIntents,
@@ -570,11 +570,25 @@ const cleanupDescription = (_approval: MigrationCleanupApproval): string =>
 
 const revokeTemporaryOperatorApprovals = async (params: {
   readonly ctx: MigrationCtx
-  readonly plan: MigrationPlan
 }): Promise<readonly Hex[]> => {
-  const temporaryOperators = (
-    params.plan.preflight.migrationApprovals ?? []
-  ).filter(requiresMigrationApprovalCleanup)
+  // Revocation targets are re-derived from live chain state, never from the
+  // preview plan: the preflight lists missing grants only, so a grant left
+  // behind by an interrupted earlier session would drop out of a rebuilt plan
+  // and stay live forever while the migration reports success.
+  let temporaryOperators: readonly MigrationCleanupApproval[]
+  try {
+    temporaryOperators = await getGrantedMigrationCleanupApprovals({
+      eoa: params.ctx.walletAddress,
+      hcaAddress: params.ctx.hcaAddress,
+      publicClient: params.ctx.publicClient,
+    })
+  } catch (cause) {
+    throw new MigrationCleanupError({
+      message:
+        'Your names were upgraded, but temporary migration access still needs to be revoked.',
+      cause,
+    })
+  }
   const hashes: Hex[] = []
 
   for (const approval of temporaryOperators) {
@@ -598,6 +612,62 @@ const revokeTemporaryOperatorApprovals = async (params: {
   }
 
   return hashes
+}
+
+/**
+ * Revokes any standing temporary HCA operator grant from live chain state,
+ * without a migration plan or name selection. This is the recovery path for
+ * a wallet whose migration was interrupted after its final name migrated:
+ * no eligible v1 names remain, so no migration run would ever fire the
+ * in-flow cleanup again. Returns the revocation transaction hashes (empty
+ * when nothing is standing).
+ */
+/**
+ * A run with nothing to migrate still heals chain state: an interrupted
+ * earlier session may have left the temporary registry-wide grant standing
+ * after its last name was migrated, in which case no future migration run
+ * would ever fire the in-flow cleanup.
+ */
+const completeEmptyMigrationRun = async (params: {
+  readonly ctx: MigrationCtx
+  readonly ineligible: readonly IneligibleName[]
+}): Promise<MigrationResult> => {
+  const cleanupHashes = await revokeTemporaryOperatorApprovals({
+    ctx: params.ctx,
+  })
+  if (cleanupHashes.length > 0) {
+    params.ctx.tracker.complete(
+      'Temporary access removed',
+      cleanupHashes.at(-1),
+    )
+  }
+  return {
+    completed: 0,
+    migrated: 0,
+    copied: 0,
+    completedOperations: [],
+    txHashes: cleanupHashes,
+    ineligible: [...params.ineligible],
+  }
+}
+
+export const revokeStandingTemporaryHcaAccess = async (params: {
+  readonly wagmiConfig: WagmiConfig
+  readonly publicClient: PublicClient
+  readonly signer: Signer
+  readonly walletAddress: Address
+  readonly hcaAddress: Address
+  readonly onProgress?: (progress: MigrationProgress) => void
+}): Promise<readonly Hex[]> => {
+  const ctx: MigrationCtx = {
+    wagmiConfig: params.wagmiConfig,
+    publicClient: params.publicClient,
+    signer: params.signer,
+    walletAddress: params.walletAddress,
+    hcaAddress: params.hcaAddress,
+    tracker: createTracker(params.onProgress ?? (() => undefined), 1),
+  }
+  return revokeTemporaryOperatorApprovals({ ctx })
 }
 
 const removeNames = <T extends { readonly domain: { readonly name: string } }>(
@@ -1545,17 +1615,6 @@ export const executeMigration = async (params: {
   const reconcileBeforeSubmit =
     params.reconcileBeforeSubmit ?? plan.requiresReconciliation ?? false
 
-  if (classified.length === 0 && !reconcileBeforeSubmit) {
-    return {
-      completed: 0,
-      migrated: 0,
-      copied: 0,
-      completedOperations: [],
-      txHashes: [],
-      ineligible: [...ineligible],
-    }
-  }
-
   const ctx: MigrationCtx = {
     wagmiConfig,
     publicClient,
@@ -1564,6 +1623,11 @@ export const executeMigration = async (params: {
     hcaAddress: plan.hcaAddress,
     tracker: createTracker(onProgress, plan.stepDescriptors.length),
   }
+
+  if (classified.length === 0 && !reconcileBeforeSubmit) {
+    return completeEmptyMigrationRun({ ctx, ineligible })
+  }
+
   const txHashes: Hex[] = []
 
   const executionPlan = await prepareExecutionPlan({
@@ -1575,53 +1639,63 @@ export const executeMigration = async (params: {
   })
 
   if (executionPlan.classified.length > 0) {
-    // Permission state is mutable outside this flow. Check the preview against
-    // the latest chain state before opening the first wallet prompt, then use
-    // the same snapshot for approval submission. Retries intentionally retain
-    // their reconciliation behavior because a previous attempt may already
-    // have submitted one of the planned grants.
-    const currentMissing = reconcileBeforeSubmit
-      ? undefined
-      : await assertMigrationApprovalPlanCurrent({
-          ctx,
-          plan: executionPlan,
-        })
-    const deploymentHash = await ensureHcaDeployment({
-      ctx,
-      hcaClient,
-      refreshAccount,
-      plannedDeployment: executionPlan.hcaDeploymentRequired,
-    })
-    if (deploymentHash) txHashes.push(deploymentHash)
+    try {
+      // Permission state is mutable outside this flow. Check the preview
+      // against the latest chain state before opening the first wallet
+      // prompt, then use the same snapshot for approval submission. Retries
+      // intentionally retain their reconciliation behavior because a previous
+      // attempt may already have submitted one of the planned grants.
+      const currentMissing = reconcileBeforeSubmit
+        ? undefined
+        : await assertMigrationApprovalPlanCurrent({
+            ctx,
+            plan: executionPlan,
+          })
+      const deploymentHash = await ensureHcaDeployment({
+        ctx,
+        hcaClient,
+        refreshAccount,
+        plannedDeployment: executionPlan.hcaDeploymentRequired,
+      })
+      if (deploymentHash) txHashes.push(deploymentHash)
 
-    const approvalHashes = await ensureMigrationApprovals({
-      ctx,
-      plan: executionPlan,
-      currentMissing,
-    })
-    txHashes.push(...approvalHashes)
-
-    const journalScope = batchJournalScope(ctx)
-    // Refresh the durable snapshot after setup and immediately before the
-    // first atomic submission.
-    persistRecoveryPlan(journalScope, executionPlan)
-
-    txHashes.push(
-      ...(await executeRemainingAtomicBatches({
+      const approvalHashes = await ensureMigrationApprovals({
         ctx,
         plan: executionPlan,
-        publicClient,
-        onBatchComplete,
-        retryPermissionHeadLag: approvalHashes.length > 0,
-      })),
-    )
+        currentMissing,
+      })
+      txHashes.push(...approvalHashes)
+
+      const journalScope = batchJournalScope(ctx)
+      // Refresh the durable snapshot after setup and immediately before the
+      // first atomic submission.
+      persistRecoveryPlan(journalScope, executionPlan)
+
+      txHashes.push(
+        ...(await executeRemainingAtomicBatches({
+          ctx,
+          plan: executionPlan,
+          publicClient,
+          onBatchComplete,
+          retryPermissionHeadLag: approvalHashes.length > 0,
+        })),
+      )
+    } catch (error) {
+      // The temporary HCA grant may already be live even though this run
+      // failed. Attempt the revocation now, while the user is still present —
+      // an abandoned failure would otherwise leave a standing registry-wide
+      // operator approval. The original failure always wins; a declined or
+      // failed revocation is retried by the next run, which re-derives the
+      // cleanup set from chain state.
+      try {
+        txHashes.push(...(await revokeTemporaryOperatorApprovals({ ctx })))
+      } catch {
+        // Intentionally swallowed: surface the original migration error.
+      }
+      throw error
+    }
   }
-  txHashes.push(
-    ...(await revokeTemporaryOperatorApprovals({
-      ctx,
-      plan,
-    })),
-  )
+  txHashes.push(...(await revokeTemporaryOperatorApprovals({ ctx })))
   ctx.tracker.complete('Migration complete', txHashes.at(-1))
 
   if (usesDurableCopyRecovery(plan)) {

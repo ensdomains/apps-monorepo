@@ -12,6 +12,7 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
+import { RevokeTemporaryAccessBanner } from '@/features/migration/components/RevokeTemporaryAccessBanner'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { CommemorativeNftClaimDialog } from '@/features/migration/components/success/CommemorativeNftClaimDialog'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -328,6 +329,10 @@ export const MigrationPage = () => {
             </button>
           ) : null}
         </>
+      )}
+
+      {step === 'select' && (
+        <RevokeTemporaryAccessBanner className="absolute right-5 bottom-6 left-5 z-20 mx-auto max-w-2xl md:right-8 md:left-8" />
       )}
 
       {match(step)

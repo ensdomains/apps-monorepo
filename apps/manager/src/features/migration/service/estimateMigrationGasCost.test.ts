@@ -122,7 +122,7 @@ describe('estimateMigrationGasCost', () => {
     expect(estimate.transactionCount).toBe(2)
   })
 
-  it('manager restoration adds one persistent grant confirmation', async () => {
+  it('manager restoration adds a temporary grant and its revocation', async () => {
     const publicClient = makePublicClient({ maxFeePerGas: 2n })
     const basePlan = makePlan({ atomicBatches: [makeAtomicBatch(100n)] })
     const managerPlan = makePlan({
@@ -147,7 +147,33 @@ describe('estimateMigrationGasCost', () => {
     if (base.status !== 'ready' || manager.status !== 'ready') {
       throw new Error('expected ready estimates')
     }
-    expect(manager.transactionCount - base.transactionCount).toBe(1)
+    expect(manager.transactionCount - base.transactionCount).toBe(2)
+  })
+
+  it('counts a revocation owed for a standing grant from an interrupted earlier session', async () => {
+    const publicClient = makePublicClient({ maxFeePerGas: 2n })
+    const plan = makePlan({
+      preflight: {
+        skipFetchProfilesPhase: true,
+        migrationApprovals: [],
+        migrationApprovalCleanups: [
+          {
+            kind: 'operator',
+            id: 'eth-registry:hca',
+            contractAddress: contract,
+            operatorAddress: account,
+          },
+        ],
+      },
+      atomicBatches: [makeAtomicBatch(100n)],
+    })
+
+    const estimate = await estimateMigrationGasCost({ plan, publicClient })
+
+    expect(estimate.status).toBe('ready')
+    if (estimate.status !== 'ready') throw new Error('expected ready estimate')
+    expect(estimate.transactionCount).toBe(2)
+    expect(estimate.gasUnits).toBe(55_100n)
   })
 
   it('every additional atomic batch adds one confirmation', async () => {

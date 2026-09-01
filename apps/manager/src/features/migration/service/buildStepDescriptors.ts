@@ -2,6 +2,7 @@ import type { AtomicMigrationBatch } from './buildAtomicMigrationBatches'
 import type {
   MigrationApproval,
   MigrationApprovalId,
+  MigrationCleanupApproval,
 } from './migrationApprovals'
 import { requiresMigrationApprovalCleanup } from './migrationApprovals'
 
@@ -37,6 +38,12 @@ export type BuildStepDescriptorsParams = {
   readonly approvals: readonly MigrationApproval[]
   readonly atomicBatches: readonly AtomicMigrationBatch[]
   readonly registrationApprovalTargets: readonly RegistrationApprovalTarget[]
+  /**
+   * Temporary grants owed a revocation, including standing grants left by an
+   * interrupted earlier session. Falls back to the cleanup subset of
+   * `approvals` when the caller has no live chain reading.
+   */
+  readonly cleanupApprovals?: readonly MigrationCleanupApproval[]
 }
 
 export const buildStepDescriptors = (
@@ -90,8 +97,10 @@ export const buildStepDescriptors = (
     })
   }
 
-  for (const approval of params.approvals) {
-    if (!requiresMigrationApprovalCleanup(approval)) continue
+  const cleanupApprovals =
+    params.cleanupApprovals ??
+    params.approvals.filter(requiresMigrationApprovalCleanup)
+  for (const approval of cleanupApprovals) {
     descriptors.push({ type: 'cleanup', approvalId: approval.id })
   }
 

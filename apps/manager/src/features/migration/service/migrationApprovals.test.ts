@@ -8,6 +8,7 @@ import {
   buildMigrationApprovalCall,
   buildMigrationOperatorApprovalRevocationCall,
   checkMigrationApprovals,
+  getGrantedMigrationCleanupApprovals,
   type MigrationApprovalStatus,
   migrationApprovalForId,
   planMigrationApprovals,
@@ -224,6 +225,58 @@ describe('planMigrationApprovals', () => {
         status: statusFor([], { nameWrapperHcaApproved: true }),
       }).map((approval) => approval.id),
     ).toEqual(['eth-registry:hca'])
+  })
+})
+
+describe('getGrantedMigrationCleanupApprovals', () => {
+  it('returns the ETHRegistry HCA grant when it is live on-chain', async () => {
+    const readContract = vi.fn().mockResolvedValue(true)
+
+    const granted = await getGrantedMigrationCleanupApprovals({
+      eoa: EOA,
+      hcaAddress: HCA,
+      publicClient: { readContract },
+    })
+
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: V2_CONTRACTS.ETHRegistry,
+        functionName: 'isApprovedForAll',
+        args: [EOA, HCA],
+      }),
+    )
+    expect(granted).toEqual([
+      {
+        kind: 'operator',
+        id: 'eth-registry:hca',
+        contractAddress: V2_CONTRACTS.ETHRegistry,
+        operatorAddress: HCA,
+      },
+    ])
+  })
+
+  it('returns nothing when no temporary grant is standing', async () => {
+    const readContract = vi.fn().mockResolvedValue(false)
+
+    await expect(
+      getGrantedMigrationCleanupApprovals({
+        eoa: EOA,
+        hcaAddress: HCA,
+        publicClient: { readContract },
+      }),
+    ).resolves.toEqual([])
+  })
+
+  it('propagates read failures instead of silently skipping cleanup', async () => {
+    const readContract = vi.fn().mockRejectedValue(new Error('rpc down'))
+
+    await expect(
+      getGrantedMigrationCleanupApprovals({
+        eoa: EOA,
+        hcaAddress: HCA,
+        publicClient: { readContract },
+      }),
+    ).rejects.toThrow('rpc down')
   })
 })
 

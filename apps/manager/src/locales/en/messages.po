@@ -243,6 +243,10 @@ msgstr "Allow the migration account to move this registration."
 msgid "Allow the migration account to move your wrapped names."
 msgstr "Allow the migration account to move your wrapped names."
 
+#: src/features/migration/components/RevokeTemporaryAccessBanner.tsx
+msgid "An earlier upgrade left temporary access to your names active. Revoking it takes one wallet confirmation."
+msgstr "An earlier upgrade left temporary access to your names active. Revoking it takes one wallet confirmation."
+
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "An error occurred"
 msgstr "An error occurred"
@@ -1024,6 +1028,10 @@ msgstr "Featured"
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx
 msgid "Fee at this moment"
 msgstr "Fee at this moment"
+
+#: src/features/migration/components/RevokeTemporaryAccessBanner.tsx
+msgid "Finish securing your account"
+msgstr "Finish securing your account"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Finishing setup"
@@ -1990,10 +1998,19 @@ msgstr "Retrying will attempt the renewal again from where it left off."
 msgid "Return to Dashboard"
 msgstr "Return to Dashboard"
 
+#: src/features/migration/components/RevokeTemporaryAccessBanner.tsx
+msgid "Revocation didn't complete. Please try again."
+msgstr "Revocation didn't complete. Please try again."
+
+#: src/features/migration/components/RevokeTemporaryAccessBanner.tsx
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Revoke temporary HCA access"
 msgstr "Revoke temporary HCA access"
+
+#: src/features/migration/components/RevokeTemporaryAccessBanner.tsx
+msgid "Revoking temporary access…"
+msgstr "Revoking temporary access…"
 
 #: src/features/migration/components/GameStep.tsx
 msgid "Revoking temporary HCA access"
@@ -2487,10 +2504,6 @@ msgstr "This signature is free and doesn't cost any gas."
 msgid "This subname can’t be set up here yet. Please set it up in the ENS app first."
 msgstr "This subname can’t be set up here yet. Please set it up in the ENS app first."
 
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "This upgrade is split into {atomicBatchCount} gas-safe atomic batches. Each batch needs a wallet confirmation."
-msgstr "This upgrade is split into {atomicBatchCount} gas-safe atomic batches. Each batch needs a wallet confirmation."
-
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr "Times shown in your local time zone ({timezoneLabel})"
@@ -2831,6 +2844,10 @@ msgstr "Wallet funded successfully"
 msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr "Wallet isn’t ready yet. Try again in a moment."
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "We can’t safely resume your previous upgrade because the saved name state has changed."
+msgstr "We can’t safely resume your previous upgrade because the saved name state has changed."
+
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't confirm that {domainName} is still available. Please try again."
@@ -3044,6 +3061,14 @@ msgstr "Your registration is in progress. Leaving may interrupt it. Are you sure
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your saved progress is unchanged. Contact ENS support before trying the upgrade again."
+msgstr "Your saved progress is unchanged. Contact ENS support before trying the upgrade again."
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your saved upgrade needs attention"
+msgstr "Your saved upgrade needs attention"
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."

@@ -51,7 +51,12 @@ import {
 } from './directMigrationRoutes'
 import { resolverFor } from './encodeMigration'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
-import { migrationApprovalForId } from './migrationApprovals'
+import {
+  getGrantedMigrationCleanupApprovals,
+  migrationApprovalForId,
+  migrationApprovalKey,
+  requiresMigrationApprovalCleanup,
+} from './migrationApprovals'
 import {
   loadPendingAtomicMigrationIntents,
   loadSubmittedAtomicMigrationBatches,
@@ -500,6 +505,7 @@ export const buildMigrationPlan = async (params: {
     approvals,
     atomicBatches: atomicPlan.batches,
     registrationApprovalTargets,
+    cleanupApprovals: preflight.migrationApprovalCleanups,
   })
 
   return {
@@ -750,6 +756,21 @@ export const buildMigrationRecoveryPlan = async (params: {
       ...(approval.tokenId === undefined ? {} : { tokenId: approval.tokenId }),
     }),
   )
+  // A reload mid-migration usually happens after the temporary grant already
+  // landed, so the planned approvals alone under-count the owed revocations.
+  const grantedCleanups = await getGrantedMigrationCleanupApprovals({
+    eoa: migrationOwner,
+    hcaAddress,
+    publicClient,
+  })
+  signal?.throwIfAborted()
+  const cleanupByKey = new Map(
+    [
+      ...plannedApprovals.filter(requiresMigrationApprovalCleanup),
+      ...grantedCleanups,
+    ].map((approval) => [migrationApprovalKey(approval), approval]),
+  )
+  const migrationApprovalCleanups = [...cleanupByKey.values()]
   const hcaDeploymentRequired = hcaReadiness.status === 'deployment-required'
   const stepDescriptors = buildStepDescriptors({
     hcaDeploymentRequired,
@@ -759,6 +780,7 @@ export const buildMigrationRecoveryPlan = async (params: {
       name: domain.name,
       tokenId: BigInt(domain.labelhash),
     })),
+    cleanupApprovals: migrationApprovalCleanups,
   })
 
   return {
@@ -772,6 +794,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     preflight: {
       skipFetchProfilesPhase: true,
       migrationApprovals: plannedApprovals,
+      migrationApprovalCleanups,
       hcaResolverReadiness: resolverReadiness,
       ...(expectedOwnedPermRes
         ? { hcaResolverAddress: expectedOwnedPermRes }
@@ -847,6 +870,7 @@ export const adjustPlanForRetry = (
       name: domain.name,
       tokenId: BigInt(domain.labelhash),
     })),
+    cleanupApprovals: plan.preflight.migrationApprovalCleanups,
   })
 
   return {
