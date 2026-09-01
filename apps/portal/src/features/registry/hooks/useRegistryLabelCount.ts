@@ -1,7 +1,8 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address, Hash } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
@@ -9,7 +10,7 @@ import { graphqlIndexerClient } from '@/lib/indexer'
 class GetRegistryLabelCountError extends TaggedError(
   'GetRegistryLabelCountError',
 )<{
-  cause: ClientError
+  cause: GraphqlRequestError
 }> {}
 
 type GetRegistryLabelCountParameters = {
@@ -69,7 +70,7 @@ const getRegistryLabelCount = ResultFn(async function* ({
       `,
       { address: address.toLowerCase(), first: LABELS_SAMPLE_SIZE },
     ),
-    (e) => new GetRegistryLabelCountError({ cause: e as ClientError }),
+    (e) => new GetRegistryLabelCountError({ cause: e as GraphqlRequestError }),
   )
 
   // null = indexer has no record for this registry address (not yet indexed,

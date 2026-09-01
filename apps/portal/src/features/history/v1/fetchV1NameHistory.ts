@@ -1,4 +1,5 @@
-import { GraphQLClient, gql } from 'graphql-request'
+import { createPlainClient, graphqlRequest } from '@ens-apps/indexer/urql'
+import { gql } from '@urql/core'
 import type { Hex } from 'viem'
 import type { V1SubgraphEvent } from './adaptV1Events'
 
@@ -156,9 +157,8 @@ export const fetchV1NameHistory = async ({
   readonly eventTypes?: readonly string[]
 }): Promise<V1SubgraphEvent[]> => {
   const collections = scopedCollections(eventTypes)
-  const { domain, resolvers } = await new GraphQLClient(
-    subgraphUrl,
-  ).request<V1SubgraphResult>(
+  const { domain, resolvers } = await graphqlRequest<V1SubgraphResult>(
+    createPlainClient(subgraphUrl),
     gql`
       query getV1NameHistoryTimeline(
         $id: String!

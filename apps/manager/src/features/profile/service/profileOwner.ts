@@ -65,6 +65,8 @@ export const getOwner = ResultFn(async function* (params: { name: string }) {
   }
 
   if (ethName.parentLabelsRootFirst.length === 0) {
+    // Not `graphqlRequest`: an empty payload is a valid answer here (the name
+    // simply isn't indexed), so this tolerates missing data instead of throwing.
     const v2Domain = yield* fromPromise(
       indexerClient
         .query<DomainQuery>(DomainDocument, { id: namehash(ethName.name) })

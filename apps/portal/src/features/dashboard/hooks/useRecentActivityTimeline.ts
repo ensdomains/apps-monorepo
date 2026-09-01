@@ -1,7 +1,8 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import { dropClippedBoundary } from '@/features/history/dropClippedBoundary'
 import {
@@ -15,7 +16,7 @@ import { graphqlIndexerClient } from '@/lib/indexer'
 class GetRecentActivityTimelineError extends TaggedError(
   'GetRecentActivityTimelineError',
 )<{
-  cause: ClientError
+  cause: GraphqlRequestError
 }> {}
 
 /** Events, not rows — a transaction bundles several, so this is ~10 rows. */
@@ -75,7 +76,8 @@ const requestPage = (after?: string) =>
         after,
       })
       .then(({ eventConnection }) => eventConnection),
-    (e) => new GetRecentActivityTimelineError({ cause: e as ClientError }),
+    (e) =>
+      new GetRecentActivityTimelineError({ cause: e as GraphqlRequestError }),
   )
 
 const getRecentActivityTimeline = ResultFn(async function* () {

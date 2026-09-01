@@ -7,10 +7,10 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
-import { gql } from 'graphql-request'
 import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, isAddress, type PublicClient } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { gql } from '@/utils/subgraph/gql'
 
 /**
  * Migration status for a name, scoped to the connected wallet: whether it can

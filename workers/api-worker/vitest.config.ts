@@ -12,7 +12,7 @@ export default defineConfig({
       optimizer: {
         ssr: {
           enabled: true,
-          include: ['graphql-request'],
+          include: ['@urql/core'],
         },
       },
     },

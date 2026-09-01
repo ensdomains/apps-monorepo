@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { HistoryTimelineView } from '@/features/history/components/HistoryTimeline'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { getRecentActivityTimelineQueryOptions } from '../hooks/useRecentActivityTimeline'
 
 /** The homepage's Recent Activity — the History timeline over the global feed. */
@@ -16,7 +17,7 @@ export const RecentActivityTimeline = () => {
     return (
       <ErrorMessage
         title="Error loading recent activity"
-        description={error.cause?.message}
+        description={extractErrorMessage(error, '')}
       />
     )
   }

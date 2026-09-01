@@ -1,7 +1,8 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address, Hex } from 'viem'
 import { namehash, normalize } from 'viem/ens'
@@ -35,7 +36,7 @@ import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
 class GetNameHistoryTimelineError extends TaggedError(
   'GetNameHistoryTimelineError',
 )<{
-  cause: ClientError
+  cause: GraphqlRequestError
 }> {}
 
 /**
@@ -311,7 +312,7 @@ const getNameHistoryTimeline = ResultFn(async function* ({
         eventTypes,
       }),
     ]),
-    (e) => new GetNameHistoryTimelineError({ cause: e as ClientError }),
+    (e) => new GetNameHistoryTimelineError({ cause: e as GraphqlRequestError }),
   )
 
   // v1 events carry no timestamp; the timeline sorts and dates on one.

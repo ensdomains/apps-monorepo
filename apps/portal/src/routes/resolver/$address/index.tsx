@@ -18,6 +18,7 @@ import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
 import { ResolverTypeValue } from '@/features/resolver/components/ResolverTypeValue'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { queryClient } from '@/utils/queryClient'
 import type { HttpsUrl } from '@/utils/types'
@@ -58,7 +59,7 @@ function RouteComponent() {
     return (
       <ErrorMessage
         title="Resolver unavailable"
-        description={error.cause?.message}
+        description={extractErrorMessage(error, '')}
       />
     )
 

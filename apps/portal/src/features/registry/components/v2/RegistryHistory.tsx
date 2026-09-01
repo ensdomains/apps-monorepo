@@ -7,6 +7,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { Button } from '@/components/ui/button'
 import { HistoryTimelineView } from '@/features/history/components/HistoryTimeline'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { getNameRegistriesQueryOptions } from '../../hooks/useNameRegistryDiscovery'
 import { getRegistryHistoryTimelineQueryOptions } from '../../hooks/useRegistryHistoryTimeline'
 
@@ -41,7 +42,7 @@ export const RegistryHistoryByAddress = ({
     return (
       <ErrorMessage
         title="Error loading registry history"
-        description={error.cause?.message}
+        description={extractErrorMessage(error, '')}
       />
     )
   }

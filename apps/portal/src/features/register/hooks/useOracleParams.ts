@@ -4,7 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   type GetPremiumDecayParamsErrorType,
   getPremiumDecayParams,
-} from '@ensdomains/ensjs/public/v2'
+} from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import type { PremiumDecayConfig } from '@/features/register/utils/premiumDecay'
 import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'

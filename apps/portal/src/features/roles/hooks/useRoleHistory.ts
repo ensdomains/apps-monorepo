@@ -1,8 +1,9 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import {
@@ -14,7 +15,7 @@ import { toResourceHex } from '@/lib/roles/toResourceHex'
 export type { RoleHistoryEntry } from '@/lib/roles/filterEventsByResource'
 
 class GetRoleHistoryError extends TaggedError('GetRoleHistoryError')<{
-  cause: ClientError
+  cause: GraphqlRequestError
 }> {}
 
 type GetRoleHistoryParameters = {
@@ -68,7 +69,7 @@ const getRoleHistory = ResultFn(async function* ({
         `,
         { blockNumberLt, first: PAGE_SIZE },
       ),
-      (e) => new GetRoleHistoryError({ cause: e as ClientError }),
+      (e) => new GetRoleHistoryError({ cause: e as GraphqlRequestError }),
     )
 
     if (events.length === 0) break
