@@ -829,9 +829,6 @@ importers:
       graphql:
         specifier: ^17.0.2
         version: 17.0.2
-      graphql-tag:
-        specifier: ^2.12.7
-        version: 2.12.7(graphql@17.0.2)
       viem:
         specifier: 'catalog:'
         version: 2.52.2(typescript@7.0.2)(zod@4.4.3)

@@ -31,7 +31,6 @@
     "@urql/core": "^6.0.3",
     "@urql/exchange-retry": "^2.0.0",
     "graphql": "^17.0.2",
-    "graphql-tag": "^2.12.7",
     "viem": "catalog:"
   }
 }

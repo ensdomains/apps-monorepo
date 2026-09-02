@@ -2492,10 +2492,6 @@ msgstr ""
 msgid "This subname can’t be set up here yet. Please set it up in the ENS app first."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "This upgrade is split into {atomicBatchCount} gas-safe atomic batches. Each batch needs a wallet confirmation."
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr ""
@@ -2836,6 +2832,10 @@ msgstr ""
 msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "We can’t safely resume your previous upgrade because the saved name state has changed."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't confirm that {domainName} is still available. Please try again."
@@ -3048,6 +3048,14 @@ msgstr ""
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your saved progress is unchanged. Contact ENS support before trying the upgrade again."
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your saved upgrade needs attention"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
