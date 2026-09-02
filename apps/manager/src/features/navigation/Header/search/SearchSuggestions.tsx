@@ -48,10 +48,6 @@ export const SearchSuggestions = ({
           .with({ type: 'name' }, (name) => (
             <NameSuggestionItem
               avatarUrl={buildNameAvatarUrl(name.value)}
-              isError={name.isError}
-              isLoading={name.isLoading}
-              isRegistered={name.isRegistered}
-              isSupported={name.isSupported}
               key={name.value}
               name={name.value}
               onNavigate={onNavigate}

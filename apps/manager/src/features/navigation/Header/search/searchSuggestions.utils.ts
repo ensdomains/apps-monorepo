@@ -1,37 +1,11 @@
 import type { Address } from 'viem'
-import { isAddress } from 'viem'
-import {
-  getLabelLength,
-  parseName,
-} from '@/features/register-v2/utils/name-parser'
+import { parseSearchQuery } from '@/features/search/parseSearchQuery'
+import type { ParsedSearchQuery } from '@/features/search/search.types'
 import type { SearchHistoryItem } from './useSearchHistory'
-
-const ETH_TLD = 'eth'
-const MIN_REGISTRABLE_LABEL_LENGTH = 3
-
-const isSearchNameSupported = (name: string): boolean => {
-  const trimmed = name.trim()
-  if (!trimmed) return false
-
-  if (trimmed.startsWith('.') || trimmed.endsWith('.')) return false
-
-  const parsedName = parseName(trimmed)
-
-  if (parsedName.isErr()) return false
-
-  return (
-    parsedName.value.tld === ETH_TLD &&
-    getLabelLength(parsedName.value.label) >= MIN_REGISTRABLE_LABEL_LENGTH
-  )
-}
 
 type NameSuggestion = {
   readonly type: 'name'
   readonly value: string
-  readonly isRegistered?: boolean
-  readonly isLoading?: boolean
-  readonly isError?: boolean
-  readonly isSupported?: boolean
 }
 
 type AddressSuggestion = {
@@ -45,22 +19,9 @@ type Separator = {
 
 export type SuggestionItem = NameSuggestion | AddressSuggestion | Separator
 
-export type ParsedInput =
-  | { readonly type: 'name'; readonly value: string }
-  | { readonly type: 'address'; readonly value: Address }
-  | { readonly type: 'error' }
+export type ParsedInput = ParsedSearchQuery
 
-export const parseSearchInput = (input: string): ParsedInput => {
-  const trimmed = input.trim().toLowerCase()
-  if (!trimmed) return { type: 'error' }
-
-  if (isAddress(trimmed, { strict: false })) {
-    return { type: 'address', value: trimmed }
-  }
-
-  const value = trimmed.endsWith('.eth') ? trimmed : `${trimmed}.eth`
-  return { type: 'name', value }
-}
+export const parseSearchInput = parseSearchQuery
 
 type BuildSuggestionsParams = {
   readonly parsedInput: ParsedInput
@@ -91,17 +52,15 @@ export const buildSuggestions = ({
     suggestions.push({
       type: 'name',
       value: parsedInput.value,
-      isSupported: isSearchNameSupported(parsedInput.value),
     })
   }
 
-  if (parsedInput.type === 'error') {
+  if (parsedInput.type === 'empty') {
     for (const item of history) {
       if (item.kind === 'name') {
         suggestions.push({
           type: 'name',
           value: item.value,
-          isSupported: isSearchNameSupported(item.value),
         })
       } else {
         suggestions.push({ type: 'address', value: item.value })

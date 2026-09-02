@@ -244,10 +244,6 @@ msgstr "Allow the migration account to move this registration."
 msgid "Allow the migration account to move your wrapped names."
 msgstr "Allow the migration account to move your wrapped names."
 
-#: src/features/landing/check-availability/CheckAvailability.tsx
-msgid "An error occurred"
-msgstr "An error occurred"
-
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "An error occurred during verification"
 msgstr "An error occurred during verification"
@@ -1356,6 +1352,11 @@ msgstr "Name"
 #: src/features/notifications/settings/preferences.tsx
 msgid "Name Expiry"
 msgstr "Name Expiry"
+
+#: src/features/landing/check-availability/CheckAvailability.tsx
+#: src/features/navigation/Header/search/SuggestionItem.tsx
+msgid "Name not found"
+msgstr "Name not found"
 
 #: src/features/payment/components/add.tsx
 msgid "Name on card"

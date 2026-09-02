@@ -65,6 +65,26 @@ vi.mock('@/features/profile/service/profileReverseName', () => ({
   }),
 }))
 
+vi.mock('@/features/profile/service/profileOwner', () => ({
+  profileOwnerQuery: (name: string) => ({
+    queryKey: ['test-owner', name],
+    queryFn: async () =>
+      name === '1.1.sugh004.eth'
+        ? {
+            owner: '0x0000000000000000000000000000000000000001',
+            protocol: 'v2',
+          }
+        : null,
+  }),
+}))
+
+vi.mock('@/features/dashboard/service/queries/getDashboardDomains', () => ({
+  getDomainsQuery: () => ({
+    queryKey: ['test-domains'],
+    queryFn: async () => ({ domains: [] }),
+  }),
+}))
+
 const searchFor = (name: string) => {
   fireEvent.change(screen.getByPlaceholderText('.eth'), {
     target: { value: name },
@@ -125,5 +145,26 @@ describe('CheckAvailability', () => {
     })
 
     expect(probes.some((p) => p.src === expectedAvatarUrl)).toBe(true)
+  })
+
+  it('does not mark a deep subname as not supported', async () => {
+    render(<CheckAvailability />)
+
+    searchFor('1.1.sugh004.eth')
+
+    await waitFor(() => {
+      expect(screen.getByText('1.1.sugh004.eth')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Not supported')).not.toBeInTheDocument()
+  })
+
+  it('shows a not-found state for an unowned subname', async () => {
+    render(<CheckAvailability />)
+
+    searchFor('missing.alice.eth')
+
+    await waitFor(() => {
+      expect(screen.getByText("doesn't exist")).toBeInTheDocument()
+    })
   })
 })

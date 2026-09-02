@@ -3,9 +3,9 @@ import { buildSuggestions, parseSearchInput } from './searchSuggestions.utils'
 import type { SearchHistoryItem } from './useSearchHistory'
 
 describe('parseSearchInput', () => {
-  it('returns error for empty input', () => {
-    expect(parseSearchInput('')).toEqual({ type: 'error' })
-    expect(parseSearchInput('  ')).toEqual({ type: 'error' })
+  it('returns empty for blank input', () => {
+    expect(parseSearchInput('')).toEqual({ type: 'empty' })
+    expect(parseSearchInput('  ')).toEqual({ type: 'empty' })
   })
 
   it('parses a plain name and appends .eth', () => {
@@ -57,12 +57,12 @@ describe('buildSuggestions', () => {
     ]
 
     const result = buildSuggestions({
-      parsedInput: { type: 'error' },
+      parsedInput: { type: 'empty' },
       history,
     })
 
     expect(result).toEqual([
-      { type: 'name', value: 'alice.eth', isSupported: true },
+      { type: 'name', value: 'alice.eth' },
       { type: 'address', value: '0x1234567890abcdef1234567890abcdef12345678' },
     ])
   })
@@ -77,85 +77,8 @@ describe('buildSuggestions', () => {
       {
         type: 'name',
         value: 'bigint.eth',
-        isSupported: true,
       },
     ])
-  })
-
-  it('marks short names as not supported', () => {
-    const result = buildSuggestions({
-      parsedInput: { type: 'name', value: 'ab.eth' },
-      history: emptyHistory,
-    })
-
-    expect(result[0]).toMatchObject({
-      type: 'name',
-      value: 'ab.eth',
-      isSupported: false,
-    })
-  })
-
-  it('supports subnames with short child labels', () => {
-    const result = buildSuggestions({
-      parsedInput: { type: 'name', value: '1.sugh1405202602.eth' },
-      history: emptyHistory,
-    })
-
-    expect(result[0]).toMatchObject({
-      type: 'name',
-      value: '1.sugh1405202602.eth',
-      isSupported: true,
-    })
-  })
-
-  it('marks subnames with invalid child labels as not supported', () => {
-    const result = buildSuggestions({
-      parsedInput: { type: 'name', value: 'bad!.sugh1405202602.eth' },
-      history: emptyHistory,
-    })
-
-    expect(result[0]).toMatchObject({
-      type: 'name',
-      value: 'bad!.sugh1405202602.eth',
-      isSupported: false,
-    })
-  })
-
-  it('marks short subnames with invalid child labels as not supported', () => {
-    const result = buildSuggestions({
-      parsedInput: { type: 'name', value: '!.sugh1405202602.eth' },
-      history: emptyHistory,
-    })
-
-    expect(result[0]).toMatchObject({
-      type: 'name',
-      value: '!.sugh1405202602.eth',
-      isSupported: false,
-    })
-  })
-
-  it('marks names with leading or trailing dots as not supported', () => {
-    expect(
-      buildSuggestions({
-        parsedInput: { type: 'name', value: '.bigint.eth' },
-        history: emptyHistory,
-      })[0],
-    ).toMatchObject({
-      type: 'name',
-      value: '.bigint.eth',
-      isSupported: false,
-    })
-
-    expect(
-      buildSuggestions({
-        parsedInput: { type: 'name', value: 'bigint.eth.' },
-        history: emptyHistory,
-      })[0],
-    ).toMatchObject({
-      type: 'name',
-      value: 'bigint.eth.',
-      isSupported: false,
-    })
   })
 
   it('returns address suggestion with primary name', () => {
@@ -181,7 +104,7 @@ describe('buildSuggestions', () => {
     }))
 
     const result = buildSuggestions({
-      parsedInput: { type: 'error' },
+      parsedInput: { type: 'empty' },
       history,
     })
 
@@ -200,20 +123,5 @@ describe('buildSuggestions', () => {
 
     expect(result).toHaveLength(1)
     expect(result[0]).toMatchObject({ value: 'new.eth' })
-  })
-
-  it('marks history items with short names as not supported', () => {
-    const history: SearchHistoryItem[] = [
-      { kind: 'name', value: 'ab.eth', timestamp: 1 },
-      { kind: 'name', value: 'alice.eth', timestamp: 2 },
-    ]
-
-    const result = buildSuggestions({
-      parsedInput: { type: 'error' },
-      history,
-    })
-
-    expect(result[0]).toMatchObject({ value: 'ab.eth', isSupported: false })
-    expect(result[1]).toMatchObject({ value: 'alice.eth', isSupported: true })
   })
 })
