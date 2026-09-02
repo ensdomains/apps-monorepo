@@ -32,7 +32,12 @@ export const RecentActivityTimeline = () => {
           after: pageParam,
         }),
       ...timelinePageParams,
-      refetchInterval: 30_000,
+      // An infinite query refetches *every* loaded page in sequence, so a flat
+      // interval costs N+1 requests every 30s after N "Load more" clicks. The
+      // poll exists to bring new events in at the top; a reader who has paged
+      // past the first page is no longer watching it, so it stops there.
+      refetchInterval: (query) =>
+        (query.state.data?.pages.length ?? 0) > 1 ? false : 30_000,
       staleTime: 15_000,
     }),
   )

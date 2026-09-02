@@ -1,5 +1,6 @@
 import {
   type InfiniteData,
+  keepPreviousData,
   type QueryKey,
   type UseInfiniteQueryOptions,
   type UseInfiniteQueryResult,
@@ -8,7 +9,7 @@ import {
 } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { Hex } from 'viem'
-import { mergeTimeline } from '../mergeTimeline'
+import { dropPagedDuplicates, mergeTimeline } from '../mergeTimeline'
 import type { Action } from '../summarize/summarize.types'
 import { summarizeEvents } from '../summarize/summarizeEvents'
 import type { TimelineIndexerEvent } from '../timelineEvent'
@@ -104,16 +105,6 @@ const useTimelineModel = (
   const pagedEvents = pages.flatMap((page) => page.events)
   const events = mergeTimeline({ pagedEvents, auxiliaryEvents, hasNextPage })
 
-  // Summed, not deduplicated: the two sets are disjoint by construction. The
-  // paged connection filters on the subject's own namehash, so a child's
-  // `LabelRegistered` (which carries the *child's*) can never appear in it, and
-  // v1 events come from a different service in a different id shape. Verified
-  // against staging — `eth` reports 5 events against 168,090 subdomains; were
-  // child registrations in the parent's feed that count could not be 5.
-  //
-  // Deduplicating against loaded pages only would be worse than not trying: it
-  // cannot see an id on a page still unfetched, so the total would shift as you
-  // page rather than being stably right.
   const summarized = summarizeEvents(events, { includeSubjectName })
   const kept = selectedTypes?.length && new Set(selectedTypes)
   const allActions = kept
@@ -130,17 +121,28 @@ const useTimelineModel = (
     anchorAction:
       anchorEvents &&
       summarizeEvents(
-        [...anchorEvents, ...auxiliaryEvents].sort(newestFirst),
+        [
+          ...anchorEvents,
+          ...dropPagedDuplicates(auxiliaryEvents, anchorEvents),
+        ].sort(newestFirst),
       ).at(-1),
     // Withheld when a source is known short, rather than presenting a lower
     // bound as an exact count.
+    //
+    // The sum is only exact once the feed is fully loaded, because the auxiliary
+    // sources overlap the paged one (see `dropPagedDuplicates`) and an overlap
+    // on a page still unfetched cannot be seen. While pages remain, a name with
+    // auxiliary events gets no count at all rather than one inflated by its own
+    // duplicates — fox.eth printed 251 for 73 real events.
     totalCount:
       pagedTotalCount === undefined ||
       isTruncated ||
       sourcesError ||
-      selectedTypes?.length
+      selectedTypes?.length ||
+      (hasNextPage && auxiliaryEvents.length > 0)
         ? undefined
-        : pagedTotalCount + auxiliaryEvents.length,
+        : pagedTotalCount +
+          dropPagedDuplicates(auxiliaryEvents, pagedEvents).length,
     hasMore: hasNextPage || allActions.length > actions.length,
     loadMore: () => void pagesQuery.fetchNextPage(),
     isLoadingMore: pagesQuery.isFetchingNextPage,
@@ -176,6 +178,27 @@ type UseNameHistoryTimelineParameters = {
   readonly to?: number
   readonly limit?: number
   readonly shouldFetchAnchor?: boolean
+  /** The Event chip's options; skipped on the surfaces that render no chips. */
+  readonly shouldFetchEventTypes?: boolean
+}
+
+/**
+ * One retry for the auxiliary sources. They are read whole with no cursor, and
+ * a single 503 from the indexer costs the whole v1 history, the pinned row or
+ * the chip options for the life of the query — the client's global `retry: false`
+ * suits reads a user can trigger again, which these are not.
+ */
+const SOURCE_QUERY_RETRY = 1
+
+/** `scope` bounds what the surface may ever show; the chip narrows within it. */
+const narrowScope = (
+  scope: readonly string[] | undefined,
+  selectedTypes: readonly string[] | undefined,
+): readonly string[] | undefined => {
+  if (!selectedTypes?.length) return scope
+  return scope
+    ? selectedTypes.filter((type) => scope.includes(type))
+    : selectedTypes
 }
 
 export const useNameHistoryTimeline = ({
@@ -186,24 +209,48 @@ export const useNameHistoryTimeline = ({
   to,
   limit,
   shouldFetchAnchor = true,
+  shouldFetchEventTypes = true,
 }: UseNameHistoryTimelineParameters): HistoryTimelineModel => {
-  const feedScope = { name, eventTypes: scope, from, to }
-  // Keyed on the facet alone and narrowed in memory below: putting the chip
+  // Filtered in the query, not over loaded rows: narrowing in memory only
+  // reached the pages already fetched, so on a long name picking "Register name"
+  // showed "No matching history" above a Load more.
+  const feedScope = {
+    name,
+    eventTypes: narrowScope(scope, selectedTypes),
+    from,
+    to,
+  }
+  // The auxiliary and vocabulary reads stay on the facet alone: putting the chip
   // selection in this key would refetch the v1 subgraph on every toggle, and
   // hide the v1 types the chip needs to offer.
   const facetScope = { name, eventTypes: scope }
 
-  const pagesQuery = useInfiniteQuery(
-    getNameHistoryPagesQueryOptions(feedScope),
-  )
+  const pagesQuery = useInfiniteQuery({
+    ...getNameHistoryPagesQueryOptions(feedScope),
+    // A new date range or chip selection is a new key; without this the whole
+    // surface — chips included — is replaced by the loading message, and the
+    // control the user just touched disappears under them.
+    placeholderData: keepPreviousData,
+  })
   const [auxiliaryQuery, anchorQuery, eventTypesQuery] = useQueries({
     queries: [
-      getNameHistoryAuxiliaryQueryOptions(facetScope),
+      {
+        ...getNameHistoryAuxiliaryQueryOptions(facetScope),
+        retry: SOURCE_QUERY_RETRY,
+      },
       {
         ...getNameHistoryAnchorQueryOptions(feedScope),
         enabled: shouldFetchAnchor,
+        retry: SOURCE_QUERY_RETRY,
+        // Keyed on the feed scope like the pages, so the pinned row holds its
+        // last value instead of blanking while a new range loads.
+        placeholderData: keepPreviousData,
       },
-      getNameEventTypesQueryOptions(facetScope),
+      {
+        ...getNameEventTypesQueryOptions(facetScope),
+        enabled: shouldFetchEventTypes,
+        retry: SOURCE_QUERY_RETRY,
+      },
     ],
   })
 
@@ -224,6 +271,8 @@ export const useNameHistoryTimeline = ({
       ]),
     ],
     limit,
+    // Still narrowed in memory as well: the paged query filters the v2 feed, but
+    // the auxiliary v1 events beside it are read on the unfiltered facet scope.
     selectedTypes,
     isTruncated: auxiliaryQuery.data?.isTruncated ?? false,
     isLoadingSources: auxiliaryQuery.isLoading,

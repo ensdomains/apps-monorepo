@@ -19,7 +19,12 @@ interface RecentHistoryTimelineProps {
  * whose break links out rather than loading in place (Figma `2075:16136`).
  */
 export const RecentHistoryTimeline = ({ name }: RecentHistoryTimelineProps) => {
-  const model = useNameHistoryTimeline({ name, limit: RECENT_ACTION_LIMIT })
+  const model = useNameHistoryTimeline({
+    name,
+    limit: RECENT_ACTION_LIMIT,
+    // The preview renders no filter chips, so their vocabulary is not read.
+    shouldFetchEventTypes: false,
+  })
 
   const heading = (
     <h2 className="text-foreground text-heading">Recent History</h2>

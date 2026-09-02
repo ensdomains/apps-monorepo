@@ -10,16 +10,41 @@ type MergeTimelineParameters = {
 }
 
 /**
+ * Auxiliary events that the paged feed does not already carry.
+ *
+ * The sources overlap: the v1 subgraph indexes the same resolver writes the v2
+ * indexer does, so the same on-chain transaction arrives twice in two id shapes
+ * — which is what rendered `mail, phone, mail, phone` inside one action on
+ * fox.eth, where 68 of 73 paged events had a v1 twin. Ids therefore cannot
+ * settle it; the transaction hash can, and it is the same grouping key
+ * `summarizeEvents` builds actions on, so a transaction is either the paged
+ * feed's or the auxiliary source's, never half of each.
+ *
+ * Compared against the *untrimmed* page: the clipped boundary transaction is
+ * withheld from this render, not absent from the feed, and re-adding its v1 twin
+ * would duplicate it a page later.
+ */
+export const dropPagedDuplicates = (
+  auxiliaryEvents: readonly TimelineIndexerEvent[],
+  pagedEvents: readonly TimelineIndexerEvent[],
+): readonly TimelineIndexerEvent[] => {
+  const seenIds = new Set(pagedEvents.map((event) => event.id))
+  const seenTransactions = new Set(
+    pagedEvents.map((event) => event.transactionHash),
+  )
+  return auxiliaryEvents.filter(
+    (event) =>
+      !seenIds.has(event.id) && !seenTransactions.has(event.transactionHash),
+  )
+}
+
+/**
  * Merge the paged source with the unpaged ones beside it, newest first.
  *
  * **The horizon.** While more pages remain, the feed is only complete down to
  * the oldest fully-loaded transaction. An auxiliary event older than that would
  * render *below* history not yet fetched — a v1 registration sitting under a gap
  * where unloaded v2 rows belong — so it is withheld until paging reaches past it.
- *
- * The id dedupe is insurance: the sources cannot actually overlap, since a
- * child's `LabelRegistered` carries the child's namehash and v1 ids come from a
- * different service.
  */
 export const mergeTimeline = ({
   pagedEvents,
@@ -34,11 +59,10 @@ export const mergeTimeline = ({
     ? (paged.at(-1)?.timestamp ?? Number.POSITIVE_INFINITY)
     : Number.NEGATIVE_INFINITY
 
-  const seen = new Set(paged.map((event) => event.id))
   return [
     ...paged,
-    ...auxiliaryEvents.filter(
-      (event) => event.timestamp >= horizon && !seen.has(event.id),
+    ...dropPagedDuplicates(auxiliaryEvents, pagedEvents).filter(
+      (event) => event.timestamp >= horizon,
     ),
   ].sort((a, b) => b.timestamp - a.timestamp)
 }

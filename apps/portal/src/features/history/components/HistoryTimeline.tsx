@@ -200,6 +200,7 @@ export const HistoryTimeline = ({
     selectedTypes,
     ...dateRangeToTimestamps(dateRange),
     shouldFetchAnchor: canLoadMore,
+    shouldFetchEventTypes: showFilters,
   })
 
   if (model.isLoading) return <LoadingMessage />

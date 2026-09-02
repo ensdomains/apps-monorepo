@@ -92,6 +92,36 @@ describe('mergeTimeline', () => {
     expect(events).toEqual([])
   })
 
+  it('drops a v1 event whose transaction is already in the paged feed', () => {
+    // The v1 subgraph indexes the same resolver writes the v2 indexer does, in
+    // a different id shape — summing them rendered each record twice inside one
+    // action.
+    const events = merge({
+      pagedEvents: [event('x', 'TextChanged', 7)],
+      auxiliaryEvents: [v1Event('x', 'TextChanged', 7)],
+    })
+    expect(ids(events)).toEqual(['x-TextChanged-7'])
+  })
+
+  it('drops a v1 twin of the clipped boundary transaction', () => {
+    // The boundary transaction is withheld from this render, not absent from the
+    // feed: keeping its v1 twin would show the row now and again a page later.
+    const events = merge({
+      pagedEvents: [event('b', 'AddrChanged', 5), event('a', 'Transfer', 4)],
+      auxiliaryEvents: [v1Event('a', 'Transfer', 4)],
+      hasNextPage: true,
+    })
+    expect(ids(events)).toEqual(['b-AddrChanged-5'])
+  })
+
+  it('keeps a v1 event from a transaction the paged feed does not carry', () => {
+    const events = merge({
+      pagedEvents: [event('x', 'TextChanged', 7)],
+      auxiliaryEvents: [v1Event('y', 'NewResolver', 6)],
+    })
+    expect(ids(events)).toEqual(['x-TextChanged-7', 'y-NewResolver-6'])
+  })
+
   it('drops an auxiliary event the paged feed already carries', () => {
     // A child registration can be attributed to the parent and also be in the
     // parent's own feed.
