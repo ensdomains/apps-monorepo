@@ -140,8 +140,15 @@ function AuthorizedTransfer({
     enabled: isSubname,
   })
 
-  // A zero expiry is the registry saying it has no expiry for this label — a
-  // non-expiring subname — not "expired at the epoch".
+  // Mirrors `PermissionedRegistry._isExpired`: `block.timestamp >= expiry`.
+  //
+  // A zero expiry is *not* "never expires" — the registry has no such value, and
+  // `_isExpired(0)` is true, i.e. the label is AVAILABLE. It is deliberately
+  // let through rather than blocked: the registry only returns 0 for a label it
+  // has no entry for, which the owner gate above has already rejected (an
+  // expired or unregistered label has `ownerOf == 0`), so in practice a 0 here
+  // means the label we hashed isn't the one the user owns — a normalisation
+  // mismatch — and blocking on it would refuse a live transfer.
   const isExpired =
     !!expiryQuery.data &&
     expiryQuery.data <= BigInt(Math.floor(Date.now() / 1000))

@@ -96,10 +96,11 @@ describe('transfer route — subname expiry gate', () => {
     expect(screen.queryByTestId('send-name-form')).not.toBeInTheDocument()
   })
 
-  // A registry returns 0 for a label with no expiry set — a non-expiring
-  // subname. Read naively as a timestamp it would be "expired at the epoch",
-  // blocking the transfer of every such name.
-  it('treats a zero expiry as no expiry, not as expired at the epoch', () => {
+  // The registry returns 0 only for a label it has no entry for, which the owner
+  // gate rejects first — so a 0 reaching here means the label we hashed isn't
+  // the one the user owns. Read naively as a timestamp it would be "expired at
+  // the epoch" and would block a live transfer.
+  it('lets a zero expiry through instead of reading it as the epoch', () => {
     expiryQuery.data = 0n
 
     render(<TransferRoute />)

@@ -16,12 +16,17 @@ import { getLabel } from '@/utils/token/getLabel'
  * is why `roles()` — what `getNameRolesForAccount` reads — is the wrong call
  * here: it returns the raw per-resource bitmap and misses root roles entirely.)
  *
- * Caveat: ensjs registry-mode `hasRoles` passes a bare `labelhash` as the
- * resource, while the contract's own resource carries the name's `eacVersionId`.
- * They agree at version 0 — every name that has not been unregistered and
- * re-registered — and root-held roles read correctly either way, so the miss is
- * confined to token-scoped grants on a re-registered name, where this
- * under-reports rather than over-reports.
+ * ensjs registry-mode `hasRoles` passes a bare `labelhash` as the resource, and
+ * that is exactly right: `PermissionedRegistry.hasRoles` overrides the base
+ * implementation with `super.hasRoles(getResource(anyId), …)`, and
+ * `_constructResource` rewrites the version bits of whatever id it is handed —
+ * so a bare labelhash canonicalises to the same resource the contract checks,
+ * `eacVersionId` included.
+ *
+ * The one role that is *not* a per-name check is `ROLE_REGISTRAR`: `_register`
+ * asserts it against `ROOT_RESOURCE` explicitly, never against the name's
+ * resource. Checking it per-name would return true for a token-scoped grant
+ * that `register()` would still reject, so it is read in registry-root mode.
  *
  * None of this is guaranteed: a parent who issued a name from a registry whose
  * root roles they never held, or later revoked, has no authority over it at all,
@@ -51,7 +56,8 @@ export type ParentAuthority = {
   readonly canReissueAfterExpiry: boolean
   /**
    * `setSubregistry()` on the parent's token. Points the parent at a different
-   * registry, at which point this name stops resolving however owns its token.
+   * registry, at which point this name stops resolving no matter who owns its
+   * token.
    */
   readonly canRepointRegistry: boolean
   /** Any authority at all was found. */
@@ -138,13 +144,15 @@ export const useParentAuthority = ({
         account: parentOwner,
         enabled: hasParentOwner,
       }),
-      roleQuery({
-        registryAddress,
-        label,
-        role: REISSUE_ROLE,
-        account: parentOwner,
+      // Root-scoped, not per-name: see the `ROLE_REGISTRAR` note above.
+      {
+        ...getHasRolesQueryOptions({
+          registryAddress,
+          roles: [REISSUE_ROLE],
+          account: parentOwner ?? zeroAddress,
+        }),
         enabled: hasParentOwner,
-      }),
+      },
       roleQuery({
         registryAddress: parentHoldingRegistry,
         label: parentLabel,

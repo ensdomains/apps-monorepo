@@ -126,7 +126,7 @@ const ParentAuthorityAlert = ({
     canRepointRegistry &&
       'point ' +
         parentName +
-        ' at a different registry, which stops this name resolving whoever owns it',
+        ' at a different registry, which stops this name resolving no matter who owns it',
   ].filter((power): power is string => typeof power === 'string')
 
   return (
