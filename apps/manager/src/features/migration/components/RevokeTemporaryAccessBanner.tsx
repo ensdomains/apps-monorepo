@@ -104,10 +104,10 @@ export const RevokeTemporaryAccessBanner = ({
       <GrainOverlay />
       <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <h2 className="text-[24px] text-ens-garnet-900 leading-[1.1] tracking-[-0.48px]">
+          <h2 className="text-2xl text-ens-garnet-900 leading-ens-tight tracking-tight">
             <Trans>Finish securing your account</Trans>
           </h2>
-          <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
+          <p className="text-base text-ens-garnet-500 leading-ens-normal tracking-normal">
             {hasPendingPrompt ? (
               <Trans>
                 An earlier approval request may still be open in your wallet.
@@ -127,13 +127,13 @@ export const RevokeTemporaryAccessBanner = ({
             )}
           </p>
           {status === 'error' ? (
-            <p className="text-ens-garnet-900 text-sm leading-[1.2]">
+            <p className="text-ens-garnet-900 text-sm leading-ens-normal">
               <Trans>Revocation didn&apos;t complete. Please try again.</Trans>
             </p>
           ) : null}
         </div>
         <button
-          className="w-full shrink-0 rounded-sm bg-ens-garnet-900 px-4 py-3.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[0.24px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-60 md:w-[338px]"
+          className="w-full shrink-0 rounded-sm bg-ens-garnet-900 px-4 py-3.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-wide shadow-inner disabled:opacity-60 md:w-84.5"
           disabled={
             status === 'pending' ||
             !hasOwnerWallet(walletClient, ownerAddress as Address | undefined)
