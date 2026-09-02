@@ -45,9 +45,8 @@ const STACK_GAP = 50
 /** Width the subtitle wraps at — two lines for a full 42-character address. */
 const SUBTITLE_WIDTH = 808
 
-/** The chip's icon box, at the glyph's own aspect ratio. */
-const CHIP_ICON_HEIGHT = 56
-const CHIP_ICON_WIDTH = 46
+/** The chip's icon box — Material Symbols glyphs are square. */
+const CHIP_ICON_SIZE = 56
 
 /** Width an address wraps at inside a chip — two lines, as the design draws. */
 const CHIP_ADDRESS_WIDTH = 835
@@ -106,7 +105,7 @@ function renderLabelChip(
 
   return renderChip(
     palette.chipBackground,
-    `<img src="${icon}" width="${CHIP_ICON_WIDTH}" height="${CHIP_ICON_HEIGHT}" style="width: ${CHIP_ICON_WIDTH}px; height: ${CHIP_ICON_HEIGHT}px;" />
+    `<img src="${icon}" width="${CHIP_ICON_SIZE}" height="${CHIP_ICON_SIZE}" style="width: ${CHIP_ICON_SIZE}px; height: ${CHIP_ICON_SIZE}px;" />
      <div style="display: flex; font-family: 'OgSemiMono'; font-weight: 400; font-size: 60px; line-height: 57.6px; letter-spacing: 0.384px; color: ${palette.chipText}; white-space: nowrap;">${escapeHtml(label)}</div>`,
   )
 }
