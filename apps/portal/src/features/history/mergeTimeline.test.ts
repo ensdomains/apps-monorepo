@@ -103,6 +103,18 @@ describe('mergeTimeline', () => {
     expect(ids(events)).toEqual(['x-TextChanged-7'])
   })
 
+  it('matches twins case-insensitively, as summarizeEvents groups them', () => {
+    // Both sources emit lowercase hashes today. If one ever returned a
+    // checksummed hash, a case-sensitive compare would keep the twin here and
+    // then merge it into the same action row downstream — the duplicate this
+    // filter exists to prevent.
+    const events = merge({
+      pagedEvents: [event('AbC', 'TextChanged', 7)],
+      auxiliaryEvents: [v1Event('abc', 'TextChanged', 7)],
+    })
+    expect(ids(events)).toEqual(['AbC-TextChanged-7'])
+  })
+
   it('drops a v1 twin of the clipped boundary transaction', () => {
     // The boundary transaction is withheld from this render, not absent from the
     // feed: keeping its v1 twin would show the row now and again a page later.

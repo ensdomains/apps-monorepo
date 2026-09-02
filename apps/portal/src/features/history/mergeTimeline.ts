@@ -10,6 +10,15 @@ type MergeTimelineParameters = {
 }
 
 /**
+ * The transaction key, cased exactly as `summarizeEvents` groups on. Both
+ * sources emit lowercase hashes today, so this only keeps the two in step: a
+ * source that ever returned a checksummed hash would otherwise slip past this
+ * filter and then merge into the same action row.
+ */
+const transactionKey = (event: TimelineIndexerEvent) =>
+  event.transactionHash.toLowerCase()
+
+/**
  * Auxiliary events that the paged feed does not already carry.
  *
  * The sources overlap: the v1 subgraph indexes the same resolver writes the v2
@@ -30,11 +39,11 @@ export const dropPagedDuplicates = (
 ): readonly TimelineIndexerEvent[] => {
   const seenIds = new Set(pagedEvents.map((event) => event.id))
   const seenTransactions = new Set(
-    pagedEvents.map((event) => event.transactionHash),
+    pagedEvents.map((event) => transactionKey(event)),
   )
   return auxiliaryEvents.filter(
     (event) =>
-      !seenIds.has(event.id) && !seenTransactions.has(event.transactionHash),
+      !seenIds.has(event.id) && !seenTransactions.has(transactionKey(event)),
   )
 }
 
