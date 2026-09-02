@@ -17,20 +17,21 @@
     "lint": "biome check"
   },
   "devDependencies": {
-    "@graphql-codegen/cli": "^6.0.1",
-    "@graphql-codegen/fragment-matcher": "^6.0.0",
-    "@graphql-codegen/typescript": "^5.0.2",
-    "@graphql-codegen/typescript-document-nodes": "^5.0.6",
-    "@graphql-codegen/typescript-operations": "^5.0.2",
+    "@graphql-codegen/add": "^7.1.0",
+    "@graphql-codegen/cli": "^7.3.1",
+    "@graphql-codegen/fragment-matcher": "^7.1.0",
+    "@graphql-codegen/typescript": "^6.1.0",
+    "@graphql-codegen/typescript-document-nodes": "^6.1.0",
+    "@graphql-codegen/typescript-operations": "^6.1.6",
     "typescript": "catalog:"
   },
   "keywords": [],
   "dependencies": {
     "@ensdomains/ensjs": "catalog:",
-    "@urql/core": "^6.0.1",
+    "@urql/core": "^6.0.3",
     "@urql/exchange-retry": "^2.0.0",
-    "graphql": "^16.11.0",
-    "graphql-tag": "^2.12.6",
+    "graphql": "^17.0.2",
+    "graphql-tag": "^2.12.7",
     "viem": "catalog:"
   }
 }

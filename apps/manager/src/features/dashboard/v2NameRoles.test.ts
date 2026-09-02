@@ -80,7 +80,7 @@ describe('applyProfileV2RoleAssignments', () => {
         makeDomain({
           name: 'dom.eth',
           id: 'managed',
-          owner: { __typename: 'Account', id: '0xother' },
+          owner: { id: '0xother' },
         }),
       ],
       assignments: [{ name: 'dom.eth', roleBitmap: '1' }],
@@ -100,7 +100,7 @@ describe('applyProfileV2RoleAssignments', () => {
     const managedDomain = {
       ...makeDomain({
         id: '0xmanaged',
-        owner: { __typename: 'Account', id: '0xother' },
+        owner: { id: '0xother' },
       }),
       name: null,
       normalizedName: 'henlo.eth',
