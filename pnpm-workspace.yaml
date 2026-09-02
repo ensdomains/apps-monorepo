@@ -14,8 +14,8 @@ catalog:
   vite: ^8.0.10
   vitest: ^4.1.5
   "@vitest/coverage-v8": ^4.1.5
-  "@cloudflare/vite-plugin": ^1.33.1
-  wrangler: ^4.51.0
+  "@cloudflare/vite-plugin": ^1.54.2
+  wrangler: ^4.127.1
   posthog-js: ^1.398.3
   "@posthog/react": ^1.10.3
   viem: ^2.52.2
