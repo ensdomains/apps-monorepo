@@ -23,73 +23,98 @@ vi.mock('@ens-apps/og/render', () => ({
 }))
 
 const {
-  resolverSubtitle,
-  resolverPageLabel,
-  registryPageLabel,
+  registryChipLabel,
+  renderAddressOgImage,
   renderOgImage,
+  renderRegistryOgImage,
+  renderResolverOgImage,
+  resolverChipLabel,
 } = await import('./og-render')
 
-describe('resolverSubtitle', () => {
-  it('labels permissioned resolvers', () => {
-    expect(resolverSubtitle(true)).toBe('Permissioned Resolver')
+// Fonts are irrelevant here: a 404 leaves the font list empty, which is already
+// the production behaviour when an asset lookup misses.
+const env = {
+  ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
+} as unknown as Env
+
+const ADDRESS = '0xCC692D6E11268B40A1E3C58e3D86Fc4CAAb9b77a'
+const OWNER = '0x1234567890123456789012345678901234567890'
+const URL_ = 'https://example.com/og/snowman.eth.png'
+
+beforeEach(() => {
+  og.htmls = []
+  og.render = () =>
+    new Response(new ArrayBuffer(8), {
+      headers: { 'Content-Type': 'image/png' },
+    })
+})
+
+describe('chip labels', () => {
+  // An address that is nobody's known ENS contract, so both fall through to the
+  // label the route itself implies.
+  it('calls an unknown permissioned resolver an owned resolver', () => {
+    expect(resolverChipLabel(ADDRESS, true)).toBe('owned resolver')
   })
 
-  it('labels plain resolvers', () => {
-    expect(resolverSubtitle(false)).toBe('Resolver')
+  it('calls any other resolver a plain resolver', () => {
+    expect(resolverChipLabel(ADDRESS, false)).toBe('resolver')
+  })
+
+  it('calls an unknown registry a permissioned registry', () => {
+    expect(registryChipLabel(ADDRESS)).toBe('permissioned registry')
   })
 })
 
-describe('resolverPageLabel', () => {
-  it('defaults to the overview label', () => {
-    expect(resolverPageLabel(null)).toBe('Resolver Overview')
+describe('entity colour coding', () => {
+  // The point of the set (WEB-1265): the tint says what kind of thing the link
+  // is about before the page opens. The fills mirror --{accent,success,danger}
+  // -fill in styles/index.css.
+  it('tints a name card blue', async () => {
+    await renderOgImage('snowman.eth', null, OWNER, URL_, env)
+
+    expect(og.htmls[0]).toContain('#ebf7fd')
   })
 
-  it('maps known subpages', () => {
-    expect(resolverPageLabel('roles')).toBe('Roles')
-    expect(resolverPageLabel('nodes')).toBe('Nodes')
-    expect(resolverPageLabel('aliases')).toBe('Aliases')
-    expect(resolverPageLabel('create-alias')).toBe('Create Alias')
-    expect(resolverPageLabel('history')).toBe('History')
+  it('tints an address card green', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env)
+
+    expect(og.htmls[0]).toContain('#e8f6ef')
   })
 
-  it('title-cases unknown subpages', () => {
-    expect(resolverPageLabel('something')).toBe('Something')
+  it('tints a resolver card pink', async () => {
+    await renderResolverOgImage(ADDRESS, URL_, env, true)
+
+    expect(og.htmls[0]).toContain('#fef0f6')
+  })
+
+  it('tints a registry card pink', async () => {
+    await renderRegistryOgImage(ADDRESS, URL_, env)
+
+    expect(og.htmls[0]).toContain('#fef0f6')
   })
 })
 
-describe('registryPageLabel', () => {
-  it('defaults to the overview label', () => {
-    expect(registryPageLabel(null)).toBe('Registry Overview')
+describe('renderAddressOgImage', () => {
+  it('carries the address in the chip and no subtitle without a primary name', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env)
+
+    expect(og.htmls[0]).toContain(ADDRESS)
+    // The subtitle is the only 808px-wide element on the card.
+    expect(og.htmls[0]).not.toContain('width: 808px')
   })
 
-  it('maps known subpages', () => {
-    expect(registryPageLabel('labels')).toBe('Labels')
-    expect(registryPageLabel('roles')).toBe('Roles')
-    expect(registryPageLabel('history')).toBe('History')
+  it('puts the primary name under the address when there is one', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env, 'snowman.eth')
+
+    expect(og.htmls[0]).toContain('snowman.eth')
   })
 })
 
 describe('renderOgImage', () => {
-  // Fonts are irrelevant here: a 404 leaves the font list empty, which is
-  // already the production behaviour when an asset lookup misses.
-  const env = {
-    ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
-  } as unknown as Env
-
   const AVATAR = 'data:image/jpeg;base64,AAAA'
-  const OWNER = '0x1234567890123456789012345678901234567890'
-  const URL_ = 'https://example.com/og/snowman.eth.png'
 
   const renderName = () =>
     renderOgImage('snowman.eth', AVATAR, OWNER, URL_, env)
-
-  beforeEach(() => {
-    og.htmls = []
-    og.render = () =>
-      new Response(new ArrayBuffer(8), {
-        headers: { 'Content-Type': 'image/png' },
-      })
-  })
 
   it('renders a PNG when the avatar renders', async () => {
     const res = await renderName()
@@ -98,6 +123,18 @@ describe('renderOgImage', () => {
     expect(res?.headers.get('Content-Type')).toBe('image/png')
     expect(og.htmls).toHaveLength(1)
     expect(og.htmls[0]).toContain(AVATAR)
+  })
+
+  it('renders the owner address as the subtitle', async () => {
+    await renderName()
+
+    expect(og.htmls[0]).toContain(OWNER)
+  })
+
+  it('offers an unowned name as available', async () => {
+    await renderOgImage('snowman.eth', null, null, URL_, env)
+
+    expect(og.htmls[0]).toContain('Available to register')
   })
 
   it('retries without the avatar when that card fails to render', async () => {
@@ -114,10 +151,10 @@ describe('renderOgImage', () => {
 
     expect(res?.status).toBe(200)
     expect(og.htmls).toHaveLength(2)
-    // The retry falls back to the same initial-letter tile an avatar-less name
-    // gets, rather than dropping the card entirely.
+    // The retry falls back to the same text-only chip an avatar-less name gets,
+    // rather than dropping the card entirely.
     expect(og.htmls[1]).not.toContain(AVATAR)
-    expect(og.htmls[1]).toContain('>S</div>')
+    expect(og.htmls[1]).toContain('>snowman.eth</div>')
   })
 
   it('reports null when the card fails to render with or without the avatar', async () => {

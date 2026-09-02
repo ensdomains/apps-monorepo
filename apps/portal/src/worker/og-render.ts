@@ -1,119 +1,160 @@
+import { fitOgChipName } from '@ens-apps/og/chipName'
 import { escapeHtml } from '@ens-apps/og/markup'
-import { renderOgCard } from '@ens-apps/og/render'
+import {
+  OG_CARD_HEIGHT,
+  OG_CARD_WIDTH,
+  renderOgCard,
+} from '@ens-apps/og/render'
+import type { Address } from 'viem'
 
+import contractIconSvg from '../assets/fonts/og/contract-icon.svg?raw'
 import ensMarkSvg from '../assets/fonts/og/ens-mark.svg?raw'
-import ensLogoSvg from '../assets/fonts/og/Logo.svg?raw'
-import shieldIconSvg from '../assets/fonts/og/shield-icon.svg?raw'
-import syncIconSvg from '../assets/fonts/og/sync-icon.svg?raw'
-import walletIconSvg from '../assets/fonts/og/wallet-icon.svg?raw'
-import { truncate, truncateAddress } from '../utils/routePaths'
+import { getContractLabel } from '../utils/ens/ensContractNames'
 import { loadOgFonts } from './fonts'
+import { getOgPalette, type OgPalette } from './og-palette'
 
-const NAME_SUBPAGE_LABELS: Record<string, string> = {
-  ownership: 'Ownership',
-  records: 'Records',
-  registry: 'Registry',
-  resolver: 'Resolver',
-  subnames: 'Subnames',
-  roles: 'Roles',
+/** Mark and wordmark sizes for the two header scales in the design. */
+const HEADER_SIZES = {
+  large: { gap: 35.84, markHeight: 114.325, markWidth: 103.219, text: 96 },
+  small: { gap: 22.4, markHeight: 71.453, markWidth: 64.512, text: 60 },
+} as const
+
+/** Width the subtitle wraps at — two lines for a full 42-character address. */
+const SUBTITLE_WIDTH = 808
+
+/** The chip's icon box, at the glyph's own aspect ratio. */
+const CHIP_ICON_HEIGHT = 56
+const CHIP_ICON_WIDTH = 46
+
+/** Width an address wraps at inside a chip — two lines, as the design draws. */
+const CHIP_ADDRESS_WIDTH = 835
+
+/** An SVG as an inline `data:` URI, with its placeholder colour substituted. */
+function svgDataUri(svg: string, placeholder: string, color: string): string {
+  return `data:image/svg+xml;base64,${btoa(svg.replace(placeholder, color))}`
 }
 
-const ADDR_SUBPAGE_LABELS: Record<string, string> = {
-  names: 'Names',
-  history: 'History',
-  resolution: 'Address Resolution',
-  'reverse-resolution': 'Reverse Resolution',
-}
-
-const RESOLVER_SUBPAGE_LABELS: Record<string, string> = {
-  nodes: 'Nodes',
-  roles: 'Roles',
-  aliases: 'Aliases',
-  'create-alias': 'Create Alias',
-  history: 'History',
-}
-
-const REGISTRY_SUBPAGE_LABELS: Record<string, string> = {
-  labels: 'Labels',
-  roles: 'Roles',
-  history: 'History',
-}
-
-function getPageLabel(
-  subpage: string | null,
-  labels: Record<string, string>,
-  defaultLabel: string,
+/** Mark + "ENS Explorer" wordmark, at either header scale. */
+function renderHeader(
+  palette: OgPalette,
+  scale: keyof typeof HEADER_SIZES,
 ): string {
-  return subpage
-    ? (labels[subpage] ??
-        `${subpage.charAt(0).toUpperCase()}${subpage.slice(1)}`)
-    : defaultLabel
+  const size = HEADER_SIZES[scale]
+  const mark = svgDataUri(ensMarkSvg, '__MARK_COLOR__', palette.text)
+
+  return `
+    <div style="display: flex; align-items: center; gap: ${size.gap}px;">
+      <img src="${mark}" width="${size.markWidth}" height="${size.markHeight}" style="width: ${size.markWidth}px; height: ${size.markHeight}px;" />
+      <div style="display: flex; font-family: 'OgSans'; font-size: ${size.text}px; font-weight: 500; color: ${palette.text}; white-space: nowrap;">ENS Explorer</div>
+    </div>`
 }
 
-function renderOgHeader(): string {
+/** The white pill every card's subject sits in. */
+function renderChip(
+  palette: OgPalette,
+  contents: string,
+  wide = false,
+): string {
+  const layout = wide
+    ? 'width: 100%; align-items: flex-start;'
+    : 'align-items: center;'
+
   return `
-    <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: flex-start;">
-      <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="370" height="51" style="width: 370px; height: 51px;" />
+    <div style="display: flex; gap: 16px; min-height: 76.8px; padding: 12px; border-radius: 16px; background: ${palette.chipBackground}; ${layout}">
+      ${contents}
     </div>`
+}
+
+/**
+ * A chip that labels its subject rather than naming it — "owned resolver",
+ * "permissioned registry". Regular weight, against the Medium a name gets.
+ */
+function renderLabelChip(palette: OgPalette, label: string): string {
+  const icon = svgDataUri(contractIconSvg, '__ICON_COLOR__', palette.chipText)
+
+  return renderChip(
+    palette,
+    `<img src="${icon}" width="${CHIP_ICON_WIDTH}" height="${CHIP_ICON_HEIGHT}" style="width: ${CHIP_ICON_WIDTH}px; height: ${CHIP_ICON_HEIGHT}px;" />
+     <div style="display: flex; font-family: 'OgSemiMono'; font-weight: 400; font-size: 60px; line-height: 57.6px; letter-spacing: 0.384px; color: ${palette.chipText}; white-space: nowrap;">${escapeHtml(label)}</div>`,
+  )
+}
+
+/** The line under the chip: whatever identifies the subject a second way. */
+function renderSubtitle(palette: OgPalette, text: string): string {
+  return `
+    <div style="display: flex; width: ${SUBTITLE_WIDTH}px; font-family: 'OgMono'; font-weight: 400; font-size: 60px; line-height: 1.2; letter-spacing: 1.2px; color: ${palette.text}; word-break: break-all;">${escapeHtml(text)}</div>`
+}
+
+/** The card frame every variant is drawn inside. */
+function renderCard(palette: OgPalette, body: string): string {
+  return `
+    <div style="display: flex; flex-direction: column; align-items: flex-start; width: ${OG_CARD_WIDTH}px; height: ${OG_CARD_HEIGHT}px; padding: 80px 120px; box-sizing: border-box; background: ${palette.background};">
+      ${body}
+    </div>`
+}
+
+/** The top-aligned body: header, chip, and an optional subtitle beneath. */
+function renderStack(
+  palette: OgPalette,
+  chip: string,
+  subtitle: string | null,
+): string {
+  return renderCard(
+    palette,
+    `<div style="display: flex; flex: 1; flex-direction: column; align-items: flex-start; gap: 40px; width: 100%;">
+      ${renderHeader(palette, 'small')}
+      ${chip}
+      ${subtitle ? renderSubtitle(palette, subtitle) : ''}
+    </div>`,
+  )
+}
+
+/** Rasterise card markup with this app's fonts. */
+async function renderCardImage(
+  html: string,
+  requestUrl: string,
+  env: Env,
+): Promise<Response | null> {
+  return renderOgCard(html, { fonts: await loadOgFonts(env, requestUrl) })
+}
+
+/** The name chip: avatar (when the name has one) beside the name itself. */
+function renderNameChip(
+  palette: OgPalette,
+  name: string,
+  avatar: string | null,
+): string {
+  const { isWide, text } = fitOgChipName(name, avatar !== null)
+  const avatarHtml = avatar
+    ? `<img src="${escapeHtml(avatar)}" width="80" height="80" style="width: 80px; height: 80px; border-radius: 7.68px; object-fit: cover;" />`
+    : ''
+  // A name that fits on one line hugs its chip; anything longer spans the card
+  // and wraps, so the chip aligns to the top of the text rather than centring
+  // against it.
+  const textLayout = isWide
+    ? 'flex-grow: 1; word-break: break-all;'
+    : 'white-space: nowrap;'
+
+  return renderChip(
+    palette,
+    `${avatarHtml}
+     <div style="display: flex; font-family: 'OgSemiMono'; font-weight: 500; font-size: 60px; line-height: 57.6px; letter-spacing: 0.384px; color: ${palette.chipText}; ${textLayout}">${escapeHtml(text)}</div>`,
+    isWide,
+  )
 }
 
 function nameOgHtml(
   name: string,
   avatar: string | null,
   owner: string | null,
-  subpage: string | null,
 ): string {
-  const available = !owner
-  const displayName = truncate(name, 28)
-  const headerHtml = renderOgHeader()
-  const pageLabel = getPageLabel(subpage, NAME_SUBPAGE_LABELS, 'Name Overview')
+  const palette = getOgPalette('name')
 
-  let html: string
-  if (available) {
-    html = `
-    <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
-      <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
-        <img src="data:image/svg+xml;base64,${btoa(ensMarkSvg)}" width="126" height="140" style="width: 126px; height: 140px; flex-shrink: 0;" />
-        <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
-          <h1 style="margin: 0; font-size: 82px; line-height: 0.95; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace; overflow: hidden; max-height: 156px; word-break: break-all;">
-            ${escapeHtml(displayName)}
-          </h1>
-          <p style="margin: 0; font-size: 40px; line-height: 0.75; font-weight: 500; font-family: 'OgMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
-            Available to register
-          </p>
-        </div>
-      </div>
-      ${headerHtml}
-    </div>
-  `
-  } else {
-    const displayAddress = truncateAddress(owner, 6, 5)
-    const avatarHtml = avatar
-      ? `<img src="${escapeHtml(avatar)}" width="140" height="140" style="width: 140px; height: 140px; border-radius: 8px; object-fit: cover;" />`
-      : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
-
-    html = `
-    <div style="position: relative; width: 100%; height: 100%; background: #ECECEC; display: flex; align-items: center; justify-content: center; padding: 100px 75px; box-sizing: border-box;">
-      <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
-        <div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; overflow: hidden; flex-shrink: 0; display: flex;">${avatarHtml}</div>
-        <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
-          <h1 style="margin: 0; font-size: 82px; line-height: 0.95; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace; overflow: hidden; max-height: 156px; word-break: break-all;">
-            ${escapeHtml(displayName)}
-          </h1>
-          <p style="margin: 0; font-size: 40px; line-height: 0.75; font-weight: 500; font-family: 'OgMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
-            ${escapeHtml(displayAddress)}
-          </p>
-        </div>
-      </div>
-      ${headerHtml}
-      <div style="position: absolute; right: 48px; bottom: 70px; transform: translateY(50%); font-size: 49px; line-height: 1; color: #000000; font-family: 'OgSans', system-ui, sans-serif; font-weight: 500; text-align: right; display: flex;">
-        ${escapeHtml(pageLabel)}
-      </div>
-    </div>
-  `
-  }
-
-  return html
+  return renderStack(
+    palette,
+    renderNameChip(palette, name, avatar),
+    owner ?? 'Available to register',
+  )
 }
 
 /**
@@ -123,7 +164,7 @@ function nameOgHtml(
  * The avatar is the only part of this card whose cost is set by someone else —
  * every other element is fixed-size markup we control — so a render that fails
  * with one and succeeds without it is the expected shape of the failure. The
- * fallback is the same initial-letter tile a name with no avatar record gets.
+ * fallback is the same chip a name with no avatar record gets.
  */
 export async function renderOgImage(
   name: string,
@@ -131,201 +172,149 @@ export async function renderOgImage(
   owner: string | null,
   requestUrl: string,
   env: Env,
-  subpage: string | null = null,
 ): Promise<Response | null> {
-  const fonts = await loadOgFonts(env, requestUrl)
-
-  const rendered = await renderOgCard(
-    nameOgHtml(name, avatar, owner, subpage),
-    {
-      fonts,
-    },
+  const rendered = await renderCardImage(
+    nameOgHtml(name, avatar, owner),
+    requestUrl,
+    env,
   )
   if (rendered || !avatar) return rendered
 
-  return renderOgCard(nameOgHtml(name, null, owner, subpage), { fonts })
-}
-
-export async function renderAddressOgImage(
-  address: string,
-  requestUrl: string,
-  env: Env,
-  subpage: string | null = null,
-): Promise<Response | null> {
-  const fonts = await loadOgFonts(env, requestUrl)
-  const displayAddress = truncateAddress(address, 6, 5)
-  const headerHtml = renderOgHeader()
-  const pageLabel = getPageLabel(
-    subpage,
-    ADDR_SUBPAGE_LABELS,
-    'Address Overview',
-  )
-
-  const html = `
-    <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
-      <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
-        <div style="width: 140px; height: 140px; border-radius: 8px; background: #ECECEC; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-          <img src="data:image/svg+xml;base64,${btoa(walletIconSvg)}" width="93" height="82" style="width: 93px; height: 82px;" />
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
-          <h1 style="margin: 0; font-size: 82px; line-height: 0.95; font-weight: 500; font-family: 'OgMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
-            ${escapeHtml(displayAddress)}
-          </h1>
-        </div>
-      </div>
-      ${headerHtml}
-      <div style="position: absolute; right: 48px; bottom: 70px; transform: translateY(50%); font-size: 49px; line-height: 1; color: #000000; font-family: 'OgSans', system-ui, sans-serif; font-weight: 500; text-align: right; display: flex;">
-        ${escapeHtml(pageLabel)}
-      </div>
-    </div>
-  `
-
-  return renderOgCard(html, { fonts })
+  return renderCardImage(nameOgHtml(name, null, owner), requestUrl, env)
 }
 
 /**
- * Render a contract-style OG card (resolver / registry).
+ * Render an address card.
  *
- * Visually matches the name/address cards: a left icon, the truncated contract
- * address as the title, a contract-type subtitle, and the page label in the
- * bottom-right corner. The icon sits on a transparent background (no grey box)
- * to match the Figma resolver layout.
+ * The address itself is the chip — there is no icon beside it, so the green
+ * tint is what marks the card as being about an address. Its primary name,
+ * when it has one, is the subtitle.
  */
-async function renderContractOgImage(params: {
-  address: string
-  iconSvg: string
-  iconWidth: number
-  iconHeight: number
-  subtitle: string
-  pageLabel: string
-  requestUrl: string
-  env: Env
-}): Promise<Response | null> {
-  const fonts = await loadOgFonts(params.env, params.requestUrl)
-  const displayAddress = truncateAddress(params.address, 6, 5)
-  const headerHtml = renderOgHeader()
-
-  const html = `
-    <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
-      <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
-        <div style="width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-          <img src="data:image/svg+xml;base64,${btoa(params.iconSvg)}" width="${params.iconWidth}" height="${params.iconHeight}" style="width: ${params.iconWidth}px; height: ${params.iconHeight}px;" />
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
-          <h1 style="margin: 0; font-size: 82px; line-height: 0.95; font-weight: 500; font-family: 'OgMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
-            ${escapeHtml(displayAddress)}
-          </h1>
-          <p style="margin: 0; font-size: 40px; line-height: 0.75; font-weight: 500; font-family: 'OgMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
-            ${escapeHtml(params.subtitle)}
-          </p>
-        </div>
-      </div>
-      ${headerHtml}
-      <div style="position: absolute; right: 48px; bottom: 70px; transform: translateY(50%); font-size: 49px; line-height: 1; color: #000000; font-family: 'OgSans', system-ui, sans-serif; font-weight: 500; text-align: right; display: flex;">
-        ${escapeHtml(params.pageLabel)}
-      </div>
-    </div>
-  `
-
-  return renderOgCard(html, { fonts })
-}
-
-/** Resolver card subtitle — "Permissioned Resolver" for audited instances. */
-export function resolverSubtitle(isPermissioned: boolean): string {
-  return isPermissioned ? 'Permissioned Resolver' : 'Resolver'
-}
-
-/** Resolver card page label for the given subpage (defaults to overview). */
-export function resolverPageLabel(subpage: string | null): string {
-  return getPageLabel(subpage, RESOLVER_SUBPAGE_LABELS, 'Resolver Overview')
-}
-
-/** Registry card page label for the given subpage (defaults to overview). */
-export function registryPageLabel(subpage: string | null): string {
-  return getPageLabel(subpage, REGISTRY_SUBPAGE_LABELS, 'Registry Overview')
-}
-
-export async function renderResolverOgImage(
+export function renderAddressOgImage(
   address: string,
   requestUrl: string,
   env: Env,
-  subpage: string | null = null,
+  primaryName: string | null = null,
+): Promise<Response | null> {
+  const palette = getOgPalette('address')
+  const chip = renderChip(
+    palette,
+    // The chip hugs the address at its wrap width rather than spanning the
+    // card, which is what puts its right edge where the design draws it.
+    `<div style="display: flex; width: ${CHIP_ADDRESS_WIDTH}px; font-family: 'OgMono'; font-weight: 400; font-size: 60px; line-height: 1.2; letter-spacing: 1.2px; color: ${palette.chipText}; word-break: break-all;">${escapeHtml(address)}</div>`,
+  )
+
+  return renderCardImage(
+    renderStack(palette, chip, primaryName),
+    requestUrl,
+    env,
+  )
+}
+
+/**
+ * Chip label for a resolver.
+ *
+ * A known ENS contract gets the same pill the app labels it with; anything else
+ * is a resolver someone deployed, which reads as "owned" when it is one of ours
+ * (a permissioned resolver behind a proxy) and plain otherwise.
+ */
+export function resolverChipLabel(
+  address: string,
+  isPermissioned: boolean,
+): string {
+  return (
+    getContractLabel(address as Address) ??
+    (isPermissioned ? 'owned resolver' : 'resolver')
+  )
+}
+
+/**
+ * Chip label for a registry.
+ *
+ * The root and legacy registries are known contracts; every other address on
+ * the route is a user registry, which is a permissioned registry by definition.
+ */
+export function registryChipLabel(address: string): string {
+  return getContractLabel(address as Address) ?? 'permissioned registry'
+}
+
+/** Contract card (resolver / registry): the kind in the chip, address below. */
+function renderContractOgImage(
+  address: string,
+  label: string,
+  requestUrl: string,
+  env: Env,
+): Promise<Response | null> {
+  const palette = getOgPalette('contract')
+
+  return renderCardImage(
+    renderStack(palette, renderLabelChip(palette, label), address),
+    requestUrl,
+    env,
+  )
+}
+
+export function renderResolverOgImage(
+  address: string,
+  requestUrl: string,
+  env: Env,
   isPermissioned = false,
 ): Promise<Response | null> {
-  return renderContractOgImage({
+  return renderContractOgImage(
     address,
-    // Sync icon (per Figma) rendered at its native 93×90 aspect ratio.
-    iconSvg: syncIconSvg,
-    iconWidth: 93,
-    iconHeight: 90,
-    subtitle: resolverSubtitle(isPermissioned),
-    pageLabel: resolverPageLabel(subpage),
+    resolverChipLabel(address, isPermissioned),
     requestUrl,
     env,
-  })
+  )
 }
 
-export async function renderRegistryOgImage(
+export function renderRegistryOgImage(
   address: string,
   requestUrl: string,
   env: Env,
-  subpage: string | null = null,
 ): Promise<Response | null> {
-  return renderContractOgImage({
+  return renderContractOgImage(
     address,
-    // Shield icon rendered at its native 25×31 aspect ratio (scaled up).
-    iconSvg: shieldIconSvg,
-    iconWidth: 89,
-    iconHeight: 110,
-    subtitle: 'Registry',
-    pageLabel: registryPageLabel(subpage),
+    registryChipLabel(address),
     requestUrl,
     env,
-  })
+  )
 }
 
-export async function renderDefaultOgImage(
+/** The app card, used for every route with no entity of its own. */
+export function renderDefaultOgImage(
   requestUrl: string,
   env: Env,
 ): Promise<Response | null> {
-  const fonts = await loadOgFonts(env, requestUrl)
+  const palette = getOgPalette('neutral')
+  const body = `
+    <div style="display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
+      ${renderHeader(palette, 'large')}
+    </div>`
 
-  const html = `
-    <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
-      <div style="display: flex; flex-direction: column; align-items: center; gap: 43px;">
-        <img src="data:image/svg+xml;base64,${btoa(ensMarkSvg)}" width="126" height="140" style="width: 126px; height: 140px; border-radius: 8px;" />
-        <span style="font-size: 85px; font-weight: 500; font-family: 'OgSans', system-ui, sans-serif; color: black; line-height: 1;">ENS Explorer</span>
-      </div>
-    </div>
-  `
-
-  return renderOgCard(html, { fonts })
+  return renderCardImage(renderCard(palette, body), requestUrl, env)
 }
 
-export async function renderTldOgImage(
+/**
+ * TLD card.
+ *
+ * The design set doesn't cover TLDs; a TLD is a name, so it takes the name
+ * palette and the chip a name would get.
+ */
+export function renderTldOgImage(
   tld: string,
   requestUrl: string,
   env: Env,
 ): Promise<Response | null> {
-  const fonts = await loadOgFonts(env, requestUrl)
-  const displayTld = tld.toUpperCase()
-  const headerHtml = renderOgHeader()
+  const palette = getOgPalette('name')
 
-  const html = `
-    <div style="position: relative; width: 100%; height: 100%; background: #ECECEC; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
-      <div style="display: flex; align-items: center; width: 100%;">
-        <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
-          <h1 style="margin: 0; font-size: 72px; line-height: 1; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace; overflow: hidden; max-height: 144px; word-break: break-all;">
-            ${escapeHtml(displayTld)}
-          </h1>
-          <p style="margin: 0; font-size: 36px; line-height: 1; font-weight: 500; font-family: 'OgMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
-            Top Level Domain
-          </p>
-        </div>
-      </div>
-      ${headerHtml}
-    </div>
-  `
-
-  return renderOgCard(html, { fonts })
+  return renderCardImage(
+    renderStack(
+      palette,
+      renderNameChip(palette, tld, null),
+      'Top Level Domain',
+    ),
+    requestUrl,
+    env,
+  )
 }

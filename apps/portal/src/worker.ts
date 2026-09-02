@@ -11,7 +11,11 @@ import {
   matchContractRoute,
 } from './utils/routePaths'
 import { withSecurityHeaders } from './worker/csp'
-import { fetchEnsData, fetchIsPermissionedResolver } from './worker/ens'
+import {
+  fetchEnsData,
+  fetchIsPermissionedResolver,
+  fetchPrimaryName,
+} from './worker/ens'
 import { MetaTagInjector, TitleRewriter } from './worker/html-rewriter'
 import {
   renderAddressOgImage,
@@ -108,9 +112,12 @@ async function serveDefaultOgImage(
   )
 }
 
-const OG_ADDRESS_RE = /^addr\/(0x[0-9a-fA-F]{40})(?:\/(.+))?$/
-const OG_RESOLVER_RE = /^resolver\/(0x[0-9a-fA-F]{40})(?:\/(.+))?$/
-const OG_REGISTRY_RE = /^registry\/(0x[0-9a-fA-F]{40})(?:\/(.+))?$/
+// A card is per-entity, not per-subpage, so the pages no longer point at a
+// subpage-qualified image — but links already shared (and crawler caches)
+// still carry one, so the trailing segment stays matched and ignored.
+const OG_ADDRESS_RE = /^addr\/(0x[0-9a-fA-F]{40})(?:\/.+)?$/
+const OG_RESOLVER_RE = /^resolver\/(0x[0-9a-fA-F]{40})(?:\/.+)?$/
+const OG_REGISTRY_RE = /^registry\/(0x[0-9a-fA-F]{40})(?:\/.+)?$/
 const OG_TLD_RE = /^tld\/(.+)$/
 
 /**
@@ -130,7 +137,7 @@ async function handleOgImage(
       addrMatch[1],
       request.url,
       env,
-      addrMatch[2] ?? null,
+      await fetchPrimaryName(env, addrMatch[1]),
     )
   }
 
@@ -144,19 +151,13 @@ async function handleOgImage(
       resolverMatch[1],
       request.url,
       env,
-      resolverMatch[2] ?? null,
       isPermissioned,
     )
   }
 
   const registryMatch = decoded.match(OG_REGISTRY_RE)
   if (registryMatch) {
-    return renderRegistryOgImage(
-      registryMatch[1],
-      request.url,
-      env,
-      registryMatch[2] ?? null,
-    )
+    return renderRegistryOgImage(registryMatch[1], request.url, env)
   }
 
   const tldMatch = decoded.match(OG_TLD_RE)
@@ -164,21 +165,14 @@ async function handleOgImage(
     return renderTldOgImage(tldMatch[1], request.url, env)
   }
 
-  // Name OG image with optional subpage: /og/name/subpage.png
-  const nameParts = decoded.split('/')
+  // Name OG image, with any legacy subpage segment ignored as above.
+  const name = decoded.split('/')[0]
   const { avatar, owner } = await fetchEnsData(
     env,
-    nameParts[0],
+    name,
     new URL(request.url).host,
   )
-  return renderOgImage(
-    nameParts[0],
-    avatar,
-    owner,
-    request.url,
-    env,
-    nameParts[1] ?? null,
-  )
+  return renderOgImage(name, avatar, owner, request.url, env)
 }
 
 /** Inject meta tags for an `/addr/0x…` page. */
@@ -191,12 +185,8 @@ function handleAddressPage(
   if (!address) return env.ASSETS.fetch(request)
 
   const decodedAddress = decodeURIComponent(address)
-  const segments = url.pathname.split('/')
-  const subpage = segments.length > 3 ? segments.slice(3).join('/') : ''
   const encoded = encodeURIComponent(decodedAddress)
-  const imageUrl = subpage
-    ? `https://${url.host}/og/addr/${encoded}/${encodeURIComponent(subpage)}.png`
-    : `https://${url.host}/og/addr/${encoded}.png`
+  const imageUrl = `https://${url.host}/og/addr/${encoded}.png`
   const pageTitle = getPageTitle(
     url.pathname,
     url.searchParams.get('name') ?? undefined,
@@ -218,14 +208,11 @@ function handleContractPage(
   env: Env,
   kind: 'resolver' | 'registry',
   address: string,
-  subpage: string | null,
 ): Promise<Response> {
   const label = kind === 'resolver' ? 'Resolver' : 'Registry'
   const decodedAddress = decodeURIComponent(address)
   const encoded = encodeURIComponent(decodedAddress)
-  const imageUrl = subpage
-    ? `https://${url.host}/og/${kind}/${encoded}/${encodeURIComponent(subpage)}.png`
-    : `https://${url.host}/og/${kind}/${encoded}.png`
+  const imageUrl = `https://${url.host}/og/${kind}/${encoded}.png`
   const pageTitle = getPageTitle(
     url.pathname,
     url.searchParams.get('name') ?? undefined,
@@ -253,12 +240,8 @@ async function handleNamePage(
   ])
 
   const { description, avatar } = ensData
-  const segments = url.pathname.split('/')
-  const subpage = segments.length > 2 ? segments.slice(2).join('/') : ''
   const encoded = encodeURIComponent(decodedName)
-  const imageUrl = subpage
-    ? `https://${url.host}/og/${encoded}/${encodeURIComponent(subpage)}.png`
-    : `https://${url.host}/og/${encoded}.png`
+  const imageUrl = `https://${url.host}/og/${encoded}.png`
   const pageTitle = getPageTitle(
     url.pathname,
     url.searchParams.get('name') ?? undefined,
@@ -331,7 +314,6 @@ function handlePageMeta(
       env,
       'resolver',
       resolverRoute.address,
-      resolverRoute.subpage,
     )
   }
 
@@ -343,7 +325,6 @@ function handlePageMeta(
       env,
       'registry',
       registryRoute.address,
-      registryRoute.subpage,
     )
   }
 

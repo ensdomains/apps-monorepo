@@ -1,3 +1,4 @@
+import { fitOgChipName } from '@ens-apps/og/chipName'
 import { escapeHtml } from '@ens-apps/og/markup'
 import {
   OG_CARD_HEIGHT,
@@ -5,7 +6,6 @@ import {
   renderOgCard,
 } from '@ens-apps/og/render'
 import ensMarkSvg from '@/assets/og/ens-mark.svg?raw'
-import { fitOgChipName } from './chipName'
 import { loadOgFonts } from './fonts'
 import { GENERIC_OG_PALETTE, getOgPalette, type OgPalette } from './palette'
 
