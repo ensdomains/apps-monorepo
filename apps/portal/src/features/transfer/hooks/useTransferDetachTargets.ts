@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { type Address, zeroAddress } from 'viem'
-import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { getLabel } from '@/utils/token/getLabel'
 import { getEthAddressQueryOptions } from '../queries/getEthAddress'
+import { getOwnResolverQueryOptions } from '../queries/getOwnResolver'
 
 // A detach step is a registry write, not a plain owner operation: the registry
 // gates `setResolver`/`setSubregistry` on the owner holding the matching role.
@@ -16,6 +16,12 @@ import { getEthAddressQueryOptions } from '../queries/getEthAddress'
 // can't perform walks them into a partial, unrecoverable failure — the same
 // trap `useCanTransferName` guards for the transfer itself. So an option is only
 // shown when there's a target AND the owner holds the role to detach it.
+//
+// "A target" means one attached to *this* name, not one it merely inherits.
+// Subnames routinely have no resolver of their own and resolve through an
+// ancestor's; detaching or writing to that resolver isn't the sender's to do
+// (see `getOwnResolver`), so both resolver-dependent options key off the name's
+// own registry slot rather than what the UniversalResolver reports.
 
 type TransferDetachTargets = {
   /** Whether each option has a target worth showing/detaching. */
@@ -40,9 +46,10 @@ type UseTransferDetachTargetsParams = {
 
 /**
  * Discover what a name currently points at, so the transfer form knows which
- * options to offer: the ETH-address repoint only when an ETH address is set,
- * the resolver/registry detaches only when there's something to detach *and* the
- * owner can actually detach it (see the role note above).
+ * options to offer: the ETH-address repoint only when the name has its own
+ * resolver carrying an ETH address, the resolver/registry detaches only when
+ * there's something of the name's own to detach *and* the owner can actually
+ * detach it (see the role note above).
  *
  * Keys off `isSuccess` (not `!isLoading`) so a failed lookup — which also has
  * `data === undefined` — doesn't look like "nothing to detach"; callers block on
@@ -60,7 +67,14 @@ export const useTransferDetachTargets = ({
     label = getLabel(name)
   } catch {}
 
-  const resolverQuery = useNameResolverAddress({ name })
+  const ownResolverQuery = useQuery({
+    ...getOwnResolverQueryOptions({
+      label: label ?? '',
+      registryAddress,
+    }),
+    enabled: label !== null,
+  })
+
   const registriesQuery = useQuery(getNameRegistriesQueryOptions({ name }))
   const ethAddressQuery = useQuery(getEthAddressQueryOptions(name))
 
@@ -74,7 +88,7 @@ export const useTransferDetachTargets = ({
   })
 
   const subregistryAddress = registriesQuery.data?.[0]
-  const hasResolver = !!resolverQuery.data
+  const hasOwnResolver = !!ownResolverQuery.data
   const hasSubregistry =
     !!subregistryAddress && subregistryAddress !== zeroAddress
   const hasEthAddress = !!ethAddressQuery.data
@@ -82,10 +96,16 @@ export const useTransferDetachTargets = ({
 
   return {
     optionIsVisible: {
-      setEthAddress: ethAddressQuery.isSuccess && hasEthAddress,
+      // An ETH address read through an inherited resolver isn't ours to
+      // repoint — the record lives on an ancestor's resolver, not this name's.
+      setEthAddress:
+        ethAddressQuery.isSuccess &&
+        hasEthAddress &&
+        ownResolverQuery.isSuccess &&
+        hasOwnResolver,
       detachResolver:
-        resolverQuery.isSuccess &&
-        hasResolver &&
+        ownResolverQuery.isSuccess &&
+        hasOwnResolver &&
         rolesQuery.isSuccess &&
         heldRoles.includes('ROLE_SET_RESOLVER'),
       detachRegistry:
@@ -95,11 +115,11 @@ export const useTransferDetachTargets = ({
         heldRoles.includes('ROLE_SET_SUBREGISTRY'),
     },
     settled:
-      resolverQuery.isSuccess &&
+      ownResolverQuery.isSuccess &&
       registriesQuery.isSuccess &&
       ethAddressQuery.isSuccess &&
       rolesQuery.isSuccess,
     failed:
-      resolverQuery.isError || registriesQuery.isError || rolesQuery.isError,
+      ownResolverQuery.isError || registriesQuery.isError || rolesQuery.isError,
   }
 }

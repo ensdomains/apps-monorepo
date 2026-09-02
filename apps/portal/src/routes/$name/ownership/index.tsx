@@ -19,7 +19,7 @@ import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { useCanTransferName } from '@/features/transfer/hooks/useCanTransferName'
-import { is2LD, isRegistrable } from '@/utils/ens/tldHelpers'
+import { isRegistrable } from '@/utils/ens/tldHelpers'
 
 /**
  * The ownership facet of the name's history: registration, renewals, expiry and
@@ -124,9 +124,7 @@ function RouteComponent() {
       />
     )
 
-  const isSubname = !is2LD(name)
-
-  const canTransfer = isConnectedOwner && hasTransferRole && !isSubname
+  const canTransfer = isConnectedOwner && hasTransferRole
 
   return (
     <div className="flex flex-col gap-8">

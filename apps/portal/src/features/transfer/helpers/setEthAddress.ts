@@ -1,13 +1,19 @@
 import { createSetForwardResolutionRequest } from '@ens-apps/l2-primary/utils'
 import type { Signer } from '@ens-apps/transaction-manager'
-import { getResolver } from '@ensdomains/ensjs/public'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { setForwardResolution } from '@/features/reverse-resolution/helpers/setForwardResolution'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
-import { safeGetClient } from '@/lib/wagmi/helpers'
 
 type SetEthAddressParameters = {
   readonly name: string
+  /**
+   * The resolver set on the name's *own* registry slot — see `getOwnResolver`.
+   * Passed in rather than resolved here: the UniversalResolver would hand back
+   * an ancestor's resolver for a name that has none, and writing this name's
+   * record there targets a resolver the sender doesn't own (and usually isn't
+   * authorized on, reverting before the token transfer step).
+   */
+  readonly resolverAddress: Address
   readonly recipient: Address
   readonly walletClient: WalletClient
   readonly publicClient: PublicClient
@@ -22,6 +28,7 @@ type SetEthAddressParameters = {
  */
 export const setEthAddress = async ({
   name,
+  resolverAddress,
   recipient,
   walletClient,
   publicClient,
@@ -29,13 +36,6 @@ export const setEthAddress = async ({
   chainId,
   id,
 }: SetEthAddressParameters): Promise<{ txId: string; hash: Hex }> => {
-  const clientResult = safeGetClient()
-  if (clientResult.isErr()) {
-    throw new Error('Failed to get client')
-  }
-
-  const resolverAddress = await getResolver(clientResult.value, { name })
-
   const request = createSetForwardResolutionRequest({
     name,
     coinType: MAINNET_COIN_TYPE,

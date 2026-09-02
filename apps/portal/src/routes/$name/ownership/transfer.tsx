@@ -12,7 +12,8 @@ import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { SendNameForm } from '@/features/transfer/components/SendNameForm'
 import { useCanTransferName } from '@/features/transfer/hooks/useCanTransferName'
-import { is2LD } from '@/utils/ens/tldHelpers'
+import { useSubnameExpiry } from '@/features/transfer/hooks/useSubnameExpiry'
+import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 
 export const Route = createFileRoute('/$name/ownership/transfer')({
   component: RouteComponent,
@@ -22,8 +23,6 @@ export const Route = createFileRoute('/$name/ownership/transfer')({
 function RouteComponent() {
   const { name } = Route.useParams()
   const { address } = useConnection()
-
-  const isSubname = !is2LD(name)
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
 
@@ -65,28 +64,6 @@ function RouteComponent() {
                 title="Transfer not available"
                 description={
                   <p>Sending a name is only available for ENSv2 names.</p>
-                }
-              />
-            ),
-          )
-          .with(
-            { data: P.nonNullable },
-            () => isSubname,
-            () => (
-              <MessageCard
-                icon={<AlertTriangle className="size-8" />}
-                title="Transfer not available"
-                description={
-                  <>
-                    <p>
-                      Transferring subnames isn’t supported yet. Sending a name
-                      is currently available for first-class names, like{' '}
-                      <span className="font-medium">name.eth</span>.
-                    </p>
-                    <p className="text-quartz-900/60 text-sm mt-2">
-                      Subname transfer support is coming in a future update.
-                    </p>
-                  </>
                 }
               />
             ),
@@ -133,11 +110,13 @@ function RouteComponent() {
 
 /**
  * The connected wallet owns the name — but token ownership alone doesn't
- * guarantee a transfer will succeed. The registry reverts unless the owner also
- * holds ROLE_CAN_TRANSFER_ADMIN, and the transfer flow runs irreversible detach
- * steps before the token moves. So confirm the role before offering the form;
- * otherwise show why the transfer isn't possible instead of walking the user
- * into a partial, unrecoverable failure.
+ * guarantee a transfer will succeed, or that it's worth making. The registry
+ * reverts unless the owner also holds ROLE_CAN_TRANSFER_ADMIN, and the transfer
+ * flow runs irreversible detach steps before the token moves. A subname has a
+ * second gate: once it expires, its parent can re-issue it to anyone, so
+ * transferring an expired one hands the recipient nothing. Confirm both before
+ * offering the form rather than walking the user into a partial, unrecoverable
+ * failure — or a pointless one.
  */
 function AuthorizedTransfer({
   name,
@@ -148,13 +127,56 @@ function AuthorizedTransfer({
   readonly registryAddress: Address
   readonly owner: Address
 }) {
+  const isSubname = !is2LD(name)
+
   const { canTransfer, isLoading, isError } = useCanTransferName({
     name,
     registryAddress,
     account: owner,
   })
 
-  if (isLoading) return <LoadingMessage />
+  const expiry = useSubnameExpiry({
+    name,
+    registryAddress,
+    enabled: isSubname,
+  })
+
+  if (isLoading || expiry.isLoading) return <LoadingMessage />
+
+  if (expiry.isError)
+    return (
+      <MessageCard
+        icon={<AlertTriangle className="size-8" />}
+        title="Couldn’t check this subname’s expiry"
+        description={
+          <p>
+            We couldn’t confirm whether this subname is still registered.
+            Refresh and try again before starting a transfer.
+          </p>
+        }
+      />
+    )
+
+  if (expiry.isExpired)
+    return (
+      <MessageCard
+        icon={<AlertTriangle className="size-8" />}
+        title="This subname has expired"
+        description={
+          <>
+            <p>
+              This subname’s registration has lapsed, so the owner of{' '}
+              <span className="font-medium">{getParentName(name)}</span> can
+              re-issue it to anyone. Transferring it now wouldn’t give the
+              recipient lasting control.
+            </p>
+            <p className="text-quartz-900/60 text-sm mt-2">
+              Ask the parent’s owner to renew it before transferring.
+            </p>
+          </>
+        }
+      />
+    )
 
   if (isError)
     return (

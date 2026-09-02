@@ -13,6 +13,7 @@ import { useAddressResolution } from '@/features/address/hooks/useAddressResolut
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { useTransferDetachTargets } from '../hooks/useTransferDetachTargets'
 import { useTransferName } from '../hooks/useTransferName'
 import type { TransferOptions } from '../utils/buildTransferPlan'
@@ -65,6 +66,10 @@ export const SendNameForm = ({
   registryAddress,
   owner,
 }: SendNameFormProps) => {
+  // Only for subnames: a 2LD's parent is the `.eth` TLD, whose "owner" isn't a
+  // counterparty the sender needs warning about.
+  const parentName = is2LD(name) ? null : getParentName(name)
+
   const [recipientInput, setRecipientInput] = useState('')
   const [options, setOptions] = useState<Record<OptionKey, boolean>>({
     setEthAddress: true,
@@ -117,6 +122,20 @@ export const SendNameForm = ({
           check the recipient address before proceeding.
         </AlertDescription>
       </Alert>
+
+      {parentName && (
+        <Alert variant="warning">
+          <AlertTriangle className="size-4" />
+          <AlertDescription>
+            This is a subname of{' '}
+            <span className="font-medium">{parentName}</span>, whose owner keeps
+            authority over it: they can change this name’s roles, and can
+            re-issue it to someone else once it expires. If that’s you, this
+            transfer isn’t final the way transferring {parentName} itself would
+            be — you could take this subname back.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="flex flex-col gap-1">
         <span className="font-medium">Recipient</span>
