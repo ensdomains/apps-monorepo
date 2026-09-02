@@ -4,7 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   type GetRenewPriceErrorType,
   getRenewPrice,
-} from '@ensdomains/ensjs/public/v2'
+} from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import {

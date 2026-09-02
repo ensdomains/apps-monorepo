@@ -1,14 +1,15 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
 class GetV2RegistrationDataError extends TaggedError(
   'GetV2RegistrationDataError',
 )<{
-  cause: ClientError
+  cause: GraphqlRequestError
 }> {}
 
 type GetRegistrationDataParameters = { name: string }
@@ -44,7 +45,7 @@ const getV2RegistrationData = ResultFn(async function* ({
     ),
     (e) =>
       new GetV2RegistrationDataError({
-        cause: e as ClientError,
+        cause: e as GraphqlRequestError,
       }),
   )
 

@@ -11,7 +11,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { deploySubregistryWriteParameters } from '@ensdomains/ensjs/wallet'
+import { deploySubregistryWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import type {
   Address,
   Hex,

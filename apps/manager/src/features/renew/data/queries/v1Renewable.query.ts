@@ -4,7 +4,7 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   isRenewable as ensjsIsRenewable,
   type IsRenewableErrorType,
-} from '@ensdomains/ensjs/public/v2'
+} from '@ensdomains/ensjs/public'
 import { useQueries } from '@tanstack/react-query'
 import { err, fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'

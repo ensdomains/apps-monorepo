@@ -1,6 +1,6 @@
 import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { getAvailable, getRegisterPrice } from '@ensdomains/ensjs/public/v2'
+import { getAvailable, getRegisterPrice } from '@ensdomains/ensjs/public'
 import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, formatUnits } from 'viem'
 import { getChainId } from 'viem/actions'

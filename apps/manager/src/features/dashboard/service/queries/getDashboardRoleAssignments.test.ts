@@ -5,7 +5,12 @@ import {
   getDashboardRoleAssignmentsForAddresses,
 } from './getDashboardRoleAssignments'
 
-vi.mock('@ens-apps/indexer/urql', () => ({ default: { query: vi.fn() } }))
+// Stub only the client — `graphqlRequest` stays real so these exercise the
+// production unwrap path.
+vi.mock('@ens-apps/indexer/urql', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@ens-apps/indexer/urql')>()),
+  default: { query: vi.fn() },
+}))
 
 const queryMock = vi.mocked(indexerClient.query)
 

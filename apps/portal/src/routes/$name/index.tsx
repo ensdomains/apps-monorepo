@@ -39,6 +39,7 @@ import {
   isRegistrable,
   isTLD,
 } from '@/utils/ens/tldHelpers'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
 import { validateNameLength } from '@/utils/token/nameValidation'
@@ -327,7 +328,10 @@ const Profile = ({
   if (profileQuery.error) {
     // Don't show error for profile fetch failures on existing names
     // The name exists (we have owner), just profile data failed
-    console.warn('Profile fetch failed:', profileQuery.error.cause?.message)
+    console.warn(
+      'Profile fetch failed:',
+      extractErrorMessage(profileQuery.error, ''),
+    )
   }
 
   // Match the grace/canExtend default above: a missing protocolVersion means the

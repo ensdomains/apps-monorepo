@@ -30,6 +30,7 @@ import { useSetAlias } from '@/features/resolver/hooks/useSetAlias'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/create-alias')({
@@ -158,7 +159,7 @@ function RouteComponent() {
     return (
       <ErrorMessage
         title="Failed to load resolver"
-        description={error.cause?.message}
+        description={extractErrorMessage(error, '')}
       />
     )
 

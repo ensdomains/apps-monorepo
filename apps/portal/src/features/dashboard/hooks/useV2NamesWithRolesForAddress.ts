@@ -1,7 +1,8 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
@@ -32,7 +33,7 @@ class GetV2NamesWithRolesForAddressError extends TaggedError(
   cause: GetV2NamesWithRolesForAddressErrorType
 }> {}
 
-type GetV2NamesWithRolesForAddressErrorType = ClientError
+type GetV2NamesWithRolesForAddressErrorType = GraphqlRequestError
 
 type GetV2NamesWithRolesForAddressParameters = {
   address: Address

@@ -10,6 +10,7 @@ import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { Button } from '@/components/ui/button'
 import { TimelineFrame } from '@/components/ui/timeline'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { buildEventTypeGroups, filterActions } from '../filterTimeline'
 import {
@@ -228,7 +229,7 @@ export const HistoryTimeline = ({
     return (
       <ErrorMessage
         title="Error loading history"
-        description={error.cause?.message}
+        description={extractErrorMessage(error, '')}
       />
     )
   }

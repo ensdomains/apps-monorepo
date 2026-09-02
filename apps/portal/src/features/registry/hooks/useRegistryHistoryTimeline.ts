@@ -1,7 +1,8 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { dropClippedBoundary } from '@/features/history/dropClippedBoundary'
@@ -15,7 +16,7 @@ import { graphqlIndexerClient } from '@/lib/indexer'
 class GetRegistryHistoryTimelineError extends TaggedError(
   'GetRegistryHistoryTimelineError',
 )<{
-  cause: ClientError
+  cause: GraphqlRequestError
 }> {}
 
 type GetRegistryHistoryTimelineParameters = {
@@ -60,7 +61,8 @@ const getRegistryHistoryTimeline = ResultFn(async function* ({
       `,
       { address: address.toLowerCase(), first: EVENTS_LIMIT },
     ),
-    (e) => new GetRegistryHistoryTimelineError({ cause: e as ClientError }),
+    (e) =>
+      new GetRegistryHistoryTimelineError({ cause: e as GraphqlRequestError }),
   )
 
   // null = the indexer has no record for this address (not a registry, or not

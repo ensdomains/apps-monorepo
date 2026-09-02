@@ -4,7 +4,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
+import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
 import { grantResolverRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
