@@ -44,14 +44,14 @@ describe('classifyNameSearch', () => {
     ).toEqual({ type: 'owned', name: 'alice.eth' })
   })
 
-  it('lets a 2LD through when availability lookup fails', () => {
+  it('surfaces a 2LD availability lookup failure as an error', () => {
     expect(
       classifyNameSearch({
         kind: eth2ld,
         existence: { status: 'unowned' },
-        availability: { status: 'skipped' },
+        availability: { status: 'error' },
       }),
-    ).toEqual({ type: 'unproven', name: 'alice.eth' })
+    ).toEqual({ type: 'error', name: 'alice.eth' })
   })
 
   it('waits for 2LD availability', () => {
@@ -84,14 +84,14 @@ describe('classifyNameSearch', () => {
     ).toEqual({ type: 'not-found', name: '1.1.sugh004.eth' })
   })
 
-  it('assumes a subname exists when existence lookup fails', () => {
+  it('surfaces a subname existence lookup failure as an error', () => {
     expect(
       classifyNameSearch({
         kind: subname,
         existence: { status: 'unknown' },
         availability: { status: 'skipped' },
       }),
-    ).toEqual({ type: 'unproven', name: '1.1.sugh004.eth' })
+    ).toEqual({ type: 'error', name: '1.1.sugh004.eth' })
   })
 
   it('waits for subname existence lookup', () => {

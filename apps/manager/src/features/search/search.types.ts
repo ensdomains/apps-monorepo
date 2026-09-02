@@ -30,6 +30,7 @@ export type AvailabilitySignal =
   | { readonly status: 'available' }
   | { readonly status: 'unavailable' }
   | { readonly status: 'skipped' }
+  | { readonly status: 'error' }
 
 export type NameSearchOutcome =
   | {
@@ -40,5 +41,5 @@ export type NameSearchOutcome =
   | { readonly type: 'loading'; readonly name: string }
   | { readonly type: 'available'; readonly name: string }
   | { readonly type: 'owned'; readonly name: string }
-  | { readonly type: 'unproven'; readonly name: string }
+  | { readonly type: 'error'; readonly name: string }
   | { readonly type: 'not-found'; readonly name: string }

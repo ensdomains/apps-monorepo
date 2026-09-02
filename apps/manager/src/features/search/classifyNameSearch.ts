@@ -37,8 +37,12 @@ export const classifyNameSearch = ({
           type: 'owned' as const,
           name: eth2ld.name,
         }))
+        .with({ status: 'error' }, () => ({
+          type: 'error' as const,
+          name: eth2ld.name,
+        }))
         .with({ status: 'skipped' }, () => ({
-          type: 'unproven' as const,
+          type: 'error' as const,
           name: eth2ld.name,
         }))
         .exhaustive(),
@@ -54,7 +58,7 @@ export const classifyNameSearch = ({
           name: subname.name,
         }))
         .with({ status: 'unknown' }, () => ({
-          type: 'unproven' as const,
+          type: 'error' as const,
           name: subname.name,
         }))
         .with({ status: 'unowned' }, () => ({

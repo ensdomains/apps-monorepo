@@ -28,10 +28,18 @@ describe('parseSearchQuery', () => {
     })
   })
 
-  it('lowercases names', () => {
+  it('ENSIP-15-normalizes names, not just lowercasing', () => {
     expect(parseSearchQuery('BigInt')).toEqual({
       type: 'name',
       value: 'bigint.eth',
+    })
+    expect(parseSearchQuery('FOO.ETH')).toEqual({
+      type: 'name',
+      value: 'foo.eth',
+    })
+    expect(parseSearchQuery('ＦＯＯ.eth')).toEqual({
+      type: 'name',
+      value: 'foo.eth',
     })
   })
 

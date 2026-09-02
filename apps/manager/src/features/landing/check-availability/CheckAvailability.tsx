@@ -135,6 +135,27 @@ export const CheckAvailability = ({
                   </div>
                 </motion.div>
               ))
+              .with({ type: 'error' }, (state) => (
+                <motion.div
+                  key={`result-${state.domainName}`}
+                  {...dropdownAnimation}
+                >
+                  <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
+                    <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-ens-quartz-50">
+                      <PatternAvatar
+                        className="size-full rounded-md border-none bg-transparent p-0 shadow-none"
+                        name={state.domainName}
+                      />
+                    </div>
+                    <span className="font-medium text-ens-blue text-lg leading-tight tracking-tight">
+                      {state.domainName}
+                    </span>
+                    <div className="ml-auto shrink-0 rounded-full bg-red-50 px-2 py-1 font-normal text-red-500 text-xs">
+                      <Trans>Couldn't check this name</Trans>
+                    </div>
+                  </div>
+                </motion.div>
+              ))
               .with({ type: 'not-found' }, (state) => (
                 <motion.div
                   key={`result-${state.domainName}`}

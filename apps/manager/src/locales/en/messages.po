@@ -668,6 +668,10 @@ msgstr "Copy Link"
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
+#: src/features/landing/check-availability/CheckAvailability.tsx
+msgid "Couldn't check this name"
+msgstr "Couldn't check this name"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t check this name’s resolver. Please try again in a moment."
 msgstr "Couldn’t check this name’s resolver. Please try again in a moment."

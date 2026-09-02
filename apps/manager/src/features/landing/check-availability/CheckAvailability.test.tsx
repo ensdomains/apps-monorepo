@@ -164,7 +164,7 @@ describe('CheckAvailability', () => {
     searchFor('missing.alice.eth')
 
     await waitFor(() => {
-      expect(screen.getByText("doesn't exist")).toBeInTheDocument()
+      expect(screen.getByText('Name not found')).toBeInTheDocument()
     })
   })
 })

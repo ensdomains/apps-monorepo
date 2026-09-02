@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link, linkOptions } from '@tanstack/react-router'
-import { Loader2Icon, WalletIcon } from 'lucide-react'
+import { Loader2Icon, WalletIcon, XIcon } from 'lucide-react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
@@ -46,7 +46,10 @@ export const NameSuggestionItem = ({
   const isEth2ld = kind.type === 'eth-2ld'
   const isAvailable = outcome.type === 'available'
   const isOwned = outcome.type === 'owned'
-  const isDisabled = outcome.type === 'invalid' || outcome.type === 'not-found'
+  const isDisabled =
+    outcome.type === 'invalid' ||
+    outcome.type === 'not-found' ||
+    outcome.type === 'error'
 
   const registeredExpiryQuery = useQuery({
     ...profileExpiryQuery(name),
@@ -129,7 +132,9 @@ export const NameSuggestionItem = ({
               <Trans>Name not found</Trans>
             </div>
           ))
-          .with({ type: 'unproven' }, () => null)
+          .with({ type: 'error' }, () => (
+            <XIcon className="size-4 text-slate-500" />
+          ))
           .exhaustive()}
       </div>
     </Link>

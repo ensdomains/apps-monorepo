@@ -27,6 +27,7 @@ export type DisplayState =
   | { type: 'unavailable'; domainName: string }
   | { type: 'not-found'; domainName: string }
   | { type: 'not-supported'; domainName: string }
+  | { type: 'error'; domainName: string }
 
 type ToDisplayStateParams = {
   readonly trimmedInput: string
@@ -66,8 +67,12 @@ export const toDisplayState = ({
       type: 'available' as const,
       domainName: name,
     }))
-    .with({ type: 'owned' }, { type: 'unproven' }, ({ name }) => ({
+    .with({ type: 'owned' }, ({ name }) => ({
       type: 'unavailable' as const,
+      domainName: name,
+    }))
+    .with({ type: 'error' }, ({ name }) => ({
+      type: 'error' as const,
       domainName: name,
     }))
     .with({ type: 'not-found' }, ({ name }) => ({

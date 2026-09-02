@@ -27,7 +27,7 @@ const toAvailabilitySignal = ({
   readonly isAvailable: boolean | undefined
 }): AvailabilitySignal => {
   if (!isEth2ld) return { status: 'skipped' }
-  if (isError) return { status: 'skipped' }
+  if (isError) return { status: 'error' }
   if (isAvailable === undefined) return { status: 'pending' }
   return isAvailable ? { status: 'available' } : { status: 'unavailable' }
 }
