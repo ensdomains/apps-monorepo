@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeConnectError } from './wallet.errors'
+import { describeConnectError } from './-wallet.errors'
 
 const errorWith = (name: string, message = '') => {
   const error = new Error(message)
