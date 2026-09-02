@@ -248,14 +248,6 @@ msgid "An earlier approval request may still be open in your wallet. Reject or c
 msgstr "An earlier approval request may still be open in your wallet. Reject or close it before revoking. After a page reload, this warning may remain as a precaution."
 
 #: src/features/migration/components/RevokeTemporaryAccessBanner.tsx
-#~ msgid "An earlier approval request may still be open in your wallet. Reject or close it, then revoke again."
-#~ msgstr "An earlier approval request may still be open in your wallet. Reject or close it, then revoke again."
-
-#: src/features/migration/components/RevokeTemporaryAccessBanner.tsx
-#~ msgid "An earlier upgrade left temporary access to your names active. Revoking it takes one wallet confirmation."
-#~ msgstr "An earlier upgrade left temporary access to your names active. Revoking it takes one wallet confirmation."
-
-#: src/features/migration/components/RevokeTemporaryAccessBanner.tsx
 msgid "An earlier upgrade may have left temporary access to your names. Revoking it takes one wallet confirmation."
 msgstr "An earlier upgrade may have left temporary access to your names. Revoking it takes one wallet confirmation."
 
@@ -1753,10 +1745,6 @@ msgstr "Receive notifications via email for important domain events"
 msgid "Recently expired names have a temporary fee that decreases to $0 over {periodDays} days. It's added only once when you register — renewals are always at the base price."
 msgstr "Recently expired names have a temporary fee that decreases to $0 over {periodDays} days. It's added only once when you register — renewals are always at the base price."
 
-#: src/features/migration/components/RevokeTemporaryAccessBanner.tsx
-#~ msgid "Recheck and revoke"
-#~ msgstr "Recheck and revoke"
-
 #: src/features/notifications/settings/preference-card.tsx
 msgid "Recommended"
 msgstr "Recommended"
@@ -3089,10 +3077,6 @@ msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you 
 #: src/features/migration/components/RevokeTemporaryAccessBanner.tsx
 msgid "Your revocation is pending. If it is taking too long, you can safely retry."
 msgstr "Your revocation is pending. If it is taking too long, you can safely retry."
-
-#: src/features/migration/components/RevokeTemporaryAccessBanner.tsx
-#~ msgid "Your revocation is pending. This notice will disappear after it is confirmed."
-#~ msgstr "Your revocation is pending. This notice will disappear after it is confirmed."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your saved progress is unchanged. Contact ENS support before trying the upgrade again."

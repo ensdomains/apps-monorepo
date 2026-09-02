@@ -59,6 +59,7 @@ export const RevokeTemporaryAccessBanner = ({
 
   const handleRevoke = useCallback(async () => {
     if (
+      hasPendingPrompt ||
       !ownerAddress ||
       !hcaAddress ||
       !publicClient ||
@@ -87,6 +88,7 @@ export const RevokeTemporaryAccessBanner = ({
       })
     }
   }, [
+    hasPendingPrompt,
     ownerAddress,
     hcaAddress,
     publicClient,
@@ -136,6 +138,7 @@ export const RevokeTemporaryAccessBanner = ({
           className="w-full shrink-0 rounded-sm bg-ens-garnet-900 px-4 py-3.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-wide shadow-inner disabled:opacity-60 md:w-84.5"
           disabled={
             status === 'pending' ||
+            hasPendingPrompt ||
             !hasOwnerWallet(walletClient, ownerAddress as Address | undefined)
           }
           onClick={handleRevoke}

@@ -2312,19 +2312,20 @@ describe('revokeStandingTemporaryHcaAccess', () => {
     expect(loadMigrationApprovalCleanupObligation(CLEANUP_SCOPE)).toBeNull()
   })
 
-  it('keeps an unresolved prompt recoverable when a false cleanup lands before its grant hash', async () => {
+  it('does not revoke while an unresolved grant prompt can land afterward', async () => {
     const prompt = recordMigrationApprovalCleanupGrantAttempt(CLEANUP_SCOPE)
 
-    const firstHashes = await revokeStandingTemporaryHcaAccess({
-      wagmiConfig: WAGMI,
-      publicClient: PUBLIC_CLIENT,
-      signer: SIGNER,
-      walletAddress: OWNER,
-      hcaAddress: HCA,
-    })
+    await expect(
+      revokeStandingTemporaryHcaAccess({
+        wagmiConfig: WAGMI,
+        publicClient: PUBLIC_CLIENT,
+        signer: SIGNER,
+        walletAddress: OWNER,
+        hcaAddress: HCA,
+      }),
+    ).rejects.toMatchObject({ name: 'MigrationCleanupError' })
 
-    expect(firstHashes).toEqual([hashFor(1)])
-    expect(revocationCalls()).toHaveLength(1)
+    expect(revocationCalls()).toHaveLength(0)
     expect(
       loadMigrationApprovalCleanupJournal(CLEANUP_SCOPE).obligations,
     ).toEqual([
@@ -2350,10 +2351,10 @@ describe('revokeStandingTemporaryHcaAccess', () => {
       }),
     ])
 
-    // The still-open wallet request confirms after the earlier false write.
-    // A later recovery must therefore submit a second revocation.
+    // Once the original wallet request returns a hash, its ordering can be
+    // fenced by the cleanup transaction.
     ethRegistryOperatorGranted = true
-    const secondHashes = await revokeStandingTemporaryHcaAccess({
+    const hashes = await revokeStandingTemporaryHcaAccess({
       wagmiConfig: WAGMI,
       publicClient: PUBLIC_CLIENT,
       signer: SIGNER,
@@ -2361,8 +2362,8 @@ describe('revokeStandingTemporaryHcaAccess', () => {
       hcaAddress: HCA,
     })
 
-    expect(secondHashes).toEqual([hashFor(2)])
-    expect(revocationCalls()).toHaveLength(2)
+    expect(hashes).toEqual([hashFor(1)])
+    expect(revocationCalls()).toHaveLength(1)
     expect(
       loadMigrationApprovalCleanupJournal(CLEANUP_SCOPE).obligations,
     ).toEqual([])

@@ -869,6 +869,19 @@ const revokeTemporaryOperatorApprovals = async (params: {
     scope: cleanupScope,
   })
 
+  // An open wallet prompt has no hash or nonce, so a false write cannot prove
+  // that it will execute after the corresponding grant. Wait until the prompt
+  // rejects or yields a submitted hash that coverage verification can fence.
+  if (status.hasPendingPrompt) {
+    throw new MigrationCleanupError({
+      message:
+        'Reject or close the earlier migration approval request before revoking temporary access.',
+      cause: new Error(
+        'A temporary migration approval request is still unresolved.',
+      ),
+    })
+  }
+
   if (status.pendingRevocationHash && !params.retryPendingRevocation) {
     throw new MigrationCleanupError({
       message:
