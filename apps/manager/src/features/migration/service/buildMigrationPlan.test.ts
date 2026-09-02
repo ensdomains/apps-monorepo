@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeClassified, makeDomain, OWNER } from './_fixtures'
 import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
 import {
+  adjustPlanForRetry,
   assertLockedResolverReplacementRecordSafety,
   buildMigrationPlan,
   buildMigrationRecoveryPlan,
@@ -12,6 +13,8 @@ import {
 import { FUSES } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
+import { recordMigrationApprovalCleanupRequired } from './migrationApprovalCleanupJournal'
+import { migrationCleanupApprovalFor } from './migrationApprovals'
 import {
   type MigrationRecoverySnapshot,
   persistPendingAtomicMigrationIntent,
@@ -303,6 +306,94 @@ describe('buildMigrationPlan resolver preservation', () => {
 })
 
 describe('buildMigrationRecoveryPlan', () => {
+  it('restores a cleanup step from durable debt before the grant is RPC-visible', async () => {
+    const { snapshot } = makeRecoveryTree()
+    recordMigrationApprovalCleanupRequired({
+      chainId: 11155111,
+      owner: OWNER,
+      hca: HCA,
+    })
+
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot: { ...snapshot, plannedApprovals: [] },
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: {
+        chain: { id: 11155111 },
+        readContract: vi.fn(() => Promise.resolve(false)),
+      } as unknown as PublicClient,
+    })
+
+    expect(plan.preflight.migrationApprovalCleanups).toEqual([
+      expect.objectContaining({ id: 'eth-registry:hca' }),
+    ])
+    expect(plan.preflight.standingMigrationApprovalCleanups).toEqual([
+      expect.objectContaining({ id: 'eth-registry:hca' }),
+    ])
+    expect(plan.stepDescriptors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'cleanup',
+          approvalId: 'eth-registry:hca',
+        }),
+      ]),
+    )
+  })
+
+  it('keeps only setup approvals required by the remaining recovery names', async () => {
+    const root = makeDomain({
+      id: namehash('alice.eth'),
+      name: 'alice.eth',
+      labelName: 'alice',
+      resolverAddress: null,
+    })
+    const snapshot = {
+      registryDomains: [root],
+      registryOperations: [{ name: root.name, action: 'migrate' }],
+      remainingOperations: [{ name: root.name, action: 'migrate' }],
+      completedOperations: [],
+      profiles: new Map([
+        [
+          namehash(root.name),
+          { texts: [], addresses: [], contentHash: null, abis: [] },
+        ],
+      ]),
+      ownedPermRes: computeResolverAddress({
+        chainId: 11155111,
+        hca: HCA,
+      }),
+      plannedApprovals: [
+        { id: 'base-registrar:hca' },
+        { id: 'name-wrapper:hca' },
+        { id: 'eth-registry:hca' },
+      ],
+    } satisfies MigrationRecoverySnapshot
+
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot,
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: {
+        chain: { id: 11155111 },
+        readContract: vi.fn(() => Promise.resolve(false)),
+      } as unknown as PublicClient,
+    })
+
+    expect(plan.preflight.migrationApprovals?.map(({ id }) => id)).toEqual([
+      'base-registrar:hca',
+    ])
+    expect(
+      plan.preflight.standingMigrationApprovalCleanups?.map(({ id }) => id),
+    ).toEqual(['eth-registry:hca'])
+    expect(plan.stepDescriptors).toEqual([
+      expect.objectContaining({
+        type: 'approval',
+        approvalId: 'base-registrar:hca',
+      }),
+      { type: 'cleanup', approvalId: 'eth-registry:hca' },
+    ])
+  })
+
   it('rebuilds unsent copies with their completed root retained only as registry context', async () => {
     const { root, copy, snapshot } = makeRecoveryTree()
 
@@ -331,12 +422,23 @@ describe('buildMigrationRecoveryPlan', () => {
       { name: root.name, action: 'migrate' },
     ])
     expect(plan.requiresReconciliation).toBe(true)
-    expect(plan.preflight.migrationApprovals).toEqual([
+    expect(plan.preflight.migrationApprovals).toEqual([])
+    expect(plan.preflight.migrationApprovalCleanups).toEqual([
       expect.objectContaining({
         kind: 'operator',
         id: 'eth-registry:hca',
         operatorAddress: HCA,
       }),
+    ])
+    expect(plan.preflight.standingMigrationApprovalCleanups).toEqual([
+      expect.objectContaining({
+        kind: 'operator',
+        id: 'eth-registry:hca',
+        operatorAddress: HCA,
+      }),
+    ])
+    expect(plan.stepDescriptors).toEqual([
+      { type: 'cleanup', approvalId: 'eth-registry:hca' },
     ])
     expect(buildAtomicMigrationBatchesMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -409,5 +511,44 @@ describe('buildMigrationRecoveryPlan', () => {
       reason: 'operation-mismatch',
     })
     expect(assertCopyMigrationReadinessMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('adjustPlanForRetry', () => {
+  it('reduces an all-complete retry to its cleanup-only work', async () => {
+    const domain = makeDomain({ resolverAddress: null })
+    const cleanupApproval = migrationCleanupApprovalFor(HCA)
+    const plan = await buildMigrationPlan({
+      domains: [domain],
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: {
+        chain: { id: 11155111 },
+        readContract: vi.fn(() => Promise.resolve(false)),
+      } as unknown as PublicClient,
+      preflight: {
+        skipFetchProfilesPhase: true,
+        hcaReadiness: { status: 'deployment-required', hca: HCA },
+        migrationApprovals: [cleanupApproval],
+        migrationApprovalCleanups: [cleanupApproval],
+        standingMigrationApprovalCleanups: [],
+      },
+    })
+
+    const retryPlan = adjustPlanForRetry(plan, [domain.name])
+
+    expect(retryPlan.classified).toEqual([])
+    expect(retryPlan.hcaDeploymentRequired).toBe(false)
+    expect(retryPlan.preflight.migrationApprovals).toEqual([])
+    expect(retryPlan.preflight.migrationApprovalCleanups).toEqual([
+      cleanupApproval,
+    ])
+    expect(retryPlan.preflight.standingMigrationApprovalCleanups).toEqual([
+      cleanupApproval,
+    ])
+    expect(retryPlan.atomicBatches).toEqual([])
+    expect(retryPlan.stepDescriptors).toEqual([
+      { type: 'cleanup', approvalId: 'eth-registry:hca' },
+    ])
   })
 })

@@ -10,6 +10,7 @@ import {
 import { FUSES } from './classifyNames'
 import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { ProfileFetchError } from './fetchV1Profiles'
+import { recordMigrationApprovalCleanupRequired } from './migrationApprovalCleanupJournal'
 import {
   checkMigrationApprovals,
   type MigrationApprovalStatus,
@@ -77,6 +78,7 @@ const makePublicClient = (
   opts: { readonly ethRegistryGranted?: boolean } = {},
 ): PublicClient =>
   ({
+    chain: { id: 11155111 },
     readContract: vi.fn(({ functionName }: { functionName: string }) =>
       Promise.resolve(
         functionName === 'isApprovedForAll' &&
@@ -120,6 +122,7 @@ const run = (
 }
 
 beforeEach(() => {
+  localStorage.clear()
   getV1ProfileKeysMock.mockReset()
   checkMigrationApprovalsMock.mockReset()
   checkResolverReadinessMock.mockReset()
@@ -154,6 +157,7 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     expect(
       result.migrationApprovalCleanups?.map((approval) => approval.id),
     ).toEqual(['eth-registry:hca'])
+    expect(result.standingMigrationApprovalCleanups).toEqual([])
     expect(checkMigrationApprovalsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         eoa: EOA,
@@ -172,6 +176,28 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     expect(checkMigrationHcaReadinessMock).toHaveBeenCalledWith(
       expect.objectContaining({ hca: HCA, expectedOwner: EOA }),
     )
+  })
+
+  it('keeps standing cleanup provenance when approval reads disagree', async () => {
+    const result = await run({
+      domain: {
+        isWrapped: false,
+        ownerId: '0x00000000000000000000000000000000000000aa',
+      },
+      hcaAddress: HCA,
+      hcaApprovals: {
+        ...ALL_HCA_APPROVED,
+        ethRegistryHcaApproved: false,
+      },
+      ethRegistryGranted: true,
+    })
+
+    expect(result.migrationApprovals?.map((approval) => approval.id)).toContain(
+      'eth-registry:hca',
+    )
+    expect(
+      result.standingMigrationApprovalCleanups?.map((approval) => approval.id),
+    ).toEqual(['eth-registry:hca'])
   })
 
   it('checks locked known resolvers against the pinned PublicResolverSet', async () => {
@@ -224,6 +250,31 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     expect(
       result.migrationApprovalCleanups?.map((approval) => approval.id),
     ).toEqual(['eth-registry:hca'])
+    expect(
+      result.standingMigrationApprovalCleanups?.map((approval) => approval.id),
+    ).toEqual(['eth-registry:hca'])
+  })
+
+  it('plans a revocation for durable debt before the grant reaches the RPC head', async () => {
+    recordMigrationApprovalCleanupRequired({
+      chainId: 11155111,
+      owner: EOA,
+      hca: HCA,
+    })
+
+    const result = await run({
+      hcaAddress: HCA,
+      hcaApprovals: ALL_HCA_APPROVED,
+      ethRegistryGranted: false,
+    })
+
+    expect(result.migrationApprovals).toEqual([])
+    expect(
+      result.migrationApprovalCleanups?.map((approval) => approval.id),
+    ).toEqual(['eth-registry:hca'])
+    expect(
+      result.standingMigrationApprovalCleanups?.map((approval) => approval.id),
+    ).toEqual(['eth-registry:hca'])
   })
 
   it('plans no revocation when no temporary grant is planned or standing', async () => {
@@ -234,6 +285,7 @@ describe('computeMigrationPreflight — HCA approvals', () => {
 
     expect(result.migrationApprovals).toEqual([])
     expect(result.migrationApprovalCleanups).toEqual([])
+    expect(result.standingMigrationApprovalCleanups).toEqual([])
   })
 
   it('derives the HCA resolver and never log-scans for an EOA resolver', async () => {

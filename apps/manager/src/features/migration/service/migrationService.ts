@@ -39,17 +39,24 @@ import {
 import { decodeMigrationError } from './decodeMigrationError'
 import { resolveDirectMigrationRoutes } from './directMigrationRoutes'
 import {
-  loadMigrationApprovalCleanupObligation,
+  createMigrationApprovalCleanupJournalId,
+  loadMigrationApprovalCleanupJournal,
+  type MigrationApprovalCleanupJournalScope,
+  recordMigrationApprovalCleanupGrantAttempt,
   recordMigrationApprovalCleanupGrantHash,
+  recordMigrationApprovalCleanupGrantReplacement,
+  recordMigrationApprovalCleanupPromptRejected,
   recordMigrationApprovalCleanupRequired,
+  recordMigrationApprovalCleanupRevocationConfirmed,
+  recordMigrationApprovalCleanupRevocationFailed,
   recordMigrationApprovalCleanupRevocationHash,
-  removeMigrationApprovalCleanupObligation,
 } from './migrationApprovalCleanupJournal'
 import { approvalNeedsFor } from './migrationApprovalNeeds'
 import {
   buildMigrationApprovalCall,
   buildMigrationOperatorApprovalRevocationCall,
   checkMigrationApprovals,
+  getGrantedMigrationCleanupApprovals,
   type MigrationApproval,
   type MigrationCleanupApproval,
   migrationApprovalKey,
@@ -71,7 +78,10 @@ import {
   removeSubmittedAtomicMigrationBatch,
 } from './migrationBatchJournal'
 import { checkDeterministicMigrationResolverReadiness } from './migrationInvariants'
-import { readMigrationApprovalCleanupStatus } from './readMigrationApprovalCleanupStatus'
+import {
+  readMigrationApprovalCleanupStatus,
+  verifyMigrationApprovalCleanupCoverage,
+} from './readMigrationApprovalCleanupStatus'
 import {
   reconcileAtomicMigrationBatch,
   verifyAtomicMigrationBatch,
@@ -370,6 +380,7 @@ const submitCall = async (
   call: Call,
   description: string,
   onSubmitted?: (hash: Hex) => void,
+  options?: { readonly retryCount?: number },
 ): Promise<{ readonly hash: Hex; readonly receipt: TransactionReceipt }> => {
   const txId = transactionManager.startTransaction(
     { type: 'custom', request: buildEOARequest(ctx, call) },
@@ -377,6 +388,9 @@ const submitCall = async (
     {
       description,
       publicClient: ctx.publicClient,
+      ...(options?.retryCount === undefined
+        ? {}
+        : { retryCount: options.retryCount }),
     },
   )
   ctx.tracker.emit(description, PENDING_TX_HASH)
@@ -495,6 +509,42 @@ const sortedApprovalKeys = (
   approvals: readonly MigrationApproval[],
 ): string[] => approvals.map(migrationApprovalKey).sort()
 
+const knownStandingCleanupApprovals = (
+  plan: MigrationPlan,
+): readonly MigrationCleanupApproval[] => {
+  if (plan.preflight.standingMigrationApprovalCleanups !== undefined) {
+    return plan.preflight.standingMigrationApprovalCleanups
+  }
+
+  // Compatibility for plans created before standing cleanup provenance was
+  // explicit: only a cleanup not paired with a new grant is certainly old.
+  const newlyPlanned = new Set(
+    (plan.preflight.migrationApprovals ?? [])
+      .filter(requiresMigrationApprovalCleanup)
+      .map(migrationApprovalKey),
+  )
+  return (plan.preflight.migrationApprovalCleanups ?? []).filter(
+    (approval) => !newlyPlanned.has(migrationApprovalKey(approval)),
+  )
+}
+
+const addUniqueCleanupApprovals = (
+  target: MigrationCleanupApproval[],
+  approvals: readonly MigrationCleanupApproval[],
+): void => {
+  for (const approval of approvals) {
+    if (
+      target.some(
+        (existing) =>
+          migrationApprovalKey(existing) === migrationApprovalKey(approval),
+      )
+    ) {
+      continue
+    }
+    target.push(approval)
+  }
+}
+
 const assertMigrationApprovalPlanCurrent = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
@@ -534,14 +584,14 @@ const submitMigrationApproval = async (params: {
     ? approval
     : null
   const cleanupScope = cleanupApproval ? batchJournalScope(ctx) : null
-  let cleanupObligationCreatedForAttempt = false
-  let submittedTemporaryApprovalHash: Hex | undefined
+  let cleanupAttemptId: string | undefined
+  let temporaryApprovalSubmitted = false
+  let submittedGrantHash: Hex | undefined
 
   try {
     if (cleanupApproval && cleanupScope) {
-      const existing = loadMigrationApprovalCleanupObligation(cleanupScope)
-      recordMigrationApprovalCleanupRequired(cleanupScope)
-      cleanupObligationCreatedForAttempt = existing === null
+      cleanupAttemptId =
+        recordMigrationApprovalCleanupGrantAttempt(cleanupScope).attemptId
     }
     const { hash } = await submitCall(
       ctx,
@@ -549,30 +599,55 @@ const submitMigrationApproval = async (params: {
       description,
       cleanupScope
         ? (submittedHash) => {
-            // Set the in-memory marker before the durable update. If the write
-            // itself fails, the base obligation still survives and the failure
-            // path must revoke unconditionally.
-            submittedTemporaryApprovalHash = submittedHash
+            temporaryApprovalSubmitted = true
             if (cleanupApproval) {
               params.onTemporaryApprovalAttempt?.(cleanupApproval)
             }
-            recordMigrationApprovalCleanupGrantHash(cleanupScope, submittedHash)
+            if (cleanupAttemptId === undefined) {
+              throw new Error('Temporary approval cleanup attempt is missing')
+            }
+            if (
+              submittedGrantHash &&
+              submittedGrantHash.toLowerCase() !== submittedHash.toLowerCase()
+            ) {
+              // submitCall reports a different final hash only when the
+              // successful receipt proves a wallet replacement of the
+              // initially submitted transaction.
+              recordMigrationApprovalCleanupGrantReplacement(
+                cleanupScope,
+                cleanupAttemptId,
+                submittedGrantHash,
+                submittedHash,
+              )
+            } else if (!submittedGrantHash) {
+              recordMigrationApprovalCleanupGrantHash(
+                cleanupScope,
+                cleanupAttemptId,
+                submittedHash,
+              )
+            }
+            submittedGrantHash = submittedHash
           }
         : undefined,
+      cleanupScope ? { retryCount: 0 } : undefined,
     )
     return hash
   } catch (error) {
     if (
       cleanupScope &&
-      cleanupObligationCreatedForAttempt &&
-      !submittedTemporaryApprovalHash &&
+      cleanupAttemptId &&
+      !temporaryApprovalSubmitted &&
       isUserRejection(error)
     ) {
       try {
-        removeMigrationApprovalCleanupObligation(cleanupScope)
+        // Each prompt has its own key, so resolving this exact rejected attempt
+        // cannot erase another tab's pending/submitted grant evidence.
+        recordMigrationApprovalCleanupPromptRejected(
+          cleanupScope,
+          cleanupAttemptId,
+        )
       } catch {
-        // A stale no-op cleanup prompt is safer than deleting uncertain
-        // evidence when storage cannot confirm removal.
+        // A stale prompt marker is fail-safe and keeps recovery visible.
       }
     }
     throw wrapMigrationError(error, description)
@@ -633,17 +708,83 @@ const ensureMigrationApprovals = async (params: {
 const cleanupDescription = (_approval: MigrationCleanupApproval): string =>
   'Removing manager-restoration access from your HCA'
 
-const revokeTemporaryOperatorApprovals = async (params: {
-  readonly ctx: MigrationCtx
-  readonly forcedApprovals?: readonly MigrationCleanupApproval[]
-}): Promise<readonly Hex[]> => {
-  const cleanupScope = batchJournalScope(params.ctx)
-  let status: Awaited<ReturnType<typeof readMigrationApprovalCleanupStatus>>
+type CleanupRevocationJournal = {
+  readonly revocationId?: string
+  readonly attemptIds: readonly string[]
+  readonly onSubmitted: (hash: Hex) => void
+  readonly clearSubmittedRevocation: () => void
+  readonly confirmVerifiedRevocation: () => void
+}
+
+const createCleanupRevocationJournal = (
+  scope: MigrationApprovalCleanupJournalScope,
+): CleanupRevocationJournal => {
+  let revocationId: string | undefined
+  let attemptIds: readonly string[] = []
   try {
-    status = await readMigrationApprovalCleanupStatus({
+    // Historical live grants predate the journal. Recording before the wallet
+    // prompt gives their revocation the same reload protection.
+    recordMigrationApprovalCleanupRequired(scope)
+    attemptIds = loadMigrationApprovalCleanupJournal(scope)
+      .obligations.filter(({ state }) => state !== 'prompt-pending')
+      .map(({ attemptId }) => attemptId)
+    revocationId = createMigrationApprovalCleanupJournalId()
+  } catch {
+    // Cleanup must remain possible when the existing record is corrupt or
+    // storage is unavailable. The on-chain false write is still safe.
+  }
+
+  return {
+    ...(revocationId === undefined ? {} : { revocationId }),
+    attemptIds,
+    onSubmitted: (hash) => {
+      try {
+        if (revocationId !== undefined) {
+          recordMigrationApprovalCleanupRevocationHash(
+            scope,
+            revocationId,
+            attemptIds,
+            hash,
+          )
+        }
+      } catch {
+        // Once broadcast, continue tracking the receipt. The durable grant
+        // marker (when available) remains until chain verification.
+      }
+    },
+    clearSubmittedRevocation: () => {
+      if (revocationId === undefined) return
+      try {
+        recordMigrationApprovalCleanupRevocationFailed(scope, revocationId)
+      } catch {
+        // Retaining the marker is fail-safe and keeps recovery available.
+      }
+    },
+    confirmVerifiedRevocation: () => {
+      if (revocationId === undefined) return
+      try {
+        recordMigrationApprovalCleanupRevocationConfirmed(
+          scope,
+          revocationId,
+          attemptIds,
+        )
+      } catch {
+        // The confirmed on-chain revocation is the security boundary; stale
+        // local evidence can only cause another harmless cleanup offer.
+      }
+    },
+  }
+}
+
+const readCleanupStatus = async (params: {
+  readonly ctx: MigrationCtx
+  readonly scope: MigrationApprovalCleanupJournalScope
+}) => {
+  try {
+    return await readMigrationApprovalCleanupStatus({
       eoa: params.ctx.walletAddress,
       hcaAddress: params.ctx.hcaAddress,
-      chainId: cleanupScope.chainId,
+      chainId: params.scope.chainId,
       publicClient: params.ctx.publicClient,
     })
   } catch (cause) {
@@ -653,8 +794,82 @@ const revokeTemporaryOperatorApprovals = async (params: {
       cause,
     })
   }
+}
 
-  if (status.pendingRevocationHash) {
+const revokeTemporaryOperatorApproval = async (params: {
+  readonly ctx: MigrationCtx
+  readonly scope: MigrationApprovalCleanupJournalScope
+  readonly approval: MigrationCleanupApproval
+}): Promise<Hex> => {
+  const description = cleanupDescription(params.approval)
+  const journal = createCleanupRevocationJournal(params.scope)
+  try {
+    const { hash, receipt } = await submitCall(
+      params.ctx,
+      buildMigrationOperatorApprovalRevocationCall(params.approval),
+      description,
+      journal.onSubmitted,
+    )
+
+    // A wallet can replace a revocation with a successful cancellation
+    // transaction. The receipt alone therefore cannot discharge the debt;
+    // verify the registry state at that exact confirmed block.
+    const stillGranted = await getGrantedMigrationCleanupApprovals({
+      eoa: params.ctx.walletAddress,
+      hcaAddress: params.ctx.hcaAddress,
+      publicClient: params.ctx.publicClient,
+      blockNumber: receipt.blockNumber,
+    })
+    if (stillGranted.length > 0) {
+      journal.clearSubmittedRevocation()
+      throw new Error(
+        `Temporary migration access remains active after transaction ${hash}`,
+      )
+    }
+
+    if (journal.revocationId) {
+      const coverage = await verifyMigrationApprovalCleanupCoverage({
+        scope: params.scope,
+        attemptIds: journal.attemptIds,
+        revocationHash: hash,
+        receiptBlockNumber: receipt.blockNumber,
+        publicClient: params.ctx.publicClient,
+      })
+      if (coverage !== 'covered') {
+        if (coverage === 'not-covered') journal.clearSubmittedRevocation()
+        throw new Error(
+          coverage === 'unknown'
+            ? 'Could not verify cleanup ordering against every submitted approval'
+            : 'A submitted approval may execute after this cleanup transaction',
+        )
+      }
+    }
+
+    journal.confirmVerifiedRevocation()
+    params.ctx.tracker.next()
+    params.ctx.tracker.emit('Temporary access removed', hash)
+    return hash
+  } catch (cause) {
+    throw new MigrationCleanupError({
+      message:
+        'Your names were upgraded, but temporary migration access still needs to be revoked.',
+      cause,
+    })
+  }
+}
+
+const revokeTemporaryOperatorApprovals = async (params: {
+  readonly ctx: MigrationCtx
+  readonly forcedApprovals?: readonly MigrationCleanupApproval[]
+  readonly retryPendingRevocation?: boolean
+}): Promise<readonly Hex[]> => {
+  const cleanupScope = batchJournalScope(params.ctx)
+  const status = await readCleanupStatus({
+    ctx: params.ctx,
+    scope: cleanupScope,
+  })
+
+  if (status.pendingRevocationHash && !params.retryPendingRevocation) {
     throw new MigrationCleanupError({
       message:
         'Temporary migration access is still being revoked. Wait for the pending transaction to confirm.',
@@ -668,58 +883,16 @@ const revokeTemporaryOperatorApprovals = async (params: {
   // cleanup evidence. The durable/current-run paths deliberately revoke even
   // when `latest` reports false because the grant may be pending at an earlier
   // EOA nonce.
-  const temporaryOperators =
+  const shouldRevoke =
     status.approvals.length > 0 || (params.forcedApprovals?.length ?? 0) > 0
-      ? [migrationCleanupApprovalFor(params.ctx.hcaAddress)]
-      : []
-  const hashes: Hex[] = []
+  if (!shouldRevoke) return []
 
-  for (const approval of temporaryOperators) {
-    const description = cleanupDescription(approval)
-    try {
-      try {
-        // Historical live grants predate the journal. Recording before the
-        // wallet prompt gives their revocation the same reload protection.
-        recordMigrationApprovalCleanupRequired(cleanupScope)
-      } catch {
-        // Cleanup must remain possible when the existing record is corrupt or
-        // storage is unavailable. The on-chain false write is still safe.
-      }
-      const { hash } = await submitCall(
-        params.ctx,
-        buildMigrationOperatorApprovalRevocationCall(approval),
-        description,
-        (submittedHash) => {
-          try {
-            recordMigrationApprovalCleanupRevocationHash(
-              cleanupScope,
-              submittedHash,
-            )
-          } catch {
-            // Once broadcast, continue tracking the receipt. The durable grant
-            // marker (when available) remains until confirmation.
-          }
-        },
-      )
-      try {
-        removeMigrationApprovalCleanupObligation(cleanupScope)
-      } catch {
-        // The confirmed on-chain revocation is the security boundary; stale
-        // local evidence can only cause another harmless cleanup offer.
-      }
-      hashes.push(hash)
-      params.ctx.tracker.next()
-      params.ctx.tracker.emit('Temporary access removed', hash)
-    } catch (cause) {
-      throw new MigrationCleanupError({
-        message:
-          'Your names were upgraded, but temporary migration access still needs to be revoked.',
-        cause,
-      })
-    }
-  }
-
-  return hashes
+  const hash = await revokeTemporaryOperatorApproval({
+    ctx: params.ctx,
+    scope: cleanupScope,
+    approval: migrationCleanupApprovalFor(params.ctx.hcaAddress),
+  })
+  return [hash]
 }
 
 /**
@@ -731,9 +904,11 @@ const revokeTemporaryOperatorApprovals = async (params: {
 const completeEmptyMigrationRun = async (params: {
   readonly ctx: MigrationCtx
   readonly ineligible: readonly IneligibleName[]
+  readonly forcedApprovals: readonly MigrationCleanupApproval[]
 }): Promise<MigrationResult> => {
   const cleanupHashes = await revokeTemporaryOperatorApprovals({
     ctx: params.ctx,
+    forcedApprovals: params.forcedApprovals,
   })
   if (cleanupHashes.length > 0) {
     params.ctx.tracker.complete(
@@ -767,7 +942,10 @@ export const revokeStandingTemporaryHcaAccess = async (params: {
     hcaAddress: params.hcaAddress,
     tracker: createTracker(params.onProgress ?? (() => undefined), 1),
   }
-  return revokeTemporaryOperatorApprovals({ ctx })
+  return revokeTemporaryOperatorApprovals({
+    ctx,
+    retryPendingRevocation: true,
+  })
 }
 
 const removeNames = <T extends { readonly domain: { readonly name: string } }>(
@@ -1723,13 +1901,17 @@ export const executeMigration = async (params: {
     hcaAddress: plan.hcaAddress,
     tracker: createTracker(onProgress, plan.stepDescriptors.length),
   }
+  const attemptedCleanupApprovals = [...knownStandingCleanupApprovals(plan)]
 
   if (classified.length === 0 && !reconcileBeforeSubmit) {
-    return completeEmptyMigrationRun({ ctx, ineligible })
+    return completeEmptyMigrationRun({
+      ctx,
+      ineligible,
+      forcedApprovals: attemptedCleanupApprovals,
+    })
   }
 
   const txHashes: Hex[] = []
-  const attemptedCleanupApprovals: MigrationCleanupApproval[] = []
 
   try {
     const executionPlan = await prepareExecutionPlan({
@@ -1739,6 +1921,10 @@ export const executeMigration = async (params: {
       ctx,
       onBatchComplete,
     })
+    addUniqueCleanupApprovals(
+      attemptedCleanupApprovals,
+      knownStandingCleanupApprovals(executionPlan),
+    )
 
     if (executionPlan.classified.length > 0) {
       // Permission state is mutable outside this flow. Check the preview
@@ -1802,6 +1988,7 @@ export const executeMigration = async (params: {
         ...(await revokeTemporaryOperatorApprovals({
           ctx,
           forcedApprovals: attemptedCleanupApprovals,
+          retryPendingRevocation: reconcileBeforeSubmit,
         })),
       )
     } catch {
@@ -1814,6 +2001,7 @@ export const executeMigration = async (params: {
     ...(await revokeTemporaryOperatorApprovals({
       ctx,
       forcedApprovals: attemptedCleanupApprovals,
+      retryPendingRevocation: reconcileBeforeSubmit,
     })),
   )
   ctx.tracker.complete('Migration complete', txHashes.at(-1))

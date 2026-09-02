@@ -104,6 +104,8 @@ export const getGrantedMigrationCleanupApprovals = async (params: {
   readonly eoa: Address
   readonly hcaAddress: Address
   readonly publicClient: Pick<PublicClient, 'readContract'>
+  /** Read at a confirmed cleanup receipt block when verifying revocation. */
+  readonly blockNumber?: bigint
 }): Promise<readonly MigrationCleanupApproval[]> => {
   const candidates = [migrationCleanupApprovalFor(params.hcaAddress)]
   const grantedFlags = await Promise.all(
@@ -113,6 +115,9 @@ export const getGrantedMigrationCleanupApprovals = async (params: {
         abi: OPERATOR_APPROVAL_ABI,
         functionName: 'isApprovedForAll',
         args: [params.eoa, approval.operatorAddress],
+        ...(params.blockNumber === undefined
+          ? {}
+          : { blockNumber: params.blockNumber }),
       }),
     ),
   )

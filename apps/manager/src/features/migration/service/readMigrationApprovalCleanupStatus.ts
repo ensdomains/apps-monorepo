@@ -1,11 +1,12 @@
 import type { Address, Hex, PublicClient } from 'viem'
 import {
-  clearMigrationApprovalCleanupRevocationHash,
-  loadMigrationApprovalCleanupObligation,
+  loadMigrationApprovalCleanupAttempt,
+  loadMigrationApprovalCleanupJournal,
   MigrationApprovalCleanupJournalCorruptError,
   type MigrationApprovalCleanupJournalScope,
   MigrationApprovalCleanupJournalUnavailableError,
-  removeMigrationApprovalCleanupObligation,
+  recordMigrationApprovalCleanupRevocationConfirmed,
+  recordMigrationApprovalCleanupRevocationFailed,
 } from './migrationApprovalCleanupJournal'
 import {
   getGrantedMigrationCleanupApprovals,
@@ -16,105 +17,220 @@ import {
 export type MigrationApprovalCleanupStatus = {
   readonly approvals: readonly MigrationCleanupApproval[]
   readonly pendingRevocationHash?: Hex
+  readonly hasPendingPrompt?: boolean
 }
 
 type CleanupReadClient = Pick<
   PublicClient,
-  'getTransactionReceipt' | 'readContract'
+  'getTransaction' | 'getTransactionReceipt' | 'readContract'
 >
+type CleanupTransaction = Awaited<
+  ReturnType<CleanupReadClient['getTransaction']>
+>
+
+export type MigrationApprovalCleanupCoverage =
+  | 'covered'
+  | 'not-covered'
+  | 'unknown'
 
 type DurableCleanupEvidence = {
   readonly exists: boolean
+  readonly hasPendingPrompt: boolean
   readonly pendingRevocationHash?: Hex
 }
 
-const tryClearRevocationHash = (
-  scope: MigrationApprovalCleanupJournalScope,
-): void => {
+const addressesEqual = (first: Address, second: Address): boolean =>
+  first.toLowerCase() === second.toLowerCase()
+
+const readCleanupTransaction = async (params: {
+  readonly publicClient: Pick<PublicClient, 'getTransaction'>
+  readonly hash: Hex
+}): Promise<CleanupTransaction | null> => {
   try {
-    clearMigrationApprovalCleanupRevocationHash(scope)
+    return await params.publicClient.getTransaction({ hash: params.hash })
   } catch {
-    // Chain state remains authoritative. A later read can retry journal repair.
+    return null
   }
 }
 
-const tryRemoveObligation = (
-  scope: MigrationApprovalCleanupJournalScope,
-): void => {
-  try {
-    removeMigrationApprovalCleanupObligation(scope)
-  } catch {
-    // The confirmed revocation made the account safe even if storage cleanup
-    // is unavailable. A later read can retry removing the stale marker.
+const verifySubmittedGrantCoverage = async (params: {
+  readonly scope: MigrationApprovalCleanupJournalScope
+  readonly grantHash: Hex
+  readonly receiptBlockNumber: bigint
+  readonly publicClient: Pick<PublicClient, 'getTransaction'>
+  readonly getCleanupTransaction: () => Promise<CleanupTransaction | null>
+}): Promise<MigrationApprovalCleanupCoverage> => {
+  const grantTransaction = await readCleanupTransaction({
+    publicClient: params.publicClient,
+    hash: params.grantHash,
+  })
+  if (!grantTransaction) return 'unknown'
+  if (!addressesEqual(grantTransaction.from, params.scope.owner)) {
+    return 'not-covered'
+  }
+  if (grantTransaction.blockNumber != null) {
+    return grantTransaction.blockNumber <= params.receiptBlockNumber
+      ? 'covered'
+      : 'not-covered'
+  }
+
+  const cleanupTransaction = await params.getCleanupTransaction()
+  if (!cleanupTransaction) return 'unknown'
+  if (
+    cleanupTransaction.blockNumber !== params.receiptBlockNumber ||
+    !addressesEqual(cleanupTransaction.from, params.scope.owner) ||
+    grantTransaction.nonce > cleanupTransaction.nonce
+  ) {
+    return 'not-covered'
+  }
+  return 'covered'
+}
+
+/**
+ * Proves that a confirmed false-state observation is causally after every
+ * submitted grant it is about to discharge. A receipt block alone is not
+ * enough: another wallet/RPC can queue the grant at a higher EOA nonce and
+ * mine the cleanup first.
+ */
+export const verifyMigrationApprovalCleanupCoverage = async (params: {
+  readonly scope: MigrationApprovalCleanupJournalScope
+  readonly attemptIds: readonly string[]
+  readonly revocationHash: Hex
+  readonly receiptBlockNumber: bigint
+  readonly publicClient: Pick<PublicClient, 'getTransaction'>
+}): Promise<MigrationApprovalCleanupCoverage> => {
+  let cleanupTransactionPromise: Promise<CleanupTransaction | null> | undefined
+  const getCleanupTransaction = () => {
+    cleanupTransactionPromise ??= readCleanupTransaction({
+      publicClient: params.publicClient,
+      hash: params.revocationHash,
+    })
+    return cleanupTransactionPromise
+  }
+
+  for (const attemptId of params.attemptIds) {
+    const obligation = loadMigrationApprovalCleanupAttempt(
+      params.scope,
+      attemptId,
+    )
+    // Revocations capture exact immutable v2/shadow attempt IDs. Absence can
+    // be a racing storage read, never proof that this cleanup covered it.
+    if (!obligation) return 'unknown'
+    if (obligation.state === 'historical') continue
+    if (obligation.state !== 'grant-submitted' || !obligation.grantHash) {
+      return 'not-covered'
+    }
+
+    const coverage = await verifySubmittedGrantCoverage({
+      scope: params.scope,
+      grantHash: obligation.grantHash,
+      receiptBlockNumber: params.receiptBlockNumber,
+      publicClient: params.publicClient,
+      getCleanupTransaction,
+    })
+    if (coverage !== 'covered') return coverage
+  }
+
+  return 'covered'
+}
+
+const reconcilePendingRevocations = async (params: {
+  readonly eoa: Address
+  readonly hcaAddress: Address
+  readonly publicClient: CleanupReadClient
+  readonly scope: MigrationApprovalCleanupJournalScope
+}): Promise<void> => {
+  const snapshot = loadMigrationApprovalCleanupJournal(params.scope)
+  for (const revocation of snapshot.pendingRevocations) {
+    try {
+      const receipt = await params.publicClient.getTransactionReceipt({
+        hash: revocation.hash,
+      })
+      if (receipt.status !== 'success') {
+        recordMigrationApprovalCleanupRevocationFailed(
+          params.scope,
+          revocation.revocationId,
+        )
+        continue
+      }
+
+      const granted = await getGrantedMigrationCleanupApprovals({
+        eoa: params.eoa,
+        hcaAddress: params.hcaAddress,
+        publicClient: params.publicClient,
+        blockNumber: receipt.blockNumber,
+      })
+      if (granted.length > 0) {
+        recordMigrationApprovalCleanupRevocationFailed(
+          params.scope,
+          revocation.revocationId,
+        )
+        continue
+      }
+      const coverage = await verifyMigrationApprovalCleanupCoverage({
+        scope: params.scope,
+        attemptIds: revocation.attemptIds,
+        revocationHash: revocation.hash,
+        receiptBlockNumber: receipt.blockNumber,
+        publicClient: params.publicClient,
+      })
+      if (coverage !== 'covered') {
+        if (coverage === 'not-covered') {
+          recordMigrationApprovalCleanupRevocationFailed(
+            params.scope,
+            revocation.revocationId,
+          )
+        }
+        continue
+      }
+      recordMigrationApprovalCleanupRevocationConfirmed(
+        params.scope,
+        revocation.revocationId,
+        revocation.attemptIds,
+      )
+    } catch {
+      // Receipt/state uncertainty keeps this exact revocation pending. The
+      // recovery action remains retryable with a new idempotent false write.
+    }
   }
 }
 
-const readDurableCleanupEvidence = (
-  scope: MigrationApprovalCleanupJournalScope,
-): DurableCleanupEvidence => {
+const readDurableCleanupEvidence = async (params: {
+  readonly eoa: Address
+  readonly hcaAddress: Address
+  readonly publicClient: CleanupReadClient
+  readonly scope: MigrationApprovalCleanupJournalScope
+}): Promise<DurableCleanupEvidence> => {
   try {
-    const obligation = loadMigrationApprovalCleanupObligation(scope)
+    await reconcilePendingRevocations(params)
+    const snapshot = loadMigrationApprovalCleanupJournal(params.scope)
     return {
-      exists: obligation !== null,
-      ...(obligation?.revocationHash
-        ? { pendingRevocationHash: obligation.revocationHash }
+      exists: snapshot.obligations.length > 0,
+      hasPendingPrompt: snapshot.obligations.some(
+        ({ state }) => state === 'prompt-pending',
+      ),
+      ...(snapshot.pendingRevocations[0]
+        ? { pendingRevocationHash: snapshot.pendingRevocations[0].hash }
         : {}),
     }
   } catch (cause) {
-    if (cause instanceof MigrationApprovalCleanupJournalCorruptError) {
-      // A scope-specific record exists but cannot be trusted. Fail safely by
-      // offering the one trusted, deployment-derived revocation target.
-      return { exists: true }
-    }
-    if (cause instanceof MigrationApprovalCleanupJournalUnavailableError) {
-      return { exists: false }
+    if (
+      cause instanceof MigrationApprovalCleanupJournalCorruptError ||
+      cause instanceof MigrationApprovalCleanupJournalUnavailableError
+    ) {
+      // Corruption/storage denial can occur after a grant was submitted. A
+      // false latest-state read cannot prove that earlier prompt cannot land.
+      return { exists: true, hasPendingPrompt: true }
     }
     throw cause
   }
 }
 
-const reconcilePendingRevocation = async (params: {
-  readonly eoa: Address
-  readonly hcaAddress: Address
-  readonly publicClient: CleanupReadClient
-  readonly scope: MigrationApprovalCleanupJournalScope
-  readonly hash: Hex
-}): Promise<MigrationApprovalCleanupStatus | null> => {
-  const fallbackApproval = migrationCleanupApprovalFor(params.hcaAddress)
-  try {
-    const receipt = await params.publicClient.getTransactionReceipt({
-      hash: params.hash,
-    })
-    if (receipt.status !== 'success') {
-      tryClearRevocationHash(params.scope)
-      return null
-    }
-
-    const granted = await getGrantedMigrationCleanupApprovals({
-      eoa: params.eoa,
-      hcaAddress: params.hcaAddress,
-      publicClient: params.publicClient,
-    })
-    if (granted.length > 0) {
-      tryClearRevocationHash(params.scope)
-      return { approvals: [fallbackApproval] }
-    }
-    tryRemoveObligation(params.scope)
-    return { approvals: [] }
-  } catch {
-    return {
-      approvals: [fallbackApproval],
-      pendingRevocationHash: params.hash,
-    }
-  }
-}
-
 /**
- * Combines current chain state with the durable cleanup obligation.
- *
- * The obligation deliberately wins over a `false` latest-state read: a grant
- * transaction may already have been submitted at the preceding EOA nonce but
- * not be visible to this RPC yet. A later revocation is safe and idempotent.
+ * Combines current chain state with per-attempt durable cleanup evidence.
+ * Prompt markers are deliberately non-dischargeable until their wallet call
+ * either rejects or returns a grant hash; a later confirmation can otherwise
+ * re-enable approval after an earlier false transaction.
  */
 export const readMigrationApprovalCleanupStatus = async (params: {
   readonly eoa: Address
@@ -128,18 +244,12 @@ export const readMigrationApprovalCleanupStatus = async (params: {
     hca: params.hcaAddress,
   }
   const fallbackApproval = migrationCleanupApprovalFor(params.hcaAddress)
-  const durableEvidence = readDurableCleanupEvidence(scope)
-
-  if (durableEvidence.pendingRevocationHash) {
-    const reconciled = await reconcilePendingRevocation({
-      eoa: params.eoa,
-      hcaAddress: params.hcaAddress,
-      publicClient: params.publicClient,
-      scope,
-      hash: durableEvidence.pendingRevocationHash,
-    })
-    if (reconciled) return reconciled
-  }
+  const durableEvidence = await readDurableCleanupEvidence({
+    eoa: params.eoa,
+    hcaAddress: params.hcaAddress,
+    publicClient: params.publicClient,
+    scope,
+  })
 
   try {
     const granted = await getGrantedMigrationCleanupApprovals({
@@ -150,9 +260,21 @@ export const readMigrationApprovalCleanupStatus = async (params: {
     return {
       approvals:
         granted.length > 0 || durableEvidence.exists ? [fallbackApproval] : [],
+      ...(durableEvidence.pendingRevocationHash
+        ? { pendingRevocationHash: durableEvidence.pendingRevocationHash }
+        : {}),
+      ...(durableEvidence.hasPendingPrompt ? { hasPendingPrompt: true } : {}),
     }
   } catch (cause) {
-    if (durableEvidence.exists) return { approvals: [fallbackApproval] }
+    if (durableEvidence.exists) {
+      return {
+        approvals: [fallbackApproval],
+        ...(durableEvidence.pendingRevocationHash
+          ? { pendingRevocationHash: durableEvidence.pendingRevocationHash }
+          : {}),
+        ...(durableEvidence.hasPendingPrompt ? { hasPendingPrompt: true } : {}),
+      }
+    }
     throw cause
   }
 }

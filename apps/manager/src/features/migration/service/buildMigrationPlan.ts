@@ -51,8 +51,10 @@ import {
 } from './directMigrationRoutes'
 import { resolverFor } from './encodeMigration'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
+import { approvalNeedsFor } from './migrationApprovalNeeds'
 import {
   getGrantedMigrationCleanupApprovals,
+  type MigrationApproval,
   migrationApprovalForId,
   migrationApprovalKey,
   requiresMigrationApprovalCleanup,
@@ -71,6 +73,7 @@ import {
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
 } from './migrationInvariants'
+import { readMigrationApprovalCleanupStatus } from './readMigrationApprovalCleanupStatus'
 import {
   getV1ProfileKeys,
   type V1Domain,
@@ -96,6 +99,32 @@ export type MigrationPlan = {
   readonly priorCompletedOperations?: readonly MigrationJournalOperation[]
   /** Reconcile durable intents/receipts and live V2 state before submitting. */
   readonly requiresReconciliation?: boolean
+}
+
+const filterApprovalsForRemainingNames = (params: {
+  readonly approvals: readonly MigrationApproval[]
+  readonly classified: readonly ClassifiedName[]
+  readonly groups: GroupedNames
+}): readonly MigrationApproval[] => {
+  const needs = approvalNeedsFor(params.groups)
+  const requiresManagerRestoration = params.classified.some(
+    ({ managerAddress }) => managerAddress !== null,
+  )
+  const unwrappedTokenIds = new Set(needs.unwrappedTokenIds)
+
+  return params.approvals.filter((approval) => {
+    switch (approval.id) {
+      case 'base-registrar:hca':
+        return needs.hasUnwrapped
+      case 'base-registrar:hca-token':
+        return unwrappedTokenIds.has(approval.tokenId)
+      case 'name-wrapper:hca':
+        return needs.hasWrapped
+      case 'eth-registry:hca':
+        return requiresManagerRestoration
+    }
+    return false
+  })
 }
 
 const fetchProfilesForNames = async (params: {
@@ -749,29 +778,52 @@ export const buildMigrationRecoveryPlan = async (params: {
   })
   signal?.throwIfAborted()
   const groups = groupClassifiedNames([...classified])
-  const plannedApprovals = snapshot.plannedApprovals.map((approval) =>
+  const snapshotApprovals = snapshot.plannedApprovals.map((approval) =>
     migrationApprovalForId({
       id: approval.id,
       hcaAddress,
       ...(approval.tokenId === undefined ? {} : { tokenId: approval.tokenId }),
     }),
   )
-  // A reload mid-migration usually happens after the temporary grant already
-  // landed, so the planned approvals alone under-count the owed revocations.
-  const grantedCleanups = await getGrantedMigrationCleanupApprovals({
-    eoa: migrationOwner,
-    hcaAddress,
-    publicClient,
+  const plannedApprovals = filterApprovalsForRemainingNames({
+    approvals: snapshotApprovals,
+    classified,
+    groups,
   })
+  // A reload mid-migration can happen after the temporary grant was submitted
+  // but before it is RPC-visible, so planned/live approvals alone under-count
+  // the owed revocations.
+  const requiredCleanups = publicClient.chain?.id
+    ? (
+        await readMigrationApprovalCleanupStatus({
+          eoa: migrationOwner,
+          hcaAddress,
+          chainId: publicClient.chain.id,
+          publicClient,
+        })
+      ).approvals
+    : await getGrantedMigrationCleanupApprovals({
+        eoa: migrationOwner,
+        hcaAddress,
+        publicClient,
+      })
   signal?.throwIfAborted()
+  const standingCleanupByKey = new Map(
+    [
+      ...snapshotApprovals.filter(requiresMigrationApprovalCleanup),
+      ...requiredCleanups,
+    ].map((approval) => [migrationApprovalKey(approval), approval]),
+  )
+  const standingMigrationApprovalCleanups = [...standingCleanupByKey.values()]
   const cleanupByKey = new Map(
     [
       ...plannedApprovals.filter(requiresMigrationApprovalCleanup),
-      ...grantedCleanups,
+      ...standingMigrationApprovalCleanups,
     ].map((approval) => [migrationApprovalKey(approval), approval]),
   )
   const migrationApprovalCleanups = [...cleanupByKey.values()]
-  const hcaDeploymentRequired = hcaReadiness.status === 'deployment-required'
+  const hcaDeploymentRequired =
+    classified.length > 0 && hcaReadiness.status === 'deployment-required'
   const stepDescriptors = buildStepDescriptors({
     hcaDeploymentRequired,
     approvals: plannedApprovals,
@@ -795,6 +847,7 @@ export const buildMigrationRecoveryPlan = async (params: {
       skipFetchProfilesPhase: true,
       migrationApprovals: plannedApprovals,
       migrationApprovalCleanups,
+      standingMigrationApprovalCleanups,
       hcaResolverReadiness: resolverReadiness,
       ...(expectedOwnedPermRes
         ? { hcaResolverAddress: expectedOwnedPermRes }
@@ -823,11 +876,38 @@ export const adjustPlanForRetry = (
   )
 
   if (remainingClassified.length === 0) {
+    const cleanupApprovals =
+      plan.preflight.migrationApprovalCleanups ??
+      (plan.preflight.migrationApprovals ?? []).filter(
+        requiresMigrationApprovalCleanup,
+      )
+    const standingCleanupByKey = new Map(
+      [
+        ...(plan.preflight.standingMigrationApprovalCleanups ?? []),
+        ...cleanupApprovals,
+      ].map((approval) => [migrationApprovalKey(approval), approval]),
+    )
+    const standingMigrationApprovalCleanups = [...standingCleanupByKey.values()]
+    const groups = groupClassifiedNames([])
     return {
       ...plan,
+      hcaDeploymentRequired: false,
       classified: [],
+      groups,
+      preflight: {
+        ...plan.preflight,
+        migrationApprovals: [],
+        migrationApprovalCleanups: cleanupApprovals,
+        standingMigrationApprovalCleanups,
+      },
       atomicBatches: [],
-      stepDescriptors: [],
+      stepDescriptors: buildStepDescriptors({
+        hcaDeploymentRequired: false,
+        approvals: [],
+        atomicBatches: [],
+        registrationApprovalTargets: [],
+        cleanupApprovals,
+      }),
     }
   }
 

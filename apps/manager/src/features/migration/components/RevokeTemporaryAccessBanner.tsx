@@ -1,16 +1,21 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import { Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { Address, PublicClient, WalletClient } from 'viem'
-import { useConfig, usePublicClient, useWalletClient } from 'wagmi'
+import {
+  useConfig,
+  useConnection,
+  usePublicClient,
+  useWalletClient,
+} from 'wagmi'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import {
   STANDING_MIGRATION_CLEANUP_QUERY_KEY,
   useStandingMigrationCleanup,
 } from '@/features/migration/hooks/useStandingMigrationCleanup'
+import { deriveMigrationCleanupHcaAddress } from '@/features/migration/service/deriveMigrationCleanupHcaAddress'
 import { revokeStandingTemporaryHcaAccess } from '@/features/migration/service/migrationService'
-import { useSmartAccountContext } from '@/lib/smart-account'
 import { hasOwnerWallet } from '@/lib/wallet/hasOwnerWallet'
 
 /**
@@ -28,16 +33,20 @@ export const RevokeTemporaryAccessBanner = ({
 }: {
   readonly className?: string
 }) => {
-  const {
-    ownerAddress,
-    accountAddress: hcaAddress,
-    isConnected,
-  } = useSmartAccountContext()
+  const { address: ownerAddress, isConnected } = useConnection()
   const wagmiConfig = useConfig()
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
   const queryClient = useQueryClient()
   const [status, setStatus] = useState<'idle' | 'pending' | 'error'>('idle')
+  const hcaAddress = useMemo(
+    () =>
+      deriveMigrationCleanupHcaAddress({
+        chainId: publicClient?.chain?.id,
+        ownerAddress: ownerAddress as Address | undefined,
+      }),
+    [ownerAddress, publicClient?.chain?.id],
+  )
 
   const cleanupQuery = useStandingMigrationCleanup({
     ownerAddress: ownerAddress as Address | undefined,
@@ -46,6 +55,7 @@ export const RevokeTemporaryAccessBanner = ({
   })
   const standingApprovals = cleanupQuery.data?.approvals ?? []
   const isRevocationPending = Boolean(cleanupQuery.data?.pendingRevocationHash)
+  const hasPendingPrompt = Boolean(cleanupQuery.data?.hasPendingPrompt)
 
   const handleRevoke = useCallback(async () => {
     if (
@@ -68,22 +78,11 @@ export const RevokeTemporaryAccessBanner = ({
         walletAddress: ownerAddress as Address,
         hcaAddress: hcaAddress as Address,
       })
-      queryClient.setQueriesData(
-        {
-          queryKey: [
-            STANDING_MIGRATION_CLEANUP_QUERY_KEY,
-            publicClient.chain?.id ?? 0,
-            ownerAddress.toLowerCase(),
-            hcaAddress.toLowerCase(),
-          ],
-        },
-        { approvals: [] },
-      )
       setStatus('idle')
     } catch {
       setStatus('error')
     } finally {
-      queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: [STANDING_MIGRATION_CLEANUP_QUERY_KEY],
       })
     }
@@ -109,14 +108,20 @@ export const RevokeTemporaryAccessBanner = ({
             <Trans>Finish securing your account</Trans>
           </h2>
           <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
-            {isRevocationPending ? (
+            {hasPendingPrompt ? (
               <Trans>
-                Your revocation is pending. This notice will disappear after it
-                is confirmed.
+                An earlier approval request may still be open in your wallet.
+                Reject or close it before revoking. After a page reload, this
+                warning may remain as a precaution.
+              </Trans>
+            ) : isRevocationPending ? (
+              <Trans>
+                Your revocation is pending. If it is taking too long, you can
+                safely retry.
               </Trans>
             ) : (
               <Trans>
-                An earlier upgrade left temporary access to your names active.
+                An earlier upgrade may have left temporary access to your names.
                 Revoking it takes one wallet confirmation.
               </Trans>
             )}
@@ -131,14 +136,17 @@ export const RevokeTemporaryAccessBanner = ({
           className="w-full shrink-0 rounded-sm bg-ens-garnet-900 px-4 py-3.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[0.24px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-60 md:w-[338px]"
           disabled={
             status === 'pending' ||
-            isRevocationPending ||
             !hasOwnerWallet(walletClient, ownerAddress as Address | undefined)
           }
           onClick={handleRevoke}
           type="button"
         >
-          {status === 'pending' || isRevocationPending ? (
+          {status === 'pending' ? (
             <Trans>Revoking temporary access…</Trans>
+          ) : hasPendingPrompt ? (
+            <Trans>Revoke current access</Trans>
+          ) : isRevocationPending ? (
+            <Trans>Retry revocation</Trans>
           ) : (
             <Trans>Revoke temporary HCA access</Trans>
           )}

@@ -31,6 +31,7 @@ import {
   type MigrationHcaReadiness,
   type MigrationResolverReadiness,
 } from '@/features/migration/service/migrationInvariants'
+import { readMigrationApprovalCleanupStatus } from '@/features/migration/service/readMigrationApprovalCleanupStatus'
 import type {
   V1Domain,
   V1ProfileKeys,
@@ -47,10 +48,15 @@ export type MigrationPreflight = {
   /**
    * Temporary HCA grants owed a revocation at the end of this run: grants
    * planned above plus standing grants left by an interrupted earlier
-   * session. Execution re-derives the final set from live chain state; this
-   * list keeps the step preview and gas estimate honest.
+   * session. Durable obligations cover grants that were submitted but are not
+   * visible at the RPC head yet, keeping the step preview and estimate honest.
    */
   migrationApprovalCleanups?: readonly MigrationCleanupApproval[]
+  /**
+   * Cleanup evidence observed before this run, kept separate from newly
+   * planned grants so inconsistent/stale RPC snapshots cannot erase it.
+   */
+  standingMigrationApprovalCleanups?: readonly MigrationCleanupApproval[]
   /** Deterministic HCA resolver, including deploy/role readiness. */
   hcaResolverReadiness?: MigrationResolverReadiness
   hcaResolverAddress?: Address
@@ -104,6 +110,7 @@ const computeApprovalPreflight = async (params: {
 }): Promise<{
   readonly migrationApprovals?: readonly MigrationApproval[]
   readonly migrationApprovalCleanups?: readonly MigrationCleanupApproval[]
+  readonly standingMigrationApprovalCleanups?: readonly MigrationCleanupApproval[]
 }> => {
   const {
     eoa,
@@ -115,7 +122,19 @@ const computeApprovalPreflight = async (params: {
   } = params
   if (!hcaAddress) return {}
 
-  const [hcaApprovalStatus, grantedCleanups] = await Promise.all([
+  const cleanupApprovalsPromise = publicClient.chain?.id
+    ? readMigrationApprovalCleanupStatus({
+        eoa,
+        hcaAddress,
+        chainId: publicClient.chain.id,
+        publicClient,
+      }).then(({ approvals }) => approvals)
+    : getGrantedMigrationCleanupApprovals({
+        eoa,
+        hcaAddress,
+        publicClient,
+      })
+  const [hcaApprovalStatus, requiredCleanups] = await Promise.all([
     checkMigrationApprovals({
       eoa,
       hcaAddress,
@@ -123,8 +142,8 @@ const computeApprovalPreflight = async (params: {
       wagmiConfig,
     }),
     // Read unconditionally: an interrupted earlier session may have left a
-    // temporary grant standing even when this run does not need it.
-    getGrantedMigrationCleanupApprovals({ eoa, hcaAddress, publicClient }),
+    // live or pending temporary grant even when this run does not need it.
+    cleanupApprovalsPromise,
   ])
   const migrationApprovals = planMigrationApprovals({
     hcaAddress,
@@ -134,12 +153,13 @@ const computeApprovalPreflight = async (params: {
   const cleanupByKey = new Map(
     [
       ...migrationApprovals.filter(requiresMigrationApprovalCleanup),
-      ...grantedCleanups,
+      ...requiredCleanups,
     ].map((approval) => [migrationApprovalKey(approval), approval]),
   )
   return {
     migrationApprovals,
     migrationApprovalCleanups: [...cleanupByKey.values()],
+    standingMigrationApprovalCleanups: requiredCleanups,
   }
 }
 
