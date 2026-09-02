@@ -32,7 +32,7 @@ export const getOwnResolverQueryOptions = ({
   registryAddress: Address
 }) =>
   queryOptions({
-    queryKey: ['transfer-own-resolver', registryAddress, label] as const,
+    queryKey: ['transfer-own-resolver', registryAddress, label],
     queryFn: async (): Promise<Address | null> => {
       const clientResult = safeGetClient()
       if (clientResult.isErr()) throw clientResult.error

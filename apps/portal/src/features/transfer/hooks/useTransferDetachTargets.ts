@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { type Address, zeroAddress } from 'viem'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
@@ -67,25 +67,28 @@ export const useTransferDetachTargets = ({
     label = getLabel(name)
   } catch {}
 
-  const ownResolverQuery = useQuery({
-    ...getOwnResolverQueryOptions({
-      label: label ?? '',
-      registryAddress,
-    }),
-    enabled: label !== null,
-  })
-
-  const registriesQuery = useQuery(getNameRegistriesQueryOptions({ name }))
-  const ethAddressQuery = useQuery(getEthAddressQueryOptions(name))
-
-  const rolesQuery = useQuery({
-    ...getNameRolesForAccountQueryOptions({
-      registryAddress,
-      label: label ?? '',
-      account: owner,
-    }),
-    enabled: label !== null,
-  })
+  const [ownResolverQuery, registriesQuery, ethAddressQuery, rolesQuery] =
+    useQueries({
+      queries: [
+        {
+          ...getOwnResolverQueryOptions({
+            label: label ?? '',
+            registryAddress,
+          }),
+          enabled: label !== null,
+        },
+        getNameRegistriesQueryOptions({ name }),
+        getEthAddressQueryOptions(name),
+        {
+          ...getNameRolesForAccountQueryOptions({
+            registryAddress,
+            label: label ?? '',
+            account: owner,
+          }),
+          enabled: label !== null,
+        },
+      ],
+    })
 
   const subregistryAddress = registriesQuery.data?.[0]
   const hasOwnResolver = !!ownResolverQuery.data

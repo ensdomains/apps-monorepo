@@ -12,7 +12,7 @@ import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { SendNameForm } from '@/features/transfer/components/SendNameForm'
 import { useCanTransferName } from '@/features/transfer/hooks/useCanTransferName'
-import { useSubnameExpiry } from '@/features/transfer/hooks/useSubnameExpiry'
+import { getSubnameExpiryQueryOptions } from '@/features/transfer/queries/getSubnameExpiry'
 import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 
 export const Route = createFileRoute('/$name/ownership/transfer')({
@@ -135,15 +135,20 @@ function AuthorizedTransfer({
     account: owner,
   })
 
-  const expiry = useSubnameExpiry({
-    name,
-    registryAddress,
+  const expiryQuery = useQuery({
+    ...getSubnameExpiryQueryOptions({ name, registryAddress }),
     enabled: isSubname,
   })
 
-  if (isLoading || expiry.isLoading) return <LoadingMessage />
+  // A zero expiry is the registry saying it has no expiry for this label — a
+  // non-expiring subname — not "expired at the epoch".
+  const isExpired =
+    !!expiryQuery.data &&
+    expiryQuery.data <= BigInt(Math.floor(Date.now() / 1000))
 
-  if (expiry.isError)
+  if (isLoading || expiryQuery.isLoading) return <LoadingMessage />
+
+  if (expiryQuery.isError)
     return (
       <MessageCard
         icon={<AlertTriangle className="size-8" />}
@@ -157,7 +162,7 @@ function AuthorizedTransfer({
       />
     )
 
-  if (expiry.isExpired)
+  if (isExpired)
     return (
       <MessageCard
         icon={<AlertTriangle className="size-8" />}

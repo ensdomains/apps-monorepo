@@ -92,7 +92,7 @@ export const useTransferName = ({
     // The parent's subname table lists this name's owner, so it goes stale too.
     // Only relevant below the TLD — a 2LD's "parent" is `eth`, which has no
     // subname listing of its own in the app.
-    const parentName = getParentName(name)
+    const parentName = is2LD(name) ? null : getParentName(name)
     const invalidate = () =>
       Promise.all([
         queryClient.invalidateQueries({
@@ -104,7 +104,7 @@ export const useTransferName = ({
         queryClient.invalidateQueries({
           queryKey: getEthAddressQueryOptions(name).queryKey,
         }),
-        ...(parentName && !is2LD(name)
+        ...(parentName
           ? [
               queryClient.invalidateQueries({
                 queryKey: getSubnamesQueryOptions({

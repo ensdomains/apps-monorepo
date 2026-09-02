@@ -45,20 +45,25 @@ vi.mock('@tanstack/react-query', async () => {
   )
   return {
     ...actual,
-    useQuery: (options: { queryKey: readonly unknown[] }) => {
-      switch (options.queryKey[0]) {
-        case 'transfer-own-resolver':
-          return ownResolverQuery
-        case 'nameRegistries':
-          return registriesQuery
-        case 'transfer-eth-address':
-          return ethAddressQuery
-        case 'getNameRolesForAccount':
-          return rolesQuery
-        default:
-          return { data: undefined, isSuccess: false, isError: false }
-      }
-    },
+    useQueries: ({
+      queries,
+    }: {
+      queries: { queryKey: readonly unknown[] }[]
+    }) =>
+      queries.map(({ queryKey }) => {
+        switch (queryKey[0]) {
+          case 'transfer-own-resolver':
+            return ownResolverQuery
+          case 'nameRegistries':
+            return registriesQuery
+          case 'transfer-eth-address':
+            return ethAddressQuery
+          case 'getNameRolesForAccount':
+            return rolesQuery
+          default:
+            return { data: undefined, isSuccess: false, isError: false }
+        }
+      }),
   }
 })
 
