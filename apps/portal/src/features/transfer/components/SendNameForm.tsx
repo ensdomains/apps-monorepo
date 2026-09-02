@@ -14,6 +14,8 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
+import type { ParentAuthority } from '../hooks/useParentAuthority'
+import { useParentAuthority } from '../hooks/useParentAuthority'
 import { useTransferDetachTargets } from '../hooks/useTransferDetachTargets'
 import { useTransferName } from '../hooks/useTransferName'
 import type { TransferOptions } from '../utils/buildTransferPlan'
@@ -61,6 +63,96 @@ const OPTIONS: readonly OptionConfig[] = [
   },
 ]
 
+/**
+ * What the parent owner can still do to this subname, stated only where the
+ * registry says they can do it.
+ *
+ * The powers are three separate role checks (see `useParentAuthority`), and each
+ * sentence is gated on its own. The important one is `canReclaimNow`: the old
+ * copy here said the parent could re-issue the name "once it expires", but
+ * `unregister()` reverts *if* the name is expired — it is the live-name path, so
+ * a parent holding that role takes the name back whenever they like, and waiting
+ * out an expiry is not the sender's protection.
+ *
+ * Renders nothing when the parent holds none of them: a subname issued from a
+ * registry its parent no longer controls transfers as finally as a 2LD, and
+ * warning about it would be false.
+ */
+const ParentAuthorityAlert = ({
+  parentName,
+  authority,
+}: {
+  readonly parentName: string
+  readonly authority: ParentAuthority
+}) => {
+  const {
+    parentIsSelf,
+    canReclaimNow,
+    canReissueAfterExpiry,
+    canRepointRegistry,
+    hasAnyAuthority,
+    isLoading,
+    isError,
+  } = authority
+
+  // Nothing is claimed until the reads land: an alert that appears and then
+  // rewrites itself is worse than one that arrives a beat late.
+  if (isLoading) return null
+
+  const parent = <span className="font-medium inline-block">{parentName}</span>
+
+  // Unknown, not absent — the reads failed, so the powers stay unlisted and the
+  // sender is told the check itself didn't complete.
+  if (isError)
+    return (
+      <Alert variant="warning">
+        <AlertTriangle className="size-4" />
+        <AlertDescription>
+          <p>
+            This is a subname of {parent}. We couldn't check what its owner can
+            still do to it, so treat this transfer as reversible by them: a
+            parent can hold roles that let them reclaim or re-issue a subname.
+          </p>
+        </AlertDescription>
+      </Alert>
+    )
+
+  if (!hasAnyAuthority) return null
+
+  const powers = [
+    canReclaimNow &&
+      'take it back at any time, without waiting for it to expire',
+    canReissueAfterExpiry && 'issue it to someone else once it expires',
+    canRepointRegistry &&
+      'point ' +
+        parentName +
+        ' at a different registry, which stops this name resolving whoever owns it',
+  ].filter((power): power is string => typeof power === 'string')
+
+  return (
+    <Alert variant="warning">
+      <AlertTriangle className="size-4" />
+      <AlertDescription>
+        <p>
+          This is a subname of {parent}, and its owner{' '}
+          {parentIsSelf ? '(you) ' : ''}keeps authority over it — they can{' '}
+          {powers.length === 1 ? (
+            powers[0]
+          ) : (
+            <>
+              {powers.slice(0, -1).join('; ')}; and {powers.at(-1)}
+            </>
+          )}
+          .{' '}
+          {parentIsSelf
+            ? `This transfer isn't final the way transferring ${parentName} itself would be.`
+            : `Transferring it doesn't give the recipient what owning ${parentName} would.`}
+        </p>
+      </AlertDescription>
+    </Alert>
+  )
+}
+
 export const SendNameForm = ({
   name,
   registryAddress,
@@ -82,6 +174,13 @@ export const SendNameForm = ({
     settled: detachTargetsSettled,
     failed: detachTargetsFailed,
   } = useTransferDetachTargets({ name, registryAddress, owner })
+
+  const parentAuthority = useParentAuthority({
+    name,
+    parentName,
+    registryAddress,
+    owner,
+  })
 
   const resolution = useAddressResolution(recipientInput)
   const { address: recipient, isResolving } = resolution
@@ -124,17 +223,10 @@ export const SendNameForm = ({
       </Alert>
 
       {parentName && (
-        <Alert variant="warning">
-          <AlertTriangle className="size-4" />
-          <AlertDescription>
-            This is a subname of{' '}
-            <span className="font-medium">{parentName}</span>, whose owner keeps
-            authority over it: they can change this name’s roles, and can
-            re-issue it to someone else once it expires. If that’s you, this
-            transfer isn’t final the way transferring {parentName} itself would
-            be — you could take this subname back.
-          </AlertDescription>
-        </Alert>
+        <ParentAuthorityAlert
+          parentName={parentName}
+          authority={parentAuthority}
+        />
       )}
 
       <div className="flex flex-col gap-1">
