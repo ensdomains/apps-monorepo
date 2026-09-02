@@ -13,7 +13,10 @@ import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { buildEventTypeGroups, dateRangeToTimestamps } from '../filterTimeline'
 import type { HistoryTimelineModel } from '../hooks/useHistoryTimeline'
-import { useNameHistoryTimeline } from '../hooks/useHistoryTimeline'
+import {
+  TIMELINE_WINDOW_SIZE,
+  useNameHistoryTimeline,
+} from '../hooks/useHistoryTimeline'
 import type { TimelineEventType } from '../summarize/descriptors'
 import { ActionTimeline } from './ActionTimeline'
 import { TimelineBreak, TimelineLoadMore } from './TimelineBreak'
@@ -199,6 +202,7 @@ export const HistoryTimeline = ({
     scope,
     selectedTypes,
     ...dateRangeToTimestamps(dateRange),
+    windowSize: canLoadMore ? TIMELINE_WINDOW_SIZE : undefined,
     shouldFetchAnchor: canLoadMore,
     shouldFetchEventTypes: showFilters,
   })

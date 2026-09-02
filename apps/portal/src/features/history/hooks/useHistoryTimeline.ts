@@ -45,6 +45,28 @@ export type HistoryTimelineModel = {
   readonly setAllOpen: (txHashes: readonly Hex[]) => void
 }
 
+export const TIMELINE_WINDOW_SIZE = 50
+
+/**
+ * The newest actions whose events fit the budget; `undefined` takes them all. A
+ * transaction is never split across the break, so the last one admitted may
+ * carry the count past the budget.
+ */
+const takeEvents = (
+  actions: readonly Action[],
+  budget: number | undefined,
+): readonly Action[] => {
+  if (budget === undefined) return actions
+  let taken = 0
+  const shown: Action[] = []
+  for (const action of actions) {
+    if (taken >= budget) break
+    shown.push(action)
+    taken += action.events.length
+  }
+  return shown
+}
+
 /** Everything a feed may have beside its paged source. */
 type TimelineSources = {
   /** Read whole, no cursor of their own: v1 history, child registrations. */
@@ -54,6 +76,10 @@ type TimelineSources = {
   readonly eventTypes?: readonly string[]
   readonly limit?: number
   readonly selectedTypes?: readonly string[]
+  /** Events revealed per click; `undefined` renders every loaded action. */
+  readonly windowSize?: number
+  /** Changes when the feed's query does, so the window closes back to one page. */
+  readonly resetKey?: string
   readonly includeSubjectName?: boolean
   readonly isTruncated?: boolean
   readonly isLoadingSources?: boolean
@@ -90,6 +116,8 @@ const useTimelineModel = (
     eventTypes = [],
     limit,
     selectedTypes,
+    windowSize,
+    resetKey,
     includeSubjectName = false,
     isTruncated = false,
     isLoadingSources = false,
@@ -97,6 +125,11 @@ const useTimelineModel = (
   }: TimelineSources = {},
 ): HistoryTimelineModel => {
   const disclosure = useActionDisclosure()
+  // Reset during render, not in an effect: a new query key must not paint its
+  // first page through the previous list's widened window.
+  const [visible, setVisible] = useState({ key: resetKey, count: windowSize })
+  if (visible.key !== resetKey) setVisible({ key: resetKey, count: windowSize })
+  const shown = visible.key === resetKey ? visible.count : windowSize
 
   const pages = pagesQuery.data?.pages ?? []
   const pagedTotalCount = pages.at(-1)?.totalCount
@@ -112,7 +145,15 @@ const useTimelineModel = (
         action.events.some((event) => kept.has(event.type)),
       )
     : summarized
-  const actions = limit === undefined ? allActions : allActions.slice(0, limit)
+  // The window is counted in events and grows; `limit` is a fixed preview
+  // counted in actions. A surface passes one or neither — `slice(0, undefined)`
+  // is the whole list.
+  const actions = takeEvents(allActions, shown).slice(0, limit)
+
+  const loadedCount = allActions.reduce(
+    (total, action) => total + action.events.length,
+    0,
+  )
 
   return {
     ...disclosure,
@@ -144,7 +185,14 @@ const useTimelineModel = (
         : pagedTotalCount +
           dropPagedDuplicates(auxiliaryEvents, pagedEvents).length,
     hasMore: hasNextPage || allActions.length > actions.length,
-    loadMore: () => void pagesQuery.fetchNextPage(),
+    // Widen the window first; the network page is only worth fetching once it
+    // has run past every loaded event — the v1 tail beside them has no page.
+    loadMore: () => {
+      if (windowSize === undefined) return void pagesQuery.fetchNextPage()
+      const widened = (shown ?? windowSize) + windowSize
+      setVisible({ key: resetKey, count: widened })
+      if (widened >= loadedCount) void pagesQuery.fetchNextPage()
+    },
     isLoadingMore: pagesQuery.isFetchingNextPage,
     // The sources gate first paint too, or a paged-only history would render
     // and then have older rows pushed in underneath it.
@@ -168,7 +216,14 @@ export const useTimelinePagesModel = <
     string | undefined
   >,
 ): HistoryTimelineModel =>
-  useTimelineModel(useInfiniteQuery(options), { includeSubjectName: true })
+  useTimelineModel(useInfiniteQuery(options), {
+    includeSubjectName: true,
+    windowSize: TIMELINE_WINDOW_SIZE,
+    // Keyed on the feed itself: these surfaces are reused across subjects — one
+    // registry page navigating to another — and a window widened on the last
+    // one must not carry into the next.
+    resetKey: JSON.stringify(options.queryKey),
+  })
 
 type UseNameHistoryTimelineParameters = {
   readonly name: string
@@ -177,6 +232,8 @@ type UseNameHistoryTimelineParameters = {
   readonly from?: number
   readonly to?: number
   readonly limit?: number
+  /** Events per click; omitted on the surfaces that offer no break. */
+  readonly windowSize?: number
   readonly shouldFetchAnchor?: boolean
   /** The Event chip's options; skipped on the surfaces that render no chips. */
   readonly shouldFetchEventTypes?: boolean
@@ -208,6 +265,7 @@ export const useNameHistoryTimeline = ({
   from,
   to,
   limit,
+  windowSize,
   shouldFetchAnchor = true,
   shouldFetchEventTypes = true,
 }: UseNameHistoryTimelineParameters): HistoryTimelineModel => {
@@ -271,6 +329,10 @@ export const useNameHistoryTimeline = ({
       ]),
     ],
     limit,
+    windowSize,
+    // A new range or chip selection is a new list; the widened window closes
+    // back to its first page with it.
+    resetKey: JSON.stringify(feedScope),
     // Still narrowed in memory as well: the paged query filters the v2 feed, but
     // the auxiliary v1 events beside it are read on the unfiltered facet scope.
     selectedTypes,

@@ -27,10 +27,11 @@ export const timelineBreakActionClassName =
   'underline [text-underline-position:from-font] hover:text-foreground disabled:cursor-default disabled:no-underline disabled:opacity-60'
 
 /**
- * Quotes no increment, unlike Figma's "Load 100 more": the page size bounds a v2
- * fetch, but what appears is that page plus whatever the new horizon uncovers —
- * on fox.eth a 50-event page rendered 107 rows' worth, and the next click added
- * 138 more. Any number here would be wrong for the names that most need paging.
+ * Quotes no number, unlike Figma's "Load 100 more". Neither candidate is honest:
+ * the increment is a window size the merged feed can overshoot when a
+ * transaction straddles it, and the remainder would read as what one click
+ * fetches when it is what several would — on a 600-event name "Load 500 more"
+ * sits above a button that reveals 50.
  */
 export const TimelineLoadMore = ({
   totalCount,
