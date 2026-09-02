@@ -1,6 +1,6 @@
 import { CircleCheck } from 'lucide-react'
 import { Alert } from '@/components/ui/alert'
-import { formatRegistrationDuration } from '@/features/register/utils/registrationDuration'
+import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 
 type RegistrationSuccessBannerProps = {
   readonly name: string
@@ -28,7 +28,9 @@ export const RegistrationSuccessBanner = ({
     </div>
     <div className="flex items-center gap-8 text-right">
       <div>
-        <p className="text-h3">{formatRegistrationDuration(durationSeconds)}</p>
+        <p className="text-h3">
+          {getRegistrationDisplayDates(durationSeconds).registrationPeriod}
+        </p>
         <p className="text-p">Registration</p>
       </div>
       <div>

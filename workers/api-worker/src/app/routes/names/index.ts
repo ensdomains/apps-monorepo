@@ -1,5 +1,5 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { getAvailable } from '@ensdomains/ensjs/public/v2'
+import { getAvailable } from '@ensdomains/ensjs/public'
 import { count, eq } from 'drizzle-orm'
 import { fromPromise } from 'neverthrow'
 import { injectDb } from '#app/middleware/database.js'

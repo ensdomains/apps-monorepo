@@ -8,10 +8,11 @@
  * global) but scoped to the registry overview's add/edit-user UI.
  */
 
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
@@ -24,7 +25,7 @@ import {
 class GetRegistryRoleHistoryError extends TaggedError(
   'GetRegistryRoleHistoryError',
 )<{
-  cause: ClientError
+  cause: GraphqlRequestError
 }> {}
 
 export type GetRegistryRoleHistoryParameters = {
@@ -73,7 +74,7 @@ const getRegistryRoleHistoryForAccount = ResultFn(async function* ({
         first: EVENTS_LIMIT,
       },
     ),
-    (e) => new GetRegistryRoleHistoryError({ cause: e as ClientError }),
+    (e) => new GetRegistryRoleHistoryError({ cause: e as GraphqlRequestError }),
   )
 
   const rootEntries = filterEventsByResource(events, ROOT_RESOURCE_HEX)

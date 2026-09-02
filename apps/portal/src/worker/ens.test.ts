@@ -441,6 +441,14 @@ describe('resolveAvatarDataUri (worker)', () => {
       ['a public IPv4 literal', 'https://93.184.216.34/a.png'],
       ['a public IPv6 literal', 'https://[2606:4700::1]/a.png'],
       ['a public IPv4 literal with a valid IP cert', 'https://1.1.1.1/a.png'],
+      // The parser folds a single trailing dot on an IPv4-shaped host but keeps
+      // two or more, so the anchored pattern needs a normalised hostname.
+      ['loopback with a trailing dot', 'https://127.0.0.1./a.png'],
+      ['loopback with multiple trailing dots', 'https://127.0.0.1../a.png'],
+      [
+        'link-local metadata with multiple trailing dots',
+        'https://169.254.169.254../latest/meta-data/',
+      ],
     ])('rejects %s without fetching', async (_label, record) => {
       const result = await resolveAvatarDataUri(client, record)
 
@@ -479,15 +487,114 @@ describe('resolveAvatarDataUri (worker)', () => {
       expect(fetchSpy).not.toHaveBeenCalled()
     })
 
-    it('rejects the worker’s own host, preventing /og self-recursion', async () => {
+    // Every spelling of our own origin has to be caught, on both sides of the
+    // compare. DNS treats a trailing dot as the root label and is
+    // case-insensitive, and Cloudflare serves this worker on 2053/2083/2087/
+    // 2096/8443 as well as 443 — yet WHATWG parsing preserves the dot and the
+    // explicit port. Any spelling left uncollapsed is enough on its own:
+    // alternating two of them across two names defeats the per-request check
+    // entirely, since each invocation only knows the spelling it was reached
+    // on. `selfHost` is varied too — it arrives as `new URL(request.url).host`,
+    // so it carries whatever port and casing the request came in with.
+    it.each([
+      [
+        'no trailing dot',
+        'https://portal.example/og/victim.eth.png',
+        'portal.example',
+      ],
+      [
+        'a single trailing dot',
+        'https://portal.example./og/victim.eth.png',
+        'portal.example',
+      ],
+      [
+        'multiple trailing dots',
+        'https://portal.example../og/victim.eth.png',
+        'portal.example',
+      ],
+      [
+        'trailing dot and uppercase',
+        'https://PORTAL.EXAMPLE./og/x.eth.png',
+        'portal.example',
+      ],
+      [
+        'an alternate Cloudflare HTTPS port',
+        'https://portal.example:8443/og/victim.eth.png',
+        'portal.example',
+      ],
+      [
+        'a port and a trailing dot',
+        'https://portal.example.:2053/og/victim.eth.png',
+        'portal.example',
+      ],
+      [
+        'a ported selfHost',
+        'https://portal.example/og/victim.eth.png',
+        'portal.example:8443',
+      ],
+      [
+        'a ported selfHost and a differently-ported record',
+        'https://portal.example:2096/og/victim.eth.png',
+        'portal.example:8443',
+      ],
+      [
+        'an uppercase selfHost',
+        'https://portal.example/og/victim.eth.png',
+        'PORTAL.example',
+      ],
+      [
+        'a trailing-dot selfHost',
+        'https://portal.example/og/victim.eth.png',
+        'portal.example.',
+      ],
+    ])('rejects the worker’s own host, preventing /og self-recursion: %s', async (_label, record, selfHost) => {
+      const result = await resolveAvatarDataUri(client, record, selfHost)
+
+      expect(result).toBeNull()
+      expect(fetchSpy).not.toHaveBeenCalled()
+    })
+
+    it('blocks a redirect into a trailing-dot spelling of the worker’s host', async () => {
+      // Re-validation must apply the same normalisation on every hop.
+      fetchSpy.mockResolvedValueOnce(
+        redirectResponse('https://portal.example./og/victim.eth.png'),
+      )
+
       const result = await resolveAvatarDataUri(
         client,
-        'https://portal.example/og/victim.eth.png',
+        'https://cdn.example/cat.png',
         'portal.example',
       )
 
       expect(result).toBeNull()
-      expect(fetchSpy).not.toHaveBeenCalled()
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([
+      ['a hostname sharing our prefix', 'https://xportal.example/a.png'],
+      [
+        'a hostname sharing our suffix',
+        'https://portal.example.evil.com/a.png',
+      ],
+      // Stripping the port must not make unrelated hosts compare equal.
+      [
+        'a different host on an alternate port',
+        'https://cdn.example:8443/a.png',
+      ],
+    ])('still allows %s', async (_label, record) => {
+      // Host normalisation must not widen the guard past the exact host.
+      fetchSpy.mockResolvedValueOnce(
+        streamingResponse(new Uint8Array([1]), { contentType: 'image/png' }),
+      )
+
+      const result = await resolveAvatarDataUri(
+        client,
+        record,
+        'portal.example',
+      )
+
+      expect(result).toBe(`data:image/png;base64,${btoa('\x01')}`)
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
     })
 
     it('follows a redirect to an allowed host', async () => {

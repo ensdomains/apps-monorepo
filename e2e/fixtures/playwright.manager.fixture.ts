@@ -165,7 +165,7 @@ type ManagerFixtures = {
   wallet: Web3ProviderBackend
   /**
    * Page with the headless wallet connected via the connect dialog and the
-   * BackendAuthModal dismissed (skip-for-now). The default page for tests
+   * BackendAuthModal dismissed. The default page for tests
    * that don't need backend-gated state.
    */
   connectedPage: Page

@@ -89,7 +89,7 @@ export function findVerifyLink(message: MailinatorMessage): string {
   if (clickable?.link) return clickable.link
 
   const bodies = [message.parts?.map((p) => p.body ?? '').join('\n')].filter(
-    Boolean,
+    (body): body is string => Boolean(body),
   )
   for (const body of bodies) {
     const match = body.match(

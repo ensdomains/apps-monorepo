@@ -1,6 +1,6 @@
 import { type Address, zeroAddress } from 'viem'
 import { describe, expect, it } from 'vitest'
-import type { ClassifiedName } from './classifyNames'
+import type { DirectClassifiedName } from './classifyNames'
 import { FUSES } from './classifyNames'
 import {
   createMigrationData,
@@ -43,7 +43,7 @@ describe('resolverFor', () => {
     domain: { name: 'alice.eth' },
     resolverStrategy: 'keep-v1',
     v1ResolverAddress: V1_PUBLIC_RESOLVER,
-  } as ClassifiedName
+  } as DirectClassifiedName
 
   it('expects the remediated migration controller to replace known public resolvers', () => {
     expect(resolverFor(name, DEFAULT_RESOLVER, RESOLVER)).toBe(DEFAULT_RESOLVER)

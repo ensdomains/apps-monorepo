@@ -12,6 +12,7 @@ import { Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { EditNoteIcon } from '@/assets/icons'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -64,9 +65,9 @@ export const RecordList = ({
     <>
       <header className="flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-h1">
-            {recordCount > 0 ? `${recordCount} Records` : 'Records'}
-          </h1>
+          <PageHeading parent={{ type: 'name', name }}>
+            {recordCount > 0 ? `Records (${recordCount})` : 'Records'}
+          </PageHeading>
           {canEdit && (
             <Button
               variant="default"

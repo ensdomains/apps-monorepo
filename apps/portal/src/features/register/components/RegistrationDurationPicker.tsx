@@ -15,6 +15,8 @@ type RegistrationDurationPickerProps = {
   readonly className?: string
   /** Name used to compute per-year prices for preset chips. Chips hidden if absent. */
   readonly name?: string
+  /** Date the term starts — priced into the preset chips. */
+  readonly baseDate?: Temporal.PlainDate
 }
 
 export const RegistrationDurationPicker = ({
@@ -24,6 +26,7 @@ export const RegistrationDurationPicker = ({
   max = 9007199254740990,
   className,
   name,
+  baseDate,
 }: RegistrationDurationPickerProps) => {
   const [isFocused, setIsFocused] = useState(false)
 
@@ -119,6 +122,7 @@ export const RegistrationDurationPicker = ({
           value={value}
           onSelect={handlePresetSelect}
           name={name}
+          baseDate={baseDate}
         />
       ) : null}
     </div>

@@ -41,7 +41,6 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   | 'selected'
   | 'setSearch'
   | 'toggleAll'
-  | 'toggleGroup'
   | 'toggleName'
   | 'totalSelected'
   | 'visibleCount'
@@ -66,7 +65,6 @@ export const SelectNamesStepSelectionOptions = ({
   showBulkSelection,
   showNameSearch,
   toggleAll,
-  toggleGroup,
   toggleName,
   totalSelected,
   visibleCount,
@@ -165,7 +163,6 @@ export const SelectNamesStepSelectionOptions = ({
               isPending={isPending}
               search={search}
               selected={selected}
-              toggleGroup={toggleGroup}
               toggleName={toggleName}
             />
           </div>

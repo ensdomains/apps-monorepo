@@ -1,5 +1,5 @@
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
-import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
+import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import type { IntentContext } from '@/features/transaction-manager/types'

@@ -2,16 +2,14 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import type { SelectedName } from '../hooks/useRenewalTransactions'
+import type { ExtensionSpan } from '../utils/extensionDurationPicker'
 import { ExtendNameCheckoutSummary } from './ExtendNameCheckoutSummary'
-import type { ExtensionSpanType } from './ExtensionDurationOrExpiryPicker'
 import { ExtensionDurationOrExpiryPicker } from './ExtensionDurationOrExpiryPicker'
 
 type ExtendNameSettingsProps = {
   readonly selectedName: SelectedName
-  readonly duration: number
-  readonly setDuration: (duration: number) => void
-  readonly spanType: ExtensionSpanType
-  readonly setSpanType: (type: ExtensionSpanType) => void
+  readonly span: ExtensionSpan
+  readonly setSpan: (span: ExtensionSpan) => void
   readonly baseDate?: Temporal.PlainDate
   /** When omitted, the back button is hidden — used when there's no preceding disclaimer step */
   readonly onBack?: () => void
@@ -20,10 +18,8 @@ type ExtendNameSettingsProps = {
 
 export const ExtendNameSettings = ({
   selectedName,
-  duration,
-  setDuration,
-  spanType,
-  setSpanType,
+  span,
+  setSpan,
   baseDate,
   onBack,
   onNext,
@@ -35,17 +31,14 @@ export const ExtendNameSettings = ({
         <h2 className="text-h2 w-max text-foreground">{selectedName.name}</h2>
       </div>
       <ExtensionDurationOrExpiryPicker
-        duration={duration}
-        setDuration={setDuration}
+        span={span}
+        setSpan={setSpan}
         expiryDate={selectedName.expiryDate}
-        spanType={spanType}
-        setSpanType={setSpanType}
         name={selectedName.name}
       />
       <ExtendNameCheckoutSummary
         selectedName={selectedName}
-        duration={duration}
-        spanType={spanType}
+        span={span}
         baseDate={baseDate}
       />
       <div className="flex gap-2">

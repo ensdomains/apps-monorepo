@@ -10,7 +10,7 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
   type GetRenewPriceErrorType as EnsGetRenewPriceErrorType,
   getRenewPrice as ensGetRenewPrice,
-} from '@ensdomains/ensjs/public/v2'
+} from '@ensdomains/ensjs/public'
 import { err, fromPromise, ok } from 'neverthrow'
 import { parseAbi } from 'viem'
 import { sepolia } from 'viem/chains'

@@ -8,6 +8,7 @@ import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import {
   Combobox,
@@ -29,6 +30,7 @@ import { useSetAlias } from '@/features/resolver/hooks/useSetAlias'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/create-alias')({
@@ -58,7 +60,9 @@ const PageHeader = ({ address }: PageHeaderProps) => (
         Back
       </Button>
     </Link>
-    <h1 className="text-h1">Create alias</h1>
+    <PageHeading parent={{ type: 'resolver', address: address as Address }}>
+      Create alias
+    </PageHeading>
   </div>
 )
 
@@ -155,7 +159,7 @@ function RouteComponent() {
     return (
       <ErrorMessage
         title="Failed to load resolver"
-        description={error.cause?.message}
+        description={extractErrorMessage(error, '')}
       />
     )
 

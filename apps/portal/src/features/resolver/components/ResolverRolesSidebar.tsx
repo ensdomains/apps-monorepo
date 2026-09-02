@@ -1,4 +1,4 @@
-import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
+import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
 import { Trash2 } from 'lucide-react'

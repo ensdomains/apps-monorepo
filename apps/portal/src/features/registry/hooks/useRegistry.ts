@@ -1,13 +1,14 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
 class GetRegistryInfoError extends TaggedError('GetRegistryInfoError')<{
-  cause: ClientError
+  cause: GraphqlRequestError
 }> {}
 
 type GetRegistryInfoParameters = {
@@ -54,7 +55,7 @@ const getRegistryInfo = ResultFn(async function* ({
       `,
       { address: address.toLowerCase() },
     ),
-    (e) => new GetRegistryInfoError({ cause: e as ClientError }),
+    (e) => new GetRegistryInfoError({ cause: e as GraphqlRequestError }),
   )
 
   // null = indexer has no record for this address (not a registry, or not yet

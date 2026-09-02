@@ -1,3 +1,4 @@
+import { computeResolverAddress } from '@ens-apps/smart-account'
 import { err, ok } from 'neverthrow'
 import { type Address, type Hex, namehash, type PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -6,9 +7,16 @@ import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
 import {
   assertLockedResolverReplacementRecordSafety,
   buildMigrationPlan,
+  buildMigrationRecoveryPlan,
 } from './buildMigrationPlan'
 import { FUSES } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
+import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
+import {
+  type MigrationRecoverySnapshot,
+  persistPendingAtomicMigrationIntent,
+  persistSubmittedAtomicMigrationBatch,
+} from './migrationBatchJournal'
 import { getV1ProfileKeys } from './v1SubgraphClient'
 
 vi.mock('./v1SubgraphClient', async (importActual) => ({
@@ -19,9 +27,34 @@ vi.mock('./buildAtomicMigrationBatches', async (importActual) => ({
   ...(await importActual<typeof import('./buildAtomicMigrationBatches')>()),
   buildAtomicMigrationBatches: vi.fn(),
 }))
+vi.mock('./copyMigrationReadiness', () => ({
+  assertCopyMigrationReadiness: vi.fn(() => Promise.resolve()),
+}))
+vi.mock('./migrationInvariants', async (importActual) => ({
+  ...(await importActual<typeof import('./migrationInvariants')>()),
+  assertRequiredMigrationContractCode: vi.fn(() => Promise.resolve()),
+  assertMigrationHelperRuntimeCode: vi.fn(() => Promise.resolve()),
+  assertLockedPublicResolverSetMembership: vi.fn(() => Promise.resolve()),
+  checkMigrationHcaReadiness: vi.fn(({ hca }) =>
+    Promise.resolve({ status: 'verified', hca, implementation: HCA }),
+  ),
+  checkDeterministicMigrationResolverReadiness: vi.fn(({ hca, publicClient }) =>
+    Promise.resolve({
+      status: 'verified',
+      resolver: computeResolverAddress({
+        chainId: publicClient.chain?.id ?? 11155111,
+        hca,
+      }),
+      implementation: HCA,
+      hcaHasRootRoles: true,
+      walletHasWildcardRoles: true,
+    }),
+  ),
+}))
 
 const getV1ProfileKeysMock = vi.mocked(getV1ProfileKeys)
 const buildAtomicMigrationBatchesMock = vi.mocked(buildAtomicMigrationBatches)
+const assertCopyMigrationReadinessMock = vi.mocked(assertCopyMigrationReadiness)
 const HCA: Address = '0x00000000000000000000000000000000000000ca'
 const KNOWN_PUBLIC_RESOLVER: Address =
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d'
@@ -46,13 +79,63 @@ const lockedKnownResolver = () =>
     v1ResolverAddress: KNOWN_PUBLIC_RESOLVER,
   })
 
+const makeRecoveryTree = () => {
+  const root = makeDomain({
+    id: namehash('alice.eth'),
+    name: 'alice.eth',
+    labelName: 'alice',
+    resolverAddress: null,
+  })
+  const copy = makeDomain({
+    id: namehash('sub.alice.eth'),
+    name: 'sub.alice.eth',
+    labelName: 'sub',
+    parentName: 'alice.eth',
+    registrantId: null,
+    resolverAddress: null,
+  })
+  const snapshot = {
+    registryDomains: [root, copy],
+    registryOperations: [
+      { name: root.name, action: 'migrate' },
+      { name: copy.name, action: 'copy' },
+    ],
+    remainingOperations: [{ name: copy.name, action: 'copy' }],
+    completedOperations: [{ name: root.name, action: 'migrate' }],
+    profiles: new Map([
+      [
+        namehash(root.name),
+        { texts: [], addresses: [], contentHash: null, abis: [] },
+      ],
+      [
+        namehash(copy.name),
+        {
+          texts: [{ key: 'url', value: 'https://example.test' }],
+          addresses: [],
+          contentHash: null,
+          abis: [],
+        },
+      ],
+    ]),
+    ownedPermRes: computeResolverAddress({
+      chainId: 11155111,
+      hca: HCA,
+    }),
+    plannedApprovals: [{ id: 'eth-registry:hca' }],
+  } satisfies MigrationRecoverySnapshot
+  return { root, copy, snapshot }
+}
+
 beforeEach(() => {
+  localStorage.clear()
   getV1ProfileKeysMock.mockReset()
   buildAtomicMigrationBatchesMock.mockReset()
   buildAtomicMigrationBatchesMock.mockResolvedValue({
     resolver: HCA,
     batches: [],
   })
+  assertCopyMigrationReadinessMock.mockReset()
+  assertCopyMigrationReadinessMock.mockResolvedValue(undefined)
 })
 
 describe('assertLockedResolverReplacementRecordSafety', () => {
@@ -187,11 +270,7 @@ describe('buildMigrationPlan resolver preservation', () => {
   it('never routes a custom resolver to the HCA resolver from a partial inventory', async () => {
     const domain = makeDomain({ resolverAddress: CUSTOM_RESOLVER })
     const preflight: MigrationPreflight = {
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: true,
       skipFetchProfilesPhase: true,
-      baseRegistrarApproved: true,
-      nameWrapperApproved: true,
       hcaReadiness: { status: 'deployment-required', hca: HCA },
     }
 
@@ -215,5 +294,106 @@ describe('buildMigrationPlan resolver preservation', () => {
         classified: [expect.objectContaining({ resolverStrategy: 'keep-v1' })],
       }),
     )
+  })
+})
+
+describe('buildMigrationRecoveryPlan', () => {
+  it('rebuilds unsent copies with their completed root retained only as registry context', async () => {
+    const { root, copy, snapshot } = makeRecoveryTree()
+
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot,
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: { chain: { id: 11155111 } } as PublicClient,
+    })
+
+    expect(plan.classified).toEqual([
+      expect.objectContaining({
+        action: 'copy',
+        domain: expect.objectContaining({ name: copy.name }),
+        managerAddress: null,
+      }),
+    ])
+    expect(plan.registryContext.map(({ domain }) => domain.name)).toEqual([
+      root.name,
+      copy.name,
+    ])
+    expect(plan.priorCompletedOperations).toEqual([
+      { name: root.name, action: 'migrate' },
+    ])
+    expect(plan.requiresReconciliation).toBe(true)
+    expect(plan.preflight.migrationApprovals).toEqual([
+      expect.objectContaining({
+        kind: 'operator',
+        id: 'eth-registry:hca',
+        operatorAddress: HCA,
+      }),
+    ])
+    expect(buildAtomicMigrationBatchesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classified: [expect.objectContaining({ action: 'copy' })],
+        registryContext: [
+          expect.objectContaining({ action: 'migrate' }),
+          expect.objectContaining({ action: 'copy' }),
+        ],
+      }),
+    )
+  })
+
+  it('ignores journaled names outside the durable tree on reload', async () => {
+    const { copy, snapshot } = makeRecoveryTree()
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    persistPendingAtomicMigrationIntent(scope, {
+      id: 'current-copy-intent',
+      names: [copy.name],
+      operations: [{ name: copy.name, action: 'copy' }],
+    })
+    persistSubmittedAtomicMigrationBatch(scope, {
+      intentId: 'abandoned-direct-intent',
+      hash: `0x${'9'.repeat(64)}`,
+      names: ['unrelated.eth'],
+      operations: [{ name: 'unrelated.eth', action: 'migrate' }],
+    })
+
+    await expect(
+      buildMigrationRecoveryPlan({
+        snapshot,
+        hcaAddress: HCA,
+        migrationOwner: OWNER,
+        publicClient: { chain: { id: 11155111 } } as PublicClient,
+      }),
+    ).resolves.toBeDefined()
+
+    expect(assertCopyMigrationReadinessMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recordedAttemptNames: new Set([copy.name]),
+      }),
+    )
+  })
+
+  it('fails closed when a durable-tree name has a different journaled action', async () => {
+    const { copy, snapshot } = makeRecoveryTree()
+    persistPendingAtomicMigrationIntent(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        id: 'mismatched-copy-intent',
+        names: [copy.name],
+        operations: [{ name: copy.name, action: 'migrate' }],
+      },
+    )
+
+    await expect(
+      buildMigrationRecoveryPlan({
+        snapshot,
+        hcaAddress: HCA,
+        migrationOwner: OWNER,
+        publicClient: { chain: { id: 11155111 } } as PublicClient,
+      }),
+    ).rejects.toMatchObject({
+      name: 'MigrationRecoveryPlanError',
+      reason: 'operation-mismatch',
+    })
+    expect(assertCopyMigrationReadinessMock).not.toHaveBeenCalled()
   })
 })

@@ -1,7 +1,7 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet'
+import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v1'
 import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,
@@ -41,8 +41,7 @@ const canWriteEthAddressRecord = async (
     },
   )
   try {
-    // Probe from the EOA owner: the resolver authorizes the EOA even when the
-    // real write is sent by its smart account (which the resolver unwraps).
+    // Probe from the same owner EOA used by profile record writes.
     await publicClient.call({
       account: ownerAddress,
       to: resolverAddress,

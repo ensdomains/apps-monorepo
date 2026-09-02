@@ -33,7 +33,7 @@ vi.mock('#core/eth/client.js', () => ({
   createEnsClient: mocks.createEnsClient,
 }))
 
-vi.mock('@ensdomains/ensjs/public/v2', () => ({
+vi.mock('@ensdomains/ensjs/public', () => ({
   getAvailable: mocks.getAvailable,
 }))
 

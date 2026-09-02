@@ -1,13 +1,13 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import type { SubgraphRequestError } from '@ensdomains/ensjs'
 import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
-import type { ClientError } from 'graphql-request'
-import { gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import type { V1EventBase } from '@/utils/history/transformAddressHistory'
+import { gql } from '@/utils/subgraph/gql'
 
 class GetV1HistoryForAddressError extends TaggedError(
   'GetV1HistoryForAddressError',
@@ -15,7 +15,7 @@ class GetV1HistoryForAddressError extends TaggedError(
   cause: GetV1HistoryForAddressErrorType
 }> {}
 
-type GetV1HistoryForAddressErrorType = ClientError
+type GetV1HistoryForAddressErrorType = SubgraphRequestError
 
 type GetV1HistoryForAddressParameters = {
   address: Address

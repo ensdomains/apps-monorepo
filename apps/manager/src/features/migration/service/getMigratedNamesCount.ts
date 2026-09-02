@@ -3,7 +3,7 @@ import type {
   MigratedNamesCountQueryVariables,
 } from '@ens-apps/indexer'
 import { MigratedNamesCountDocument } from '@ens-apps/indexer'
-import indexerClient from '@ens-apps/indexer/urql'
+import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -27,17 +27,11 @@ export const getMigratedNamesCount = ResultFn(async function* (
   } as unknown as MigratedNamesCountQueryVariables
 
   const data = yield* await ResultAsync.fromPromise(
-    indexerClient
-      .query<MigratedNamesCountQuery, MigratedNamesCountQueryVariables>(
-        MigratedNamesCountDocument,
-        variables,
-      )
-      .toPromise()
-      .then((result) => {
-        if (result.error) throw result.error
-        if (!result.data) throw new Error('Indexer query returned no data')
-        return result.data
-      }),
+    graphqlRequest<MigratedNamesCountQuery, MigratedNamesCountQueryVariables>(
+      indexerClient,
+      MigratedNamesCountDocument,
+      variables,
+    ),
     (error) => new GetMigratedNamesCountError({ cause: error }),
   )
 

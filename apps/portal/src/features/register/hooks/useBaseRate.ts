@@ -4,7 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   getBaseRates as ensGetBaseRates,
   type GetBaseRatesErrorType,
-} from '@ensdomains/ensjs/public/v2'
+} from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'

@@ -174,10 +174,12 @@ const PROFILE_KEYS_CHUNK = 500
 
 const fetchProfileKeysChunk = async (
   ids: readonly string[],
+  signal?: AbortSignal,
 ): Promise<V1ProfileKeys[]> => {
   const response = await fetch(V1_SUBGRAPH_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    signal,
     body: JSON.stringify({
       query: GET_PROFILES_QUERY,
       variables: { whereFilter: { id_in: ids } },
@@ -223,6 +225,7 @@ const fetchProfileKeysChunk = async (
 
 export const getV1ProfileKeys = ResultFn(async function* (
   domainIds: readonly string[],
+  options: { readonly signal?: AbortSignal } = {},
 ) {
   if (domainIds.length === 0) return ok([] as V1ProfileKeys[])
 
@@ -233,7 +236,9 @@ export const getV1ProfileKeys = ResultFn(async function* (
       for (let i = 0; i < lowered.length; i += PROFILE_KEYS_CHUNK) {
         chunks.push(lowered.slice(i, i + PROFILE_KEYS_CHUNK))
       }
-      const chunkResults = await Promise.all(chunks.map(fetchProfileKeysChunk))
+      const chunkResults = await Promise.all(
+        chunks.map((chunk) => fetchProfileKeysChunk(chunk, options.signal)),
+      )
       return chunkResults.flat()
     })(),
     (error) => new GetV1ProfilesError({ cause: error }),

@@ -36,7 +36,6 @@ const makePlan = (overrides: Partial<MigrationPlan> = {}): MigrationPlan =>
     hcaAddress: contract,
     hcaDeploymentRequired: false,
     migrationOwner: account,
-    domains: [],
     classified: [],
     ineligible: [],
     groups: {
@@ -46,11 +45,7 @@ const makePlan = (overrides: Partial<MigrationPlan> = {}): MigrationPlan =>
       childNames: new Map(),
     },
     preflight: {
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: true,
       skipFetchProfilesPhase: true,
-      baseRegistrarApproved: true,
-      nameWrapperApproved: true,
       migrationApprovals: [],
     },
     ownedPermRes: null,
@@ -76,11 +71,7 @@ describe('estimateMigrationGasCost', () => {
     const plan = makePlan({
       hcaDeploymentRequired: true,
       preflight: {
-        preExistingOwnedPermRes: null,
-        skipApprovalPhase: false,
         skipFetchProfilesPhase: true,
-        baseRegistrarApproved: false,
-        nameWrapperApproved: true,
         migrationApprovals: [makeTokenApproval()],
       },
       atomicBatches: [makeAtomicBatch(100n)],
@@ -117,11 +108,7 @@ describe('estimateMigrationGasCost', () => {
     const publicClient = makePublicClient({ maxFeePerGas: 2n })
     const plan = makePlan({
       preflight: {
-        preExistingOwnedPermRes: null,
-        skipApprovalPhase: false,
         skipFetchProfilesPhase: true,
-        baseRegistrarApproved: true,
-        nameWrapperApproved: false,
         migrationApprovals: [makeOperatorApproval('name-wrapper:hca')],
       },
       atomicBatches: [makeAtomicBatch(100n)],

@@ -6,7 +6,7 @@ import {
   type GetRegisterPriceErrorType,
   type GetRenewPriceErrorType,
   getRegisterPrice,
-} from '@ensdomains/ensjs/public/v2'
+} from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'

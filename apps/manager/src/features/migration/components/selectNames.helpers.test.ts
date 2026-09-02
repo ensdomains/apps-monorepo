@@ -1,38 +1,65 @@
 import { describe, expect, it } from 'vitest'
 import { makeClassified } from '../service/_fixtures'
 import type { ClassifiedName } from '../service/classifyNames'
-import type { NameGroup } from '../service/groupByParent'
+import type { NameTreeNode } from '../service/groupByParent'
 import {
+  buildRootSubtreeIndex,
   collectAllSelectable,
-  countVisibleRows,
   filterGroupsBySearch,
   filterOrphansBySearch,
   shouldShowBulkSelection,
   shouldShowNameSearch,
   shouldUseCompactSelectionLayout,
   shouldUseSmallSelectionCard,
-  toggleGroup,
-  toggleName,
+  toggleRootSubtree,
 } from './selectNames.helpers'
 
 const name = (
-  n: string,
-  tokenType: ClassifiedName['tokenType'] = 'unwrapped',
-) => makeClassified({ id: n, name: n, label: n.split('.')[0], tokenType })
+  value: string,
+  action: 'copy' | 'migrate' = 'migrate',
+): ClassifiedName =>
+  makeClassified({
+    action,
+    id: value,
+    name: value,
+    label: value.split('.')[0],
+    tokenType:
+      action === 'copy'
+        ? 'unlocked-child'
+        : value.split('.').length === 2
+          ? 'unwrapped'
+          : 'locked-child',
+  })
 
-const group = (parent: string, subs: readonly string[]): NameGroup => ({
-  parent: name(parent),
-  subnames: subs.map((s) => name(s, 'locked-child')),
-})
+const tree = (
+  value: string,
+  children: readonly NameTreeNode[] = [],
+  action: 'copy' | 'migrate' = 'migrate',
+): NameTreeNode => ({ item: name(value, action), children })
+
+const groupedTree = tree('a.eth', [
+  tree('x.a.eth', [tree('deep.x.a.eth', [], 'copy')]),
+  tree('y.a.eth', [], 'copy'),
+])
 
 describe('collectAllSelectable', () => {
-  it('unions parents, subnames, and orphans into a single set', () => {
+  it('collects every name across recursive groups and orphan trees', () => {
     expect(
       collectAllSelectable(
-        [group('a.eth', ['x.a.eth', 'y.a.eth']), group('b.eth', [])],
-        [name('o.eth')],
+        [groupedTree, tree('b.eth')],
+        [tree('o.missing.eth', [tree('deep.o.missing.eth')])],
       ),
-    ).toEqual(new Set(['a.eth', 'x.a.eth', 'y.a.eth', 'b.eth', 'o.eth']))
+    ).toEqual(
+      new Set([
+        'a.eth',
+        'x.a.eth',
+        'deep.x.a.eth',
+        'y.a.eth',
+        'b.eth',
+        'o.missing.eth',
+        'deep.o.missing.eth',
+      ]),
+    )
   })
 
   it('returns an empty set for no input', () => {
@@ -40,136 +67,125 @@ describe('collectAllSelectable', () => {
   })
 })
 
-describe('toggleName', () => {
-  it('adds when absent, removes when present, preserves others', () => {
-    const prev = new Set(['a.eth'])
-    expect(toggleName(prev, 'b.eth')).toEqual(new Set(['a.eth', 'b.eth']))
-    expect(toggleName(prev, 'a.eth')).toEqual(new Set())
-  })
+describe('buildRootSubtreeIndex', () => {
+  it('indexes each interactive root with its complete subtree', () => {
+    const index = buildRootSubtreeIndex([groupedTree], [tree('orphan.eth')])
 
-  it('does not mutate the input set', () => {
-    const prev = new Set(['a.eth'])
-    toggleName(prev, 'b.eth')
-    expect(prev).toEqual(new Set(['a.eth']))
+    expect(index.get('a.eth')).toEqual(
+      new Set(['a.eth', 'x.a.eth', 'deep.x.a.eth', 'y.a.eth']),
+    )
+    expect(index.get('orphan.eth')).toEqual(new Set(['orphan.eth']))
+    expect(index.has('x.a.eth')).toBe(false)
   })
 })
 
-describe('toggleGroup', () => {
-  it('adds parent + all subnames when parent is absent', () => {
-    expect(toggleGroup(new Set(), 'a.eth', ['x.a.eth', 'y.a.eth'])).toEqual(
-      new Set(['a.eth', 'x.a.eth', 'y.a.eth']),
+describe('toggleRootSubtree', () => {
+  const index = buildRootSubtreeIndex([groupedTree], [])
+
+  it('selects the entire tree when selecting its root', () => {
+    expect(toggleRootSubtree(new Set(), 'a.eth', index)).toEqual(
+      new Set(['a.eth', 'x.a.eth', 'deep.x.a.eth', 'y.a.eth']),
     )
   })
 
-  it('removes parent + all subnames when parent is present', () => {
-    expect(
-      toggleGroup(new Set(['a.eth', 'x.a.eth', 'y.a.eth', 'o.eth']), 'a.eth', [
-        'x.a.eth',
-        'y.a.eth',
-      ]),
-    ).toEqual(new Set(['o.eth']))
+  it('deselects the entire root subtree and preserves other selections', () => {
+    const selected = new Set([
+      'a.eth',
+      'x.a.eth',
+      'deep.x.a.eth',
+      'y.a.eth',
+      'other.eth',
+    ])
+
+    expect(toggleRootSubtree(selected, 'a.eth', index)).toEqual(
+      new Set(['other.eth']),
+    )
+    expect(selected.has('a.eth')).toBe(true)
+  })
+
+  it('returns an unchanged copy when the name is not indexed', () => {
+    const selected = new Set(['a.eth'])
+    const next = toggleRootSubtree(selected, 'missing.eth', index)
+
+    expect(next).toEqual(selected)
+    expect(next).not.toBe(selected)
   })
 })
 
 describe('filterGroupsBySearch', () => {
-  const groups = [
-    group('raffy.eth', ['gm.raffy.eth', 'hello.raffy.eth']),
-    group('nick.eth', []),
-  ]
+  const groups = [groupedTree, tree('nick.eth')]
 
   it('returns the original list when search is empty', () => {
     expect(filterGroupsBySearch(groups, '')).toBe(groups)
   })
 
-  it('matches by parent name', () => {
-    expect(
-      filterGroupsBySearch(groups, 'nick').map((g) => g.parent.domain.name),
-    ).toEqual(['nick.eth'])
+  it('keeps a matching root and its complete subtree', () => {
+    const filtered = filterGroupsBySearch(groups, 'a.eth')
+
+    expect(filtered).toEqual([groupedTree])
   })
 
-  it('matches by subname', () => {
-    expect(
-      filterGroupsBySearch(groups, 'gm').map((g) => g.parent.domain.name),
-    ).toEqual(['raffy.eth'])
+  it('keeps only the ancestor path to a matching descendant', () => {
+    const filtered = filterGroupsBySearch(groups, 'deep')
+    const root = filtered[0]
+
+    expect(root?.item.domain.name).toBe('a.eth')
+    expect(root?.children.map((child) => child.item.domain.name)).toEqual([
+      'x.a.eth',
+    ])
+    expect(root?.children[0]?.children[0]?.item.domain.name).toBe(
+      'deep.x.a.eth',
+    )
   })
 
-  it('is case-insensitive on lowercased query', () => {
-    expect(filterGroupsBySearch(groups, 'raffy')).toHaveLength(1)
+  it('is case-insensitive on a lowercased query', () => {
+    expect(filterGroupsBySearch(groups, 'nick')).toHaveLength(1)
   })
 })
 
 describe('filterOrphansBySearch', () => {
-  const orphans = [name('one.eth'), name('two.eth'), name('three.eth')]
+  const orphans = [
+    tree('one.missing.eth', [tree('deep.one.missing.eth')]),
+    tree('two.missing.eth'),
+  ]
 
   it('returns the original list when search is empty', () => {
     expect(filterOrphansBySearch(orphans, '')).toBe(orphans)
   })
 
-  it('filters by name substring', () => {
-    expect(
-      filterOrphansBySearch(orphans, 'one').map((o) => o.domain.name),
-    ).toEqual(['one.eth'])
+  it('filters orphan trees while preserving ancestor context', () => {
+    const filtered = filterOrphansBySearch(orphans, 'deep')
+
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0]?.item.domain.name).toBe('one.missing.eth')
+    expect(filtered[0]?.children[0]?.item.domain.name).toBe(
+      'deep.one.missing.eth',
+    )
   })
 })
 
-describe('countVisibleRows', () => {
-  it('counts parent + subnames per group plus orphans', () => {
-    expect(
-      countVisibleRows(
-        [group('a.eth', ['x.a.eth', 'y.a.eth']), group('b.eth', [])],
-        [name('o1.eth'), name('o2.eth')],
-      ),
-    ).toBe(3 + 1 + 2)
-  })
-
-  it('is zero for no input', () => {
-    expect(countVisibleRows([], [])).toBe(0)
-  })
-})
-
-describe('shouldShowBulkSelection', () => {
-  it('hides bulk selection below 15 names', () => {
-    expect(shouldShowBulkSelection(14)).toBe(false)
-  })
-
+describe('selection layout thresholds', () => {
   it('shows bulk selection at 15 names and above', () => {
+    expect(shouldShowBulkSelection(14)).toBe(false)
     expect(shouldShowBulkSelection(15)).toBe(true)
     expect(shouldShowBulkSelection(16)).toBe(true)
   })
-})
 
-describe('shouldShowNameSearch', () => {
-  it('hides search for 8 names or fewer', () => {
+  it('shows search at 9 names and above', () => {
     expect(shouldShowNameSearch(8)).toBe(false)
-  })
-
-  it('shows search for 9 names and above', () => {
     expect(shouldShowNameSearch(9)).toBe(true)
   })
-})
 
-describe('shouldUseCompactSelectionLayout', () => {
-  it('keeps the roomy layout below 10 names', () => {
+  it('uses the compact layout at 10 names and above', () => {
     expect(shouldUseCompactSelectionLayout(9)).toBe(false)
-  })
-
-  it('uses the compact layout for 10 names and above', () => {
     expect(shouldUseCompactSelectionLayout(10)).toBe(true)
     expect(shouldUseCompactSelectionLayout(15)).toBe(true)
   })
-})
 
-describe('shouldUseSmallSelectionCard', () => {
-  it('keeps the card normal for zero names', () => {
+  it('uses a small card only for 1-6 names', () => {
     expect(shouldUseSmallSelectionCard(0)).toBe(false)
-  })
-
-  it('uses a small card for 1-6 names', () => {
     expect(shouldUseSmallSelectionCard(1)).toBe(true)
     expect(shouldUseSmallSelectionCard(6)).toBe(true)
-  })
-
-  it('keeps the card normal above 6 names', () => {
     expect(shouldUseSmallSelectionCard(7)).toBe(false)
   })
 })

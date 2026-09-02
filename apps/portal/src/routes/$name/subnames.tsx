@@ -27,6 +27,7 @@ import type {
   Transaction,
 } from '@/features/transaction-manager/types'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 const DELETE_SUBNAME_TX_ID_PREFIX = 'tx-delete-ens-subname'
 const deleteTxId = (subnameName: string) =>
@@ -362,7 +363,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     return (
       <ErrorMessage
         title="Failed to load subnames"
-        description={subnamesError.cause?.message || subnamesError.message}
+        description={extractErrorMessage(subnamesError, '')}
       />
     )
   }
@@ -420,7 +421,7 @@ const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
     return (
       <ErrorMessage
         title="Failed to load subnames"
-        description={error.cause?.message || error.message}
+        description={extractErrorMessage(error, '')}
       />
     )
   }

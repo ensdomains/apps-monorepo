@@ -1,0 +1,27 @@
+{
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "test-results", "playwright-report"],
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "ESNext",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+
+    /* Linting */
+    "skipLibCheck": true,
+    "strict": true,
+    // Not noUnusedLocals/noUnusedParameters: Playwright instantiates a fixture
+    // only when a test or fixture destructures it, so args like `time` and
+    // `wallet` are deliberately declared-but-unread. Flagging them invites
+    // "cleanups" that silently disable test setup. biome covers genuinely dead
+    // locals.
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  }
+}

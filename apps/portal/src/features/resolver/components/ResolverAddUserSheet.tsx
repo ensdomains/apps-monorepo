@@ -1,4 +1,4 @@
-import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
+import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
 import { type FormEvent, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'

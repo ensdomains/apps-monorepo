@@ -11,7 +11,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setSubregistryWriteParameters } from '@ensdomains/ensjs/wallet'
+import { setSubregistryWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'

@@ -1,7 +1,8 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Hex } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
@@ -10,7 +11,7 @@ class GetV2NameHistoryError extends TaggedError('GetV2NameHistoryError')<{
   cause: GetV2NameHistoryErrorType
 }> {}
 
-type GetV2NameHistoryErrorType = ClientError
+type GetV2NameHistoryErrorType = GraphqlRequestError
 
 type GetV2NameHistoryParameters = {
   name: string

@@ -79,6 +79,14 @@ describe('decodeMigrationError — direct mappings', () => {
     expect(decodeMigrationError(outer)).toEqual({ type: 'plan-changed' })
   })
 
+  it('maps copy source or destination drift to a refreshable plan error', () => {
+    const copyChanged = Object.assign(new Error('copy source changed'), {
+      name: 'CopyMigrationReadinessError',
+    })
+
+    expect(decodeMigrationError(copyChanged)).toEqual({ type: 'plan-changed' })
+  })
+
   it('maps an uncertain submitted batch to a fail-closed retry error', () => {
     const uncertain = Object.assign(new Error('receipt unavailable'), {
       name: 'SubmittedAtomicMigrationIndeterminateError',

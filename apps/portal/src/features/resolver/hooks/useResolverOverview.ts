@@ -1,7 +1,8 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
@@ -50,7 +51,7 @@ export type ResolverOverview = {
 }
 
 class GetResolverOverviewError extends TaggedError('GetResolverOverviewError')<{
-  cause: ClientError
+  cause: GraphqlRequestError
 }> {}
 
 type GetResolverOverviewParameters = {
@@ -111,7 +112,7 @@ const getResolverOverview = ResultFn(async function* ({
     ),
     (e) =>
       new GetResolverOverviewError({
-        cause: e as ClientError,
+        cause: e as GraphqlRequestError,
       }),
   )
 

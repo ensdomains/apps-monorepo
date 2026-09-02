@@ -11,6 +11,7 @@ import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -52,7 +53,7 @@ const PageHeader = ({ name }: PageHeaderProps) => (
         Back
       </Button>
     </Link>
-    <h1 className="text-h1">Create subname</h1>
+    <PageHeading parent={{ type: 'name', name }}>Create subname</PageHeading>
   </div>
 )
 
@@ -76,7 +77,7 @@ interface CreateSubnameFormProps {
 const CREATE_SUBNAME_TRANSACTION_ID = 'tx-create-ens-subname'
 
 // One-year (in seconds) default expiry, matching ensjs'
-// `createSubnameV2WriteParameters` default. When time-travel is active Anvil's
+// `createSubnameWriteParameters` default. When time-travel is active Anvil's
 // block time can be far ahead of `Date.now()`, so use a 100-year window to
 // ensure the expiry is never stale on-chain.
 const ONE_YEAR_SECONDS = 31536000n

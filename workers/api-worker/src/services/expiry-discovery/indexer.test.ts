@@ -1,30 +1,15 @@
+import { CombinedError, stringifyDocument } from '@urql/core'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockRequest, MockClientError } = vi.hoisted(() => {
-  class MockClientError extends Error {
-    response: { status: number; headers: Headers }
-    request: { query: string; variables: Record<string, unknown> }
+const { mockRequest } = vi.hoisted(() => ({ mockRequest: vi.fn() }))
 
-    constructor(
-      response: { status: number; headers: Headers },
-      request: { query: string; variables: Record<string, unknown> },
-    ) {
-      super('GraphQL Client Error')
-      this.response = response
-      this.request = request
-    }
-  }
-
-  return {
-    mockRequest: vi.fn(),
-    MockClientError,
-  }
-})
-
-vi.mock('graphql-request', () => ({
-  request: mockRequest,
-  gql: String.raw,
-  ClientError: MockClientError,
+// Only the request helper is stubbed: `createPlainClient` still builds a real
+// client (never used, since the request never reaches it) and `CombinedError`
+// stays the real class, so the `instanceof` check in the retry classifier
+// exercises the production path.
+vi.mock('@ens-apps/indexer/urql/request', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@ens-apps/indexer/urql/request')>()),
+  graphqlRequest: mockRequest,
 }))
 
 import { fetchExpiringNamesPage, QUERY_PAGE_SIZE } from './indexer.js'
@@ -60,7 +45,7 @@ describe('fetchExpiringNamesPage', () => {
     expect(mockRequest).toHaveBeenCalledTimes(1)
 
     const [, document, variables] = mockRequest.mock.calls[0]
-    expect(String(document)).toContain(`first: ${QUERY_PAGE_SIZE}`)
+    expect(stringifyDocument(document)).toContain(`first: ${QUERY_PAGE_SIZE}`)
     expect(variables).toEqual({
       cursor: 100,
       upper_bound: 200,
@@ -94,13 +79,10 @@ describe('fetchExpiringNamesPage', () => {
   })
 
   it('does not retry non-retryable client errors', async () => {
-    const nonRetryableError = new MockClientError(
-      {
-        status: 400,
-        headers: new Headers(),
-      },
-      { query: 'q', variables: {} },
-    )
+    const nonRetryableError = new CombinedError({
+      networkError: new Error('Bad Request'),
+      response: { status: 400, headers: new Headers() },
+    })
 
     mockRequest.mockRejectedValue(nonRetryableError)
 

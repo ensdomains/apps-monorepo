@@ -17,6 +17,10 @@ export const V1_CONTRACTS = {
     chain: sepoliaWithEns,
     contract: 'ensNameWrapper',
   }),
+  LegacyRegistry: getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensLegacyRegistry',
+  }),
 } as const
 
 // V2/HCA contracts are the pinned contracts-v2 PR #388 namespace. Do not source
@@ -36,6 +40,7 @@ export const V2_CONTRACTS = {
   LockedMigrationController: destination.lockedMigrationController,
   MigrationHelper: destination.migrationHelper,
   PublicResolverSet: destination.publicResolverSet,
+  UserRegistryImpl: destination.userRegistryImpl,
   WrapperRegistryImpl: destination.wrapperRegistryImpl,
   DefaultResolver: destination.publicResolverV2,
   StandaloneHCAFactory: destination.standaloneHcaFactory,

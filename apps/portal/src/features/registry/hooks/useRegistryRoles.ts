@@ -1,15 +1,16 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 
 class GetRegistryRolesError extends TaggedError('GetRegistryRolesError')<{
-  cause: ClientError
+  cause: GraphqlRequestError
 }> {}
 
 type GetRegistryRolesParameters = {
@@ -45,7 +46,7 @@ const getRegistryRoles = ResultFn(async function* ({
       gql`
         query getRegistryRoles($address: String!) {
           registry(address: $address) {
-            roleConnection(first: ${ROLES_LIMIT}) {
+            roleConnection(first: ${String(ROLES_LIMIT)}) {
               edges {
                 node {
                   account
@@ -59,7 +60,7 @@ const getRegistryRoles = ResultFn(async function* ({
       `,
       { address: address.toLowerCase() },
     ),
-    (e) => new GetRegistryRolesError({ cause: e as ClientError }),
+    (e) => new GetRegistryRolesError({ cause: e as GraphqlRequestError }),
   )
 
   // null = indexer has no record for this address (not a registry, or not yet
