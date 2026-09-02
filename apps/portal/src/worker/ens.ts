@@ -1,5 +1,5 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { getName, getRecords } from '@ensdomains/ensjs/public'
+import { getRecords } from '@ensdomains/ensjs/public'
 import type { Address, Hex } from 'viem'
 import { getStorageAt } from 'viem/actions'
 
@@ -176,29 +176,6 @@ export async function fetchIsPermissionedResolver(
     return implementation.toLowerCase() === knownImpl
   } catch {
     return false
-  }
-}
-
-/**
- * Resolve an address's primary name, for the subtitle on its OG card.
- *
- * L1 default reverse (coin 60) only, forward-verified. The ENSIP-19 walk
- * through the L2 reverse registrars that `usePrimaryName` does costs a round
- * trip per chain, which is more than a card subtitle is worth — an address
- * whose primary name lives only on an L2 renders without one, as does any
- * address whose lookup fails.
- */
-export async function fetchPrimaryName(
-  env: Env,
-  address: string,
-): Promise<string | null> {
-  try {
-    const client = createClient(env)
-    const result = await getName(client, { address: address as Address })
-
-    return result?.match ? result.name : null
-  } catch {
-    return null
   }
 }
 

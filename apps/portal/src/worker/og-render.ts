@@ -9,15 +9,38 @@ import type { Address } from 'viem'
 
 import contractIconSvg from '../assets/fonts/og/contract-icon.svg?raw'
 import ensMarkSvg from '../assets/fonts/og/ens-mark.svg?raw'
+import walletIconSvg from '../assets/fonts/og/wallet-icon.svg?raw'
 import { getContractLabel } from '../utils/ens/ensContractNames'
 import { loadOgFonts } from './fonts'
 import { getOgPalette, type OgPalette } from './og-palette'
 
-/** Mark and wordmark sizes for the two header scales in the design. */
+/**
+ * Mark and wordmark sizes for the two header scales in the design.
+ *
+ * `row` is the height of the header's own frame, which is taller than the mark
+ * — the wordmark's line box sets it. Carrying it explicitly is what puts the
+ * mark where Figma draws it (centred, so 5.77px below the row's top at the
+ * small scale) rather than flush against the card's padding.
+ */
 const HEADER_SIZES = {
-  large: { gap: 35.84, markHeight: 114.325, markWidth: 103.219, text: 96 },
-  small: { gap: 22.4, markHeight: 71.453, markWidth: 64.512, text: 60 },
+  large: {
+    gap: 35.84,
+    markHeight: 114.325,
+    markWidth: 103.219,
+    row: 133,
+    text: 96,
+  },
+  small: {
+    gap: 22.4,
+    markHeight: 71.453,
+    markWidth: 64.512,
+    row: 83,
+    text: 60,
+  },
 } as const
+
+/** Gap between the header, the chip(s) and the subtitle. */
+const STACK_GAP = 50
 
 /** Width the subtitle wraps at — two lines for a full 42-character address. */
 const SUBTITLE_WIDTH = 808
@@ -43,15 +66,20 @@ function renderHeader(
   const mark = svgDataUri(ensMarkSvg, '__MARK_COLOR__', palette.text)
 
   return `
-    <div style="display: flex; align-items: center; gap: ${size.gap}px;">
+    <div style="display: flex; align-items: center; height: ${size.row}px; gap: ${size.gap}px;">
       <img src="${mark}" width="${size.markWidth}" height="${size.markHeight}" style="width: ${size.markWidth}px; height: ${size.markHeight}px;" />
       <div style="display: flex; font-family: 'OgSans'; font-size: ${size.text}px; font-weight: 500; color: ${palette.text}; white-space: nowrap;">ENS Explorer</div>
     </div>`
 }
 
-/** The white pill every card's subject sits in. */
+/**
+ * The pill a card's subject sits in.
+ *
+ * White by default; the address card's second chip is transparent, keeping the
+ * chip's padding without the fill, so it takes the card's own tint.
+ */
 function renderChip(
-  palette: OgPalette,
+  background: string,
   contents: string,
   wide = false,
 ): string {
@@ -60,20 +88,24 @@ function renderChip(
     : 'align-items: center;'
 
   return `
-    <div style="display: flex; gap: 16px; min-height: 76.8px; padding: 12px; border-radius: 16px; background: ${palette.chipBackground}; ${layout}">
+    <div style="display: flex; box-sizing: border-box; gap: 16px; min-height: 76.8px; padding: 12px; border-radius: 16px; background: ${background}; ${layout}">
       ${contents}
     </div>`
 }
 
 /**
- * A chip that labels its subject rather than naming it — "owned resolver",
- * "permissioned registry". Regular weight, against the Medium a name gets.
+ * A chip that labels its subject rather than naming it — "address",
+ * "permissioned resolver". Regular weight, against the Medium a name gets.
  */
-function renderLabelChip(palette: OgPalette, label: string): string {
-  const icon = svgDataUri(contractIconSvg, '__ICON_COLOR__', palette.chipText)
+function renderLabelChip(
+  palette: OgPalette,
+  iconSvg: string,
+  label: string,
+): string {
+  const icon = svgDataUri(iconSvg, '__ICON_COLOR__', palette.chipText)
 
   return renderChip(
-    palette,
+    palette.chipBackground,
     `<img src="${icon}" width="${CHIP_ICON_WIDTH}" height="${CHIP_ICON_HEIGHT}" style="width: ${CHIP_ICON_WIDTH}px; height: ${CHIP_ICON_HEIGHT}px;" />
      <div style="display: flex; font-family: 'OgSemiMono'; font-weight: 400; font-size: 60px; line-height: 57.6px; letter-spacing: 0.384px; color: ${palette.chipText}; white-space: nowrap;">${escapeHtml(label)}</div>`,
   )
@@ -82,7 +114,7 @@ function renderLabelChip(palette: OgPalette, label: string): string {
 /** The line under the chip: whatever identifies the subject a second way. */
 function renderSubtitle(palette: OgPalette, text: string): string {
   return `
-    <div style="display: flex; width: ${SUBTITLE_WIDTH}px; font-family: 'OgMono'; font-weight: 400; font-size: 60px; line-height: 1.2; letter-spacing: 1.2px; color: ${palette.text}; word-break: break-all;">${escapeHtml(text)}</div>`
+    <div style="display: flex; width: ${SUBTITLE_WIDTH}px; font-family: 'OgMono'; font-weight: 400; font-size: 60px; line-height: 1.2; letter-spacing: 1.2px; color: ${palette.chipText}; word-break: break-all;">${escapeHtml(text)}</div>`
 }
 
 /** The card frame every variant is drawn inside. */
@@ -93,18 +125,13 @@ function renderCard(palette: OgPalette, body: string): string {
     </div>`
 }
 
-/** The top-aligned body: header, chip, and an optional subtitle beneath. */
-function renderStack(
-  palette: OgPalette,
-  chip: string,
-  subtitle: string | null,
-): string {
+/** The top-aligned body: the header, then whatever the card puts beneath it. */
+function renderStack(palette: OgPalette, body: string): string {
   return renderCard(
     palette,
-    `<div style="display: flex; flex: 1; flex-direction: column; align-items: flex-start; gap: 40px; width: 100%;">
+    `<div style="display: flex; flex: 1; flex-direction: column; align-items: flex-start; gap: ${STACK_GAP}px; width: 100%;">
       ${renderHeader(palette, 'small')}
-      ${chip}
-      ${subtitle ? renderSubtitle(palette, subtitle) : ''}
+      ${body}
     </div>`,
   )
 }
@@ -136,7 +163,7 @@ function renderNameChip(
     : 'white-space: nowrap;'
 
   return renderChip(
-    palette,
+    palette.chipBackground,
     `${avatarHtml}
      <div style="display: flex; font-family: 'OgSemiMono'; font-weight: 500; font-size: 60px; line-height: 57.6px; letter-spacing: 0.384px; color: ${palette.chipText}; ${textLayout}">${escapeHtml(text)}</div>`,
     isWide,
@@ -152,8 +179,8 @@ function nameOgHtml(
 
   return renderStack(
     palette,
-    renderNameChip(palette, name, avatar),
-    owner ?? 'Available to register',
+    renderNameChip(palette, name, avatar) +
+      renderSubtitle(palette, owner ?? 'Available to register'),
   )
 }
 
@@ -186,26 +213,26 @@ export async function renderOgImage(
 /**
  * Render an address card.
  *
- * The address itself is the chip — there is no icon beside it, so the green
- * tint is what marks the card as being about an address. Its primary name,
- * when it has one, is the subtitle.
+ * Two chips rather than a chip and a subtitle: a white one naming the entity
+ * kind, then a transparent one — the card's own tint showing through — holding
+ * the address at the width it wraps to two lines at.
  */
 export function renderAddressOgImage(
   address: string,
   requestUrl: string,
   env: Env,
-  primaryName: string | null = null,
 ): Promise<Response | null> {
   const palette = getOgPalette('address')
-  const chip = renderChip(
-    palette,
-    // The chip hugs the address at its wrap width rather than spanning the
-    // card, which is what puts its right edge where the design draws it.
+  const addressChip = renderChip(
+    'transparent',
     `<div style="display: flex; width: ${CHIP_ADDRESS_WIDTH}px; font-family: 'OgMono'; font-weight: 400; font-size: 60px; line-height: 1.2; letter-spacing: 1.2px; color: ${palette.chipText}; word-break: break-all;">${escapeHtml(address)}</div>`,
   )
 
   return renderCardImage(
-    renderStack(palette, chip, primaryName),
+    renderStack(
+      palette,
+      renderLabelChip(palette, walletIconSvg, 'address') + addressChip,
+    ),
     requestUrl,
     env,
   )
@@ -215,8 +242,8 @@ export function renderAddressOgImage(
  * Chip label for a resolver.
  *
  * A known ENS contract gets the same pill the app labels it with; anything else
- * is a resolver someone deployed, which reads as "owned" when it is one of ours
- * (a permissioned resolver behind a proxy) and plain otherwise.
+ * is a resolver someone deployed, which is a permissioned one when it sits
+ * behind our own implementation and a plain resolver otherwise.
  */
 export function resolverChipLabel(
   address: string,
@@ -224,7 +251,7 @@ export function resolverChipLabel(
 ): string {
   return (
     getContractLabel(address as Address) ??
-    (isPermissioned ? 'owned resolver' : 'resolver')
+    (isPermissioned ? 'permissioned resolver' : 'resolver')
   )
 }
 
@@ -248,7 +275,11 @@ function renderContractOgImage(
   const palette = getOgPalette('contract')
 
   return renderCardImage(
-    renderStack(palette, renderLabelChip(palette, label), address),
+    renderStack(
+      palette,
+      renderLabelChip(palette, contractIconSvg, label) +
+        renderSubtitle(palette, address),
+    ),
     requestUrl,
     env,
   )
@@ -311,8 +342,8 @@ export function renderTldOgImage(
   return renderCardImage(
     renderStack(
       palette,
-      renderNameChip(palette, tld, null),
-      'Top Level Domain',
+      renderNameChip(palette, tld, null) +
+        renderSubtitle(palette, 'Top Level Domain'),
     ),
     requestUrl,
     env,

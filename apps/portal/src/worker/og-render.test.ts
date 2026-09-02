@@ -52,8 +52,8 @@ beforeEach(() => {
 describe('chip labels', () => {
   // An address that is nobody's known ENS contract, so both fall through to the
   // label the route itself implies.
-  it('calls an unknown permissioned resolver an owned resolver', () => {
-    expect(resolverChipLabel(ADDRESS, true)).toBe('owned resolver')
+  it('names an unknown permissioned resolver as one', () => {
+    expect(resolverChipLabel(ADDRESS, true)).toBe('permissioned resolver')
   })
 
   it('calls any other resolver a plain resolver', () => {
@@ -95,18 +95,39 @@ describe('entity colour coding', () => {
 })
 
 describe('renderAddressOgImage', () => {
-  it('carries the address in the chip and no subtitle without a primary name', async () => {
+  it('labels the entity kind, then carries the address itself', async () => {
     await renderAddressOgImage(ADDRESS, URL_, env)
 
+    expect(og.htmls[0]).toContain('>address</div>')
     expect(og.htmls[0]).toContain(ADDRESS)
-    // The subtitle is the only 808px-wide element on the card.
-    expect(og.htmls[0]).not.toContain('width: 808px')
   })
 
-  it('puts the primary name under the address when there is one', async () => {
-    await renderAddressOgImage(ADDRESS, URL_, env, 'snowman.eth')
+  it('leaves the address chip unfilled so the card tint shows through', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env)
 
-    expect(og.htmls[0]).toContain('snowman.eth')
+    expect(og.htmls[0]).toContain('background: transparent')
+  })
+})
+
+describe('card geometry', () => {
+  // Measured against the Figma frames: an 83px header row puts the mark 5.77px
+  // below the card's padding, and a 50px stack gap puts the chip at y=213.
+  it('gives the header row the height the design draws it at', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env)
+
+    expect(og.htmls[0]).toContain('height: 83px')
+  })
+
+  it('stacks with the design gap', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env)
+
+    expect(og.htmls[0]).toContain('gap: 50px')
+  })
+
+  it('sizes a chip border-box, so min-height counts its padding', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env)
+
+    expect(og.htmls[0]).toContain('box-sizing: border-box')
   })
 })
 

@@ -11,11 +11,7 @@ import {
   matchContractRoute,
 } from './utils/routePaths'
 import { withSecurityHeaders } from './worker/csp'
-import {
-  fetchEnsData,
-  fetchIsPermissionedResolver,
-  fetchPrimaryName,
-} from './worker/ens'
+import { fetchEnsData, fetchIsPermissionedResolver } from './worker/ens'
 import { MetaTagInjector, TitleRewriter } from './worker/html-rewriter'
 import {
   renderAddressOgImage,
@@ -133,12 +129,7 @@ async function handleOgImage(
 ): Promise<Response | null> {
   const addrMatch = decoded.match(OG_ADDRESS_RE)
   if (addrMatch) {
-    return renderAddressOgImage(
-      addrMatch[1],
-      request.url,
-      env,
-      await fetchPrimaryName(env, addrMatch[1]),
-    )
+    return renderAddressOgImage(addrMatch[1], request.url, env)
   }
 
   const resolverMatch = decoded.match(OG_RESOLVER_RE)
