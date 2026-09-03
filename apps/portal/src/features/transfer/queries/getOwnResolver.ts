@@ -1,9 +1,22 @@
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { permissionedRegistryGetResolverSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
-import { queryOptions } from '@tanstack/react-query'
-import { type Address, zeroAddress } from 'viem'
+import { fromPromise, ok } from 'neverthrow'
+import { type Address, type ReadContractErrorType, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+
+class GetOwnResolverError extends TaggedError('GetOwnResolverError')<{
+  cause: ReadContractErrorType
+}> {}
+
+type GetOwnResolverParameters = {
+  readonly label: string
+  /** The registry the name's token lives in (its parent's subregistry). */
+  readonly registryAddress: Address
+}
 
 /**
  * The resolver set on the name's *own* registry slot, or null if it has none.
@@ -24,32 +37,36 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
  *
  * Reading the same slot the write targets keeps the two in agreement.
  */
-export const getOwnResolverQueryOptions = ({
+const getOwnResolver = ResultFn(async function* ({
   label,
   registryAddress,
-}: {
-  label: string
-  registryAddress: Address
-}) =>
-  queryOptions({
-    queryKey: ['transfer-own-resolver', registryAddress, label],
-    queryFn: async (): Promise<Address | null> => {
-      const clientResult = safeGetClient()
-      if (clientResult.isErr()) throw clientResult.error
+}: GetOwnResolverParameters) {
+  const client = yield* safeGetClient()
 
-      const readContractAction = getAction(
-        clientResult.value,
-        readContract,
-        'readContract',
-      )
+  const resolver = yield* fromPromise(
+    getAction(
+      client,
+      readContract,
+      'readContract',
+    )({
+      address: registryAddress,
+      abi: permissionedRegistryGetResolverSnippet,
+      functionName: 'getResolver',
+      args: [label],
+    }),
+    (e) => new GetOwnResolverError({ cause: e as ReadContractErrorType }),
+  )
 
-      const resolver = await readContractAction({
-        address: registryAddress,
-        abi: permissionedRegistryGetResolverSnippet,
-        functionName: 'getResolver',
-        args: [label],
-      })
+  return ok<Address | null>(resolver === zeroAddress ? null : resolver)
+})
 
-      return resolver === zeroAddress ? null : resolver
-    },
+const getOwnResolverQueryKey = createQueryKey<
+  'transfer-own-resolver',
+  GetOwnResolverParameters
+>('transfer-own-resolver')
+
+export const getOwnResolverQueryOptions = (params: GetOwnResolverParameters) =>
+  resultQueryOptions({
+    queryKey: getOwnResolverQueryKey(params),
+    queryFn: ({ queryKey: [, params] }) => getOwnResolver(params),
   })

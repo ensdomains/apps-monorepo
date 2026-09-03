@@ -11,9 +11,9 @@ class GetSubnameExpiryError extends TaggedError('GetSubnameExpiryError')<{
 }> {}
 
 type GetSubnameExpiryParameters = {
-  name: string
+  readonly name: string
   /** The registry the name's token lives in (its parent's subregistry). */
-  registryAddress: Address
+  readonly registryAddress: Address
 }
 
 /**

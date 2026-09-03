@@ -2,6 +2,7 @@ import type { Call } from '@ens-apps/transaction-manager'
 import { getNameRegistries } from '@ensdomains/ensjs/public/v2'
 import { permissionedRegistrySetResolverSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { type Address, encodeFunctionData, labelhash, zeroAddress } from 'viem'
+import { normalize } from 'viem/ens'
 import { publicClient } from '@/lib/wagmi'
 
 class NameRegistryNotFoundError extends Error {
@@ -28,8 +29,9 @@ export type NameRegistryLocation = {
 export async function resolveNameRegistry(
   name: string,
 ): Promise<NameRegistryLocation> {
-  const [label] = name.split('.')
-  const registries = await getNameRegistries(publicClient, { name })
+  const normalized = normalize(name)
+  const [label] = normalized.split('.')
+  const registries = await getNameRegistries(publicClient, { name: normalized })
   const registryAddress = registries[1]
   if (!label || !registryAddress || registryAddress === zeroAddress) {
     throw new NameRegistryNotFoundError(name)
