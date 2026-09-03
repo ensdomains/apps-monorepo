@@ -44,10 +44,13 @@ coverage before then.
 | **smart-account** | `packages/smart-account` | Rhinestone HCA (ERC-4337). `DEBUGGING_INTENTS.md` is normative. Registration and migration can run EOA **or** HCA — different stage spines, same end state. |
 | **migration** | `packages/migration` | `classifyNames.ts` maps V1 name states → migratable token types + ineligibility reasons. The migration's brain. |
 | **indexer (Panoptes)** | `packages/indexer`, `e2e/infra/panoptes` | GraphQL over chain events. Many UI surfaces read it *first* and fall back to chain only on error. |
+| **metadata service** | external repo `github.com/ensdomains/metadata-service-v2`, run by `e2e/infra`'s `metadata-service` container (WEB-1191) | NFT/avatar/header metadata for ENS names, v1 (mainnet+sepolia) and v2 (sepolia only) protocols. Not this monorepo's code — a pinned-commit external service, tested black-box over HTTP. Its indexers (zigens/ENSNode) are deliberately unreachable in this harness, so it always exercises its own on-chain-fallback classification path. See `docs/e2e-test-catalogue.md`'s `MD` suite and `projects/metadata/`. |
 
-**Chain and infra.** `pnpm e2e:infra:up` brings up an Anvil Sepolia fork, an Alto
-bundler, a mockestrator (local Rhinestone orchestrator), and Panoptes.
-Playwright 1.58. Wallets are injected via `@ensdomains/headless-web3-provider`.
+**Chain and infra.** `pnpm e2e:infra:up` brings up an Anvil Sepolia fork
+(`anvil`), a read-only Anvil Mainnet fork (`anvil-mainnet`, metadata project
+only), an Alto bundler, a mockestrator (local Rhinestone orchestrator),
+Panoptes, and the metadata service. Playwright 1.58. Wallets are injected via
+`@ensdomains/headless-web3-provider`.
 
 **Protocol constants you will need constantly** (verified — re-verify if the code
 moves, do not trust this table blindly):

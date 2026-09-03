@@ -59,6 +59,7 @@ const PROJECT_CONFIGS = [
   },
   { project: 'portal', config: 'projects/portal/playwright.config.ts' },
   { project: 'cross-app', config: 'projects/cross-app/playwright.config.ts' },
+  { project: 'metadata', config: 'projects/metadata/playwright.config.ts' },
 ]
 
 type Status =

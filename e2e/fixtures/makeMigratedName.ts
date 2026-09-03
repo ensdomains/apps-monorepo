@@ -60,6 +60,7 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import type { User } from '../helpers/portal-auth.js'
 
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 
@@ -90,7 +91,7 @@ export type MigratedNameConfig = {
   /** V1 token type to migrate from. Default `'unwrapped'`. */
   readonly type?: MigratedNameType
   /** Which test account owns the name, before and after migration. Default `'user'`. */
-  readonly owner?: string
+  readonly owner?: User
   /**
    * Extra owner-controlled fuses to burn alongside `CANNOT_UNWRAP`, e.g.
    * `FUSES.CANNOT_TRANSFER`. Only meaningful for `type: 'locked'` — the
@@ -101,9 +102,16 @@ export type MigratedNameConfig = {
 }
 
 type Dependencies = {
+  /**
+   * Widened from `(user?: string)` to the real `User` union. A function that
+   * only accepts `User` is not assignable to one accepting any `string` —
+   * parameter contravariance — so every caller passing a `PortalAccounts`
+   * failed to typecheck. That was four call sites, and it is why this package
+   * had no `typecheck` script passing.
+   */
   accounts: {
-    getAddress: (user?: string) => Address
-    getPrivateKey: (user?: string) => Hash
+    getAddress: (user?: User) => Address
+    getPrivateKey: (user?: User) => Hash
   }
 }
 

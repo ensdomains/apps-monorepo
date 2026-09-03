@@ -86,6 +86,36 @@ services:
       retries: 6
       start_period: 20s
 
+  # Read-only Mainnet fork — only for the "metadata" project's mainnet-v1
+  # scenarios (WEB-1191). Nothing registers or writes here: mainnet v1 names
+  # used in those tests are real, already-registered names, so this fork only
+  # needs to serve reads at a pinned block for determinism.
+  anvil-mainnet:
+    image: ghcr.io/foundry-rs/foundry@sha256:8347b728d5d393dac1c018691b36f506d23b9dcd78341d40ea0fcb11c3a19cdd
+    networks:
+      e2e:
+        aliases:
+          - anvil-mainnet
+    entrypoint: ["anvil"]
+    command:
+      - --fork-url
+      - ${MAINNET_FORK_URL:-https://ethereum-rpc.publicnode.com}
+      - --chain-id
+      - "1"
+      - --port
+      - "8546"
+      - --host
+      - "0.0.0.0"
+    ports:
+      - "8546:8546"
+    healthcheck:
+      # cast defaults to :8545 with no --rpc-url; this fork listens on :8546.
+      test: ["CMD", "cast", "rpc", "eth_chainId", "--rpc-url", "http://127.0.0.1:8546"]
+      interval: 5s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
+
   alto:
     image: ghcr.io/pimlicolabs/alto:latest
     networks:
@@ -202,6 +232,57 @@ services:
       start_period: 10s
     restart: on-failure
 
+  # ENS Metadata Service V2 (github.com/ensdomains/metadata-service-v2), run
+  # locally against the anvil forks above — for the "metadata" e2e project
+  # (WEB-1191). RPCs point at anvil/anvil-mainnet; the ENSNODE_* indexer URLs
+  # deliberately point nowhere reachable — there is no local indexer speaking
+  # the zigens/ENSNode dialect this service expects (panoptes-indexer above is
+  # a different, incompatible schema), so every scenario exercises the
+  # service's own live-on-chain-fallback classification path instead
+  # (src/services/metadata.ts statusFromSource, already covered by that repo's
+  # own fallback.test.ts / outage-taxonomy.test.ts — this is intended,
+  # resilience-tested behaviour, not a workaround).
+  metadata-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.metadata-service
+      # metadata-service-v2 is private; the clone inside the build needs a
+      # credential. Passed as a secret so it never reaches an image layer.
+      secrets:
+        - gh_token
+    networks:
+      e2e:
+        aliases:
+          - metadata-service
+    ports:
+      - "8787:8787"
+    environment:
+      - MAINNET_RPC_URL=http://anvil-mainnet:8546
+      - SEPOLIA_RPC_URL=http://anvil:8545
+      - ENSNODE_MAINNET_URL=http://indexer.invalid/subgraph
+      - ENSNODE_SEPOLIA_V2_URL=http://indexer.invalid/graphql
+      - ENSNODE_SEPOLIA_V1_URL=http://indexer.invalid/subgraph
+      # Real HMAC secret (not WEBHOOK_ALLOW_UNAUTHENTICATED) so the webhook's
+      # auth path — the thing MD6 actually tests — stays exercised for real.
+      # Must match fixtures/metadataWebhook.ts's DEFAULT_WEBHOOK_SECRET.
+      - WEBHOOK_SECRET=${METADATA_SERVICE_WEBHOOK_SECRET:-e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0}
+      - RATE_LIMIT_DISABLED=true
+    depends_on:
+      anvil:
+        condition: service_healthy
+      anvil-mainnet:
+        condition: service_healthy
+    healthcheck:
+      # /health always returns HTTP 200 (degraded status is reported in the
+      # body, not the status code — see src/index.ts) so this only confirms
+      # the worker itself is up, not that its dependencies are healthy.
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8787/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    restart: on-failure
+
   # Rhinestone mockestrator: local orchestrator for Rhinestone intent-based transactions.
   # Only needed when running the standalone-HCA e2e tests (VITE_FF_USE_EOA=false).
   mockestrator:
@@ -278,6 +359,13 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+# Build-time credential for the private metadata-service-v2 clone. Sourced from
+# the environment so nothing is written to disk:
+#   GH_TOKEN=$(gh auth token) docker compose up -d metadata-service
+secrets:
+  gh_token:
+    environment: GH_TOKEN
 
 volumes:
   panoptes-data:

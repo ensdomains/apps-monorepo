@@ -80,6 +80,7 @@ const AREA_TIER: Record<string, Tier> = {
   U: 'R3',
   X: 'R3',
   Z: 'R3',
+  MD: 'R3',
   // R4 — resilience & quality
   K: 'R4',
   L: 'R4',
@@ -93,7 +94,7 @@ export const tierForId = (id: string): Tier => {
   return tier
 }
 
-export type App = 'manager' | 'portal' | 'cross-app' | 'shared'
+export type App = 'manager' | 'portal' | 'cross-app' | 'shared' | 'metadata'
 
 export type Kind = 'harness' | 'scenario'
 
@@ -2431,6 +2432,48 @@ const dnsZ: Scenario[] = suite('Z', 'dns', 'portal', 'P5', [
   ['Z5', 'Unsupported TLD', 'a clear unsupported state, never a crash'],
 ])
 
+// ── §MD Metadata Service (WEB-1191) ───────────────────────────────────────
+// The external metadata service (github.com/ensdomains/metadata-service-v2),
+// run locally by `infra/docker-compose.yml`'s `metadata-service` container
+// against the shared sepolia Anvil fork + a read-only mainnet fork
+// (`anvil-mainnet`). Indexers are deliberately unreachable — every row here
+// exercises the service's on-chain-fallback classification path
+// (`src/services/metadata.ts` `statusFromSource`), not an indexer. See
+// `e2e-build-goal.md` §2 and `projects/metadata/tests/*.spec.ts`.
+const metadataMD: Scenario[] = suite('MD', 'metadata', 'metadata', 'P6', [
+  [
+    'MD1',
+    'Mainnet v1 name resolves metadata correctly',
+    'on-chain read (mainnet fork, legacy Registry.owner()) vs. /migration-status and unified metadata response',
+  ],
+  [
+    'MD2',
+    'Sepolia v1 name resolves metadata correctly',
+    'on-chain read (sepolia fork, BaseRegistrar.ownerOf) vs. avatar/metadata/migration-status responses',
+  ],
+  [
+    'MD3',
+    'Sepolia v2 name resolves metadata correctly',
+    'on-chain read (v2 ETH Registry) vs. avatar + both unified-metadata URL shapes (registry, namewrapper)',
+  ],
+  [
+    'MD4',
+    'Sepolia v1→v2 migration is observable',
+    'MigrationHelper.migrate on-chain vs. /migration-status reporting "migrated" (with an un-migrated negative control)',
+  ],
+  [
+    'MD5',
+    'Cache invalidation via the webhook',
+    'X-Cache-Status transitions (miss→hit→miss) plus changed response bytes, driven by a real signed POST /webhook',
+  ],
+  [
+    'MD6',
+    'Dispatch, graceful degradation, and webhook auth',
+    '404/400/401/503 on the documented error paths; never a 500',
+    { tier: 'R4' },
+  ],
+])
+
 export const scenarios: Scenario[] = [
   ...harness,
   ...registrationA,
@@ -2460,6 +2503,7 @@ export const scenarios: Scenario[] = [
   ...dnsZ,
   ...crossAppX,
   ...extraX,
+  ...metadataMD,
 ]
 
 export const scenarioById = new Map(scenarios.map((row) => [row.id, row]))

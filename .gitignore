@@ -18,3 +18,11 @@ e2e/test-results/*
 # E2E infra secrets (Linear OAuth for the dqa service, etc.)
 e2e/infra/.env
 *.tsbuildinfo
+
+# Local credential scratch. `.secrets` holds real API keys (Para, PostHog,
+# Gemini) and was tracked by nothing but also ignored by nothing, so a single
+# `git add -A` at the repo root would have committed it.
+.secrets
+# Zero-byte files left by mistyped shell redirects (`> apps@`, `> pnpm`).
+/apps@
+/pnpm

@@ -490,6 +490,31 @@ contract, never chain.** Re-scope when a backend lands.
 | Z4 | DNS claim flow ⚠️ | probe — parity with v3 `dnsclaim.spec.ts` may be out of scope |
 | Z5 | Unsupported TLD | clear unsupported state, not a crash |
 
+### MD — Metadata Service · R3/R4 · external service, run locally against the fork (WEB-1191)
+
+Unlike every other suite, the system under test here is not `apps/manager` or
+`apps/portal` — it's `github.com/ensdomains/metadata-service-v2`, run locally
+by `infra/docker-compose.yml`'s `metadata-service` container against the
+shared Sepolia Anvil fork plus a read-only Mainnet fork (`anvil-mainnet`).
+Its indexers (zigens, ENSNode) are deliberately left unreachable — there is no
+local indexer speaking their GraphQL dialect (`panoptes-indexer` above is a
+different, incompatible schema) — so every row exercises the service's own
+on-chain-fallback classification path
+(`src/services/metadata.ts` `statusFromSource`), which is itself a tested,
+intentional production code path, not a harness workaround. See
+`projects/metadata/tests/*.spec.ts` for the automated suite, and
+`manual-metadata-service-testing.md` for the click-through version (Endpoint
+Tester + Dev Tools drawer, no scripts).
+
+| # | Scenario | O |
+|---|---|---|
+| MD1 | Mainnet v1 name resolves metadata correctly | on-chain read (mainnet fork, legacy `Registry.owner()`) vs. `/migration-status` + unified metadata response |
+| MD2 | Sepolia v1 name resolves metadata correctly | on-chain read (`BaseRegistrar.ownerOf`) vs. avatar/metadata/migration-status responses; also the exact "~1h" `Cache-Control` contract for an `unmigrated` name |
+| MD3 | Sepolia v2 name resolves metadata correctly | on-chain read (v2 ETH Registry) vs. avatar + both unified-metadata URL shapes (`registry`, `namewrapper`) |
+| MD4 | Sepolia v1→v2 migration is observable | `MigrationHelper.migrate` on-chain vs. `/migration-status` reporting `migrated`, across all three V1 token types, with an un-migrated negative control |
+| MD5 | Cache invalidation via the webhook | `X-Cache-Status` miss→hit→miss plus changed response bytes, driven by a real HMAC-signed `POST /webhook` (not a real ~1h wait) |
+| MD6 | Dispatch, graceful degradation, webhook auth ⚠️ | 404/400/401/503 on every documented error path, never a 500; the v1 tokenId-keyed route (`/:network/:contractAddress/:tokenId`) cannot resolve without an indexer by design (hash reversal), so this only verifies it fails *cleanly* |
+
 ### K — Resilience & failure injection · R4
 
 | # | Scenario | O |
