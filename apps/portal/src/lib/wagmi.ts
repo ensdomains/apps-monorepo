@@ -55,21 +55,7 @@ export const customSepolia = {
   },
 }
 
-const sepoliaWithEnsBase = extendChainWithEns(customSepolia)
-
-// The pinned ensjs prerelease's dns actions (`getDnsImportData`/`importDnsName`
-// from `@ensdomains/ensjs/dns`) resolve chain contracts under the keys
-// `ensDnssecImpl`/`ensDnsRegistrar`, but its chain config only ships
-// `ensLegacyDnssecImpl`/`ensLegacyDnsRegistrar`. Alias them here so the DNS
-// import flow works; drop once ensjs uses the ensLegacy* keys itself.
-export const sepoliaWithEns = {
-  ...sepoliaWithEnsBase,
-  contracts: {
-    ...sepoliaWithEnsBase.contracts,
-    ensDnssecImpl: sepoliaWithEnsBase.contracts.ensLegacyDnssecImpl,
-    ensDnsRegistrar: sepoliaWithEnsBase.contracts.ensLegacyDnsRegistrar,
-  },
-} as const
+export const sepoliaWithEns = extendChainWithEns(customSepolia)
 
 // Injected wallets (MetaMask, Coinbase extension, Rabby, …) are discovered via
 // EIP-6963, so WalletConnect is the only explicit connector. We skip the

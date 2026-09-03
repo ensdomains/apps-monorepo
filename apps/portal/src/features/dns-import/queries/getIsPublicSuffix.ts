@@ -1,24 +1,17 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import {
+  type IsDnsPublicSuffixErrorType,
+  isDnsPublicSuffix,
+} from '@ensdomains/ensjs/dns'
 import { fromPromise, ok } from 'neverthrow'
-import { parseAbi, type ReadContractErrorType, toHex } from 'viem'
-import { readContract } from 'viem/actions'
-import { packetToBytes } from 'viem/ens'
-import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-
-const dnsRegistrarAbi = parseAbi(['function suffixes() view returns (address)'])
-
-const publicSuffixListAbi = parseAbi([
-  'function isPublicSuffix(bytes name) view returns (bool)',
-])
 
 export class GetIsPublicSuffixError extends TaggedError(
   'GetIsPublicSuffixError',
 )<{
-  cause: ReadContractErrorType
+  cause: IsDnsPublicSuffixErrorType
 }> {}
 
 type GetIsPublicSuffixParameters = {
@@ -35,25 +28,11 @@ export const getIsPublicSuffix = ResultFn(async function* ({
   tld,
 }: GetIsPublicSuffixParameters) {
   const client = yield* safeGetClient()
-  const registrar = getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensLegacyDnsRegistrar',
-  })
 
   const isPublicSuffix = yield* fromPromise(
-    readContract(client, {
-      abi: dnsRegistrarAbi,
-      address: registrar,
-      functionName: 'suffixes',
-    }).then((suffixList) =>
-      readContract(client, {
-        abi: publicSuffixListAbi,
-        address: suffixList,
-        functionName: 'isPublicSuffix',
-        args: [toHex(packetToBytes(tld))],
-      }),
-    ),
-    (e) => new GetIsPublicSuffixError({ cause: e as ReadContractErrorType }),
+    isDnsPublicSuffix(client, { name: tld }),
+    (e) =>
+      new GetIsPublicSuffixError({ cause: e as IsDnsPublicSuffixErrorType }),
   )
 
   return ok(isPublicSuffix)
