@@ -14,17 +14,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      # Installs pnpm (version from `packageManager`), installs Node, restores the
+      # pnpm store cache and runs `pnpm install --frozen-lockfile` — all in one step.
+      # pnpm/action-setup only supports pnpm <=10, hence the swap.
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@v2
         with:
-          node-version: "lts/*"
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          runtime: node@lts
+          cache: true
+          require-lockfile: true
 
       - name: Type check Portal
         run: pnpm typecheck:portal
