@@ -52,10 +52,30 @@ jobs:
             echo "has_apps=false" >> $GITHUB_OUTPUT
           fi
 
+      # See the same step in test.yml: pnpm selects the workspace root whenever a
+      # root file changes, and the root has no `typecheck` script — selecting it
+      # alone errors, subtracting it leaves nothing to check. A root change can
+      # break any package, so widen to the whole workspace in that case.
+      - name: Determine package scope
+        env:
+          REF: ${{ steps.base.outputs.ref }}
+        run: |
+          if pnpm --filter="...[$REF]" list --depth=-1 --json \
+            | jq -e --arg root "$PWD" 'any(.[]; .path == $root)' > /dev/null; then
+            echo "🌐 Root files changed — type checking every workspace package."
+            echo "SCOPE=--filter=!{.}" >> "$GITHUB_ENV"
+          else
+            echo "🎯 Type checking packages changed since $REF and their dependents."
+            echo "SCOPE=--filter=...[$REF] --filter=!{.}" >> "$GITHUB_ENV"
+          fi
+
+      # `set -f` keeps the glob characters in `$SCOPE` from being expanded
+      # against the working tree; the words still split.
       - name: Type check changed packages
         run: |
           echo "🔍 Type checking changed packages and their dependents..."
-          pnpm --filter="...[${{ steps.base.outputs.ref }}]" --filter='!{.}' --if-present typecheck
+          set -f
+          pnpm $SCOPE --if-present typecheck
 
       - name: Build changed apps
         if: steps.changed.outputs.has_apps == 'true'
