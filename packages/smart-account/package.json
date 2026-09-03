@@ -23,7 +23,7 @@
     "viem": "catalog:"
   },
   "devDependencies": {
-    "happy-dom": "^18.0.1",
+    "happy-dom": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
