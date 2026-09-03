@@ -19,8 +19,8 @@ import {
   getEnsContractName,
 } from '@/utils/ens/ensContractNames'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
-import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { resolveDecodedName } from '../summarize/decodeRawData'
+import type { TimelineIndexerEvent } from '../timelineEvent'
 import { AccountBadge, FullOnDesktop } from './AccountBadge'
 import { ContractBadge } from './ContractBadge'
 import { getDecodedParamEntries, getTimelineFieldType } from './eventFieldTypes'

@@ -1,4 +1,4 @@
-import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
+import type { TimelineIndexerEvent } from '../timelineEvent'
 import { DESCRIPTORS, humanizeType } from './descriptors'
 import type { Action, ActionSlot, Descriptor } from './summarize.types'
 

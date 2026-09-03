@@ -2,11 +2,11 @@ import { match } from 'ts-pattern'
 import { isAddress, zeroAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import {
   decodeRoleChange,
   resolveDecodedName,
 } from '../summarize/decodeRawData'
+import type { TimelineIndexerEvent } from '../timelineEvent'
 import { AccountBadge } from './AccountBadge'
 import { ContractBadge } from './ContractBadge'
 import { DecodedParams } from './EventDetail'

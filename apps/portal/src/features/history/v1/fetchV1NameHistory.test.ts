@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { V1SubgraphEvent } from './adaptV1Events'
-import { flattenV1Response, scopedCollections } from './fetchV1NameHistory'
+import {
+  flattenV1Response,
+  scopedCollections,
+  v1CollectionsSaturated,
+} from './fetchV1NameHistory'
 
 const event = (type: string, id = `${type}-1`): V1SubgraphEvent => ({
   id,
@@ -115,5 +119,72 @@ describe('flattenV1Response', () => {
     )
 
     expect(flat).toEqual([])
+  })
+})
+
+describe('v1CollectionsSaturated', () => {
+  const event = (id: string) => ({ id }) as unknown as V1SubgraphEvent
+
+  it('is false when every collection came back short', () => {
+    expect(
+      v1CollectionsSaturated(
+        { domain: { events: [event('a')] }, resolvers: [] },
+        null,
+        10,
+      ),
+    ).toBe(false)
+  })
+
+  it('is false when the flat total exceeds the window but no collection did', () => {
+    // The regression this guards. `first` bounds each sibling selection
+    // separately, so two resolvers can return two windows' worth and still be
+    // complete. Comparing the *flattened* length against the window instead
+    // reported fox.eth's 172 complete v1 events as truncated.
+    expect(
+      v1CollectionsSaturated(
+        {
+          domain: { events: [event('a'), event('b')] },
+          resolvers: [
+            { events: [event('c'), event('d')] },
+            { events: [event('e'), event('f')] },
+          ],
+        },
+        null,
+        3,
+      ),
+    ).toBe(false)
+  })
+
+  it('is true when a single collection filled its window', () => {
+    expect(
+      v1CollectionsSaturated(
+        { domain: { events: [event('a'), event('b')] }, resolvers: [] },
+        null,
+        2,
+      ),
+    ).toBe(true)
+  })
+
+  it('checks the registration collection', () => {
+    expect(
+      v1CollectionsSaturated(
+        {
+          domain: { events: [], registration: { events: [event('a')] } },
+          resolvers: [],
+        },
+        null,
+        1,
+      ),
+    ).toBe(true)
+  })
+
+  it('checks the scoped resolver collections, not just `events`', () => {
+    expect(
+      v1CollectionsSaturated(
+        { domain: null, resolvers: [{ textChangeds: [event('a')] }] },
+        [{ collection: 'textChangeds', fields: 'key value' }],
+        1,
+      ),
+    ).toBe(true)
   })
 })
