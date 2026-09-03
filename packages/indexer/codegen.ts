@@ -22,6 +22,11 @@ const config: CodegenConfig = {
         addDocBlocks: false,
         disableDescriptions: true,
         useTypeImports: true,
+        // Emit pre-parsed DocumentNode ASTs instead of `gql` tags. A runtime
+        // `parse()` at module scope crashes workerd: graphql 17 wraps parse in
+        // a node:diagnostics_channel tracing span, and span creation is a
+        // disallowed operation in Workers global scope.
+        documentMode: 'documentNode',
         nameSuffix: 'Document',
         // Fragment consts default to the bare fragment name (`Domain`), which
         // shadows the same-named schema type re-exported from `./schema.gen`
