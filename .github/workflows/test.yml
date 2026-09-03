@@ -37,10 +37,14 @@ jobs:
             echo "ref=origin/main" >> $GITHUB_OUTPUT
           fi
 
+      # `!{.}` drops the workspace root from the selection. pnpm 11 includes it
+      # in `...[ref]` whenever a root file changes (pnpm 10 did not), and the
+      # root has no `lint`/`typecheck` script, so without this every root-only
+      # PR fails with ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT.
       - name: Type check changed packages
         run: |
           echo "🔍 Type checking changed packages and their dependents..."
-          pnpm --filter="...[${{ steps.base.outputs.ref }}]" typecheck
+          pnpm --filter="...[${{ steps.base.outputs.ref }}]" --filter='!{.}' typecheck
 
       # No `--if-present`: a package without a `lint` script must fail the
       # build, not be skipped. That flag silently green-lit every package
@@ -48,7 +52,7 @@ jobs:
       - name: Run Biome lint on changed packages
         run: |
           echo "🔍 Running Biome on changed packages..."
-          pnpm --filter="...[${{ steps.base.outputs.ref }}]" lint
+          pnpm --filter="...[${{ steps.base.outputs.ref }}]" --filter='!{.}' lint
 
       - name: Run tests with coverage on changed packages
         run: |
