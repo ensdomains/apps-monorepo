@@ -4,7 +4,7 @@
  *
  * Classification is the oracle here, not "did it migrate" — several of these
  * fixtures exist precisely to test REJECTION, and a rejected name has nothing to
- * migrate. Expectations come from pr-1017-migration-state-space-plan.md.
+ * migrate. Expectations come from docs/archive/pr-1017-migration-state-space-plan.md.
  */
 import * as H from './qa2-lib.mjs'
 

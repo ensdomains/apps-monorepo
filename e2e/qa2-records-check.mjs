@@ -98,6 +98,6 @@ if (ch) {
   console.log(
     '\nNote: contenthash is NOT carried by migration (Profile is only texts +\n' +
       'addresses), so expect it to be absent after migrating. See\n' +
-      'pr-1017-migration-state-space-plan.md finding 1.',
+      'docs/archive/pr-1017-migration-state-space-plan.md finding 1.',
   )
 }

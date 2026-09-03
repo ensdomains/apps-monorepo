@@ -1,5 +1,5 @@
 /**
- * Edge cases E1-E5 from pr-1017-test-plan-v2.md. Read-only except E2, which
+ * Edge cases E1-E5 from docs/archive/pr-1017-test-plan-v2.md. Read-only except E2, which
  * migrates if the name turns out to be eligible.
  */
 import * as H from './qa2-lib.mjs'

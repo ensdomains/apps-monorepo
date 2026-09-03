@@ -114,7 +114,7 @@ export async function readChainState({ contracts, hca }) {
 /**
  * O1: predict the confirmation count and the ordered step kinds.
  *   N = D + A_base + A_wrap + A_reg + B + C
- * See pr-1017-test-plan-v2.md for the derivation.
+ * See docs/archive/pr-1017-test-plan-v2.md for the derivation.
  */
 export function predict({
   state,
