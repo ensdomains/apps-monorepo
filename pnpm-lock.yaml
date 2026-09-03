@@ -700,6 +700,9 @@ importers:
       tsx:
         specifier: ^4.20.6
         version: 4.21.0
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
 
   packages/dev-dqa-overlay:
     devDependencies:
