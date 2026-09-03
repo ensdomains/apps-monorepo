@@ -179,7 +179,11 @@ export function submitWarpTransaction(
         ),
       )
 
-      const transaction = await account.sendTransaction(sdkParams)
+      // Not `sendTransaction`: the SDK's one-shot helper drops `auxiliaryFunds`
+      // from the route request, so a fresh HCA funded inside this intent is refused.
+      const prepared = await account.prepareTransaction(sdkParams)
+      const signed = await account.signTransaction(prepared)
+      const transaction = await account.submitTransaction(signed)
       const sendLatencyMs = nowMs() - sendStart
 
       // The orchestrator's intent id — the handle for
