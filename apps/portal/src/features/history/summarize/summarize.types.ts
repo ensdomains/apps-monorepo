@@ -1,5 +1,5 @@
 import type { Address, Hex } from 'viem'
-import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
+import type { TimelineIndexerEvent } from '../timelineEvent'
 
 /** Icon key for an action; mapped to a Lucide icon in `components/actionIcons.tsx`. */
 export type ActionIcon =
