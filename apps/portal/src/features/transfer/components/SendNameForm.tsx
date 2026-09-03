@@ -202,7 +202,11 @@ export const SendNameForm = ({
   const visibleOptions = OPTIONS.filter((option) => optionIsVisible[option.key])
 
   const canStart =
-    hasValidRecipient && !isResolving && !isPreparing && detachTargetsSettled
+    hasValidRecipient &&
+    !isResolving &&
+    !isPreparing &&
+    detachTargetsSettled &&
+    !parentAuthority.isLoading
 
   const toggleOption = (key: OptionKey) =>
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))

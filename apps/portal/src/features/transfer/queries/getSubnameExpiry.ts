@@ -1,10 +1,17 @@
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type GetExpiryErrorType, getExpiry } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
+import { normalize } from 'viem/ens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+
+class SubnameNotNormalizableError extends TaggedError(
+  'SubnameNotNormalizableError',
+)<{
+  cause: unknown
+}> {}
 
 class GetSubnameExpiryError extends TaggedError('GetSubnameExpiryError')<{
   cause: GetExpiryErrorType
@@ -28,10 +35,15 @@ const getSubnameExpiry = ResultFn(async function* ({
   name,
   registryAddress,
 }: GetSubnameExpiryParameters) {
+  const normalized = yield* fromSync(
+    () => normalize(name),
+    (e) => new SubnameNotNormalizableError({ cause: e }),
+  )
+
   const client = yield* safeGetClient()
 
   const expiry = yield* fromPromise(
-    getExpiry(client, { name, registryAddress }),
+    getExpiry(client, { name: normalized, registryAddress }),
     (e) => new GetSubnameExpiryError({ cause: e as GetExpiryErrorType }),
   )
 
