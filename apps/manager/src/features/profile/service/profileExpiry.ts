@@ -84,8 +84,8 @@ export const getExpiry = ResultFn(async function* (
     } satisfies ProfileExpiryResult)
   }
 
-  const resolvedProtocol =
-    protocol ?? (yield* getOwner({ name: ethName.name }))?.protocol ?? 'v2'
+  const ownerRecord = protocol ? null : yield* getOwner({ name: ethName.name })
+  const resolvedProtocol = protocol ?? ownerRecord?.protocol ?? 'v2'
 
   const client = yield* safeGetClient()
 
@@ -117,9 +117,13 @@ export const getExpiry = ResultFn(async function* (
     } satisfies ProfileExpiryResult)
   }
 
+  // The registry reads 0 both for a label it holds no record of and for one
+  // that never expires, so the owner is what separates them.
+  const owner = protocol ? yield* getOwner({ name: ethName.name }) : ownerRecord
+
   return ok({
     expiry: null,
-    isNonExpiring: true,
+    isNonExpiring: !!owner?.owner,
     protocol: 'v2',
   } satisfies ProfileExpiryResult)
 })
