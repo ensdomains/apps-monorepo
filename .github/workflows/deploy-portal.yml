@@ -19,10 +19,15 @@ jobs:
       # pnpm/action-setup only supports pnpm <=10, hence the swap.
       - name: Setup pnpm and Node.js
         uses: pnpm/setup@v2
+        env:
+          # pnpm/setup exposes no frozen-lockfile input — `require-lockfile` was
+          # not one and was silently ignored, leaving the guarantee resting on
+          # pnpm defaulting frozen-lockfile to true only when it detects CI.
+          # Set it explicitly so a stale lockfile fails the run either way.
+          PNPM_CONFIG_FROZEN_LOCKFILE: true
         with:
           runtime: node@lts
           cache: true
-          require-lockfile: true
 
       - name: Type check Portal
         run: pnpm typecheck:portal
