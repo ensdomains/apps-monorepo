@@ -1,13 +1,14 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
 class GetRegistryLabelsError extends TaggedError('GetRegistryLabelsError')<{
-  cause: ClientError
+  cause: GraphqlRequestError
 }> {}
 
 type GetRegistryLabelsParameters = {
@@ -40,7 +41,7 @@ const getRegistryLabels = ResultFn(async function* ({
       gql`
         query getRegistryLabels($address: String!) {
           registry(address: $address) {
-            labels(first: ${LABELS_LIMIT}, orderBy: name, orderDirection: asc) {
+            labels(first: ${String(LABELS_LIMIT)}, orderBy: name, orderDirection: asc) {
               name
               labelName
               labelhash
@@ -52,7 +53,7 @@ const getRegistryLabels = ResultFn(async function* ({
       `,
       { address: address.toLowerCase() },
     ),
-    (e) => new GetRegistryLabelsError({ cause: e as ClientError }),
+    (e) => new GetRegistryLabelsError({ cause: e as GraphqlRequestError }),
   )
 
   if (!registry) return ok([])

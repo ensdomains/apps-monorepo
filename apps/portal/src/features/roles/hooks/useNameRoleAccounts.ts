@@ -1,3 +1,4 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -11,7 +12,7 @@ import {
   getNameRoleAccounts as ensjs_getNameRoleAccounts,
   getResource as ensjs_getResource,
 } from '@ensdomains/ensjs/public/v2'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { getAddress, zeroAddress } from 'viem'
@@ -23,7 +24,7 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 class GetNameRolesAccountsIndexerError extends TaggedError(
   'GetNameRolesAccountsIndexerError',
 )<{
-  cause: ClientError
+  cause: GraphqlRequestError
 }> {}
 
 class GetNameRolesAccountsError extends TaggedError(
@@ -133,7 +134,8 @@ const getNameRolesAccounts = ResultFn(async function* (
       params.registryAddress,
       toResourceHex(resource),
     ),
-    (e) => new GetNameRolesAccountsIndexerError({ cause: e as ClientError }),
+    (e) =>
+      new GetNameRolesAccountsIndexerError({ cause: e as GraphqlRequestError }),
   )
 
   if (indexerResult.isOk()) return ok(indexerResult.value)

@@ -4,7 +4,13 @@ const mocks = vi.hoisted(() => ({
   client: {},
   getV1Expiry: vi.fn(),
   getV2Expiry: vi.fn(),
+  owner: null as null | { readonly owner?: string; readonly protocol: string },
 }))
+
+vi.mock('./profileOwner', async () => {
+  const { ok } = await import('neverthrow')
+  return { getOwner: () => ok(mocks.owner) }
+})
 
 vi.mock('@ensdomains/ensjs/public/v1', () => ({
   getExpiry: mocks.getV1Expiry,
@@ -44,6 +50,7 @@ describe('getExpiry', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.getV2Expiry.mockResolvedValue(0n)
+    mocks.owner = null
   })
 
   afterEach(() => {
@@ -120,6 +127,38 @@ describe('getExpiry', () => {
       expiry: null,
       isNonExpiring: true,
       protocol: 'v1',
+    })
+  })
+
+  it('does not read an unowned V2 label as non-expiring', async () => {
+    // The registry reads 0 for a label it holds no record of, which is what an
+    // unregistered name returns; calling that non-expiring made the renewal
+    // route report a name it could not yet see as permanently unrenewable.
+    mocks.getV2Expiry.mockResolvedValue(0n)
+    mocks.owner = null
+
+    const result = await getExpiry('android17.eth')
+
+    expect(result._unsafeUnwrap()).toEqual({
+      expiry: null,
+      isNonExpiring: false,
+      protocol: 'v2',
+    })
+  })
+
+  it('reads an owned V2 label with no expiry as non-expiring', async () => {
+    mocks.getV2Expiry.mockResolvedValue(0n)
+    mocks.owner = {
+      owner: '0x1111111111111111111111111111111111111111',
+      protocol: 'v2',
+    }
+
+    const result = await getExpiry('permanent.eth')
+
+    expect(result._unsafeUnwrap()).toEqual({
+      expiry: null,
+      isNonExpiring: true,
+      protocol: 'v2',
     })
   })
 

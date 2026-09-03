@@ -7,15 +7,15 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e96662c"
-  "@ensdomains/ensjs-abi": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@e96662c"
+  "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4018fc9"
+  "@ensdomains/ensjs-abi": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@4018fc9"
   xstate: ^5.24.0
   typescript: ^7.0.2
   vite: ^8.0.10
   vitest: ^4.1.5
   "@vitest/coverage-v8": ^4.1.5
-  "@cloudflare/vite-plugin": ^1.33.1
-  wrangler: ^4.51.0
+  "@cloudflare/vite-plugin": ^1.54.2
+  wrangler: ^4.127.1
   posthog-js: ^1.398.3
   "@posthog/react": ^1.10.3
   viem: ^2.52.2

@@ -31,6 +31,7 @@ import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 import type { RecordType } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
@@ -87,7 +88,7 @@ function EditRecordsPage() {
     return (
       <ErrorMessage
         title="Records unavailable"
-        description={profileQuery.error.cause.message}
+        description={extractErrorMessage(profileQuery.error, '')}
       />
     )
   }

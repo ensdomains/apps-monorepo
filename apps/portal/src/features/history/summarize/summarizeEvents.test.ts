@@ -1,6 +1,6 @@
 import type { Hex } from 'viem'
 import { describe, expect, it } from 'vitest'
-import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
+import type { TimelineIndexerEvent } from '../timelineEvent'
 import { summarizeEvents } from './summarizeEvents'
 
 const ZERO = '0x0000000000000000000000000000000000000000'
@@ -67,5 +67,65 @@ describe('summarizeEvents — records recipe vs structural events', () => {
     ])
 
     expect(action.label).toBe('Transfer name')
+  })
+})
+
+describe('summarizeEvents — includeSubjectName', () => {
+  const resolverUpdated = event('ResolverUpdated', '1', {
+    name: 'profile.allora.eth',
+    asResolverUpdated: { resolver: OWNER },
+  })
+
+  it('leaves a name-page row untouched by default', () => {
+    const [action] = summarizeEvents([resolverUpdated])
+
+    expect(action.label).toBe('Update resolver')
+    expect(action.slots.map((slot) => slot.kind)).toEqual(['contract'])
+  })
+
+  it('leads an anonymous row with its subject when asked', () => {
+    const [action] = summarizeEvents([resolverUpdated], {
+      includeSubjectName: true,
+    })
+
+    expect(action.slots).toEqual([
+      { kind: 'name', value: 'profile.allora.eth' },
+      { kind: 'glyph', value: '→' },
+      { kind: 'contract', value: OWNER, label: 'resolver' },
+    ])
+  })
+
+  it('does not repeat a name the descriptor already renders', () => {
+    const [action] = summarizeEvents(
+      [
+        event('LabelRegistered', '1', {
+          name: 'profile.allora.eth',
+          asLabelRegistered: { name: 'profile.allora.eth' },
+        }),
+      ],
+      { includeSubjectName: true },
+    )
+
+    expect(action.label).toBe('Register subname')
+    expect(action.slots).toEqual([
+      { kind: 'name', value: 'profile.allora.eth' },
+    ])
+  })
+
+  it('omits the arrow when the descriptor renders the subject alone', () => {
+    const [action] = summarizeEvents(
+      [
+        event('SubregistryUpdated', '1', {
+          name: 'renewal.allora.eth',
+          data: JSON.stringify({ registry: ZERO }),
+        }),
+      ],
+      { includeSubjectName: true },
+    )
+
+    expect(action.label).toBe('Unlink subregistry')
+    expect(action.slots).toEqual([
+      { kind: 'name', value: 'renewal.allora.eth' },
+    ])
   })
 })

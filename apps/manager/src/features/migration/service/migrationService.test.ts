@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
   planMigrationApprovals: vi.fn(),
   buildMigrationApprovalCall: vi.fn(),
   checkResolverReadiness: vi.fn(),
+  assertCopyMigrationReadiness: vi.fn(),
+  assertCopySourcesFresh: vi.fn(),
   reconcileAtomicMigrationBatch: vi.fn(),
   verifyAtomicMigrationBatch: vi.fn(),
 }))
@@ -54,23 +56,37 @@ vi.mock('./migrationInvariants', () => ({
   checkDeterministicMigrationResolverReadiness: mocks.checkResolverReadiness,
 }))
 
+vi.mock('./copyMigrationReadiness', () => ({
+  assertCopyMigrationReadiness: mocks.assertCopyMigrationReadiness,
+  assertCopySourcesFresh: mocks.assertCopySourcesFresh,
+}))
+
 vi.mock('./verifyAtomicMigrationBatch', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./verifyAtomicMigrationBatch')>()),
   reconcileAtomicMigrationBatch: mocks.reconcileAtomicMigrationBatch,
   verifyAtomicMigrationBatch: mocks.verifyAtomicMigrationBatch,
 }))
 
-import type { BuildAtomicMigrationBatchesParams } from './buildAtomicMigrationBatches'
+import type {
+  AtomicMigrationNameExecution,
+  BuildAtomicMigrationBatchesParams,
+} from './buildAtomicMigrationBatches'
 import type { MigrationPlan } from './buildMigrationPlan'
-import type { ClassifiedName } from './classifyNames'
+import type { ClassifiedName, CopyClassifiedName } from './classifyNames'
+import { groupClassifiedNames } from './classifyNames'
 import type { MigrationApproval } from './migrationApprovals'
 import {
+  loadMigrationRecoverySnapshot,
   loadPendingAtomicMigrationIntents,
   loadSubmittedAtomicMigrationBatches,
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
 } from './migrationBatchJournal'
-import { executeMigration, type MigrationProgress } from './migrationService'
+import {
+  executeMigration,
+  type MigrationProgress,
+  type OnBatchComplete,
+} from './migrationService'
 import type { V1Domain } from './v1SubgraphClient'
 import {
   AtomicMigrationBatchReconciliationIndeterminateError,
@@ -157,6 +173,7 @@ const domainFor = (label: string): V1Domain =>
   }) as V1Domain
 
 const classifiedFor = (label: string): ClassifiedName => ({
+  action: 'migrate',
   domain: domainFor(label),
   tokenType: 'unwrapped',
   label,
@@ -168,74 +185,114 @@ const classifiedFor = (label: string): ClassifiedName => ({
   managerAddress: null,
 })
 
-const planFor = (labels: readonly string[] = ['alice']): MigrationPlan => {
-  const classified = labels.map(classifiedFor)
-  const nameExecutions = classified.map((classifiedName) => {
-    const name = classifiedName.domain.name
-    const directRoute = {
-      name,
-      receiver: RESOLVER,
-      parentDependency: null,
-      expectedWrapperRegistry: null,
-      receiverReadiness: 'migration-controller' as const,
-    }
-    return {
-      classified: classifiedName,
-      directRoute,
-      migrationData: {
-        label: classifiedName.label,
-        owner: OWNER,
-        subregistry: RESOLVER,
-        resolver: RESOLVER,
-      },
-      innerExecutions: [],
-      verificationExpectations: [
-        {
-          id: `${name}:name-owner`,
-          type: 'name-owner' as const,
-          name,
-          label: classifiedName.label,
-          node: classifiedName.domain.id as Hex,
-          resource: 1n,
-          tokenType: classifiedName.tokenType,
-          registryPath: {
-            type: 'eth-registry-2ld' as const,
-            registry: RESOLVER,
+const copyClassifiedFor = (params?: {
+  readonly label?: string
+  readonly parentName?: string
+}): CopyClassifiedName => {
+  const label = params?.label ?? 'sub'
+  const parentName = params?.parentName ?? 'alice.eth'
+  const domain = {
+    ...domainFor(label),
+    id: hashFor(20),
+    name: `${label}.${parentName}`,
+    labelName: label,
+    parent: { name: parentName, wrappedDomain: null },
+  } as V1Domain
+  return {
+    action: 'copy',
+    domain,
+    tokenType: 'registry-child',
+    copySource: 'registry',
+    sourceExpiry: (1n << 64n) - 1n,
+    label,
+    parentName,
+    fuses: 0n,
+    tokenHolder: OWNER,
+    v1ResolverAddress: V1_RESOLVER,
+    resolverStrategy: 'to-owned-permres',
+    managerAddress: null,
+  }
+}
+
+const planFromClassified = (
+  classified: readonly ClassifiedName[],
+  registryContext: readonly ClassifiedName[] = classified,
+): MigrationPlan => {
+  const nameExecutions: AtomicMigrationNameExecution[] = classified.map(
+    (classifiedName) => {
+      const name = classifiedName.domain.name
+      const directRoute =
+        classifiedName.action === 'migrate'
+          ? {
+              name,
+              receiver: RESOLVER,
+              parentDependency: null,
+              expectedWrapperRegistry: null,
+              receiverReadiness: 'migration-controller' as const,
+            }
+          : null
+      return {
+        classified: classifiedName,
+        directRoute,
+        migrationData:
+          classifiedName.action === 'migrate'
+            ? {
+                label: classifiedName.label,
+                owner: OWNER,
+                subregistry: RESOLVER,
+                resolver: RESOLVER,
+              }
+            : null,
+        innerExecutions: [],
+        verificationExpectations: [
+          {
+            id: `${name}:name-owner`,
+            type: 'name-owner' as const,
+            name,
             label: classifiedName.label,
+            node: classifiedName.domain.id as Hex,
             resource: 1n,
+            tokenType: classifiedName.tokenType,
+            registryPath:
+              classifiedName.action === 'migrate'
+                ? {
+                    type: 'eth-registry-2ld' as const,
+                    registry: RESOLVER,
+                    label: classifiedName.label,
+                    resource: 1n,
+                  }
+                : {
+                    type: 'parent-subregistry' as const,
+                    rootRegistry: RESOLVER,
+                    parentName: classifiedName.parentName ?? 'alice.eth',
+                    label: classifiedName.label,
+                    resource: 1n,
+                  },
+            expectedOwner: OWNER,
           },
-          expectedOwner: OWNER,
-        },
-      ],
-    }
-  })
+        ],
+      }
+    },
+  )
   return {
     hcaAddress: HCA,
     hcaDeploymentRequired: false,
     migrationOwner: OWNER,
-    domains: classified.map(({ domain }) => domain),
     classified,
+    registryContext,
     ineligible: [],
-    groups: {
-      unwrapped: classified,
-      unlocked: [],
-      locked2ld: [],
-      childNames: new Map(),
-    },
+    groups: groupClassifiedNames([...classified]),
     preflight: {
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: false,
       skipFetchProfilesPhase: true,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
     },
     ownedPermRes: RESOLVER,
     profiles: new Map(),
     directRoutes: new Map(
-      nameExecutions.map((execution) => [
-        execution.classified.domain.name,
-        execution.directRoute,
-      ]),
+      nameExecutions.flatMap((execution) =>
+        execution.directRoute
+          ? [[execution.classified.domain.name, execution.directRoute] as const]
+          : [],
+      ),
     ),
     atomicBatches:
       nameExecutions.length === 0
@@ -246,6 +303,10 @@ const planFor = (labels: readonly string[] = ['alice']): MigrationPlan => {
               names: nameExecutions.map(
                 ({ classified: name }) => name.domain.name,
               ),
+              operations: nameExecutions.map(({ classified: name }) => ({
+                name: name.domain.name,
+                action: name.action,
+              })),
               nameExecutions,
               innerExecutions: [],
               outerCall: { to: HCA, data: OUTER_DATA, value: 0n },
@@ -259,11 +320,14 @@ const planFor = (labels: readonly string[] = ['alice']): MigrationPlan => {
   }
 }
 
+const planFor = (labels: readonly string[] = ['alice']): MigrationPlan =>
+  planFromClassified(labels.map(classifiedFor))
+
 const runExecute = async (
   overrides: {
     plan?: MigrationPlan
     refreshAccount?: () => Promise<void>
-    onBatchComplete?: (names: readonly string[], hash?: Hex) => void
+    onBatchComplete?: OnBatchComplete
     reconcileBeforeSubmit?: boolean
   } = {},
 ) => {
@@ -320,6 +384,8 @@ beforeEach(() => {
     hcaHasRootRoles: true,
     walletHasWildcardRoles: true,
   })
+  mocks.assertCopyMigrationReadiness.mockResolvedValue(undefined)
+  mocks.assertCopySourcesFresh.mockResolvedValue(undefined)
   mocks.buildAtomicMigrationBatches.mockImplementation(
     async ({
       hca,
@@ -339,6 +405,10 @@ beforeEach(() => {
           {
             index: 0,
             names,
+            operations: classified.map(({ domain, action }) => ({
+              name: domain.name,
+              action,
+            })),
             nameExecutions: [],
             innerExecutions: [],
             outerCall,
@@ -379,6 +449,169 @@ beforeEach(() => {
 })
 
 describe('executeMigration HCA orchestration', () => {
+  it('durably retains the full tree while advancing only verified gas-split nodes', async () => {
+    const parent = classifiedFor('alice')
+    const copy = copyClassifiedFor()
+    const plan = planFromClassified([parent, copy], [parent, copy])
+    mocks.buildAtomicMigrationBatches.mockImplementation(
+      async ({
+        hca,
+        classified,
+        estimateOuterGas,
+      }: BuildAtomicMigrationBatchesParams) => {
+        const first = classified.slice(0, 1)
+        const names = first.map(({ domain }) => domain.name)
+        const outerCall = { to: hca, data: OUTER_DATA, value: 0n }
+        return {
+          resolver: RESOLVER,
+          batches: [
+            {
+              index: 0,
+              names,
+              operations: first.map(({ domain, action }) => ({
+                name: domain.name,
+                action,
+              })),
+              nameExecutions: [],
+              innerExecutions: [],
+              outerCall,
+              estimatedGas: await estimateOuterGas({
+                call: outerCall,
+                names,
+                innerExecutions: [],
+              }),
+              verificationExpectations: [],
+            },
+          ],
+        }
+      },
+    )
+    mocks.waitForTransactionHash
+      .mockResolvedValueOnce(hashFor(1))
+      .mockRejectedValueOnce(new Error('provider response was lost'))
+
+    await expect(runExecute({ plan })).rejects.toBeInstanceOf(Error)
+
+    const recovery = loadMigrationRecoverySnapshot({
+      chainId: 11155111,
+      owner: OWNER,
+      hca: HCA,
+    })
+    expect(recovery).toMatchObject({
+      registryOperations: [
+        { name: parent.domain.name, action: 'migrate' },
+        { name: copy.domain.name, action: 'copy' },
+      ],
+      completedOperations: [{ name: parent.domain.name, action: 'migrate' }],
+      remainingOperations: [{ name: copy.domain.name, action: 'copy' }],
+    })
+    expect(recovery?.registryDomains.map(({ name }) => name)).toEqual([
+      parent.domain.name,
+      copy.domain.name,
+    ])
+    expect(recovery?.profiles.size).toBe(2)
+  })
+
+  it('retains the final receipt through cleanup and resumes without duplicate registration', async () => {
+    const parent = classifiedFor('alice')
+    const copy = copyClassifiedFor()
+    const basePlan = planFromClassified([parent, copy], [parent, copy])
+    const plan = {
+      ...basePlan,
+      preflight: {
+        ...basePlan.preflight,
+        migrationApprovals: [MANAGER_APPROVAL],
+      },
+    }
+    mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
+    mocks.waitForTransactionHash
+      .mockResolvedValueOnce(hashFor(1))
+      .mockResolvedValueOnce(hashFor(2))
+      .mockRejectedValueOnce(new Error('cleanup provider response was lost'))
+
+    await expect(runExecute({ plan })).rejects.toMatchObject({
+      name: 'MigrationCleanupError',
+    })
+
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    expect(loadMigrationRecoverySnapshot(scope)?.remainingOperations).toEqual([
+      { name: parent.domain.name, action: 'migrate' },
+      { name: copy.domain.name, action: 'copy' },
+    ])
+    expect(loadSubmittedAtomicMigrationBatches(scope)).toEqual([
+      expect.objectContaining({
+        hash: hashFor(2),
+        operations: [
+          { name: parent.domain.name, action: 'migrate' },
+          { name: copy.domain.name, action: 'copy' },
+        ],
+      }),
+    ])
+
+    mocks.waitForTransactionHash.mockResolvedValue(hashFor(4))
+    mocks.buildAtomicMigrationBatches.mockClear()
+
+    const { result } = await runExecute({
+      plan,
+      reconcileBeforeSubmit: true,
+    })
+
+    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ completed: 2, migrated: 1, copied: 1 })
+    expect(loadMigrationRecoverySnapshot(scope)).toBeNull()
+    expect(loadSubmittedAtomicMigrationBatches(scope)).toEqual([])
+  })
+
+  it('preserves unrelated same-scope journal entries after copy recovery cleanup', async () => {
+    const parent = classifiedFor('alice')
+    const copy = copyClassifiedFor()
+    const plan = planFromClassified([parent, copy], [parent, copy])
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    const unrelatedIntent = {
+      id: 'unrelated-intent',
+      names: ['carol.eth'],
+      operations: [{ name: 'carol.eth', action: 'migrate' as const }],
+    }
+    const unrelatedSubmission = {
+      intentId: 'unrelated-submission-intent',
+      hash: hashFor(9),
+      names: ['bob.eth'],
+      operations: [{ name: 'bob.eth', action: 'migrate' as const }],
+    }
+    persistPendingAtomicMigrationIntent(scope, unrelatedIntent)
+    persistSubmittedAtomicMigrationBatch(scope, unrelatedSubmission)
+
+    await runExecute({ plan })
+
+    expect(loadMigrationRecoverySnapshot(scope)).toBeNull()
+    expect(loadPendingAtomicMigrationIntents(scope)).toEqual([unrelatedIntent])
+    expect(loadSubmittedAtomicMigrationBatches(scope)).toEqual([
+      unrelatedSubmission,
+    ])
+  })
+
+  it('revalidates the complete copy tree around estimation and submission', async () => {
+    const parent = classifiedFor('alice')
+    const copy = copyClassifiedFor()
+    const plan = planFromClassified([parent, copy], [parent, copy])
+
+    await runExecute({ plan })
+
+    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(2)
+    expect(
+      mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      mocks.buildAtomicMigrationBatches.mock.invocationCallOrder[0] ??
+        Number.POSITIVE_INFINITY,
+    )
+    expect(
+      mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[1],
+    ).toBeLessThan(
+      mocks.startTransaction.mock.invocationCallOrder[0] ??
+        Number.POSITIVE_INFINITY,
+    )
+  })
+
   it('deploys an undeployed HCA directly from the wallet and refreshes account state', async () => {
     getCodeMock.mockResolvedValueOnce('0x')
     const refreshAccount = vi.fn(() => Promise.resolve())
@@ -434,7 +667,14 @@ describe('executeMigration HCA orchestration', () => {
       hcaDeploymentRequired: true,
       stepDescriptors: [
         { type: 'deploy-hca' as const },
-        { type: 'atomic-batch' as const, index: 0, total: 1, count: 1 },
+        {
+          type: 'atomic-batch' as const,
+          index: 0,
+          total: 1,
+          count: 1,
+          migrateCount: 1,
+          copyCount: 0,
+        },
       ],
     }
 
@@ -551,7 +791,14 @@ describe('executeMigration HCA orchestration', () => {
       stepDescriptors: [
         { type: 'approval' as const, approvalId: APPROVAL.id },
         { type: 'approval' as const, approvalId: MANAGER_APPROVAL.id },
-        { type: 'atomic-batch' as const, index: 0, total: 1, count: 1 },
+        {
+          type: 'atomic-batch' as const,
+          index: 0,
+          total: 1,
+          count: 1,
+          migrateCount: 1,
+          copyCount: 0,
+        },
         { type: 'cleanup' as const, approvalId: MANAGER_APPROVAL.id },
       ],
     }
@@ -662,7 +909,14 @@ describe('executeMigration HCA orchestration', () => {
       },
       stepDescriptors: [
         { type: 'approval' as const, approvalId: APPROVAL.id },
-        { type: 'atomic-batch' as const, index: 0, total: 1, count: 1 },
+        {
+          type: 'atomic-batch' as const,
+          index: 0,
+          total: 1,
+          count: 1,
+          migrateCount: 1,
+          copyCount: 0,
+        },
       ],
     }
 
@@ -733,7 +987,11 @@ describe('executeMigration HCA orchestration', () => {
   it('blocks an intent whose broadcast hash was not durably recorded', async () => {
     persistPendingAtomicMigrationIntent(
       { chainId: 11155111, owner: OWNER, hca: HCA },
-      { id: 'unresolved-intent', names: ['alice.eth'] },
+      {
+        id: 'unresolved-intent',
+        names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
+      },
     )
 
     const error = await runExecute().catch((cause: unknown) => cause)
@@ -885,6 +1143,7 @@ describe('executeMigration HCA orchestration', () => {
         intentId: 'reverted-intent',
         hash: hashFor(9),
         names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
       },
     )
     getTransactionReceiptMock.mockResolvedValueOnce({
@@ -918,6 +1177,7 @@ describe('executeMigration HCA orchestration', () => {
         intentId: 'replaced-intent',
         hash: hashFor(9),
         names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
       },
     )
     getTransactionReceiptMock.mockRejectedValueOnce(
@@ -950,8 +1210,16 @@ describe('executeMigration HCA orchestration', () => {
     ).toEqual([])
   })
 
-  it('reconciles an already-complete batch on retry without resubmitting it', async () => {
+  it('reconciles an already-complete batch only when its attempt was recorded', async () => {
     const onBatchComplete = vi.fn()
+    persistPendingAtomicMigrationIntent(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        id: 'direct-intent',
+        names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
+      },
+    )
 
     const { result } = await runExecute({
       onBatchComplete,
@@ -970,9 +1238,206 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
     expect(estimateGasMock).not.toHaveBeenCalled()
     expect(mocks.startTransaction).not.toHaveBeenCalled()
-    expect(onBatchComplete).toHaveBeenCalledWith(['alice.eth'])
+    expect(onBatchComplete).toHaveBeenCalledWith([
+      { name: 'alice.eth', action: 'migrate' },
+    ])
     expect(result.completed).toBe(1)
     expect(result.txHashes).toEqual([])
+  })
+
+  it('rejects exact direct V2 state without a recorded attempt', async () => {
+    const error = await runExecute({ reconcileBeforeSubmit: true }).catch(
+      (cause: unknown) => cause,
+    )
+
+    expect(error).toMatchObject({
+      name: 'MigrationError',
+      step: 'Reconciling previous atomic migration',
+      cause: {
+        name: 'AtomicMigrationIntentIndeterminateError',
+        intentId: 'unrecorded-exact-v2-state',
+        names: ['alice.eth'],
+      },
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('reconciles an exact copied name only when a durable attempt was recorded', async () => {
+    const copy = copyClassifiedFor()
+    const plan = planFromClassified([copy], [classifiedFor('alice'), copy])
+    const onBatchComplete = vi.fn()
+    persistPendingAtomicMigrationIntent(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        id: 'copy-intent',
+        names: [copy.domain.name],
+        operations: [{ name: copy.domain.name, action: 'copy' }],
+      },
+    )
+
+    const { result } = await runExecute({
+      plan,
+      onBatchComplete,
+      reconcileBeforeSubmit: true,
+    })
+
+    expect(mocks.reconcileAtomicMigrationBatch).toHaveBeenCalledOnce()
+    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+    expect(onBatchComplete).toHaveBeenCalledWith([
+      { name: copy.domain.name, action: 'copy' },
+    ])
+    expect(result).toMatchObject({
+      completed: 1,
+      migrated: 0,
+      copied: 1,
+      completedOperations: [{ name: copy.domain.name, action: 'copy' }],
+    })
+    expect(
+      loadPendingAtomicMigrationIntents({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      }),
+    ).toEqual([])
+  })
+
+  it('does not accept exact V2 copy state without a recorded attempt', async () => {
+    const copy = copyClassifiedFor()
+    const plan = planFromClassified([copy], [classifiedFor('alice'), copy])
+    const error = await runExecute({
+      plan,
+      reconcileBeforeSubmit: true,
+    }).catch((cause: unknown) => cause)
+
+    expect(error).toMatchObject({
+      name: 'MigrationError',
+      cause: {
+        name: 'AtomicMigrationIntentIndeterminateError',
+        intentId: 'unrecorded-exact-v2-state',
+        names: [copy.domain.name],
+      },
+    })
+    expect(mocks.reconcileAtomicMigrationBatch).toHaveBeenCalledOnce()
+    expect(mocks.assertCopyMigrationReadiness).not.toHaveBeenCalled()
+    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when a journaled action no longer matches the plan', async () => {
+    const copy = copyClassifiedFor()
+    const plan = planFromClassified([copy], [classifiedFor('alice'), copy])
+    persistSubmittedAtomicMigrationBatch(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        intentId: 'mismatched-copy-intent',
+        hash: hashFor(9),
+        names: [copy.domain.name],
+        operations: [{ name: copy.domain.name, action: 'migrate' }],
+      },
+    )
+
+    const error = await runExecute({
+      plan,
+      reconcileBeforeSubmit: true,
+    }).catch((cause: unknown) => cause)
+
+    expect(error).toMatchObject({
+      name: 'MigrationError',
+      step: 'Reconciling previous atomic migration',
+      cause: { name: 'SubmittedAtomicMigrationIndeterminateError' },
+    })
+    expect(getTransactionReceiptMock).not.toHaveBeenCalled()
+    expect(mocks.reconcileAtomicMigrationBatch).not.toHaveBeenCalled()
+    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('rebuilds a partial tree from the immutable registry context without re-registering its completed parent', async () => {
+    const parent = classifiedFor('alice')
+    const copy = copyClassifiedFor()
+    const plan = planFromClassified([parent, copy], [parent, copy])
+    const onBatchComplete = vi.fn()
+    persistPendingAtomicMigrationIntent(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        id: 'completed-parent-intent',
+        names: [parent.domain.name],
+        operations: [{ name: parent.domain.name, action: 'migrate' }],
+      },
+    )
+    mocks.reconcileAtomicMigrationBatch
+      .mockResolvedValueOnce({
+        status: 'complete',
+        verification: { batchIndex: 0, status: 'confirmed', results: [] },
+      })
+      .mockResolvedValueOnce({
+        status: 'incomplete',
+        verification: { batchIndex: 0, status: 'confirmed', results: [] },
+        mismatches: [{ expectationId: `${copy.domain.name}:name-owner` }],
+      })
+    estimateGasMock.mockImplementationOnce(() => {
+      const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+      expect(loadMigrationRecoverySnapshot(scope)).toMatchObject({
+        completedOperations: [{ name: parent.domain.name, action: 'migrate' }],
+        remainingOperations: [{ name: copy.domain.name, action: 'copy' }],
+      })
+      expect(loadPendingAtomicMigrationIntents(scope)).toEqual([])
+      return Promise.resolve(500_000n)
+    })
+
+    const { result } = await runExecute({
+      plan,
+      onBatchComplete,
+      reconcileBeforeSubmit: true,
+    })
+
+    expect(mocks.reconcileAtomicMigrationBatch).toHaveBeenCalledTimes(2)
+    expect(mocks.assertCopySourcesFresh).toHaveBeenCalledWith({
+      publicClient: PUBLIC_CLIENT,
+      wallet: OWNER,
+      copies: [copy],
+    })
+    expect(mocks.buildAtomicMigrationBatches).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classified: [copy],
+        registryContext: [parent, copy],
+      }),
+    )
+    expect(onBatchComplete).toHaveBeenNthCalledWith(1, [
+      { name: parent.domain.name, action: 'migrate' },
+    ])
+    expect(onBatchComplete).toHaveBeenNthCalledWith(
+      2,
+      [{ name: copy.domain.name, action: 'copy' }],
+      hashFor(1),
+    )
+    expect(result).toMatchObject({ completed: 2, migrated: 1, copied: 1 })
+  })
+
+  it('checks copied V1 state on retry without requesting token ownership transfer', async () => {
+    const copy = copyClassifiedFor()
+    const plan = planFromClassified([copy], [classifiedFor('alice'), copy])
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
+      status: 'incomplete',
+      verification: { batchIndex: 0, status: 'confirmed', results: [] },
+      mismatches: [{ expectationId: `${copy.domain.name}:name-owner` }],
+    })
+
+    await runExecute({ plan, reconcileBeforeSubmit: true })
+
+    expect(mocks.assertCopySourcesFresh).toHaveBeenCalledWith({
+      publicClient: PUBLIC_CLIENT,
+      wallet: OWNER,
+      copies: [copy],
+    })
+    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(2)
+    expect(readContractMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ functionName: 'ownerOf' }),
+    )
+    expect(readContractMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ functionName: 'balanceOf' }),
+    )
   })
 
   it('finishes progress at the planned total when retry reconciliation skips setup and submission', async () => {
@@ -986,10 +1451,25 @@ describe('executeMigration HCA orchestration', () => {
       stepDescriptors: [
         { type: 'deploy-hca' as const },
         { type: 'approval' as const, approvalId: MANAGER_APPROVAL.id },
-        { type: 'atomic-batch' as const, index: 0, total: 1, count: 1 },
+        {
+          type: 'atomic-batch' as const,
+          index: 0,
+          total: 1,
+          count: 1,
+          migrateCount: 1,
+          copyCount: 0,
+        },
         { type: 'cleanup' as const, approvalId: MANAGER_APPROVAL.id },
       ],
     }
+    persistPendingAtomicMigrationIntent(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        id: 'completed-progress-intent',
+        names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
+      },
+    )
 
     const { progressEvents } = await runExecute({
       plan,
@@ -1023,6 +1503,14 @@ describe('executeMigration HCA orchestration', () => {
         mismatches: [{ expectationId: 'bob.eth:name-owner' }],
       })
     const onBatchComplete = vi.fn()
+    persistPendingAtomicMigrationIntent(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        id: 'completed-alice-intent',
+        names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
+      },
+    )
 
     await runExecute({
       plan: planFor(['alice', 'bob']),
@@ -1042,8 +1530,14 @@ describe('executeMigration HCA orchestration', () => {
         classified: [expect.objectContaining({ label: 'bob' })],
       }),
     )
-    expect(onBatchComplete).toHaveBeenNthCalledWith(1, ['alice.eth'])
-    expect(onBatchComplete).toHaveBeenNthCalledWith(2, ['bob.eth'], hashFor(1))
+    expect(onBatchComplete).toHaveBeenNthCalledWith(1, [
+      { name: 'alice.eth', action: 'migrate' },
+    ])
+    expect(onBatchComplete).toHaveBeenNthCalledWith(
+      2,
+      [{ name: 'bob.eth', action: 'migrate' }],
+      hashFor(1),
+    )
   })
 
   it('does not rebuild or submit when retry reconciliation has an indeterminate read', async () => {
@@ -1203,6 +1697,9 @@ describe('executeMigration HCA orchestration', () => {
 
     expect(result).toEqual({
       completed: 0,
+      migrated: 0,
+      copied: 0,
+      completedOperations: [],
       txHashes: [],
       ineligible: [],
     })

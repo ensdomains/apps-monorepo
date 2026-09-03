@@ -9,6 +9,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { nameHeadingClassName, PageHeading } from '@/components/PageHeading'
+import { RecentHistoryTimeline } from '@/features/history/components/RecentHistoryTimeline'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
@@ -18,7 +19,6 @@ import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
 import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
 import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
-import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { RecordCount } from '@/features/profile/components/RecordCount'
 import { RegistryCard } from '@/features/profile/components/RegistryCard'
 import { ResolverCard } from '@/features/profile/components/ResolverCard'
@@ -39,6 +39,7 @@ import {
   isRegistrable,
   isTLD,
 } from '@/utils/ens/tldHelpers'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
 import { validateNameLength } from '@/utils/token/nameValidation'
@@ -327,7 +328,10 @@ const Profile = ({
   if (profileQuery.error) {
     // Don't show error for profile fetch failures on existing names
     // The name exists (we have owner), just profile data failed
-    console.warn('Profile fetch failed:', profileQuery.error.cause?.message)
+    console.warn(
+      'Profile fetch failed:',
+      extractErrorMessage(profileQuery.error, ''),
+    )
   }
 
   // Match the grace/canExtend default above: a missing protocolVersion means the
@@ -428,8 +432,7 @@ const Profile = ({
         </div>
       </div>
 
-      {/* History */}
-      <RecentActivity name={name} protocolVersion={resolvedProtocolVersion} />
+      <RecentHistoryTimeline name={name} />
     </div>
   )
 }

@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
+  makeClassified,
   makeDomain,
   OTHER,
   OWNER,
@@ -34,6 +35,16 @@ describe('classifyName — early returns', () => {
       { labelName: `[${'0'.repeat(64)}]`, name: `[${'0'.repeat(64)}].eth` },
       'unknown-label',
     ] as const,
+    [
+      'labelName contains a label separator',
+      { labelName: 'bad.label' },
+      'invalid-label',
+    ] as const,
+    [
+      'labelName exceeds the DNS byte limit',
+      { labelName: 'a'.repeat(256) },
+      'invalid-label',
+    ] as const,
   ])('marks ineligible when %s', (_, overrides, reason) => {
     expect(ineligibleReason(classify(overrides))).toBe(reason)
   })
@@ -41,7 +52,14 @@ describe('classifyName — early returns', () => {
   it.each([
     ['unwrapped registrant mismatch', { registrantId: OTHER }],
     ['unwrapped registrant missing', { registrantId: null }],
-    ['unwrapped parent is not eth', { parentName: 'raffy.eth' }],
+    [
+      'registry-only subname owner mismatch',
+      {
+        name: 'sub.raffy.eth',
+        parentName: 'raffy.eth',
+        ownerId: OTHER,
+      },
+    ],
     [
       'wrapped wrappedOwner mismatch',
       { isWrapped: true, wrappedOwnerId: OTHER },
@@ -50,6 +68,15 @@ describe('classifyName — early returns', () => {
     [
       'wrappedOwner id is not an Address',
       { isWrapped: true, wrappedOwnerId: 'not-an-address' },
+    ],
+    [
+      'wrapped unlocked child outside .eth',
+      {
+        isWrapped: true,
+        name: 'sub.example.xyz',
+        parentName: 'example.xyz',
+        resolverAddress: null,
+      },
     ],
   ])('returns null when %s', (_, overrides) => {
     expect(classify(overrides)).toBeNull()
@@ -67,6 +94,7 @@ describe('classifyName — expired wrap', () => {
       }),
     )
     expect(n.tokenType).toBe('unwrapped')
+    expect(n.action).toBe('migrate')
     expect(n.fuses).toBe(0n)
     expect(n.tokenHolder.toLowerCase()).toBe(OWNER.toLowerCase())
   })
@@ -157,7 +185,18 @@ describe('classifyName — token type', () => {
       'locked-child' as const,
     ],
     [
-      'detached-child when PARENT_CANNOT_CONTROL burnt and parent is locked',
+      'unlocked-child copy when a wrapped child can unwrap',
+      {
+        isWrapped: true,
+        name: 'sub.raffy.eth',
+        parentName: 'raffy.eth',
+        resolverAddress: null,
+        fuses: 0n,
+      },
+      'unlocked-child' as const,
+    ],
+    [
+      'detached-child migration when PARENT_CANNOT_CONTROL burnt and parent is locked',
       {
         isWrapped: true,
         parentName: 'raffy.eth',
@@ -169,13 +208,59 @@ describe('classifyName — token type', () => {
   ])('classifies %s', (_, overrides, tokenType) => {
     expect(classified(classify(overrides)).tokenType).toBe(tokenType)
   })
+
+  it('classifies an owned registry-only child as a non-expiring copy', () => {
+    const n = classified(
+      classify({
+        name: 'sub.raffy.eth',
+        parentName: 'raffy.eth',
+        registrantId: null,
+        resolverAddress: null,
+      }),
+    )
+
+    expect(n).toMatchObject({
+      action: 'copy',
+      tokenType: 'registry-child',
+      copySource: 'registry',
+      sourceExpiry: (1n << 64n) - 1n,
+      resolverStrategy: 'to-owned-permres',
+      managerAddress: null,
+    })
+  })
+
+  it('preserves the exact wrapped expiry on an unlocked child copy', () => {
+    const n = classified(
+      classify({
+        isWrapped: true,
+        name: 'sub.raffy.eth',
+        parentName: 'raffy.eth',
+        resolverAddress: null,
+        wrappedExpiry: '4102444800',
+      }),
+    )
+
+    expect(n).toMatchObject({
+      action: 'copy',
+      tokenType: 'unlocked-child',
+      copySource: 'name-wrapper',
+      sourceExpiry: 4_102_444_800n,
+      resolverStrategy: 'to-owned-permres',
+      managerAddress: null,
+    })
+  })
 })
 
 describe('classifyName — ineligible reasons', () => {
   it.each([
     [
-      'unlocked-subname',
-      { isWrapped: true, parentName: 'raffy.eth', fuses: 0n },
+      'unsupported-resolver',
+      {
+        isWrapped: true,
+        name: 'sub.raffy.eth',
+        parentName: 'raffy.eth',
+        fuses: 0n,
+      },
     ],
     [
       'not-transferable',
@@ -197,16 +282,44 @@ describe('classifyName — ineligible reasons', () => {
   })
 
   it('does not classify as detached when parent is unlocked', () => {
+    const n = classified(
+      classify({
+        isWrapped: true,
+        name: 'sub.raffy.eth',
+        parentName: 'raffy.eth',
+        parentFuses: 0n,
+        resolverAddress: null,
+        fuses: FUSES.PARENT_CANNOT_CONTROL,
+      }),
+    )
+    expect(n.action).toBe('copy')
+    expect(n.tokenType).toBe('unlocked-child')
+  })
+
+  it('rejects an expired wrapped copy candidate', () => {
     expect(
       ineligibleReason(
         classify({
           isWrapped: true,
+          name: 'sub.raffy.eth',
           parentName: 'raffy.eth',
-          parentFuses: 0n,
-          fuses: FUSES.PARENT_CANNOT_CONTROL,
+          resolverAddress: null,
+          wrappedExpiry: '100',
         }),
       ),
-    ).toBe('unlocked-subname')
+    ).toBe('expired-registration')
+  })
+
+  it('rejects a registry-only copy with a custom resolver', () => {
+    expect(
+      ineligibleReason(
+        classify({
+          name: 'sub.raffy.eth',
+          parentName: 'raffy.eth',
+          registrantId: null,
+        }),
+      ),
+    ).toBe('unsupported-resolver')
   })
 })
 
@@ -245,6 +358,72 @@ describe('classifyName — resolver strategy for locked', () => {
 })
 
 describe('classifyNames', () => {
+  it('keeps WEB-390 zero-expiry wrapped children under a selected unlocked 2LD', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-04T16:50:36Z'))
+
+    try {
+      const domains: V1Domain[] = [
+        makeDomain({
+          id: '0x1',
+          name: '1year.eth',
+          labelName: '1year',
+          isWrapped: true,
+          fuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
+          wrappedExpiry: '1793477232',
+          resolverAddress: '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
+        }),
+        makeDomain({
+          id: '0x2',
+          name: 'test.1year.eth',
+          labelName: 'test',
+          parentName: '1year.eth',
+          parentFuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
+          isWrapped: true,
+          fuses: 0n,
+          wrappedExpiry: '0',
+          resolverAddress: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
+        }),
+      ]
+
+      const { classified: names, ineligible } = classifyNames(domains, OWNER)
+
+      expect(
+        names.map(({ domain, action, tokenType }) => [
+          domain.name,
+          action,
+          tokenType,
+        ]),
+      ).toEqual([
+        ['1year.eth', 'migrate', 'unlocked'],
+        ['test.1year.eth', 'copy', 'unlocked-child'],
+      ])
+      expect(names[1]).toMatchObject({
+        action: 'copy',
+        copySource: 'name-wrapper',
+        sourceExpiry: 0n,
+      })
+      expect(ineligible).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('rejects zero expiry after a wrapped child is emancipated', () => {
+    const result = classify({
+      name: 'sub.example.eth',
+      labelName: 'sub',
+      parentName: 'example.eth',
+      parentFuses: 0n,
+      isWrapped: true,
+      fuses: FUSES.PARENT_CANNOT_CONTROL,
+      wrappedExpiry: '0',
+      resolverAddress: null,
+    })
+
+    expect(ineligibleReason(result)).toBe('expired-registration')
+  })
+
   it('splits classified and ineligible across many inputs', () => {
     const domains: V1Domain[] = [
       makeDomain({ id: '0x1' }),
@@ -255,8 +434,10 @@ describe('classifyNames', () => {
       }),
       makeDomain({
         id: '0x3',
+        name: 'sub.raffy.eth',
         isWrapped: true,
         parentName: 'raffy.eth',
+        resolverAddress: null,
         fuses: 0n,
       }),
       makeDomain({ id: '0x4', labelName: null }),
@@ -265,8 +446,68 @@ describe('classifyNames', () => {
     expect(classified.map((c) => c.domain.id)).toEqual(['0x1'])
     expect(ineligible.map((i) => [i.domain.id, i.reason])).toEqual([
       ['0x2', 'not-transferable'],
-      ['0x3', 'unlocked-subname'],
+      ['0x3', 'missing-parent'],
       ['0x4', 'unknown-label'],
+    ])
+  })
+
+  it('keeps arbitrary-depth copy nodes when the complete route ends at a migrating root', () => {
+    const domains: V1Domain[] = [
+      makeDomain({ id: '0x1', name: 'raffy.eth', labelName: 'raffy' }),
+      makeDomain({
+        id: '0x2',
+        name: 'foo.raffy.eth',
+        labelName: 'foo',
+        parentName: 'raffy.eth',
+        resolverAddress: null,
+        registrantId: null,
+      }),
+      makeDomain({
+        id: '0x3',
+        name: 'bar.foo.raffy.eth',
+        labelName: 'bar',
+        parentName: 'foo.raffy.eth',
+        resolverAddress: null,
+        registrantId: null,
+      }),
+    ]
+
+    const { classified: names, ineligible } = classifyNames(domains, OWNER)
+
+    expect(names.map((name) => [name.domain.name, name.action])).toEqual([
+      ['raffy.eth', 'migrate'],
+      ['foo.raffy.eth', 'copy'],
+      ['bar.foo.raffy.eth', 'copy'],
+    ])
+    expect(ineligible).toEqual([])
+  })
+
+  it('rejects a copy route rooted in a locked 2LD', () => {
+    const domains: V1Domain[] = [
+      makeDomain({
+        id: '0x1',
+        name: 'raffy.eth',
+        labelName: 'raffy',
+        isWrapped: true,
+        fuses: FUSES.CANNOT_UNWRAP,
+      }),
+      makeDomain({
+        id: '0x2',
+        name: 'foo.raffy.eth',
+        labelName: 'foo',
+        parentName: 'raffy.eth',
+        resolverAddress: null,
+        registrantId: null,
+      }),
+    ]
+
+    const result = classifyNames(domains, OWNER)
+
+    expect(result.classified.map((name) => name.domain.name)).toEqual([
+      'raffy.eth',
+    ])
+    expect(result.ineligible.map((name) => name.reason)).toEqual([
+      'missing-parent',
     ])
   })
 })
@@ -276,17 +517,7 @@ describe('groupClassifiedNames', () => {
     tokenType: ClassifiedName['tokenType'],
     parentName: string | null,
     id = '0x00',
-  ): ClassifiedName => ({
-    tokenType,
-    label: 'x',
-    parentName,
-    fuses: 0n,
-    tokenHolder: OWNER,
-    v1ResolverAddress: null,
-    resolverStrategy: 'to-owned-permres',
-    managerAddress: null,
-    domain: { id } as unknown as V1Domain,
-  })
+  ): ClassifiedName => makeClassified({ tokenType, parentName, id })
 
   it('buckets by token type and groups children by parentName', () => {
     const g = groupClassifiedNames([
@@ -295,13 +526,15 @@ describe('groupClassifiedNames', () => {
       c('locked-2ld', 'eth'),
       c('locked-child', 'raffy.eth', '0x10'),
       c('detached-child', 'raffy.eth', '0x11'),
+      c('unlocked-child', 'raffy.eth', '0x13'),
+      c('registry-child', 'nick.eth', '0x14'),
       c('locked-child', 'nick.eth', '0x12'),
     ])
     expect(g.unwrapped).toHaveLength(1)
     expect(g.unlocked).toHaveLength(1)
     expect(g.locked2ld).toHaveLength(1)
-    expect(g.childNames.get('raffy.eth')).toHaveLength(2)
-    expect(g.childNames.get('nick.eth')).toHaveLength(1)
+    expect(g.childNames.get('raffy.eth')).toHaveLength(3)
+    expect(g.childNames.get('nick.eth')).toHaveLength(2)
   })
 
   it('skips child rows with null parent', () => {

@@ -284,18 +284,19 @@ describe('mergedRowMetadata', () => {
     expect(meta.avatarUrl).toBeUndefined()
   })
 
-  it('uses avatarOverride for v2 and ignores indexer resolver avatar', () => {
+  // `avatarOverride` is the only avatar source: the indexer's Resolver fragment
+  // carries no avatar field, so a resolver on the domain must not produce one.
+  it('takes the v2 avatar from avatarOverride and never from the resolver', () => {
     const item = makeMergedV2({
       domain: makeV2({
         resolver: {
-          __typename: 'Resolver' as const,
           id: 'r',
           address: '0x0',
-          avatar: 'resolver-avatar',
         } as DomainFragment['resolver'],
       }) as DomainFragment,
     })
     expect(mergedRowMetadata(item, null, 'override').avatarUrl).toBe('override')
+    // Resolver present, no override — still no avatar.
     expect(mergedRowMetadata(item, null).avatarUrl).toBeUndefined()
   })
 

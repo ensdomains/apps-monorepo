@@ -654,6 +654,14 @@ msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Couldn’t check this name’s resolver. Please try again in a moment."
+msgstr "Couldn’t check this name’s resolver. Please try again in a moment."
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Couldn’t load this name’s records. Please try again in a moment."
+msgstr "Couldn’t load this name’s records. Please try again in a moment."
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t read the wallet address for {name}"
 msgstr "Couldn’t read the wallet address for {name}"
 
@@ -2277,10 +2285,6 @@ msgstr "Sort by"
 msgid "Stables accepted"
 msgstr "Stables accepted"
 
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-#~ msgid "Start a new profile for this name?"
-#~ msgstr "Start a new profile for this name?"
-
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
@@ -2471,14 +2475,6 @@ msgstr "This name is in price cooldown"
 msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 msgstr "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-#~ msgid "This name still has profile details from a previous owner. Continuing clears them and keeps only the changes you save."
-#~ msgstr "This name still has profile details from a previous owner. Continuing clears them and keeps only the changes you save."
-
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-#~ msgid "This name still has profile details from a previous owner. To use it as your primary name, we’ll clear those details and keep only your wallet address."
-#~ msgstr "This name still has profile details from a previous owner. To use it as your primary name, we’ll clear those details and keep only your wallet address."
-
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "This page can only verify your email when opened from the link in the verification email."
 msgstr "This page can only verify your email when opened from the link in the verification email."
@@ -2490,10 +2486,6 @@ msgstr "This signature is free and doesn't cost any gas."
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "This subname can’t be set up here yet. Please set it up in the ENS app first."
 msgstr "This subname can’t be set up here yet. Please set it up in the ENS app first."
-
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "This upgrade is split into {atomicBatchCount} gas-safe atomic batches. Each batch needs a wallet confirmation."
-msgstr "This upgrade is split into {atomicBatchCount} gas-safe atomic batches. Each batch needs a wallet confirmation."
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Times shown in your local time zone ({timezoneLabel})"
@@ -2835,6 +2827,10 @@ msgstr "Wallet funded successfully"
 msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr "Wallet isn’t ready yet. Try again in a moment."
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "We can’t safely resume your previous upgrade because the saved name state has changed."
+msgstr "We can’t safely resume your previous upgrade because the saved name state has changed."
+
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't confirm that {domainName} is still available. Please try again."
@@ -3048,6 +3044,14 @@ msgstr "Your registration is in progress. Leaving may interrupt it. Are you sure
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your saved progress is unchanged. Contact ENS support before trying the upgrade again."
+msgstr "Your saved progress is unchanged. Contact ENS support before trying the upgrade again."
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your saved upgrade needs attention"
+msgstr "Your saved upgrade needs attention"
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."

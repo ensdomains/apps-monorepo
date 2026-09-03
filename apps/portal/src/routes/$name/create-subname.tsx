@@ -77,7 +77,7 @@ interface CreateSubnameFormProps {
 const CREATE_SUBNAME_TRANSACTION_ID = 'tx-create-ens-subname'
 
 // One-year (in seconds) default expiry, matching ensjs'
-// `createSubnameV2WriteParameters` default. When time-travel is active Anvil's
+// `createSubnameWriteParameters` default. When time-travel is active Anvil's
 // block time can be far ahead of `Date.now()`, so use a 100-year window to
 // ensure the expiry is never stale on-chain.
 const ONE_YEAR_SECONDS = 31536000n

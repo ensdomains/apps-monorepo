@@ -41,7 +41,9 @@ function createMockSigner(): RhinestoneSigner {
   return {
     type: 'rhinestone',
     account: {
-      sendTransaction: vi.fn().mockResolvedValue('mock-intent-id'),
+      prepareTransaction: vi.fn().mockResolvedValue('mock-prepared'),
+      signTransaction: vi.fn().mockResolvedValue('mock-signed'),
+      submitTransaction: vi.fn().mockResolvedValue('mock-intent-id'),
       sendUserOperation: vi.fn().mockResolvedValue('mock-userop-result'),
       waitForExecution: vi.fn().mockImplementation((result: unknown) => {
         // Return different shapes based on which method was called
@@ -119,7 +121,7 @@ describe('submitWarpTransaction', () => {
 
     await submitWarpTransaction({ request, signer })
 
-    expect(signer.account.sendTransaction).toHaveBeenCalledWith({
+    expect(signer.account.prepareTransaction).toHaveBeenCalledWith({
       sourceChains: [sepolia],
       targetChain: sepolia,
       calls: MOCK_CALLS,
@@ -128,7 +130,7 @@ describe('submitWarpTransaction', () => {
       tokenRequests: [],
     })
     // No active session → `signers` must not be passed.
-    expect(signer.account.sendTransaction).not.toHaveBeenCalledWith(
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalledWith(
       expect.objectContaining({ signers: expect.anything() }),
     )
   })
@@ -140,7 +142,7 @@ describe('submitWarpTransaction', () => {
 
     await submitWarpTransaction({ request, signer })
 
-    expect(signer.account.sendTransaction).toHaveBeenCalledWith(
+    expect(signer.account.prepareTransaction).toHaveBeenCalledWith(
       expect.objectContaining({
         signers: {
           type: 'experimental_session',
@@ -165,7 +167,7 @@ describe('submitWarpTransaction', () => {
 
     await submitWarpTransaction({ request, signer })
 
-    expect(signer.account.sendTransaction).toHaveBeenCalledWith(
+    expect(signer.account.prepareTransaction).toHaveBeenCalledWith(
       expect.objectContaining({
         signers: {
           type: 'experimental_session',
@@ -195,7 +197,32 @@ describe('submitWarpTransaction', () => {
     expect(result._unsafeUnwrapErr().message).toContain(
       'requires a signer with an active session',
     )
-    expect(signer.account.sendTransaction).not.toHaveBeenCalled()
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalled()
+  })
+
+  it('routes through prepare, sign, submit', async () => {
+    const signer = createMockSigner()
+    const request = createRhinestoneRequest()
+
+    await submitWarpTransaction({ request, signer })
+
+    expect(signer.account.signTransaction).toHaveBeenCalledWith('mock-prepared')
+    expect(signer.account.submitTransaction).toHaveBeenCalledWith('mock-signed')
+  })
+
+  it('forwards auxiliaryFunds to prepareTransaction (sendTransaction drops them)', async () => {
+    const signer = createMockSigner()
+    const usdc = '0x768F42455A2D082E23ceeF7d51e5787C82d67a39' as Address
+    const auxiliaryFunds = { 11155111: { [usdc]: 21_468_136n } }
+    const request = createRhinestoneRequest({
+      rhinestoneParams: { calls: MOCK_CALLS, auxiliaryFunds },
+    })
+
+    await submitWarpTransaction({ request, signer })
+
+    expect(signer.account.prepareTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ auxiliaryFunds }),
+    )
   })
 
   it('calls waitForExecution and returns receipt.fill.hash', async () => {
@@ -224,7 +251,7 @@ describe('submitWarpTransaction', () => {
 
     await submitWarpTransaction({ request, signer })
 
-    expect(signer.account.sendTransaction).toHaveBeenCalledWith(
+    expect(signer.account.prepareTransaction).toHaveBeenCalledWith(
       expect.objectContaining({
         sponsored: { gas: false, bridging: false, swaps: false },
         feeAsset: 'USDC',
@@ -235,7 +262,7 @@ describe('submitWarpTransaction', () => {
   it('returns TransactionSubmissionError on SDK failure', async () => {
     const signer = createMockSigner()
     ;(
-      signer.account.sendTransaction as ReturnType<typeof vi.fn>
+      signer.account.prepareTransaction as ReturnType<typeof vi.fn>
     ).mockRejectedValue(new Error('Network error'))
     const request = createRhinestoneRequest()
 

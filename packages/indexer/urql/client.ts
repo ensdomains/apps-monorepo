@@ -1,11 +1,13 @@
-import {
-  cacheExchange,
-  createClient,
-  fetchExchange,
-  makeOperation,
-  mapExchange,
-} from '@urql/core'
+import { cacheExchange, createClient, fetchExchange } from '@urql/core'
 import { retryExchange } from '@urql/exchange-retry'
+import { forcePostExchange } from './request'
+
+export type { GraphqlRequestError } from './request'
+export {
+  createPlainClient,
+  EmptyGraphQLResponseError,
+  graphqlRequest,
+} from './request'
 
 /**
  * Resolve the indexer GraphQL URL.
@@ -37,17 +39,6 @@ function getIndexerUrl(): string {
 }
 
 export const INDEXER_GRAPHQL_URL = getIndexerUrl()
-
-const forcePostExchange = mapExchange({
-  onOperation(operation) {
-    if (operation.kind !== 'query') return operation
-    if (!operation.context.preferGetMethod) return operation
-
-    return makeOperation(operation.kind, operation, {
-      preferGetMethod: false,
-    })
-  },
-})
 
 export const createIndexerClient = () =>
   createClient({

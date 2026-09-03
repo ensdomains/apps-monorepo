@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { CircleAlert } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -28,8 +29,9 @@ export const SelectNamesStep = ({
   onNamesChange,
   onNext,
 }: SelectNamesStepProps) => {
-  const { eligible, isPending } = useEligibleV1Names()
+  const { eligible, isPending, recoveryState } = useEligibleV1Names()
   const [isStarting, setIsStarting] = useState(false)
+  const isRecoveryStale = recoveryState.status === 'stale'
 
   const {
     search,
@@ -41,7 +43,6 @@ export const SelectNamesStep = ({
     filteredGroups,
     filteredOrphans,
     toggleName,
-    toggleGroup,
     toggleAll,
   } = useNameSelection({ eligible, isPending, onNamesChange })
 
@@ -56,6 +57,7 @@ export const SelectNamesStep = ({
   const isUpgradeDisabled =
     totalSelected === 0 ||
     isPending ||
+    isRecoveryStale ||
     isStarting ||
     isWaitingForGasEstimate ||
     isWaitingForGasFunding
@@ -96,27 +98,56 @@ export const SelectNamesStep = ({
           )}
         >
           <h1 className="w-full shrink-0 text-left text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px] md:text-center md:text-[36px] md:tracking-[-0.72px]">
-            <Trans>Your names are ready to upgrade</Trans>
+            {isRecoveryStale ? (
+              <Trans>Your saved upgrade needs attention</Trans>
+            ) : (
+              <Trans>Your names are ready to upgrade</Trans>
+            )}
           </h1>
 
-          <SelectNamesStepSelectionOptions
-            allSelected={allSelected}
-            filteredGroups={filteredGroups}
-            filteredOrphans={filteredOrphans}
-            isCompactLayout={isCompactLayout}
-            isContentHeightCard={isContentHeightCard}
-            isPending={isPending}
-            search={search}
-            selected={selected}
-            setSearch={setSearch}
-            showBulkSelection={showBulkSelection}
-            showNameSearch={showNameSearch}
-            toggleAll={toggleAll}
-            toggleGroup={toggleGroup}
-            toggleName={toggleName}
-            totalSelected={totalSelected}
-            visibleCount={visibleCount}
-          />
+          {isRecoveryStale ? (
+            <div
+              className="flex w-full max-w-160 items-start gap-3 rounded-lg bg-ens-garnet-50/70 px-4 py-4 text-ens-garnet-900"
+              role="alert"
+            >
+              <CircleAlert
+                aria-hidden="true"
+                className="mt-0.5 size-5 shrink-0"
+              />
+              <div className="flex flex-col gap-1 text-sm leading-5">
+                <p>
+                  <Trans>
+                    We can’t safely resume your previous upgrade because the
+                    saved name state has changed.
+                  </Trans>
+                </p>
+                <p className="text-ens-garnet-500">
+                  <Trans>
+                    Your saved progress is unchanged. Contact ENS support before
+                    trying the upgrade again.
+                  </Trans>
+                </p>
+              </div>
+            </div>
+          ) : (
+            <SelectNamesStepSelectionOptions
+              allSelected={allSelected}
+              filteredGroups={filteredGroups}
+              filteredOrphans={filteredOrphans}
+              isCompactLayout={isCompactLayout}
+              isContentHeightCard={isContentHeightCard}
+              isPending={isPending}
+              search={search}
+              selected={selected}
+              setSearch={setSearch}
+              showBulkSelection={showBulkSelection}
+              showNameSearch={showNameSearch}
+              toggleAll={toggleAll}
+              toggleName={toggleName}
+              totalSelected={totalSelected}
+              visibleCount={visibleCount}
+            />
+          )}
         </div>
       </div>
 

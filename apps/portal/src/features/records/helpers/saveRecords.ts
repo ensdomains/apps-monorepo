@@ -12,7 +12,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet'
+import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v1'
 import {
   type Address,
   encodeFunctionData,

@@ -135,9 +135,10 @@ async function main() {
   const resource = labelToCanonicalId(nameLabel)
   const writeParams = grantRolesWriteParameters(
     // The clients used here only need chain/account for the type assertion.
-    { chain: walletClient.chain, account: ownerAccount } as Parameters<
-      typeof grantRolesWriteParameters
-    >[0],
+    {
+      chain: walletClient.chain,
+      account: ownerAccount,
+    } as unknown as Parameters<typeof grantRolesWriteParameters>[0],
     {
       registryAddress: ETH_REGISTRY,
       account: managerAddress,

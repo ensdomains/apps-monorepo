@@ -5,7 +5,7 @@
  */
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
-import { createSubnameV2WriteParameters } from '@ensdomains/ensjs/wallet'
+import { createSubnameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import type { Address, WalletClient } from 'viem'
 import { encodeFunctionData, zeroAddress } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
@@ -48,9 +48,9 @@ export interface PrepareCreateSubnameParams {
 }
 
 /**
- * The createSubnameV2 intent, shared by the gas estimate and {@link createSubname}.
+ * The createSubname intent, shared by the gas estimate and {@link createSubname}.
  *
- * NOTE: `createSubnameV2WriteParameters` defaults a missing `expires` to
+ * NOTE: `createSubnameWriteParameters` defaults a missing `expires` to
  * `Date.now() + 1 year` at encode time, so a caller that wants the estimate to
  * stay byte-identical to the submitted call MUST pass a concrete, frozen
  * `expires` and reuse that same value in the actual `createSubname` call.
@@ -70,8 +70,8 @@ export function prepareCreateSubnameTransaction({
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  const writeParams = createSubnameV2WriteParameters(
-    walletClient as Parameters<typeof createSubnameV2WriteParameters>[0],
+  const writeParams = createSubnameWriteParameters(
+    walletClient as Parameters<typeof createSubnameWriteParameters>[0],
     {
       registryAddress,
       label,

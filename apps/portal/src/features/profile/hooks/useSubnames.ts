@@ -1,3 +1,4 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -5,7 +6,7 @@ import {
   getSubnames as ensjs_getSubnames,
   type GetSubnamesErrorType,
 } from '@ensdomains/ensjs/subgraph'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, checksumAddress, type Hex } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
@@ -13,7 +14,7 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 import type { ProtocolVersion } from '@/utils/types'
 
 class GetSubnamesError extends TaggedError('GetSubnamesError')<{
-  cause: GetSubnamesErrorType | ClientError
+  cause: GetSubnamesErrorType | GraphqlRequestError
 }> {}
 
 type Subname = {
@@ -73,7 +74,7 @@ export const getSubnames = ResultFn(async function* ({
       }`,
         { name },
       ),
-      (e) => new GetSubnamesError({ cause: e as ClientError }),
+      (e) => new GetSubnamesError({ cause: e as GraphqlRequestError }),
     )
 
     const domain = v2Request.domains[0]

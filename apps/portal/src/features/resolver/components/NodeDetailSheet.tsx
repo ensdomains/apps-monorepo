@@ -31,6 +31,7 @@ import type {
 } from '@/features/resolver/hooks/useResolverOverview'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
@@ -123,7 +124,7 @@ export const NodeDetailSheet = ({
                 ) : recordsError ? (
                   <p className="text-sm text-danger">
                     Failed to load records:{' '}
-                    {recordsError.cause?.message ?? 'Unknown error'}
+                    {extractErrorMessage(recordsError, 'Unknown error')}
                   </p>
                 ) : records.length === 0 ? (
                   <p className="text-sm text-muted-foreground">

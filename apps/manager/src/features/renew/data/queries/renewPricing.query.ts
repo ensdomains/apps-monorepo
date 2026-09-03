@@ -8,7 +8,7 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   type GetRenewPriceErrorType as EnsGetRenewPriceErrorType,
   getRenewPrice as ensGetRenewPrice,
-} from '@ensdomains/ensjs/public/v2'
+} from '@ensdomains/ensjs/public'
 import { err, fromPromise, ok } from 'neverthrow'
 import { MissingTokenError } from '@/features/register-v2/data/queries/pricing.query'
 import {
