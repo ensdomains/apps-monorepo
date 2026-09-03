@@ -3,7 +3,6 @@ import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { queryOptions, skipToken } from '@tanstack/react-query'
-import { parse } from 'graphql'
 import type { V2RoleAssignment } from '../../v2NameRoles'
 
 type DashboardRoleAssignmentsQuery = {
@@ -20,14 +19,16 @@ export class GetDashboardRoleAssignmentsError extends TaggedError(
   cause: unknown
 }> {}
 
-const DashboardRoleAssignmentsDocument = parse(/* GraphQL */ `
+// Kept as a raw string: parsing with graphql 17 at module scope opens a
+// diagnostics-channel tracing span, which workerd disallows in global scope.
+const DashboardRoleAssignmentsDocument = /* GraphQL */ `
   query DashboardRoleAssignments($account: String!) {
     roles(account: $account) {
       name
       roleBitmap
     }
   }
-`)
+`
 
 export const getDashboardRoleAssignments = async (
   account: string,
