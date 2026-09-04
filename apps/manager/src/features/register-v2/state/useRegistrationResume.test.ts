@@ -185,6 +185,24 @@ describe('useRegistrationResume', () => {
     expect(toast).not.toHaveBeenCalled()
   })
 
+  it('leaves a record for another name alone', async () => {
+    // Opening /register/bob while holding a paid commitment for leon must not
+    // delete leon's record — coming back to /register/leon would then mean
+    // paying for a second commitment. The write path overwrites the record if
+    // a registration for bob actually starts.
+    assessResumableRegistration.mockResolvedValue({
+      status: 'stale',
+      reason: 'label-mismatch',
+    })
+
+    const { result } = render()
+
+    await waitFor(() => expect(result.current.status).toBe('idle'))
+    expect(clearStoredRegistration).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+    expect(toast).not.toHaveBeenCalled()
+  })
+
   it('goes idle when there is nothing stored', async () => {
     assessResumableRegistration.mockResolvedValue({ status: 'none' })
 

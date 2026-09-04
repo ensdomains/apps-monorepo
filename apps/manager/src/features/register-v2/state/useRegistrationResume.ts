@@ -90,6 +90,14 @@ function decideFromVerdict(
   }
 
   if (verdict.status === 'stale') {
+    // A record for another name is not dead — the user merely opened a
+    // different label's page. Clearing here would delete a paid commitment for
+    // the OTHER name; leave it for the run it belongs to. If a registration
+    // actually starts on this page, the write path overwrites it anyway.
+    if (verdict.reason === 'label-mismatch') {
+      return { kind: 'state', state: { status: 'idle' }, latch: true }
+    }
+
     return {
       kind: 'state',
       state: discardStaleRecord(label, verdict.reason),
