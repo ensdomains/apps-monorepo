@@ -9,6 +9,7 @@ import {
 } from '@/features/dashboard/components'
 import { getBurnedFuseCountQueryOptions } from '@/features/namewrapper/hooks/useBurnedFuseCount'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
+import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { ProtocolVersion } from '@/utils/types'
 
@@ -27,7 +28,7 @@ const RoleCount = ({ name }: { name: string }) => {
     getNameRolesAccountsQueryOptions({
       name,
       registryAddress: v2EthRegistry,
-      fromBlock: 9782822n,
+      fromBlock: ROLES_FROM_BLOCK,
     }),
   )
 
