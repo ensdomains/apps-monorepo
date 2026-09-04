@@ -73,9 +73,11 @@ const DEFAULT_CONNECT_HOSTS = [
   // there can never be silently blocked by this policy.
   ...SEPOLIA_FALLBACK_RPC_URLS.map((url) => new URL(url).origin),
   // ENS-owned hosts: indexer GraphQL (graphql.ens.dev — packages/indexer/
-  // urql/client.ts) and the fund/faucet API (app-api.ens.dev —
-  // src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env
-  // *.ens.dev hosts (and future ones) don't silently break a flow.
+  // urql/client.ts) and the production fund/faucet API (app-api.ens.dev).
+  // Wildcarded so per-deployment / per-env *.ens.dev hosts (and future ones)
+  // don't silently break a flow. NOTE: on this hackathon branch
+  // src/hooks/useFundWallet.ts targets the branch's api-worker preview on
+  // *.ens-cf.workers.dev instead — allowlisted further down.
   'https://*.ens.dev',
   // Hackathon deployment indexers: v2 GraphQL (packages/indexer/urql/
   // client.ts) and the v1 subgraph ensjs resolves from the chain config

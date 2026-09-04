@@ -1,7 +1,11 @@
 import { useMutation } from '@tanstack/react-query'
 import type { Address } from 'viem'
 
-const WALLET_FUND_API_URL = 'https://app-api.ens.dev'
+// Hackathon deployment: point at this branch's api-worker preview, not the
+// production worker behind app-api.ens.dev (which tracks main). Covered by the
+// portal CSP's `https://*.ens-cf.workers.dev` connect-src entry (worker/csp.ts).
+const WALLET_FUND_API_URL =
+  'https://hackathon-deployment-app-api-worker.ens-cf.workers.dev'
 
 export function useFundWallet(options?: {
   onSuccess?: (data: { txHash: string | null }) => void
