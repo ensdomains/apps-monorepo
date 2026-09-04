@@ -113,21 +113,14 @@ patchedDependencies:
   class-variance-authority: patches/class-variance-authority.patch
   "@rhinestone/sdk@1.8.0": patches/@rhinestone%2Fsdk@1.8.0.patch
 
-# Replaces `onlyBuiltDependencies`. pnpm >=11 defaults `strictDepBuilds` to true,
-# so every dependency with a build script must be listed explicitly — an
-# unreviewed one fails the install rather than being silently skipped.
+# pnpm >=11 fails the install on any dependency build script not listed here.
+# Everything is denied: esbuild, workerd, lefthook and sharp ship prebuilt
+# binaries via optionalDependencies and resolve them at runtime — their install
+# scripts are only a fallback downloader for when the optional dep is missing.
 allowBuilds:
-  "@swc/core": true
-  "@tailwindcss/oxide": true
-  bufferutil: true
-  esbuild: true
-  keccak: true
-  lefthook: true
-  oxc-resolver: true
-  protobufjs: true
-  sharp: true
-  utf-8-validate: true
-  workerd: true
-  # Build scripts we deliberately skip.
   "@reown/appkit": false
   core-js: false
+  esbuild: false
+  lefthook: false
+  sharp: false
+  workerd: false
