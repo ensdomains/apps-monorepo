@@ -1,4 +1,4 @@
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
@@ -21,13 +21,19 @@ import {
   zeroAddress,
 } from 'viem'
 import { readContract } from 'viem/actions'
+import { normalize } from 'viem/ens'
 import { getAction } from 'viem/utils'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getParentName, is2LD, isRegistrable } from '@/utils/ens/tldHelpers'
 import type { V1TransferSubject } from '../types'
 
+class NameNotNormalizableError extends TaggedError('NameNotNormalizableError')<{
+  cause: unknown
+}> {}
+
 export class GetV1NameStateError extends TaggedError('GetV1NameStateError')<{
   cause:
+    | NameNotNormalizableError
     | GetOwnerErrorType
     | GetExpiryErrorType
     | GetWrapperDataErrorType
@@ -70,8 +76,18 @@ type GetV1NameStateParameters = {
 }
 
 const getV1NameState = ResultFn(async function* ({
-  name,
+  name: rawName,
 }: GetV1NameStateParameters) {
+  // Route-supplied, so normalise once here: every hash and ensjs read below
+  // must see the same canonical form or equivalent spellings diverge on-chain.
+  const name = yield* fromSync(
+    () => normalize(rawName),
+    (e) =>
+      new GetV1NameStateError({
+        cause: new NameNotNormalizableError({ cause: e }),
+      }),
+  )
+
   const client = yield* safeGetClient()
 
   const nameWrapper = getChainContractAddress({

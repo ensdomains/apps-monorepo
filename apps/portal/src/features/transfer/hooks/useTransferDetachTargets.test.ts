@@ -153,6 +153,22 @@ describe('useTransferDetachTargets', () => {
     expect(optionIsVisible.detachResolver).toBe(false)
   })
 
+  // A swallowed failure would hide the ETH option for a name that still
+  // resolves to the sender, and let the transfer go ahead without warning.
+  it('reports failed when the ETH-address read errors', () => {
+    Object.assign(ethAddressQuery, {
+      data: undefined,
+      isSuccess: false,
+      isError: true,
+    })
+
+    const { optionIsVisible, settled, failed } = render('sub.alice.eth')
+
+    expect(failed).toBe(true)
+    expect(settled).toBe(false)
+    expect(optionIsVisible.setEthAddress).toBe(false)
+  })
+
   it('still withholds the detach options when the owner lacks the registry roles', () => {
     rolesQuery.data = { decoded: [] }
 

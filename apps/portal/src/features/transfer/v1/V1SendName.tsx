@@ -31,8 +31,6 @@ export const V1SendName = ({
 }) => {
   const parentName = is2LD(name) ? null : getParentName(name)
 
-  // Never errors: the query maps failures to null, so a missing ETH record and
-  // an unreadable one both just hide the ETH option.
   const ethAddressQuery = useQuery(getEthAddressQueryOptions(name))
 
   const transfer = useTransferName({ name, account, subject })
@@ -47,8 +45,10 @@ export const V1SendName = ({
           account,
           hasEthAddress: !!ethAddressQuery.data,
         }),
-        settled: !ethAddressQuery.isLoading,
-        failed: false,
+        // Keyed off `isSuccess`, not `!isLoading`: a failed read must block the
+        // transfer rather than read as "no ETH record".
+        settled: ethAddressQuery.isSuccess,
+        failed: ethAddressQuery.isError,
       }}
       parentWarning={
         parentName === null

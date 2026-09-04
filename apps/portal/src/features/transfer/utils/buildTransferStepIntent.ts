@@ -2,6 +2,7 @@ import { createSetForwardResolutionRequest } from '@ens-apps/l2-primary/utils'
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
+import { normalize } from 'viem/ens'
 import { prepareSetForwardResolutionTransaction } from '@/features/reverse-resolution/helpers/setForwardResolution'
 import type { IntentContext } from '@/features/transaction-manager/types'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
@@ -42,7 +43,7 @@ export type TransferStepContext = IntentContext & {
 export const buildTransferStepIntent = (
   step: TransferStepKind,
   {
-    name,
+    name: rawName,
     subject,
     recipient,
     tokenId,
@@ -51,6 +52,9 @@ export const buildTransferStepIntent = (
     chainId,
   }: TransferStepContext,
 ): CustomTransactionIntent => {
+  // Route-supplied, so normalise once here: every hash below must see the same
+  // canonical form the reads used, or the write targets a different node.
+  const name = normalize(rawName)
   const ctx = { name, recipient, walletClient, chainId }
   return match([step, subject] as const)
     .with(['set-eth-addr', P._], () => {
