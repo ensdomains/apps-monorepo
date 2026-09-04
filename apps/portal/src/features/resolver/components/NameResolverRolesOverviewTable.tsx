@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { LoadingMessage } from '@/components/LoadingMessage'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Button } from '@/components/ui/button'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
@@ -22,7 +22,8 @@ export const NameResolverRolesOverviewTable = ({ name }: { name: string }) => {
     error,
   } = useNameResolverAddress({ name })
 
-  if (isLoading) return <LoadingMessage />
+  // The page holds its own loader until this has settled.
+  if (isLoading) return null
 
   if (error)
     return (
@@ -61,7 +62,7 @@ const ResolverRolesOverview = ({
     error,
   } = useQuery(getResolverOverviewQueryOptions({ address: resolverAddress }))
 
-  if (isLoading) return <LoadingMessage />
+  if (isLoading) return <LoadingSpinner title="Loading resolver roles..." />
 
   if (error)
     return (
