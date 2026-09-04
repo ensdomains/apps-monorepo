@@ -55,29 +55,11 @@ trustPolicyExclude:
   - "@ensdomains/ensjs"
   - "@ensdomains/ensjs-abi"
 
-# --- Moved out of package.json's `pnpm` field, which pnpm >=11 no longer reads.
-# It is ignored with only a warning, so leaving it there silently drops every
-# override and patch below.
-
-# `blockExoticSubdeps` (pnpm >=11 default: true) rejects git/tarball deps reached
-# transitively. Direct deps stay allowed, so the ensjs catalog entries are fine —
-# but the ensjs tarball's own manifest points at the ensjs-abi tarball, and that
-# edge is a subdep. Re-pointing the override at the same tarball does not help;
-# the block is on the edge, not on where the spec came from. Dropping the edge
-# keeps the guard on for the rest of the tree.
-#
-# ensjs ships TypeScript sources that import `@ensdomains/ensjs-abi` directly, so
-# the package still has to resolve at build time. It does, but through the
-# hoisted fallback in `node_modules/.pnpm/node_modules` rather than through
-# ensjs's own directory — which holds as long as *some* workspace project pulls
-# ensjs-abi into the tree (manager, portal, e2e and four others declare it) and
-# hoisting stays on. Consumers declaring it themselves would not change this:
-# ensjs resolves from its virtual-store path, not from theirs. Two consequences:
-# turning off `hoist` breaks every ensjs consumer, and ensjs's own version
-# constraint on ensjs-abi is silently replaced by the catalog pin above, so keep
-# the two catalog entries on the same pkg.pr.new build.
-# Remove all of this once ensjs-abi is published to npm and ensjs depends on it
-# by semver.
+# blockExoticSubdeps (pnpm >=11, no allowlist) rejects the tarball edge
+# ensjs -> ensjs-abi, so drop that one edge; ensjs-abi still resolves via
+# hoisting as long as some workspace project declares it, and both catalog
+# entries must stay on the same pkg.pr.new build. Remove once ensjs-abi is
+# published to npm.
 overrides:
   "@ensdomains/ensjs>@ensdomains/ensjs-abi": "-"
   available-typed-arrays: "npm:@socketregistry/available-typed-arrays@^1"
@@ -114,13 +96,13 @@ patchedDependencies:
   "@rhinestone/sdk@1.8.0": patches/@rhinestone%2Fsdk@1.8.0.patch
 
 # pnpm >=11 fails the install on any dependency build script not listed here.
-# Everything is denied: esbuild, workerd, lefthook and sharp ship prebuilt
-# binaries via optionalDependencies and resolve them at runtime — their install
-# scripts are only a fallback downloader for when the optional dep is missing.
+# All denied: these ship prebuilt binaries via optionalDependencies.
 allowBuilds:
   "@reown/appkit": false
+  "@tailwindcss/oxide": false
   core-js: false
   esbuild: false
   lefthook: false
+  oxc-resolver: false
   sharp: false
   workerd: false
