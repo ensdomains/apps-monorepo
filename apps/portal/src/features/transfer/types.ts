@@ -19,7 +19,6 @@ import type { Address } from 'viem'
  */
 export type V2Subject = {
   readonly kind: 'v2'
-  readonly owner: Address
   /** The registry the name's token lives in (its parent's subregistry). */
   readonly registryAddress: Address
 }

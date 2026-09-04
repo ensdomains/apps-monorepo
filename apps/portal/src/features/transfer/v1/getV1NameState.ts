@@ -97,9 +97,12 @@ const getV1NameState = ResultFn(async function* ({
   const fail = (e: unknown) =>
     new GetV1NameStateError({ cause: e as GetV1NameStateError['cause'] })
 
-  const [owner, resolver, expiry, parentOwner] = yield* fromPromise(
+  const [owner, wrapped, resolver, expiry, parentOwner] = yield* fromPromise(
     Promise.all([
       getOwner(client, { name }),
+      // Only meaningful when the name turns out to be wrapped, but reading it
+      // in the same batch saves a round trip; for an unwrapped name it is null.
+      getWrapperData(client, { name }),
       getAction(
         client,
         readContract,
@@ -124,11 +127,6 @@ const getV1NameState = ResultFn(async function* ({
   )
 
   if (!owner) return ok<V1NameState | null>(null)
-
-  const wrapped =
-    owner.ownershipLevel === 'nameWrapper'
-      ? yield* fromPromise(getWrapperData(client, { name }), fail)
-      : null
 
   const subject = match(owner)
     .with(

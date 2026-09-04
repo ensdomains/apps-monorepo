@@ -31,7 +31,13 @@ export const V1SendName = ({
 }) => {
   const parentName = is2LD(name) ? null : getParentName(name)
 
-  const ethAddressQuery = useQuery(getEthAddressQueryOptions({ name }))
+  // Only worth reading when there is a resolver of the name's own to write
+  // to; without one the ETH option is hidden whatever the record says.
+  const hasOwnResolver = resolverAddress !== null
+  const ethAddressQuery = useQuery({
+    ...getEthAddressQueryOptions({ name }),
+    enabled: hasOwnResolver,
+  })
 
   const transfer = useTransferName({ name, account, subject })
 
@@ -47,7 +53,7 @@ export const V1SendName = ({
         }),
         // Keyed off `isSuccess`, not `!isLoading`: a failed read must block the
         // transfer rather than read as "no ETH record".
-        isSettled: ethAddressQuery.isSuccess,
+        isSettled: !hasOwnResolver || ethAddressQuery.isSuccess,
         hasFailed: ethAddressQuery.isError,
       }}
       parentWarning={

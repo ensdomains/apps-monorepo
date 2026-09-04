@@ -41,7 +41,7 @@ export const V2SendName = ({
   const transfer = useTransferName({
     name,
     account: owner,
-    subject: { kind: 'v2', owner, registryAddress },
+    subject: { kind: 'v2', registryAddress },
   })
 
   return (

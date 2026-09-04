@@ -28,10 +28,10 @@ type GetOwnResolverParameters = {
  * resolver is commonly the parent's — and the transfer flow must not treat an
  * inherited resolver as something the sender can detach or write to:
  *
- * - `detachNameResolver` writes `registry.setResolver(label, 0)` on this exact
+ * - The `detach-resolver` step writes `registry.setResolver(label, 0)` on this exact
  *   slot, so offering the option off an inherited resolver produces a no-op
  *   transaction while the name keeps resolving through its parent.
- * - `setEthAddress` would write the name's `addr(60)` onto the *parent's*
+ * - The `set-eth-addr` step would write the name's `addr(60)` onto the *parent's*
  *   resolver, which the sender keeps after the transfer (or, more often, isn't
  *   authorized on — reverting mid-plan, before the token has moved).
  *
