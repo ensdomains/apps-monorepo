@@ -1,18 +1,20 @@
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Fragment, useState } from 'react'
+import { match } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
+import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Button } from '@/components/ui/button'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
-import { getRegistryRootRoleCountsQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleCounts'
+import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { rootNameAuthority } from '@/features/roles/utils/rootNameAuthority'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { isAdminRole } from '@/lib/roles/permissions'
@@ -65,64 +67,60 @@ const V2NameRoles = ({
 
 /**
  * Accounts holding roles at the registry's root can act on every name it holds,
- * including this one, and they never appear in the table above: the table
+ * including this one, and they never appear in the table above: that table
  * replays per-name grants, and a root grant is not one.
  *
- * Counts rather than addresses, because the registry tracks how many accounts
- * hold each root role but not which. Read-only for the same reason, and because
- * the manage flows write per-name grants, so a revoke aimed at a root holder
- * would silently do nothing.
+ * Read-only, because the manage flows write per-name grants, so a revoke aimed
+ * at a root holder would silently do nothing.
  */
 const RegistryRootAuthority = ({
   registryAddress,
 }: {
   registryAddress: Address
 }) => {
-  const { data, isError } = useQuery(
-    getRegistryRootRoleCountsQueryOptions({ registryAddress }),
+  const { data, isLoading, isError } = useQuery(
+    getRegistryRootRoleHoldersQueryOptions({ registryAddress }),
   )
 
-  const authority = rootNameAuthority(data)
-
-  // A failed read is unknown, not none. Staying silent here would reproduce the
-  // absence this section exists to correct.
-  if (isError)
-    return (
-      <div className="flex flex-col gap-2">
-        <h3 className="text-caps leading-none">registry-wide roles</h3>
-        <ErrorMessage
-          compact
-          description="Couldn't check whether anyone holds roles on the registry itself. If they do, they can act on this name and won't be listed above."
-        />
-      </div>
-    )
-
-  // Silent when nothing is held, the common case: no `.eth` root holder can act
-  // on a 2LD. Silent while loading too, rather than appearing and rewriting.
-  if (authority.length === 0) return null
+  const holders = rootNameAuthority(data)
 
   return (
-    <div className="flex flex-col gap-2">
-      <h3 className="text-caps leading-none">registry-wide roles</h3>
-      <p className="text-muted-foreground text-sm">
-        These are held on the registry itself, so they apply to every name in it
-        rather than being granted on this one. They are not listed above and
-        can't be changed from this page.
-      </p>
-      <ul className="flex flex-col gap-1">
-        {authority.map(({ role, holders }) => (
-          <li key={role} className="text-sm">
-            <span className="text-foreground font-medium">
-              {formatRoleLabel(role)}
-            </span>
-            <span className="text-muted-foreground">
-              {' '}
-              held by {holders} {holders === 1 ? 'account' : 'accounts'}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
+    match({ isLoading, isError, count: holders.length })
+      // Nothing is claimed until the read lands, and nothing is claimed when
+      // nobody holds these powers, which is the case for a `.eth` 2LD.
+      .with({ isLoading: true }, () => null)
+      .with({ count: 0, isError: false }, () => null)
+      .with({ isError: true }, () => (
+        // A failed read is unknown, not none. Staying silent would reproduce the
+        // absence this section exists to correct.
+        <div className="flex flex-col gap-2">
+          <h3 className="text-caps leading-none">registry-wide roles</h3>
+          <ErrorMessage
+            compact
+            description="Couldn't check whether anyone holds roles on the registry itself. If they do, they can act on this name and won't be listed above."
+          />
+        </div>
+      ))
+      .otherwise(() => (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-caps leading-none">registry-wide roles</h3>
+          <p className="text-muted-foreground text-sm">
+            These are held on the registry itself, so they apply to every name
+            in it rather than being granted on this one. They are not listed
+            above and can't be changed from this page.
+          </p>
+          <ul className="flex flex-col gap-2">
+            {holders.map(({ account, powers }) => (
+              <li key={account} className="flex flex-col gap-1 text-sm">
+                <AddressDisplay address={account} />
+                <span className="text-muted-foreground">
+                  {powers.map(formatRoleLabel).join(', ')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))
   )
 }
 
