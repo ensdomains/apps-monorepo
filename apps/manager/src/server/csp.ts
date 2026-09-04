@@ -74,6 +74,11 @@ const DEFAULT_CONNECT_HOSTS = [
   // app-api.ens.dev), v1 subgraph (v1-graphql.ens.dev). Wildcarded so
   // per-deployment / per-env *.ens.dev hosts don't silently break a flow.
   'https://*.ens.dev',
+  // Hackathon deployment indexers: v1 subgraph
+  // (src/features/migration/service/v1SubgraphClient.ts) and v2 indexer
+  // GraphQL (packages/indexer/urql/client.ts).
+  'https://ens-v1-sepolia-hack.up.railway.app',
+  'https://hackathon-ensv2.pff.sh',
   // ENS-owned *.ens.domains: metadata avatar gateway, PostHog analytics host
   // (jakob.ens.domains — VITE_PUBLIC_POSTHOG_HOST).
   'https://*.ens.domains',

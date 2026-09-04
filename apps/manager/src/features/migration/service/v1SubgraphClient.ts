@@ -4,7 +4,7 @@ import { fromPromise, ok } from 'neverthrow'
 
 export type { V1Domain }
 
-const V1_SUBGRAPH_URL = 'https://v1-graphql.ens.dev/subgraph'
+const V1_SUBGRAPH_URL = 'https://ens-v1-sepolia-hack.up.railway.app/subgraph'
 
 type V1SubgraphResponse = {
   data: {

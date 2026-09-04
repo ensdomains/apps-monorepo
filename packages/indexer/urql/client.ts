@@ -27,7 +27,7 @@ function getIndexerUrl(): string {
         // Relative paths only work in the browser (they need an origin).
         // During SSR, fall back to the public endpoint.
         if (envUrl.startsWith('/') && typeof window === 'undefined') {
-          return 'https://staging-graphql.ens.dev/'
+          return 'https://hackathon-ensv2.pff.sh/'
         }
         return envUrl
       }
@@ -35,7 +35,7 @@ function getIndexerUrl(): string {
   } catch {
     // Non-Vite environment — fall through to default
   }
-  return 'https://staging-graphql.ens.dev/'
+  return 'https://hackathon-ensv2.pff.sh/'
 }
 
 export const INDEXER_GRAPHQL_URL = getIndexerUrl()
