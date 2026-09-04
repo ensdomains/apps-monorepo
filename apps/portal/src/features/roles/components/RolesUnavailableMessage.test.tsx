@@ -8,7 +8,7 @@ import { RolesUnavailableMessage } from './RolesUnavailableMessage'
 
 describe('RolesUnavailableMessage', () => {
   it('explains that roles need ENSv2 rather than offering fuses', () => {
-    render(<RolesUnavailableMessage name="jooooe.eth" />)
+    render(<RolesUnavailableMessage name="jooooe.eth" canMigrate={false} />)
 
     expect(screen.getByText('Roles not available')).toBeInTheDocument()
     expect(
@@ -17,7 +17,7 @@ describe('RolesUnavailableMessage', () => {
   })
 
   it('sends the migrate CTA to the manager migration flow', () => {
-    render(<RolesUnavailableMessage name="jooooe.eth" />)
+    render(<RolesUnavailableMessage name="jooooe.eth" canMigrate />)
 
     const migrate = screen.getByRole('link', { name: /Upgrade to v2/ })
 
@@ -25,12 +25,19 @@ describe('RolesUnavailableMessage', () => {
   })
 
   it('labels the learn-more link with the name it is about', () => {
-    render(<RolesUnavailableMessage name="jooooe.eth" />)
+    render(<RolesUnavailableMessage name="jooooe.eth" canMigrate />)
 
     const learnMore = screen.getByRole('link', {
       name: 'Learn more about migrating jooooe.eth to ENS v2',
     })
 
     expect(learnMore.getAttribute('href')).toMatch(/\/ensv2$/)
+  })
+
+  it('still explains itself to a viewer who cannot migrate', () => {
+    render(<RolesUnavailableMessage name="jooooe.eth" canMigrate={false} />)
+
+    expect(screen.getByText('Roles not available')).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 })

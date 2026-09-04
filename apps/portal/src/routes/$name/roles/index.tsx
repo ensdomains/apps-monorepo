@@ -4,6 +4,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
+import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { NameRegistryRolesOverviewTable } from '@/features/registry/components/v2/NameRegistryRolesOverviewTable'
 import { NameResolverRolesOverviewTable } from '@/features/resolver/components/NameResolverRolesOverviewTable'
@@ -30,6 +31,11 @@ function RouteComponent() {
     enabled: isSupportedName,
   })
 
+  const { isMigratableByConnectedOwner } = useMigrationStatus({
+    name,
+    protocolVersion: owner?.protocolVersion,
+  })
+
   if (!isSupportedName)
     return <ErrorMessage title="Only 2LD and 3LD .eth names are supported" />
 
@@ -47,7 +53,10 @@ function RouteComponent() {
     return (
       <div className="flex flex-col gap-8">
         <PageHeading parent={{ type: 'name', name }}>Roles</PageHeading>
-        <RolesUnavailableMessage name={name} />
+        <RolesUnavailableMessage
+          name={name}
+          canMigrate={isMigratableByConnectedOwner}
+        />
       </div>
     )
 
