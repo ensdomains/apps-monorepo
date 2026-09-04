@@ -11,7 +11,10 @@ import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL, MSymbol } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
-import { useOrphanRegistrationCleanup } from '@/features/register-v2'
+// Deep import, NOT the feature barrel: the barrel re-exports the whole
+// register workflow (steps, machines, transaction-manager deps), which would
+// end up in the chunk every route loads.
+import { useOrphanRegistrationCleanup } from '@/features/register-v2/state/useOrphanRegistrationCleanup'
 import { RootProviders } from '@/lib/RootProviders'
 import appCss from '@/styles/index.css?url'
 import { DEBUG_FEATURES_ENABLED } from '@/utils/debug-features'

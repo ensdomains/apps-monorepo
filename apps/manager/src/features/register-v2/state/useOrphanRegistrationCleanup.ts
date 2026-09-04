@@ -6,12 +6,12 @@
  * `RegistrationV2UiProvider`.
  */
 
-import { i18n } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
 import { useRouterState } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { publicClient } from '@/lib/wagmi'
+import { translateMessage } from '@/utils/i18n/translateMessage'
 import { resolveOrphanRegistration } from '../service/orphanRegistrationCleanup'
 import {
   clearStoredRegistration,
@@ -20,9 +20,6 @@ import {
 
 const registeredMessage = msg`Your registration completed while you were away.`
 const takenMessage = msg`That name was registered by someone else. You were not charged.`
-
-const translate = (message: typeof registeredMessage) =>
-  i18n.locale ? i18n._(message) : message.message
 
 export function useOrphanRegistrationCleanup(): void {
   const pathname = useRouterState({
@@ -61,7 +58,7 @@ export function useOrphanRegistrationCleanup(): void {
       clearStoredRegistration()
 
       toast(
-        translate(
+        translateMessage(
           outcome.status === 'registered' ? registeredMessage : takenMessage,
         ),
         {
