@@ -50,7 +50,7 @@ const ROOT_RESOURCE_HEX = toResourceHex(ROOT_RESOURCE)
 /** First block holding v2 registry events (matches the roles table's scan). */
 const DEFAULT_FROM_BLOCK = 9783977n
 
-const getRegistryRoleHistoryForAccount = ResultFn(async function* ({
+export const getRegistryRoleHistoryForAccount = ResultFn(async function* ({
   registryAddress,
   account,
   fromBlock = DEFAULT_FROM_BLOCK,
