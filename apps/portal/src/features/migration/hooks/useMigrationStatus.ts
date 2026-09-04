@@ -7,10 +7,18 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
+import { useQuery } from '@tanstack/react-query'
 import { err, fromPromise, ok } from 'neverthrow'
-import { type Address, isAddress, type PublicClient } from 'viem'
+import {
+  type Address,
+  isAddress,
+  isAddressEqual,
+  type PublicClient,
+} from 'viem'
+import { useConnection } from 'wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { gql } from '@/utils/subgraph/gql'
+import type { ProtocolVersion } from '@/utils/types'
 
 /**
  * Migration status for a name, scoped to the connected wallet: whether it can
@@ -124,3 +132,32 @@ export const getMigrationStatusQueryOptions = (
     enabled: !!params.name,
     retry: 2,
   })
+
+/**
+ * Migration status for the connected wallet.
+ *
+ * `isMigratableByConnectedOwner` is the answer every migration prompt wants:
+ * the name is migratable *and* this wallet holds the v1 token. A non-owner
+ * cannot migrate, so nothing should offer them the action.
+ */
+export const useMigrationStatus = ({
+  name,
+  protocolVersion,
+}: {
+  readonly name: string
+  readonly protocolVersion?: ProtocolVersion
+}) => {
+  const { address } = useConnection()
+
+  const { data, isLoading, error } = useQuery({
+    ...getMigrationStatusQueryOptions({ name, address }),
+    enabled: protocolVersion === 'ENSv1' && !!address,
+  })
+
+  const isMigratableByConnectedOwner =
+    data?.migratable === true &&
+    !!address &&
+    isAddressEqual(address, data.tokenHolder)
+
+  return { data, error, isLoading, isMigratableByConnectedOwner }
+}
