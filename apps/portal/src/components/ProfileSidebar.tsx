@@ -146,10 +146,9 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
     enabled: isRegistrable(name),
   })
   const protocolVersion = ownerData?.protocolVersion
-  const { data: wrapperData } = useQuery({
-    ...getWrapperDataQueryOptions({ name }),
-    enabled: protocolVersion === 'ENSv1',
-  })
+  // Runs unconditionally: it only needs the name, so gating it on the owner
+  // query would serialise two independent reads.
+  const { data: wrapperData } = useQuery(getWrapperDataQueryOptions({ name }))
 
   // Only a wrapped v1 name has fuses to show, and wrapping is closed, so every
   // other name gets Roles. Unknown counts as Roles: that is where a v2 name and
