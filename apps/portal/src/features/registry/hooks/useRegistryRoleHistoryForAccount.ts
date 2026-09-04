@@ -1,11 +1,12 @@
 /**
  * Role-change history for a single account at the **registry root** resource.
  *
- * Queries `EACRolesChanged` events for the given registry contract from the
- * indexer, then narrows them client-side to events scoped to `ROOT_RESOURCE`
- * for the supplied account. Mirrors the query strategy used by
- * `useNameRoleAccounts` (which is per-name) and `useRoleHistory` (which is
- * global) but scoped to the registry overview's add/edit-user UI.
+ * There is no server-side filter that isolates root grants: they carry no name
+ * on the indexer, and `involved` does not match the EAC `account` field. So the
+ * registry's `EACRolesChanged` feed is paged with `eventConnection.after` until
+ * exhausted or `MAX_PAGES`, then narrowed client-side to `ROOT_RESOURCE` for
+ * the account. The result says whether the scan reached the end, because a
+ * registry too large to exhaust must not read as "no history".
  */
 
 import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
@@ -33,57 +34,97 @@ export type GetRegistryRoleHistoryParameters = {
   readonly account: Address
 }
 
+export type RegistryRoleHistory = {
+  readonly entries: readonly RoleHistoryEntry[]
+  /** False when the registry held more role events than the scan reached. */
+  readonly isComplete: boolean
+}
+
 // 32-byte zero — registry-wide ROOT_RESOURCE (see useRegistryRoles.ts).
 const ROOT_RESOURCE_HEX = `0x${'0'.repeat(64)}`
 
-// Single capped fetch (no pagination — a proper paginated component is tracked
-// separately). The newest `EVENTS_LIMIT` role-change events comfortably cover a
-// single account's root-role history in practice.
-const EVENTS_LIMIT = 1000
+const PAGE_SIZE = 1000
+// Exhausts any user-deployed subregistry, which has a handful of role events.
+// The `.eth` registry has ~170k and stops here, reported as incomplete.
+const MAX_PAGES = 10
+
+type EventsPage = {
+  readonly eventConnection: {
+    readonly pageInfo: {
+      readonly hasNextPage: boolean
+      readonly endCursor: string | null
+    }
+    readonly edges: readonly { readonly node: IndexerEACEvent }[]
+  } | null
+}
 
 const getRegistryRoleHistoryForAccount = ResultFn(async function* ({
   registryAddress,
   account,
 }: GetRegistryRoleHistoryParameters) {
-  const { events } = yield* fromPromise(
-    graphqlIndexerClient.request<{ events: IndexerEACEvent[] }>(
-      gql`
-        query getRegistryRoleHistoryForAccount(
-          $contractAddress: String!
-          $first: Int!
-        ) {
-          events(
-            where: {
-              type: "EACRolesChanged"
-              contractAddress: $contractAddress
-            }
-            first: $first
-            orderBy: blockNumber
-            orderDirection: desc
-          ) {
-            type
-            data
-            transactionHash
-            timestamp
-            blockNumber
-          }
-        }
-      `,
-      {
-        contractAddress: registryAddress.toLowerCase(),
-        first: EVENTS_LIMIT,
-      },
-    ),
-    (e) => new GetRegistryRoleHistoryError({ cause: e as GraphqlRequestError }),
-  )
+  const events: IndexerEACEvent[] = []
+  let after: string | undefined
+  let hasNextPage = true
 
-  const rootEntries = filterEventsByResource(events, ROOT_RESOURCE_HEX)
+  for (let page = 0; page < MAX_PAGES && hasNextPage; page++) {
+    const { eventConnection } = yield* fromPromise(
+      graphqlIndexerClient.request<EventsPage>(
+        gql`
+          query getRegistryRoleHistoryForAccount(
+            $contractAddress: String!
+            $first: Int!
+            $after: String
+          ) {
+            eventConnection(
+              where: {
+                type_in: ["EACRolesChanged"]
+                contractAddress: $contractAddress
+              }
+              first: $first
+              after: $after
+              orderBy: blockNumber
+              orderDirection: desc
+            ) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              edges {
+                node {
+                  type
+                  data
+                  transactionHash
+                  timestamp
+                  blockNumber
+                }
+              }
+            }
+          }
+        `,
+        {
+          contractAddress: registryAddress.toLowerCase(),
+          first: PAGE_SIZE,
+          after,
+        },
+      ),
+      (e) =>
+        new GetRegistryRoleHistoryError({ cause: e as GraphqlRequestError }),
+    )
+
+    events.push(...(eventConnection?.edges.map(({ node }) => node) ?? []))
+    hasNextPage = eventConnection?.pageInfo.hasNextPage ?? false
+    after = eventConnection?.pageInfo.endCursor ?? undefined
+
+    // A page that claims more without a cursor cannot be followed.
+    if (hasNextPage && !after) break
+  }
+
   const target = account.toLowerCase()
-  const accountEntries: RoleHistoryEntry[] = rootEntries.filter(
+  const entries = filterEventsByResource(events, ROOT_RESOURCE_HEX).filter(
     (entry) => entry.account.toLowerCase() === target,
   )
 
-  return ok(accountEntries)
+  return ok({ entries, isComplete: !hasNextPage } satisfies RegistryRoleHistory)
 })
 
 const getRegistryRoleHistoryForAccountQueryKey = createQueryKey<
