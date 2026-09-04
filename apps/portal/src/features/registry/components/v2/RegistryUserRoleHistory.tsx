@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
+import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { DataTable } from '@/components/DataTable'
@@ -76,58 +77,41 @@ export const RegistryUserRoleHistory = ({
     enabled: Boolean(account),
   })
 
-  const entries = data?.entries ?? []
-  // A scan that stopped short is not evidence of an empty history.
-  const isIncomplete = data !== undefined && !data.isComplete
-
-  const transactionHashes = entries.map((e) => e.transactionHash)
+  const transactionHashes = (data ?? []).map((e) => e.transactionHash)
   const { data: sendersMap } = useTransactionSenders({ transactionHashes })
 
-  const rows: EnrichedEntry[] = entries.map((entry) => ({
+  const rows: EnrichedEntry[] = (data ?? []).map((entry) => ({
     ...entry,
     sender: sendersMap?.get(entry.transactionHash) ?? null,
   }))
 
   if (!account) return null
 
-  const settled = !isLoading && !error
-
   return (
     <section className="flex flex-col gap-3">
       <HistorySectionHeader />
-      {isLoading && (
-        <p className="text-sm text-muted-foreground">Loading history…</p>
-      )}
-      {error && (
-        <ErrorMessage
-          compact
-          description="Error fetching role history. Please refresh the page."
-        />
-      )}
-      {settled && rows.length === 0 && !isIncomplete && (
-        <NoResultsMessage
-          title="No role changes yet"
-          description="This user has no recorded role grants or revokes on this registry."
-          className="mx-0 my-0"
-        />
-      )}
-      {settled && rows.length === 0 && isIncomplete && (
-        <ErrorMessage
-          compact
-          description="Couldn't read this registry's full role history. It has more role changes than can be scanned in one pass, and none of the most recent ones involve this user, so older grants may exist that aren't shown."
-        />
-      )}
-      {settled && rows.length > 0 && (
-        <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent">
-          <DataTable columns={columns} data={rows} />
-          {isIncomplete && (
-            <p className="mt-3 text-sm text-muted-foreground">
-              Showing the most recent changes only. This registry has more role
-              events than could be scanned, so older entries may be missing.
-            </p>
-          )}
-        </div>
-      )}
+      {match({ isLoading, error, count: rows.length })
+        .with({ isLoading: true }, () => (
+          <p className="text-sm text-muted-foreground">Loading history…</p>
+        ))
+        .with({ error: P.nonNullable }, () => (
+          <ErrorMessage
+            compact
+            description="Error fetching role history. Please refresh the page."
+          />
+        ))
+        .with({ count: 0 }, () => (
+          <NoResultsMessage
+            title="No role changes yet"
+            description="This user has no recorded role grants or revokes on this registry."
+            className="mx-0 my-0"
+          />
+        ))
+        .otherwise(() => (
+          <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent">
+            <DataTable columns={columns} data={rows} />
+          </div>
+        ))}
     </section>
   )
 }
