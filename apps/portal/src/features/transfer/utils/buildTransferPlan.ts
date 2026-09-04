@@ -46,26 +46,25 @@ export const buildTransferPlan = (
   options: TransferOptions,
   kind: TransferSubject['kind'],
 ): TransferStepKind[] => {
-  const steps: TransferStepKind[] = []
-
   // Redundant once the resolver is detached, so only when the resolver is kept.
-  if (options.setEthAddress && !options.detachResolver) {
-    steps.push('set-eth-addr')
-  }
+  const addressSteps: readonly TransferStepKind[] =
+    options.setEthAddress && !options.detachResolver ? ['set-eth-addr'] : []
 
-  if (options.detachResolver) {
-    steps.push('detach-resolver')
-  }
+  const resolverSteps: readonly TransferStepKind[] = options.detachResolver
+    ? ['detach-resolver']
+    : []
 
   // Only a V2 name has a subregistry to detach; the form never offers it
   // otherwise, but the plan is the last line of defence.
-  if (options.detachRegistry && kind === 'v2') {
-    steps.push('detach-registry')
-  }
+  const registrySteps: readonly TransferStepKind[] =
+    options.detachRegistry && kind === 'v2' ? ['detach-registry'] : []
 
-  steps.push(...MOVE_STEPS[kind])
-
-  return steps
+  return [
+    ...addressSteps,
+    ...resolverSteps,
+    ...registrySteps,
+    ...MOVE_STEPS[kind],
+  ]
 }
 
 export const STEP_LABELS: Record<TransferStepKind, string> = {
