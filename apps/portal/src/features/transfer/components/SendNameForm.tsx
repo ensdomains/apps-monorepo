@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
@@ -13,23 +13,34 @@ import { useAddressResolution } from '@/features/address/hooks/useAddressResolut
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
-import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
-import type { ParentAuthority } from '../hooks/useParentAuthority'
-import { useParentAuthority } from '../hooks/useParentAuthority'
-import { useTransferDetachTargets } from '../hooks/useTransferDetachTargets'
-import { useTransferName } from '../hooks/useTransferName'
+import type { TransferControls } from '../hooks/useTransferName'
+import type {
+  ParentWarning,
+  TransferDetachTargets,
+  TransferOptionKey,
+} from '../types'
 import type { TransferOptions } from '../utils/buildTransferPlan'
 
+/**
+ * The transfer form, protocol-agnostic. Everything that depends on how the name
+ * is held — which options exist, what the parent can still do, which contracts
+ * the steps call — is computed by a per-protocol container (`V2SendName`,
+ * `V1SendName`) and handed in. This component only owns the recipient input,
+ * the option toggles and the modal.
+ */
 type SendNameFormProps = {
-  readonly name: string
-  readonly registryAddress: Address
+  /** The connected wallet doing the sending. */
   readonly owner: Address
+  readonly detachTargets: TransferDetachTargets
+  /** Null when the name has no parent worth warning about (a 2LD). */
+  readonly parentWarning: ParentWarning | null
+  readonly transfer: TransferControls
+  /** Protocol-specific notices, rendered under the irreversibility warning. */
+  readonly notices?: ReactNode
 }
 
-type OptionKey = 'setEthAddress' | 'detachResolver' | 'detachRegistry'
-
 type OptionConfig = {
-  readonly key: OptionKey
+  readonly key: TransferOptionKey
   readonly label: string
   readonly description: string
   /** Shown right below the toggle when it's turned off. */
@@ -65,35 +76,16 @@ const OPTIONS: readonly OptionConfig[] = [
 
 /**
  * What the parent owner can still do to this subname, stated only where the
- * registry says they can do it.
- *
- * The powers are three separate role checks (see `useParentAuthority`), and each
- * sentence is gated on its own. The important one is `canReclaimNow`: the old
- * copy here said the parent could re-issue the name "once it expires", but
- * `unregister()` reverts *if* the name is expired — it is the live-name path, so
- * a parent holding that role takes the name back whenever they like, and waiting
- * out an expiry is not the sender's protection.
- *
- * Renders nothing when the parent holds none of them: a subname issued from a
- * registry its parent no longer controls transfers as finally as a 2LD, and
- * warning about it would be false.
+ * container says they can do it. Renders nothing when the parent holds no
+ * power: such a subname transfers as finally as a 2LD, and warning about it
+ * would be false.
  */
-const ParentAuthorityAlert = ({
-  parentName,
-  authority,
+const ParentWarningAlert = ({
+  warning,
 }: {
-  readonly parentName: string
-  readonly authority: ParentAuthority
+  readonly warning: ParentWarning
 }) => {
-  const {
-    parentIsSelf,
-    canReclaimNow,
-    canReissueAfterExpiry,
-    canRepointRegistry,
-    hasAnyAuthority,
-    isLoading,
-    isError,
-  } = authority
+  const { parentName, parentIsSelf, powers, isLoading, isError } = warning
 
   // Nothing is claimed until the reads land: an alert that appears and then
   // rewrites itself is worse than one that arrives a beat late.
@@ -111,23 +103,14 @@ const ParentAuthorityAlert = ({
           <p>
             This is a subname of {parent}. We couldn't check what its owner can
             still do to it, so treat this transfer as reversible by them: a
-            parent can hold roles that let them reclaim or re-issue a subname.
+            parent can hold authority that lets them reclaim or re-issue a
+            subname.
           </p>
         </AlertDescription>
       </Alert>
     )
 
-  if (!hasAnyAuthority) return null
-
-  const powers = [
-    canReclaimNow &&
-      'take it back at any time, without waiting for it to expire',
-    canReissueAfterExpiry && 'issue it to someone else once it expires',
-    canRepointRegistry &&
-      'point ' +
-        parentName +
-        ' at a different registry, which stops this name resolving no matter who owns it',
-  ].filter((power): power is string => typeof power === 'string')
+  if (powers.length === 0) return null
 
   return (
     <Alert variant="warning">
@@ -154,16 +137,14 @@ const ParentAuthorityAlert = ({
 }
 
 export const SendNameForm = ({
-  name,
-  registryAddress,
   owner,
+  detachTargets,
+  parentWarning,
+  transfer,
+  notices,
 }: SendNameFormProps) => {
-  // Only for subnames: a 2LD's parent is the `.eth` TLD, whose "owner" isn't a
-  // counterparty the sender needs warning about.
-  const parentName = is2LD(name) ? null : getParentName(name)
-
   const [recipientInput, setRecipientInput] = useState('')
-  const [options, setOptions] = useState<Record<OptionKey, boolean>>({
+  const [options, setOptions] = useState<Record<TransferOptionKey, boolean>>({
     setEthAddress: true,
     detachResolver: true,
     detachRegistry: true,
@@ -173,20 +154,12 @@ export const SendNameForm = ({
     optionIsVisible,
     settled: detachTargetsSettled,
     failed: detachTargetsFailed,
-  } = useTransferDetachTargets({ name, registryAddress, owner })
-
-  const parentAuthority = useParentAuthority({
-    name,
-    parentName,
-    registryAddress,
-    owner,
-  })
+  } = detachTargets
 
   const resolution = useAddressResolution(recipientInput)
   const { address: recipient, isResolving } = resolution
 
-  const { startTransfer, transactions, isPreparing, prepError } =
-    useTransferName({ name, registryAddress, owner })
+  const { startTransfer, transactions, isPreparing, prepError } = transfer
 
   const isSelf = !!recipient && isAddressEqual(recipient, owner)
   const isZeroAddress = !!recipient && isAddressEqual(recipient, zeroAddress)
@@ -206,9 +179,9 @@ export const SendNameForm = ({
     !isResolving &&
     !isPreparing &&
     detachTargetsSettled &&
-    !parentAuthority.isLoading
+    !parentWarning?.isLoading
 
-  const toggleOption = (key: OptionKey) =>
+  const toggleOption = (key: TransferOptionKey) =>
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
 
   const runTransfer = () => {
@@ -226,12 +199,9 @@ export const SendNameForm = ({
         </AlertDescription>
       </Alert>
 
-      {parentName && (
-        <ParentAuthorityAlert
-          parentName={parentName}
-          authority={parentAuthority}
-        />
-      )}
+      {notices}
+
+      {parentWarning && <ParentWarningAlert warning={parentWarning} />}
 
       <div className="flex flex-col gap-1">
         <span className="font-medium">Recipient</span>
@@ -288,9 +258,9 @@ const TransferDetachOptions = ({
   visibleOptions,
   onToggle,
 }: {
-  readonly options: Record<OptionKey, boolean>
+  readonly options: Record<TransferOptionKey, boolean>
   readonly visibleOptions: readonly OptionConfig[]
-  readonly onToggle: (key: OptionKey) => void
+  readonly onToggle: (key: TransferOptionKey) => void
 }) => {
   if (visibleOptions.length === 0) return null
 

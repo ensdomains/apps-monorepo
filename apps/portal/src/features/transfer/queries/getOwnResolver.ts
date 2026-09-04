@@ -8,7 +8,7 @@ import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-class GetOwnResolverError extends TaggedError('GetOwnResolverError')<{
+export class GetOwnResolverError extends TaggedError('GetOwnResolverError')<{
   cause: ReadContractErrorType
 }> {}
 

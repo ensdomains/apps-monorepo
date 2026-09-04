@@ -5,6 +5,7 @@ import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNa
 import { getLabel } from '@/utils/token/getLabel'
 import { getEthAddressQueryOptions } from '../queries/getEthAddress'
 import { getOwnResolverQueryOptions } from '../queries/getOwnResolver'
+import type { TransferDetachTargets } from '../types'
 
 // A detach step is a registry write, not a plain owner operation: the registry
 // gates `setResolver`/`setSubregistry` on the owner holding the matching role.
@@ -22,19 +23,6 @@ import { getOwnResolverQueryOptions } from '../queries/getOwnResolver'
 // ancestor's; detaching or writing to that resolver isn't the sender's to do
 // (see `getOwnResolver`), so both resolver-dependent options key off the name's
 // own registry slot rather than what the UniversalResolver reports.
-
-type TransferDetachTargets = {
-  /** Whether each option has a target worth showing/detaching. */
-  readonly optionIsVisible: {
-    readonly setEthAddress: boolean
-    readonly detachResolver: boolean
-    readonly detachRegistry: boolean
-  }
-  /** Every lookup succeeded — the targets are known. */
-  readonly settled: boolean
-  /** At least one lookup errored — the targets are unknown. */
-  readonly failed: boolean
-}
 
 type UseTransferDetachTargetsParams = {
   readonly name: string

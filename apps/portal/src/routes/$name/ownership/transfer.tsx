@@ -10,9 +10,10 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { SendNameForm } from '@/features/transfer/components/SendNameForm'
+import { V2SendName } from '@/features/transfer/components/V2SendName'
 import { useCanTransferName } from '@/features/transfer/hooks/useCanTransferName'
 import { getSubnameExpiryQueryOptions } from '@/features/transfer/queries/getSubnameExpiry'
+import { V1Transfer } from '@/features/transfer/v1/V1Transfer'
 import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 
 export const Route = createFileRoute('/$name/ownership/transfer')({
@@ -55,19 +56,17 @@ function RouteComponent() {
         </PageHeading>
 
         {match({ data, address })
-          .with(
-            { data: P.nullish },
-            { data: { protocolVersion: P.not('ENSv2') } },
-            () => (
-              <MessageCard
-                icon={<AlertTriangle className="size-8" />}
-                title="Transfer not available"
-                description={
-                  <p>Sending a name is only available for ENSv2 names.</p>
-                }
-              />
-            ),
-          )
+          .with({ data: P.nullish }, () => (
+            <MessageCard
+              icon={<AlertTriangle className="size-8" />}
+              title="Transfer not available"
+              description={
+                <p>
+                  This name isn’t registered, so there is nothing to transfer.
+                </p>
+              }
+            />
+          ))
           .with({ address: P.nullish }, () => (
             <MessageCard
               icon={<ShieldX className="size-8" />}
@@ -77,6 +76,13 @@ function RouteComponent() {
               }
             />
           ))
+          // V1 ownership isn't one address: an unwrapped 2LD splits it between
+          // registrant and controller, and `getEnsOwner` reports the latter. The
+          // V1 gate re-reads the full shape and decides who may transfer.
+          .with(
+            { data: { protocolVersion: 'ENSv1' }, address: P.string },
+            ({ address }) => <V1Transfer name={name} account={address} />,
+          )
           .with(
             { data: P.nonNullable, address: P.string },
             ({ data, address }) => isAddressEqual(address, data.owner),
@@ -109,7 +115,7 @@ function RouteComponent() {
 }
 
 /**
- * The connected wallet owns the name — but token ownership alone doesn't
+ * The connected wallet owns the V2 name — but token ownership alone doesn't
  * guarantee a transfer will succeed, or that it's worth making. The registry
  * reverts unless the owner also holds ROLE_CAN_TRANSFER_ADMIN, and the transfer
  * flow runs irreversible detach steps before the token moves. A subname has a
@@ -222,6 +228,6 @@ function AuthorizedTransfer({
     )
 
   return (
-    <SendNameForm name={name} registryAddress={registryAddress} owner={owner} />
+    <V2SendName name={name} registryAddress={registryAddress} owner={owner} />
   )
 }
