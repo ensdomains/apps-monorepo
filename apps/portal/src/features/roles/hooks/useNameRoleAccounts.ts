@@ -165,6 +165,14 @@ const getNameRolesAccounts = ResultFn(async function* ({
   // revoked grants, which is exactly what the version bump exists to prevent.
   // No name on Sepolia has been through that since the July 30 reset, so the
   // comparison is currently unexercised rather than unnecessary.
+  //
+  // It is also not yet exact: the indexer stores registry resources with the
+  // low 32 bits zeroed, so it agrees with the on-chain value only while
+  // `eacVersionId` is 0. Once a name is re-registered the two disagree and
+  // every event is dropped, which empties the table rather than resurrecting
+  // the previous owner's grants. Failing closed is the better half of that
+  // trade, and zigens#117 stores resources verbatim, at which point this
+  // becomes exact on its own.
   const resource = yield* fromPromise(
     ensjs_getResource(client, {
       label,
