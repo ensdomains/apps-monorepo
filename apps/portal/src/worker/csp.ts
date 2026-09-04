@@ -77,8 +77,11 @@ const DEFAULT_CONNECT_HOSTS = [
   // src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env
   // *.ens.dev hosts (and future ones) don't silently break a flow.
   'https://*.ens.dev',
-  // Hackathon deployment v2 indexer GraphQL — packages/indexer/urql/client.ts
+  // Hackathon deployment indexers: v2 GraphQL (packages/indexer/urql/
+  // client.ts) and the v1 subgraph ensjs resolves from the chain config
+  // (@ens-apps/indexer/chain V1_SUBGRAPH_URL — getNameHistory).
   'https://hackathon-ensv2.pff.sh',
+  'https://ens-v1-sepolia-hack.up.railway.app',
   // ENS subgraph (ensjs default Sepolia endpoint) — @ensdomains/ensjs/subgraph
   'https://api.sepolia.ensnode.io',
   // ENS-owned *.ens.domains hosts: the DNSSEC oracle/gateway (DNS import flow)

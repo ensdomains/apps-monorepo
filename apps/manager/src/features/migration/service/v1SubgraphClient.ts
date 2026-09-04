@@ -1,10 +1,9 @@
+import { V1_SUBGRAPH_URL } from '@ens-apps/indexer/chain'
 import type { V1Domain } from '@ens-apps/migration'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
 
 export type { V1Domain }
-
-const V1_SUBGRAPH_URL = 'https://ens-v1-sepolia-hack.up.railway.app/subgraph'
 
 type V1SubgraphResponse = {
   data: {

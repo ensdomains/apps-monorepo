@@ -89,4 +89,22 @@ export const customSepolia = {
   },
 }
 
-export const sepoliaWithEns = extendChainWithEns(customSepolia)
+/**
+ * Hackathon-deployment v1 subgraph. Typed `string` (not the inferred literal)
+ * so the override below stays castable to ensjs's literal-typed `subgraphs`.
+ */
+export const V1_SUBGRAPH_URL: string =
+  'https://ens-v1-sepolia-hack.up.railway.app/subgraph'
+
+const extendedSepolia = extendChainWithEns(customSepolia)
+
+// ensjs bakes its own Sepolia v1 subgraph URL (v1-graphql.ens.dev) into
+// `ensL1Subgraphs` and `extendChainWithEns` spreads it last, so presetting
+// `subgraphs` on the input chain is silently ignored — override after
+// extending instead.
+export const sepoliaWithEns = {
+  ...extendedSepolia,
+  subgraphs: {
+    ens: { url: V1_SUBGRAPH_URL },
+  } as typeof extendedSepolia.subgraphs,
+}

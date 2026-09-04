@@ -1,5 +1,6 @@
 import {
   orderedSepoliaRpcUrls,
+  V1_SUBGRAPH_URL,
   WALLETCONNECT_PROJECT_ID,
 } from '@ens-apps/indexer/chain'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
@@ -63,7 +64,17 @@ export const customSepolia = {
   },
 }
 
-export const sepoliaWithEns = extendChainWithEns(customSepolia)
+const extendedSepolia = extendChainWithEns(customSepolia)
+
+// ensjs spreads its own v1 subgraph URL last in `extendChainWithEns`, so the
+// hackathon endpoint must be overridden after extending (see
+// @ens-apps/indexer/chain).
+export const sepoliaWithEns = {
+  ...extendedSepolia,
+  subgraphs: {
+    ens: { url: V1_SUBGRAPH_URL },
+  } as typeof extendedSepolia.subgraphs,
+}
 
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
