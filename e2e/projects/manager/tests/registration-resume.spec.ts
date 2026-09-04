@@ -100,14 +100,21 @@ async function registerUntilCommitConfirmed(page: Page, label: string) {
   return monitor
 }
 
+type ConsoleMonitor = ReturnType<typeof createConsoleMonitor>
+
 /**
- * Reload and hand back a monitor scoped to what happens AFTER the reload, so
- * "no second commit" is a claim about the resumed run alone.
+ * Reset the pre-reload monitor and reload, handing back a monitor scoped to
+ * what happens AFTER the reload, so "no second commit" is a claim about the
+ * resumed run alone.
+ *
+ * Reuses the monitor attached before the commit rather than attaching a fresh
+ * one: a listener added only after `reload()` resolves misses everything the
+ * resumed run logs before the load event — exactly the window where a wrongly
+ * re-submitted commit would appear.
  */
-async function reloadAndWatch(page: Page) {
+async function reloadAndWatch(page: Page, monitor: ConsoleMonitor) {
+  monitor.reset()
   await page.reload()
-  const monitor = createConsoleMonitor(page, { logConsoleMessages: false })
-  await page.waitForLoadState('domcontentloaded')
   return monitor
 }
 
@@ -138,9 +145,9 @@ test.describe('registration resume after reload (Rhinestone HCA)', () => {
     wallet,
   }) => {
     const label = uniqueLabel('rh-resume-a')
-    await registerUntilCommitConfirmed(page, label)
+    const monitor = await registerUntilCommitConfirmed(page, label)
 
-    const afterReload = await reloadAndWatch(page)
+    const afterReload = await reloadAndWatch(page, monitor)
 
     // The user did not have to touch anything: landing back on
     // `/register/$name` re-enters the flow on its own.
@@ -165,11 +172,11 @@ test.describe('registration resume after reload (Rhinestone HCA)', () => {
     wallet,
   }) => {
     const label = uniqueLabel('rh-resume-b')
-    await registerUntilCommitConfirmed(page, label)
+    const monitor = await registerUntilCommitConfirmed(page, label)
 
     // Reload while the commitment cooldown is still running — the most likely
     // moment for a user to wander off.
-    const afterReload = await reloadAndWatch(page)
+    const afterReload = await reloadAndWatch(page, monitor)
 
     await expectRegistrationCompletes(page, wallet)
 
@@ -188,7 +195,7 @@ test.describe('registration resume after reload (Rhinestone HCA)', () => {
     connectedPage: page,
   }) => {
     const label = uniqueLabel('rh-resume-c')
-    await registerUntilCommitConfirmed(page, label)
+    const monitor = await registerUntilCommitConfirmed(page, label)
 
     // Advance CHAIN time only. The preflight compares `commitmentAt` against
     // the latest block timestamp rather than `Date.now()` precisely so this is
@@ -199,7 +206,7 @@ test.describe('registration resume after reload (Rhinestone HCA)', () => {
     })
     await testClient.mine({ blocks: 1 })
 
-    const afterReload = await reloadAndWatch(page)
+    const afterReload = await reloadAndWatch(page, monitor)
 
     // Back to pricing rather than into a doomed reveal: without the preflight's
     // MAX_COMMITMENT_AGE check the run would validate, sit through a cooldown,
