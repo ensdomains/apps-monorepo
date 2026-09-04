@@ -3,8 +3,8 @@ import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { rootNameAuthority } from './rootNameAuthority'
 
-const ALICE = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
-const BOB = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
+const ALICE: Address = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+const BOB: Address = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 
 const holder = (account: Address, ...roles: Role[]) => ({ account, roles })
 

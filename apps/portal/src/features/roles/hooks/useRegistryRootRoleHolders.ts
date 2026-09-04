@@ -18,8 +18,8 @@ class GetRegistryRootRoleHoldersError extends TaggedError(
 
 type GetRegistryRootRoleHoldersParameters = {
   readonly registryAddress: Address
-  /** Earliest block to scan. Defaults to the v2 registry deployment. */
-  readonly fromBlock?: bigint
+  /** Earliest block to scan. */
+  readonly fromBlock: bigint
 }
 
 export type RootRoleHolder = {
@@ -29,9 +29,6 @@ export type RootRoleHolder = {
 
 /** `ROOT_RESOURCE` — roles held here apply to every name in the registry. */
 const ROOT_RESOURCE = 0n
-
-/** First block holding v2 registry events (matches the roles table's scan). */
-const DEFAULT_FROM_BLOCK = 9783977n
 
 /**
  * Every account holding roles at a registry's root, with the roles they hold.
@@ -47,13 +44,13 @@ const DEFAULT_FROM_BLOCK = 9783977n
  * several events viem cannot apply the indexed `args` per event, so the filter
  * widens to every role event on the registry and the RPC rejects it outright.
  *
- * `newRoleBitmap` is absolute state at that log, so replaying newest-first and
- * keeping the first entry per account yields the current holders. An account
+ * `newRoleBitmap` is absolute state at that log, and logs arrive oldest-first,
+ * so writing each account as it is seen leaves its latest bitmap. An account
  * whose latest bitmap decodes to nothing has been revoked and is dropped.
  */
 const getRegistryRootRoleHolders = ResultFn(async function* ({
   registryAddress,
-  fromBlock = DEFAULT_FROM_BLOCK,
+  fromBlock,
 }: GetRegistryRootRoleHoldersParameters) {
   const client = yield* safeGetClient()
 
@@ -72,17 +69,17 @@ const getRegistryRootRoleHolders = ResultFn(async function* ({
       new GetRegistryRootRoleHoldersError({ cause: e as GetLogsErrorType }),
   )
 
-  const holders: RootRoleHolder[] = []
-  const seen = new Set<Address>()
+  const latest = new Map<Address, readonly Role[]>()
 
-  for (const log of logs.toReversed()) {
+  for (const log of logs) {
     const account = log.args.account
-    if (!account || account === zeroAddress || seen.has(account)) continue
-    seen.add(account)
-
-    const roles = decodeRoleBitmap(log.args.newRoleBitmap ?? 0n)
-    if (roles.length > 0) holders.push({ account, roles })
+    if (!account || account === zeroAddress) continue
+    latest.set(account, decodeRoleBitmap(log.args.newRoleBitmap ?? 0n))
   }
+
+  const holders: RootRoleHolder[] = [...latest]
+    .filter(([, roles]) => roles.length > 0)
+    .map(([account, roles]) => ({ account, roles }))
 
   return ok(holders)
 })
