@@ -3,12 +3,12 @@ import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAc
 import { ok, okAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 
 const REGISTRY: Address = '0x1111111111111111111111111111111111111111'
 const ACCOUNT: Address = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 
 const ROOT_RESOURCE_HEX = `0x${'0'.repeat(64)}`
-const FROM_BLOCK = 9_782_822n
 
 const mockGetLogs = vi.fn()
 
@@ -42,41 +42,30 @@ const log = ({
   args: { resource: 0n, account: ACCOUNT, oldRoleBitmap, newRoleBitmap },
 })
 
-const run = (fromBlock = FROM_BLOCK) =>
+const run = () =>
   getRegistryRoleHistoryForAccount({
     registryAddress: REGISTRY,
     account: ACCOUNT,
-    fromBlock,
   })
 
 describe('getRegistryRoleHistoryForAccount', () => {
   beforeEach(() => {
     mockGetLogs.mockReset()
+    mockGetLogs.mockResolvedValue([])
     mockGetBlockTimestamps.mockReset()
     mockGetBlockTimestamps.mockReturnValue(okAsync(new Map<bigint, bigint>()))
   })
 
   it('asks the node for this account at the root resource only', async () => {
-    mockGetLogs.mockResolvedValue([])
-
     await run()
 
     expect(mockGetLogs).toHaveBeenCalledWith({
       address: REGISTRY,
       event: eacRolesChangedEventSnippet[0],
       args: { resource: 0n, account: ACCOUNT },
-      fromBlock: FROM_BLOCK,
+      fromBlock: ROLES_FROM_BLOCK,
+      strict: true,
     })
-  })
-
-  it('scans from the caller-supplied block', async () => {
-    mockGetLogs.mockResolvedValue([])
-
-    await run(11_383_897n)
-
-    expect(mockGetLogs).toHaveBeenCalledWith(
-      expect.objectContaining({ fromBlock: 11_383_897n }),
-    )
   })
 
   it('finds a grant older than the previous 1000-event window', async () => {
@@ -103,6 +92,7 @@ describe('getRegistryRoleHistoryForAccount', () => {
         newRoleBitmap: registryRoles.ROLE_RENEW | registryRoles.ROLE_UNREGISTER,
       }),
     ])
+    mockGetBlockTimestamps.mockReturnValue(okAsync(new Map([[10n, 120n]])))
 
     const entries = (await run())._unsafeUnwrap()
 
@@ -136,12 +126,12 @@ describe('getRegistryRoleHistoryForAccount', () => {
     expect(entries.map((entry) => entry.timestamp)).toEqual([240n, 120n, 120n])
   })
 
-  it('reads a missing block time as 0 rather than failing', async () => {
+  it('errors rather than dating an entry 1970 when a block time is missing', async () => {
     mockGetLogs.mockResolvedValue([log({ block: 10n })])
 
-    const entries = (await run())._unsafeUnwrap()
+    const result = await run()
 
-    expect(entries[0]?.timestamp).toBe(0n)
+    expect(result.isErr()).toBe(true)
   })
 
   it('returns the newest change first', async () => {
@@ -150,6 +140,15 @@ describe('getRegistryRoleHistoryForAccount', () => {
       log({ block: 30n }),
       log({ block: 20n }),
     ])
+    mockGetBlockTimestamps.mockReturnValue(
+      okAsync(
+        new Map([
+          [10n, 120n],
+          [20n, 240n],
+          [30n, 360n],
+        ]),
+      ),
+    )
 
     const entries = (await run())._unsafeUnwrap()
 
@@ -158,6 +157,7 @@ describe('getRegistryRoleHistoryForAccount', () => {
 
   it('records the resource as padded hex, as the other producers do', async () => {
     mockGetLogs.mockResolvedValue([log({ block: 10n })])
+    mockGetBlockTimestamps.mockReturnValue(okAsync(new Map([[10n, 120n]])))
 
     const entries = (await run())._unsafeUnwrap()
 

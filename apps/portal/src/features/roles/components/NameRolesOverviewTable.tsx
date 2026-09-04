@@ -18,7 +18,6 @@ import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/u
 import { rootNameAuthority } from '@/features/roles/utils/rootNameAuthority'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { isAdminRole } from '@/lib/roles/permissions'
-import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 
 const V2NameRoles = ({
   name,
@@ -35,7 +34,6 @@ const V2NameRoles = ({
     ...getNameRolesAccountsQueryOptions({
       name,
       registryAddress,
-      fromBlock: ROLES_FROM_BLOCK,
     }),
     enabled: labels.length >= 2,
   })
@@ -78,10 +76,7 @@ const RegistryRootAuthority = ({
   registryAddress: Address
 }) => {
   const { data, isLoading, error } = useQuery(
-    getRegistryRootRoleHoldersQueryOptions({
-      fromBlock: ROLES_FROM_BLOCK,
-      registryAddress,
-    }),
+    getRegistryRootRoleHoldersQueryOptions({ registryAddress }),
   )
 
   const holders = rootNameAuthority(data)

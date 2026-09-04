@@ -2,6 +2,7 @@ import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAc
 import { ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ROLES_FROM_BLOCK } from './rolesFromBlock'
 
 const REGISTRY: Address = '0x1111111111111111111111111111111111111111'
 const ACCOUNT: Address = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
@@ -13,8 +14,7 @@ vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok({ chain: { id: 11155111 }, getLogs: mockGetLogs }),
 }))
 
-const { getRoleChangeLogs } = await import('./roleChangeLogs')
-const { ROOT_RESOURCE } = await import('./rootResource')
+const { getRoleChangeLogs, ROOT_RESOURCE } = await import('./roleChangeLogs')
 
 describe('getRoleChangeLogs', () => {
   beforeEach(() => {
@@ -32,8 +32,9 @@ describe('getRoleChangeLogs', () => {
     expect(mockGetLogs).toHaveBeenCalledWith({
       address: REGISTRY,
       event: eacRolesChangedEventSnippet[0],
-      args: { resource: 0n },
+      args: { resource: 0n, account: undefined },
       fromBlock: FROM_BLOCK,
+      strict: true,
     })
   })
 
@@ -47,11 +48,11 @@ describe('getRoleChangeLogs', () => {
     })
 
     expect(mockGetLogs).toHaveBeenCalledWith(
-      expect.objectContaining({ args: { resource } }),
+      expect.objectContaining({ args: { resource, account: undefined } }),
     )
   })
 
-  it('adds the account topic only when an account is given', async () => {
+  it('adds the account topic when an account is given', async () => {
     await getRoleChangeLogs({
       registryAddress: REGISTRY,
       fromBlock: FROM_BLOCK,
@@ -61,6 +62,17 @@ describe('getRoleChangeLogs', () => {
 
     expect(mockGetLogs).toHaveBeenCalledWith(
       expect.objectContaining({ args: { resource: 0n, account: ACCOUNT } }),
+    )
+  })
+
+  it('defaults to the shared scan start when no block is given', async () => {
+    await getRoleChangeLogs({
+      registryAddress: REGISTRY,
+      resource: ROOT_RESOURCE,
+    })
+
+    expect(mockGetLogs).toHaveBeenCalledWith(
+      expect.objectContaining({ fromBlock: ROLES_FROM_BLOCK }),
     )
   })
 

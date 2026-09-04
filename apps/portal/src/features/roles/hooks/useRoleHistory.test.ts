@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const REGISTRY: Address = '0x1111111111111111111111111111111111111111'
 const ACCOUNT: Address = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-const FROM_BLOCK = 9_782_822n
 
 // A resource carrying a non-zero eacVersionId, i.e. a re-registered name.
 const RESOURCE = 0xabcd_0000_0007n
@@ -48,7 +47,6 @@ const log = ({
 
 const run = (params: { account?: Address; name?: string } = {}) =>
   getRoleHistory({
-    fromBlock: FROM_BLOCK,
     name: 'test.chakri.eth',
     registryAddress: REGISTRY,
     ...params,
@@ -75,7 +73,6 @@ describe('getRoleHistory', () => {
       expect.objectContaining({
         address: REGISTRY,
         args: { resource: RESOURCE },
-        fromBlock: FROM_BLOCK,
       }),
     )
   })

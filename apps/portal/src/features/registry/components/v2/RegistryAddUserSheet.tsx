@@ -19,7 +19,6 @@ import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGran
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { getAccountAdminRoles } from '../../utils/registryRoleAccess'
 import { RegistryRolePermissionList } from './RegistryRolePermissionList'
 
@@ -43,10 +42,7 @@ export const RegistryAddUserSheet = ({
   // roles page is already mounted (same query key) — used to figure out which
   // permissions the connected caller has admin rights to grant.
   const { data: rolesData } = useQuery({
-    ...getRegistryRootRoleHoldersQueryOptions({
-      fromBlock: ROLES_FROM_BLOCK,
-      registryAddress,
-    }),
+    ...getRegistryRootRoleHoldersQueryOptions({ registryAddress }),
     enabled: Boolean(callerAddress),
   })
 

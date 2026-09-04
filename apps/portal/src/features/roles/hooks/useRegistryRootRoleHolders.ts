@@ -5,13 +5,10 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
-import { getRoleChangeLogs } from '@/lib/roles/roleChangeLogs'
-import { ROOT_RESOURCE } from '@/lib/roles/rootResource'
+import { getRoleChangeLogs, ROOT_RESOURCE } from '@/lib/roles/roleChangeLogs'
 
 type GetRegistryRootRoleHoldersParameters = {
   readonly registryAddress: Address
-  /** Earliest block to scan. See `ROLES_FROM_BLOCK`. */
-  readonly fromBlock: bigint
 }
 
 export type RootRoleHolder = {
@@ -28,11 +25,9 @@ export type RootRoleHolder = {
  */
 const getRegistryRootRoleHolders = ResultFn(async function* ({
   registryAddress,
-  fromBlock,
 }: GetRegistryRootRoleHoldersParameters) {
   const logs = yield* getRoleChangeLogs({
     registryAddress,
-    fromBlock,
     resource: ROOT_RESOURCE,
   })
 

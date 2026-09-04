@@ -21,7 +21,7 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
-import { ROOT_RESOURCE } from '@/lib/roles/rootResource'
+import { ROOT_RESOURCE } from '@/lib/roles/roleChangeLogs'
 
 export type GrantRegistryRolesTransactionParameters = {
   readonly registryAddress: Address

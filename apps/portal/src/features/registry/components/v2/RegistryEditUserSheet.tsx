@@ -33,7 +33,6 @@ import type {
   IntentContext,
   Transaction,
 } from '@/features/transaction-manager/types'
-import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   computeRoleDiff,
@@ -75,10 +74,7 @@ export const RegistryEditUserSheet = ({
     : 'Edit user'
 
   const { data: rolesData } = useQuery({
-    ...getRegistryRootRoleHoldersQueryOptions({
-      fromBlock: ROLES_FROM_BLOCK,
-      registryAddress,
-    }),
+    ...getRegistryRootRoleHoldersQueryOptions({ registryAddress }),
     enabled: Boolean(callerAddress),
   })
 

@@ -18,7 +18,6 @@ import {
   getRegistryRootRoleHoldersQueryOptions,
   type RootRoleHolder,
 } from '@/features/roles/hooks/useRegistryRootRoleHolders'
-import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { getHasRolesQueryOptions } from '../../hooks/useHasRoles'
 import { RegistryEditUserSheet } from './RegistryEditUserSheet'
 
@@ -45,10 +44,7 @@ export const RegistryRolesTable = ({
     isLoading,
     error,
   } = useQuery(
-    getRegistryRootRoleHoldersQueryOptions({
-      fromBlock: ROLES_FROM_BLOCK,
-      registryAddress: address,
-    }),
+    getRegistryRootRoleHoldersQueryOptions({ registryAddress: address }),
   )
 
   const [editingRow, setEditingRow] = useState<RootRoleHolder | null>(null)

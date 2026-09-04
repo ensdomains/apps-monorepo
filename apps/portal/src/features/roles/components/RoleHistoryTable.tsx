@@ -23,7 +23,6 @@ import {
   getRoleHistoryQueryOptions,
   type RoleHistoryEntry,
 } from '@/features/roles/hooks/useRoleHistory'
-import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
@@ -152,7 +151,6 @@ export const RoleHistoryTable = ({
   const { data, isLoading, error } = useQuery(
     getRoleHistoryQueryOptions({
       account,
-      fromBlock: ROLES_FROM_BLOCK,
       name,
       registryAddress,
     }),
