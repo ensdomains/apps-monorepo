@@ -12,18 +12,23 @@ import {
   getNameRoleAccounts as ensjs_getNameRoleAccounts,
   getResource as ensjs_getResource,
 } from '@ensdomains/ensjs/public/v2'
+import {
+  makeLabelNodeAndParent,
+  type NormalizeErrorType,
+  normalize,
+} from '@ensdomains/ensjs/utils'
 import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address, Hex } from 'viem'
 import { getAddress, zeroAddress } from 'viem'
-import { namehash, normalize } from 'viem/ens'
+import { namehash } from 'viem/ens'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class NameNotNormalizableError extends TaggedError('NameNotNormalizableError')<{
-  cause: unknown
+  cause: NormalizeErrorType
 }> {}
 
 class GetNameRolesAccountsIndexerError extends TaggedError(
@@ -142,15 +147,24 @@ const getNameRolesAccounts = ResultFn(async function* ({
   // route parameter would address a resource the registry never wrote to.
   const normalized = yield* fromSync(
     () => normalize(name),
-    (e) => new NameNotNormalizableError({ cause: e }),
+    (e) => new NameNotNormalizableError({ cause: e as NormalizeErrorType }),
   )
-  const label = normalized.split('.')[0]
+  const { label } = makeLabelNodeAndParent(normalized)
 
   const client = yield* safeGetClient()
 
   // Read the on-chain `resource` for this label from the actual registry so
   // the indexer lookup works at any name depth, not just labels held in the
   // v2 ETHRegistry where `resource === labelToCanonicalId(label)`.
+  //
+  // Still compared against each event below, even though the query is now
+  // scoped by `namehash`. One node carries more than one resource across a
+  // re-registration: unregister bumps `eacVersionId`, so the new registration
+  // gets a fresh resource while the previous owner's grant events keep the old
+  // one under the same name. Dropping the comparison would resurrect those
+  // revoked grants, which is exactly what the version bump exists to prevent.
+  // No name on Sepolia has been through that since the July 30 reset, so the
+  // comparison is currently unexercised rather than unnecessary.
   const resource = yield* fromPromise(
     ensjs_getResource(client, {
       label,
