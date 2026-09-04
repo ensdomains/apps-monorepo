@@ -27,6 +27,7 @@ import { getAction } from 'viem/utils'
 import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import type { RoleHistoryEntry } from '@/lib/roles/filterEventsByResource'
+import { toResourceHex } from '@/lib/roles/toResourceHex'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class GetRegistryRoleHistoryError extends TaggedError(
@@ -44,6 +45,7 @@ export type GetRegistryRoleHistoryParameters = {
 
 /** `ROOT_RESOURCE` — roles held here apply to every name in the registry. */
 const ROOT_RESOURCE = 0n
+const ROOT_RESOURCE_HEX = toResourceHex(ROOT_RESOURCE)
 
 /** First block holding v2 registry events (matches the roles table's scan). */
 const DEFAULT_FROM_BLOCK = 9783977n
@@ -76,7 +78,7 @@ const getRegistryRoleHistoryForAccount = ResultFn(async function* ({
   const entries: RoleHistoryEntry[] = logs
     .map((log) => ({
       account,
-      resource: ROOT_RESOURCE.toString(),
+      resource: ROOT_RESOURCE_HEX,
       oldRoles: decodeRoleBitmap(log.args.oldRoleBitmap ?? 0n),
       newRoles: decodeRoleBitmap(log.args.newRoleBitmap ?? 0n),
       transactionHash: log.transactionHash as Hex,
