@@ -69,8 +69,8 @@ const ADDR_SUBPAGE_LABELS: Record<string, string> = {
 const RESOLVER_SUBPAGE_LABELS: Record<string, string> = {
   nodes: 'Nodes',
   roles: 'Roles',
-  aliases: 'Aliases',
-  'create-alias': 'Create Alias',
+  links: 'Links',
+  'create-link': 'Link a Name',
   history: 'History',
 }
 
