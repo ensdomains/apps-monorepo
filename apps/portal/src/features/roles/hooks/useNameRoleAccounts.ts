@@ -210,10 +210,28 @@ const getNameRolesAccountsQueryKey = createQueryKey<
   NameRolesAccountsParameters
 >('get-name-roles-accounts')
 
-export const getNameRolesAccountsQueryOptions = (
-  params: NameRolesAccountsParameters,
-) =>
+/**
+ * Normalized for the cache key so two spellings of one name share an entry.
+ * Deliberately falls back to the raw name rather than throwing: this runs while
+ * building query options during render, and a malformed name should surface as
+ * the query's tagged error, which it does when the fetcher normalizes it again.
+ */
+const cacheableName = (name: string): string => {
+  try {
+    return normalize(name)
+  } catch {
+    return name
+  }
+}
+
+export const getNameRolesAccountsQueryOptions = ({
+  name,
+  ...params
+}: NameRolesAccountsParameters) =>
   resultQueryOptions({
-    queryKey: getNameRolesAccountsQueryKey(params),
+    queryKey: getNameRolesAccountsQueryKey({
+      name: cacheableName(name),
+      ...params,
+    }),
     queryFn: ({ queryKey: [, params] }) => getNameRolesAccounts(params),
   })
