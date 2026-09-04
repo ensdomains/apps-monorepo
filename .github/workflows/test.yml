@@ -16,16 +16,10 @@ jobs:
           # Fetch all history for change detection
           fetch-depth: 0
 
-      # Installs pnpm (version from `packageManager`), installs Node, restores the
-      # pnpm store cache and runs `pnpm install --frozen-lockfile` — all in one step.
-      # pnpm/action-setup only supports pnpm <=10, hence the swap.
       - name: Setup pnpm and Node.js
         uses: pnpm/setup@v2
         env:
-          # pnpm/setup exposes no frozen-lockfile input — `require-lockfile` was
-          # not one and was silently ignored, leaving the guarantee resting on
-          # pnpm defaulting frozen-lockfile to true only when it detects CI.
-          # Set it explicitly so a stale lockfile fails the run either way.
+          # pnpm/setup has no frozen-lockfile input; force it via config env.
           PNPM_CONFIG_FROZEN_LOCKFILE: true
         with:
           runtime: node@lts
@@ -42,15 +36,9 @@ jobs:
             echo "ref=origin/main" >> $GITHUB_OUTPUT
           fi
 
-      # pnpm puts the workspace root into `...[ref]` whenever a root file
-      # changes, and the root has no `typecheck`/`lint`/`test:coverage` script,
-      # so a root-only PR selects the root alone and dies with
-      # ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT. Subtracting the root with `!{.}` on
-      # its own is worse: the selection goes empty and every check below reports
-      # success without running. A root change (lockfile, pnpm-workspace.yaml,
-      # shared tsconfig) can break any package, so widen to the whole workspace
-      # whenever the root is selected. `!{.}` keeps the root out of the run in
-      # both branches, since it has none of these scripts either way.
+      # A root-file change selects the workspace root, which has none of these
+      # scripts, while subtracting only the root would leave nothing selected —
+      # so widen to the whole workspace whenever the root is in the selection.
       - name: Determine package scope
         env:
           REF: ${{ steps.base.outputs.ref }}

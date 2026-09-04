@@ -16,16 +16,10 @@ jobs:
           # Fetch all history for change detection
           fetch-depth: 0
 
-      # Installs pnpm (version from `packageManager`), installs Node, restores the
-      # pnpm store cache and runs `pnpm install --frozen-lockfile` — all in one step.
-      # pnpm/action-setup only supports pnpm <=10, hence the swap.
       - name: Setup pnpm and Node.js
         uses: pnpm/setup@v2
         env:
-          # pnpm/setup exposes no frozen-lockfile input — `require-lockfile` was
-          # not one and was silently ignored, leaving the guarantee resting on
-          # pnpm defaulting frozen-lockfile to true only when it detects CI.
-          # Set it explicitly so a stale lockfile fails the run either way.
+          # pnpm/setup has no frozen-lockfile input; force it via config env.
           PNPM_CONFIG_FROZEN_LOCKFILE: true
         with:
           runtime: node@lts
@@ -57,10 +51,8 @@ jobs:
             echo "has_apps=false" >> $GITHUB_OUTPUT
           fi
 
-      # See the same step in test.yml: pnpm selects the workspace root whenever a
-      # root file changes, and the root has no `typecheck` script — selecting it
-      # alone errors, subtracting it leaves nothing to check. A root change can
-      # break any package, so widen to the whole workspace in that case.
+      # See test.yml: widen to the whole workspace when a root-file change
+      # selects the root.
       - name: Determine package scope
         env:
           REF: ${{ steps.base.outputs.ref }}
