@@ -124,7 +124,7 @@ function RouteComponent() {
  * offering the form rather than walking the user into a partial, unrecoverable
  * failure — or a pointless one.
  */
-function AuthorizedTransfer({
+const AuthorizedTransfer = ({
   name,
   registryAddress,
   owner,
@@ -132,7 +132,7 @@ function AuthorizedTransfer({
   readonly name: string
   readonly registryAddress: Address
   readonly owner: Address
-}) {
+}) => {
   const isSubname = !is2LD(name)
 
   const { canTransfer, isLoading, isError } = useCanTransferName({
