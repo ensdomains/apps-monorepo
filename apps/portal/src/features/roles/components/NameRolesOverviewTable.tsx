@@ -84,10 +84,22 @@ const RegistryRootAuthority = ({
 
   const authority = rootNameAuthority(data)
 
-  // Silent on both the failure and the empty case. The empty case is the common
-  // one (no `.eth` root holder can act on a 2LD), and a failed count is not
-  // evidence of authority to warn about.
-  if (isError || authority.length === 0) return null
+  // A failed read is unknown, not none. Staying silent here would reproduce the
+  // absence this section exists to correct.
+  if (isError)
+    return (
+      <div className="flex flex-col gap-2">
+        <h3 className="text-caps leading-none">registry-wide roles</h3>
+        <ErrorMessage
+          compact
+          description="Couldn't check whether anyone holds roles on the registry itself. If they do, they can act on this name and won't be listed above."
+        />
+      </div>
+    )
+
+  // Silent when nothing is held, the common case: no `.eth` root holder can act
+  // on a 2LD. Silent while loading too, rather than appearing and rewriting.
+  if (authority.length === 0) return null
 
   return (
     <div className="flex flex-col gap-2">
