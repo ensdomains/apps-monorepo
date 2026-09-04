@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Fragment, useState } from 'react'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -77,7 +77,7 @@ const RegistryRootAuthority = ({
 }: {
   registryAddress: Address
 }) => {
-  const { data, isLoading, isError } = useQuery(
+  const { data, isLoading, error } = useQuery(
     getRegistryRootRoleHoldersQueryOptions({
       fromBlock: ROLES_FROM_BLOCK,
       registryAddress,
@@ -87,14 +87,13 @@ const RegistryRootAuthority = ({
   const holders = rootNameAuthority(data)
 
   return (
-    match({ isLoading, isError, count: holders.length })
+    match({ isLoading, error, data, count: holders.length })
       // Nothing is claimed until the read lands, and nothing is claimed when
       // nobody holds these powers, which is the case for a `.eth` 2LD.
       .with({ isLoading: true }, () => null)
-      .with({ count: 0, isError: false }, () => null)
-      .with({ isError: true }, () => (
-        // A failed read is unknown, not none. Staying silent would reproduce the
-        // absence this section exists to correct.
+      // A read that failed or never landed is unknown, not none. Staying silent
+      // would reproduce the absence this section exists to correct.
+      .with({ error: P.nonNullable }, { data: undefined }, () => (
         <div className="flex flex-col gap-2">
           <h3 className="text-caps leading-none">registry-wide roles</h3>
           <ErrorMessage
@@ -103,6 +102,7 @@ const RegistryRootAuthority = ({
           />
         </div>
       ))
+      .with({ count: 0 }, () => null)
       .otherwise(() => (
         <div className="flex flex-col gap-2">
           <h3 className="text-caps leading-none">registry-wide roles</h3>
