@@ -22,8 +22,7 @@ export const NameResolverRolesOverviewTable = ({ name }: { name: string }) => {
     error,
   } = useNameResolverAddress({ name })
 
-  // The page holds its own loader until this has settled.
-  if (isLoading) return null
+  if (isLoading) return <LoadingSpinner title="Loading resolver roles..." />
 
   if (error)
     return (

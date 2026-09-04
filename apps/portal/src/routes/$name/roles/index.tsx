@@ -1,15 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { NameRegistryRolesOverviewTable } from '@/features/registry/components/v2/NameRegistryRolesOverviewTable'
-import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { NameResolverRolesOverviewTable } from '@/features/resolver/components/NameResolverRolesOverviewTable'
 import { NameRolesOverviewTable } from '@/features/roles/components/NameRolesOverviewTable'
 
@@ -58,33 +55,15 @@ function RouteComponent() {
       </div>
     )
 
-  return <V2RolesPage name={name} registryAddress={owner.registryAddress} />
-}
-
-/**
- * Holds the page loader until the reads that decide which sections exist have
- * settled, so one full-page loader covers the whole wait instead of a section
- * showing its own while the next section's heading renders underneath it.
- */
-function V2RolesPage({
-  name,
-  registryAddress,
-}: {
-  name: string
-  registryAddress: Address
-}) {
-  const registries = useQuery(getNameRegistriesQueryOptions({ name }))
-  const resolverAddress = useNameResolverAddress({ name })
-
-  if (registries.isLoading || resolverAddress.isLoading)
-    return <LoadingMessage />
-
   return (
     <div className="flex flex-col gap-8">
       <PageHeading parent={{ type: 'name', name }}>Roles</PageHeading>
       <NameRegistryRolesOverviewTable name={name} />
       <NameResolverRolesOverviewTable name={name} />
-      <NameRolesOverviewTable name={name} registryAddress={registryAddress} />
+      <NameRolesOverviewTable
+        name={name}
+        registryAddress={owner.registryAddress}
+      />
     </div>
   )
 }
