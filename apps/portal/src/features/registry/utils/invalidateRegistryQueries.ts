@@ -18,8 +18,9 @@ import type { QueryClient } from '@tanstack/react-query'
 const REGISTRY_ROLE_INVALIDATION_KEYS = new Set<string>([
   // Registry overview (roleCount on RegistryInfo).
   'get-registry-info',
-  // Holders table on /registry/$address/roles.
-  'get-registry-roles',
+  // Holders table on /registry/$address/roles. Reads logs, so invalidation
+  // alone makes it current; the indexer polling below is for the rest.
+  'get-registry-root-role-holders',
   // Full per-registry event feed used by /registry/$address/history.
   'get-registry-events',
   // Per-user role-change history embedded in the edit sheet.

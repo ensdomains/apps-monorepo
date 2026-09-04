@@ -1,8 +1,9 @@
 /**
  * React hook wrapper for revokeRegistryRoles.
  *
- * Symmetric to `useGrantRegistryRolesMutation`. Invalidates `get-registry-roles` on
- * success with indexer-sync polling so RegistryRolesTable refreshes.
+ * Symmetric to `useGrantRegistryRolesMutation`. Invalidates the registry role
+ * queries on success, with indexer-sync polling for the panels that still
+ * read the indexer, so RegistryRolesTable refreshes.
  */
 
 import type { Role } from '@ensdomains/ensjs/utils/v2'
