@@ -89,7 +89,7 @@ describe('filterEventsByResource', () => {
     ]
     const result = filterEventsByResource(events, RESOURCE_A)
 
-    expect(result.map((e) => e.blockNumber)).toEqual([200, 100, 50])
+    expect(result.map((e) => e.blockNumber)).toEqual([200n, 100n, 50n])
   })
 
   it('should skip events with no data', () => {

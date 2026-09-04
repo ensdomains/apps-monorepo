@@ -1,89 +1,93 @@
 /**
  * Role-change history for a single account at the **registry root** resource.
  *
- * Queries `EACRolesChanged` events for the given registry contract from the
- * indexer, then narrows them client-side to events scoped to `ROOT_RESOURCE`
- * for the supplied account. Mirrors the query strategy used by
- * `useNameRoleAccounts` (which is per-name) and `useRoleHistory` (which is
- * global) but scoped to the registry overview's add/edit-user UI.
+ * `EACRolesChanged` declares `resource` and `account` as indexed topics, so one
+ * `getLogs` returns exactly this account's root-role changes on this registry,
+ * complete. No indexer paging, no window, nothing to report as truncated.
+ * `getNameRoleAccounts` in ensjs reads the per-name equivalent the same way.
+ *
+ * Filtered on the single event rather than ensjs's `eacRolesEvents` array: with
+ * several events viem cannot apply the indexed `args` per event, so the filter
+ * widens to every role event on the registry and the RPC rejects it outright
+ * ("query returns too many logs, narrow your filter").
+ *
+ * Logs carry no timestamp, so the block times are backfilled in a second step.
+ * A single account's root history is a handful of entries, and the lookup
+ * dedupes blocks, so that is one or two extra reads.
  */
 
-import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { gql } from '@urql/core'
+import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { fromPromise, ok } from 'neverthrow'
-import type { Address } from 'viem'
-import { graphqlIndexerClient } from '@/lib/indexer'
-import {
-  filterEventsByResource,
-  type IndexerEACEvent,
-  type RoleHistoryEntry,
-} from '@/lib/roles/filterEventsByResource'
+import type { Address, Hex } from 'viem'
+import { type GetLogsErrorType, getLogs } from 'viem/actions'
+import { getAction } from 'viem/utils'
+import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
+import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
+import type { RoleHistoryEntry } from '@/lib/roles/filterEventsByResource'
+import { toResourceHex } from '@/lib/roles/toResourceHex'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class GetRegistryRoleHistoryError extends TaggedError(
   'GetRegistryRoleHistoryError',
 )<{
-  cause: GraphqlRequestError
+  cause: GetLogsErrorType
 }> {}
 
 export type GetRegistryRoleHistoryParameters = {
   readonly registryAddress: Address
   readonly account: Address
+  /** Earliest block to scan. Defaults to the v2 registry deployment. */
+  readonly fromBlock?: bigint
 }
 
-// 32-byte zero — registry-wide ROOT_RESOURCE (see useRegistryRoles.ts).
-const ROOT_RESOURCE_HEX = `0x${'0'.repeat(64)}`
+/** `ROOT_RESOURCE` — roles held here apply to every name in the registry. */
+const ROOT_RESOURCE = 0n
+const ROOT_RESOURCE_HEX = toResourceHex(ROOT_RESOURCE)
 
-// Single capped fetch (no pagination — a proper paginated component is tracked
-// separately). The newest `EVENTS_LIMIT` role-change events comfortably cover a
-// single account's root-role history in practice.
-const EVENTS_LIMIT = 1000
+/** First block holding v2 registry events (matches the roles table's scan). */
+const DEFAULT_FROM_BLOCK = 9783977n
 
-const getRegistryRoleHistoryForAccount = ResultFn(async function* ({
+export const getRegistryRoleHistoryForAccount = ResultFn(async function* ({
   registryAddress,
   account,
+  fromBlock = DEFAULT_FROM_BLOCK,
 }: GetRegistryRoleHistoryParameters) {
-  const { events } = yield* fromPromise(
-    graphqlIndexerClient.request<{ events: IndexerEACEvent[] }>(
-      gql`
-        query getRegistryRoleHistoryForAccount(
-          $contractAddress: String!
-          $first: Int!
-        ) {
-          events(
-            where: {
-              type: "EACRolesChanged"
-              contractAddress: $contractAddress
-            }
-            first: $first
-            orderBy: blockNumber
-            orderDirection: desc
-          ) {
-            type
-            data
-            transactionHash
-            timestamp
-            blockNumber
-          }
-        }
-      `,
-      {
-        contractAddress: registryAddress.toLowerCase(),
-        first: EVENTS_LIMIT,
-      },
-    ),
-    (e) => new GetRegistryRoleHistoryError({ cause: e as GraphqlRequestError }),
+  const client = yield* safeGetClient()
+
+  const logs = yield* fromPromise(
+    getAction(
+      client,
+      getLogs,
+      'getLogs',
+    )({
+      address: registryAddress,
+      event: eacRolesChangedEventSnippet[0],
+      args: { resource: ROOT_RESOURCE, account },
+      fromBlock,
+    }),
+    (e) => new GetRegistryRoleHistoryError({ cause: e as GetLogsErrorType }),
   )
 
-  const rootEntries = filterEventsByResource(events, ROOT_RESOURCE_HEX)
-  const target = account.toLowerCase()
-  const accountEntries: RoleHistoryEntry[] = rootEntries.filter(
-    (entry) => entry.account.toLowerCase() === target,
-  )
+  const timestamps = yield* getBlockTimestamps({
+    blocks: logs.map((log) => log.blockNumber),
+  })
 
-  return ok(accountEntries)
+  const entries: RoleHistoryEntry[] = logs
+    .map((log) => ({
+      account,
+      resource: ROOT_RESOURCE_HEX,
+      oldRoles: decodeRoleBitmap(log.args.oldRoleBitmap ?? 0n),
+      newRoles: decodeRoleBitmap(log.args.newRoleBitmap ?? 0n),
+      transactionHash: log.transactionHash as Hex,
+      timestamp: timestamps.get(log.blockNumber) ?? 0n,
+      blockNumber: log.blockNumber,
+    }))
+    .toSorted((a, b) => Number(b.blockNumber - a.blockNumber))
+
+  return ok(entries)
 })
 
 const getRegistryRoleHistoryForAccountQueryKey = createQueryKey<

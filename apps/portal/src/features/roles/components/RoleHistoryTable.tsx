@@ -36,8 +36,8 @@ const roleHistoryEntryToTransaction = (
   entry: RoleHistoryEntry,
 ): EventsTableData<ENSEvent> => ({
   transactionID: entry.transactionHash,
-  blockNumber: entry.blockNumber,
-  timestamp: BigInt(entry.timestamp),
+  blockNumber: Number(entry.blockNumber),
+  timestamp: entry.timestamp,
   from: entry.account,
   network: { name: 'Sepolia', chainId: sepoliaWithEns.id },
   events: [
@@ -114,7 +114,7 @@ const RoleHistoryMobileCard = ({
 
     <div className="text-sm font-medium">Date</div>
     <div className="text-base text-muted-foreground">
-      {formatTimestamp(BigInt(entry.timestamp))}
+      {formatTimestamp(entry.timestamp)}
     </div>
 
     <div className="text-sm font-medium">Account</div>
@@ -222,7 +222,7 @@ export const RoleHistoryTable = ({
             {data.map((entry) => (
               <TableRow key={`${entry.transactionHash}-${entry.account}`}>
                 <TableCell className="px-4 sm:px-6 h-10 py-1 text-sm text-muted-foreground">
-                  {formatTimestamp(BigInt(entry.timestamp))}
+                  {formatTimestamp(entry.timestamp)}
                 </TableCell>
                 <TableCell className="px-4 sm:px-6 h-10 py-1">
                   <AddressDisplay address={entry.account} />
