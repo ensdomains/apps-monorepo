@@ -221,6 +221,36 @@ describe('useRegistrationResume', () => {
     expect(enableSession).toHaveBeenCalledOnce()
   })
 
+  it('does not re-prompt when the account context churns mid-enable', async () => {
+    // `enableSession()` itself flips `isEnablingSession` in the provider,
+    // re-creating the context object. An effect keyed on that object cancelled
+    // the in-flight tail and started a second one — a duplicate wallet prompt
+    // while the first was still open, and a resume that only completed via a
+    // lucky later re-run.
+    needsSessionBeforeRegistration.mockReturnValue(true)
+    let resolveEnable: (signer: { type: string }) => void = () => {}
+    enableSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveEnable = resolve
+        }) as never,
+    )
+
+    const { result, rerender } = render()
+    await waitFor(() => expect(enableSession).toHaveBeenCalledOnce())
+
+    // The provider re-renders with a NEW context object holding the same
+    // wallet identity — exactly what the isEnablingSession flip produces.
+    useSmartAccountContext.mockReturnValue(account())
+    rerender()
+    expect(enableSession).toHaveBeenCalledOnce()
+
+    resolveEnable({ type: 'rhinestone' })
+    await waitFor(() => expect(result.current.status).toBe('resumed'))
+    expect(enableSession).toHaveBeenCalledOnce()
+    expect(send).toHaveBeenCalledOnce()
+  })
+
   it('keeps the record when the session enable is rejected', async () => {
     needsSessionBeforeRegistration.mockReturnValue(true)
     enableSession.mockResolvedValue(null as never)

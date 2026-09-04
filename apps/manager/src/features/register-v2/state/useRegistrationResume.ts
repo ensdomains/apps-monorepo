@@ -12,7 +12,6 @@
  * they already paid to start is friction without a decision behind it.
  */
 
-import { i18n } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
@@ -20,6 +19,7 @@ import { toast } from 'sonner'
 import type { Address } from 'viem'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { needsSessionBeforeRegistration } from '@/lib/smart-account/sessionGate'
+import { translateMessage } from '@/utils/i18n/translateMessage'
 import { getResumeAssessmentQueryOptions } from '../data/queries/resumeAssessment.query'
 import {
   isResumeOwner,
@@ -31,9 +31,6 @@ import type { RegistrationV2UiActor } from './registrationUi.machine'
 
 const resumingMessage = msg`Resuming your registration.`
 const expiredMessage = msg`Your previous registration attempt expired. Starting over.`
-
-const translate = (message: typeof resumingMessage) =>
-  i18n.locale ? i18n._(message) : message.message
 
 export type RegistrationResumeState =
   /** Still deciding — the wallet may not have finished restoring. */
@@ -58,7 +55,7 @@ function discardStaleRecord(
   // read as a bug. The rest are technical mismatches for which a quiet
   // restart is the correct surface.
   if (reason === 'commitment-expired') {
-    toast(translate(expiredMessage), {
+    toast(translateMessage(expiredMessage), {
       id: `registration-resume-${label}`,
       position: 'bottom-right',
     })
@@ -163,7 +160,7 @@ async function enableSessionAndDispatch(params: {
     account,
     hcaSessionEnable,
   })
-  toast(translate(resumingMessage), {
+  toast(translateMessage(resumingMessage), {
     id: `registration-resume-${label}`,
     position: 'bottom-right',
   })
@@ -179,6 +176,7 @@ export function useRegistrationResume(params: {
 }): RegistrationResumeState {
   const { label, uiActor, enabled = true } = params
   const account = useSmartAccountContext()
+  const { hasInitialized, ownerAddress } = account
   const [state, setState] = useState<RegistrationResumeState>({
     status: 'checking',
   })
@@ -187,6 +185,17 @@ export function useRegistrationResume(params: {
   // account re-render and could dispatch a second resume into a flow that is
   // already running.
   const decidedForLabel = useRef<string | null>(null)
+
+  // The imperative tail reads the account through a ref because the context
+  // object is re-created whenever any of its state flips — `enableSession()`
+  // itself flips `isEnablingSession`. An effect keyed on the object would
+  // cancel and restart the tail mid-prompt, calling `enableSession()` a second
+  // time while the first is still waiting on the wallet. The effect keys on
+  // the primitives that change a DECISION instead.
+  const accountRef = useRef(account)
+  useEffect(() => {
+    accountRef.current = account
+  })
 
   const assessment = useQuery({
     ...getResumeAssessmentQueryOptions({
@@ -211,7 +220,7 @@ export function useRegistrationResume(params: {
     }
 
     if (decidedForLabel.current === label) return
-    if (!account.hasInitialized) return
+    if (!hasInitialized) return
 
     if (assessmentError) {
       // The query has already retried. Stay un-latched and leave the record
@@ -225,7 +234,7 @@ export function useRegistrationResume(params: {
     // Still fetching — stay at 'checking'.
     if (!verdict) return
 
-    const decision = decideFromVerdict(verdict, label, account.ownerAddress)
+    const decision = decideFromVerdict(verdict, label, ownerAddress)
 
     if (decision.kind === 'state') {
       if (decision.latch) decidedForLabel.current = label
@@ -238,7 +247,7 @@ export function useRegistrationResume(params: {
     enableSessionAndDispatch({
       verdict: decision.verdict,
       label,
-      account,
+      account: accountRef.current,
       uiActor,
       isCancelled: () => cancelled,
     })
@@ -262,7 +271,15 @@ export function useRegistrationResume(params: {
     return () => {
       cancelled = true
     }
-  }, [enabled, label, account, uiActor, verdict, assessmentError])
+  }, [
+    enabled,
+    label,
+    uiActor,
+    verdict,
+    assessmentError,
+    hasInitialized,
+    ownerAddress,
+  ])
 
   return state
 }
