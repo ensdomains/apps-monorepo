@@ -31,7 +31,7 @@ export const V1SendName = ({
 }) => {
   const parentName = is2LD(name) ? null : getParentName(name)
 
-  const ethAddressQuery = useQuery(getEthAddressQueryOptions(name))
+  const ethAddressQuery = useQuery(getEthAddressQueryOptions({ name }))
 
   const transfer = useTransferName({ name, account, subject })
 

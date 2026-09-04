@@ -66,7 +66,7 @@ export const useTransferDetachTargets = ({
           enabled: label !== null,
         },
         getNameRegistriesQueryOptions({ name }),
-        getEthAddressQueryOptions(name),
+        getEthAddressQueryOptions({ name }),
         {
           ...getNameRolesForAccountQueryOptions({
             registryAddress,

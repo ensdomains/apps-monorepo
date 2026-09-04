@@ -6,7 +6,6 @@ import {
   getAddressRecord,
 } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
-import type { Address } from 'viem'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -34,7 +33,7 @@ const getEthAddress = ResultFn(async function* ({
     (e) => new GetEthAddressError({ cause: e as GetAddressRecordErrorType }),
   )
 
-  return ok<Address | null>((record?.value as Address | undefined) ?? null)
+  return ok(record?.value ?? null)
 })
 
 const getEthAddressQueryKey = createQueryKey<
@@ -42,9 +41,8 @@ const getEthAddressQueryKey = createQueryKey<
   GetEthAddressParameters
 >('transfer-eth-address')
 
-export const getEthAddressQueryOptions = (name: string) =>
+export const getEthAddressQueryOptions = (params: GetEthAddressParameters) =>
   resultQueryOptions({
-    queryKey: getEthAddressQueryKey({ name }),
+    queryKey: getEthAddressQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getEthAddress(params),
-    enabled: !!name,
   })

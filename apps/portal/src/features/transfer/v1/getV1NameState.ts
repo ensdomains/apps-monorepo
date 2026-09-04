@@ -27,13 +27,14 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getParentName, is2LD, isRegistrable } from '@/utils/ens/tldHelpers'
 import type { V1TransferSubject } from '../types'
 
-class NameNotNormalizableError extends TaggedError('NameNotNormalizableError')<{
+export class NameNotNormalizableError extends TaggedError(
+  'NameNotNormalizableError',
+)<{
   cause: unknown
 }> {}
 
 export class GetV1NameStateError extends TaggedError('GetV1NameStateError')<{
   cause:
-    | NameNotNormalizableError
     | GetOwnerErrorType
     | GetExpiryErrorType
     | GetWrapperDataErrorType
@@ -82,10 +83,7 @@ const getV1NameState = ResultFn(async function* ({
   // must see the same canonical form or equivalent spellings diverge on-chain.
   const name = yield* fromSync(
     () => normalize(rawName),
-    (e) =>
-      new GetV1NameStateError({
-        cause: new NameNotNormalizableError({ cause: e }),
-      }),
+    (e) => new NameNotNormalizableError({ cause: e }),
   )
 
   const client = yield* safeGetClient()

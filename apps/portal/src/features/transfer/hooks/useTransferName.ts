@@ -37,6 +37,7 @@ import { buildTransferStepIntent } from '../utils/buildTransferStepIntent'
 import {
   type GetV1NameStateError,
   getV1NameStateQueryOptions,
+  type NameNotNormalizableError,
 } from '../v1/getV1NameState'
 
 export type StartTransferParams = {
@@ -108,7 +109,7 @@ export const useTransferName = ({
           queryKey: getPrimaryNameQueryOptions(account).queryKey,
         }),
         queryClient.invalidateQueries({
-          queryKey: getEthAddressQueryOptions(name).queryKey,
+          queryKey: getEthAddressQueryOptions({ name }).queryKey,
         }),
         ...(parentName
           ? [
@@ -144,7 +145,11 @@ export const useTransferName = ({
             : queryClient
                 .fetchQuery(getV1NameStateQueryOptions({ name }))
                 .then((state) => state?.resolverAddress ?? null),
-          (e) => e as GetOwnResolverError | GetV1NameStateError,
+          (e) =>
+            e as
+              | GetOwnResolverError
+              | GetV1NameStateError
+              | NameNotNormalizableError,
         ).andThen((resolverAddress) =>
           subject.kind === 'v2'
             ? getEnsTokenId({
