@@ -46,7 +46,7 @@ const ROOT_RESOURCE_HEX = `0x${'0'.repeat(64)}`
 const PAGE_SIZE = 1000
 // Exhausts any user-deployed subregistry, which has a handful of role events.
 // The `.eth` registry has ~170k and stops here, reported as incomplete.
-const MAX_PAGES = 10
+export const MAX_PAGES = 10
 
 type EventsPage = {
   readonly eventConnection: {
@@ -58,7 +58,7 @@ type EventsPage = {
   } | null
 }
 
-const getRegistryRoleHistoryForAccount = ResultFn(async function* ({
+export const getRegistryRoleHistoryForAccount = ResultFn(async function* ({
   registryAddress,
   account,
 }: GetRegistryRoleHistoryParameters) {
