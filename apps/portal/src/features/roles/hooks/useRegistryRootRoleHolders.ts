@@ -35,8 +35,8 @@ const getRegistryRootRoleHolders = ResultFn(async function* ({
 
   for (const log of logs) {
     const account = log.args.account
-    if (!account || account === zeroAddress) continue
-    latest.set(account, decodeRoleBitmap(log.args.newRoleBitmap ?? 0n))
+    if (account === zeroAddress) continue
+    latest.set(account, decodeRoleBitmap(log.args.newRoleBitmap))
   }
 
   const holders: RootRoleHolder[] = [...latest]

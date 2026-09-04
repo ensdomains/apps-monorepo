@@ -1,8 +1,12 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { fromPromise, ok } from 'neverthrow'
-import type { Address, Hex, Log } from 'viem'
-import { type GetLogsErrorType, getLogs } from 'viem/actions'
+import type { Address, Hex } from 'viem'
+import {
+  type GetLogsErrorType,
+  type GetLogsReturnType,
+  getLogs,
+} from 'viem/actions'
 import { getAction } from 'viem/utils'
 import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
@@ -59,13 +63,15 @@ export const getRoleChangeLogs = ResultFn(async function* ({
   return ok(logs)
 })
 
-type RoleChangeLog = Log<
-  bigint,
-  number,
-  false,
-  (typeof eacRolesChangedEventSnippet)[0],
+type RoleChangeEvent = (typeof eacRolesChangedEventSnippet)[0]
+
+// `abiEvents` has to be the event array rather than `undefined`: its default is
+// `[abiEvent]`, and overriding it with `undefined` drops `args` from the type.
+type RoleChangeLog = GetLogsReturnType<
+  RoleChangeEvent,
+  [RoleChangeEvent],
   true
->
+>[number]
 
 /** One `EACRolesChanged` log, decoded for display. */
 export type RoleHistoryEntry = {
