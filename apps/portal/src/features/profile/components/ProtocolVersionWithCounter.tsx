@@ -1,5 +1,4 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircleIcon } from 'lucide-react'
 import { ShieldIcon } from '@/assets/icons'
@@ -10,6 +9,7 @@ import {
 } from '@/features/dashboard/components'
 import { getBurnedFuseCountQueryOptions } from '@/features/namewrapper/hooks/useBurnedFuseCount'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
+import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { ProtocolVersion } from '@/utils/types'
 
@@ -26,9 +26,9 @@ interface ProtocolVersionWithCounterProps {
 const RoleCount = ({ name }: { name: string }) => {
   const { data, isLoading, error } = useQuery(
     getNameRolesAccountsQueryOptions({
-      ...makeLabelNodeAndParent(name),
+      name,
       registryAddress: v2EthRegistry,
-      fromBlock: 9782822n,
+      fromBlock: ROLES_FROM_BLOCK,
     }),
   )
 
