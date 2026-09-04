@@ -90,8 +90,8 @@ describe('getRegistryRoleHistoryForAccount', () => {
     expect(entries).toHaveLength(1)
     expect(entries[0]).toMatchObject({
       account: ACCOUNT,
-      blockNumber: 11_390_385,
-      timestamp: 1753920000,
+      blockNumber: 11_390_385n,
+      timestamp: 1753920000n,
     })
   })
 
@@ -133,7 +133,7 @@ describe('getRegistryRoleHistoryForAccount', () => {
     expect(mockGetBlockTimestamps).toHaveBeenCalledWith({
       blocks: [10n, 20n, 10n],
     })
-    expect(entries.map((entry) => entry.timestamp)).toEqual([240, 120, 120])
+    expect(entries.map((entry) => entry.timestamp)).toEqual([240n, 120n, 120n])
   })
 
   it('reads a missing block time as 0 rather than failing', async () => {
@@ -141,7 +141,7 @@ describe('getRegistryRoleHistoryForAccount', () => {
 
     const entries = (await run())._unsafeUnwrap()
 
-    expect(entries[0]?.timestamp).toBe(0)
+    expect(entries[0]?.timestamp).toBe(0n)
   })
 
   it('returns the newest change first', async () => {
@@ -153,7 +153,7 @@ describe('getRegistryRoleHistoryForAccount', () => {
 
     const entries = (await run())._unsafeUnwrap()
 
-    expect(entries.map((entry) => entry.blockNumber)).toEqual([30, 20, 10])
+    expect(entries.map((entry) => entry.blockNumber)).toEqual([30n, 20n, 10n])
   })
 
   it('records the resource as padded hex, as the other producers do', async () => {

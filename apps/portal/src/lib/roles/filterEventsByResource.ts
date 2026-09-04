@@ -23,8 +23,8 @@ export type RoleHistoryEntry = {
   readonly oldRoles: readonly string[]
   readonly newRoles: readonly string[]
   readonly transactionHash: Hex
-  readonly timestamp: number
-  readonly blockNumber: number
+  readonly timestamp: bigint
+  readonly blockNumber: bigint
 }
 
 /**
@@ -67,11 +67,11 @@ export const filterEventsByResource = (
       oldRoles: decodeRoleBitmap(data.oldRoleBitmap),
       newRoles: decodeRoleBitmap(data.newRoleBitmap),
       transactionHash: event.transactionHash,
-      timestamp: event.timestamp,
-      blockNumber: event.blockNumber,
+      timestamp: BigInt(event.timestamp),
+      blockNumber: BigInt(event.blockNumber),
     })
   }
 
   // Sort by most recent first
-  return filtered.toSorted((a, b) => b.blockNumber - a.blockNumber)
+  return filtered.toSorted((a, b) => Number(b.blockNumber - a.blockNumber))
 }

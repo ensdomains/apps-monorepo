@@ -82,10 +82,10 @@ export const getRegistryRoleHistoryForAccount = ResultFn(async function* ({
       oldRoles: decodeRoleBitmap(log.args.oldRoleBitmap ?? 0n),
       newRoles: decodeRoleBitmap(log.args.newRoleBitmap ?? 0n),
       transactionHash: log.transactionHash as Hex,
-      timestamp: Number(timestamps.get(log.blockNumber) ?? 0n),
-      blockNumber: Number(log.blockNumber),
+      timestamp: timestamps.get(log.blockNumber) ?? 0n,
+      blockNumber: log.blockNumber,
     }))
-    .toSorted((a, b) => b.blockNumber - a.blockNumber)
+    .toSorted((a, b) => Number(b.blockNumber - a.blockNumber))
 
   return ok(entries)
 })

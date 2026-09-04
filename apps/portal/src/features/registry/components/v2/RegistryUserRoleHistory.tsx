@@ -29,7 +29,7 @@ const columns: ColumnDef<EnrichedEntry>[] = [
     header: 'Date',
     cell: ({ row }) => (
       <div className="text-sm text-muted-foreground whitespace-nowrap mt-4">
-        {formatTimestamp(BigInt(row.original.timestamp))}
+        {formatTimestamp(row.original.timestamp)}
       </div>
     ),
   },
