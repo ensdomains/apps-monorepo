@@ -3,30 +3,34 @@
  * the prepared call, so the modal's gas estimate and the submitted transaction
  * are built from the same bytes.
  *
- * The wrapper and registrar calls go through ensjs `transferNameWriteParameters`
- * / `setResolverWriteParameters`. The registry calls deliberately do not: on
- * Sepolia the ensjs `ensRegistry` chain contract is the *V2 root registry*, so
- * ensjs's `contract: 'registry'` variants would target the wrong contract. V1
- * registry writes encode the ABI snippet against `ensLegacyRegistry` instead.
+ * Calls are encoded from `ensjs-abi` snippets against the `ensjs` chain
+ * addresses rather than through ensjs's `transferNameWriteParameters`: that
+ * builder returns a union over every call it can produce (which
+ * `encodeFunctionData` can't take without a cast), and its `contract:
+ * 'registry'` variant targets the ensjs `ensRegistry` key — the *V2 root
+ * registry* on Sepolia. V1 registry writes must hit `ensLegacyRegistry`.
  */
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
-  setResolverWriteParameters,
-  transferNameWriteParameters,
-} from '@ensdomains/ensjs/wallet/v1'
-import {
   registrySetOwnerSnippet,
   registrySetResolverSnippet,
 } from '@ensdomains/ensjs-abi/registry'
 import {
-  type Account,
+  baseRegistrarReclaimSnippet,
+  baseRegistrarSafeTransferFromSnippet,
+} from '@ensdomains/ensjs-abi/v1/baseRegistrar'
+import {
+  nameWrapperSafeTransferFromSnippet,
+  nameWrapperSetResolverSnippet,
+} from '@ensdomains/ensjs-abi/v1/nameWrapper'
+import { match } from 'ts-pattern'
+import {
   type Address,
   encodeFunctionData,
+  labelhash,
   namehash,
-  type Transport,
-  type WalletClient,
   zeroAddress,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
@@ -37,54 +41,65 @@ const LEGACY_REGISTRY = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensLegacyRegistry',
 })
-
-// ensjs needs a client whose chain carries the ENS contract addresses; the
-// wallet's own chain object doesn't (same reason `burnFuses` re-chains).
-const ensjsClient = (walletClient: WalletClient) =>
-  ({ ...walletClient, chain: sepoliaWithEns }) as unknown as WalletClient<
-    Transport,
-    typeof sepoliaWithEns,
-    Account
-  >
-
-// ensjs write-parameter builders return a union over every call they can
-// produce, which `encodeFunctionData` can't take as-is.
-const encode = (params: {
-  readonly abi: readonly unknown[]
-  readonly functionName: string
-  readonly args: readonly unknown[]
-}) => encodeFunctionData(params as Parameters<typeof encodeFunctionData>[0])
+const BASE_REGISTRAR = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensBaseRegistrarImplementation',
+})
+const NAME_WRAPPER = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensNameWrapper',
+})
 
 /**
- * Move a V1 name through ensjs: `BaseRegistrar.reclaim` (`registrar` +
- * `reclaim`), `BaseRegistrar.safeTransferFrom` (`registrar`) or
- * `NameWrapper.safeTransferFrom` (`nameWrapper`).
+ * Move a V1 name: `BaseRegistrar.reclaim` (`registrar` + `shouldReclaim`),
+ * `BaseRegistrar.safeTransferFrom` (`registrar`) or
+ * `NameWrapper.safeTransferFrom` (`nameWrapper`). `name` must be normalised.
  */
 export const prepareTransferV1NameTransaction = ({
   name,
   recipient,
   contract,
-  reclaim,
+  shouldReclaim = false,
   walletClient,
   chainId,
 }: IntentContext & {
   readonly name: string
   readonly recipient: Address
   readonly contract: 'registrar' | 'nameWrapper'
-  readonly reclaim?: boolean
+  readonly shouldReclaim?: boolean
 }): CustomTransactionIntent => {
-  const params = transferNameWriteParameters(ensjsClient(walletClient), {
-    name,
-    newOwnerAddress: recipient,
-    contract,
-    reclaim,
-  })
-  return toEoaCustomIntent({
-    from: walletClient.account.address,
-    to: params.address,
-    data: encode(params),
-    chainId,
-  })
+  const from = walletClient.account.address
+  // The registrar's token id is the 2LD's labelhash; the wrapper's is the namehash.
+  const registrarTokenId = BigInt(labelhash(name.split('.')[0]))
+
+  const { to, data } = match({ contract, shouldReclaim })
+    .with({ contract: 'registrar', shouldReclaim: true }, () => ({
+      to: BASE_REGISTRAR,
+      data: encodeFunctionData({
+        abi: baseRegistrarReclaimSnippet,
+        functionName: 'reclaim',
+        args: [registrarTokenId, recipient],
+      }),
+    }))
+    .with({ contract: 'registrar' }, () => ({
+      to: BASE_REGISTRAR,
+      data: encodeFunctionData({
+        abi: baseRegistrarSafeTransferFromSnippet,
+        functionName: 'safeTransferFrom',
+        args: [from, recipient, registrarTokenId],
+      }),
+    }))
+    .with({ contract: 'nameWrapper' }, () => ({
+      to: NAME_WRAPPER,
+      data: encodeFunctionData({
+        abi: nameWrapperSafeTransferFromSnippet,
+        functionName: 'safeTransferFrom',
+        args: [from, recipient, BigInt(namehash(name)), 1n, '0x'],
+      }),
+    }))
+    .exhaustive()
+
+  return toEoaCustomIntent({ from, to, data, chainId })
 }
 
 /** `ENSRegistry.setOwner(node, recipient)` on the legacy registry. */
@@ -111,39 +126,26 @@ export const prepareSetV1RegistryOwnerTransaction = ({
 /**
  * Clear the name's resolver. A wrapped name's registry slot is owned by the
  * wrapper, so the write goes through `NameWrapper.setResolver`; otherwise
- * straight to the legacy registry.
+ * straight to the legacy registry. Same signature on both contracts.
  */
 export const prepareDetachV1ResolverTransaction = ({
   name,
-  wrapped,
+  isWrapped,
   walletClient,
   chainId,
 }: IntentContext & {
   readonly name: string
-  readonly wrapped: boolean
-}): CustomTransactionIntent => {
-  const from = walletClient.account.address
-  if (wrapped) {
-    const params = setResolverWriteParameters(ensjsClient(walletClient), {
-      name,
-      contract: 'nameWrapper',
-      resolverAddress: zeroAddress,
-    })
-    return toEoaCustomIntent({
-      from,
-      to: params.address,
-      data: encode(params),
-      chainId,
-    })
-  }
-  return toEoaCustomIntent({
-    from,
-    to: LEGACY_REGISTRY,
+  readonly isWrapped: boolean
+}): CustomTransactionIntent =>
+  toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: isWrapped ? NAME_WRAPPER : LEGACY_REGISTRY,
     data: encodeFunctionData({
-      abi: registrySetResolverSnippet,
+      abi: isWrapped
+        ? nameWrapperSetResolverSnippet
+        : registrySetResolverSnippet,
       functionName: 'setResolver',
       args: [namehash(name), zeroAddress],
     }),
     chainId,
   })
-}

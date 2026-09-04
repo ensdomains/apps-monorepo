@@ -83,7 +83,7 @@ export const buildTransferStepIntent = (
     .with(['detach-resolver', P._], ([, { kind }]) =>
       prepareDetachV1ResolverTransaction({
         ...ctx,
-        wrapped: kind === 'v1-wrapped',
+        isWrapped: kind === 'v1-wrapped',
       }),
     )
     .with(['detach-registry', { kind: 'v2' }], ([, { registryAddress }]) =>
@@ -105,7 +105,7 @@ export const buildTransferStepIntent = (
       prepareTransferV1NameTransaction({
         ...ctx,
         contract: 'registrar',
-        reclaim: true,
+        shouldReclaim: true,
       }),
     )
     .with(['transfer-erc721', { kind: 'v1-registrar' }], () =>
