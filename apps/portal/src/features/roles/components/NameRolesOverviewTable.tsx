@@ -12,6 +12,9 @@ import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
+import { getRegistryRootRoleCountsQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleCounts'
+import { rootNameAuthority } from '@/features/roles/utils/rootNameAuthority'
+import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { isAdminRole } from '@/lib/roles/permissions'
 
 const ROLES_FROM_BLOCK = 9783977n
@@ -57,6 +60,57 @@ const V2NameRoles = ({
       canManageRoles={canManageRoles}
       registryAddress={registryAddress}
     />
+  )
+}
+
+/**
+ * Accounts holding roles at the registry's root can act on every name it holds,
+ * including this one, and they never appear in the table above: the table
+ * replays per-name grants, and a root grant is not one.
+ *
+ * Counts rather than addresses, because the registry tracks how many accounts
+ * hold each root role but not which. Read-only for the same reason, and because
+ * the manage flows write per-name grants, so a revoke aimed at a root holder
+ * would silently do nothing.
+ */
+const RegistryRootAuthority = ({
+  registryAddress,
+}: {
+  registryAddress: Address
+}) => {
+  const { data, isError } = useQuery(
+    getRegistryRootRoleCountsQueryOptions({ registryAddress }),
+  )
+
+  const authority = rootNameAuthority(data)
+
+  // Silent on both the failure and the empty case. The empty case is the common
+  // one (no `.eth` root holder can act on a 2LD), and a failed count is not
+  // evidence of authority to warn about.
+  if (isError || authority.length === 0) return null
+
+  return (
+    <div className="flex flex-col gap-2">
+      <h3 className="text-caps leading-none">registry-wide roles</h3>
+      <p className="text-muted-foreground text-sm">
+        These are held on the registry itself, so they apply to every name in it
+        rather than being granted on this one. They are not listed above and
+        can't be changed from this page.
+      </p>
+      <ul className="flex flex-col gap-1">
+        {authority.map(({ role, holders }) => (
+          <li key={role} className="text-sm">
+            <span className="text-foreground font-medium">
+              {formatRoleLabel(role)}
+            </span>
+            <span className="text-muted-foreground">
+              {' '}
+              held by {holders} {holders === 1 ? 'account' : 'accounts'}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
@@ -122,6 +176,7 @@ export const NameRolesOverviewTable = ({
         registryAddress={registryAddress}
         canManageRoles={canManageRoles}
       />
+      <RegistryRootAuthority registryAddress={registryAddress} />
       <RolesAddUserSheet
         open={addUserOpen}
         onOpenChange={setAddUserOpen}
