@@ -29,6 +29,7 @@ const V2NameRoles = ({
 
   const nameRolesQuery = useQuery({
     ...getNameRolesAccountsQueryOptions({
+      name,
       label: currentLabel,
       registryAddress,
       fromBlock: ROLES_FROM_BLOCK,

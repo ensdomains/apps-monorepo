@@ -14,8 +14,9 @@ import {
 } from '@ensdomains/ensjs/public/v2'
 import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
-import type { Address } from 'viem'
+import type { Address, Hex } from 'viem'
 import { getAddress, zeroAddress } from 'viem'
+import { namehash } from 'viem/ens'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
@@ -59,23 +60,30 @@ const MAX_EVENTS = 1000
  * sub-registry, so a resource-only filter would conflate role grants across
  * unrelated registries. The `events(contractAddress:)` filter is registry-
  * scoped, so we use that and reconstruct state client-side.
+ *
+ * Scoped by `namehash` as well as registry: the `.eth` registry emits one of
+ * these per registration, so a registry-only window reached back about three
+ * days and every older name read as having no role holders.
  */
 const getNameRolesAccountsFromIndexer = async (
   registryAddress: Address,
+  node: Hex,
   resource: string,
 ): Promise<GetNameRolesAccountsReturnType> => {
   const { events } = await graphqlIndexerClient.request<{
     events: IndexerEACEvent[]
   }>(
     gql`
-      query getEACRolesChangedForRegistry(
+      query getEACRolesChangedForName(
         $contractAddress: String!
+        $namehash: String!
         $first: Int!
       ) {
         events(
           where: {
             type: "EACRolesChanged"
             contractAddress: $contractAddress
+            namehash: $namehash
           }
           first: $first
           orderBy: blockNumber
@@ -87,6 +95,7 @@ const getNameRolesAccountsFromIndexer = async (
     `,
     {
       contractAddress: registryAddress.toLowerCase(),
+      namehash: node,
       first: MAX_EVENTS,
     },
   )
@@ -113,9 +122,15 @@ const getNameRolesAccountsFromIndexer = async (
   return result
 }
 
-const getNameRolesAccounts = ResultFn(async function* (
-  params: GetNameRolesAccountsParameters,
-) {
+type NameRolesAccountsParameters = GetNameRolesAccountsParameters & {
+  /** The full name. `label` alone cannot address the event query's filter. */
+  readonly name: string
+}
+
+const getNameRolesAccounts = ResultFn(async function* ({
+  name,
+  ...params
+}: NameRolesAccountsParameters) {
   const client = yield* safeGetClient()
 
   // Read the on-chain `resource` for this label from the actual registry so
@@ -132,6 +147,7 @@ const getNameRolesAccounts = ResultFn(async function* (
   const indexerResult = await fromPromise(
     getNameRolesAccountsFromIndexer(
       params.registryAddress,
+      namehash(name),
       toResourceHex(resource),
     ),
     (e) =>
@@ -154,11 +170,11 @@ const getNameRolesAccounts = ResultFn(async function* (
 
 const getNameRolesAccountsQueryKey = createQueryKey<
   'get-name-roles-accounts',
-  GetNameRolesAccountsParameters
+  NameRolesAccountsParameters
 >('get-name-roles-accounts')
 
 export const getNameRolesAccountsQueryOptions = (
-  params: GetNameRolesAccountsParameters,
+  params: NameRolesAccountsParameters,
 ) =>
   resultQueryOptions({
     queryKey: getNameRolesAccountsQueryKey(params),

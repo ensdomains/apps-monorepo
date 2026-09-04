@@ -27,6 +27,7 @@ const RoleCount = ({ name }: { name: string }) => {
   const { data, isLoading, error } = useQuery(
     getNameRolesAccountsQueryOptions({
       ...makeLabelNodeAndParent(name),
+      name,
       registryAddress: v2EthRegistry,
       fromBlock: 9782822n,
     }),
