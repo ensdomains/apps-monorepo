@@ -21,6 +21,7 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { ROOT_RESOURCE } from '@/lib/roles/roleChangeLogs'
 
 export type GrantRegistryRolesTransactionParameters = {
   readonly registryAddress: Address
@@ -41,8 +42,6 @@ export interface GrantRegistryRolesResult {
   txId: string
   hash: Hex
 }
-
-const ROOT_RESOURCE = 0n
 
 /** The grant-roles intent, shared by the gas estimate and {@link grantRegistryRoles}. */
 export function prepareGrantRegistryRolesTransaction({

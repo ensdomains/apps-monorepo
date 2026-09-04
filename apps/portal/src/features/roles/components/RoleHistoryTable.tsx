@@ -136,11 +136,11 @@ const RoleHistoryMobileCard = ({
 
 export const RoleHistoryTable = ({
   name,
-  label,
+  registryAddress,
   account,
 }: {
   readonly name: string
-  readonly label?: string
+  readonly registryAddress: Address
   readonly account?: Address
 }) => {
   const [selectedEntry, setSelectedEntry] = useState<RoleHistoryEntry | null>(
@@ -148,19 +148,13 @@ export const RoleHistoryTable = ({
   )
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const {
-    data: allData,
-    isLoading,
-    error,
-  } = useQuery(getRoleHistoryQueryOptions({ label }))
-
-  // Filter by account if provided
-  const data =
-    account && allData
-      ? allData.filter(
-          (entry) => entry.account.toLowerCase() === account.toLowerCase(),
-        )
-      : allData
+  const { data, isLoading, error } = useQuery(
+    getRoleHistoryQueryOptions({
+      account,
+      name,
+      registryAddress,
+    }),
+  )
 
   const handleMoreClick = (entry: RoleHistoryEntry) => {
     setSelectedEntry(entry)

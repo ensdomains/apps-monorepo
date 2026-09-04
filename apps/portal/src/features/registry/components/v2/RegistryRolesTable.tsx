@@ -14,21 +14,21 @@ import {
   rolesToEntries,
   UserCell,
 } from '@/features/roles/components/roleTableColumns'
-import { getHasRolesQueryOptions } from '../../hooks/useHasRoles'
 import {
-  getRegistryRolesQueryOptions,
-  type RegistryRoleRow,
-} from '../../hooks/useRegistryRoles'
+  getRegistryRootRoleHoldersQueryOptions,
+  type RootRoleHolder,
+} from '@/features/roles/hooks/useRegistryRootRoleHolders'
+import { getHasRolesQueryOptions } from '../../hooks/useHasRoles'
 import { RegistryEditUserSheet } from './RegistryEditUserSheet'
 
-const baseColumns: ColumnDef<RegistryRoleRow>[] = [
+const baseColumns: ColumnDef<RootRoleHolder>[] = [
   {
     id: 'user',
     accessorKey: 'account',
     header: 'User',
     cell: ({ row }) => <UserCell account={row.original.account} />,
   },
-  ...buildRoleColumns<RegistryRoleRow>((row) => rolesToEntries(row.roles)),
+  ...buildRoleColumns<RootRoleHolder>((row) => rolesToEntries(row.roles)),
 ]
 
 export const RegistryRolesTable = ({
@@ -43,9 +43,11 @@ export const RegistryRolesTable = ({
     data: roles,
     isLoading,
     error,
-  } = useQuery(getRegistryRolesQueryOptions({ address }))
+  } = useQuery(
+    getRegistryRootRoleHoldersQueryOptions({ registryAddress: address }),
+  )
 
-  const [editingRow, setEditingRow] = useState<RegistryRoleRow | null>(null)
+  const [editingRow, setEditingRow] = useState<RootRoleHolder | null>(null)
   const { data: walletClient } = useWalletClient()
   const callerAddress = walletClient?.account?.address
   const { data: isAdmin = false } = useQuery({
@@ -59,10 +61,10 @@ export const RegistryRolesTable = ({
 
   const showActions = isAdmin && !disableEdit
 
-  const columns: ColumnDef<RegistryRoleRow>[] = showActions
+  const columns: ColumnDef<RootRoleHolder>[] = showActions
     ? [
         ...baseColumns,
-        buildEditActionColumn<RegistryRoleRow>((row) =>
+        buildEditActionColumn<RootRoleHolder>((row) =>
           setEditingRow(row.original),
         ),
       ]
