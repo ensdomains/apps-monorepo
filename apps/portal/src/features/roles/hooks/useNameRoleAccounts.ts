@@ -1,5 +1,5 @@
 import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type {
@@ -16,11 +16,15 @@ import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address, Hex } from 'viem'
 import { getAddress, zeroAddress } from 'viem'
-import { namehash } from 'viem/ens'
+import { namehash, normalize } from 'viem/ens'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+
+class NameNotNormalizableError extends TaggedError('NameNotNormalizableError')<{
+  cause: unknown
+}> {}
 
 class GetNameRolesAccountsIndexerError extends TaggedError(
   'GetNameRolesAccountsIndexerError',
@@ -122,8 +126,11 @@ const getNameRolesAccountsFromIndexer = async (
   return result
 }
 
-type NameRolesAccountsParameters = GetNameRolesAccountsParameters & {
-  /** The full name. `label` alone cannot address the event query's filter. */
+type NameRolesAccountsParameters = Omit<
+  GetNameRolesAccountsParameters,
+  'label'
+> & {
+  /** The full name. The label is derived from it, so the two always agree. */
   readonly name: string
 }
 
@@ -131,6 +138,14 @@ const getNameRolesAccounts = ResultFn(async function* ({
   name,
   ...params
 }: NameRolesAccountsParameters) {
+  // Normalized once, then used for both the node and the label: hashing a raw
+  // route parameter would address a resource the registry never wrote to.
+  const normalized = yield* fromSync(
+    () => normalize(name),
+    (e) => new NameNotNormalizableError({ cause: e }),
+  )
+  const label = normalized.split('.')[0]
+
   const client = yield* safeGetClient()
 
   // Read the on-chain `resource` for this label from the actual registry so
@@ -138,7 +153,7 @@ const getNameRolesAccounts = ResultFn(async function* ({
   // v2 ETHRegistry where `resource === labelToCanonicalId(label)`.
   const resource = yield* fromPromise(
     ensjs_getResource(client, {
-      label: params.label,
+      label,
       registryAddress: params.registryAddress,
     }),
     (e) => new GetResourceError({ cause: e as GetResourceErrorType }),
@@ -147,7 +162,7 @@ const getNameRolesAccounts = ResultFn(async function* ({
   const indexerResult = await fromPromise(
     getNameRolesAccountsFromIndexer(
       params.registryAddress,
-      namehash(name),
+      namehash(normalized),
       toResourceHex(resource),
     ),
     (e) =>
@@ -158,7 +173,7 @@ const getNameRolesAccounts = ResultFn(async function* ({
 
   // Indexer GraphQL call failed — fall back to an on-chain log scan.
   const result = yield* fromPromise(
-    ensjs_getNameRoleAccounts(client, params),
+    ensjs_getNameRoleAccounts(client, { ...params, label }),
     (e) =>
       new GetNameRolesAccountsError({
         cause: e as GetNameRolesAccountsErrorType,
