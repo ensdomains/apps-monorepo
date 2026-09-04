@@ -148,6 +148,26 @@ describe('pollUntilVerified', () => {
     expect(result).toEqual({ verified: true })
   })
 
+  it('bounds a hung death oracle to one poll interval', async () => {
+    // The oracle exists to SHORTEN the window; a fetch that never responds
+    // (connection accepted, no reply) must degrade to the blind poll rather
+    // than stall verification for the browser's minutes-long fetch timeout.
+    let calls = 0
+    const check = vi.fn(async () => {
+      calls += 1
+      return { verified: calls >= 2 }
+    })
+
+    const result = await pollUntilVerified(check, {
+      graceWindowMs: 500,
+      pollIntervalMs: 10,
+      isDefinitivelyDead: () => new Promise<boolean>(() => {}),
+    })
+
+    expect(result).toEqual({ verified: true })
+    expect(check).toHaveBeenCalledTimes(2)
+  })
+
   it('never consults the death verdict when the first read verifies', async () => {
     // The chain is authoritative; a registered name needs no second opinion.
     const isDefinitivelyDead = vi.fn(async () => true)

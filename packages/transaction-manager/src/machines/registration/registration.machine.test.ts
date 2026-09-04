@@ -665,6 +665,62 @@ describe('registrationMachine — intent id capture', () => {
     actor.stop()
   })
 
+  it('clears the dead intent id when retrying the reveal', async () => {
+    // Retrying leaves the OLD intent definitively dead. Until the new submit
+    // reports its own id via INTENT_SUBMITTED, verification (and the persisted
+    // record) must not be able to ask the orchestrator about the old one — a
+    // FAILED answer there would skip the grace poll and declare the retried
+    // registration dead while its intent is still filling.
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          verifyRegistration: fromPromise(async () => ({
+            verified: false,
+          })) as never,
+          submitRevealBatch: fromPromise(
+            () => new Promise(() => {}),
+          ) as never /* park: the assertion is about entry context */,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'waitingForRhinestoneBundle',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+        registrationTxId: 'tx-reg-register',
+        registrationIntentId: 42n,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+      },
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe(
+      'submittingRhinestoneBundle',
+    )
+
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('submittingRhinestoneBundle'))
+
+    expect(actor.getSnapshot().context.registrationIntentId).toBeUndefined()
+    actor.stop()
+  })
+
   it('stores the status fetcher on a live run, not just on resume', () => {
     // A live run whose reveal intent dies should fail verification in one
     // orchestrator read, same as a resumed one — not sit out the blind poll.

@@ -743,7 +743,19 @@ export async function pollUntilVerified(
 
   if (!result.verified && options.isDefinitivelyDead) {
     try {
-      if (await options.isDefinitivelyDead()) return result
+      // Race the oracle against one poll interval (or CANCEL): it exists to
+      // SHORTEN the grace window, so a hung status endpoint must degrade to
+      // the blind poll rather than stall verification past the window — a
+      // browser fetch can otherwise block for minutes.
+      const oracleBudgetMs = Math.max(
+        0,
+        Math.min(pollIntervalMs, deadline - Date.now()),
+      )
+      const dead = await Promise.race([
+        options.isDefinitivelyDead(),
+        sleepUnlessAborted(oracleBudgetMs, signal).then(() => false),
+      ])
+      if (dead) return result
     } catch {
       // Inconclusive — an unreachable oracle must never fail a verification
       // the chain could still confirm.

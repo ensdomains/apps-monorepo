@@ -120,15 +120,16 @@ function resolveSdkEnv(): {
  * is always safe.
  */
 export function buildIntentStatusFetcher():
-  | ((intentId: bigint) => Promise<string | null>)
+  | ((intentId: bigint, signal?: AbortSignal) => Promise<string | null>)
   | undefined {
   try {
     const { rhinestoneApiKey, rhinestoneEndpointUrl } = resolveSdkEnv()
-    return (intentId) =>
+    return (intentId, signal) =>
       fetchIntentOperationStatus({
         intentId,
         apiKey: rhinestoneApiKey,
         endpointUrl: rhinestoneEndpointUrl,
+        signal,
       })
   } catch {
     return undefined

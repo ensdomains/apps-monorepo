@@ -947,9 +947,13 @@ export function verifyHcaRegistrationActor(
      * Orchestrator status lookup. `'FAILED'`/`'EXPIRED'` short-circuits the
      * grace poll — that intent will never fill, so polling the registry is
      * waiting for a state that cannot appear. Anything else (PENDING, null,
-     * a thrown fetch) is inconclusive and falls back to the poll.
+     * a thrown fetch) is inconclusive and falls back to the poll. Receives the
+     * actor's abort signal so CANCEL interrupts the underlying request.
      */
-    fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
+    fetchIntentStatus?: (
+      intentId: bigint,
+      signal?: AbortSignal,
+    ) => Promise<string | null>
   } & VerifyPollOptions,
 ): ResultAsync<{ verified: boolean; reason?: string }, Error> {
   const readRegistryState = async (): Promise<{
@@ -1031,7 +1035,7 @@ export function verifyHcaRegistrationActor(
   // an unreachable orchestrator) is inconclusive and keeps the poll.
   const isRevealIntentDead = async (): Promise<boolean> => {
     if (input.intentId === undefined || !input.fetchIntentStatus) return false
-    const status = await input.fetchIntentStatus(input.intentId)
+    const status = await input.fetchIntentStatus(input.intentId, input.signal)
     return status === 'FAILED' || status === 'EXPIRED'
   }
 

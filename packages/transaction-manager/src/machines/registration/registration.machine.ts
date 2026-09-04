@@ -182,10 +182,14 @@ export type RegistrationContext = {
   registrationIntentId?: bigint
   /**
    * Asks the orchestrator for an intent's status (`'FAILED'`, `'PENDING'`, …)
-   * or null when inconclusive. Runtime dep injected on RESUME, never
-   * persisted; absent, verification falls back to the blind grace poll.
+   * or null when inconclusive. Runtime dep injected on START_REGISTRATION and
+   * RESUME, never persisted; absent, verification falls back to the blind
+   * grace poll.
    */
-  fetchRegistrationIntentStatus?: (intentId: bigint) => Promise<string | null>
+  fetchRegistrationIntentStatus?: (
+    intentId: bigint,
+    signal?: AbortSignal,
+  ) => Promise<string | null>
   registerReadyTimestamp?: number
   registrationStartedAt?: number
 
@@ -235,7 +239,10 @@ export type RegistrationEvent =
        * `INTENT_SUBMITTED` mid-flight), so `verifyingRegistration` can fail
        * fast on a dead intent instead of sitting out the whole grace poll.
        */
-      fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
+      fetchIntentStatus?: (
+        intentId: bigint,
+        signal?: AbortSignal,
+      ) => Promise<string | null>
       accountAddress: Address
       ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA`, so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
@@ -267,7 +274,10 @@ export type RegistrationEvent =
          * resumed verification can fail fast on a dead intent instead of
          * sitting out the whole on-chain grace window.
          */
-        fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
+        fetchIntentStatus?: (
+          intentId: bigint,
+          signal?: AbortSignal,
+        ) => Promise<string | null>
       }
     }
   | {
@@ -505,7 +515,10 @@ export const registrationMachine = setup({
           commitment: Hash
           duration: bigint
           intentId?: bigint
-          fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
+          fetchIntentStatus?: (
+            intentId: bigint,
+            signal?: AbortSignal,
+          ) => Promise<string | null>
         },
         // Both actors grace-poll for up to 30s; pass the actor's signal so
         // CANCEL stops the poll instead of leaving it running to term.
@@ -1752,6 +1765,7 @@ export const registrationMachine = setup({
               error: undefined,
               retryTarget: undefined,
               registrationTxId: undefined,
+              registrationIntentId: undefined,
             })),
           },
           {
@@ -1766,6 +1780,7 @@ export const registrationMachine = setup({
               retryTarget: undefined,
               hcaBudget: undefined,
               hcaBudgetBreakdown: undefined,
+              registrationIntentId: undefined,
             })),
           },
           {
@@ -1781,6 +1796,7 @@ export const registrationMachine = setup({
               retryTarget: undefined,
               permit: undefined,
               registrationTxId: undefined,
+              registrationIntentId: undefined,
             })),
           },
           {
@@ -1795,6 +1811,11 @@ export const registrationMachine = setup({
               error: undefined,
               retryTarget: undefined,
               registrationTxId: undefined,
+              // The DEAD intent's id. Until the retried submit reports its own
+              // via INTENT_SUBMITTED, carrying this would let verification (or
+              // a persisted record) ask the orchestrator about the old intent
+              // and declare the NEW one dead while it is still filling.
+              registrationIntentId: undefined,
             })),
           },
           {
@@ -1806,6 +1827,7 @@ export const registrationMachine = setup({
               retryTarget: undefined,
               approvalTxId: undefined,
               registrationTxId: undefined,
+              registrationIntentId: undefined,
             })),
           },
           {
@@ -1821,6 +1843,7 @@ export const registrationMachine = setup({
               commitmentTxId: undefined,
               approvalTxId: undefined,
               registrationTxId: undefined,
+              registrationIntentId: undefined,
               registerReadyTimestamp: undefined,
             })),
           },
@@ -1846,6 +1869,7 @@ export const registrationMachine = setup({
               resolverSalt: undefined,
               commitment: undefined,
               commitmentTxId: undefined,
+              registrationIntentId: undefined,
               registerReadyTimestamp: undefined,
             })),
           },
