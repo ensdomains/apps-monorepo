@@ -1,4 +1,6 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import { buildRegistrationRecord } from '@ens-apps/transaction-manager'
+import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
@@ -58,6 +60,7 @@ const storedRegistration = (
     label?: string
     chainId?: number
     withCommitment?: boolean
+    signerType?: 'eoa' | 'rhinestone'
   } = {},
 ): StoredRegistration => ({
   label: overrides.label ?? 'leon',
@@ -70,7 +73,7 @@ const storedRegistration = (
       duration: 31_536_000n,
       selectedToken: 'USDC',
       tokenPrice: 5_000_000n,
-      signer: { type: 'rhinestone' } as never,
+      signer: { type: overrides.signerType ?? 'rhinestone' } as never,
       accountAddress: HCA,
       ownerAddress: OWNER,
       ...(overrides.withCommitment === false
@@ -82,12 +85,13 @@ const storedRegistration = (
   ),
 })
 
-/** `commitmentAt` then `MAX_COMMITMENT_AGE`, plus a block for chain time. */
+/** `commitmentAt` and the age immutables, plus a block for chain time. */
 const publicClientWith = (committedAt: bigint | Error) =>
   ({
     chain: { id: CHAIN_ID },
     readContract: vi.fn(async ({ functionName }: { functionName: string }) => {
       if (functionName === 'MAX_COMMITMENT_AGE') return MAX_COMMITMENT_AGE
+      if (functionName === 'MIN_COMMITMENT_AGE') return 60n
       if (committedAt instanceof Error) throw committedAt
       return committedAt
     }),
@@ -187,13 +191,53 @@ describe('assessResumableRegistration', () => {
     expect(result).toEqual({ status: 'stale', reason: 'commitment-expired' })
   })
 
-  it('resumes a commitment exactly at the age limit', async () => {
+  it('discards a commitment exactly at the age limit', async () => {
+    // The reveal window is the OPEN interval (commit+min, commit+max), and the
+    // reveal necessarily runs later than this assessment — a commitment at the
+    // boundary is already doomed to `CommitmentTooOld`.
     const result = await assess({
       stored: storedRegistration(),
       publicClient: publicClientWith(NOW - MAX_COMMITMENT_AGE),
     })
 
+    expect(result).toEqual({ status: 'stale', reason: 'commitment-expired' })
+  })
+
+  it('resumes a commitment one second inside the age limit', async () => {
+    const result = await assess({
+      stored: storedRegistration(),
+      publicClient: publicClientWith(NOW - MAX_COMMITMENT_AGE + 1n),
+    })
+
     expect(result.status).toBe('resumable')
+  })
+
+  it('reads the commitment off the registrar the record was written against', async () => {
+    // Same contract on Sepolia today; the moment the deployments diverge, the
+    // live-mode registrar would report `commitmentAt == 0` for the other
+    // path's commitment and silently disable the expiry check.
+    const eoaClient = publicClientWith(NOW - 60n)
+    await assess({
+      stored: storedRegistration({ signerType: 'eoa' }),
+      publicClient: eoaClient,
+    })
+
+    expect(eoaClient.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: 'commitmentAt',
+        address: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+      }),
+    )
+
+    const hcaClient = publicClientWith(NOW - 60n)
+    await assess({ stored: storedRegistration(), publicClient: hcaClient })
+
+    expect(hcaClient.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: 'commitmentAt',
+        address: getDestinationContracts(CHAIN_ID).ethRegistrar,
+      }),
+    )
   })
 
   it('resumes when the commitment is not recorded yet', async () => {

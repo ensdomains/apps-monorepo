@@ -17,8 +17,12 @@
  * each. That is why this returns a discriminated union instead of a Result.
  */
 
-import { getDestinationContracts } from '@ens-apps/smart-account'
 import {
+  getDestinationContracts,
+  readCommitmentAges,
+} from '@ens-apps/smart-account'
+import {
+  ENS_SEPOLIA_CONTRACTS,
   type SUPPORTED_TOKEN,
   TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
@@ -39,9 +43,22 @@ const commitmentAtAbi = parseAbi([
   'function commitmentAt(bytes32 commitment) view returns (uint64)',
 ])
 
-const commitmentAgesAbi = parseAbi([
-  'function MAX_COMMITMENT_AGE() view returns (uint64)',
-])
+/**
+ * The registrar a RECORD's commitment lives on, chosen by the signer mode that
+ * wrote it — mirrors `registrarFor` in the persistence layer. The two
+ * deployments are the same contract on Sepolia today; reading the record's own
+ * registrar is what keeps the preflight honest the day they diverge, when the
+ * live-mode registrar would report `commitmentAt == 0` for every record from
+ * the other path and silently disable the expiry check.
+ */
+function registrarForRecord(
+  chainId: number,
+  signerType: 'eoa' | 'rhinestone' | undefined,
+): Address {
+  return signerType === 'rhinestone'
+    ? getDestinationContracts(chainId).ethRegistrar
+    : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+}
 
 export type ResumeStaleReason =
   /** The record belongs to a different name than the one being viewed. */
@@ -79,20 +96,21 @@ async function readCommitmentAge(params: {
   publicClient: PublicClient
   chainId: number
   commitment: `0x${string}`
+  registrar: Address
 }): Promise<{ ageSeconds: bigint; maxAgeSeconds: bigint } | null> {
-  const contracts = getDestinationContracts(params.chainId)
-
-  const [committedAt, maxAgeSeconds, block] = await Promise.all([
+  const [committedAt, ages, block] = await Promise.all([
     params.publicClient.readContract({
-      address: contracts.ethRegistrar,
+      address: params.registrar,
       abi: commitmentAtAbi,
       functionName: 'commitmentAt',
       args: [params.commitment],
     }),
-    params.publicClient.readContract({
-      address: contracts.ethRegistrar,
-      abi: commitmentAgesAbi,
-      functionName: 'MAX_COMMITMENT_AGE',
+    // The shared per-deployment read; the age windows are immutables, so this
+    // must ask the record's own registrar rather than hardcode one.
+    readCommitmentAges({
+      publicClient: params.publicClient,
+      chainId: params.chainId,
+      registrar: params.registrar,
     }),
     params.publicClient.getBlock(),
   ])
@@ -102,7 +120,10 @@ async function readCommitmentAge(params: {
   // retry, so it is better placed to tell those apart than we are.
   if (committedAt === 0n) return null
 
-  return { ageSeconds: block.timestamp - committedAt, maxAgeSeconds }
+  return {
+    ageSeconds: block.timestamp - committedAt,
+    maxAgeSeconds: ages.maxCommitmentAge,
+  }
 }
 
 /**
@@ -221,9 +242,16 @@ export async function assessResumableRegistration(params: {
         publicClient: params.publicClient,
         chainId: params.chainId,
         commitment,
+        registrar: registrarForRecord(
+          params.chainId,
+          stored.record.context.signerType,
+        ),
       })
 
-      if (age && age.ageSeconds > age.maxAgeSeconds) {
+      // `>=`: the reveal window is the OPEN interval (commit+min, commit+max),
+      // and the reveal necessarily runs later than this assessment — a
+      // commitment at the boundary is already doomed to `CommitmentTooOld`.
+      if (age && age.ageSeconds >= age.maxAgeSeconds) {
         return { status: 'stale', reason: 'commitment-expired' }
       }
     } catch {
