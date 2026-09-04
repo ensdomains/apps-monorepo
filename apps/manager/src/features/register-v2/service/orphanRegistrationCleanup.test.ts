@@ -48,10 +48,13 @@ const stored = (
   ),
 })
 
-const clientOwnedBy = (owner: Address) =>
+/** The registry's REGISTERED enum value, as the real contract reports it. */
+const STATUS_REGISTERED = 2
+
+const clientOwnedBy = (owner: Address, status = STATUS_REGISTERED) =>
   ({
     readContract: vi.fn(async () => ({
-      status: 0,
+      status,
       expiry: 0n,
       latestOwner: owner,
       tokenId: 0n,
@@ -124,6 +127,28 @@ describe('resolveOrphanRegistration', () => {
       resolveOrphanRegistration({
         stored: stored(),
         publicClient: clientOwnedBy(zeroAddress),
+        chainId: CHAIN_ID,
+      }),
+    ).resolves.toEqual({ status: 'pending' })
+  })
+
+  it('keeps a record pending when the name shows only expired history', async () => {
+    // The temporary-premium flow registers EXPIRED names, whose registry state
+    // keeps the previous `latestOwner` while status has fallen back to
+    // available. Reading that as a live owner cleared the paid commitment and
+    // toasted a false "taken"/"registered" for a registration still in flight.
+    await expect(
+      resolveOrphanRegistration({
+        stored: stored(),
+        publicClient: clientOwnedBy(OTHER, 0),
+        chainId: CHAIN_ID,
+      }),
+    ).resolves.toEqual({ status: 'pending' })
+
+    await expect(
+      resolveOrphanRegistration({
+        stored: stored(),
+        publicClient: clientOwnedBy(OWNER, 0),
         chainId: CHAIN_ID,
       }),
     ).resolves.toEqual({ status: 'pending' })

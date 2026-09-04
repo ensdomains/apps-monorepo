@@ -31,6 +31,9 @@ const registryGetStateAbi = parseAbi([
   'function getState(uint256 anyId) view returns (NameState state)',
 ])
 
+/** The registry's own enum value; matches `verifyHcaRegistrationActor`. */
+const STATUS_REGISTERED = 2
+
 export type OrphanRegistrationOutcome =
   /** Nothing on-chain yet — the user may still come back to finish. */
   | { readonly status: 'pending' }
@@ -59,23 +62,32 @@ export async function resolveOrphanRegistration(params: {
 
   const contracts = getDestinationContracts(params.chainId)
 
-  const { latestOwner: owner } = await params.publicClient.readContract({
+  const state = await params.publicClient.readContract({
     address: contracts.ethRegistry,
     abi: registryGetStateAbi,
     functionName: 'getState',
     args: [BigInt(labelhash(stored.label))],
   })
 
+  // An EXPIRED name keeps its previous `latestOwner` while its status falls
+  // back to available — and the temporary-premium flow registers exactly such
+  // names. Reading ownership off anything but a REGISTERED state would
+  // misread that history as a live owner and clear a paid commitment (plus
+  // toast a false "registered"/"taken") for a registration still in flight.
+  if (Number(state.status) !== STATUS_REGISTERED) {
+    return { status: 'pending' }
+  }
+
   // `isAddressEqual` throws on a malformed address (same reason
   // `resolveVerifiedOwner` in sessionGate.ts guards it). Treat a comparison we
   // cannot make as "still pending": keeping a resumable record costs the user
   // nothing, whereas reporting "taken" would clear a name they may own.
   try {
-    if (isAddressEqual(owner, zeroAddress)) {
+    if (isAddressEqual(state.latestOwner, zeroAddress)) {
       return { status: 'pending' }
     }
 
-    return isAddressEqual(owner, recordOwner)
+    return isAddressEqual(state.latestOwner, recordOwner)
       ? { status: 'registered', label: stored.label }
       : { status: 'taken', label: stored.label }
   } catch {
