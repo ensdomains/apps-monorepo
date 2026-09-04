@@ -230,6 +230,12 @@ export type RegistrationEvent =
       hcaSessionEnable?: HcaSessionEnableParams
       /** Standalone-HCA: set the primary name in the reveal batch. */
       primaryName?: string
+      /**
+       * Orchestrator status lookup for the reveal intent (whose id arrives via
+       * `INTENT_SUBMITTED` mid-flight), so `verifyingRegistration` can fail
+       * fast on a dead intent instead of sitting out the whole grace poll.
+       */
+      fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
       accountAddress: Address
       ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA`, so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
@@ -660,43 +666,50 @@ export const registrationMachine = setup({
       on: {
         START_REGISTRATION: {
           target: 'settingUpRegistration',
-          actions: assign({
-            name: ({ event }) => event.name,
-            duration: ({ event }) => event.duration,
-            selectedToken: ({ event }) => event.token,
-            tokenPrice: ({ event }) => event.price,
-            signer: ({ event }) => event.signer,
-            approvalSigner: ({ event }) => event.approvalSigner,
-            accountAddress: ({ event }) => event.accountAddress,
-            registrationStartedAt: ({ event }) =>
-              event.signer.type === 'rhinestone' ? Date.now() : undefined,
-            ownerAddress: ({ event }) =>
-              event.ownerAddress ?? event.accountAddress, // ENS name owner. Default to accountAddress if not provided
-            resolverOwnerAddress: ({ event }) =>
-              event.resolverOwnerAddress ??
-              event.ownerAddress ??
-              event.accountAddress, // EACL grantee for the dedicated resolver. Should be the EOA.
-            publicClient: ({ event }) => event.publicClient,
-            registerReadyTimestamp: () => undefined,
-            hcaBudget: ({ event }) => event.hcaBudget,
-            displayedWalletDebit: ({ event }) => event.displayedWalletDebit,
-            hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
-            primaryName: ({ event }) => event.primaryName,
-            resolverAddress: () => undefined,
-            resolverTxId: () => undefined,
-            resolverSalt: () => undefined,
-            commitment: () => undefined,
-            commitmentTxId: () => undefined,
-            permit: () => undefined,
-            // Balance is re-read by `checkingHcaFunding` on every run, but
-            // clear it so a stale value can never size a permit if some future
-            // path reaches `signingFundingPermit` without the read.
-            hcaUsdcBalance: () => undefined,
-            approvalTxId: () => undefined,
-            registrationTxId: () => undefined,
-            registrationIntentId: () => undefined,
-            fetchRegistrationIntentStatus: () => undefined,
-          }),
+          actions: [
+            // Full-form assign: a function-typed context value inside the
+            // property map below would be indistinguishable from a property
+            // assigner, so TS drops the `event` inference.
+            assign(({ event }) => ({
+              fetchRegistrationIntentStatus: event.fetchIntentStatus,
+            })),
+            assign({
+              name: ({ event }) => event.name,
+              duration: ({ event }) => event.duration,
+              selectedToken: ({ event }) => event.token,
+              tokenPrice: ({ event }) => event.price,
+              signer: ({ event }) => event.signer,
+              approvalSigner: ({ event }) => event.approvalSigner,
+              accountAddress: ({ event }) => event.accountAddress,
+              registrationStartedAt: ({ event }) =>
+                event.signer.type === 'rhinestone' ? Date.now() : undefined,
+              ownerAddress: ({ event }) =>
+                event.ownerAddress ?? event.accountAddress, // ENS name owner. Default to accountAddress if not provided
+              resolverOwnerAddress: ({ event }) =>
+                event.resolverOwnerAddress ??
+                event.ownerAddress ??
+                event.accountAddress, // EACL grantee for the dedicated resolver. Should be the EOA.
+              publicClient: ({ event }) => event.publicClient,
+              registerReadyTimestamp: () => undefined,
+              hcaBudget: ({ event }) => event.hcaBudget,
+              displayedWalletDebit: ({ event }) => event.displayedWalletDebit,
+              hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
+              primaryName: ({ event }) => event.primaryName,
+              resolverAddress: () => undefined,
+              resolverTxId: () => undefined,
+              resolverSalt: () => undefined,
+              commitment: () => undefined,
+              commitmentTxId: () => undefined,
+              permit: () => undefined,
+              // Balance is re-read by `checkingHcaFunding` on every run, but
+              // clear it so a stale value can never size a permit if some future
+              // path reaches `signingFundingPermit` without the read.
+              hcaUsdcBalance: () => undefined,
+              approvalTxId: () => undefined,
+              registrationTxId: () => undefined,
+              registrationIntentId: () => undefined,
+            }),
+          ],
         },
 
         // Re-enter an interrupted run. The target set is exactly

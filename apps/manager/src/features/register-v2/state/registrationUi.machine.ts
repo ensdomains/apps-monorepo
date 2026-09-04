@@ -592,6 +592,10 @@ const startRegistrationAction = machineSetup.createAction(
         primaryName: bundlePrimaryName,
         // Consent bound on the funding permit: what the confirm screen showed.
         displayedWalletDebit: event.displayedWalletDebit,
+        // `INTENT_SUBMITTED` captures the reveal intent id on live runs too,
+        // so a dead intent fails verification in one orchestrator read instead
+        // of sitting out the full grace poll before the retry screen.
+        fetchIntentStatus: buildIntentStatusFetcher(),
       } satisfies RegistrationEvent),
     )
   }),

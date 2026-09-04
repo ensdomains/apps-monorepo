@@ -109,9 +109,10 @@ function resolveSdkEnv(): {
 }
 
 /**
- * Build the orchestrator status lookup a resumed registration uses to tell a
- * still-filling reveal intent from a definitively dead one, so verification
- * can fail fast instead of sitting out the on-chain grace poll.
+ * Build the orchestrator status lookup registration verification uses — on
+ * live and resumed runs alike — to tell a still-filling reveal intent from a
+ * definitively dead one, so it can fail fast instead of sitting out the
+ * on-chain grace poll.
  *
  * Honors the same env resolution as the SDK init (`VITE_RHINESTONE_API_KEY`,
  * `VITE_RHINESTONE_ENDPOINT_URL` for the e2e mockestrator). Returns undefined

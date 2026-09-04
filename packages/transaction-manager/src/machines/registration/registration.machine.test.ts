@@ -56,6 +56,8 @@ const startHcaRegistration = (overrides: {
   hcaSessionEnable?: HcaSessionEnableParams
   pollTransactionStatus?: ReturnType<typeof vi.fn>
   validateCommitment?: ReturnType<typeof vi.fn>
+  /** Orchestrator status lookup for the reveal intent. */
+  fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
 }) => {
   const estimateHcaBudget =
     overrides.estimateHcaBudget ??
@@ -125,6 +127,9 @@ const startHcaRegistration = (overrides: {
       : {}),
     ...(overrides.displayedWalletDebit !== undefined
       ? { displayedWalletDebit: overrides.displayedWalletDebit }
+      : {}),
+    ...(overrides.fetchIntentStatus
+      ? { fetchIntentStatus: overrides.fetchIntentStatus }
       : {}),
   })
 
@@ -657,6 +662,18 @@ describe('registrationMachine — intent id capture', () => {
     actor.send({ type: 'INTENT_SUBMITTED', intentId: 987n })
 
     expect(actor.getSnapshot().context.registrationIntentId).toBe(987n)
+    actor.stop()
+  })
+
+  it('stores the status fetcher on a live run, not just on resume', () => {
+    // A live run whose reveal intent dies should fail verification in one
+    // orchestrator read, same as a resumed one — not sit out the blind poll.
+    const fetchIntentStatus = vi.fn(async () => 'PENDING')
+    const { actor } = startHcaRegistration({ fetchIntentStatus })
+
+    expect(actor.getSnapshot().context.fetchRegistrationIntentStatus).toBe(
+      fetchIntentStatus,
+    )
     actor.stop()
   })
 })
