@@ -24,7 +24,11 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { isFuseBurnt } from '@/features/fuses/utils/isFuseBurnt'
+import { MigrateForRolesBanner } from '@/features/migration/components/MigrateForRolesBanner'
+import { MigrateForRolesMessage } from '@/features/migration/components/MigrateForRolesMessage'
+import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
@@ -130,6 +134,12 @@ function RouteComponent() {
     ...getWrapperDataQueryOptions({ name }),
   })
 
+  const { data: owner } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const { isMigratableByConnectedOwner } = useMigrationStatus({
+    name,
+    protocolVersion: owner?.protocolVersion,
+  })
+
   // The wrapper refuses every owner write on an expired name (see the note in
   // ./burn.tsx), so the burn CTA must not be offered while the name is in its
   // grace period. Only wrapped v1 names have fuses, so the v1 expiry is only
@@ -160,7 +170,14 @@ function RouteComponent() {
   const wrapperData = wrapperDataQuery.data
 
   if (!wrapperData) {
-    return <V2NameMessage />
+    return owner?.protocolVersion === 'ENSv1' ? (
+      <MigrateForRolesMessage
+        name={name}
+        canMigrate={isMigratableByConnectedOwner}
+      />
+    ) : (
+      <V2NameMessage />
+    )
   }
 
   const fuses = wrapperData.fuses as DecodedFuses | undefined
@@ -178,6 +195,7 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
+      {isMigratableByConnectedOwner && <MigrateForRolesBanner />}
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner graceEndDate={grace.graceEndDate} canExtend={canExtend} />
       )}

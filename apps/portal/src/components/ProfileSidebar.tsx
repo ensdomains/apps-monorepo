@@ -17,9 +17,9 @@ import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { createDefineLinkItem } from '@/utils/tsr'
+import type { ProtocolVersion } from '@/utils/types'
 import { SettingsMenu } from './SettingsMenu'
 import {
   Sidebar,
@@ -47,7 +47,7 @@ type SidebarItemData = {
 
 const defineProfileSidebarItem = createDefineLinkItem<SidebarItemData>()
 
-const getItems = (name: string, showFuses: boolean) => [
+const getItems = (name: string, protocolVersion?: ProtocolVersion) => [
   defineProfileSidebarItem({
     title: 'Address Resolution',
     icon: WalletIcon,
@@ -80,23 +80,23 @@ const getItems = (name: string, showFuses: boolean) => [
       params: { name },
     },
   }),
-  ...(showFuses
+  ...(protocolVersion === 'ENSv2'
     ? [
         defineProfileSidebarItem({
-          title: 'Fuses',
-          icon: FlameIcon,
+          title: 'Roles',
+          icon: ShieldIcon,
           link: {
-            to: '/$name/fuses',
+            to: '/$name/roles',
             params: { name },
           },
         }),
       ]
     : [
         defineProfileSidebarItem({
-          title: 'Roles',
-          icon: ShieldIcon,
+          title: 'Fuses',
+          icon: FlameIcon,
           link: {
-            to: '/$name/roles',
+            to: '/$name/fuses',
             params: { name },
           },
         }),
@@ -146,15 +146,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
     enabled: isRegistrable(name),
   })
   const protocolVersion = ownerData?.protocolVersion
-  // Runs unconditionally: it only needs the name, so gating it on the owner
-  // query would serialise two independent reads.
-  const { data: wrapperData } = useQuery(getWrapperDataQueryOptions({ name }))
-
-  // Only a wrapped v1 name has fuses to show, and wrapping is closed, so every
-  // other name gets Roles. Unknown counts as Roles: that is where a v2 name and
-  // an unwrapped v1 name both land.
-  const showFuses = protocolVersion === 'ENSv1' && Boolean(wrapperData)
-  const items = getItems(name, showFuses)
+  const items = getItems(name, protocolVersion)
   const { state, isMobile, setOpenMobile } = useSidebar()
   const isIconMode = state === 'collapsed' && !isMobile
 

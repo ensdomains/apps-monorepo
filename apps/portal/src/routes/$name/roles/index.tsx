@@ -2,14 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
-import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { NameRegistryRolesOverviewTable } from '@/features/registry/components/v2/NameRegistryRolesOverviewTable'
 import { NameResolverRolesOverviewTable } from '@/features/resolver/components/NameResolverRolesOverviewTable'
 import { NameRolesOverviewTable } from '@/features/roles/components/NameRolesOverviewTable'
-import { RolesUnavailableMessage } from '@/features/roles/components/RolesUnavailableMessage'
 
 export const Route = createFileRoute('/$name/roles/')({
   component: RouteComponent,
@@ -31,11 +30,6 @@ function RouteComponent() {
     enabled: isSupportedName,
   })
 
-  const { isMigratableByConnectedOwner } = useMigrationStatus({
-    name,
-    protocolVersion: owner?.protocolVersion,
-  })
-
   if (!isSupportedName)
     return <ErrorMessage title="Only 2LD and 3LD .eth names are supported" />
 
@@ -53,9 +47,10 @@ function RouteComponent() {
     return (
       <div className="flex flex-col gap-8">
         <PageHeading parent={{ type: 'name', name }}>Roles</PageHeading>
-        <RolesUnavailableMessage
-          name={name}
-          canMigrate={isMigratableByConnectedOwner}
+        <NoResultsMessage
+          title="Roles unavailable"
+          description="Role management is only available for ENSv2 names."
+          className="mx-0"
         />
       </div>
     )
