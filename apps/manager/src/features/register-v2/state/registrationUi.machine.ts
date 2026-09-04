@@ -812,6 +812,19 @@ export const registrationV2UiMachine = machineSetup.createMachine({
   states: {
     pricing: {
       initial: 'duration',
+      // On `pricing` (all substates), NOT the root: a reload lands in
+      // `pricing.duration`, which is where a resume arrives. Scoping it here
+      // is the guard — a resume that dispatches late (e.g. delayed behind a
+      // wallet prompt the user ignored while starting a fresh registration)
+      // is dropped instead of re-entering `registering`, resetting its
+      // parallel regions and clobbering the live run's confirmedData. The
+      // child ignores RESUME outside idle for the same reason.
+      on: {
+        'registration.resume': {
+          target: '#registrationV2Ui.registering',
+          actions: ['clearError', 'clearMaxProgress', resumeRegistrationAction],
+        },
+      },
       states: {
         duration: {
           on: {
@@ -1137,14 +1150,6 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     $error: {
       target: '.failure',
       actions: ['setError'],
-    },
-    // Root-level, not on `pricing`: a reload drops the UI machine into
-    // `pricing.duration`, and the child registration actor is invoked at the
-    // root, so this is the only place that catches a resume regardless of which
-    // pricing substate the fresh mount happened to land in.
-    'registration.resume': {
-      target: '.registering',
-      actions: ['clearError', 'clearMaxProgress', resumeRegistrationAction],
     },
     'label.changed': {
       target: '.pricing',

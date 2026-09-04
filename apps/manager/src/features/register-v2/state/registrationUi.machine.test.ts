@@ -658,7 +658,7 @@ describe('registrationV2UiMachine — registration.resume', () => {
 
   it('resumes from the pricing step a fresh mount lands on', () => {
     // A reload puts the UI machine in `pricing.duration`, not `pricing.tokens`.
-    // The event is handled at the machine root precisely so that works.
+    // The event is handled on the `pricing` state precisely so both work.
     const actor = createActor(registrationV2UiMachine, {
       input: { chainId: 11155111 },
     })
@@ -668,6 +668,26 @@ describe('registrationV2UiMachine — registration.resume', () => {
     actor.send(resumeEvent(hcaAccount))
 
     expect(actor.getSnapshot().value).toMatchObject({ registering: {} })
+  })
+
+  it('drops a resume that arrives while a registration is already running', () => {
+    // The resume tail can dispatch late — delayed behind a wallet prompt the
+    // user ignored while starting a fresh registration by hand. Re-entering
+    // `registering` at that point would reset its parallel regions (the
+    // notification prompt reappears) and clobber the live run's confirmedData
+    // with the stored record's stale pricing.
+    const actor = startActorInTokens()
+    actor.send(startEvent(hcaAccount))
+    expect(actor.getSnapshot().value).toMatchObject({ registering: {} })
+    const liveConfirmed = actor.getSnapshot().context.confirmedData
+
+    actor.send(resumeEvent(hcaAccount))
+
+    const child = getChild(actor).getSnapshot() as unknown as {
+      context: { resumed?: unknown }
+    }
+    expect(child.context.resumed).toBeUndefined()
+    expect(actor.getSnapshot().context.confirmedData).toBe(liveConfirmed)
   })
 
   it('forwards RESUME to the child, never START_REGISTRATION', () => {
