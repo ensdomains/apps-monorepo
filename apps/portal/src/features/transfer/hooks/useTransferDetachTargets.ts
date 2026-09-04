@@ -41,7 +41,7 @@ type UseTransferDetachTargetsParams = {
  *
  * Keys off `isSuccess` (not `!isLoading`) so a failed lookup — which also has
  * `data === undefined` — doesn't look like "nothing to detach"; callers block on
- * {@link failed} instead of transferring with the options silently disabled.
+ * {@link hasFailed} instead of transferring with the options silently disabled.
  */
 export const useTransferDetachTargets = ({
   name,
@@ -86,7 +86,7 @@ export const useTransferDetachTargets = ({
   const heldRoles = rolesQuery.data?.decoded ?? []
 
   return {
-    optionIsVisible: {
+    isOptionVisible: {
       // An ETH address read through an inherited resolver isn't ours to
       // repoint — the record lives on an ancestor's resolver, not this name's.
       setEthAddress:
@@ -105,12 +105,12 @@ export const useTransferDetachTargets = ({
         rolesQuery.isSuccess &&
         heldRoles.includes('ROLE_SET_SUBREGISTRY'),
     },
-    settled:
+    isSettled:
       ownResolverQuery.isSuccess &&
       registriesQuery.isSuccess &&
       ethAddressQuery.isSuccess &&
       rolesQuery.isSuccess,
-    failed:
+    hasFailed:
       ownResolverQuery.isError ||
       registriesQuery.isError ||
       ethAddressQuery.isError ||

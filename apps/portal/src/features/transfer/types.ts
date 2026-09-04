@@ -64,11 +64,11 @@ export type TransferOptionKey =
 
 /** Which pre-move options the form should offer, and whether that is known yet. */
 export type TransferDetachTargets = {
-  readonly optionIsVisible: Readonly<Record<TransferOptionKey, boolean>>
+  readonly isOptionVisible: Readonly<Record<TransferOptionKey, boolean>>
   /** Every lookup succeeded — the targets are known. */
-  readonly settled: boolean
+  readonly isSettled: boolean
   /** At least one lookup errored — the targets are unknown. */
-  readonly failed: boolean
+  readonly hasFailed: boolean
 }
 
 /**

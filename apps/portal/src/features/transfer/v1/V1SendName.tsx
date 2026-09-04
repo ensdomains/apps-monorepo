@@ -39,7 +39,7 @@ export const V1SendName = ({
     <SendNameForm
       owner={account}
       detachTargets={{
-        optionIsVisible: getV1DetachTargets({
+        isOptionVisible: getV1DetachTargets({
           subject,
           resolverAddress,
           account,
@@ -47,8 +47,8 @@ export const V1SendName = ({
         }),
         // Keyed off `isSuccess`, not `!isLoading`: a failed read must block the
         // transfer rather than read as "no ETH record".
-        settled: ethAddressQuery.isSuccess,
-        failed: ethAddressQuery.isError,
+        isSettled: ethAddressQuery.isSuccess,
+        hasFailed: ethAddressQuery.isError,
       }}
       parentWarning={
         parentName === null

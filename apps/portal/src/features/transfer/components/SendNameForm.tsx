@@ -150,11 +150,7 @@ export const SendNameForm = ({
     detachRegistry: true,
   })
 
-  const {
-    optionIsVisible,
-    settled: detachTargetsSettled,
-    failed: detachTargetsFailed,
-  } = detachTargets
+  const { isOptionVisible, isSettled, hasFailed } = detachTargets
 
   const resolution = useAddressResolution(recipientInput)
   const { address: recipient, isResolving } = resolution
@@ -167,18 +163,18 @@ export const SendNameForm = ({
 
   // A hidden option never contributes to the plan, whatever its stored value.
   const effectiveOptions: TransferOptions = {
-    setEthAddress: options.setEthAddress && optionIsVisible.setEthAddress,
-    detachResolver: options.detachResolver && optionIsVisible.detachResolver,
-    detachRegistry: options.detachRegistry && optionIsVisible.detachRegistry,
+    setEthAddress: options.setEthAddress && isOptionVisible.setEthAddress,
+    detachResolver: options.detachResolver && isOptionVisible.detachResolver,
+    detachRegistry: options.detachRegistry && isOptionVisible.detachRegistry,
   }
 
-  const visibleOptions = OPTIONS.filter((option) => optionIsVisible[option.key])
+  const visibleOptions = OPTIONS.filter((option) => isOptionVisible[option.key])
 
   const canStart =
     hasValidRecipient &&
     !isResolving &&
     !isPreparing &&
-    detachTargetsSettled &&
+    isSettled &&
     !parentWarning?.isLoading
 
   const toggleOption = (key: TransferOptionKey) =>
@@ -237,7 +233,7 @@ export const SendNameForm = ({
         {isPreparing ? 'Preparing…' : 'Transfer name'}
       </Button>
 
-      {hasValidRecipient && detachTargetsFailed && (
+      {hasValidRecipient && hasFailed && (
         <span className="text-destructive text-sm">
           Couldn’t check this name’s current resolver and registry. Refresh and
           try again before transferring.
