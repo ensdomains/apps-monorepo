@@ -40,9 +40,10 @@ describe('rootNameAuthority', () => {
   })
 
   it('never reports transfer, which a root grant cannot authorise', () => {
-    // contracts-v2 #433: the transfer gate is checked on the token's own
-    // resource, so a root holder cannot move the name even though the registry
-    // counts them and `hasRoles` answers true.
+    // The transfer gate checks the role on the token's owner, and ERC-1155 still
+    // requires the caller to be that owner or approved, so a root holder cannot
+    // move anyone else's name even though the registry counts them and
+    // `hasRoles` answers true.
     expect(rootNameAuthority({ ROLE_CAN_TRANSFER_ADMIN: 1 })).toEqual([])
   })
 

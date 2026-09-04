@@ -10,11 +10,11 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
  * governs the registry itself and says nothing about who can touch this name.
  *
  * `ROLE_CAN_TRANSFER_ADMIN` is deliberately absent even though a registry root
- * can report holders for it. contracts-v2 #433 stopped a root grant from
- * satisfying the transfer gate, which is checked against the token's own
- * resource, so a root holder cannot move the name. `hasRoles` still answers
- * true for it through the root OR, which makes a capability read misleading
- * here.
+ * can report holders for it. The transfer gate checks that role on the token's
+ * owner, not on the caller, and ERC-1155 still requires the caller to be that
+ * owner or an approved operator, so a root holder has no power over anyone
+ * else's token. `hasRoles` still answers true for them through the root OR,
+ * which makes a capability read misleading here.
  *
  * `ROLE_RENEW` is absent too, for the opposite reason: renewal can only extend
  * an expiry, never shorten it, so a root holder having it is not authority
