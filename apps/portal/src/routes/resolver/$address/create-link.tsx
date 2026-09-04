@@ -21,19 +21,19 @@ import {
 import { Field, FieldLabel } from '@/components/ui/field'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
-import { prepareSetAliasTransaction } from '@/features/resolver/helpers/setAlias'
+import { prepareLinkToNodeTransaction } from '@/features/resolver/helpers/linkRecords'
+import { useLinkToNode } from '@/features/resolver/hooks/useLinkToNode'
 import {
   getResolverOverviewQueryOptions,
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
-import { useSetAlias } from '@/features/resolver/hooks/useSetAlias'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
-export const Route = createFileRoute('/resolver/$address/create-alias')({
+export const Route = createFileRoute('/resolver/$address/create-link')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) => {
@@ -51,7 +51,7 @@ interface PageHeaderProps {
 
 const PageHeader = ({ address }: PageHeaderProps) => (
   <div className="flex flex-col gap-2">
-    <Link to="/resolver/$address/aliases" params={{ address }}>
+    <Link to="/resolver/$address/links" params={{ address }}>
       <Button
         variant="ghost"
         className="flex items-center gap-1 -ml-2 text-muted-foreground"
@@ -61,7 +61,7 @@ const PageHeader = ({ address }: PageHeaderProps) => (
       </Button>
     </Link>
     <PageHeading parent={{ type: 'resolver', address: address as Address }}>
-      Create alias
+      Link a name
     </PageHeading>
   </div>
 )
@@ -83,7 +83,7 @@ const NodeOption = ({ node }: NodeOptionProps) => (
   </div>
 )
 
-const CREATE_ALIAS_TX_ID = 'tx-create-alias'
+const CREATE_LINK_TX_ID = 'tx-create-link'
 
 function RouteComponent() {
   const { address } = Route.useParams()
@@ -95,7 +95,7 @@ function RouteComponent() {
 
   const [fromName, setFromName] = useState<string | null>(null)
   const [toName, setToName] = useState<string | null>(null)
-  const [pendingAlias, setPendingAlias] = useState<{
+  const [pendingLink, setPendingLink] = useState<{
     readonly fromName: string
     readonly toName: string
   } | null>(null)
@@ -107,19 +107,19 @@ function RouteComponent() {
     error,
   } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
 
-  const { data: hasSetAliasRole } = useQuery({
+  const { data: hasLinkRole } = useQuery({
     ...getHasRolesQueryOptions({
       resolverAddress: address as Address,
-      roles: ['ROLE_SET_ALIAS'],
+      roles: ['ROLE_LINK'],
       account: accountAddress as Address,
     }),
     enabled: !!accountAddress,
   })
 
-  const canSetAlias = Boolean(hasSetAliasRole)
+  const canLink = Boolean(hasLinkRole)
 
   const nodes = resolver?.nodes ?? []
-  const existingAliases = resolver?.aliases ?? []
+  const existingLinks = resolver?.links ?? []
 
   const nameOptions = nodes.map((n) => n.name)
   const nodeOptions = nodes
@@ -134,23 +134,23 @@ function RouteComponent() {
     ? (nodes.find((n) => n.name === toName) ?? null)
     : null
 
-  const isAlreadyAliased = fromName
-    ? existingAliases.some((a) => a.fromName === fromName)
+  const isAlreadyLinked = fromName
+    ? existingLinks.some((l) => l.fromName === fromName)
     : false
 
-  const mutation = useSetAlias({
+  const mutation = useLinkToNode({
     resolverAddress: address as Address,
     walletClient,
     publicClient,
     chainId,
-    id: CREATE_ALIAS_TX_ID,
+    id: CREATE_LINK_TX_ID,
   })
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!fromName || !toName) return
     mutation.reset()
-    setPendingAlias({ fromName, toName })
+    setPendingLink({ fromName, toName })
     openModal()
   }
 
@@ -168,8 +168,8 @@ function RouteComponent() {
       <div className="flex flex-col gap-6 w-full max-w-160 mx-auto">
         <PageHeader address={address} />
         <p className="text-muted-foreground">
-          This resolver has no nodes. A node must exist before an alias can be
-          created.
+          This resolver has no nodes. A name needs a record here before it can
+          be linked to.
         </p>
       </div>
     )
@@ -180,7 +180,7 @@ function RouteComponent() {
       <PageHeader address={address} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <Field data-invalid={isAlreadyAliased}>
+        <Field data-invalid={isAlreadyLinked}>
           <FieldLabel>Name</FieldLabel>
           <Combobox
             value={fromName}
@@ -229,19 +229,19 @@ function RouteComponent() {
               </div>
             </div>
           )}
-          {isAlreadyAliased && (
+          {isAlreadyLinked && (
             <p className="text-sm text-danger">
-              {fromName} already has an alias. Creating a new one will overwrite
-              the existing alias.
+              {fromName} is already linked to another record. Linking again
+              re-points it; the previous record is kept on the resolver.
             </p>
           )}
         </Field>
 
         <Field>
-          <FieldLabel>Node to use</FieldLabel>
+          <FieldLabel>Use the record of</FieldLabel>
           <Combobox value={toName} onValueChange={setToName}>
             <ComboboxInput
-              placeholder="Select a node..."
+              placeholder="Select a name..."
               disabled={!fromName}
             />
             <ComboboxContent>
@@ -253,7 +253,7 @@ function RouteComponent() {
                     />
                   </ComboboxItem>
                 ))}
-                <ComboboxEmpty>No nodes available</ComboboxEmpty>
+                <ComboboxEmpty>No names available</ComboboxEmpty>
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
@@ -287,12 +287,12 @@ function RouteComponent() {
 
         {!isConnected && (
           <p className="text-sm text-warning">
-            Please connect your wallet to create an alias.
+            Please connect your wallet to link a name.
           </p>
         )}
-        {isConnected && canSetAlias === false && (
+        {isConnected && canLink === false && (
           <p className="text-sm text-danger">
-            Your account does not have the ROLE_SET_ALIAS permission on this
+            Your account does not have the ROLE_LINK permission on this
             resolver.
           </p>
         )}
@@ -308,19 +308,19 @@ function RouteComponent() {
             mutation.isPending ||
             !walletClient ||
             !isConnected ||
-            !canSetAlias
+            !canLink
           }
           className="w-full sm:w-fit"
         >
           {mutation.isPending ? (
             <>
               <Loader2 className="size-4 animate-spin mr-2" />
-              Creating...
+              Linking...
             </>
           ) : (
             <>
               <CircleCheck className="size-4" />
-              Create alias
+              Link name
             </>
           )}
         </Button>
@@ -328,15 +328,15 @@ function RouteComponent() {
       <TransactionModal
         transactions={[
           {
-            id: CREATE_ALIAS_TX_ID,
-            title: 'Create alias',
-            transactionName: `Alias ${pendingAlias?.fromName ?? ''} -> ${pendingAlias?.toName ?? ''}`,
+            id: CREATE_LINK_TX_ID,
+            title: 'Link name',
+            transactionName: `Link ${pendingLink?.fromName ?? ''} to the record of ${pendingLink?.toName ?? ''}`,
             intent: {
-              prepare: pendingAlias
+              prepare: pendingLink
                 ? ({ walletClient, chainId }) =>
-                    prepareSetAliasTransaction({
-                      fromName: pendingAlias.fromName,
-                      toName: pendingAlias.toName,
+                    prepareLinkToNodeTransaction({
+                      sourceName: pendingLink.fromName,
+                      targetName: pendingLink.toName,
                       resolverAddress: address as Address,
                       walletClient,
                       chainId,
@@ -344,15 +344,18 @@ function RouteComponent() {
                 : undefined,
             },
             onStart: () => {
-              if (!pendingAlias) return
-              mutation.mutate(pendingAlias)
+              if (!pendingLink) return
+              mutation.mutate({
+                sourceName: pendingLink.fromName,
+                targetName: pendingLink.toName,
+              })
             },
             onDone: () => {
               closeModal()
               clearTransaction()
-              setPendingAlias(null)
+              setPendingLink(null)
               navigate({
-                to: '/resolver/$address/aliases',
+                to: '/resolver/$address/links',
                 params: { address },
               })
             },

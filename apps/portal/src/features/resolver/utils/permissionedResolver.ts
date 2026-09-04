@@ -9,18 +9,16 @@ import {
   parseAbi,
   stringToBytes,
 } from 'viem'
+import { ALL_RESOLVER_ROLES } from '@/lib/roles/resolverRoles'
 
-// `PermissionedResolver.initialize` takes a third `setters` argument — a
-// multicall batch of setter calls run at init time. We pass an empty array:
-// the proxy is deployed with no initial records, exactly as before.
+// Post-audit-2 `PermissionedResolver.initialize(Grant[] grants, bytes[] calls)`:
+// root-scoped grants plus an optional multicall run without permission checks.
+// We grant the owner every role and pass no initial records, as before.
 // See contracts-v2 `src/resolver/PermissionedResolver.sol`.
 const permissionedResolverInitAbi = parseAbi([
-  'function initialize(address owner, uint256 bitmap, bytes[] setters)',
+  'struct Grant { address account; uint256 roleBitmap; }',
+  'function initialize(Grant[] grants, bytes[] calls)',
 ])
-
-const permissionedResolverRoleBitmap = BigInt(
-  '0x1111111111111111111111111111111111111111111111111111111111111111',
-)
 
 const verifiableFactoryAbi = parseAbi([
   'function deployProxy(address implementation, uint256 salt, bytes data)',
@@ -40,7 +38,7 @@ export const getResolverInitCalldata = (ownerAddress: Address): Hex => {
   return encodeFunctionData({
     abi: permissionedResolverInitAbi,
     functionName: 'initialize',
-    args: [ownerAddress, permissionedResolverRoleBitmap, []],
+    args: [[{ account: ownerAddress, roleBitmap: ALL_RESOLVER_ROLES }], []],
   })
 }
 

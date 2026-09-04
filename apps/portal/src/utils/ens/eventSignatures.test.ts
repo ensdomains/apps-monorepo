@@ -81,6 +81,18 @@ describe('getEventSignature', () => {
       'ResolverUpdated (uint256 tokenId, address resolver)',
     )
   })
+
+  it('should return signatures for post-audit-2 PermissionedResolver events', () => {
+    expect(getEventSignature('Linked')).toBe(
+      'Linked (uint256 indexed recordId, bytes32 indexed node, bytes name)',
+    )
+    expect(getEventSignature('TextUpdated')).toBe(
+      'TextUpdated (uint256 indexed recordId, string indexed keyHash, string key, string value)',
+    )
+    expect(getEventSignature('ResourceArgument')).toBe(
+      'ResourceArgument (uint256 indexed resource, bytes arg)',
+    )
+  })
 })
 
 describe('getEventFieldType', () => {
@@ -108,6 +120,9 @@ describe('getEventFieldType', () => {
     expect(getEventFieldType('AddressChanged', 'address')).toBe('bytes')
     expect(getEventFieldType('AliasChanged', 'alias')).toBe('bytes')
     expect(getEventFieldType('ResolverUpdated', 'resolver')).toBe('address')
+    expect(getEventFieldType('Linked', 'recordId')).toBe('uint256')
+    expect(getEventFieldType('Linked', 'name')).toBe('bytes')
+    expect(getEventFieldType('AddressUpdated', 'addressBytes')).toBe('bytes')
   })
 
   it('should return unknown for non-existent fields on resolver indexer events', () => {

@@ -1,11 +1,30 @@
-import type { Address, Hex } from 'viem'
+import { type Address, decodeFunctionData, getAddress, type Hex } from 'viem'
 import { describe, expect, it } from 'vitest'
+import { permissionedResolverAbi } from '@/lib/abis/permissionedResolver'
+import { ALL_RESOLVER_ROLES } from '@/lib/roles/resolverRoles'
 import {
   decodeImplementationAddress,
   filterPermissionedResolverAddresses,
+  getResolverInitCalldata,
   type ProxyDeployedLog,
   parseProxyDeployedAddress,
 } from './permissionedResolver'
+
+describe('getResolverInitCalldata', () => {
+  it('encodes initialize(Grant[] grants, bytes[] calls) with an all-roles owner grant', () => {
+    const owner = getAddress('0x1234567890abcdef1234567890abcdef12345678')
+    const decoded = decodeFunctionData({
+      abi: permissionedResolverAbi,
+      data: getResolverInitCalldata(owner),
+    })
+
+    expect(decoded.functionName).toBe('initialize')
+    expect(decoded.args).toEqual([
+      [{ account: owner, roleBitmap: ALL_RESOLVER_ROLES }],
+      [],
+    ])
+  })
+})
 
 describe('decodeImplementationAddress', () => {
   it('returns null for null/undefined input', () => {

@@ -1,38 +1,47 @@
+import { encodeFunctionData, keccak256, stringToHex, toHex } from 'viem'
 import { describe, expect, it } from 'vitest'
+import { permissionedResolverAbi } from '@/lib/abis/permissionedResolver'
 import {
+  ALL_RESOLVER_ROLES,
+  computeSetterResource,
   decodeResolverRoleBitmap,
+  describeResolverResource,
+  encodeResolverRoleBitmap,
+  encodeSetterScope,
   groupRolesByAccount,
+  ROOT_RESOURCE,
+  ROOT_RESOURCE_LABEL,
   resolverRoles,
+  setterScopeRole,
 } from './resolverRoles'
 
 describe('decodeResolverRoleBitmap', () => {
   it('should decode a single role from bitmap', () => {
-    const result = decodeResolverRoleBitmap(resolverRoles.ROLE_SET_ALIAS)
+    const result = decodeResolverRoleBitmap(resolverRoles.ROLE_LINK)
 
-    expect(result).toContain('ROLE_SET_ALIAS')
-    expect(result).toHaveLength(1)
+    expect(result).toEqual(['ROLE_LINK'])
   })
 
   it('should decode multiple roles from bitmap', () => {
     const bitmap =
-      resolverRoles.ROLE_SET_ADDR |
+      resolverRoles.ROLE_SET_ADDRESS |
       resolverRoles.ROLE_SET_TEXT |
-      resolverRoles.ROLE_SET_ALIAS
+      resolverRoles.ROLE_LINK
     const result = decodeResolverRoleBitmap(bitmap)
 
-    expect(result).toContain('ROLE_SET_ADDR')
+    expect(result).toContain('ROLE_SET_ADDRESS')
     expect(result).toContain('ROLE_SET_TEXT')
-    expect(result).toContain('ROLE_SET_ALIAS')
+    expect(result).toContain('ROLE_LINK')
     expect(result).toHaveLength(3)
   })
 
   it('should decode admin roles from bitmap', () => {
     const bitmap =
-      resolverRoles.ROLE_SET_ADDR_ADMIN | resolverRoles.ROLE_SET_ALIAS_ADMIN
+      resolverRoles.ROLE_SET_ADDRESS_ADMIN | resolverRoles.ROLE_LINK_ADMIN
     const result = decodeResolverRoleBitmap(bitmap)
 
-    expect(result).toContain('ROLE_SET_ADDR_ADMIN')
-    expect(result).toContain('ROLE_SET_ALIAS_ADMIN')
+    expect(result).toContain('ROLE_SET_ADDRESS_ADMIN')
+    expect(result).toContain('ROLE_LINK_ADMIN')
     expect(result).toHaveLength(2)
   })
 
@@ -40,22 +49,22 @@ describe('decodeResolverRoleBitmap', () => {
     const bitmap =
       resolverRoles.ROLE_SET_TEXT |
       resolverRoles.ROLE_SET_TEXT_ADMIN |
-      resolverRoles.ROLE_CLEAR
+      resolverRoles.ROLE_SET_DATA
     const result = decodeResolverRoleBitmap(bitmap)
 
     expect(result).toContain('ROLE_SET_TEXT')
     expect(result).toContain('ROLE_SET_TEXT_ADMIN')
-    expect(result).toContain('ROLE_CLEAR')
+    expect(result).toContain('ROLE_SET_DATA')
     expect(result).toHaveLength(3)
   })
 
   it('should handle string bitmap input', () => {
     const bitmap = (
-      resolverRoles.ROLE_SET_ADDR | resolverRoles.ROLE_SET_NAME
+      resolverRoles.ROLE_SET_ADDRESS | resolverRoles.ROLE_SET_NAME
     ).toString()
     const result = decodeResolverRoleBitmap(bitmap)
 
-    expect(result).toContain('ROLE_SET_ADDR')
+    expect(result).toContain('ROLE_SET_ADDRESS')
     expect(result).toContain('ROLE_SET_NAME')
   })
 
@@ -73,130 +82,166 @@ describe('decodeResolverRoleBitmap', () => {
     expect(decodeResolverRoleBitmap('0x0')).toEqual([])
   })
 
-  it('should decode ALL_ROLES bitmap (0x1111...1111)', () => {
-    const allRolesBitmap =
-      '0x1111111111111111111111111111111111111111111111111111111111111111'
-    const result = decodeResolverRoleBitmap(allRolesBitmap)
+  it('should decode ALL_RESOLVER_ROLES into every role and admin', () => {
+    const result = decodeResolverRoleBitmap(ALL_RESOLVER_ROLES)
 
-    const managerRoles = result.filter((r) => !r.endsWith('_ADMIN'))
-    const adminRoles = result.filter((r) => r.endsWith('_ADMIN'))
-
-    expect(managerRoles).toContain('ROLE_SET_ADDR')
-    expect(managerRoles).toContain('ROLE_SET_TEXT')
-    expect(managerRoles).toContain('ROLE_SET_CONTENTHASH')
-    expect(managerRoles).toContain('ROLE_SET_PUBKEY')
-    expect(managerRoles).toContain('ROLE_SET_ABI')
-    expect(managerRoles).toContain('ROLE_SET_INTERFACE')
-    expect(managerRoles).toContain('ROLE_SET_NAME')
-    expect(managerRoles).toContain('ROLE_SET_ALIAS')
-    expect(managerRoles).toContain('ROLE_CLEAR')
-    expect(managerRoles).toContain('ROLE_UPGRADE')
-    expect(managerRoles).toHaveLength(10)
-
-    expect(adminRoles).toContain('ROLE_SET_ADDR_ADMIN')
-    expect(adminRoles).toContain('ROLE_SET_TEXT_ADMIN')
-    expect(adminRoles).toContain('ROLE_SET_ALIAS_ADMIN')
-    expect(adminRoles).toContain('ROLE_UPGRADE_ADMIN')
-    expect(adminRoles.length).toBeGreaterThan(0)
+    expect(result.toSorted()).toEqual(Object.keys(resolverRoles).toSorted())
   })
 
-  it('should not confuse resolver roles with registry roles at the same bit position', () => {
-    const bit28 = 1n << 28n
-    const result = decodeResolverRoleBitmap(bit28)
+  it('uses the post-audit-2 bit layout (PermissionedResolverLib)', () => {
+    expect(resolverRoles.ROLE_SET_ADDRESS).toBe(1n << 0n)
+    expect(resolverRoles.ROLE_SET_TEXT).toBe(1n << 4n)
+    expect(resolverRoles.ROLE_SET_CONTENTHASH).toBe(1n << 8n)
+    expect(resolverRoles.ROLE_SET_ABI).toBe(1n << 12n)
+    expect(resolverRoles.ROLE_SET_INTERFACE).toBe(1n << 16n)
+    expect(resolverRoles.ROLE_SET_NAME).toBe(1n << 20n)
+    expect(resolverRoles.ROLE_SET_DATA).toBe(1n << 24n)
+    expect(resolverRoles.ROLE_LINK).toBe(1n << 28n)
+    expect(resolverRoles.ROLE_CAN_NAME).toBe(1n << 120n)
+    expect(resolverRoles.ROLE_UPGRADE).toBe(1n << 124n)
+    expect(resolverRoles.ROLE_LINK_ADMIN).toBe((1n << 28n) << 128n)
+  })
 
-    expect(result).toContain('ROLE_SET_ALIAS')
-    expect(result).not.toContain('ROLE_CAN_TRANSFER')
+  it('round-trips through encodeResolverRoleBitmap', () => {
+    const roles = ['ROLE_SET_TEXT', 'ROLE_LINK_ADMIN'] as const
+    expect(decodeResolverRoleBitmap(encodeResolverRoleBitmap(roles))).toEqual([
+      ...roles,
+    ])
   })
 })
 
-const ROOT_RESOURCE =
-  '0x0000000000000000000000000000000000000000000000000000000000000000'
+describe('computeSetterResource', () => {
+  it('hashes a uint256 coin type as 32 bytes', () => {
+    expect(computeSetterResource({ kind: 'address', coinType: 60n })).toBe(
+      BigInt(keccak256(toHex(60n, { size: 32 }))),
+    )
+  })
 
-const makeRole = (
-  account: string,
-  bitmap: bigint,
-  resource = ROOT_RESOURCE,
-) => ({
+  it('hashes a text key as its raw bytes', () => {
+    expect(computeSetterResource({ kind: 'text', key: 'avatar' })).toBe(
+      BigInt(keccak256(stringToHex('avatar'))),
+    )
+    expect(computeSetterResource({ kind: 'data', key: 'avatar' })).toBe(
+      computeSetterResource({ kind: 'text', key: 'avatar' }),
+    )
+  })
+
+  it('hashes an interface id as 4 bytes', () => {
+    expect(
+      computeSetterResource({ kind: 'interface', interfaceId: '0x9061b923' }),
+    ).toBe(BigInt(keccak256('0x9061b923')))
+  })
+
+  it('never collides with the root resource', () => {
+    expect(computeSetterResource({ kind: 'text', key: '' })).not.toBe(
+      ROOT_RESOURCE,
+    )
+  })
+})
+
+describe('encodeSetterScope', () => {
+  it('encodes setter calldata the contract can decode', () => {
+    expect(encodeSetterScope({ kind: 'address', coinType: 60n })).toBe(
+      encodeFunctionData({
+        abi: permissionedResolverAbi,
+        functionName: 'setAddress',
+        args: ['0x00', 60n, '0x'],
+      }),
+    )
+    expect(encodeSetterScope({ kind: 'text', key: 'avatar' })).toBe(
+      encodeFunctionData({
+        abi: permissionedResolverAbi,
+        functionName: 'setText',
+        args: ['0x00', 'avatar', ''],
+      }),
+    )
+  })
+
+  it('maps each scope to its setter role', () => {
+    expect(setterScopeRole({ kind: 'address', coinType: 60n })).toBe(
+      'ROLE_SET_ADDRESS',
+    )
+    expect(setterScopeRole({ kind: 'text', key: 'x' })).toBe('ROLE_SET_TEXT')
+    expect(setterScopeRole({ kind: 'data', key: 'x' })).toBe('ROLE_SET_DATA')
+    expect(setterScopeRole({ kind: 'abi', contentType: 1n })).toBe(
+      'ROLE_SET_ABI',
+    )
+    expect(
+      setterScopeRole({ kind: 'interface', interfaceId: '0x9061b923' }),
+    ).toBe('ROLE_SET_INTERFACE')
+  })
+})
+
+describe('describeResolverResource', () => {
+  it('labels the root resource', () => {
+    expect(describeResolverResource(0n)).toBe(ROOT_RESOURCE_LABEL)
+    expect(describeResolverResource('0')).toBe(ROOT_RESOURCE_LABEL)
+  })
+
+  it('labels well-known setter arguments', () => {
+    expect(
+      describeResolverResource(
+        computeSetterResource({ kind: 'text', key: 'avatar' }),
+      ),
+    ).toBe('text "avatar"')
+    expect(
+      describeResolverResource(
+        computeSetterResource({ kind: 'address', coinType: 60n }),
+      ),
+    ).toBe('address (coin type 60)')
+  })
+
+  it('falls back to a truncated hash for unknown arguments', () => {
+    const resource = computeSetterResource({ kind: 'text', key: 'zzz.unknown' })
+    expect(describeResolverResource(resource)).toMatch(
+      /^resource 0x[0-9a-f]{8}…/,
+    )
+  })
+})
+
+const makeRole = (account: string, bitmap: bigint, resource = 0n) => ({
   account,
-  resource,
-  roleBitmap: `0x${bitmap.toString(16)}`,
+  resource: resource.toString(),
+  roleBitmap: bitmap.toString(),
 })
 
 describe('groupRolesByAccount', () => {
-  it('should group a single role entry', () => {
-    const roles = [makeRole('0xABC', resolverRoles.ROLE_SET_ADDR)]
-    const result = groupRolesByAccount(roles)
+  const alice = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+  const bob = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 
-    expect(result).toHaveLength(1)
-    expect(result[0].account).toBe('0xabc')
-    expect(result[0].roles).toHaveLength(1)
-    expect(result[0].decodedRoles).toContain('ROLE_SET_ADDR')
+  it('groups by account and resource, lower-casing the account', () => {
+    const avatar = computeSetterResource({ kind: 'text', key: 'avatar' })
+    const groups = groupRolesByAccount([
+      makeRole(alice, resolverRoles.ROLE_SET_ADDRESS),
+      makeRole(alice, resolverRoles.ROLE_SET_TEXT),
+      makeRole(alice, resolverRoles.ROLE_SET_TEXT, avatar),
+      makeRole(bob, resolverRoles.ROLE_LINK),
+    ])
+
+    expect(groups).toHaveLength(3)
+
+    const aliceRoot = groups.find(
+      (g) => g.account === alice.toLowerCase() && g.isRoot,
+    )
+    expect(aliceRoot?.decodedRoles).toEqual([
+      'ROLE_SET_ADDRESS',
+      'ROLE_SET_TEXT',
+    ])
+    expect(aliceRoot?.resourceLabel).toBe(ROOT_RESOURCE_LABEL)
+
+    const aliceAvatar = groups.find(
+      (g) => g.account === alice.toLowerCase() && !g.isRoot,
+    )
+    expect(aliceAvatar?.resource).toBe(avatar.toString())
+    expect(aliceAvatar?.resourceLabel).toBe('text "avatar"')
+    expect(aliceAvatar?.decodedRoles).toEqual(['ROLE_SET_TEXT'])
+
+    expect(groups.find((g) => g.account === bob)?.decodedRoles).toEqual([
+      'ROLE_LINK',
+    ])
   })
 
-  it('should merge multiple entries for the same account', () => {
-    const roles = [
-      makeRole('0xABC', resolverRoles.ROLE_SET_ADDR),
-      makeRole('0xABC', resolverRoles.ROLE_SET_TEXT),
-    ]
-    const result = groupRolesByAccount(roles)
-
-    expect(result).toHaveLength(1)
-    expect(result[0].roles).toHaveLength(2)
-    expect(result[0].decodedRoles).toContain('ROLE_SET_ADDR')
-    expect(result[0].decodedRoles).toContain('ROLE_SET_TEXT')
-  })
-
-  it('should keep different accounts separate', () => {
-    const roles = [
-      makeRole('0xABC', resolverRoles.ROLE_SET_ADDR),
-      makeRole('0xDEF', resolverRoles.ROLE_SET_TEXT),
-    ]
-    const result = groupRolesByAccount(roles)
-
-    expect(result).toHaveLength(2)
-    expect(result[0].account).toBe('0xabc')
-    expect(result[1].account).toBe('0xdef')
-  })
-
-  it('should normalize account addresses to lowercase', () => {
-    const roles = [
-      makeRole('0xAbCdEf', resolverRoles.ROLE_SET_ADDR),
-      makeRole('0xABCDEF', resolverRoles.ROLE_SET_TEXT),
-    ]
-    const result = groupRolesByAccount(roles)
-
-    expect(result).toHaveLength(1)
-    expect(result[0].account).toBe('0xabcdef')
-  })
-
-  it('should decode all roles from a combined bitmap', () => {
-    const bitmap =
-      resolverRoles.ROLE_SET_ALIAS |
-      resolverRoles.ROLE_SET_ALIAS_ADMIN |
-      resolverRoles.ROLE_CLEAR
-    const roles = [makeRole('0xABC', bitmap)]
-    const result = groupRolesByAccount(roles)
-
-    expect(result[0].decodedRoles).toContain('ROLE_SET_ALIAS')
-    expect(result[0].decodedRoles).toContain('ROLE_SET_ALIAS_ADMIN')
-    expect(result[0].decodedRoles).toContain('ROLE_CLEAR')
-  })
-
-  it('should merge the same account across resources', () => {
-    const resourceB =
-      '0x1111111111111111111111111111111111111111111111111111111111111111'
-    const roles = [
-      makeRole('0xABC', resolverRoles.ROLE_SET_ADDR),
-      makeRole('0xABC', resolverRoles.ROLE_SET_TEXT, resourceB),
-    ]
-    const result = groupRolesByAccount(roles)
-
-    expect(result).toHaveLength(1)
-    expect(result[0].roles).toHaveLength(2)
-    expect(result[0].decodedRoles).toEqual(['ROLE_SET_ADDR', 'ROLE_SET_TEXT'])
-  })
-
-  it('should return empty array for empty input', () => {
+  it('returns an empty array for no roles', () => {
     expect(groupRolesByAccount([])).toEqual([])
   })
 })

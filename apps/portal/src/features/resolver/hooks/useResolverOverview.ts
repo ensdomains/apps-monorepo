@@ -7,7 +7,12 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
-export type ResolverAlias = {
+/**
+ * A name serving another name's record (post-audit-2 `linkToNode`). The indexer
+ * still exposes these under the pre-refactor `aliases { fromName toName }`
+ * shape; they are mapped to `links` here so the UI has one vocabulary.
+ */
+export type ResolverLink = {
   readonly fromName: string
   readonly toName: string
 }
@@ -42,10 +47,10 @@ export type ResolverOverview = {
   readonly id: string
   readonly address: string
   readonly nodeCount: number
-  readonly aliasCount: number
+  readonly linkCount: number
   readonly roleHolderCount: number
   readonly nodes: readonly ResolverNode[]
-  readonly aliases: readonly ResolverAlias[]
+  readonly links: readonly ResolverLink[]
   readonly roles: readonly ResolverRole[]
   readonly events: readonly ResolverEvent[]
 }
@@ -61,9 +66,17 @@ type GetResolverOverviewParameters = {
 const getResolverOverview = ResultFn(async function* ({
   address,
 }: GetResolverOverviewParameters) {
+  type IndexerResolverOverview = Omit<
+    ResolverOverview,
+    'links' | 'linkCount'
+  > & {
+    readonly aliases: readonly ResolverLink[]
+    readonly aliasCount: number
+  }
+
   const { resolver } = yield* fromPromise(
     graphqlIndexerClient.request<{
-      resolver: ResolverOverview | null
+      resolver: IndexerResolverOverview | null
     }>(
       gql`
         query getResolverOverview($id: String!) {
@@ -116,7 +129,10 @@ const getResolverOverview = ResultFn(async function* ({
       }),
   )
 
-  return ok(resolver)
+  if (!resolver) return ok(null)
+
+  const { aliases, aliasCount, ...rest } = resolver
+  return ok({ ...rest, links: aliases, linkCount: aliasCount })
 })
 
 const resolverOverviewQueryKey = createQueryKey<

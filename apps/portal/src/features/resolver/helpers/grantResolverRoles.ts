@@ -4,8 +4,6 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
-import { grantResolverRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
   encodeFunctionData,
@@ -14,23 +12,40 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { permissionedResolverAbi } from '@/lib/abis/permissionedResolver'
+import {
+  encodeResolverRoleBitmap,
+  encodeSetterScope,
+  formatSetterScope,
+  type ResolverRoleKey,
+  type SetterScope,
+} from '@/lib/roles/resolverRoles'
+
+/**
+ * Where a resolver grant applies. `root` covers every name on the resolver;
+ * `setter` narrows the setter's own role to one argument (a coin type, a text
+ * key, ...). Per-name grants do not exist on the post-audit-2 resolver.
+ */
+export type ResolverGrantScope =
+  | { readonly type: 'root'; readonly roles: readonly ResolverRoleKey[] }
+  | { readonly type: 'setter'; readonly setter: SetterScope }
 
 export interface GrantResolverRolesTransactionParameters {
   readonly resolverAddress: Address
-  /** Dotted name (e.g. "myname.eth") or empty string for ROOT_RESOURCE (all names). */
-  readonly name: string
   readonly account: Address
-  readonly roles: ResolverRole[]
+  readonly scope: ResolverGrantScope
   readonly walletClient: WalletClient
   readonly chainId: number
 }
 
-/** The grantRoles intent, shared by the gas estimate and `grantResolverRoles`. */
+export const describeGrantScope = (scope: ResolverGrantScope): string =>
+  scope.type === 'root' ? 'all names' : formatSetterScope(scope.setter)
+
+/** The grant intent, shared by the gas estimate and `grantResolverRoles`. */
 export const prepareGrantResolverRolesTransaction = ({
   resolverAddress,
-  name,
   account,
-  roles,
+  scope,
   walletClient,
   chainId,
 }: GrantResolverRolesTransactionParameters): CustomTransactionIntent => {
@@ -38,33 +53,22 @@ export const prepareGrantResolverRolesTransaction = ({
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  if (roles.length === 0) {
+  if (scope.type === 'root' && scope.roles.length === 0) {
     throw new Error('At least one role must be selected')
   }
 
-  const writeParams = grantResolverRolesWriteParameters(
-    walletClient as Parameters<typeof grantResolverRolesWriteParameters>[0],
-    name === ''
-      ? {
-          resolverAddress,
-          targetAccount: account,
-          scope: 'root',
-          roles,
-        }
-      : {
-          resolverAddress,
-          targetAccount: account,
-          scope: 'name',
-          name,
-          roles,
-        },
-  )
-
-  const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
+  const data =
+    scope.type === 'root'
+      ? encodeFunctionData({
+          abi: permissionedResolverAbi,
+          functionName: 'grantRootRoles',
+          args: [encodeResolverRoleBitmap(scope.roles), account],
+        })
+      : encodeFunctionData({
+          abi: permissionedResolverAbi,
+          functionName: 'grantSetterRoles',
+          args: [encodeSetterScope(scope.setter), account],
+        })
 
   return toEoaCustomIntent({
     from: walletClient.account.address,
@@ -86,9 +90,8 @@ export const grantResolverRoles = async (
 ): Promise<Hash> => {
   const {
     resolverAddress,
-    name,
     account,
-    roles,
+    scope,
     walletClient,
     publicClient,
     signer,
@@ -99,16 +102,15 @@ export const grantResolverRoles = async (
   const txId = transactionManager.startTransaction(
     prepareGrantResolverRolesTransaction({
       resolverAddress,
-      name,
       account,
-      roles,
+      scope,
       walletClient,
       chainId,
     }),
     signer,
     {
       id,
-      description: `Grant resolver roles for ${name || '(root)'}`,
+      description: `Grant resolver roles for ${describeGrantScope(scope)}`,
       publicClient,
       chainId,
     },

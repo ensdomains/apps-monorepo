@@ -4,8 +4,6 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
-import { revokeResolverRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
   encodeFunctionData,
@@ -14,21 +12,28 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
-import type { ResolverRoleKey } from '@/lib/roles/resolverRoles'
+import { permissionedResolverAbi } from '@/lib/abis/permissionedResolver'
+import {
+  describeResolverResource,
+  encodeResolverRoleBitmap,
+  type ResolverRoleKey,
+  ROOT_RESOURCE,
+} from '@/lib/roles/resolverRoles'
 
 export interface RevokeResolverRolesTransactionParameters {
   readonly resolverAddress: Address
-  readonly name: string
+  /** EAC resource the roles are held on: `ROOT_RESOURCE` or a setter resource. */
+  readonly resource: bigint
   readonly account: Address
   readonly roles: readonly ResolverRoleKey[]
   readonly walletClient: WalletClient
   readonly chainId: number
 }
 
-/** The revokeRoles intent, shared by the gas estimate and `revokeResolverRoles`. */
+/** The revoke intent, shared by the gas estimate and `revokeResolverRoles`. */
 export const prepareRevokeResolverRolesTransaction = ({
   resolverAddress,
-  name,
+  resource,
   account,
   roles,
   walletClient,
@@ -42,29 +47,20 @@ export const prepareRevokeResolverRolesTransaction = ({
     throw new Error('At least one role must be selected')
   }
 
-  const writeParams = revokeResolverRolesWriteParameters(
-    walletClient as Parameters<typeof revokeResolverRolesWriteParameters>[0],
-    name === ''
-      ? {
-          resolverAddress,
-          targetAccount: account,
-          scope: 'root',
-          roles: roles as ResolverRole[],
-        }
-      : {
-          resolverAddress,
-          targetAccount: account,
-          scope: 'name',
-          name,
-          roles: roles as ResolverRole[],
-        },
-  )
+  const roleBitmap = encodeResolverRoleBitmap(roles)
 
-  const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
+  const data =
+    resource === ROOT_RESOURCE
+      ? encodeFunctionData({
+          abi: permissionedResolverAbi,
+          functionName: 'revokeRootRoles',
+          args: [roleBitmap, account],
+        })
+      : encodeFunctionData({
+          abi: permissionedResolverAbi,
+          functionName: 'revokeRoles',
+          args: [resource, roleBitmap, account],
+        })
 
   return toEoaCustomIntent({
     from: walletClient.account.address,
@@ -86,7 +82,7 @@ export const revokeResolverRoles = async (
 ): Promise<Hash> => {
   const {
     resolverAddress,
-    name,
+    resource,
     account,
     roles,
     walletClient,
@@ -99,7 +95,7 @@ export const revokeResolverRoles = async (
   const txId = transactionManager.startTransaction(
     prepareRevokeResolverRolesTransaction({
       resolverAddress,
-      name,
+      resource,
       account,
       roles,
       walletClient,
@@ -108,7 +104,7 @@ export const revokeResolverRoles = async (
     signer,
     {
       id,
-      description: `Revoke resolver roles for ${name || '(root)'}`,
+      description: `Revoke resolver roles for ${describeResolverResource(resource).toLowerCase()}`,
       publicClient,
       chainId,
     },

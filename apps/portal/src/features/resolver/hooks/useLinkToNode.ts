@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { setAlias } from '@/features/resolver/helpers/setAlias'
+import { linkToNode } from '@/features/resolver/helpers/linkRecords'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
-interface UseSetAliasOptions {
+interface UseLinkToNodeOptions {
   readonly resolverAddress: Address
   readonly walletClient: WalletClient | undefined
   readonly publicClient: PublicClient | undefined
@@ -13,29 +13,29 @@ interface UseSetAliasOptions {
   readonly onSuccess?: () => void
 }
 
-interface SetAliasMutationParams {
-  readonly fromName: string
-  readonly toName: string
+interface LinkToNodeMutationParams {
+  readonly sourceName: string
+  readonly targetName: string
 }
 
-export const useSetAlias = ({
+export const useLinkToNode = ({
   resolverAddress,
   walletClient,
   publicClient,
   chainId,
   id,
   onSuccess,
-}: UseSetAliasOptions) => {
+}: UseLinkToNodeOptions) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ fromName, toName }: SetAliasMutationParams) => {
+    mutationFn: ({ sourceName, targetName }: LinkToNodeMutationParams) => {
       if (!walletClient || !publicClient) {
         throw new Error('Wallet not connected')
       }
-      return setAlias({
-        fromName,
-        toName,
+      return linkToNode({
+        sourceName,
+        targetName,
         resolverAddress,
         walletClient,
         publicClient,

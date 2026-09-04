@@ -1,14 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { deleteAlias } from '@/features/resolver/helpers/setAlias'
+import { unlink } from '@/features/resolver/helpers/linkRecords'
 import {
   getResolverOverviewQueryOptions,
   type ResolverOverview,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
-interface UseDeleteAliasOptions {
+interface UseUnlinkOptions {
   readonly resolverAddress: Address
   readonly walletClient: WalletClient | undefined
   readonly publicClient: PublicClient | undefined
@@ -16,22 +16,22 @@ interface UseDeleteAliasOptions {
   readonly id: string
 }
 
-export const useDeleteAlias = ({
+export const useUnlink = ({
   resolverAddress,
   walletClient,
   publicClient,
   chainId,
   id,
-}: UseDeleteAliasOptions) => {
+}: UseUnlinkOptions) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (fromName: string) => {
+    mutationFn: (sourceName: string) => {
       if (!walletClient || !publicClient) {
         throw new Error('Wallet not connected')
       }
-      return deleteAlias({
-        fromName,
+      return unlink({
+        sourceName,
         resolverAddress,
         walletClient,
         publicClient,
@@ -40,7 +40,7 @@ export const useDeleteAlias = ({
         id,
       })
     },
-    onSuccess: async (_result, fromName) => {
+    onSuccess: async (_result, sourceName) => {
       const resolverOverviewQueryKey = getResolverOverviewQueryOptions({
         address: resolverAddress,
       }).queryKey
@@ -51,8 +51,8 @@ export const useDeleteAlias = ({
           if (!current) return current
           return {
             ...current,
-            aliases: current.aliases.filter((a) => a.fromName !== fromName),
-            aliasCount: Math.max(0, current.aliasCount - 1),
+            links: current.links.filter((l) => l.fromName !== sourceName),
+            linkCount: Math.max(0, current.linkCount - 1),
           }
         },
       )

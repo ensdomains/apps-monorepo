@@ -5,51 +5,50 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import {
-  deleteAliasWriteParameters,
-  setAliasWriteParameters,
-} from '@ensdomains/ensjs/wallet/v2'
-import {
   type Address,
   encodeFunctionData,
   type Hex,
   type PublicClient,
+  toHex,
   type WalletClient,
 } from 'viem'
+import { namehash, packetToBytes } from 'viem/ens'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { permissionedResolverAbi } from '@/lib/abis/permissionedResolver'
 
-export interface SetAliasTransactionParameters {
-  readonly fromName: string
-  readonly toName: string
+/** DNS-encode a dotted name the way the resolver setters expect it. */
+export const dnsEncodeName = (name: string): Hex => toHex(packetToBytes(name))
+
+/** The record id that unlinks a name (`linkToRecord(name, 0)`). */
+export const UNLINKED_RECORD_ID = 0n
+
+export interface LinkToNodeTransactionParameters {
+  /** Name that should start serving the target's records. */
+  readonly sourceName: string
+  /** Name whose current record the source should use. */
+  readonly targetName: string
   readonly resolverAddress: Address
   readonly walletClient: WalletClient
   readonly chainId: number
 }
 
-/** The setAlias intent, shared by the gas estimate and `setAlias`. */
-export const prepareSetAliasTransaction = ({
-  fromName,
-  toName,
+/** The `linkToNode` intent, shared by the gas estimate and `linkToNode`. */
+export const prepareLinkToNodeTransaction = ({
+  sourceName,
+  targetName,
   resolverAddress,
   walletClient,
   chainId,
-}: SetAliasTransactionParameters): CustomTransactionIntent => {
+}: LinkToNodeTransactionParameters): CustomTransactionIntent => {
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  const client = walletClient as Parameters<typeof setAliasWriteParameters>[0]
-
-  const writeParams = setAliasWriteParameters(client, {
-    fromName,
-    toName,
-    resolverAddress,
-  })
-
   const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
+    abi: permissionedResolverAbi,
+    functionName: 'linkToNode',
+    args: [dnsEncodeName(sourceName), namehash(targetName)],
+  })
 
   return toEoaCustomIntent({
     from: walletClient.account.address,
@@ -59,23 +58,23 @@ export const prepareSetAliasTransaction = ({
   })
 }
 
-export interface SetAliasParameters extends SetAliasTransactionParameters {
+export interface LinkToNodeParameters extends LinkToNodeTransactionParameters {
   readonly publicClient: PublicClient
   readonly signer: Signer
   readonly id: string
 }
 
-export interface SetAliasResult {
+export interface LinkRecordsResult {
   readonly txId: string
   readonly hash: Hex
 }
 
-export const setAlias = async (
-  params: SetAliasParameters,
-): Promise<SetAliasResult> => {
+export const linkToNode = async (
+  params: LinkToNodeParameters,
+): Promise<LinkRecordsResult> => {
   const {
-    fromName,
-    toName,
+    sourceName,
+    targetName,
     resolverAddress,
     walletClient,
     publicClient,
@@ -85,9 +84,9 @@ export const setAlias = async (
   } = params
 
   const txId = transactionManager.startTransaction(
-    prepareSetAliasTransaction({
-      fromName,
-      toName,
+    prepareLinkToNodeTransaction({
+      sourceName,
+      targetName,
       resolverAddress,
       walletClient,
       chainId,
@@ -95,7 +94,7 @@ export const setAlias = async (
     signer,
     {
       id,
-      description: `Set alias ${fromName} → ${toName}`,
+      description: `Link ${sourceName} to the records of ${targetName}`,
       publicClient,
       chainId,
     },
@@ -109,38 +108,32 @@ export const setAlias = async (
   }
 }
 
-export interface DeleteAliasTransactionParameters {
-  readonly fromName: string
+export interface UnlinkTransactionParameters {
+  readonly sourceName: string
   readonly resolverAddress: Address
   readonly walletClient: WalletClient
   readonly chainId: number
 }
 
-/** The deleteAlias intent, shared by the gas estimate and `deleteAlias`. */
-export const prepareDeleteAliasTransaction = ({
-  fromName,
+/**
+ * The `linkToRecord(name, 0)` intent, shared by the gas estimate and `unlink`.
+ * An unlinked name reads the resolver's default record.
+ */
+export const prepareUnlinkTransaction = ({
+  sourceName,
   resolverAddress,
   walletClient,
   chainId,
-}: DeleteAliasTransactionParameters): CustomTransactionIntent => {
+}: UnlinkTransactionParameters): CustomTransactionIntent => {
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  const client = walletClient as Parameters<
-    typeof deleteAliasWriteParameters
-  >[0]
-
-  const writeParams = deleteAliasWriteParameters(client, {
-    fromName,
-    resolverAddress,
-  })
-
   const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
+    abi: permissionedResolverAbi,
+    functionName: 'linkToRecord',
+    args: [dnsEncodeName(sourceName), UNLINKED_RECORD_ID],
+  })
 
   return toEoaCustomIntent({
     from: walletClient.account.address,
@@ -150,18 +143,17 @@ export const prepareDeleteAliasTransaction = ({
   })
 }
 
-export interface DeleteAliasParameters
-  extends DeleteAliasTransactionParameters {
+export interface UnlinkParameters extends UnlinkTransactionParameters {
   readonly publicClient: PublicClient
   readonly signer: Signer
   readonly id: string
 }
 
-export const deleteAlias = async (
-  params: DeleteAliasParameters,
-): Promise<SetAliasResult> => {
+export const unlink = async (
+  params: UnlinkParameters,
+): Promise<LinkRecordsResult> => {
   const {
-    fromName,
+    sourceName,
     resolverAddress,
     walletClient,
     publicClient,
@@ -171,8 +163,8 @@ export const deleteAlias = async (
   } = params
 
   const txId = transactionManager.startTransaction(
-    prepareDeleteAliasTransaction({
-      fromName,
+    prepareUnlinkTransaction({
+      sourceName,
       resolverAddress,
       walletClient,
       chainId,
@@ -180,7 +172,7 @@ export const deleteAlias = async (
     signer,
     {
       id,
-      description: `Delete alias ${fromName}`,
+      description: `Unlink ${sourceName}`,
       publicClient,
       chainId,
     },

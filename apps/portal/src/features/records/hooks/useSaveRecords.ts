@@ -14,6 +14,7 @@ import {
 } from 'wagmi'
 import { profileQueryKey } from '@/features/profile/hooks/useProfile'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { type SaveRecordsParameters, saveRecords } from '../helpers/saveRecords'
@@ -96,8 +97,19 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
 
       const signer = createEOASigner(walletClient)
 
+      // Post-audit-2 PermissionedResolvers take name-based setters; decide by
+      // the resolver's implementation (cached with the resolver pages' query).
+      const isPermissionedResolver = await queryClient
+        .ensureQueryData(
+          getIsPermissionedResolverQueryOptions({
+            resolverAddress: params.resolverAddress,
+          }),
+        )
+        .catch(() => false)
+
       return saveRecords({
         ...params,
+        isPermissionedResolver: isPermissionedResolver === true,
         walletClient,
         publicClient,
         signer,

@@ -11,12 +11,34 @@
  */
 
 import { setAddrParameters } from '@ensdomains/ensjs/utils'
-import type { Address } from 'viem'
-import { zeroAddress } from 'viem'
+import type { Address, Hex } from 'viem'
+import { parseAbi, toHex, zeroAddress } from 'viem'
+import { packetToBytes } from 'viem/ens'
 
-export type SetForwardResolutionRequest = ReturnType<
-  typeof createSetForwardResolutionRequest
->
+/**
+ * Post-audit-2 `PermissionedResolver.setAddress` (contracts-v2 PR #417): takes
+ * the DNS-encoded name instead of a node. ensjs still encodes the legacy
+ * `setAddr(node, coinType, bytes)`, so the encoded address bytes are reused
+ * and only the selector and name change.
+ */
+const permissionedResolverSetAddressAbi = parseAbi([
+  'function setAddress(bytes name, uint256 coinType, bytes addressBytes)',
+])
+
+type LegacySetAddrRequest = ReturnType<typeof setAddrParameters> & {
+  address: Address
+}
+
+type PermissionedSetAddressRequest = {
+  address: Address
+  abi: typeof permissionedResolverSetAddressAbi
+  functionName: 'setAddress'
+  args: readonly [name: Hex, coinType: bigint, addressBytes: Hex]
+}
+
+export type SetForwardResolutionRequest =
+  | LegacySetAddrRequest
+  | PermissionedSetAddressRequest
 
 /**
  * Creates contract call parameters for setting forward resolution.
@@ -24,18 +46,22 @@ export type SetForwardResolutionRequest = ReturnType<
  * @param coinType ENSIP-9/11 coin type the address record is keyed on: `60`
  * for Ethereum, `0x80000000 | chainId` for EVM L2s (environment-derived, e.g.
  * Scroll Sepolia → `0x8008274f`), `0x80000000` for the default record.
+ * @param permissioned Target a post-audit-2 `PermissionedResolver`, whose
+ * setters take the DNS-encoded name rather than a node.
  */
 export function createSetForwardResolutionRequest({
   name,
   coinType,
   resolverAddress,
   targetAddress,
+  permissioned = false,
 }: {
   name: string | undefined
   coinType: number
   resolverAddress: Address | null | undefined
   targetAddress: Address
-}) {
+  permissioned?: boolean
+}): SetForwardResolutionRequest {
   if (!name) {
     throw new Error('No name provided')
   }
@@ -57,6 +83,20 @@ export function createSetForwardResolutionRequest({
     coin: coinType,
     value: targetAddress,
   })
+
+  if (permissioned) {
+    const [, encodedCoinType, addressBytes] = setAddr.args as readonly [
+      Hex,
+      bigint,
+      Hex,
+    ]
+    return {
+      address: resolverAddress,
+      abi: permissionedResolverSetAddressAbi,
+      functionName: 'setAddress',
+      args: [toHex(packetToBytes(name)), encodedCoinType, addressBytes],
+    }
+  }
 
   return {
     address: resolverAddress,

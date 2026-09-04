@@ -2,6 +2,7 @@ import { createSetForwardResolutionRequest } from '@ens-apps/l2-primary/utils'
 import type { Signer } from '@ens-apps/transaction-manager'
 import { getResolver } from '@ensdomains/ensjs/public'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
+import { getIsPermissionedResolver } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { setForwardResolution } from '@/features/reverse-resolution/helpers/setForwardResolution'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -36,11 +37,16 @@ export const setEthAddress = async ({
 
   const resolverAddress = await getResolver(clientResult.value, { name })
 
+  const isPermissioned = resolverAddress
+    ? await getIsPermissionedResolver({ resolverAddress })
+    : null
+
   const request = createSetForwardResolutionRequest({
     name,
     coinType: MAINNET_COIN_TYPE,
     resolverAddress,
     targetAddress: recipient,
+    permissioned: isPermissioned?.isOk() ? isPermissioned.value : false,
   })
 
   return setForwardResolution({
