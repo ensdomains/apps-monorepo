@@ -1,90 +1,97 @@
-import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+/**
+ * Role-change history for one name.
+ *
+ * The resource is read from the registry rather than derived from the label, so
+ * it carries the name's current `eacVersionId`. Pinning that as the log topic
+ * scopes the read to this registration: a previous owner's grants live under
+ * the pre-bump resource and are excluded by the node, not by a later filter.
+ */
+
+import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
-import { gql } from '@urql/core'
-import { fromPromise, ok } from 'neverthrow'
-import { graphqlIndexerClient } from '@/lib/indexer'
+import type { GetResourceErrorType } from '@ensdomains/ensjs/public/v2'
+import { getResource as ensjs_getResource } from '@ensdomains/ensjs/public/v2'
 import {
-  filterEventsByResource,
-  type IndexerEACEvent,
-} from '@/lib/roles/filterEventsByResource'
+  makeLabelNodeAndParent,
+  type NormalizeErrorType,
+  normalize,
+} from '@ensdomains/ensjs/utils'
+import { fromPromise, ok } from 'neverthrow'
+import type { Address, Hex } from 'viem'
+import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
+import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
+import { getRoleChangeLogs } from '@/lib/roles/roleChangeLogs'
+import type { RoleHistoryEntry } from '@/lib/roles/roleHistoryEntry'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export type { RoleHistoryEntry } from '@/lib/roles/filterEventsByResource'
+export type { RoleHistoryEntry } from '@/lib/roles/roleHistoryEntry'
 
-class GetRoleHistoryError extends TaggedError('GetRoleHistoryError')<{
-  cause: GraphqlRequestError
+class NameNotNormalizableError extends TaggedError('NameNotNormalizableError')<{
+  cause: NormalizeErrorType
+}> {}
+
+class GetResourceError extends TaggedError('GetResourceError')<{
+  cause: GetResourceErrorType
 }> {}
 
 type GetRoleHistoryParameters = {
-  readonly label?: string
+  readonly name: string
+  readonly registryAddress: Address
+  /** Earliest block to scan. See `ROLES_FROM_BLOCK`. */
+  readonly fromBlock: bigint
+  /** When set, narrows to one account's changes on this name. */
+  readonly account?: Address
 }
 
-const PAGE_SIZE = 1000
-// Hard upper bound on how many events we will ever scan in a single call so
-// a runaway indexer can't make this loop forever.
-const MAX_PAGES = 50
-
-const getRoleHistory = ResultFn(async function* ({
-  label,
+export const getRoleHistory = ResultFn(async function* ({
+  name,
+  registryAddress,
+  fromBlock,
+  account,
 }: GetRoleHistoryParameters) {
-  // NOTE: We intentionally do not filter by `domain` in the GraphQL query.
-  // The indexer does not currently populate the `domain` relation on
-  // `EACRolesChanged` events for many names (e.g. 2LDs like `fresh.eth`),
-  // so filtering server-side by `domain` would drop valid events. Instead we
-  // fetch by event type and filter client-side by the resource hex.
-  //
-  // Pagination is done with a `blockNumber_lt` cursor (descending) because
-  // the indexer's relay-style `eventConnection.after` and `events.skip`
-  // pagination are currently both broken — they return the same first page
-  // regardless of the cursor.
-  const allEvents: IndexerEACEvent[] = []
-  let blockNumberLt = Number.MAX_SAFE_INTEGER
+  // Normalized once, then used to derive the label: hashing a raw route
+  // parameter would address a resource the registry never wrote to.
+  const normalized = yield* fromSync(
+    () => normalize(name),
+    (e) => new NameNotNormalizableError({ cause: e as NormalizeErrorType }),
+  )
+  const { label } = makeLabelNodeAndParent(normalized)
 
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const { events } = yield* fromPromise(
-      graphqlIndexerClient.request<{
-        events: IndexerEACEvent[]
-      }>(
-        gql`
-          query getRoleHistory($blockNumberLt: Int!, $first: Int!) {
-            events(
-              where: {
-                type: "EACRolesChanged"
-                blockNumber_lt: $blockNumberLt
-              }
-              first: $first
-              orderBy: blockNumber
-              orderDirection: desc
-            ) {
-              type
-              data
-              transactionHash
-              timestamp
-              blockNumber
-            }
-          }
-        `,
-        { blockNumberLt, first: PAGE_SIZE },
-      ),
-      (e) => new GetRoleHistoryError({ cause: e as GraphqlRequestError }),
-    )
+  const client = yield* safeGetClient()
 
-    if (events.length === 0) break
+  const resource = yield* fromPromise(
+    ensjs_getResource(client, { label, registryAddress }),
+    (e) => new GetResourceError({ cause: e as GetResourceErrorType }),
+  )
 
-    allEvents.push(...events)
+  const logs = yield* getRoleChangeLogs({
+    registryAddress,
+    fromBlock,
+    resource,
+    account,
+  })
 
-    if (events.length < PAGE_SIZE) break
+  const timestamps = yield* getBlockTimestamps({
+    blocks: logs.map((log) => log.blockNumber),
+  })
 
-    // Step the cursor to just before the oldest block we just received.
-    blockNumberLt = events[events.length - 1].blockNumber
-  }
+  const resourceHex = toResourceHex(resource)
 
-  const resource = label ? toResourceHex(labelToCanonicalId(label)) : undefined
+  const entries: RoleHistoryEntry[] = logs
+    .map((log) => ({
+      account: log.args.account as Address,
+      resource: resourceHex,
+      oldRoles: decodeRoleBitmap(log.args.oldRoleBitmap ?? 0n),
+      newRoles: decodeRoleBitmap(log.args.newRoleBitmap ?? 0n),
+      transactionHash: log.transactionHash as Hex,
+      timestamp: timestamps.get(log.blockNumber) ?? 0n,
+      blockNumber: log.blockNumber,
+    }))
+    .toSorted((a, b) => Number(b.blockNumber - a.blockNumber))
 
-  return ok(filterEventsByResource(allEvents, resource))
+  return ok(entries)
 })
 
 const getRoleHistoryQueryKey = createQueryKey<

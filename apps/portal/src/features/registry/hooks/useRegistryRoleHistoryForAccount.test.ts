@@ -8,7 +8,7 @@ const REGISTRY: Address = '0x1111111111111111111111111111111111111111'
 const ACCOUNT: Address = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 
 const ROOT_RESOURCE_HEX = `0x${'0'.repeat(64)}`
-const DEPLOYMENT_BLOCK = 9783977n
+const FROM_BLOCK = 9_782_822n
 
 const mockGetLogs = vi.fn()
 
@@ -42,11 +42,11 @@ const log = ({
   args: { resource: 0n, account: ACCOUNT, oldRoleBitmap, newRoleBitmap },
 })
 
-const run = (fromBlock?: bigint) =>
+const run = (fromBlock = FROM_BLOCK) =>
   getRegistryRoleHistoryForAccount({
     registryAddress: REGISTRY,
     account: ACCOUNT,
-    ...(fromBlock === undefined ? {} : { fromBlock }),
+    fromBlock,
   })
 
 describe('getRegistryRoleHistoryForAccount', () => {
@@ -65,11 +65,11 @@ describe('getRegistryRoleHistoryForAccount', () => {
       address: REGISTRY,
       event: eacRolesChangedEventSnippet[0],
       args: { resource: 0n, account: ACCOUNT },
-      fromBlock: DEPLOYMENT_BLOCK,
+      fromBlock: FROM_BLOCK,
     })
   })
 
-  it('scans from the caller-supplied block when given one', async () => {
+  it('scans from the caller-supplied block', async () => {
     mockGetLogs.mockResolvedValue([])
 
     await run(11_383_897n)

@@ -16,9 +16,10 @@ import { AddressNameInput } from '@/features/address/components/AddressNameInput
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import { prepareGrantRegistryRolesTransaction } from '@/features/registry/helpers/grantRegistryRoles'
 import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
+import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { getRegistryRolesQueryOptions } from '../../hooks/useRegistryRoles'
+import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { getAccountAdminRoles } from '../../utils/registryRoleAccess'
 import { RegistryRolePermissionList } from './RegistryRolePermissionList'
 
@@ -42,7 +43,10 @@ export const RegistryAddUserSheet = ({
   // roles page is already mounted (same query key) — used to figure out which
   // permissions the connected caller has admin rights to grant.
   const { data: rolesData } = useQuery({
-    ...getRegistryRolesQueryOptions({ address: registryAddress }),
+    ...getRegistryRootRoleHoldersQueryOptions({
+      fromBlock: ROLES_FROM_BLOCK,
+      registryAddress,
+    }),
     enabled: Boolean(callerAddress),
   })
 

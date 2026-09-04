@@ -9,7 +9,8 @@ import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
-import type { RoleHistoryEntry } from '@/lib/roles/filterEventsByResource'
+import type { RoleHistoryEntry } from '@/lib/roles/roleHistoryEntry'
+import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import { getRegistryRoleHistoryForAccountQueryOptions } from '../../hooks/useRegistryRoleHistoryForAccount'
 
@@ -71,8 +72,9 @@ export const RegistryUserRoleHistory = ({
 }: RegistryUserRoleHistoryProps) => {
   const { data, isLoading, error } = useQuery({
     ...getRegistryRoleHistoryForAccountQueryOptions({
-      registryAddress,
       account: account ?? zeroAddress,
+      fromBlock: ROLES_FROM_BLOCK,
+      registryAddress,
     }),
     enabled: Boolean(account),
   })

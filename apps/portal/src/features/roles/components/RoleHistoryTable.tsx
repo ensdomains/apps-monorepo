@@ -23,6 +23,7 @@ import {
   getRoleHistoryQueryOptions,
   type RoleHistoryEntry,
 } from '@/features/roles/hooks/useRoleHistory'
+import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
@@ -136,11 +137,11 @@ const RoleHistoryMobileCard = ({
 
 export const RoleHistoryTable = ({
   name,
-  label,
+  registryAddress,
   account,
 }: {
   readonly name: string
-  readonly label?: string
+  readonly registryAddress: Address
   readonly account?: Address
 }) => {
   const [selectedEntry, setSelectedEntry] = useState<RoleHistoryEntry | null>(
@@ -148,19 +149,14 @@ export const RoleHistoryTable = ({
   )
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const {
-    data: allData,
-    isLoading,
-    error,
-  } = useQuery(getRoleHistoryQueryOptions({ label }))
-
-  // Filter by account if provided
-  const data =
-    account && allData
-      ? allData.filter(
-          (entry) => entry.account.toLowerCase() === account.toLowerCase(),
-        )
-      : allData
+  const { data, isLoading, error } = useQuery(
+    getRoleHistoryQueryOptions({
+      account,
+      fromBlock: ROLES_FROM_BLOCK,
+      name,
+      registryAddress,
+    }),
+  )
 
   const handleMoreClick = (entry: RoleHistoryEntry) => {
     setSelectedEntry(entry)

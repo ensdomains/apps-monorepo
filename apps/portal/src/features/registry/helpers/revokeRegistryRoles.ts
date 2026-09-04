@@ -21,6 +21,7 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { ROOT_RESOURCE } from '@/lib/roles/rootResource'
 
 export type RevokeRegistryRolesTransactionParameters = {
   readonly registryAddress: Address
@@ -41,9 +42,6 @@ export interface RevokeRegistryRolesResult {
   txId: string
   hash: Hex
 }
-
-// See `grantRegistryRoles.ts` — registry-wide scope.
-const ROOT_RESOURCE = 0n
 
 /** The revoke-roles intent, shared by the gas estimate and {@link revokeRegistryRoles}. */
 export function prepareRevokeRegistryRolesTransaction({

@@ -26,7 +26,6 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
@@ -322,7 +321,7 @@ export const RolesSidebar = <
                     <div className="border border-border rounded-sm overflow-hidden p-0 [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
                       <RoleHistoryTable
                         name={name}
-                        label={getNameLabels(name).currentLabel}
+                        registryAddress={registryAddress}
                         account={selectedAccount}
                       />
                     </div>

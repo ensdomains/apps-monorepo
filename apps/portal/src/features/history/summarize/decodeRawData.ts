@@ -46,7 +46,7 @@ export type RoleChange = {
 /**
  * Best-effort decode of an `EACRolesChanged` event from its raw `data`.
  * Determines grant vs revoke from the old→new bitmap delta. Field names match
- * the indexer payload (see `lib/roles/filterEventsByResource.ts`).
+ * the indexer payload (see `lib/roles/roleHistoryEntry.ts`).
  *
  * TODO(indexer): expose asRolesChanged { account resource oldRoleBitmap newRoleBitmap }
  * so this JSON parsing becomes unnecessary.
