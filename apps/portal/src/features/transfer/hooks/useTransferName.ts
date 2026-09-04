@@ -2,12 +2,14 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
-import { fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok, type ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
@@ -15,6 +17,7 @@ import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryN
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { getEnsTokenId } from '@/features/profile/hooks/useTokenId'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { isRevertError } from '@/features/transaction-manager/hooks/useTransactionGasEstimate'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -39,6 +42,7 @@ import {
   getV1NameStateQueryOptions,
   type NameNotNormalizableError,
 } from '../v1/getV1NameState'
+import { getV1TransferGate, type V1TransferGate } from '../v1/rules'
 
 export type StartTransferParams = {
   readonly recipient: Address
@@ -60,6 +64,44 @@ export type TransferControls = {
 }
 
 const chainId = sepoliaWithEns.id
+
+type ErrorOf<R> = R extends ResultAsync<unknown, infer E> ? E : never
+
+/** The V1 gate refused at submit time: the name changed under the open form. */
+export class V1TransferRefusedError extends TaggedError(
+  'V1TransferRefusedError',
+)<{
+  readonly reason: Exclude<V1TransferGate['reason'], 'ok'>
+}> {}
+
+/** Simulating the move step failed, so no config step was sent. */
+export class TransferPreflightError extends TaggedError(
+  'TransferPreflightError',
+)<{
+  cause: unknown
+}> {}
+
+const describeRefusal = (reason: V1TransferRefusedError['reason']): string =>
+  match(reason)
+    .with(
+      'grace',
+      () =>
+        'This name has entered its grace period, so the registrar refuses to move it. Renew it first.',
+    )
+    .with(
+      'expired',
+      () => 'This name has expired, so there is nothing left to transfer.',
+    )
+    .with(
+      'cannot-transfer',
+      () => 'This name’s CANNOT_TRANSFER fuse has been burned.',
+    )
+    .with(
+      'manager-only',
+      'not-owner',
+      () => 'Your wallet no longer owns this name.',
+    )
+    .exhaustive()
 
 /**
  * Runs a transfer plan through the transaction modal, one step per transaction.
@@ -127,49 +169,109 @@ export const useTransferName = ({
     void navigate({ to: '/$name/ownership', params: { name } })
   }
 
-  // Prepares the flow: reads the name's own resolver and (V2) token id up front,
-  // so a bad name fails before the modal opens and every step's intent can be
-  // built synchronously for the gas estimate. Then stores the plan and opens
-  // the modal. Loading and error state come straight from the mutation.
+  // The V1 read that gates the write. `staleTime: 0` bypasses the cache the
+  // ownership page primed: a name that lapsed into grace after that read would
+  // otherwise pass, and the config steps would land before `reclaim` reverts on
+  // the registrar's `live(id)` — leaving the name not resolving and not moved.
+  const readV1 = (params: StartTransferParams) =>
+    fromPromise(
+      queryClient.fetchQuery({
+        ...getV1NameStateQueryOptions({ name }),
+        staleTime: 0,
+      }),
+      (e) => e as GetV1NameStateError | NameNotNormalizableError,
+    ).andThen((state) => {
+      const refuse = (reason: V1TransferRefusedError['reason']) =>
+        err(
+          new V1TransferRefusedError({
+            reason,
+            message: describeRefusal(reason),
+          }),
+        )
+      // No state means no registrant and no live wrapper owner: gone.
+      if (!state) return refuse('expired')
+      const gate = getV1TransferGate(state, account)
+      return gate.reason === 'ok'
+        ? ok<SavedParams>({
+            ...params,
+            tokenId: null,
+            resolverAddress: state.resolverAddress,
+          })
+        : refuse(gate.reason)
+    })
+
+  const readV2 = (params: StartTransferParams, registryAddress: Address) =>
+    fromPromise(
+      queryClient.fetchQuery(
+        getOwnResolverQueryOptions({
+          label: getLabel(name),
+          registryAddress,
+        }),
+      ),
+      (e) => e as GetOwnResolverError,
+    ).andThen((resolverAddress) =>
+      getEnsTokenId({ label: getLabel(name), registryAddress }).map(
+        (tokenId): SavedParams => ({ ...params, tokenId, resolverAddress }),
+      ),
+    )
+
+  // Simulates the step that moves the name before anything is sent. The config
+  // steps run first and can't be undone by the sender once the move has
+  // failed, so a move that would revert — most likely a contract recipient
+  // without the `onERC721Received` / `onERC1155Received` hook — has to be
+  // caught here, not when it is reached. `eth_estimateGas` is the same check
+  // the modal runs per step, just pulled forward to before the first one.
+  const preflightMove = (params: SavedParams) =>
+    fromPromise(
+      (async () => {
+        const walletClient = await getWalletClient(config, { account })
+        if (!walletClient?.account || !publicClient)
+          throw new Error('No connected wallet')
+        const move = buildTransferPlan(params.options, subject.kind).at(-1)
+        if (!move) throw new Error('Transfer plan has no move step')
+        const { request } = buildTransferStepIntent(move, {
+          ...params,
+          name,
+          subject,
+          walletClient: walletClient as WalletClientWithAccount,
+          chainId,
+        })
+        if (request.type !== 'eoa') throw new Error('Expected an EOA request')
+        await publicClient.estimateGas({
+          account: request.from,
+          to: request.to,
+          data: request.data,
+          value: request.value,
+        })
+      })(),
+      (cause) =>
+        new TransferPreflightError({
+          cause,
+          message: isRevertError(cause)
+            ? 'The transfer itself would fail, so nothing was sent. If the recipient is a contract, it may not be able to receive this name.'
+            : 'Couldn’t check that the transfer would succeed. Try again.',
+        }),
+    ).map(() => params)
+
+  // Named so the two branches' error unions collapse to one for the mutation.
+  type PrepareError =
+    | ErrorOf<ReturnType<typeof readV1>>
+    | ErrorOf<ReturnType<typeof readV2>>
+    | TransferPreflightError
+
+  // Prepares the flow: re-reads the name's state (V1) or its own resolver and
+  // token id (V2) up front, so a bad name fails before the modal opens and
+  // every step's intent can be built synchronously for the gas estimate. Then
+  // stores the plan and opens the modal. Loading and error state come straight
+  // from the mutation.
   const prepareMutation = useMutation(
     resultMutationOptions({
-      mutationFn: ({ recipient, options }: StartTransferParams) =>
-        fromPromise(
-          subject.kind === 'v2'
-            ? queryClient.fetchQuery(
-                getOwnResolverQueryOptions({
-                  label: getLabel(name),
-                  registryAddress: subject.registryAddress,
-                }),
-              )
-            : queryClient
-                .fetchQuery(getV1NameStateQueryOptions({ name }))
-                .then((state) => state?.resolverAddress ?? null),
-          (e) =>
-            e as
-              | GetOwnResolverError
-              | GetV1NameStateError
-              | NameNotNormalizableError,
-        ).andThen((resolverAddress) =>
-          subject.kind === 'v2'
-            ? getEnsTokenId({
-                label: getLabel(name),
-                registryAddress: subject.registryAddress,
-              }).map(
-                (tokenId): SavedParams => ({
-                  recipient,
-                  options,
-                  tokenId,
-                  resolverAddress,
-                }),
-              )
-            : ok<SavedParams>({
-                recipient,
-                options,
-                tokenId: null,
-                resolverAddress,
-              }),
-        ),
+      mutationFn: (
+        params: StartTransferParams,
+      ): ResultAsync<SavedParams, PrepareError> =>
+        subject.kind === 'v2'
+          ? readV2(params, subject.registryAddress).andThen(preflightMove)
+          : readV1(params).andThen(preflightMove),
       onSuccess: (params) => {
         startedStepsRef.current = new Set()
         setSavedParams(params)

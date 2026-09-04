@@ -131,12 +131,12 @@ export const getV1ParentPowers = (
       () => [],
     )
     // Emancipated: the parent is locked out until the wrapper expiry lapses, at
-    // which point it can issue the label afresh.
-    .with(
-      { kind: 'v1-wrapped', fuses: { parentCannotControl: true } },
-      ({ expiry }) =>
-        expiry === null ? [] : ['issue it to someone else once it expires'],
-    )
+    // which point it can issue the label afresh. PARENT_CANNOT_CONTROL needs an
+    // expiry set, so a null one here is unknown rather than "never expires" —
+    // and unknown must not read as "the parent can do nothing".
+    .with({ kind: 'v1-wrapped', fuses: { parentCannotControl: true } }, () => [
+      'issue it to someone else once it expires',
+    ])
     // `setSubnodeOwner` on the parent node, with no fuse to stop it.
     .with({ kind: 'v1-wrapped' }, { kind: 'v1-registry' }, () => [
       'replace it or take it back at any time',

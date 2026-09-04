@@ -24,7 +24,14 @@ export const V1Transfer = ({
   readonly name: string
   readonly account: Address
 }) => {
-  const stateQuery = useQuery(getV1NameStateQueryOptions({ name }))
+  // `staleTime: 0`, not the portal's one-hour default: `useCanTransfer` primes
+  // this entry on the ownership page, and a name that has since lapsed into
+  // grace must not pass the gate on a cached read. (Has to live here — the
+  // options helper drops `staleTime`.) The submit path re-reads and re-gates.
+  const stateQuery = useQuery({
+    ...getV1NameStateQueryOptions({ name }),
+    staleTime: 0,
+  })
 
   if (stateQuery.isLoading) return <LoadingMessage />
 

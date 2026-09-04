@@ -6,6 +6,7 @@ import {
   labelhash,
   namehash,
   parseAbi,
+  zeroAddress,
 } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -132,6 +133,30 @@ describe('buildTransferStepIntent (v1)', () => {
     expect(call(buildTransferStepIntent('detach-resolver', ctx))).toMatchObject(
       { to: LEGACY_REGISTRY, functionName: 'setResolver' },
     )
+  })
+
+  // A wrapped name's registry slot is owned by the NameWrapper, so the same
+  // `setResolver` must go through the wrapper: on the registry it reverts.
+  it('detaches a wrapped name’s resolver through the NameWrapper', () => {
+    const intent = buildTransferStepIntent('detach-resolver', {
+      ...ctx,
+      subject: {
+        kind: 'v1-wrapped',
+        owner: ME,
+        fuses: {
+          cannotTransfer: false,
+          cannotSetResolver: false,
+          cannotUnwrap: false,
+          parentCannotControl: false,
+        },
+        expiry: null,
+      },
+    })
+    expect(call(intent)).toEqual({
+      to: NAME_WRAPPER,
+      functionName: 'setResolver',
+      args: [namehash('alice.eth'), zeroAddress],
+    })
   })
 
   it('writes the ETH record on the name’s own resolver', () => {

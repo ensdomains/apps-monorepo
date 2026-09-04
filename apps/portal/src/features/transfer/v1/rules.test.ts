@@ -215,4 +215,13 @@ describe('getV1ParentPowers', () => {
       ),
     ).toEqual(['issue it to someone else once it expires'])
   })
+
+  it('still lists the re-issue power when an emancipated expiry is unknown', () => {
+    expect(
+      getV1ParentPowers(
+        'sub.alice.eth',
+        wrapped({ parentCannotControl: true }),
+      ),
+    ).toEqual(['issue it to someone else once it expires'])
+  })
 })
