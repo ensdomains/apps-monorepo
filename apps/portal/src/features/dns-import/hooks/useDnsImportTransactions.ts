@@ -216,8 +216,14 @@ export const useDnsImportTransactions = ({
                 chainId,
                 // Before the approval lands, a live estimate of the claim
                 // reverts (the registrar can't setAddr yet) — fall back to a
-                // cap so the modal shows an honest upper bound.
-                ...(needsApproval ? { gas: 600_000n } : {}),
+                // cap so the modal shows an honest upper bound. Preview only:
+                // `runClaim` submits without a cap, and by then the approval
+                // has been mined so the wallet estimates it for real.
+                //
+                // Verifying the DNSSEC chain onchain dominates the cost — a
+                // measured claim (6 RRSets, RSA + P-256) uses ~3.3M gas, so
+                // anything near 600k understates it several-fold.
+                ...(needsApproval ? { gas: 3_500_000n } : {}),
               })
             }
           : undefined,
