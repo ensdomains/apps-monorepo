@@ -126,9 +126,16 @@ const Profile = ({
   // 'ENSv2' in that case so it consults the indexer to detect grace state.
   // (v1 names in grace still return an owner from the registrar, so a null
   // owner implies the name isn't a v1-in-grace case.)
+  //
+  // DNS names are excluded entirely: they're V1-only, and a DNS import carries
+  // no registrar expiry, so neither grace path applies. `undefined` keeps both
+  // queries disabled rather than asking the v2 indexer about a name that
+  // cannot exist in v2, or the .eth registrar about a name it doesn't hold.
   const grace = useGraceStatus({
     name,
-    protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
+    protocolVersion: isEthTld
+      ? (ownerQuery.data?.protocolVersion ?? 'ENSv2')
+      : undefined,
   })
 
   const migrationQuery = useMigrationStatus(name, {
