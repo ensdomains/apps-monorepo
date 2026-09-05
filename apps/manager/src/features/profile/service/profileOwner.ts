@@ -1,10 +1,12 @@
 import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
+// Not the ensjs v2 `getOwner`: the hackathon deployment moved the owner lookup
+// onto the UniversalHelper as `findExactOwner`.
+import { getOwner as ensjsv2_getOwner } from '@ens-apps/indexer/universalHelper'
 import indexerClient from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getOwner as ensjsv1_getOwner } from '@ensdomains/ensjs/public/v1'
-import { getOwner as ensjsv2_getOwner } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, namehash, zeroAddress } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'

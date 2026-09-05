@@ -7,12 +7,14 @@
  * has been extended with the ENS contracts (e.g. `extendChainWithEns(sepolia)`).
  */
 import type { sepoliaWithEns } from '@ens-apps/indexer/chain'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { getOwner as getOwnerV1 } from '@ensdomains/ensjs/public/v1'
+// Not the ensjs v2 `getOwner` / `getNameRegistries`: the hackathon deployment
+// moved both reads onto the UniversalHelper. See @ens-apps/indexer/universalHelper.
 import {
   getNameRegistries,
   getOwner as getOwnerV2,
-} from '@ensdomains/ensjs/public/v2'
+} from '@ens-apps/indexer/universalHelper'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getOwner as getOwnerV1 } from '@ensdomains/ensjs/public/v1'
 import { type Address, type Client, type Transport, zeroAddress } from 'viem'
 
 import type { ProtocolVersion } from '@/utils/types'
@@ -29,13 +31,14 @@ type EnsResolveClient = Client<Transport, typeof sepoliaWithEns>
 /**
  * Resolve the owner of an `.eth` name (or subname) from the V2 registry.
  *
- * The UniversalResolver V2 walks the registry tree on-chain, so both the owner
- * and the name's ancestry of registries are read directly by name at any depth,
- * with no manual per-label `getSubregistry` walk. `getOwner` calls `findOwner`;
- * `getNameRegistries` calls `findRegistries`, which returns the registries
- * leaf-first: `[registryOf(leaf), registryContaining(leaf), ..., root]`. The
- * registry the leaf label actually lives in (what callers like roles, resolver
- * and token key off) is therefore index 1.
+ * The UniversalHelper walks the registry tree on-chain, so both the owner and
+ * the name's ancestry of registries are read directly by name at any depth,
+ * with no manual per-label `getSubregistry` walk. `getOwner` calls
+ * `findExactOwner`; `getNameRegistries` calls `findRegistries`, which returns
+ * the registries leaf-first:
+ * `[registryOf(leaf), registryContaining(leaf), ..., root]`. The registry the
+ * leaf label actually lives in (what callers like roles, resolver and token key
+ * off) is therefore index 1.
  *
  * Both reads are independent and fired together so the client's batching
  * coalesces them into a single request. Returns `null` if the name is unowned
