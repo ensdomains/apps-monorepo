@@ -134,11 +134,28 @@ export const getMigrationStatusQueryOptions = (
   })
 
 /**
+ * Whether `address` is the wallet that can migrate this name: it is migratable
+ * *and* this wallet holds the v1 token. A non-owner cannot migrate, so nothing
+ * should offer them the action.
+ *
+ * Pure so it can be tested without React; the hook below is the only reason it
+ * needs the connected address threaded in.
+ */
+export const isMigratableBy = (
+  status: MigrationStatus | undefined,
+  address: Address | undefined,
+): boolean =>
+  status?.migratable === true &&
+  !!address &&
+  isAddressEqual(address, status.tokenHolder)
+
+/**
  * Migration status for the connected wallet.
  *
- * `isMigratableByConnectedOwner` is the answer every migration prompt wants:
- * the name is migratable *and* this wallet holds the v1 token. A non-owner
- * cannot migrate, so nothing should offer them the action.
+ * Composes the query with the connected address, in the shape
+ * `useHasSetSubregistryRole` already uses. The styleguide argues against a
+ * plain one-to-one wrapper around a query-options factory, which this is not:
+ * the factory stays exported and usable on its own.
  */
 export const useMigrationStatus = ({
   name,
@@ -154,10 +171,10 @@ export const useMigrationStatus = ({
     enabled: protocolVersion === 'ENSv1' && !!address,
   })
 
-  const isMigratableByConnectedOwner =
-    data?.migratable === true &&
-    !!address &&
-    isAddressEqual(address, data.tokenHolder)
-
-  return { data, error, isLoading, isMigratableByConnectedOwner }
+  return {
+    data,
+    error,
+    isLoading,
+    isMigratableByConnectedOwner: isMigratableBy(data, address),
+  }
 }
