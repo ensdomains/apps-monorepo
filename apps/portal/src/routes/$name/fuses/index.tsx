@@ -209,7 +209,7 @@ function RouteComponent() {
           {isOwner && !grace.isExpired && !grace.error && (
             <Button asChild variant="default" className="gap-2">
               <Link to="/$name/fuses/burn" params={{ name }}>
-                <Flame className="w-4 h-4 text-lapis-500" />
+                <Flame />
                 Burn fuses
               </Link>
             </Button>
