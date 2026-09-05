@@ -8,7 +8,7 @@ vi.mock('@/lib/wagmi/helpers', () => ({
 }))
 
 const mockGetNameRegistries = vi.fn()
-vi.mock('@ens-apps/indexer/universalHelper', () => ({
+vi.mock('@ensdomains/ensjs/public/v2', () => ({
   getNameRegistries: mockGetNameRegistries,
 }))
 

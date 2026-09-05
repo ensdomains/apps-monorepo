@@ -1495,17 +1495,17 @@ packages:
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@377':
-    resolution: {integrity: sha512-guKzI62wuCz746fHtXrtdwUwzbGTsVjHX2D8TpqIUqeQIGvHe8mNCj1ivqQmyT+79nGRcMZduDB2gsMEwoEf7A==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@377}
+    resolution: {integrity: sha512-tCGLjOtI4xDDPyoaKAGrV4g3JtMY/xcVybvj+L4Wmo+OqY+dbbiCGc7NTblpLvA0bIlkCj3zxQjxYDrtnoib4w==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@377}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
-  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@86858ab':
-    resolution: {integrity: sha512-guKzI62wuCz746fHtXrtdwUwzbGTsVjHX2D8TpqIUqeQIGvHe8mNCj1ivqQmyT+79nGRcMZduDB2gsMEwoEf7A==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@86858ab}
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d46b40a':
+    resolution: {integrity: sha512-tCGLjOtI4xDDPyoaKAGrV4g3JtMY/xcVybvj+L4Wmo+OqY+dbbiCGc7NTblpLvA0bIlkCj3zxQjxYDrtnoib4w==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d46b40a}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@377':
-    resolution: {integrity: sha512-2N7auciRCyVRW/OFqOrxS0OD9Ou6w3jdIJ/gLEANJryrIy125TPOBs/HNl1sFVfJTYUVbK4v5WjbV96DskXFdA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@377}
+    resolution: {integrity: sha512-ljsYeVN/JuhCofoz3zZOpy+YSRk0TETtRfMfUV6RtuiN0rtsVIE4M+cmmQy19S+tkEISn59+g3TVHrbKNhkpYw==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@377}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:
@@ -8945,14 +8945,14 @@ snapshots:
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@377': {}
 
-  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@86858ab': {}
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d46b40a': {}
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@377(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@3.25.76))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.1
       '@ensdomains/content-hash': 3.1.0-rc.1
-      '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@86858ab
+      '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d46b40a
       dns-packet: 5.6.1
       ts-pattern: 5.9.0
       viem: 2.52.2(typescript@7.0.2)(zod@3.25.76)
@@ -8964,7 +8964,7 @@ snapshots:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.1
       '@ensdomains/content-hash': 3.1.0-rc.1
-      '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@86858ab
+      '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d46b40a
       dns-packet: 5.6.1
       ts-pattern: 5.9.0
       viem: 2.52.2(typescript@7.0.2)(zod@4.4.3)
