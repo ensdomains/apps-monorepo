@@ -12,6 +12,7 @@ import {
   buildActionSpacerColumn,
   buildEditActionColumn,
   buildRoleColumns,
+  ROLE_COLUMN_WIDTH,
   type RoleRowEntry,
   rolesTableClassName,
 } from '@/features/roles/components/roleTableColumns'
@@ -49,7 +50,7 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
   {
     id: 'user',
     accessorKey: 'account',
-    meta: { width: 176 },
+    meta: { width: ROLE_COLUMN_WIDTH.account },
     header: () => <span className="text-muted-foreground">User</span>,
     cell: ({ row }) => (
       <div className="w-32">
@@ -64,6 +65,7 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
   },
   {
     id: 'name',
+    meta: { width: ROLE_COLUMN_WIDTH.name },
     header: () => <span className="text-muted-foreground">Name</span>,
     cell: ({ row }) => {
       const names = row.original.resolvedNames

@@ -9,6 +9,7 @@ import {
   buildActionSpacerColumn,
   buildEditActionColumn,
   buildRoleColumns,
+  ROLE_COLUMN_WIDTH,
   rolesTableClassName,
   rolesToEntries,
   UserCell,
@@ -30,6 +31,7 @@ const baseColumns: ColumnDef<AccountGroup>[] = [
   {
     id: 'user',
     accessorKey: 'account',
+    meta: { width: ROLE_COLUMN_WIDTH.accountOnly },
     header: 'User',
     cell: ({ row }) => <UserCell account={row.original.account} />,
   },
