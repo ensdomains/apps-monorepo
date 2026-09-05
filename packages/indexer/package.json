@@ -8,8 +8,7 @@
     ".": "./graphql.gen.ts",
     "./urql": "./urql/client.ts",
     "./urql/request": "./urql/request.ts",
-    "./chain": "./chain.ts",
-    "./universalHelper": "./universalHelper.ts"
+    "./chain": "./chain.ts"
   },
   "scripts": {
     "codegen": "graphql-codegen",

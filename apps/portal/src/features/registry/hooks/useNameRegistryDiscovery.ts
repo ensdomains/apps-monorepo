@@ -1,10 +1,10 @@
-// Not the ensjs v2 `getNameRegistries`: the hackathon deployment moved
-// `findRegistries` onto the UniversalHelper, where this wrapper reads it.
-import { getNameRegistries as helperGetNameRegistries } from '@ens-apps/indexer/universalHelper'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { GetNameRegistriesErrorType } from '@ensdomains/ensjs/public/v2'
+import {
+  getNameRegistries as ensjsGetNameRegistries,
+  type GetNameRegistriesErrorType,
+} from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -59,7 +59,7 @@ export const getNameRegistries = ResultFn(async function* ({
   const client = yield* safeGetClient()
 
   const registries = (yield* fromPromise(
-    helperGetNameRegistries(client, { name }),
+    ensjsGetNameRegistries(client, { name }),
     (e) => new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
   )) as NameRegistries
 
