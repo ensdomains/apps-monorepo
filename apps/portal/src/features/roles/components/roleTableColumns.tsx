@@ -10,7 +10,7 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 /**
  * Shared building blocks for the flat roles tables (name registry + resolver).
  * Each table supplies its own `getEntries` mapping from its row to the common
- * `RoleRowEntry[]`; the Role / Admin / Manager columns and the edit action are
+ * `RoleRowEntry[]`; the Role / Admin / User columns and the edit action are
  * identical across both, so they live here.
  */
 
@@ -67,7 +67,7 @@ export const rolesToEntries = (roles: readonly string[]): RoleRowEntry[] => {
   return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
 }
 
-/** Fixed-width account badge used as the leading "User" column cell. */
+/** Fixed-width account badge used as the leading Account column cell. */
 export const UserCell = ({ account }: { account: Address }) => (
   <div className="w-32">
     <EntityBadge variant="address" address={account}>
@@ -129,7 +129,7 @@ export const buildRoleColumns = <T,>(
   {
     id: 'user-level',
     meta: { width: ROLE_COLUMN_WIDTH.mark },
-    header: () => <div className="text-center">Manager</div>,
+    header: () => <div className="text-center">User</div>,
     cell: ({ row }) => (
       <div className="flex flex-col items-center gap-0.5 pt-1.5">
         {getEntries(row.original).map((entry) => (
@@ -147,7 +147,7 @@ export const buildRoleColumns = <T,>(
 
 /**
  * Invisible stand-in for the edit-action column so tables without edit
- * permission keep the same Role/Admin/Manager alignment as tables with it.
+ * permission keep the same Role/Admin/User alignment as tables with it.
  */
 export const buildActionSpacerColumn = <T,>(): ColumnDef<T> => ({
   id: 'actions-spacer',

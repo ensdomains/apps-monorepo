@@ -51,7 +51,7 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
     id: 'user',
     accessorKey: 'account',
     meta: { width: ROLE_COLUMN_WIDTH.account },
-    header: () => <span className="text-muted-foreground">User</span>,
+    header: () => <span className="text-muted-foreground">Account</span>,
     cell: ({ row }) => (
       <div className="w-32">
         <EntityBadge
