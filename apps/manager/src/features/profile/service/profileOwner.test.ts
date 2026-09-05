@@ -19,7 +19,7 @@ vi.mock('@ensdomains/ensjs/public/v1', () => ({
   getOwner: mocks.getV1Owner,
 }))
 
-vi.mock('@ensdomains/ensjs/public/v2', () => ({
+vi.mock('@ens-apps/indexer/universalHelper', () => ({
   getOwner: mocks.getV2Owner,
 }))
 
