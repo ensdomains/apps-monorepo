@@ -22,10 +22,11 @@ vi.mock('@ensdomains/ensjs/public/v1', () => ({
   getOwner: mockV1GetOwner,
 }))
 
-// Mock ensjs v2
+// Mock the UniversalHelper reads (the hackathon deployment's home for the V2
+// owner / registry-ancestry lookups, formerly ensjs v2 against the UR)
 const mockV2GetOwner = vi.fn()
 const mockGetNameRegistries = vi.fn()
-vi.mock('@ensdomains/ensjs/public/v2', () => ({
+vi.mock('@ens-apps/indexer/universalHelper', () => ({
   getOwner: mockV2GetOwner,
   getNameRegistries: mockGetNameRegistries,
 }))
