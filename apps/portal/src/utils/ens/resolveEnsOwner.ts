@@ -7,14 +7,12 @@
  * has been extended with the ENS contracts (e.g. `extendChainWithEns(sepolia)`).
  */
 import type { sepoliaWithEns } from '@ens-apps/indexer/chain'
-// Not the ensjs v2 `getOwner` / `getNameRegistries`: the hackathon deployment
-// moved both reads onto the UniversalHelper. See @ens-apps/indexer/universalHelper.
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getOwner as getOwnerV1 } from '@ensdomains/ensjs/public/v1'
 import {
   getNameRegistries,
   getOwner as getOwnerV2,
-} from '@ens-apps/indexer/universalHelper'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { getOwner as getOwnerV1 } from '@ensdomains/ensjs/public/v1'
+} from '@ensdomains/ensjs/public/v2'
 import { type Address, type Client, type Transport, zeroAddress } from 'viem'
 
 import type { ProtocolVersion } from '@/utils/types'
