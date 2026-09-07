@@ -130,9 +130,8 @@ const Profile = ({
     protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
   })
 
-  const migrationQuery = useMigrationStatus({
-    name,
-    protocolVersion: ownerQuery.data?.protocolVersion,
+  const migrationQuery = useMigrationStatus(name, {
+    enabled: ownerQuery.data?.protocolVersion === 'ENSv1',
   })
 
   const { canExtend: graceCanExtend, isLoading: graceCanExtendLoading } =

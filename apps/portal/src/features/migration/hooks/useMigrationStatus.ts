@@ -18,7 +18,6 @@ import {
 import { useConnection } from 'wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { gql } from '@/utils/subgraph/gql'
-import type { ProtocolVersion } from '@/utils/types'
 
 /**
  * Migration status for a name, scoped to the connected wallet: whether it can
@@ -134,47 +133,34 @@ export const getMigrationStatusQueryOptions = (
   })
 
 /**
- * Whether `address` is the wallet that can migrate this name: it is migratable
- * *and* this wallet holds the v1 token. A non-owner cannot migrate, so nothing
- * should offer them the action.
- *
- * Pure so it can be tested without React; the hook below is the only reason it
- * needs the connected address threaded in.
- */
-export const isMigratableBy = (
-  status: MigrationStatus | undefined,
-  address: Address | undefined,
-): boolean =>
-  status?.migratable === true &&
-  !!address &&
-  isAddressEqual(address, status.tokenHolder)
-
-/**
  * Migration status for the connected wallet.
  *
- * Composes the query with the connected address, in the shape
- * `useHasSetSubregistryRole` already uses. The styleguide argues against a
- * plain one-to-one wrapper around a query-options factory, which this is not:
- * the factory stays exported and usable on its own.
+ * `isMigratableByConnectedOwner` is the answer every migration prompt wants:
+ * the name is migratable *and* this wallet holds the v1 token. A non-owner
+ * cannot migrate, so nothing should offer them the action.
+ *
+ * `enabled` exists because the read is not cheap: a subgraph request plus
+ * on-chain eligibility checks. Callers pass false for anything that is not a
+ * v1 name.
  */
-export const useMigrationStatus = ({
-  name,
-  protocolVersion,
-}: {
-  readonly name: string
-  readonly protocolVersion?: ProtocolVersion
-}) => {
+export const useMigrationStatus = (
+  name: string,
+  { enabled = true }: { enabled?: boolean } = {},
+) => {
   const { address } = useConnection()
 
   const { data, isLoading, error } = useQuery({
     ...getMigrationStatusQueryOptions({ name, address }),
-    enabled: protocolVersion === 'ENSv1' && !!address,
+    enabled: enabled && !!address,
   })
 
   return {
     data,
     error,
     isLoading,
-    isMigratableByConnectedOwner: isMigratableBy(data, address),
+    isMigratableByConnectedOwner:
+      data?.migratable === true &&
+      !!address &&
+      isAddressEqual(address, data.tokenHolder),
   }
 }

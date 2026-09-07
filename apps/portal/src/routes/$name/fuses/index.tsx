@@ -24,7 +24,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { isFuseBurnt } from '@/features/fuses/utils/isFuseBurnt'
-import { MigrateForRoles } from '@/features/migration/components/MigrateForRoles'
+import { MigrateForRolesBanner } from '@/features/migration/components/MigrateForRolesBanner'
+import { MigrateForRolesMessage } from '@/features/migration/components/MigrateForRolesMessage'
+import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
@@ -135,6 +137,11 @@ function RouteComponent() {
   const { data: owner } = useQuery(getEnsOwnerQueryOptions({ name }))
   const isV1Name = owner?.protocolVersion === 'ENSv1'
 
+  // Gated because the read is not cheap, and a v2 name never needs it.
+  const { isMigratableByConnectedOwner } = useMigrationStatus(name, {
+    enabled: isV1Name,
+  })
+
   // The wrapper refuses every owner write on an expired name (see the note in
   // ./burn.tsx), so the burn CTA must not be offered while the name is in its
   // grace period. Only wrapped v1 names have fuses, so the v1 expiry is only
@@ -166,7 +173,10 @@ function RouteComponent() {
 
   if (!wrapperData) {
     return isV1Name ? (
-      <MigrateForRoles name={name} hasFuses={false} />
+      <MigrateForRolesMessage
+        name={name}
+        canMigrate={isMigratableByConnectedOwner}
+      />
     ) : (
       <V2NameMessage />
     )
@@ -187,7 +197,9 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      {isV1Name && <MigrateForRoles name={name} hasFuses />}
+      {isV1Name && isMigratableByConnectedOwner && (
+        <MigrateForRolesBanner name={name} />
+      )}
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner graceEndDate={grace.graceEndDate} canExtend={canExtend} />
       )}
