@@ -21,7 +21,6 @@ type MigrationSuccessDialogProps = {
   readonly onClose: () => void
   readonly onMint: () => void
   readonly onRetry: () => void
-  readonly onRevealComplete: () => void
   readonly onViewProfile: () => void
 }
 
@@ -41,7 +40,7 @@ const DialogHeading = ({
       )}
     </DialogTitle>
     <DialogDescription className="max-w-[400px] font-normal font-sans text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.01em]">
-      {state.status === 'revealing' || state.status === 'loadingEligibility' ? (
+      {state.status === 'loadingEligibility' ? (
         <Trans>
           Here&apos;s a gift to celebrate your migration to the next era of ENS
         </Trans>
@@ -130,7 +129,6 @@ const StatusContent = ({
   onClose,
   onMint,
   onRetry,
-  onRevealComplete,
   onViewProfile,
 }: Omit<
   MigrationSuccessDialogProps,
@@ -144,12 +142,12 @@ const StatusContent = ({
         </div>
         <div className="max-w-80 space-y-2">
           <p className="font-sans text-ens-garnet-900 text-xl">
-            <Trans>This address is not in the commemorative snapshot.</Trans>
+            <Trans>No commemorative NFT is available for this address.</Trans>
           </p>
           <p className="font-sans text-ens-garnet-500 text-sm leading-relaxed">
             <Trans>
-              Eligibility was frozen on June 1 and is limited to one NFT per
-              address.
+              An NFT must be generated for this address before it can be
+              claimed.
             </Trans>
           </p>
         </div>
@@ -190,15 +188,10 @@ const StatusContent = ({
 
   return (
     <div className="flex w-full max-w-[486px] flex-col items-center gap-4 md:gap-6">
-      <CommemorativeNftCard
-        onRevealComplete={onRevealComplete}
-        state={state}
-        variant="dialog"
-      />
+      <CommemorativeNftCard state={state} variant="dialog" />
 
       <div className="flex w-full flex-col items-center gap-1">
-        {state.status === 'loadingEligibility' ||
-        state.status === 'revealing' ? (
+        {state.status === 'loadingEligibility' ? (
           <>
             <PrimaryButton disabled onClick={onMint}>
               <Trans>Mint</Trans>
@@ -300,7 +293,6 @@ export const MigrationSuccessDialog = ({
   onClose,
   onMint,
   onRetry,
-  onRevealComplete,
   onViewProfile,
 }: MigrationSuccessDialogProps) => {
   const showPlainMigrationSuccess = shouldShowPlainMigrationSuccess({
@@ -359,7 +351,6 @@ export const MigrationSuccessDialog = ({
                 onClose={onClose}
                 onMint={onMint}
                 onRetry={onRetry}
-                onRevealComplete={onRevealComplete}
                 onViewProfile={onViewProfile}
                 state={state}
               />

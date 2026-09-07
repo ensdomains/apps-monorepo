@@ -25,7 +25,6 @@ export const CommemorativeNftProfileSection = ({
   const availability = useCommemorativeNftAvailability({
     ownerAddress: ownerAddress as Address | undefined,
     enabled: isOwner,
-    allowDevFixture: true,
   })
 
   const eligibility =
@@ -36,12 +35,10 @@ export const CommemorativeNftProfileSection = ({
     ? isCommemorativeNftCanonicalProfile(name, eligibility.profileName)
     : false
   const minted = availability.claimed.data === true
-  const artworkUrl = eligibility?.assets.imageUrl
   const cardData = useMemo(
     () =>
       eligibility && minted
         ? buildCommemorativeNftCardData({
-            artworkUrl,
             chainId: availability.chainId,
             eligibility,
             migratedAt: new Date(),
@@ -50,7 +47,7 @@ export const CommemorativeNftProfileSection = ({
             ownerAddress: eligibility.ownerAddress,
           })
         : undefined,
-    [artworkUrl, availability.chainId, eligibility, minted],
+    [availability.chainId, eligibility, minted],
   )
 
   if (!isOwner || !eligibility || !isCanonical) return null

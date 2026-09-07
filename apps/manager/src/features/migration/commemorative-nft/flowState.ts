@@ -6,7 +6,6 @@ export type CommemorativeNftFlowStatusInput = {
     | 'ineligible'
     | 'unavailable'
   readonly claimed: boolean | undefined
-  readonly revealComplete: boolean
   readonly claimPending: boolean
   readonly claimError: boolean
 }
@@ -14,7 +13,6 @@ export type CommemorativeNftFlowStatusInput = {
 export type CommemorativeNftFlowStatus =
   | 'loadingEligibility'
   | 'ineligible'
-  | 'revealing'
   | 'readyToMint'
   | 'minting'
   | 'minted'
@@ -89,14 +87,12 @@ export const getCommemorativeNftSessionKey = (params: {
   readonly ownerAddress: string | undefined
   readonly walletAddress: string | undefined
   readonly preview?: boolean
-  readonly previewProfileName?: string
 }): string =>
   JSON.stringify([
     params.chainId,
     params.ownerAddress?.toLowerCase(),
     params.walletAddress?.toLowerCase(),
     params.preview === true,
-    params.preview ? params.previewProfileName : undefined,
   ])
 
 export const getCommemorativeNftFlowStatus = (
@@ -110,6 +106,5 @@ export const getCommemorativeNftFlowStatus = (
   if (input.claimError) return 'claimError'
   if (input.claimPending) return 'minting'
   if (input.claimed === undefined) return 'loadingEligibility'
-  if (!input.revealComplete) return 'revealing'
   return 'readyToMint'
 }

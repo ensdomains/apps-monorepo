@@ -13,6 +13,8 @@ export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
   'https://ens-renderer.pages.dev'
 export const DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN =
   'https://nft-assets.ens.dev'
+// Bypass asset responses cached before CORS was enabled, then reuse the cache.
+export const COMMEMORATIVE_NFT_ASSET_VERSION = '20260907-cors'
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 
@@ -38,6 +40,12 @@ export const getCommemorativeNftContractAddress = (
 export const getCommemorativeNftTokenId = (ownerAddress: Address): bigint =>
   BigInt(keccak256(ownerAddress))
 
+export const withCommemorativeNftAssetVersion = (value: string): string => {
+  const url = new URL(value)
+  url.searchParams.set('v', COMMEMORATIVE_NFT_ASSET_VERSION)
+  return url.toString()
+}
+
 export const buildCommemorativeNftAssets = (
   assetOrigin: string | undefined,
   ownerAddress: Address,
@@ -48,36 +56,22 @@ export const buildCommemorativeNftAssets = (
   const origin = trimTrailingSlash(assetOrigin)
 
   return {
-    metadataUrl: `${origin}/token/${tokenId}.json`,
-    imageUrl: `${origin}/token/${tokenId}.webp`,
+    metadataUrl: withCommemorativeNftAssetVersion(
+      `${origin}/token/${tokenId}.json`,
+    ),
+    imageUrl: withCommemorativeNftAssetVersion(
+      `${origin}/token/${tokenId}.webp`,
+    ),
   }
 }
-
-const rendererAttributes = (traits: CommemorativeNftEligibility['traits']) => [
-  { trait_type: 'Era', value: traits.Era },
-  { trait_type: 'Depth', value: traits.Depth },
-  { trait_type: 'Gasveteran', value: traits.Gasveteran },
-  { trait_type: 'Archetype', value: traits.Archetype },
-  // Metadata keeps the pipeline value; the renderer derives visual rarity from metadata.name.
-  { trait_type: 'Rarity', value: traits.Rarity },
-  { trait_type: 'Seed', value: traits.Seed },
-]
 
 export const buildCommemorativeNftRendererUrl = (params: {
   readonly eligibility: CommemorativeNftEligibility
   readonly rendererOrigin: string
-}): string => {
-  const metadata = {
-    name: params.eligibility.rendererName,
-    description: 'A commemorative NFT marking the migration to ENSv2.',
-    image: '',
-    animation_url: '',
-    attributes: rendererAttributes(params.eligibility.traits),
-  }
-  // `data:` is part of the renderer contract; WEB-604's allowlist must permit it.
-  const tokenUri = `data:application/json;charset=utf-8,${encodeURIComponent(
-    JSON.stringify(metadata),
-  )}`
+}): string | undefined => {
+  const tokenUri = params.eligibility.assets.metadataUrl
+  if (!tokenUri) return undefined
+
   const rendererUrl = new URL(trimTrailingSlash(params.rendererOrigin))
   rendererUrl.searchParams.set('tokenURI', tokenUri)
   rendererUrl.searchParams.set('transparent', '1')

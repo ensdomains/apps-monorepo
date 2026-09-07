@@ -24,10 +24,7 @@ export type CommemorativeNftAssets = {
   readonly externalUrl?: string
 }
 
-export type CommemorativeNftEligibilitySource =
-  | 'static'
-  | 'dev-fixture'
-  | 'preview'
+export type CommemorativeNftEligibilitySource = 'static' | 'preview'
 
 export type CommemorativeNftEligibility = {
   readonly ownerAddress: Address

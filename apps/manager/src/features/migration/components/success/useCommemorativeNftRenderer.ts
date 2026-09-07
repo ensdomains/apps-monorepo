@@ -1,23 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 
-const ARTWORK_TIMEOUT_MS = 10_000
-const RENDERER_PAINT_SETTLE_MS = 300
+const RENDERER_TIMEOUT_MS = 10_000
 
 type SourceStatus = 'loading' | 'ready' | 'failed'
 
 export const useCommemorativeNftRenderer = (params: {
-  readonly artworkUrl?: string
   readonly rendererUrl?: string
   readonly onReady?: () => void
   readonly onError?: () => void
 }) => {
-  const [imageStatus, setImageStatus] = useState<SourceStatus>(
-    params.artworkUrl ? 'loading' : 'failed',
-  )
   const [rendererStatus, setRendererStatus] = useState<SourceStatus>(
     params.rendererUrl ? 'loading' : 'failed',
   )
-  const [rendererLoaded, setRendererLoaded] = useState(false)
   const callbacks = useRef(params)
   const reportedStatus = useRef<'ready' | 'failed' | undefined>(undefined)
 
@@ -26,35 +20,15 @@ export const useCommemorativeNftRenderer = (params: {
   }, [params])
 
   useEffect(() => {
+    if (rendererStatus !== 'loading') return
     const timer = window.setTimeout(() => {
-      setImageStatus((status) => (status === 'loading' ? 'failed' : status))
-      setRendererStatus((status) => (status === 'loading' ? 'failed' : status))
-    }, ARTWORK_TIMEOUT_MS)
+      setRendererStatus('failed')
+    }, RENDERER_TIMEOUT_MS)
     return () => window.clearTimeout(timer)
-  }, [])
+  }, [rendererStatus])
 
-  useEffect(() => {
-    if (!rendererLoaded || rendererStatus !== 'loading') return
-    // The embedded renderer has no ready/error message protocol. Allow its
-    // document to paint after load; a loaded image remains the fallback.
-    let firstFrame: number | undefined
-    let secondFrame: number | undefined
-    const timer = window.setTimeout(() => {
-      firstFrame = window.requestAnimationFrame(() => {
-        secondFrame = window.requestAnimationFrame(() => {
-          setRendererStatus('ready')
-        })
-      })
-    }, RENDERER_PAINT_SETTLE_MS)
-    return () => {
-      window.clearTimeout(timer)
-      if (firstFrame !== undefined) window.cancelAnimationFrame(firstFrame)
-      if (secondFrame !== undefined) window.cancelAnimationFrame(secondFrame)
-    }
-  }, [rendererLoaded, rendererStatus])
-
-  const ready = imageStatus === 'ready' || rendererStatus === 'ready'
-  const failed = imageStatus === 'failed' && rendererStatus === 'failed'
+  const ready = rendererStatus === 'ready'
+  const failed = rendererStatus === 'failed'
 
   useEffect(() => {
     if (ready && reportedStatus.current !== 'ready') {
@@ -67,13 +41,11 @@ export const useCommemorativeNftRenderer = (params: {
   }, [failed, ready])
 
   return {
-    imageStatus,
     rendererStatus,
     ready,
     failed,
-    onImageLoad: () => setImageStatus('ready'),
-    onImageError: () => setImageStatus('failed'),
-    onRendererLoad: () => setRendererLoaded(true),
+    onRendererLoad: () =>
+      setRendererStatus((status) => (status === 'loading' ? 'ready' : status)),
     onRendererError: () => setRendererStatus('failed'),
   }
 }

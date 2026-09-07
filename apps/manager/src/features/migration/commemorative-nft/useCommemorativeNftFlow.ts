@@ -17,7 +17,6 @@ import {
   decodeCommemorativeNftClaimError,
   waitForCommemorativeNftClaimReceipt,
 } from './contract'
-import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
 import {
   type CommemorativeNftFlowStatus,
   getCommemorativeNftAdmission,
@@ -25,7 +24,10 @@ import {
   getCommemorativeNftFlowStatus,
 } from './flowState'
 import { invalidateCommemorativeNftStatus } from './queries'
-import type { CommemorativeNftEligibility } from './types'
+import type {
+  CommemorativeNftEligibility,
+  CommemorativeNftEligibilityResult,
+} from './types'
 import { useCommemorativeNftAvailability } from './useCommemorativeNftAvailability'
 
 type UseCommemorativeNftFlowOptions = {
@@ -34,25 +36,17 @@ type UseCommemorativeNftFlowOptions = {
   readonly walletAddress: Address | undefined
   readonly migratedNameCount: number
   readonly preview?: boolean
-  readonly previewProfileName?: string
 }
 
 const getClaimErrorMessage = (error: unknown): string =>
   decodeCommemorativeNftClaimError(error).message
 
-const getEffectiveEligibility = (params: {
-  readonly staticEligibility?: CommemorativeNftEligibility
-  readonly preview: boolean
-  readonly ownerAddress?: Address
-  readonly previewProfileName?: string
-}): CommemorativeNftEligibility | undefined => {
-  if (params.staticEligibility) return params.staticEligibility
-  if (!params.preview) return undefined
-  return createCommemorativeNftPreviewEligibility({
-    ownerAddress: params.ownerAddress,
-    profileName: params.previewProfileName,
-  })
-}
+const getPublishedEligibility = (
+  result: CommemorativeNftEligibilityResult | undefined,
+): CommemorativeNftEligibility | undefined =>
+  result?.status === 'eligible' && result.eligibility.source === 'static'
+    ? result.eligibility
+    : undefined
 
 const getEligibilityFlowStatus = (params: {
   readonly isError: boolean
@@ -63,6 +57,7 @@ const getEligibilityFlowStatus = (params: {
   if (params.isError) return 'error'
   if (params.isPending && !params.hasEligibility) return 'pending'
   if (params.hasEligibility) return 'eligible'
+  if (params.dataStatus === 'eligible') return 'unavailable'
   return params.dataStatus ?? 'pending'
 }
 
@@ -119,7 +114,7 @@ const getArtworkDialogState = (params: {
     case 'minted':
       return { status: 'minted', card: params.card }
     default:
-      return { status: 'revealing', card: params.card }
+      return { status: 'loadingEligibility' }
   }
 }
 
@@ -129,7 +124,6 @@ export const useCommemorativeNftFlow = ({
   walletAddress,
   migratedNameCount,
   preview = false,
-  previewProfileName,
 }: UseCommemorativeNftFlowOptions) => {
   const wagmiConfig = useConfig()
   const chainId = useChainId()
@@ -139,9 +133,6 @@ export const useCommemorativeNftFlow = ({
     ownerAddress: ownerAddress?.toLowerCase(),
   })
   const hasPendingClaim = useIsMutating({ mutationKey }) > 0
-  const [revealedEligibilityKey, setRevealedEligibilityKey] = useState<
-    string | undefined
-  >()
   const [admitted, setAdmitted] = useState(false)
   const [txHash, setTxHash] = useState<Hex | undefined>()
   const [awaitingClaim, setAwaitingClaim] = useState(false)
@@ -151,27 +142,8 @@ export const useCommemorativeNftFlow = ({
     ownerAddress,
     enabled: open,
     pollClaimed: awaitingClaim || hasPendingClaim,
-    allowDevFixture: true,
   })
-  const staticEligibility =
-    availability.eligibility.data?.status === 'eligible'
-      ? availability.eligibility.data.eligibility
-      : undefined
-  const eligibility = useMemo<CommemorativeNftEligibility | undefined>(() => {
-    return getEffectiveEligibility({
-      staticEligibility,
-      preview,
-      ownerAddress,
-      previewProfileName,
-    })
-  }, [ownerAddress, preview, previewProfileName, staticEligibility])
-
-  const eligibilityKey = eligibility
-    ? `${eligibility.ownerAddress}:${eligibility.rendererName}`
-    : undefined
-
-  const revealComplete =
-    eligibilityKey !== undefined && revealedEligibilityKey === eligibilityKey
+  const eligibility = getPublishedEligibility(availability.eligibility.data)
 
   useEffect(() => {
     if (availability.claimed.data === true) setAwaitingClaim(false)
@@ -183,7 +155,11 @@ export const useCommemorativeNftFlow = ({
       if (!eligibility || !ownerAddress || !walletAddress) {
         throw new Error('The eligible owner wallet is not connected.')
       }
-      if (eligibility.source === 'preview' || eligibility.proof.length === 0) {
+      if (
+        preview ||
+        eligibility.source !== 'static' ||
+        eligibility.proof.length === 0
+      ) {
         throw new Error('This preview is display-only.')
       }
 
@@ -237,7 +213,6 @@ export const useCommemorativeNftFlow = ({
     isFresh: availability.hasFreshClaimedResult,
   })
   const claimed = claimedStatus === true
-  const artworkUrl = eligibility?.assets.imageUrl
 
   const eligibilityStatus =
     availability.supported || preview
@@ -255,7 +230,11 @@ export const useCommemorativeNftFlow = ({
     supported: availability.supported,
     eligibilityStatus,
     claimed: availability.claimed.data,
-    isFresh: availability.hasFreshClaimedResult,
+    // Admit only after published metadata validation, or to show a completed
+    // eligibility error in the existing retry UI.
+    isFresh:
+      availability.hasFreshClaimedResult &&
+      (availability.hasFreshEligibilityResult || eligibilityStatus === 'error'),
     claimReadError: availability.claimed.isError,
     fetchStatus: availability.claimed.fetchStatus,
   })
@@ -270,7 +249,6 @@ export const useCommemorativeNftFlow = ({
     // Keep admitted artwork visible during background reads. Only a fresh
     // unclaimed result below can enable the mint action.
     claimed: isAdmitted && !preview ? availability.claimed.data : claimedStatus,
-    revealComplete,
     claimPending: claimMutation.isPending || awaitingClaim || hasPendingClaim,
     claimError:
       claimMutation.isError || (!preview && availability.claimed.isError),
@@ -279,7 +257,6 @@ export const useCommemorativeNftFlow = ({
     if (!eligibility) return undefined
 
     return buildCommemorativeNftCardData({
-      artworkUrl,
       chainId: availability.chainId,
       eligibility,
       migratedAt,
@@ -289,7 +266,6 @@ export const useCommemorativeNftFlow = ({
     })
   }, [
     availability.chainId,
-    artworkUrl,
     claimed,
     eligibility,
     migratedAt,
@@ -321,17 +297,14 @@ export const useCommemorativeNftFlow = ({
     awaitingClaim,
     claimMutation,
   ])
-  const completeReveal = useCallback(
-    () => setRevealedEligibilityKey(eligibilityKey),
-    [eligibilityKey],
-  )
   const canMint =
     isAdmitted &&
     flowStatus === 'readyToMint' &&
+    availability.hasFreshEligibilityResult &&
     claimedStatus === false &&
     !preview &&
     !!eligibility &&
-    eligibility.source !== 'preview' &&
+    eligibility.source === 'static' &&
     eligibility.proof.length > 0 &&
     !!ownerAddress &&
     !!walletAddress &&
@@ -353,7 +326,6 @@ export const useCommemorativeNftFlow = ({
     state,
     eligibility,
     canMint,
-    completeReveal,
     mint,
     retry,
   }

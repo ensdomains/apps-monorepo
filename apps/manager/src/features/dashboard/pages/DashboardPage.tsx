@@ -12,6 +12,7 @@ import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard
 import { MigrationModal } from '@/features/migration/components/MigrationModal'
 import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
 import { CommemorativeNftDashboardPrompt } from '@/features/migration/components/success/CommemorativeNftDashboardPrompt'
+import { CommemorativeNftDashboardSection } from '@/features/migration/components/success/CommemorativeNftDashboardSection'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -129,6 +130,7 @@ export const DashboardPage = () => {
           />
         </motion.div>
         {migrationEnabled && <MigrationProgressBanner />}
+        {commemorativeNftEnabled ? <CommemorativeNftDashboardSection /> : null}
         <motion.div
           className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"
           {...stagger(4, shouldReduceMotion)}

@@ -66,7 +66,6 @@ const PlainMigrationSuccessDialog = ({
     onClose={onContinue}
     onMint={noop}
     onRetry={noop}
-    onRevealComplete={noop}
     onViewProfile={onContinue}
     open
     state={disabledNftSuccessState}

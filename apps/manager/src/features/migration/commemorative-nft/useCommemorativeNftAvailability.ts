@@ -12,7 +12,6 @@ export const useCommemorativeNftAvailability = (params: {
   readonly ownerAddress: Address | undefined
   readonly enabled: boolean
   readonly pollClaimed?: boolean
-  readonly allowDevFixture?: boolean
 }) => {
   const chainId = useChainId()
   const wagmiConfig = useConfig()
@@ -24,7 +23,6 @@ export const useCommemorativeNftAvailability = (params: {
     ...commemorativeNftEligibilityQueryOptions({
       ownerAddress:
         ownerAddress ?? '0x0000000000000000000000000000000000000000',
-      allowDevFixture: params.allowDevFixture,
     }),
     enabled,
   })
@@ -45,12 +43,18 @@ export const useCommemorativeNftAvailability = (params: {
       isSuccess: claimed.isSuccess,
       fetchStatus: claimed.fetchStatus,
     })
+  const hasFreshEligibilityResult =
+    enabled &&
+    eligibility.isFetchedAfterMount &&
+    eligibility.isSuccess &&
+    eligibility.fetchStatus === 'idle'
 
   return {
     chainId,
     supported,
     eligibility,
     claimed,
+    hasFreshEligibilityResult,
     hasFreshClaimedResult,
     isConfirmedUnclaimed: hasFreshClaimedResult && claimed.data === false,
   }

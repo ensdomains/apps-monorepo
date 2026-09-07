@@ -18,7 +18,6 @@ type CommemorativeNftClaimDialogProps = {
   readonly open: boolean
   readonly ownerAddress: Address | undefined
   readonly preview?: boolean
-  readonly previewProfileName?: string
 }
 
 const ClaimAdmissionStatus = ({
@@ -110,7 +109,6 @@ const OpenCommemorativeNftClaimDialog = ({
   onViewProfile,
   ownerAddress,
   preview,
-  previewProfileName,
   walletAddress,
 }: CommemorativeNftClaimDialogProps & {
   readonly walletAddress: Address | undefined
@@ -121,7 +119,6 @@ const OpenCommemorativeNftClaimDialog = ({
     walletAddress,
     migratedNameCount,
     preview,
-    previewProfileName,
   })
   const shouldSkip =
     flow.admission.status === 'alreadyMinted' ||
@@ -160,7 +157,6 @@ const OpenCommemorativeNftClaimDialog = ({
       onClose={onClose}
       onMint={flow.mint}
       onRetry={flow.retry}
-      onRevealComplete={flow.completeReveal}
       onViewProfile={() => onViewProfile(flow.eligibility?.profileName)}
       open
       state={flow.state}

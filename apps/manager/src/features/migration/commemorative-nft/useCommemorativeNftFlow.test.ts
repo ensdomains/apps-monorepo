@@ -10,7 +10,10 @@ import {
 } from './contract'
 import { fetchCommemorativeNftEligibility } from './eligibility'
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
-import { commemorativeNftClaimedQueryOptions } from './queries'
+import {
+  commemorativeNftClaimedQueryOptions,
+  commemorativeNftEligibilityQueryOptions,
+} from './queries'
 import type { CommemorativeNftEligibility } from './types'
 import { useCommemorativeNftFlow } from './useCommemorativeNftFlow'
 
@@ -117,9 +120,6 @@ describe('commemorative NFT flow session', () => {
     )
 
     expect(readClaimed).toHaveBeenCalledTimes(1)
-    expect(result.current.state.status).toBe('revealing')
-    expect(result.current.canMint).toBe(false)
-    act(() => result.current.completeReveal())
     expect(result.current.state.status).toBe('readyToMint')
     expect(result.current.canMint).toBe(true)
   })
@@ -137,20 +137,155 @@ describe('commemorative NFT flow session', () => {
     expect(claim).not.toHaveBeenCalled()
   })
 
-  it('requires the artwork callback when the static image is unavailable', async () => {
-    fetchEligibility.mockResolvedValueOnce({
-      status: 'eligible',
-      eligibility: { ...eligibility, assets: {} },
+  it('waits for current metadata validation even when cached eligibility and a fresh claim read permit minting', async () => {
+    const pendingEligibility =
+      deferred<Awaited<ReturnType<typeof fetchCommemorativeNftEligibility>>>()
+    fetchEligibility.mockReturnValueOnce(pendingEligibility.promise)
+    const client = createClient()
+    client.setQueryData(
+      commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
+      { status: 'eligible', eligibility },
+    )
+    const { result } = mountFlow(client)
+    await waitFor(() => expect(client.getQueryData(claimQueryKey)).toBe(false))
+
+    expect(result.current.admission.status).toBe('checking')
+    expect(result.current.canMint).toBe(false)
+    act(() => result.current.mint())
+    expect(claim).not.toHaveBeenCalled()
+
+    await act(async () =>
+      pendingEligibility.resolve({ status: 'eligible', eligibility }),
+    )
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+    expect(result.current.admission.status).toBe('admitted')
+  })
+
+  it('disables minting during metadata revalidation and keeps it blocked when the JSON is gone', async () => {
+    const client = createClient()
+    const { result } = mountFlow(client)
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+    const pendingEligibility =
+      deferred<Awaited<ReturnType<typeof fetchCommemorativeNftEligibility>>>()
+    fetchEligibility.mockReturnValueOnce(pendingEligibility.promise)
+    let invalidation!: Promise<void>
+    act(() => {
+      invalidation = client.invalidateQueries({
+        queryKey: commemorativeNftEligibilityQueryOptions({ ownerAddress })
+          .queryKey,
+      })
     })
+    await waitFor(() => expect(result.current.canMint).toBe(false))
+
+    expect(result.current.admission.status).toBe('admitted')
+    act(() => result.current.mint())
+    expect(claim).not.toHaveBeenCalled()
+
+    await act(async () => {
+      pendingEligibility.resolve({ status: 'ineligible' })
+      await invalidation
+    })
+    await waitFor(() => expect(result.current.state.status).toBe('ineligible'))
+    expect(result.current.canMint).toBe(false)
+  })
+
+  it('is ready to mint without waiting for an artwork renderer callback', async () => {
     const { result } = mountFlow(createClient())
 
     await waitFor(() =>
       expect(result.current.admission.status).toBe('admitted'),
     )
-    expect(result.current.state.status).toBe('revealing')
-    expect(result.current.canMint).toBe(false)
-    act(() => result.current.completeReveal())
+    expect(result.current.state.status).toBe('readyToMint')
     expect(result.current.canMint).toBe(true)
+  })
+
+  it('waits for published metadata in preview mode instead of fabricating a card', async () => {
+    const pendingEligibility =
+      deferred<Awaited<ReturnType<typeof fetchCommemorativeNftEligibility>>>()
+    fetchEligibility.mockReturnValueOnce(pendingEligibility.promise)
+    const { result } = mountFlow(createClient(), { preview: true })
+
+    expect(result.current.eligibility).toBeUndefined()
+    expect(result.current.state.status).toBe('loadingEligibility')
+    expect(result.current.canMint).toBe(false)
+
+    await act(async () =>
+      pendingEligibility.resolve({ status: 'eligible', eligibility }),
+    )
+    await waitFor(() => expect(result.current.state.status).toBe('readyToMint'))
+
+    expect(result.current.state).toMatchObject({
+      card: { eligibility, assets: eligibility.assets },
+    })
+    expect(result.current.canMint).toBe(false)
+    act(() => result.current.mint())
+    expect(claim).not.toHaveBeenCalled()
+  })
+
+  it('prevents claiming when published metadata is missing', async () => {
+    fetchEligibility.mockResolvedValueOnce({ status: 'ineligible' })
+    const { result } = mountFlow(createClient())
+
+    await waitFor(() =>
+      expect(result.current.admission.status).toBe('fallback'),
+    )
+
+    expect(result.current.eligibility).toBeUndefined()
+    expect(result.current.state.status).toBe('ineligible')
+    expect(result.current.canMint).toBe(false)
+    act(() => result.current.mint())
+    expect(claim).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'ineligible',
+    'unavailable',
+  ] as const)('does not substitute sample artwork when published metadata is %s', async (status) => {
+    fetchEligibility.mockResolvedValueOnce({ status })
+    const { result } = mountFlow(createClient(), { preview: true })
+
+    await waitFor(() =>
+      expect(result.current.state.status).toBe(
+        status === 'ineligible' ? 'ineligible' : 'error',
+      ),
+    )
+
+    expect(result.current.eligibility).toBeUndefined()
+    expect(result.current.state).not.toHaveProperty('card')
+    expect(result.current.canMint).toBe(false)
+  })
+
+  it('shows a metadata error in preview mode without substituting sample artwork', async () => {
+    fetchEligibility.mockRejectedValueOnce(
+      new Error('Published metadata unavailable'),
+    )
+    const { result } = mountFlow(createClient(), { preview: true })
+
+    await waitFor(() => expect(result.current.state.status).toBe('error'))
+
+    expect(result.current.state).toEqual({
+      status: 'error',
+      stage: 'eligibility',
+      message: 'Published metadata unavailable',
+    })
+    expect(result.current.eligibility).toBeUndefined()
+    expect(result.current.canMint).toBe(false)
+  })
+
+  it('rejects sample eligibility returned from a previous fixture source', async () => {
+    fetchEligibility.mockResolvedValueOnce({
+      status: 'eligible',
+      eligibility: createCommemorativeNftPreviewEligibility({ ownerAddress }),
+    })
+    const { result } = mountFlow(createClient(), { preview: true })
+
+    await waitFor(() => expect(result.current.state.status).toBe('error'))
+
+    expect(result.current.eligibility).toBeUndefined()
+    expect(result.current.state).not.toHaveProperty('card')
+    expect(result.current.canMint).toBe(false)
+    act(() => result.current.mint())
+    expect(claim).not.toHaveBeenCalled()
   })
 
   it('retains this opening after a confirmed mint and suppresses the next opening', async () => {
@@ -161,8 +296,6 @@ describe('commemorative NFT flow session', () => {
     await waitFor(() =>
       expect(flow.result.current.admission.status).toBe('admitted'),
     )
-    act(() => flow.result.current.completeReveal())
-
     act(() => {
       flow.result.current.mint()
       flow.result.current.mint()
@@ -198,7 +331,8 @@ describe('commemorative NFT flow session', () => {
     await waitFor(() =>
       expect(result.current.admission.status).toBe('admitted'),
     )
-    expect(result.current.state.status).toBe('revealing')
+    expect(result.current.state.status).toBe('readyToMint')
+    expect(result.current.canMint).toBe(true)
   })
 
   it('prevents another claim when the same owner reopens during a pending receipt', async () => {
@@ -209,7 +343,6 @@ describe('commemorative NFT flow session', () => {
     await waitFor(() =>
       expect(first.result.current.admission.status).toBe('admitted'),
     )
-    act(() => first.result.current.completeReveal())
     act(() => first.result.current.mint())
     await waitFor(() =>
       expect(first.result.current.state.status).toBe('minting'),
@@ -220,7 +353,6 @@ describe('commemorative NFT flow session', () => {
     await waitFor(() =>
       expect(reopened.result.current.admission.status).toBe('admitted'),
     )
-    act(() => reopened.result.current.completeReveal())
     act(() => reopened.result.current.mint())
     expect(reopened.result.current.state.status).toBe('minting')
     expect(reopened.result.current.canMint).toBe(false)
@@ -240,7 +372,6 @@ describe('commemorative NFT flow session', () => {
     await waitFor(() =>
       expect(result.current.admission.status).toBe('admitted'),
     )
-    act(() => result.current.completeReveal())
     act(() => expect(result.current.mint()).toBeUndefined())
 
     await waitFor(() => expect(result.current.state.status).toBe('error'))
@@ -257,7 +388,6 @@ describe('commemorative NFT flow session', () => {
     await waitFor(() =>
       expect(result.current.admission.status).toBe('admitted'),
     )
-    act(() => result.current.completeReveal())
     act(() => result.current.mint())
     await waitFor(() => expect(result.current.state.status).toBe('error'))
 
@@ -287,7 +417,6 @@ describe('commemorative NFT flow session', () => {
     await waitFor(() =>
       expect(result.current.admission.status).toBe('admitted'),
     )
-    act(() => result.current.completeReveal())
     act(() => result.current.mint())
 
     expect(result.current.canMint).toBe(false)

@@ -1,194 +1,154 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
-import { MotionConfig } from 'motion/react'
-import { type ComponentProps, useCallback, useEffect, useState } from 'react'
+import { type ComponentProps, useEffect, useState } from 'react'
+import type { Address } from 'viem'
+import { sepolia } from 'viem/chains'
+import { buildCommemorativeNftCardData } from '../commemorative-nft/cardData'
 import { MigrationSuccessDialog } from './MigrationSuccessDialog'
-import { migrationSuccessDialogMockStates } from './MigrationSuccessDialog.mock'
+import { PublishedNftStory, publishedNftStoryOwner } from './PublishedNftStory'
 import { CommemorativeNftCard } from './success/CommemorativeNftCard'
 import type { MigrationSuccessDialogState } from './success/MigrationSuccessDialog.types'
 
-type DialogProps = ComponentProps<typeof MigrationSuccessDialog>
+type Presentation =
+  | 'readyToMint'
+  | 'minting'
+  | 'minted'
+  | 'loadingEligibility'
+  | 'ineligible'
+type PreviewProps = {
+  readonly ownerAddress: Address
+  readonly context: ComponentProps<typeof MigrationSuccessDialog>['context']
+  readonly presentation: Presentation
+  readonly interactive?: boolean
+  readonly inline?: boolean
+}
 
 const noop = () => undefined
 
-const DialogPresentation = (args: DialogProps) => {
-  const [open, setOpen] = useState(args.open)
-
-  return (
-    <>
-      <button
-        className="rounded-sm bg-ens-garnet-900 px-5 py-3 text-ens-garnet-50"
-        onClick={() => setOpen(true)}
-        type="button"
-      >
-        Open preview
-      </button>
-      <MigrationSuccessDialog
-        {...args}
-        onClose={() => {
-          setOpen(false)
-          args.onClose()
-        }}
-        onViewProfile={() => {
-          setOpen(false)
-          args.onViewProfile()
-        }}
-        open={open}
-      />
-    </>
-  )
-}
-
-const meta = {
-  title: 'Features/Migration/Success dialog',
-  component: MigrationSuccessDialog,
-  parameters: { layout: 'centered' },
-  args: {
-    context: 'migration',
-    open: true,
-    state: migrationSuccessDialogMockStates.readyToMint,
-    migratedNameCount: 2,
-    canMint: true,
-    onClose: noop,
-    onMint: noop,
-    onRetry: noop,
-    onRevealComplete: noop,
-    onViewProfile: noop,
-  },
-  render: (args) => (
-    <DialogPresentation key={`${args.state.status}:${args.open}`} {...args} />
-  ),
-} satisfies Meta<typeof MigrationSuccessDialog>
-
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Revealing: Story = {
-  args: { state: migrationSuccessDialogMockStates.revealing },
-}
-
-export const ArtworkFailure: Story = {
-  args: {
-    state: migrationSuccessDialogMockStates.artworkFailure,
-    canMint: false,
-  },
-}
-
-export const ReadyToMint: Story = {}
-
-export const Minting: Story = {
-  args: { state: migrationSuccessDialogMockStates.minting, canMint: false },
-}
-
-export const Minted: Story = {
-  args: { state: migrationSuccessDialogMockStates.minted, canMint: false },
-}
-
-export const InlineMintedProfile: Story = {
-  args: { state: migrationSuccessDialogMockStates.minted, canMint: false },
-  render: (args) => (
-    <div className="w-[min(32rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-ens-pink/15 bg-[linear-gradient(180deg,#fff5f8,#ffe6f0)] px-2 py-5">
-      <CommemorativeNftCard state={args.state} />
-    </div>
-  ),
-}
-
-export const ClaimError: Story = {
-  args: { state: migrationSuccessDialogMockStates.claimError },
-}
-
-export const Unavailable: Story = {
-  args: { state: migrationSuccessDialogMockStates.unavailable, canMint: false },
-}
-
-export const LongName: Story = {
-  args: { state: migrationSuccessDialogMockStates.longName },
-}
-
-export const MintLater: Story = {
-  args: { context: 'mint-later' },
-}
-
-export const LoadingEligibility: Story = {
-  args: {
-    state: migrationSuccessDialogMockStates.loadingEligibility,
-    canMint: false,
-  },
-}
-
-export const Ineligible: Story = {
-  args: { state: migrationSuccessDialogMockStates.ineligible, canMint: false },
-}
-
-const InteractiveMintPreview = (args: DialogProps) => {
+const PreviewDialog = ({
+  state,
+  context,
+  interactive,
+  retry,
+}: {
+  readonly state: MigrationSuccessDialogState
+  readonly context: PreviewProps['context']
+  readonly interactive?: boolean
+  readonly retry: () => void
+}) => {
   const [open, setOpen] = useState(true)
-  const [state, setState] = useState<MigrationSuccessDialogState>(
-    migrationSuccessDialogMockStates.revealing,
-  )
-
+  const [mintStatus, setMintStatus] = useState<
+    'readyToMint' | 'minting' | 'minted'
+  >('readyToMint')
   useEffect(() => {
-    if (!open || state.status !== 'minting') return
-    const timer = window.setTimeout(
-      () => setState(migrationSuccessDialogMockStates.minted),
-      1_500,
-    )
+    if (!open || mintStatus !== 'minting') return
+    const timer = window.setTimeout(() => setMintStatus('minted'), 1500)
     return () => window.clearTimeout(timer)
-  }, [open, state.status])
-
-  const completeReveal = useCallback(() => {
-    setState((current) =>
-      current.status === 'revealing'
-        ? migrationSuccessDialogMockStates.readyToMint
-        : current,
-    )
-  }, [])
+  }, [open, mintStatus])
+  const displayedState: MigrationSuccessDialogState =
+    interactive && 'card' in state && state.card && state.status !== 'error'
+      ? {
+          status: mintStatus,
+          card: buildCommemorativeNftCardData({
+            chainId: sepolia.id,
+            eligibility: state.card.eligibility,
+            migratedAt: state.card.migratedAt,
+            migratedNameCount: state.card.migratedNameCount,
+            minted: mintStatus === 'minted',
+            ownerAddress: state.card.eligibility.ownerAddress,
+          }),
+        }
+      : state
 
   return (
     <>
       <button
         className="rounded-sm bg-ens-garnet-900 px-5 py-3 text-ens-garnet-50"
         onClick={() => {
-          setState(migrationSuccessDialogMockStates.revealing)
+          setMintStatus('readyToMint')
           setOpen(true)
         }}
         type="button"
       >
-        Replay preview
+        Open preview
       </button>
       <MigrationSuccessDialog
-        {...args}
-        canMint={state.status === 'readyToMint'}
+        canMint={
+          interactive === true && displayedState.status === 'readyToMint'
+        }
+        context={context}
+        migratedNameCount={1}
         onClose={() => setOpen(false)}
-        onMint={() => setState(migrationSuccessDialogMockStates.minting)}
-        onRetry={() => setState(migrationSuccessDialogMockStates.readyToMint)}
-        onRevealComplete={completeReveal}
+        onMint={interactive ? () => setMintStatus('minting') : noop}
+        onRetry={retry}
         onViewProfile={() => setOpen(false)}
         open={open}
-        state={state}
+        state={displayedState}
       />
     </>
   )
 }
 
-export const InteractiveRevealAndMint: Story = {
-  render: (args) => <InteractiveMintPreview {...args} />,
-}
+const DialogPreview = (args: PreviewProps) => (
+  <PublishedNftStory
+    minted={args.presentation === 'minted'}
+    ownerAddress={args.ownerAddress}
+  >
+    {({ state, retry }) => {
+      if (args.inline && state.status === 'minted') {
+        return (
+          <div className="w-[min(32rem,calc(100vw-2rem))] rounded-xl bg-ens-garnet-100 px-2 py-5">
+            <CommemorativeNftCard state={state} />
+          </div>
+        )
+      }
+      const presentationState: MigrationSuccessDialogState =
+        args.presentation === 'loadingEligibility' ||
+        args.presentation === 'ineligible'
+          ? { status: args.presentation }
+          : args.presentation === 'minting' && state.status === 'readyToMint'
+            ? { status: 'minting', card: state.card }
+            : state
+      return (
+        <PreviewDialog
+          context={args.context}
+          interactive={args.interactive}
+          retry={retry}
+          state={presentationState}
+        />
+      )
+    }}
+  </PublishedNftStory>
+)
 
-export const ReducedMotion: Story = {
-  name: 'Reduced motion (browser preference required)',
-  parameters: {
-    docs: {
-      description: {
-        story:
-          'Set the browser prefers-reduced-motion preference to reduce before loading this story to verify the complete behavior. MotionConfig only reduces Motion animations; the native useReducedMotion hook and CSS media queries require the browser preference.',
-      },
-    },
+const meta = {
+  title: 'Features/Migration/Success dialog',
+  component: DialogPreview,
+  parameters: { layout: 'centered' },
+  args: {
+    context: 'migration',
+    presentation: 'readyToMint',
+    ownerAddress: publishedNftStoryOwner,
   },
-  decorators: [
-    (Story) => (
-      <MotionConfig reducedMotion="always">
-        <Story />
-      </MotionConfig>
-    ),
-  ],
-  render: (args) => <InteractiveMintPreview {...args} />,
+} satisfies Meta<typeof DialogPreview>
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const ReadyToMint: Story = {}
+export const Minting: Story = { args: { presentation: 'minting' } }
+export const Minted: Story = { args: { presentation: 'minted' } }
+export const InlineMintedProfile: Story = {
+  args: { presentation: 'minted', inline: true },
+}
+export const MintLater: Story = { args: { context: 'mint-later' } }
+export const LoadingEligibility: Story = {
+  args: { presentation: 'loadingEligibility' },
+}
+export const Ineligible: Story = { args: { presentation: 'ineligible' } }
+
+// This only simulates the button states. The artwork always comes from the
+// published token, and this story has no wallet or transaction integration.
+export const InteractiveRevealAndMint: Story = {
+  name: 'Interactive mint preview',
+  args: { interactive: true },
 }

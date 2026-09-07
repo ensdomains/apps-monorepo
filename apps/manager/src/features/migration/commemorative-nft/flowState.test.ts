@@ -10,7 +10,6 @@ import {
 const base = {
   eligibilityStatus: 'eligible' as const,
   claimed: false,
-  revealComplete: true,
   claimPending: false,
   claimError: false,
 }
@@ -107,14 +106,6 @@ describe('commemorative NFT flow state', () => {
       { ...base, eligibilityStatus: 'unavailable' as const },
       'configurationError',
     ],
-    [{ ...base, revealComplete: false }, 'revealing'],
-    [
-      { ...base, claimed: undefined, revealComplete: false },
-      'loadingEligibility',
-    ],
-    [{ ...base, claimed: true, revealComplete: false }, 'minted'],
-    [{ ...base, claimPending: true, revealComplete: false }, 'minting'],
-    [{ ...base, claimError: true, revealComplete: false }, 'claimError'],
     [{ ...base, claimed: undefined }, 'loadingEligibility'],
     [{ ...base, claimed: undefined, claimPending: true }, 'minting'],
     [{ ...base }, 'readyToMint'],
@@ -158,7 +149,7 @@ describe('commemorative NFT dialog admission', () => {
     ).toEqual({ status: 'alreadyMinted' })
   })
 
-  it('requires a fresh false before admitting the first reveal', () => {
+  it('requires a fresh false before admitting the mint dialog', () => {
     expect(getCommemorativeNftAdmission(pending)).toEqual({
       status: 'checking',
     })

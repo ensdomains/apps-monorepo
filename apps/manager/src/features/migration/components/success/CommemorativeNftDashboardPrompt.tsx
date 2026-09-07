@@ -15,7 +15,6 @@ export const CommemorativeNftDashboardPrompt = () => {
   const availability = useCommemorativeNftAvailability({
     ownerAddress: ownerAddress as Address | undefined,
     enabled: true,
-    allowDevFixture: true,
   })
 
   const eligibility =

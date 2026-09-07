@@ -5,8 +5,7 @@ import {
   SiX,
 } from '@icons-pack/react-simple-icons'
 import { Trans } from '@lingui/react/macro'
-import { motion, useReducedMotion } from 'motion/react'
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn } from '@/lib/utils'
@@ -15,7 +14,6 @@ import {
   buildCommemorativeNftRendererUrl,
   getCommemorativeNftConfig,
 } from '../../commemorative-nft/config'
-import revealCoverUrl from './assets/nft-reveal-cover.png'
 import { CommemorativeNftRendererSurface } from './CommemorativeNftRendererSurface'
 import type {
   CommemorativeNftCardData,
@@ -137,76 +135,23 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
 
 type CardVariant = 'dialog' | 'profile'
 
-const REVEAL_DURATION_MS = 900
-const COVER_SLICES = Array.from({ length: 12 }, (_, index) => index)
-
-const RevealCover = ({ revealing }: { readonly revealing: boolean }) => (
-  <div
-    aria-hidden
-    className="pointer-events-none absolute inset-0 z-20 overflow-hidden rounded-lg"
-  >
-    {COVER_SLICES.map((index) => (
-      <motion.div
-        animate={
-          revealing
-            ? {
-                x: [0, index % 2 === 0 ? 14 : -14, index % 2 === 0 ? -4 : 4, 0],
-                opacity: [1, 1, 0.6, 0],
-              }
-            : { x: 0, opacity: 1 }
-        }
-        className="absolute left-0 w-full"
-        initial={false}
-        key={index}
-        style={{
-          top: `${(index / COVER_SLICES.length) * 100}%`,
-          height: `${100 / COVER_SLICES.length + 0.1}%`,
-          backgroundImage: `url(${revealCoverUrl})`,
-          backgroundSize: `100% ${COVER_SLICES.length * 100}%`,
-          backgroundPosition: `center ${(index / (COVER_SLICES.length - 1)) * 100}%`,
-        }}
-        transition={{
-          duration: REVEAL_DURATION_MS / 1000,
-          ease: [0.22, 1, 0.36, 1],
-        }}
-      />
-    ))}
-  </div>
-)
-
 const ArtworkCard = ({
+  interactive,
   state,
-  onRevealComplete,
   variant,
 }: {
+  readonly interactive: boolean
   readonly state: CardDialogState
-  readonly onRevealComplete?: () => void
   readonly variant: CardVariant
 }) => {
-  const shouldReduceMotion = useReducedMotion()
-  const [artworkReady, setArtworkReady] = useState(false)
   const [artworkFailed, setArtworkFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
-  const isRevealing = state.status === 'revealing'
   const rendererUrl =
     state.card.assets.animationUrl ??
     buildCommemorativeNftRendererUrl({
       eligibility: state.card.eligibility,
       rendererOrigin: getCommemorativeNftConfig().rendererOrigin,
     })
-
-  useEffect(() => {
-    if (!artworkReady || !isRevealing) return
-    if (shouldReduceMotion) {
-      onRevealComplete?.()
-      return
-    }
-    const timer = window.setTimeout(
-      () => onRevealComplete?.(),
-      REVEAL_DURATION_MS,
-    )
-    return () => window.clearTimeout(timer)
-  }, [artworkReady, isRevealing, onRevealComplete, shouldReduceMotion])
 
   return (
     <fieldset
@@ -218,15 +163,6 @@ const ArtworkCard = ({
           : 'h-[308px] w-[236px] shrink-0',
       )}
     >
-      {isRevealing && !artworkFailed ? (
-        <p aria-live="polite" className="sr-only">
-          {artworkReady ? (
-            <Trans>Revealing your commemorative NFT…</Trans>
-          ) : (
-            <Trans>Your commemorative NFT is rendering…</Trans>
-          )}
-        </p>
-      ) : null}
       <div
         className={cn(
           'relative rounded-lg bg-transparent drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)]',
@@ -234,24 +170,17 @@ const ArtworkCard = ({
         )}
       >
         <CommemorativeNftRendererSurface
-          artworkUrl={state.card.artworkUrl}
           eligibility={state.card.eligibility}
+          interactive={interactive}
           key={attempt}
           onError={() => {
             setArtworkFailed(true)
-            setArtworkReady(false)
           }}
           onReady={() => {
-            setArtworkReady(true)
             setArtworkFailed(false)
           }}
           rendererUrl={rendererUrl}
         />
-        {isRevealing &&
-        !(shouldReduceMotion && artworkReady) &&
-        !artworkFailed ? (
-          <RevealCover revealing={artworkReady} />
-        ) : null}
         {artworkFailed ? (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-lg bg-ens-garnet-100 p-4 text-center text-ens-garnet-900 text-sm">
             <p role="status">
@@ -261,7 +190,6 @@ const ArtworkCard = ({
               className="min-h-11 rounded-lg border border-ens-garnet-900 px-4 py-2 font-medium focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2"
               onClick={() => {
                 setArtworkFailed(false)
-                setArtworkReady(false)
                 setAttempt((current) => current + 1)
               }}
               type="button"
@@ -276,12 +204,12 @@ const ArtworkCard = ({
 }
 
 export const CommemorativeNftCard = ({
+  interactive = true,
   state,
-  onRevealComplete,
   variant = 'profile',
 }: {
+  readonly interactive?: boolean
   readonly state: MigrationSuccessDialogState
-  readonly onRevealComplete?: () => void
   readonly variant?: CardVariant
 }) => {
   const cardState = hasCardData(state) ? state : undefined
@@ -295,19 +223,17 @@ export const CommemorativeNftCard = ({
     >
       {cardState ? (
         <ArtworkCard
+          interactive={interactive}
           key={`${cardState.card.eligibility.ownerAddress}:${cardState.card.eligibility.rendererName}`}
-          onRevealComplete={onRevealComplete}
           state={cardState}
           variant={variant}
         />
       ) : (
-        <div className="relative h-68.25 w-48.25">
-          <RevealCover revealing={false} />
-        </div>
+        <p className="font-sans text-ens-garnet-500 text-sm" role="status">
+          <Trans>Loading NFT details…</Trans>
+        </p>
       )}
-      {cardState && cardState.status !== 'revealing' ? (
-        <SharingRail state={cardState} />
-      ) : null}
+      {cardState ? <SharingRail state={cardState} /> : null}
     </div>
   )
 }

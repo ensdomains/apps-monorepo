@@ -3,8 +3,8 @@ import { type Address, getAddress, type Hex, isAddress, isHex } from 'viem'
 import {
   buildCommemorativeNftAssets,
   getCommemorativeNftTokenId,
+  withCommemorativeNftAssetVersion,
 } from './config'
-import { getCommemorativeNftDevFixture } from './eligibility.fixture'
 import {
   COMMEMORATIVE_NFT_TRAIT_VALUES,
   type CommemorativeNftAssets,
@@ -79,9 +79,13 @@ const parseRendererUrl = (
   const rendererUrl = parseHttpUrl(value)
   if (!rendererUrl || !metadataUrl) return undefined
 
-  return new URL(rendererUrl).searchParams.get('tokenURI') === metadataUrl
-    ? rendererUrl
-    : undefined
+  const url = new URL(rendererUrl)
+  const tokenUri = parseHttpUrl(url.searchParams.get('tokenURI') ?? undefined)
+  if (!tokenUri || withCommemorativeNftAssetVersion(tokenUri) !== metadataUrl)
+    return undefined
+
+  url.searchParams.set('tokenURI', metadataUrl)
+  return url.toString()
 }
 
 const parseTraits = (
@@ -120,7 +124,9 @@ const mergeAssets = (
   metadataUrl: derived.metadataUrl,
   imageUrl: derived.imageUrl,
   animationUrl: parseRendererUrl(payload.animation_url, derived.metadataUrl),
-  externalUrl: parseHttpUrl(payload.external_url),
+  externalUrl:
+    parseRendererUrl(payload.external_url, derived.metadataUrl) ??
+    parseHttpUrl(payload.external_url),
 })
 
 export const parseCommemorativeNftEligibility = (params: {
@@ -186,18 +192,9 @@ export const parseCommemorativeNftEligibility = (params: {
 export const fetchCommemorativeNftEligibility = async (params: {
   readonly ownerAddress: Address
   readonly assetOrigin?: string
-  readonly allowDevFixture?: boolean
   readonly fetcher?: typeof fetch
 }): Promise<CommemorativeNftEligibilityResult> => {
-  if (!params.assetOrigin) {
-    const fixture =
-      params.allowDevFixture && import.meta.env.DEV
-        ? getCommemorativeNftDevFixture(params.ownerAddress)
-        : undefined
-    return fixture
-      ? { status: 'eligible', eligibility: fixture }
-      : { status: 'unavailable' }
-  }
+  if (!params.assetOrigin) return { status: 'unavailable' }
 
   const assets = buildCommemorativeNftAssets(
     params.assetOrigin,
@@ -207,7 +204,8 @@ export const fetchCommemorativeNftEligibility = async (params: {
 
   const response = await (params.fetcher ?? fetch)(assets.metadataUrl)
 
-  if (response.status === 404) return { status: 'ineligible' }
+  if (response.status === 404 || response.status === 410)
+    return { status: 'ineligible' }
   if (!response.ok) {
     throw new CommemorativeNftEligibilityError(
       `Eligibility request failed with HTTP ${response.status}`,
@@ -215,12 +213,10 @@ export const fetchCommemorativeNftEligibility = async (params: {
   }
 
   const payload: unknown = await response.json()
-  return {
-    status: 'eligible',
-    eligibility: parseCommemorativeNftEligibility({
-      ownerAddress: params.ownerAddress,
-      payload,
-      assetOrigin: params.assetOrigin,
-    }),
-  }
+  const eligibility = parseCommemorativeNftEligibility({
+    ownerAddress: params.ownerAddress,
+    payload,
+    assetOrigin: params.assetOrigin,
+  })
+  return { status: 'eligible', eligibility }
 }
