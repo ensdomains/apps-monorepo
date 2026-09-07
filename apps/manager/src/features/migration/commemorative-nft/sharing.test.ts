@@ -19,13 +19,40 @@ describe('commemorative NFT sharing', () => {
   })
 
   it('builds encoded share intents only when an external URL exists', () => {
-    expect(buildCommemorativeNftShareUrls(undefined)).toEqual({})
+    expect(buildCommemorativeNftShareUrls(undefined, false)).toEqual({})
+    expect(buildCommemorativeNftShareUrls(undefined, true)).toEqual({})
     const urls = buildCommemorativeNftShareUrls(
       'https://example.com/nft/hello world',
+      false,
     )
     expect(urls.x).toContain('x.com/intent/post')
     expect(urls.x).toContain('hello+world')
     expect(urls.telegram).toContain('t.me/share/url')
+  })
+
+  it.each([
+    {
+      minted: false,
+      text: 'I upgraded to ENSv2. Take a look at my commemorative NFT.',
+    },
+    {
+      minted: true,
+      text: 'I upgraded to ENSv2 and minted my commemorative NFT.',
+    },
+  ])('shares accurate mint status when minted is $minted', ({
+    minted,
+    text,
+  }) => {
+    const externalUrl = 'https://example.com/nft/hello world'
+    const urls = buildCommemorativeNftShareUrls(externalUrl, minted)
+
+    expect(urls.external).toBe(externalUrl)
+    for (const intent of [urls.x, urls.telegram]) {
+      expect(intent).toBeDefined()
+      const params = new URL(intent ?? '').searchParams
+      expect(params.get('text')).toBe(text)
+      expect(params.get('url')).toBe(externalUrl)
+    }
   })
 
   it('builds a Manager profile fallback on the active environment', () => {

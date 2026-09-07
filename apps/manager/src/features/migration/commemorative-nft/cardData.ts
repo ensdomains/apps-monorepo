@@ -31,6 +31,6 @@ export const buildCommemorativeNftCardData = (params: {
     }),
     migratedAt: params.migratedAt,
     migratedNameCount: params.migratedNameCount,
-    shareUrls: buildCommemorativeNftShareUrls(shareTarget),
+    shareUrls: buildCommemorativeNftShareUrls(shareTarget, params.minted),
   }
 }

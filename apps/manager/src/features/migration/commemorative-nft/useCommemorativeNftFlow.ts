@@ -1,8 +1,12 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useReducedMotion } from 'motion/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import {
+  useIsMutating,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Address, Hex } from 'viem'
-import { useConfig } from 'wagmi'
+import { useChainId, useConfig } from 'wagmi'
 import type {
   CommemorativeNftCardData,
   MigrationSuccessDialogState,
@@ -16,9 +20,9 @@ import {
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
 import {
   type CommemorativeNftFlowStatus,
+  getCommemorativeNftAdmission,
   getCommemorativeNftClaimedStatus,
   getCommemorativeNftFlowStatus,
-  isCommemorativeNftClaimResultFresh,
 } from './flowState'
 import { invalidateCommemorativeNftStatus } from './queries'
 import type { CommemorativeNftEligibility } from './types'
@@ -31,11 +35,6 @@ type UseCommemorativeNftFlowOptions = {
   readonly migratedNameCount: number
   readonly preview?: boolean
   readonly previewProfileName?: string
-}
-
-type ClaimReadBoundary = {
-  readonly key: string | undefined
-  readonly dataUpdatedAt: number
 }
 
 const getClaimErrorMessage = (error: unknown): string =>
@@ -133,37 +132,27 @@ export const useCommemorativeNftFlow = ({
   previewProfileName,
 }: UseCommemorativeNftFlowOptions) => {
   const wagmiConfig = useConfig()
+  const chainId = useChainId()
   const queryClient = useQueryClient()
-  const shouldReduceMotion = useReducedMotion()
-  const [revealComplete, setRevealComplete] = useState(false)
+  const mutationKey = qk('commemorative_nft', 'claim', {
+    chainId,
+    ownerAddress: ownerAddress?.toLowerCase(),
+  })
+  const hasPendingClaim = useIsMutating({ mutationKey }) > 0
+  const [revealedEligibilityKey, setRevealedEligibilityKey] = useState<
+    string | undefined
+  >()
+  const [admitted, setAdmitted] = useState(false)
   const [txHash, setTxHash] = useState<Hex | undefined>()
   const [awaitingClaim, setAwaitingClaim] = useState(false)
-  const [migratedAt, setMigratedAt] = useState(() => new Date())
+  const [migratedAt] = useState(() => new Date())
+  const claimInFlight = useRef(false)
   const availability = useCommemorativeNftAvailability({
     ownerAddress,
     enabled: open,
-    pollClaimed: awaitingClaim,
+    pollClaimed: awaitingClaim || hasPendingClaim,
     allowDevFixture: true,
   })
-  const claimReadKey = ownerAddress
-    ? `${availability.chainId}:${ownerAddress.toLowerCase()}`
-    : undefined
-  const claimedDataUpdatedAt = availability.claimed.dataUpdatedAt
-  const [claimReadBoundary, setClaimReadBoundary] = useState<ClaimReadBoundary>(
-    () => ({
-      key: claimReadKey,
-      dataUpdatedAt: claimedDataUpdatedAt,
-    }),
-  )
-
-  useEffect(() => {
-    if (open && claimReadBoundary.key === claimReadKey) return
-    setClaimReadBoundary({
-      key: claimReadKey,
-      dataUpdatedAt: claimedDataUpdatedAt,
-    })
-  }, [claimReadBoundary.key, claimedDataUpdatedAt, claimReadKey, open])
-
   const staticEligibility =
     availability.eligibility.data?.status === 'eligible'
       ? availability.eligibility.data.eligibility
@@ -181,23 +170,15 @@ export const useCommemorativeNftFlow = ({
     ? `${eligibility.ownerAddress}:${eligibility.rendererName}`
     : undefined
 
-  useEffect(() => {
-    if (!open) return
-    setMigratedAt(new Date())
-    setRevealComplete(Boolean(shouldReduceMotion))
-    setTxHash(undefined)
-    setAwaitingClaim(false)
-  }, [open, shouldReduceMotion])
-
-  useEffect(() => {
-    setRevealComplete(eligibilityKey ? Boolean(shouldReduceMotion) : false)
-  }, [eligibilityKey, shouldReduceMotion])
+  const revealComplete =
+    eligibilityKey !== undefined && revealedEligibilityKey === eligibilityKey
 
   useEffect(() => {
     if (availability.claimed.data === true) setAwaitingClaim(false)
   }, [availability.claimed.data])
 
   const claimMutation = useMutation({
+    mutationKey,
     mutationFn: async () => {
       if (!eligibility || !ownerAddress || !walletAddress) {
         throw new Error('The eligible owner wallet is not connected.')
@@ -245,43 +226,54 @@ export const useCommemorativeNftFlow = ({
         chainId: availability.chainId,
       })
     },
+    onSettled: () => {
+      claimInFlight.current = false
+    },
   })
 
-  const hasFreshClaimedResult = isCommemorativeNftClaimResultFresh({
-    claimReadKey,
-    requiredClaimReadKey: claimReadBoundary.key,
-    dataUpdatedAt: claimedDataUpdatedAt,
-    requiredDataUpdatedAt: claimReadBoundary.dataUpdatedAt,
-    isSuccess: availability.claimed.isSuccess,
-    fetchStatus: availability.claimed.fetchStatus,
-  })
   const claimedStatus = getCommemorativeNftClaimedStatus({
     preview,
     claimed: availability.claimed.data,
-    isFresh: hasFreshClaimedResult,
+    isFresh: availability.hasFreshClaimedResult,
   })
   const claimed = claimedStatus === true
   const artworkUrl = eligibility?.assets.imageUrl
 
-  useEffect(() => {
-    if (open && eligibilityKey && !artworkUrl) setRevealComplete(true)
-  }, [artworkUrl, eligibilityKey, open])
+  const eligibilityStatus =
+    availability.supported || preview
+      ? getEligibilityFlowStatus({
+          isError: availability.eligibility.isError,
+          isPending: availability.eligibility.isPending,
+          hasEligibility: !!eligibility,
+          dataStatus: availability.eligibility.data?.status,
+        })
+      : 'unavailable'
+  const admission = getCommemorativeNftAdmission({
+    admitted,
+    preview,
+    hasOwner: !!ownerAddress,
+    supported: availability.supported,
+    eligibilityStatus,
+    claimed: availability.claimed.data,
+    isFresh: availability.hasFreshClaimedResult,
+    claimReadError: availability.claimed.isError,
+    fetchStatus: availability.claimed.fetchStatus,
+  })
+  const isAdmitted = admission.status === 'admitted'
 
-  const eligibilityStatus = availability.supported
-    ? getEligibilityFlowStatus({
-        isError: availability.eligibility.isError,
-        isPending: availability.eligibility.isPending,
-        hasEligibility: !!eligibility,
-        dataStatus: availability.eligibility.data?.status,
-      })
-    : 'unavailable'
+  useEffect(() => {
+    if (isAdmitted) setAdmitted(true)
+  }, [isAdmitted])
 
   const flowStatus = getCommemorativeNftFlowStatus({
     eligibilityStatus,
-    claimed: claimedStatus,
+    // Keep admitted artwork visible during background reads. Only a fresh
+    // unclaimed result below can enable the mint action.
+    claimed: isAdmitted && !preview ? availability.claimed.data : claimedStatus,
     revealComplete,
-    claimPending: claimMutation.isPending || awaitingClaim,
-    claimError: claimMutation.isError || availability.claimed.isError,
+    claimPending: claimMutation.isPending || awaitingClaim || hasPendingClaim,
+    claimError:
+      claimMutation.isError || (!preview && availability.claimed.isError),
   })
   const card = useMemo<CommemorativeNftCardData | undefined>(() => {
     if (!eligibility) return undefined
@@ -314,28 +306,55 @@ export const useCommemorativeNftFlow = ({
       card,
     }) ?? getArtworkDialogState({ flowStatus, card, txHash })
 
-  const retry = useCallback(async () => {
-    claimMutation.reset()
-    setTxHash(undefined)
-    setAwaitingClaim(false)
-    await Promise.all([
+  const retry = useCallback(() => {
+    if (!claimMutation.isPending && !awaitingClaim) {
+      claimMutation.reset()
+      setTxHash(undefined)
+    }
+    void Promise.allSettled([
       availability.eligibility.refetch(),
       availability.claimed.refetch(),
     ])
-  }, [availability.claimed, availability.eligibility, claimMutation])
-  const completeReveal = useCallback(() => setRevealComplete(true), [])
+  }, [
+    availability.claimed,
+    availability.eligibility,
+    awaitingClaim,
+    claimMutation,
+  ])
+  const completeReveal = useCallback(
+    () => setRevealedEligibilityKey(eligibilityKey),
+    [eligibilityKey],
+  )
+  const canMint =
+    isAdmitted &&
+    flowStatus === 'readyToMint' &&
+    claimedStatus === false &&
+    !preview &&
+    !!eligibility &&
+    eligibility.source !== 'preview' &&
+    eligibility.proof.length > 0 &&
+    !!ownerAddress &&
+    !!walletAddress &&
+    ownerAddress.toLowerCase() === walletAddress.toLowerCase()
+  const mint = useCallback(() => {
+    if (
+      !canMint ||
+      claimInFlight.current ||
+      queryClient.isMutating({ mutationKey }) > 0
+    ) {
+      return
+    }
+    claimInFlight.current = true
+    claimMutation.mutate()
+  }, [canMint, claimMutation, mutationKey, queryClient])
 
   return {
+    admission,
     state,
     eligibility,
-    canMint:
-      !!eligibility &&
-      eligibility.source !== 'preview' &&
-      eligibility.proof.length > 0 &&
-      !!walletAddress &&
-      !!ownerAddress,
+    canMint,
     completeReveal,
-    mint: claimMutation.mutateAsync,
+    mint,
     retry,
   }
 }

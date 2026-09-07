@@ -5,15 +5,17 @@ import {
   SiX,
 } from '@icons-pack/react-simple-icons'
 import { Trans } from '@lingui/react/macro'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { type ReactNode, useEffect } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
+import { cn } from '@/lib/utils'
 import { startCommemorativeNftAssetDownload } from '../../commemorative-nft/assets'
 import {
   buildCommemorativeNftRendererUrl,
   getCommemorativeNftConfig,
 } from '../../commemorative-nft/config'
+import revealCoverUrl from './assets/nft-reveal-cover.png'
 import { CommemorativeNftRendererSurface } from './CommemorativeNftRendererSurface'
 import type {
   CommemorativeNftCardData,
@@ -28,7 +30,7 @@ type SocialControlProps = {
 }
 
 const socialControlClassName =
-  'flex size-9 items-center justify-center rounded-full bg-white/[0.88] text-ens-garnet-500 shadow-[0_2px_10px_rgba(90,0,36,0.08)] transition enabled:hover:-translate-y-0.5 enabled:hover:bg-white enabled:hover:shadow-[0_4px_14px_rgba(90,0,36,0.13)] disabled:cursor-not-allowed disabled:opacity-45'
+  'flex size-11 items-center justify-center rounded-full border-4 border-transparent bg-white bg-clip-padding text-ens-garnet-500 transition-colors hover:bg-ens-garnet-50 focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none'
 
 type CardDialogState = MigrationSuccessDialogState & {
   readonly card: CommemorativeNftCardData
@@ -77,7 +79,7 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
   const hasDownload = state.status === 'minted' && !!state.card.assets.imageUrl
 
   return (
-    <fieldset className="relative z-10 flex shrink-0 flex-col gap-2 border-0 p-0">
+    <fieldset className="relative z-10 flex shrink-0 flex-col border-0 p-0">
       <legend className="sr-only">
         <Trans>NFT actions</Trans>
       </legend>
@@ -98,7 +100,11 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
         onClick={() => externalUrl && void copy(externalUrl)}
         type="button"
       >
-        <MSymbol className="ms-wght-500 text-[20px]" symbol="content_copy" />
+        <MSymbol
+          aria-hidden
+          className="ms-wght-500 text-[20px]"
+          symbol="content_copy"
+        />
         <span className="sr-only">
           <Trans>Copy link</Trans>
         </span>
@@ -116,7 +122,11 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
         }}
         type="button"
       >
-        <MSymbol className="ms-wght-500 text-[20px]" symbol="download" />
+        <MSymbol
+          aria-hidden
+          className="ms-wght-500 text-[20px]"
+          symbol="download"
+        />
         <span className="sr-only">
           <Trans>Download WebP</Trans>
         </span>
@@ -125,86 +135,59 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
   )
 }
 
-const RenderingCard = () => {
-  const shouldReduceMotion = useReducedMotion()
+type CardVariant = 'dialog' | 'profile'
 
-  return (
-    <motion.div
-      animate={{ opacity: 1 }}
-      className="flex h-[308px] w-[236px] items-center justify-center"
-      exit={{ opacity: 0 }}
-      initial={{ opacity: 0 }}
-      key="rendering"
-    >
-      <div className="relative h-[282px] w-[200px] rotate-[-8.32deg] overflow-hidden rounded-[18px] bg-[#f53293] shadow-[0_4px_22px_white]">
-        <motion.div
-          animate={
-            shouldReduceMotion
-              ? undefined
-              : {
-                  rotate: [-3.7, 5.6, 5.6],
-                  x: [18, 24, 24],
-                  y: [-1, -455, -455],
-                  filter: ['blur(55px)', 'blur(25px)', 'blur(25px)'],
-                }
-          }
-          className="absolute top-[298px] left-[-90px] flex h-[180px] w-[314px] items-center justify-center"
-          initial={{ rotate: -3.7, x: 18, y: -1, filter: 'blur(55px)' }}
-          transition={
-            shouldReduceMotion
-              ? undefined
-              : {
-                  duration: 2,
-                  ease: [0.5, 0, 0.5, 1],
-                  repeat: Number.POSITIVE_INFINITY,
-                }
-          }
-        >
-          <div className="h-[318px] w-[55px] rotate-[66deg] bg-white blur-[50px]" />
-        </motion.div>
-        <span className="absolute inset-0 flex items-center justify-center font-semi-mono text-[#ff8dc6] text-[11px] uppercase tracking-[0.18em]">
-          <Trans>Rendering</Trans>
-        </span>
-      </div>
-    </motion.div>
-  )
-}
+const REVEAL_DURATION_MS = 900
+const COVER_SLICES = Array.from({ length: 12 }, (_, index) => index)
 
-const RevealingCard = ({
-  artworkUrl,
-  onReady,
-}: {
-  readonly artworkUrl?: string
-  readonly onReady?: () => void
-}) => {
-  useEffect(() => {
-    if (!artworkUrl) onReady?.()
-  }, [artworkUrl, onReady])
-
-  return (
-    <div className="relative" key="revealing">
-      <RenderingCard />
-      {artworkUrl ? (
-        <img
-          alt=""
-          aria-hidden
-          className="pointer-events-none absolute size-px opacity-0"
-          onError={onReady}
-          onLoad={onReady}
-          src={artworkUrl}
-        />
-      ) : null}
-    </div>
-  )
-}
+const RevealCover = ({ revealing }: { readonly revealing: boolean }) => (
+  <div
+    aria-hidden
+    className="pointer-events-none absolute inset-0 z-20 overflow-hidden rounded-lg"
+  >
+    {COVER_SLICES.map((index) => (
+      <motion.div
+        animate={
+          revealing
+            ? {
+                x: [0, index % 2 === 0 ? 14 : -14, index % 2 === 0 ? -4 : 4, 0],
+                opacity: [1, 1, 0.6, 0],
+              }
+            : { x: 0, opacity: 1 }
+        }
+        className="absolute left-0 w-full"
+        initial={false}
+        key={index}
+        style={{
+          top: `${(index / COVER_SLICES.length) * 100}%`,
+          height: `${100 / COVER_SLICES.length + 0.1}%`,
+          backgroundImage: `url(${revealCoverUrl})`,
+          backgroundSize: `100% ${COVER_SLICES.length * 100}%`,
+          backgroundPosition: `center ${(index / (COVER_SLICES.length - 1)) * 100}%`,
+        }}
+        transition={{
+          duration: REVEAL_DURATION_MS / 1000,
+          ease: [0.22, 1, 0.36, 1],
+        }}
+      />
+    ))}
+  </div>
+)
 
 const ArtworkCard = ({
   state,
   onRevealComplete,
+  variant,
 }: {
   readonly state: CardDialogState
   readonly onRevealComplete?: () => void
+  readonly variant: CardVariant
 }) => {
+  const shouldReduceMotion = useReducedMotion()
+  const [artworkReady, setArtworkReady] = useState(false)
+  const [artworkFailed, setArtworkFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const isRevealing = state.status === 'revealing'
   const rendererUrl =
     state.card.assets.animationUrl ??
     buildCommemorativeNftRendererUrl({
@@ -212,59 +195,118 @@ const ArtworkCard = ({
       rendererOrigin: getCommemorativeNftConfig().rendererOrigin,
     })
 
+  useEffect(() => {
+    if (!artworkReady || !isRevealing) return
+    if (shouldReduceMotion) {
+      onRevealComplete?.()
+      return
+    }
+    const timer = window.setTimeout(
+      () => onRevealComplete?.(),
+      REVEAL_DURATION_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [artworkReady, isRevealing, onRevealComplete, shouldReduceMotion])
+
   return (
-    <motion.div
-      animate={{ opacity: 1, y: 0 }}
+    <fieldset
       aria-label={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
-      className="flex h-[308px] w-[236px] items-center justify-center"
-      initial={{ opacity: 0, y: 8 }}
-      key="artwork"
-      role="group"
-      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      className={cn(
+        'flex items-center justify-center border-0 p-0',
+        variant === 'dialog'
+          ? 'h-[310px] w-[250px] min-w-0 shrink'
+          : 'h-[308px] w-[236px] shrink-0',
+      )}
     >
-      <div className="relative h-[282px] w-[200px] rotate-[-5.12deg] bg-transparent drop-shadow-[0_7px_7px_rgba(90,0,36,0.28)]">
+      {isRevealing && !artworkFailed ? (
+        <p aria-live="polite" className="sr-only">
+          {artworkReady ? (
+            <Trans>Revealing your commemorative NFT…</Trans>
+          ) : (
+            <Trans>Your commemorative NFT is rendering…</Trans>
+          )}
+        </p>
+      ) : null}
+      <div
+        className={cn(
+          'relative rounded-lg bg-transparent drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)]',
+          variant === 'dialog'
+            ? 'h-[273px] w-[193px] md:rotate-[-16deg]'
+            : 'h-[282px] w-[200px] rotate-[-5.12deg]',
+        )}
+      >
         <CommemorativeNftRendererSurface
           artworkUrl={state.card.artworkUrl}
           eligibility={state.card.eligibility}
-          key={rendererUrl}
-          onReady={onRevealComplete}
+          key={attempt}
+          onError={() => {
+            setArtworkFailed(true)
+            setArtworkReady(false)
+          }}
+          onReady={() => {
+            setArtworkReady(true)
+            setArtworkFailed(false)
+          }}
           rendererUrl={rendererUrl}
         />
+        {isRevealing &&
+        !(shouldReduceMotion && artworkReady) &&
+        !artworkFailed ? (
+          <RevealCover revealing={artworkReady} />
+        ) : null}
+        {artworkFailed ? (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-lg bg-ens-garnet-100 p-4 text-center text-ens-garnet-900 text-sm">
+            <p role="status">
+              <Trans>Artwork could not be loaded.</Trans>
+            </p>
+            <button
+              className="min-h-11 rounded-lg border border-ens-garnet-900 px-4 py-2 font-medium focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2"
+              onClick={() => {
+                setArtworkFailed(false)
+                setArtworkReady(false)
+                setAttempt((current) => current + 1)
+              }}
+              type="button"
+            >
+              <Trans>Retry artwork</Trans>
+            </button>
+          </div>
+        ) : null}
       </div>
-    </motion.div>
+    </fieldset>
   )
 }
 
 export const CommemorativeNftCard = ({
   state,
   onRevealComplete,
+  variant = 'profile',
 }: {
   readonly state: MigrationSuccessDialogState
   readonly onRevealComplete?: () => void
+  readonly variant?: CardVariant
 }) => {
   const cardState = hasCardData(state) ? state : undefined
 
   return (
-    <div className="flex h-[308px] w-full items-center justify-center gap-3">
-      <AnimatePresence initial={false} mode="wait">
-        {cardState ? (
-          cardState.status === 'revealing' ? (
-            <RevealingCard
-              artworkUrl={cardState.card.artworkUrl}
-              key="revealing"
-              onReady={onRevealComplete}
-            />
-          ) : (
-            <ArtworkCard
-              key="artwork"
-              onRevealComplete={onRevealComplete}
-              state={cardState}
-            />
-          )
-        ) : (
-          <RenderingCard key="rendering" />
-        )}
-      </AnimatePresence>
+    <div
+      className={cn(
+        'flex w-full items-center justify-center',
+        variant === 'dialog' ? 'h-[310px]' : 'h-[308px] gap-1',
+      )}
+    >
+      {cardState ? (
+        <ArtworkCard
+          key={`${cardState.card.eligibility.ownerAddress}:${cardState.card.eligibility.rendererName}`}
+          onRevealComplete={onRevealComplete}
+          state={cardState}
+          variant={variant}
+        />
+      ) : (
+        <div className="relative h-[273px] w-[193px] md:rotate-[-16deg]">
+          <RevealCover revealing={false} />
+        </div>
+      )}
       {cardState && cardState.status !== 'revealing' ? (
         <SharingRail state={cardState} />
       ) : null}

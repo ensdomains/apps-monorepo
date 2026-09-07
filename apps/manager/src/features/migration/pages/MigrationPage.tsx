@@ -12,6 +12,7 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
+import { MigrationSuccessDialogPreview } from '@/features/migration/components/MigrationSuccessDialogPreview'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { CommemorativeNftClaimDialog } from '@/features/migration/components/success/CommemorativeNftClaimDialog'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -188,8 +189,7 @@ export const MigrationPage = () => {
   )
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const isMigrationSuccess = step === 'success'
-  const dialogOpen =
-    migrationNftEnabled && (isMigrationSuccess || isPreviewOpen)
+  const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)
   const dialogNames = isMigrationSuccess ? completedNames : selectedNames
   const gasEstimate = useMigrationGasEstimate({
@@ -318,13 +318,13 @@ export const MigrationPage = () => {
               <Trans>Back</Trans>
             </span>
           </button>
-          {import.meta.env.DEV && migrationNftEnabled ? (
+          {import.meta.env.DEV ? (
             <button
               className="absolute top-6 right-5 z-20 px-2 py-2 text-ens-garnet-900 text-xs underline underline-offset-2 md:right-8"
               onClick={() => setIsPreviewOpen(true)}
               type="button"
             >
-              <Trans>Preview success dialog</Trans>
+              <Trans>Preview NFT reveal</Trans>
             </button>
           ) : null}
         </>
@@ -401,8 +401,11 @@ export const MigrationPage = () => {
           onViewProfile={handleViewProfile}
           open={dialogOpen}
           ownerAddress={ownerAddress as Address | undefined}
-          preview={isPreviewOpen && !isMigrationSuccess}
-          previewProfileName={dialogNames[0]}
+        />
+      ) : null}
+      {import.meta.env.DEV && isPreviewOpen ? (
+        <MigrationSuccessDialogPreview
+          onClose={() => setIsPreviewOpen(false)}
         />
       ) : null}
     </div>

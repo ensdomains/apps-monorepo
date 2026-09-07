@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useChainId, useConfig } from 'wagmi'
 import { getCommemorativeNftContractAddress } from './config'
+import { isCommemorativeNftClaimResultFresh } from './flowState'
 import {
   commemorativeNftClaimedQueryOptions,
   commemorativeNftEligibilityQueryOptions,
@@ -37,11 +38,20 @@ export const useCommemorativeNftAvailability = (params: {
     }),
     enabled,
   })
+  const hasFreshClaimedResult =
+    enabled &&
+    isCommemorativeNftClaimResultFresh({
+      isFetchedAfterMount: claimed.isFetchedAfterMount,
+      isSuccess: claimed.isSuccess,
+      fetchStatus: claimed.fetchStatus,
+    })
 
   return {
     chainId,
     supported,
     eligibility,
     claimed,
+    hasFreshClaimedResult,
+    isConfirmedUnclaimed: hasFreshClaimedResult && claimed.data === false,
   }
 }

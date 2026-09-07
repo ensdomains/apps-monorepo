@@ -90,9 +90,7 @@ describe('csp', () => {
     })
 
     it('allows fetching immutable commemorative NFT metadata from R2', () => {
-      expect(connectSrc).toContain(
-        'https://pub-43406b099825402eb42ecfb3494a902b.r2.dev',
-      )
+      expect(connectSrc).toContain('https://nft-assets.ens.dev')
     })
   })
 

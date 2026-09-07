@@ -12,7 +12,7 @@ export const COMMEMORATIVE_NFT_SEPOLIA_ADDRESS = getAddress(
 export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
   'https://ens-renderer.pages.dev'
 export const DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN =
-  'https://pub-43406b099825402eb42ecfb3494a902b.r2.dev'
+  'https://nft-assets.ens.dev'
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 
