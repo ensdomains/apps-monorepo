@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   buildCommemorativeNftAssets,
   buildCommemorativeNftRendererUrl,
-  COMMEMORATIVE_NFT_ASSET_VERSION,
   getCommemorativeNftTokenId,
 } from './config'
 import {
@@ -24,11 +23,9 @@ const traits = {
   Rarity: 'Common',
   Seed: 742_941_409,
 } as const
-const metadataUrl = `https://assets.example/token/${tokenId}.json`
-const animationUrl = `https://ens-renderer.pages.dev/?tokenURI=${encodeURIComponent(metadataUrl)}&transparent=1`
-const versionedMetadataUrl = `${metadataUrl}?v=${COMMEMORATIVE_NFT_ASSET_VERSION}`
-const versionedImageUrl = `https://assets.example/token/${tokenId}.webp?v=${COMMEMORATIVE_NFT_ASSET_VERSION}`
-const versionedAnimationUrl = `https://ens-renderer.pages.dev/?tokenURI=${encodeURIComponent(versionedMetadataUrl)}&transparent=1`
+const metadataUrl = `https://assets.example/token/${tokenId}/metadata.json`
+const animationUrl = `https://ens-renderer.pages.dev/?tokenId=${tokenId}&transparent=1`
+const imageUrl = `https://assets.example/token/${tokenId}/image.webp`
 const publishedTraits = {
   Era: 'Surge',
   Depth: 'Namer',
@@ -48,7 +45,7 @@ const publishedMetadata = {
     trait_type,
     value,
   })),
-  image: `https://assets.example/token/${tokenId}.webp`,
+  image: `https://assets.example/token/${tokenId}/image.webp`,
   animation_url: animationUrl,
 }
 
@@ -72,8 +69,8 @@ describe('commemorative NFT eligibility', () => {
     expect(result.profileName).toBe('yoginth.eth')
     expect(result.traits).toEqual(traits)
     expect(result.assets.externalUrl).toBe('https://renderer.example/token/1')
-    expect(result.assets.animationUrl).toBe(versionedAnimationUrl)
-    expect(result.assets.imageUrl).toBe(versionedImageUrl)
+    expect(result.assets.animationUrl).toBe(animationUrl)
+    expect(result.assets.imageUrl).toBe(imageUrl)
   })
 
   it('maps renderer metadata attributes', () => {
@@ -122,7 +119,7 @@ describe('commemorative NFT eligibility', () => {
         fetcher,
       }),
     ).resolves.toEqual({ status: 'ineligible' })
-    expect(fetcher).toHaveBeenCalledWith(versionedMetadataUrl)
+    expect(fetcher).toHaveBeenCalledWith(metadataUrl)
     expect(fetcher).toHaveBeenCalledTimes(1)
   })
 
@@ -146,15 +143,15 @@ describe('commemorative NFT eligibility', () => {
         proof: [proof],
         traits: publishedTraits,
         assets: {
-          metadataUrl: versionedMetadataUrl,
-          imageUrl: versionedImageUrl,
-          animationUrl: versionedAnimationUrl,
+          metadataUrl,
+          imageUrl,
+          animationUrl,
           externalUrl: undefined,
         },
         source: 'static',
       },
     })
-    expect(fetcher).toHaveBeenCalledExactlyOnceWith(versionedMetadataUrl)
+    expect(fetcher).toHaveBeenCalledExactlyOnceWith(metadataUrl)
   })
 
   it('returns unavailable when no published asset origin is configured', async () => {
@@ -192,7 +189,7 @@ describe('commemorative NFT eligibility', () => {
         fetcher,
       }),
     ).rejects.toBe(error)
-    expect(fetcher).toHaveBeenCalledExactlyOnceWith(versionedMetadataUrl)
+    expect(fetcher).toHaveBeenCalledExactlyOnceWith(metadataUrl)
   })
 
   it.each([
@@ -259,9 +256,14 @@ describe('commemorative NFT eligibility', () => {
 
   it.each([
     'https://ens-renderer.pages.dev/?tokenId=1',
-    `https://ens-renderer.pages.dev/?tokenURI=${encodeURIComponent('https://assets.example/token/1.json')}`,
-    `https://ens-renderer.pages.dev/?tokenURI=${encodeURIComponent(`https://other.example/token/${tokenId}.json`)}`,
-  ])('ignores animation URLs that do not load the static token metadata: %s', (url) => {
+    'https://ens-renderer.pages.dev/?tokenId=',
+    `https://ens-renderer.pages.dev/?tokenId=0${tokenId}`,
+    `https://ens-renderer.pages.dev/?tokenId=${tokenId}&tokenId=${tokenId}`,
+    `https://ens-renderer.pages.dev/?tokenId=${tokenId}&tokenId=1`,
+    `https://ens-renderer.pages.dev/?tokenURI=${encodeURIComponent(metadataUrl)}`,
+    `${animationUrl}&tokenURI=`,
+    `${animationUrl}&tokenURI=${encodeURIComponent(metadataUrl)}`,
+  ])('ignores renderer and share URLs with invalid token parameters: %s', (url) => {
     const result = parseCommemorativeNftEligibility({
       ownerAddress,
       assetOrigin: 'https://assets.example',
@@ -272,45 +274,60 @@ describe('commemorative NFT eligibility', () => {
         proof: [proof],
         traits,
         animation_url: url,
+        external_url: url,
       },
     })
 
     expect(result.assets.animationUrl).toBeUndefined()
+    expect(result.assets.externalUrl).toBeUndefined()
   })
 
-  it('updates existing cache versions in renderer and share URLs', () => {
-    const previousUrl = new URL(animationUrl)
-    previousUrl.searchParams.set('tokenURI', `${metadataUrl}?v=old`)
-    previousUrl.searchParams.set('quality', 'high')
+  it('ignores animation URLs without a token ID and preserves ordinary external links', () => {
+    const url = 'https://example.com/profile/yoginth.eth?ref=nft'
     const result = parseCommemorativeNftEligibility({
       ownerAddress,
       assetOrigin: 'https://assets.example',
       payload: {
         ...publishedMetadata,
-        animation_url: previousUrl.toString(),
-        external_url: previousUrl.toString(),
+        animation_url: 'https://ens-renderer.pages.dev/?transparent=1',
+        external_url: url,
       },
     })
 
-    const expectedUrl = new URL(versionedAnimationUrl)
-    expectedUrl.searchParams.set('quality', 'high')
-    expect(result.assets.animationUrl).toBe(expectedUrl.toString())
-    expect(result.assets.externalUrl).toBe(expectedUrl.toString())
+    expect(result.assets.animationUrl).toBeUndefined()
+    expect(result.assets.externalUrl).toBe(url)
   })
 
-  it('derives stable token asset URLs', () => {
+  it('preserves other parameters in valid renderer and share URLs', () => {
+    const url = new URL(animationUrl)
+    url.searchParams.set('quality', 'high')
+    const result = parseCommemorativeNftEligibility({
+      ownerAddress,
+      assetOrigin: 'https://assets.example',
+      payload: {
+        ...publishedMetadata,
+        animation_url: url.toString(),
+        external_url: url.toString(),
+      },
+    })
+
+    expect(result.assets.animationUrl).toBe(url.toString())
+    expect(result.assets.externalUrl).toBe(url.toString())
+  })
+
+  it('derives canonical token asset URLs without query parameters', () => {
     expect(buildCommemorativeNftAssets(undefined, ownerAddress)).toEqual({})
     const assets = buildCommemorativeNftAssets(
       'https://assets.example/',
       ownerAddress,
     )
     expect(assets).toEqual({
-      imageUrl: versionedImageUrl,
-      metadataUrl: versionedMetadataUrl,
+      imageUrl,
+      metadataUrl,
     })
   })
 
-  it('loads the published JSON directly in the renderer', () => {
+  it('loads the published token by ID in the renderer', () => {
     const eligibility = parseCommemorativeNftEligibility({
       ownerAddress,
       assetOrigin: 'https://assets.example',
@@ -327,12 +344,31 @@ describe('commemorative NFT eligibility', () => {
       rendererOrigin: 'https://renderer.example/',
     })
     const rendererUrl = new URL(value ?? '')
-    const tokenUri = rendererUrl.searchParams.get('tokenURI')
 
     expect(rendererUrl.origin).toBe('https://renderer.example')
     expect(rendererUrl.searchParams.get('transparent')).toBe('1')
-    expect(tokenUri).toBe(versionedMetadataUrl)
+    expect(rendererUrl.searchParams.getAll('tokenId')).toEqual([tokenId])
+    expect(rendererUrl.searchParams.has('tokenURI')).toBe(false)
     expect(value).not.toContain(proof)
+  })
+
+  it('replaces stale token parameters in the configured renderer URL', () => {
+    const eligibility = parseCommemorativeNftEligibility({
+      ownerAddress,
+      assetOrigin: 'https://assets.example',
+      payload: publishedMetadata,
+    })
+    const value = buildCommemorativeNftRendererUrl({
+      eligibility,
+      rendererOrigin:
+        'https://renderer.example/?tokenURI=old&tokenURI=older&tokenId=1&tokenId=2&quality=high&transparent=0',
+    })
+    const url = new URL(value ?? '')
+
+    expect(url.searchParams.getAll('tokenId')).toEqual([tokenId])
+    expect(url.searchParams.has('tokenURI')).toBe(false)
+    expect(url.searchParams.get('transparent')).toBe('1')
+    expect(url.searchParams.get('quality')).toBe('high')
   })
 
   it('does not synthesize renderer metadata when published JSON is unavailable', () => {
@@ -347,5 +383,6 @@ describe('commemorative NFT eligibility', () => {
         rendererOrigin: 'https://renderer.example/',
       }),
     ).toBeUndefined()
+    expect(eligibility.assets.animationUrl).toBeUndefined()
   })
 })

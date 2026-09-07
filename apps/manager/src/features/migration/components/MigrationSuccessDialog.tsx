@@ -8,6 +8,7 @@ import {
 import { MSymbol } from '@/components/ui/material-symbol'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { cn } from '@/lib/utils'
+import { MigrationPrimaryButton } from './MigrationPrimaryButton'
 import { shouldShowPlainMigrationSuccess } from './MigrationSuccessDialog.helpers'
 import { CommemorativeNftCard } from './success/CommemorativeNftCard'
 import type { MigrationSuccessDialogState } from './success/MigrationSuccessDialog.types'
@@ -54,25 +55,6 @@ const DialogHeading = ({
   </div>
 )
 
-const PrimaryButton = ({
-  children,
-  disabled,
-  onClick,
-}: {
-  readonly children: React.ReactNode
-  readonly disabled?: boolean
-  readonly onClick: () => void
-}) => (
-  <button
-    className="group/button relative flex min-h-11 min-w-40 max-w-full items-center justify-center gap-2.5 rounded-xl border border-white/40 border-t-2 bg-ens-garnet-900 px-4 py-2.5 text-center font-medium font-sans text-ens-quartz-100 text-sm uppercase leading-none tracking-[0.1em] shadow-[2.5px_-2px_0_var(--color-ens-garnet-300),inset_2px_-2px_0_rgba(255,98,176,0.76)] transition-[background-color,box-shadow,transform] duration-150 ease-out focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-4 enabled:active:translate-y-px enabled:hover:bg-ens-garnet-800 disabled:cursor-not-allowed disabled:bg-ens-quartz-700 disabled:shadow-none motion-reduce:transform-none motion-reduce:transition-none"
-    disabled={disabled}
-    onClick={onClick}
-    type="button"
-  >
-    {children}
-  </button>
-)
-
 const PlainMigrationSuccessContent = ({
   migratedNameCount,
   onOpenDashboard,
@@ -93,7 +75,7 @@ const PlainMigrationSuccessContent = ({
     </DialogDescription>
 
     <div className="mt-8 flex w-full justify-center">
-      <PrimaryButton onClick={onOpenDashboard}>
+      <MigrationPrimaryButton onClick={onOpenDashboard}>
         <span className="flex items-center gap-2">
           <Trans>Open Dashboard</Trans>
           <MSymbol
@@ -102,7 +84,7 @@ const PlainMigrationSuccessContent = ({
             symbol="arrow_forward"
           />
         </span>
-      </PrimaryButton>
+      </MigrationPrimaryButton>
     </div>
   </div>
 )
@@ -157,9 +139,9 @@ const StatusContent = ({
         >
           <Trans>Learn about eligibility</Trans>
         </a>
-        <PrimaryButton onClick={onViewProfile}>
+        <MigrationPrimaryButton onClick={onViewProfile}>
           <Trans>Continue to profile</Trans>
-        </PrimaryButton>
+        </MigrationPrimaryButton>
       </div>
     )
   }
@@ -174,13 +156,13 @@ const StatusContent = ({
           {state.message}
         </p>
         {state.stage === 'eligibility' ? (
-          <PrimaryButton onClick={onRetry}>
+          <MigrationPrimaryButton onClick={onRetry}>
             <Trans>Try again</Trans>
-          </PrimaryButton>
+          </MigrationPrimaryButton>
         ) : (
-          <PrimaryButton onClick={onViewProfile}>
+          <MigrationPrimaryButton onClick={onViewProfile}>
             <Trans>Continue to profile</Trans>
-          </PrimaryButton>
+          </MigrationPrimaryButton>
         )}
       </div>
     )
@@ -193,14 +175,14 @@ const StatusContent = ({
       <div className="flex w-full flex-col items-center gap-1">
         {state.status === 'loadingEligibility' ? (
           <>
-            <PrimaryButton disabled onClick={onMint}>
+            <MigrationPrimaryButton disabled onClick={onMint}>
               <Trans>Mint</Trans>
               <MSymbol
                 aria-hidden
                 className="text-lg leading-none"
                 symbol="spa"
               />
-            </PrimaryButton>
+            </MigrationPrimaryButton>
             <SecondaryButton onClick={onClose}>
               <Trans>Later</Trans>
             </SecondaryButton>
@@ -209,14 +191,14 @@ const StatusContent = ({
 
         {state.status === 'readyToMint' ? (
           <>
-            <PrimaryButton disabled={!canMint} onClick={onMint}>
+            <MigrationPrimaryButton disabled={!canMint} onClick={onMint}>
               <Trans>Mint</Trans>
               <MSymbol
                 aria-hidden
                 className="text-lg leading-none"
                 symbol="spa"
               />
-            </PrimaryButton>
+            </MigrationPrimaryButton>
             <SecondaryButton onClick={onClose}>
               <Trans>Later</Trans>
             </SecondaryButton>
@@ -225,12 +207,12 @@ const StatusContent = ({
 
         {state.status === 'minting' ? (
           <>
-            <PrimaryButton disabled onClick={onMint}>
+            <MigrationPrimaryButton disabled onClick={onMint}>
               <span className="flex items-center gap-2">
                 <span className="size-3 animate-spin rounded-full border border-current border-t-transparent motion-reduce:animate-none" />
                 <Trans>Minting…</Trans>
               </span>
-            </PrimaryButton>
+            </MigrationPrimaryButton>
             <p
               aria-live="polite"
               className="pt-2 font-sans text-ens-garnet-500 text-xs"
@@ -250,7 +232,7 @@ const StatusContent = ({
             >
               <Trans>Your new profile is ready.</Trans>
             </p>
-            <PrimaryButton onClick={onViewProfile}>
+            <MigrationPrimaryButton onClick={onViewProfile}>
               <span className="flex items-center gap-2">
                 <Trans>Go make it yours</Trans>
                 <MSymbol
@@ -259,7 +241,7 @@ const StatusContent = ({
                   symbol="face_retouching_natural"
                 />
               </span>
-            </PrimaryButton>
+            </MigrationPrimaryButton>
           </>
         ) : null}
 
@@ -271,9 +253,9 @@ const StatusContent = ({
             >
               {state.message}
             </p>
-            <PrimaryButton onClick={onRetry}>
+            <MigrationPrimaryButton onClick={onRetry}>
               <Trans>Try again</Trans>
-            </PrimaryButton>
+            </MigrationPrimaryButton>
             <SecondaryButton onClick={onClose}>
               <Trans>Later</Trans>
             </SecondaryButton>

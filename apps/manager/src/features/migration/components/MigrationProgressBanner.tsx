@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -65,13 +66,13 @@ export const MigrationProgressBanner = () => {
               )}
             </p>
           </div>
-          <button
-            className="w-full shrink-0 rounded-sm bg-ens-garnet-900 px-4 py-3.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[0.24px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] md:w-[338px]"
+          <MigrationPrimaryButton
+            className="w-full shrink-0 md:w-[338px]"
             onClick={() => navigate({ to: '/migration' })}
             type="button"
           >
             <Trans>Complete Upgrade</Trans>
-          </button>
+          </MigrationPrimaryButton>
         </div>
       </div>
     </div>

@@ -11,7 +11,7 @@ import { mainnet, sepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useChainId, useConfig } from 'wagmi'
 import {
-  COMMEMORATIVE_NFT_ASSET_VERSION,
+  buildCommemorativeNftAssets,
   getCommemorativeNftConfig,
 } from './config'
 import { readCommemorativeNftClaimed } from './contract'
@@ -317,7 +317,10 @@ describe('commemorative NFT availability observer', () => {
       qk('commemorative_nft', 'eligibility', {
         ownerAddress: ownerAddress.toLowerCase(),
         assetOrigin: getCommemorativeNftConfig().assetOrigin,
-        assetVersion: COMMEMORATIVE_NFT_ASSET_VERSION,
+        metadataUrl: buildCommemorativeNftAssets(
+          getCommemorativeNftConfig().assetOrigin,
+          ownerAddress,
+        ).metadataUrl,
         validationVersion: 2,
       }),
       { status: 'ineligible' },
@@ -336,6 +339,36 @@ describe('commemorative NFT availability observer', () => {
           source: 'static',
         },
       }),
+    )
+    await waitFor(() =>
+      expect(result.current.eligibility.data?.status).toBe('eligible'),
+    )
+    expect(fetchEligibility).toHaveBeenCalledTimes(1)
+  })
+
+  it('discards eligible data cached with the previous asset version key', async () => {
+    const client = createClient()
+    const eligibility = {
+      ...createCommemorativeNftPreviewEligibility({ ownerAddress }),
+      source: 'static' as const,
+    }
+    client.setQueryData(
+      qk('commemorative_nft', 'eligibility', {
+        ownerAddress: ownerAddress.toLowerCase(),
+        assetOrigin: getCommemorativeNftConfig().assetOrigin,
+        assetVersion: '20260907-token-directories',
+        validationVersion: 3,
+      }),
+      { status: 'eligible', eligibility },
+    )
+    const pendingEligibility = deferred<CommemorativeNftEligibilityResult>()
+    fetchEligibility.mockReturnValueOnce(pendingEligibility.promise)
+    const { result } = mountAvailability(client)
+
+    expect(result.current.eligibility.data).toBeUndefined()
+
+    await act(async () =>
+      pendingEligibility.resolve({ status: 'eligible', eligibility }),
     )
     await waitFor(() =>
       expect(result.current.eligibility.data?.status).toBe('eligible'),

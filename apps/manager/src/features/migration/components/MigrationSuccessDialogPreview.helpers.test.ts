@@ -21,9 +21,9 @@ const eligibility: CommemorativeNftEligibility = {
     Seed: 123,
   },
   assets: {
-    metadataUrl: 'https://assets.example/token/123.json',
-    imageUrl: 'https://assets.example/token/123.webp',
-    animationUrl: 'https://renderer.example/?tokenURI=published-metadata',
+    metadataUrl: 'https://assets.example/token/123/metadata.json',
+    imageUrl: 'https://assets.example/token/123/image.webp',
+    animationUrl: 'https://renderer.example/?tokenId=123&transparent=1',
     externalUrl: 'https://assets.example/published-name',
   },
   source: 'static',

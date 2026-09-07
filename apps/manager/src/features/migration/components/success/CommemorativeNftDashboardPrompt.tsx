@@ -6,6 +6,7 @@ import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { useCommemorativeNftAvailability } from '../../commemorative-nft/useCommemorativeNftAvailability'
+import { MigrationPrimaryButton } from '../MigrationPrimaryButton'
 import { CommemorativeNftClaimDialog } from './CommemorativeNftClaimDialog'
 
 export const CommemorativeNftDashboardPrompt = () => {
@@ -49,14 +50,14 @@ export const CommemorativeNftDashboardPrompt = () => {
                 </p>
               </div>
             </div>
-            <button
-              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xs bg-ens-garnet-900 px-4 font-semi-mono text-ens-garnet-50 text-xs uppercase tracking-[0.1em] transition hover:bg-ens-garnet-800"
+            <MigrationPrimaryButton
+              className="shrink-0"
               onClick={() => setOpen(true)}
               type="button"
             >
               <Trans>View and mint</Trans>
               <MSymbol className="text-[18px]" symbol="arrow_forward" />
-            </button>
+            </MigrationPrimaryButton>
           </div>
         </motion.section>
       ) : null}

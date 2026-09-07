@@ -13,8 +13,6 @@ export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
   'https://ens-renderer.pages.dev'
 export const DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN =
   'https://nft-assets.ens.dev'
-// Bypass asset responses cached before CORS was enabled, then reuse the cache.
-export const COMMEMORATIVE_NFT_ASSET_VERSION = '20260907-cors'
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 
@@ -40,12 +38,6 @@ export const getCommemorativeNftContractAddress = (
 export const getCommemorativeNftTokenId = (ownerAddress: Address): bigint =>
   BigInt(keccak256(ownerAddress))
 
-export const withCommemorativeNftAssetVersion = (value: string): string => {
-  const url = new URL(value)
-  url.searchParams.set('v', COMMEMORATIVE_NFT_ASSET_VERSION)
-  return url.toString()
-}
-
 export const buildCommemorativeNftAssets = (
   assetOrigin: string | undefined,
   ownerAddress: Address,
@@ -56,12 +48,8 @@ export const buildCommemorativeNftAssets = (
   const origin = trimTrailingSlash(assetOrigin)
 
   return {
-    metadataUrl: withCommemorativeNftAssetVersion(
-      `${origin}/token/${tokenId}.json`,
-    ),
-    imageUrl: withCommemorativeNftAssetVersion(
-      `${origin}/token/${tokenId}.webp`,
-    ),
+    metadataUrl: new URL(`${origin}/token/${tokenId}/metadata.json`).toString(),
+    imageUrl: new URL(`${origin}/token/${tokenId}/image.webp`).toString(),
   }
 }
 
@@ -69,11 +57,14 @@ export const buildCommemorativeNftRendererUrl = (params: {
   readonly eligibility: CommemorativeNftEligibility
   readonly rendererOrigin: string
 }): string | undefined => {
-  const tokenUri = params.eligibility.assets.metadataUrl
-  if (!tokenUri) return undefined
+  if (!params.eligibility.assets.metadataUrl) return undefined
 
   const rendererUrl = new URL(trimTrailingSlash(params.rendererOrigin))
-  rendererUrl.searchParams.set('tokenURI', tokenUri)
+  rendererUrl.searchParams.delete('tokenURI')
+  rendererUrl.searchParams.set(
+    'tokenId',
+    getCommemorativeNftTokenId(params.eligibility.ownerAddress).toString(),
+  )
   rendererUrl.searchParams.set('transparent', '1')
   return rendererUrl.toString()
 }

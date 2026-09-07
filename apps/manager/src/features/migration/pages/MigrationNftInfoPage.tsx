@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { motion, useReducedMotion } from 'motion/react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { GrainOverlay } from '../components/GrainOverlay'
+import { MigrationPrimaryButton } from '../components/MigrationPrimaryButton'
 
 const facts = [
   {
@@ -111,13 +112,12 @@ export const MigrationNftInfoPage = () => {
               </Trans>
             </p>
           </div>
-          <Link
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xs bg-ens-garnet-900 px-5 font-semi-mono text-ens-garnet-50 text-xs uppercase tracking-[0.12em]"
-            to="/dashboard"
-          >
-            <Trans>Open Dashboard</Trans>
-            <MSymbol className="text-[19px]" symbol="arrow_forward" />
-          </Link>
+          <MigrationPrimaryButton asChild className="shrink-0">
+            <Link to="/dashboard">
+              <Trans>Open Dashboard</Trans>
+              <MSymbol className="text-[19px]" symbol="arrow_forward" />
+            </Link>
+          </MigrationPrimaryButton>
         </section>
       </motion.div>
     </main>

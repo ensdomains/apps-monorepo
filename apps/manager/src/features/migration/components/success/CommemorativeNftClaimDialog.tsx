@@ -8,6 +8,10 @@ import {
   getCommemorativeNftSessionKey,
 } from '../../commemorative-nft/flowState'
 import { useCommemorativeNftFlow } from '../../commemorative-nft/useCommemorativeNftFlow'
+import {
+  MigrationPrimaryButton,
+  migrationPrimaryButtonClassName,
+} from '../MigrationPrimaryButton'
 import { MigrationSuccessDialog } from '../MigrationSuccessDialog'
 
 type CommemorativeNftClaimDialogProps = {
@@ -73,21 +77,16 @@ const ClaimAdmissionStatus = ({
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         {canRetry ? (
-          <button
-            className="min-h-11 rounded-xs bg-ens-garnet-900 px-5 py-3 font-semi-mono text-ens-garnet-50 text-xs uppercase tracking-[0.1em] transition-colors hover:bg-ens-garnet-800 focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2 motion-reduce:transition-none"
-            onClick={onRetry}
-            type="button"
-          >
+          <MigrationPrimaryButton onClick={onRetry} type="button">
             <Trans>Try again</Trans>
-          </button>
+          </MigrationPrimaryButton>
         ) : null}
         <button
-          className={cn(
-            'min-h-11 rounded-xs px-5 py-3 font-semi-mono text-xs uppercase tracking-[0.1em] transition-colors focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2 motion-reduce:transition-none',
+          className={
             canRetry
-              ? 'text-ens-garnet-700 hover:bg-ens-garnet-900/5'
-              : 'bg-ens-garnet-900 text-ens-garnet-50 hover:bg-ens-garnet-800',
-          )}
+              ? 'min-h-11 rounded-xs px-5 py-3 font-semi-mono text-ens-garnet-700 text-xs uppercase tracking-[0.1em] transition-colors hover:bg-ens-garnet-900/5 focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2 motion-reduce:transition-none'
+              : migrationPrimaryButtonClassName
+          }
           onClick={onClose}
           type="button"
         >

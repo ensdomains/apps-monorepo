@@ -83,7 +83,7 @@ export const MigrationModal = () => {
             className="flex w-full max-w-[313px] flex-col items-start gap-2"
             onClick={dismiss}
           >
-            <UpgradeNamesButton className="w-full tracking-[1.68px]" />
+            <UpgradeNamesButton className="w-full" />
             {eligibleNameCount > 0 && (
               <p className="w-full font-semi-mono text-[10px] text-ens-garnet-900 uppercase leading-[1.2] tracking-[0.1px]">
                 <Trans>

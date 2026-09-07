@@ -3,7 +3,6 @@ import { type Address, getAddress, type Hex, isAddress, isHex } from 'viem'
 import {
   buildCommemorativeNftAssets,
   getCommemorativeNftTokenId,
-  withCommemorativeNftAssetVersion,
 } from './config'
 import {
   COMMEMORATIVE_NFT_TRAIT_VALUES,
@@ -75,17 +74,36 @@ const parseHttpUrl = (value: string | undefined): string | undefined => {
 const parseRendererUrl = (
   value: string | undefined,
   metadataUrl: string | undefined,
+  expectedTokenId: string,
 ): string | undefined => {
   const rendererUrl = parseHttpUrl(value)
   if (!rendererUrl || !metadataUrl) return undefined
 
   const url = new URL(rendererUrl)
-  const tokenUri = parseHttpUrl(url.searchParams.get('tokenURI') ?? undefined)
-  if (!tokenUri || withCommemorativeNftAssetVersion(tokenUri) !== metadataUrl)
+  const tokenIds = url.searchParams.getAll('tokenId')
+  if (
+    url.searchParams.has('tokenURI') ||
+    tokenIds.length !== 1 ||
+    tokenIds[0] !== expectedTokenId
+  )
     return undefined
 
-  url.searchParams.set('tokenURI', metadataUrl)
   return url.toString()
+}
+
+const parseExternalUrl = (
+  value: string | undefined,
+  metadataUrl: string | undefined,
+  expectedTokenId: string,
+): string | undefined => {
+  const externalUrl = parseHttpUrl(value)
+  if (!externalUrl) return undefined
+
+  const url = new URL(externalUrl)
+  if (url.searchParams.has('tokenId') || url.searchParams.has('tokenURI')) {
+    return parseRendererUrl(externalUrl, metadataUrl, expectedTokenId)
+  }
+  return externalUrl
 }
 
 const parseTraits = (
@@ -120,13 +138,20 @@ const parseProof = (proof: readonly string[]): readonly Hex[] => {
 const mergeAssets = (
   derived: CommemorativeNftAssets,
   payload: v.InferOutput<typeof payloadSchema>,
+  expectedTokenId: string,
 ): CommemorativeNftAssets => ({
   metadataUrl: derived.metadataUrl,
   imageUrl: derived.imageUrl,
-  animationUrl: parseRendererUrl(payload.animation_url, derived.metadataUrl),
-  externalUrl:
-    parseRendererUrl(payload.external_url, derived.metadataUrl) ??
-    parseHttpUrl(payload.external_url),
+  animationUrl: parseRendererUrl(
+    payload.animation_url,
+    derived.metadataUrl,
+    expectedTokenId,
+  ),
+  externalUrl: parseExternalUrl(
+    payload.external_url,
+    derived.metadataUrl,
+    expectedTokenId,
+  ),
 })
 
 export const parseCommemorativeNftEligibility = (params: {
@@ -184,6 +209,7 @@ export const parseCommemorativeNftEligibility = (params: {
     assets: mergeAssets(
       buildCommemorativeNftAssets(params.assetOrigin, params.ownerAddress),
       parsed.output,
+      expectedTokenId,
     ),
     source: 'static',
   }

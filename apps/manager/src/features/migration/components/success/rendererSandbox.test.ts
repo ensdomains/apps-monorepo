@@ -3,7 +3,7 @@ import { getRendererSandbox } from './rendererSandbox'
 
 const trustedRendererOrigin = 'https://renderer.example'
 const defaults = {
-  rendererUrl: `${trustedRendererOrigin}/?tokenURI=https%3A%2F%2Fassets.example%2Ftoken%2F1.json`,
+  rendererUrl: `${trustedRendererOrigin}/?tokenId=1&transparent=1`,
   appOrigin: 'https://app.example',
   trustedRendererOrigin,
 }

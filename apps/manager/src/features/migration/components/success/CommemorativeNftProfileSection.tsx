@@ -7,6 +7,7 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 import { buildCommemorativeNftCardData } from '../../commemorative-nft/cardData'
 import { isCommemorativeNftCanonicalProfile } from '../../commemorative-nft/sharing'
 import { useCommemorativeNftAvailability } from '../../commemorative-nft/useCommemorativeNftAvailability'
+import { MigrationPrimaryButton } from '../MigrationPrimaryButton'
 import { CommemorativeNftCard } from './CommemorativeNftCard'
 import { CommemorativeNftClaimDialog } from './CommemorativeNftClaimDialog'
 
@@ -86,14 +87,14 @@ export const CommemorativeNftProfileSection = ({
                     </Trans>
                   </p>
                 </div>
-                <button
-                  className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xs bg-ens-garnet-900 px-4 font-semi-mono text-ens-garnet-50 text-xs uppercase tracking-[0.1em]"
+                <MigrationPrimaryButton
+                  className="shrink-0"
                   onClick={() => setOpen(true)}
                   type="button"
                 >
                   <Trans>Preview and mint</Trans>
                   <MSymbol className="text-[18px]" symbol="arrow_forward" />
-                </button>
+                </MigrationPrimaryButton>
               </div>
             </div>
           )}

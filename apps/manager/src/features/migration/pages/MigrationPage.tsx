@@ -11,6 +11,7 @@ import { useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
 import { MigrationSuccessDialogPreview } from '@/features/migration/components/MigrationSuccessDialogPreview'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
@@ -357,7 +358,7 @@ export const MigrationPage = () => {
 
             <motion.div
               animate={{ opacity: 1, y: 0 }}
-              className="flex gap-3"
+              className="flex max-w-full flex-wrap justify-center gap-3"
               initial={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.4, delay: 0.35 }}
             >
@@ -368,8 +369,7 @@ export const MigrationPage = () => {
               >
                 <Trans>Back</Trans>
               </button>
-              <button
-                className="rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
+              <MigrationPrimaryButton
                 onClick={() => uiActor.send({ type: 'retry' })}
                 type="button"
               >
@@ -378,7 +378,7 @@ export const MigrationPage = () => {
                 ) : (
                   <Trans>Retry</Trans>
                 )}
-              </button>
+              </MigrationPrimaryButton>
             </motion.div>
           </ResultLayout>
         ))

@@ -3,7 +3,7 @@ import { type QueryClient, queryOptions } from '@tanstack/react-query'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address } from 'viem'
 import {
-  COMMEMORATIVE_NFT_ASSET_VERSION,
+  buildCommemorativeNftAssets,
   getCommemorativeNftConfig,
 } from './config'
 import { readCommemorativeNftClaimed } from './contract'
@@ -23,7 +23,10 @@ export const commemorativeNftEligibilityQueryOptions = (params: {
     queryKey: qk('commemorative_nft', 'eligibility', {
       ownerAddress: params.ownerAddress.toLowerCase(),
       assetOrigin: config.assetOrigin,
-      assetVersion: COMMEMORATIVE_NFT_ASSET_VERSION,
+      metadataUrl: buildCommemorativeNftAssets(
+        config.assetOrigin,
+        params.ownerAddress,
+      ).metadataUrl,
       // Published metadata determines eligibility; discard prior WebP checks.
       validationVersion: 3,
     }),
