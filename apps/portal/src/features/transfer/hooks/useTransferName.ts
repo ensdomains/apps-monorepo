@@ -17,7 +17,10 @@ import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryN
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { getEnsTokenId } from '@/features/profile/hooks/useTokenId'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { isRevertError } from '@/features/transaction-manager/hooks/useTransactionGasEstimate'
+import {
+  estimateGasForCall,
+  isRevertError,
+} from '@/features/transaction-manager/hooks/useTransactionGasEstimate'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -219,8 +222,9 @@ export const useTransferName = ({
   // steps run first and can't be undone by the sender once the move has
   // failed, so a move that would revert — most likely a contract recipient
   // without the `onERC721Received` / `onERC1155Received` hook — has to be
-  // caught here, not when it is reached. `eth_estimateGas` is the same check
-  // the modal runs per step, just pulled forward to before the first one.
+  // caught here, not when it is reached. This is the same estimate the modal
+  // runs per step (including its gas-cap fallback), pulled forward to before
+  // the first one, so the two can't disagree about what would revert.
   const preflightMove = (params: SavedParams) =>
     fromPromise(
       (async () => {
@@ -237,12 +241,7 @@ export const useTransferName = ({
           chainId,
         })
         if (request.type !== 'eoa') throw new Error('Expected an EOA request')
-        await publicClient.estimateGas({
-          account: request.from,
-          to: request.to,
-          data: request.data,
-          value: request.value,
-        })
+        await estimateGasForCall(publicClient, request)
       })(),
       (cause) =>
         new TransferPreflightError({
