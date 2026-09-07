@@ -175,7 +175,16 @@ function RouteComponent() {
     ],
   })
 
-  const data: NameRow[] = mergeNamesData(v1NamesQuery.data, v2NamesQuery.data)
+  // `data` reaches `useReactTable` through `filteredData`, and the table
+  // memoises its row models on that array's identity. Rebuilding it every
+  // render invalidates them, which fires `table._autoResetPageIndex()` ->
+  // `resetPageIndex()` on a microtask -> a new table state object -> another
+  // render: a self-sustaining loop that wedges the tab outright once a click
+  // puts those updates on React's sync lane (WEB-1411).
+  const data: NameRow[] = useMemo(
+    () => mergeNamesData(v1NamesQuery.data, v2NamesQuery.data),
+    [v1NamesQuery.data, v2NamesQuery.data],
+  )
 
   // Apply filters to data
   const filteredData = useMemo(() => {
