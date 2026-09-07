@@ -263,7 +263,7 @@ export const RolesSidebar = <
                                     : 'text-muted-foreground',
                                 )}
                               >
-                                Manager
+                                User
                               </Label>
                             </div>
                             <div className="flex items-center gap-2 min-w-24">

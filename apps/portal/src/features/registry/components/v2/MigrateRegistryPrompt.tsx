@@ -3,10 +3,8 @@ import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { MANAGER_APP_BASE_URL } from '@/lib/constants/domain'
+import { MANAGER_MIGRATE_URL } from '@/lib/constants/domain'
 import { cn } from '@/lib/utils'
-
-const MANAGER_MIGRATE_URL = `${MANAGER_APP_BASE_URL}/migration`
 
 /**
  * The V1 twin of ConfigureRegistryForm's empty state (WEB-693 / WEB-696): a V1

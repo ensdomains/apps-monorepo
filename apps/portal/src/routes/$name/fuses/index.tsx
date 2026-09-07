@@ -3,7 +3,7 @@ import {
   type DecodedFuses,
   FullParentFuseKeys,
 } from '@ensdomains/ensjs/utils'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowDownUp, Ban, Flame, Info } from 'lucide-react'
@@ -24,7 +24,11 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { isFuseBurnt } from '@/features/fuses/utils/isFuseBurnt'
+import { MigrateForRolesBanner } from '@/features/migration/components/MigrateForRolesBanner'
+import { MigrateForRolesMessage } from '@/features/migration/components/MigrateForRolesMessage'
+import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
@@ -126,8 +130,18 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { address } = useConnection()
 
-  const wrapperDataQuery = useQuery({
-    ...getWrapperDataQueryOptions({ name }),
+  const [wrapperDataQuery, ownerQuery] = useQueries({
+    queries: [
+      getWrapperDataQueryOptions({ name }),
+      getEnsOwnerQueryOptions({ name }),
+    ],
+  })
+
+  const isV1Name = ownerQuery.data?.protocolVersion === 'ENSv1'
+
+  // Gated because the read is not cheap, and a v2 name never needs it.
+  const { isMigratableByConnectedOwner } = useMigrationStatus(name, {
+    enabled: isV1Name,
   })
 
   // The wrapper refuses every owner write on an expired name (see the note in
@@ -144,8 +158,20 @@ function RouteComponent() {
     enabled: grace.isInGrace,
   })
 
-  if (wrapperDataQuery.isLoading || grace.isLoading) {
+  // `isV1Name` decides which message a fuseless name gets, so it must not be
+  // read before the owner query settles: pending or failed would both read as
+  // "not v1" and show the v2 copy, one as a flash and one permanently.
+  if (wrapperDataQuery.isLoading || ownerQuery.isLoading || grace.isLoading) {
     return <LoadingMessage />
+  }
+
+  if (ownerQuery.error) {
+    return (
+      <ErrorMessage
+        title="Failed to load name"
+        description={ownerQuery.error.cause?.message}
+      />
+    )
   }
 
   if (wrapperDataQuery.error) {
@@ -160,7 +186,14 @@ function RouteComponent() {
   const wrapperData = wrapperDataQuery.data
 
   if (!wrapperData) {
-    return <V2NameMessage />
+    return isV1Name ? (
+      <MigrateForRolesMessage
+        name={name}
+        canMigrate={isMigratableByConnectedOwner}
+      />
+    ) : (
+      <V2NameMessage />
+    )
   }
 
   const fuses = wrapperData.fuses as DecodedFuses | undefined
@@ -178,6 +211,9 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
+      {isV1Name && isMigratableByConnectedOwner && (
+        <MigrateForRolesBanner name={name} />
+      )}
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner graceEndDate={grace.graceEndDate} canExtend={canExtend} />
       )}
@@ -199,7 +235,7 @@ function RouteComponent() {
           {isOwner && !grace.isExpired && !grace.error && (
             <Button asChild variant="default" className="gap-2">
               <Link to="/$name/fuses/burn" params={{ name }}>
-                <Flame className="w-4 h-4 text-lapis-500" />
+                <Flame />
                 Burn fuses
               </Link>
             </Button>

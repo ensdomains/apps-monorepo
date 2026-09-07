@@ -10,6 +10,7 @@ import { NoResultsMessage } from '@/components/NoResultsMessage'
 import {
   buildEditActionColumn,
   buildRoleColumns,
+  ROLE_COLUMN_WIDTH,
   rolesTableClassName,
   rolesToEntries,
   UserCell,
@@ -25,7 +26,8 @@ const baseColumns: ColumnDef<RootRoleHolder>[] = [
   {
     id: 'user',
     accessorKey: 'account',
-    header: 'User',
+    meta: { width: ROLE_COLUMN_WIDTH.accountOnly },
+    header: 'Account',
     cell: ({ row }) => <UserCell account={row.original.account} />,
   },
   ...buildRoleColumns<RootRoleHolder>((row) => rolesToEntries(row.roles)),
