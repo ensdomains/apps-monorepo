@@ -12,6 +12,11 @@ import { HistoryTimelineView } from './HistoryTimeline'
 // a single bulk-registration transaction). They are driven off the model here
 // instead.
 
+// The rows' sender batch is a network lookup; nothing here reads the actor.
+vi.mock('@/features/profile/hooks/useTransactionSenders', () => ({
+  useTransactionSenders: () => ({ data: undefined, error: null }),
+}))
+
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, ...props }: { children: React.ReactNode }) => (
     <a href="#link" {...props}>

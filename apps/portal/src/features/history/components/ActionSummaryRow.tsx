@@ -6,6 +6,7 @@ import { type RailConnection, TimelineRow } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
 import { formatTimelineDate } from '../formatTimelineDate'
 import type { Action } from '../summarize/summarize.types'
+import type { TransactionSenders } from './AccountBadge'
 import { ActionSlots } from './ActionSlots'
 import { ACTION_ICONS } from './actionIcons'
 import { EventRow } from './EventRow'
@@ -13,6 +14,7 @@ import { TransactionHeaderRow } from './TransactionHeaderRow'
 
 interface ActionSummaryRowProps {
   readonly action: Action
+  readonly senders: TransactionSenders
   readonly showDate?: boolean
   readonly isOpen: boolean
   readonly onToggle: () => void
@@ -22,6 +24,7 @@ interface ActionSummaryRowProps {
 
 export const ActionSummaryRow = ({
   action,
+  senders,
   showDate = true,
   isOpen,
   onToggle,
@@ -45,9 +48,12 @@ export const ActionSummaryRow = ({
         entityBadgeLeadingPadScope,
       )}
     >
-      <ActionSlots slots={[{ kind: 'actor', txHash: action.txHash }]} />
+      <ActionSlots
+        slots={[{ kind: 'actor', txHash: action.txHash }]}
+        senders={senders}
+      />
       <span className="-ml-2 text-neutral-7 text-p">{action.label}</span>
-      <ActionSlots slots={action.slots} />
+      <ActionSlots slots={action.slots} senders={senders} />
     </div>
   )
   const counts = (
@@ -71,7 +77,7 @@ export const ActionSummaryRow = ({
       connectRailBelow={connectRailBelow}
       disclosure={
         <div className="flex flex-col gap-y-2 pt-2">
-          <TransactionHeaderRow event={action.events[0]} />
+          <TransactionHeaderRow event={action.events[0]} senders={senders} />
           {action.events.map((event) => (
             <EventRow key={event.id} event={event} />
           ))}
