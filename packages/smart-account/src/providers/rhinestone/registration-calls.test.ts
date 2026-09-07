@@ -1,9 +1,10 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: decoded ABI args need flexible typing in tests
 
 import { publicResolverSetAddrSnippet } from '@ensdomains/ensjs-abi/v1/publicResolver'
+import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import type { Address, Hex } from 'viem'
-import { decodeFunctionData, parseAbi } from 'viem'
+import { decodeFunctionData, parseAbi, toFunctionSelector } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import { getDestinationContracts } from './manifest'
@@ -26,11 +27,6 @@ const ethRegistrarAbi = parseAbi([
 const resolverAbi = parseAbi([
   'function authorizeNameRoles(bytes toName, uint256 roleBitmap, address account, bool grant)',
 ])
-// `PermissionedResolver.initialize` takes a third `bytes[] setters` arg that
-// ensjs-abi's `proxyInitializeSnippet` (2-arg) does not model, so it stays local.
-const resolverInitAbi = parseAbi([
-  'function initialize(address owner, uint256 roles, bytes[] data)',
-])
 
 /** ROLES.ALL from contracts-v2 deploy-constants: every nibble = 1. */
 const EXPECTED_ROLES_ALL =
@@ -39,7 +35,7 @@ const EXPECTED_ROLES_ALL =
 describe('computeResolverAddress', () => {
   it('uses the pinned proxy logic to derive the exact CREATE2 address', () => {
     expect(computeResolverAddress({ chainId: sepolia.id, hca: HCA })).toBe(
-      '0xcd8d0FAeecC39fbB036c708b697FE4C20c7D41Fd',
+      '0xA7b56bee6642A7EF6e68231ce6a5B94a6Ba4F5f9',
     )
   })
 })
@@ -86,28 +82,39 @@ describe('buildRevealBatch ordering', () => {
     expect((decoded.args as any)[3]).toBe(true)
   })
 
-  it('prepends deployProxy with EMPTY initialize setters, records standalone', () => {
+  it('prepends deployProxy with EMPTY initialize calls, records standalone', () => {
     const calls = buildRevealBatch({ ...base, resolverDeployed: false })
     expect(calls[0].to.toLowerCase()).toBe(C.verifiableFactory.toLowerCase())
     // deployProxy → approve → register → setAddr → authorizeNameRoles
     expect(calls).toHaveLength(5)
 
-    // `setters` MUST be empty: HCAOwnerAndSessionValidator rebuilds the
-    // expected deployProxy calldata with `initialize(account, ALL_ROLES, [])`
-    // and compares keccak hashes. Folding the record writes in here reverts
-    // with PolicyRuleFailed() (0xe50c42ea), surfaced as InvalidSignature().
+    // `calls` MUST be empty: HCAOwnerAndSessionValidator rebuilds the
+    // expected deployProxy calldata with `initialize(grants, [])` and compares
+    // keccak hashes. Folding the record writes in here reverts with
+    // PolicyRuleFailed() (0xe50c42ea), surfaced as InvalidSignature().
     const deploy = decodeFunctionData({
       abi: verifiableFactoryDeployProxySnippet,
       data: calls[0].data,
     })
+    const initData = (deploy.args as any)[2] as Hex
+    // `initialize(Grant[],bytes[])` — the deployed impl has no
+    // `initialize(address,uint256,bytes[])`; encoding that hits the proxy
+    // fallback and reverts with empty data.
+    expect(toFunctionSelector(permissionedResolverInitializeSnippet[0])).toBe(
+      '0x33cc44a0',
+    )
+    expect(initData.slice(0, 10)).toBe('0x33cc44a0')
     const init = decodeFunctionData({
-      abi: resolverInitAbi,
-      data: (deploy.args as any)[2] as Hex,
+      abi: permissionedResolverInitializeSnippet,
+      data: initData,
     })
     expect(init.functionName).toBe('initialize')
-    expect((init.args as any)[0].toLowerCase()).toBe(HCA.toLowerCase())
-    expect((init.args as any)[1]).toBe(EXPECTED_ROLES_ALL)
-    expect((init.args as any)[2]).toHaveLength(0)
+    expect((init.args as any)[0]).toHaveLength(1)
+    expect((init.args as any)[0][0].account.toLowerCase()).toBe(
+      HCA.toLowerCase(),
+    )
+    expect((init.args as any)[0][0].roleBitmap).toBe(EXPECTED_ROLES_ALL)
+    expect((init.args as any)[1]).toHaveLength(0)
 
     // ...and the record write is a standalone, individually-whitelisted call.
     const setAddrCalls = calls.filter(
