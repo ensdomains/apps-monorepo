@@ -529,7 +529,7 @@ const buildResolverDeploymentCall = (params: {
   const initializeData = encodeFunctionData({
     abi: PERMISSIONED_RESOLVER_ABI,
     functionName: 'initialize',
-    args: [params.hca, ROLES_ALL, []],
+    args: [[{ account: params.hca, roleBitmap: ROLES_ALL }], []],
   })
 
   return {

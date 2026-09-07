@@ -353,12 +353,13 @@ describe('readUsdcSpend', () => {
   const usdc = C.usdc
 
   it('reads the cost from tokensSpent, which is where it actually lives', () => {
-    // Captured verbatim from the live orchestrator for a commit-only
-    // same-chain intent (gasCost.totalUSD was 0.9065, matching 905736 6dp).
+    // Shaped after a live orchestrator response for a commit-only same-chain
+    // intent (gasCost.totalUSD was 0.9065, matching 905736 6dp). The token key
+    // tracks `C.usdc` — the orchestrator echoes it lowercased.
     const cost = {
       tokensSpent: {
         '11155111': {
-          '0x768f42455a2d082e23ceef7d51e5787c82d67a39': {
+          [usdc.toLowerCase()]: {
             locked: '0',
             unlocked: '905736',
           },

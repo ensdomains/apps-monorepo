@@ -77,7 +77,7 @@ const mockGetInitData = vi.fn(() => ({
 
 describe('computeStandaloneHcaAddress', () => {
   it('preserves the pinned VerifiableFactory CREATE2 address', () => {
-    expect(MOCK_HCA).toBe('0x29fBA8EAfc3a898B48a314182Ea5c93ce5734DBd')
+    expect(MOCK_HCA).toBe('0xf051e23cf7b96532e53140E1FAd44c2bF84b8FA1')
   })
 })
 

@@ -103,7 +103,7 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     // 2026-08-10): validator accepts Circle USDC (primary) and MockUSDC
     // (secondary) as session refund tokens; the implementation follows because
     // it pins the validator as a constructor immutable.
-    standaloneHcaImplementation: '0xAA761541620fC1a42bb701a26a9f107A9DF1E904',
+    standaloneHcaImplementation: '0x7328a1926B45F0339913Ab654fb98d1A0f5ec894',
     hcaOwnerAndSessionValidator: '0x5f249FCa8bB4949105651146858c347E8BFb0F7E',
     defaultReverseRegistrarHcaAdapter:
       '0x7a84e241f862D73960D73c26d68c3C8F89F0B18F',
@@ -111,8 +111,8 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     // constructor and exposes it as the immutable `proxyLogic`, so this is read
     // off `ensVerifiableFactory` above. It MUST stay paired with that factory:
     // it is the EIP-1167 runtime hashed into every CREATE2 proxy address.
-    verifiableFactoryProxyLogic: '0xA136BeE4E37B44586242e516a39893EfD54315e9',
-    verifiableFactoryDeployBlock: 11_383_823n,
+    verifiableFactoryProxyLogic: '0x2fDCaC2F94B2E65c5d5fBf36EC34483d25Ca9025',
+    verifiableFactoryDeployBlock: 11_626_639n,
     rootRegistry: '0x8115186E8f2E0B0281e86ab91f0f48Ba90364354',
     publicResolverSet: '0xf2794eBD70C1fa74094A9eC653DA1c2dF9f5a5A9',
     userRegistryImpl: ensjsSepolia.ensUserRegistryImpl.address,

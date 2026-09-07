@@ -1,3 +1,4 @@
+import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import {
   type Address,
   bytesToHex,
@@ -9,14 +10,6 @@ import {
   parseAbi,
   stringToBytes,
 } from 'viem'
-
-// `PermissionedResolver.initialize` takes a third `setters` argument — a
-// multicall batch of setter calls run at init time. We pass an empty array:
-// the proxy is deployed with no initial records, exactly as before.
-// See contracts-v2 `src/resolver/PermissionedResolver.sol`.
-const permissionedResolverInitAbi = parseAbi([
-  'function initialize(address owner, uint256 bitmap, bytes[] setters)',
-])
 
 const permissionedResolverRoleBitmap = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
@@ -36,11 +29,18 @@ export const generateResolverSalt = (name: string) => {
   return BigInt(keccak256(stringToBytes(`${name}:${bytesToHex(randomBytes)}`)))
 }
 
+/**
+ * `PermissionedResolver.initialize(Grant[] grants, bytes[] calls)`. The proxy is
+ * deployed with no initial records, so `calls` is empty.
+ */
 export const getResolverInitCalldata = (ownerAddress: Address): Hex => {
   return encodeFunctionData({
-    abi: permissionedResolverInitAbi,
+    abi: permissionedResolverInitializeSnippet,
     functionName: 'initialize',
-    args: [ownerAddress, permissionedResolverRoleBitmap, []],
+    args: [
+      [{ account: ownerAddress, roleBitmap: permissionedResolverRoleBitmap }],
+      [],
+    ],
   })
 }
 

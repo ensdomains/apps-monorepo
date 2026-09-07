@@ -12,6 +12,7 @@ import {
   ethRegistrarRegisterSnippet,
   ethRegistrarRenewSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type {
   Address,
@@ -60,14 +61,6 @@ type CommitmentData = {
   secret: Hash
 }
 
-// `PermissionedResolver.initialize` takes a third `setters` argument — a
-// multicall batch of setter calls run at init time. We pass an empty array:
-// the proxy is deployed with no initial records, exactly as before.
-// See contracts-v2 `src/resolver/PermissionedResolver.sol`.
-const DEDICATED_RESOLVER_INIT_ABI = parseAbi([
-  'function initialize(address owner, uint256 bitmap, bytes[] setters)',
-])
-
 const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
 )
@@ -96,11 +89,18 @@ function generateResolverSalt(name: string): bigint {
   return BigInt(keccak256(stringToBytes(`${name}:${bytesToHex(randomBytes)}`)))
 }
 
+/**
+ * `PermissionedResolver.initialize(Grant[] grants, bytes[] calls)`. The name's
+ * dedicated resolver is deployed with no initial records, so `calls` is empty.
+ */
 function getResolverInitCalldata(ownerAddress: Address): Hex {
   return encodeFunctionData({
-    abi: DEDICATED_RESOLVER_INIT_ABI,
+    abi: permissionedResolverInitializeSnippet,
     functionName: 'initialize',
-    args: [ownerAddress, DEDICATED_RESOLVER_ROLE_BITMAP, []],
+    args: [
+      [{ account: ownerAddress, roleBitmap: DEDICATED_RESOLVER_ROLE_BITMAP }],
+      [],
+    ],
   })
 }
 
