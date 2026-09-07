@@ -46,11 +46,13 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeading parent={{ type: 'registry', address }}>History</PageHeading>
       <RegistryHistoryByAddress
         address={address}
-        name={registry.name}
-        enableHeader={false}
+        heading={
+          <PageHeading parent={{ type: 'registry', address }}>
+            History
+          </PageHeading>
+        }
       />
     </div>
   )

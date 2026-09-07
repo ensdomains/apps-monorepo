@@ -1,10 +1,11 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import type { GetRecordsErrorType } from '@ensdomains/ensjs/public'
 import type { GetSubgraphRecordsErrorType } from '@ensdomains/ensjs/subgraph'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { mergeCoinTypes, mergeTextKeys } from '@/utils/records/mergeRecordKeys'
@@ -13,7 +14,7 @@ import { getRecords } from './useRecords'
 import { getSubgraphRecords } from './useSubgraphRecords'
 
 class GetProfileError extends TaggedError('RecordsError')<{
-  cause: GetRecordsErrorType | GetSubgraphRecordsErrorType | ClientError
+  cause: GetRecordsErrorType | GetSubgraphRecordsErrorType | GraphqlRequestError
 }> {}
 
 type GetProfileParameters = {
@@ -58,7 +59,7 @@ const getProfile = ResultFn(async function* ({
           }`,
           { name },
         ),
-        (e) => new GetProfileError({ cause: e as ClientError }),
+        (e) => new GetProfileError({ cause: e as GraphqlRequestError }),
       )
     : null
 

@@ -1,4 +1,4 @@
-import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
+import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
 import type { ResolverRoleKey } from './resolverRoles'
 
 export type Permission = { readonly admin: boolean; readonly manager: boolean }

@@ -134,6 +134,8 @@ describe('describeNextStep', () => {
           index: 0,
           total: 1,
           count: 5,
+          migrateCount: 3,
+          copyCount: 2,
         }),
       },
       { kind: 'atomic-batch', index: 0, total: 1, count: 5 },

@@ -4,7 +4,7 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   type GetPremiumDecayParamsErrorType,
   getPremiumDecayParams,
-} from '@ensdomains/ensjs/public/v2'
+} from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { publicClient } from '@/lib/wagmi'
 import { ORACLE_PRICE_DECIMALS } from '../../workflow/pricing/lib/oracle'

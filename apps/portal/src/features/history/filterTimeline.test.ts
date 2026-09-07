@@ -1,70 +1,59 @@
-import type { Hex } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { filterActions } from './filterTimeline'
-import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
-import type { Action } from './summarize/summarize.types'
+import { buildEventTypeGroups, dateRangeToTimestamps } from './filterTimeline'
 
-const event = (
-  type: string,
-  id: string,
-  extra: Partial<TimelineIndexerEvent> = {},
-): TimelineIndexerEvent =>
-  ({
-    id,
-    type,
-    transactionHash: '0xabc' as Hex,
-    blockNumber: 1,
-    timestamp: 1_700_000_000,
-    ...extra,
-  }) as TimelineIndexerEvent
+const utcSeconds = (iso: string) => Math.floor(Date.parse(iso) / 1000)
 
-const action = (events: TimelineIndexerEvent[]): Action => ({
-  txHash: '0xabc' as Hex,
-  icon: 'default',
-  label: 'Test',
-  slots: [],
-  timestamp: 1_700_000_000,
-  events,
-})
-
-describe('filterActions', () => {
-  it('keeps the whole matching action without narrowing its events', () => {
-    const registerAction: Action = {
-      ...action([
-        event('NameRegistered', '1', {
-          name: 'alice.eth',
-          asNameRegistered: { name: 'alice.eth' },
-        }),
-        event('Transfer', '2', {
-          name: 'alice.eth',
-          asTransfer: {
-            from: '0x1111111111111111111111111111111111111111',
-            to: '0x2222222222222222222222222222222222222222',
-          },
-        }),
-        event('EACRolesChanged', '3'),
-      ]),
-      label: 'Register name',
-    }
-    const filtered = filterActions([registerAction], {}, ['Transfer'])
-    expect(filtered).toHaveLength(1)
-    // The filter only selects which transactions appear — it must not narrow
-    // events or relabel. The full action is preserved (same reference).
-    expect(filtered[0]).toBe(registerAction)
-    expect(filtered[0].events.map((e) => e.type)).toEqual([
-      'NameRegistered',
-      'Transfer',
-      'EACRolesChanged',
-    ])
-    expect(filtered[0].label).toBe('Register name')
+describe('dateRangeToTimestamps', () => {
+  it('returns no bounds for an empty range', () => {
+    expect(dateRangeToTimestamps({})).toEqual({})
   })
 
-  it('drops actions with no matching event types', () => {
-    const filtered = filterActions(
-      [action([event('NameRegistered', '1')])],
-      {},
-      ['Transfer'],
-    )
-    expect(filtered).toEqual([])
+  it('anchors `from` at the start of its day in UTC', () => {
+    // The picker hands back a local-midnight Date; the bound has to land on the
+    // same calendar day in UTC, because that is how the timeline dates events.
+    expect(dateRangeToTimestamps({ from: new Date(2024, 2, 15) })).toEqual({
+      from: utcSeconds('2024-03-15T00:00:00Z'),
+    })
+  })
+
+  it('extends `to` to the last second of its day so the day is included', () => {
+    expect(dateRangeToTimestamps({ to: new Date(2024, 2, 15) })).toEqual({
+      to: utcSeconds('2024-03-15T23:59:59Z'),
+    })
+  })
+
+  it('covers a whole single-day range', () => {
+    expect(
+      dateRangeToTimestamps({
+        from: new Date(2024, 2, 15),
+        to: new Date(2024, 2, 15),
+      }),
+    ).toEqual({
+      from: utcSeconds('2024-03-15T00:00:00Z'),
+      to: utcSeconds('2024-03-15T23:59:59Z'),
+    })
+  })
+})
+
+describe('buildEventTypeGroups', () => {
+  it('returns one sorted, de-duplicated group of the types present', () => {
+    const groups = buildEventTypeGroups([
+      'TextChanged',
+      'AddrChanged',
+      'TextChanged',
+    ])
+    expect(groups).toHaveLength(1)
+    expect(groups[0].options.map((o) => o.value)).toEqual([
+      'AddrChanged',
+      'TextChanged',
+    ])
+  })
+
+  it('omits types the timeline never renders', () => {
+    expect(buildEventTypeGroups(['CommitmentMade'])).toEqual([])
+  })
+
+  it('returns no group when there is nothing to filter by', () => {
+    expect(buildEventTypeGroups([])).toEqual([])
   })
 })

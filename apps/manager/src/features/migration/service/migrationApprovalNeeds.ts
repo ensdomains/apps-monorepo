@@ -19,6 +19,8 @@ export const approvalNeedsFor = (groups: GroupedNames): ApprovalNeeds => {
     hasWrapped:
       groups.unlocked.length > 0 ||
       groups.locked2ld.length > 0 ||
-      groups.childNames.size > 0,
+      [...groups.childNames.values()].some((children) =>
+        children.some((name) => name.action === 'migrate'),
+      ),
   }
 }

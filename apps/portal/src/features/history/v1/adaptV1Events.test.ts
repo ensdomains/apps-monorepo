@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { V1_PROTOCOL } from '../hooks/useNameHistoryTimeline'
 import { parseEventData } from '../summarize/decodeRawData'
 import { summarizeEvents } from '../summarize/summarizeEvents'
+import { V1_PROTOCOL } from '../timelineEvent'
 import { adaptV1Events, type V1SubgraphEvent } from './adaptV1Events'
 
 /**

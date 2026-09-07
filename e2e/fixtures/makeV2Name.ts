@@ -19,7 +19,7 @@
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { setRecords } from '@ensdomains/ensjs/wallet'
+import { setRecords } from '@ensdomains/ensjs/wallet/v1'
 
 import {
   permissionedRegistryGetExpirySnippet,
@@ -35,6 +35,7 @@ import {
   type Hash,
   http,
   keccak256,
+  type LocalAccount,
   parseAbi,
   stringToBytes,
   toHex,
@@ -178,7 +179,7 @@ type MakeV2NameDependencies = {
    * Signing account used when owner: 'other'. Defaults to ANVIL_FUNDER
    * (the first Anvil default account).
    */
-  otherAccount?: ReturnType<typeof privateKeyToAccount>
+  otherAccount?: LocalAccount
 }
 
 export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
@@ -436,7 +437,7 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
  */
 async function authorizeHcaOnResolver(
   resolver: Address,
-  admin: ReturnType<typeof privateKeyToAccount>,
+  admin: LocalAccount,
 ): Promise<void> {
   const data = encodeFunctionData({
     abi: permissionedResolverAuthorizeNameRolesSnippet,

@@ -22,8 +22,8 @@ export const useMigrationStepDescriptors = createMigrationUiSelector(
   (state) => state.context.stepDescriptors,
 )
 
-export const useMigrationMigratedNames = createMigrationUiSelector(
-  (state) => state.context.migratedNames,
+export const useMigrationCompletedOperations = createMigrationUiSelector(
+  (state) => state.context.completedOperations,
 )
 
 export const useMigrationLastError = createMigrationUiSelector(

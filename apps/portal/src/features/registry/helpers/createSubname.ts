@@ -1,7 +1,7 @@
 /**
  * Pure async function to create a subname.
  *
- * Prepares the createSubnameV2 transaction, starts it through
+ * Prepares the createSubname transaction, starts it through
  * the transaction manager, and waits for completion.
  */
 

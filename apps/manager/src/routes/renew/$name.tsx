@@ -23,9 +23,10 @@ export const Route = createFileRoute('/renew/$name')({
       throw parsedName.error
     }
 
-    const expiryData = await queryClient.ensureQueryData(
-      profileExpiryQuery(name),
-    )
+    // Fetched rather than read through the cache: a name registered moments ago
+    // has an entry from before it existed, and serving that reports the name as
+    // unrenewable for the rest of the session.
+    const expiryData = await queryClient.fetchQuery(profileExpiryQuery(name))
 
     if (expiryData?.protocol === 'v1') {
       throw redirect({
@@ -35,11 +36,26 @@ export const Route = createFileRoute('/renew/$name')({
       })
     }
 
-    const expiryDate = profileExpiryDateFromSeconds(expiryData?.expiry)
-
     if (expiryData?.protocol !== 'v2') {
       throw new Error('This name is not available for renewal.')
     }
+
+    if (expiryData.expiry === null) {
+      if (expiryData.isNonExpiring) {
+        throw new Error(
+          'This name has no expiry, so there is nothing to renew.',
+        )
+      }
+
+      // No expiry record at all means the label is unregistered.
+      throw redirect({
+        params: { name },
+        to: '/register/$name',
+        replace: true,
+      })
+    }
+
+    const expiryDate = profileExpiryDateFromSeconds(expiryData.expiry)
 
     if (isPastGracePeriod(expiryDate, expiryData.protocol)) {
       throw redirect({
@@ -50,11 +66,7 @@ export const Route = createFileRoute('/renew/$name')({
     }
 
     if (!canRenewV2Name(name, expiryDate)) {
-      throw new Error('This name is not available for renewal.')
-    }
-
-    if (!expiryData.expiry) {
-      throw new Error('Name expiry could not be loaded.')
+      throw new Error('This name is outside its renewal window.')
     }
 
     return {

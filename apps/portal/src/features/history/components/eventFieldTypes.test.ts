@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
+import type { TimelineIndexerEvent } from '../timelineEvent'
 import { getDecodedParamEntries, getTimelineFieldType } from './eventFieldTypes'
 
 const baseEvent = {

@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { zeroAddress } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { LoadingMessage } from '@/components/LoadingMessage'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
@@ -24,7 +24,7 @@ export const NameRegistryRolesOverviewTable = ({ name }: { name: string }) => {
     error,
   } = useQuery(getNameRegistriesQueryOptions({ name }))
 
-  if (isLoading) return <LoadingMessage />
+  if (isLoading) return <LoadingSpinner title="Loading registry roles..." />
 
   if (error)
     return (

@@ -122,6 +122,15 @@ vi.mock('@tanstack/react-query', async () => {
       }
       return { data: undefined, error: undefined, isLoading: false }
     },
+    // The embedded History section pages its feed; this component's tests are
+    // about the registry panel above it, so the timeline stays empty.
+    useInfiniteQuery: () => ({
+      data: undefined,
+      error: undefined,
+      isLoading: false,
+      isFetchingNextPage: false,
+      fetchNextPage: () => Promise.resolve(),
+    }),
   }
 })
 

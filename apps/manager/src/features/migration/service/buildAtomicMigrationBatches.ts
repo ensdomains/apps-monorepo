@@ -13,6 +13,7 @@ import {
   type Address,
   encodeFunctionData,
   type Hex,
+  isAddressEqual,
   namehash,
   zeroAddress,
 } from 'viem'
@@ -28,7 +29,12 @@ import {
   wrapInnerCallsAsMulticall,
 } from './buildProfileReplayCalls'
 import { buildRoleGrantCall } from './buildRoleGrantCalls'
-import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
+import {
+  type ClassifiedName,
+  type DirectClassifiedName,
+  FUSES,
+  hasFuse,
+} from './classifyNames'
 import {
   type DirectMigrationRoute,
   orderDirectMigrationNamesParentFirst,
@@ -40,6 +46,12 @@ import {
 } from './encodeMigration'
 import type { Profile } from './fetchV1Profiles'
 import { profileMapKey } from './fetchV1Profiles'
+import {
+  buildRegisterCopiedSubnameCall,
+  buildUserRegistrySetupCalls,
+  computeUserRegistryAddress,
+  computeUserRegistrySalt,
+} from './userRegistryMigration'
 
 const ROOT_NAME = '0x00' as const
 const ROOT_RESOURCE = 0n
@@ -53,7 +65,11 @@ const ROLE_CAN_TRANSFER_ADMIN = 1n << 156n
 export type AtomicMigrationExecutionPhase =
   | 'resolver-deployment'
   | 'wallet-co-admin-grant'
+  | 'user-registry-deployment'
+  | 'user-registry-wallet-grant'
+  | 'user-registry-parent'
   | 'migrate'
+  | 'copy-register'
   | 'manager-role-grant'
   | 'profile-replay'
 
@@ -77,8 +93,6 @@ export type AtomicMigrationRegistryPath =
       readonly type: 'parent-subregistry'
       readonly rootRegistry: Address
       readonly parentName: string
-      /** Labels traversed from ETHRegistry to the immediate parent registry. */
-      readonly parentLabels: readonly string[]
       readonly label: string
       readonly resource: bigint
     }
@@ -170,6 +184,53 @@ type WrapperRootRolesExpectation = {
   readonly roleBitmap: bigint
 }
 
+type UserRegistryImplementationExpectation = {
+  readonly id: string
+  readonly type: 'user-registry-implementation'
+  readonly name: string
+  readonly registry: Address
+  readonly factory: Address
+  readonly expectedImplementation: Address
+  readonly deployer: Address
+  readonly salt: bigint
+}
+
+type UserRegistryRootRolesExpectation = {
+  readonly id: string
+  readonly type: 'user-registry-root-roles'
+  readonly name: string
+  readonly registry: Address
+  readonly account: Address
+  readonly roleBitmap: bigint
+}
+
+type UserRegistryParentExpectation = {
+  readonly id: string
+  readonly type: 'user-registry-parent'
+  readonly name: string
+  readonly registry: Address
+  readonly expectedParentRegistry: Address
+  readonly expectedParentLabel: string
+}
+
+type NameSubregistryExpectation = {
+  readonly id: string
+  readonly type: 'name-subregistry'
+  readonly name: string
+  readonly label: string
+  readonly registryPath: AtomicMigrationRegistryPath
+  readonly expectedSubregistry: Address
+}
+
+type NameExpiryExpectation = {
+  readonly id: string
+  readonly type: 'name-expiry'
+  readonly name: string
+  readonly registryPath: AtomicMigrationRegistryPath
+  readonly resource: bigint
+  readonly expectedExpiry: bigint
+}
+
 type ManagerRoleExpectation = {
   readonly id: string
   readonly type: 'manager-role'
@@ -229,6 +290,11 @@ export type AtomicMigrationVerificationExpectation =
   | NameOwnerRolesExpectation
   | WrapperSubregistryExpectation
   | WrapperRootRolesExpectation
+  | UserRegistryImplementationExpectation
+  | UserRegistryRootRolesExpectation
+  | UserRegistryParentExpectation
+  | NameSubregistryExpectation
+  | NameExpiryExpectation
   | ManagerRoleExpectation
   | ProfileTextExpectation
   | ProfileAddressExpectation
@@ -237,8 +303,8 @@ export type AtomicMigrationVerificationExpectation =
 
 export type AtomicMigrationNameExecution = {
   readonly classified: ClassifiedName
-  readonly directRoute: DirectMigrationRoute
-  readonly migrationData: MigrationData
+  readonly directRoute: DirectMigrationRoute | null
+  readonly migrationData: MigrationData | null
   readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
   readonly verificationExpectations: readonly AtomicMigrationVerificationExpectation[]
 }
@@ -246,6 +312,10 @@ export type AtomicMigrationNameExecution = {
 export type AtomicMigrationBatch = {
   readonly index: number
   readonly names: readonly string[]
+  readonly operations: readonly {
+    readonly name: string
+    readonly action: ClassifiedName['action']
+  }[]
   readonly nameExecutions: readonly AtomicMigrationNameExecution[]
   readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
   readonly outerCall: Call
@@ -267,22 +337,6 @@ export type AtomicMigrationOuterGasEstimateRequest = {
 export type EstimateAtomicMigrationOuterGas = (
   request: AtomicMigrationOuterGasEstimateRequest,
 ) => bigint | Promise<bigint>
-
-export type AtomicMigrationExpectationResult = {
-  readonly expectationId: string
-  readonly satisfied: boolean
-}
-
-export type AtomicMigrationBatchVerification =
-  | {
-      readonly batchIndex: number
-      readonly status: 'reverted'
-    }
-  | {
-      readonly batchIndex: number
-      readonly status: 'confirmed'
-      readonly results: readonly AtomicMigrationExpectationResult[]
-    }
 
 export class AtomicMigrationNameGasLimitExceededError extends Error {
   readonly ensName: string
@@ -309,6 +363,8 @@ export type BuildAtomicMigrationBatchesParams = {
   readonly hca: Address
   readonly wallet: Address
   readonly classified: readonly ClassifiedName[]
+  /** Full selected tree retained while execution removes completed nodes. */
+  readonly registryContext?: readonly ClassifiedName[]
   readonly directRoutes: ReadonlyMap<string, DirectMigrationRoute>
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly defaultResolver?: Address
@@ -354,14 +410,86 @@ const registryPathFor = (name: ClassifiedName): AtomicMigrationRegistryPath => {
     type: 'parent-subregistry',
     rootRegistry: V2_CONTRACTS.ETHRegistry,
     parentName: name.parentName,
-    parentLabels: name.parentName.split('.').slice(0, -1).reverse(),
     label: name.label,
     resource,
   }
 }
 
-const isLockedName = (name: ClassifiedName): boolean =>
-  name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child'
+const isLockedName = (name: ClassifiedName): name is DirectClassifiedName =>
+  name.action === 'migrate' &&
+  (name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child')
+
+const orderPlannedNamesParentFirst = (
+  names: readonly ClassifiedName[],
+): readonly ClassifiedName[] => {
+  const byName = new Map<string, ClassifiedName>()
+  for (const name of names) {
+    if (byName.has(name.domain.name)) {
+      throw new Error(
+        `Migration selection contains duplicate name "${name.domain.name}"`,
+      )
+    }
+    byName.set(name.domain.name, name)
+  }
+  const visiting = new Set<string>()
+  const visited = new Set<string>()
+  const ordered: ClassifiedName[] = []
+
+  const visit = (name: ClassifiedName): void => {
+    const ensName = name.domain.name
+    if (visited.has(ensName)) return
+    if (visiting.has(ensName)) {
+      throw new Error(`Migration selection contains a cycle at "${ensName}"`)
+    }
+    visiting.add(ensName)
+    if (name.parentName) {
+      const parent = byName.get(name.parentName)
+      if (parent) visit(parent)
+    }
+    visiting.delete(ensName)
+    visited.add(ensName)
+    ordered.push(name)
+  }
+
+  for (const name of names) visit(name)
+  return ordered
+}
+
+const buildUserRegistryAddresses = (params: {
+  readonly hca: Address
+  readonly registryContext: readonly ClassifiedName[]
+}): ReadonlyMap<string, Address> => {
+  const parentNames = new Set(
+    params.registryContext.flatMap((name) =>
+      name.action === 'copy' && name.parentName ? [name.parentName] : [],
+    ),
+  )
+  return new Map(
+    [...parentNames].map((parentName) => [
+      parentName,
+      computeUserRegistryAddress({ hca: params.hca, parentName }),
+    ]),
+  )
+}
+
+const parentRegistryFor = (params: {
+  readonly name: ClassifiedName
+  readonly userRegistries: ReadonlyMap<string, Address>
+}): Address => {
+  if (params.name.parentName === 'eth') return V2_CONTRACTS.ETHRegistry
+  if (!params.name.parentName) {
+    throw new Error(
+      `Cannot locate parent registry for "${params.name.domain.name}"`,
+    )
+  }
+  const registry = params.userRegistries.get(params.name.parentName)
+  if (!registry) {
+    throw new Error(
+      `No UserRegistry planned for parent "${params.name.parentName}"`,
+    )
+  }
+  return registry
+}
 
 /** Mirrors LockedWrapperReceiver._tokenRoleBitmapFromFuses(). */
 export const lockedNameOwnerRoleBitmap = (fuses: bigint): bigint => {
@@ -450,134 +578,306 @@ const profileForName = (
   return hasRecords ? { node, profile } : null
 }
 
-const buildNameExecution = (params: {
+type BuildNameExecutionParams = {
   readonly chainId: number
   readonly hca: Address
   readonly wallet: Address
   readonly classified: ClassifiedName
-  readonly directRoute: DirectMigrationRoute
+  readonly directRoute: DirectMigrationRoute | null
+  readonly userRegistries: ReadonlyMap<string, Address>
   readonly resolver: Address
   readonly defaultResolver: Address
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly includeResolverVerification: boolean
   readonly includeResolverDeployment: boolean
   readonly includeWalletCoAdminGrant: boolean
-}): AtomicMigrationNameExecution => {
-  const {
-    chainId,
-    hca,
-    wallet,
-    classified,
-    directRoute,
-    resolver,
-    defaultResolver,
-    profiles,
-    includeResolverVerification,
-    includeResolverDeployment,
-    includeWalletCoAdminGrant,
-  } = params
+}
+
+type NameExecutionFragment = {
+  readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
+  readonly verificationExpectations: readonly AtomicMigrationVerificationExpectation[]
+}
+
+const EMPTY_NAME_EXECUTION_FRAGMENT: NameExecutionFragment = {
+  innerExecutions: [],
+  verificationExpectations: [],
+}
+
+const buildResolverSetupFragment = (params: {
+  readonly chainId: number
+  readonly hca: Address
+  readonly wallet: Address
+  readonly name: string
+  readonly resolver: Address
+  readonly includeResolverVerification: boolean
+  readonly includeResolverDeployment: boolean
+  readonly includeWalletCoAdminGrant: boolean
+}): NameExecutionFragment => {
+  const contracts = getDestinationContracts(params.chainId)
+  return {
+    innerExecutions: [
+      ...(params.includeResolverDeployment
+        ? [
+            {
+              phase: 'resolver-deployment' as const,
+              name: params.name,
+              names: [params.name],
+              call: buildResolverDeploymentCall({
+                chainId: params.chainId,
+                hca: params.hca,
+              }),
+            },
+          ]
+        : []),
+      ...(params.includeWalletCoAdminGrant
+        ? [
+            {
+              phase: 'wallet-co-admin-grant' as const,
+              name: params.name,
+              names: [params.name],
+              call: buildWalletCoAdminCall({
+                resolver: params.resolver,
+                wallet: params.wallet,
+              }),
+            },
+          ]
+        : []),
+    ],
+    verificationExpectations: params.includeResolverVerification
+      ? [
+          {
+            id: expectationId(params.name, 'resolver-implementation'),
+            type: 'resolver-implementation',
+            name: params.name,
+            resolver: params.resolver,
+            factory: contracts.verifiableFactory,
+            expectedImplementation: contracts.permissionedResolverImpl,
+            deployer: params.hca,
+            salt: computeResolverSalt(params.hca),
+          },
+          {
+            id: expectationId(params.name, 'resolver-root-roles'),
+            type: 'resolver-root-roles',
+            name: params.name,
+            resolver: params.resolver,
+            account: params.hca,
+            rootName: ROOT_NAME,
+            roleBitmap: ROLES_ALL,
+          },
+          {
+            id: expectationId(params.name, 'wallet-name-roles'),
+            type: 'wallet-name-roles',
+            name: params.name,
+            resolver: params.resolver,
+            account: params.wallet,
+            rootName: ROOT_NAME,
+            roleBitmap: ROLES_ALL,
+          },
+        ]
+      : [],
+  }
+}
+
+const buildUserRegistryFragment = (params: {
+  readonly chainId: number
+  readonly hca: Address
+  readonly wallet: Address
+  readonly classified: ClassifiedName
+  readonly userRegistries: ReadonlyMap<string, Address>
+  readonly childRegistry: Address
+}): NameExecutionFragment => {
+  if (isAddressEqual(params.childRegistry, zeroAddress)) {
+    return EMPTY_NAME_EXECUTION_FRAGMENT
+  }
+
+  const name = params.classified.domain.name
+  const contracts = getDestinationContracts(params.chainId)
+  const parentRegistry = parentRegistryFor({
+    name: params.classified,
+    userRegistries: params.userRegistries,
+  })
+  const setupCalls = buildUserRegistrySetupCalls({
+    hca: params.hca,
+    parentName: name,
+    parentRegistry,
+    parentLabel: params.classified.label,
+    wallet: params.wallet,
+  })
+  const setupPhases = [
+    'user-registry-deployment',
+    'user-registry-wallet-grant',
+    'user-registry-parent',
+  ] as const
+
+  return {
+    innerExecutions: setupCalls.map((call, index) => ({
+      phase: setupPhases[index] ?? 'user-registry-parent',
+      name,
+      names: [name],
+      call,
+    })),
+    verificationExpectations: [
+      {
+        id: expectationId(name, 'user-registry-implementation'),
+        type: 'user-registry-implementation',
+        name,
+        registry: params.childRegistry,
+        factory: contracts.verifiableFactory,
+        expectedImplementation: contracts.userRegistryImpl,
+        deployer: params.hca,
+        salt: computeUserRegistrySalt(name),
+      },
+      {
+        id: expectationId(name, 'user-registry-root-roles', 'hca'),
+        type: 'user-registry-root-roles',
+        name,
+        registry: params.childRegistry,
+        account: params.hca,
+        roleBitmap: ROLES_ALL,
+      },
+      {
+        id: expectationId(name, 'user-registry-root-roles', 'wallet'),
+        type: 'user-registry-root-roles',
+        name,
+        registry: params.childRegistry,
+        account: params.wallet,
+        roleBitmap: ROLES_ALL,
+      },
+      {
+        id: expectationId(name, 'user-registry-parent'),
+        type: 'user-registry-parent',
+        name,
+        registry: params.childRegistry,
+        expectedParentRegistry: parentRegistry,
+        expectedParentLabel: params.classified.label,
+      },
+    ],
+  }
+}
+
+const buildCopyRegistrationExecution = (params: {
+  readonly classified: ClassifiedName
+  readonly userRegistries: ReadonlyMap<string, Address>
+  readonly wallet: Address
+  readonly childRegistry: Address
+  readonly expectedResolver: Address
+}): readonly AtomicMigrationInnerExecution[] => {
+  if (params.classified.action !== 'copy') return []
+
+  const name = params.classified.domain.name
+  if (!params.classified.parentName) {
+    throw new Error(`Copied name "${name}" has no parent`)
+  }
+  const parentRegistry = params.userRegistries.get(params.classified.parentName)
+  if (!parentRegistry) {
+    throw new Error(`Copied name "${name}" has no planned parent UserRegistry`)
+  }
+  return [
+    {
+      phase: 'copy-register',
+      name,
+      names: [name],
+      call: buildRegisterCopiedSubnameCall({
+        registry: parentRegistry,
+        label: params.classified.label,
+        owner: params.wallet,
+        childRegistry: params.childRegistry,
+        resolver: params.expectedResolver,
+        expiry: params.classified.sourceExpiry,
+      }),
+    },
+  ]
+}
+
+const buildNameStateExpectations = (params: {
+  readonly classified: ClassifiedName
+  readonly directRoute: DirectMigrationRoute | null
+  readonly wallet: Address
+  readonly expectedResolver: Address
+  readonly childRegistry: Address
+  readonly chainId: number
+}): readonly AtomicMigrationVerificationExpectation[] => {
+  const { classified, directRoute, wallet, expectedResolver, childRegistry } =
+    params
   const name = classified.domain.name
   const node = namehash(name) as Hex
-  const expectedResolver = resolverFor(classified, defaultResolver, resolver)
-  const innerExecutions: AtomicMigrationInnerExecution[] = []
-  const verificationExpectations: AtomicMigrationVerificationExpectation[] = []
-  const contracts = getDestinationContracts(chainId)
+  const resource = labelToCanonicalId(classified.label)
   const registryPath = registryPathFor(classified)
-  const migrationData = createMigrationData({
-    label: classified.label,
-    owner: wallet,
-    subregistry: zeroAddress,
-    resolver: expectedResolver,
-  })
-
-  if (includeResolverVerification) {
-    verificationExpectations.push(
+  const contracts = getDestinationContracts(params.chainId)
+  const commonExpectations: readonly AtomicMigrationVerificationExpectation[] =
+    [
       {
-        id: expectationId(name, 'resolver-implementation'),
-        type: 'resolver-implementation',
+        id: expectationId(name, 'name-owner'),
+        type: 'name-owner',
         name,
-        resolver,
-        factory: contracts.verifiableFactory,
-        expectedImplementation: contracts.permissionedResolverImpl,
-        deployer: hca,
-        salt: computeResolverSalt(hca),
+        label: classified.label,
+        node,
+        resource,
+        tokenType: classified.tokenType,
+        registryPath,
+        expectedOwner: wallet,
       },
       {
-        id: expectationId(name, 'resolver-root-roles'),
-        type: 'resolver-root-roles',
+        id: expectationId(name, 'name-resolver'),
+        type: 'name-resolver',
         name,
-        resolver,
-        account: hca,
-        rootName: ROOT_NAME,
-        roleBitmap: ROLES_ALL,
+        label: classified.label,
+        node,
+        resource,
+        registryPath,
+        expectedResolver,
       },
-      {
-        id: expectationId(name, 'wallet-name-roles'),
-        type: 'wallet-name-roles',
-        name,
-        resolver,
-        account: wallet,
-        rootName: ROOT_NAME,
-        roleBitmap: ROLES_ALL,
-      },
-    )
-  }
+    ]
+  const subregistryExpectations: readonly AtomicMigrationVerificationExpectation[] =
+    isLockedName(classified)
+      ? []
+      : [
+          {
+            id: expectationId(name, 'name-subregistry'),
+            type: 'name-subregistry',
+            name,
+            label: classified.label,
+            registryPath,
+            expectedSubregistry: childRegistry,
+          },
+        ]
+  const copyExpectations: readonly AtomicMigrationVerificationExpectation[] =
+    classified.action === 'copy'
+      ? [
+          {
+            id: expectationId(name, 'name-owner-roles'),
+            type: 'name-owner-roles',
+            name,
+            registryPath,
+            resource,
+            account: wallet,
+            roleBitmap: ROLES_ALL,
+          },
+          {
+            id: expectationId(name, 'name-expiry'),
+            type: 'name-expiry',
+            name,
+            registryPath,
+            resource,
+            expectedExpiry: classified.sourceExpiry,
+          },
+        ]
+      : []
 
-  if (includeResolverDeployment) {
-    innerExecutions.push({
-      phase: 'resolver-deployment',
-      name,
-      names: [name],
-      call: buildResolverDeploymentCall({ chainId, hca }),
-    })
-  }
-
-  if (includeWalletCoAdminGrant) {
-    innerExecutions.push({
-      phase: 'wallet-co-admin-grant',
-      name,
-      names: [name],
-      call: buildWalletCoAdminCall({ resolver, wallet }),
-    })
-  }
-
-  verificationExpectations.push(
-    {
-      id: expectationId(name, 'name-owner'),
-      type: 'name-owner',
-      name,
-      label: classified.label,
-      node,
-      resource: labelToCanonicalId(classified.label),
-      tokenType: classified.tokenType,
-      registryPath,
-      expectedOwner: wallet,
-    },
-    {
-      id: expectationId(name, 'name-resolver'),
-      type: 'name-resolver',
-      name,
-      label: classified.label,
-      node,
-      resource: labelToCanonicalId(classified.label),
-      registryPath,
-      expectedResolver,
-    },
-  )
-
+  let lockedExpectations: readonly AtomicMigrationVerificationExpectation[] = []
   if (isLockedName(classified)) {
-    if (!directRoute.expectedWrapperRegistry) {
+    if (!directRoute?.expectedWrapperRegistry) {
       throw new Error(
         `Locked migration route for "${name}" has no deterministic WrapperRegistry`,
       )
     }
-    verificationExpectations.push(
+    lockedExpectations = [
       {
         id: expectationId(name, 'name-owner-roles'),
         type: 'name-owner-roles',
         name,
         registryPath,
-        resource: labelToCanonicalId(classified.label),
+        resource,
         account: wallet,
         roleBitmap: lockedNameOwnerRoleBitmap(classified.fuses),
       },
@@ -602,46 +902,77 @@ const buildNameExecution = (params: {
         account: wallet,
         roleBitmap: lockedWrapperRootRoleBitmap(classified.fuses),
       },
-    )
+    ]
   }
 
-  if (classified.managerAddress) {
-    innerExecutions.push({
-      phase: 'manager-role-grant',
-      name,
-      names: [name],
-      call: buildRoleGrantCall(classified),
-    })
-    verificationExpectations.push({
-      id: expectationId(name, 'manager-role'),
-      type: 'manager-role',
-      name,
-      label: classified.label,
-      registry: V2_CONTRACTS.ETHRegistry,
-      resource: labelToCanonicalId(classified.label),
-      account: classified.managerAddress,
-      roleBitmap: ROLE_SET_RESOLVER,
-    })
+  return [
+    ...commonExpectations,
+    ...subregistryExpectations,
+    ...copyExpectations,
+    ...lockedExpectations,
+  ]
+}
+
+const buildManagerRoleFragment = (
+  classified: ClassifiedName,
+): NameExecutionFragment => {
+  if (classified.action !== 'migrate' || !classified.managerAddress) {
+    return EMPTY_NAME_EXECUTION_FRAGMENT
   }
 
-  const profileEntry = profileForName(classified, profiles)
-  if (profileEntry) {
-    const profileCalls = flattenProfileInnerCalls(
-      new Map([[profileEntry.node, profileEntry.profile]]),
-    )
-    innerExecutions.push({
-      phase: 'profile-replay',
-      name,
-      names: [name],
-      call: wrapInnerCallsAsMulticall(resolver, profileCalls),
-    })
-    verificationExpectations.push(
+  const name = classified.domain.name
+  return {
+    innerExecutions: [
+      {
+        phase: 'manager-role-grant',
+        name,
+        names: [name],
+        call: buildRoleGrantCall(classified),
+      },
+    ],
+    verificationExpectations: [
+      {
+        id: expectationId(name, 'manager-role'),
+        type: 'manager-role',
+        name,
+        label: classified.label,
+        registry: V2_CONTRACTS.ETHRegistry,
+        resource: labelToCanonicalId(classified.label),
+        account: classified.managerAddress,
+        roleBitmap: ROLE_SET_RESOLVER,
+      },
+    ],
+  }
+}
+
+const buildProfileReplayFragment = (params: {
+  readonly classified: ClassifiedName
+  readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly resolver: Address
+}): NameExecutionFragment => {
+  const profileEntry = profileForName(params.classified, params.profiles)
+  if (!profileEntry) return EMPTY_NAME_EXECUTION_FRAGMENT
+
+  const name = params.classified.domain.name
+  const profileCalls = flattenProfileInnerCalls(
+    new Map([[profileEntry.node, profileEntry.profile]]),
+  )
+  return {
+    innerExecutions: [
+      {
+        phase: 'profile-replay',
+        name,
+        names: [name],
+        call: wrapInnerCallsAsMulticall(params.resolver, profileCalls),
+      },
+    ],
+    verificationExpectations: [
       ...profileEntry.profile.texts.map((record, index) => ({
         id: expectationId(name, 'profile-text', `${index}:${record.key}`),
         type: 'profile-text' as const,
         name,
         node: profileEntry.node,
-        resolver,
+        resolver: params.resolver,
         key: record.key,
         value: record.value,
       })),
@@ -654,7 +985,7 @@ const buildNameExecution = (params: {
         type: 'profile-address' as const,
         name,
         node: profileEntry.node,
-        resolver,
+        resolver: params.resolver,
         coinType: record.coinType,
         value: record.value,
       })),
@@ -665,7 +996,7 @@ const buildNameExecution = (params: {
               type: 'profile-contenthash' as const,
               name,
               node: profileEntry.node,
-              resolver,
+              resolver: params.resolver,
               value: profileEntry.profile.contentHash,
             },
           ]
@@ -679,19 +1010,71 @@ const buildNameExecution = (params: {
         type: 'profile-abi' as const,
         name,
         node: profileEntry.node,
-        resolver,
+        resolver: params.resolver,
         contentType: record.contentType,
         value: record.value,
       })),
-    )
+    ],
   }
+}
+
+const buildNameExecution = (
+  params: BuildNameExecutionParams,
+): AtomicMigrationNameExecution => {
+  const name = params.classified.domain.name
+  const expectedResolver = resolverFor(
+    params.classified,
+    params.defaultResolver,
+    params.resolver,
+  )
+  const childRegistry = params.userRegistries.get(name) ?? zeroAddress
+  const migrationData =
+    params.classified.action === 'migrate'
+      ? createMigrationData({
+          label: params.classified.label,
+          owner: params.wallet,
+          subregistry: childRegistry,
+          resolver: expectedResolver,
+        })
+      : null
+  const resolverSetup = buildResolverSetupFragment({
+    ...params,
+    name,
+  })
+  const userRegistrySetup = buildUserRegistryFragment({
+    ...params,
+    childRegistry,
+  })
+  const nameState: NameExecutionFragment = {
+    innerExecutions: buildCopyRegistrationExecution({
+      ...params,
+      childRegistry,
+      expectedResolver,
+    }),
+    verificationExpectations: buildNameStateExpectations({
+      ...params,
+      childRegistry,
+      expectedResolver,
+    }),
+  }
+  const managerRole = buildManagerRoleFragment(params.classified)
+  const profileReplay = buildProfileReplayFragment(params)
+  const fragments = [
+    resolverSetup,
+    userRegistrySetup,
+    nameState,
+    managerRole,
+    profileReplay,
+  ]
 
   return {
-    classified,
-    directRoute,
+    classified: params.classified,
+    directRoute: params.directRoute,
     migrationData,
-    innerExecutions,
-    verificationExpectations,
+    innerExecutions: fragments.flatMap((fragment) => fragment.innerExecutions),
+    verificationExpectations: fragments.flatMap(
+      (fragment) => fragment.verificationExpectations,
+    ),
   }
 }
 
@@ -700,6 +1083,7 @@ const buildNameExecutions = (params: {
   readonly hca: Address
   readonly wallet: Address
   readonly classified: readonly ClassifiedName[]
+  readonly registryContext: readonly ClassifiedName[]
   readonly directRoutes: ReadonlyMap<string, DirectMigrationRoute>
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly resolver: Address
@@ -707,15 +1091,28 @@ const buildNameExecutions = (params: {
   readonly resolverDeployed: boolean
   readonly walletCoAdminGranted: boolean
 }): readonly AtomicMigrationNameExecution[] => {
-  const ordered = orderDirectMigrationNamesParentFirst(params.classified)
+  const directNames = params.classified.filter(
+    (name): name is DirectClassifiedName => name.action === 'migrate',
+  )
+  // Preserve the direct migration route validator, then order the complete
+  // migrate/copy graph so every copied node follows its selected parent.
+  orderDirectMigrationNamesParentFirst(directNames)
+  const ordered = orderPlannedNamesParentFirst(params.classified)
+  const userRegistries = buildUserRegistryAddresses({
+    hca: params.hca,
+    registryContext: params.registryContext,
+  })
   const firstResolverNameIndex = ordered.findIndex(
     (name) => name.resolverStrategy === 'to-owned-permres',
   )
 
   return ordered.map((classified, index) => {
     const receivesResolverSetup = index === firstResolverNameIndex
-    const directRoute = params.directRoutes.get(classified.domain.name)
-    if (!directRoute) {
+    const directRoute =
+      classified.action === 'migrate'
+        ? (params.directRoutes.get(classified.domain.name) ?? null)
+        : null
+    if (classified.action === 'migrate' && !directRoute) {
       throw new Error(
         `No verified migration route for "${classified.domain.name}"`,
       )
@@ -724,6 +1121,7 @@ const buildNameExecutions = (params: {
       ...params,
       classified,
       directRoute,
+      userRegistries,
       includeResolverVerification: receivesResolverSetup,
       includeResolverDeployment:
         receivesResolverSetup && !params.resolverDeployed,
@@ -745,13 +1143,18 @@ export const buildAtomicMigrationInnerExecutions = (params: {
   const existingInner = params.nameExecutions.flatMap(
     (nameExecution) => nameExecution.innerExecutions,
   )
-  const helperInputs = params.nameExecutions.map<MigrationHelperNameInput>(
-    ({ classified, migrationData }) => ({
-      name: classified.domain.name,
-      tokenType: classified.tokenType,
-      parentName: classified.parentName,
-      data: migrationData,
-    }),
+  const helperInputs = params.nameExecutions.flatMap<MigrationHelperNameInput>(
+    ({ classified, migrationData }) =>
+      classified.action === 'migrate' && migrationData
+        ? [
+            {
+              name: classified.domain.name,
+              tokenType: classified.tokenType,
+              parentName: classified.parentName,
+              data: migrationData,
+            },
+          ]
+        : [],
   )
   const firstMigration = helperInputs[0]
   const helperExecutions: readonly AtomicMigrationInnerExecution[] =
@@ -774,7 +1177,11 @@ export const buildAtomicMigrationInnerExecutions = (params: {
   return [
     ...executionsForPhase('resolver-deployment'),
     ...executionsForPhase('wallet-co-admin-grant'),
+    ...executionsForPhase('user-registry-deployment'),
+    ...executionsForPhase('user-registry-wallet-grant'),
+    ...executionsForPhase('user-registry-parent'),
     ...helperExecutions,
+    ...executionsForPhase('copy-register'),
     ...executionsForPhase('manager-role-grant'),
     ...executionsForPhase('profile-replay'),
   ]
@@ -806,6 +1213,10 @@ const estimateBatch = async (params: {
   return {
     index: params.index,
     names,
+    operations: params.nameExecutions.map(({ classified }) => ({
+      name: classified.domain.name,
+      action: classified.action,
+    })),
     nameExecutions: params.nameExecutions,
     innerExecutions,
     outerCall,
@@ -931,6 +1342,7 @@ export const buildAtomicMigrationBatches = async (
   })
   const nameExecutions = buildNameExecutions({
     ...params,
+    registryContext: params.registryContext ?? params.classified,
     resolver,
     defaultResolver: params.defaultResolver ?? V2_CONTRACTS.DefaultResolver,
   })

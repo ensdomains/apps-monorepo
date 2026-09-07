@@ -1,11 +1,10 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
 import {
   type HasRolesParameters as EnsjsHasRolesParameters,
   hasRoles as ensjsHasRoles,
 } from '@ensdomains/ensjs/public/v2'
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import type { ResolverRole, Role } from '@ensdomains/ensjs/utils/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'

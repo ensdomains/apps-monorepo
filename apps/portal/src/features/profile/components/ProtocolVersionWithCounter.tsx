@@ -1,5 +1,4 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircleIcon } from 'lucide-react'
 import { ShieldIcon } from '@/assets/icons'
@@ -26,9 +25,8 @@ interface ProtocolVersionWithCounterProps {
 const RoleCount = ({ name }: { name: string }) => {
   const { data, isLoading, error } = useQuery(
     getNameRolesAccountsQueryOptions({
-      ...makeLabelNodeAndParent(name),
+      name,
       registryAddress: v2EthRegistry,
-      fromBlock: 9782822n,
     }),
   )
 

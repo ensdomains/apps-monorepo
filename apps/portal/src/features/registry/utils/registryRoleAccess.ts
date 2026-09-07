@@ -1,16 +1,16 @@
 /**
  * Pure helpers for reasoning about registry root-resource role assignments.
  *
- * All functions operate on the `RegistryRoleRow[]` returned by
- * `getRegistryRolesQueryOptions` (one row per account, listing the roles it
- * holds at the registry root, `_ADMIN` variants included). Kept pure and
+ * All functions operate on the `RootRoleHolder[]` returned by
+ * `getRegistryRootRoleHoldersQueryOptions` (one row per account, listing the
+ * roles it holds at the registry root, `_ADMIN` variants included). Kept pure and
  * framework-free so the add/edit-user sheets share them and they're unit-tested
  * in isolation.
  */
 
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
-import type { RegistryRoleRow } from '../hooks/useRegistryRoles'
+import type { RootRoleHolder } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 
 const ADMIN_SUFFIX = '_ADMIN'
 
@@ -22,7 +22,7 @@ export const toAdminRole = (role: Role): Role =>
 
 /** Roles held by `account` at the registry root (case-insensitive). */
 const rolesForAccount = (
-  rows: readonly RegistryRoleRow[] | undefined,
+  rows: readonly RootRoleHolder[] | undefined,
   account: Address | undefined,
 ): readonly Role[] => {
   if (!rows || !account) return []
@@ -32,7 +32,7 @@ const rolesForAccount = (
 
 /** The `_ADMIN` roles `account` holds — i.e. the roles it can grant/revoke. */
 export const getAccountAdminRoles = (
-  rows: readonly RegistryRoleRow[] | undefined,
+  rows: readonly RootRoleHolder[] | undefined,
   account: Address | undefined,
 ): Set<Role> => new Set(rolesForAccount(rows, account).filter(isAdminRole))
 
@@ -51,7 +51,7 @@ export const getRemovableRoles = (
  * any of these removes the last admin for that role (a lockout).
  */
 export const getSoleAdminRoles = (
-  rows: readonly RegistryRoleRow[] | undefined,
+  rows: readonly RootRoleHolder[] | undefined,
   account: Address | undefined,
 ): Set<Role> => {
   if (!rows || !account) return new Set()

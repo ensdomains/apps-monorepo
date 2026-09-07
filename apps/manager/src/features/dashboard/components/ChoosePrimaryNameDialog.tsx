@@ -48,7 +48,8 @@ import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { resolveDomainLabel } from '../utils'
 import {
   getEthAddressFromRecords,
-  hasMatchingEthAddress,
+  isConfirmBlocked,
+  shouldUpdateEthAddress,
 } from './ChoosePrimaryNameDialog.handlers'
 
 interface ChoosePrimaryNameDialogProps {
@@ -309,21 +310,6 @@ const useSetupResolverMutation = ({
   })
 }
 
-const shouldUpdateEthAddress = ({
-  selectedName,
-  isLoadingRecords,
-  selectedNameRecords,
-  ownerAddress,
-}: {
-  readonly selectedName: string | null
-  readonly isLoadingRecords: boolean
-  readonly selectedNameRecords: SelectedNameRecords
-  readonly ownerAddress?: string
-}) =>
-  Boolean(selectedName) &&
-  !isLoadingRecords &&
-  !hasMatchingEthAddress(selectedNameRecords, ownerAddress)
-
 const getPrimaryNameQueryVariables = (
   address: string | undefined,
 ): PrimaryNameQueryVariables => {
@@ -408,14 +394,18 @@ export const ChoosePrimaryNameDialog = ({
     [allDomains, reverseName],
   )
 
-  const { data: selectedNameRecords, isLoading: isLoadingRecords } = useQuery({
+  const {
+    data: selectedNameRecords,
+    isSuccess: recordsSettled,
+    isError: isRecordsError,
+  } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
     enabled: open && !!selectedName,
   })
   const existingEthAddress = getEthAddressFromRecords(selectedNameRecords)
   const needsEthAddressUpdate = shouldUpdateEthAddress({
     selectedName,
-    isLoadingRecords,
+    recordsSettled,
     selectedNameRecords,
     ownerAddress: account.ownerAddress ?? undefined,
   })
@@ -442,10 +432,15 @@ export const ChoosePrimaryNameDialog = ({
 
   // No write access → confirm, then set up a controlled resolver before primary.
   const resolverBlocked = resolverWriteAccess.data === false
-  const resolverAccessPending =
-    Boolean(selectedName) &&
-    Boolean(account.ownerAddress) &&
-    resolverWriteAccess.isLoading
+
+  // Only set up a resolver when a forward write actually needs one. When the ETH
+  // record already points at this wallet, setting primary writes nothing but the
+  // reverse record, which the reverse registrar authorizes on `msg.sender` — so
+  // it lands whoever owns the name. The picker is indexer-fed and lags a
+  // transfer, so a name this wallet no longer owns can still be offered; without
+  // the `needsEthAddressUpdate` half the dialog offers to replace a resolver it
+  // has since lost `ROLE_SET_RESOLVER` on, and the setup reverts in simulation.
+  const needsResolverSetup = resolverBlocked && needsEthAddressUpdate
 
   // Set selected name to current primary on mount
   useEffect(() => {
@@ -471,7 +466,7 @@ export const ChoosePrimaryNameDialog = ({
     }
 
     try {
-      if (resolverBlocked) {
+      if (needsResolverSetup) {
         await setupResolverMutation.mutateAsync()
       } else if (needsEthAddressUpdate) {
         await updateEthAddressMutation.mutateAsync()
@@ -498,7 +493,7 @@ export const ChoosePrimaryNameDialog = ({
       return
     }
 
-    if (resolverBlocked) {
+    if (needsResolverSetup) {
       setSetupConfirmOpen(true)
       return
     }
@@ -515,16 +510,32 @@ export const ChoosePrimaryNameDialog = ({
 
   const hasChanges = selectedName !== reverseName
 
-  const showEthAddressInfo = needsEthAddressUpdate && !resolverBlocked
+  const showEthAddressInfo = needsEthAddressUpdate && !needsResolverSetup
   const isPreparing =
     updateEthAddressMutation.isPending || setupResolverMutation.isPending
-  const confirmDisabled =
-    isSubmitting ||
-    isPreparing ||
-    resolverAccessPending ||
-    !hasChanges ||
-    !selectedName
+  const confirmDisabled = isConfirmBlocked({
+    isSubmitting,
+    isPreparing,
+    resolverAccessSettled: resolverWriteAccess.isSuccess,
+    recordsSettled,
+    hasChanges,
+    selectedName,
+  })
   const actionErrorMessage =
+    // Probe failures first: both choose the branch, so neither can be silent —
+    // confirm is disabled and nothing else would say why.
+    match({ isRecordsError, isAccessError: resolverWriteAccess.isError })
+      .with(
+        { isRecordsError: true },
+        () =>
+          t`Couldn’t load this name’s records. Please try again in a moment.`,
+      )
+      .with(
+        { isAccessError: true },
+        () =>
+          t`Couldn’t check this name’s resolver. Please try again in a moment.`,
+      )
+      .otherwise(() => undefined) ??
     getSetupResolverErrorMessage(setupResolverMutation.error, {
       notAuthorized: t`Your wallet does not have permission to change the resolver for this name.`,
       notReady: t`The replacement resolver could not be verified. Please try again.`,

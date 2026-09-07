@@ -11,6 +11,7 @@ import {
   decodeMigrationError,
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
+import type { MigrationJournalOperation } from '@/features/migration/service/migrationBatchJournal'
 import {
   executeMigration,
   type MigrationProgress,
@@ -29,7 +30,7 @@ type Context = {
   hcaClient?: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
   refreshAccount?: () => Promise<void>
   reconcileBeforeSubmit: boolean
-  migratedNames: string[]
+  completedOperations: MigrationJournalOperation[]
   txHashes: readonly Hex[]
   progress?: MigrationProgress
   stepDescriptors: readonly MigrationStepDescriptor[]
@@ -48,7 +49,7 @@ type Events =
   | { type: 'migration.progress'; progress: MigrationProgress }
   | {
       type: 'migration.batchComplete'
-      names: readonly string[]
+      operations: readonly MigrationJournalOperation[]
       txHash?: Hex
     }
   | {
@@ -65,7 +66,7 @@ const initialContext = (wagmiConfig: WagmiConfig): Context => ({
   selectedNames: [],
   plan: undefined,
   reconcileBeforeSubmit: false,
-  migratedNames: [],
+  completedOperations: [],
   txHashes: [],
   progress: undefined,
   stepDescriptors: [],
@@ -101,9 +102,12 @@ export const migrationUiMachine = setup({
         sendBack({ type: 'migration.progress', progress })
       }
 
-      const onBatchComplete = (names: readonly string[], txHash?: Hex) => {
+      const onBatchComplete = (
+        operations: readonly MigrationJournalOperation[],
+        txHash?: Hex,
+      ) => {
         if (cancelled) return
-        sendBack({ type: 'migration.batchComplete', names, txHash })
+        sendBack({ type: 'migration.batchComplete', operations, txHash })
       }
 
       executeMigration({
@@ -140,7 +144,8 @@ export const migrationUiMachine = setup({
     isOnlyFailures: ({ event, context }) =>
       event.type === 'migration.complete' &&
       event.result.txHashes.length === 0 &&
-      context.migratedNames.length === 0,
+      event.result.completedOperations.length === 0 &&
+      context.completedOperations.length === 0,
   },
   actions: {
     setSelection: assign({
@@ -154,7 +159,7 @@ export const migrationUiMachine = setup({
         signer: event.signer,
         hcaClient: event.hcaClient,
         refreshAccount: event.refreshAccount,
-        reconcileBeforeSubmit: false,
+        reconcileBeforeSubmit: event.plan.requiresReconciliation ?? false,
         stepDescriptors: event.plan.stepDescriptors,
         progress: undefined,
         lastError: undefined,
@@ -167,12 +172,23 @@ export const migrationUiMachine = setup({
     }),
     appendBatchComplete: assign(({ event, context }) => {
       if (event.type !== 'migration.batchComplete') return {}
-      const existing = new Set(context.migratedNames)
-      const nextNames = [...context.migratedNames]
-      for (const name of event.names) {
-        if (!existing.has(name)) {
-          nextNames.push(name)
-          existing.add(name)
+      const existing = new Map(
+        context.completedOperations.map((operation) => [
+          operation.name,
+          operation,
+        ]),
+      )
+      const nextOperations = [...context.completedOperations]
+      for (const operation of event.operations) {
+        const previous = existing.get(operation.name)
+        if (previous && previous.action !== operation.action) {
+          throw new Error(
+            `Migration action changed for ${operation.name}: ${previous.action} -> ${operation.action}`,
+          )
+        }
+        if (!previous) {
+          nextOperations.push(operation)
+          existing.set(operation.name, operation)
         }
       }
       const nextHashes = event.txHash
@@ -181,7 +197,7 @@ export const migrationUiMachine = setup({
           : [...context.txHashes, event.txHash]
         : context.txHashes
       return {
-        migratedNames: nextNames,
+        completedOperations: nextOperations,
         txHashes: nextHashes,
       }
     }),
@@ -192,7 +208,27 @@ export const migrationUiMachine = setup({
         ...context.txHashes,
         ...event.result.txHashes.filter((h) => !existingHashes.has(h)),
       ]
+      const existingOperations = new Map(
+        context.completedOperations.map((operation) => [
+          operation.name,
+          operation,
+        ]),
+      )
+      const completedOperations = [...context.completedOperations]
+      for (const operation of event.result.completedOperations) {
+        const previous = existingOperations.get(operation.name)
+        if (previous && previous.action !== operation.action) {
+          throw new Error(
+            `Migration action changed for ${operation.name}: ${previous.action} -> ${operation.action}`,
+          )
+        }
+        if (!previous) {
+          completedOperations.push(operation)
+          existingOperations.set(operation.name, operation)
+        }
+      }
       return {
+        completedOperations,
         txHashes: mergedHashes,
       }
     }),
@@ -202,12 +238,15 @@ export const migrationUiMachine = setup({
     }),
     resetForRetry: assign(({ context }) => {
       if (!context.plan) return {}
-      const nextPlan = adjustPlanForRetry(context.plan, context.migratedNames)
-      const migratedSet = new Set(context.migratedNames)
+      const completedNames = context.completedOperations.map(({ name }) => name)
+      const nextPlan = adjustPlanForRetry(context.plan, completedNames)
+      const completedSet = new Set(completedNames)
       return {
         plan: nextPlan,
         stepDescriptors: nextPlan.stepDescriptors,
-        selectedNames: context.selectedNames.filter((n) => !migratedSet.has(n)),
+        selectedNames: context.selectedNames.filter(
+          (name) => !completedSet.has(name),
+        ),
         reconcileBeforeSubmit: true,
         lastError: undefined,
         progress: undefined,

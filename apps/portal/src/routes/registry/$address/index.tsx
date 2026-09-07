@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   ChevronRight,
+  ClockIcon,
   GitBranch,
   ShieldIcon,
   TriangleAlert,
@@ -15,6 +16,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
@@ -199,7 +201,18 @@ function RouteComponent() {
         </div>
       </div>
 
-      <RegistryHistoryByAddress address={address} name={registry.name} />
+      <RegistryHistoryByAddress
+        address={address}
+        heading={<h2 className="text-caps text-foreground">History</h2>}
+        action={
+          <Button variant="outline" size="xs" asChild>
+            <Link to="/registry/$address/history" params={{ address }}>
+              <ClockIcon className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
     </div>
   )
 }

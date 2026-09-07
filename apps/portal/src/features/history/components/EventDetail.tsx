@@ -19,8 +19,8 @@ import {
   getEnsContractName,
 } from '@/utils/ens/ensContractNames'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
-import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { resolveDecodedName } from '../summarize/decodeRawData'
+import type { TimelineIndexerEvent } from '../timelineEvent'
 import { AccountBadge, FullOnDesktop } from './AccountBadge'
 import { ContractBadge } from './ContractBadge'
 import { getDecodedParamEntries, getTimelineFieldType } from './eventFieldTypes'
@@ -109,8 +109,12 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
       <table className="w-full table-fixed border-separate border-spacing-y-2 text-p">
         <thead>
           <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wide">
-            <th className="w-28 py-1.5 pr-3 font-medium lg:w-34">Parameter</th>
-            <th className="w-22 py-1.5 pr-3 font-medium lg:w-30">Type</th>
+            <th className="w-28 py-1.5 pr-3 font-medium @2xl/timeline:w-34">
+              Parameter
+            </th>
+            <th className="w-22 py-1.5 pr-3 font-medium @2xl/timeline:w-30">
+              Type
+            </th>
             <th className="py-1.5 font-medium">Decoded</th>
           </tr>
         </thead>
@@ -142,7 +146,7 @@ const MetaRow = ({
   children: React.ReactNode
 }) => (
   <div className="flex items-center gap-3 py-1 text-muted-foreground">
-    <span className="w-28 shrink-0 text-p lg:w-34">{label}</span>
+    <span className="w-28 shrink-0 text-p @2xl/timeline:w-34">{label}</span>
     <div className={cn('min-w-0 flex-1', entityBadgeLeadingPadScope)}>
       {children}
     </div>

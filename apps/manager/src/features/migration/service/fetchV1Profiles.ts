@@ -35,6 +35,7 @@ export type Profile = {
 const executeMulticallChunks = async (
   publicClient: PublicClient,
   contracts: readonly MulticallContract[],
+  signal?: AbortSignal,
 ): Promise<MulticallResult[]> => {
   const chunks: (typeof contracts)[] = []
   for (let i = 0; i < contracts.length; i += PROFILE_MULTICALL_CHUNK) {
@@ -44,6 +45,7 @@ const executeMulticallChunks = async (
   let cursor = 0
   const runWorker = async (): Promise<void> => {
     while (true) {
+      signal?.throwIfAborted()
       const index = cursor++
       const chunk = chunks[index]
       if (!chunk) return
@@ -57,6 +59,7 @@ const executeMulticallChunks = async (
         allowFailure: true,
         batchSize: 0,
       })) as MulticallResult[]
+      signal?.throwIfAborted()
       if (results.length !== chunk.length) {
         throw new Error(
           `Profile multicall chunk ${index} returned ${results.length} results for ${chunk.length} calls`,
@@ -80,6 +83,7 @@ const executeMulticallChunks = async (
     const workerCount = Math.min(PROFILE_MULTICALL_CONCURRENCY, chunks.length)
     await Promise.all(Array.from({ length: workerCount }, () => runWorker()))
   } catch (cause) {
+    signal?.throwIfAborted()
     throw new ProfileFetchError({ cause, phase: 'onchain' })
   }
   return chunkResults.flat()
@@ -89,20 +93,27 @@ export const fetchV1Profiles = async (params: {
   names: readonly NameForFetch[]
   publicClient: PublicClient
   profileKeys?: readonly V1ProfileKeys[]
+  signal?: AbortSignal
 }): Promise<Map<Hex, Profile>> => {
-  const { names, publicClient, profileKeys } = params
+  const { names, publicClient, profileKeys, signal } = params
+  signal?.throwIfAborted()
   if (names.length === 0) return new Map()
 
   const byNode = indexNamesByNode(names)
 
+  const profileKeysResult = profileKeys
+    ? null
+    : await getV1ProfileKeys([...byNode.keys()], { signal })
+  signal?.throwIfAborted()
   const keyEntries =
     profileKeys ??
-    (await getV1ProfileKeys([...byNode.keys()])).match(
+    profileKeysResult?.match(
       (value) => value,
       (error) => {
         throw new ProfileFetchError({ cause: error, phase: 'subgraph' })
       },
-    )
+    ) ??
+    []
 
   const keyEntryIds = new Set(
     keyEntries.map((entry) => profileMapKey(entry.id as Hex)),
@@ -123,7 +134,8 @@ export const fetchV1Profiles = async (params: {
   const buckets = initEmptyProfileBuckets(byNode)
   if (contracts.length === 0) return buckets
 
-  const results = await executeMulticallChunks(publicClient, contracts)
+  const results = await executeMulticallChunks(publicClient, contracts, signal)
+  signal?.throwIfAborted()
   const profiles = mergeMulticallResultsIntoProfiles({
     buckets,
     calls,
