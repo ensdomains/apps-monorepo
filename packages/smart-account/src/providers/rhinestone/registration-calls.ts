@@ -20,7 +20,10 @@ import {
   publicResolverSetAddrSnippet,
   publicResolverSetTextSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
-import { permissionedResolverAuthorizeNameRolesSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import {
+  permissionedResolverAuthorizeNameRolesSnippet,
+  permissionedResolverInitializeSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import {
   type Address,
@@ -53,14 +56,6 @@ const ethRegistrarAbi = parseAbi([
   'function register(string label, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, address paymentToken, bytes32 referrer)',
   'function MIN_COMMITMENT_AGE() view returns (uint64)',
   'function MAX_COMMITMENT_AGE() view returns (uint64)',
-])
-/**
- * `PermissionedResolver.initialize(admin, roleBitmap, setters)` — the third
- * `setters` arg is not modelled by ensjs-abi's 2-arg `proxyInitializeSnippet`,
- * so this one stays local. Every other ABI here comes from `@ensdomains/ensjs-abi`.
- */
-const permissionedResolverInitializeAbi = parseAbi([
-  'function initialize(address owner, uint256 roles, bytes[] data)',
 ])
 const reverseAdapterAbi = parseAbi([
   'function setNameWithHCA(address addr, string name)',
@@ -236,15 +231,21 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
 
   // 1. deployProxy (omit when resolver exists).
   //
-  //    `setters` MUST be empty. `HCAOwnerAndSessionValidator._checkResolverDeployment`
+  //    `calls` MUST be empty. `HCAOwnerAndSessionValidator._checkResolverDeployment`
   //    reconstructs the expected calldata as
-  //      deployProxy(PERMITTED_RESOLVER_IMPL, salt, initialize(account, ALL_ROLES, []))
+  //      deployProxy(PERMITTED_RESOLVER_IMPL, salt, initialize(grants, []))
   //    and compares `keccak256(callData)` against it, so folding the record
-  //    writes into `setters` — even though the resolver would happily execute
+  //    writes into `calls` — even though the resolver would happily execute
   //    them during initialization — makes the hashes differ and reverts with
   //    `PolicyRuleFailed()` (0xe50c42ea), which the emissary re-wraps as
   //    `InvalidSignature()`. Records go out as standalone calls in step 4;
   //    their selectors are individually whitelisted by the same policy.
+  //
+  //    The initializer is `initialize(Grant[], bytes[])` (0x33cc44a0) — the old
+  //    `initialize(address,uint256,bytes[])` no longer exists on the deployed
+  //    implementation. Since the policy pins the exact calldata, the deployed
+  //    validator must encode grants the same way; a `PolicyRuleFailed()` here
+  //    means it is still on the pre-`IEACGrantInitializable` shape.
   if (!params.resolverDeployed) {
     const salt = computeResolverSalt(params.hca)
     calls.push({
@@ -257,9 +258,9 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
           c.permissionedResolverImpl,
           salt,
           encodeFunctionData({
-            abi: permissionedResolverInitializeAbi,
+            abi: permissionedResolverInitializeSnippet,
             functionName: 'initialize',
-            args: [params.hca, ROLES_ALL, []],
+            args: [[{ account: params.hca, roleBitmap: ROLES_ALL }], []],
           }),
         ],
       }),
