@@ -1,5 +1,6 @@
 import { getRecords } from '@ensdomains/ensjs/public'
 import { getAddress, isAddress, zeroAddress } from 'viem'
+import { concatBytes } from 'viem/utils'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { publicClient } from '@/lib/wagmi'
 import type { NameOgCard } from './card'
@@ -32,6 +33,43 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 /**
+ * Read a response body into a buffer, abandoning it once the cap is exceeded.
+ *
+ * `arrayBuffer()` would allocate the whole body before any size check could
+ * reject it, and `content-length` is a claim rather than a promise — so the body
+ * is read a chunk at a time and the stream cancelled the moment it runs over,
+ * which disconnects an oversized upstream instead of draining it into memory.
+ *
+ * The reader is explicit rather than `for await (… of body)` so the cancel isn't
+ * contingent on the runtime's `preventCancel` default for async iteration.
+ */
+async function readCapped(response: Response): Promise<Uint8Array | null> {
+  if (!response.body) return null
+
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      total += value.byteLength
+      if (total > AVATAR_MAX_BYTES) return null
+
+      chunks.push(value)
+    }
+  } finally {
+    // A no-op once the stream has ended; cancels it on the over-cap and throw
+    // paths, so every exit leaves the connection released.
+    await reader.cancel()
+  }
+
+  return concatBytes(chunks)
+}
+
+/**
  * Fetch a name's avatar as a `data:` URI.
  *
  * Dereferencing the raw `avatar` record would mean following `ipfs://` and
@@ -47,11 +85,13 @@ async function fetchAvatarDataUri(name: string): Promise<string | null> {
     const contentType = response.headers.get('content-type') ?? ''
     if (!contentType.startsWith('image/')) return null
 
+    // Cheap fast path: an honest oversized response is rejected without opening
+    // the stream. A missing or lying header just falls through to readCapped.
     const declaredLength = Number(response.headers.get('content-length'))
     if (declaredLength > AVATAR_MAX_BYTES) return null
 
-    const bytes = new Uint8Array(await response.arrayBuffer())
-    if (bytes.byteLength > AVATAR_MAX_BYTES) return null
+    const bytes = await readCapped(response)
+    if (!bytes) return null
 
     return `data:${contentType};base64,${bytesToBase64(bytes)}`
   } catch {
