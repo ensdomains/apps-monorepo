@@ -45,7 +45,8 @@ export const ActionSummaryRow = ({
         entityBadgeLeadingPadScope,
       )}
     >
-      <span className="text-neutral-7 text-p">{action.label}</span>
+      <ActionSlots slots={[{ kind: 'actor', txHash: action.txHash }]} />
+      <span className="-ml-2 text-neutral-7 text-p">{action.label}</span>
       <ActionSlots slots={action.slots} />
     </div>
   )

@@ -8,7 +8,7 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 interface AccountBadgeProps {
   /** The account address, when known. */
   readonly address?: Address
-  /** When no address is known (e.g. "Renew by …"), resolve this tx's sender instead. */
+  /** When no address is known (the actor leading a row), resolve this tx's sender instead. */
   readonly txHash?: Hash
   readonly full?: boolean
   /**

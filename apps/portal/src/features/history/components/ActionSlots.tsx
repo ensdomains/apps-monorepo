@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, Hex } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
+import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ActionSlot } from '../summarize/summarize.types'
 import { AccountBadge } from './AccountBadge'
@@ -42,8 +43,12 @@ const ActorSlot = ({ address, txHash }: { address?: Address; txHash: Hex }) => {
   )
 }
 
-/** Renders one label slot — an entity chip, a monospace value, or a muted joiner. */
-const Slot = ({ slot }: { slot: ActionSlot }) =>
+/**
+ * Renders one label slot — an entity chip, a monospace value, or a muted joiner.
+ * A joiner tucks under the padding of the chip before it; the first slot follows
+ * the plain-text label instead, which has none to tuck under.
+ */
+const Slot = ({ slot, isFirst }: { slot: ActionSlot; isFirst: boolean }) =>
   match(slot)
     .with({ kind: 'name' }, ({ value }) => (
       <EntityBadge variant="name" name={value} compact>
@@ -70,7 +75,9 @@ const Slot = ({ slot }: { slot: ActionSlot }) =>
       <span className="text-muted-foreground">{value}</span>
     ))
     .with({ kind: 'connective' }, ({ value }) => (
-      <span className="-ml-2 text-muted-foreground text-p">{value}</span>
+      <span className={cn('text-muted-foreground text-p', !isFirst && '-ml-2')}>
+        {value}
+      </span>
     ))
     .with({ kind: 'placeholder' }, ({ value }) => (
       <span className="rounded border border-dashed px-1.5 py-0.5 text-muted-foreground text-p">
@@ -83,7 +90,7 @@ export const ActionSlots = ({ slots }: { slots: readonly ActionSlot[] }) => (
   <>
     {slots.map((slot, index) => (
       // biome-ignore lint/suspicious/noArrayIndexKey: slots are a positional, static label sequence
-      <Slot key={`${slot.kind}-${index}`} slot={slot} />
+      <Slot key={`${slot.kind}-${index}`} slot={slot} isFirst={index === 0} />
     ))}
   </>
 )
