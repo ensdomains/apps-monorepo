@@ -3,7 +3,7 @@ import {
   type DecodedFuses,
   FullParentFuseKeys,
 } from '@ensdomains/ensjs/utils'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowDownUp, Ban, Flame, Info } from 'lucide-react'
@@ -130,12 +130,14 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { address } = useConnection()
 
-  const wrapperDataQuery = useQuery({
-    ...getWrapperDataQueryOptions({ name }),
+  const [wrapperDataQuery, ownerQuery] = useQueries({
+    queries: [
+      getWrapperDataQueryOptions({ name }),
+      getEnsOwnerQueryOptions({ name }),
+    ],
   })
 
-  const { data: owner } = useQuery(getEnsOwnerQueryOptions({ name }))
-  const isV1Name = owner?.protocolVersion === 'ENSv1'
+  const isV1Name = ownerQuery.data?.protocolVersion === 'ENSv1'
 
   // Gated because the read is not cheap, and a v2 name never needs it.
   const { isMigratableByConnectedOwner } = useMigrationStatus(name, {
@@ -156,8 +158,20 @@ function RouteComponent() {
     enabled: grace.isInGrace,
   })
 
-  if (wrapperDataQuery.isLoading || grace.isLoading) {
+  // `isV1Name` decides which message a fuseless name gets, so it must not be
+  // read before the owner query settles: pending or failed would both read as
+  // "not v1" and show the v2 copy, one as a flash and one permanently.
+  if (wrapperDataQuery.isLoading || ownerQuery.isLoading || grace.isLoading) {
     return <LoadingMessage />
+  }
+
+  if (ownerQuery.error) {
+    return (
+      <ErrorMessage
+        title="Failed to load name"
+        description={ownerQuery.error.cause?.message}
+      />
+    )
   }
 
   if (wrapperDataQuery.error) {
