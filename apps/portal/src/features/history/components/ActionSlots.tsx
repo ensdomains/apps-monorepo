@@ -92,7 +92,11 @@ const Slot = ({
     ))
     .exhaustive()
 
-export const ActionSlots = ({ slots }: { slots: readonly ActionSlot[] }) => (
+export const ActionSlots = ({
+  slots,
+}: {
+  readonly slots: readonly ActionSlot[]
+}) => (
   <>
     {slots.map((slot, index) => (
       // biome-ignore lint/suspicious/noArrayIndexKey: slots are a positional, static label sequence

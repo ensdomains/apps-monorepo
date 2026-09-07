@@ -28,8 +28,11 @@ export const FullOnDesktop = ({ value }: { value: string }) => (
 
 /**
  * Renders an account as its **primary ENS name** (no avatar) when one resolves,
- * otherwise the truncated address. Optionally resolves the address from a transaction's
- * sender first. Kept here (not in EntityBadge) so the shared badge stays presentational.
+ * otherwise the truncated address. Either way the pill is the wallet — it links
+ * to the address page, where its registry roles show — and a resolved name is
+ * reachable through the Name chip. Optionally resolves the address from a
+ * transaction's sender first. Kept here (not in EntityBadge) so the shared badge
+ * stays presentational.
  *
  * TODO(indexer): once `Event.from` is indexed, pass it as `address` and drop the tx RPC.
  */
@@ -40,7 +43,7 @@ export const AccountBadge = ({
   enabled = true,
 }: AccountBadgeProps) => {
   const needsTx = !!txHash && !address
-  const { data: tx, isPending } = useTransaction({
+  const { data: tx, error } = useTransaction({
     hash: txHash,
     query: { enabled: needsTx && enabled },
   })
@@ -55,36 +58,42 @@ export const AccountBadge = ({
   })
   const explorerUrl = useBlockExplorerAddressUrl(resolved)
 
+  // Three unresolved states, told apart: the lookup failed, the lookup is
+  // still to come (deferred off-screen or in flight), or the transaction has
+  // no sender to show — only the last is the "no data" dash.
   if (!resolved) {
-    return (
-      <span className="text-muted-foreground text-p">
-        {needsTx && enabled && isPending ? '…' : '—'}
-      </span>
-    )
-  }
-
-  if (name) {
-    return (
-      <EntityBadge
-        variant="name"
-        name={name}
-        address={resolved}
-        etherscanHref={explorerUrl}
-        compact
-      >
-        {name}
-      </EntityBadge>
-    )
+    if (error) {
+      return (
+        <span
+          className="text-muted-foreground text-p"
+          title="Couldn't load the transaction sender"
+        >
+          unknown sender
+        </span>
+      )
+    }
+    // A span, not the `Skeleton` div: this sits inside inline row text.
+    if (needsTx && !tx) {
+      return (
+        <span
+          aria-busy
+          className="inline-block h-6 w-28 animate-pulse rounded bg-muted"
+        />
+      )
+    }
+    return <span className="text-muted-foreground text-p">—</span>
   }
 
   return (
     <EntityBadge
       variant="address"
       address={resolved}
+      name={name ?? undefined}
       etherscanHref={explorerUrl}
       compact
     >
-      {full ? <FullOnDesktop value={resolved} /> : truncateAddress(resolved)}
+      {name ??
+        (full ? <FullOnDesktop value={resolved} /> : truncateAddress(resolved))}
     </EntityBadge>
   )
 }
