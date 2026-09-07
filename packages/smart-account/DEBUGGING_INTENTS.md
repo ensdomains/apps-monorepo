@@ -80,21 +80,21 @@ recovered and it is the very first check,
 
 ## 4. The policy pins exact calldata — not just arguments
 
-`HCAResolverPolicyLib.checkDeployment` does not merely inspect `deployProxy`'s
-arguments. It **reconstructs the whole calldata and compares keccak hashes**,
-after pinning the grants exactly:
+`HCAResolverPolicyLib.checkDeployment` does not inspect `deployProxy`'s
+arguments. It **builds the entire expected calldata from its own constants and
+compares keccak hashes** — only the salt is read from ours:
 
 ```solidity
-(Grant[] memory grants, bytes[] memory calls) = abi.decode(callArgs(initData), (Grant[], bytes[]));
-if (grants.length != 2 ||
-    grants[0].account != account || grants[0].roleBitmap != ALL_ROLES ||  // the HCA
-    grants[1].account != owner   || grants[1].roleBitmap != ALL_ROLES     // the wallet
-) revert PolicyRuleFailed();
-_checkCalls(calls);                                  // each must be a record setter
-
+uint256 salt = readUint(callData, 4 + 32);           // the ONLY caller-supplied input
+Grant[] memory grants = new Grant[](2);
+grants[0] = Grant({account: account, roleBitmap: ALL_ROLES});   // the HCA
+grants[1] = Grant({account: owner,   roleBitmap: ALL_ROLES});   // the wallet
+bytes[] memory calls = new bytes[](0);               // hardcoded EMPTY
 expectedInitData = abi.encodeCall(initialize, (grants, calls));
-expectedCallData = abi.encodeCall(deployProxy, (PERMITTED_RESOLVER_IMPL, salt, expectedInitData));
-if (keccak256(callData) != keccak256(expectedCallData)) revert PolicyRuleFailed();
+expectedCallData = abi.encodeCall(deployProxy, (implementation, salt, expectedInitData));
+if (keccak256(callData) != keccak256(expectedCallData) ||
+    resolverAddress(account, salt, factory, proxyLogic) != resolver
+) revert PolicyRuleFailed();
 ```
 
 The wallet's roles are granted **here**, as `grants[1]` — there is no trailing
@@ -104,18 +104,25 @@ The wallet's roles are granted **here**, as `grants[1]` — there is no trailing
 Consequences:
 - The grants array is exactly two entries in that order. The older single-grant
   form reverts `PolicyRuleFailed()`.
-- Record writes may now be folded into `initialize`'s `calls` (`_checkCalls`
-  allows any record setter) or issued standalone. We issue them standalone.
+- `initialize`'s `calls` **must** be empty — the policy hardcodes an empty array,
+  so folding record writes in there changes the hash. They go out as standalone
+  calls, individually whitelisted by `checkCall`.
+- The CREATE2 address derived from the salt must equal the session's resolver, so
+  a stale `verifiableFactoryProxyLogic` fails here even when the calldata matches.
 - Record setters are the **V2** shapes, which take the DNS-encoded name:
   `setAddress` `0xb4436dde`, `setText` `0xc7279f88`. The v1 `PublicResolver`
   shapes (`setAddr` `0x8b95dd71`, `setText` `0x10f13a8c`) are rejected twice
   over — not whitelisted, and not implemented by the resolver.
 - Any change to how the resolver is deployed or initialized breaks this check.
-  Assert new calldata against a policy-derived keccak in tests.
+  `registration-calls.test.ts` reconstructs the policy's expected calldata and
+  asserts keccak equality; keep that in step.
 
 The validator exposes every pinned address and selector as a public getter
 (`SET_ADDRESS_SELECTOR()`, `VERIFIABLE_PROXY_LOGIC()`, …), so after any redeploy
-read them off chain rather than trusting the manifest.
+read them off chain rather than trusting the manifest. It is verified on
+Sourcify (exact match), which is the authoritative source for these rules —
+contracts-v2 branches carry variants that differ, e.g. one that decodes and
+validates `calls` instead of hardcoding it empty.
 
 ## 5. Reproduce end-to-end with a real signed intent
 
