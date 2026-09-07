@@ -79,7 +79,7 @@ describe('commemorative NFT sharing', () => {
     ).toBe('https://app.ens.domains/p/hello%20world.eth')
   })
 
-  it('does not expose OpenSea for Sepolia claims', () => {
+  it('does not expose OpenSea before minting', () => {
     expect(
       buildCommemorativeNftMarketplaceUrl({
         chainId: 11155111,
@@ -87,9 +87,24 @@ describe('commemorative NFT sharing', () => {
         minted: false,
       }),
     ).toBeUndefined()
+  })
+
+  it('uses mainnet OpenSea for a minted NFT on a configured chain', () => {
     expect(
       buildCommemorativeNftMarketplaceUrl({
         chainId: 11155111,
+        ownerAddress,
+        minted: true,
+      }),
+    ).toBe(
+      'https://opensea.io/assets/ethereum/0xe49A9D706FCD82AA575496352B5633F80fBBC449/46455108410614081663945406319915307572171076188378075311311703967581922008221',
+    )
+  })
+
+  it('does not expose OpenSea without a configured contract', () => {
+    expect(
+      buildCommemorativeNftMarketplaceUrl({
+        chainId: 10,
         ownerAddress,
         minted: true,
       }),

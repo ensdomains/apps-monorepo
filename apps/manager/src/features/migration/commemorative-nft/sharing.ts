@@ -1,5 +1,4 @@
 import type { Address } from 'viem'
-import { mainnet } from 'viem/chains'
 import {
   getCommemorativeNftContractAddress,
   getCommemorativeNftTokenId,
@@ -50,11 +49,12 @@ export const buildCommemorativeNftMarketplaceUrl = (params: {
   readonly ownerAddress: Address
   readonly minted: boolean
 }): string | undefined => {
-  if (!params.minted || params.chainId !== mainnet.id) return undefined
+  if (!params.minted) return undefined
 
   const contractAddress = getCommemorativeNftContractAddress(params.chainId)
   if (!contractAddress) return undefined
 
   const tokenId = getCommemorativeNftTokenId(params.ownerAddress).toString()
+  // OpenSea links intentionally use its mainnet route for every deployment.
   return `https://opensea.io/assets/ethereum/${contractAddress}/${tokenId}`
 }
