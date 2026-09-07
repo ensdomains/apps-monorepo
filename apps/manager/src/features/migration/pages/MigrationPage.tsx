@@ -1,6 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import { Trans } from '@lingui/react/macro'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
@@ -31,7 +30,7 @@ import {
   useMigrationSelectedNames,
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { isMigrationQueryKey } from './MigrationPage.helpers'
 
@@ -184,14 +183,14 @@ export const MigrationPage = () => {
   } = useSmartAccountContext()
   const { data: wagmiWalletClient } = useWalletClient()
   const queryClient = useQueryClient()
-  const migrationNftEnabled = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.MIGRATION_NFT,
-    false,
-  )
+  const migrationNftEnabled = useMigrationNftEnabled()
   const [isNftMintOpen, setIsNftMintOpen] = useState(false)
   const visibleNft = useVisibleCommemorativeNftEligibility({
-    enabled: import.meta.env.DEV && step === 'select',
+    enabled: migrationNftEnabled && import.meta.env.DEV && step === 'select',
   })
+  useEffect(() => {
+    if (!migrationNftEnabled) setIsNftMintOpen(false)
+  }, [migrationNftEnabled])
   const isMigrationSuccess = step === 'success'
   const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)
@@ -322,7 +321,7 @@ export const MigrationPage = () => {
               <Trans>Back</Trans>
             </span>
           </button>
-          {import.meta.env.DEV && visibleNft ? (
+          {migrationNftEnabled && import.meta.env.DEV && visibleNft ? (
             <button
               className="absolute top-6 right-5 z-20 px-2 py-2 text-ens-garnet-900 text-xs underline underline-offset-2 md:right-8"
               onClick={() => setIsNftMintOpen(true)}
@@ -406,7 +405,7 @@ export const MigrationPage = () => {
           ownerAddress={ownerAddress as Address | undefined}
         />
       ) : null}
-      {import.meta.env.DEV && isNftMintOpen ? (
+      {migrationNftEnabled && import.meta.env.DEV && isNftMintOpen ? (
         <MigrationNftMintDialog
           onClose={() => setIsNftMintOpen(false)}
           onViewProfile={handleViewProfile}

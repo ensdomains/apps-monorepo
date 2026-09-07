@@ -1,4 +1,5 @@
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import {
   onlineManager,
   QueryClient,
@@ -25,6 +26,7 @@ import type { CommemorativeNftEligibilityResult } from './types'
 import { useCommemorativeNftAvailability } from './useCommemorativeNftAvailability'
 
 vi.mock('wagmi', () => ({ useChainId: vi.fn(), useConfig: vi.fn() }))
+vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: vi.fn() }))
 vi.mock('./contract', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./contract')>()),
   readCommemorativeNftClaimed: vi.fn(),
@@ -84,6 +86,7 @@ const deferred = <T>() => {
 describe('commemorative NFT availability observer', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    vi.mocked(useFeatureFlagEnabled).mockReturnValue(true)
     onlineManager.setOnline(true)
     vi.mocked(useChainId).mockReturnValue(sepolia.id)
     vi.mocked(useConfig).mockReturnValue(wagmiConfig)
@@ -104,6 +107,54 @@ describe('commemorative NFT availability observer', () => {
     for (const client of clients.splice(0)) client.clear()
     onlineManager.setOnline(true)
     vi.restoreAllMocks()
+  })
+
+  it.each([
+    [false, true],
+    [true, false],
+    [false, false],
+    [undefined, true],
+    [true, undefined],
+  ] as const)('does not fetch NFT metadata or claim status with migration=%s and migration-nft=%s', (migration, migrationNft) => {
+    vi.mocked(useFeatureFlagEnabled).mockImplementation(
+      (flag) => (flag === 'migration' ? migration : migrationNft) ?? false,
+    )
+    const { result } = mountAvailability(createClient(), { pollClaimed: true })
+
+    expect(result.current.featureEnabled).toBe(false)
+    expect(result.current.eligibility.fetchStatus).toBe('idle')
+    expect(result.current.claimed.fetchStatus).toBe('idle')
+    expect(result.current.hasFreshEligibilityResult).toBe(false)
+    expect(result.current.isConfirmedUnclaimed).toBe(false)
+    expect(fetchEligibility).not.toHaveBeenCalled()
+    expect(readClaimed).not.toHaveBeenCalled()
+  })
+
+  it('starts reads when both flags become enabled and stops background reads when disabled', async () => {
+    vi.mocked(useFeatureFlagEnabled).mockReturnValue(false)
+    const client = createClient()
+    const { result, rerender } = mountAvailability(client)
+    expect(fetchEligibility).not.toHaveBeenCalled()
+    expect(readClaimed).not.toHaveBeenCalled()
+
+    vi.mocked(useFeatureFlagEnabled).mockReturnValue(true)
+    rerender({ ownerAddress, enabled: true })
+    await waitFor(() => expect(result.current.isConfirmedUnclaimed).toBe(true))
+    await waitFor(() =>
+      expect(result.current.hasFreshEligibilityResult).toBe(true),
+    )
+    expect(fetchEligibility).toHaveBeenCalledTimes(1)
+    expect(readClaimed).toHaveBeenCalledTimes(1)
+
+    vi.mocked(useFeatureFlagEnabled).mockReturnValue(false)
+    rerender({ ownerAddress, enabled: true })
+    await act(async () => client.invalidateQueries())
+
+    expect(result.current.featureEnabled).toBe(false)
+    expect(result.current.hasFreshEligibilityResult).toBe(false)
+    expect(result.current.isConfirmedUnclaimed).toBe(false)
+    expect(fetchEligibility).toHaveBeenCalledTimes(1)
+    expect(readClaimed).toHaveBeenCalledTimes(1)
   })
 
   it('exposes cached minted status immediately and confirms it after refetch', async () => {

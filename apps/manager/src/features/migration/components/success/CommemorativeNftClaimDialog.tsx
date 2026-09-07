@@ -2,6 +2,7 @@ import { Plural, Trans } from '@lingui/react/macro'
 import { useEffect, useRef } from 'react'
 import type { Address } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
+import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { cn } from '@/lib/utils'
 import {
   type CommemorativeNftAdmission,
@@ -24,6 +25,8 @@ type CommemorativeNftClaimDialogProps = {
   readonly ownerAddress: Address | undefined
   readonly preview?: boolean
 }
+
+const noop = () => undefined
 
 const ClaimAdmissionStatus = ({
   admission,
@@ -168,9 +171,26 @@ const OpenCommemorativeNftClaimDialog = ({
 export const CommemorativeNftClaimDialog = (
   props: CommemorativeNftClaimDialogProps,
 ) => {
+  const featureEnabled = useMigrationNftEnabled()
   const chainId = useChainId()
   const { address: walletAddress } = useConnection()
   if (!props.open) return null
+  if (!featureEnabled) {
+    if (props.context === 'mint-later') return null
+    return (
+      <MigrationSuccessDialog
+        canMint={false}
+        context="migration"
+        migratedNameCount={props.migratedNameCount ?? 0}
+        onClose={props.onClose}
+        onMint={noop}
+        onRetry={noop}
+        onViewProfile={() => props.onViewProfile(undefined)}
+        open
+        state={{ status: 'error', stage: 'configuration', message: '' }}
+      />
+    )
+  }
   return (
     <OpenCommemorativeNftClaimDialog
       {...props}

@@ -46,6 +46,7 @@ export const CommemorativeNftDashboardSection = () => {
   })
   const minted = availability.claimed.data === true
   const eligibility = getVisibleCommemorativeNftEligibility({
+    featureEnabled: availability.featureEnabled,
     ownerAddress: address,
     supported: availability.supported,
     result: availability.eligibility.data,

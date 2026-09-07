@@ -3,6 +3,7 @@ import { Link, Navigate, useHydrated } from '@tanstack/react-router'
 import { motion, useReducedMotion } from 'motion/react'
 import { useConnection } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { resolveVerifiedOwner } from '@/lib/smart-account/sessionGate'
 import { useCommemorativeNftAvailability } from '../commemorative-nft/useCommemorativeNftAvailability'
@@ -43,9 +44,19 @@ const facts = [
   },
 ] as const
 
-const InfoPageStatus = ({ onRetry }: { readonly onRetry?: () => void }) => (
+const InfoPageStatus = ({
+  onRetry,
+  unavailable = false,
+}: {
+  readonly onRetry?: () => void
+  readonly unavailable?: boolean
+}) => (
   <main className="flex min-h-[calc(100dvh-80px)] flex-col items-center justify-center gap-5 px-5 text-center">
-    {onRetry ? (
+    {unavailable ? (
+      <Link className="text-ens-garnet-700 text-sm underline" to="/dashboard">
+        <Trans>Back to Dashboard</Trans>
+      </Link>
+    ) : onRetry ? (
       <>
         <p className="text-ens-garnet-700 text-sm">
           <Trans>This page could not be loaded. Please try again.</Trans>
@@ -66,6 +77,7 @@ const InfoPageStatus = ({ onRetry }: { readonly onRetry?: () => void }) => (
 )
 
 export const MigrationNftInfoPage = () => {
+  const featureEnabled = useMigrationNftEnabled()
   const isHydrated = useHydrated()
   const { ownerAddress, hasInitialized } = useSmartAccountContext()
   const {
@@ -81,9 +93,10 @@ export const MigrationNftInfoPage = () => {
     ) ?? undefined
   const availability = useCommemorativeNftAvailability({
     ownerAddress: verifiedOwner,
-    enabled: isHydrated,
+    enabled: isHydrated && featureEnabled,
   })
   const eligibility = getVisibleCommemorativeNftEligibility({
+    featureEnabled: availability.featureEnabled,
     ownerAddress: verifiedOwner,
     supported: availability.supported,
     result: availability.eligibility.data,
@@ -99,6 +112,7 @@ export const MigrationNftInfoPage = () => {
   ) {
     return <InfoPageStatus />
   }
+  if (!featureEnabled) return <InfoPageStatus unavailable />
   if (
     !verifiedOwner ||
     !availability.supported ||

@@ -12,7 +12,6 @@ import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNam
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 
 type UpgradeBannerProps = {
   readonly className?: string
@@ -29,7 +28,7 @@ export const UpgradeBanner = ({
     false,
   )
   const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility({
-    enabled: migrationEnabled && isFeatureEnabled('COMMEMORATIVE_NFT_COPY'),
+    enabled: migrationEnabled,
   })
   const isProfileBanner = profileName !== undefined
   const { isConnected } = useSmartAccountContext()

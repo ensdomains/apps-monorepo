@@ -18,6 +18,7 @@ import {
   waitForCommemorativeNftClaimReceipt,
 } from './contract'
 import {
+  type CommemorativeNftAdmission,
   type CommemorativeNftFlowStatus,
   getCommemorativeNftAdmission,
   getCommemorativeNftClaimedStatus,
@@ -43,17 +44,22 @@ const getClaimErrorMessage = (error: unknown): string =>
 
 const getPublishedEligibility = (
   result: CommemorativeNftEligibilityResult | undefined,
+  enabled: boolean,
 ): CommemorativeNftEligibility | undefined =>
-  result?.status === 'eligible' && result.eligibility.source === 'static'
+  enabled &&
+  result?.status === 'eligible' &&
+  result.eligibility.source === 'static'
     ? result.eligibility
     : undefined
 
 const getEligibilityFlowStatus = (params: {
+  readonly available: boolean
   readonly isError: boolean
   readonly isPending: boolean
   readonly hasEligibility: boolean
   readonly dataStatus?: 'eligible' | 'ineligible' | 'unavailable'
 }): 'pending' | 'error' | 'eligible' | 'ineligible' | 'unavailable' => {
+  if (!params.available) return 'unavailable'
   if (params.dataStatus === 'ineligible') return 'ineligible'
   if (params.isError) return 'error'
   if (params.isPending && !params.hasEligibility) return 'pending'
@@ -144,7 +150,19 @@ export const useCommemorativeNftFlow = ({
     enabled: open,
     pollClaimed: awaitingClaim || hasPendingClaim,
   })
-  const eligibility = getPublishedEligibility(availability.eligibility.data)
+  const featureEnabled = availability.featureEnabled
+  const featureEnabledRef = useRef(featureEnabled)
+  const eligibility = getPublishedEligibility(
+    availability.eligibility.data,
+    featureEnabled,
+  )
+
+  useEffect(() => {
+    featureEnabledRef.current = featureEnabled
+    return () => {
+      featureEnabledRef.current = false
+    }
+  }, [featureEnabled])
 
   useEffect(() => {
     if (availability.claimed.data === true) setAwaitingClaim(false)
@@ -153,6 +171,9 @@ export const useCommemorativeNftFlow = ({
   const claimMutation = useMutation({
     mutationKey,
     mutationFn: async () => {
+      if (!featureEnabledRef.current) {
+        throw new Error('The commemorative NFT feature is disabled.')
+      }
       if (!eligibility || !ownerAddress || !walletAddress) {
         throw new Error('The eligible owner wallet is not connected.')
       }
@@ -215,35 +236,37 @@ export const useCommemorativeNftFlow = ({
   })
   const claimed = claimedStatus === true
 
-  const eligibilityStatus =
-    availability.supported || preview
-      ? getEligibilityFlowStatus({
-          isError: availability.eligibility.isError,
-          isPending: availability.eligibility.isPending,
-          hasEligibility: !!eligibility,
-          dataStatus: availability.eligibility.data?.status,
-        })
-      : 'unavailable'
-  const admission = getCommemorativeNftAdmission({
-    admitted,
-    preview,
-    hasOwner: !!ownerAddress,
-    supported: availability.supported,
-    eligibilityStatus,
-    claimed: availability.claimed.data,
-    // Admit only after published metadata validation, or to show a completed
-    // eligibility error in the existing retry UI.
-    isFresh:
-      availability.hasFreshClaimedResult &&
-      (availability.hasFreshEligibilityResult || eligibilityStatus === 'error'),
-    claimReadError: availability.claimed.isError,
-    fetchStatus: availability.claimed.fetchStatus,
+  const eligibilityStatus = getEligibilityFlowStatus({
+    available: featureEnabled && (availability.supported || preview),
+    isError: availability.eligibility.isError,
+    isPending: availability.eligibility.isPending,
+    hasEligibility: !!eligibility,
+    dataStatus: availability.eligibility.data?.status,
   })
+  const admission: CommemorativeNftAdmission = featureEnabled
+    ? getCommemorativeNftAdmission({
+        admitted,
+        preview,
+        hasOwner: !!ownerAddress,
+        supported: availability.supported,
+        eligibilityStatus,
+        claimed: availability.claimed.data,
+        // Admit only after published metadata validation, or to show a completed
+        // eligibility error in the existing retry UI.
+        isFresh:
+          availability.hasFreshClaimedResult &&
+          (availability.hasFreshEligibilityResult ||
+            eligibilityStatus === 'error'),
+        claimReadError: availability.claimed.isError,
+        fetchStatus: availability.claimed.fetchStatus,
+      })
+    : { status: 'fallback' }
   const isAdmitted = admission.status === 'admitted'
 
   useEffect(() => {
-    if (isAdmitted) setAdmitted(true)
-  }, [isAdmitted])
+    if (!featureEnabled) setAdmitted(false)
+    else if (isAdmitted) setAdmitted(true)
+  }, [featureEnabled, isAdmitted])
 
   const flowStatus = getCommemorativeNftFlowStatus({
     eligibilityStatus,
@@ -284,6 +307,7 @@ export const useCommemorativeNftFlow = ({
     }) ?? getArtworkDialogState({ flowStatus, card, txHash })
 
   const retry = useCallback(() => {
+    if (!featureEnabledRef.current) return
     if (!claimMutation.isPending && !awaitingClaim) {
       claimMutation.reset()
       setTxHash(undefined)
@@ -299,6 +323,7 @@ export const useCommemorativeNftFlow = ({
     claimMutation,
   ])
   const canMint =
+    featureEnabled &&
     isAdmitted &&
     flowStatus === 'readyToMint' &&
     availability.hasFreshEligibilityResult &&
@@ -312,6 +337,7 @@ export const useCommemorativeNftFlow = ({
     ownerAddress.toLowerCase() === walletAddress.toLowerCase()
   const mint = useCallback(() => {
     if (
+      !featureEnabledRef.current ||
       !canMint ||
       claimInFlight.current ||
       queryClient.isMutating({ mutationKey }) > 0

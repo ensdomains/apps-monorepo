@@ -6,12 +6,9 @@ import { MigrationPrimaryButton } from '@/features/migration/components/Migratio
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const MigrationProgressBanner = () => {
-  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility({
-    enabled: isFeatureEnabled('COMMEMORATIVE_NFT_COPY'),
-  })
+  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility()
   const navigate = useNavigate()
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isV1Pending } =

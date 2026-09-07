@@ -23,6 +23,7 @@ export const useVisibleCommemorativeNftEligibility = ({
   })
 
   return getVisibleCommemorativeNftEligibility({
+    featureEnabled: availability.featureEnabled,
     ownerAddress: enabled ? verifiedOwner : undefined,
     supported: availability.supported,
     result: availability.eligibility.data,

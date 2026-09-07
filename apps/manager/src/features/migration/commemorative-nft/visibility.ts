@@ -5,6 +5,7 @@ import type {
 } from './types'
 
 export const getVisibleCommemorativeNftEligibility = (params: {
+  readonly featureEnabled: boolean
   readonly ownerAddress: Address | undefined
   readonly supported: boolean
   readonly result: CommemorativeNftEligibilityResult | undefined
@@ -12,6 +13,7 @@ export const getVisibleCommemorativeNftEligibility = (params: {
   readonly minted: boolean
 }): CommemorativeNftEligibility | undefined => {
   if (
+    !params.featureEnabled ||
     !params.ownerAddress ||
     !params.supported ||
     params.result?.status !== 'eligible' ||

@@ -11,6 +11,7 @@ const eligibility: CommemorativeNftEligibility = {
   assets: { metadataUrl: 'https://assets.example/token/42/metadata.json' },
 }
 const defaults = {
+  featureEnabled: true,
   ownerAddress,
   supported: true,
   result: { status: 'eligible', eligibility },
@@ -19,6 +20,19 @@ const defaults = {
 } as const
 
 describe('commemorative NFT visibility', () => {
+  it.each([
+    false,
+    true,
+  ])('hides cached eligibility when the feature is disabled (minted: %s)', (minted) => {
+    expect(
+      getVisibleCommemorativeNftEligibility({
+        ...defaults,
+        featureEnabled: false,
+        minted,
+      }),
+    ).toBeUndefined()
+  })
+
   it('shows published eligibility only after validating the current owner', () => {
     expect(getVisibleCommemorativeNftEligibility(defaults)).toBe(eligibility)
     expect(

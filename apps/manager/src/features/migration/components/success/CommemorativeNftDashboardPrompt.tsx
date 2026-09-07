@@ -27,6 +27,7 @@ export const CommemorativeNftDashboardPrompt = () => {
   })
 
   const eligibility = getVisibleCommemorativeNftEligibility({
+    featureEnabled: availability.featureEnabled,
     ownerAddress: verifiedOwner,
     supported: availability.supported,
     result: availability.eligibility.data,

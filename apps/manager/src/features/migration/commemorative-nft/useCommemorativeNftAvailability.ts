@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useChainId, useConfig } from 'wagmi'
+import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { getCommemorativeNftContractAddress } from './config'
 import { isCommemorativeNftClaimResultFresh } from './flowState'
 import {
@@ -13,11 +14,13 @@ export const useCommemorativeNftAvailability = (params: {
   readonly enabled: boolean
   readonly pollClaimed?: boolean
 }) => {
+  const featureEnabled = useMigrationNftEnabled()
   const chainId = useChainId()
   const wagmiConfig = useConfig()
   const supported = !!getCommemorativeNftContractAddress(chainId)
   const ownerAddress = params.ownerAddress
-  const enabled = params.enabled && supported && !!ownerAddress
+  const enabled =
+    featureEnabled && params.enabled && supported && !!ownerAddress
 
   const eligibility = useQuery({
     ...commemorativeNftEligibilityQueryOptions({
@@ -50,6 +53,7 @@ export const useCommemorativeNftAvailability = (params: {
     eligibility.fetchStatus === 'idle'
 
   return {
+    featureEnabled,
     chainId,
     supported,
     eligibility,

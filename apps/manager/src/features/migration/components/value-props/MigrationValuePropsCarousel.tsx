@@ -9,7 +9,6 @@ import type { KeyboardEvent } from 'react'
 import { useCallback, useRef, useState } from 'react'
 import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { cn } from '@/lib/utils'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 import { MigrationValuePropMediaCard } from './MigrationValuePropMediaCard'
 import {
   getMigrationValuePropSlides,
@@ -135,9 +134,7 @@ const DesktopSlideButton = ({
 export const MigrationValuePropsCarousel = () => {
   const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion() ?? false
-  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility({
-    enabled: isFeatureEnabled('COMMEMORATIVE_NFT_COPY'),
-  })
+  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility()
   const slides = getMigrationValuePropSlides(nftCopyEnabled)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const activeIndex = clampIndex(selectedIndex, slides.length)

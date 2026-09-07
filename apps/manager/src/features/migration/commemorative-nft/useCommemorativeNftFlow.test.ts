@@ -1,3 +1,4 @@
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
@@ -18,6 +19,7 @@ import type { CommemorativeNftEligibility } from './types'
 import { useCommemorativeNftFlow } from './useCommemorativeNftFlow'
 
 vi.mock('wagmi', () => ({ useChainId: vi.fn(), useConfig: vi.fn() }))
+vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: vi.fn() }))
 vi.mock('./contract', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./contract')>()),
   claimCommemorativeNft: vi.fn(),
@@ -44,6 +46,7 @@ const readClaimed = vi.mocked(readCommemorativeNftClaimed)
 const claim = vi.mocked(claimCommemorativeNft)
 const waitForReceipt = vi.mocked(waitForCommemorativeNftClaimReceipt)
 const fetchEligibility = vi.mocked(fetchCommemorativeNftEligibility)
+const featureFlag = vi.mocked(useFeatureFlagEnabled)
 const clients: QueryClient[] = []
 
 const createClient = () => {
@@ -92,6 +95,7 @@ describe('commemorative NFT flow session', () => {
     vi.clearAllMocks()
     vi.mocked(useChainId).mockReturnValue(11155111)
     vi.mocked(useConfig).mockReturnValue(wagmiConfig)
+    featureFlag.mockReturnValue(true)
     fetchEligibility.mockResolvedValue({ status: 'eligible', eligibility })
     readClaimed.mockResolvedValue(false)
     claim.mockResolvedValue('0xabc')
@@ -102,6 +106,131 @@ describe('commemorative NFT flow session', () => {
     cleanup()
     for (const client of clients.splice(0)) client.clear()
     vi.restoreAllMocks()
+  })
+
+  it.each([
+    { migration: false, nft: true, preview: false },
+    { migration: true, nft: false, preview: false },
+    { migration: undefined, nft: true, preview: false },
+    { migration: true, nft: undefined, preview: false },
+    { migration: false, nft: true, preview: true },
+    { migration: true, nft: false, preview: true },
+    { migration: undefined, nft: undefined, preview: true },
+  ])('keeps cached NFTs and callbacks disabled with flags $migration/$nft and preview $preview', async ({
+    migration,
+    nft,
+    preview,
+  }) => {
+    featureFlag.mockImplementation(
+      (flag, defaultValue) =>
+        (flag === 'migration' ? migration : nft) ?? defaultValue,
+    )
+    const client = createClient()
+    client.setQueryData(
+      commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
+      { status: 'eligible', eligibility },
+    )
+    client.setQueryData(claimQueryKey, false)
+    const { result } = mountFlow(client, { preview })
+
+    expect(result.current.admission.status).toBe('fallback')
+    expect(result.current.eligibility).toBeUndefined()
+    expect(result.current.state).not.toHaveProperty('card')
+    expect(result.current.canMint).toBe(false)
+    await act(async () => {
+      result.current.mint()
+      result.current.retry()
+    })
+
+    expect(fetchEligibility).not.toHaveBeenCalled()
+    expect(readClaimed).not.toHaveBeenCalled()
+    expect(claim).not.toHaveBeenCalled()
+  })
+
+  it('admits only after both initially unknown flags become enabled', async () => {
+    featureFlag.mockImplementation((_flag, defaultValue) => defaultValue)
+    const { result, rerender } = mountFlow(createClient())
+
+    expect(result.current.admission.status).toBe('fallback')
+    expect(fetchEligibility).not.toHaveBeenCalled()
+    expect(readClaimed).not.toHaveBeenCalled()
+
+    featureFlag.mockReturnValue(true)
+    rerender()
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+    expect(result.current.admission.status).toBe('admitted')
+    expect(fetchEligibility).toHaveBeenCalledTimes(1)
+    expect(readClaimed).toHaveBeenCalledTimes(1)
+  })
+
+  it('revokes an admitted flow and retained callbacks when the flag turns off', async () => {
+    const { result, rerender } = mountFlow(createClient())
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+    const retainedMint = result.current.mint
+    const retainedRetry = result.current.retry
+    const eligibilityReadCount = fetchEligibility.mock.calls.length
+    const claimReadCount = readClaimed.mock.calls.length
+
+    featureFlag.mockReturnValue(false)
+    rerender()
+
+    expect(result.current.admission.status).toBe('fallback')
+    expect(result.current.eligibility).toBeUndefined()
+    expect(result.current.state).not.toHaveProperty('card')
+    expect(result.current.canMint).toBe(false)
+    await act(async () => {
+      result.current.mint()
+      result.current.retry()
+      retainedMint()
+      retainedRetry()
+    })
+
+    expect(fetchEligibility).toHaveBeenCalledTimes(eligibilityReadCount)
+    expect(readClaimed).toHaveBeenCalledTimes(claimReadCount)
+    expect(claim).not.toHaveBeenCalled()
+  })
+
+  it('finishes an already submitted receipt after the flag is disabled', async () => {
+    const pendingReceipt = deferred<void>()
+    waitForReceipt.mockReturnValueOnce(pendingReceipt.promise)
+    const client = createClient()
+    const { result, rerender } = mountFlow(client)
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+    act(() => result.current.mint())
+    await waitFor(() => expect(result.current.state.status).toBe('minting'))
+    await waitFor(() => expect(waitForReceipt).toHaveBeenCalledTimes(1))
+
+    featureFlag.mockReturnValue(false)
+    rerender()
+    const claimReadCount = readClaimed.mock.calls.length
+    expect(result.current.admission.status).toBe('fallback')
+    expect(result.current.state).not.toHaveProperty('card')
+    expect(result.current.canMint).toBe(false)
+
+    await act(async () => pendingReceipt.resolve())
+    await waitFor(() => expect(client.isMutating()).toBe(0))
+    expect(client.getMutationCache().getAll()[0]?.state.status).toBe('success')
+    expect(claim).toHaveBeenCalledTimes(1)
+    expect(readClaimed).toHaveBeenCalledTimes(claimReadCount)
+    expect(result.current.admission.status).toBe('fallback')
+  })
+
+  it('blocks a queued mutation if the flag turns off before submission', async () => {
+    const client = createClient()
+    const { result, rerender } = mountFlow(client)
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+
+    act(() => {
+      result.current.mint()
+      featureFlag.mockReturnValue(false)
+      rerender()
+    })
+    await waitFor(() => expect(client.isMutating()).toBe(0))
+
+    expect(client.getMutationCache().getAll()[0]?.state.status).toBe('error')
+    expect(result.current.admission.status).toBe('fallback')
+    expect(claim).not.toHaveBeenCalled()
+    expect(waitForReceipt).not.toHaveBeenCalled()
   })
 
   it('uses one observer read to admit a cached-false opening, even in the same millisecond', async () => {
