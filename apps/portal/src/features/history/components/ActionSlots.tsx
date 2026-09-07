@@ -48,7 +48,13 @@ const ActorSlot = ({ address, txHash }: { address?: Address; txHash: Hex }) => {
  * A joiner tucks under the padding of the chip before it; the first slot follows
  * the plain-text label instead, which has none to tuck under.
  */
-const Slot = ({ slot, isFirst }: { slot: ActionSlot; isFirst: boolean }) =>
+const Slot = ({
+  slot,
+  isFirst,
+}: {
+  readonly slot: ActionSlot
+  readonly isFirst: boolean
+}) =>
   match(slot)
     .with({ kind: 'name' }, ({ value }) => (
       <EntityBadge variant="name" name={value} compact>
