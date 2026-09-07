@@ -2,11 +2,15 @@ import { TransactionManagerProvider } from '@ens-apps/transaction-manager'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Profiler, type ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { usePublicClient } from 'wagmi'
 import { createTestWrapper } from '@/test-utils'
+import type { V1Name, V2NameWithRoles } from '@/utils/names/mergeNamesData'
 
 const ADDRESS = '0x55e55c649895940826a852820d9e1a076ec47b09'
+const V1_NAME = 'sugh004.eth'
+const V2_NAME = 'ensv2sg2.eth'
+const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to }: { children: ReactNode; to: string }) => (
@@ -24,29 +28,36 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   NameAvatar: ({ name }: { name: string }) => <span data-name={name} />,
 }))
 
-// Sorted by expiry, so the v1 name is row 0 — selecting it is what switches on
-// the `useRenewableNames` / `useV1Renewable` path.
+// Expiries are relative to now, because the route reads them through windows
+// that move: `getNameStatus` and, for the selection test, `isExtendable2LD`'s
+// 90-day v1 grace — a fixed date would eventually fall outside it and quietly
+// stop exercising the renewable path while still passing. `mergeNamesData`
+// sorts ascending by expiry, so the shorter v1 expiry keeps that name at row 0.
 const V1_NAMES = [
   {
-    name: 'sugh004.eth',
-    expiryDate: { date: new Date('2027-02-11T00:00:00Z') },
+    name: V1_NAME,
+    expiryDate: { date: new Date(Date.now() + 365 * MS_PER_DAY) },
     relation: { registrant: true, owner: true, wrappedOwner: false },
   },
-]
+] satisfies V1Name[]
+
 const V2_NAMES = [
   {
-    name: 'ensv2sg2.eth',
-    expiryDate: 1817000000,
+    name: V2_NAME,
+    expiryDate: Math.floor((Date.now() + 730 * MS_PER_DAY) / 1000),
     roleBitmap: '0x5',
     subdomainCount: 0,
     recordCount: 0,
   },
-]
+] satisfies V2NameWithRoles[]
 
 const QUERY_DATA: Record<string, unknown> = {
   'get-names-for-address': V1_NAMES,
   'get-v2-names-with-roles-for-address': V2_NAMES,
 }
+
+/** Every query key the route handed to `useQueries`, in request order. */
+const requestedQueryKeys: (readonly unknown[])[] = []
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
@@ -57,11 +68,14 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
     }: {
       queries: readonly { queryKey: readonly unknown[] }[]
     }) =>
-      queries.map(({ queryKey }) => ({
-        data: QUERY_DATA[queryKey[0] as string],
-        isLoading: false,
-        error: null,
-      })),
+      queries.map(({ queryKey }) => {
+        requestedQueryKeys.push(queryKey)
+        return {
+          data: QUERY_DATA[queryKey[0] as string],
+          isLoading: false,
+          error: null,
+        }
+      }),
   }
 })
 
@@ -72,7 +86,6 @@ const NamesRoute = (Route as unknown as { component: () => ReactNode })
   .component
 
 /** Mirrors `__root.tsx`: the route reads the transaction manager's context. */
-const TestProviders = createTestWrapper()
 const TransactionManagerScope = ({ children }: { children: ReactNode }) => {
   const publicClient = usePublicClient()
   if (!publicClient) return <>{children}</>
@@ -83,17 +96,19 @@ const TransactionManagerScope = ({ children }: { children: ReactNode }) => {
   )
 }
 
-const Wrapper = ({ children }: { children: ReactNode }) => (
-  <TestProviders>
-    <TransactionManagerScope>{children}</TransactionManagerScope>
-  </TestProviders>
-)
-
 /**
  * Mount the route under a `Profiler` that counts commits, and expose a way to
- * force another render of it from the outside.
+ * force another render of it from the outside. The provider tree is built per
+ * call so each test gets the fresh QueryClient `createTestWrapper` promises.
  */
 const renderRoute = () => {
+  const TestProviders = createTestWrapper()
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <TestProviders>
+      <TransactionManagerScope>{children}</TransactionManagerScope>
+    </TestProviders>
+  )
+
   let commits = 0
   const tree = () => (
     <Profiler
@@ -105,7 +120,7 @@ const renderRoute = () => {
       <NamesRoute />
     </Profiler>
   )
-  const { rerender } = render(tree(), { wrapper: Wrapper })
+  const { rerender } = render(tree(), { wrapper })
   return {
     commitCount: () => commits,
     rerenderRoute: () => rerender(tree()),
@@ -116,25 +131,44 @@ const renderRoute = () => {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 200))
 
 /**
- * A settled route commits only its mount renders — measured at exactly 7 here,
- * unchanged across runs. At `2c50ab71` the loop pushed the same window to 21-33,
- * and to 52-77 once a click moves the updates onto React's sync lane. 14 leaves
- * headroom over the settled cost while staying well under the looping rate.
+ * `commits` only ever moves when the `Profiler` reports, so a Profiler that
+ * stopped firing — a wrapper refactor, a build where `onRender` is a no-op —
+ * would leave it at 0 and sail through both halves of the oracle below. Each
+ * test structurally commits at least twice: the mount, and the render that arms
+ * the loop.
  */
-const MAX_SETTLED_COMMITS = 14
+const MIN_SETTLED_COMMITS = 2
+
+/**
+ * Upper bounds on the first window, one per test so their legitimate render
+ * costs can drift apart — the selection case carries the pointer sequence and
+ * the header's swap to the selected-count bar. Both measure exactly 7 settled
+ * commits today, stable across runs: the mount, plus the render that arms the
+ * loop. At `2c50ab71` the same windows measured 19-33 (mount) and 54-71
+ * (selection), so 14 sits clear of both.
+ */
+const MAX_SETTLED_COMMITS = { onMount: 14, afterSelection: 14 }
 
 /**
  * The oracle: after one quiet window the route has committed only its mount
  * renders, and a second quiet window adds none at all. A route stuck in the
  * WEB-1411 loop fails both halves — it blows the bound and keeps climbing.
  */
-const expectSettled = async (commitCount: () => number) => {
+const expectSettled = async (
+  commitCount: () => number,
+  maxSettledCommits: number,
+) => {
   await settle()
   const settledCommits = commitCount()
-  expect(settledCommits).toBeLessThan(MAX_SETTLED_COMMITS)
+  expect(settledCommits).toBeGreaterThanOrEqual(MIN_SETTLED_COMMITS)
+  expect(settledCommits).toBeLessThan(maxSettledCommits)
   await settle()
   expect(commitCount()).toBe(settledCommits)
 }
+
+beforeEach(() => {
+  requestedQueryKeys.length = 0
+})
 
 describe('addr names route', () => {
   it('stops re-rendering once the names are shown', async () => {
@@ -142,7 +176,7 @@ describe('addr names route', () => {
 
     expect(await screen.findByText('Names (2)')).toBeInTheDocument()
     // Once in the mobile card list, once in the desktop table.
-    expect(screen.getAllByText('sugh004.eth')).toHaveLength(2)
+    expect(screen.getAllByText(V1_NAME)).toHaveLength(2)
 
     // TanStack Table's `_autoResetPageIndex` only registers itself on its first
     // call, so the loop cannot start until the route has rendered a second time
@@ -151,7 +185,7 @@ describe('addr names route', () => {
     // test could go green against the unfixed route for the wrong reason.
     rerenderRoute()
 
-    await expectSettled(commitCount)
+    await expectSettled(commitCount, MAX_SETTLED_COMMITS.onMount)
   })
 
   it('stops re-rendering after a row is selected', async () => {
@@ -166,6 +200,14 @@ describe('addr names route', () => {
     await user.click(screen.getAllByRole('checkbox', { name: 'Select row' })[0])
     expect(await screen.findByText('1 selected')).toBeInTheDocument()
 
-    await expectSettled(commitCount)
+    // ...and it is what switches on `useRenewableNames` / `useV1Renewable`.
+    // Assert the route actually asked for the selected v1 name's on-chain
+    // renewability, so the extra coverage this test claims is real.
+    expect(requestedQueryKeys).toContainEqual([
+      'is-renewable',
+      expect.objectContaining({ name: V1_NAME }),
+    ])
+
+    await expectSettled(commitCount, MAX_SETTLED_COMMITS.afterSelection)
   })
 })
