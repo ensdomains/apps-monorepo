@@ -6,11 +6,18 @@ import {
 } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import type { Address, Hex } from 'viem'
-import { decodeFunctionData, parseAbi, toFunctionSelector, toHex } from 'viem'
+import {
+  decodeFunctionData,
+  encodeFunctionData,
+  keccak256,
+  parseAbi,
+  toFunctionSelector,
+  toHex,
+} from 'viem'
 import { sepolia } from 'viem/chains'
 import { packetToBytes } from 'viem/ens'
 import { describe, expect, it } from 'vitest'
-import { getDestinationContracts } from './manifest'
+import { computeResolverSalt, getDestinationContracts } from './manifest'
 import {
   buildCommitCall,
   buildRevealBatch,
@@ -69,6 +76,36 @@ describe('buildRevealBatch ordering', () => {
     expect(calls[0].to.toLowerCase()).toBe(C.usdc.toLowerCase()) // approve
     expect(calls[1].to.toLowerCase()).toBe(C.ethRegistrar.toLowerCase()) // register
     expect(calls[2].to.toLowerCase()).toBe(RESOLVER.toLowerCase()) // setAddress
+  })
+
+  it('matches the deployed policy keccak for the deployProxy call', () => {
+    // HCAResolverPolicyLib.checkDeployment builds the ENTIRE expected calldata
+    // from its own constants — only the salt is read from ours — and compares
+    // keccak hashes. Reproduced here from the Sourcify-verified source of the
+    // deployed validator (0xeb099163), so any drift in grants, in the empty
+    // `calls` array, or in the impl address fails here rather than on chain as
+    // an opaque PolicyRuleFailed()/InvalidSignature().
+    const calls = buildRevealBatch({ ...base, resolverDeployed: false })
+    const salt = computeResolverSalt(HCA)
+
+    const expectedInitData = encodeFunctionData({
+      abi: permissionedResolverInitializeSnippet,
+      functionName: 'initialize',
+      args: [
+        [
+          { account: HCA, roleBitmap: EXPECTED_ROLES_ALL },
+          { account: WALLET, roleBitmap: EXPECTED_ROLES_ALL },
+        ],
+        [],
+      ],
+    })
+    const expectedCallData = encodeFunctionData({
+      abi: verifiableFactoryDeployProxySnippet,
+      functionName: 'deployProxy',
+      args: [C.permissionedResolverImpl, salt, expectedInitData],
+    })
+
+    expect(keccak256(calls[0].data)).toBe(keccak256(expectedCallData))
   })
 
   it('never emits authorizeNameRoles — gone from resolver and policy alike', () => {
