@@ -1,5 +1,6 @@
 import { TransactionManagerProvider } from '@ens-apps/transaction-manager'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { Profiler, type ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { usePublicClient } from 'wagmi'
@@ -23,6 +24,8 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   NameAvatar: ({ name }: { name: string }) => <span data-name={name} />,
 }))
 
+// Sorted by expiry, so the v1 name is row 0 — selecting it is what switches on
+// the `useRenewableNames` / `useV1Renewable` path.
 const V1_NAMES = [
   {
     name: 'sugh004.eth',
@@ -86,34 +89,83 @@ const Wrapper = ({ children }: { children: ReactNode }) => (
   </TestProviders>
 )
 
-/** Let the microtask queue and React's scheduler run to exhaustion. */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 100))
+/**
+ * Mount the route under a `Profiler` that counts commits, and expose a way to
+ * force another render of it from the outside.
+ */
+const renderRoute = () => {
+  let commits = 0
+  const tree = () => (
+    <Profiler
+      id="names-route"
+      onRender={() => {
+        commits += 1
+      }}
+    >
+      <NamesRoute />
+    </Profiler>
+  )
+  const { rerender } = render(tree(), { wrapper: Wrapper })
+  return {
+    commitCount: () => commits,
+    rerenderRoute: () => rerender(tree()),
+  }
+}
+
+/** A fixed window in which a running render loop would show itself. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 200))
+
+/**
+ * A settled route commits only its mount renders — measured at exactly 7 here,
+ * unchanged across runs. At `2c50ab71` the loop pushed the same window to 21-33,
+ * and to 52-77 once a click moves the updates onto React's sync lane. 14 leaves
+ * headroom over the settled cost while staying well under the looping rate.
+ */
+const MAX_SETTLED_COMMITS = 14
+
+/**
+ * The oracle: after one quiet window the route has committed only its mount
+ * renders, and a second quiet window adds none at all. A route stuck in the
+ * WEB-1411 loop fails both halves — it blows the bound and keeps climbing.
+ */
+const expectSettled = async (commitCount: () => number) => {
+  await settle()
+  const settledCommits = commitCount()
+  expect(settledCommits).toBeLessThan(MAX_SETTLED_COMMITS)
+  await settle()
+  expect(commitCount()).toBe(settledCommits)
+}
 
 describe('addr names route', () => {
   it('stops re-rendering once the names are shown', async () => {
-    let commits = 0
-    render(
-      <Profiler
-        id="names-route"
-        onRender={() => {
-          commits += 1
-        }}
-      >
-        <NamesRoute />
-      </Profiler>,
-      { wrapper: Wrapper },
-    )
+    const { commitCount, rerenderRoute } = renderRoute()
 
     expect(await screen.findByText('Names (2)')).toBeInTheDocument()
-    expect(screen.getAllByText('sugh004.eth').length).toBeGreaterThan(0)
+    // Once in the mobile card list, once in the desktop table.
+    expect(screen.getAllByText('sugh004.eth')).toHaveLength(2)
 
-    await settle()
-    const settledCommits = commits
-    await settle()
+    // TanStack Table's `_autoResetPageIndex` only registers itself on its first
+    // call, so the loop cannot start until the route has rendered a second time
+    // with a fresh `data` array. Drive that render rather than leaning on
+    // whatever incidental churn the providers happen to produce, otherwise this
+    // test could go green against the unfixed route for the wrong reason.
+    rerenderRoute()
 
-    // An unstable `data` reference makes TanStack Table invalidate its row
-    // model every render, which queues `resetPageIndex()` on a microtask, which
-    // writes new table state and renders again — forever (WEB-1411).
-    expect(commits).toBe(settledCommits)
+    await expectSettled(commitCount)
+  })
+
+  it('stops re-rendering after a row is selected', async () => {
+    const user = userEvent.setup()
+    const { commitCount } = renderRoute()
+
+    expect(await screen.findByText('Names (2)')).toBeInTheDocument()
+
+    // The reported symptom is a freeze on interaction, and a real click is also
+    // what puts these updates on React's sync lane. Selecting row 0 doubles as
+    // the second render the loop needs to arm itself.
+    await user.click(screen.getAllByRole('checkbox', { name: 'Select row' })[0])
+    expect(await screen.findByText('1 selected')).toBeInTheDocument()
+
+    await expectSettled(commitCount)
   })
 })
