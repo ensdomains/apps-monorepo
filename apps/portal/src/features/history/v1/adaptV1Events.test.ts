@@ -338,6 +338,19 @@ describe('v1 descriptors', () => {
     )
   })
 
+  it('describes the v1 resolver and registry events in the past tense', () => {
+    expect(label({ type: 'NewTTL', ttl: '300' })).toBe('set TTL to')
+    expect(label({ type: 'AbiChanged', contentType: '1' })).toBe('changed ABI')
+    expect(label({ type: 'PubkeyChanged' })).toBe('changed public key')
+    expect(label({ type: 'InterfaceChanged' })).toBe('set interface')
+    expect(label({ type: 'AuthorisationChanged' })).toBe(
+      'changed authorisation for',
+    )
+    expect(label({ type: 'VersionChanged', version: '2' })).toBe(
+      'cleared records',
+    )
+  })
+
   it('reuses the shared descriptor where v1 and v2 agree', () => {
     expect(label({ type: 'FusesSet', fuses: 65536 })).toBe('set fuses')
   })

@@ -131,19 +131,10 @@ describe('summarizeEvents — includeSubjectName', () => {
   })
 })
 
-describe('summarizeEvents — types without a descriptor', () => {
-  it('turns a *Changed type into a past-tense phrase', () => {
-    expect(summarizeEvents([event('AbiChanged', '1')])[0].label).toBe(
-      'changed abi',
-    )
-  })
-
-  it('lowercases other types to sit after the actor, keeping acronyms', () => {
+describe('summarizeEvents — a type without a descriptor', () => {
+  it('still reads on from the actor', () => {
     expect(summarizeEvents([event('ApprovalForAll', '1')])[0].label).toBe(
-      'approval for all',
-    )
-    expect(summarizeEvents([event('DNSRecordDeleted', '1')])[0].label).toBe(
-      'DNS record deleted',
+      'emitted approval for all',
     )
   })
 })

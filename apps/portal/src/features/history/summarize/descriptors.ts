@@ -320,8 +320,6 @@ export const DESCRIPTORS = {
   },
 
   // ENS v1 types with no v2 counterpart, so no collision to disambiguate.
-  // The v1 resolver events left out here (AbiChanged, PubkeyChanged,
-  // VersionChanged, …) read fine straight from `humanizeType`.
   NewOwner: {
     icon: 'registry',
     build: (primary) => ({
@@ -348,6 +346,52 @@ export const DESCRIPTORS = {
         addressSlot(readString(parseEventData(primary.data), 'newOwner')),
       ],
     }),
+  },
+  NewTTL: {
+    icon: 'registry',
+    build: (primary) => ({
+      label: 'set TTL to',
+      slots: [
+        {
+          kind: 'text',
+          value: readString(parseEventData(primary.data), 'ttl') ?? '—',
+        },
+      ],
+    }),
+  },
+  AbiChanged: {
+    icon: 'records',
+    build: () => ({ label: 'changed ABI', slots: [] }),
+  },
+  PubkeyChanged: {
+    icon: 'records',
+    build: () => ({ label: 'changed public key', slots: [] }),
+  },
+  InterfaceChanged: {
+    icon: 'records',
+    build: (primary) => ({
+      label: 'set interface',
+      slots: [
+        {
+          kind: 'text',
+          value: readString(parseEventData(primary.data), 'interfaceID') ?? '—',
+        },
+        { kind: 'glyph', value: '→' },
+        addressSlot(readString(parseEventData(primary.data), 'implementer')),
+      ],
+    }),
+  },
+  AuthorisationChanged: {
+    icon: 'grant',
+    build: (primary) => ({
+      label: 'changed authorisation for',
+      slots: [addressSlot(readString(parseEventData(primary.data), 'target'))],
+    }),
+  },
+  // The PublicResolver bumps the record version to clear every record at once.
+  VersionChanged: {
+    icon: 'records',
+    build: () => ({ label: 'cleared records', slots: [] }),
   },
 } satisfies Record<string, Descriptor>
 

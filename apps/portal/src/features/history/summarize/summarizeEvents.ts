@@ -84,20 +84,6 @@ const multiRecordRecipe = (
 const rankOf = (event: TimelineIndexerEvent): number =>
   TYPE_RANK[event.type] ?? 0
 
-/**
- * A verb phrase for a type no descriptor knows, read on from the actor: the v1
- * resolver's `AbiChanged`, `PubkeyChanged`, … become "changed abi"; anything
- * else is the humanized type, lowercased to sit mid-sentence (acronyms kept).
- */
-const fallbackLabel = (type: string): string => {
-  const changed = type.match(/^(.+)Changed$/)
-  const phrase = humanizeType(changed ? changed[1] : type)
-  const lowered = /^[A-Z]{2,}/.test(phrase)
-    ? phrase
-    : phrase.charAt(0).toLowerCase() + phrase.slice(1)
-  return changed ? `changed ${lowered}` : lowered
-}
-
 /** Group events by transaction hash, preserving encounter order. */
 const groupByTransaction = (
   events: readonly TimelineIndexerEvent[],
@@ -144,9 +130,11 @@ const describeGroup = (
     return action
   }
 
+  // Every type either source emits has a descriptor; this only reads on from
+  // the actor for one the indexer adds before the portal does.
   return {
     icon: 'default',
-    label: fallbackLabel(byRank[0].type),
+    label: `emitted ${humanizeType(byRank[0].type).toLowerCase()}`,
     slots: [],
   }
 }
