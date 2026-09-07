@@ -1,9 +1,15 @@
 /**
  * Pure async function to save ENS record changes.
  *
- * Uses ensjs's setRecordsWriteParameters which supports both:
- * - Public Resolver (V1): multicall(calls)
- * - Dedicated Resolver (V2): multicallWithNodeCheck(node, calls)
+ * Uses ensjs's V2 `setRecordsWriteParameters`, which targets the
+ * `PermissionedResolver` setters: one change goes out as the bare setter, and
+ * several are batched through `multicall(bytes[])`.
+ *
+ * NOT the v1 (`PublicResolver`) equivalent. Every V2 setter takes the
+ * DNS-encoded name rather than `bytes32 node`, and `setAddr` is renamed
+ * `setAddress`, so all four setters have different selectors. Encoding the v1
+ * shapes hits the resolver's fallback and reverts with empty data — which
+ * surfaces as a failed `eth_estimateGas` rather than a decodable revert.
  */
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
@@ -12,7 +18,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v1'
+import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
   encodeFunctionData,
@@ -87,10 +93,9 @@ export interface SaveRecordsResult {
  * ```
  */
 /**
- * Builds the encoded setRecords transaction. Async because ensjs'
- * `setRecordsWriteParameters` resolves the resolver pattern (Public vs Dedicated
- * resolver) on chain. Shared by {@link saveRecords} and the modal's pre-start
- * gas estimate, so the estimated call matches what's submitted.
+ * Builds the encoded setRecords transaction. Async because encoding an ABI
+ * record may fetch. Shared by {@link saveRecords} and the modal's pre-start gas
+ * estimate, so the estimated call matches what's submitted.
  *
  * @throws if the wallet isn't ready or there are no record changes.
  */
@@ -122,7 +127,6 @@ export async function prepareSaveRecordsTransaction({
     throw new Error('No record changes to save')
   }
 
-  // ensjs handles both Public Resolver and Dedicated Resolver patterns.
   // Type assertion is safe since we validated account and chain above.
   const client = walletClient as Parameters<typeof setRecordsWriteParameters>[0]
 
