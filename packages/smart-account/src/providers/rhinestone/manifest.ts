@@ -125,8 +125,18 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     wrapperRegistryImpl: '0x7c53b9dceF516662E9e8a229448CaC30b90673CD',
     publicResolverV2: '0xF9de4979DdB290baF5B760D0e788125017Bc33f6',
 
-    // MockUSDC: the orchestrator accepts it as a payment token, and the
-    // api-worker faucet can mint it, so the whole route runs on one token.
+    // MockUSDC — the ETHRegistrar payment token, mintable via the api-worker
+    // faucet (`POST /wallet/fund`).
+    //
+    // NOT currently usable as the intent fee asset. Rhinestone's registry has
+    // an `ensUSDC` entry, but it still points at the PRE-clean-testnet MockUSDC
+    // (0x768f42455a2d082e23ceef7d51e5787c82d67a39). The address below moved with
+    // the 2026-09-03 redeploy and was never registered, so the orchestrator's
+    // portfolio for an HCA holding it reads zero and every route planner fails
+    // with NO_PLAN_AVAILABLE / `sourceChains: []` — before any signing, so it
+    // looks nothing like a policy failure. Verified against
+    // `GET /accounts/{hca}/portfolio`. Fixing it means asking Rhinestone to
+    // repoint `ensUSDC`; nothing app-side can work around it.
     usdc: ensjsSepolia.usdc.address,
   },
 }
