@@ -107,7 +107,7 @@ describe('csp', () => {
     it('frames WalletConnect, Intercom, and the commemorative renderer', () => {
       expect(header['frame-src']).toContain('https://*.walletconnect.com')
       expect(header['frame-src']).toContain('https://*.intercom.io')
-      expect(header['frame-src']).toContain('https://ens-renderer.pages.dev')
+      expect(header['frame-src']).toContain('https://nft.ens.dev')
     })
   })
 

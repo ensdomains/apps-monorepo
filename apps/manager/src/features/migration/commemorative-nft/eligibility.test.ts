@@ -24,7 +24,7 @@ const traits = {
   Seed: 742_941_409,
 } as const
 const metadataUrl = `https://assets.example/token/${tokenId}/metadata.json`
-const animationUrl = `https://ens-renderer.pages.dev/?tokenId=${tokenId}&transparent=1`
+const animationUrl = `https://nft.ens.dev/?tokenId=${tokenId}&transparent=1`
 const imageUrl = `https://assets.example/token/${tokenId}/image.webp`
 const publishedTraits = {
   Era: 'Surge',
@@ -255,12 +255,12 @@ describe('commemorative NFT eligibility', () => {
   })
 
   it.each([
-    'https://ens-renderer.pages.dev/?tokenId=1',
-    'https://ens-renderer.pages.dev/?tokenId=',
-    `https://ens-renderer.pages.dev/?tokenId=0${tokenId}`,
-    `https://ens-renderer.pages.dev/?tokenId=${tokenId}&tokenId=${tokenId}`,
-    `https://ens-renderer.pages.dev/?tokenId=${tokenId}&tokenId=1`,
-    `https://ens-renderer.pages.dev/?tokenURI=${encodeURIComponent(metadataUrl)}`,
+    'https://nft.ens.dev/?tokenId=1',
+    'https://nft.ens.dev/?tokenId=',
+    `https://nft.ens.dev/?tokenId=0${tokenId}`,
+    `https://nft.ens.dev/?tokenId=${tokenId}&tokenId=${tokenId}`,
+    `https://nft.ens.dev/?tokenId=${tokenId}&tokenId=1`,
+    `https://nft.ens.dev/?tokenURI=${encodeURIComponent(metadataUrl)}`,
     `${animationUrl}&tokenURI=`,
     `${animationUrl}&tokenURI=${encodeURIComponent(metadataUrl)}`,
   ])('ignores renderer and share URLs with invalid token parameters: %s', (url) => {
@@ -289,7 +289,7 @@ describe('commemorative NFT eligibility', () => {
       assetOrigin: 'https://assets.example',
       payload: {
         ...publishedMetadata,
-        animation_url: 'https://ens-renderer.pages.dev/?transparent=1',
+        animation_url: 'https://nft.ens.dev/?transparent=1',
         external_url: url,
       },
     })
