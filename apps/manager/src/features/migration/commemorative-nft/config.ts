@@ -9,8 +9,7 @@ export const COMMEMORATIVE_NFT_SEPOLIA_ADDRESS = getAddress(
   '0xe49A9D706FCD82AA575496352B5633F80fBBC449',
 )
 
-export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
-  'https://nft.ens.dev'
+export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN = 'https://nft.ens.dev'
 export const DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN =
   'https://nft-assets.ens.dev'
 

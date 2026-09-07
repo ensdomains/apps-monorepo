@@ -11,9 +11,9 @@ import { useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import { MigrationNftMintDialog } from '@/features/migration/components/MigrationNftMintDialog'
 import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
-import { MigrationSuccessDialogPreview } from '@/features/migration/components/MigrationSuccessDialogPreview'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { CommemorativeNftClaimDialog } from '@/features/migration/components/success/CommemorativeNftClaimDialog'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -187,7 +187,7 @@ export const MigrationPage = () => {
     POSTHOG_FEATURE_FLAGS.MIGRATION_NFT,
     false,
   )
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [isNftMintOpen, setIsNftMintOpen] = useState(false)
   const isMigrationSuccess = step === 'success'
   const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)
@@ -221,7 +221,7 @@ export const MigrationPage = () => {
       return
     }
 
-    setIsPreviewOpen(false)
+    setIsNftMintOpen(false)
   }, [isMigrationSuccess, uiActor, navigate])
 
   const handleViewProfile = useCallback(
@@ -231,7 +231,7 @@ export const MigrationPage = () => {
       if (isMigrationSuccess) {
         uiActor.send({ type: 'done' })
       } else {
-        setIsPreviewOpen(false)
+        setIsNftMintOpen(false)
       }
 
       if (name) {
@@ -321,10 +321,10 @@ export const MigrationPage = () => {
           {import.meta.env.DEV ? (
             <button
               className="absolute top-6 right-5 z-20 px-2 py-2 text-ens-garnet-900 text-xs underline underline-offset-2 md:right-8"
-              onClick={() => setIsPreviewOpen(true)}
+              onClick={() => setIsNftMintOpen(true)}
               type="button"
             >
-              <Trans>Preview NFT reveal</Trans>
+              <Trans>Mint commemorative NFT</Trans>
             </button>
           ) : null}
         </>
@@ -402,9 +402,10 @@ export const MigrationPage = () => {
           ownerAddress={ownerAddress as Address | undefined}
         />
       ) : null}
-      {import.meta.env.DEV && isPreviewOpen ? (
-        <MigrationSuccessDialogPreview
-          onClose={() => setIsPreviewOpen(false)}
+      {import.meta.env.DEV && isNftMintOpen ? (
+        <MigrationNftMintDialog
+          onClose={() => setIsNftMintOpen(false)}
+          onViewProfile={handleViewProfile}
         />
       ) : null}
     </div>
