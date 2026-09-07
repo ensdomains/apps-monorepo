@@ -17,22 +17,20 @@
  */
 
 import {
-  publicResolverSetAddrSnippet,
-  publicResolverSetTextSnippet,
-} from '@ensdomains/ensjs-abi/v1/publicResolver'
-import {
-  permissionedResolverAuthorizeNameRolesSnippet,
   permissionedResolverInitializeSnippet,
+  permissionedResolverSetAddressSnippet,
+  permissionedResolverSetTextSnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import {
   type Address,
   encodeFunctionData,
   type Hex,
-  namehash,
   type PublicClient,
   parseAbi,
+  toHex,
 } from 'viem'
+import { packetToBytes } from 'viem/ens'
 import { computeVerifiableProxyAddress } from '../../verifiable-factory'
 import {
   COIN_TYPE_ETH,
@@ -206,25 +204,32 @@ export interface RevealBatchParams {
 export function buildRevealBatch(params: RevealBatchParams): Call[] {
   const c = getDestinationContracts(params.chainId)
   const name = `${params.label}.eth`
-  const node = namehash(name)
   const calls: Call[] = []
 
   // The record writes for this name: the default `addr` (the wallet) plus any
   // selected text records. Always issued as standalone calls (step 4).
+  //
+  // These are the V2 `PermissionedResolver` setters, which take the DNS-encoded
+  // name rather than `bytes32 node` — `setAddress` 0xb4436dde and `setText`
+  // 0xc7279f88, exactly what the validator's `SET_ADDRESS_SELECTOR()` and
+  // `SET_TEXT_SELECTOR()` return. The v1 `PublicResolver` shapes are rejected
+  // twice over: the policy does not whitelist their selectors, and the resolver
+  // does not implement them.
+  const dnsName = toHex(packetToBytes(name))
   const recordSetters: Hex[] = [
     encodeFunctionData({
-      abi: publicResolverSetAddrSnippet,
-      functionName: 'setAddr',
-      args: [node, COIN_TYPE_ETH, params.wallet],
+      abi: permissionedResolverSetAddressSnippet,
+      functionName: 'setAddress',
+      args: [dnsName, COIN_TYPE_ETH, params.wallet],
     }),
     ...(params.records ?? [])
       .filter((record) => record.type === 'text' && record.key)
       .map((record) =>
         encodeFunctionData({
-          abi: publicResolverSetTextSnippet,
+          abi: permissionedResolverSetTextSnippet,
           functionName: 'setText',
           // biome-ignore lint/style/noNonNullAssertion: filtered on `key` above
-          args: [node, record.key!, record.value],
+          args: [dnsName, record.key!, record.value],
         }),
       ),
   ]
@@ -241,11 +246,14 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
   //    `InvalidSignature()`. Records go out as standalone calls in step 4;
   //    their selectors are individually whitelisted by the same policy.
   //
-  //    The initializer is `initialize(Grant[], bytes[])` (0x33cc44a0) — the old
-  //    `initialize(address,uint256,bytes[])` no longer exists on the deployed
-  //    implementation. Since the policy pins the exact calldata, the deployed
-  //    validator must encode grants the same way; a `PolicyRuleFailed()` here
-  //    means it is still on the pre-`IEACGrantInitializable` shape.
+  //    The grants array is pinned too, and must be EXACTLY two entries in this
+  //    order — `HCAResolverPolicyLib.checkDeployment`:
+  //      grants.length == 2
+  //      grants[0] == (hca,    ALL_ROLES)
+  //      grants[1] == (owner,  ALL_ROLES)
+  //    This is what replaced the old standalone `authorizeNameRoles` call: the
+  //    wallet's roles are granted at init rather than afterwards, which is why
+  //    the initializer takes a list.
   if (!params.resolverDeployed) {
     const salt = computeResolverSalt(params.hca)
     calls.push({
@@ -260,7 +268,13 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
           encodeFunctionData({
             abi: permissionedResolverInitializeSnippet,
             functionName: 'initialize',
-            args: [[{ account: params.hca, roleBitmap: ROLES_ALL }], []],
+            args: [
+              [
+                { account: params.hca, roleBitmap: ROLES_ALL },
+                { account: params.wallet, roleBitmap: ROLES_ALL },
+              ],
+              [],
+            ],
           }),
         ],
       }),
@@ -319,16 +333,11 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
     })
   }
 
-  // 6. authorizeNameRoles(hex"00", ROLES.ALL, wallet, true) — every session registration
-  calls.push({
-    to: params.resolver,
-    value: 0n,
-    data: encodeFunctionData({
-      abi: permissionedResolverAuthorizeNameRolesSnippet,
-      functionName: 'authorizeNameRoles',
-      args: ['0x00', ROLES_ALL, params.wallet, true],
-    }),
-  })
+  // NOTE: there is no trailing `authorizeNameRoles` call. It used to grant the
+  // wallet its roles after the fact, but the function no longer exists on
+  // `PermissionedResolver` and the policy does not whitelist its selector — the
+  // wallet is granted at deploy time via `initialize`'s second grant (step 1).
+  // On the existing-resolver path it already holds them from that deploy.
 
   return calls
 }
