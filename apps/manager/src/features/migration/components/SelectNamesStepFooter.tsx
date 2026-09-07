@@ -42,10 +42,12 @@ const GasEstimateMessage = ({
             ~{estimate.formattedEth} ETH
           </strong>
           . Expected:{' '}
-          <WalletConfirmationStepsDialog
-            steps={estimate.plan.stepDescriptors}
-          />
-          .
+          <span className="whitespace-nowrap">
+            <WalletConfirmationStepsDialog
+              steps={estimate.plan.stepDescriptors}
+            />
+            .
+          </span>
           <br />
           Final confirmations and fee are shown in your wallet.
         </Trans>

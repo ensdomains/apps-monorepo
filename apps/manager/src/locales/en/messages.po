@@ -884,8 +884,8 @@ msgstr "Error loading names"
 
 #. placeholder {0}: estimate.formattedEth
 #: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Estimated network fee: <0>~{0} ETH</0>. Expected: <1/>.<2/>Final confirmations and fee are shown in your wallet."
-msgstr "Estimated network fee: <0>~{0} ETH</0>. Expected: <1/>.<2/>Final confirmations and fee are shown in your wallet."
+msgid "Estimated network fee: <0>~{0} ETH</0>. Expected: <1><2/>.</1><3/>Final confirmations and fee are shown in your wallet."
+msgstr "Estimated network fee: <0>~{0} ETH</0>. Expected: <1><2/>.</1><3/>Final confirmations and fee are shown in your wallet."
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Estimating migration gas..."

@@ -230,9 +230,7 @@ const ArtworkCard = ({
       <div
         className={cn(
           'relative rounded-lg bg-transparent drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)]',
-          variant === 'dialog'
-            ? 'h-[273px] w-[193px] md:rotate-[-16deg]'
-            : 'h-[282px] w-[200px] rotate-[-5.12deg]',
+          variant === 'dialog' ? 'h-68.25 w-48.25' : 'h-70.5 w-50',
         )}
       >
         <CommemorativeNftRendererSurface
@@ -303,7 +301,7 @@ export const CommemorativeNftCard = ({
           variant={variant}
         />
       ) : (
-        <div className="relative h-[273px] w-[193px] md:rotate-[-16deg]">
+        <div className="relative h-68.25 w-48.25">
           <RevealCover revealing={false} />
         </div>
       )}
