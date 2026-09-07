@@ -90,34 +90,40 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     permissionedResolverImpl: ensjsSepolia.ensPermissionedResolverImpl.address,
     ethRegistrar: ensjsSepolia.ensEthRegistrar.address,
     ethRegistry: ensjsSepolia.ensRegistry.address,
-    // HCA-aware helper from contracts-v2 PR #402. The ensjs entry still points
-    // at the preceding helper deployment, which cannot resolve an HCA caller
-    // back to its certified EOA owner.
-    migrationHelper: '0xddC597d937618849348E18Db5D631Ce747bCDeEF',
+    // HCA-aware helper. The ensjs entry still points at the preceding helper
+    // deployment, which cannot resolve an HCA caller back to its certified EOA
+    // owner.
+    migrationHelper: '0x540f222a6FD9A54E77989556f366940d1ad81aec',
     unlockedMigrationController:
       ensjsSepolia.ensUnlockedMigrationController.address,
     lockedMigrationController:
       ensjsSepolia.ensLockedMigrationController.address,
 
-    // Not in ensjs yet. Addresses from contracts-v2 PR #409 (deployed
-    // 2026-08-10): validator accepts Circle USDC (primary) and MockUSDC
-    // (secondary) as session refund tokens; the implementation follows because
-    // it pins the validator as a constructor immutable.
+    // Not in ensjs yet — from the clean testnet deployment of 2026-09-03.
+    //
+    // The validator pins the whole registration batch: it reconstructs the
+    // expected `deployProxy` calldata and compares keccak hashes, and matches
+    // every other call against a fixed selector list. Its constants are public
+    // getters, so anything here that it also declares can be checked against
+    // the chain rather than trusted — `VERIFIABLE_PROXY_LOGIC()`,
+    // `PERMITTED_RESOLVER_IMPL()`, `ETH_REGISTRY()`,
+    // `DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER()` and the `*_SELECTOR()` set all
+    // agree with the values below. Re-read them after any redeploy.
     standaloneHcaImplementation: '0x7328a1926B45F0339913Ab654fb98d1A0f5ec894',
-    hcaOwnerAndSessionValidator: '0x5f249FCa8bB4949105651146858c347E8BFb0F7E',
+    hcaOwnerAndSessionValidator: '0xeb099163a41912A94E56b2143fEB6eB7979a51f0',
     defaultReverseRegistrarHcaAdapter:
-      '0x7a84e241f862D73960D73c26d68c3C8F89F0B18F',
+      '0x0A8d7eD4061548FB3CB192d0cBE9E1A57B3B1ae9',
     // Not deployed as its own artifact — VerifiableFactory creates it in its
     // constructor and exposes it as the immutable `proxyLogic`, so this is read
     // off `ensVerifiableFactory` above. It MUST stay paired with that factory:
     // it is the EIP-1167 runtime hashed into every CREATE2 proxy address.
     verifiableFactoryProxyLogic: '0x2fDCaC2F94B2E65c5d5fBf36EC34483d25Ca9025',
     verifiableFactoryDeployBlock: 11_626_639n,
-    rootRegistry: '0x8115186E8f2E0B0281e86ab91f0f48Ba90364354',
-    publicResolverSet: '0xf2794eBD70C1fa74094A9eC653DA1c2dF9f5a5A9',
+    rootRegistry: '0xe7f0D5724f8337e3Aa9A9910540341Ff4273fEd9',
+    publicResolverSet: '0x3866e84B54a78d1e3778421E0fbf3607fA9c402f',
     userRegistryImpl: ensjsSepolia.ensUserRegistryImpl.address,
-    wrapperRegistryImpl: '0x433F81a3E8921Fc868ae1A04576f135d9A75B0f2',
-    publicResolverV2: '0xe7B9A25607E02da8145E4eB1836CA539e53F11f7',
+    wrapperRegistryImpl: '0x7c53b9dceF516662E9e8a229448CaC30b90673CD',
+    publicResolverV2: '0xF9de4979DdB290baF5B760D0e788125017Bc33f6',
 
     // MockUSDC: the orchestrator accepts it as a payment token, and the
     // api-worker faucet can mint it, so the whole route runs on one token.
