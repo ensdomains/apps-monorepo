@@ -14,9 +14,13 @@ import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNam
 import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { isFeatureEnabled } from '@/utils/feature-flags'
+import { useVisibleCommemorativeNftEligibility } from '../commemorative-nft/useVisibleCommemorativeNftEligibility'
 
 export const MigrationModal = () => {
-  const nftCopyEnabled = isFeatureEnabled('COMMEMORATIVE_NFT_COPY')
+  const nftEligibility = useVisibleCommemorativeNftEligibility({
+    enabled: isFeatureEnabled('COMMEMORATIVE_NFT_COPY'),
+  })
+  const nftCopyEnabled = !!nftEligibility
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isEligibleV1NamesPending } =
     useEligibleV1Names({ fallbackToClassified: false })

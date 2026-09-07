@@ -7,6 +7,7 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 import { resolveVerifiedOwner } from '@/lib/smart-account/sessionGate'
 import { buildCommemorativeNftCardData } from '../../commemorative-nft/cardData'
 import { useCommemorativeNftAvailability } from '../../commemorative-nft/useCommemorativeNftAvailability'
+import { getVisibleCommemorativeNftEligibility } from '../../commemorative-nft/visibility'
 import { CommemorativeNftCard } from './CommemorativeNftCard'
 import type { CommemorativeNftCardData } from './MigrationSuccessDialog.types'
 
@@ -43,11 +44,14 @@ export const CommemorativeNftDashboardSection = () => {
     ownerAddress: address,
     enabled: true,
   })
-  const eligibility =
-    availability.eligibility.data?.status === 'eligible'
-      ? availability.eligibility.data.eligibility
-      : undefined
   const minted = availability.claimed.data === true
+  const eligibility = getVisibleCommemorativeNftEligibility({
+    ownerAddress: address,
+    supported: availability.supported,
+    result: availability.eligibility.data,
+    hasFreshEligibilityResult: availability.hasFreshEligibilityResult,
+    minted,
+  })
   const card = useMemo(() => {
     if (!address || !availability.supported || !eligibility || !minted)
       return undefined

@@ -9,6 +9,7 @@ import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { MigrationNftMintDialog } from '@/features/migration/components/MigrationNftMintDialog'
@@ -188,6 +189,9 @@ export const MigrationPage = () => {
     false,
   )
   const [isNftMintOpen, setIsNftMintOpen] = useState(false)
+  const visibleNft = useVisibleCommemorativeNftEligibility({
+    enabled: import.meta.env.DEV && step === 'select',
+  })
   const isMigrationSuccess = step === 'success'
   const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)
@@ -318,7 +322,7 @@ export const MigrationPage = () => {
               <Trans>Back</Trans>
             </span>
           </button>
-          {import.meta.env.DEV ? (
+          {import.meta.env.DEV && visibleNft ? (
             <button
               className="absolute top-6 right-5 z-20 px-2 py-2 text-ens-garnet-900 text-xs underline underline-offset-2 md:right-8"
               onClick={() => setIsNftMintOpen(true)}

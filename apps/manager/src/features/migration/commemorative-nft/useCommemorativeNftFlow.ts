@@ -54,6 +54,7 @@ const getEligibilityFlowStatus = (params: {
   readonly hasEligibility: boolean
   readonly dataStatus?: 'eligible' | 'ineligible' | 'unavailable'
 }): 'pending' | 'error' | 'eligible' | 'ineligible' | 'unavailable' => {
+  if (params.dataStatus === 'ineligible') return 'ineligible'
   if (params.isError) return 'error'
   if (params.isPending && !params.hasEligibility) return 'pending'
   if (params.hasEligibility) return 'eligible'

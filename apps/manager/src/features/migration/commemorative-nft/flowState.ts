@@ -60,16 +60,14 @@ export const getCommemorativeNftAdmission = (params: {
   readonly claimReadError: boolean
   readonly fetchStatus: 'fetching' | 'paused' | 'idle'
 }): CommemorativeNftAdmission => {
+  if (params.eligibilityStatus === 'ineligible') return { status: 'fallback' }
   if (params.preview || params.admitted) return { status: 'admitted' }
   if (!params.hasOwner) {
     return { status: 'unavailable', reason: 'ownerMissing' }
   }
   if (params.claimed === true) return { status: 'alreadyMinted' }
   if (!params.supported) return { status: 'fallback' }
-  if (
-    params.eligibilityStatus === 'ineligible' ||
-    params.eligibilityStatus === 'unavailable'
-  ) {
+  if (params.eligibilityStatus === 'unavailable') {
     return { status: 'fallback' }
   }
   if (params.fetchStatus === 'paused') {

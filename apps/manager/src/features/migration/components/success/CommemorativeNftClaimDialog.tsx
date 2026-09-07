@@ -13,6 +13,7 @@ import {
   migrationPrimaryButtonClassName,
 } from '../MigrationPrimaryButton'
 import { MigrationSuccessDialog } from '../MigrationSuccessDialog'
+import { shouldHideCommemorativeNftDialog } from '../MigrationSuccessDialog.helpers'
 
 type CommemorativeNftClaimDialogProps = {
   readonly context: 'migration' | 'mint-later'
@@ -58,7 +59,7 @@ const ClaimAdmissionStatus = ({
             value={migratedNameCount}
           />
         ) : (
-          <Trans>Your commemorative NFT</Trans>
+          <Trans>Your account</Trans>
         )}
       </h2>
       <p
@@ -66,13 +67,13 @@ const ClaimAdmissionStatus = ({
         className="max-w-sm font-sans text-ens-garnet-500 text-sm leading-relaxed"
       >
         {admission.status === 'checking' ? (
-          <Trans>Checking your NFT status…</Trans>
+          <Trans>Checking your account…</Trans>
         ) : admission.reason === 'ownerMissing' ? (
-          <Trans>Reconnect your owner wallet to mint this NFT.</Trans>
+          <Trans>Reconnect your owner wallet to continue.</Trans>
         ) : admission.reason === 'offline' ? (
-          <Trans>Reconnect to the internet to check your NFT status.</Trans>
+          <Trans>Reconnect to the internet to continue.</Trans>
         ) : (
-          <Trans>Your NFT status could not be checked. Please try again.</Trans>
+          <Trans>Your account could not be checked. Please try again.</Trans>
         )}
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
@@ -120,6 +121,7 @@ const OpenCommemorativeNftClaimDialog = ({
     preview,
   })
   const shouldSkip =
+    shouldHideCommemorativeNftDialog({ context, state: flow.state }) ||
     flow.admission.status === 'alreadyMinted' ||
     (context === 'migration' &&
       flow.admission.status === 'unavailable' &&

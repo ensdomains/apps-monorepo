@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
+import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
@@ -8,7 +9,9 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const MigrationProgressBanner = () => {
-  const nftCopyEnabled = isFeatureEnabled('COMMEMORATIVE_NFT_COPY')
+  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility({
+    enabled: isFeatureEnabled('COMMEMORATIVE_NFT_COPY'),
+  })
   const navigate = useNavigate()
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isV1Pending } =

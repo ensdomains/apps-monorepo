@@ -9,7 +9,10 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { cn } from '@/lib/utils'
 import { MigrationPrimaryButton } from './MigrationPrimaryButton'
-import { shouldShowPlainMigrationSuccess } from './MigrationSuccessDialog.helpers'
+import {
+  shouldHideCommemorativeNftDialog,
+  shouldShowPlainMigrationSuccess,
+} from './MigrationSuccessDialog.helpers'
 import { CommemorativeNftCard } from './success/CommemorativeNftCard'
 import type { MigrationSuccessDialogState } from './success/MigrationSuccessDialog.types'
 
@@ -116,36 +119,6 @@ const StatusContent = ({
   MigrationSuccessDialogProps,
   'context' | 'migratedNameCount' | 'open'
 >) => {
-  if (state.status === 'ineligible') {
-    return (
-      <div className="flex min-h-86 w-full flex-col items-center justify-center gap-5 px-4 text-center">
-        <div className="flex size-14 items-center justify-center rounded-full bg-white/60 text-ens-garnet-500">
-          <MSymbol className="text-[28px]" symbol="info" />
-        </div>
-        <div className="max-w-80 space-y-2">
-          <p className="font-sans text-ens-garnet-900 text-xl">
-            <Trans>No commemorative NFT is available for this address.</Trans>
-          </p>
-          <p className="font-sans text-ens-garnet-500 text-sm leading-relaxed">
-            <Trans>
-              An NFT must be generated for this address before it can be
-              claimed.
-            </Trans>
-          </p>
-        </div>
-        <a
-          className="font-semi-mono text-ens-garnet-500 text-xs uppercase tracking-[0.12em] underline underline-offset-4"
-          href="/migration/nft"
-        >
-          <Trans>Learn about eligibility</Trans>
-        </a>
-        <MigrationPrimaryButton onClick={onViewProfile}>
-          <Trans>Continue to profile</Trans>
-        </MigrationPrimaryButton>
-      </div>
-    )
-  }
-
   if (state.status === 'error' && !state.card) {
     return (
       <div className="flex min-h-86 w-full flex-col items-center justify-center gap-5 px-4 text-center">
@@ -277,6 +250,7 @@ export const MigrationSuccessDialog = ({
   onRetry,
   onViewProfile,
 }: MigrationSuccessDialogProps) => {
+  if (shouldHideCommemorativeNftDialog({ context, state })) return null
   const showPlainMigrationSuccess = shouldShowPlainMigrationSuccess({
     context,
     state,

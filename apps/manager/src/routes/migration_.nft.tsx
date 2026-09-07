@@ -30,9 +30,8 @@ export const Route = createFileRoute('/migration_/nft')({
   component: MigrationNftInfoPage,
   head: () => ({
     meta: seo({
-      title: 'ENSv2 Commemorative NFT',
-      description:
-        'Learn how ENSv2 commemorative NFT eligibility and minting work.',
+      title: 'ENSv2 Migration',
+      description: 'Learn about upgrading your ENS names to ENSv2.',
     }),
   }),
 })

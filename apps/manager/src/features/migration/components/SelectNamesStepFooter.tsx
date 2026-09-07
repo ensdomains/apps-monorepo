@@ -1,6 +1,7 @@
 import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { match } from 'ts-pattern'
+import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { MigrationPrimaryButton } from './MigrationPrimaryButton'
@@ -109,7 +110,9 @@ export const SelectNamesStepFooter = ({
   totalSelected,
   visibleCount,
 }: SelectNamesStepFooterProps) => {
-  const nftCopyEnabled = isFeatureEnabled('COMMEMORATIVE_NFT_COPY')
+  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility({
+    enabled: isFeatureEnabled('COMMEMORATIVE_NFT_COPY'),
+  })
 
   return (
     <div className="sticky inset-x-0 bottom-0 z-20 flex min-h-36 w-full shrink-0 flex-col items-stretch justify-start gap-4 bg-ens-garnet-200 px-5 pt-4 pb-14 sm:min-h-28.75 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8 lg:px-37.5">

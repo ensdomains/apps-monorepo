@@ -1,12 +1,14 @@
 import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
-import type { Address } from 'viem'
+import { useConnection } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { resolveVerifiedOwner } from '@/lib/smart-account/sessionGate'
 import { buildCommemorativeNftCardData } from '../../commemorative-nft/cardData'
 import { isCommemorativeNftCanonicalProfile } from '../../commemorative-nft/sharing'
 import { useCommemorativeNftAvailability } from '../../commemorative-nft/useCommemorativeNftAvailability'
+import { getVisibleCommemorativeNftEligibility } from '../../commemorative-nft/visibility'
 import { MigrationPrimaryButton } from '../MigrationPrimaryButton'
 import { CommemorativeNftCard } from './CommemorativeNftCard'
 import { CommemorativeNftClaimDialog } from './CommemorativeNftClaimDialog'
@@ -22,20 +24,29 @@ export const CommemorativeNftProfileSection = ({
 }: CommemorativeNftProfileSectionProps) => {
   const navigate = useNavigate()
   const { ownerAddress } = useSmartAccountContext()
+  const { address: walletAddress, isConnected } = useConnection()
+  const verifiedOwner =
+    resolveVerifiedOwner(
+      ownerAddress,
+      isConnected ? walletAddress : undefined,
+    ) ?? undefined
   const [open, setOpen] = useState(false)
   const availability = useCommemorativeNftAvailability({
-    ownerAddress: ownerAddress as Address | undefined,
+    ownerAddress: verifiedOwner,
     enabled: isOwner,
   })
 
-  const eligibility =
-    availability.eligibility.data?.status === 'eligible'
-      ? availability.eligibility.data.eligibility
-      : undefined
+  const minted = availability.claimed.data === true
+  const eligibility = getVisibleCommemorativeNftEligibility({
+    ownerAddress: verifiedOwner,
+    supported: availability.supported,
+    result: availability.eligibility.data,
+    hasFreshEligibilityResult: availability.hasFreshEligibilityResult,
+    minted,
+  })
   const isCanonical = eligibility
     ? isCommemorativeNftCanonicalProfile(name, eligibility.profileName)
     : false
-  const minted = availability.claimed.data === true
   const cardData = useMemo(
     () =>
       eligibility && minted
@@ -111,7 +122,7 @@ export const CommemorativeNftProfileSection = ({
           }
         }}
         open={open}
-        ownerAddress={ownerAddress as Address | undefined}
+        ownerAddress={verifiedOwner}
       />
     </>
   )

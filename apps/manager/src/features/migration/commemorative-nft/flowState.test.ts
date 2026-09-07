@@ -204,7 +204,7 @@ describe('commemorative NFT dialog admission', () => {
     ).toEqual({ status: 'unavailable', reason: 'ownerMissing' })
   })
 
-  it('retains the existing configuration and ineligible fallback screens', () => {
+  it('falls back when the network or published metadata is unavailable', () => {
     expect(
       getCommemorativeNftAdmission({ ...pending, supported: false }),
     ).toEqual({ status: 'fallback' })
@@ -212,6 +212,21 @@ describe('commemorative NFT dialog admission', () => {
       getCommemorativeNftAdmission({
         ...pending,
         eligibilityStatus: 'ineligible',
+      }),
+    ).toEqual({ status: 'fallback' })
+  })
+
+  it.each([
+    { admitted: true, preview: false },
+    { admitted: false, preview: true },
+  ])('does not let session admission or preview bypass ineligibility: %s', (session) => {
+    expect(
+      getCommemorativeNftAdmission({
+        ...pending,
+        ...session,
+        eligibilityStatus: 'ineligible',
+        claimed: false,
+        isFresh: true,
       }),
     ).toEqual({ status: 'fallback' })
   })

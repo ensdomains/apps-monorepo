@@ -186,7 +186,45 @@ describe('commemorative NFT flow session', () => {
       await invalidation
     })
     await waitFor(() => expect(result.current.state.status).toBe('ineligible'))
+    expect(result.current.admission.status).toBe('fallback')
     expect(result.current.canMint).toBe(false)
+
+    fetchEligibility.mockRejectedValueOnce(new Error('HTTP 503'))
+    await act(async () =>
+      client.invalidateQueries({
+        queryKey: commemorativeNftEligibilityQueryOptions({ ownerAddress })
+          .queryKey,
+      }),
+    )
+    expect(result.current.state.status).toBe('ineligible')
+    expect(result.current.admission.status).toBe('fallback')
+    expect(result.current.canMint).toBe(false)
+    act(() => result.current.mint())
+    expect(claim).not.toHaveBeenCalled()
+  })
+
+  it('keeps retry available when eligible metadata fails to refetch', async () => {
+    const client = createClient()
+    const { result } = mountFlow(client)
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+
+    fetchEligibility.mockRejectedValueOnce(new Error('HTTP 503'))
+    await act(async () =>
+      client.invalidateQueries({
+        queryKey: commemorativeNftEligibilityQueryOptions({ ownerAddress })
+          .queryKey,
+      }),
+    )
+    await waitFor(() => expect(result.current.state.status).toBe('error'))
+    expect(result.current.admission.status).toBe('admitted')
+    expect(result.current.state).toMatchObject({
+      status: 'error',
+      stage: 'eligibility',
+    })
+    expect(result.current.canMint).toBe(false)
+
+    act(() => result.current.retry())
+    await waitFor(() => expect(result.current.canMint).toBe(true))
   })
 
   it('is ready to mint without waiting for an artwork renderer callback', async () => {
@@ -412,8 +450,11 @@ describe('commemorative NFT flow session', () => {
     expect(result.current.canMint).toBe(false)
   })
 
-  it('prevents minting with a disconnected or different wallet', async () => {
-    const { result } = mountFlow(createClient(), { walletAddress: undefined })
+  it.each([
+    undefined,
+    '0x538cDec1cb3e7A874D473E36558F535Ba2343B83',
+  ] as const)('prevents minting with a disconnected or different wallet: %s', async (walletAddress) => {
+    const { result } = mountFlow(createClient(), { walletAddress })
     await waitFor(() =>
       expect(result.current.admission.status).toBe('admitted'),
     )
