@@ -43,7 +43,28 @@ vi.mock('@/features/renew/hooks/useCanExtend', () => ({
 }))
 
 type QueryResult = { data: unknown; error: unknown; isLoading: boolean }
+const SETTLED_EMPTY: QueryResult = {
+  data: undefined,
+  error: undefined,
+  isLoading: false,
+}
 let wrapperDataResult: QueryResult
+let ownerResult: QueryResult
+let migrationResult: QueryResult
+
+type QueryOptions = { queryKey: readonly unknown[] }
+const resultFor = ({ queryKey }: QueryOptions): QueryResult => {
+  switch (queryKey[0]) {
+    case 'get-wrapper-data':
+      return wrapperDataResult
+    case 'get-ens-owner':
+      return ownerResult
+    case 'get-migration-status':
+      return migrationResult
+    default:
+      return SETTLED_EMPTY
+  }
+}
 
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
@@ -51,10 +72,9 @@ vi.mock('@tanstack/react-query', async () => {
   )
   return {
     ...actual,
-    useQuery: (options: { queryKey: readonly unknown[] }) =>
-      options.queryKey[0] === 'get-wrapper-data'
-        ? wrapperDataResult
-        : { data: undefined, error: undefined, isLoading: false },
+    useQuery: resultFor,
+    useQueries: ({ queries }: { queries: QueryOptions[] }) =>
+      queries.map(resultFor),
   }
 })
 
@@ -82,6 +102,8 @@ const wrapperData = {
 
 beforeEach(() => {
   wrapperDataResult = { data: wrapperData, error: undefined, isLoading: false }
+  ownerResult = { ...SETTLED_EMPTY, data: { protocolVersion: 'ENSv1' } }
+  migrationResult = SETTLED_EMPTY
   graceStatus = ACTIVE_GRACE
 })
 
@@ -134,5 +156,57 @@ describe('fuses index route', () => {
     expect(screen.queryByText('Burn fuses')).not.toBeInTheDocument()
     // No banner past grace — its "ends on <date>" copy would be wrong.
     expect(screen.queryByText('This name has expired')).not.toBeInTheDocument()
+  })
+
+  // `isV1Name` picks the message a fuseless name gets, so reading it before
+  // the owner query settles would show the v2 copy to a v1 name.
+  it('waits for the owner lookup before picking a message', () => {
+    wrapperDataResult = SETTLED_EMPTY
+    ownerResult = { ...SETTLED_EMPTY, isLoading: true }
+
+    render(<FusesRoute />)
+
+    expect(screen.getByText('Surfacing everything you need.')).toBeVisible()
+    expect(
+      screen.queryByText(/Fuses are only available for wrapped ENSv1 names/),
+    ).not.toBeInTheDocument()
+  })
+
+  it('surfaces a failed owner lookup instead of guessing the message', () => {
+    wrapperDataResult = SETTLED_EMPTY
+    ownerResult = { ...SETTLED_EMPTY, error: new Error('rpc unavailable') }
+
+    render(<FusesRoute />)
+
+    expect(screen.getByText('Failed to load name')).toBeVisible()
+    expect(
+      screen.queryByText(/Fuses are only available for wrapped ENSv1 names/),
+    ).not.toBeInTheDocument()
+  })
+
+  it('points an unwrapped v1 name at Roles rather than the v2 message', () => {
+    wrapperDataResult = SETTLED_EMPTY
+
+    render(<FusesRoute />)
+
+    expect(
+      screen.getByText(/This name is not wrapped, so it has no fuses/),
+    ).toBeVisible()
+    expect(
+      screen.queryByText(/Fuses are only available for wrapped ENSv1 names/),
+    ).not.toBeInTheDocument()
+  })
+
+  it('offers the migrate banner only to the holder of a wrapped v1 name', () => {
+    render(<FusesRoute />)
+    expect(screen.queryByText('Upgrade to v2')).not.toBeInTheDocument()
+
+    migrationResult = {
+      ...SETTLED_EMPTY,
+      data: { migratable: true, tokenHolder: OWNER },
+    }
+    render(<FusesRoute />)
+
+    expect(screen.getByText('Upgrade to v2')).toBeVisible()
   })
 })
