@@ -26,6 +26,10 @@ import { REVERSE_RESOLUTION_NETWORKS } from '@/features/reverse-resolution/confi
 import { getReverseResolutionQueryOptions } from '@/features/reverse-resolution/hooks/useReverseResolution'
 import { queryClient } from '@/utils/queryClient'
 
+// Stable identity: a fresh `[]` each render makes the table recompute its row
+// model, which auto-resets the page index and re-renders.
+const NO_ROWS: never[] = []
+
 export const Route = createFileRoute('/addr/$addr/reverse-resolution')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
@@ -50,7 +54,7 @@ function RouteComponent() {
   )
 
   const table = useReactTable({
-    data: data || [],
+    data: data ?? NO_ROWS,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
