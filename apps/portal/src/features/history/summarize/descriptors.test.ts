@@ -14,7 +14,7 @@ describe('humanizeType', () => {
   })
 })
 
-describe('Figma history labels', () => {
+describe('history labels', () => {
   const base = {
     id: '1',
     transactionHash: '0xabc',
@@ -23,7 +23,7 @@ describe('Figma history labels', () => {
     name: 'collector.eth',
   } as const
 
-  it('AddressChanged stays Set address to', () => {
+  it('AddressChanged reads "set address to"', () => {
     const built = DESCRIPTORS.AddressChanged.build({
       ...base,
       type: 'AddressChanged',
@@ -33,7 +33,7 @@ describe('Figma history labels', () => {
       },
     } as TimelineIndexerEvent)
     expect(built).toMatchObject({
-      label: 'Set address to',
+      label: 'set address to',
       slots: [
         {
           kind: 'address',
@@ -43,7 +43,7 @@ describe('Figma history labels', () => {
     })
   })
 
-  it('NameRegistered is Register name by the tx sender', () => {
+  it('NameRegistered names what was registered and leaves the actor to the row', () => {
     const built = DESCRIPTORS.NameRegistered.build({
       ...base,
       type: 'NameRegistered',
@@ -53,12 +53,8 @@ describe('Figma history labels', () => {
       },
     } as TimelineIndexerEvent)
     expect(built).toEqual({
-      label: 'Register name',
-      slots: [
-        { kind: 'name', value: 'collector.eth' },
-        { kind: 'connective', value: 'by' },
-        { kind: 'actor', txHash: '0xabc' },
-      ],
+      label: 'registered',
+      slots: [{ kind: 'name', value: 'collector.eth' }],
     })
   })
 
@@ -71,7 +67,7 @@ describe('Figma history labels', () => {
       },
     } as TimelineIndexerEvent)
     expect(built).toEqual({
-      label: 'Update resolver',
+      label: 'updated resolver to',
       slots: [
         {
           kind: 'contract',
@@ -91,13 +87,39 @@ describe('Figma history labels', () => {
       }),
     } as TimelineIndexerEvent)
     expect(built).toEqual({
-      label: 'Deploy and link subregistry',
+      label: 'deployed and linked subregistry',
       slots: [
         {
           kind: 'contract',
           value: '0x541C00000000000000000000000000000000976F',
           isRegistry: true,
         },
+      ],
+    })
+  })
+
+  it('NameRenewed names the renewed name so the row does not end on the verb', () => {
+    const built = DESCRIPTORS.NameRenewed.build({
+      ...base,
+      type: 'NameRenewed',
+    } as TimelineIndexerEvent)
+    expect(built).toEqual({
+      label: 'renewed',
+      slots: [{ kind: 'name', value: 'collector.eth' }],
+    })
+  })
+
+  it('v2 NameWrapped reads as the migration of the name', () => {
+    const built = DESCRIPTORS.NameWrapped.build({
+      ...base,
+      type: 'NameWrapped',
+      protocol: 'v2',
+    } as TimelineIndexerEvent)
+    expect(built).toEqual({
+      label: 'migrated',
+      slots: [
+        { kind: 'name', value: 'collector.eth' },
+        { kind: 'connective', value: 'to ENSv2' },
       ],
     })
   })

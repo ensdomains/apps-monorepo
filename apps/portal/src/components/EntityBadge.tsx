@@ -460,6 +460,15 @@ export const EntityBadge = ({
           </Link>
         )}
 
+        {/* An address shown by its primary name: the pill is the wallet, the
+            chip reaches the name. */}
+        {variant === 'address' && name && (
+          <Link to="/$name" params={{ name }} className={chipClass}>
+            <ChipNameIcon className="size-3.25" />
+            Name
+          </Link>
+        )}
+
         {variant === 'contract' && isResolver && address && (
           <Link
             to="/resolver/$address"

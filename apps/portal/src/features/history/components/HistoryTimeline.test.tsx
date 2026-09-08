@@ -12,6 +12,11 @@ import { HistoryTimelineView } from './HistoryTimeline'
 // a single bulk-registration transaction). They are driven off the model here
 // instead.
 
+// The rows' sender batch is a network lookup; nothing here reads the actor.
+vi.mock('@/features/profile/hooks/useTransactionSenders', () => ({
+  useTransactionSenders: () => ({ data: undefined, error: null }),
+}))
+
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, ...props }: { children: React.ReactNode }) => (
     <a href="#link" {...props}>
@@ -51,7 +56,7 @@ const action = (tx: string, label: string, timestamp: number): Action => ({
 const model = (
   over: Partial<HistoryTimelineModel> = {},
 ): HistoryTimelineModel => ({
-  actions: [action('a', 'Set text record', 300)],
+  actions: [action('a', 'set text record', 300)],
   eventTypes: [],
   anchorAction: undefined,
   totalCount: undefined,
@@ -71,15 +76,15 @@ const model = (
 describe('HistoryTimelineView', () => {
   it('keeps a matched transaction whole rather than narrowing it', () => {
     const register: Action = {
-      ...action('r', 'Register name', 5),
+      ...action('r', 'registered', 5),
       events: [
         { type: 'NameRegistered', id: 'r-1' },
         { type: 'TextChanged', id: 'r-2' },
       ] as never,
     }
     render(<HistoryTimelineView model={model({ actions: [register] })} />)
-    expect(screen.getAllByText('Register name').length).toBeGreaterThan(0)
-    expect(screen.queryByText('Set text record')).toBeNull()
+    expect(screen.getAllByText('registered').length).toBeGreaterThan(0)
+    expect(screen.queryByText('set text record')).toBeNull()
   })
 
   it('shows no break when the whole feed is on screen', () => {
@@ -153,17 +158,17 @@ describe('HistoryTimelineView', () => {
       <HistoryTimelineView
         model={model({
           hasMore: true,
-          anchorAction: action('z', 'Register name', 1),
+          anchorAction: action('z', 'registered', 1),
         })}
         breakContent="load-more"
       />,
     )
-    expect(screen.getAllByText('Register name').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('registered').length).toBeGreaterThan(0)
     expect(rowCount()).toBe(2)
   })
 
   it('does not pin the anchor once paging has reached it', () => {
-    const anchorAction = action('a', 'Set text record', 300)
+    const anchorAction = action('a', 'set text record', 300)
     render(
       <HistoryTimelineView
         model={model({ hasMore: true, anchorAction })}
@@ -179,12 +184,12 @@ describe('HistoryTimelineView', () => {
       <HistoryTimelineView
         model={model({
           hasMore: false,
-          anchorAction: action('z', 'Register name', 1),
+          anchorAction: action('z', 'registered', 1),
         })}
         breakContent="load-more"
       />,
     )
-    expect(screen.queryByText('Register name')).toBeNull()
+    expect(screen.queryByText('registered')).toBeNull()
   })
 
   it('discloses a failed source even with no rows to show', () => {

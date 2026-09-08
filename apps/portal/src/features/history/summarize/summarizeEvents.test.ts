@@ -37,7 +37,7 @@ describe('summarizeEvents — records recipe vs structural events', () => {
       ...records,
     ])
 
-    expect(action.label).toBe('Register name')
+    expect(action.label).toBe('registered')
     // The records are still on the action; only the headline changed.
     expect(action.events).toHaveLength(5)
   })
@@ -48,7 +48,7 @@ describe('summarizeEvents — records recipe vs structural events', () => {
       ...records,
     ])
 
-    expect(action.label).toBe('Set 3 records')
+    expect(action.label).toBe('set 3 records')
   })
 
   it('does not let a mint Transfer — which describes as nothing — swallow the recipe', () => {
@@ -57,7 +57,7 @@ describe('summarizeEvents — records recipe vs structural events', () => {
       ...records,
     ])
 
-    expect(action.label).toBe('Set 3 records')
+    expect(action.label).toBe('set 3 records')
   })
 
   it('lets a real Transfer headline over the records', () => {
@@ -66,7 +66,7 @@ describe('summarizeEvents — records recipe vs structural events', () => {
       ...records,
     ])
 
-    expect(action.label).toBe('Transfer name')
+    expect(action.label).toBe('transferred')
   })
 })
 
@@ -79,19 +79,19 @@ describe('summarizeEvents — includeSubjectName', () => {
   it('leaves a name-page row untouched by default', () => {
     const [action] = summarizeEvents([resolverUpdated])
 
-    expect(action.label).toBe('Update resolver')
+    expect(action.label).toBe('updated resolver to')
     expect(action.slots.map((slot) => slot.kind)).toEqual(['contract'])
   })
 
-  it('leads an anonymous row with its subject when asked', () => {
+  it('closes an anonymous row with its subject when asked', () => {
     const [action] = summarizeEvents([resolverUpdated], {
       includeSubjectName: true,
     })
 
     expect(action.slots).toEqual([
-      { kind: 'name', value: 'profile.allora.eth' },
-      { kind: 'glyph', value: '→' },
       { kind: 'contract', value: OWNER, label: 'resolver' },
+      { kind: 'connective', value: 'on' },
+      { kind: 'name', value: 'profile.allora.eth' },
     ])
   })
 
@@ -106,13 +106,13 @@ describe('summarizeEvents — includeSubjectName', () => {
       { includeSubjectName: true },
     )
 
-    expect(action.label).toBe('Register subname')
+    expect(action.label).toBe('registered subname')
     expect(action.slots).toEqual([
       { kind: 'name', value: 'profile.allora.eth' },
     ])
   })
 
-  it('omits the arrow when the descriptor renders the subject alone', () => {
+  it('reads "{verb} on {name}" when the descriptor has no slots of its own', () => {
     const [action] = summarizeEvents(
       [
         event('SubregistryUpdated', '1', {
@@ -123,9 +123,18 @@ describe('summarizeEvents — includeSubjectName', () => {
       { includeSubjectName: true },
     )
 
-    expect(action.label).toBe('Unlink subregistry')
+    expect(action.label).toBe('unlinked subregistry')
     expect(action.slots).toEqual([
+      { kind: 'connective', value: 'on' },
       { kind: 'name', value: 'renewal.allora.eth' },
     ])
+  })
+})
+
+describe('summarizeEvents — a type without a descriptor', () => {
+  it('still reads on from the actor', () => {
+    expect(summarizeEvents([event('ApprovalForAll', '1')])[0].label).toBe(
+      'emitted approval for all',
+    )
   })
 })
