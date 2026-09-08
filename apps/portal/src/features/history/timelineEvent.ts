@@ -1,7 +1,7 @@
 import type { Address, Hex } from 'viem'
 
 /**
- * TODO(indexer): add `from` (tx sender) to `Event` so the "by {actor}" lines are
+ * TODO(indexer): add `from` (tx sender) to `Event` so the actor leading each row is
  * first-class instead of RPC-backfilled (see useTransactionSenders).
  * TODO(indexer): add typed decoders for ContenthashChanged / NameChanged so those
  * actions don't rely on parsing the raw `data` JSON (see summarize/decodeRawData.ts).

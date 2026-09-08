@@ -270,7 +270,7 @@ export const useNameHistoryTimeline = ({
   shouldFetchEventTypes = true,
 }: UseNameHistoryTimelineParameters): HistoryTimelineModel => {
   // Filtered in the query, not over loaded rows: narrowing in memory only
-  // reached the pages already fetched, so on a long name picking "Register name"
+  // reached the pages already fetched, so on a long name picking "Name registered"
   // showed "No matching history" above a Load more.
   const feedScope = {
     name,
