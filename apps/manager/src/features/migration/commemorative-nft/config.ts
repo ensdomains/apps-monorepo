@@ -47,7 +47,7 @@ export const buildCommemorativeNftAssets = (
   const origin = trimTrailingSlash(assetOrigin)
 
   return {
-    metadataUrl: new URL(`${origin}/token/${tokenId}/metadata.json`).toString(),
+    metadataUrl: new URL(`${origin}/token/${tokenId}.json`).toString(),
     imageUrl: new URL(`${origin}/token/${tokenId}/image.webp`).toString(),
   }
 }

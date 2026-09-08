@@ -23,7 +23,7 @@ const traits = {
   Rarity: 'Common',
   Seed: 742_941_409,
 } as const
-const metadataUrl = `https://assets.example/token/${tokenId}/metadata.json`
+const metadataUrl = `https://assets.example/token/${tokenId}.json`
 const animationUrl = `https://nft.ens.dev/?tokenId=${tokenId}&transparent=1`
 const imageUrl = `https://assets.example/token/${tokenId}/image.webp`
 const publishedTraits = {

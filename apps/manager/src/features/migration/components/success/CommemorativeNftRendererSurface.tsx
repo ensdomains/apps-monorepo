@@ -70,6 +70,7 @@ const RendererSurface = (props: CommemorativeNftRendererSurfaceProps) => {
             if (isRendererDocumentLoad(event.currentTarget))
               source.onRendererLoad()
           }}
+          ref={source.rendererRef}
           referrerPolicy="no-referrer"
           sandbox={getRendererSandbox({
             rendererUrl: props.rendererUrl,

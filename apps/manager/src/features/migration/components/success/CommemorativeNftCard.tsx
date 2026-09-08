@@ -145,13 +145,15 @@ const ArtworkCard = ({
   readonly variant: CardVariant
 }) => {
   const [artworkFailed, setArtworkFailed] = useState(false)
+  const [imageFailed, setImageFailed] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
   const [attempt, setAttempt] = useState(0)
-  const rendererUrl =
-    state.card.assets.animationUrl ??
-    buildCommemorativeNftRendererUrl({
-      eligibility: state.card.eligibility,
-      rendererOrigin: getCommemorativeNftConfig().rendererOrigin,
-    })
+  const rendererUrl = buildCommemorativeNftRendererUrl({
+    eligibility: state.card.eligibility,
+    rendererOrigin: getCommemorativeNftConfig().rendererOrigin,
+  })
+  const showImage =
+    artworkFailed && !!state.card.assets.imageUrl && !imageFailed
 
   return (
     <fieldset
@@ -181,15 +183,30 @@ const ArtworkCard = ({
           }}
           rendererUrl={rendererUrl}
         />
-        {artworkFailed ? (
+        {showImage ? (
+          <img
+            alt={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
+            className="absolute inset-0 z-30 h-full w-full rounded-lg object-contain"
+            onError={() => setImageFailed(true)}
+            onLoad={() => setImageLoaded(true)}
+            src={state.card.assets.imageUrl}
+          />
+        ) : null}
+        {artworkFailed && (!showImage || !imageLoaded) ? (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-lg bg-ens-garnet-100 p-4 text-center text-ens-garnet-900 text-sm">
             <p role="status">
-              <Trans>Artwork could not be loaded.</Trans>
+              {showImage ? (
+                <Trans>Loading NFT artwork…</Trans>
+              ) : (
+                <Trans>Artwork could not be loaded.</Trans>
+              )}
             </p>
             <button
               className="min-h-11 rounded-lg border border-ens-garnet-900 px-4 py-2 font-medium focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2"
               onClick={() => {
                 setArtworkFailed(false)
+                setImageFailed(false)
+                setImageLoaded(false)
                 setAttempt((current) => current + 1)
               }}
               type="button"

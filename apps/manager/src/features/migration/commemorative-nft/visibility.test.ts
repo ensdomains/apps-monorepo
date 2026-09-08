@@ -8,7 +8,7 @@ const eligibility: CommemorativeNftEligibility = {
   ...createCommemorativeNftPreviewEligibility({ ownerAddress }),
   source: 'static',
   proof: ['0x017995f95e79303c1853e326b15e6dcc16e6aa20f07372e4f0ab63c0b84f2631'],
-  assets: { metadataUrl: 'https://assets.example/token/42/metadata.json' },
+  assets: { metadataUrl: 'https://assets.example/token/42.json' },
 }
 const defaults = {
   featureEnabled: true,

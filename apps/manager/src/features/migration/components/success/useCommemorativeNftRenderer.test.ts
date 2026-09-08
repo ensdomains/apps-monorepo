@@ -1,18 +1,52 @@
 import { act, cleanup, renderHook } from '@testing-library/react'
+import { useLayoutEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCommemorativeNftRenderer } from './useCommemorativeNftRenderer'
 
 type RendererOptions = Parameters<typeof useCommemorativeNftRenderer>[0]
 
-const rendererUrl = 'https://renderer.example/nft'
+const rendererOrigin = 'https://renderer.example'
+const rendererUrl = `${rendererOrigin}/?tokenId=42&transparent=1`
+const readyMessage = {
+  type: 'ens-commemorative-nft-renderer',
+  status: 'ready',
+  tokenId: '42',
+}
+
+const createRendererFrame = () => {
+  const iframe = document.createElement('iframe')
+  document.body.appendChild(iframe)
+  const rendererWindow = iframe.contentWindow
+  if (!rendererWindow) throw new Error('Renderer window is unavailable')
+  vi.spyOn(rendererWindow, 'postMessage').mockImplementation(() => undefined)
+  return { iframe, rendererWindow }
+}
+
+const sendMessage = (
+  source: Window,
+  data: unknown = readyMessage,
+  overrides: MessageEventInit<unknown> = {},
+) =>
+  act(() => {
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        source,
+        origin: rendererOrigin,
+        data,
+        ...overrides,
+      }),
+    )
+  })
 
 const mountRenderer = (options: RendererOptions = {}) => {
   const onReady = vi.fn()
   const onError = vi.fn()
+  const frame = createRendererFrame()
   const hook = renderHook(() =>
     useCommemorativeNftRenderer({ rendererUrl, onReady, onError, ...options }),
   )
-  return { ...hook, onReady, onError }
+  hook.result.current.rendererRef.current = frame.iframe
+  return { ...hook, ...frame, onReady, onError }
 }
 
 const advanceTime = (milliseconds: number) =>
@@ -27,78 +61,154 @@ describe('commemorative NFT renderer readiness', () => {
 
   afterEach(() => {
     cleanup()
+    for (const iframe of document.querySelectorAll('iframe')) iframe.remove()
     vi.useRealTimers()
     vi.restoreAllMocks()
   })
 
-  it('fails a stalled iframe request after ten seconds', () => {
-    const { result, onReady, onError } = mountRenderer()
+  it('requests renderer status on document load without marking artwork ready', () => {
+    const { result, rendererWindow, onReady, onError } = mountRenderer()
+    const postMessage = vi.spyOn(rendererWindow, 'postMessage')
 
     advanceTime(9_999)
+    act(() => result.current.onRendererLoad())
+    expect(postMessage).toHaveBeenCalledWith(
+      { ...readyMessage, status: 'request' },
+      rendererOrigin,
+    )
     expect(result.current.rendererStatus).toBe('loading')
-    expect(result.current.ready).toBe(false)
-    expect(result.current.failed).toBe(false)
     expect(onReady).not.toHaveBeenCalled()
     expect(onError).not.toHaveBeenCalled()
 
     advanceTime(1)
-    expect(result.current.rendererStatus).toBe('failed')
     expect(result.current.failed).toBe(true)
     expect(onError).toHaveBeenCalledOnce()
 
-    advanceTime(10_000)
-    act(() => result.current.onRendererLoad())
-    expect(result.current.rendererStatus).toBe('failed')
-    expect(onError).toHaveBeenCalledOnce()
+    sendMessage(rendererWindow)
+    expect(result.current.failed).toBe(true)
     expect(onReady).not.toHaveBeenCalled()
   })
 
-  it('becomes ready immediately on iframe load and reports readiness once', () => {
-    const { result, onReady, onError, rerender } = mountRenderer()
+  it('becomes ready only on a matching renderer message and reports it once', () => {
+    const { result, rendererWindow, onReady, onError, rerender } =
+      mountRenderer()
 
-    act(() => result.current.onRendererLoad())
-
-    expect(result.current.rendererStatus).toBe('ready')
+    sendMessage(rendererWindow)
     expect(result.current.ready).toBe(true)
     expect(result.current.failed).toBe(false)
     expect(onReady).toHaveBeenCalledOnce()
     expect(vi.getTimerCount()).toBe(0)
 
+    sendMessage(rendererWindow)
     act(() => result.current.onRendererLoad())
     rerender()
     advanceTime(10_000)
 
-    expect(result.current.rendererStatus).toBe('ready')
+    expect(result.current.ready).toBe(true)
     expect(onReady).toHaveBeenCalledOnce()
     expect(onError).not.toHaveBeenCalled()
   })
 
-  it('fails on iframe error and ignores late load events until retry', () => {
-    const { result, onReady, onError } = mountRenderer()
+  it('recovers a cached iframe ready reply sent before the message listener attaches', () => {
+    const { iframe, rendererWindow } = createRendererFrame()
+    const onReady = vi.fn()
+    vi.spyOn(rendererWindow, 'postMessage').mockImplementation(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          source: rendererWindow,
+          origin: rendererOrigin,
+          data: readyMessage,
+        }),
+      )
+    })
+    const { result } = renderHook(() => {
+      const renderer = useCommemorativeNftRenderer({ rendererUrl, onReady })
+      const { rendererRef, onRendererLoad } = renderer
+      useLayoutEffect(() => {
+        rendererRef.current = iframe
+        onRendererLoad()
+      }, [rendererRef, onRendererLoad])
+      return renderer
+    })
 
-    act(() => result.current.onRendererError())
-    expect(result.current.rendererStatus).toBe('failed')
-    expect(result.current.ready).toBe(false)
+    expect(result.current.ready).toBe(true)
+    expect(onReady).toHaveBeenCalledOnce()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it.each([
+    'https://other.example',
+    'null',
+    'https://renderer.example:8443',
+  ])('ignores status messages from an unexpected origin: %s', (origin) => {
+    const { result, rendererWindow, onReady, onError } = mountRenderer()
+
+    sendMessage(rendererWindow, readyMessage, { origin })
+    sendMessage(
+      rendererWindow,
+      { ...readyMessage, status: 'failed' },
+      { origin },
+    )
+    expect(result.current.rendererStatus).toBe('loading')
+    expect(onReady).not.toHaveBeenCalled()
+    expect(onError).not.toHaveBeenCalled()
+
+    advanceTime(10_000)
+    expect(onError).toHaveBeenCalledOnce()
+  })
+
+  it('ignores a matching message from another window on the renderer origin', () => {
+    const { result, onReady, onError } = mountRenderer()
+    const other = createRendererFrame()
+
+    sendMessage(other.rendererWindow)
+    sendMessage(other.rendererWindow, { ...readyMessage, status: 'failed' })
+
+    expect(result.current.rendererStatus).toBe('loading')
+    expect(onReady).not.toHaveBeenCalled()
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    null,
+    'ready',
+    {},
+    { ...readyMessage, type: 'unrelated' },
+    { ...readyMessage, status: 'request' },
+    { ...readyMessage, tokenId: '43' },
+    { ...readyMessage, tokenId: 42 },
+    { ...readyMessage, tokenId: '042' },
+  ])('ignores malformed or unrelated renderer messages: %j', (message) => {
+    const { result, rendererWindow, onReady, onError } = mountRenderer()
+
+    sendMessage(rendererWindow, message)
+
+    expect(result.current.rendererStatus).toBe('loading')
+    expect(onReady).not.toHaveBeenCalled()
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('reports renderer metadata or WebGL failure immediately and ignores late ready', () => {
+    const { result, rendererWindow, onReady, onError } = mountRenderer()
+
+    act(() => result.current.onRendererLoad())
+    sendMessage(rendererWindow, { ...readyMessage, status: 'failed' })
     expect(result.current.failed).toBe(true)
     expect(onError).toHaveBeenCalledOnce()
     expect(vi.getTimerCount()).toBe(0)
 
-    act(() => {
-      result.current.onRendererError()
-      result.current.onRendererLoad()
-    })
-    advanceTime(10_000)
-
-    expect(result.current.rendererStatus).toBe('failed')
-    expect(onError).toHaveBeenCalledOnce()
+    sendMessage(rendererWindow)
+    sendMessage(rendererWindow, { ...readyMessage, status: 'failed' })
+    expect(result.current.failed).toBe(true)
     expect(onReady).not.toHaveBeenCalled()
+    expect(onError).toHaveBeenCalledOnce()
   })
 
-  it('reports an iframe error after it has loaded', () => {
-    const { result, onReady, onError } = mountRenderer()
+  it('reports renderer failure after a successful first frame', () => {
+    const { result, rendererWindow, onReady, onError } = mountRenderer()
 
-    act(() => result.current.onRendererLoad())
-    act(() => result.current.onRendererError())
+    sendMessage(rendererWindow)
+    sendMessage(rendererWindow, { ...readyMessage, status: 'failed' })
 
     expect(result.current.ready).toBe(false)
     expect(result.current.failed).toBe(true)
@@ -106,10 +216,28 @@ describe('commemorative NFT renderer readiness', () => {
     expect(onError).toHaveBeenCalledOnce()
   })
 
-  it('reports a missing renderer URL as an error', () => {
-    const { result, onReady, onError } = mountRenderer({
-      rendererUrl: undefined,
-    })
+  it('fails on iframe error and ignores late ready until retry', () => {
+    const { result, rendererWindow, onReady, onError } = mountRenderer()
+
+    act(() => result.current.onRendererError())
+    expect(result.current.failed).toBe(true)
+    expect(onError).toHaveBeenCalledOnce()
+    expect(vi.getTimerCount()).toBe(0)
+
+    sendMessage(rendererWindow)
+    advanceTime(10_000)
+
+    expect(result.current.failed).toBe(true)
+    expect(onError).toHaveBeenCalledOnce()
+    expect(onReady).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    undefined,
+    '/relative',
+    'https://renderer.example/',
+  ])('reports a missing or invalid renderer URL as an error: %s', (url) => {
+    const { result, onReady, onError } = mountRenderer({ rendererUrl: url })
 
     expect(result.current.failed).toBe(true)
     expect(result.current.ready).toBe(false)
@@ -126,14 +254,16 @@ describe('commemorative NFT renderer readiness', () => {
     const firstError = vi.fn()
     const nextReady = vi.fn()
     const nextError = vi.fn()
+    const frame = createRendererFrame()
     const { result, rerender } = renderHook(
       (callbacks) => useCommemorativeNftRenderer({ rendererUrl, ...callbacks }),
       { initialProps: { onReady: firstReady, onError: firstError } },
     )
+    result.current.rendererRef.current = frame.iframe
 
     rerender({ onReady: nextReady, onError: nextError })
     if (outcome === 'ready') {
-      act(() => result.current.onRendererLoad())
+      sendMessage(frame.rendererWindow)
       expect(nextReady).toHaveBeenCalledOnce()
       expect(nextError).not.toHaveBeenCalled()
     } else {
@@ -147,32 +277,34 @@ describe('commemorative NFT renderer readiness', () => {
 
   it.each([
     0, 9_999,
-  ])('cleans up the loading timeout when unmounted after %s milliseconds', (elapsed) => {
-    const { onReady, onError, unmount } = mountRenderer()
+  ])('cleans up the timeout and listener when unmounted after %s milliseconds', (elapsed) => {
+    const { rendererWindow, onReady, onError, unmount } = mountRenderer()
+    const removeEventListener = vi.spyOn(window, 'removeEventListener')
 
     advanceTime(elapsed)
     unmount()
     expect(vi.getTimerCount()).toBe(0)
+    expect(removeEventListener).toHaveBeenCalledWith(
+      'message',
+      expect.any(Function),
+    )
     advanceTime(10_000)
+    sendMessage(rendererWindow)
 
     expect(onReady).not.toHaveBeenCalled()
     expect(onError).not.toHaveBeenCalled()
   })
 
-  it('starts a fresh retry when the failed iframe is remounted', () => {
+  it('starts a fresh retry and ignores messages from the previous iframe', () => {
     const first = mountRenderer()
     act(() => first.result.current.onRendererError())
-    expect(first.onError).toHaveBeenCalledOnce()
     first.unmount()
 
     const next = mountRenderer()
+    sendMessage(first.rendererWindow)
     expect(next.result.current.rendererStatus).toBe('loading')
-    expect(next.result.current.ready).toBe(false)
-    expect(next.result.current.failed).toBe(false)
-    expect(next.onReady).not.toHaveBeenCalled()
-    expect(next.onError).not.toHaveBeenCalled()
 
-    act(() => next.result.current.onRendererLoad())
+    sendMessage(next.rendererWindow)
     expect(next.onReady).toHaveBeenCalledOnce()
     expect(first.onReady).not.toHaveBeenCalled()
     expect(first.onError).toHaveBeenCalledOnce()
