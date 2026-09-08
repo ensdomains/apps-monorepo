@@ -24,7 +24,7 @@ const traits = {
   Seed: 742_941_409,
 } as const
 const metadataUrl = `https://assets.example/token/${tokenId}.json`
-const animationUrl = `https://nft.ens.dev/?tokenId=${tokenId}&transparent=1`
+const publishedRendererUrl = `https://nft.ens.dev/?tokenId=${tokenId}&transparent=1`
 const imageUrl = `https://assets.example/token/${tokenId}/image.webp`
 const publishedTraits = {
   Era: 'Surge',
@@ -46,7 +46,7 @@ const publishedMetadata = {
     value,
   })),
   image: `https://assets.example/token/${tokenId}/image.webp`,
-  animation_url: animationUrl,
+  animation_url: publishedRendererUrl,
 }
 
 describe('commemorative NFT eligibility', () => {
@@ -61,7 +61,7 @@ describe('commemorative NFT eligibility', () => {
         proof: [proof],
         traits,
         image: 'https://other.example/not-used.png',
-        animation_url: animationUrl,
+        animation_url: publishedRendererUrl,
         external_url: 'https://renderer.example/token/1',
       },
     })
@@ -69,8 +69,26 @@ describe('commemorative NFT eligibility', () => {
     expect(result.profileName).toBe('yoginth.eth')
     expect(result.traits).toEqual(traits)
     expect(result.assets.externalUrl).toBe('https://renderer.example/token/1')
-    expect(result.assets.animationUrl).toBe(animationUrl)
     expect(result.assets.imageUrl).toBe(imageUrl)
+  })
+
+  it.each([
+    publishedRendererUrl,
+    'https://other.example/artwork',
+    null,
+    42,
+  ])('ignores unused published animation URLs when deriving assets: %j', (animationUrl) => {
+    const result = parseCommemorativeNftEligibility({
+      ownerAddress,
+      assetOrigin: 'https://assets.example',
+      payload: { ...publishedMetadata, animation_url: animationUrl },
+    })
+
+    expect(result.assets).toEqual({
+      metadataUrl,
+      imageUrl,
+      externalUrl: undefined,
+    })
   })
 
   it('maps renderer metadata attributes', () => {
@@ -145,7 +163,6 @@ describe('commemorative NFT eligibility', () => {
         assets: {
           metadataUrl,
           imageUrl,
-          animationUrl,
           externalUrl: undefined,
         },
         source: 'static',
@@ -261,9 +278,9 @@ describe('commemorative NFT eligibility', () => {
     `https://nft.ens.dev/?tokenId=${tokenId}&tokenId=${tokenId}`,
     `https://nft.ens.dev/?tokenId=${tokenId}&tokenId=1`,
     `https://nft.ens.dev/?tokenURI=${encodeURIComponent(metadataUrl)}`,
-    `${animationUrl}&tokenURI=`,
-    `${animationUrl}&tokenURI=${encodeURIComponent(metadataUrl)}`,
-  ])('ignores renderer and share URLs with invalid token parameters: %s', (url) => {
+    `${publishedRendererUrl}&tokenURI=`,
+    `${publishedRendererUrl}&tokenURI=${encodeURIComponent(metadataUrl)}`,
+  ])('ignores share URLs with invalid token parameters: %s', (url) => {
     const result = parseCommemorativeNftEligibility({
       ownerAddress,
       assetOrigin: 'https://assets.example',
@@ -273,45 +290,39 @@ describe('commemorative NFT eligibility', () => {
         token_id: tokenId,
         proof: [proof],
         traits,
-        animation_url: url,
         external_url: url,
       },
     })
 
-    expect(result.assets.animationUrl).toBeUndefined()
     expect(result.assets.externalUrl).toBeUndefined()
   })
 
-  it('ignores animation URLs without a token ID and preserves ordinary external links', () => {
+  it('preserves ordinary external links', () => {
     const url = 'https://example.com/profile/yoginth.eth?ref=nft'
     const result = parseCommemorativeNftEligibility({
       ownerAddress,
       assetOrigin: 'https://assets.example',
       payload: {
         ...publishedMetadata,
-        animation_url: 'https://nft.ens.dev/?transparent=1',
         external_url: url,
       },
     })
 
-    expect(result.assets.animationUrl).toBeUndefined()
     expect(result.assets.externalUrl).toBe(url)
   })
 
-  it('preserves other parameters in valid renderer and share URLs', () => {
-    const url = new URL(animationUrl)
+  it('preserves other parameters in valid renderer share URLs', () => {
+    const url = new URL(publishedRendererUrl)
     url.searchParams.set('quality', 'high')
     const result = parseCommemorativeNftEligibility({
       ownerAddress,
       assetOrigin: 'https://assets.example',
       payload: {
         ...publishedMetadata,
-        animation_url: url.toString(),
         external_url: url.toString(),
       },
     })
 
-    expect(result.assets.animationUrl).toBe(url.toString())
     expect(result.assets.externalUrl).toBe(url.toString())
   })
 
@@ -383,6 +394,5 @@ describe('commemorative NFT eligibility', () => {
         rendererOrigin: 'https://renderer.example/',
       }),
     ).toBeUndefined()
-    expect(eligibility.assets.animationUrl).toBeUndefined()
   })
 })

@@ -45,7 +45,6 @@ const payloadSchema = v.object({
   traits: v.optional(v.unknown()),
   attributes: v.optional(v.array(attributeSchema)),
   image: v.optional(v.string()),
-  animation_url: v.optional(v.string()),
   external_url: v.optional(v.string()),
 })
 
@@ -71,26 +70,6 @@ const parseHttpUrl = (value: string | undefined): string | undefined => {
   }
 }
 
-const parseRendererUrl = (
-  value: string | undefined,
-  metadataUrl: string | undefined,
-  expectedTokenId: string,
-): string | undefined => {
-  const rendererUrl = parseHttpUrl(value)
-  if (!rendererUrl || !metadataUrl) return undefined
-
-  const url = new URL(rendererUrl)
-  const tokenIds = url.searchParams.getAll('tokenId')
-  if (
-    url.searchParams.has('tokenURI') ||
-    tokenIds.length !== 1 ||
-    tokenIds[0] !== expectedTokenId
-  )
-    return undefined
-
-  return url.toString()
-}
-
 const parseExternalUrl = (
   value: string | undefined,
   metadataUrl: string | undefined,
@@ -101,7 +80,14 @@ const parseExternalUrl = (
 
   const url = new URL(externalUrl)
   if (url.searchParams.has('tokenId') || url.searchParams.has('tokenURI')) {
-    return parseRendererUrl(externalUrl, metadataUrl, expectedTokenId)
+    const tokenIds = url.searchParams.getAll('tokenId')
+    if (
+      !metadataUrl ||
+      url.searchParams.has('tokenURI') ||
+      tokenIds.length !== 1 ||
+      tokenIds[0] !== expectedTokenId
+    )
+      return undefined
   }
   return externalUrl
 }
@@ -142,11 +128,6 @@ const mergeAssets = (
 ): CommemorativeNftAssets => ({
   metadataUrl: derived.metadataUrl,
   imageUrl: derived.imageUrl,
-  animationUrl: parseRendererUrl(
-    payload.animation_url,
-    derived.metadataUrl,
-    expectedTokenId,
-  ),
   externalUrl: parseExternalUrl(
     payload.external_url,
     derived.metadataUrl,

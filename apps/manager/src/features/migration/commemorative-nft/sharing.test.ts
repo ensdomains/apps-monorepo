@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as config from './config'
 import {
   buildCommemorativeNftMarketplaceUrl,
   buildCommemorativeNftProfileUrl,
@@ -9,6 +10,10 @@ import {
 const ownerAddress = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 
 describe('commemorative NFT sharing', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('matches only the canonical name profile', () => {
     expect(
       isCommemorativeNftCanonicalProfile('Yoginth.eth.', 'yoginth.eth'),
@@ -80,31 +85,51 @@ describe('commemorative NFT sharing', () => {
   })
 
   it('does not expose OpenSea before minting', () => {
+    vi.spyOn(config, 'getCommemorativeNftContractAddress').mockReturnValue(
+      '0x0000000000000000000000000000000000000001',
+    )
+
     expect(
       buildCommemorativeNftMarketplaceUrl({
-        chainId: 11155111,
+        chainId: 1,
         ownerAddress,
         minted: false,
       }),
     ).toBeUndefined()
   })
 
-  it('uses mainnet OpenSea for a minted NFT on a configured chain', () => {
+  it('does not expose OpenSea for minted Sepolia NFTs after testnet support ended', () => {
     expect(
       buildCommemorativeNftMarketplaceUrl({
         chainId: 11155111,
         ownerAddress,
         minted: true,
       }),
+    ).toBeUndefined()
+  })
+
+  it('links a minted NFT to Ethereum OpenSea when its mainnet contract is configured', () => {
+    vi.spyOn(config, 'getCommemorativeNftContractAddress').mockReturnValue(
+      '0x0000000000000000000000000000000000000001',
+    )
+
+    expect(
+      buildCommemorativeNftMarketplaceUrl({
+        chainId: 1,
+        ownerAddress,
+        minted: true,
+      }),
     ).toBe(
-      'https://opensea.io/assets/ethereum/0xe49A9D706FCD82AA575496352B5633F80fBBC449/46455108410614081663945406319915307572171076188378075311311703967581922008221',
+      'https://opensea.io/assets/ethereum/0x0000000000000000000000000000000000000001/46455108410614081663945406319915307572171076188378075311311703967581922008221',
     )
   })
 
-  it('does not expose OpenSea without a configured contract', () => {
+  it.each([
+    1, 10,
+  ])('does not expose OpenSea without a configured contract on chain %s', (chainId) => {
     expect(
       buildCommemorativeNftMarketplaceUrl({
-        chainId: 10,
+        chainId,
         ownerAddress,
         minted: true,
       }),

@@ -20,7 +20,6 @@ export type RendererTraits = {
 export type CommemorativeNftAssets = {
   readonly metadataUrl?: string
   readonly imageUrl?: string
-  readonly animationUrl?: string
   readonly externalUrl?: string
 }
 
