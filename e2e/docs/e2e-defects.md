@@ -26,6 +26,26 @@ with its original, unweakened assertion).
 | E2E-002 | F5 | portal | S1 | Transfer to a non-receiver contract detaches the resolver irreversibly, then hangs — token never moves, no error shown | `buildTransferPlan` must not execute `detach-resolver` before a `transfer-token` that cannot succeed; `test_safeTransferFrom_invalidReceiver` must surface as an error, not a stall (plan §5.F F5, and the S1 rule in e2e-goal.md) | `pnpm e2e:portal --grep "@scenario:F5"` | _pending_ | open |
 | E2E-001 | F1 | portal | S1 | Migrated locked V1 name offered a `detach-registry` step its owner cannot execute — `detach-resolver` had already run irreversibly | Owner lacks `ROLE_SET_SUBREGISTRY` on the locked name's `WrapperRegistry`, so `buildTransferPlan` must not offer the step. Measured in [`transfer-web446-test-plan.md`](./transfer-web446-test-plan.md) §2 finding F1 | `pnpm e2e:portal --grep "without offering the registry detach it cannot perform"` | _pending_ | fixed |
 
+### E2E-009's evidence, and why it still says `fixed` rather than `verified`
+
+The regression test has been observed green **three times** (4.1m, 3.7m, and a
+third run) against a fully synced Panoptes, and — the check that matters — it
+**fails** against a tree without the fix. Two failures along the way were both
+environmental and both are accounted for: the 30s assertion timeout it
+inherited (see SUB-F1 in the WEB-128 plan; the panel now takes ~29s on a local
+fork) and one transient `waitForIndexedRoles` miss while Panoptes was still
+chewing through the flood's own events.
+
+It is not marked `verified` because this register reserves that for a run
+recorded by `pnpm e2e:coverage --results`, and **there is currently no way to
+produce that file locally**: `playwright.config.base.ts` pins
+`reporter: process.env.CI ? 'github' : 'list'`, and passing `--reporter=json`
+(with or without `PLAYWRIGHT_JSON_OUTPUT_NAME`) does not displace it — the run
+still emits the list reporter and writes no file. `coverage/reconcile.ts` only
+uses `--reporter=json` together with `--list`, which is enumeration, not
+results. Worth fixing separately; until then `verified` is unreachable by the
+documented route for any defect, not just this one.
+
 Status legend for the row above: **fixed** = the code fix landed
 (`f524d71b3`, `dab56ec16` — role validation in `useTransferDetachTargets`) and
 the regression test is committed (`ff2d85b30`), but this register will not say
