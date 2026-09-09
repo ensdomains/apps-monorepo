@@ -44,7 +44,14 @@ export const getSubnames = ResultFn(async function* ({
         }),
     )
 
-    return ok(subnames ?? [])
+    return ok(
+      (subnames ?? []).map(
+        ({ owner, wrappedOwner, ...subname }): Subname => ({
+          ...subname,
+          owner: wrappedOwner ?? owner,
+        }),
+      ),
+    )
   } else {
     const v2Request = yield* fromPromise(
       graphqlIndexerClient.request<
