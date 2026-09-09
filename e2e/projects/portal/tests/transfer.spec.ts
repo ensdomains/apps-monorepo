@@ -1855,6 +1855,24 @@ test.describe('Portal name transfer — subnames', () => {
     )
     const name = `sub.${parentName}`
 
+    // A control in the same registry, owned by the same wallet, differing ONLY
+    // in that it keeps the transfer role. Without it this test passes for the
+    // wrong reason: before #1120 every subname was refused by the blanket
+    // is2LD gate, so "Transfer not available" proved nothing about roles.
+    // Measured — run against a tree without #1120, this case was the one
+    // member of the subname block that still went green.
+    await createSubname(
+      {
+        registryAddress: subregistry,
+        label: 'control',
+        parentLabel,
+        owner: holder,
+        roleBitmap: FULL_ROLE_BITMAP,
+      },
+      privateKeyToAccount(accounts.getPrivateKey('user')),
+    )
+    const controlName = `control.${parentName}`
+
     expect(
       await hasRoles(
         publicClient as never,
@@ -1880,5 +1898,15 @@ test.describe('Portal name transfer — subnames', () => {
       page.getByPlaceholder('ENS name or address'),
       'and must not be given the form anyway',
     ).toBeHidden()
+
+    // The control: same wallet, same parent, same registry, transfer role
+    // intact. It must be OFFERED — which is what proves the refusal above was
+    // about the role and not about the name being a subname.
+    await page.goto(transferRoute(controlName))
+    await expect(
+      page.getByPlaceholder('ENS name or address'),
+      'a sibling subname WITH the transfer role must still be offered the form — otherwise the refusal above is a blanket subname gate, not a role check',
+    ).toBeVisible({ timeout: 60_000 })
+    await expect(page.getByText('Transfer not available')).toBeHidden()
   })
 })
