@@ -191,7 +191,15 @@ services:
       anvil:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "/app/healthcheck.sh"]
+      # The image's own /app/healthcheck.sh probes "localhost", which
+      # resolves to the IPv6 loopback ([::1]) first inside this container;
+      # the status server only binds IPv4, so the baked-in script reports
+      # unhealthy even mid-sync while genuinely serving requests. Bypass it
+      # with an explicit IPv4 address instead (mirrors its own marker-file
+      # check for a still-downloading rainbow table). Panoptes is on a
+      # moving tag (see the file header), so re-check this if the image
+      # changes its status port or path.
+      test: ["CMD-SHELL", "test -f /app/data/.rainbow_downloading || wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/status"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -225,7 +233,11 @@ services:
     depends_on:
       - panoptes-indexer
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5655/health"]
+      # Same IPv6-vs-IPv4 issue as panoptes-indexer's healthcheck above, plus
+      # this API build has no /health route at all (confirmed: a 404, not a
+      # connection error) — /graphql is the one route guaranteed to be live
+      # whenever the server is actually serving.
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5655/graphql"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -354,7 +366,11 @@ services:
       - ../../packages/dqa-server/public:/app/public:ro
     restart: on-failure
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/auth/config"]
+      # Same IPv6-vs-IPv4 "localhost" issue as the panoptes healthchecks
+      # above — this image's loopback resolves [::1] first and the server
+      # only binds IPv4, so the probe never connects even though the server
+      # is up (confirmed: /auth/config answers fine over 127.0.0.1).
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:4000/auth/config"]
       interval: 15s
       timeout: 5s
       retries: 5

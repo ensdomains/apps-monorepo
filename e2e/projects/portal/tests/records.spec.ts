@@ -14,14 +14,19 @@
 import {
   getAddressRecord,
   getContentHashRecord,
+  getResolver,
   getTextRecord,
 } from '@ensdomains/ensjs/public'
+import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
+import { encodeFunctionData, parseAbi } from 'viem'
+import { query as queryPanoptes } from '../../../fixtures/panoptes.js'
 import {
   connectWithHeadlessWallet,
   expect,
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
-import { publicClient } from '../../../helpers/anvil-client.js'
+import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
+import { ETH_REGISTRY } from '../../../helpers/role-assertions.js'
 import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
@@ -51,6 +56,28 @@ const readAddr = (name: string, coin: string) =>
 
 const readContentHash = (name: string) =>
   getContentHashRecord(publicClient as never, { name } as never)
+
+const SET_RESOLVER_ABI = parseAbi([
+  'function setResolver(uint256 anyId, address resolver)',
+])
+
+/** Point `label`'s resolver slot at `resolverAddress`, signed by `signer`. */
+async function setResolver(
+  label: string,
+  resolverAddress: `0x${string}`,
+  signer: import('viem').Account,
+) {
+  const hash = await walletClient.sendTransaction({
+    account: signer,
+    to: ETH_REGISTRY,
+    data: encodeFunctionData({
+      abi: SET_RESOLVER_ABI,
+      functionName: 'setResolver',
+      args: [labelToCanonicalId(label), resolverAddress],
+    }),
+  })
+  await publicClient.waitForTransactionReceipt({ hash })
+}
 
 /**
  * Pick a coin in the `CoinSelect` popover. It is a search-and-click list, not
@@ -252,5 +279,96 @@ test.describe('Portal resolver records', () => {
       `${(stored as { protocolType?: string; decoded?: string }).protocolType}://${(stored as { decoded?: string }).decoded}`,
       'contenthash should round-trip the IPFS CID that was entered',
     ).toBe(ipfs)
+  })
+
+  test("a resolver contract shared by two names leaks one name's text-record keys onto the other, in the indexer (E2E-008)", {
+    tag: ['@scenario:E1'],
+  }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    // Repro for a Slack report: the portal's Records page discovers which text
+    // *keys* a name has via the indexer's `domains(where:{name}).resolver.texts`
+    // field (`features/profile/hooks/useProfile.ts`), then reads their values
+    // from chain. That field appears to be keyed by resolver CONTRACT ADDRESS
+    // alone, not by (address, node) — so once two DIFFERENT names point their
+    // resolver slot at the SAME already-deployed resolver contract (exactly the
+    // "point at an existing contract" pattern behind E2E-007, but for resolvers
+    // instead of registries), each one's indexed key list bleeds into the
+    // other's, even though on-chain each node's records stay correctly scoped.
+    //
+    // Verified directly against the indexer before writing this test: pointing
+    // an unrelated, already-registered name at a resolver that already had
+    // text keys indexed showed those keys under the new name's
+    // `resolver.texts` immediately, with no record ever written for it.
+    test.fail()
+
+    await connectWithHeadlessWallet(page, wallet)
+
+    const nameA = await makeName({
+      label: 'res-share-a',
+      owner: 'user',
+      // Forces a dedicated resolver proxy for A — see the E1 test above.
+      records: [{ key: 'seed', value: 'dedicated-resolver' }],
+    })
+    const nameB = await makeName({ label: 'res-share-b', owner: 'user' })
+    const labelB = nameB.replace(/\.eth$/, '')
+
+    const resolverA = await getResolver(
+      publicClient as never,
+      {
+        name: nameA,
+      } as never,
+    )
+    expect(resolverA, `${nameA} must have a resolver to share`).toBeTruthy()
+
+    // nameB links to nameA's already-deployed resolver — a different name
+    // taking over a contract it never deployed, same shape as E2E-007's
+    // "use a pre-existing registry contract".
+    await setResolver(
+      labelB,
+      resolverA as `0x${string}`,
+      wallets.account('owner'),
+    )
+
+    const key = `only-on-a-${Date.now().toString(36)}`
+    await page.goto(`${PORTAL_APP_URL}/${nameA}/edit-records`)
+    await addTextRecord(page, key, 'value-a')
+    await page
+      .getByRole('button', { name: 'Save 1 change' })
+      .click({ timeout: 20_000 })
+    await driveTransactionsToSuccess(page, wallet, [SAVE_RECORDS_TX])
+
+    expect(
+      await readText(nameA, key),
+      `${nameA} should hold the record it was just given`,
+    ).toBe('value-a')
+    expect(
+      await readText(nameB, key),
+      `${nameB}'s own node must not have this key on-chain — it never set it`,
+    ).toBeFalsy()
+
+    // Wait for the indexer to have processed THIS specific TextChanged event
+    // (checked against nameA, which unambiguously owns it) before asserting
+    // anything about nameB — otherwise a not-yet-caught-up indexer would make
+    // the oracle below pass for the wrong reason (a race, not a fix).
+    const domainTextsQuery = `query($name: String!) { domains(where: {name: $name}) { resolver { address texts } } }`
+    await expect(async () => {
+      const a = await queryPanoptes<{
+        domains: { resolver: { texts: string[] } | null }[]
+      }>(domainTextsQuery, { name: nameA })
+      expect(a.domains[0]?.resolver?.texts ?? []).toContain(key)
+    }).toPass({ timeout: 60_000 })
+
+    const result = await queryPanoptes<{
+      domains: { resolver: { texts: string[] } | null }[]
+    }>(domainTextsQuery, { name: nameB })
+
+    // Oracle: the indexer's key list for nameB must reflect only what was
+    // ever set on nameB's own node — not everything ever set on whatever
+    // resolver CONTRACT it happens to currently point at.
+    expect(
+      result.domains[0]?.resolver?.texts ?? [],
+      `the indexer's resolver.texts for ${nameB} must not include "${key}" — ` +
+        `that was set on ${nameA}'s node, and ${nameB} only shares the same ` +
+        'resolver contract, never wrote this key itself',
+    ).not.toContain(key)
   })
 })

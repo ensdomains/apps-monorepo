@@ -19,7 +19,17 @@
  */
 
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
-import { type Account, type Address, encodeFunctionData, parseAbi } from 'viem'
+import {
+  grantRolesWriteParameters,
+  revokeRolesWriteParameters,
+} from '@ensdomains/ensjs/wallet/v2'
+import {
+  type Account,
+  type Address,
+  encodeFunctionData,
+  type Hash,
+  parseAbi,
+} from 'viem'
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import {
   connectWithHeadlessWallet,
@@ -32,6 +42,7 @@ import {
   assertRoleBitmap,
   ETH_REGISTRY,
   grantNameRoles,
+  type Role,
   readNameRoles,
   readRoleHolders,
   revokeNameRoles,
@@ -97,6 +108,198 @@ const nameRolesSection = (page: import('@playwright/test').Page) =>
  */
 const awaitIndexed = (label: string, accounts: Address[]) =>
   waitForIndexedRoles(ETH_REGISTRY, labelToCanonicalId(label), accounts)
+
+/**
+ * The "parent registry / roles" panel's content root — whichever of
+ * `V2NameRoles`'s states (`RolesTable`, or the `NoResultsMessage` empty
+ * state) is currently rendered. Unlike {@link nameRolesSection} this does not
+ * assume a `<table>` exists — the empty state renders none at all, so
+ * `following::table[1]` would silently skip past this panel to whatever
+ * table happens to follow it elsewhere in the document. Instead this takes
+ * the heading row's very next sibling, matching
+ * `NameRolesOverviewTable`'s actual JSX (`[headingRow, V2NameRoles output,
+ * RolesAddUserSheet]` — the sheet is a closed Radix portal and contributes no
+ * inline sibling node when it isn't open).
+ */
+const parentRegistryRolesPanel = (page: import('@playwright/test').Page) =>
+  page
+    .locator('h3', { hasText: 'parent registry / roles' })
+    .locator('xpath=parent::div/following-sibling::*[1]')
+
+/**
+ * `useNameRoleAccounts.ts`'s own limit, kept here rather than imported so
+ * this repro fails loudly — not silently under-counts — if the app's
+ * constant ever changes without this test being revisited.
+ */
+const MAX_EVENTS = 1000
+
+const INDEXER_URL =
+  process.env.E2E_INDEXER_GRAPHQL_URL ?? 'http://127.0.0.1:5655/graphql'
+
+type EACRolesChangedPayload = { resource?: string }
+
+/**
+ * Newest `first` `EACRolesChanged` events for the whole `.eth` registry, each
+ * paired with its block number — the exact query `useNameRoleAccounts.ts`
+ * runs, plus `blockNumber` (a separate top-level field, not part of the
+ * decoded payload) so callers can reason about *when* the window's contents
+ * were written, not just how many there are.
+ *
+ * This registry accumulates events across the whole session (every test that
+ * has ever run against this fork, including this file's own C1-C12 grants),
+ * so "how many events exist in total" is not a meaningful signal on its own
+ * — it is already past `MAX_EVENTS` before this test even starts. What
+ * matters is *which* blocks the newest-`first` window currently spans.
+ */
+async function newestRegistryRoleEvents(
+  first: number,
+): Promise<(EACRolesChangedPayload & { blockNumber: number })[]> {
+  const res = await fetch(INDEXER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query: `{ events(where: { type: "EACRolesChanged", contractAddress: "${ETH_REGISTRY.toLowerCase()}" },
+                first: ${first}, orderBy: "blockNumber", orderDirection: "desc") { data blockNumber } }`,
+    }),
+  })
+  const { data } = (await res.json()) as {
+    data?: { events: { data: string; blockNumber: number }[] }
+  }
+  return (data?.events ?? []).map((event) => ({
+    ...(JSON.parse(event.data) as EACRolesChangedPayload),
+    blockNumber: event.blockNumber,
+  }))
+}
+
+/**
+ * Whether `resource` appears anywhere in the newest `first` registry-wide
+ * events. Used to pin the root cause precisely: absent at `first: MAX_EVENTS`
+ * but present once the window is widened proves the indexer *has* the event
+ * and it is purely the fixed-size window dropping it, not an indexing gap.
+ */
+async function indexerHasResourceInWindow(
+  resource: bigint,
+  first: number,
+): Promise<boolean> {
+  const wanted = `0x${resource.toString(16).padStart(64, '0')}`.toLowerCase()
+  const events = await newestRegistryRoleEvents(first)
+  return events.some((event) => event.resource?.toLowerCase() === wanted)
+}
+
+/**
+ * Blocks until the newest `windowSize` registry-wide events are *entirely*
+ * at or after `minBlock` — i.e. every one of them postdates the flood's
+ * start, which by construction postdates the target's own grant. This is
+ * the real precondition the test needs (a specific number of genuinely
+ * newer events landed), not merely "the indexer has indexed `windowSize`
+ * events somewhere in its history" — this registry accumulates events for
+ * the life of the whole fork, so a raw total is already past `MAX_EVENTS`
+ * before this test even starts and proves nothing about freshness.
+ *
+ * Waits on this rather than a specific block height for the flood's exact
+ * last transaction: measured directly against a real Panoptes, its final
+ * backfill batch can permanently drop the last handful of blocks in a burst
+ * (reproduced even from a fully fresh, cold resync), so a few blocks short of
+ * the true tip is normal and a hard block-number barrier can wait forever.
+ */
+async function waitForWindowPastBlock(
+  minBlock: bigint,
+  windowSize: number,
+  timeoutMs: number,
+): Promise<number> {
+  const deadline = Date.now() + timeoutMs
+  let events: Awaited<ReturnType<typeof newestRegistryRoleEvents>> = []
+  while (Date.now() < deadline) {
+    events = await newestRegistryRoleEvents(windowSize)
+    const oldestInWindow = events.at(-1)
+    if (
+      events.length >= windowSize &&
+      oldestInWindow &&
+      BigInt(oldestInWindow.blockNumber) >= minBlock
+    ) {
+      return events.length
+    }
+    await new Promise((r) => setTimeout(r, 2_000))
+  }
+  const oldest = events.at(-1)?.blockNumber
+  throw new Error(
+    `Panoptes' newest ${windowSize} events for ${ETH_REGISTRY} did not all ` +
+      `reach block ${minBlock} within ${timeoutMs}ms (got ${events.length} ` +
+      `events, oldest at block ${oldest}).`,
+  )
+}
+
+/**
+ * Emits `count` `EACRolesChanged` events on `ETH_REGISTRY`, all for `label`'s
+ * own resource and none touching the resource under test — the mechanism
+ * behind E2E-009. Alternates granting and revoking one role to `grantee` so
+ * every call actually flips the bitmap (and therefore always emits an
+ * event), signed by `signer` — which must hold that role's admin on `label`,
+ * true of any fresh 2LD owner.
+ *
+ * Sent and confirmed one at a time rather than pipelined. Measured directly:
+ * firing many transactions at once lets Anvil's automine pack dozens-to-~100
+ * of them into a single block, and a real Panoptes silently drops most of a
+ * block's matching events once it gets that dense (confirmed on this exact
+ * fork — a block with 99 transactions yielded only 4 recorded events, no
+ * error surfaced). One-at-a-time keeps each block to a single relevant
+ * transaction, which is also the shape real registration traffic actually
+ * has (roughly one grant per block, not bursts of hundreds).
+ */
+async function floodRoleEvents({
+  label,
+  signer,
+  grantee,
+  count,
+}: {
+  label: string
+  signer: Account
+  grantee: Address
+  count: number
+}): Promise<Hash> {
+  const resource = labelToCanonicalId(label)
+  const roles: Role[] = ['ROLE_SET_RESOLVER']
+
+  const grantParams = grantRolesWriteParameters(
+    walletClient as never,
+    {
+      registryAddress: ETH_REGISTRY,
+      account: grantee,
+      resource,
+      roles,
+    } as never,
+  )
+  const revokeParams = revokeRolesWriteParameters(
+    walletClient as never,
+    {
+      registryAddress: ETH_REGISTRY,
+      account: grantee,
+      resource,
+      roles,
+    } as never,
+  )
+  const grantData = encodeFunctionData({
+    abi: grantParams.abi,
+    functionName: grantParams.functionName,
+    args: grantParams.args as never,
+  } as never)
+  const revokeData = encodeFunctionData({
+    abi: revokeParams.abi,
+    functionName: revokeParams.functionName,
+    args: revokeParams.args as never,
+  } as never)
+
+  let lastHash: Hash | undefined
+  for (let n = 0; n < count; n++) {
+    lastHash = await walletClient.sendTransaction({
+      account: signer,
+      to: ETH_REGISTRY,
+      data: n % 2 === 0 ? grantData : revokeData,
+    })
+    await publicClient.waitForTransactionReceipt({ hash: lastHash })
+  }
+  return lastHash!
+}
 
 const REGISTRY_WRITE_ABI = parseAbi([
   'function setApprovalForAll(address operator, bool approved)',
@@ -551,5 +754,147 @@ test.describe('Portal name roles', () => {
       page.getByRole('button', { name: 'Add user' }),
       'and role management must not be offered on a slot nobody owns',
     ).toHaveCount(0)
+  })
+
+  /**
+   * Repro for a Slack report (Joe/Florin): the "parent registry / roles"
+   * panel showed "No role holders yet" for fox.eth even though its owner
+   * genuinely held roles on-chain. Florin's diagnosis: `useNameRoleAccounts.ts`
+   * fetches only the newest `MAX_EVENTS` (1000) `EACRolesChanged` events for
+   * the WHOLE `.eth` registry (`events(contractAddress:, first: 1000,
+   * orderBy: blockNumber desc)`), then filters to the name's own `resource`
+   * client-side. There is one such event per registration/grant and the live
+   * registry has ~170k of them, so the window covers only the newest ~3 days
+   * — a grant older than that never reaches the filter step, and the panel
+   * renders exactly the same empty state as a name that genuinely has no
+   * role holders (C7, C8). The fallback to an on-chain log scan
+   * (`getNameRoleAccounts`) only fires when the GraphQL call itself errors —
+   * a successful-but-incomplete response, which is what this is, never
+   * triggers it.
+   *
+   * Reproduced here without waiting on real wall-clock time: the same effect
+   * follows from >=1000 *other* `EACRolesChanged` events landing on the
+   * registry after a name's own grant, regardless of how much time passed —
+   * "age" is really "how many newer registry-wide events", which a test can
+   * manufacture directly.
+   *
+   * As in every other case in this file, the oracle is the on-chain role
+   * bitmap — never the table's own rendering, and never a mocked indexer
+   * response — so this proves the real query, against a real synced
+   * indexer, genuinely returns incomplete data once the window is exceeded.
+   */
+  test('an old role grant silently ages out of the panel once 1000 newer events land on the registry (E2E-009)', {
+    tag: ['@scenario:C1'],
+  }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    test.setTimeout(900_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = wallets.address('owner')
+    const name = await makeName({ label: 'roles-e2e009', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+
+    const before = (await readNameRoles({ label }, owner)).decoded
+    expect(
+      before.length,
+      'the owner should hold real roles from registration',
+    ).toBeGreaterThan(0)
+
+    // Baseline: while the grant event is still inside the newest-1000
+    // window, the panel correctly lists the owner. This rules out the
+    // panel being broken outright, isolating the failure to the flood.
+    await awaitIndexed(label, [owner])
+    await page.goto(rolesPage(name))
+    await expect(
+      parentRegistryRolesPanel(page).locator('tr', {
+        hasText: truncate(owner),
+      }),
+      'baseline: the owner should be listed while its grant is recent',
+    ).toHaveCount(1, { timeout: 30_000 })
+
+    // Flood the SAME registry with >1000 newer EACRolesChanged events on an
+    // unrelated resource — a throwaway name whose owner alternately grants
+    // and revokes one role to a third account. Nothing here touches the
+    // target name's own resource at all. This registry is shared and
+    // accumulates events for the life of the whole fork (every test that
+    // has run against it, this file's own C1-C12 included), so the flood's
+    // start block — not a count — is what "newer than the target" has to
+    // be measured against from here on.
+    const floodStartBlock = await publicClient.getBlockNumber()
+    const noiseOwner = wallets.account('manager')
+    const noiseName = await makeName({
+      label: 'roles-e2e009-noise',
+      owner: 'user2',
+    })
+    const noiseLabel = noiseName.replace(/\.eth$/, '')
+    const grantee = wallets.address('stranger')
+
+    // Padded well past MAX_EVENTS: a real Panoptes, measured directly, can
+    // permanently drop the last handful of blocks of a burst from its
+    // final backfill batch (reproduced even from a fully fresh, cold
+    // resync) — this margin absorbs that and still leaves the widened-
+    // window root-cause check below plenty of headroom.
+    const FLOOD_COUNT = MAX_EVENTS + 300
+    // Each transaction is sent and confirmed before the next, so this
+    // returns only once every flood transaction is already mined.
+    await floodRoleEvents({
+      label: noiseLabel,
+      signer: noiseOwner,
+      grantee,
+      count: FLOOD_COUNT,
+    })
+
+    // Confirm the newest MAX_EVENTS window is now made up *entirely* of
+    // events at or after the flood's start before asserting absence —
+    // otherwise "no rows" could just mean "not indexed yet", the
+    // different, already-documented indexer-lag race
+    // (helpers/indexer-sync.ts), not this defect. See
+    // {@link waitForWindowPastBlock} for why this, and not a raw event
+    // count or a specific block height, is the right precondition.
+    await waitForWindowPastBlock(floodStartBlock, MAX_EVENTS, 300_000)
+
+    // Nothing changed on-chain for the target name.
+    const after = (await readNameRoles({ label }, owner)).decoded
+    expect(
+      after,
+      'on-chain roles for the target name must be unaffected by the flood',
+    ).toEqual(before)
+
+    // Root-cause check, run against the indexer directly rather than
+    // through the UI: the target resource is genuinely absent from the
+    // exact newest-1000-event window the app queries, but present once the
+    // window is widened past every new event the flood produced — proving
+    // Panoptes DID index the event; the app just never asks far enough
+    // back to see it. `FLOOD_COUNT + 100`: comfortably more than the
+    // flood's own event count plus the noise name's registration grant —
+    // the only two sources of activity between the target's grant and now
+    // — so it reaches back past the target regardless of exactly how many
+    // trailing events Panoptes dropped.
+    const resource = labelToCanonicalId(label)
+    expect(
+      await indexerHasResourceInWindow(resource, MAX_EVENTS),
+      'the target resource must be absent from the exact window the app queries',
+    ).toBe(false)
+    expect(
+      await indexerHasResourceInWindow(resource, FLOOD_COUNT + 100),
+      'and present once the window is widened past every new event — the indexer has it; only the fixed window drops it',
+    ).toBe(true)
+
+    // A fresh navigation avoids the baseline visit's cached react-query
+    // result standing in for a real reload.
+    await page.goto(rolesPage(name))
+    const panel = parentRegistryRolesPanel(page)
+
+    // This is the defect: despite unchanged, real on-chain roles, the
+    // panel now reports the empty state — indistinguishable from a name
+    // that genuinely has no role holders.
+    await expect(
+      panel.getByText('No role holders yet'),
+      'BUG: the panel drops a real on-chain role holder once its grant ' +
+        'event ages past the newest 1000 registry-wide events, rendering ' +
+        'exactly the same empty state as "nobody holds any role"',
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(panel.locator('tr', { hasText: truncate(owner) })).toHaveCount(
+      0,
+    )
   })
 })

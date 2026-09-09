@@ -16,6 +16,9 @@ with its original, unweakened assertion).
 
 | ID | Scenario | App | Sev | Summary | Expected (oracle) | Repro | Issue | Status |
 |---|---|---|---|---|---|---|---|---|
+| E2E-009 | C1 | portal | S3 | Slack repro (Joe/Florin, fox.eth): the "parent registry / roles" panel reads role holders by replaying the newest `MAX_EVENTS` (hardcoded `1000`, `useNameRoleAccounts.ts:50`) `EACRolesChanged` events for the **whole `.eth` registry** (`events(contractAddress:, first: 1000, orderBy: blockNumber desc)`, `useNameRoleAccounts.ts:66-91`), then filters to the name's own `resource` client-side (`useNameRoleAccounts.ts:99-110`). There is one such event per registration/grant and the live registry has ~170k of them, so the window covers only the newest ~3 days — a grant older than that never reaches the filter step. The GraphQL call **succeeds** with a real (just incomplete) result, so the on-chain-log-scan fallback (`useNameRoleAccounts.ts:141-150`) never fires — it only triggers on a hard error. Same class of failure as the fixed "Panoptes indexed a stale contract set" blocker below (success-with-no-rows trusted as a confident empty state), but a different, still-live root cause: the query is fixed-size and unpaginated, not scoped to the resource, so this reproduces even on a fully healthy, fully synced indexer. Three sibling hooks share the identical `first: 1000`/`PAGE_SIZE: 1000` shape and are equally exposed: `useRegistryRoles.ts:32`, `useRegistryRoleHistoryForAccount.ts:41`, `useRoleHistory.ts:24` | A role holder must not disappear from the panel merely because >=1000 *other* `EACRolesChanged` events landed on the registry after their own grant — the panel must not render "No role holders yet" (indistinguishable from C7/C8's genuine empty state) for an account that `assertRoleBitmap` shows still holds roles on-chain | `pnpm e2e:portal --grep "ages out of the panel once 1000 newer events land"` (`roles.spec.ts`, tag `@scenario:C1`) — reproduced deterministically without waiting on real time: floods the registry with >1000 newer events on an unrelated resource, so "age" becomes something a test can manufacture directly rather than waiting ~3 days | _pending_ | open |
+| E2E-008 | E1 | portal | S3 | The indexer's `resolver.texts` (and presumably `.addresses`) field appears keyed by resolver **contract address alone**, not by `(address, node)`. Once two different names point their resolver slot at the same already-deployed resolver contract (`setResolver` — the resolver-level analogue of E2E-007's shared-registry pattern), each name's indexed text-key list bleeds into the other's, even though on-chain each node's records stay correctly scoped (verified directly: `text(nodeB, key)` reads empty on-chain while `domains(where:{name:B}).resolver.texts` reports the key). Confirmed deterministic once the indexer-sync race is handled (poll the writer's own domain until the new key appears before asserting on the other name) — an immediate, unwaited check on the reader can pass for the wrong reason | The indexer's `resolver.texts` for a name must reflect only keys ever written to *that name's own node*, never keys written to a different name that happens to share the same resolver contract | `pnpm e2e:portal --grep "shared by two names"` (`records.spec.ts`) | _pending_ | open |
+| E2E-007 | D9 | portal | S3 | A subname registered from a name's own `/subnames` page is misattributed to a *different* parent name, if that other name also points its subregistry at the same already-deployed registry contract (via "use a pre-existing registry contract" in `SubregistryConfigurator.tsx`). The indexer doesn't just misattribute the parent relation — it names the child domain entity using whichever name **currently** "owns" the shared registry pointer at index time (e.g. the entity is literally called `purple.kangaroo.eth`, never `purple.koala.eth`, even though `purple` was registered from `koala.eth`'s own `/create-subname` page): a single mutable registry → parent-name pointer, updated on `setSubregistry`, stamped onto every subsequent registration event from that registry regardless of which name's UI actually created it. Confirmed both when one wallet owns both names and when they are owned by two separate wallets (the latter needs an explicit `ROLE_REGISTRAR` grant to the second owner first, matching the Slack report). Mirror evidence also confirmed: the subname registered *before* the registry was shared stays correctly attributed to the original owner, and the second name's page shows both its own subname AND the misattributed one | A subname created from `koala.eth`'s own `/subnames` page must appear on `koala.eth`'s `/subnames` page, regardless of whether another name (`kangaroo.eth`) also uses `koala.eth`'s registry as its own subregistry | `pnpm e2e:portal --grep "subnames registered under a shared registry"` (`subnames.spec.ts` — two variants: same-owner and separate-owners) | _pending_ | open |
 | E2E-006 | MD5 | metadata | S3 | `POST /webhook` never purges the L0 edge cache (`caches.default`) for the unified metadata JSON route (`/:network/:registryType/:name`) — a changed record can stay stale there for up to `EDGE_CACHE_MAX_AGE_SECS` (300s) after a successful, accepted webhook call | `handleMetadata` (`src/index.ts`) puts every metadata JSON response into the L0 edge cache via `edgeCachePut`. `handleWebhook`'s purge loop only deletes `{registry,namewrapper}/{name}/{image,rasterize}` L0 keys (its own comment: "L0 only caches images/rasterize... metadata/migration-status carry their own short TTLs" — incorrect once `handleMetadata`'s `edgeCachePut` call is accounted for). The underlying KV (L1) cache IS correctly invalidated — confirmed by re-requesting the same name+registryType with a cache-busting query param (a different L0 key, unaffected by the gap, same KV key) and observing a fresh `last_request_date`. S3 not S2: a workaround exists (wait out the 5-minute L0 TTL, or vary the URL), and no other route is affected | Same exact URL, requested twice with no other change in between, after a real webhook call, should not return byte-identical `last_request_date` | `pnpm e2e:metadata --grep "@scenario:MD5"` (`cache-invalidation.spec.ts`, "does not purge the L0 edge cache") | _pending_ | open |
 | E2E-005 | MD6 | metadata | S2 | `GET /registry-hierarchy/:name` 500s unconditionally — every name, every network, every state (registered, unregistered, migrated, unmigrated, native) | `MetadataService.getRegistryHierarchy` (`src/services/metadata.ts`) → `CacheService.set` calls `KV.put` with `expiration_ttl: 30` for the hierarchy cache preset, but Cloudflare KV enforces a hard minimum of 60s (`400 Invalid expiration_ttl of 30. Expiration TTL must be at least 60.`) — the write throws, is not caught, and the whole request 500s instead of just skipping the cache (or 404ing, for an unregistered name — it never reaches the not-found check). Every other cached route uses a >=60s TTL and is unaffected (confirmed: `/migration-status` succeeds against the same names). Reproduced live against a mainnet name, a migrated sepolia name, and a never-registered sepolia name — identical stack trace all three times | 200 with the hierarchy JSON for a registered name (mirroring `/migration-status`), 404 for an unregistered one | `pnpm e2e:metadata --grep "@scenario:MD6"` (`dispatch-and-errors.spec.ts`, "registry-hierarchy") | _pending_ | open |
 | E2E-004 | ~~G* (all)~~ — **WITHDRAWN, not a real defect** | manager | — | ~~The dashboard's migration-eligibility query never settles~~ — misdiagnosed. The actual cause of the "Upgrade Names" flake was local test setup: `e2e/.env` had `E2E_MOCK_INDEXER=false`, so the browser hit the real local Panoptes indexer (`getMigratedNamesCount`, which also gates the banner) instead of the mock, and Panoptes in this session had known drift/health issues. With `E2E_MOCK_INDEXER=true` (matching `.env.ci`), the button appeared reliably across 8+ consecutive runs with zero failures. The render-level instrumentation that produced the original "isPending never settles" evidence was real but was observing symptoms of the unmocked, unhealthy indexer call, not an app query-key bug. Left as a row (rather than deleted) so nobody re-diagnoses the same wrong root cause | — | — | withdrawn |
@@ -28,6 +31,38 @@ Status legend for the row above: **fixed** = the code fix landed
 the regression test is committed (`ff2d85b30`), but this register will not say
 `verified` until that test is observed green in a run recorded by
 `pnpm e2e:coverage --results`.
+
+### E2E-007 is a display bug, not a protocol violation — scope confirmed on-chain
+
+A natural follow-up to E2E-007: once two names share a registry, is it even
+*valid* for the second name's subname path to resolve at all (e.g. `1.def`,
+never registered from `def.eth`'s own page)? Confirmed directly on-chain
+(`subnames.spec.ts`, "a shared registry resolves every label identically
+under every linked parent name, on-chain") — **yes, by protocol design**:
+
+- `PermissionedRegistry` stores owner / resolver / subregistry / expiry per
+  **label** (via its canonical id) with no notion of "which parent name I
+  belong to" anywhere in its state.
+- Once two 2LDs both point their subregistry slot at the same registry
+  contract, every label in it resolves identically (same owner, via ensjs's
+  `getOwner` — the same call the app itself uses) through **either** parent's
+  namespace, regardless of which parent's UI registered it and regardless of
+  order relative to the sharing. Verified for all three shapes: a label that
+  predates the sharing, one registered by the original owner afterward, and
+  one registered by the new linker.
+- So E2E-007's defect is precisely scoped: it is not that cross-resolution
+  happens at all (that's correct, intentional protocol behavior — there is no
+  "real" parent at the contract level, both are simultaneously valid) — it is
+  that the **indexer** behaves as if there is exactly one true parent and
+  silently, mutably picks the wrong one, then renders only that one choice.
+- Records do **not** share this symmetry, even though ownership does: a
+  resolver's text/addr storage is keyed by **node** (`namehash` of the full
+  dotted name), which differs between `1.abc` and `1.def` even when they
+  share the same resolver contract (resolver assignment, like ownership, is
+  per-label registry state — also symmetric). E2E-008 is the reverse-shaped
+  bug this creates: the indexer's `resolver.texts` conflates two nodes' keys
+  even though the resolver contract's own storage keeps them correctly
+  isolated.
 
 ---
 
@@ -52,6 +87,48 @@ table is the durable record.
 
 Not defects — the app behaves as designed — but they stop scenarios reaching a
 terminal state, so they are tracked here until fixed.
+
+### The live Sepolia `.eth` registry's own history now exceeds Anvil's `eth_getLogs` cap — blocks C1, C4, C5, C11, C12
+
+`helpers/role-assertions.ts`'s `readRoleHolders` (the on-chain oracle several
+roles tests assert against) calls ensjs's `getNameRoleAccounts`, which — like
+the app bug this file's E2E-009 is about — replays the registry's role-grant
+events from logs, but with no window at all: an unpaginated
+`eth_getLogs({ address: ETH_REGISTRY, topics: [EACRolesChanged], fromBlock: 0
+})`. That single call now fails outright:
+
+```
+InvalidParamsRpcError: query returns too many logs, narrow your filter: 20000
+```
+
+Confirmed **not** caused by anything in this repo or this test suite: a
+completely fresh `docker compose down && up` (new Anvil container, new fork
+from `SEPOLIA_FORK_URL` at whatever the live chain head is right now, empty
+Panoptes volume) reproduces it as the *first* thing that runs. Sampling
+`eth_getLogs` over the fork's history in 50k-block chunks directly against
+Anvil found **17,010+** matching logs even undercounting (one chunk itself
+exceeded the 20,000 cap and had to be skipped) — this is the real, deployed
+Sepolia `.eth` registry (`0xBDC85dD5…`), and its own organic usage across
+however many teams/bots exercise ENS v2 on Sepolia has apparently grown past
+the point an unpaginated full-history scan can read in one call. Verified
+independent of every local change: `git stash` (reverting to the untouched
+`roles.spec.ts`) and re-running C1 alone reproduces the identical error.
+
+This is a **standing, calendar-time-dependent flake**, not a one-off: since
+`SEPOLIA_FORK_URL` has no pinned block, every fresh fork inherits however much
+history real Sepolia has accumulated *as of whenever the container starts*,
+and that number only grows. It will keep failing (possibly intermittently, if
+the true count hovers near 20,000 and shifts with which block a given fork
+happens to land on) until `getNameRoleAccounts`/`readRoleHolders` either
+paginates, scopes by `resource` the way `useNameRoleAccounts.ts`'s indexer
+path does, or the fixture pins `SEPOLIA_FORK_URL` to a fixed, bounded block
+range instead of "current head."
+
+Does **not** affect E2E-009 (the new pagination-window test below): its
+on-chain oracle is `readNameRoles`/`assertRoleBitmap` → ensjs's
+`getNameRolesForAccount`, a single-account read rather than a full
+enumerate-every-holder log replay, and it passed repeatedly against this same
+fork. Only the "list every holder" shape of oracle is exposed to this.
 
 ### Panoptes indexed a stale contract set — FIXED 2026-08-10
 
@@ -84,7 +161,10 @@ Two things worth keeping:
   negative about permissions with no cross-check against chain. Plan K2 only
   specifies the indexer being *down*. If the roles table should never claim "no
   holders" without on-chain confirmation, that is a real S3 and needs an
-  `E2E-###` row — still awaiting a ruling.
+  `E2E-###` row — **now filed as E2E-009**, a different root cause in the same
+  failure class: not a misconfigured indexer, but a fixed-size, unscoped event
+  window (`MAX_EVENTS = 1000`) that drops old grants even when the indexer is
+  fully healthy and fully synced.
 
 ### Indexer lag races indexer-backed assertions
 
@@ -191,6 +271,29 @@ That adds **C14** (resolver per-key roles, `/resolver/$address/roles` →
 E11 passes on `/resolver/$address/nodes`, which does not go through that query
 — so the blocker is per-route, not per-section, and is worth checking before
 scoping any future batch that touches a detail page.
+
+**Widened again — even a `domains` entity can be permanently missing (2026-09-04):**
+found manually, not independently reproducible on demand, so recorded here
+rather than as an `E2E-###` row. A subname (`1.haha.eth`) that is genuinely
+registered on-chain right now — confirmed via the same `getOwner`/`getNameRegistries`
+calls the portal itself uses, non-zero owner, expiry decades out — has **no**
+`domains(where:{name:"1.haha.eth"})` entity at all (`[]`), and its parent's own
+`subdomains` list doesn't include it either. Two symptoms fall out of this
+directly, both indexer-caused, neither the app's fault:
+- `RecentHistoryTimeline` (`useNameHistoryTimeline.ts`, queries `domains(where:{name})`)
+  renders "No recent activity" for a name with a real registration event.
+- `useProfile.ts` discovers which text *keys* to even bother reading from chain
+  via `domains(where:{name}).resolver.texts`; with no entity at all, a genuinely
+  on-chain-set custom text key (confirmed directly: `text(node, key)` on the
+  resolver returns the real value) never gets read, so the Records page shows
+  nothing for it — not because the value is missing, but because the app never
+  learns the key exists.
+
+Unlike E2E-007/E2E-008 above, no reliable on-demand trigger for the *complete
+absence of a domain entity* has been found yet — it may be the same
+late-subregistry-discovery gap as `registries`/`resolvers` above, or a
+chain/indexer sync-point mismatch from an earlier fork reset. Worth a ruling
+once a deterministic repro exists.
 
 ### makeV1Name builds names in a V1 deployment the apps do not read (blocks all of §5.G / P3)
 
