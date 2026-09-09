@@ -132,8 +132,7 @@ export const buildTransferStepIntent = (
       .with(['set-registry-owner', { kind: 'v1-registry' }], () =>
         prepareSetV1RegistryOwnerTransaction(ctx),
       )
-      // The parent's move. Which contract depends on how the *subname* is held;
-      // the gate has already ruled out a parent held the other way.
+      // Which contract depends on how the *subname* is held.
       .with(
         ['set-subnode-owner', { kind: P.union('v1-wrapped', 'v1-registry') }],
         ([, { kind }]) =>

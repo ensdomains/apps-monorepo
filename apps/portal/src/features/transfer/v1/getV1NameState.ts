@@ -87,15 +87,11 @@ export type V1NameState = {
 export type V1NameReads = {
   readonly nameWrapper: Address
   readonly owner: GetOwnerReturnType
-  /** Null when the name is not wrapped — or wrapped with a zero owner. */
   readonly wrapped: GetWrapperDataReturnType
   readonly resolver: Address
-  /** Registrar expiry; only read for a `.eth` 2LD. */
   readonly expiry: GetExpiryReturnType | null
-  /** The parent's reads; only taken for a subname. */
   readonly parentOwner: GetOwnerReturnType | null
   readonly parentWrapped: GetWrapperDataReturnType | null
-  /** Registrar expiry of the `.eth` 2LD ancestor; only read below a 2LD. */
   readonly ancestorExpiry: GetExpiryReturnType | null
 }
 
@@ -150,11 +146,7 @@ const deriveSubject = (
     )
     .exhaustive()
 
-/**
- * Who holds the parent node and how. Mirrors `deriveSubject`'s reading of the
- * wrapper: a registry owner that is the NameWrapper with nobody behind it is a
- * wrapped parent whose emancipated expiry has lapsed.
- */
+/** As in `deriveSubject`, a registry slot held by the wrapper with nobody behind it is a lapsed emancipated name. */
 const deriveParent = (
   owner: GetOwnerReturnType,
   wrapped: GetWrapperDataReturnType,
@@ -190,11 +182,7 @@ const deriveParent = (
     .exhaustive()
 }
 
-/**
- * Pure: the shapes the contracts produce — an expired emancipated subname, a
- * grace-period parent, a registrar-level name with no registrant — are pinned
- * in `getV1NameState.test.ts`. Null when the name has no owner at any level.
- */
+/** Null when the name has no owner at any level. */
 export const deriveV1NameState = ({
   nameWrapper,
   owner,
