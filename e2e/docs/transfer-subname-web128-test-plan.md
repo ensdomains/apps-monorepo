@@ -184,9 +184,33 @@ intended scope is a product question.
 ### Not yet covered
 
 Automated: C2 (partial powers), D2/D3 (expiry), B3 (own-resolver transfer).
-**Manager entirely** — `setupControlledResolver`, edit-profile save and
-primary-name selection for a subname, which the PR author asked for
-specifically because the portal preview cannot exercise them.
+
+**Manager — checked by hand only, not automated.** The PR author asked for a
+pass on edit-profile and primary-name selection specifically because the portal
+preview cannot exercise them. What was confirmed by hand, against a seeded
+subname owned by the connected wallet (`VITE_USE_MOCK_WALLET=true
+VITE_FF_USE_EOA=true`):
+
+- `/{sub.parent.eth}` renders the profile with the correct owner and an
+  **Edit Profile** button. The route-level block is genuinely gone — on `main`
+  `setupControlledResolver` threw "This subname can't be set up here yet" for
+  anything not a 2LD.
+
+What is **not** confirmed, and is the highest-value gap remaining:
+
+- that a save actually reaches `ResolverSetupConfirmDialog` and completes;
+- that the resulting `setResolver` lands on the **parent's subregistry** rather
+  than the `.eth` registry — the single most important manager assertion in
+  this PR, since `resolveNameRegistry` replacing a hardcoded registry is the
+  whole manager change;
+- primary-name selection for a subname, in both its paths (`addr(60)` already
+  correct → skips setup; not correct → runs setup);
+- the new not-authorised copy ("…For a subname, the parent name's owner
+  controls this.").
+
+Automating these needs `playwright.manager.fixture.ts` to be able to make a
+subname — it currently cannot — plus the manager's transaction-driving
+helpers. That is a batch of its own, not a rider on this one.
 
 ---
 
