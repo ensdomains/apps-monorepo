@@ -1597,7 +1597,7 @@ const transferF: Scenario[] = [
     'transfer',
     'portal',
     'Transfer of a subname',
-    'currently unsupported — assert the explicit unsupported copy',
+    'offered: the Ownership tab shows the Transfer link and the route renders the form (WEB-128/#1120 removed the is2LD gate; the pre-#1120 refusal copy must be absent)',
   ),
   s(
     'F4',
@@ -2059,6 +2059,26 @@ const extraF: Scenario[] = suite('F', 'transfer', 'portal', 'P5', [
     'F14',
     'Transfer interrupted after step 1 of N',
     'state is recoverable and the user is told exactly what already executed (INV1)',
+  ],
+  [
+    'F15',
+    'Transfer a subname end to end',
+    "the token moves in the PARENT's subregistry, and the parent's own owner, resolver and subregistry pointer are byte-identical afterwards",
+  ],
+  [
+    'F16',
+    "Parent-authority warning enumerates exactly the powers the parent owner holds",
+    'the rendered clauses match the three hasRoles reads (ROLE_UNREGISTER on the subname resource, ROLE_REGISTRAR at ROOT 0, ROLE_SET_SUBREGISTRY on the parent token), and a 2LD shows no such warning at all',
+  ],
+  [
+    'F19',
+    'Transfer a subname that only INHERITS its parent resolver',
+    "neither the resolver-detach nor the set-eth-address option is offered, and the PARENT's resolver is byte-identical after the transfer",
+  ],
+  [
+    'F21',
+    'Subname whose owner lacks ROLE_CAN_TRANSFER_ADMIN',
+    '"Transfer not available" and no form — asserted with an owner who is NOT the subregistry deployer, since root roles would otherwise grant it back',
   ],
 ])
 

@@ -22,6 +22,7 @@ import { withChainSnapshot } from '../../../fixtures/chain-snapshot.js'
 import {
   registerSubname as createSubname,
   attachSubregistry as deployAndAttachSubregistry,
+  FULL_ROLE_BITMAP,
 } from '../../../fixtures/makeSubname.js'
 import { FUSES } from '../../../fixtures/makeV1Name.js'
 import {
@@ -160,6 +161,25 @@ function ownerHasRole(
     } as never,
   ) as Promise<boolean>
 }
+
+/**
+ * Role bit positions, as the registry packs them. Only the ones the subname
+ * scenarios withhold; everything else goes through `assertRoleBitmap` and the
+ * named `Role` strings.
+ */
+const ROLE_BIT = { canTransferAdmin: 28n } as const
+
+/**
+ * A full bitmap minus one role.
+ *
+ * Clears the whole **nybble** (`0xF`), not a single bit, because V2 packs a
+ * count into each one — and clears the admin counterpart 128 bits higher too.
+ * Masking only the admin half leaves the role itself set and `hasRoles` still
+ * answers true, which is precisely how the first draft of the F21 scenario
+ * silently tested nothing.
+ */
+const withoutRole = (bitmap: bigint, shift: bigint): bigint =>
+  bitmap & ~(0xfn << shift) & ~(0xfn << (shift + 128n))
 
 /** Write `addr(60)` on `name`'s resolver, signed by `ownerPrivateKey`. */
 async function setEthAddressRecord(
@@ -565,16 +585,25 @@ test.describe('Portal name transfer', () => {
   })
 
   /**
-   * Subname transfers are deliberately **not** offered yet (commit 2be99824b,
-   * "enhance transfer logic with subname validation"). Both surfaces gate on
-   * `is2LD(name)`, which is false for anything deeper than `label.eth`.
+   * The gate this test was written against is **gone** (WEB-128 / #1120).
    *
-   * Note this is a client-side gate only: the owner of a subname that holds
-   * ROLE_CAN_TRANSFER_ADMIN can still move the ERC-1155 token directly on-chain
-   * (an earlier revision of this test did exactly that, successfully). The test
-   * below therefore asserts what the *UI* offers, not what the chain permits.
+   * Until then both surfaces gated on `is2LD(name)` — false for anything
+   * deeper than `label.eth` — and the route rendered "Transferring subnames
+   * isn't supported yet". That was only ever a client-side gate: a subname
+   * owner holding ROLE_CAN_TRANSFER_ADMIN could always move the ERC-1155
+   * token directly on-chain, which an earlier revision of this test did
+   * successfully. #1120 removes the gate and adds real machinery in its place
+   * (parent-authority warning, expiry check, own-vs-inherited resolver), each
+   * covered by its own case in the "subnames" describe block below.
+   *
+   * F3's oracle changed with it: the catalogue previously specified "assert
+   * the explicit unsupported copy; flip when support lands". This is that
+   * flip, so this test now asserts the entry points are OFFERED. The removed
+   * copy is asserted absent too — a half-reverted gate that hides the link
+   * but leaves the route working (or vice versa) is exactly the regression
+   * worth catching, and neither assertion alone would catch it.
    */
-  test('does not offer transfer for a subname', {
+  test('offers transfer for a subname', {
     tag: ['@scenario:F3'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
@@ -603,22 +632,27 @@ test.describe('Portal name transfer', () => {
     )
     const name = `sub.${parentName}`
 
-    // ── 1. The Ownership tab offers no entry point ────────────────────
+    // ── 1. The Ownership tab offers the entry point ───────────────────
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership`)
     await expect(page.getByRole('heading', { name: 'Ownership' })).toBeVisible({
       timeout: 30_000,
     })
-    await expect(page.getByRole('link', { name: 'Transfer' })).toBeHidden()
+    await expect(
+      page.getByRole('link', { name: 'Transfer' }),
+      'a subname whose owner holds ROLE_CAN_TRANSFER_ADMIN must be offered the Transfer link',
+    ).toBeVisible({ timeout: 30_000 })
 
-    // ── 2. ...and the route itself explains why, with no form ─────────
+    // ── 2. ...and the route renders the form, not the old refusal ─────
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
-    await expect(page.getByText('Transfer not available')).toBeVisible({
-      timeout: 30_000,
-    })
+    await expect(
+      page.getByPlaceholder('ENS name or address'),
+      'the transfer route must render the recipient form for a subname',
+    ).toBeVisible({ timeout: 30_000 })
     await expect(
       page.getByText(/Transferring subnames isn’t supported yet/),
-    ).toBeVisible()
-    await expect(page.getByPlaceholder('ENS name or address')).toBeHidden()
+      'the pre-#1120 refusal copy must be gone (curly apostrophe — it is a literal in the removed MessageCard)',
+    ).toBeHidden()
+    await expect(page.getByText('Transfer not available')).toBeHidden()
 
     // ── 3. The parent (a 2LD) is unaffected and still transferable ────
     await page.goto(`${PORTAL_APP_URL}/${parentName}/ownership`)
@@ -1515,5 +1549,336 @@ test.describe('Portal name transfer — migrated V1 names', () => {
       dialog.getByText(/fail|error|revert|unable/i).first(),
       'the failed step must be surfaced, not left hanging',
     ).toBeVisible({ timeout: 30_000 })
+  })
+})
+
+/**
+ * Subname transfer — WEB-128 / #1120.
+ *
+ * #1120 removes the `is2LD` gate and puts three genuinely new pieces of
+ * machinery in its place. Each is covered below, and each has a different
+ * registry as its subject, which is the whole difficulty of this feature:
+ *
+ * - a subname's token lives in the **parent's subregistry**, not `.eth`
+ * - `useParentAuthority`'s three reads span BOTH registries, and one of them
+ *   is at ROOT resource `0` rather than the name's own
+ * - `getOwnResolver` reads the subname's **own** registry slot, where the
+ *   pre-#1120 code read the UniversalResolver and so saw the *inherited* one
+ *
+ * Ground truth for every shape here is measured, not assumed — see
+ * `e2e/scripts/probe-subname-transfer.ts`, which seeds these same shapes and
+ * prints what the chain says. Two of the shapes below only work because that
+ * probe caught them being wrong the first time; the comments say which.
+ */
+test.describe('Portal name transfer — subnames', () => {
+  /**
+   * Parent 2LD + one subname inside it, with the knobs the scenarios vary.
+   *
+   * `owner` deliberately defaults to the *deployer*, and `subnameOwner` exists
+   * so a scenario can hand the subname to somebody else. That distinction is
+   * load-bearing: `hasRoles` resolves
+   * `roles[ROOT_RESOURCE][account] | roles[resource][account]`, so whoever
+   * deployed the subregistry holds every role at its root and a revoke on the
+   * subname's own resource reads as no revoke at all. Measured — the probe's
+   * first run reported a full transfer role on a subname it had explicitly
+   * withheld it from.
+   */
+  async function makeSubnameUnder(
+    {
+      parentLabel,
+      subLabel = 'sub',
+      subnameOwner,
+      roleBitmap = FULL_ROLE_BITMAP,
+    }: {
+      parentLabel: string
+      subLabel?: string
+      subnameOwner?: Address
+      roleBitmap?: bigint
+    },
+    deployerKey: Hash,
+  ): Promise<{ subregistry: Address }> {
+    const deployer = privateKeyToAccount(deployerKey)
+    const subregistry = await deployAndAttachSubregistry(
+      { label: parentLabel },
+      deployer,
+    )
+    await createSubname(
+      {
+        registryAddress: subregistry,
+        label: subLabel,
+        parentLabel,
+        owner: subnameOwner,
+        roleBitmap,
+      },
+      deployer,
+    )
+    return { subregistry }
+  }
+
+  /** The `[role="alert"]` carrying the parent-authority warning, if any. */
+  const parentAuthorityAlert = (page: Page) =>
+    page.locator('[role="alert"]', { hasText: 'is a subname of' })
+
+  const transferRoute = (name: string) =>
+    `${PORTAL_APP_URL}/${name}/ownership/transfer`
+
+  test('transfers a subname, moving the token in the parent subregistry and leaving the parent untouched', {
+    tag: ['@scenario:F15'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+    const parentName = await makeName({ label: 'sub-xfer-f15', owner: 'user' })
+    const parentLabel = parentName.replace(/\.eth$/, '')
+    const { subregistry } = await makeSubnameUnder(
+      { parentLabel },
+      accounts.getPrivateKey('user'),
+    )
+    const name = `sub.${parentName}`
+
+    // Pre-state on the PARENT, so the post-transfer check can prove the
+    // parent's own token was not collateral damage.
+    const [parentResolverBefore, parentSubregistryBefore] =
+      await readResolverAndSubregistry(parentLabel)
+    const parentOwnerBefore = await ownerOfName(parentLabel)
+
+    expect(
+      (await getOwner(publicClient as never, { name })) as Address,
+      'the subname should start out owned by the connected wallet',
+    ).toBe(owner)
+
+    await page.goto(transferRoute(name))
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    // The button stays disabled until the detach-target reads AND the
+    // parent-authority reads have settled, so wait on the control rather than
+    // on a fixed delay.
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+    await transferButton.click()
+
+    // Inherited resolver and no subregistry of its own, so the plan is the
+    // single-step one: nothing to detach.
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'transfer-token'),
+    ])
+
+    // Chain first — the rendering is checked after, never instead.
+    await expect
+      .poll(
+        async () =>
+          ((await getOwner(publicClient as never, { name })) as Address) ?? '',
+        {
+          message: 'the subname token must move to the recipient',
+          timeout: 60_000,
+        },
+      )
+      .toBe(recipient)
+
+    // The parent is a different token in a different registry and must be
+    // completely unaffected — owner, resolver and subregistry pointer alike.
+    expect(await ownerOfName(parentLabel)).toBe(parentOwnerBefore)
+    const [parentResolverAfter, parentSubregistryAfter] =
+      await readResolverAndSubregistry(parentLabel)
+    expect(
+      parentResolverAfter,
+      "transferring a subname must not touch the parent's resolver",
+    ).toBe(parentResolverBefore)
+    expect(
+      parentSubregistryAfter.toLowerCase(),
+      'and must leave the parent still pointing at the same subregistry',
+    ).toBe(parentSubregistryBefore.toLowerCase())
+    expect(
+      parentSubregistryAfter.toLowerCase(),
+      'sanity: that subregistry is the one the subname lives in',
+    ).toBe(subregistry.toLowerCase())
+  })
+
+  test('warns that the parent owner keeps authority, listing exactly the powers they hold', {
+    tag: ['@scenario:F16'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(240_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const parentName = await makeName({ label: 'sub-xfer-f16', owner: 'user' })
+    const parentLabel = parentName.replace(/\.eth$/, '')
+    await makeSubnameUnder({ parentLabel }, accounts.getPrivateKey('user'))
+    const name = `sub.${parentName}`
+
+    await page.goto(transferRoute(name))
+
+    const alert = parentAuthorityAlert(page)
+    await expect(
+      alert,
+      'a subname must warn about the parent owner',
+    ).toBeVisible({ timeout: 60_000 })
+
+    // Asserted on textContent rather than with getByText: the parent name is
+    // rendered inside its own <span>, so the sentence is split across DOM
+    // nodes and a whole-string text matcher never matches.
+    const text = (await alert.textContent()) ?? ''
+
+    // The connected wallet owns the parent here, so the copy addresses them
+    // directly and uses the self-referential closer.
+    expect(
+      text,
+      'the parent owner is the reader, so the copy says so',
+    ).toContain('(you)')
+    expect(text).toContain(
+      `This transfer isn't final the way transferring ${parentLabel}.eth itself would be.`,
+    )
+
+    // The subregistry was deployed by the parent owner, who therefore holds
+    // all three powers — so all three clauses must appear, joined the way the
+    // component composes them.
+    expect(text).toContain(
+      'take it back at any time, without waiting for it to expire',
+    )
+    expect(text).toContain('issue it to someone else once it expires')
+    expect(text).toContain(
+      `point ${parentLabel}.eth at a different registry, which stops this name resolving no matter who owns it`,
+    )
+    expect(text, 'three powers must be joined "a; b; and c"').toContain(
+      '; and ',
+    )
+
+    // A 2LD has no parent whose owner could hold anything, so the same page
+    // for the parent must not carry the warning at all. Without this the test
+    // would pass against a build that showed the alert unconditionally.
+    await page.goto(transferRoute(parentName))
+    await expect(page.getByPlaceholder('ENS name or address')).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(
+      parentAuthorityAlert(page),
+      'a 2LD has no parent authority to warn about',
+    ).toHaveCount(0)
+  })
+
+  test('offers no resolver detach for a subname that only inherits its parent resolver', {
+    tag: ['@scenario:F19'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const recipient = accounts.getAddress('user2')
+    // `records` gives the PARENT a real resolver; the subname gets none of its
+    // own, so it merely inherits — the exact shape #1120's getOwnResolver
+    // changed behaviour for.
+    const parentName = await makeName({
+      label: 'sub-xfer-f19',
+      owner: 'user',
+      records: [{ key: 'description', value: 'parent with a resolver' }],
+    })
+    const parentLabel = parentName.replace(/\.eth$/, '')
+    const { subregistry } = await makeSubnameUnder(
+      { parentLabel },
+      accounts.getPrivateKey('user'),
+    )
+    const name = `sub.${parentName}`
+
+    const [parentResolverBefore] = await readResolverAndSubregistry(parentLabel)
+    expect(
+      parentResolverBefore,
+      'precondition: the parent must actually have a resolver to inherit',
+    ).not.toBe(zeroAddress)
+    expect(
+      await publicClient.readContract({
+        address: subregistry,
+        abi: permissionedRegistryGetResolverSnippet,
+        functionName: 'getResolver',
+        args: ['sub'],
+      }),
+      'precondition: and the subname must have none of its own',
+    ).toBe(zeroAddress)
+
+    await page.goto(transferRoute(name))
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+
+    // Before #1120 both of these rendered. The detach would have been a no-op
+    // write (the name kept resolving through the parent) and the ETH-address
+    // write would have targeted the PARENT's resolver — a contract the sender
+    // is usually not authorised on, so it reverted mid-plan.
+    await expect(
+      page.locator('#transfer-option-detachResolver'),
+      "an inherited resolver is not this name's to detach",
+    ).toHaveCount(0)
+    await expect(
+      page.locator('#transfer-option-setEthAddress'),
+      'and there is no own resolver to write addr(60) on',
+    ).toHaveCount(0)
+
+    await transferButton.click()
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'transfer-token'),
+    ])
+
+    await expect
+      .poll(
+        async () =>
+          ((await getOwner(publicClient as never, { name })) as Address) ?? '',
+        { message: 'the subname token must move', timeout: 60_000 },
+      )
+      .toBe(recipient)
+
+    // The point of the whole scenario: the parent's resolver is untouched.
+    const [parentResolverAfter] = await readResolverAndSubregistry(parentLabel)
+    expect(
+      parentResolverAfter,
+      "transferring a subname must never detach or repoint the PARENT's resolver",
+    ).toBe(parentResolverBefore)
+  })
+
+  test('refuses to transfer a subname whose owner lacks the transfer role', {
+    tag: ['@scenario:F21'],
+  }, async ({ portalPage: page, wallet, accounts, makeName, wallets }) => {
+    test.setTimeout(240_000)
+
+    // The subname is owned by `stranger`, NOT by the account that deployed the
+    // subregistry — otherwise root roles would grant the transfer role back
+    // regardless of the bitmap withheld here. Measured; see makeSubnameUnder.
+    const holder = wallets.address('stranger')
+    const parentName = await makeName({ label: 'sub-xfer-f21', owner: 'user' })
+    const parentLabel = parentName.replace(/\.eth$/, '')
+    const { subregistry } = await makeSubnameUnder(
+      {
+        parentLabel,
+        subnameOwner: holder,
+        roleBitmap: withoutRole(FULL_ROLE_BITMAP, ROLE_BIT.canTransferAdmin),
+      },
+      accounts.getPrivateKey('user'),
+    )
+    const name = `sub.${parentName}`
+
+    expect(
+      await hasRoles(
+        publicClient as never,
+        {
+          registryAddress: subregistry,
+          label: 'sub',
+          roles: ['ROLE_CAN_TRANSFER_ADMIN'],
+          account: holder,
+        } as never,
+      ),
+      'precondition: the holder must genuinely lack the transfer role',
+    ).toBe(false)
+
+    await connectWithHeadlessWallet(page, wallet)
+    await wallets.switchTo('stranger')
+
+    await page.goto(transferRoute(name))
+    await expect(
+      page.getByText('Transfer not available'),
+      'an owner without ROLE_CAN_TRANSFER_ADMIN must be refused',
+    ).toBeVisible({ timeout: 60_000 })
+    await expect(
+      page.getByPlaceholder('ENS name or address'),
+      'and must not be given the form anyway',
+    ).toBeHidden()
   })
 })
