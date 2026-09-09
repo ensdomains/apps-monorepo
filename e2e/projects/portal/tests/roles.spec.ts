@@ -127,9 +127,11 @@ const parentRegistryRolesPanel = (page: import('@playwright/test').Page) =>
     .locator('xpath=parent::div/following-sibling::*[1]')
 
 /**
- * `useNameRoleAccounts.ts`'s own limit, kept here rather than imported so
- * this repro fails loudly — not silently under-counts — if the app's
- * constant ever changes without this test being revisited.
+ * The registry-wide window size `useNameRoleAccounts.ts` used *before*
+ * E2E-009 was fixed. No longer an app constant — the app now reads
+ * resource-scoped logs — so this is purely the test's own parameter: the
+ * number of unrelated events the flood must exceed to recreate the
+ * historical failure condition the regression guard asserts against.
  */
 const MAX_EVENTS = 1000
 
@@ -140,10 +142,11 @@ type EACRolesChangedPayload = { resource?: string }
 
 /**
  * Newest `first` `EACRolesChanged` events for the whole `.eth` registry, each
- * paired with its block number — the exact query `useNameRoleAccounts.ts`
- * runs, plus `blockNumber` (a separate top-level field, not part of the
- * decoded payload) so callers can reason about *when* the window's contents
- * were written, not just how many there are.
+ * paired with its block number — the query `useNameRoleAccounts.ts` ran
+ * before E2E-009 was fixed, plus `blockNumber` (a separate top-level field,
+ * not part of the decoded payload) so callers can reason about *when* the
+ * window's contents were written, not just how many there are. Kept as the
+ * regression guard's precondition probe, not as a mirror of app code.
  *
  * This registry accumulates events across the whole session (every test that
  * has ever run against this fork, including this file's own C1-C12 grants),
@@ -173,9 +176,11 @@ async function newestRegistryRoleEvents(
 
 /**
  * Whether `resource` appears anywhere in the newest `first` registry-wide
- * events. Used to pin the root cause precisely: absent at `first: MAX_EVENTS`
- * but present once the window is widened proves the indexer *has* the event
- * and it is purely the fixed-size window dropping it, not an indexing gap.
+ * events. Absent at `first: MAX_EVENTS` but present once the window is
+ * widened proves the indexer *has* the event and only a fixed-size
+ * registry-wide window would miss it, rather than there being an indexing
+ * gap — which is what makes the flood a valid precondition rather than a
+ * silent no-op.
  */
 async function indexerHasResourceInWindow(
   resource: bigint,
@@ -757,33 +762,39 @@ test.describe('Portal name roles', () => {
   })
 
   /**
-   * Repro for a Slack report (Joe/Florin): the "parent registry / roles"
-   * panel showed "No role holders yet" for fox.eth even though its owner
-   * genuinely held roles on-chain. Florin's diagnosis: `useNameRoleAccounts.ts`
-   * fetches only the newest `MAX_EVENTS` (1000) `EACRolesChanged` events for
-   * the WHOLE `.eth` registry (`events(contractAddress:, first: 1000,
-   * orderBy: blockNumber desc)`), then filters to the name's own `resource`
-   * client-side. There is one such event per registration/grant and the live
-   * registry has ~170k of them, so the window covers only the newest ~3 days
-   * — a grant older than that never reaches the filter step, and the panel
-   * renders exactly the same empty state as a name that genuinely has no
-   * role holders (C7, C8). The fallback to an on-chain log scan
-   * (`getNameRoleAccounts`) only fires when the GraphQL call itself errors —
-   * a successful-but-incomplete response, which is what this is, never
-   * triggers it.
+   * Regression guard for E2E-009, which is now FIXED (#1131, #1133, #1137).
    *
-   * Reproduced here without waiting on real wall-clock time: the same effect
-   * follows from >=1000 *other* `EACRolesChanged` events landing on the
-   * registry after a name's own grant, regardless of how much time passed —
-   * "age" is really "how many newer registry-wide events", which a test can
-   * manufacture directly.
+   * The defect, from a Slack report (Joe/Florin): the "parent registry /
+   * roles" panel showed "No role holders yet" for fox.eth even though its
+   * owner genuinely held roles on-chain. `useNameRoleAccounts.ts` fetched
+   * only the newest `MAX_EVENTS` (1000) `EACRolesChanged` events for the
+   * WHOLE `.eth` registry, then filtered to the name's own `resource`
+   * client-side. There is one such event per registration/grant, so the
+   * window covered only the newest ~3 days of a busy registry — a grant
+   * older than that never reached the filter step, and the panel rendered
+   * exactly the same empty state as a name that genuinely has no role
+   * holders (C7, C8). The on-chain fallback only fired on a hard error, and
+   * a successful-but-incomplete response never triggered it.
+   *
+   * The fix reads role changes from indexed logs scoped to the resource
+   * (`lib/roles/roleChangeLogs.ts`), so registry-wide traffic is now
+   * irrelevant by construction. This test therefore asserts the OPPOSITE of
+   * what it was written to catch: the holder must survive the flood.
+   *
+   * The flood is kept rather than simplified away, because deleting it would
+   * leave nothing standing between this panel and a revert to a
+   * registry-wide window. It is also why the two `indexerHasResourceInWindow`
+   * checks below are kept — demoted from root-cause evidence to
+   * PRECONDITIONS. Without them a broken flood would make this test pass
+   * vacuously, which is the exact "passes for the wrong reason" failure this
+   * file's other cases are written to avoid.
    *
    * As in every other case in this file, the oracle is the on-chain role
    * bitmap — never the table's own rendering, and never a mocked indexer
-   * response — so this proves the real query, against a real synced
-   * indexer, genuinely returns incomplete data once the window is exceeded.
+   * response. (The portal fixture installs no indexer mock; only the manager
+   * fixture does. This runs against real Panoptes.)
    */
-  test('an old role grant silently ages out of the panel once 1000 newer events land on the registry (E2E-009)', {
+  test('keeps listing a role holder after 1000 newer events land on the registry (E2E-009 regression)', {
     tag: ['@scenario:C1'],
   }, async ({ portalPage: page, wallet, makeName, wallets }) => {
     test.setTimeout(900_000)
@@ -799,9 +810,9 @@ test.describe('Portal name roles', () => {
       'the owner should hold real roles from registration',
     ).toBeGreaterThan(0)
 
-    // Baseline: while the grant event is still inside the newest-1000
-    // window, the panel correctly lists the owner. This rules out the
-    // panel being broken outright, isolating the failure to the flood.
+    // Baseline: before any flood, the panel lists the owner. This rules out
+    // the panel being broken outright, so that if the post-flood assertion
+    // ever fails it can only be the flood that caused it.
     await awaitIndexed(label, [owner])
     await page.goto(rolesPage(name))
     await expect(
@@ -859,24 +870,26 @@ test.describe('Portal name roles', () => {
       'on-chain roles for the target name must be unaffected by the flood',
     ).toEqual(before)
 
-    // Root-cause check, run against the indexer directly rather than
-    // through the UI: the target resource is genuinely absent from the
-    // exact newest-1000-event window the app queries, but present once the
-    // window is widened past every new event the flood produced — proving
-    // Panoptes DID index the event; the app just never asks far enough
-    // back to see it. `FLOOD_COUNT + 100`: comfortably more than the
-    // flood's own event count plus the noise name's registration grant —
-    // the only two sources of activity between the target's grant and now
-    // — so it reaches back past the target regardless of exactly how many
-    // trailing events Panoptes dropped.
+    // PRECONDITION, not an assertion about the app: prove the flood really
+    // did recreate the adverse condition. The target resource must now be
+    // absent from a newest-1000 registry-wide window, but still present once
+    // that window is widened past everything the flood produced — i.e.
+    // Panoptes holds the event, and only a fixed registry-wide window would
+    // miss it. Without this pair, a flood that silently failed would make
+    // the assertion below pass while proving nothing.
+    //
+    // `FLOOD_COUNT + 100`: comfortably more than the flood's own event count
+    // plus the noise name's registration grant — the only two sources of
+    // activity between the target's grant and now — so it reaches back past
+    // the target regardless of how many trailing events Panoptes dropped.
     const resource = labelToCanonicalId(label)
     expect(
       await indexerHasResourceInWindow(resource, MAX_EVENTS),
-      'the target resource must be absent from the exact window the app queries',
+      'precondition: the target resource must have fallen out of a newest-1000 registry-wide window',
     ).toBe(false)
     expect(
       await indexerHasResourceInWindow(resource, FLOOD_COUNT + 100),
-      'and present once the window is widened past every new event — the indexer has it; only the fixed window drops it',
+      'precondition: and still be present once the window is widened — the indexer has it, so absence above is the window, not a gap',
     ).toBe(true)
 
     // A fresh navigation avoids the baseline visit's cached react-query
@@ -884,17 +897,18 @@ test.describe('Portal name roles', () => {
     await page.goto(rolesPage(name))
     const panel = parentRegistryRolesPanel(page)
 
-    // This is the defect: despite unchanged, real on-chain roles, the
-    // panel now reports the empty state — indistinguishable from a name
-    // that genuinely has no role holders.
+    // The fix, asserted: the query is scoped to the resource and reads
+    // indexed logs, so a registry-wide window that no longer contains the
+    // grant is irrelevant. The holder stays listed.
+    await expect(
+      panel.locator('tr', { hasText: truncate(owner) }),
+      'the owner must still be listed: role reads are scoped to the ' +
+        "name's own resource, so 1000+ unrelated registry events cannot " +
+        'age a real on-chain grant out of the panel (E2E-009)',
+    ).toHaveCount(1, { timeout: 30_000 })
     await expect(
       panel.getByText('No role holders yet'),
-      'BUG: the panel drops a real on-chain role holder once its grant ' +
-        'event ages past the newest 1000 registry-wide events, rendering ' +
-        'exactly the same empty state as "nobody holds any role"',
-    ).toBeVisible({ timeout: 30_000 })
-    await expect(panel.locator('tr', { hasText: truncate(owner) })).toHaveCount(
-      0,
-    )
+      'and the empty state — indistinguishable from "nobody holds any role" — must not be shown',
+    ).toBeHidden()
   })
 })

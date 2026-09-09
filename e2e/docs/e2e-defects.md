@@ -16,7 +16,7 @@ with its original, unweakened assertion).
 
 | ID | Scenario | App | Sev | Summary | Expected (oracle) | Repro | Issue | Status |
 |---|---|---|---|---|---|---|---|---|
-| E2E-009 | C1 | portal | S3 | Slack repro (Joe/Florin, fox.eth): the "parent registry / roles" panel reads role holders by replaying the newest `MAX_EVENTS` (hardcoded `1000`, `useNameRoleAccounts.ts:50`) `EACRolesChanged` events for the **whole `.eth` registry** (`events(contractAddress:, first: 1000, orderBy: blockNumber desc)`, `useNameRoleAccounts.ts:66-91`), then filters to the name's own `resource` client-side (`useNameRoleAccounts.ts:99-110`). There is one such event per registration/grant and the live registry has ~170k of them, so the window covers only the newest ~3 days — a grant older than that never reaches the filter step. The GraphQL call **succeeds** with a real (just incomplete) result, so the on-chain-log-scan fallback (`useNameRoleAccounts.ts:141-150`) never fires — it only triggers on a hard error. Same class of failure as the fixed "Panoptes indexed a stale contract set" blocker below (success-with-no-rows trusted as a confident empty state), but a different, still-live root cause: the query is fixed-size and unpaginated, not scoped to the resource, so this reproduces even on a fully healthy, fully synced indexer. Three sibling hooks share the identical `first: 1000`/`PAGE_SIZE: 1000` shape and are equally exposed: `useRegistryRoles.ts:32`, `useRegistryRoleHistoryForAccount.ts:41`, `useRoleHistory.ts:24` | A role holder must not disappear from the panel merely because >=1000 *other* `EACRolesChanged` events landed on the registry after their own grant — the panel must not render "No role holders yet" (indistinguishable from C7/C8's genuine empty state) for an account that `assertRoleBitmap` shows still holds roles on-chain | `pnpm e2e:portal --grep "ages out of the panel once 1000 newer events land"` (`roles.spec.ts`, tag `@scenario:C1`) — reproduced deterministically without waiting on real time: floods the registry with >1000 newer events on an unrelated resource, so "age" becomes something a test can manufacture directly rather than waiting ~3 days | _pending_ | open |
+| E2E-009 | C1 | portal | S3 | **FIXED upstream by #1131, #1133, #1137.** Was: the "parent registry / roles" panel read role holders by replaying the newest `MAX_EVENTS` (hardcoded `1000`) `EACRolesChanged` events for the **whole `.eth` registry** (`events(contractAddress:, first: 1000, orderBy: blockNumber desc)`), then filtering to the name's own `resource` client-side. There is one such event per registration/grant and the live registry has ~170k of them, so the window covered only the newest ~3 days — a grant older than that never reached the filter step. The GraphQL call **succeeded** with a real (just incomplete) result, so the on-chain-log-scan fallback never fired; it only triggered on a hard error. Same class as the fixed "Panoptes indexed a stale contract set" blocker below (success-with-no-rows trusted as a confident empty state), but a distinct root cause: the query was fixed-size and unscoped, so it reproduced even on a fully healthy, fully synced indexer. The fix moves every role query onto one resource-scoped indexed-log helper (`apps/portal/src/lib/roles/roleChangeLogs.ts`), so registry-wide traffic is now irrelevant by construction; `useRegistryRoles.ts` was deleted and the three sibling hooks that shared the identical `first: 1000` shape (`useRegistryRoleHistoryForAccount.ts`, `useRoleHistory.ts`, and the root-holder query) all read through it now | A role holder must not disappear from the panel merely because >=1000 *other* `EACRolesChanged` events landed on the registry after their own grant — the panel must not render "No role holders yet" (indistinguishable from C7/C8's genuine empty state) for an account that `assertRoleBitmap` shows still holds roles on-chain | `pnpm e2e:portal --grep "@scenario:C1"` (`roles.spec.ts`, "keeps listing a role holder after 1000 newer events land on the registry"). The test was inverted in place rather than deleted: it still floods the registry with >1000 newer events on an unrelated resource, still asserts the flood genuinely pushed the target out of a newest-1000 registry-wide window (now a precondition, so a silently-failed flood cannot make it pass vacuously), and then asserts the holder **survives** — which is what a revert to a registry-wide window would break | [#1131](https://github.com/ensdomains/apps-monorepo/pull/1131), [#1133](https://github.com/ensdomains/apps-monorepo/pull/1133), [#1137](https://github.com/ensdomains/apps-monorepo/pull/1137) | fixed |
 | E2E-008 | E1 | portal | S3 | The indexer's `resolver.texts` (and presumably `.addresses`) field appears keyed by resolver **contract address alone**, not by `(address, node)`. Once two different names point their resolver slot at the same already-deployed resolver contract (`setResolver` — the resolver-level analogue of E2E-007's shared-registry pattern), each name's indexed text-key list bleeds into the other's, even though on-chain each node's records stay correctly scoped (verified directly: `text(nodeB, key)` reads empty on-chain while `domains(where:{name:B}).resolver.texts` reports the key). Confirmed deterministic once the indexer-sync race is handled (poll the writer's own domain until the new key appears before asserting on the other name) — an immediate, unwaited check on the reader can pass for the wrong reason | The indexer's `resolver.texts` for a name must reflect only keys ever written to *that name's own node*, never keys written to a different name that happens to share the same resolver contract | `pnpm e2e:portal --grep "shared by two names"` (`records.spec.ts`) | _pending_ | open |
 | E2E-007 | D9 | portal | S3 | A subname registered from a name's own `/subnames` page is misattributed to a *different* parent name, if that other name also points its subregistry at the same already-deployed registry contract (via "use a pre-existing registry contract" in `SubregistryConfigurator.tsx`). The indexer doesn't just misattribute the parent relation — it names the child domain entity using whichever name **currently** "owns" the shared registry pointer at index time (e.g. the entity is literally called `purple.kangaroo.eth`, never `purple.koala.eth`, even though `purple` was registered from `koala.eth`'s own `/create-subname` page): a single mutable registry → parent-name pointer, updated on `setSubregistry`, stamped onto every subsequent registration event from that registry regardless of which name's UI actually created it. Confirmed both when one wallet owns both names and when they are owned by two separate wallets (the latter needs an explicit `ROLE_REGISTRAR` grant to the second owner first, matching the Slack report). Mirror evidence also confirmed: the subname registered *before* the registry was shared stays correctly attributed to the original owner, and the second name's page shows both its own subname AND the misattributed one | A subname created from `koala.eth`'s own `/subnames` page must appear on `koala.eth`'s `/subnames` page, regardless of whether another name (`kangaroo.eth`) also uses `koala.eth`'s registry as its own subregistry | `pnpm e2e:portal --grep "subnames registered under a shared registry"` (`subnames.spec.ts` — two variants: same-owner and separate-owners) | _pending_ | open |
 | E2E-006 | MD5 | metadata | S3 | `POST /webhook` never purges the L0 edge cache (`caches.default`) for the unified metadata JSON route (`/:network/:registryType/:name`) — a changed record can stay stale there for up to `EDGE_CACHE_MAX_AGE_SECS` (300s) after a successful, accepted webhook call | `handleMetadata` (`src/index.ts`) puts every metadata JSON response into the L0 edge cache via `edgeCachePut`. `handleWebhook`'s purge loop only deletes `{registry,namewrapper}/{name}/{image,rasterize}` L0 keys (its own comment: "L0 only caches images/rasterize... metadata/migration-status carry their own short TTLs" — incorrect once `handleMetadata`'s `edgeCachePut` call is accounted for). The underlying KV (L1) cache IS correctly invalidated — confirmed by re-requesting the same name+registryType with a cache-busting query param (a different L0 key, unaffected by the gap, same KV key) and observing a fresh `last_request_date`. S3 not S2: a workaround exists (wait out the 5-minute L0 TTL, or vary the URL), and no other route is affected | Same exact URL, requested twice with no other change in between, after a real webhook call, should not return byte-identical `last_request_date` | `pnpm e2e:metadata --grep "@scenario:MD5"` (`cache-invalidation.spec.ts`, "does not purge the L0 edge cache") | _pending_ | open |
@@ -92,8 +92,8 @@ terminal state, so they are tracked here until fixed.
 
 `helpers/role-assertions.ts`'s `readRoleHolders` (the on-chain oracle several
 roles tests assert against) calls ensjs's `getNameRoleAccounts`, which — like
-the app bug this file's E2E-009 is about — replays the registry's role-grant
-events from logs, but with no window at all: an unpaginated
+the app bug E2E-009 was about, before #1131 fixed the app side — replays the
+registry's role-grant events from logs, but with no window at all: an unpaginated
 `eth_getLogs({ address: ETH_REGISTRY, topics: [EACRolesChanged], fromBlock: 0
 })`. That single call now fails outright:
 
@@ -117,14 +117,39 @@ independent of every local change: `git stash` (reverting to the untouched
 This is a **standing, calendar-time-dependent flake**, not a one-off: since
 `SEPOLIA_FORK_URL` has no pinned block, every fresh fork inherits however much
 history real Sepolia has accumulated *as of whenever the container starts*,
-and that number only grows. It will keep failing (possibly intermittently, if
-the true count hovers near 20,000 and shifts with which block a given fork
-happens to land on) until `getNameRoleAccounts`/`readRoleHolders` either
-paginates, scopes by `resource` the way `useNameRoleAccounts.ts`'s indexer
-path does, or the fixture pins `SEPOLIA_FORK_URL` to a fixed, bounded block
-range instead of "current head."
+and that number only grows.
 
-Does **not** affect E2E-009 (the new pagination-window test below): its
+**Still reproduces after the merge with main (re-measured 2026-09-09** on a
+fresh `down`/`up` with the Panoptes volume wiped, fork head `11668103`**).**
+The fix, however, is now known exactly, because the same three PRs that fixed
+E2E-009 solved this on the app side. Three variants measured directly against
+this fork:
+
+| `eth_getLogs` shape | Result |
+|---|---|
+| `fromBlock: 0`, unscoped (what ensjs's `getNameRoleAccounts` does today) | **fails** — `query returns too many logs` |
+| `fromBlock: 11_383_818` (registry deploy), still unscoped | **fails** — the floor buys nothing, since the registry did not exist before it, so every one of its logs is inside the range anyway |
+| `fromBlock: 11_383_818` **+ `args: { resource }`** | **succeeds** |
+
+So the answer is **resource scoping**, not pagination and not pinning
+`SEPOLIA_FORK_URL`. Two details make it work, both already solved in
+`apps/portal/src/lib/roles/roleChangeLogs.ts` (#1131/#1137) — copy that helper:
+
+- Filter on the **single** `EACRolesChanged` event, not ensjs's `eacRolesEvents`
+  array. With several events viem cannot apply the indexed `args` per event, so
+  the filter silently widens back to every role event on the registry. ensjs's
+  `getNameRoleAccounts` passes the array *and* `args: { resource }`, which is
+  why its scoping does not take effect.
+- Pair it with a `fromBlock` floor (`ROLES_FROM_BLOCK = 11_383_818n`) so the
+  scan does not walk pre-deployment history for nothing.
+
+ensjs's action does accept `fromBlock`/`toBlock`, but not a single-event
+filter, so `readRoleHolders` needs its own `getLogs` call rather than an extra
+argument. Not done here — it is unrelated to the PR this branch is currently
+QA'ing — but it is a small, well-understood change that would unblock five
+scenarios.
+
+Does **not** affect E2E-009's regression test: its
 on-chain oracle is `readNameRoles`/`assertRoleBitmap` → ensjs's
 `getNameRolesForAccount`, a single-account read rather than a full
 enumerate-every-holder log replay, and it passed repeatedly against this same
@@ -161,10 +186,13 @@ Two things worth keeping:
   negative about permissions with no cross-check against chain. Plan K2 only
   specifies the indexer being *down*. If the roles table should never claim "no
   holders" without on-chain confirmation, that is a real S3 and needs an
-  `E2E-###` row — **now filed as E2E-009**, a different root cause in the same
+  `E2E-###` row — was filed as **E2E-009**, a different root cause in the same
   failure class: not a misconfigured indexer, but a fixed-size, unscoped event
-  window (`MAX_EVENTS = 1000`) that drops old grants even when the indexer is
-  fully healthy and fully synced.
+  window (`MAX_EVENTS = 1000`) that dropped old grants even when the indexer
+  was fully healthy and fully synced. Fixed upstream by #1131/#1133/#1137,
+  which moved every role query onto a resource-scoped indexed-log read; the
+  broader question — whether the roles table should ever claim "no holders"
+  without on-chain confirmation — is now narrower but not formally ruled on.
 
 ### Indexer lag races indexer-backed assertions
 
