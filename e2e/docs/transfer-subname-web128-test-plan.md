@@ -147,18 +147,46 @@ Real Sepolia RPCs answer an indexed-topic `eth_getLogs` over the same range
 quickly, so this is a fork artifact. Worth re-measuring if the panel ever feels
 slow in a deployed environment.
 
-### SUB-F2 — Open question — an unresolvable parent renders silence, not "unknown"
+### SUB-F2 — **Confirmed defect** — an unresolvable parent renders silence, not "unknown"
 
-If the parent owner resolves to `zeroAddress` or cannot be resolved, all three
-role queries are `enabled: false`, so `hasAnyAuthority` is `false` and
-`isError` is `false` — and the component renders **nothing**. The hook's own
-doc comment says a failed read must be treated as *unknown*, never as *no
-authority*, and the error variant exists for exactly that. This path routes
-around it.
+`useParentAuthority` gates all three role queries on `hasParentOwner`, which is
+false when the parent owner reads as `zeroAddress` — an unowned or expired
+parent, or one the resolver cannot walk to. Every query is then disabled, so
+`hasAnyAuthority` is `false` **and** `isError` is `false`, and the component
+renders nothing at all.
 
-Not yet reproduced on demand — a deep subname with a partially unowned ancestor
-chain is the realistic trigger. Flagged for a ruling rather than filed as an
-`E2E-###`, per `e2e-build-goal.md` §12.
+Nothing is the same thing the user sees when the parent genuinely holds no
+power over the subname — which is the one case where transferring really *is*
+final. So the reader cannot distinguish "your parent can still take this back,
+we just could not check" from "this transfer is clean".
+
+That inverts the hook's own stated contract. Its `isError` comment says a
+failed read must be treated as unknown, never as no authority, and the error
+variant of the alert ("We couldn't check what its owner can still do to it…")
+exists precisely for this. The `zeroAddress` path routes around both.
+
+**Confirmed by unit test**, not by reading:
+
+```
+apps/portal/src/features/transfer/hooks/useParentAuthority.test.ts
+  × does not treat an unresolvable parent owner as "no authority"
+    expected false to be true
+```
+
+The PR's own nine cases for this hook all use a real parent owner
+(`parentOwnedBy(PARENT_OWNER)`); none covers a zero one, which is why the gap
+survived. The test is committed on the QA branch as evidence for the author.
+
+Filed at unit level rather than in `e2e-defects.md` deliberately: the failure
+is in a hook's branching, the fix belongs beside the other eight cases in that
+file, and constructing an unresolvable parent on a real chain is disproportionate
+for a condition a three-line stub proves. A browser-level repro would need a
+subname whose parent has been unregistered out from under it while the child
+stays resolvable, which the registry walk makes awkward to reach.
+
+**Severity: S3.** Nothing is lost or mis-written; the user is under-informed at
+the moment they decide, and the missing warning is the whole point of the
+feature #1120 adds.
 
 ### SUB-F3 — Open question — only the immediate parent is inspected
 
@@ -196,13 +224,21 @@ VITE_FF_USE_EOA=true`):
   `setupControlledResolver` threw "This subname can't be set up here yet" for
   anything not a 2LD.
 
-What is **not** confirmed, and is the highest-value gap remaining:
+**Corrected**: an earlier draft of this section called the parent-registry
+assertion "the highest-value gap remaining". That was wrong — the PR carries a
+unit test for exactly it, `"points a subname's resolver from its parent
+registry"`, alongside `"fails before any on-chain work when no registry holds
+the name"`. `setupControlledResolver.test.ts` covers 12 cases in total,
+including the ordering guarantees (no transaction before the access preflight,
+a re-check before the final one).
 
-- that a save actually reaches `ResolverSetupConfirmDialog` and completes;
-- that the resulting `setResolver` lands on the **parent's subregistry** rather
-  than the `.eth` registry — the single most important manager assertion in
-  this PR, since `resolveNameRegistry` replacing a hardcoded registry is the
-  whole manager change;
+What is genuinely not confirmed is narrower, and is about integration rather
+than logic:
+
+- that the flow works **against a real chain** — the unit tests mock the
+  contracts, so they cannot catch a wrong registry address, a role the fork
+  actually withholds, or a revert;
+- that a save reaches `ResolverSetupConfirmDialog` and completes in a browser;
 - primary-name selection for a subname, in both its paths (`addr(60)` already
   correct → skips setup; not correct → runs setup);
 - the new not-authorised copy ("…For a subname, the parent name's owner
