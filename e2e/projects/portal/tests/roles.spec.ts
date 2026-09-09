@@ -135,6 +135,25 @@ const parentRegistryRolesPanel = (page: import('@playwright/test').Page) =>
  */
 const MAX_EVENTS = 1000
 
+/**
+ * How long the "parent registry / roles" panel may take to settle.
+ *
+ * Generous on purpose. Since #1131/#1137 the panel reads role changes from
+ * on-chain logs (`getRoleChangeLogs`, `fromBlock: ROLES_FROM_BLOCK`) rather
+ * than from the indexer, and against a local Anvil fork that is a scan of
+ * ~284k blocks which Anvil serves in small chunks. Measured on this fork:
+ * **29.1s** from navigation to the first rendered row — under the 30s that
+ * used to be the timeout here by less than a second, which is exactly the
+ * shape of a test that passes on one machine and fails on the next.
+ *
+ * This is a property of the fork, not evidence of a product bug: real Sepolia
+ * RPCs answer an indexed-topic `eth_getLogs` over the same range quickly. It
+ * is worth re-measuring if the panel ever feels slow in a deployed
+ * environment, and worth revisiting here if it grows past this budget — the
+ * fork's history only gets longer.
+ */
+const ROLE_PANEL_TIMEOUT = 120_000
+
 const INDEXER_URL =
   process.env.E2E_INDEXER_GRAPHQL_URL ?? 'http://127.0.0.1:5655/graphql'
 
@@ -819,8 +838,8 @@ test.describe('Portal name roles', () => {
       parentRegistryRolesPanel(page).locator('tr', {
         hasText: truncate(owner),
       }),
-      'baseline: the owner should be listed while its grant is recent',
-    ).toHaveCount(1, { timeout: 30_000 })
+      'baseline: the owner should be listed before any flood',
+    ).toHaveCount(1, { timeout: ROLE_PANEL_TIMEOUT })
 
     // Flood the SAME registry with >1000 newer EACRolesChanged events on an
     // unrelated resource — a throwaway name whose owner alternately grants
@@ -905,7 +924,7 @@ test.describe('Portal name roles', () => {
       'the owner must still be listed: role reads are scoped to the ' +
         "name's own resource, so 1000+ unrelated registry events cannot " +
         'age a real on-chain grant out of the panel (E2E-009)',
-    ).toHaveCount(1, { timeout: 30_000 })
+    ).toHaveCount(1, { timeout: ROLE_PANEL_TIMEOUT })
     await expect(
       panel.getByText('No role holders yet'),
       'and the empty state — indistinguishable from "nobody holds any role" — must not be shown',

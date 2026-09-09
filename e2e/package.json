@@ -16,6 +16,9 @@
     "seed:name": "tsx scripts/seed-name.ts",
     "seed:premium": "tsx scripts/seed-temp-premium.ts",
     "seed:managed-name": "tsx scripts/seed-managed-name.ts",
+    "seed:transfer-names": "tsx scripts/seed-transfer-names.ts",
+    "seed:subname-transfer": "tsx scripts/seed-subname-transfer.ts",
+    "probe:subname-transfer": "tsx scripts/probe-subname-transfer.ts",
     "lint": "biome check",
     "typecheck": "tsc --noEmit"
   },

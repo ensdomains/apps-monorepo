@@ -222,7 +222,7 @@ not in single cells — which is why the migration matrix is a matrix.
 |---|---|---|
 | F1 | Transfer each migrated V1 type: unwrapped, unlocked, locked | plan step count per `buildTransferPlan`; **locked must not offer a `detach-registry` its owner cannot execute** (E2E-001) |
 | F2 | `CANNOT_TRANSFER` burnt in V1 | route shows transfer-unavailable (no `ROLE_CAN_TRANSFER_ADMIN`) |
-| F3 | Subname transfer | currently unsupported — assert the explicit copy; flip when support lands |
+| F3 | Subname transfer | offered: the Ownership tab shows the Transfer link **and** the route renders the form. WEB-128/#1120 removed the `is2LD` gate; the pre-#1120 refusal copy must be absent |
 | F4 | Transfer while expired | matches `test_transferWhileExpired` |
 | F5 | Transfer to a contract that cannot receive ERC-1155 | **must reject before any irreversible step** (E2E-002: today it detaches the resolver then hangs) |
 | F6 | Batch transfer, incl. one-error-aborts-all | `safeBatchTransferFrom` semantics |
@@ -234,6 +234,14 @@ not in single cells — which is why the migration matrix is a matrix.
 | F12 | Transfer with the resolver kept → ETH address repointed at the recipient | `addr()` = recipient |
 | F13 | Non-owner and disconnected visitors | not-authorized / connect prompt |
 | F14 | Transfer interrupted after step 1 of N | state recoverable; user told what already executed |
+| F15 | Transfer a subname end to end | token moves in the **parent's subregistry**; the parent's own owner, resolver and subregistry pointer byte-identical afterwards |
+| F16 | Parent-authority warning enumerates exactly the powers the parent owner holds | rendered clauses match the three `hasRoles` reads (`ROLE_UNREGISTER` on the subname resource, `ROLE_REGISTRAR` at ROOT `0`, `ROLE_SET_SUBREGISTRY` on the parent's token); a 2LD shows no such warning |
+| F19 | Transfer a subname that only **inherits** its parent resolver | neither the resolver-detach nor the set-eth-address option is offered, and the **parent's** resolver is byte-identical after the transfer |
+| F21 | Subname owner lacking `ROLE_CAN_TRANSFER_ADMIN` | "Transfer not available", no form — asserted with an owner who is **not** the subregistry deployer, since root roles would otherwise grant it back |
+
+F15–F21 are WEB-128/#1120. Plan:
+[`transfer-subname-web128-test-plan.md`](./transfer-subname-web128-test-plan.md);
+by hand: [`manual-subname-transfer.md`](./manual-subname-transfer.md).
 
 ### G — Migration V1→V2 · R0 · the deepest matrix
 
