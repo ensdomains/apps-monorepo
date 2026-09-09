@@ -135,6 +135,50 @@ cast call $ETH_REGISTRY "getResolver(string)(address)" <parentLabel>   # unchang
 The last one is the point: transferring a subname must never touch the
 parent's resolver.
 
+## Reproducing E2E-010 by hand
+
+The one confirmed portal defect in this PR. `useTransferName` re-reads the
+name's **own** resolver just before the `set-eth-addr` step runs, specifically
+to catch the state having changed since the form was drawn, and throws if it is
+gone. That guard cannot fire: `apps/portal/src/utils/queryClient.ts` sets a
+global `staleTime` of one hour, so the re-read is served from cache and never
+touches the chain.
+
+```bash
+SHAPE=stale-resolver pnpm --filter @ens-apps/e2e seed:subname-transfer
+```
+
+That shape is the only one that gives the subname **both** its own resolver and
+an `addr(60)` — the two conditions that make the app offer "Set the ETH address
+to the recipient" at all. It prints numbered steps with the commands already
+filled in; the shape of it is:
+
+1. Open the printed URL, paste any other address as the recipient.
+2. Turn **off** "Detach the resolver". `set-eth-addr` is only planned when the
+   resolver is being *kept*, so leaving it on removes the step you are testing.
+3. Wait for **Transfer name** to enable — but do not press it.
+4. In a second terminal, clear the resolver out from under the open page:
+   `NAME=<the name> pnpm --filter @ens-apps/e2e clear-own-resolver`
+5. **Without reloading**, press **Transfer name** → **Start** → **Open wallet**
+   for each step. A reload re-reads the chain and the bug disappears, which is
+   itself the tell.
+
+**What you should see:** "Update ETH address" turns green. That is the defect —
+by the time it ran, the name had no resolver of its own, and the code is
+written to refuse. Confirm the precondition genuinely held with the `cast`
+command the seeder prints; it must return the zero address.
+
+**What you should not over-read.** In this shape the record is not lost: the
+subname's own slot and its parent's held the same contract, so once the own
+slot is cleared the name inherits its way back to the very resolver that was
+written, and `addr(60)` still resolves. The harm is latent, and becomes real
+when the two resolvers differ — the ordinary case, and the one `getOwnResolver`
+exists to distinguish. The register says the same thing; do not report it as
+data loss.
+
+Automated equivalent: `pnpm e2e:portal --grep "E2E-010"`. It fails by design —
+it asserts the oracle, like the F5 and F14 defect tests.
+
 ## Making a subname expire
 
 The expiry gate compares a chain timestamp against the **browser's** clock, so

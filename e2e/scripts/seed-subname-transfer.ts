@@ -27,6 +27,7 @@
  */
 
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
+import { setRecords } from '@ensdomains/ensjs/wallet/v1'
 import {
   type Address,
   createWalletClient,
@@ -79,6 +80,10 @@ type Shape = {
   expect: string[]
   scenario: string
   ownResolver?: boolean
+  /** Write addr(60) on the subname, so the ETH-address option is offered. */
+  ethAddress?: boolean
+  /** Extra manual steps this shape needs beyond opening the URL. */
+  steps?: string[]
   /** Give the subname to somebody other than the parent owner. */
   subnameOwner?: 'user2' | 'user3'
   roleBitmap?: bigint
@@ -111,6 +116,29 @@ const SHAPES: Record<string, Shape> = {
     expect: [
       'BOTH the resolver-detach and set-eth-address options appear',
       'after transferring with defaults, the subname resolver is cleared and the PARENT resolver is unchanged',
+    ],
+  },
+  'stale-resolver': {
+    scenario: 'F20 / E2E-010',
+    ownResolver: true,
+    ethAddress: true,
+    what: 'own resolver AND an addr(60) — the setup for reproducing E2E-010 by hand',
+    expect: [
+      'the form offers three switches: detach resolver, detach registry (maybe), and Set the ETH address',
+      'after the steps below, "Update ETH address" reports SUCCESS — it should have refused',
+      'the bug: useTransferName re-reads the own resolver to catch exactly this, but queryClient.ts caches for an hour so the read never reaches the chain',
+    ],
+    steps: [
+      'open the URL below and paste any other address as the recipient',
+      'turn OFF "Detach the resolver" — set-eth-addr is only planned when the resolver is KEPT',
+      'wait for "Transfer name" to enable, but do NOT press it yet',
+      'in a second terminal, clear the resolver out from under the open form:',
+      '    NAME={name} pnpm --filter @ens-apps/e2e clear-own-resolver',
+      'WITHOUT reloading the page, press "Transfer name" — a reload re-reads the chain and the bug disappears',
+      'in the modal press "Start", then "Open wallet" for each step (the mock wallet signs for you; there is no popup)',
+      'watch "Update ETH address" go green. THAT is the bug: the name had no resolver of its own by then, and the step is coded to refuse',
+      'confirm the precondition really held — this must print the zero address:',
+      '    cast call {subregistry} "getResolver(string)(address)" sub --rpc-url http://127.0.0.1:8545',
     ],
   },
   'no-transfer-role': {
@@ -173,6 +201,21 @@ async function seed(key: string, shape: Shape) {
     await publicClient.waitForTransactionReceipt({ hash })
   }
 
+  if (shape.ethAddress) {
+    const resolver = await publicClient.readContract({
+      address: subregistry,
+      abi: REGISTRY_ABI,
+      functionName: 'getResolver',
+      args: ['sub'],
+    })
+    const hash = await setRecords(clientFor(signer), {
+      name: `sub.${parent}`,
+      resolverAddress: resolver as Address,
+      coins: [{ coin: 60, value: accounts.getAddress('user2') }],
+    })
+    await publicClient.waitForTransactionReceipt({ hash })
+  }
+
   const name = `sub.${parent}`
   const ownResolver = await publicClient.readContract({
     address: subregistry,
@@ -193,6 +236,20 @@ async function seed(key: string, shape: Shape) {
   )
   console.log('\n   expect:')
   for (const line of shape.expect) console.log(`     · ${line}`)
+  if (shape.steps) {
+    console.log('\n   steps:')
+    // Continuation lines (indented in the shape) print verbatim and do not
+    // consume a step number, or the embedded commands get numbered as if they
+    // were steps of their own.
+    let n = 0
+    for (const line of shape.steps) {
+      const filled = line
+        .replace('{name}', name)
+        .replace('{subregistry}', subregistry)
+      if (line.startsWith('    ')) console.log(`          ${filled.trim()}`)
+      else console.log(`     ${++n}. ${filled}`)
+    }
+  }
   console.log(`\n   → ${PORTAL_APP_URL}/${name}/ownership/transfer`)
 }
 
