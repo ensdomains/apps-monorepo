@@ -237,6 +237,7 @@ not in single cells — which is why the migration matrix is a matrix.
 | F15 | Transfer a subname end to end | token moves in the **parent's subregistry**; the parent's own owner, resolver and subregistry pointer byte-identical afterwards |
 | F16 | Parent-authority warning enumerates exactly the powers the parent owner holds | rendered clauses match the three `hasRoles` reads (`ROLE_UNREGISTER` on the subname resource, `ROLE_REGISTRAR` at ROOT `0`, `ROLE_SET_SUBREGISTRY` on the parent's token); a 2LD shows no such warning |
 | F19 | Transfer a subname that only **inherits** its parent resolver | neither the resolver-detach nor the set-eth-address option is offered, and the **parent's** resolver is byte-identical after the transfer |
+| F20 | Transfer a subname that has its **own** resolver — the multi-step irreversible plan | `detach-resolver` runs before `transfer-token` and clears only the subname's own slot; the **parent's** resolver is byte-identical afterwards, even when both slots hold the same contract. Also covers **E2E-010** |
 | F21 | Subname owner lacking `ROLE_CAN_TRANSFER_ADMIN` | "Transfer not available", no form — asserted with an owner who is **not** the subregistry deployer, since root roles would otherwise grant it back |
 
 F15–F21 are WEB-128/#1120. Plan:

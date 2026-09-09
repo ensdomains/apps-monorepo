@@ -29,10 +29,21 @@ export const PORTAL_TRANSACTION_IDS = {
   revokeRoles: 'tx-revoke-roles',
 } as const
 
-/** Per-name transfer step ids, e.g. `transfer-alice.eth-detach-resolver`. */
+/**
+ * Per-name transfer step ids, e.g. `transfer-alice.eth-detach-resolver`.
+ *
+ * All four steps `buildTransferPlan` can emit. `set-eth-addr` was missing
+ * until a subname test needed it — it is only planned when the resolver is
+ * being *kept* (`setEthAddress && !detachResolver`), which no earlier test
+ * exercised, so its absence went unnoticed rather than being deliberate.
+ */
 export const transferTxId = (
   name: string,
-  step: 'detach-resolver' | 'detach-registry' | 'transfer-token',
+  step:
+    | 'set-eth-addr'
+    | 'detach-resolver'
+    | 'detach-registry'
+    | 'transfer-token',
 ) => `transfer-${name}-${step}`
 
 /**

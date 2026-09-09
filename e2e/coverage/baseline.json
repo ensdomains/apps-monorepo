@@ -3,13 +3,13 @@
   "note": "Terminal scenario counts per risk tier (PASS + DEFECT + EXEMPT), plus invariant sites checked. May only increase — see e2e/docs/e2e-build-goal.md §16.5. Raise with `pnpm e2e:coverage --update`.",
   "tiers": {
     "HW": 5,
-    "R0": 25,
+    "R0": 26,
     "R1": 8,
     "R2": 27,
     "R3": 6,
     "R4": 1
   },
-  "totalTerminal": 72,
+  "totalTerminal": 73,
   "invariantSitesChecked": 0,
   "phasesLegacy": {
     "P0": 4,

@@ -2076,6 +2076,11 @@ const extraF: Scenario[] = suite('F', 'transfer', 'portal', 'P5', [
     "neither the resolver-detach nor the set-eth-address option is offered, and the PARENT's resolver is byte-identical after the transfer",
   ],
   [
+    'F20',
+    'Transfer a subname that has its OWN resolver — the multi-step, irreversible plan',
+    "detach-resolver runs before transfer-token and clears only the subname's own slot; the parent's resolver is byte-identical afterwards even when both slots hold the same contract. Also covers E2E-010: set-eth-addr must not report success once the name has no resolver of its own",
+  ],
+  [
     'F21',
     'Subname whose owner lacks ROLE_CAN_TRANSFER_ADMIN',
     '"Transfer not available" and no form — asserted with an owner who is NOT the subregistry deployer, since root roles would otherwise grant it back',

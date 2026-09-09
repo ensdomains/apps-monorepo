@@ -1,7 +1,8 @@
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { getAddressRecord } from '@ensdomains/ensjs/public'
 import { getOwner, hasRoles } from '@ensdomains/ensjs/public/v2'
-import { setRecords } from '@ensdomains/ensjs/wallet'
+import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
+import { setRecords } from '@ensdomains/ensjs/wallet/v1'
 import {
   permissionedRegistryGetResolverSnippet,
   permissionedRegistryGetSubregistrySnippet,
@@ -11,6 +12,7 @@ import type { Page } from '@playwright/test'
 import {
   type Address,
   createWalletClient,
+  encodeFunctionData,
   type Hash,
   http,
   namehash,
@@ -1908,5 +1910,254 @@ test.describe('Portal name transfer — subnames', () => {
       'a sibling subname WITH the transfer role must still be offered the form — otherwise the refusal above is a blanket subname gate, not a role check',
     ).toBeVisible({ timeout: 60_000 })
     await expect(page.getByText('Transfer not available')).toBeHidden()
+  })
+})
+
+/**
+ * The irreversible half of subname transfer — WEB-128 / #1120.
+ *
+ * Split out from the block above because these tests execute a MULTI-STEP
+ * plan against live contracts, and that is the shape both of this suite's
+ * severe defects took: E2E-001 (a `detach-registry` offered to an owner who
+ * could not perform it, after `detach-resolver` had already run irreversibly)
+ * and E2E-002 (a resolver detached before a `transfer-token` that could never
+ * succeed). Both were "a step that cannot be undone ran when it should not
+ * have", and #1120 rewrites the hook that decides which steps to offer.
+ *
+ * The `subnames` block above deliberately covers only the INHERITED-resolver
+ * shape, where no detach option renders and so the plan is a single
+ * `transfer-token` — no irreversible step to get wrong. Unit tests
+ * (`useTransferDetachTargets.test.ts`) prove the switches render for an
+ * own-resolver name, but a rendered switch is not an executed plan: they mock
+ * every contract, so they cannot catch a step running against the wrong
+ * registry, in the wrong order, or on a resolver the sender cannot write.
+ */
+test.describe('Portal name transfer — subnames, irreversible steps', () => {
+  /**
+   * Point `subLabel`'s own resolver slot in `subregistry` at `resolver`.
+   *
+   * The registry takes the canonical token id, not the label string, for this
+   * write — `getResolver`'s `string label` signature is the read side only.
+   */
+  async function setSubnameResolver(
+    subregistry: Address,
+    subLabel: string,
+    resolver: Address,
+    signerKey: Hash,
+  ): Promise<void> {
+    const hash = await getOwnerClient(signerKey).sendTransaction({
+      to: subregistry,
+      data: encodeFunctionData({
+        abi: parseAbi([
+          'function setResolver(uint256 tokenId, address resolver)',
+        ]),
+        functionName: 'setResolver',
+        args: [labelToCanonicalId(subLabel), resolver],
+      }),
+    })
+    await publicClient.waitForTransactionReceipt({ hash })
+  }
+
+  const readSubnameResolver = (subregistry: Address, subLabel: string) =>
+    publicClient.readContract({
+      address: subregistry,
+      abi: permissionedRegistryGetResolverSnippet,
+      functionName: 'getResolver',
+      args: [subLabel],
+    }) as Promise<Address>
+
+  test('detaches only the subname own resolver on a defaults transfer, leaving the parent resolver intact', {
+    tag: ['@scenario:F20'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const recipient = accounts.getAddress('user2')
+    const ownerKey = accounts.getPrivateKey('user')
+
+    // `records` deploys a real PermissionedResolver proxy for the parent. The
+    // subname then gets its OWN slot pointed at that same contract — which is
+    // the interesting case, not a lazy shortcut: the registry slot and the
+    // resolver contract are independent, so "the subname has its own resolver"
+    // and "it happens to be the same contract as the parent's" can both be
+    // true. A plan that confuses the two would clear the parent's slot here,
+    // and this test would catch it.
+    const parentName = await makeName({
+      label: 'sub-xfer-f20',
+      owner: 'user',
+      records: [{ key: 'description', value: 'parent with a resolver' }],
+    })
+    const parentLabel = parentName.replace(/\.eth$/, '')
+    const deployer = privateKeyToAccount(ownerKey)
+    const subregistry = await deployAndAttachSubregistry(
+      { label: parentLabel },
+      deployer,
+    )
+    await createSubname(
+      { registryAddress: subregistry, label: 'sub', parentLabel },
+      deployer,
+    )
+    const name = `sub.${parentName}`
+
+    const [parentResolver] = await readResolverAndSubregistry(parentLabel)
+    expect(
+      parentResolver,
+      'precondition: the parent must have a resolver of its own',
+    ).not.toBe(zeroAddress)
+    await setSubnameResolver(subregistry, 'sub', parentResolver, ownerKey)
+    expect(
+      await readSubnameResolver(subregistry, 'sub'),
+      'precondition: and the subname must now have its OWN resolver slot set',
+    ).toBe(parentResolver)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    // With an own resolver the detach option must now be offered — the
+    // opposite of F19, and the reason this test can exercise a real plan.
+    await expect(
+      page.locator('#transfer-option-detachResolver'),
+      'a subname with its OWN resolver must be offered the detach',
+    ).toBeVisible({ timeout: 60_000 })
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+    await transferButton.click()
+
+    // Two steps, in this order. `detach-resolver` is the irreversible one and
+    // it runs FIRST, so if `transfer-token` could not succeed the name would
+    // be left resolverless — exactly E2E-002. Naming both ids means the run
+    // fails loudly if the plan silently changes shape.
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'detach-resolver'),
+      transferTxId(name, 'transfer-token'),
+    ])
+
+    await expect
+      .poll(
+        async () =>
+          ((await getOwner(publicClient as never, { name })) as Address) ?? '',
+        { message: 'the subname token must move', timeout: 60_000 },
+      )
+      .toBe(recipient)
+
+    expect(
+      await readSubnameResolver(subregistry, 'sub'),
+      "the subname's own resolver slot must be cleared by the detach step",
+    ).toBe(zeroAddress)
+
+    // The whole point. Both slots pointed at the SAME resolver contract, so a
+    // plan that addressed the parent's registry entry instead of the
+    // subname's would have looked identical up to here and left the parent
+    // resolverless — an irreversible loss on a name that was never being
+    // transferred.
+    const [parentResolverAfter] = await readResolverAndSubregistry(parentLabel)
+    expect(
+      parentResolverAfter,
+      "detaching a subname's resolver must not clear the PARENT's, even when both slots hold the same contract",
+    ).toBe(parentResolver)
+  })
+
+  test('writes the ETH address to a resolver the name no longer points at (E2E-010)', {
+    tag: ['@scenario:F20'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const recipient = accounts.getAddress('user2')
+    const ownerKey = accounts.getPrivateKey('user')
+    const parentName = await makeName({
+      label: 'sub-xfer-e2e010',
+      owner: 'user',
+      records: [{ key: 'description', value: 'parent with a resolver' }],
+    })
+    const parentLabel = parentName.replace(/\.eth$/, '')
+    const deployer = privateKeyToAccount(ownerKey)
+    const subregistry = await deployAndAttachSubregistry(
+      { label: parentLabel },
+      deployer,
+    )
+    await createSubname(
+      { registryAddress: subregistry, label: 'sub', parentLabel },
+      deployer,
+    )
+    const name = `sub.${parentName}`
+
+    // Own resolver + an addr(60) on it: the two conditions that make the app
+    // offer "Set the ETH address to the recipient" at all.
+    const [parentResolver] = await readResolverAndSubregistry(parentLabel)
+    await setSubnameResolver(subregistry, 'sub', parentResolver, ownerKey)
+    await setEthAddressRecord(name, parentResolver, recipient, ownerKey)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    // `set-eth-addr` is only planned when the resolver is being KEPT, so turn
+    // the detach off. Plan becomes [set-eth-addr, transfer-token].
+    const detachResolverSwitch = page.getByRole('switch', {
+      name: /Detach the resolver/,
+    })
+    await expect(detachResolverSwitch).toBeVisible({ timeout: 60_000 })
+    await detachResolverSwitch.click()
+    await expect(
+      page.getByRole('switch', { name: /Set the ETH address/ }),
+      'keeping the resolver must re-enable the ETH-address option',
+    ).toBeEnabled({ timeout: 15_000 })
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+
+    // The race, made deterministic: clear the subname's own resolver AFTER the
+    // form has read it but BEFORE the step executes.
+    await setSubnameResolver(subregistry, 'sub', zeroAddress, ownerKey)
+    expect(await readSubnameResolver(subregistry, 'sub')).toBe(zeroAddress)
+
+    // Watch the transaction manager's own success lines, so the oracle below
+    // is about what the app *reported*, not about what a UI element rendered.
+    const succeeded = new Set<string>()
+    page.on('console', (msg) => {
+      const m = /Transaction (\S+) state: success/.exec(msg.text())
+      if (m?.[1]) succeeded.add(m[1])
+    })
+
+    await transferButton.click()
+
+    // Driven with the shared helper rather than a hand-rolled authorize loop.
+    // That matters for honesty: a bounded loop that simply never got the step
+    // running would leave `succeeded` empty and make the oracle below pass
+    // while proving nothing. The helper advances the modal and authorizes each
+    // prompt until every named id reports success, so if it returns, the steps
+    // genuinely ran.
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'set-eth-addr'),
+      transferTxId(name, 'transfer-token'),
+    ])
+
+    // THE ORACLE — this is expected to FAIL until the defect is fixed, the same
+    // way F5's and F14's assertions do. `runStep('set-eth-addr')` re-reads the
+    // name's own resolver and throws `has no resolver of its own to update`
+    // when it is gone, which it is: cleared above, before the step ran. The
+    // step must therefore not report success.
+    //
+    // It does. `utils/queryClient.ts` sets `staleTime: 1000 * 60 * 60`, so the
+    // `queryClient.fetchQuery` inside that guard is served from the value
+    // cached when the form rendered and never re-reads the chain. The guard
+    // cannot fire, and its own comment — "a null here means the state changed
+    // underneath us; fail before touching the chain" — describes behaviour the
+    // app does not have. The write goes to whichever resolver was cached.
+    //
+    // Harmless in THIS shape only: the subname's own slot and its parent's
+    // held the same contract, so the name inherits its way back to the very
+    // resolver that was written and `addr(60)` still resolves. When the two
+    // differ — the ordinary case, and the one `getOwnResolver` exists for —
+    // the record lands on a contract the name no longer references while the
+    // user is told the update succeeded.
+    expect(
+      succeeded.has(transferTxId(name, 'set-eth-addr')),
+      'E2E-010: set-eth-addr must refuse once the name has no resolver of its ' +
+        'own — the guard for exactly this is inert because fetchQuery is served ' +
+        'from a 1-hour-stale cache, so the write lands on a stale resolver and ' +
+        'is reported as success',
+    ).toBe(false)
   })
 })
