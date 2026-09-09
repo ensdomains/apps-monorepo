@@ -3,6 +3,7 @@ import { AlertTriangle, Clock, Lock, ShieldX } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
+import { normalize } from 'viem/ens'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { MessageCard } from '@/components/ui/message-card'
 import { getEth2LDAncestor, getParentName, is2LD } from '@/utils/ens/tldHelpers'
@@ -28,7 +29,7 @@ const Muted = ({ children }: { readonly children: ReactNode }) => (
  * halfway leaves the name degraded with nothing to decode.
  */
 export const V1Transfer = ({
-  name,
+  name: rawName,
   account,
 }: {
   readonly name: string
@@ -39,13 +40,9 @@ export const V1Transfer = ({
   // grace must not pass the gate on a cached read. (Has to live here — the
   // options helper drops `staleTime`.) The submit path re-reads and re-gates.
   const stateQuery = useQuery({
-    ...getV1NameStateQueryOptions({ name }),
+    ...getV1NameStateQueryOptions({ name: rawName }),
     staleTime: 0,
   })
-
-  // A 2LD's parent is a TLD, which is nobody's to answer for.
-  const parentName = is2LD(name) ? null : getParentName(name)
-  const ancestorName = getEth2LDAncestor(name)
 
   if (stateQuery.isLoading) return <LoadingMessage />
 
@@ -62,6 +59,12 @@ export const V1Transfer = ({
         }
       />
     )
+
+  // Can't throw: the query already normalised the same input. The name helpers
+  // below are case-sensitive, so `sub.Florin.ETH` must not reach them raw.
+  const name = normalize(rawName)
+  const parentName = is2LD(name) ? null : getParentName(name)
+  const ancestorName = getEth2LDAncestor(name)
 
   const state = stateQuery.data
   if (!state)

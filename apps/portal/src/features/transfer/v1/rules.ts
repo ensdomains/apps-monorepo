@@ -129,7 +129,7 @@ const gateAsParent = (
             ? cannot('wrapper-mismatch')
             : ({ reason: 'ok', subject, actor: 'parent' } as const),
         )
-        // A 2LD has no parent worth the name; unreachable with a non-null parent.
+        // Unreachable: a 2LD has no parent.
         .with(
           { kind: 'v1-registrar' },
           () => ({ reason: 'not-owner' }) as const,
@@ -226,28 +226,23 @@ export const getV1ParentPowers = (
       () => is2LD(name),
       () => [],
     )
-    // Emancipated: the parent is locked out until the wrapper expiry lapses, at
-    // which point it can issue the label afresh — unless it burned
-    // CANNOT_CREATE_SUBDOMAIN, in which case the wrapper refuses that too and
-    // the name simply dies. PARENT_CANNOT_CONTROL needs an expiry set, so a
-    // null one here is unknown rather than "never expires" — and unknown must
-    // not read as "the parent can do nothing".
+    // Emancipated: the parent is locked out until the wrapper expiry lapses,
+    // then can re-issue the label — unless it burned CANNOT_CREATE_SUBDOMAIN
+    // (`_checkCanCallSetSubnodeOwner`). A null expiry is unknown, not "never".
     .with({ kind: 'v1-wrapped', fuses: { parentCannotControl: true } }, () =>
       parent?.isWrapped && parent.cannotCreateSubdomain
         ? []
         : ['issue it to someone else once it expires'],
     )
-    // `setSubnodeOwner` on the parent node, with no fuse to stop it. Holds
-    // across the wrapped/unwrapped divide too: the registry write from an
-    // unwrapped parent overrides a wrapped child's slot, and the wrapper write
-    // from a wrapped parent wraps an unwrapped child under the new owner.
+    // `setSubnodeOwner` on the parent node, with no fuse to stop it — on either
+    // contract, whichever way the child is held.
     .with({ kind: 'v1-wrapped' }, { kind: 'v1-registry' }, () => [
       'replace it or take it back at any time',
     ])
     .with({ kind: 'v1-registrar' }, () => [])
     .exhaustive()
 
-/** The address that holds the name right now — who a transfer takes it from. */
+/** Who a transfer takes the name from. */
 export const getV1Holder = (subject: V1TransferSubject): Address =>
   match(subject)
     .with({ kind: 'v1-registrar' }, ({ registrant }) => registrant)

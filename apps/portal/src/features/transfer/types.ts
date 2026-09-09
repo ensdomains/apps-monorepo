@@ -61,29 +61,18 @@ export type TransferSubject = V2Subject | V1TransferSubject
  * subname from above, and whether the wrapper would let them.
  */
 export type V1ParentState = {
-  /**
-   * The parent's holder: its wrapper owner when wrapped, otherwise its registry
-   * owner (the controller, for an unwrapped `.eth` 2LD). Null when nobody holds
-   * it — an emancipated wrapped parent whose expiry has lapsed.
-   */
+  /** Wrapper owner when wrapped, else registry owner. Null once a lapsed emancipated parent is cleared. */
   readonly owner: Address | null
-  /**
-   * Unwrapped `.eth` 2LD parent only: the ERC-721 holder, who can `reclaim` the
-   * controller slot and then act as `owner`.
-   */
+  /** Unwrapped `.eth` 2LD parent only: the 721 holder, who can `reclaim` and then act as `owner`. */
   readonly registrant: Address | null
   readonly isWrapped: boolean
-  /**
-   * Wrapped parent only: CANNOT_CREATE_SUBDOMAIN is burned, so a lapsed
-   * emancipated subname can never be re-issued.
-   */
+  /** Wrapped parent only. Burned, a lapsed emancipated subname can never be re-issued. */
   readonly cannotCreateSubdomain: boolean
 }
 
 /**
- * Who is moving a V1 name. `owner` holds the name itself. `parent` holds the
- * name above it and moves the subname with `setSubnodeOwner` — overriding
- * whoever holds it now — which the legacy app offers under the same conditions.
+ * Who is moving a V1 name: its holder, or its parent's holder via
+ * `setSubnodeOwner` (overriding the current holder, as the legacy app allows).
  */
 export type V1TransferActor = 'owner' | 'parent'
 

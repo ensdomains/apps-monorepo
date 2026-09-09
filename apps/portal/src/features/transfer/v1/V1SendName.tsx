@@ -38,9 +38,6 @@ export const V1SendName = ({
 }) => {
   const parentName = is2LD(name) ? null : getParentName(name)
 
-  // Only worth reading when there is a resolver of the name's own and the
-  // sender could write to it; otherwise the ETH option is hidden whatever the
-  // record says.
   const canEditRecords = resolverAddress !== null && actor === 'owner'
   const ethAddressQuery = useQuery({
     ...getEthAddressQueryOptions({ name }),
@@ -51,8 +48,8 @@ export const V1SendName = ({
 
   return (
     <SendNameForm
-      // Who the name is taken from — sending it back to them is a no-op, and
-      // for a parent-initiated move that is a different address than `account`.
+      // Sending a name back to its holder is a no-op — and when the parent
+      // acts, the holder isn't `account`.
       owner={getV1Holder(subject)}
       detachTargets={{
         isOptionVisible: getV1DetachTargets({
@@ -74,8 +71,7 @@ export const V1SendName = ({
               parentName,
               isLoading: false,
               isError: false,
-              // Either role on the parent can act on the subname: the
-              // registrant of an unwrapped 2LD can reclaim and then reassign.
+              // A registrant can reclaim the parent and then reassign.
               parentIsSelf: [parent?.owner, parent?.registrant].some(
                 (address) => address && isAddressEqual(address, account),
               ),
@@ -141,9 +137,8 @@ const V1Notices = ({
         </Alert>
       )}
       {match(subject)
-        // A DNS name's "parent" is the TLD, so the parent alert doesn't apply —
-        // but the domain holder can still take it back through the DNSRegistrar,
-        // and with it everything underneath.
+        // The DNS domain holder can reclaim through the DNSRegistrar — the 2LD
+        // and everything under it.
         .when(
           () => !isEthName(name),
           () => (
