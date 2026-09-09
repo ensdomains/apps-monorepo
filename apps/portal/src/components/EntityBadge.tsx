@@ -104,7 +104,7 @@ interface EntityBadgeProps {
   readonly ownerName?: string
   /** Owner address — enables Owner chip (→ /addr/$ownerAddress) when ownerName is absent */
   readonly ownerAddress?: Address
-  /** Address — enables Address chip (→ /addr/$address) */
+  /** Address — enables Address chip (→ /addr/$address); on a name, the account it stands for */
   readonly address?: Address
   /** Mark a contract `address` as a registry — enables Registry chip + primary action (→ /registry/$address) */
   readonly isRegistry?: boolean
@@ -449,7 +449,9 @@ export const EntityBadge = ({
           </Link>
         )}
 
-        {variant === 'address' && address && (
+        {/* An account shown by its primary name: the pill is the name, the
+            chip reaches the wallet. */}
+        {variant === 'name' && address && (
           <Link
             to="/addr/$addr"
             params={{ addr: address }}
@@ -460,12 +462,14 @@ export const EntityBadge = ({
           </Link>
         )}
 
-        {/* An address shown by its primary name: the pill is the wallet, the
-            chip reaches the name. */}
-        {variant === 'address' && name && (
-          <Link to="/$name" params={{ name }} className={chipClass}>
-            <ChipNameIcon className="size-3.25" />
-            Name
+        {variant === 'address' && address && (
+          <Link
+            to="/addr/$addr"
+            params={{ addr: address }}
+            className={chipClass}
+          >
+            <ChipWalletIcon className="size-3.25" />
+            Address
           </Link>
         )}
 
