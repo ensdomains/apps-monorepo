@@ -117,8 +117,10 @@ const ParentWarningAlert = ({
       <AlertTriangle className="size-4" />
       <AlertDescription>
         <p>
-          This is a subname of {parent}, and its owner{' '}
-          {parentIsSelf ? '(you) ' : ''}keeps authority over it — they can{' '}
+          This is a subname of {parent}
+          {parentIsSelf
+            ? ', which you own, so you keep authority over it - you can '
+            : ', and its owner keeps authority over it — they can '}
           {powers.length === 1 ? (
             powers[0]
           ) : (
