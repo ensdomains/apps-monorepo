@@ -6,7 +6,6 @@ export type CommemorativeNftFlowStatusInput = {
     | 'ineligible'
     | 'unavailable'
   readonly claimed: boolean | undefined
-  readonly revealComplete: boolean
   readonly claimPending: boolean
   readonly claimError: boolean
 }
@@ -14,7 +13,6 @@ export type CommemorativeNftFlowStatusInput = {
 export type CommemorativeNftFlowStatus =
   | 'loadingEligibility'
   | 'ineligible'
-  | 'revealing'
   | 'readyToMint'
   | 'minting'
   | 'minted'
@@ -33,18 +31,67 @@ export const getCommemorativeNftClaimedStatus = (params: {
 }
 
 export const isCommemorativeNftClaimResultFresh = (params: {
-  readonly claimReadKey: string | undefined
-  readonly requiredClaimReadKey: string | undefined
-  readonly dataUpdatedAt: number
-  readonly requiredDataUpdatedAt: number
+  readonly isFetchedAfterMount: boolean
   readonly isSuccess: boolean
   readonly fetchStatus: 'fetching' | 'paused' | 'idle'
 }): boolean =>
-  params.claimReadKey !== undefined &&
-  params.claimReadKey === params.requiredClaimReadKey &&
-  params.dataUpdatedAt > params.requiredDataUpdatedAt &&
+  params.isFetchedAfterMount &&
   params.isSuccess &&
   params.fetchStatus === 'idle'
+
+export type CommemorativeNftAdmission =
+  | { readonly status: 'checking' }
+  | { readonly status: 'admitted' }
+  | { readonly status: 'alreadyMinted' }
+  | { readonly status: 'fallback' }
+  | {
+      readonly status: 'unavailable'
+      readonly reason: 'ownerMissing' | 'claimReadFailed' | 'offline'
+    }
+
+export const getCommemorativeNftAdmission = (params: {
+  readonly admitted: boolean
+  readonly preview: boolean
+  readonly hasOwner: boolean
+  readonly supported: boolean
+  readonly eligibilityStatus: CommemorativeNftFlowStatusInput['eligibilityStatus']
+  readonly claimed: boolean | undefined
+  readonly isFresh: boolean
+  readonly claimReadError: boolean
+  readonly fetchStatus: 'fetching' | 'paused' | 'idle'
+}): CommemorativeNftAdmission => {
+  if (params.eligibilityStatus === 'ineligible') return { status: 'fallback' }
+  if (params.preview || params.admitted) return { status: 'admitted' }
+  if (!params.hasOwner) {
+    return { status: 'unavailable', reason: 'ownerMissing' }
+  }
+  if (params.claimed === true) return { status: 'alreadyMinted' }
+  if (!params.supported) return { status: 'fallback' }
+  if (params.eligibilityStatus === 'unavailable') {
+    return { status: 'fallback' }
+  }
+  if (params.fetchStatus === 'paused') {
+    return { status: 'unavailable', reason: 'offline' }
+  }
+  if (params.claimReadError && params.fetchStatus === 'idle') {
+    return { status: 'unavailable', reason: 'claimReadFailed' }
+  }
+  if (params.claimed === false && params.isFresh) return { status: 'admitted' }
+  return { status: 'checking' }
+}
+
+export const getCommemorativeNftSessionKey = (params: {
+  readonly chainId: number
+  readonly ownerAddress: string | undefined
+  readonly walletAddress: string | undefined
+  readonly preview?: boolean
+}): string =>
+  JSON.stringify([
+    params.chainId,
+    params.ownerAddress?.toLowerCase(),
+    params.walletAddress?.toLowerCase(),
+    params.preview === true,
+  ])
 
 export const getCommemorativeNftFlowStatus = (
   input: CommemorativeNftFlowStatusInput,
@@ -53,7 +100,6 @@ export const getCommemorativeNftFlowStatus = (
   if (input.eligibilityStatus === 'error') return 'eligibilityError'
   if (input.eligibilityStatus === 'ineligible') return 'ineligible'
   if (input.eligibilityStatus === 'unavailable') return 'configurationError'
-  if (!input.revealComplete) return 'revealing'
   if (input.claimed === true) return 'minted'
   if (input.claimError) return 'claimError'
   if (input.claimPending) return 'minting'

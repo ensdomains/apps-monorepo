@@ -87,6 +87,7 @@ msgid "{migrated} out of {total} names upgraded"
 msgstr "{migrated} out of {total} names upgraded"
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
+#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
 msgstr "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
 
@@ -303,6 +304,11 @@ msgstr "Approving payment token"
 msgid "Approving the payment token"
 msgstr "Approving the payment token"
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+#: src/features/migration/components/success/CommemorativeNftRendererSurface.tsx
+msgid "Artwork could not be loaded."
+msgstr "Artwork could not be loaded."
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Auth address:"
 msgstr "Auth address:"
@@ -471,6 +477,10 @@ msgstr "Checking wallet connection..."
 msgid "Checking whether a payment approval is needed"
 msgstr "Checking whether a payment approval is needed"
 
+#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
+msgid "Checking your account…"
+msgstr "Checking your account…"
+
 #: src/routes/wallet.tsx
 msgid "Choose a wallet to connect to the application"
 msgstr "Choose a wallet to connect to the application"
@@ -499,6 +509,7 @@ msgstr "Click the button below to verify your email address and start receiving 
 #: src/components/ui/dialog.tsx
 #: src/features/migration/components/MigrationModal.tsx
 #: src/features/migration/components/MigrationSuccessDialog.tsx
+#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "Close"
 msgstr "Close"
@@ -544,6 +555,10 @@ msgstr "Confirm renewal"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Confirming the name is now owned by your account"
 msgstr "Confirming the name is now owned by your account"
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Congratulations, you're among the first on ENSv2. This personalized NFT marks the moment."
+msgstr "Congratulations, you're among the first on ENSv2. This personalized NFT marks the moment."
 
 #: src/features/navigation/Header/desktop/DisconnectedRightBlock.tsx
 #: src/features/navigation/Header/mobile/MobileConnectButton.tsx
@@ -602,6 +617,10 @@ msgstr "Contact"
 #: src/features/notifications/settings/contact-methods/index.tsx
 msgid "Contact methods"
 msgstr "Contact methods"
+
+#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
+msgid "Continue to dashboard"
+msgstr "Continue to dashboard"
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Continue to Home"
@@ -776,16 +795,8 @@ msgid "Done"
 msgstr "Done"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Download MP4"
-msgstr "Download MP4"
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Download NFT"
-msgstr "Download NFT"
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Download PNG"
-msgstr "Download PNG"
+msgid "Download WebP"
+msgstr "Download WebP"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/view/ProfileEditAction.tsx
@@ -795,10 +806,6 @@ msgstr "Edit Profile"
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "Eligibility comes from a fixed snapshot of ENS holders. Names acquired after the snapshot do not change eligibility."
 msgstr "Eligibility comes from a fixed snapshot of ENS holders. Names acquired after the snapshot do not change eligibility."
-
-#: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Eligibility was frozen on June 1 and is limited to one NFT per address."
-msgstr "Eligibility was frozen on June 1 and is limited to one NFT per address."
 
 #: src/features/dashboard/components/DashboardPills.tsx
 msgid "Eligible for upgrade"
@@ -892,8 +899,8 @@ msgstr "Error loading names"
 
 #. placeholder {0}: estimate.formattedEth
 #: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Estimated network fee: <0>~{0} ETH</0>. Expected: <1/>.<2/>Final confirmations and fee are shown in your wallet."
-msgstr "Estimated network fee: <0>~{0} ETH</0>. Expected: <1/>.<2/>Final confirmations and fee are shown in your wallet."
+msgid "Estimated network fee: <0>~{0} ETH</0>. Expected: <1><2/>.</1><3/>Final confirmations and fee are shown in your wallet."
+msgstr "Estimated network fee: <0>~{0} ETH</0>. Expected: <1><2/>.</1><3/>Final confirmations and fee are shown in your wallet."
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Estimating migration gas..."
@@ -1077,6 +1084,10 @@ msgstr "Getting ready..."
 msgid "Go back home"
 msgstr "Go back home"
 
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Go make it yours"
+msgstr "Go make it yours"
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Go to ENS Explorer"
 msgstr "Go to ENS Explorer"
@@ -1105,6 +1116,10 @@ msgstr "Growing your corner of the decentralized web"
 #: src/components/NameFallbackCard.tsx
 msgid "hasn't been imported to ENS yet"
 msgstr "hasn't been imported to ENS yet"
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Here's a gift to celebrate your migration to the next era of ENS"
+msgstr "Here's a gift to celebrate your migration to the next era of ENS"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "How can I secure my ENS name?"
@@ -1176,8 +1191,8 @@ msgid "Language"
 msgstr "Language"
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Learn about eligibility"
-msgstr "Learn about eligibility"
+msgid "Later"
+msgstr "Later"
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Link copied to clipboard"
@@ -1198,6 +1213,15 @@ msgstr "Load more"
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 msgid "Loading balances…"
 msgstr "Loading balances…"
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+#: src/features/migration/components/success/CommemorativeNftRendererSurface.tsx
+msgid "Loading NFT artwork…"
+msgstr "Loading NFT artwork…"
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Loading NFT details…"
+msgstr "Loading NFT details…"
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Loading pricing..."
@@ -1271,10 +1295,6 @@ msgstr "Mark all as read"
 msgid "Marking..."
 msgstr "Marking..."
 
-#: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Maybe later"
-msgstr "Maybe later"
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Migrate the selected names and restore their records."
 msgstr "Migrate the selected names and restore their records."
@@ -1292,8 +1312,12 @@ msgid "Migration value propositions"
 msgstr "Migration value propositions"
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Mint NFT"
-msgstr "Mint NFT"
+msgid "Mint"
+msgstr "Mint"
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Mint commemorative NFT"
+msgstr "Mint commemorative NFT"
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Minted"
@@ -1600,6 +1624,10 @@ msgstr "Placing your new identity in your wallet"
 msgid "Planting your name in the infinite garden"
 msgstr "Planting your name in the infinite garden"
 
+#: src/features/migration/components/success/CommemorativeNftRendererSurface.tsx
+msgid "Play artwork"
+msgstr "Play artwork"
+
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Please connect your wallet first"
@@ -1637,10 +1665,6 @@ msgstr "Preparing the commitment"
 msgid "Preparing wallet..."
 msgstr "Preparing wallet..."
 
-#: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Preparing your commemorative NFT…"
-msgstr "Preparing your commemorative NFT…"
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing your newly registered name"
 msgstr "Preparing your newly registered name"
@@ -1656,14 +1680,6 @@ msgstr "Preparing your wallet with gas for the upgrade..."
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Preview and mint"
 msgstr "Preview and mint"
-
-#: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Preview only"
-msgstr "Preview only"
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Preview success dialog"
-msgstr "Preview success dialog"
 
 #: src/features/migration/components/success/CommemorativeNftDashboardPrompt.tsx
 msgid "Preview your one-of-a-kind card and mint it whenever you're ready."
@@ -1741,9 +1757,17 @@ msgstr "Recommended"
 msgid "Reconnect the wallet used for notifications, then sign in again."
 msgstr "Reconnect the wallet used for notifications, then sign in again."
 
+#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
+msgid "Reconnect to the internet to continue."
+msgstr "Reconnect to the internet to continue."
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Reconnect Wallet"
 msgstr "Reconnect Wallet"
+
+#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
+msgid "Reconnect your owner wallet to continue."
+msgstr "Reconnect your owner wallet to continue."
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -1867,10 +1891,6 @@ msgstr "Removing telegram channel"
 msgid "Removing telegram for {0}"
 msgstr "Removing telegram for {0}"
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Rendering"
-msgstr "Rendering"
-
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
@@ -1977,6 +1997,10 @@ msgstr "Restore the existing managers for your names."
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Retry"
 msgstr "Retry"
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Retry artwork"
+msgstr "Retry artwork"
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Retrying will attempt the registration again from where it left off."
@@ -2434,10 +2458,6 @@ msgstr "The token is tied to your eligible EOA. Migrating more names later does 
 msgid "There was a problem verifying your email address."
 msgstr "There was a problem verifying your email address."
 
-#: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "This address is not in the commemorative snapshot."
-msgstr "This address is not in the commemorative snapshot."
-
 #: src/features/payment/components/add.tsx
 #: src/features/payment/components/index.tsx
 msgid "This card will be charged for your subscription."
@@ -2478,6 +2498,10 @@ msgstr "This name points to a different wallet. If you continue, we’ll update 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "This page can only verify your email when opened from the link in the verification email."
 msgstr "This page can only verify your email when opened from the link in the verification email."
+
+#: src/features/migration/pages/MigrationNftInfoPage.tsx
+msgid "This page could not be loaded. Please try again."
+msgstr "This page could not be loaded. Please try again."
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "This signature is free and doesn't cost any gas."
@@ -2535,6 +2559,8 @@ msgstr "Trademark Guidelines"
 
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/components/MigrationSuccessDialog.tsx
+#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
+#: src/features/migration/pages/MigrationNftInfoPage.tsx
 #: src/features/renew/workflow/components/RenewalRouteError.tsx
 msgid "Try again"
 msgstr "Try again"
@@ -2718,7 +2744,6 @@ msgstr "View and mint"
 msgid "View on OpenSea"
 msgstr "View on OpenSea"
 
-#: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 msgid "View profile"
 msgstr "View profile"
@@ -2848,6 +2873,10 @@ msgstr "We sent a verification code to your email address."
 msgid "web3 username"
 msgstr "web3 username"
 
+#: src/features/migration/components/success/CommemorativeNftDashboardSection.tsx
+msgid "Welcome to ENSv2"
+msgstr "Welcome to ENSv2"
+
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "Welcome to the new ENS app"
 msgstr "Welcome to the new ENS app"
@@ -2949,17 +2978,17 @@ msgstr "You'll be notified 30, 7, and 1 day before expiry."
 msgid "You're almost there!"
 msgstr "You're almost there!"
 
-#: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "You're among the first on ENSv2. This NFT marks the moment."
-msgstr "You're among the first on ENSv2. This NFT marks the moment."
+#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
+msgid "Your account"
+msgstr "Your account"
+
+#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
+msgid "Your account could not be checked. Please try again."
+msgstr "Your account could not be checked. Please try again."
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Your card is ready to preview. Minting is optional and you pay the network gas."
 msgstr "Your card is ready to preview. Minting is optional and you pay the network gas."
-
-#: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Your commemorative NFT is now yours."
-msgstr "Your commemorative NFT is now yours."
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Your email has been verified successfully!"
@@ -3024,6 +3053,10 @@ msgstr "Your names were upgraded, but temporary HCA access still needs to be rev
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "Your names, text records, and addresses will migrate automatically"
 msgstr "Your names, text records, and addresses will migrate automatically"
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Your new profile is ready."
+msgstr "Your new profile is ready."
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."

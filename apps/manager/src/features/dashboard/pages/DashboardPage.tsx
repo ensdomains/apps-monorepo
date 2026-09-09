@@ -12,14 +12,13 @@ import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard
 import { MigrationModal } from '@/features/migration/components/MigrationModal'
 import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
 import { CommemorativeNftDashboardPrompt } from '@/features/migration/components/success/CommemorativeNftDashboardPrompt'
+import { CommemorativeNftDashboardSection } from '@/features/migration/components/success/CommemorativeNftDashboardSection'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import {
-  isMigrationNftEnabled,
-  POSTHOG_FEATURE_FLAGS,
-} from '@/lib/posthog/feature-flags'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 const stagger = (index: number, shouldReduceMotion: boolean | null) =>
@@ -42,14 +41,7 @@ export const DashboardPage = () => {
     POSTHOG_FEATURE_FLAGS.MIGRATION,
     false,
   )
-  const migrationNftEnabled = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.MIGRATION_NFT,
-    false,
-  )
-  const commemorativeNftEnabled = isMigrationNftEnabled({
-    migrationEnabled,
-    migrationNftEnabled,
-  })
+  const commemorativeNftEnabled = useMigrationNftEnabled()
 
   // Non-suspense so a resolver error degrades to `undefined` (UI falls back to
   // `reverseName ?? null`) instead of throwing into the route and crashing it.
@@ -129,6 +121,7 @@ export const DashboardPage = () => {
           />
         </motion.div>
         {migrationEnabled && <MigrationProgressBanner />}
+        {commemorativeNftEnabled ? <CommemorativeNftDashboardSection /> : null}
         <motion.div
           className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"
           {...stagger(4, shouldReduceMotion)}

@@ -1,8 +1,9 @@
 import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { match } from 'ts-pattern'
+import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
-import { isFeatureEnabled } from '@/utils/feature-flags'
+import { MigrationPrimaryButton } from './MigrationPrimaryButton'
 import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
 
 type GasEstimateMessageProps = {
@@ -42,10 +43,12 @@ const GasEstimateMessage = ({
             ~{estimate.formattedEth} ETH
           </strong>
           . Expected:{' '}
-          <WalletConfirmationStepsDialog
-            steps={estimate.plan.stepDescriptors}
-          />
-          .
+          <span className="whitespace-nowrap">
+            <WalletConfirmationStepsDialog
+              steps={estimate.plan.stepDescriptors}
+            />
+            .
+          </span>
           <br />
           Final confirmations and fee are shown in your wallet.
         </Trans>
@@ -106,7 +109,7 @@ export const SelectNamesStepFooter = ({
   totalSelected,
   visibleCount,
 }: SelectNamesStepFooterProps) => {
-  const nftCopyEnabled = isFeatureEnabled('COMMEMORATIVE_NFT_COPY')
+  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility()
 
   return (
     <div className="sticky inset-x-0 bottom-0 z-20 flex min-h-36 w-full shrink-0 flex-col items-stretch justify-start gap-4 bg-ens-garnet-200 px-5 pt-4 pb-14 sm:min-h-28.75 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8 lg:px-37.5">
@@ -118,8 +121,8 @@ export const SelectNamesStepFooter = ({
         />
       </div>
       <div className="flex w-full flex-col gap-1 sm:w-auto">
-        <button
-          className="h-11.5 w-full min-w-40 overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
+        <MigrationPrimaryButton
+          className="w-full sm:w-[320px]"
           disabled={isUpgradeDisabled}
           onClick={onUpgrade}
           type="button"
@@ -130,7 +133,7 @@ export const SelectNamesStepFooter = ({
             isWaitingForGasFunding={isWaitingForGasFunding}
             totalSelected={totalSelected}
           />
-        </button>
+        </MigrationPrimaryButton>
         {nftCopyEnabled &&
           totalSelected > 0 &&
           totalSelected < visibleCount && (

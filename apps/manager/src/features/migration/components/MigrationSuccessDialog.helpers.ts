@@ -5,5 +5,11 @@ export const shouldShowPlainMigrationSuccess = (params: {
   readonly state: MigrationSuccessDialogState
 }): boolean =>
   params.context === 'migration' &&
-  params.state.status === 'error' &&
-  params.state.stage === 'configuration'
+  (params.state.status === 'ineligible' ||
+    (params.state.status === 'error' && params.state.stage === 'configuration'))
+
+export const shouldHideCommemorativeNftDialog = (params: {
+  readonly context: 'migration' | 'mint-later'
+  readonly state: MigrationSuccessDialogState
+}): boolean =>
+  params.context === 'mint-later' && params.state.status === 'ineligible'

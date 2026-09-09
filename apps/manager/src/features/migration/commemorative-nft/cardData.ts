@@ -8,7 +8,6 @@ import {
 import type { CommemorativeNftEligibility } from './types'
 
 export const buildCommemorativeNftCardData = (params: {
-  readonly artworkUrl?: string
   readonly chainId: number
   readonly eligibility: CommemorativeNftEligibility
   readonly migratedAt: Date
@@ -21,7 +20,6 @@ export const buildCommemorativeNftCardData = (params: {
     buildCommemorativeNftProfileUrl(params.eligibility.profileName)
 
   return {
-    artworkUrl: params.artworkUrl,
     assets: params.eligibility.assets,
     eligibility: params.eligibility,
     marketplaceUrl: buildCommemorativeNftMarketplaceUrl({
@@ -31,6 +29,6 @@ export const buildCommemorativeNftCardData = (params: {
     }),
     migratedAt: params.migratedAt,
     migratedNameCount: params.migratedNameCount,
-    shareUrls: buildCommemorativeNftShareUrls(shareTarget),
+    shareUrls: buildCommemorativeNftShareUrls(shareTarget, params.minted),
   }
 }
