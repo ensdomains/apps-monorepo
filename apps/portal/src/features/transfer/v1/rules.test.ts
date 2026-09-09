@@ -1,9 +1,10 @@
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
-import type { V1TransferSubject } from '../types'
+import type { V1ParentState, V1TransferSubject } from '../types'
 import type { V1NameState } from './getV1NameState'
 import {
   getV1DetachTargets,
+  getV1Holder,
   getV1ParentPowers,
   getV1TransferGate,
 } from './rules'
@@ -22,31 +23,58 @@ const NO_FUSES = {
 const wrapped = (
   fuses: Partial<typeof NO_FUSES> = {},
   expiry: bigint | null = null,
+  owner: Address = ME,
 ): V1TransferSubject => ({
   kind: 'v1-wrapped',
-  owner: ME,
+  owner,
   fuses: { ...NO_FUSES, ...fuses },
   expiry,
 })
 
-const state = (
-  subject: V1TransferSubject | null,
-  registration: V1NameState['registration'] = null,
-): V1NameState => ({
-  subject,
-  registration,
-  resolverAddress: RESOLVER,
-  parentOwner: null,
+const registry = (owner: Address = ME): V1TransferSubject => ({
+  kind: 'v1-registry',
+  owner,
 })
 
-describe('getV1TransferGate', () => {
+const wrappedParent = (
+  owner: Address | null = OTHER,
+  cannotCreateSubdomain = false,
+): V1ParentState => ({
+  owner,
+  registrant: null,
+  isWrapped: true,
+  cannotCreateSubdomain,
+})
+
+const unwrappedParent = (
+  owner: Address | null = OTHER,
+  registrant: Address | null = null,
+): V1ParentState => ({
+  owner,
+  registrant,
+  isWrapped: false,
+  cannotCreateSubdomain: false,
+})
+
+const state = (
+  subject: V1TransferSubject | null,
+  overrides: Partial<Omit<V1NameState, 'subject'>> = {},
+): V1NameState => ({
+  subject,
+  registration: null,
+  resolverAddress: RESOLVER,
+  parent: null,
+  ancestorRegistration: null,
+  ...overrides,
+})
+
+describe('getV1TransferGate — as the holder', () => {
   it('lets the wrapper owner transfer an unlocked wrapped name', () => {
-    expect(getV1TransferGate(state(wrapped()), ME)).toEqual({
+    const subject = wrapped()
+    expect(getV1TransferGate(state(subject), ME)).toEqual({
       reason: 'ok',
-      subject: wrapped(),
-    })
-    expect(getV1TransferGate(state(wrapped()), OTHER)).toEqual({
-      reason: 'not-owner',
+      subject,
+      actor: 'owner',
     })
   })
 
@@ -57,67 +85,225 @@ describe('getV1TransferGate', () => {
   })
 
   it('lets only the registrant transfer an unwrapped 2LD', () => {
-    const s = state({
+    const subject: V1TransferSubject = {
       kind: 'v1-registrar',
       registrant: ME,
       controller: OTHER,
+    }
+    expect(getV1TransferGate(state(subject), ME)).toMatchObject({
+      reason: 'ok',
+      actor: 'owner',
     })
-    expect(getV1TransferGate(s, ME).reason).toBe('ok')
+    expect(getV1TransferGate(state(subject), OTHER)).toEqual({
+      reason: 'manager-only',
+      registrant: ME,
+    })
   })
 
-  // The controller can change records and subnames but not move the token;
-  // offering them a transfer would either revert or leave the registrant able
-  // to reclaim it straight back.
-  it('names the registrant when only the controller is connected', () => {
-    const s = state({
+  it('refuses a stranger to an unwrapped 2LD as not-owner', () => {
+    const subject: V1TransferSubject = {
       kind: 'v1-registrar',
       registrant: OTHER,
-      controller: ME,
-    })
-    expect(getV1TransferGate(s, ME)).toEqual({
-      reason: 'manager-only',
-      registrant: OTHER,
+      controller: OTHER,
+    }
+    expect(getV1TransferGate(state(subject), ME)).toEqual({
+      reason: 'not-owner',
     })
   })
 
   it('treats a lapsed 2LD as in grace or expired from the registrar status', () => {
-    expect(getV1TransferGate(state(null, 'gracePeriod'), ME)).toEqual({
-      reason: 'grace',
-    })
-    expect(getV1TransferGate(state(null, 'expired'), ME)).toEqual({
-      reason: 'expired',
-    })
+    expect(
+      getV1TransferGate(state(null, { registration: 'gracePeriod' }), ME),
+    ).toEqual({ reason: 'grace' })
+    expect(
+      getV1TransferGate(state(null, { registration: 'expired' }), ME),
+    ).toEqual({ reason: 'expired' })
   })
 
-  // A wrapped 2LD in grace still reads a live wrapper owner (the wrapper's
-  // expiry includes the grace period) but `_beforeTransfer` refuses it.
   it('blocks a wrapped 2LD in grace even for its owner', () => {
     expect(
-      getV1TransferGate(state(wrapped({}, 1n), 'gracePeriod'), ME),
+      getV1TransferGate(state(wrapped(), { registration: 'gracePeriod' }), ME),
     ).toEqual({ reason: 'grace' })
   })
 
   it('treats a wrapped subname with no live owner as expired', () => {
-    expect(getV1TransferGate(state(null), ME)).toEqual({ reason: 'expired' })
+    expect(
+      getV1TransferGate(state(null, { parent: wrappedParent() }), ME),
+    ).toEqual({ reason: 'expired' })
   })
 
   it('lets the registry owner transfer a registry-only name', () => {
-    const s = state({ kind: 'v1-registry', owner: ME })
-    expect(getV1TransferGate(s, ME).reason).toBe('ok')
-    expect(getV1TransferGate(s, OTHER)).toEqual({ reason: 'not-owner' })
+    const subject = registry()
+    expect(getV1TransferGate(state(subject), ME)).toEqual({
+      reason: 'ok',
+      subject,
+      actor: 'owner',
+    })
+    expect(getV1TransferGate(state(subject), OTHER)).toEqual({
+      reason: 'not-owner',
+    })
+  })
+
+  // NameWrapper `_beforeTransfer` skips the CANNOT_TRANSFER check once a
+  // non-emancipated name is past its expiry, and `getData` reads its fuses as
+  // zero — so the derived subject already has no fuses and the gate agrees
+  // with the contract. This pins that down so nobody "fixes" it.
+  it('still lets an expired non-emancipated wrapped subname move', () => {
+    const subject = wrapped({}, 1n)
+    expect(getV1TransferGate(state(subject), ME)).toMatchObject({
+      reason: 'ok',
+    })
+  })
+})
+
+describe('getV1TransferGate — the .eth ancestor', () => {
+  it('blocks any move once the 2LD above has lapsed past grace', () => {
+    const s = state(wrapped(), {
+      parent: wrappedParent(ME),
+      ancestorRegistration: 'expired',
+    })
+    expect(getV1TransferGate(s, ME)).toEqual({ reason: 'ancestor-expired' })
+    expect(getV1TransferGate(s, OTHER)).toEqual({ reason: 'ancestor-expired' })
+  })
+
+  it('reports the ancestor rather than a bare expiry when both have lapsed', () => {
+    expect(
+      getV1TransferGate(
+        state(null, {
+          parent: wrappedParent(null),
+          ancestorRegistration: 'expired',
+        }),
+        ME,
+      ),
+    ).toEqual({ reason: 'ancestor-expired' })
+  })
+
+  it('lets the holder move while the ancestor is only in grace', () => {
+    expect(
+      getV1TransferGate(
+        state(wrapped(), { ancestorRegistration: 'gracePeriod' }),
+        ME,
+      ),
+    ).toMatchObject({ reason: 'ok', actor: 'owner' })
+  })
+
+  it('blocks a wrapped parent’s reassignment while the ancestor is in grace', () => {
+    expect(
+      getV1TransferGate(
+        state(wrapped({}, null, OTHER), {
+          parent: wrappedParent(ME),
+          ancestorRegistration: 'gracePeriod',
+        }),
+        ME,
+      ),
+    ).toEqual({ reason: 'ancestor-grace' })
+  })
+
+  // The registry doesn't know about expiry, so the write itself goes through;
+  // the form warns instead.
+  it('lets an unwrapped parent reassign during the ancestor’s grace', () => {
+    expect(
+      getV1TransferGate(
+        state(registry(OTHER), {
+          parent: unwrappedParent(ME),
+          ancestorRegistration: 'gracePeriod',
+        }),
+        ME,
+      ),
+    ).toMatchObject({ reason: 'ok', actor: 'parent' })
+  })
+})
+
+describe('getV1TransferGate — as the parent', () => {
+  it('lets a wrapped parent reassign a wrapped subname it still controls', () => {
+    const subject = wrapped({}, null, OTHER)
+    expect(
+      getV1TransferGate(state(subject, { parent: wrappedParent(ME) }), ME),
+    ).toEqual({ reason: 'ok', subject, actor: 'parent' })
+  })
+
+  it('lets an unwrapped parent reassign an unwrapped subname', () => {
+    const subject = registry(OTHER)
+    expect(
+      getV1TransferGate(state(subject, { parent: unwrappedParent(ME) }), ME),
+    ).toEqual({ reason: 'ok', subject, actor: 'parent' })
+  })
+
+  it('prefers the holder role when the wallet is both holder and parent', () => {
+    expect(
+      getV1TransferGate(state(wrapped(), { parent: wrappedParent(ME) }), ME),
+    ).toMatchObject({ reason: 'ok', actor: 'owner' })
+  })
+
+  it('refuses the parent once the subname is emancipated', () => {
+    expect(
+      getV1TransferGate(
+        state(wrapped({ parentCannotControl: true }, null, OTHER), {
+          parent: wrappedParent(ME),
+        }),
+        ME,
+      ),
+    ).toEqual({ reason: 'parent-cannot-reassign', why: 'emancipated' })
+  })
+
+  it('refuses a wrapped parent over an unwrapped subname (would wrap it)', () => {
+    expect(
+      getV1TransferGate(
+        state(registry(OTHER), { parent: wrappedParent(ME) }),
+        ME,
+      ),
+    ).toEqual({ reason: 'parent-cannot-reassign', why: 'wrapper-mismatch' })
+  })
+
+  it('refuses an unwrapped parent over a wrapped subname (would unwrap it)', () => {
+    expect(
+      getV1TransferGate(
+        state(wrapped({}, null, OTHER), { parent: unwrappedParent(ME) }),
+        ME,
+      ),
+    ).toEqual({ reason: 'parent-cannot-reassign', why: 'wrapper-mismatch' })
+  })
+
+  it('tells the parent’s registrant to reclaim first', () => {
+    expect(
+      getV1TransferGate(
+        state(registry(OTHER), { parent: unwrappedParent(OTHER, ME) }),
+        ME,
+      ),
+    ).toEqual({ reason: 'parent-cannot-reassign', why: 'registrant-only' })
+  })
+
+  it('refuses a stranger to both the subname and its parent', () => {
+    expect(
+      getV1TransferGate(
+        state(registry(OTHER), { parent: unwrappedParent(OTHER) }),
+        ME,
+      ),
+    ).toEqual({ reason: 'not-owner' })
+  })
+
+  it('refuses when the parent has no holder at all', () => {
+    expect(
+      getV1TransferGate(
+        state(wrapped({}, null, OTHER), { parent: wrappedParent(null) }),
+        ME,
+      ),
+    ).toEqual({ reason: 'not-owner' })
   })
 })
 
 describe('getV1DetachTargets', () => {
   const targets = (
     subject: V1TransferSubject,
-    overrides: {
-      resolverAddress?: Address | null
-      hasEthAddress?: boolean
-    } = {},
+    overrides: Partial<{
+      actor: 'owner' | 'parent'
+      resolverAddress: Address | null
+      hasEthAddress: boolean
+    }> = {},
   ) =>
     getV1DetachTargets({
       subject,
+      actor: 'owner',
       resolverAddress: RESOLVER,
       account: ME,
       hasEthAddress: true,
@@ -133,46 +319,44 @@ describe('getV1DetachTargets', () => {
   })
 
   it('hides the ETH step when the name has no ETH address', () => {
-    expect(targets(wrapped(), { hasEthAddress: false }).setEthAddress).toBe(
-      false,
-    )
+    expect(targets(wrapped(), { hasEthAddress: false })).toMatchObject({
+      setEthAddress: false,
+      detachResolver: true,
+    })
   })
 
   it('hides both when the name has no resolver of its own', () => {
-    expect(targets(wrapped(), { resolverAddress: null })).toEqual({
+    expect(targets(wrapped(), { resolverAddress: null })).toMatchObject({
       setEthAddress: false,
       detachResolver: false,
-      detachRegistry: false,
     })
   })
 
   it('keeps the ETH step but hides the detach when CANNOT_SET_RESOLVER is burned', () => {
-    expect(targets(wrapped({ cannotSetResolver: true }))).toEqual({
+    expect(targets(wrapped({ cannotSetResolver: true }))).toMatchObject({
       setEthAddress: true,
       detachResolver: false,
-      detachRegistry: false,
     })
   })
 
-  // PublicResolver authorises the *registry* owner. A registrant who isn't
-  // also the controller can't touch records, so the steps would revert before
-  // the move.
   it('hides record options from a registrant who is not the controller', () => {
     expect(
       targets({ kind: 'v1-registrar', registrant: ME, controller: OTHER }),
-    ).toEqual({
-      setEthAddress: false,
-      detachResolver: false,
-      detachRegistry: false,
-    })
+    ).toMatchObject({ setEthAddress: false, detachResolver: false })
   })
 
   it('offers record options to a registrant who is also the controller', () => {
     expect(
       targets({ kind: 'v1-registrar', registrant: ME, controller: ME }),
-    ).toEqual({
-      setEthAddress: true,
-      detachResolver: true,
+    ).toMatchObject({ setEthAddress: true, detachResolver: true })
+  })
+
+  // PublicResolver authorises the subname's registry owner (or wrapper owner);
+  // the parent is neither, so its writes would revert.
+  it('hides every option from a parent reassigning a subname', () => {
+    expect(targets(wrapped({}, null, OTHER), { actor: 'parent' })).toEqual({
+      setEthAddress: false,
+      detachResolver: false,
       detachRegistry: false,
     })
   })
@@ -180,38 +364,41 @@ describe('getV1DetachTargets', () => {
 
 describe('getV1ParentPowers', () => {
   it('claims nothing for a .eth 2LD', () => {
+    expect(getV1ParentPowers('alice.eth', wrapped(), null)).toEqual([])
     expect(
-      getV1ParentPowers('alice.eth', {
-        kind: 'v1-registrar',
-        registrant: ME,
-        controller: ME,
-      }),
+      getV1ParentPowers(
+        'alice.eth',
+        { kind: 'v1-registrar', registrant: ME, controller: ME },
+        null,
+      ),
     ).toEqual([])
   })
 
   it('claims nothing for a DNS 2LD — that exposure is a notice, not a parent', () => {
-    expect(
-      getV1ParentPowers('alice.xyz', { kind: 'v1-registry', owner: ME }),
-    ).toEqual([])
+    expect(getV1ParentPowers('alice.xyz', registry(), null)).toEqual([])
   })
 
   it('warns that an unwrapped subname can be taken back at any time', () => {
     expect(
-      getV1ParentPowers('sub.alice.eth', { kind: 'v1-registry', owner: ME }),
+      getV1ParentPowers('sub.alice.eth', registry(), unwrappedParent()),
+    ).toEqual(['replace it or take it back at any time'])
+    expect(
+      getV1ParentPowers('sub.alice.eth', registry(), wrappedParent()),
     ).toEqual(['replace it or take it back at any time'])
   })
 
   it('warns the same for a wrapped subname the parent still controls', () => {
-    expect(getV1ParentPowers('sub.alice.eth', wrapped({}, 1n))).toEqual([
-      'replace it or take it back at any time',
-    ])
+    expect(
+      getV1ParentPowers('sub.alice.eth', wrapped(), wrappedParent()),
+    ).toEqual(['replace it or take it back at any time'])
   })
 
   it('limits an emancipated subname to re-issue after expiry', () => {
     expect(
       getV1ParentPowers(
         'sub.alice.eth',
-        wrapped({ parentCannotControl: true }, 1n),
+        wrapped({ parentCannotControl: true }, 1_900_000_000n),
+        wrappedParent(),
       ),
     ).toEqual(['issue it to someone else once it expires'])
   })
@@ -221,7 +408,30 @@ describe('getV1ParentPowers', () => {
       getV1ParentPowers(
         'sub.alice.eth',
         wrapped({ parentCannotControl: true }),
+        wrappedParent(),
       ),
     ).toEqual(['issue it to someone else once it expires'])
+  })
+
+  // `_checkCanCallSetSubnodeOwner` refuses to recreate a lapsed emancipated
+  // subname under a parent that burned CANNOT_CREATE_SUBDOMAIN.
+  it('claims nothing over an emancipated subname when the parent can’t create subdomains', () => {
+    expect(
+      getV1ParentPowers(
+        'sub.alice.eth',
+        wrapped({ parentCannotControl: true }),
+        wrappedParent(OTHER, true),
+      ),
+    ).toEqual([])
+  })
+})
+
+describe('getV1Holder', () => {
+  it('names the registrant for an unwrapped 2LD and the owner otherwise', () => {
+    expect(
+      getV1Holder({ kind: 'v1-registrar', registrant: ME, controller: OTHER }),
+    ).toBe(ME)
+    expect(getV1Holder(wrapped({}, null, OTHER))).toBe(OTHER)
+    expect(getV1Holder(registry(OTHER))).toBe(OTHER)
   })
 })
