@@ -33,7 +33,7 @@ import {
   type GetOwnResolverError,
   getOwnResolverQueryOptions,
 } from '../queries/getOwnResolver'
-import type { TransferSubject } from '../types'
+import type { TransferSubject, V1TransferActor } from '../types'
 import {
   buildTransferPlan,
   STEP_LABELS,
@@ -74,7 +74,10 @@ type ErrorOf<R> = R extends ResultAsync<unknown, infer E> ? E : never
 export class V1TransferRefusedError extends TaggedError(
   'V1TransferRefusedError',
 )<{
-  readonly reason: Exclude<V1TransferGate['reason'], 'ok'>
+  readonly reason:
+    | Exclude<V1TransferGate['reason'], 'ok'>
+    /** Still allowed, but in the other role — the form was built for this one. */
+    | 'actor-changed'
 }> {}
 
 /** Simulating the move step failed, so no config step was sent. */
@@ -100,9 +103,28 @@ const describeRefusal = (reason: V1TransferRefusedError['reason']): string =>
       () => 'This name’s CANNOT_TRANSFER fuse has been burned.',
     )
     .with(
+      'ancestor-expired',
+      () =>
+        'The name above this one has expired, so whoever registers it next can take this subname back. Nothing was sent.',
+    )
+    .with(
+      'ancestor-grace',
+      () =>
+        'The name above this one has entered its grace period, so the Name Wrapper refuses changes from the parent until it is renewed.',
+    )
+    .with(
+      'parent-cannot-reassign',
+      () => 'Your wallet can no longer reassign this subname from its parent.',
+    )
+    .with(
       'manager-only',
       'not-owner',
       () => 'Your wallet no longer owns this name.',
+    )
+    .with(
+      'actor-changed',
+      () =>
+        'How this name is held changed since the page loaded. Refresh and try again.',
     )
     .exhaustive()
 
@@ -115,11 +137,14 @@ export const useTransferName = ({
   name,
   account,
   subject,
+  actor = 'owner',
 }: {
   readonly name: string
   /** The connected wallet doing the sending. */
   readonly account: Address
   readonly subject: TransferSubject
+  /** V1 only: the role the form was built for. Re-checked at submit. */
+  readonly actor?: V1TransferActor
 }): TransferControls => {
   const config = useConfig()
   const publicClient = usePublicClient()
@@ -194,13 +219,16 @@ export const useTransferName = ({
       // No state means no registrant and no live wrapper owner: gone.
       if (!state) return refuse('expired')
       const gate = getV1TransferGate(state, account)
-      return gate.reason === 'ok'
-        ? ok<SavedParams>({
-            ...params,
-            tokenId: null,
-            resolverAddress: state.resolverAddress,
-          })
-        : refuse(gate.reason)
+      if (gate.reason !== 'ok') return refuse(gate.reason)
+      // The plan and the options the form offered were built for `actor`; a
+      // wallet that has since become the parent instead of the holder (or the
+      // reverse) needs a fresh form, not this plan under a different contract.
+      if (gate.actor !== actor) return refuse('actor-changed')
+      return ok<SavedParams>({
+        ...params,
+        tokenId: null,
+        resolverAddress: state.resolverAddress,
+      })
     })
 
   const readV2 = (params: StartTransferParams, registryAddress: Address) =>
@@ -231,7 +259,9 @@ export const useTransferName = ({
         const walletClient = await getWalletClient(config, { account })
         if (!walletClient?.account || !publicClient)
           throw new Error('No connected wallet')
-        const move = buildTransferPlan(params.options, subject.kind).at(-1)
+        const move = buildTransferPlan(params.options, subject.kind, actor).at(
+          -1,
+        )
         if (!move) throw new Error('Transfer plan has no move step')
         const { request } = buildTransferStepIntent(move, {
           ...params,
@@ -283,7 +313,7 @@ export const useTransferName = ({
   // array in a ref for auto-advance, so referential stability isn't required.
   const buildTransactions = (): Transaction[] => {
     if (!savedParams) return []
-    const steps = buildTransferPlan(savedParams.options, subject.kind)
+    const steps = buildTransferPlan(savedParams.options, subject.kind, actor)
     const stepContext = { ...savedParams, name, subject }
 
     // Idempotent runner per step: `onStart` may be invoked twice (modal UI +

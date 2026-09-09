@@ -99,4 +99,25 @@ describe('buildTransferPlan (v1)', () => {
     )
     expect(plan).toEqual(['transfer-erc1155'])
   })
+
+  it('moves a subname with one setSubnodeOwner when the parent acts', () => {
+    expect(buildTransferPlan(NO_OPTIONS, 'v1-wrapped', 'parent')).toEqual([
+      'set-subnode-owner',
+    ])
+    expect(buildTransferPlan(NO_OPTIONS, 'v1-registry', 'parent')).toEqual([
+      'set-subnode-owner',
+    ])
+  })
+
+  // The parent holds neither the subname's registry slot nor its wrapper
+  // token, so every record write would revert.
+  it('drops config steps when the parent acts, whatever was asked', () => {
+    expect(
+      buildTransferPlan(
+        { setEthAddress: true, detachResolver: true, detachRegistry: true },
+        'v1-wrapped',
+        'parent',
+      ),
+    ).toEqual(['set-subnode-owner'])
+  })
 })
