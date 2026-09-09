@@ -7,6 +7,7 @@
     "test:manager-premium": "playwright test --config=projects/manager/playwright.premium.config.ts",
     "test:manager-migration": "playwright test --config=projects/manager/playwright.migration.config.ts",
     "test:portal": "playwright test --config=projects/portal/playwright.config.ts",
+    "test:portal:review": "playwright test --config=projects/portal/playwright.review.config.ts",
     "test:cross-app": "playwright test --config=projects/cross-app/playwright.config.ts",
     "test:metadata": "playwright test --config=projects/metadata/playwright.config.ts",
     "coverage": "tsx coverage/reconcile.ts",
