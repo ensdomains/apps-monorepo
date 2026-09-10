@@ -80,19 +80,31 @@ dialogs, which is what makes this clickable.
 
 ## Creating the names — all from the drawer
 
-Open **ENS Dev tools** (bottom-right, `aria-label="Open ENS dev tools"`) →
-**Migration** tab. The preset strip is grouped `MIGRATE · COPY · TRANSFER ·
-INELIGIBLE`.
+Open **ENS Dev tools** (bottom-right, `aria-label="Open ENS dev tools"`). The
+drawer opens on whichever tab you last used — often **Time travel** — so click
+**Migration ›** in the drawer header first. The preset strip is grouped
+`MIGRATE · COPY · TRANSFER · INELIGIBLE`.
 
 Click a preset chip → wait for the name to appear in the row below → press
-**Transfer** to open its transfer route. Two clicks per case.
+**Open** to land on that name's **Ownership** tab.
 
-| Preset | Family | Produces | Expect on the transfer route |
-|---|---|---|---|
-| **Unwrapped** | migrate | you hold both halves | the recipient form |
-| **Manager only** | transfer | registrant = account 1, controller = **you** | "You manage this name but don't own it", naming the registrant in full |
-| **Locked -xfer** | ineligible | wrapped, `CANNOT_TRANSFER` burnt | "Transfer permanently disabled" |
-| **Grace Period** | migrate | expired ~45 days ago | "This name is in its grace period" |
+**Open** deliberately stops at the Ownership tab rather than jumping to the
+transfer route. Whether that tab offers a Transfer link is part of what you are
+checking — a link that leads to a refusal, or a missing link on a transferable
+name, is the shape **E2E-001** was about. The dev tools' job is to get you to
+the name; the app's job is everything after that.
+
+| Preset | Family | Produces | Transfer link on Ownership? | Card on the route |
+|---|---|---|---|---|
+| **Unwrapped** | migrate | you hold both halves | **yes** — click it | the recipient form |
+| **Manager only** | transfer | registrant = account 1, controller = **you** | **no** | "You manage this name but don't own it", naming the registrant in full |
+| **Locked -xfer** | ineligible | wrapped, `CANNOT_TRANSFER` burnt | **no** | "Transfer permanently disabled" |
+| **Grace Period** | migrate | expired ~45 days ago | **no** | "This name is in its grace period" |
+
+For the three refusal rows the link is *correctly* absent, so there is nothing
+to click. **Its absence is the first assertion.** To read the card underneath,
+append `/transfer` to the URL by hand — deep-linking is the only way in, which
+is the point.
 
 **Manager only** is the case with no V2 analogue and the one most worth reading
 carefully. It is created by registering normally and then handing the ERC-721
@@ -101,15 +113,17 @@ touch the registry. That is exactly why `reclaim` exists as a separate call.
 
 ## Walkthrough — the transferable case
 
-1. Click **Unwrapped**, wait for the name, press **Transfer**.
-2. The recipient form renders. Before #1134 there was no Transfer entry point
-   for a V1 name at all.
-3. Paste any other address — account 1 is
+1. Click **Unwrapped**, wait for the name, press **Open**.
+2. On the Ownership tab, there should be a **Transfer** link — click it. Before
+   #1134 that link never appeared for a V1 name at all, which is the single
+   most direct way to confirm you are testing the right build.
+3. The recipient form renders.
+4. Paste any other address — account 1 is
    `0x70997970C51812dc3A010C7d01b50e0d17dc79C8`.
-4. Start the flow. The plan should be **two** steps, in this order:
+5. Start the flow. The plan should be **two** steps, in this order:
    **reclaim**, then **transfer-erc721**. If you see only one, that is a
    finding — read "What a V1 transfer actually is" above.
-5. Verify both halves moved. In the browser console:
+6. Verify both halves moved. In the browser console:
 
 ```js
 // registrant — BaseRegistrar.ownerOf
@@ -128,13 +142,19 @@ owner still controls the records.
 
 ## Reading the refusal cards
 
-For each of **Manager only**, **Locked -xfer** and **Grace Period**, check:
+For each of **Manager only**, **Locked -xfer** and **Grace Period**:
 
-- the **title** matches the table above;
-- there is **no recipient form**;
-- the **Ownership tab does not offer a Transfer link** that leads to the
-  refusal. An entry point that contradicts its destination is the shape
-  **E2E-001** was about, and it is worth checking every time.
+1. Press **Open** and confirm the Ownership tab shows **no Transfer link**.
+   An entry point that contradicts its destination is the **E2E-001** shape,
+   and it is worth checking every time.
+
+   > For **Manager only**, the Ownership tab currently says "Name not
+   > registered" rather than showing the split. That is **V1-F3**, already
+   > recorded — the name is registered, and the transfer route identifies it
+   > correctly. Do not re-file it; carry on to step 2.
+2. Append `/transfer` to the URL to reach the card directly.
+3. Check the **title** matches the table above, and that there is **no
+   recipient form**.
 
 For **Manager only** specifically, the card must print the registrant's
 **full** address (font-mono), not a truncated one. The card exists to tell you

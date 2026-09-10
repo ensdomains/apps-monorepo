@@ -145,6 +145,35 @@ commit evidently fixed it without the note being updated.
 Left as-is here rather than edited in passing — it deserves its own check of
 whether §5.G is genuinely unblocked, not a one-line amendment from a PR review.
 
+### V1-F3 — A split V1 name reads as "not registered" on the Ownership tab
+
+Reproducible, and the two routes disagree about the same name.
+
+Given an unwrapped V1 2LD whose **registrant and controller are different
+accounts** (the `manager-only` shape — dev-tools preset, or
+`SHAPE=manager-only`), with the chain reporting registrant = account 1,
+controller = account 0 and an expiry decades out:
+
+| Route | Renders |
+|---|---|
+| `/{name}/ownership` | **"Name not registered — …there is no ownership data to display."** |
+| `/{name}/ownership/transfer` | correctly identifies it: "You manage this name but don't own it" |
+
+A normally-owned V1 name (registrant == controller) renders `/ownership` fine,
+showing Owner and Manager rows — so the trigger is specifically the split, not
+V1 names in general. Reproduced with a wallet connected and without, and on
+both a mock-wallet and a plain dev server, so it is not a connection artifact.
+
+**Not caused by #1134** — the Ownership tab is not this PR's code. But it
+matters here, because `manager-only` is one of the six states the PR adds
+handling for, and the natural way to reach it is via the tab that refuses to
+display it. It also makes the entry-point check awkward: you cannot confirm
+"no Transfer link is offered" on a page that claims the name does not exist.
+
+**Severity: S3.** Wrong state shown, and a workaround exists (deep-link to the
+transfer route). Worth a ruling on whether `resolveEnsOwner` should handle a
+split V1 name, since the transfer path clearly can.
+
 ### Non-findings (verified working)
 
 - V1 transfer moves **both** ownership halves, in the safe order.

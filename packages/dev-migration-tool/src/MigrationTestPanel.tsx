@@ -310,8 +310,8 @@ function SelectedNameActions({
   isCopyPreset,
   onMigrate,
   onRemove,
+  onOpen,
   onSelect,
-  onTransfer,
   selectedName,
 }: {
   readonly activeNames: readonly ActiveName[]
@@ -320,8 +320,8 @@ function SelectedNameActions({
   readonly isCopyPreset: boolean
   readonly onMigrate: (name: ActiveName) => void
   readonly onRemove: (id: string) => void
+  readonly onOpen: (name: ActiveName) => void
   readonly onSelect: (id: string) => void
-  readonly onTransfer: (name: ActiveName) => void
   readonly selectedName: ActiveName | null
 }) {
   return (
@@ -350,13 +350,15 @@ function SelectedNameActions({
       <button
         type="button"
         disabled={busy || !selectedName}
-        onClick={() => selectedName && onTransfer(selectedName)}
+        onClick={() => selectedName && onOpen(selectedName)}
         style={smallChipStyle('#7c6bd6')}
         title={
-          selectedName ? `Open ${selectedName.label}.eth's transfer route` : ''
+          selectedName
+            ? `Open ${selectedName.label}.eth's Ownership tab — then use the app's own Transfer link`
+            : ''
         }
       >
-        Transfer
+        Open
       </button>
       {/* A copy lands in a UserRegistry whose address derives from
           namehash(parentName), so re-migrating the same label hits the same slot
@@ -471,20 +473,25 @@ export function MigrationPanelContent() {
   )
 
   /**
-   * Open the selected name's transfer route.
+   * Open the selected name's **Ownership** tab — the app's own entry point,
+   * not the transfer route.
    *
-   * Deliberately does NOT sync to the subgraph mock the way `migrate` does:
-   * the transfer flow reads ownership from chain (BaseRegistrar / ENSRegistry
-   * / the V2 registry), not from the indexer, so the injection is irrelevant
-   * here and skipping it keeps the click fast.
+   * Deliberately one step short of `/ownership/transfer`. Whether that tab
+   * offers a Transfer link at all is part of what manual QA is checking: a
+   * link that leads to a refusal, or a missing link on a transferable name,
+   * is the shape E2E-001 was about. A button that jumped straight to the
+   * route would walk the tester past the check.
    *
-   * Exists because manual QA of the V1 transfer work (#1134) is run by a
-   * browser agent, which cannot invoke the CLI seeders. Without this the
-   * panel could create every V1 shape but offered no way to reach the screen
-   * that acts on them.
+   * For the refusal shapes the link is *correctly* absent, so there is
+   * nothing to click — append `/transfer` to the URL by hand to read the
+   * card. The absence is itself the assertion; see manual-v1-transfer.md.
+   *
+   * Does NOT sync to the subgraph mock the way `migrate` does: ownership is
+   * read from chain (BaseRegistrar / ENSRegistry / the V2 registry), not from
+   * the indexer, so the injection is irrelevant here.
    */
-  const transferSingle = useCallback((name: ActiveName) => {
-    window.location.href = `/${name.label}.eth/ownership/transfer`
+  const openOwnership = useCallback((name: ActiveName) => {
+    window.location.href = `/${name.label}.eth/ownership`
   }, [])
 
   const removeName = useCallback((id: string) => {
@@ -516,7 +523,7 @@ export function MigrationPanelContent() {
             copyState={copyState}
             isCopyPreset={isCopyPreset}
             onMigrate={migrateSingle}
-            onTransfer={transferSingle}
+            onOpen={openOwnership}
             onRemove={removeName}
             onSelect={setSelectedId}
             selectedName={selectedName}
