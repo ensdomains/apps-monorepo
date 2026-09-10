@@ -14,7 +14,7 @@
 
 import { msg } from '@lingui/core/macro'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { Address } from 'viem'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
@@ -26,14 +26,21 @@ import {
   type ResumeAssessment,
   type ResumeStaleReason,
 } from '../service/assessResumableRegistration'
-import { clearStoredRegistration } from '../service/registrationPersistence'
+import {
+  clearStoredRegistration,
+  loadStoredRegistration,
+} from '../service/registrationPersistence'
 import type { RegistrationV2UiActor } from './registrationUi.machine'
 
 const resumingMessage = msg`Resuming your registration.`
 const expiredMessage = msg`Your previous registration attempt expired. Starting over.`
 
 export type RegistrationResumeState =
-  /** Still deciding — the wallet may not have finished restoring. */
+  /**
+   * This name has a stored record and the resume has not decided yet; the
+   * wallet may not have finished restoring. The page holds pricing back
+   * meanwhile, because it may be about to hand over to the registering screen.
+   */
   | { readonly status: 'checking' }
   /** Nothing to do; render the normal pricing flow. */
   | { readonly status: 'idle' }
@@ -43,6 +50,9 @@ export type RegistrationResumeState =
   | { readonly status: 'discarded'; readonly reason: ResumeStaleReason }
   /** `registration.resume` has been dispatched. */
   | { readonly status: 'resumed' }
+
+const CHECKING: RegistrationResumeState = { status: 'checking' }
+const IDLE: RegistrationResumeState = { status: 'idle' }
 
 function discardStaleRecord(
   label: string,
@@ -177,9 +187,24 @@ export function useRegistrationResume(params: {
   const { label, uiActor, enabled = true } = params
   const account = useSmartAccountContext()
   const { hasInitialized, ownerAddress } = account
-  const [state, setState] = useState<RegistrationResumeState>({
-    status: 'checking',
-  })
+
+  // A decision, tagged with the label it was made for. The route keeps the
+  // provider mounted across a label change, so an untagged state would report
+  // one name's verdict (its wrong-wallet banner, or its lack of a hold) on the
+  // next name until that name's own assessment lands.
+  const [settled, setSettled] = useState<{
+    readonly label: string
+    readonly state: RegistrationResumeState
+  } | null>(null)
+
+  // Whether this name has a stored record at all. It is one synchronous
+  // localStorage read, so the FIRST render already knows whether a resume could
+  // be about to take the page over. Only then does the page wait; every other
+  // name renders pricing straight away.
+  const hasStoredRecord = useMemo(
+    () => enabled && loadStoredRegistration()?.label === label,
+    [enabled, label],
+  )
 
   // One decision per label. Without this latch the effect re-runs on every
   // account re-render and could dispatch a second resume into a flow that is
@@ -215,7 +240,7 @@ export function useRegistrationResume(params: {
 
   useEffect(() => {
     if (!enabled) {
-      setState({ status: 'idle' })
+      setSettled({ label, state: IDLE })
       return
     }
 
@@ -227,7 +252,7 @@ export function useRegistrationResume(params: {
       // alone: connecting a wallet re-keys the query, which is the recovery
       // path — a resumable record must survive a transient RPC failure.
       console.warn('⚠️ [REGISTRATION] Resume check failed:', assessmentError)
-      setState({ status: 'idle' })
+      setSettled({ label, state: IDLE })
       return
     }
 
@@ -238,7 +263,7 @@ export function useRegistrationResume(params: {
 
     if (decision.kind === 'state') {
       if (decision.latch) decidedForLabel.current = label
-      setState(decision.state)
+      setSettled({ label, state: decision.state })
       return
     }
 
@@ -254,7 +279,7 @@ export function useRegistrationResume(params: {
       .then((next) => {
         if (!next) return
         if (next.status === 'resumed') decidedForLabel.current = label
-        setState(next)
+        setSettled({ label, state: next })
       })
       .catch((error: unknown) => {
         if (cancelled) return
@@ -265,7 +290,7 @@ export function useRegistrationResume(params: {
         // un-latched so a reconnect or a retried session enable gets another
         // go, and leave the record alone: it is still valid.
         console.warn('⚠️ [REGISTRATION] Resume check failed:', error)
-        setState({ status: 'idle' })
+        setSettled({ label, state: IDLE })
       })
 
     return () => {
@@ -281,5 +306,6 @@ export function useRegistrationResume(params: {
     ownerAddress,
   ])
 
-  return state
+  if (settled?.label === label) return settled.state
+  return hasStoredRecord ? CHECKING : IDLE
 }

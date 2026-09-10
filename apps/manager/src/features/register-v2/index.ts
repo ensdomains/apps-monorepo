@@ -11,6 +11,7 @@ export { useRegistrationStep } from './state/registrationUi.selectors'
 export type { RegistrationResumeState } from './state/useRegistrationResume'
 export { parseName } from './utils/name-parser'
 
+export { ResumeCheckPlaceholder } from './workflow/pricing/components/ResumeCheckPlaceholder'
 export { PricingStep } from './workflow/pricing/PricingStep'
 export { RegisteringStep } from './workflow/registering/RegisteringStep'
 export { FailureStep } from './workflow/result/FailureStep'

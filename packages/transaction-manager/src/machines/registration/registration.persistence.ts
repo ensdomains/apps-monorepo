@@ -2,6 +2,7 @@ import { getDestinationContracts } from '@ens-apps/smart-account'
 import { err, ok, type Result } from 'neverthrow'
 import * as v from 'valibot'
 import type { Address, Hash, Hex } from 'viem'
+import { isUserRejectionError } from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
 import {
   PAYMENT_TOKEN_CONTRACT,
@@ -376,10 +377,23 @@ export function parseRegistrationRecord(
 const CLEARING_STAGES = new Set(['idle', 'success'])
 
 /**
+ * A run that failed because the user declined a wallet request was abandoned,
+ * not interrupted. Resuming it on the next load would put the prompt they just
+ * refused straight back in front of them, so it is cleared like a cancel and a
+ * reload lands on pricing instead. On the EOA path this can drop a commitment
+ * that is already on-chain; the user chose to stop, and the cost is the commit
+ * gas.
+ */
+const isDeclinedRun = (stage: string, context: RegistrationContext) =>
+  stage === 'error' && isUserRejectionError(context.error)
+
+/**
  * Mirror an actor's progress into `adapter`.
  *
  * Writes on every stage that could be resumed, and clears on `success` (the
- * name is registered) and on `idle` (the flow was cancelled, or never started).
+ * name is registered), on `idle` (the flow was cancelled, or never started)
+ * and on an `error` the user caused by declining a wallet request. Retrying
+ * from that error re-enters a live stage, which writes the record again.
  *
  * Storage failures are swallowed: a full quota must never take down a
  * registration that is otherwise fine.
@@ -414,7 +428,7 @@ export function subscribeRegistrationPersistence(
   const subscription = actor.subscribe((snapshot) => {
     const stage = String(snapshot.value)
 
-    if (CLEARING_STAGES.has(stage)) {
+    if (CLEARING_STAGES.has(stage) || isDeclinedRun(stage, snapshot.context)) {
       if (lastPayload === null) return
       lastPayload = null
       runSafely(() => adapter.clear())

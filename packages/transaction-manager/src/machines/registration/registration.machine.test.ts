@@ -2,7 +2,10 @@ import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { createActor, fromPromise, waitFor } from 'xstate'
-import { TransactionSubmissionError } from '../../errors/transaction.errors'
+import {
+  TransactionSubmissionError,
+  TransactionUserRejectedError,
+} from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
 import type { TransactionRequest } from '../../types/transaction.types'
 import type { HcaSessionEnableParams } from './registration.hca.actors'
@@ -645,6 +648,81 @@ describe('registrationMachine — RESUME', () => {
         }),
       }),
     )
+    actor.stop()
+  })
+})
+
+describe('registrationMachine — commit receipt failure', () => {
+  /** Walk the EOA path up to the commit receipt, which fails with `pollError`. */
+  const startEoaCommit = (pollError: Error) => {
+    const validateCommitment = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          deployResolver: fromPromise(async () => ({
+            txId: 'tx-reg-deploy-resolver',
+            salt: 1n,
+          })) as never,
+          resolveResolverDeployment: fromPromise(async () => ({
+            resolverAddress: RESOLVER,
+          })) as never,
+          generateCommitment: fromPromise(async () => ({
+            commitment: COMMITMENT,
+            secret: SECRET,
+          })) as never,
+          submitCommitment: fromPromise(async () => 'tx-reg-commit') as never,
+          pollTransactionStatus: fromPromise(async () => {
+            throw pollError
+          }) as never,
+          validateCommitment: fromPromise(validateCommitment) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'START_REGISTRATION',
+      name: 'myname.eth',
+      duration: 31_536_000n,
+      token: 'USDC',
+      price: 5_000_000n,
+      signer: { type: 'eoa' } as unknown as Signer,
+      accountAddress: WALLET,
+      ownerAddress: WALLET,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+    })
+
+    return { actor, validateCommitment }
+  }
+
+  it('goes straight to error when the user declined the commit', async () => {
+    const declined = new TransactionUserRejectedError({} as TransactionRequest)
+    const { actor, validateCommitment } = startEoaCommit(declined)
+
+    await waitFor(actor, (s) => s.matches('error'))
+
+    // Nothing reached the chain, so there is nothing to wait out retries for.
+    expect(validateCommitment).not.toHaveBeenCalled()
+    // Kept rather than replaced by "commitment not found": it is how
+    // persistence tells a declined run from an interrupted one.
+    expect(actor.getSnapshot().context.error).toBe(declined)
+    // Retry re-enters through commitment generation (fresh secret) — the one
+    // EOA commit-retry path, whether or not the declined commit was sent.
+    expect(actor.getSnapshot().context.retryTarget).toBe('preparingCommitment')
+    actor.stop()
+  })
+
+  it('still verifies on-chain when the receipt poll merely failed', async () => {
+    // The commit may have landed; resubmitting it would be rejected by the
+    // registrar and strand the user.
+    const { actor, validateCommitment } = startEoaCommit(
+      new Error('receipt timeout'),
+    )
+
+    await waitFor(actor, (s) => s.matches('validatingCommitment'))
+
+    expect(validateCommitment).toHaveBeenCalledOnce()
     actor.stop()
   })
 })

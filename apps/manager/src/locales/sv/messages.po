@@ -448,6 +448,10 @@ msgstr ""
 msgid "Checking allowance"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/ResumeCheckPlaceholder.tsx
+msgid "Checking for an unfinished registration"
+msgstr ""
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Checking migration access..."
 msgstr ""
@@ -3004,10 +3008,6 @@ msgstr ""
 msgid "Your account"
 msgstr ""
 
-#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
-msgid "Your account could not be checked. Please try again."
-msgstr ""
-
 #. placeholder {0}: f.hcaCredit.toFixed(2)
 #. placeholder {1}: f.walletDebit.toFixed(2)
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -3017,6 +3017,10 @@ msgstr ""
 #. placeholder {0}: f.total.toFixed(2)
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your account already holds the {0} USDC this registration needs, so you won't be asked to approve a payment."
+msgstr ""
+
+#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
+msgid "Your account could not be checked. Please try again."
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx

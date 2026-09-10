@@ -1187,15 +1187,20 @@ export const registrationMachine = setup({
           target: 'fetchingCommitmentAge',
         },
         // Receipt polling can fail (timeout / lost tx actor) even after the
-        // commitment lands on-chain — especially for the HCA bundle,
-        // where the commit is one call inside `submittingSetupBundle`. Don't
-        // surface a false failure and resubmit a standalone `commit` (the
-        // registrar rejects an already-recorded commitment, stranding the user
-        // in `error`). Instead verify on-chain via `validatingCommitment`: if
+        // commitment lands on-chain — especially for the HCA bundle, where the
+        // commit is one call inside `submittingSetupBundle`. Don't surface a
+        // false failure and resubmit a standalone `commit` (the registrar
+        // rejects an already-recorded commitment, stranding the user in
+        // `error`). Instead verify on-chain via `validatingCommitment`: if
         // `commitmentAt` is set we continue, otherwise that state's retry
         // resubmits the correct (signer-aware) commit path.
         onError: [
-          // Warp can fill after a reported failure, so only HCA verifies.
+          // A commit that never reached the chain — a user rejection, or any
+          // other non-retryable submission failure — has nothing to verify.
+          // Validating anyway would keep the user waiting out its retries and
+          // then replace the real error with a "not found" one, hiding from
+          // persistence that the run stopped here. Warp can fill after a
+          // reported failure, so only HCA verifies a retryable send error.
           {
             guard: ({ context, event }) =>
               !isRetryableSubmissionError(event.error) ||
@@ -1204,7 +1209,10 @@ export const registrationMachine = setup({
             target: 'error',
             actions: assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'preparingCommitment' as const,
+              retryTarget: ({ context }) =>
+                context.signer?.type === 'rhinestone'
+                  ? ('submittingSetupBundle' as const)
+                  : ('preparingCommitment' as const),
             }),
           },
           {

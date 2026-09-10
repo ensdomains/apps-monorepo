@@ -12,6 +12,7 @@ const OTHER = '0x2222222222222222222222222222222222222222' as Address
 
 const assessResumableRegistration = vi.fn()
 const clearStoredRegistration = vi.fn()
+const loadStoredRegistration = vi.fn()
 const needsSessionBeforeRegistration = vi.fn(() => false)
 const useSmartAccountContext = vi.fn()
 const toast = vi.fn()
@@ -33,6 +34,7 @@ vi.mock('../service/assessResumableRegistration', () => ({
 
 vi.mock('../service/registrationPersistence', () => ({
   clearStoredRegistration: () => clearStoredRegistration(),
+  loadStoredRegistration: () => loadStoredRegistration(),
 }))
 
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
@@ -101,6 +103,7 @@ describe('useRegistrationResume', () => {
     vi.clearAllMocks()
     needsSessionBeforeRegistration.mockReturnValue(false)
     useSmartAccountContext.mockReturnValue(account())
+    loadStoredRegistration.mockReturnValue({ label: 'leon' })
     assessResumableRegistration.mockResolvedValue(resumableAssessment())
     enableSession.mockResolvedValue({ type: 'rhinestone' })
     getSessionEnablePayload.mockResolvedValue({ stub: 'enable' })
@@ -129,6 +132,50 @@ describe('useRegistrationResume', () => {
     expect(result.current.status).toBe('checking')
     expect(assessResumableRegistration).not.toHaveBeenCalled()
     expect(send).not.toHaveBeenCalled()
+  })
+
+  it('does not hold the page when nothing is stored for this name', () => {
+    // Known on the first render, before the wallet restores: a name with no
+    // stored run renders pricing at once rather than waiting on an assessment
+    // that can only answer "none".
+    loadStoredRegistration.mockReturnValue(null)
+    useSmartAccountContext.mockReturnValue(
+      account({ hasInitialized: false, ownerAddress: null }),
+    )
+
+    const { result } = render()
+
+    expect(result.current.status).toBe('idle')
+  })
+
+  it('does not hold the page for a record that belongs to another name', () => {
+    loadStoredRegistration.mockReturnValue({ label: 'bob' })
+    useSmartAccountContext.mockReturnValue(
+      account({ hasInitialized: false, ownerAddress: null }),
+    )
+
+    const { result } = render()
+
+    expect(result.current.status).toBe('idle')
+  })
+
+  it("never reports one name's verdict for the next", async () => {
+    // The provider stays mounted across a label change. Untagged, leon's
+    // wrong-wallet banner would show on bob's page until bob's own check lands.
+    useSmartAccountContext.mockReturnValue(account({ ownerAddress: OTHER }))
+    const { result, rerender } = renderHook(
+      ({ label }) => useRegistrationResume({ label, uiActor }),
+      { wrapper, initialProps: { label: 'leon' } },
+    )
+    await waitFor(() => expect(result.current.status).toBe('wrong-wallet'))
+
+    assessResumableRegistration.mockResolvedValue({
+      status: 'stale',
+      reason: 'label-mismatch',
+    })
+    rerender({ label: 'bob' })
+
+    expect(result.current.status).toBe('idle')
   })
 
   it('does not resume for a different wallet', async () => {

@@ -443,6 +443,10 @@ msgstr "Checking"
 msgid "Checking allowance"
 msgstr "Checking allowance"
 
+#: src/features/register-v2/workflow/pricing/components/ResumeCheckPlaceholder.tsx
+msgid "Checking for an unfinished registration"
+msgstr "Checking for an unfinished registration"
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Checking migration access..."
 msgstr "Checking migration access..."
@@ -2999,10 +3003,6 @@ msgstr "You're on ENSv2!"
 msgid "Your account"
 msgstr "Your account"
 
-#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
-msgid "Your account could not be checked. Please try again."
-msgstr "Your account could not be checked. Please try again."
-
 #. placeholder {0}: f.hcaCredit.toFixed(2)
 #. placeholder {1}: f.walletDebit.toFixed(2)
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -3013,6 +3013,10 @@ msgstr "Your account already holds {0} USDC, so only {1} USDC will be taken from
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your account already holds the {0} USDC this registration needs, so you won't be asked to approve a payment."
 msgstr "Your account already holds the {0} USDC this registration needs, so you won't be asked to approve a payment."
+
+#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
+msgid "Your account could not be checked. Please try again."
+msgstr "Your account could not be checked. Please try again."
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Your card is ready to preview. Minting is optional and you pay the network gas."

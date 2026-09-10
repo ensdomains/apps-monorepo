@@ -1,7 +1,9 @@
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
-import { createActor, fromPromise } from 'xstate'
+import { createActor, fromPromise, waitFor } from 'xstate'
+import { TransactionUserRejectedError } from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
+import type { TransactionRequest } from '../../types/transaction.types'
 import type { RegistrationContext } from './registration.machine'
 import { registrationMachine } from './registration.machine'
 import {
@@ -351,6 +353,25 @@ const startParkedActor = () =>
     { input: { chainId: 11155111 } },
   )
 
+/** Like {@link startParkedActor}, but the first resolver deploy fails with `error`. */
+const startActorFailingDeploy = (error: Error) =>
+  createActor(
+    registrationMachine.provide({
+      actors: {
+        deployResolver: fromPromise(
+          vi
+            .fn()
+            .mockRejectedValueOnce(error)
+            .mockImplementation(() => new Promise(() => {})),
+        ) as never,
+      },
+    }),
+    { input: { chainId: 11155111 } },
+  )
+
+const declined = () =>
+  new TransactionUserRejectedError({} as TransactionRequest)
+
 const startRegistration = (actor: ReturnType<typeof startParkedActor>) => {
   actor.send({
     type: 'START_REGISTRATION',
@@ -410,6 +431,54 @@ describe('subscribeRegistrationPersistence', () => {
     actor.send({ type: 'CANCEL' })
 
     expect(adapter.clears).toBe(1)
+    actor.stop()
+  })
+
+  it('clears when the run fails because the user declined', async () => {
+    // Resuming a declined run on reload would re-open the very prompt the user
+    // just refused; they belong back on pricing.
+    const adapter = createAdapter()
+    const actor = startActorFailingDeploy(declined())
+
+    subscribeRegistrationPersistence(actor, adapter)
+    actor.start()
+    startRegistration(actor)
+    await waitFor(actor, (s) => s.matches('error'))
+
+    expect(adapter.clears).toBe(1)
+    actor.stop()
+  })
+
+  it('keeps the record when the run fails for any other reason', async () => {
+    // An interrupted run is still worth resuming, e.g. to find a reveal that
+    // landed after verification gave up.
+    const adapter = createAdapter()
+    const actor = startActorFailingDeploy(new Error('rpc down'))
+
+    subscribeRegistrationPersistence(actor, adapter)
+    actor.start()
+    startRegistration(actor)
+    await waitFor(actor, (s) => s.matches('error'))
+
+    expect(adapter.clears).toBe(0)
+    expect(adapter.saved.at(-1)?.stage).toBe('error')
+    actor.stop()
+  })
+
+  it('writes again once a declined run is retried', async () => {
+    const adapter = createAdapter()
+    const actor = startActorFailingDeploy(declined())
+
+    subscribeRegistrationPersistence(actor, adapter)
+    actor.start()
+    startRegistration(actor)
+    await waitFor(actor, (s) => s.matches('error'))
+    const writes = adapter.saved.length
+
+    actor.send({ type: 'RETRY' })
+
+    expect(adapter.saved).toHaveLength(writes + 1)
+    expect(adapter.saved.at(-1)?.stage).toBe('deployingResolver')
     actor.stop()
   })
 

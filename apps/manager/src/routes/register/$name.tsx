@@ -13,7 +13,9 @@ import {
   parseName,
   RegisteringStep,
   RegistrationV2UiProvider,
+  ResumeCheckPlaceholder,
   SuccessStep,
+  useRegistrationV2Context,
 } from '@/features/register-v2'
 import { useRegistrationFlowController } from '@/features/weave-registration'
 
@@ -90,6 +92,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
 }
 
 function PageContent() {
+  const { resume } = useRegistrationV2Context()
   const {
     step,
     sawWeaveFlow,
@@ -113,6 +116,12 @@ function PageContent() {
         showRegisteringCompletion={showRegisteringCompletion}
       />
     )
+  }
+
+  // A stored run for this name may be about to take the page over; hold
+  // pricing back until the resume has decided.
+  if (step === 'pricing' && resume.status === 'checking') {
+    return <ResumeCheckPlaceholder />
   }
 
   return (
