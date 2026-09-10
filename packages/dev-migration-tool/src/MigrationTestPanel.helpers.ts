@@ -1958,11 +1958,14 @@ export async function createV1NameOnAnvil(
       await registerV1Name(endpoint, label, false)
       const ts = await getBlockTimestamp(endpoint)
       const expiryDate = ts + ONE_YEAR
-      // Deliberately NOT reserved in V2, unlike every migrate-family preset.
-      // A reserved slot makes `resolveEnsOwner` report ENSv2, which routes the
-      // transfer page to the V2 component and renders "Transfer not available"
-      // instead of the V1 manager-only card — measured. This preset exists to
-      // exercise the V1 path, so the name has to stay purely V1.
+      // Reserved in V2 like every other preset. An earlier revision skipped
+      // this on the theory that a reserved slot would route the page to the V2
+      // component — tested, and false. What it actually did was make the name
+      // invisible: `resolveEnsOwner` needs the V2 reservation to resolve a V1
+      // name at all, so the portal answered "Name not registered" for a name
+      // plainly on chain. Measured: V2 status 0 -> not registered, status 1 ->
+      // renders correctly.
+      await reserveInV2(endpoint, label, expiryDate)
       await sendTx(
         endpoint,
         V1_BASE_REGISTRAR,
@@ -1988,6 +1991,7 @@ export async function createV1NameOnAnvil(
       await registerV1Name(endpoint, label, false)
       const ts = await getBlockTimestamp(endpoint)
       const expiryDate = ts + ONE_YEAR
+      await reserveInV2(endpoint, label, expiryDate)
       await sendTx(
         endpoint,
         V1_ENS_REGISTRY,

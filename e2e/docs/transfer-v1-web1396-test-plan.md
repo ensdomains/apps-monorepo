@@ -209,34 +209,36 @@ commit evidently fixed it without the note being updated.
 Left as-is here rather than edited in passing — it deserves its own check of
 whether §5.G is genuinely unblocked, not a one-line amendment from a PR review.
 
-### V1-F3 — A split V1 name reads as "not registered" on the Ownership tab
+### V1-F3 — **Corrected twice** — the Ownership tab shows the controller as owner (now **E2E-011**)
 
-Reproducible, and the two routes disagree about the same name.
+Recorded here as it was actually arrived at, because both wrong turns are
+instructive.
 
-Given an unwrapped V1 2LD whose **registrant and controller are different
-accounts** (the `manager-only` shape — dev-tools preset, or
-`SHAPE=manager-only`), with the chain reporting registrant = account 1,
-controller = account 0 and an expiry decades out:
+**First claim, wrong:** "a split V1 name reads as *not registered*". Observed
+on names built by the dev-tools `manager-only` preset. The real cause was that
+I had removed `reserveInV2` from that preset on a hypothesis I then tested and
+disproved but failed to revert. `resolveEnsOwner` needs the V2 reservation to
+resolve a V1 name at all — measured: V2 status `0` → "not registered", status
+`1` → renders. **My tooling bug, not an app defect.** The preset now reserves,
+like every other.
 
-| Route | Renders |
-|---|---|
-| `/{name}/ownership` | **"Name not registered — …there is no ownership data to display."** |
-| `/{name}/ownership/transfer` | correctly identifies it: "You manage this name but don't own it" |
+**Second claim, also wrong:** with that fixed, a `test.fail()` repro asserting
+"not registered is hidden" reported *"Expected to fail, but passed"* — correctly,
+since the page does render.
 
-A normally-owned V1 name (registrant == controller) renders `/ownership` fine,
-showing Owner and Manager rows — so the trigger is specifically the split, not
-V1 names in general. Reproduced with a wallet connected and without, and on
-both a mock-wallet and a plain dev server, so it is not a connection artifact.
+**What is actually wrong**, and is now filed as **E2E-011**: with the two
+halves in different hands, the tab prints the **controller** in both the Owner
+and the Manager row. Chain says registrant `0x7099…79C8`, controller
+`0xf39F…2266`; the page says "Owner 0xf39F…2266 · Manager 0xf39F…2266". So the
+registrant — the account that holds the ERC-721 and the only one the registrar
+lets transfer — appears nowhere, and a non-owner is labelled Owner.
 
-**Not caused by #1134** — the Ownership tab is not this PR's code. But it
-matters here, because `manager-only` is one of the six states the PR adds
-handling for, and the natural way to reach it is via the tab that refuses to
-display it. It also makes the entry-point check awkward: you cannot confirm
-"no Transfer link is offered" on a page that claims the name does not exist.
+The transfer route reads the same name correctly (F24 names the registrant), so
+the data is reachable. Not introduced by #1134; surfaced by testing it.
 
-**Severity: S3.** Wrong state shown, and a workaround exists (deep-link to the
-transfer route). Worth a ruling on whether `resolveEnsOwner` should handle a
-split V1 name, since the transfer path clearly can.
+**Lesson worth keeping:** the first two diagnoses were each made from a browser
+observation without checking the chain state that produced it. The third was
+made by reading both, and only then writing the assertion.
 
 ### V1-F4 — Blocker — `V1_PUBLIC_RESOLVER.setAddr` reverts, so no V1 name can have an addr(60)
 

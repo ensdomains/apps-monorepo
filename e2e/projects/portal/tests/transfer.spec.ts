@@ -62,6 +62,10 @@ const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
 
+/** `0xabcd…1234` — how the UI renders an address in a row or card. */
+const truncateAddress = (address: string) =>
+  `${address.slice(0, 6)}…${address.slice(-4)}`
+
 /** A wallet client for `ownerPrivateKey`, pointed at the local Anvil fork. */
 function getOwnerClient(ownerPrivateKey: Hash) {
   return createWalletClient({
@@ -2816,6 +2820,67 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
         timeout: 90_000,
       })
       .toBe(recipient.toLowerCase())
+  })
+
+  test('names the registrant as owner on the Ownership tab (E2E-011)', {
+    tag: ['@scenario:F33'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+
+    // Expected to fail until E2E-011 is fixed, marked the way E2E-007/008/010
+    // are, so the suite's failure count stays meaningful and Playwright errors
+    // the day the tab learns to read the registrar.
+    test.fail()
+
+    await connectWithHeadlessWallet(page, wallet)
+
+    const controller = accounts.getAddress('user')
+    const registrant = accounts.getAddress('user2')
+    const ownerKey = accounts.getPrivateKey('user')
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(ownerKey),
+    })
+    const name = await makeV1Name({ label: 'v1-own-e2e011', type: 'unwrapped' })
+    const label = name.replace(/\.eth$/, '')
+
+    // The same split F24 uses: the ERC-721 to user2, the registry controller
+    // left with the connected wallet.
+    const hash = await getOwnerClient(ownerKey).sendTransaction({
+      to: V1_BASE_REGISTRAR,
+      data: encodeFunctionData({
+        abi: parseAbi([
+          'function safeTransferFrom(address from, address to, uint256 tokenId)',
+        ]),
+        functionName: 'safeTransferFrom',
+        args: [controller, registrant, BigInt(labelhash(label))],
+      }),
+    })
+    await publicClient.waitForTransactionReceipt({ hash })
+
+    expect((await readRegistrant(label)).toLowerCase()).toBe(
+      registrant.toLowerCase(),
+    )
+    expect((await readController(name)).toLowerCase()).toBe(
+      controller.toLowerCase(),
+    )
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(page.getByText('Owner', { exact: true }).first()).toBeVisible({
+      timeout: 30_000,
+    })
+
+    // THE ORACLE. For a V1 name the registrant IS the owner — it holds the
+    // ERC-721, and it is the only account the registrar will let transfer the
+    // name. The tab instead prints the controller in both the Owner and the
+    // Manager row, so the real owner appears nowhere and a non-owner is
+    // labelled "Owner". The transfer route reads the same name correctly (F24
+    // asserts it names the registrant), so the data is plainly reachable.
+    await expect(
+      page.getByText(truncateAddress(registrant)),
+      'E2E-011: the Ownership tab must name the registrant as the owner of a ' +
+        'V1 name — it currently shows the controller in both rows, so whoever ' +
+        'actually owns the name is not on the page at all',
+    ).toBeVisible({ timeout: 30_000 })
   })
 
   test('refuses a wrapped V1 name with CANNOT_TRANSFER burnt', {
