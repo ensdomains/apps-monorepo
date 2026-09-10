@@ -571,7 +571,7 @@ msgid "Connect Wallet"
 msgstr ""
 
 #. placeholder {0}: truncateAddress(resume.expectedOwner)
-#: src/features/register-v2/workflow/pricing/components/ResumeWrongWalletBanner.tsx
+#: src/features/register-v2/workflow/pricing/components/ResumeConnectWalletBanner.tsx
 msgid "Connect wallet {0} to resume registering {label}.eth. Starting over from another wallet would abandon the payment already made."
 msgstr ""
 
@@ -2615,7 +2615,7 @@ msgstr ""
 msgid "Unable to load names for this address. Please try again."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/ResumeWrongWalletBanner.tsx
+#: src/features/register-v2/workflow/pricing/components/ResumeConnectWalletBanner.tsx
 msgid "Unfinished registration"
 msgstr ""
 

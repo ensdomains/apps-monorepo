@@ -652,6 +652,45 @@ describe('registrationMachine — RESUME', () => {
   })
 })
 
+describe('registrationMachine — SUSPEND', () => {
+  it('stops a live run and leaves it ready to RESUME', async () => {
+    const { actor } = startHcaRegistration({
+      balances: [0n],
+      signFundingPermit: vi.fn(() => new Promise(() => {})),
+    })
+    await waitFor(actor, (s) => s.matches('signingFundingPermit'))
+
+    actor.send({ type: 'SUSPEND' })
+
+    expect(actor.getSnapshot().value).toBe('idle')
+    expect(actor.getSnapshot().context.suspended).toBe(true)
+
+    // The owner reconnecting later resumes the same run from idle.
+    actor.send({
+      type: 'RESUME',
+      stage: 'signingFundingPermit',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+      },
+    })
+
+    expect(actor.getSnapshot().value).not.toBe('idle')
+    expect(actor.getSnapshot().context.suspended).toBeUndefined()
+    actor.stop()
+  })
+})
+
 describe('registrationMachine — commit receipt failure', () => {
   /** Walk the EOA path up to the commit receipt, which fails with `pollError`. */
   const startEoaCommit = (pollError: Error) => {

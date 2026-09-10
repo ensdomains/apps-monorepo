@@ -5,15 +5,16 @@ import { truncateAddress } from '@/lib/utils'
 import { RegisterV2Context } from '../../../state/registrationUi.context'
 
 /**
- * Shown on the pricing screen when a stored registration for this name belongs
- * to a wallet other than the connected one. The resume decision is deliberately
- * un-latched in that case — connecting the expected wallet picks the flow back
- * up on its own — so the banner's only job is to say which wallet that is.
+ * Shown on the pricing screen when a stored registration for this name exists
+ * and no wallet is connected, to say which wallet picks it back up. Connecting
+ * that wallet resumes the flow on its own. A different connected wallet sees
+ * nothing: the registration is not theirs, so it stays out of sight until its
+ * owner reconnects.
  */
-export const ResumeWrongWalletBanner = () => {
+export const ResumeConnectWalletBanner = () => {
   const { resume, label } = RegisterV2Context.use()
 
-  if (resume.status !== 'wrong-wallet') return null
+  if (resume.status !== 'no-wallet') return null
 
   return (
     <Alert variant="warning">

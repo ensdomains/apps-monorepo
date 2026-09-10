@@ -161,13 +161,14 @@ describe('useRegistrationResume', () => {
 
   it("never reports one name's verdict for the next", async () => {
     // The provider stays mounted across a label change. Untagged, leon's
-    // wrong-wallet banner would show on bob's page until bob's own check lands.
-    useSmartAccountContext.mockReturnValue(account({ ownerAddress: OTHER }))
+    // "connect wallet" banner would show on bob's page until bob's own check
+    // lands.
+    useSmartAccountContext.mockReturnValue(account({ ownerAddress: null }))
     const { result, rerender } = renderHook(
       ({ label }) => useRegistrationResume({ label, uiActor }),
       { wrapper, initialProps: { label: 'leon' } },
     )
-    await waitFor(() => expect(result.current.status).toBe('wrong-wallet'))
+    await waitFor(() => expect(result.current.status).toBe('no-wallet'))
 
     assessResumableRegistration.mockResolvedValue({
       status: 'stale',
@@ -178,12 +179,30 @@ describe('useRegistrationResume', () => {
     expect(result.current.status).toBe('idle')
   })
 
-  it('does not resume for a different wallet', async () => {
+  it('keeps the record out of sight of a different wallet', async () => {
+    // Not theirs to resume: the page shows them plain pricing, naming no one,
+    // and the record stays for its owner.
     useSmartAccountContext.mockReturnValue(account({ ownerAddress: OTHER }))
 
     const { result } = render()
 
     await waitFor(() => expect(result.current.status).toBe('wrong-wallet'))
+    expect(result.current).toEqual({ status: 'wrong-wallet' })
+    expect(send).not.toHaveBeenCalled()
+    expect(clearStoredRegistration).not.toHaveBeenCalled()
+  })
+
+  it('names the owning wallet when no wallet is connected', async () => {
+    useSmartAccountContext.mockReturnValue(account({ ownerAddress: null }))
+
+    const { result } = render()
+
+    await waitFor(() =>
+      expect(result.current).toEqual({
+        status: 'no-wallet',
+        expectedOwner: OWNER,
+      }),
+    )
     expect(send).not.toHaveBeenCalled()
     expect(clearStoredRegistration).not.toHaveBeenCalled()
   })
@@ -352,6 +371,80 @@ describe('useRegistrationResume', () => {
 
     // A second dispatch would re-enter a flow that is already running.
     expect(send).toHaveBeenCalledOnce()
+  })
+
+  describe('a different wallet connecting mid-run', () => {
+    /** A live run in this tab, started by OWNER: nothing was stored at mount. */
+    const renderLiveRun = (options: { enabled?: boolean } = {}) => {
+      assessResumableRegistration.mockResolvedValue({ status: 'none' })
+      loadStoredRegistration.mockReturnValue(null)
+
+      return renderHook(
+        ({ runOwner }: { runOwner?: Address }) =>
+          useRegistrationResume({
+            label: 'leon',
+            uiActor,
+            enabled: options.enabled,
+            suspendableRunOwner: runOwner,
+          }),
+        { wrapper, initialProps: { runOwner: OWNER as Address | undefined } },
+      )
+    }
+
+    const suspends = () =>
+      send.mock.calls.filter(([e]) => e.type === 'registration.suspend')
+
+    it('suspends the run out of sight of that wallet, and resumes for the owner', async () => {
+      const { result, rerender } = renderLiveRun()
+      await waitFor(() => expect(result.current.status).toBe('idle'))
+
+      // By now the run has written its record, owned by OWNER.
+      assessResumableRegistration.mockResolvedValue(resumableAssessment())
+      useSmartAccountContext.mockReturnValue(account({ ownerAddress: OTHER }))
+      rerender({ runOwner: OWNER })
+
+      expect(suspends()).toHaveLength(1)
+      // Held on the placeholder, not flashed to plain pricing, while deciding.
+      expect(result.current.status).toBe('checking')
+
+      rerender({ runOwner: undefined }) // The UI machine is back on pricing.
+      await waitFor(() => expect(result.current.status).toBe('wrong-wallet'))
+
+      useSmartAccountContext.mockReturnValue(account({ ownerAddress: OWNER }))
+      rerender({ runOwner: undefined })
+
+      await waitFor(() => expect(result.current.status).toBe('resumed'))
+      expect(send).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'registration.resume' }),
+      )
+    })
+
+    it('ignores a transient null owner', async () => {
+      // wagmi reports no wallet for a moment during reconnects; bouncing the
+      // run back to pricing on that would interrupt a healthy registration.
+      const { result, rerender } = renderLiveRun()
+      await waitFor(() => expect(result.current.status).toBe('idle'))
+
+      useSmartAccountContext.mockReturnValue(account({ ownerAddress: null }))
+      rerender({ runOwner: OWNER })
+      useSmartAccountContext.mockReturnValue(
+        account({ ownerAddress: OWNER.toLowerCase() }),
+      )
+      rerender({ runOwner: OWNER })
+
+      expect(suspends()).toHaveLength(0)
+    })
+
+    it('leaves the run alone when resume is switched off', async () => {
+      // Nothing could bring the run back, so stopping it would only strand the
+      // payment already made.
+      const { rerender } = renderLiveRun({ enabled: false })
+
+      useSmartAccountContext.mockReturnValue(account({ ownerAddress: OTHER }))
+      rerender({ runOwner: OWNER })
+
+      expect(suspends()).toHaveLength(0)
+    })
   })
 
   it('does nothing at all when disabled', async () => {

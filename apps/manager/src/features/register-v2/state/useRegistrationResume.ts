@@ -44,8 +44,14 @@ export type RegistrationResumeState =
   | { readonly status: 'checking' }
   /** Nothing to do; render the normal pricing flow. */
   | { readonly status: 'idle' }
-  /** A record exists but belongs to another wallet. */
-  | { readonly status: 'wrong-wallet'; readonly expectedOwner: string }
+  /**
+   * A record exists but a different wallet is connected. It is kept for its
+   * owner and resumes when that wallet reconnects; until then the page shows
+   * nothing of it, since it is not this wallet's registration.
+   */
+  | { readonly status: 'wrong-wallet' }
+  /** A record exists and no wallet is connected: say which one resumes it. */
+  | { readonly status: 'no-wallet'; readonly expectedOwner: string }
   /** A record existed and was discarded; tell the user why. */
   | { readonly status: 'discarded'; readonly reason: ResumeStaleReason }
   /** `registration.resume` has been dispatched. */
@@ -115,11 +121,13 @@ function decideFromVerdict(
   const recordOwner = verdict.stored.record.context.ownerAddress
 
   if (!isResumeOwner(recordOwner, connectedOwner)) {
-    // Deliberately un-latched: the user can connect the right wallet, which
-    // re-keys the assessment and lets the resume pick up when they do.
+    // Deliberately un-latched: connecting the owner re-keys the assessment and
+    // lets the resume pick up when it does.
     return {
       kind: 'state',
-      state: { status: 'wrong-wallet', expectedOwner: recordOwner ?? '' },
+      state: connectedOwner
+        ? { status: 'wrong-wallet' }
+        : { status: 'no-wallet', expectedOwner: recordOwner ?? '' },
       latch: false,
     }
   }
@@ -183,15 +191,20 @@ export function useRegistrationResume(params: {
   uiActor: RegistrationV2UiActor
   /** Set false to disable resume entirely (rollout switch). */
   enabled?: boolean
+  /**
+   * Owner of the run the UI machine is driving, while that run can still be
+   * suspended (see `getSuspendableRunOwner`).
+   */
+  suspendableRunOwner?: Address
 }): RegistrationResumeState {
-  const { label, uiActor, enabled = true } = params
+  const { label, uiActor, enabled = true, suspendableRunOwner } = params
   const account = useSmartAccountContext()
   const { hasInitialized, ownerAddress } = account
 
   // A decision, tagged with the label it was made for. The route keeps the
   // provider mounted across a label change, so an untagged state would report
-  // one name's verdict (its wrong-wallet banner, or its lack of a hold) on the
-  // next name until that name's own assessment lands.
+  // one name's verdict (its banner, or its lack of a hold) on the next name
+  // until that name's own assessment lands.
   const [settled, setSettled] = useState<{
     readonly label: string
     readonly state: RegistrationResumeState
@@ -237,6 +250,23 @@ export function useRegistrationResume(params: {
 
   const verdict = assessment.data
   const assessmentError = assessment.isError ? assessment.error : null
+
+  // A live run belongs to the wallet that started it. A DIFFERENT wallet
+  // connecting mid-run suspends it (its record stays, as a closed tab would
+  // leave it) and the decision starts over: plain pricing for that wallet,
+  // until the owner reconnects and the run resumes. A null owner is not a
+  // switch: wagmi reports one briefly during reconnects, and suspending on it
+  // would bounce a healthy run (the same rule the session eviction in
+  // SmartAccountContext follows). Off with the kill switch, since nothing could
+  // resume the run afterwards.
+  useEffect(() => {
+    if (!enabled || !suspendableRunOwner || !ownerAddress) return
+    if (isResumeOwner(suspendableRunOwner, ownerAddress)) return
+
+    uiActor.send({ type: 'registration.suspend' })
+    decidedForLabel.current = null
+    setSettled({ label, state: CHECKING })
+  }, [enabled, suspendableRunOwner, ownerAddress, label, uiActor])
 
   useEffect(() => {
     if (!enabled) {

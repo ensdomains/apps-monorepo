@@ -15,12 +15,20 @@ type RegistrationStubEvent =
   | { type: 'FORCE_SUCCESS' }
   | { type: 'FORCE_ERROR'; error: Error }
   | { type: 'RETRY' }
+  | { type: 'SUSPEND' }
 
 vi.mock('@ens-apps/transaction-manager', () => ({
   registrationMachine: createMachine({
     id: 'registrationStub',
     types: {} as { events: RegistrationStubEvent },
+    on: {
+      SUSPEND: {
+        target: '.idle',
+        actions: assign({ suspended: () => true }),
+      },
+    },
     context: {
+      suspended: false,
       resolverAddress: undefined as Address | undefined,
       resolverTxId: 'tx-resolver',
       commitmentTxId: 'tx-commit',
@@ -134,6 +142,7 @@ import {
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import {
   getRegistrationV2ChildActor,
+  getSuspendableRunOwner,
   registrationV2UiMachine,
 } from './registrationUi.machine'
 
@@ -796,5 +805,62 @@ describe('registrationV2UiMachine — registration.resume', () => {
     )
 
     expect(actor.getSnapshot().value).toBe('failure')
+  })
+})
+
+describe('registrationV2UiMachine — registration.suspend', () => {
+  const hcaAccount = {
+    signer: { type: 'rhinestone' },
+    accountAddress: HCA_ADDRESS,
+    ownerAddress: EOA_ADDRESS,
+    walletClient: {},
+  } as unknown as SmartAccountContextValue
+
+  const isChildSuspended = (actor: ReturnType<typeof startActorInTokens>) =>
+    (
+      getChild(actor).getSnapshot() as unknown as {
+        context: { suspended: boolean }
+      }
+    ).context.suspended
+
+  it('stops a live run and goes back to pricing', () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(hcaAccount))
+    expect(getSuspendableRunOwner(actor.getSnapshot())).toBe(EOA_ADDRESS)
+
+    actor.send({ type: 'registration.suspend' })
+
+    expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
+    // Suspended, not cancelled: the child keeps the run for its owner to resume.
+    expect(isChildSuspended(actor)).toBe(true)
+    expect(actor.getSnapshot().context.confirmedData).toBeUndefined()
+    expect(getSuspendableRunOwner(actor.getSnapshot())).toBeUndefined()
+  })
+
+  it('leaves a registered name alone', () => {
+    // Registered, with the notification prompt still open: nothing left to
+    // protect by stopping it.
+    const actor = startActorInTokens()
+    actor.send(startEvent(hcaAccount))
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
+    expect(getSuspendableRunOwner(actor.getSnapshot())).toBeUndefined()
+
+    actor.send({ type: 'registration.suspend' })
+
+    expect(actor.getSnapshot().value).toMatchObject({ registering: {} })
+    expect(isChildSuspended(actor)).toBe(false)
+  })
+
+  it('suspends a failed run, so Try Again cannot carry on with the old wallet', () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(hcaAccount))
+    sendToChild(actor, { type: 'FORCE_ERROR', error: new Error('boom') })
+    expect(actor.getSnapshot().value).toBe('failure')
+    expect(getSuspendableRunOwner(actor.getSnapshot())).toBe(EOA_ADDRESS)
+
+    actor.send({ type: 'registration.suspend' })
+
+    expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
+    expect(isChildSuspended(actor)).toBe(true)
   })
 })

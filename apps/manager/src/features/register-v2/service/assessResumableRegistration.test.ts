@@ -361,8 +361,8 @@ describe('isResumeOwner', () => {
   })
 
   it('rejects while the wallet is still restoring', () => {
-    // Treating "not connected yet" as a mismatch would show the wrong-wallet
-    // banner to the very user who owns the record.
+    // Treating "not connected yet" as a match would resume without a wallet;
+    // the hook decides separately what to show while none is connected.
     expect(isResumeOwner(OWNER, null)).toBe(false)
     expect(isResumeOwner(undefined, OWNER)).toBe(false)
   })

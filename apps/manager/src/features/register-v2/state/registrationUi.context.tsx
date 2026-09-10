@@ -11,6 +11,7 @@ import { isFeatureEnabled } from '@/utils/feature-flags'
 import { createRegistrationPersistenceAdapter } from '../service/registrationPersistence'
 import {
   getRegistrationV2ChildActor,
+  getSuspendableRunOwner,
   registrationV2UiMachine,
 } from './registrationUi.machine'
 import {
@@ -104,10 +105,16 @@ export const RegistrationV2UiProvider = ({
     return subscribeRegistrationPersistence(registrationActor, adapter)
   }, [registrationActor, registrationV2UiActor, label, resumeEnabled])
 
+  const suspendableRunOwner = useSelector(
+    registrationV2UiActor,
+    getSuspendableRunOwner,
+  )
+
   const resume = useRegistrationResume({
     label,
     uiActor: registrationV2UiActor,
     enabled: resumeEnabled,
+    suspendableRunOwner,
   })
 
   // Inform the UI actor that the label has changed and to cancel any ongoing transactions

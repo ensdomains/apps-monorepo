@@ -482,6 +482,41 @@ describe('subscribeRegistrationPersistence', () => {
     actor.stop()
   })
 
+  it('keeps the record when the run is suspended', () => {
+    // The owning wallet went away mid-run. Clearing here, as a cancel does,
+    // would throw away a commitment that wallet may already have paid for.
+    const adapter = createAdapter()
+    const actor = startParkedActor()
+
+    subscribeRegistrationPersistence(actor, adapter)
+    actor.start()
+    startRegistration(actor)
+    const saved = adapter.saved.at(-1)
+
+    actor.send({ type: 'SUSPEND' })
+
+    expect(actor.getSnapshot().value).toBe('idle')
+    expect(adapter.clears).toBe(0)
+    expect(adapter.saved.at(-1)).toBe(saved)
+    actor.stop()
+  })
+
+  it('writes again when a new run starts after a suspend', () => {
+    const adapter = createAdapter()
+    const actor = startParkedActor()
+
+    subscribeRegistrationPersistence(actor, adapter)
+    actor.start()
+    startRegistration(actor)
+    actor.send({ type: 'SUSPEND' })
+    const writes = adapter.saved.length
+
+    startRegistration(actor)
+
+    expect(adapter.saved).toHaveLength(writes + 1)
+    actor.stop()
+  })
+
   it('does not write the same payload twice', () => {
     const adapter = createAdapter()
     const actor = startParkedActor()

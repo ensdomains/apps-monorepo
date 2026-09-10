@@ -393,7 +393,9 @@ const isDeclinedRun = (stage: string, context: RegistrationContext) =>
  * Writes on every stage that could be resumed, and clears on `success` (the
  * name is registered), on `idle` (the flow was cancelled, or never started)
  * and on an `error` the user caused by declining a wallet request. Retrying
- * from that error re-enters a live stage, which writes the record again.
+ * from that error re-enters a live stage, which writes the record again. A
+ * SUSPENDed run also lands in `idle` but keeps its record, as a closed tab
+ * would.
  *
  * Storage failures are swallowed: a full quota must never take down a
  * registration that is otherwise fine.
@@ -427,6 +429,14 @@ export function subscribeRegistrationPersistence(
 
   const subscription = actor.subscribe((snapshot) => {
     const stage = String(snapshot.value)
+
+    // Suspended because its wallet went away: interrupted, not cancelled. Keep
+    // the record exactly as closing the tab would, so that wallet can resume
+    // it, and let the next run's first write through.
+    if (snapshot.context.suspended) {
+      lastPayload = null
+      return
+    }
 
     if (CLEARING_STAGES.has(stage) || isDeclinedRun(stage, snapshot.context)) {
       if (lastPayload === null) return

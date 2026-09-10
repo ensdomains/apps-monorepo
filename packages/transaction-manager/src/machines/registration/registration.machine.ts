@@ -205,6 +205,13 @@ export type RegistrationContext = {
     | 'approvingToken'
     | 'registeringDomain'
     | 'submittingRhinestoneBundle'
+
+  /**
+   * Set by SUSPEND: the run was stopped because the wallet that owns it went
+   * away, not cancelled. Only ever true in `idle`; START_REGISTRATION and
+   * RESUME clear it.
+   */
+  suspended?: boolean
 }
 
 export type RegistrationEvent =
@@ -291,6 +298,15 @@ export type RegistrationEvent =
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
+  | {
+      /**
+       * Stop the run because the wallet that owns it is no longer the one
+       * connected. Unlike CANCEL this is an interruption, not an abandonment:
+       * the run goes back to `idle` so it can be RESUMEd later, and
+       * persistence keeps its record exactly as closing the tab would.
+       */
+      type: 'SUSPEND'
+    }
 
 export type RegistrationInput = {
   chainId: number
@@ -590,6 +606,7 @@ export const registrationMachine = setup({
         hcaUsdcBalance: undefined,
         error: undefined,
         retryTarget: undefined,
+        suspended: undefined,
       }
     }),
 
@@ -672,6 +689,13 @@ export const registrationMachine = setup({
         registrationIntentId: ({ event }) => event.intentId,
       }),
     },
+    // Accepted from anywhere, since the owning wallet can go away at any point
+    // of the run. Leaving the state stops whatever it had invoked, as closing
+    // the tab would; the flow fields stay for the RESUME that picks it back up.
+    SUSPEND: {
+      target: '.idle',
+      actions: assign({ suspended: () => true }),
+    },
   },
 
   states: {
@@ -721,6 +745,7 @@ export const registrationMachine = setup({
               approvalTxId: () => undefined,
               registrationTxId: () => undefined,
               registrationIntentId: () => undefined,
+              suspended: () => undefined,
             }),
           ],
         },

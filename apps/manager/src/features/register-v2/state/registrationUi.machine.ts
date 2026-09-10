@@ -158,6 +158,13 @@ type Events =
       account: SmartAccountContextValue
       hcaSessionEnable?: HcaSessionEnablePayload
     }
+  | {
+      /**
+       * A different wallet connected while a run is live. Back to pricing,
+       * with the run suspended rather than cancelled so its owner can resume it.
+       */
+      type: 'registration.suspend'
+    }
   | { type: 'registration.completed' }
   | { type: 'notifications.step.next' }
   | { type: 'transaction.success' }
@@ -357,6 +364,7 @@ const machineSetup = setup({
     }),
     forwardRetry: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'RETRY' }),
     forwardCancel: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'CANCEL' }),
+    forwardSuspend: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'SUSPEND' }),
     clearRegistrationData: assign({
       confirmedData: () => undefined,
       postRegistrationSetup: () => undefined,
@@ -864,6 +872,20 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     },
     registering: {
       type: 'parallel',
+      on: {
+        // Only until the name is registered: after that the run has nothing
+        // left to lose, and post-registration setup finishes on its own.
+        'registration.suspend': {
+          guard: ({ context }) => !context.registrationCompleted,
+          target: '#registrationV2Ui.pricing',
+          actions: [
+            'clearRegistrationData',
+            'clearError',
+            'clearMaxProgress',
+            'forwardSuspend',
+          ],
+        },
+      },
       states: {
         transaction: {
           initial: 'pendingRegistration',
@@ -1143,6 +1165,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           target: 'pricing',
           actions: ['clearRegistrationData', 'clearError', 'forwardCancel'],
         },
+        // "Try Again" would carry on with the previous wallet's signer.
+        'registration.suspend': {
+          target: 'pricing',
+          actions: ['clearRegistrationData', 'clearError', 'forwardSuspend'],
+        },
       },
     },
   },
@@ -1159,6 +1186,21 @@ export const registrationV2UiMachine = machineSetup.createMachine({
 })
 
 export type RegistrationV2UiActor = ActorRefFrom<typeof registrationV2UiMachine>
+
+/**
+ * The owner of the run the machine is driving, while `registration.suspend`
+ * can still stop it: registering until the name is registered, or failed.
+ */
+export const getSuspendableRunOwner = (
+  snapshot: SnapshotFrom<typeof registrationV2UiMachine>,
+): Address | undefined => {
+  const suspendable =
+    (snapshot.matches('registering') &&
+      !snapshot.context.registrationCompleted) ||
+    snapshot.matches('failure')
+
+  return suspendable ? snapshot.context.confirmedData?.ownerAddress : undefined
+}
 
 export const getRegistrationV2ChildActor = (
   snapshot: SnapshotFrom<typeof registrationV2UiMachine>,
