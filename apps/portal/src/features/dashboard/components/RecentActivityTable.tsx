@@ -14,7 +14,10 @@ import {
 } from '../utils/formatActivityEvent'
 
 export const RecentActivityTable = () => {
-  const { data, isLoading, error } = useQuery(getRecentActivityQueryOptions())
+  const { data, isLoading, error } = useQuery({
+    ...getRecentActivityQueryOptions(),
+    staleTime: 15_000,
+  })
   const events = data ?? []
 
   return (

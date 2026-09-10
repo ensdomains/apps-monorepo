@@ -1,30 +1,78 @@
 import { render as baseRender, screen } from '@testing-library/react'
 import type { ReactElement } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestWrapper } from '@/test-utils/providers'
 import { TEST_ACCOUNTS } from '@/test-utils/wagmi.mock'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { TransactionSenderBadge } from './AccountBadge'
+import { AccountBadge, TransactionSenderBadge } from './AccountBadge'
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, ...props }: { children: React.ReactNode }) => (
-    <a href="#link" {...props}>
+  Link: ({
+    to,
+    params,
+    children,
+    className,
+  }: {
+    to: string
+    params?: Record<string, string>
+    children: React.ReactNode
+    className?: string
+  }) => (
+    <a href={to} data-params={JSON.stringify(params)} className={className}>
       {children}
     </a>
   ),
 }))
 
-// The reverse lookup is a network call; the badge under test is about which
-// unresolved state shows, not what the address resolves to.
+// The reverse lookup is a network call; tests set what it resolves to.
+const ensNameRef = vi.hoisted(() => ({
+  current: undefined as string | undefined,
+}))
+
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
-  useEnsName: () => ({ data: undefined }),
+  useEnsName: () => ({ data: ensNameRef.current }),
 }))
+
+beforeEach(() => {
+  ensNameRef.current = undefined
+})
 
 const render = (ui: ReactElement) =>
   baseRender(ui, { wrapper: createTestWrapper() })
 
 const txHash = '0xabc'
+
+describe('AccountBadge', () => {
+  it('renders a resolved primary name as the name pill, with the wallet a chip away', () => {
+    ensNameRef.current = 'alice.eth'
+    render(<AccountBadge address={TEST_ACCOUNTS.alice} />)
+
+    const pill = screen.getByText('alice.eth').closest('a')
+    expect(pill).toHaveAttribute('href', '/$name')
+    expect(pill).toHaveAttribute(
+      'data-params',
+      JSON.stringify({ name: 'alice.eth' }),
+    )
+
+    const addressChip = screen.getByText('Address').closest('a')
+    expect(addressChip).toHaveAttribute('href', '/addr/$addr')
+    expect(addressChip).toHaveAttribute(
+      'data-params',
+      JSON.stringify({ addr: TEST_ACCOUNTS.alice }),
+    )
+    expect(screen.queryByText(truncateAddress(TEST_ACCOUNTS.alice))).toBeNull()
+  })
+
+  it('falls back to the address pill when no primary name resolves', () => {
+    render(<AccountBadge address={TEST_ACCOUNTS.alice} />)
+
+    const pill = screen
+      .getByText(truncateAddress(TEST_ACCOUNTS.alice))
+      .closest('a')
+    expect(pill).toHaveAttribute('href', '/addr/$addr')
+  })
+})
 
 describe('TransactionSenderBadge', () => {
   it('holds a skeleton, not a dash, while the page lookup is in flight', () => {
