@@ -3,6 +3,7 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { EntityBadge } from '@/components/EntityBadge'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { truncateName } from '@/utils/formatting/truncateName'
@@ -13,7 +14,7 @@ import {
 } from '../utils/formatActivityEvent'
 
 export const RecentActivityTable = () => {
-  const { data, isLoading } = useQuery(getRecentActivityQueryOptions())
+  const { data, isLoading, error } = useQuery(getRecentActivityQueryOptions())
 
   return (
     <div className="flex flex-col overflow-hidden w-full">
@@ -24,6 +25,12 @@ export const RecentActivityTable = () => {
         <div className="flex items-center justify-center py-8">
           <LoadingSpinner title="Loading recent activity..." />
         </div>
+      ) : error ? (
+        <ErrorMessage
+          compact
+          className="m-4"
+          description="Error fetching recent activity. Please refresh the page."
+        />
       ) : !data?.length ? (
         <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
           No recent activity

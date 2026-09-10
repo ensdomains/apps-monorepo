@@ -1,3 +1,8 @@
+import { isAddress } from 'viem'
+import {
+  parseEventData,
+  readString,
+} from '@/features/history/summarize/decodeRawData'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
 
 type ActivityEntity = {
@@ -13,19 +18,25 @@ export type FormattedActivity = {
   entityFromData?: ActivityEntity
 }
 
-const EVENT_DESCRIPTORS: Record<
-  string,
-  {
-    text: string
-    actorField?: string
-    actorType?: 'address' | 'name'
-    /** Extract a display entity from data when event.name is null */
-    entityField?: string
-    entityType?: 'address' | 'name'
-    /** Append a raw data field value to the text (e.g. text record key) */
-    textSuffixField?: string
-  }
-> = {
+type StaticDescriptor = {
+  text: string
+  actorField?: string
+  actorType?: 'address' | 'name'
+  /** Extract a display entity from data when event.name is null */
+  entityField?: string
+  entityType?: 'address' | 'name'
+  /** Append a raw data field value to the text (e.g. text record key) */
+  textSuffixField?: string
+}
+
+/** Events whose rendering depends on more than one raw field build their row directly. */
+type Descriptor =
+  | StaticDescriptor
+  | ((data: Record<string, unknown>) => FormattedActivity)
+
+const ETH_COIN_TYPE = 60
+
+const EVENT_DESCRIPTORS: Record<string, Descriptor> = {
   // Registration
   NameRegistered: {
     text: 'Registered by',
@@ -39,11 +50,14 @@ const EVENT_DESCRIPTORS: Record<
   },
   NameRenewed: { text: 'Name renewed' },
 
-  // Ownership
-  Transfer: {
-    text: 'Ownership transferred to',
-    actorField: 'to',
-    actorType: 'address',
+  // Ownership — ERC-1155/721 transfers carry `to`, the registry's
+  // Transfer(node, owner) carries `owner` (see indexer `TransferData`).
+  Transfer: (data) => {
+    const to = readString(data, 'to', 'owner')
+    return {
+      text: 'Ownership transferred to',
+      actor: to ? { type: 'address', value: to } : undefined,
+    }
   },
   NewOwner: {
     text: 'Subname created by',
@@ -58,10 +72,19 @@ const EVENT_DESCRIPTORS: Record<
     actorType: 'address',
   },
   AddrChanged: { text: 'ETH address updated' },
-  AddressChanged: {
-    text: 'ETH address updated',
-    entityField: 'address',
-    entityType: 'address',
+  // Multicoin: `address` is raw bytes for the given coin type, so it is only
+  // an Ethereum address (and a valid /addr link) when the coin type is ETH.
+  AddressChanged: (data) => {
+    const coinType = data.coinType
+    const address = readString(data, 'address')
+    if (coinType !== ETH_COIN_TYPE) return { text: 'Address updated' }
+    return {
+      text: 'ETH address updated',
+      entityFromData:
+        address && isAddress(address)
+          ? { type: 'address', value: address }
+          : undefined,
+    }
   },
   TextChanged: { text: 'Text record updated', textSuffixField: 'key' },
   ContenthashChanged: { text: 'Contenthash updated' },
@@ -104,25 +127,19 @@ export const formatActivityEvent = (
   const descriptor = EVENT_DESCRIPTORS[event.type]
   if (!descriptor) return { text: event.type }
 
-  let parsedData: Record<string, string> = {}
-  try {
-    parsedData = event.data
-      ? (JSON.parse(event.data) as Record<string, string>)
-      : {}
-  } catch {
-    // data field is not valid JSON
-  }
+  const parsedData = parseEventData(event.data)
+  if (typeof descriptor === 'function') return descriptor(parsedData)
 
   let text = descriptor.text
   if (descriptor.textSuffixField) {
-    const suffix = parsedData[descriptor.textSuffixField]
+    const suffix = readString(parsedData, descriptor.textSuffixField)
     if (suffix) text = `${descriptor.text} (${suffix})`
   }
 
   const result: FormattedActivity = { text }
 
   if (descriptor.actorField) {
-    const actorValue = parsedData[descriptor.actorField]
+    const actorValue = readString(parsedData, descriptor.actorField)
     if (actorValue) {
       result.actor = {
         type: descriptor.actorType ?? 'address',
@@ -132,7 +149,7 @@ export const formatActivityEvent = (
   }
 
   if (descriptor.entityField) {
-    const entityValue = parsedData[descriptor.entityField]
+    const entityValue = readString(parsedData, descriptor.entityField)
     if (entityValue) {
       result.entityFromData = {
         type: descriptor.entityType ?? 'name',
