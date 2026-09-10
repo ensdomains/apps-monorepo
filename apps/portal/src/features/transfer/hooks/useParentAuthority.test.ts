@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const OWNER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
 const PARENT_OWNER = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Address
 const PARENT_REGISTRY = '0x1111111111111111111111111111111111111111' as Address
 const TLD_REGISTRY = '0x2222222222222222222222222222222222222222' as Address
 
@@ -95,6 +96,39 @@ describe('useParentAuthority', () => {
     const authority = render('vayyari.eth', null)
     expect(authority.hasAnyAuthority).toBe(false)
     expect(authority.isLoading).toBe(false)
+  })
+
+  /**
+   * SUB-F2 — a confirmed defect, recorded as `it.fails` rather than a red test.
+   *
+   * `it.fails` passes while the assertion below does NOT hold, so this stays
+   * green in CI today and turns **red the moment somebody fixes the hook** —
+   * which is the signal you want, and the prompt to convert it to a plain
+   * `it`. A normal failing test would just make the portal package red for
+   * everyone; deleting it would lose the evidence.
+   *
+   * Full write-up: e2e/docs/transfer-subname-web128-test-plan.md, SUB-F2.
+   */
+  it.fails('does not treat an unresolvable parent owner as "no authority"', () => {
+    // The parent lookup succeeded but found nobody — an unowned or expired
+    // parent, or one the resolver could not walk to. Every role query is then
+    // gated off, so nothing is *known* about what the parent can do.
+    //
+    // The hook's own contract (see its `isError` comment) is that a failed
+    // read is unknown, never safe. Silence here renders no alert at all, which
+    // to the reader is indistinguishable from "the parent holds nothing" — the
+    // one case where transferring really is final.
+    ownerQuery = {
+      data: { owner: ZERO_ADDRESS, registryAddress: TLD_REGISTRY },
+      isLoading: false,
+      isError: false,
+    }
+    holds('ROLE_UNREGISTER', 'ROLE_REGISTRAR', 'ROLE_SET_SUBREGISTRY')
+    const authority = render('sub.vayyari.eth', 'vayyari.eth')
+    expect(
+      authority.isError,
+      'an unresolvable parent owner must read as unknown, not as no authority',
+    ).toBe(true)
   })
 
   it('reports no authority when the parent owner holds none of the roles', () => {
