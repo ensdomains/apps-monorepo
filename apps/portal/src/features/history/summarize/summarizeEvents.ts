@@ -1,4 +1,4 @@
-import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
+import type { TimelineIndexerEvent } from '../timelineEvent'
 import { DESCRIPTORS, humanizeType } from './descriptors'
 import type { Action, ActionSlot, Descriptor } from './summarize.types'
 
@@ -7,7 +7,7 @@ export const IGNORED_TYPES = new Set(['CommitmentMade'])
 
 /**
  * Significance ranking used to pick the "primary" event that drives an action's
- * label when several events share a transaction (e.g. Register subname bundles
+ * label when several events share a transaction (e.g. a subname registration bundles
  * LabelRegistered + Transfer + RolesChanged → the register is primary).
  */
 const TYPE_RANK: Record<string, number> = {
@@ -37,12 +37,12 @@ const TYPE_RANK: Record<string, number> = {
 
 /**
  * Rank at or above which an event outranks the multi-record recipe: a
- * transaction that both registers a name and seeds its records is one "Register
- * name", not "Set 5 records". Deliberately above `ResolverUpdated` (60) — "set
+ * transaction that both registers a name and seeds its records is one
+ * "registered", not "set 5 records". Deliberately above `ResolverUpdated` (60) — "set
  * the resolver and write records" is still best headlined by the records.
  *
  * This is protocol-agnostic on purpose: v2 registrations that seed records in
- * the same transaction headline as "Register name" too, which is the label
+ * the same transaction headline as "registered" too, which is the label
  * those rows should have had all along.
  */
 const STRUCTURAL_RANK = 70
@@ -78,7 +78,7 @@ const multiRecordRecipe = (
     })
   }
 
-  return { icon: 'records', label: `Set ${records.length} records`, slots }
+  return { icon: 'records', label: `set ${records.length} records`, slots }
 }
 
 const rankOf = (event: TimelineIndexerEvent): number =>
@@ -130,9 +130,11 @@ const describeGroup = (
     return action
   }
 
+  // Every type either source emits has a descriptor; this only reads on from
+  // the actor for one the indexer adds before the portal does.
   return {
     icon: 'default',
-    label: humanizeType(byRank[0].type),
+    label: `emitted ${humanizeType(byRank[0].type).toLowerCase()}`,
     slots: [],
   }
 }
@@ -167,9 +169,10 @@ export const summarizeEvents = (
 }
 
 /**
- * Lead the row with the name it concerns, unless the descriptor already named
- * something — an anonymous row in a multi-subject feed is the only ambiguous
- * case, and prefixing the others would read as a duplicate.
+ * Close the row with the name it concerns — "granted role … on zinc.eth" —
+ * unless the descriptor already named something: an anonymous row in a
+ * multi-subject feed is the only ambiguous case, and suffixing the others would
+ * read as a duplicate.
  */
 const withSubjectName = (
   slots: readonly ActionSlot[],
@@ -177,9 +180,9 @@ const withSubjectName = (
 ): readonly ActionSlot[] => {
   if (!primary.name) return slots
   if (slots.some((slot) => slot.kind === 'name')) return slots
-  const subject: ActionSlot = { kind: 'name', value: primary.name }
-  // "Unlink subregistry" and friends describe the subject alone; an arrow
-  // pointing at nothing would read as a dropped value.
-  if (slots.length === 0) return [subject]
-  return [subject, { kind: 'glyph', value: '→' }, ...slots]
+  return [
+    ...slots,
+    { kind: 'connective', value: 'on' },
+    { kind: 'name', value: primary.name },
+  ]
 }

@@ -31,10 +31,13 @@ export const isCommemorativeNftCanonicalProfile = (
 
 export const buildCommemorativeNftShareUrls = (
   externalUrl: string | undefined,
+  minted: boolean,
 ): CommemorativeNftShareUrls => {
   if (!externalUrl) return {}
 
-  const text = 'I upgraded to ENSv2 and minted my commemorative NFT.'
+  const text = minted
+    ? 'I upgraded to ENSv2 and minted my commemorative NFT.'
+    : 'I upgraded to ENSv2. Take a look at my commemorative NFT.'
   return {
     external: externalUrl,
     x: `https://x.com/intent/post?${new URLSearchParams({ text, url: externalUrl })}`,
@@ -47,6 +50,7 @@ export const buildCommemorativeNftMarketplaceUrl = (params: {
   readonly ownerAddress: Address
   readonly minted: boolean
 }): string | undefined => {
+  // OpenSea discontinued testnets: https://support.opensea.io/en/articles/11833955-farewell-testnets
   if (!params.minted || params.chainId !== mainnet.id) return undefined
 
   const contractAddress = getCommemorativeNftContractAddress(params.chainId)

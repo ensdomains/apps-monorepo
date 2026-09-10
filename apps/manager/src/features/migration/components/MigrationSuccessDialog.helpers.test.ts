@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { shouldShowPlainMigrationSuccess } from './MigrationSuccessDialog.helpers'
+import {
+  shouldHideCommemorativeNftDialog,
+  shouldShowPlainMigrationSuccess,
+} from './MigrationSuccessDialog.helpers'
 
 const configurationError = {
   status: 'error',
@@ -8,6 +11,19 @@ const configurationError = {
 } as const
 
 describe('migration success dialog', () => {
+  it('keeps normal migration completion and hides the mint-later dialog for ineligible wallets', () => {
+    const state = { status: 'ineligible' } as const
+    expect(
+      shouldShowPlainMigrationSuccess({ context: 'migration', state }),
+    ).toBe(true)
+    expect(
+      shouldHideCommemorativeNftDialog({ context: 'migration', state }),
+    ).toBe(false)
+    expect(
+      shouldHideCommemorativeNftDialog({ context: 'mint-later', state }),
+    ).toBe(true)
+  })
+
   it('shows a plain migration success when NFT configuration is unavailable', () => {
     expect(
       shouldShowPlainMigrationSuccess({

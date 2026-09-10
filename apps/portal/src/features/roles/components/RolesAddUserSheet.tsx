@@ -203,7 +203,7 @@ export const RolesAddUserSheet = ({
                               htmlFor={`add-${permission.key}-manager`}
                               className="font-medium cursor-pointer"
                             >
-                              Manager
+                              User
                             </Label>
                           </div>
                           <div className="flex items-center gap-2 min-w-24">

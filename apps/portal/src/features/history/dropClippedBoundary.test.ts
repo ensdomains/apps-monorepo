@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dropClippedBoundary } from './dropClippedBoundary'
-import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
+import type { TimelineIndexerEvent } from './timelineEvent'
 
 const event = (
   tx: string,

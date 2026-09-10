@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
+import { SmartAccountContextProvider } from '@/lib/smart-account'
 import { render } from '@/utils/test-utils'
 import type { ClassifiedName } from '../service/classifyNames'
 
@@ -82,12 +83,14 @@ const renderStep = ({
 } = {}) => {
   const onNamesChange = vi.fn<(names: string[]) => void>()
   const utils = render(
-    <SelectNamesStep
-      gasEstimate={gasEstimate}
-      gasFundingStatus={gasFundingStatus}
-      onNamesChange={onNamesChange}
-      onNext={onNext}
-    />,
+    <SmartAccountContextProvider>
+      <SelectNamesStep
+        gasEstimate={gasEstimate}
+        gasFundingStatus={gasFundingStatus}
+        onNamesChange={onNamesChange}
+        onNext={onNext}
+      />
+    </SmartAccountContextProvider>,
   )
   return { onNamesChange, onNext, ...utils }
 }

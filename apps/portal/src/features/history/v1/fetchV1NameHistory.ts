@@ -116,6 +116,27 @@ export const flattenV1Response = (
 }
 
 /**
+ * Whether any single collection came back full. `first` bounds each sibling
+ * selection *independently*, so the flattened total routinely exceeds it with
+ * nothing truncated — comparing that total instead falsely reported fox.eth's
+ * 172 complete v1 events as truncated.
+ */
+export const v1CollectionsSaturated = (
+  { domain, resolvers }: V1SubgraphResult,
+  collections: ReturnType<typeof scopedCollections>,
+  first: number,
+): boolean =>
+  [
+    domain?.events,
+    domain?.registration?.events,
+    ...(resolvers ?? []).flatMap((resolver) =>
+      (collections?.map(({ collection }) => collection) ?? ['events']).map(
+        (key) => resolver[key],
+      ),
+    ),
+  ].some((list) => (list?.length ?? 0) >= first)
+
+/**
  * Fetch a name's v1 history as one flat event list. Returns `[]` (not an error)
  * when the subgraph has no record of the name — the common case for a v2-native
  * name.
@@ -155,7 +176,10 @@ export const fetchV1NameHistory = async ({
   readonly orderDirection: 'asc' | 'desc'
   /** Restrict resolver events to these types — see `V1_SCOPED_RESOLVER_EVENTS`. */
   readonly eventTypes?: readonly string[]
-}): Promise<V1SubgraphEvent[]> => {
+}): Promise<{
+  readonly events: V1SubgraphEvent[]
+  readonly saturated: boolean
+}> => {
   const collections = scopedCollections(eventTypes)
   const { domain, resolvers } = await graphqlRequest<V1SubgraphResult>(
     createPlainClient(subgraphUrl),
@@ -229,5 +253,12 @@ export const fetchV1NameHistory = async ({
     { id: namehash, first, resolvers: RESOLVERS_PER_NAME, orderDirection },
   )
 
-  return flattenV1Response({ domain, resolvers }, collections)
+  return {
+    events: flattenV1Response({ domain, resolvers }, collections),
+    saturated: v1CollectionsSaturated(
+      { domain, resolvers },
+      collections,
+      first,
+    ),
+  }
 }

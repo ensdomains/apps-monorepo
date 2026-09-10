@@ -1,6 +1,9 @@
 import type { Address, PublicClient } from 'viem'
 import { BaseError, ExecutionRevertedError } from 'viem'
-import { buildSetResolverCall } from './changeResolver'
+import {
+  buildSetResolverCall,
+  type NameRegistryLocation,
+} from './changeResolver'
 
 /**
  * Dry-run the registry call that completes resolver setup from the owner EOA.
@@ -9,17 +12,20 @@ import { buildSetResolverCall } from './changeResolver'
  * failure.
  */
 export const canSetNameResolver = async ({
-  name,
+  location,
   resolver,
   ownerAddress,
   publicClient,
 }: {
-  readonly name: string
+  readonly location: NameRegistryLocation
   readonly resolver: Address
   readonly ownerAddress: Address
   readonly publicClient: PublicClient
 }): Promise<boolean> => {
-  const { to, data } = buildSetResolverCall({ name, newResolver: resolver })
+  const { to, data } = buildSetResolverCall({
+    ...location,
+    newResolver: resolver,
+  })
 
   try {
     await publicClient.call({ account: ownerAddress, to, data })

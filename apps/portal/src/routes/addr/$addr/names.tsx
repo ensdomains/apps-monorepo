@@ -175,7 +175,12 @@ function RouteComponent() {
     ],
   })
 
-  const data: NameRow[] = mergeNamesData(v1NamesQuery.data, v2NamesQuery.data)
+  // Must be memoised: a fresh array makes the table recompute its row model,
+  // which auto-resets the page index, which re-renders — forever.
+  const data: NameRow[] = useMemo(
+    () => mergeNamesData(v1NamesQuery.data, v2NamesQuery.data),
+    [v1NamesQuery.data, v2NamesQuery.data],
+  )
 
   // Apply filters to data
   const filteredData = useMemo(() => {

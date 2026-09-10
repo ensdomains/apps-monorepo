@@ -7,54 +7,96 @@ const NO_OPTIONS: TransferOptions = {
   detachRegistry: false,
 }
 
-describe('buildTransferPlan', () => {
+describe('buildTransferPlan (v2)', () => {
   it('always ends with the token transfer', () => {
-    expect(buildTransferPlan(NO_OPTIONS)).toEqual(['transfer-token'])
+    expect(buildTransferPlan(NO_OPTIONS, 'v2')).toEqual(['transfer-token'])
   })
 
   it('repoints the ETH address before transferring', () => {
-    const plan = buildTransferPlan({ ...NO_OPTIONS, setEthAddress: true })
+    const plan = buildTransferPlan({ ...NO_OPTIONS, setEthAddress: true }, 'v2')
     expect(plan).toEqual(['set-eth-addr', 'transfer-token'])
   })
 
   it('skips the ETH step when the resolver is detached (redundant)', () => {
-    const plan = buildTransferPlan({
-      ...NO_OPTIONS,
-      setEthAddress: true,
-      detachResolver: true,
-    })
+    const plan = buildTransferPlan(
+      { ...NO_OPTIONS, setEthAddress: true, detachResolver: true },
+      'v2',
+    )
     expect(plan).toEqual(['detach-resolver', 'transfer-token'])
   })
 
   it('detaches the resolver (setResolver 0x0) before transferring', () => {
-    const plan = buildTransferPlan({ ...NO_OPTIONS, detachResolver: true })
+    const plan = buildTransferPlan(
+      { ...NO_OPTIONS, detachResolver: true },
+      'v2',
+    )
     expect(plan).toEqual(['detach-resolver', 'transfer-token'])
   })
 
   it('detaches the registry (setSubregistry 0x0) before transferring', () => {
-    const plan = buildTransferPlan({ ...NO_OPTIONS, detachRegistry: true })
+    const plan = buildTransferPlan(
+      { ...NO_OPTIONS, detachRegistry: true },
+      'v2',
+    )
     expect(plan).toEqual(['detach-registry', 'transfer-token'])
   })
 
   it('orders the ETH step before the registry detach', () => {
-    const plan = buildTransferPlan({
-      setEthAddress: true,
-      detachResolver: false,
-      detachRegistry: true,
-    })
+    const plan = buildTransferPlan(
+      { setEthAddress: true, detachResolver: false, detachRegistry: true },
+      'v2',
+    )
     expect(plan).toEqual(['set-eth-addr', 'detach-registry', 'transfer-token'])
   })
 
   it('combines detaching the resolver and the registry', () => {
-    const plan = buildTransferPlan({
-      ...NO_OPTIONS,
-      detachResolver: true,
-      detachRegistry: true,
-    })
+    const plan = buildTransferPlan(
+      { ...NO_OPTIONS, detachResolver: true, detachRegistry: true },
+      'v2',
+    )
     expect(plan).toEqual([
       'detach-resolver',
       'detach-registry',
       'transfer-token',
     ])
+  })
+})
+
+describe('buildTransferPlan (v1)', () => {
+  it('moves a wrapped name with one ERC-1155 transfer', () => {
+    expect(buildTransferPlan(NO_OPTIONS, 'v1-wrapped')).toEqual([
+      'transfer-erc1155',
+    ])
+  })
+
+  // After `safeTransferFrom` the sender is no longer the registrant and so can
+  // no longer `reclaim`; the controller slot would stay with them for good.
+  it('hands over the controller before the registrant for an unwrapped 2LD', () => {
+    expect(buildTransferPlan(NO_OPTIONS, 'v1-registrar')).toEqual([
+      'reclaim',
+      'transfer-erc721',
+    ])
+  })
+
+  it('moves a registry-only name with setOwner', () => {
+    expect(buildTransferPlan(NO_OPTIONS, 'v1-registry')).toEqual([
+      'set-registry-owner',
+    ])
+  })
+
+  it('runs config steps before the move', () => {
+    const plan = buildTransferPlan(
+      { ...NO_OPTIONS, setEthAddress: true },
+      'v1-registrar',
+    )
+    expect(plan).toEqual(['set-eth-addr', 'reclaim', 'transfer-erc721'])
+  })
+
+  it('never detaches a registry — a v1 name has no subregistry', () => {
+    const plan = buildTransferPlan(
+      { ...NO_OPTIONS, detachRegistry: true },
+      'v1-wrapped',
+    )
+    expect(plan).toEqual(['transfer-erc1155'])
   })
 })

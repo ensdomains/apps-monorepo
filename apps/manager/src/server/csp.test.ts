@@ -88,6 +88,10 @@ describe('csp', () => {
     it('keeps image-only hosts out of connect-src', () => {
       expect(connectSrc).not.toContain('https://i.pinimg.com')
     })
+
+    it('allows fetching immutable commemorative NFT metadata from R2', () => {
+      expect(connectSrc).toContain('https://nft-assets.ens.dev')
+    })
   })
 
   describe('host-handling choices', () => {
@@ -103,7 +107,7 @@ describe('csp', () => {
     it('frames WalletConnect, Intercom, and the commemorative renderer', () => {
       expect(header['frame-src']).toContain('https://*.walletconnect.com')
       expect(header['frame-src']).toContain('https://*.intercom.io')
-      expect(header['frame-src']).toContain('https://ens-renderer.pages.dev')
+      expect(header['frame-src']).toContain('https://nft.ens.dev')
     })
   })
 

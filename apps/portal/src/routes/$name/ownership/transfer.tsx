@@ -10,9 +10,11 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { SendNameForm } from '@/features/transfer/components/SendNameForm'
+import { V2SendName } from '@/features/transfer/components/V2SendName'
 import { useCanTransferName } from '@/features/transfer/hooks/useCanTransferName'
-import { is2LD } from '@/utils/ens/tldHelpers'
+import { getSubnameExpiryQueryOptions } from '@/features/transfer/queries/getSubnameExpiry'
+import { V1Transfer } from '@/features/transfer/v1/V1Transfer'
+import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 
 export const Route = createFileRoute('/$name/ownership/transfer')({
   component: RouteComponent,
@@ -22,8 +24,6 @@ export const Route = createFileRoute('/$name/ownership/transfer')({
 function RouteComponent() {
   const { name } = Route.useParams()
   const { address } = useConnection()
-
-  const isSubname = !is2LD(name)
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
 
@@ -56,41 +56,17 @@ function RouteComponent() {
         </PageHeading>
 
         {match({ data, address })
-          .with(
-            { data: P.nullish },
-            { data: { protocolVersion: P.not('ENSv2') } },
-            () => (
-              <MessageCard
-                icon={<AlertTriangle className="size-8" />}
-                title="Transfer not available"
-                description={
-                  <p>Sending a name is only available for ENSv2 names.</p>
-                }
-              />
-            ),
-          )
-          .with(
-            { data: P.nonNullable },
-            () => isSubname,
-            () => (
-              <MessageCard
-                icon={<AlertTriangle className="size-8" />}
-                title="Transfer not available"
-                description={
-                  <>
-                    <p>
-                      Transferring subnames isn’t supported yet. Sending a name
-                      is currently available for first-class names, like{' '}
-                      <span className="font-medium">name.eth</span>.
-                    </p>
-                    <p className="text-quartz-900/60 text-sm mt-2">
-                      Subname transfer support is coming in a future update.
-                    </p>
-                  </>
-                }
-              />
-            ),
-          )
+          .with({ data: P.nullish }, () => (
+            <MessageCard
+              icon={<AlertTriangle className="size-8" />}
+              title="Transfer not available"
+              description={
+                <p>
+                  This name isn’t registered, so there is nothing to transfer.
+                </p>
+              }
+            />
+          ))
           .with({ address: P.nullish }, () => (
             <MessageCard
               icon={<ShieldX className="size-8" />}
@@ -100,6 +76,13 @@ function RouteComponent() {
               }
             />
           ))
+          // V1 ownership isn't one address: an unwrapped 2LD splits it between
+          // registrant and controller, and `getEnsOwner` reports the latter. The
+          // V1 gate re-reads the full shape and decides who may transfer.
+          .with(
+            { data: { protocolVersion: 'ENSv1' }, address: P.string },
+            ({ address }) => <V1Transfer name={name} account={address} />,
+          )
           .with(
             { data: P.nonNullable, address: P.string },
             ({ data, address }) => isAddressEqual(address, data.owner),
@@ -132,14 +115,16 @@ function RouteComponent() {
 }
 
 /**
- * The connected wallet owns the name — but token ownership alone doesn't
- * guarantee a transfer will succeed. The registry reverts unless the owner also
- * holds ROLE_CAN_TRANSFER_ADMIN, and the transfer flow runs irreversible detach
- * steps before the token moves. So confirm the role before offering the form;
- * otherwise show why the transfer isn't possible instead of walking the user
- * into a partial, unrecoverable failure.
+ * The connected wallet owns the V2 name — but token ownership alone doesn't
+ * guarantee a transfer will succeed, or that it's worth making. The registry
+ * reverts unless the owner also holds ROLE_CAN_TRANSFER_ADMIN, and the transfer
+ * flow runs irreversible detach steps before the token moves. A subname has a
+ * second gate: once it expires, its parent can re-issue it to anyone, so
+ * transferring an expired one hands the recipient nothing. Confirm both before
+ * offering the form rather than walking the user into a partial, unrecoverable
+ * failure — or a pointless one.
  */
-function AuthorizedTransfer({
+const AuthorizedTransfer = ({
   name,
   registryAddress,
   owner,
@@ -147,14 +132,63 @@ function AuthorizedTransfer({
   readonly name: string
   readonly registryAddress: Address
   readonly owner: Address
-}) {
+}) => {
+  const isSubname = !is2LD(name)
+
   const { canTransfer, isLoading, isError } = useCanTransferName({
     name,
     registryAddress,
     account: owner,
   })
 
-  if (isLoading) return <LoadingMessage />
+  const expiryQuery = useQuery({
+    ...getSubnameExpiryQueryOptions({ name, registryAddress }),
+    enabled: isSubname,
+  })
+
+  // Mirrors `PermissionedRegistry._isExpired`: `block.timestamp >= expiry`. A
+  // zero expiry is *not* "never expires" — the registry has no such value, and
+  // `_isExpired(0)` is true — so it is blocked like any other lapsed name.
+  const isExpired =
+    expiryQuery.data !== undefined &&
+    expiryQuery.data <= BigInt(Math.floor(Date.now() / 1000))
+
+  if (isLoading || expiryQuery.isLoading) return <LoadingMessage />
+
+  if (expiryQuery.isError)
+    return (
+      <MessageCard
+        icon={<AlertTriangle className="size-8" />}
+        title="Couldn’t check this subname’s expiry"
+        description={
+          <p>
+            We couldn’t confirm whether this subname is still registered.
+            Refresh and try again before starting a transfer.
+          </p>
+        }
+      />
+    )
+
+  if (isExpired)
+    return (
+      <MessageCard
+        icon={<AlertTriangle className="size-8" />}
+        title="This subname has expired"
+        description={
+          <>
+            <p>
+              This subname’s registration has lapsed, so the owner of{' '}
+              <span className="font-medium">{getParentName(name)}</span> can
+              re-issue it to anyone. Transferring it now wouldn’t give the
+              recipient lasting control.
+            </p>
+            <p className="text-quartz-900/60 text-sm mt-2">
+              Ask the parent’s owner to renew it before transferring.
+            </p>
+          </>
+        }
+      />
+    )
 
   if (isError)
     return (
@@ -194,6 +228,6 @@ function AuthorizedTransfer({
     )
 
   return (
-    <SendNameForm name={name} registryAddress={registryAddress} owner={owner} />
+    <V2SendName name={name} registryAddress={registryAddress} owner={owner} />
   )
 }

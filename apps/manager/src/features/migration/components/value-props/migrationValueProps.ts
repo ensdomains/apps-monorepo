@@ -1,6 +1,5 @@
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 import customProfiles from './assets/custom-profiles.webp'
 import everythingOnePlace from './assets/everything-one-place.webp'
 import favoritesAnimation from './assets/favorites.webm'
@@ -66,7 +65,9 @@ const ALL_SLIDES: readonly MigrationValuePropSlide[] = [
   },
 ] as const
 
-export const MIGRATION_VALUE_PROP_SLIDES: readonly MigrationValuePropSlide[] =
-  ALL_SLIDES.filter(
-    (slide) => slide.id !== 'nft' || isFeatureEnabled('COMMEMORATIVE_NFT_COPY'),
-  )
+const NON_NFT_SLIDES = ALL_SLIDES.filter((slide) => slide.id !== 'nft')
+
+export const getMigrationValuePropSlides = (
+  shouldShowNft = false,
+): readonly MigrationValuePropSlide[] =>
+  shouldShowNft ? ALL_SLIDES : NON_NFT_SLIDES

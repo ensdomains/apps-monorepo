@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
-import { type Address, isAddressEqual } from 'viem'
-import { useConnection, useEnsResolver } from 'wagmi'
+import type { Address } from 'viem'
+import { useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
@@ -11,7 +11,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { nameHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { RecentHistoryTimeline } from '@/features/history/components/RecentHistoryTimeline'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
-import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
+import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
@@ -130,17 +130,8 @@ const Profile = ({
     protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
   })
 
-  const { address: connectedAddress } = useConnection()
-
-  // Migration eligibility is only meaningful for v1 names, and the verdict is
-  // owner-scoped (evaluated for the connected wallet). Gate the query on both so
-  // non-v1 names and disconnected viewers skip the on-chain checks and see no
-  // migration status.
-  const isV1Name = ownerQuery.data?.protocolVersion === 'ENSv1'
-
-  const migrationQuery = useQuery({
-    ...getMigrationStatusQueryOptions({ name, address: connectedAddress }),
-    enabled: isV1Name && !!connectedAddress,
+  const migrationQuery = useMigrationStatus(name, {
+    enabled: ownerQuery.data?.protocolVersion === 'ENSv1',
   })
 
   const { canExtend: graceCanExtend, isLoading: graceCanExtendLoading } =
@@ -339,14 +330,7 @@ const Profile = ({
   const resolvedProtocolVersion = ownerQuery.data.protocolVersion ?? 'ENSv2'
 
   const migration = migrationQuery.data
-  // Migration status is owner-only: surface it (both the banner and the
-  // Protocol-row label) only when the name is migratable AND the connected
-  // wallet holds the v1 token. Non-owners and disconnected viewers see no
-  // migration text.
-  const isMigratableByConnectedOwner =
-    migration?.migratable === true &&
-    !!connectedAddress &&
-    isAddressEqual(connectedAddress, migration.tokenHolder)
+  const { isMigratableByConnectedOwner } = migrationQuery
 
   // Suppress the upgrade prompt whenever the name is expired (grace period or
   // fully expired past grace) — the user must extend/renew first. The upgrade

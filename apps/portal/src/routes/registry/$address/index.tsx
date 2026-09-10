@@ -203,7 +203,6 @@ function RouteComponent() {
 
       <RegistryHistoryByAddress
         address={address}
-        showFilters={false}
         heading={<h2 className="text-caps text-foreground">History</h2>}
         action={
           <Button variant="outline" size="xs" asChild>

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { MIGRATION_VALUE_PROP_SLIDES } from './migrationValueProps'
+import { getMigrationValuePropSlides } from './migrationValueProps'
 
-describe('MIGRATION_VALUE_PROP_SLIDES', () => {
-  it('omits the NFT slide while the commemorative copy is off', () => {
-    expect(MIGRATION_VALUE_PROP_SLIDES.map((slide) => slide.id)).toEqual([
+describe('getMigrationValuePropSlides', () => {
+  it('shows only ordinary migration benefits unless NFT visibility is confirmed', () => {
+    expect(getMigrationValuePropSlides().map((slide) => slide.id)).toEqual([
       'profiles',
       'favorites',
       'notifications',
@@ -11,8 +11,28 @@ describe('MIGRATION_VALUE_PROP_SLIDES', () => {
     ])
   })
 
-  it('keeps every slide it does show', () => {
-    for (const slide of MIGRATION_VALUE_PROP_SLIDES) {
+  it('adds the NFT slide when commemorative NFT visibility is confirmed', () => {
+    expect(getMigrationValuePropSlides(true).map((slide) => slide.id)).toEqual([
+      'profiles',
+      'favorites',
+      'notifications',
+      'experience',
+      'nft',
+    ])
+  })
+
+  it('removes NFT marketing again when the current owner becomes ineligible', () => {
+    const ordinarySlides = getMigrationValuePropSlides(false)
+    const eligibleSlides = getMigrationValuePropSlides(true)
+
+    expect(getMigrationValuePropSlides(false)).toEqual(ordinarySlides)
+    expect(eligibleSlides.filter((slide) => slide.id !== 'nft')).toEqual(
+      ordinarySlides,
+    )
+  })
+
+  it('keeps labels and media for all eligible slides', () => {
+    for (const slide of getMigrationValuePropSlides(true)) {
       expect(slide.label).toBeDefined()
       expect(slide.media.src).toBeTruthy()
     }

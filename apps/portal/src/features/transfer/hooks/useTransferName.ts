@@ -1,64 +1,126 @@
-import type { Signer } from '@ens-apps/transaction-manager'
+import {
+  transactionManager,
+  waitForTransaction,
+} from '@ens-apps/transaction-manager'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
+import { err, fromPromise, ok, type ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
-import type { Address, PublicClient, WalletClient } from 'viem'
+import type { Address } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
+import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { getEnsTokenId } from '@/features/profile/hooks/useTokenId'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import {
+  estimateGasForCall,
+  isRevertError,
+} from '@/features/transaction-manager/hooks/useTransactionGasEstimate'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getLabel } from '@/utils/token/getLabel'
-import { detachNameRegistry } from '../helpers/detachNameRegistry'
-import { detachNameResolver } from '../helpers/detachNameResolver'
-import { setEthAddress } from '../helpers/setEthAddress'
-import { transferToken } from '../helpers/transferToken'
+import type { WalletClientWithAccount } from '@/utils/types'
 import { getEthAddressQueryOptions } from '../queries/getEthAddress'
+import {
+  type GetOwnResolverError,
+  getOwnResolverQueryOptions,
+} from '../queries/getOwnResolver'
+import type { TransferSubject } from '../types'
 import {
   buildTransferPlan,
   STEP_LABELS,
   type TransferOptions,
-  type TransferStepKind,
 } from '../utils/buildTransferPlan'
-
-type UseTransferNameParams = {
-  readonly name: string
-  readonly registryAddress: Address
-  readonly owner: Address
-}
+import { buildTransferStepIntent } from '../utils/buildTransferStepIntent'
+import {
+  type GetV1NameStateError,
+  getV1NameStateQueryOptions,
+  type NameNotNormalizableError,
+} from '../v1/getV1NameState'
+import { getV1TransferGate, type V1TransferGate } from '../v1/rules'
 
 export type StartTransferParams = {
   readonly recipient: Address
   readonly options: TransferOptions
 }
 
-type SavedParams = {
-  readonly recipient: Address
-  readonly tokenId: bigint
-  readonly options: TransferOptions
+type SavedParams = StartTransferParams & {
+  /** V2 only — the versioned ERC-1155 id. Null for V1 subjects. */
+  readonly tokenId: bigint | null
+  /** The name's own resolver, or null if it has none. */
+  readonly resolverAddress: Address | null
 }
 
-const GAS_BY_STEP: Record<TransferStepKind, number> = {
-  'set-eth-addr': 0.0002,
-  'detach-resolver': 0.0001,
-  'detach-registry': 0.0001,
-  'transfer-token': 0.0003,
+export type TransferControls = {
+  readonly startTransfer: (params: StartTransferParams) => void
+  readonly transactions: Transaction[]
+  readonly isPreparing: boolean
+  readonly prepError: Error | null
 }
 
 const chainId = sepoliaWithEns.id
 
+type ErrorOf<R> = R extends ResultAsync<unknown, infer E> ? E : never
+
+/** The V1 gate refused at submit time: the name changed under the open form. */
+export class V1TransferRefusedError extends TaggedError(
+  'V1TransferRefusedError',
+)<{
+  readonly reason: Exclude<V1TransferGate['reason'], 'ok'>
+}> {}
+
+/** Simulating the move step failed, so no config step was sent. */
+export class TransferPreflightError extends TaggedError(
+  'TransferPreflightError',
+)<{
+  cause: unknown
+}> {}
+
+const describeRefusal = (reason: V1TransferRefusedError['reason']): string =>
+  match(reason)
+    .with(
+      'grace',
+      () =>
+        'This name has entered its grace period, so the registrar refuses to move it. Renew it first.',
+    )
+    .with(
+      'expired',
+      () => 'This name has expired, so there is nothing left to transfer.',
+    )
+    .with(
+      'cannot-transfer',
+      () => 'This name’s CANNOT_TRANSFER fuse has been burned.',
+    )
+    .with(
+      'manager-only',
+      'not-owner',
+      () => 'Your wallet no longer owns this name.',
+    )
+    .exhaustive()
+
+/**
+ * Runs a transfer plan through the transaction modal, one step per transaction.
+ * Every step's calldata comes from `buildTransferStepIntent`, shared between the
+ * modal's gas estimate and the submit so the two can't drift.
+ */
 export const useTransferName = ({
   name,
-  registryAddress,
-  owner,
-}: UseTransferNameParams) => {
+  account,
+  subject,
+}: {
+  readonly name: string
+  /** The connected wallet doing the sending. */
+  readonly account: Address
+  readonly subject: TransferSubject
+}): TransferControls => {
   const config = useConfig()
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
@@ -72,47 +134,143 @@ export const useTransferName = ({
   // ConfigureRegistryForm for the same pattern).
   const startedStepsRef = useRef<Set<string>>(new Set())
 
-  const getRuntime = async (): Promise<{
-    walletClient: WalletClient
-    publicClient: PublicClient
-    signer: Signer
-  }> => {
-    const walletClient = await getWalletClient(config, { account: owner })
-    if (!walletClient || !publicClient) throw new Error('No connected wallet')
-    return { walletClient, publicClient, signer: createEOASigner(walletClient) }
-  }
-
   const finishFlow = () => {
     closeModal()
     clearTransaction()
     setSavedParams(null)
+    // The parent's subname table lists this name's owner, so it goes stale too.
+    // Only relevant below the TLD — a 2LD's "parent" is `eth`, which has no
+    // subname listing of its own in the app.
+    const parentName = is2LD(name) ? null : getParentName(name)
     const invalidate = () =>
       Promise.all([
         queryClient.invalidateQueries({
           queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
         }),
         queryClient.invalidateQueries({
-          queryKey: getPrimaryNameQueryOptions(owner).queryKey,
+          queryKey: getV1NameStateQueryOptions({ name }).queryKey,
         }),
         queryClient.invalidateQueries({
-          queryKey: getEthAddressQueryOptions(name).queryKey,
+          queryKey: getPrimaryNameQueryOptions(account).queryKey,
         }),
+        queryClient.invalidateQueries({
+          queryKey: getEthAddressQueryOptions({ name }).queryKey,
+        }),
+        ...(parentName
+          ? [
+              queryClient.invalidateQueries({
+                queryKey: getSubnamesQueryOptions({
+                  name: parentName,
+                  protocolVersion: subject.kind === 'v2' ? 'ENSv2' : 'ENSv1',
+                }).queryKey,
+              }),
+            ]
+          : []),
       ]).then(() => undefined)
     void invalidate()
     pollForIndexerSync({ invalidateQueries: invalidate })
     void navigate({ to: '/$name/ownership', params: { name } })
   }
 
-  // Prepares the flow: reads the token id up front (so a bad name fails before
-  // the modal opens), then stores the plan and opens the modal. Loading and error
-  // state come straight from the mutation — no manual bookkeeping.
-  const prepareMutation = useMutation(
-    resultMutationOptions({
-      mutationFn: ({ recipient, options }: StartTransferParams) =>
-        getEnsTokenId({
+  // The V1 read that gates the write. `staleTime: 0` bypasses the cache the
+  // ownership page primed: a name that lapsed into grace after that read would
+  // otherwise pass, and the config steps would land before `reclaim` reverts on
+  // the registrar's `live(id)` — leaving the name not resolving and not moved.
+  const readV1 = (params: StartTransferParams) =>
+    fromPromise(
+      queryClient.fetchQuery({
+        ...getV1NameStateQueryOptions({ name }),
+        staleTime: 0,
+      }),
+      (e) => e as GetV1NameStateError | NameNotNormalizableError,
+    ).andThen((state) => {
+      const refuse = (reason: V1TransferRefusedError['reason']) =>
+        err(
+          new V1TransferRefusedError({
+            reason,
+            message: describeRefusal(reason),
+          }),
+        )
+      // No state means no registrant and no live wrapper owner: gone.
+      if (!state) return refuse('expired')
+      const gate = getV1TransferGate(state, account)
+      return gate.reason === 'ok'
+        ? ok<SavedParams>({
+            ...params,
+            tokenId: null,
+            resolverAddress: state.resolverAddress,
+          })
+        : refuse(gate.reason)
+    })
+
+  const readV2 = (params: StartTransferParams, registryAddress: Address) =>
+    fromPromise(
+      queryClient.fetchQuery(
+        getOwnResolverQueryOptions({
           label: getLabel(name),
           registryAddress,
-        }).map((tokenId) => ({ recipient, tokenId, options })),
+        }),
+      ),
+      (e) => e as GetOwnResolverError,
+    ).andThen((resolverAddress) =>
+      getEnsTokenId({ label: getLabel(name), registryAddress }).map(
+        (tokenId): SavedParams => ({ ...params, tokenId, resolverAddress }),
+      ),
+    )
+
+  // Simulates the step that moves the name before anything is sent. The config
+  // steps run first and can't be undone by the sender once the move has
+  // failed, so a move that would revert — most likely a contract recipient
+  // without the `onERC721Received` / `onERC1155Received` hook — has to be
+  // caught here, not when it is reached. This is the same estimate the modal
+  // runs per step (including its gas-cap fallback), pulled forward to before
+  // the first one, so the two can't disagree about what would revert.
+  const preflightMove = (params: SavedParams) =>
+    fromPromise(
+      (async () => {
+        const walletClient = await getWalletClient(config, { account })
+        if (!walletClient?.account || !publicClient)
+          throw new Error('No connected wallet')
+        const move = buildTransferPlan(params.options, subject.kind).at(-1)
+        if (!move) throw new Error('Transfer plan has no move step')
+        const { request } = buildTransferStepIntent(move, {
+          ...params,
+          name,
+          subject,
+          walletClient: walletClient as WalletClientWithAccount,
+          chainId,
+        })
+        if (request.type !== 'eoa') throw new Error('Expected an EOA request')
+        await estimateGasForCall(publicClient, request)
+      })(),
+      (cause) =>
+        new TransferPreflightError({
+          cause,
+          message: isRevertError(cause)
+            ? 'The transfer itself would fail, so nothing was sent. If the recipient is a contract, it may not be able to receive this name.'
+            : 'Couldn’t check that the transfer would succeed. Try again.',
+        }),
+    ).map(() => params)
+
+  // Named so the two branches' error unions collapse to one for the mutation.
+  type PrepareError =
+    | ErrorOf<ReturnType<typeof readV1>>
+    | ErrorOf<ReturnType<typeof readV2>>
+    | TransferPreflightError
+
+  // Prepares the flow: re-reads the name's state (V1) or its own resolver and
+  // token id (V2) up front, so a bad name fails before the modal opens and
+  // every step's intent can be built synchronously for the gas estimate. Then
+  // stores the plan and opens the modal. Loading and error state come straight
+  // from the mutation.
+  const prepareMutation = useMutation(
+    resultMutationOptions({
+      mutationFn: (
+        params: StartTransferParams,
+      ): ResultAsync<SavedParams, PrepareError> =>
+        subject.kind === 'v2'
+          ? readV2(params, subject.registryAddress).andThen(preflightMove)
+          : readV1(params).andThen(preflightMove),
       onSuccess: (params) => {
         startedStepsRef.current = new Set()
         setSavedParams(params)
@@ -121,36 +279,12 @@ export const useTransferName = ({
     }),
   )
 
-  const runStep = async (
-    step: TransferStepKind,
-    id: string,
-    recipient: Address,
-    tokenId: bigint,
-  ): Promise<void> => {
-    const { walletClient, publicClient: pc, signer } = await getRuntime()
-    const common = { name, walletClient, publicClient: pc, signer, chainId }
-    const label = getLabel(name)
-
-    await match(step)
-      .with('set-eth-addr', () => setEthAddress({ ...common, recipient, id }))
-      .with('detach-resolver', () =>
-        detachNameResolver({ ...common, label, registryAddress, id }),
-      )
-      .with('detach-registry', () =>
-        detachNameRegistry({ ...common, label, registryAddress, id }),
-      )
-      .with('transfer-token', () =>
-        transferToken({ ...common, registryAddress, tokenId, recipient, id }),
-      )
-      .exhaustive()
-  }
-
   // Built fresh each render (like useRenewalTransactions) — the modal holds the
   // array in a ref for auto-advance, so referential stability isn't required.
   const buildTransactions = (): Transaction[] => {
     if (!savedParams) return []
-    const { recipient, tokenId, options } = savedParams
-    const steps = buildTransferPlan(options)
+    const steps = buildTransferPlan(savedParams.options, subject.kind)
+    const stepContext = { ...savedParams, name, subject }
 
     // Idempotent runner per step: `onStart` may be invoked twice (modal UI +
     // the prior step's auto-advance `onDone`). Errors clear the guard so the
@@ -160,7 +294,24 @@ export const useTransferName = ({
       if (startedStepsRef.current.has(id)) return
       startedStepsRef.current.add(id)
       try {
-        await runStep(step, id, recipient, tokenId)
+        const walletClient = await getWalletClient(config, { account })
+        if (!walletClient?.account || !publicClient)
+          throw new Error('No connected wallet')
+        const txId = transactionManager.startTransaction(
+          buildTransferStepIntent(step, {
+            ...stepContext,
+            walletClient: walletClient as WalletClientWithAccount,
+            chainId,
+          }),
+          createEOASigner(walletClient),
+          {
+            id,
+            description: `${STEP_LABELS[step]} - ${name}`,
+            publicClient,
+            timeout: 120_000,
+          },
+        )
+        await waitForTransaction(txId)
       } catch (err) {
         // Tx reverts surface via the modal's machine state. Non-tx failures
         // (e.g. the wallet resolving without a connected account) aren't tracked
@@ -175,17 +326,20 @@ export const useTransferName = ({
       id: `transfer-${name}-${step}`,
       title: STEP_LABELS[step],
       transactionName: `${STEP_LABELS[step]} - ${name}`,
-      estimatedGasCost: GAS_BY_STEP[step],
+      // Same builder as the submit path, so the modal's live gas estimate is
+      // for exactly the call that will be sent.
+      intent: {
+        prepare: (ctx) =>
+          buildTransferStepIntent(step, { ...stepContext, ...ctx }),
+      },
       onStart: runners[i],
       onDone: i < runners.length - 1 ? runners[i + 1] : finishFlow,
     }))
   }
 
-  const transactions = buildTransactions()
-
   return {
     startTransfer: prepareMutation.mutate,
-    transactions,
+    transactions: buildTransactions(),
     isPreparing: prepareMutation.isPending,
     prepError: prepareMutation.error,
   }

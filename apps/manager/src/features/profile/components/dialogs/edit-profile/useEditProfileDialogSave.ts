@@ -1,5 +1,4 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { parseInput } from '@ensdomains/ensjs/utils'
 import { t } from '@lingui/core/macro'
 import {
   type QueryClient,
@@ -115,7 +114,7 @@ const toastSaveError = (error: unknown) => {
       .with(
         P.instanceOf(ResolverChangeNotAuthorizedError),
         () =>
-          t`Your wallet does not have permission to change the resolver for this name.`,
+          t`Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this.`,
       )
       .with(
         P.instanceOf(OwnedResolverNotReadyError),
@@ -365,25 +364,10 @@ export const useEditProfileDialogSave = ({
 
   const getPendingRecordSave = useCallback(
     (currentRecords: ProfileRecords) => {
-      const blockedReason = match({
-        isResolverAccessPending,
-        needsResolverSetup,
-        is2LD: parseInput(name.endsWith('.eth') ? name : `${name}.eth`).is2LD,
-      })
-        .with(
-          { isResolverAccessPending: true },
-          () =>
-            t`Still checking if you can edit this name. Try again in a moment.`,
-        )
-        .with(
-          { needsResolverSetup: true, is2LD: false },
-          () =>
-            t`This subname can’t be set up here yet. Please set it up in the ENS app first.`,
-        )
-        .otherwise(() => null)
-
-      if (blockedReason) {
-        toast.error(t`Cannot save profile`, { description: blockedReason })
+      if (isResolverAccessPending) {
+        toast.error(t`Cannot save profile`, {
+          description: t`Still checking if you can edit this name. Try again in a moment.`,
+        })
         return null
       }
 
@@ -529,24 +513,10 @@ export const useEditProfileDialogSave = ({
   const handleSave = useCallback<EditProfileSaveHandler>(
     (currentRecords, options) => {
       if (options.hasRecordChanges && needsResolverSetup) {
-        const blockedReason = match({
-          isResolverAccessPending,
-          is2LD: parseInput(name.endsWith('.eth') ? name : `${name}.eth`).is2LD,
-        })
-          .with(
-            { isResolverAccessPending: true },
-            () =>
-              t`Still checking if you can edit this name. Try again in a moment.`,
-          )
-          .with(
-            { is2LD: false },
-            () =>
-              t`This subname can’t be set up here yet. Please set it up in the ENS app first.`,
-          )
-          .otherwise(() => null)
-
-        if (blockedReason) {
-          toast.error(t`Cannot save profile`, { description: blockedReason })
+        if (isResolverAccessPending) {
+          toast.error(t`Cannot save profile`, {
+            description: t`Still checking if you can edit this name. Try again in a moment.`,
+          })
           return
         }
 
@@ -557,7 +527,7 @@ export const useEditProfileDialogSave = ({
 
       executeSave(currentRecords, options)
     },
-    [executeSave, isResolverAccessPending, name, needsResolverSetup],
+    [executeSave, isResolverAccessPending, needsResolverSetup],
   )
 
   const confirmSetupSave = useCallback(() => {

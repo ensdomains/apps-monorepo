@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
 import { Calendar, ChevronDown, ChevronUp, ListFilter } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import type { Hex } from 'viem'
+import { match, P } from 'ts-pattern'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -12,140 +11,70 @@ import { Button } from '@/components/ui/button'
 import { TimelineFrame } from '@/components/ui/timeline'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
-import { buildEventTypeGroups, filterActions } from '../filterTimeline'
+import { buildEventTypeGroups, dateRangeToTimestamps } from '../filterTimeline'
+import type { HistoryTimelineModel } from '../hooks/useHistoryTimeline'
 import {
-  getNameHistoryTimelineQueryOptions,
-  type TimelineIndexerEvent,
-} from '../hooks/useNameHistoryTimeline'
+  TIMELINE_WINDOW_SIZE,
+  useNameHistoryTimeline,
+} from '../hooks/useHistoryTimeline'
 import type { TimelineEventType } from '../summarize/descriptors'
-import { summarizeEvents } from '../summarize/summarizeEvents'
 import { ActionTimeline } from './ActionTimeline'
+import { TimelineBreak, TimelineLoadMore } from './TimelineBreak'
 
 interface HistoryTimelineViewProps {
-  /** The raw event feed; summarized into actions here, one row per transaction. */
-  readonly events: readonly TimelineIndexerEvent[]
-  /** Whether history exists beyond `events`, i.e. show the truncation note. */
-  readonly hasMore?: boolean
-  /** Whether `events` is one facet of a larger feed — wording of that note. */
-  readonly isScoped?: boolean
-  /**
-   * Left side of the header bar. Optional here because this view is feed-agnostic
-   * and has no subject to title itself with — `HistoryTimeline` supplies the
-   * page-level "History" title for a name.
-   */
+  readonly model: HistoryTimelineModel
+  readonly breakContent?: 'load-more' | ReactNode
   readonly heading?: ReactNode
-  /** Rendered after the filter chips, e.g. a "Full history" link. */
   readonly action?: ReactNode
-  /** Show the date / event-type chips and the truncation note. */
-  readonly showFilters?: boolean
-  /**
-   * Disclose that the window is capped, independently of `showFilters`. For a
-   * section that has no "Full history" link to disclose through — the homepage
-   * feed — and so would otherwise present a truncated list as the whole story.
-   */
-  readonly showTruncationNote?: boolean
+  readonly filters?: ReactNode
   readonly emptyTitle?: string
   readonly emptyDescription?: string
-  /**
-   * Prefix rows with the name they concern. For feeds whose rows have
-   * different subjects (a registry's labels) — see `summarizeEvents`.
-   */
-  readonly includeSubjectName?: boolean
 }
 
 /**
- * The History timeline UI: summarizes raw events into semantic actions and
- * renders the nested timeline with date / event-type filter chips and an
- * expand-all toggle.
- *
- * Presentational — it owns the filter and expansion state but does no
- * fetching, so any feed of `TimelineIndexerEvent`s can drive it (a name's
- * history via `HistoryTimeline`, a registry contract's via
- * `RegistryHistoryByAddress`).
+ * The loaded rows, a break where history continues off screen, and the feed's
+ * first action pinned below it. Presentational — everything that needs the query
+ * arrives on `model`.
  */
 export const HistoryTimelineView = ({
-  events,
-  hasMore = false,
-  isScoped = false,
+  model,
+  breakContent,
   heading,
   action,
-  showFilters = true,
-  showTruncationNote = showFilters,
+  filters,
   emptyTitle = 'No history yet',
   emptyDescription = "This name doesn't have any recorded history. Activity will appear here once transactions are made.",
-  includeSubjectName = false,
 }: HistoryTimelineViewProps) => {
-  const [dateRange, setDateRange] = useState<DateRange>({})
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
-  const [openIds, setOpenIds] = useState<ReadonlySet<Hex>>(new Set())
-
-  const actions = summarizeEvents(events, { includeSubjectName })
-  const eventTypeGroups = buildEventTypeGroups(events)
-  const filteredActions = filterActions(actions, dateRange, selectedTypes)
+  const {
+    actions,
+    anchorAction,
+    hasMore,
+    loadMore,
+    isLoadingMore,
+    totalCount,
+    openIds,
+    toggleAction,
+    setAllOpen,
+    isTruncated,
+    sourcesError,
+  } = model
 
   const allExpanded =
-    filteredActions.length > 0 &&
-    filteredActions.every((action) => openIds.has(action.txHash))
-
-  const toggleAction = (id: Hex) =>
-    setOpenIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    actions.length > 0 && actions.every((a) => openIds.has(a.txHash))
 
   const toggleExpandAll = () =>
-    setOpenIds(
-      allExpanded ? new Set() : new Set(filteredActions.map((a) => a.txHash)),
-    )
+    setAllOpen(allExpanded ? [] : actions.map((a) => a.txHash))
 
-  if (actions.length === 0) {
-    return (
-      <div className="flex w-full min-w-0 flex-col gap-4">
-        {heading != null && (
-          <div className="flex min-h-7 items-center justify-between gap-4">
-            {heading}
-            {action}
-          </div>
-        )}
-        <NoResultsMessage
-          title={emptyTitle}
-          description={emptyDescription}
-          className="mx-0 my-0"
-        />
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex w-full min-w-0 flex-col gap-4 sm:gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        {heading}
-        <div className="flex flex-wrap items-center gap-2">
-          {showFilters && (
-            <>
-              <TableDateRangeFilter
-                label="Date range"
-                dateRange={dateRange}
-                onChange={setDateRange}
-                size="xs"
-                icon={Calendar}
-                hideValue
-              />
-              {eventTypeGroups.length > 0 && (
-                <TableMultiSelectFilter
-                  label="Event"
-                  groups={eventTypeGroups}
-                  selectedValues={selectedTypes}
-                  onChange={setSelectedTypes}
-                  size="xs"
-                  icon={ListFilter}
-                  hideValue
-                />
-              )}
-            </>
-          )}
+  // Rendered when there are rows too: "Expand all" is a control of the list.
+  const header = (heading != null ||
+    action != null ||
+    filters != null ||
+    actions.length > 0) && (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      {heading}
+      <div className="flex flex-wrap items-center gap-2">
+        {filters}
+        {actions.length > 0 && (
           <Button variant="outline" onClick={toggleExpandAll} size="xs">
             {allExpanded ? (
               <ChevronUp className="size-4" />
@@ -154,97 +83,183 @@ export const HistoryTimelineView = ({
             )}
             {allExpanded ? 'Collapse all' : 'Expand all'}
           </Button>
-          {action}
-        </div>
+        )}
+        {action}
       </div>
+    </div>
+  )
 
-      {filteredActions.length === 0 ? (
-        <NoResultsMessage
-          title="No matching history"
-          description="No events match the selected filters. Try widening the date range or clearing the event filter."
+  const showBreak = hasMore && breakContent != null
+
+  const breakRow =
+    breakContent === 'load-more' ? (
+      <TimelineLoadMore
+        totalCount={totalCount}
+        isLoading={isLoadingMore}
+        onLoadMore={loadMore}
+      />
+    ) : (
+      <TimelineBreak>{breakContent}</TimelineBreak>
+    )
+
+  // Rendered by both branches: a failed source with nothing to show is exactly
+  // when "No history yet" would otherwise pass unavailable history off as none.
+  const disclosures = (
+    <>
+      {isTruncated && (
+        <p className="text-muted-foreground text-p">
+          Some of this name's history is too large to read in one request and is
+          not shown, so the event count is omitted.
+        </p>
+      )}
+      {sourcesError && (
+        <ErrorMessage
+          compact
+          description="Couldn't load all of this name's history — ENSv1 events, the first event or the event filters may be missing."
         />
-      ) : (
-        <TimelineFrame>
-          {/* Counts the rows on screen, not the events behind them: a row is
-              one transaction, so counting events would put a figure above the
-              list that nothing in it adds up to.
+      )}
+    </>
+  )
 
-              Follows `showFilters` because both mark a standalone History view:
-              there, the note is the only thing saying the window is capped. An
-              embedded section hides both and discloses through its "Full
-              history" link instead, the way the Overview's preview does — bar
-              one with no such link, which opts in via `showTruncationNote`. */}
-          {showTruncationNote && hasMore && (
-            <p className="mb-3 text-muted-foreground text-p">
-              Showing the most recent {filteredActions.length}
-              {isScoped ? ' matching' : ''} transactions.
-            </p>
-          )}
+  // Still offer the break with no rows: a page whose boundary trim empties it
+  // would otherwise dead-end on "No history yet" with more to come and nothing
+  // to click.
+  if (actions.length === 0) {
+    return (
+      <div className="flex w-full min-w-0 flex-col gap-4">
+        {header}
+        <NoResultsMessage
+          title={emptyTitle}
+          description={emptyDescription}
+          className="mx-0 my-0"
+        />
+        {showBreak && <TimelineFrame>{breakRow}</TimelineFrame>}
+        {disclosures}
+      </div>
+    )
+  }
+
+  // Only when there is hidden history below it, and it isn't already a row above.
+  const pinnedAction = match({ hasMore, anchorAction })
+    .with({ hasMore: true, anchorAction: P.nonNullable }, ({ anchorAction }) =>
+      actions.some((shown) => shown.txHash === anchorAction.txHash)
+        ? undefined
+        : anchorAction,
+    )
+    .otherwise(() => undefined)
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-4 sm:gap-6">
+      {header}
+
+      <TimelineFrame>
+        <ActionTimeline
+          actions={actions}
+          openIds={openIds}
+          onToggle={toggleAction}
+          connectBelow={showBreak && 'dashed'}
+        />
+        {showBreak && breakRow}
+        {pinnedAction && (
           <ActionTimeline
-            actions={filteredActions}
+            actions={[pinnedAction]}
             openIds={openIds}
             onToggle={toggleAction}
+            connectAbove="dashed"
           />
-        </TimelineFrame>
-      )}
+        )}
+      </TimelineFrame>
+
+      {disclosures}
     </div>
   )
 }
 
 interface HistoryTimelineProps
-  extends Omit<
-    HistoryTimelineViewProps,
-    'events' | 'hasMore' | 'isScoped' | 'includeSubjectName'
-  > {
+  extends Omit<HistoryTimelineViewProps, 'model' | 'filters' | 'breakContent'> {
   readonly name: string
-  /**
-   * Restrict the timeline to these event types — how the per-facet views
-   * (address resolution, ownership, …) show their slice of the name's history.
-   * Omit for the full feed.
-   */
   readonly scope?: readonly TimelineEventType[]
+  readonly showFilters?: boolean
+  readonly canLoadMore?: boolean
 }
 
 /**
- * A name's History timeline: fetches the widened event feed and hands it to
- * `HistoryTimelineView`.
- *
- * `scope` is pushed down into the query, so a facet view fetches only its own
- * event types — `first` bounds the whole feed, and a name with unrelated churn
- * would otherwise spend the window before its facet's events were reached.
+ * Owns the filter state because filters are part of the *query*, not a pass over
+ * loaded rows. Changing one is a new query key, which resets paging for free.
  */
 export const HistoryTimeline = ({
   name,
   scope,
   heading,
+  showFilters = true,
+  canLoadMore = true,
   ...viewProps
 }: HistoryTimelineProps) => {
-  const { data, isLoading, error } = useQuery(
-    getNameHistoryTimelineQueryOptions({ name, eventTypes: scope }),
-  )
+  const [dateRange, setDateRange] = useState<DateRange>({})
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
 
-  if (isLoading) return <LoadingMessage />
+  const model = useNameHistoryTimeline({
+    name,
+    scope,
+    selectedTypes,
+    ...dateRangeToTimestamps(dateRange),
+    windowSize: canLoadMore ? TIMELINE_WINDOW_SIZE : undefined,
+    shouldFetchAnchor: canLoadMore,
+    shouldFetchEventTypes: showFilters,
+  })
 
-  if (error) {
+  if (model.isLoading) return <LoadingMessage />
+
+  if (model.error) {
     return (
       <ErrorMessage
         title="Error loading history"
-        description={extractErrorMessage(error, '')}
+        description={extractErrorMessage(model.error, '')}
       />
     )
   }
 
+  const eventTypeGroups = buildEventTypeGroups(model.eventTypes)
+
   return (
     <HistoryTimelineView
-      events={data?.events ?? []}
-      hasMore={data?.hasMore}
-      isScoped={scope != null}
+      model={model}
+      breakContent={canLoadMore ? 'load-more' : undefined}
       heading={
         heading ?? (
           <PageHeading parent={{ type: 'name', name }}>History</PageHeading>
         )
       }
+      filters={
+        showFilters && (
+          <>
+            <TableDateRangeFilter
+              label="Date range"
+              dateRange={dateRange}
+              onChange={setDateRange}
+              size="xs"
+              icon={Calendar}
+              hideValue
+            />
+            {eventTypeGroups.length > 0 && (
+              <TableMultiSelectFilter
+                label="Event"
+                groups={eventTypeGroups}
+                selectedValues={selectedTypes}
+                onChange={setSelectedTypes}
+                size="xs"
+                icon={ListFilter}
+                hideValue
+              />
+            )}
+          </>
+        )
+      }
       {...viewProps}
+      {...((selectedTypes.length > 0 || !!dateRange.from || !!dateRange.to) && {
+        emptyTitle: 'No matching history',
+        emptyDescription:
+          'No events match the selected filters. Try widening the date range or clearing the event filter.',
+      })}
     />
   )
 }

@@ -18,6 +18,7 @@ vi.mock('@/features/migration/service/migrationInvariants', () => ({
 }))
 vi.mock('./changeResolver', () => ({
   buildSetResolverCall: vi.fn(() => SET_RESOLVER_CALL),
+  resolveNameRegistry: vi.fn(async () => LOCATION),
 }))
 vi.mock('./profileRecordTransactions', () => ({
   saveRecords: vi.fn(async () => ({ hash: '0xrecords' })),
@@ -36,6 +37,7 @@ import {
   findExistingPermRes,
 } from '@/features/migration/service/ensureOwnedPermRes'
 import { checkMigrationResolverReadiness } from '@/features/migration/service/migrationInvariants'
+import { buildSetResolverCall, resolveNameRegistry } from './changeResolver'
 import { saveRecords } from './profileRecordTransactions'
 import { canSetNameResolver } from './setResolverAccess'
 import {
@@ -51,6 +53,8 @@ const DEPLOY_CALL = {
   data: '0xdeploy' as const,
   value: 0n,
 }
+const REGISTRY = '0x2222222222222222222222222222222222222222' as Address
+const LOCATION = { label: 'leon', registryAddress: REGISTRY }
 const SET_RESOLVER_CALL = {
   to: '0x00000000000000000000000000000000000000a2' as Address,
   data: '0xsetresolver' as const,
@@ -75,6 +79,7 @@ const deployOwnedResolver = vi.mocked(buildDeployOwnedPermResCall)
 const writeRecords = vi.mocked(saveRecords)
 const checkSetResolverAccess = vi.mocked(canSetNameResolver)
 const checkResolverReadiness = vi.mocked(checkMigrationResolverReadiness)
+const locateRegistry = vi.mocked(resolveNameRegistry)
 
 const submittedRequests = () =>
   startTransaction.mock.calls.map(([intent]) =>
@@ -85,6 +90,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   findExisting.mockResolvedValue(null)
   checkSetResolverAccess.mockResolvedValue(true)
+  locateRegistry.mockResolvedValue(LOCATION)
 })
 
 describe('setupControlledResolver', () => {
@@ -111,7 +117,15 @@ describe('setupControlledResolver', () => {
       wallet: OWNER,
       publicClient,
     })
+    expect(locateRegistry).toHaveBeenCalledWith('leon.eth')
+    expect(buildSetResolverCall).toHaveBeenCalledWith({
+      ...LOCATION,
+      newResolver: RESOLVER,
+    })
     expect(checkSetResolverAccess).toHaveBeenCalledTimes(2)
+    expect(checkSetResolverAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ location: LOCATION, resolver: RESOLVER }),
+    )
     expect(submittedRequests()).toEqual([
       { type: 'eoa', from: OWNER, chainId: CHAIN_ID, ...DEPLOY_CALL },
       { type: 'eoa', from: OWNER, chainId: CHAIN_ID, ...SET_RESOLVER_CALL },
@@ -311,7 +325,14 @@ describe('setupControlledResolver', () => {
     ).rejects.toThrow('execution reverted: Unauthorized')
   })
 
-  it('rejects subnames before doing any on-chain work', async () => {
+  it("points a subname's resolver from its parent registry", async () => {
+    const PARENT_REGISTRY =
+      '0x4444444444444444444444444444444444444444' as Address
+    locateRegistry.mockResolvedValue({
+      label: 'sub',
+      registryAddress: PARENT_REGISTRY,
+    })
+
     await expect(
       setupControlledResolver({
         name: 'sub.leon.eth',
@@ -321,7 +342,29 @@ describe('setupControlledResolver', () => {
         chainId: CHAIN_ID,
         ...snapshots,
       }),
-    ).rejects.toThrow(/subname/i)
+    ).resolves.toBe(RESOLVER)
+
+    expect(locateRegistry).toHaveBeenCalledWith('sub.leon.eth')
+    expect(buildSetResolverCall).toHaveBeenCalledWith({
+      label: 'sub',
+      registryAddress: PARENT_REGISTRY,
+      newResolver: RESOLVER,
+    })
+  })
+
+  it('fails before any on-chain work when no registry holds the name', async () => {
+    locateRegistry.mockRejectedValue(new Error('No V2 registry holds x.eth'))
+
+    await expect(
+      setupControlledResolver({
+        name: 'x.eth',
+        signer,
+        ownerAddress: OWNER,
+        publicClient,
+        chainId: CHAIN_ID,
+        ...snapshots,
+      }),
+    ).rejects.toThrow(/no v2 registry/i)
 
     expect(startTransaction).not.toHaveBeenCalled()
     expect(findExisting).not.toHaveBeenCalled()

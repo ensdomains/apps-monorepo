@@ -1,6 +1,5 @@
 import type { Address, Hash } from 'viem'
-import { isAddress } from 'viem'
-import { useEnsName, useTransaction } from 'wagmi'
+import { useEnsName } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -8,12 +7,10 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 interface AccountBadgeProps {
   /** The account address, when known. */
   readonly address?: Address
-  /** When no address is known (e.g. "Renew by …"), resolve this tx's sender instead. */
-  readonly txHash?: Hash
   readonly full?: boolean
   /**
-   * Gate the network resolution (tx sender + reverse lookup). Defaults to
-   * eager; pass an in-view signal to defer it on long, always-visible lists.
+   * Gate the reverse lookup. Defaults to eager; pass an in-view signal to defer
+   * it on long, always-visible lists.
    */
   readonly enabled?: boolean
 }
@@ -28,63 +25,89 @@ export const FullOnDesktop = ({ value }: { value: string }) => (
 
 /**
  * Renders an account as its **primary ENS name** (no avatar) when one resolves,
- * otherwise the truncated address. Optionally resolves the address from a transaction's
- * sender first. Kept here (not in EntityBadge) so the shared badge stays presentational.
- *
- * TODO(indexer): once `Event.from` is indexed, pass it as `address` and drop the tx RPC.
+ * otherwise the truncated address. Either way the pill is the wallet — it links
+ * to the address page, where its registry roles show — and a resolved name is
+ * reachable through the Name chip. Kept here (not in EntityBadge) so the shared
+ * badge stays presentational.
  */
 export const AccountBadge = ({
   address,
-  txHash,
   full = false,
   enabled = true,
 }: AccountBadgeProps) => {
-  const needsTx = !!txHash && !address
-  const { data: tx, isPending } = useTransaction({
-    hash: txHash,
-    query: { enabled: needsTx && enabled },
-  })
-
-  const resolved: Address | undefined =
-    address ??
-    (tx?.from && isAddress(tx.from, { strict: false }) ? tx.from : undefined)
-
   const { data: name } = useEnsName({
-    address: resolved,
-    query: { enabled: !!resolved && enabled },
+    address,
+    query: { enabled: !!address && enabled },
   })
-  const explorerUrl = useBlockExplorerAddressUrl(resolved)
+  const explorerUrl = useBlockExplorerAddressUrl(address)
 
-  if (!resolved) {
-    return (
-      <span className="text-muted-foreground text-p">
-        {needsTx && enabled && isPending ? '…' : '—'}
-      </span>
-    )
-  }
-
-  if (name) {
-    return (
-      <EntityBadge
-        variant="name"
-        name={name}
-        address={resolved}
-        etherscanHref={explorerUrl}
-        compact
-      >
-        {name}
-      </EntityBadge>
-    )
-  }
+  if (!address) return <span className="text-muted-foreground text-p">—</span>
 
   return (
     <EntityBadge
       variant="address"
-      address={resolved}
+      address={address}
+      name={name ?? undefined}
       etherscanHref={explorerUrl}
       compact
     >
-      {full ? <FullOnDesktop value={resolved} /> : truncateAddress(resolved)}
+      {name ??
+        (full ? <FullOnDesktop value={address} /> : truncateAddress(address))}
     </EntityBadge>
   )
+}
+
+/**
+ * The senders of a page's transactions, looked up once per page (see
+ * `ActionTimeline`) rather than once per row. Shaped as the query result so a
+ * consumer can tell a lookup still in flight from one that failed.
+ *
+ * TODO(indexer): once `Event.from` is indexed, read the sender off the event
+ * and drop the lookup.
+ */
+export interface TransactionSenders {
+  readonly data: ReadonlyMap<Hash, Address> | undefined
+  readonly error: unknown
+}
+
+interface TransactionSenderBadgeProps {
+  readonly txHash: Hash
+  readonly senders: TransactionSenders
+  readonly enabled?: boolean
+}
+
+/**
+ * The account that sent a transaction, as an `AccountBadge`. Three unresolved
+ * states are told apart: the lookup failed, the lookup is still in flight, or
+ * the page's lookup has no sender for this transaction — only the last is the
+ * "no data" dash.
+ */
+export const TransactionSenderBadge = ({
+  txHash,
+  senders,
+  enabled = true,
+}: TransactionSenderBadgeProps) => {
+  const address = senders.data?.get(txHash)
+  if (address) return <AccountBadge address={address} enabled={enabled} />
+
+  if (senders.error) {
+    return (
+      <span
+        className="text-muted-foreground text-p"
+        title="Couldn't load the transaction sender"
+      >
+        unknown sender
+      </span>
+    )
+  }
+  // A span, not the `Skeleton` div: this sits inside inline row text.
+  if (!senders.data) {
+    return (
+      <span
+        aria-busy
+        className="inline-block h-6 w-28 animate-pulse rounded bg-muted"
+      />
+    )
+  }
+  return <span className="text-muted-foreground text-p">—</span>
 }

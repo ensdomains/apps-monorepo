@@ -10,7 +10,10 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
-import { invalidateRegistryQueries } from '@/features/registry/utils/invalidateRegistryQueries'
+import {
+  invalidateIndexedRegistryQueries,
+  invalidateRegistryQueries,
+} from '@/features/registry/utils/invalidateRegistryQueries'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
@@ -30,6 +33,7 @@ export function useGrantRegistryRolesMutation() {
   const publicClient = usePublicClient()
 
   const invalidate = () => invalidateRegistryQueries(queryClient)
+  const invalidateIndexed = () => invalidateIndexedRegistryQueries(queryClient)
 
   const mutation = useMutation({
     mutationFn: async (params: UseGrantRegistryRolesParameters) => {
@@ -46,7 +50,7 @@ export function useGrantRegistryRolesMutation() {
     },
     onSuccess: () => {
       invalidate()
-      pollForIndexerSync({ invalidateQueries: invalidate })
+      pollForIndexerSync({ invalidateQueries: invalidateIndexed })
     },
   })
 
