@@ -51,6 +51,7 @@ import {
   buildTransferPlan,
   STEP_LABELS,
   type TransferOptions,
+  type TransferStepKind,
 } from '../utils/buildTransferPlan'
 import { buildTransferStepIntent } from '../utils/buildTransferStepIntent'
 import { canStartStep } from '../utils/canStartStep'
@@ -84,12 +85,28 @@ type SavedParams = NameReads & {
 
 export type TransferControls = {
   readonly startTransfer: (params: StartTransferParams) => void
+  /**
+   * Call when the recipient or an option changes. Any preparation still in
+   * flight is discarded when it lands (its modal never opens), and a plan
+   * already prepared for the old values is dropped, so the calldata can never
+   * be built from a recipient the form no longer shows.
+   */
+  readonly discardPreparation: () => void
   readonly transactions: Transaction[]
   readonly isPreparing: boolean
   readonly prepError: Error | null
 }
 
 const chainId = sepoliaWithEns.id
+
+/** The steps whose calldata carries the recipient. */
+const RECIPIENT_STEPS: ReadonlySet<TransferStepKind> = new Set([
+  'set-eth-addr',
+  'transfer-token',
+  'reclaim',
+  'transfer-erc721',
+  'transfer-erc1155',
+])
 
 type ErrorOf<R> = R extends ResultAsync<unknown, infer E> ? E : never
 
@@ -197,6 +214,17 @@ export const useTransferName = ({
   // the previous step's auto-fired `onDone` route into it (see
   // ConfigureRegistryForm for the same pattern).
   const startedStepsRef = useRef<Set<string>>(new Set())
+
+  // Each `startTransfer` is a run. The token id / preflight reads are async,
+  // and the form's values can move while they are pending — a result that
+  // comes back for an older run than the latest one must not open the modal
+  // with a recipient the form no longer shows (Immunefi #91822).
+  const runIdRef = useRef(0)
+
+  const discardPreparation = () => {
+    runIdRef.current += 1
+    setSavedParams(null)
+  }
 
   const finishFlow = () => {
     closeModal()
@@ -362,8 +390,16 @@ export const useTransferName = ({
     resultMutationOptions({
       mutationFn: (
         params: StartTransferParams,
-      ): ResultAsync<SavedParams, PrepareError> =>
-        match({ canonical: isCanonicalName(name), subject })
+      ): ResultAsync<
+        { readonly saved: SavedParams; readonly runId: number },
+        PrepareError
+      > => {
+        runIdRef.current += 1
+        const runId = runIdRef.current
+        const prepared: ResultAsync<SavedParams, PrepareError> = match({
+          canonical: isCanonicalName(name),
+          subject,
+        })
           .with({ canonical: false }, () =>
             errAsync(
               new NonCanonicalNameError({
@@ -380,10 +416,15 @@ export const useTransferName = ({
           // Every remaining kind is a V1 subject.
           .otherwise(() =>
             readV1(params).andThen(readResolverKind).andThen(preflightMove),
-          ),
-      onSuccess: (params) => {
+          )
+        return prepared.map((saved) => ({ saved, runId }))
+      },
+      onSuccess: ({ saved, runId }) => {
+        // Superseded by a newer start or an edit: the form's values are not
+        // the ones this plan was built from, so it never reaches the modal.
+        if (runId !== runIdRef.current) return
         startedStepsRef.current = new Set()
-        setSavedParams(params)
+        setSavedParams(saved)
         // A fresh scope is what keeps an abandoned attempt's finished step
         // actors from satisfying this one; the manager is deliberately not
         // cleared, since that would also stop unrelated in-flight work.
@@ -448,6 +489,11 @@ export const useTransferName = ({
       id: transferStepId(name, step, attempt.scope),
       title: STEP_LABELS[step],
       transactionName: `${STEP_LABELS[step]} - ${name}`,
+      // Read from the same params the calldata is built from — not the form
+      // behind the modal — so what the user confirms is what gets sent.
+      details: RECIPIENT_STEPS.has(step)
+        ? [{ label: 'To', value: savedParams.recipient }]
+        : undefined,
       // Same builder as the submit path, so the modal's live gas estimate is
       // for exactly the call that will be sent.
       intent: {
@@ -461,6 +507,7 @@ export const useTransferName = ({
 
   return {
     startTransfer: prepareMutation.mutate,
+    discardPreparation,
     transactions: buildTransactions(),
     isPreparing: prepareMutation.isPending,
     prepError: prepareMutation.error,

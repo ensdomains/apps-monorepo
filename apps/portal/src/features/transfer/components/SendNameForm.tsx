@@ -217,7 +217,13 @@ export const SendNameForm = ({
   const resolution = useAddressResolution(recipientInput)
   const { address: recipient, isResolving } = resolution
 
-  const { startTransfer, transactions, isPreparing, prepError } = transfer
+  const {
+    startTransfer,
+    discardPreparation,
+    transactions,
+    isPreparing,
+    prepError,
+  } = transfer
 
   const isSelf = !!recipient && isAddressEqual(recipient, owner)
   const isZeroAddress = !!recipient && isAddressEqual(recipient, zeroAddress)
@@ -246,7 +252,11 @@ export const SendNameForm = ({
     !parentWarning?.isLoading &&
     !isDetachBlocked
 
+  // Any edit invalidates whatever was prepared from the previous values. The
+  // inputs are also locked while preparing, so this is the backstop for the
+  // case where the modal was closed and the plan behind it is now stale.
   const toggleOption = (key: TransferOptionKey) => {
+    discardPreparation()
     // Consent is given for one specific plan; turning the step off and on again
     // must ask again rather than carry a stale tick forward.
     if (key === 'detachRegistry') setAcknowledgedFor(null)
@@ -276,8 +286,12 @@ export const SendNameForm = ({
         <span className="font-medium">Recipient</span>
         <AddressNameInput
           value={recipientInput}
-          onChange={setRecipientInput}
+          onChange={(value) => {
+            discardPreparation()
+            setRecipientInput(value)
+          }}
           resolution={resolution}
+          disabled={isPreparing}
           className="h-9"
           resolvedContent={
             <RecipientResolvedContent
@@ -294,6 +308,7 @@ export const SendNameForm = ({
           options={options}
           visibleOptions={visibleOptions}
           onToggle={toggleOption}
+          disabled={isPreparing}
         />
       )}
 
@@ -419,18 +434,22 @@ const TransferDetachOptions = ({
   options,
   visibleOptions,
   onToggle,
+  disabled: allDisabled,
 }: {
   readonly options: Record<TransferOptionKey, boolean>
   readonly visibleOptions: readonly OptionConfig[]
   readonly onToggle: (key: TransferOptionKey) => void
+  /** Locks every switch, e.g. while a plan is being prepared from them. */
+  readonly disabled: boolean
 }) => {
   if (visibleOptions.length === 0) return null
 
   return (
     <div className="flex flex-col gap-4">
       {visibleOptions.map((option) => {
-        const disabled =
+        const isRedundant =
           option.key === 'setEthAddress' && options.detachResolver
+        const disabled = isRedundant || allDisabled
 
         return (
           <div key={option.key} className="flex flex-col gap-2">
@@ -445,7 +464,7 @@ const TransferDetachOptions = ({
                   {option.label}
                 </span>
                 <span className="text-muted-foreground text-sm">
-                  {disabled
+                  {isRedundant
                     ? 'Not needed while the resolver is being detached.'
                     : option.description}
                 </span>
