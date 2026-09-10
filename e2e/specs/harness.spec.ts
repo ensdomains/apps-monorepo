@@ -443,6 +443,30 @@ test.describe('Harness integrity', () => {
       `Panoptes is ${head - (indexed ?? 0)} blocks behind the chain head (${head})`,
     ).toBeLessThan(50_000)
 
+    // ...and synced to the same HISTORY, not merely to a similar height.
+    //
+    // The check above cannot catch this: it asserts `head - indexed < 50_000`,
+    // which a negative difference satisfies trivially. An indexer holding
+    // events the chain has never produced passes it.
+    //
+    // That is a real state, not a hypothetical. `evm_revert` (fixtures/
+    // chain-snapshot.ts, used by transfer.spec.ts) rewinds the chain past
+    // blocks Panoptes has already recorded. Its reorg check then asks for one
+    // of them, gets BlockNotFound, and halts permanently — measured at 644
+    // consecutive failures over an hour, with every indexer-backed assertion
+    // in the run failing afterwards and looking exactly like an app
+    // regression. Recovery needs the volume wiped; a restart re-reads the same
+    // row. See "A chain-snapshot revert permanently breaks Panoptes" in
+    // docs/e2e-defects.md.
+    expect(
+      indexed ?? 0,
+      `Panoptes holds events at block ${indexed} but the chain head is only ${head} — ` +
+        'it is indexing a history this chain no longer has, almost certainly a ' +
+        'evm_revert from an earlier run. It has stopped advancing and every ' +
+        'indexer-backed test will fail until its volume is wiped: see ' +
+        '"A chain-snapshot revert permanently breaks Panoptes" in docs/e2e-defects.md',
+    ).toBeLessThanOrEqual(head)
+
     // The property that makes this fixture an oracle rather than scenery: a
     // bad query must *throw*, never come back as an innocent empty result.
     // Without this, "no rows" and "the indexer is broken" are the same value
