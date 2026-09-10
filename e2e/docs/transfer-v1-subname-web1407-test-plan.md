@@ -106,7 +106,17 @@ these tests reads the indexer.
 Every test has two consecutive green runs (13 in runs 2 and 3; F39 and E2E-014
 in 2a and 3).
 
-_The control run without #1144 is recorded below._
+**Control — the same 15 tests without #1144** (`qa-1144-control` =
+`e2e-tests-coverage` + the test commits only; the served tree has no
+`set-subnode-owner`): **9 failed, 6 passed**, exactly as predicted.
+
+| Without #1144 | Tests | Why |
+|---|---|---|
+| **Fail** | F16, F30, F34, F35, F36, F37, F38, F39, F40 | each asserts something #1144 adds: the parent path, its cards, the re-gate, the ancestor-grace warning, the rewritten copy |
+| Pass | F31, F32, F33 | #1134 behaviour, unchanged by #1144 — the regression guards |
+| Pass (not meaningful) | E2E-012, E2E-013, E2E-014 | `test.fail()` passes on *any* failure; without #1144 they fail earlier, at the missing card, not at the step they pin |
+
+So every new test depends on the feature. None of them passes vacuously.
 
 ## 5. Findings
 
