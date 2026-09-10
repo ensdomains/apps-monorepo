@@ -2081,6 +2081,61 @@ const extraF: Scenario[] = suite('F', 'transfer', 'portal', 'P5', [
     "detach-resolver runs before transfer-token and clears only the subname's own slot; the parent's resolver is byte-identical afterwards even when both slots hold the same contract. Also covers E2E-010: set-eth-addr must not report success once the name has no resolver of its own",
   ],
   [
+    'F23',
+    'Transfer an unwrapped V1 name end to end',
+    'both the BaseRegistrar registrant and the ENSRegistry controller read as the recipient; driven through reclaim -> transfer-erc721, whose order matters',
+  ],
+  [
+    'F24',
+    'V1 name the wallet manages but does not own',
+    "'You manage this name but don't own it', naming the registrant in full; no form",
+  ],
+  [
+    'F25',
+    'Wrapped V1 name with CANNOT_TRANSFER burnt',
+    "'Transfer permanently disabled', and the Ownership tab offers no link the route will refuse",
+  ],
+  [
+    'F26',
+    'Transfer a WRAPPED V1 name',
+    'exactly one transfer-erc1155 step; the legacy registry owner stays the NameWrapper throughout',
+  ],
+  [
+    'F27',
+    'Transfer a V1 REGISTRY subname',
+    "set-registry-owner alone — no ERC-721, no ERC-1155; the parent's registry entry is untouched",
+  ],
+  [
+    'F28',
+    'Transfer a V1 name you own but do not manage',
+    'neither record option is offered (the resolver authorises the controller, not the registrant), and reclaim takes the manager back from the third party onto the recipient',
+  ],
+  [
+    'F29',
+    'Sender IS the V1 controller',
+    'the resolver detach IS offered, detachRegistry never appears for a V1 name, and the detach clears the registry resolver',
+  ],
+  [
+    'F30',
+    'V1 subname offered to its parent owner',
+    "'Not authorized' — owning the parent grants nothing over the child; the Ownership tab offers no link either",
+  ],
+  [
+    'F31',
+    'Transfer a WRAPPED V1 subname',
+    "one transfer-erc1155; the parent's wrapper token does not move",
+  ],
+  [
+    'F32',
+    'Transfer an EMANCIPATED V1 subname',
+    'transfers, and shows NO parent-reclaim warning — the parent retains nothing',
+  ],
+  [
+    'F33',
+    'Ownership tab names the registrant as owner of a V1 name',
+    'the Owner row must show the registrant, not the controller (E2E-011)',
+  ],
+  [
     'F21',
     'Subname whose owner lacks ROLE_CAN_TRANSFER_ADMIN',
     '"Transfer not available" and no form — asserted with an owner who is NOT the subregistry deployer, since root roles would otherwise grant it back',

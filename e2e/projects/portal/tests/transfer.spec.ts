@@ -1490,7 +1490,13 @@ test.describe('Portal name transfer — migrated V1 names', () => {
 
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
     await expect(
-      page.getByText('Transfer not available'),
+      page.getByText('Transfer permanently disabled'),
+      // A migrated locked name classifies as ENSv1, so #1134 routes it to
+      // V1Transfer and this is the V1 card. Before that PR there was no V1
+      // path and everything landed on the V2 component's "Transfer not
+      // available" — so this test passed without the classification ever being
+      // visible. The refusal is the same; only which component renders it
+      // changed. See V1-F1 in transfer-v1-web1396-test-plan.md.
       'a name that burnt CANNOT_TRANSFER in V1 must not be transferable in V2',
     ).toBeVisible({ timeout: 30_000 })
     await expect(
