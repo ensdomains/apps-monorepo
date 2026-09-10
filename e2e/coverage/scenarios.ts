@@ -2163,7 +2163,7 @@ const extraF: Scenario[] = suite('F', 'transfer', 'portal', 'P5', [
   [
     'F39',
     'V1 subname under a .eth 2LD in grace, then expired',
-    "grace: the parent's move is refused with '<2LD> is in its grace period', the holder's goes through with a warning; past grace: '<2LD> has expired' for both",
+    "grace: the holder's move goes through with a warning, and the parent's is refused with '<2LD> is in its grace period' (E2E-014: today it reads 'Not authorized'); past grace: '<2LD> has expired' for both",
   ],
   [
     'F40',

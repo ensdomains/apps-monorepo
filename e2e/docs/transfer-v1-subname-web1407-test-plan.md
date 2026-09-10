@@ -108,6 +108,26 @@ available for ENSv2 names."* Separately, the card ignores
 someone else once it expires"* when the parent burned that fuse, but this card
 still promises it.
 
+### V1S-F3 — **E2E-014** — the `ancestor-grace` card is unreachable for a wrapped 2LD; its owner is told "Not authorized"
+
+Found by F39, confirmed in the ensjs source. During a `.eth` 2LD's grace
+period `BaseRegistrar.ownerOf` reverts, and ensjs `getOwner` falls into its
+*"expired 2LD .eth"* branch: `{ registrant: null, owner: registryOwner,
+ownershipLevel: 'registrar' }`. For a **wrapped** 2LD the registry owner is
+the NameWrapper contract, so `deriveParent` records an unwrapped parent held by
+the NameWrapper, `gateAsParent` matches nothing, and the real owner — whom the
+NameWrapper still reports as owner — reads:
+
+> **Not authorized** — You are not the owner of this name. Only the current
+> owner, or the owner of *2LD*, can move it.
+
+The refusal itself is right (the wrapper would revert), but it names the wrong
+reason, tells the owner they are not the owner, and loses the renew link the
+`ancestor-grace` card exists to offer. The rules unit test for this case passes
+because it builds the parent state by hand rather than from ensjs's shape.
+F39 was split so its holder and expired legs still run; this leg is the
+`test.fail()` repro.
+
 ### Not findings
 
 - **F16 failing on #1144** — an intended copy change, not a regression. Test updated.

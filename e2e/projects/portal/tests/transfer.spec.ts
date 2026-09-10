@@ -3369,50 +3369,55 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
   // Last in the file on purpose: the time travel is contained by a chain
   // snapshot, and reverting one leaves Panoptes unable to recover (see
   // fixtures/chain-snapshot.ts). Nothing after it may need the indexer.
-  test('gates V1 subnames on the .eth 2LD above: grace blocks only the parent, expiry blocks everyone', {
+
+  /**
+   * A wrapped `.eth` 2LD you own, one subname you HOLD and one you are only
+   * the PARENT of, with the clock pushed 29 days into the 2LD's grace period.
+   * 28 days is the registrar's minimum, so the jumps stay short.
+   */
+  const seedAncestorInGrace = async (
+    accounts: { getAddress: (u: 'user' | 'user3') => Address },
+    parentAccount: ReturnType<typeof privateKeyToAccount>,
+    label: string,
+  ) => {
+    const DAY = 86_400
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+    const parent = await makeV1Name({
+      label,
+      type: 'wrapped',
+      duration: 28 * DAY,
+    })
+    const parentLabel = parent.replace(/\.eth$/, '')
+    const held = await makeV1Subname({
+      parentName: parentLabel,
+      childLabel: 'held',
+      ownerAddress: accounts.getAddress('user'),
+      parentOwnerAccount: parentAccount,
+    })
+    const other = await makeV1Subname({
+      parentName: parentLabel,
+      childLabel: 'other',
+      ownerAddress: accounts.getAddress('user3'),
+      parentOwnerAccount: parentAccount,
+    })
+    await testClient.increaseTime({ seconds: 29 * DAY })
+    await testClient.mine({ blocks: 1 })
+    return { parent, held, other, DAY }
+  }
+
+  test('gates V1 subnames on the .eth 2LD above: the holder moves through grace, nobody moves past it', {
     tag: ['@scenario:F39'],
   }, async ({ portalPage: page, wallet, accounts }) => {
     test.setTimeout(480_000)
     await connectWithHeadlessWallet(page, wallet)
-
-    const DAY = 86_400
     const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
-    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
 
     await withChainSnapshot(async () => {
-      // 28 days is the registrar's minimum; short so the jumps stay short.
-      const parent = await makeV1Name({
-        label: 'v1-xfer-f39',
-        type: 'wrapped',
-        duration: 28 * DAY,
-      })
-      const parentLabel = parent.replace(/\.eth$/, '')
-      // One subname the connected wallet HOLDS, one it is only the PARENT of.
-      const held = await makeV1Subname({
-        parentName: parentLabel,
-        childLabel: 'held',
-        ownerAddress: accounts.getAddress('user'),
-        parentOwnerAccount: parentAccount,
-      })
-      const other = await makeV1Subname({
-        parentName: parentLabel,
-        childLabel: 'other',
-        ownerAddress: accounts.getAddress('user3'),
-        parentOwnerAccount: parentAccount,
-      })
-
-      // Into the 2LD's grace period: past its registrar expiry, inside 90 days.
-      await testClient.increaseTime({ seconds: 29 * DAY })
-      await testClient.mine({ blocks: 1 })
-
-      // The wrapper refuses `setSubnodeOwner` from a 2LD in grace, so the
-      // parent's move is blocked up front, with a way out.
-      await page.goto(`${PORTAL_APP_URL}/${other}/ownership/transfer`)
-      await expect(
-        page.getByText(`${parent} is in its grace period`),
-        "a parent in grace cannot reassign, and the card must say it's the parent",
-      ).toBeVisible({ timeout: 60_000 })
-      await expect(page.getByPlaceholder('ENS name or address')).toHaveCount(0)
+      const { parent, held, other, DAY } = await seedAncestorInGrace(
+        accounts,
+        parentAccount,
+        'v1-xfer-f39',
+      )
 
       // The holder's own move still goes through — the child's wrapper expiry
       // is the parent's plus grace — but into a subtree about to lapse.
@@ -3443,6 +3448,43 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
           0,
         )
       }
+    })
+  })
+
+  test('tells the owner of a wrapped 2LD in grace why it cannot reassign a subname (E2E-014)', {
+    tag: ['@scenario:F39'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.fail(
+      true,
+      "E2E-014: in grace, ensjs getOwner reports a wrapped 2LD at ownershipLevel 'registrar' with the NameWrapper as owner, so deriveParent reads it as unwrapped and the real owner is told 'Not authorized'",
+    )
+    test.setTimeout(420_000)
+    await connectWithHeadlessWallet(page, wallet)
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+
+    await withChainSnapshot(async () => {
+      const { parent, other } = await seedAncestorInGrace(
+        accounts,
+        parentAccount,
+        'v1-xfer-e014',
+      )
+      expect(
+        (await readWrapperOwner(BigInt(namehash(parent)))).toLowerCase(),
+        'precondition: the NameWrapper still reports the connected wallet as the 2LD owner in grace',
+      ).toBe(accounts.getAddress('user').toLowerCase())
+
+      // The wrapper refuses `setSubnodeOwner` from a 2LD in grace, so the
+      // parent's move must be refused up front — with the reason, and the way
+      // out (renew), which is what #1144's `ancestor-grace` card is for.
+      await page.goto(`${PORTAL_APP_URL}/${other}/ownership/transfer`)
+      await expect(
+        page.getByText('Not authorized'),
+        'the owner of the 2LD must not be told they are not authorized',
+      ).toHaveCount(0, { timeout: 60_000 })
+      await expect(
+        page.getByText(`${parent} is in its grace period`),
+        'a parent in grace is refused with the grace card and a way to renew',
+      ).toBeVisible({ timeout: 60_000 })
     })
   })
 })
