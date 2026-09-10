@@ -119,6 +119,7 @@ about the others:
 | F25 | `CANNOT_TRANSFER` burnt | "Transfer permanently disabled", and the Ownership tab does not offer a link the route will refuse — the E2E-001 shape |
 | F26 | **Wrapped** V1 name, end to end | exactly **one** step. A wrapped name lives entirely in the NameWrapper — the registry owner is the wrapper contract, so there is no controller slot to hand over and no `reclaim` to sequence. The registry owner must still be the NameWrapper afterwards |
 | F27 | **Registry-only** V1 subname, end to end | `setOwner` is the whole transfer: no ERC-721, no ERC-1155, nothing to move but the registry entry. The **parent's** entry must be untouched |
+| F29 | Sender **is** the controller | the resolver detach **is** offered (the positive half of F28), `detachRegistry` never appears for a V1 name, and the detach really clears the registry's resolver |
 | F28 | Unwrapped V1 name you **own but do not manage** | neither record option is offered (the registrant cannot write records — the resolver authorises the *controller*), and `reclaim` takes the manager back from the third party onto the recipient |
 
 Not automated: `grace`, `expired`, `not-owner` — all refusal states, all covered
@@ -236,6 +237,31 @@ display it. It also makes the entry-point check awkward: you cannot confirm
 **Severity: S3.** Wrong state shown, and a workaround exists (deep-link to the
 transfer route). Worth a ruling on whether `resolveEnsOwner` should handle a
 split V1 name, since the transfer path clearly can.
+
+### V1-F4 — Blocker — `V1_PUBLIC_RESOLVER.setAddr` reverts, so no V1 name can have an addr(60)
+
+Writing an address record to a V1 name reverts for the registry owner, on this
+fork, through **both** routes:
+
+- `makeV1Name({ records: { addresses: [...] } })` → `setV1Records` →
+  `setAddr(bytes32,uint256,bytes)` on `V1_PUBLIC_RESOLVER`
+- ensjs `setRecords` against the same resolver, the helper this spec already
+  uses successfully for V2 names
+
+`setResolver` on the legacy registry succeeds — only the record write fails —
+and the caller is the node's registry owner, which is what `PublicResolver`
+authorises against. So it is not ordering or authority as far as can be seen
+from outside; the resolver simply refuses.
+
+**What it blocks:** `setEthAddress` for V1 is only offered when the name has an
+addr(60) (`getV1DetachTargets`), so its positive case cannot be exercised at
+all. F29 therefore covers the `detachResolver` half of G1 and asserts
+`setEthAddress` is *withheld* — correct here, but for want of a record rather
+than want of authority, which is a weaker assertion than intended.
+
+Not caused by #1134. Worth a short investigation of whether
+`V1_PUBLIC_RESOLVER` is the right address for this deployment, since a working
+one would also unblock G1 properly.
 
 ### Non-findings (verified working)
 

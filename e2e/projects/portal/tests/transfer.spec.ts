@@ -33,6 +33,7 @@ import {
   V1_BASE_REGISTRAR,
   V1_ENS_REGISTRY,
   V1_NAME_WRAPPER,
+  V1_PUBLIC_RESOLVER,
 } from '../../../fixtures/makeV1Name.js'
 import { makeV1RegistrySubname } from '../../../fixtures/makeV1RegistrySubname.js'
 import {
@@ -2549,6 +2550,101 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
         timeout: 90_000,
       })
       .toBe(recipient.toLowerCase())
+  })
+
+  test('offers the resolver detach when the sender IS the V1 controller', {
+    tag: ['@scenario:F29'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+    const ownerKey = accounts.getPrivateKey('user')
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(ownerKey),
+    })
+    const name = await makeV1Name({ label: 'v1-xfer-f29', type: 'unwrapped' })
+    const label = name.replace(/\.eth$/, '')
+
+    // A resolver is all `detachResolver` needs. An addr(60) — which
+    // `setEthAddress` additionally requires — cannot be written on this fork:
+    // V1_PUBLIC_RESOLVER.setAddr reverts for the registry owner, through both
+    // the fixture and ensjs. Recorded as V1-F4; it blocks the positive
+    // set-eth-addr case for V1, not this one.
+    const hash = await getOwnerClient(ownerKey).sendTransaction({
+      to: V1_ENS_REGISTRY,
+      data: encodeFunctionData({
+        abi: parseAbi(['function setResolver(bytes32 node, address resolver)']),
+        functionName: 'setResolver',
+        args: [namehash(name), V1_PUBLIC_RESOLVER],
+      }),
+    })
+    await publicClient.waitForTransactionReceipt({ hash })
+
+    expect(
+      (await readController(name)).toLowerCase(),
+      'precondition: the sender is the controller, so the resolver IS writable',
+    ).toBe(owner.toLowerCase())
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+
+    // The positive half of F28. There the registrant could not write records
+    // and no option appeared; here the same account holds the controller slot
+    // and a resolver is set, so the detach must be offered. Without this pair,
+    // "no options offered" would also pass for a build that never offered any.
+    await expect(
+      page.locator('#transfer-option-detachResolver'),
+      'a controller CAN detach the resolver, so the option must be offered',
+    ).toBeVisible({ timeout: 30_000 })
+
+    // No addr(60) on this name, so `hasEthAddress` is false and the option is
+    // correctly withheld — a different reason from F28's, same outcome.
+    await expect(
+      page.locator('#transfer-option-setEthAddress'),
+      'with no addr(60) there is nothing to repoint',
+    ).toHaveCount(0)
+
+    // `detachRegistry` is V2-only: `getV1DetachTargets` hardcodes it false
+    // because a V1 name has no subregistry. Offering it would plan a step with
+    // nothing to write.
+    await expect(
+      page.locator('#transfer-option-detachRegistry'),
+      'a V1 name has no subregistry, so this must never appear',
+    ).toHaveCount(0)
+
+    await transferButton.click()
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'detach-resolver'),
+      transferTxId(name, 'reclaim'),
+      transferTxId(name, 'transfer-erc721'),
+    ])
+
+    await expect
+      .poll(async () => (await readRegistrant(label)).toLowerCase(), {
+        message: 'the name must still transfer after the detach',
+        timeout: 90_000,
+      })
+      .toBe(recipient.toLowerCase())
+
+    // The detach ran for real: the registry no longer points at a resolver.
+    expect(
+      (
+        await publicClient.readContract({
+          address: V1_ENS_REGISTRY,
+          abi: parseAbi([
+            'function resolver(bytes32 node) view returns (address)',
+          ]),
+          functionName: 'resolver',
+          args: [namehash(name)],
+        })
+      ).toLowerCase(),
+      'the resolver must be cleared, not merely reported as detached',
+    ).toBe(zeroAddress.toLowerCase())
   })
 
   test('refuses a wrapped V1 name with CANNOT_TRANSFER burnt', {
