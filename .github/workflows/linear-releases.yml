@@ -1,0 +1,53 @@
+name: Linear Releases
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  linear-releases:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Manager release
+        uses: linear/linear-release-action@v0
+        with:
+          access_key: ${{ secrets.LINEAR_RELEASE_MANAGER }}
+          include_paths: |
+            apps/manager/**,
+            packages/**,
+            package.json,
+            pnpm-workspace.yaml,
+            pnpm-lock.yaml,
+            patches/**
+
+      - name: Portal release
+        uses: linear/linear-release-action@v0
+        with:
+          access_key: ${{ secrets.LINEAR_RELEASE_PORTAL }}
+          include_paths: |
+            apps/portal/**,
+            packages/**,
+            package.json,
+            pnpm-workspace.yaml,
+            pnpm-lock.yaml,
+            patches/**
+
+      - name: API Worker release
+        uses: linear/linear-release-action@v0
+        with:
+          access_key: ${{ secrets.LINEAR_RELEASE_API_WORKER }}
+          include_paths: |
+            workers/api-worker/**,
+            packages/**,
+            package.json,
+            pnpm-workspace.yaml,
+            pnpm-lock.yaml,
+            patches/**
