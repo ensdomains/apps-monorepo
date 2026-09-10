@@ -239,10 +239,34 @@ not in single cells — which is why the migration matrix is a matrix.
 | F19 | Transfer a subname that only **inherits** its parent resolver | neither the resolver-detach nor the set-eth-address option is offered, and the **parent's** resolver is byte-identical after the transfer |
 | F20 | Transfer a subname that has its **own** resolver — the multi-step irreversible plan | `detach-resolver` runs before `transfer-token` and clears only the subname's own slot; the **parent's** resolver is byte-identical afterwards, even when both slots hold the same contract. Also covers **E2E-010** |
 | F21 | Subname owner lacking `ROLE_CAN_TRANSFER_ADMIN` | "Transfer not available", no form — asserted with an owner who is **not** the subregistry deployer, since root roles would otherwise grant it back |
+| F23 | Transfer an unwrapped V1 name end to end | both the BaseRegistrar registrant and the ENSRegistry controller read as the recipient; driven through reclaim -> transfer-erc721, whose order matters |
+| F24 | V1 name the wallet manages but does not own | 'You manage this name but don't own it', naming the registrant in full; no form |
+| F25 | Wrapped V1 name with CANNOT_TRANSFER burnt | 'Transfer permanently disabled', and the Ownership tab offers no link the route will refuse |
+| F26 | Transfer a WRAPPED V1 name | exactly one transfer-erc1155 step; the legacy registry owner stays the NameWrapper throughout |
+| F27 | Transfer a V1 REGISTRY subname | set-registry-owner alone — no ERC-721, no ERC-1155; the parent's registry entry is untouched |
+| F28 | Transfer a V1 name you own but do not manage | neither record option is offered (the resolver authorises the controller, not the registrant), and reclaim takes the manager back from the third party onto the recipient |
+| F29 | Sender IS the V1 controller | the resolver detach IS offered, detachRegistry never appears for a V1 name, and the detach clears the registry resolver |
+| F30 | Parent owner reassigns an unwrapped V1 subname it does not hold (#1144) | the Ownership tab offers Transfer; the form warns the holder loses it, offers no record options, and runs one set-subnode-owner; the child's registry owner is the recipient and the parent's is untouched. Flipped by #1144 from 'Not authorized' |
+| F31 | Transfer a WRAPPED V1 subname | one transfer-erc1155; the parent's wrapper token does not move |
+| F32 | Transfer an EMANCIPATED V1 subname | transfers, and shows NO parent-reclaim warning — the parent retains nothing |
+| F33 | Ownership tab names the registrant as owner of a V1 name | the Owner row must show the registrant, not the controller (E2E-011) |
+| F34 | Parent owner reassigns a WRAPPED V1 subname (#1144) | one set-subnode-owner through the NameWrapper; the child's wrapper owner is the recipient, its fuses and expiry byte-identical, the parent token unmoved |
+| F35 | Parent owner offered an emancipated V1 subname | 'This subname is out of the parent's control'; no form, no Ownership link |
+| F36 | Wrapped parent over an unwrapped V1 subname | 'Can't reassign this subname from here' — crossing the wrapper line would force-wrap the child; no form, no link |
+| F37 | Registrant (not controller) of an unwrapped parent | 'Reclaim the parent first'; no form, no link |
+| F38 | Wallet changes role between render and submit | the submit-time re-gate refuses with 'How this name is held changed since the page loaded' and sends nothing |
+| F39 | V1 subname under a .eth 2LD in grace, then expired | grace: the parent's move is refused with '<2LD> is in its grace period', the holder's goes through with a warning; past grace: '<2LD> has expired' for both |
+| F40 | Transfer route for a subname that does not exist | 'Transfer not available' naming the parent it doesn't exist under; no form |
 
 F15–F21 are WEB-128/#1120. Plan:
 [`transfer-subname-web128-test-plan.md`](./transfer-subname-web128-test-plan.md);
 by hand: [`manual-subname-transfer.md`](./manual-subname-transfer.md).
+
+F23–F33 are WEB-1396/#1134 (V1 names moved by their holder); F30 flipped and
+F34–F40 added by WEB-1407/#1144 (V1 subnames moved by their **parent**). Plans:
+[`transfer-v1-web1396-test-plan.md`](./transfer-v1-web1396-test-plan.md),
+[`transfer-v1-subname-web1407-test-plan.md`](./transfer-v1-subname-web1407-test-plan.md);
+by hand: [`manual-v1-transfer.md`](./manual-v1-transfer.md).
 
 ### G — Migration V1→V2 · R0 · the deepest matrix
 

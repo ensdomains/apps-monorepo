@@ -174,6 +174,66 @@ For **Manager only** specifically, the card must print the registrant's
 **full** address (font-mono), not a truncated one. The card exists to tell you
 who to go and ask.
 
+## Subnames moved by their parent (#1144)
+
+> Needs a branch containing **#1144** as well as #1134. Check with
+> `git grep -n "set-subnode-owner" apps/portal/src` — it must print matches.
+> Without it the six presets below still seed correctly, but every one reads
+> "Not authorized".
+
+Everything above moves a name as its **holder**. #1144 adds a second actor:
+the **parent's owner**, who can `setSubnodeOwner` a subname out from under
+whoever holds it. The holder signs nothing and loses the name, which is why
+this path is mostly warnings and refusals.
+
+Each preset below leaves **you** (account 0) holding the parent and somebody
+else holding the child. **Open** lands on the **subname**, not the 2LD — the
+2LD exists only to be its parent. The chip's hover title is the oracle.
+
+| Preset | Produces | Transfer link? | What to check |
+|---|---|---|---|
+| **Reassign wrapped** | wrapped 2LD (you) + wrapped subname (account 1) | **yes** | a warning *"You're reassigning this subname as the owner of …. Its current owner (0x7099…79C8) loses it the moment this lands"*; **no** record options; the modal has **one** step, *Reassign subname*. Afterwards the subname's fuses and expiry are unchanged |
+| **Reassign registry** | unwrapped 2LD (you) + registry-only subname (account 1) | **yes** | same, through the legacy registry. Before #1144 this exact name read "Not authorized" |
+| **Reassign -PCC** | locked 2LD (you) + subname with `PARENT_CANNOT_CONTROL` (account 1) | **no** | "This subname is out of the parent's control" — **E2E-013**: its last line sends you to the Subnames page, which cannot create V1 subnames. Already filed; don't re-file |
+| **Reassign ≠wrap** | wrapped 2LD (you) + subname unwrapped onto account 1 | **no** | "Can't reassign this subname from here" — reassigning across the wrapper line would force-wrap it |
+| **Parent reg only** | unwrapped 2LD whose ERC-721 you keep but whose controller is account 2, + subname (account 1) | **no** | "Reclaim the parent first" — **E2E-012**: the Ownership page it sends you to has no reclaim control. Already filed |
+| **Reassign grace** | wrapped 2LD (you) pushed **30 days into grace**, + `other-` (account 1) and `held-` (you) | `other-`: **no** · `held-`: **yes** | `other-…`: "*2LD* is in its grace period" with a **Go to** button. `held-…` (edit the URL's first label): the form, plus a warning that whoever registers the 2LD next can take the subname back |
+
+**Reassign grace moves the shared chain clock ~13 months.** Seed it **last**,
+after everything else you want to look at — every name on the fork ages with
+it. The rest of the family does not touch the clock.
+
+### Walkthrough — the parent reassigns
+
+1. Click **Reassign registry**, wait for the name, press **Open**. You land on
+   `sub-….….eth/ownership`.
+2. There is a **Transfer** link, even though the Owner row shows account 1 —
+   that mismatch is the point: you are offered the move *as the parent*.
+3. Click it. Read the yellow warning: it must name **your** parent name and
+   account 1's address (truncated), and say the holder loses it.
+4. Confirm there are **no** switches for the ETH address or the resolver. A
+   parent holds neither slot on the subname, so any such option would send a
+   write that reverts.
+5. Enter account 2 (`0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC`) and press
+   **Transfer name**. The modal must show exactly **one** step, *Reassign
+   subname*. Two or more is a finding.
+6. After it lands, reload the Ownership tab: the Owner row reads account 2.
+
+Also worth one look while you are there: send it to **yourself** (account 0).
+That is "take it back" — the most common reason a parent does this — and it
+must be allowed.
+
+### Two reads that are not the parent path
+
+- **You hold the subname *and* own the parent** (the plain **Subname** and
+  **Emancipated** presets): you are treated as the **holder** — one
+  `transfer-erc1155`, no reassign warning. The holder path wins when you are
+  both.
+- A **refusal card's last line is part of what you are testing.** E2E-012 and
+  E2E-013 are both about cards whose instruction cannot be followed. For each
+  card, try to do what it says.
+
+
 ## When something does not appear
 
 Work down this list before assuming an app bug.
@@ -199,6 +259,8 @@ Work down this list before assuming an app bug.
 
 - [`transfer-v1-web1396-test-plan.md`](./transfer-v1-web1396-test-plan.md) —
   the QA plan and results, including what is automated and what is not.
+- [`transfer-v1-subname-web1407-test-plan.md`](./transfer-v1-subname-web1407-test-plan.md) —
+  the same for #1144's parent-initiated subname moves (F30, F34–F40).
 - `e2e/projects/portal/tests/transfer.spec.ts` — the automated version. Run
   with `pnpm e2e:portal --grep "@scenario:F23|@scenario:F24|@scenario:F25"`.
 - [`manual-subname-transfer.md`](./manual-subname-transfer.md) — the sibling
