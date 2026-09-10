@@ -10,4 +10,5 @@ export { default as userEvent } from '@testing-library/user-event'
 
 // Re-export custom test utilities
 export * from './providers'
+export * from './renderLoop'
 export * from './wagmi.mock'

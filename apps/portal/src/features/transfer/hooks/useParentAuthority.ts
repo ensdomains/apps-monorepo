@@ -169,7 +169,7 @@ export const useParentAuthority = ({
   const queries = [ownerQuery, ...roleQueries]
   // A label we could not parse is as unknown as a failed read: both leave the
   // powers unchecked, and the form must not read that as "no authority".
-  const unparseable = isSubname && (label === null || parentLabel === null)
+  const isUnparseable = isSubname && (label === null || parentLabel === null)
 
   return {
     parentOwner,
@@ -180,6 +180,6 @@ export const useParentAuthority = ({
     hasAnyAuthority:
       canReclaimNow || canReissueAfterExpiry || canRepointRegistry,
     isLoading: isSubname && queries.some((query) => query.isLoading),
-    isError: unparseable || queries.some((query) => query.isError),
+    isError: isUnparseable || queries.some((query) => query.isError),
   }
 }
