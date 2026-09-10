@@ -197,7 +197,7 @@ else holding the child. **Open** lands on the **subname**, not the 2LD — the
 | **Reassign -PCC** | locked 2LD (you) + subname with `PARENT_CANNOT_CONTROL` (account 1) | **no** | "This subname is out of the parent's control" — **E2E-013**: its last line sends you to the Subnames page, which cannot create V1 subnames. Already filed; don't re-file |
 | **Reassign ≠wrap** | wrapped 2LD (you) + subname unwrapped onto account 1 | **no** | "Can't reassign this subname from here" — reassigning across the wrapper line would force-wrap it |
 | **Parent reg only** | unwrapped 2LD whose ERC-721 you keep but whose controller is account 2, + subname (account 1) | **no** | "Reclaim the parent first" — **E2E-012**: the Ownership page it sends you to has no reclaim control. Already filed |
-| **Reassign grace** | wrapped 2LD (you) pushed **30 days into grace**, + `other-` (account 1) and `held-` (you) | `other-`: **no** · `held-`: **yes** | `other-…`: "*2LD* is in its grace period" with a **Go to** button. `held-…` (edit the URL's first label): the form, plus a warning that whoever registers the 2LD next can take the subname back |
+| **Reassign grace** | wrapped 2LD (you) pushed **30 days into grace**, + `other-` (account 1) and `held-` (you) | `other-`: **no** · `held-`: **yes** | `other-…`: *should* be "*2LD* is in its grace period" with a **Go to** button — **today it reads "Not authorized"**, which is **E2E-014** (already filed; don't re-file). `held-…` (edit the URL's first label): the form, plus a warning that whoever registers the 2LD next can take the subname back |
 
 **Reassign grace moves the shared chain clock ~13 months.** Seed it **last**,
 after everything else you want to look at — every name on the fork ages with
