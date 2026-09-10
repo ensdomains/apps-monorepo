@@ -51,7 +51,9 @@ export const transferTxId = (
     /** V1 wrapped. */
     | 'transfer-erc1155'
     /** V1 registry-only. */
-    | 'set-registry-owner',
+    | 'set-registry-owner'
+    /** V1 subname moved by its PARENT (#1144): `setSubnodeOwner`. */
+    | 'set-subnode-owner',
 ) => `transfer-${name}-${step}`
 
 /**

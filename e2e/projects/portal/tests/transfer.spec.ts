@@ -42,7 +42,11 @@ import {
   expect,
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
-import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
+import {
+  publicClient,
+  testClient,
+  walletClient,
+} from '../../../helpers/anvil-client.js'
 import { authorizeTransaction } from '../../../helpers/portal-auth.js'
 import {
   assertLacksRoles,
@@ -1743,11 +1747,14 @@ test.describe('Portal name transfer — subnames', () => {
     const text = (await alert.textContent()) ?? ''
 
     // The connected wallet owns the parent here, so the copy addresses them
-    // directly and uses the self-referential closer.
+    // directly. #1144 rewrote this from "its owner (you) keeps authority over
+    // it — they can" to second person throughout; the old parenthetical must
+    // not survive alongside the new sentence.
     expect(
       text,
       'the parent owner is the reader, so the copy says so',
-    ).toContain('(you)')
+    ).toContain(', which you own, so you keep authority over it — you can ')
+    expect(text).not.toContain('(you)')
     expect(text).toContain(
       `This transfer isn't final the way transferring ${parentLabel}.eth itself would be.`,
     )
@@ -2658,7 +2665,7 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
     ).toBe(zeroAddress.toLowerCase())
   })
 
-  test('refuses a V1 subname to its parent owner, who does not hold it', {
+  test('lets the parent owner reassign an unwrapped V1 subname it does not hold', {
     tag: ['@scenario:F30'],
   }, async ({ portalPage: page, wallet, accounts }) => {
     test.setTimeout(300_000)
@@ -2666,12 +2673,13 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
 
     const parentOwner = accounts.getAddress('user')
     const childOwner = accounts.getAddress('user3')
+    const recipient = accounts.getAddress('user2')
     const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
     const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
 
     const parent = await makeV1Name({ label: 'v1-xfer-f30', type: 'unwrapped' })
-    // Issued to somebody else. The parent owner can still *re-issue* it with
-    // `setSubnodeOwner`, but that is not what the transfer flow does.
+    // Issued to somebody else. The connected wallet holds nothing on the child;
+    // its only power is `setSubnodeOwner` on the parent node.
     const name = await makeV1RegistrySubname({
       parentName: parent.replace(/\.eth$/, ''),
       childLabel: 'sub',
@@ -2688,24 +2696,53 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
       'precondition: while the connected wallet owns the parent',
     ).toBe(parentOwner.toLowerCase())
 
-    // `getV1TransferGate` resolves a v1-registry subject purely on
-    // `subject.owner === account`, so owning the parent grants nothing here.
-    // Worth stating explicitly because ens-app-v3 DOES let a parent owner send
-    // a subname, via `setSubnodeOwner` — #1134 deliberately does not, and this
-    // pins that difference rather than leaving it to be rediscovered.
-    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
-    await expect(
-      page.getByText('Not authorized'),
-      'owning the parent must not authorise transferring the child',
-    ).toBeVisible({ timeout: 60_000 })
-    await expect(page.getByPlaceholder('ENS name or address')).toBeHidden()
-
-    // And the entry point agrees — the E2E-001 shape again.
+    // Until #1144 this asserted "Not authorized": the gate looked only at
+    // `subject.owner`, and this test pinned that as a deliberate difference
+    // from ens-app-v3, which lets a parent send a subname via
+    // `setSubnodeOwner`. #1144 closes the difference, so the oracle flips —
+    // the entry point and the route must now BOTH offer the move.
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership`)
+    const transferLink = page.getByRole('link', { name: 'Transfer' })
     await expect(
-      page.getByRole('link', { name: 'Transfer' }),
-      'the Ownership tab must not offer a transfer the route will refuse',
-    ).toHaveCount(0)
+      transferLink,
+      "the parent's owner can move it, so the Ownership tab must say so",
+    ).toBeVisible({ timeout: 60_000 })
+    await transferLink.click()
+
+    const warning = reassignWarning(page)
+    await expect(warning).toBeVisible({ timeout: 60_000 })
+    const warningText = (await warning.textContent()) ?? ''
+    expect(warningText).toContain(`as the owner of ${parent}`)
+    expect(
+      warningText,
+      'the warning must name the holder who loses the name without signing',
+    ).toContain(truncateAddress(childOwner))
+    expect(warningText).toContain('loses it the moment this lands')
+
+    await expect(page.locator('#transfer-option-setEthAddress')).toHaveCount(0)
+    await expect(page.locator('#transfer-option-detachResolver')).toHaveCount(0)
+
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+    await transferButton.click()
+
+    // One step whatever was asked: the plan drops every config step when the
+    // parent acts, since it could write none of them.
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'set-subnode-owner'),
+    ])
+
+    await expect
+      .poll(async () => (await readController(name)).toLowerCase(), {
+        message: 'the registry subname must move to the recipient',
+        timeout: 90_000,
+      })
+      .toBe(recipient.toLowerCase())
+    expect(
+      (await readController(parent)).toLowerCase(),
+      "reassigning a subname must not touch the parent's registry entry",
+    ).toBe(parentOwner.toLowerCase())
   })
 
   test('transfers a WRAPPED V1 subname held by its owner', {
@@ -2919,5 +2956,405 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
       page.getByRole('link', { name: 'Transfer' }),
       'the Ownership tab must not offer a transfer the route will refuse',
     ).toHaveCount(0)
+  })
+
+  // ── #1144 (WEB-1407): a V1 subname moved by its PARENT ────────────────────
+  //
+  // Everything above moves a name as its holder. #1144 adds the second actor:
+  // the parent's owner, who can `setSubnodeOwner` the child out from under its
+  // holder — `ENSRegistry.setSubnodeOwner` for an unwrapped child,
+  // `NameWrapper.setSubnodeOwner` for a wrapped one. That is what ens-app-v3
+  // has always offered (`transferName` with `asParent`), and it is why F30's
+  // oracle flipped. The holder signs nothing and loses the name, so the
+  // warning naming them is the whole safety story for this path.
+
+  const V1_WRAPPER_ABI = parseAbi([
+    'function getData(uint256 id) view returns (address owner, uint32 fuses, uint64 expiry)',
+    'function unwrap(bytes32 parentNode, bytes32 labelhash, address controller)',
+  ])
+
+  const readWrapperData = async (tokenId: bigint) => {
+    const [owner, fuses, expiry] = await publicClient.readContract({
+      address: V1_NAME_WRAPPER,
+      abi: V1_WRAPPER_ABI,
+      functionName: 'getData',
+      args: [tokenId],
+    })
+    return { owner, fuses, expiry }
+  }
+
+  /** Send `data` to `to` as `account`, and fail loudly if it reverts. */
+  const sendAs = async (
+    account: ReturnType<typeof privateKeyToAccount>,
+    to: Address,
+    data: Hash,
+    what: string,
+  ) => {
+    const hash = await walletClient.sendTransaction({ account, to, data })
+    const receipt = await publicClient.waitForTransactionReceipt({ hash })
+    if (receipt.status !== 'success') throw new Error(`${what} reverted`)
+  }
+
+  /** `ENSRegistry.setOwner` — hand a registry node to somebody else. */
+  const setRegistryOwner = (
+    account: ReturnType<typeof privateKeyToAccount>,
+    name: string,
+    owner: Address,
+  ) =>
+    sendAs(
+      account,
+      V1_ENS_REGISTRY,
+      encodeFunctionData({
+        abi: parseAbi(['function setOwner(bytes32 node, address owner)']),
+        functionName: 'setOwner',
+        args: [namehash(name), owner],
+      }),
+      `setOwner(${name})`,
+    )
+
+  /** The warning `V1Notices` shows only when the parent is the one acting. */
+  const reassignWarning = (page: Page) =>
+    page.locator('[role="alert"]', {
+      hasText: 'reassigning this subname as the owner of',
+    })
+
+  /**
+   * The route renders a refusal card and nothing else: no recipient field,
+   * and the Ownership tab offers no link that leads to it (the E2E-001 shape).
+   */
+  const expectRefusal = async (page: Page, name: string, title: RegExp) => {
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await expect(page.getByText(title)).toBeVisible({ timeout: 60_000 })
+    await expect(page.getByPlaceholder('ENS name or address')).toHaveCount(0)
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(
+      page.getByRole('link', { name: 'Transfer' }),
+      'the Ownership tab must not offer a transfer the route will refuse',
+    ).toHaveCount(0)
+  }
+
+  test('lets the parent owner reassign a WRAPPED V1 subname, keeping its fuses and expiry', {
+    tag: ['@scenario:F34'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const parentOwner = accounts.getAddress('user')
+    const childOwner = accounts.getAddress('user3')
+    const recipient = accounts.getAddress('user2')
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+
+    const parent = await makeV1Name({ label: 'v1-xfer-f34', type: 'wrapped' })
+    const name = await makeV1Subname({
+      parentName: parent.replace(/\.eth$/, ''),
+      childLabel: 'sub',
+      ownerAddress: childOwner,
+      parentOwnerAccount: parentAccount,
+    })
+    const tokenId = BigInt(namehash(name))
+    const before = await readWrapperData(tokenId)
+    expect(
+      before.owner.toLowerCase(),
+      'precondition: a third account holds the wrapped subname',
+    ).toBe(childOwner.toLowerCase())
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership`)
+    const transferLink = page.getByRole('link', { name: 'Transfer' })
+    await expect(
+      transferLink,
+      "the parent's owner can move it, so the Ownership tab must say so",
+    ).toBeVisible({ timeout: 60_000 })
+    await transferLink.click()
+
+    const warning = reassignWarning(page)
+    await expect(warning).toBeVisible({ timeout: 60_000 })
+    const warningText = (await warning.textContent()) ?? ''
+    expect(warningText).toContain(`as the owner of ${parent}`)
+    expect(
+      warningText,
+      'the warning must name the holder who loses the name without signing',
+    ).toContain(truncateAddress(childOwner))
+
+    // A parent holds neither the child's registry slot nor its wrapper token,
+    // so it cannot write the child's records: no option may be offered.
+    await expect(page.locator('#transfer-option-setEthAddress')).toHaveCount(0)
+    await expect(page.locator('#transfer-option-detachResolver')).toHaveCount(0)
+
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+    await transferButton.click()
+
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'set-subnode-owner'),
+    ])
+
+    await expect
+      .poll(async () => (await readWrapperOwner(tokenId)).toLowerCase(), {
+        message: 'the wrapped subname must move to the recipient',
+        timeout: 90_000,
+      })
+      .toBe(recipient.toLowerCase())
+
+    // `prepareReassignV1SubnameTransaction` passes 0 fuses and 0 expiry and
+    // relies on the wrapper keeping what is there: `_updateName` ORs the
+    // fuses and `_normaliseExpiry` never lowers the expiry. Checked here
+    // because getting it wrong would be silent — a reassigned subname that
+    // quietly lost its expiry or its fuses.
+    const after = await readWrapperData(tokenId)
+    expect(after.fuses, 'reassigning must not change the fuses').toBe(
+      before.fuses,
+    )
+    expect(after.expiry, 'reassigning must not change the expiry').toBe(
+      before.expiry,
+    )
+    expect(
+      (await readWrapperOwner(BigInt(namehash(parent)))).toLowerCase(),
+      "reassigning a subname must not move the parent's token",
+    ).toBe(parentOwner.toLowerCase())
+  })
+
+  test('refuses the parent owner a V1 subname that burned PARENT_CANNOT_CONTROL', {
+    tag: ['@scenario:F35'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+    const parent = await makeV1Name({ label: 'v1-xfer-f35', type: 'locked' })
+    const name = await makeV1Subname({
+      parentName: parent.replace(/\.eth$/, ''),
+      childLabel: 'sub',
+      ownerAddress: accounts.getAddress('user3'),
+      parentOwnerAccount: parentAccount,
+      fuses: CHILD_FUSES.EMANCIPATED,
+    })
+
+    // The wrapper's `canCallSetSubnodeOwner` refuses a child with PCC burned,
+    // so the gate must refuse before the reassign is ever built.
+    await expectRefusal(
+      page,
+      name,
+      /This subname is out of the parent.s control/,
+    )
+  })
+
+  test('refuses to reassign across the wrapper line: a wrapped parent over an unwrapped subname', {
+    tag: ['@scenario:F36'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const parentOwner = accounts.getAddress('user')
+    const childOwner = accounts.getAddress('user3')
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+
+    const parent = await makeV1Name({ label: 'v1-xfer-f36', type: 'wrapped' })
+    const name = await makeV1Subname({
+      parentName: parent.replace(/\.eth$/, ''),
+      childLabel: 'sub',
+      ownerAddress: parentOwner,
+      parentOwnerAccount: parentAccount,
+    })
+    // Unwrap the child onto a third account: the parent stays wrapped, the
+    // child is now a plain registry node. Reassigning it through the wrapper
+    // would forcibly re-wrap it, which the legacy app also refuses to do.
+    await sendAs(
+      parentAccount,
+      V1_NAME_WRAPPER,
+      encodeFunctionData({
+        abi: V1_WRAPPER_ABI,
+        functionName: 'unwrap',
+        args: [namehash(parent), labelhash('sub'), childOwner],
+      }),
+      `unwrap(${name})`,
+    )
+    expect(
+      (await readController(name)).toLowerCase(),
+      'precondition: the subname is a registry node held by a third account',
+    ).toBe(childOwner.toLowerCase())
+    expect(
+      (await readWrapperOwner(BigInt(namehash(parent)))).toLowerCase(),
+      'precondition: while the connected wallet holds the WRAPPED parent',
+    ).toBe(parentOwner.toLowerCase())
+
+    await expectRefusal(page, name, /Can.t reassign this subname from here/)
+  })
+
+  test('tells the registrant of an unwrapped parent to reclaim it before reassigning', {
+    tag: ['@scenario:F37'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const parentOwner = accounts.getAddress('user')
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+
+    const parent = await makeV1Name({ label: 'v1-xfer-f37', type: 'unwrapped' })
+    const name = await makeV1RegistrySubname({
+      parentName: parent.replace(/\.eth$/, ''),
+      childLabel: 'sub',
+      ownerAddress: accounts.getAddress('user3'),
+      parentOwnerAccount: parentAccount,
+    })
+    // Hand the parent's CONTROLLER away, keeping its ERC-721. The registrar
+    // still says the connected wallet owns the parent, but `setSubnodeOwner`
+    // is a registry write and needs the controller.
+    await setRegistryOwner(parentAccount, parent, accounts.getAddress('user2'))
+    expect(
+      (await readRegistrant(parent.replace(/\.eth$/, ''))).toLowerCase(),
+      'precondition: the connected wallet is still the registrant of the parent',
+    ).toBe(parentOwner.toLowerCase())
+
+    await expectRefusal(page, name, /Reclaim the parent first/)
+  })
+
+  test('refuses at submit when the wallet stopped being the parent actor after the form loaded', {
+    tag: ['@scenario:F38'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const parentOwner = accounts.getAddress('user')
+    const childOwner = accounts.getAddress('user3')
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const childAccount = privateKeyToAccount(accounts.getPrivateKey('user3'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+
+    const parent = await makeV1Name({ label: 'v1-xfer-f38', type: 'unwrapped' })
+    const name = await makeV1RegistrySubname({
+      parentName: parent.replace(/\.eth$/, ''),
+      childLabel: 'sub',
+      ownerAddress: childOwner,
+      parentOwnerAccount: parentAccount,
+    })
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await expect(reassignWarning(page)).toBeVisible({ timeout: 60_000 })
+    await page
+      .getByPlaceholder('ENS name or address')
+      .fill(accounts.getAddress('user2'))
+
+    // Between render and submit the holder hands the subname to the connected
+    // wallet. The page still shows the PARENT's form (one `setSubnodeOwner`,
+    // no record options); the wallet is now the holder, whose move is a
+    // different contract call. The submit path re-reads and re-gates, and
+    // must refuse rather than send the parent plan under the holder's role.
+    await setRegistryOwner(childAccount, name, parentOwner)
+
+    await page.getByRole('button', { name: 'Transfer name' }).click()
+    await expect(
+      page.getByText(/How this name is held changed since the page loaded/),
+      'a plan built for one role must not be sent under the other',
+    ).toBeVisible({ timeout: 60_000 })
+    expect(
+      (await readController(name)).toLowerCase(),
+      'and nothing may have been sent',
+    ).toBe(parentOwner.toLowerCase())
+  })
+
+  test('says which subname does not exist, rather than calling it unregistered', {
+    tag: ['@scenario:F40'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(240_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+    const parent = await makeV1Name({ label: 'v1-xfer-f40', type: 'unwrapped' })
+
+    await page.goto(`${PORTAL_APP_URL}/nope.${parent}/ownership/transfer`)
+    await expect(page.getByText('Transfer not available')).toBeVisible({
+      timeout: 60_000,
+    })
+    await expect(
+      page.getByText(`doesn’t exist under ${parent}`, { exact: false }),
+      'a missing subname names the parent it is missing from',
+    ).toBeVisible()
+    await expect(page.getByPlaceholder('ENS name or address')).toHaveCount(0)
+  })
+
+  // Last in the file on purpose: the time travel is contained by a chain
+  // snapshot, and reverting one leaves Panoptes unable to recover (see
+  // fixtures/chain-snapshot.ts). Nothing after it may need the indexer.
+  test('gates V1 subnames on the .eth 2LD above: grace blocks only the parent, expiry blocks everyone', {
+    tag: ['@scenario:F39'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(480_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const DAY = 86_400
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+
+    await withChainSnapshot(async () => {
+      // 28 days is the registrar's minimum; short so the jumps stay short.
+      const parent = await makeV1Name({
+        label: 'v1-xfer-f39',
+        type: 'wrapped',
+        duration: 28 * DAY,
+      })
+      const parentLabel = parent.replace(/\.eth$/, '')
+      // One subname the connected wallet HOLDS, one it is only the PARENT of.
+      const held = await makeV1Subname({
+        parentName: parentLabel,
+        childLabel: 'held',
+        ownerAddress: accounts.getAddress('user'),
+        parentOwnerAccount: parentAccount,
+      })
+      const other = await makeV1Subname({
+        parentName: parentLabel,
+        childLabel: 'other',
+        ownerAddress: accounts.getAddress('user3'),
+        parentOwnerAccount: parentAccount,
+      })
+
+      // Into the 2LD's grace period: past its registrar expiry, inside 90 days.
+      await testClient.increaseTime({ seconds: 29 * DAY })
+      await testClient.mine({ blocks: 1 })
+
+      // The wrapper refuses `setSubnodeOwner` from a 2LD in grace, so the
+      // parent's move is blocked up front, with a way out.
+      await page.goto(`${PORTAL_APP_URL}/${other}/ownership/transfer`)
+      await expect(
+        page.getByText(`${parent} is in its grace period`),
+        "a parent in grace cannot reassign, and the card must say it's the parent",
+      ).toBeVisible({ timeout: 60_000 })
+      await expect(page.getByPlaceholder('ENS name or address')).toHaveCount(0)
+
+      // The holder's own move still goes through — the child's wrapper expiry
+      // is the parent's plus grace — but into a subtree about to lapse.
+      await page.goto(`${PORTAL_APP_URL}/${held}/ownership/transfer`)
+      await expect(
+        page.getByPlaceholder('ENS name or address'),
+        'grace on the ancestor does not block the holder',
+      ).toBeVisible({ timeout: 60_000 })
+      const graceNotice = page.locator('[role="alert"]', {
+        hasText: 'is in its grace period',
+      })
+      await expect(graceNotice).toBeVisible()
+      expect((await graceNotice.textContent()) ?? '').toContain(
+        'whoever registers it next can take this subname back',
+      )
+
+      // Past grace: whoever registers the 2LD next controls every name under
+      // it, so there is nothing lasting to hand over — for either actor.
+      await testClient.increaseTime({ seconds: 91 * DAY })
+      await testClient.mine({ blocks: 1 })
+      for (const name of [held, other]) {
+        await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+        await expect(
+          page.getByText(`${parent} has expired`),
+          `${name}: an expired .eth ancestor blocks every move`,
+        ).toBeVisible({ timeout: 60_000 })
+        await expect(page.getByPlaceholder('ENS name or address')).toHaveCount(
+          0,
+        )
+      }
+    })
   })
 })

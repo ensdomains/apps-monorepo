@@ -2117,8 +2117,8 @@ const extraF: Scenario[] = suite('F', 'transfer', 'portal', 'P5', [
   ],
   [
     'F30',
-    'V1 subname offered to its parent owner',
-    "'Not authorized' — owning the parent grants nothing over the child; the Ownership tab offers no link either",
+    'Parent owner reassigns an unwrapped V1 subname it does not hold (#1144)',
+    "the Ownership tab offers Transfer; the form warns the holder loses it, offers no record options, and runs one set-subnode-owner; the child's registry owner is the recipient and the parent's is untouched. Flipped by #1144 from 'Not authorized'",
   ],
   [
     'F31',
@@ -2134,6 +2134,41 @@ const extraF: Scenario[] = suite('F', 'transfer', 'portal', 'P5', [
     'F33',
     'Ownership tab names the registrant as owner of a V1 name',
     'the Owner row must show the registrant, not the controller (E2E-011)',
+  ],
+  [
+    'F34',
+    'Parent owner reassigns a WRAPPED V1 subname (#1144)',
+    "one set-subnode-owner through the NameWrapper; the child's wrapper owner is the recipient, its fuses and expiry byte-identical, the parent token unmoved",
+  ],
+  [
+    'F35',
+    'Parent owner offered an emancipated V1 subname',
+    "'This subname is out of the parent's control'; no form, no Ownership link",
+  ],
+  [
+    'F36',
+    'Wrapped parent over an unwrapped V1 subname',
+    "'Can't reassign this subname from here' — crossing the wrapper line would force-wrap the child; no form, no link",
+  ],
+  [
+    'F37',
+    'Registrant (not controller) of an unwrapped parent',
+    "'Reclaim the parent first'; no form, no link",
+  ],
+  [
+    'F38',
+    'Wallet changes role between render and submit',
+    "the submit-time re-gate refuses with 'How this name is held changed since the page loaded' and sends nothing",
+  ],
+  [
+    'F39',
+    'V1 subname under a .eth 2LD in grace, then expired',
+    "grace: the parent's move is refused with '<2LD> is in its grace period', the holder's goes through with a warning; past grace: '<2LD> has expired' for both",
+  ],
+  [
+    'F40',
+    'Transfer route for a subname that does not exist',
+    "'Transfer not available' naming the parent it doesn't exist under; no form",
   ],
   [
     'F21',
