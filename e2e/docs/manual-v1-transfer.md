@@ -223,6 +223,66 @@ Also worth one look while you are there: send it to **yourself** (account 0).
 That is "take it back" — the most common reason a parent does this — and it
 must be allowed.
 
+### Reproducing E2E-014 by hand
+
+**The defect:** the owner of a wrapped `.eth` 2LD that is in its grace period
+opens a subname they don't hold. The portal says **"Not authorized"** and
+tells them they aren't the owner, when they are. It should show #1144's
+**"*2LD* is in its grace period"** card with a **Go to *2LD*** button to renew.
+The move is correctly refused either way (the NameWrapper would revert); what's
+wrong is the reason and the missing way out.
+
+Automated: `pnpm e2e:portal --grep "E2E-014"`. Register:
+[`e2e-defects.md`](./e2e-defects.md) → E2E-014.
+
+**Before you start:** this preset moves the shared chain clock forward about
+13 months, and every name on the fork ages with it. Do it **last**, or reset
+afterwards (see step 8).
+
+1. On a branch containing #1144, with the portal on `:3001` as in [Setup](#setup),
+   open the **ENS Dev tools** drawer → **Migration ›**.
+2. In the **TRANSFER** group, click **Reassign grace**. Wait for the name to
+   appear in the row below. It creates:
+   - a wrapped 2LD owned by **you** (account 0), registered for a year, then
+     pushed **30 days into its grace period**;
+   - `other-<label>.<label>.eth`, held by **account 1** (you are only its parent);
+   - `held-<label>.<label>.eth`, held by **you**.
+3. Press **Open**. You land on `other-….eth/ownership`.
+4. **No Transfer link** is correct: the wrapper refuses the parent's move
+   during grace, so the link must not appear. Not a finding.
+5. Append `/transfer` to the URL.
+   - **Expected:** a card titled **"*2LD* is in its grace period"** saying the
+     Name Wrapper refuses parent changes while it is in grace, with a
+     **Go to *2LD*** button.
+   - **Actual (E2E-014):** **"Not authorized — You are not the owner of this
+     name. Only the current owner, or the owner of *2LD*, can move it."**
+     The *2LD* it names is the one you own.
+6. **Confirm it's the parent read, not the grace detection.** Change the URL's
+   first label from `other-` to `held-` and reload `/transfer`. You should see
+   the transfer form **plus** a warning that *2LD* is in its grace period. So
+   the app knows the 2LD is in grace, and knows you are account 0. It only
+   misreads **who owns the parent**.
+7. *(Optional, needs a shell.)* Show the NameWrapper still says you own the 2LD:
+
+   ```bash
+   cast call "$(node --input-type=module -e "import {ensL1Contracts,supportedL1Chains} from '@ensdomains/ensjs/chain'; console.log(ensL1Contracts[supportedL1Chains.sepolia].ensNameWrapper.address)")" \
+     "ownerOf(uint256)(address)" "$(cast namehash <label>.eth)" --rpc-url http://127.0.0.1:8545
+   ```
+
+   Run it from `e2e/`. It prints account 0,
+   `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`.
+8. **Reset the clock** when done: `pnpm e2e:infra:down && pnpm e2e:infra:up`,
+   then allow ~30 minutes for Panoptes to backfill before trusting anything
+   indexer-backed.
+
+**Why it happens** (for the ticket): in grace, `BaseRegistrar.ownerOf` reverts.
+ensjs `getOwner` then falls into its "expired 2LD" branch and returns
+`{ registrant: null, owner: <registry owner>, ownershipLevel: 'registrar' }`.
+For a wrapped 2LD the registry owner is the **NameWrapper contract**, so #1144's
+`deriveParent` records an *unwrapped* parent held by the NameWrapper, and the
+gate falls through to "Not authorized". The PR's unit test passes because it
+builds the parent state by hand instead of from ensjs's shape.
+
 ### Two reads that are not the parent path
 
 - **You hold the subname *and* own the parent** (the plain **Subname** and
