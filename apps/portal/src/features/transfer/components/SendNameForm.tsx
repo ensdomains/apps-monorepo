@@ -265,7 +265,11 @@ export const SendNameForm = ({
 
   const runTransfer = () => {
     if (!recipient || !canStart) return
-    startTransfer({ recipient, options: effectiveOptions })
+    startTransfer({
+      recipientInput: recipientInput.trim(),
+      recipient,
+      options: effectiveOptions,
+    })
   }
 
   return (

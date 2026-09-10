@@ -40,6 +40,18 @@ vi.mock(
   }),
 )
 
+const freshResolution = vi.fn<() => Promise<Address | null>>()
+vi.mock('@/features/address/queries/getResolvedAddress', () => ({
+  getResolvedAddressQueryOptions: ({
+    nameOrAddress,
+  }: {
+    nameOrAddress: string
+  }) => ({
+    queryKey: ['resolved-address-test', nameOrAddress],
+    queryFn: () => freshResolution(),
+  }),
+}))
+
 vi.mock('../queries/getOwnResolver', () => ({
   getOwnResolverQueryOptions: () => ({
     queryKey: ['transfer-own-resolver-test'],
@@ -85,6 +97,13 @@ const NO_OPTIONS = {
   detachRegistry: false,
 } as const
 
+/** A raw-address recipient: the form's value is the address itself. */
+const to = (recipient: Address) => ({
+  recipientInput: recipient,
+  recipient,
+  options: NO_OPTIONS,
+})
+
 const tokenIdRead = (index: number) => {
   const read = pendingTokenIdReads[index]
   if (!read) throw new Error(`no token id read #${index} in flight`)
@@ -120,17 +139,63 @@ const encodedRecipient = (
 describe('useTransferName preparation runs', () => {
   beforeEach(() => {
     openModal.mockClear()
+    freshResolution.mockReset()
     pendingTokenIdReads.length = 0
+  })
+
+  it('re-resolves a name at submission and proceeds when it still matches', async () => {
+    freshResolution.mockResolvedValue(RECIPIENT_A)
+    const { result } = render()
+
+    act(() => {
+      result.current.startTransfer({
+        recipientInput: 'bob.eth',
+        recipient: RECIPIENT_A,
+        options: NO_OPTIONS,
+      })
+    })
+    await waitFor(() => expect(pendingTokenIdReads).toHaveLength(1))
+    await settleTokenIdRead(0)
+
+    await waitFor(() => expect(openModal).toHaveBeenCalledTimes(1))
+    expect(freshResolution).toHaveBeenCalledTimes(1)
+    expect(encodedRecipient(result.current.transactions)).toBe(RECIPIENT_A)
+  })
+
+  it('refuses when the name now resolves to a different address', async () => {
+    freshResolution.mockResolvedValue(RECIPIENT_B)
+    const { result } = render()
+
+    act(() => {
+      result.current.startTransfer({
+        recipientInput: 'bob.eth',
+        recipient: RECIPIENT_A,
+        options: NO_OPTIONS,
+      })
+    })
+
+    await waitFor(() => expect(result.current.prepError).not.toBeNull())
+    expect(result.current.prepError?.message).toMatch(/address has changed/)
+    expect(openModal).not.toHaveBeenCalled()
+    expect(result.current.transactions).toEqual([])
+    // Nothing further was prepared for the stale address.
+    expect(pendingTokenIdReads).toHaveLength(0)
+  })
+
+  it('does not re-resolve a raw address', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.startTransfer(to(RECIPIENT_A))
+    })
+    await waitFor(() => expect(pendingTokenIdReads).toHaveLength(1))
+    expect(freshResolution).not.toHaveBeenCalled()
   })
 
   it('opens the modal with the recipient it was started with', async () => {
     const { result } = render()
 
     act(() => {
-      result.current.startTransfer({
-        recipient: RECIPIENT_A,
-        options: NO_OPTIONS,
-      })
+      result.current.startTransfer(to(RECIPIENT_A))
     })
     await waitFor(() => expect(pendingTokenIdReads).toHaveLength(1))
     await settleTokenIdRead(0)
@@ -149,10 +214,7 @@ describe('useTransferName preparation runs', () => {
     const { result } = render()
 
     act(() => {
-      result.current.startTransfer({
-        recipient: RECIPIENT_A,
-        options: NO_OPTIONS,
-      })
+      result.current.startTransfer(to(RECIPIENT_A))
     })
     await waitFor(() => expect(pendingTokenIdReads).toHaveLength(1))
 
@@ -167,10 +229,7 @@ describe('useTransferName preparation runs', () => {
 
     // A fresh start from the corrected value is what reaches the modal.
     act(() => {
-      result.current.startTransfer({
-        recipient: RECIPIENT_B,
-        options: NO_OPTIONS,
-      })
+      result.current.startTransfer(to(RECIPIENT_B))
     })
     await waitFor(() => expect(pendingTokenIdReads).toHaveLength(2))
     await settleTokenIdRead(1)
@@ -183,17 +242,11 @@ describe('useTransferName preparation runs', () => {
     const { result } = render()
 
     act(() => {
-      result.current.startTransfer({
-        recipient: RECIPIENT_A,
-        options: NO_OPTIONS,
-      })
+      result.current.startTransfer(to(RECIPIENT_A))
     })
     await waitFor(() => expect(pendingTokenIdReads).toHaveLength(1))
     act(() => {
-      result.current.startTransfer({
-        recipient: RECIPIENT_B,
-        options: NO_OPTIONS,
-      })
+      result.current.startTransfer(to(RECIPIENT_B))
     })
     await waitFor(() => expect(pendingTokenIdReads).toHaveLength(2))
 
@@ -211,10 +264,7 @@ describe('useTransferName preparation runs', () => {
     const { result } = render()
 
     act(() => {
-      result.current.startTransfer({
-        recipient: RECIPIENT_A,
-        options: NO_OPTIONS,
-      })
+      result.current.startTransfer(to(RECIPIENT_A))
     })
     await waitFor(() => expect(pendingTokenIdReads).toHaveLength(1))
     await act(async () => {
@@ -232,10 +282,7 @@ describe('useTransferName preparation runs', () => {
     const { result } = render()
 
     act(() => {
-      result.current.startTransfer({
-        recipient: RECIPIENT_A,
-        options: NO_OPTIONS,
-      })
+      result.current.startTransfer(to(RECIPIENT_A))
     })
     await waitFor(() => expect(pendingTokenIdReads).toHaveLength(1))
     await settleTokenIdRead(0)

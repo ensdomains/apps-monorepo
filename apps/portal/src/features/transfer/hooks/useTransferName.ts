@@ -17,8 +17,9 @@ import {
 } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
+import { type Address, isAddress, isAddressEqual } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
+import { getResolvedAddressQueryOptions } from '@/features/address/queries/getResolvedAddress'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
@@ -64,6 +65,9 @@ import {
 import { getV1TransferGate, type V1TransferGate } from '../v1/rules'
 
 export type StartTransferParams = {
+  /** The raw name-or-address the user typed; re-resolved at submission. */
+  readonly recipientInput: string
+  /** The address the form showed for `recipientInput`. */
   readonly recipient: Address
   readonly options: TransferOptions
 }
@@ -131,6 +135,14 @@ export class V1TransferRefusedError extends TaggedError(
 export class NonCanonicalNameError extends TaggedError(
   'NonCanonicalNameError',
 ) {}
+
+/** The recipient name no longer resolves to the address the form showed. */
+export class RecipientChangedError extends TaggedError(
+  'RecipientChangedError',
+)<{
+  readonly shown: Address
+  readonly resolved: Address | null
+}> {}
 
 /** Simulating the move step failed, so no config step was sent. */
 export class TransferPreflightError extends TaggedError(
@@ -294,6 +306,40 @@ export const useTransferName = ({
       })
     })
 
+  // The form resolves the recipient through the shared (hour-fresh) query. A
+  // name's address record can change under that cache, so the name is
+  // resolved again here, bypassing it, and the transfer refuses to proceed
+  // unless it still points at the address the user saw and confirmed.
+  const freshenRecipient = (params: StartTransferParams) =>
+    isAddress(params.recipientInput, { strict: false })
+      ? okAsync<StartTransferParams, RecipientChangedError>(params)
+      : fromPromise(
+          queryClient.fetchQuery({
+            ...getResolvedAddressQueryOptions({
+              nameOrAddress: params.recipientInput,
+            }),
+            staleTime: 0,
+          }),
+          (cause) =>
+            new RecipientChangedError({
+              shown: params.recipient,
+              resolved: null,
+              message: 'Couldn’t re-check the recipient’s address. Try again.',
+              cause,
+            }),
+        ).andThen((resolved) =>
+          resolved && isAddressEqual(resolved, params.recipient)
+            ? ok(params)
+            : err(
+                new RecipientChangedError({
+                  shown: params.recipient,
+                  resolved,
+                  message:
+                    'The recipient’s address has changed since it was resolved. Check it and try again.',
+                }),
+              ),
+        )
+
   const readV2 = (params: StartTransferParams, registryAddress: Address) =>
     fromPromise(
       queryClient.fetchQuery(
@@ -370,6 +416,7 @@ export const useTransferName = ({
 
   // Named so the two branches' error unions collapse to one for the mutation.
   type PrepareError =
+    | RecipientChangedError
     | ErrorOf<ReturnType<typeof readV1>>
     | ErrorOf<ReturnType<typeof readV2>>
     | ErrorOf<ReturnType<typeof readResolverKind>>
@@ -404,13 +451,17 @@ export const useTransferName = ({
             ),
           )
           .with({ subject: { kind: 'v2' } }, ({ subject }) =>
-            readV2(params, subject.registryAddress)
-              .andThen(readResolverKind)
-              .andThen(preflightMove),
+            freshenRecipient(params).andThen((fresh) =>
+              readV2(fresh, subject.registryAddress)
+                .andThen(readResolverKind)
+                .andThen(preflightMove),
+            ),
           )
           // Every remaining kind is a V1 subject.
           .otherwise(() =>
-            readV1(params).andThen(readResolverKind).andThen(preflightMove),
+            freshenRecipient(params).andThen((fresh) =>
+              readV1(fresh).andThen(readResolverKind).andThen(preflightMove),
+            ),
           )
         return prepared.map((saved) => ({ saved, runId }))
       },
