@@ -45,6 +45,11 @@ export const getSubnames = ResultFn(async function* ({
     )
 
     return ok(
+      // `owner` is the registry owner, which for a wrapped subname is the
+      // NameWrapper contract. Report the wrapper owner instead so `owner`
+      // means "who holds this name" for every consumer - the subnames table
+      // and the transfer flow alike - rather than "which contract custodies
+      // it".
       (subnames ?? []).map(
         ({ owner, wrappedOwner, ...subname }): Subname => ({
           ...subname,

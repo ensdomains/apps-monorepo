@@ -66,6 +66,9 @@ export const V1Transfer = ({
   const parentName = is2LD(name) ? null : getParentName(name)
   const ancestorName = getEth2LDAncestor(name)
 
+  // The route already refused an unregistered name before mounting this, so a
+  // null state here means the ownership read and the state read disagree —
+  // most likely the name changed hands (or expired) between the two.
   const state = stateQuery.data
   if (!state)
     return (
@@ -73,14 +76,10 @@ export const V1Transfer = ({
         icon={<AlertTriangle className="size-8" />}
         title="Transfer not available"
         description={
-          parentName ? (
-            <p>
-              This subname doesn’t exist under <Name>{parentName}</Name>, so
-              there is nothing to transfer.
-            </p>
-          ) : (
-            <p>This name isn’t registered, so there is nothing to transfer.</p>
-          )
+          <p>
+            This name no longer appears to be registered, so there is nothing to
+            transfer. Refresh to re-check.
+          </p>
         }
       />
     )

@@ -61,9 +61,17 @@ function RouteComponent() {
               icon={<AlertTriangle className="size-8" />}
               title="Transfer not available"
               description={
-                <p>
-                  This name isn’t registered, so there is nothing to transfer.
-                </p>
+                is2LD(name) ? (
+                  <p>
+                    This name isn’t registered, so there is nothing to transfer.
+                  </p>
+                ) : (
+                  <p>
+                    This subname doesn’t exist under{' '}
+                    <span className="font-medium">{getParentName(name)}</span>,
+                    so there is nothing to transfer.
+                  </p>
+                )
               }
             />
           ))
