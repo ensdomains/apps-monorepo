@@ -7,7 +7,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getTLD } from '@/utils/ens/tldHelpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { getDnsOffchainStatusQueryOptions } from '../queries/getDnsOffchainStatus'
+import { useDnsOffchainName } from '../hooks/useDnsOffchainName'
 import { getDnsTldStatusQueryOptions } from '../queries/getDnsTldStatus'
 import { CustomTldMessage } from './CustomTldMessage'
 
@@ -51,10 +51,11 @@ const DnsOffchainNameMessage = ({
 }
 
 /**
- * Overview-page message for a DNS 2LD with no registry entry: the import CTA
- * for standard TLDs, the custom-integration notice for TLDs whose operator
- * claimed the TLD node (importing there never applies), or — when the name
- * already resolves gaslessly — the off-chain notice.
+ * Message for a DNS 2LD with no registry entry, shown on the overview and on
+ * every `/$name` tab that has no registry data to show: the import CTA for
+ * standard TLDs, the custom-integration notice for TLDs whose operator claimed
+ * the TLD node (importing there never applies), or — when the name already
+ * resolves gaslessly — the off-chain notice.
  *
  * The off-chain check matters because a gasless name has no registry entry by
  * design, so the page's owner lookup returns null for a name that is perfectly
@@ -65,12 +66,11 @@ export const DnsClaimableMessage = ({ name }: { readonly name: string }) => {
   const navigate = useNavigate()
   const tld = getTLD(name)
   const tldStatusQuery = useQuery(getDnsTldStatusQueryOptions({ tld }))
-  // Errors here are the expected "no ENS1 record" case (the underlying read is
-  // strict), which simply means the name isn't live off-chain — fall through
-  // to the import CTA rather than surfacing a failure.
-  const offchainQuery = useQuery(getDnsOffchainStatusQueryOptions({ name }))
+  // Only ever rendered for a name with no registry entry. One that isn't live
+  // off-chain either falls through to the import CTA.
+  const offchain = useDnsOffchainName({ name, owner: null })
 
-  if (tldStatusQuery.isLoading || offchainQuery.isLoading) {
+  if (tldStatusQuery.isLoading || offchain.isLoading) {
     return <LoadingSpinner title="Checking availability..." />
   }
 
@@ -78,7 +78,7 @@ export const DnsClaimableMessage = ({ name }: { readonly name: string }) => {
     return <CustomTldMessage tld={tld} />
   }
 
-  const resolvedAddress = offchainQuery.data?.resolvedAddress
+  const { resolvedAddress } = offchain
   if (resolvedAddress) {
     return <DnsOffchainNameMessage name={name} address={resolvedAddress} />
   }
