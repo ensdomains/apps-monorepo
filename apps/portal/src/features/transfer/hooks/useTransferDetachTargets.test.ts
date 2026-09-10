@@ -104,15 +104,15 @@ describe('useTransferDetachTargets', () => {
   })
 
   it('offers every option for a subname that has its own resolver and registry', () => {
-    const { optionIsVisible, settled, failed } = render('sub.alice.eth')
+    const { isOptionVisible, isSettled, hasFailed } = render('sub.alice.eth')
 
-    expect(optionIsVisible).toEqual({
+    expect(isOptionVisible).toEqual({
       setEthAddress: true,
       detachResolver: true,
       detachRegistry: true,
     })
-    expect(settled).toBe(true)
-    expect(failed).toBe(false)
+    expect(isSettled).toBe(true)
+    expect(hasFailed).toBe(false)
   })
 
   // The regression: `getResolver` via the UniversalResolver reports the
@@ -124,19 +124,19 @@ describe('useTransferDetachTargets', () => {
   it('hides the resolver and ETH-address options when the subname only inherits a resolver', () => {
     ownResolverQuery.data = null
 
-    const { optionIsVisible } = render('sub.alice.eth')
+    const { isOptionVisible } = render('sub.alice.eth')
 
-    expect(optionIsVisible.detachResolver).toBe(false)
-    expect(optionIsVisible.setEthAddress).toBe(false)
+    expect(isOptionVisible.detachResolver).toBe(false)
+    expect(isOptionVisible.setEthAddress).toBe(false)
     // The subregistry is read from the name's own slot already, so it stands.
-    expect(optionIsVisible.detachRegistry).toBe(true)
+    expect(isOptionVisible.detachRegistry).toBe(true)
   })
 
   it('hides the ETH-address option when an address resolves but no own resolver backs it', () => {
     ownResolverQuery.data = null
     ethAddressQuery.data = '0x4444444444444444444444444444444444444444'
 
-    expect(render('sub.alice.eth').optionIsVisible.setEthAddress).toBe(false)
+    expect(render('sub.alice.eth').isOptionVisible.setEthAddress).toBe(false)
   })
 
   it('reports failed — not "nothing to detach" — when the own-resolver read errors', () => {
@@ -146,31 +146,47 @@ describe('useTransferDetachTargets', () => {
       isError: true,
     })
 
-    const { optionIsVisible, settled, failed } = render('sub.alice.eth')
+    const { isOptionVisible, isSettled, hasFailed } = render('sub.alice.eth')
 
-    expect(failed).toBe(true)
-    expect(settled).toBe(false)
-    expect(optionIsVisible.detachResolver).toBe(false)
+    expect(hasFailed).toBe(true)
+    expect(isSettled).toBe(false)
+    expect(isOptionVisible.detachResolver).toBe(false)
+  })
+
+  // A swallowed failure would hide the ETH option for a name that still
+  // resolves to the sender, and let the transfer go ahead without warning.
+  it('reports failed when the ETH-address read errors', () => {
+    Object.assign(ethAddressQuery, {
+      data: undefined,
+      isSuccess: false,
+      isError: true,
+    })
+
+    const { isOptionVisible, isSettled, hasFailed } = render('sub.alice.eth')
+
+    expect(hasFailed).toBe(true)
+    expect(isSettled).toBe(false)
+    expect(isOptionVisible.setEthAddress).toBe(false)
   })
 
   it('still withholds the detach options when the owner lacks the registry roles', () => {
     rolesQuery.data = { decoded: [] }
 
-    const { optionIsVisible } = render('sub.alice.eth')
+    const { isOptionVisible } = render('sub.alice.eth')
 
-    expect(optionIsVisible.detachResolver).toBe(false)
-    expect(optionIsVisible.detachRegistry).toBe(false)
+    expect(isOptionVisible.detachResolver).toBe(false)
+    expect(isOptionVisible.detachRegistry).toBe(false)
     // Repointing the ETH address is a resolver write, not a registry one, so
     // it isn't gated on those roles.
-    expect(optionIsVisible.setEthAddress).toBe(true)
+    expect(isOptionVisible.setEthAddress).toBe(true)
   })
 
   it('treats a 2LD the same way — the own-resolver read is not subname-specific', () => {
     ownResolverQuery.data = null
 
-    const { optionIsVisible } = render('alice.eth')
+    const { isOptionVisible } = render('alice.eth')
 
-    expect(optionIsVisible.detachResolver).toBe(false)
-    expect(optionIsVisible.setEthAddress).toBe(false)
+    expect(isOptionVisible.detachResolver).toBe(false)
+    expect(isOptionVisible.setEthAddress).toBe(false)
   })
 })

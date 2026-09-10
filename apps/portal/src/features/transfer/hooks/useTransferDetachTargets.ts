@@ -5,6 +5,7 @@ import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNa
 import { getLabel } from '@/utils/token/getLabel'
 import { getEthAddressQueryOptions } from '../queries/getEthAddress'
 import { getOwnResolverQueryOptions } from '../queries/getOwnResolver'
+import type { TransferDetachTargets } from '../types'
 
 // A detach step is a registry write, not a plain owner operation: the registry
 // gates `setResolver`/`setSubregistry` on the owner holding the matching role.
@@ -23,19 +24,6 @@ import { getOwnResolverQueryOptions } from '../queries/getOwnResolver'
 // (see `getOwnResolver`), so both resolver-dependent options key off the name's
 // own registry slot rather than what the UniversalResolver reports.
 
-type TransferDetachTargets = {
-  /** Whether each option has a target worth showing/detaching. */
-  readonly optionIsVisible: {
-    readonly setEthAddress: boolean
-    readonly detachResolver: boolean
-    readonly detachRegistry: boolean
-  }
-  /** Every lookup succeeded — the targets are known. */
-  readonly settled: boolean
-  /** At least one lookup errored — the targets are unknown. */
-  readonly failed: boolean
-}
-
 type UseTransferDetachTargetsParams = {
   readonly name: string
   /** The registry the name's token lives in (its parent's subregistry). */
@@ -53,7 +41,7 @@ type UseTransferDetachTargetsParams = {
  *
  * Keys off `isSuccess` (not `!isLoading`) so a failed lookup — which also has
  * `data === undefined` — doesn't look like "nothing to detach"; callers block on
- * {@link failed} instead of transferring with the options silently disabled.
+ * {@link hasFailed} instead of transferring with the options silently disabled.
  */
 export const useTransferDetachTargets = ({
   name,
@@ -78,7 +66,7 @@ export const useTransferDetachTargets = ({
           enabled: label !== null,
         },
         getNameRegistriesQueryOptions({ name }),
-        getEthAddressQueryOptions(name),
+        getEthAddressQueryOptions({ name }),
         {
           ...getNameRolesForAccountQueryOptions({
             registryAddress,
@@ -98,7 +86,7 @@ export const useTransferDetachTargets = ({
   const heldRoles = rolesQuery.data?.decoded ?? []
 
   return {
-    optionIsVisible: {
+    isOptionVisible: {
       // An ETH address read through an inherited resolver isn't ours to
       // repoint — the record lives on an ancestor's resolver, not this name's.
       setEthAddress:
@@ -117,12 +105,15 @@ export const useTransferDetachTargets = ({
         rolesQuery.isSuccess &&
         heldRoles.includes('ROLE_SET_SUBREGISTRY'),
     },
-    settled:
+    isSettled:
       ownResolverQuery.isSuccess &&
       registriesQuery.isSuccess &&
       ethAddressQuery.isSuccess &&
       rolesQuery.isSuccess,
-    failed:
-      ownResolverQuery.isError || registriesQuery.isError || rolesQuery.isError,
+    hasFailed:
+      ownResolverQuery.isError ||
+      registriesQuery.isError ||
+      ethAddressQuery.isError ||
+      rolesQuery.isError,
   }
 }
