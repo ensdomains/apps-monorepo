@@ -2467,6 +2467,90 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
     ).toBe(owner.toLowerCase())
   })
 
+  test('transfers an unwrapped V1 name you own but do not manage, reclaiming the manager', {
+    tag: ['@scenario:F28'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = accounts.getAddress('user')
+    const otherManager = accounts.getAddress('user3')
+    const recipient = accounts.getAddress('user2')
+    const ownerKey = accounts.getPrivateKey('user')
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(ownerKey),
+    })
+    const name = await makeV1Name({ label: 'v1-xfer-f28', type: 'unwrapped' })
+    const label = name.replace(/\.eth$/, '')
+
+    // Hand the CONTROLLER to a third account, keeping the registrant. The
+    // mirror of F24: there you hold the manager and not the token, here you
+    // hold the token and not the manager — and unlike F24 this one is
+    // transferable, because the registrant is who the registrar asks.
+    const hash = await getOwnerClient(ownerKey).sendTransaction({
+      to: V1_ENS_REGISTRY,
+      data: encodeFunctionData({
+        abi: parseAbi(['function setOwner(bytes32 node, address owner)']),
+        functionName: 'setOwner',
+        args: [namehash(name), otherManager],
+      }),
+    })
+    await publicClient.waitForTransactionReceipt({ hash })
+
+    expect(
+      (await readRegistrant(label)).toLowerCase(),
+      'precondition: you are still the registrant',
+    ).toBe(owner.toLowerCase())
+    expect(
+      (await readController(name)).toLowerCase(),
+      'precondition: but somebody else is the manager',
+    ).toBe(otherManager.toLowerCase())
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+
+    // No record options. `getV1DetachTargets` gates both on `canWriteRecords`,
+    // which for a v1-registrar subject means being the CONTROLLER — the
+    // PublicResolver authorises the registry owner, not the registrant. So the
+    // one thing this owner cannot do is touch the records, and offering either
+    // switch would produce a write that reverts.
+    await expect(
+      page.locator('#transfer-option-setEthAddress'),
+      'the registrant cannot write records, so the ETH-address option must not be offered',
+    ).toHaveCount(0)
+    await expect(
+      page.locator('#transfer-option-detachResolver'),
+      'nor the resolver detach, for the same reason',
+    ).toHaveCount(0)
+
+    await transferButton.click()
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'reclaim'),
+      transferTxId(name, 'transfer-erc721'),
+    ])
+
+    // THE ORACLE. `reclaim` does real work here, unlike in F23 where the
+    // registrant already held the manager: it takes the controller slot back
+    // from the third party and hands it to the recipient. A transfer that
+    // skipped it would leave that third party managing the recipient's name.
+    await expect
+      .poll(async () => (await readRegistrant(label)).toLowerCase(), {
+        message: 'the registrant must move to the recipient',
+        timeout: 90_000,
+      })
+      .toBe(recipient.toLowerCase())
+    await expect
+      .poll(async () => (await readController(name)).toLowerCase(), {
+        message:
+          'and the manager must be reclaimed from the third party onto the recipient — not left where it was',
+        timeout: 90_000,
+      })
+      .toBe(recipient.toLowerCase())
+  })
+
   test('refuses a wrapped V1 name with CANNOT_TRANSFER burnt', {
     tag: ['@scenario:F25'],
   }, async ({ portalPage: page, wallet, accounts }) => {

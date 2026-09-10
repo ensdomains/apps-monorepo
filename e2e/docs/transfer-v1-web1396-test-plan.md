@@ -119,9 +119,57 @@ about the others:
 | F25 | `CANNOT_TRANSFER` burnt | "Transfer permanently disabled", and the Ownership tab does not offer a link the route will refuse — the E2E-001 shape |
 | F26 | **Wrapped** V1 name, end to end | exactly **one** step. A wrapped name lives entirely in the NameWrapper — the registry owner is the wrapper contract, so there is no controller slot to hand over and no `reclaim` to sequence. The registry owner must still be the NameWrapper afterwards |
 | F27 | **Registry-only** V1 subname, end to end | `setOwner` is the whole transfer: no ERC-721, no ERC-1155, nothing to move but the registry entry. The **parent's** entry must be untouched |
+| F28 | Unwrapped V1 name you **own but do not manage** | neither record option is offered (the registrant cannot write records — the resolver authorises the *controller*), and `reclaim` takes the manager back from the third party onto the recipient |
 
 Not automated: `grace`, `expired`, `not-owner` — all refusal states, all covered
 by the manual plan and reachable from the dev-tools panel.
+
+### Cross-checked against `ens-app-v3`
+
+`ens-app-v3/e2e/specs/stateless/ownership.spec.ts` is the mature reference for
+V1 send behaviour. Mapping its scenarios onto this suite found one gap worth
+closing immediately and a prioritised list of the rest.
+
+| `ens-app-v3` scenario | Here |
+|---|---|
+| send owner+manager of unwrapped 2LD, you are owner **and** manager | **F23** |
+| send owner+manager of unwrapped 2LD, you are owner but **not** manager | **F28** — added from this review |
+| cannot send if manager but not owner | **F24** |
+| send wrapped 2LD | **F26** |
+| send unwrapped subname as its manager | **F27** |
+| send owner+eth-record, wrapped 2LD (record side) | **gap — G1** |
+| send manager as **parent owner** of an unwrapped subname (`setSubnodeOwner`) | **gap — G2** |
+| send manager, wrapped subname, as manager / as parent owner | **gap — G3** |
+| send owner+eth-record of an **emancipated** subname | **gap — G4** |
+| no send button when subname is wrapped and parent is unwrapped | **gap — G5** |
+| no send button when parent is owner and not manager | **gap — G6** |
+
+**F28**, the one closed here, is the mirror of F24 and the case where `reclaim`
+does real work: with the controller held by a third party, the transfer has to
+take the manager back and hand it to the recipient, or that third party keeps
+managing the recipient's name. F23 could not catch a missing `reclaim`, because
+there the registrant already held the manager.
+
+It also pins a rule the reference makes obvious and the code states precisely:
+for a `v1-registrar` subject, `getV1DetachTargets` gates both record options on
+`canWriteRecords`, which means being the **controller**. The PublicResolver
+authorises the registry owner, not the registrant — so an owner-not-manager
+must be offered neither switch, and F28 asserts both are absent.
+
+**Remaining gaps, in the order I would close them:**
+
+1. **G2 / G3 — parent-owner and wrapped-subname sends.** Different write paths
+   (`setSubnodeOwner` vs `setOwner`) and the largest untested surface.
+2. **G5 / G6 — the two "no send button" refusals.** Cheap, and both are the
+   entry-point/route agreement that E2E-001 was about.
+3. **G1 / G4 — the record side and emancipated subnames.** `getV1DetachTargets`
+   and `getV1ParentPowers` are covered only negatively so far: F28 asserts the
+   options are *absent*, and nothing yet asserts they appear and work when the
+   caller **is** the controller.
+
+Note `getV1ParentPowers` returns empty for any 2LD by design, so the
+parent-authority alert only has meaning for V1 **subnames** — untested, and
+part of G2/G3.
 
 ---
 
