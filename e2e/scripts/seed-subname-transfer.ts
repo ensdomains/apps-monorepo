@@ -26,6 +26,8 @@
  * back to `false` before running `pnpm e2e:portal`.
  */
 
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import { setRecords } from '@ensdomains/ensjs/wallet/v1'
 import {
@@ -253,7 +255,35 @@ async function seed(key: string, shape: Shape) {
   console.log(`\n   → ${PORTAL_APP_URL}/${name}/ownership/transfer`)
 }
 
+/**
+ * Warn when the checkout cannot possibly render what these shapes are for.
+ *
+ * The tests for subname transfer live on `e2e-tests-coverage`; the feature
+ * itself is still PR #1120. Seeding from a branch without it produces perfectly
+ * good on-chain data and a portal that answers "Transferring subnames isn't
+ * supported yet" to every one of these URLs — which reads as the shapes being
+ * broken rather than the checkout being wrong.
+ */
+function warnIfFeatureMissing() {
+  const marker = fileURLToPath(
+    new URL(
+      '../../apps/portal/src/features/transfer/hooks/useParentAuthority.ts',
+      import.meta.url,
+    ),
+  )
+  if (existsSync(marker)) return
+  console.warn(
+    '\n  ⚠  This checkout does not contain PR #1120, so the portal will answer\n' +
+      '     "Transferring subnames isn\'t supported yet" for every name below.\n' +
+      '     Seeding anyway — the chain data is fine — but switch branches before\n' +
+      '     opening the URLs:\n\n' +
+      '       git checkout qa/web-128-subname-transfer\n' +
+      '     (see e2e/docs/manual-subname-transfer.md, Setup)\n',
+  )
+}
+
 async function main() {
+  warnIfFeatureMissing()
   const only = process.env.SHAPE
   if (only && !SHAPES[only]) {
     console.error(

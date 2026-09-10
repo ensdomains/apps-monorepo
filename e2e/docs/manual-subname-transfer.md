@@ -50,6 +50,29 @@ Each of these looks like a bug the first time you hit it.
 
 ## Setup
 
+> **First: check out a branch that actually contains #1120.**
+>
+> `e2e-tests-coverage` holds the *tests* for this feature but **not the app
+> code** — #1120 is still an open PR. Run the portal from that branch and you
+> will get the pre-#1120 card, "Transferring subnames isn't supported yet", on
+> every shape below, and every subname scenario will look broken:
+>
+> ```bash
+> git checkout qa/web-128-subname-transfer     # e2e-tests-coverage + #1120
+> # or, from scratch:
+> git fetch origin pull/1120/head:pr-1120
+> git checkout -b qa/web-128 e2e-tests-coverage && git merge pr-1120
+> ```
+>
+> Confirm before you start — this must print a path, not nothing:
+>
+> ```bash
+> git ls-files apps/portal/src/features/transfer/hooks/useParentAuthority.ts
+> ```
+>
+> Restart the dev server after switching; Vite picks up the new code, but a
+> page left open from the old build will not.
+
 ```bash
 pnpm e2e:infra:up
 
@@ -198,21 +221,26 @@ clock for every name on the fork, so anything seeded earlier ages with it.
 
 Work down this list before assuming an app bug.
 
-1. **Is the Dev Tools drawer there at all?** It renders only when at least one
+1. **Are you on a branch with #1120?** If every subname shows "Transferring
+   subnames isn't supported yet", you are running the app from
+   `e2e-tests-coverage` or `main`, which carry the tests but not the feature.
+   See the prerequisite at the top of Setup — this is the single most common
+   way to lose an hour here.
+2. **Is the Dev Tools drawer there at all?** It renders only when at least one
    of `VITE_TIME_TRAVEL` / `VITE_MIGRATION_TOOL` / `VITE_DQA` is set. No flag,
    no drawer, no error.
-2. **Are you the account you think you are?** The header shows the connected
-   address. `all-powers` and `own-resolver` want account #0; `separate-owners`
-   and `no-transfer-role` need `VITE_MOCK_ACCOUNT` switched and the dev server
-   restarted. "Not authorized" almost always means this.
-3. **Did you wait?** The roles panel reads on-chain logs since #1131 and takes
+3. **Are you the account you think you are?** The header shows the connected
+   address. `all-powers`, `own-resolver` and `stale-resolver` want account #0;
+   `separate-owners` and `no-transfer-role` need `VITE_MOCK_ACCOUNT` switched
+   and the dev server restarted. "Not authorized" almost always means this.
+4. **Did you wait?** The roles panel reads on-chain logs since #1131 and takes
    up to ~30s on a local fork. The transfer form's button is disabled until its
    reads settle. Neither is a hang.
-4. **Is the parent's subregistry actually deployed?** A subname cannot exist
+5. **Is the parent's subregistry actually deployed?** A subname cannot exist
    without one; the seeder prints the address it used.
-5. **Is this the known shared-registry misattribution?** If a subname shows up
+6. **Is this the known shared-registry misattribution?** If a subname shows up
    under the *wrong* parent, that is **E2E-007**, already filed. Don't re-file.
-6. **Is Anvil still healthy?** A long session can leave it slow enough to time
+7. **Is Anvil still healthy?** A long session can leave it slow enough to time
    things out. `docker compose -f e2e/infra/docker-compose.yml ps` and, if in
    doubt, `pnpm e2e:infra:down && pnpm e2e:infra:up`.
 
