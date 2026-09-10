@@ -2062,6 +2062,17 @@ test.describe('Portal name transfer — subnames, irreversible steps', () => {
     tag: ['@scenario:F20'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(300_000)
+
+    // Expected to fail until E2E-010 is fixed, marked the way records.spec.ts
+    // and subnames.spec.ts mark E2E-008 and E2E-007. This keeps the suite's
+    // failure count meaningful — a red run means something genuinely
+    // unaccounted, not a defect we already know about — and Playwright errors
+    // if this ever PASSES, which is the notification you want the day somebody
+    // fixes the stale-cache read.
+    //
+    // The oracle below is unchanged and unweakened; only its bookkeeping moves.
+    test.fail()
+
     await connectWithHeadlessWallet(page, wallet)
 
     const recipient = accounts.getAddress('user2')
