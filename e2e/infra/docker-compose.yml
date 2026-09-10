@@ -76,6 +76,15 @@ services:
       - "8545"
       - --host
       - "0.0.0.0"
+      # The upstream fork RPC drops connections, and anvil PANICS (exit 133) when a
+      # storage read fails after its default 5 retries — twice in 45 minutes on
+      # 2026-09-10, each time taking every later test with it. More headroom.
+      - --retries
+      - '20'
+      - --timeout
+      - '120000'
+      - --fork-retry-backoff
+      - '2000'
     ports:
       - "8545:8545"
     healthcheck:

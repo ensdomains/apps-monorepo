@@ -120,3 +120,15 @@ still promises it.
   two late `registration.spec` failures fall inside that window. Stack
   restarted with the Panoptes `ens_v2.db*` wiped (a plain `infra:down` keeps
   the volume, and Panoptes would otherwise sit on the dead fork).
+- **It crashed again** 5½ minutes after that restart (13:37:54 → 13:43:21),
+  same panic: the upstream fork RPC (`lb.drpc.live`) closed the connection
+  mid-read. The first #1144 run was two minutes in, so F34 onward failed on
+  `fetch failed` from the test's own chain client — none of those nine
+  failures reached the app. F16 and F30–F33 had already passed.
+- Mitigation committed on the e2e branch: the Sepolia anvil now runs with
+  `--retries 20 --timeout 120000 --fork-retry-backoff 2000` (defaults are 5
+  retries and 45 s). It is headroom, not a fix — a provider outage longer
+  than the backoff still panics anvil. A paid or self-hosted
+  `SEPOLIA_FORK_URL` is the real fix, and is the user's call.
+- `anvil-mainnet` no longer starts at all: publicnode now demands a personal
+  token for archive requests. Only the metadata project needs it.
