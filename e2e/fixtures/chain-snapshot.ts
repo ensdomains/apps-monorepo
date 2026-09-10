@@ -12,7 +12,15 @@
  *    already cached — a name it saw registered, a balance it read — survives
  *    the revert and is now wrong. Take the snapshot before the page has read
  *    any of the state the test mutates, or reload after reverting.
- * 2. Anvil discards a snapshot once it is reverted to, and reverting drops
+ * 2. `evm_revert` rewinds the chain but not **Panoptes**, and unlike the
+ *    browser the indexer never recovers. It keeps rows for blocks that no
+ *    longer exist, its reorg check asks the chain for one of them, gets
+ *    `BlockNotFound`, and halts permanently — leaving every indexer-backed
+ *    assertion in every LATER run red until the volume is wiped. Measured:
+ *    644 consecutive failures over an hour. See "A chain-snapshot revert
+ *    permanently breaks Panoptes" in docs/e2e-defects.md for the recovery
+ *    steps. Within one run this hides, because the only caller sorts last.
+ * 3. Anvil discards a snapshot once it is reverted to, and reverting drops
  *    every snapshot taken after it. Nesting therefore only works
  *    innermost-first, which is what {@link withChainSnapshot} does.
  *

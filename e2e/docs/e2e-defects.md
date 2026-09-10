@@ -109,6 +109,66 @@ table is the durable record.
 Not defects — the app behaves as designed — but they stop scenarios reaching a
 terminal state, so they are tracked here until fixed.
 
+### A chain-snapshot revert permanently breaks Panoptes for every later run
+
+`withChainSnapshot` (`fixtures/chain-snapshot.ts`) wraps a test in
+`evm_snapshot` / `evm_revert` so a forward time-warp cannot leak into later
+tests. It works for the chain. It does **not** work for the indexer, and the
+indexer does not recover on its own.
+
+Measured 2026-09-10. After runs of `transfer.spec.ts` — whose F4 expired-name
+case is the suite's only `withChainSnapshot` user (`transfer.spec.ts:1429`) —
+Panoptes was left in a permanent failure loop:
+
+```
+warning: Failed to fetch block 11674476 for reorg check: error.BlockNotFound
+error: v2 indexing error: error.BlockNotFound
+```
+
+644 consecutive occurrences over more than an hour, indexing halted the whole
+time. The chain head was **11672575** while Panoptes had already recorded
+events at **11674476** — 1901 blocks that no longer existed, because the revert
+rewound past them. Its reorg check asks for a block the chain cannot produce,
+fails, and never advances again.
+
+Consequence, and it is not subtle: **every indexer-backed assertion fails from
+that point until the volume is wiped.** A full-suite run started afterwards
+looks like a broad regression — E10, E11 and the C-series role tests all went
+red together — when nothing is wrong with the app or the tests.
+
+Within a *single* clean run this mostly hides, because `transfer.spec.ts` sorts
+last in the portal project and the revert happens after everything else. That
+is alphabetical luck, not isolation. Rename a spec, or run `transfer.spec.ts`
+on its own first (which is exactly what one does while iterating), and the next
+run is compromised.
+
+**Recovery** — a restart is not enough, since the offending row is in the
+volume:
+
+```bash
+docker compose -f e2e/infra/docker-compose.yml stop panoptes-indexer panoptes-api
+docker compose -f e2e/infra/docker-compose.yml rm -f panoptes-indexer panoptes-api
+docker volume rm infra_panoptes-data
+docker compose -f e2e/infra/docker-compose.yml up -d panoptes-indexer panoptes-api
+```
+
+Then wait out a full resync — ~250k blocks, slow because the same 20k
+`eth_getLogs` cap documented above forces small chunks.
+
+**One step is inferred rather than observed**: that the revert *caused* the
+rewind. The chain going backwards, Panoptes holding events beyond the new head,
+and `withChainSnapshot` being the only mechanism in the suite that rewinds the
+chain are all directly measured; nobody watched the revert land. A definitive
+check is cheap — snapshot, mine, revert, watch the indexer log — and worth
+doing before deciding on a fix.
+
+**Fixes worth weighing:** have `withChainSnapshot` reset the indexer after
+reverting; stop using it where an indexer-backed test follows; or give the
+portal project a fixture that fails fast when Panoptes' newest event is ahead
+of the chain head, so this announces itself instead of masquerading as a
+regression. The harness already checks Panoptes is *reachable* and *synced* —
+it does not check that it is on the same history.
+
 ### `anvil-mainnet` cannot fork, so the whole metadata suite (18 tests) never runs
 
 `docker-compose.yml` defaults `MAINNET_FORK_URL` to
