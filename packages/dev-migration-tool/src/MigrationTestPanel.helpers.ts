@@ -99,6 +99,14 @@ export const V1_CUSTOM_RESOLVER =
 export const V1_DISTINCT_MANAGER =
   '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' as const
 
+/**
+ * Anvil account 2 — a third party, distinct from both DEFAULT_ACCOUNT and
+ * V1_DISTINCT_MANAGER. Used by `owner-not-manager` so the controller sits with
+ * somebody who is neither the registrant nor the usual "other" account.
+ */
+export const V1_THIRD_ACCOUNT =
+  '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC' as const
+
 /** BaseRegistrar.reclaim sets the V1 registry owner (manager) for a token. */
 const baseRegistrarReclaimSnippet = parseAbi([
   'function reclaim(uint256 id, address owner)',
@@ -321,6 +329,7 @@ export type PresetType =
   | 'copy-unsupported-resolver'
   | 'locked-no-transfer'
   | 'manager-only'
+  | 'owner-not-manager'
   | 'locked-no-resolver'
 
 /**
@@ -534,6 +543,9 @@ export const PRESET_SHAPES: Record<PresetType, PresetShape> = {
   // split cannot be expressed here, because it is a write that happens AFTER
   // registration. See the `manager-only` arm in createV1NameOnAnvil.
   'manager-only': { parentWrapped: false, parentFuses: 0 },
+  // Same reason — the split is imperative. This is the mirror: you keep the
+  // registrant and hand the controller away.
+  'owner-not-manager': { parentWrapped: false, parentFuses: 0 },
   'locked-no-resolver': {
     parentWrapped: true,
     parentFuses: LOCKED_2LD | CANNOT_SET_RESOLVER,
@@ -785,6 +797,12 @@ export const PRESETS: { type: PresetType; label: string; title: string }[] = [
       "Unwrapped 2LD + two registry children: 'bad-' on an unrecognised resolver -> ineligible 'unsupported-resolver', and 'good-' with no resolver -> eligible. A copy always rewrites the resolver to the owner's PermissionedResolver and cannot carry an unknown one across. The good sibling is the control.",
   },
   {
+    type: 'owner-not-manager',
+    label: 'Owner not mgr',
+    title:
+      "Unwrapped 2LD, then the ENSRegistry controller is handed to Anvil account 2 — you keep the ERC-721. Transfer is ALLOWED (the registrar asks the registrant), no record options are offered (the resolver authorises the controller, not you), and `reclaim` takes the manager back onto the recipient. The mirror of 'Manager only'.",
+  },
+  {
     type: 'manager-only',
     label: 'Manager only',
     title:
@@ -829,6 +847,7 @@ export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
   'copy-unsupported-resolver': '#831843',
   'locked-no-transfer': '#991b1b',
   'manager-only': '#7c6bd6',
+  'owner-not-manager': '#5b8def',
   'locked-no-resolver': '#a21caf',
 }
 
@@ -863,6 +882,7 @@ export const PRESET_FAMILY: Record<
   'copy-unsupported-resolver': 'ineligible',
   'locked-no-transfer': 'ineligible',
   'manager-only': 'transfer',
+  'owner-not-manager': 'transfer',
   'locked-no-resolver': 'migrate',
 }
 
@@ -1956,6 +1976,25 @@ export async function createV1NameOnAnvil(
             V1_DISTINCT_MANAGER,
             BigInt(labelhash(label)),
           ],
+        }),
+      )
+      return { label, expiryDate }
+    }
+    // The mirror of `manager-only`: keep the ERC-721, hand the ENSRegistry
+    // controller to a third account. `setOwner` on the legacy registry does
+    // not touch the registrar, so the registrant stays put — which is why the
+    // transfer is still allowed and why `reclaim` has real work to do.
+    case 'owner-not-manager': {
+      await registerV1Name(endpoint, label, false)
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR
+      await sendTx(
+        endpoint,
+        V1_ENS_REGISTRY,
+        encodeFunctionData({
+          abi: parseAbi(['function setOwner(bytes32 node, address owner)']),
+          functionName: 'setOwner',
+          args: [nodeForPath([label]), V1_THIRD_ACCOUNT],
         }),
       )
       return { label, expiryDate }

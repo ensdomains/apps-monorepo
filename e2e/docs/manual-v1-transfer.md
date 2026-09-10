@@ -94,17 +94,31 @@ checking — a link that leads to a refusal, or a missing link on a transferable
 name, is the shape **E2E-001** was about. The dev tools' job is to get you to
 the name; the app's job is everything after that.
 
-| Preset | Family | Produces | Transfer link on Ownership? | Card on the route |
+| Preset | Family | Produces | Transfer link? | What to check |
 |---|---|---|---|---|
-| **Unwrapped** | migrate | you hold both halves | **yes** — click it | the recipient form |
-| **Manager only** | transfer | registrant = account 1, controller = **you** | **no** | "You manage this name but don't own it", naming the registrant in full |
+| **Unwrapped** | migrate | you hold both halves | **yes** | the recipient form; the plan is `reclaim` → `transfer-erc721` |
+| **Owner not mgr** | transfer | you keep the ERC-721, account 2 holds the controller | **yes** | transfer is *allowed*, but **no record options** appear — and after transferring, the manager has been reclaimed onto the recipient, not left with account 2 |
+| **Manager only** | transfer | account 1 holds the ERC-721, you hold the controller | **no** | "You manage this name but don't own it", naming the registrant in full |
+| **Wrapped** | migrate | NameWrapper ERC-1155, you | **yes** | **one** step (`transfer-erc1155`); the legacy registry owner stays the NameWrapper throughout |
 | **Locked -xfer** | ineligible | wrapped, `CANNOT_TRANSFER` burnt | **no** | "Transfer permanently disabled" |
 | **Grace Period** | migrate | expired ~45 days ago | **no** | "This name is in its grace period" |
+| **Subname** | migrate | wrapped subname under a wrapped parent | **yes** | one `transfer-erc1155`; the **parent's** token must not move |
+| **Emancipated** | migrate | subname with `PARENT_CANNOT_CONTROL` | **yes** | transfers, and **no** parent-reclaim warning — the parent genuinely retains nothing |
 
-For the three refusal rows the link is *correctly* absent, so there is nothing
+For the rows marked **no**, the link is *correctly* absent, so there is nothing
 to click. **Its absence is the first assertion.** To read the card underneath,
 append `/transfer` to the URL by hand — deep-linking is the only way in, which
 is the point.
+
+The pair worth doing together is **Owner not mgr** and **Manager only**. They
+are mirrors — token without manager, manager without token — and only one of
+them is transferable. Which one, and why, is the whole model:
+
+- the **registrar** asks who the *registrant* is, so the token holder transfers;
+- the **resolver** asks who the *controller* is, so only the manager writes
+  records — which is why "Owner not mgr" is offered no record options at all;
+- `reclaim` is what closes the gap, pulling the manager back so the recipient
+  ends up with both.
 
 **Manager only** is the case with no V2 analogue and the one most worth reading
 carefully. It is created by registering normally and then handing the ERC-721

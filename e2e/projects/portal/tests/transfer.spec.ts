@@ -36,6 +36,7 @@ import {
   V1_PUBLIC_RESOLVER,
 } from '../../../fixtures/makeV1Name.js'
 import { makeV1RegistrySubname } from '../../../fixtures/makeV1RegistrySubname.js'
+import { CHILD_FUSES, makeV1Subname } from '../../../fixtures/makeV1Subname.js'
 import {
   connectWithHeadlessWallet,
   expect,
@@ -2645,6 +2646,176 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
       ).toLowerCase(),
       'the resolver must be cleared, not merely reported as detached',
     ).toBe(zeroAddress.toLowerCase())
+  })
+
+  test('refuses a V1 subname to its parent owner, who does not hold it', {
+    tag: ['@scenario:F30'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const parentOwner = accounts.getAddress('user')
+    const childOwner = accounts.getAddress('user3')
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+
+    const parent = await makeV1Name({ label: 'v1-xfer-f30', type: 'unwrapped' })
+    // Issued to somebody else. The parent owner can still *re-issue* it with
+    // `setSubnodeOwner`, but that is not what the transfer flow does.
+    const name = await makeV1RegistrySubname({
+      parentName: parent.replace(/\.eth$/, ''),
+      childLabel: 'sub',
+      ownerAddress: childOwner,
+      parentOwnerAccount: parentAccount,
+    })
+
+    expect(
+      (await readController(name)).toLowerCase(),
+      'precondition: the subname belongs to a third account',
+    ).toBe(childOwner.toLowerCase())
+    expect(
+      (await readController(parent)).toLowerCase(),
+      'precondition: while the connected wallet owns the parent',
+    ).toBe(parentOwner.toLowerCase())
+
+    // `getV1TransferGate` resolves a v1-registry subject purely on
+    // `subject.owner === account`, so owning the parent grants nothing here.
+    // Worth stating explicitly because ens-app-v3 DOES let a parent owner send
+    // a subname, via `setSubnodeOwner` — #1134 deliberately does not, and this
+    // pins that difference rather than leaving it to be rediscovered.
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await expect(
+      page.getByText('Not authorized'),
+      'owning the parent must not authorise transferring the child',
+    ).toBeVisible({ timeout: 60_000 })
+    await expect(page.getByPlaceholder('ENS name or address')).toBeHidden()
+
+    // And the entry point agrees — the E2E-001 shape again.
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(
+      page.getByRole('link', { name: 'Transfer' }),
+      'the Ownership tab must not offer a transfer the route will refuse',
+    ).toHaveCount(0)
+  })
+
+  test('transfers a WRAPPED V1 subname held by its owner', {
+    tag: ['@scenario:F31'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+
+    // The parent must be wrapped for `setSubnodeOwner` through the NameWrapper
+    // to produce a wrapped child.
+    const parent = await makeV1Name({ label: 'v1-xfer-f31', type: 'wrapped' })
+    const name = await makeV1Subname({
+      parentName: parent.replace(/\.eth$/, ''),
+      childLabel: 'sub',
+      ownerAddress: owner,
+      parentOwnerAccount: parentAccount,
+    })
+    const tokenId = BigInt(namehash(name))
+
+    expect(
+      (await readWrapperOwner(tokenId)).toLowerCase(),
+      'precondition: the wrapper holds the subname for the connected wallet',
+    ).toBe(owner.toLowerCase())
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+    await transferButton.click()
+
+    // Same single ERC-1155 move as F26's 2LD: to the wrapper a name is a name,
+    // whatever its depth. Covering the subname separately is about the gate,
+    // not the write — a wrapped subname is the one V1 subname shape that is
+    // transferable at all, since F30's registry subname refuses anyone but its
+    // own owner and this one has a real token behind it.
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'transfer-erc1155'),
+    ])
+
+    await expect
+      .poll(async () => (await readWrapperOwner(tokenId)).toLowerCase(), {
+        message: 'the subname ERC-1155 must move to the recipient',
+        timeout: 90_000,
+      })
+      .toBe(recipient.toLowerCase())
+
+    // The parent is a different wrapper token and must be untouched.
+    expect(
+      (await readWrapperOwner(BigInt(namehash(parent)))).toLowerCase(),
+      "transferring a subname must not move the parent's token",
+    ).toBe(owner.toLowerCase())
+  })
+
+  test('transfers an EMANCIPATED V1 subname, which its parent can no longer reclaim', {
+    tag: ['@scenario:F32'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+
+    const parent = await makeV1Name({ label: 'v1-xfer-f32', type: 'locked' })
+    // PARENT_CANNOT_CONTROL: the parent has given up the ability to reclaim or
+    // re-issue this child. That is what distinguishes it from F31, where the
+    // parent could still take the name back — and it is the V1 analogue of the
+    // question #1120's parent-authority warning answers for V2 subnames.
+    const name = await makeV1Subname({
+      parentName: parent.replace(/\.eth$/, ''),
+      childLabel: 'sub',
+      ownerAddress: owner,
+      parentOwnerAccount: parentAccount,
+      fuses: CHILD_FUSES.EMANCIPATED,
+    })
+    const tokenId = BigInt(namehash(name))
+
+    expect(
+      (await readWrapperOwner(tokenId)).toLowerCase(),
+      'precondition: the emancipated subname is held by the connected wallet',
+    ).toBe(owner.toLowerCase())
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+
+    // `getV1ParentPowers` returns empty for a 2LD by design, but an
+    // emancipated subname is the case where it should also be empty for a
+    // SUBNAME — the parent genuinely retains nothing. If a warning about
+    // parent authority appears here it is false, and worse than no warning:
+    // it would tell the recipient their name is reclaimable when it is not.
+    await expect(
+      page.getByPlaceholder('ENS name or address'),
+      'an emancipated subname is transferable by its owner',
+    ).toBeVisible({ timeout: 60_000 })
+    await expect(
+      page.locator('[role="alert"]', { hasText: /take it back|re-?issue/i }),
+      'an emancipated parent retains nothing, so no reclaim warning may be shown',
+    ).toHaveCount(0)
+
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+    await transferButton.click()
+
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'transfer-erc1155'),
+    ])
+
+    await expect
+      .poll(async () => (await readWrapperOwner(tokenId)).toLowerCase(), {
+        message: 'the emancipated subname must move to the recipient',
+        timeout: 90_000,
+      })
+      .toBe(recipient.toLowerCase())
   })
 
   test('refuses a wrapped V1 name with CANNOT_TRANSFER burnt', {
