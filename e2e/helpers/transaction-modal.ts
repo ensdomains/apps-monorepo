@@ -43,7 +43,15 @@ export const transferTxId = (
     | 'set-eth-addr'
     | 'detach-resolver'
     | 'detach-registry'
-    | 'transfer-token',
+    /** V2 move. */
+    | 'transfer-token'
+    /** V1 unwrapped 2LD: the controller slot, then the registrant. */
+    | 'reclaim'
+    | 'transfer-erc721'
+    /** V1 wrapped. */
+    | 'transfer-erc1155'
+    /** V1 registry-only. */
+    | 'set-registry-owner',
 ) => `transfer-${name}-${step}`
 
 /**

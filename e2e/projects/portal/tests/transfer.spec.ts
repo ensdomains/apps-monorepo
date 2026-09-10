@@ -15,6 +15,7 @@ import {
   encodeFunctionData,
   type Hash,
   http,
+  labelhash,
   namehash,
   parseAbi,
   zeroAddress,
@@ -26,7 +27,12 @@ import {
   attachSubregistry as deployAndAttachSubregistry,
   FULL_ROLE_BITMAP,
 } from '../../../fixtures/makeSubname.js'
-import { FUSES } from '../../../fixtures/makeV1Name.js'
+import {
+  createMakeV1Name,
+  FUSES,
+  V1_BASE_REGISTRAR,
+  V1_ENS_REGISTRY,
+} from '../../../fixtures/makeV1Name.js'
 import {
   connectWithHeadlessWallet,
   expect,
@@ -2170,5 +2176,203 @@ test.describe('Portal name transfer — subnames, irreversible steps', () => {
         'from a 1-hour-stale cache, so the write lands on a stale resolver and ' +
         'is reported as success',
     ).toBe(false)
+  })
+})
+
+/**
+ * Unmigrated V1 name transfer — WEB-1396 / #1134.
+ *
+ * Distinct from the "migrated V1 names" block above, which moves names that
+ * have already become V2 tokens by the time the portal touches them. These are
+ * names still living in V1, which the portal previously refused outright.
+ *
+ * The shape with no V2 analogue, and the reason this needs its own coverage:
+ * an unwrapped V1 2LD splits ownership in two. `BaseRegistrar` holds the
+ * **registrant** (the ERC-721) and `ENSRegistry` holds the **controller** (who
+ * may set records). They can be different accounts, and a complete transfer
+ * must move both. Moving only the token hands over the asset while leaving the
+ * old owner able to repoint the resolver and rewrite every record.
+ *
+ * `getV1TransferGate` (v1/rules.ts) resolves that shape into one of six
+ * outcomes, each with its own card.
+ */
+test.describe('Portal name transfer — unmigrated V1 names', () => {
+  const V1_BASE_REGISTRAR_ABI = parseAbi([
+    'function ownerOf(uint256 tokenId) view returns (address)',
+    'function safeTransferFrom(address from, address to, uint256 tokenId)',
+  ])
+  const V1_REGISTRY_ABI = parseAbi([
+    'function owner(bytes32 node) view returns (address)',
+  ])
+
+  const tokenIdFor = (label: string) => BigInt(labelhash(label))
+
+  /** The ERC-721 registrant — who owns the name in `BaseRegistrar`. */
+  const readRegistrant = (label: string) =>
+    publicClient.readContract({
+      address: V1_BASE_REGISTRAR,
+      abi: V1_BASE_REGISTRAR_ABI,
+      functionName: 'ownerOf',
+      args: [tokenIdFor(label)],
+    }) as Promise<Address>
+
+  /** The controller — who may set records, per the legacy `ENSRegistry`. */
+  const readController = (name: string) =>
+    publicClient.readContract({
+      address: V1_ENS_REGISTRY,
+      abi: V1_REGISTRY_ABI,
+      functionName: 'owner',
+      args: [namehash(name)],
+    }) as Promise<Address>
+
+  test('transfers an unwrapped V1 name, moving BOTH the registrant and the controller', {
+    tag: ['@scenario:F23'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const name = await makeV1Name({ label: 'v1-xfer-f23', type: 'unwrapped' })
+    const label = name.replace(/\.eth$/, '')
+
+    expect(
+      (await readRegistrant(label)).toLowerCase(),
+      'precondition: the connected wallet is the registrant',
+    ).toBe(owner.toLowerCase())
+    expect(
+      (await readController(name)).toLowerCase(),
+      'precondition: and the controller',
+    ).toBe(owner.toLowerCase())
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+    await transferButton.click()
+
+    // An unwrapped V1 2LD moves in two writes, and their ORDER is load-bearing:
+    // `reclaim` hands over the controller slot first, because once the ERC-721
+    // has moved the sender is no longer the registrant and can no longer
+    // reclaim — stranding the controller slot with the old owner. Naming both
+    // ids makes the run fail loudly if the plan ever changes shape.
+    //
+    // Driven with the shared helper rather than a hand-rolled authorize loop.
+    // The first draft used the latter and timed out: a bounded loop that fails
+    // to advance the modal is indistinguishable from a flow that never
+    // progressed. The helper returns only once every named id reports success.
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'reclaim'),
+      transferTxId(name, 'transfer-erc721'),
+    ])
+
+    // THE ORACLE, and the reason this scenario exists. Both halves must move.
+    await expect
+      .poll(async () => (await readRegistrant(label)).toLowerCase(), {
+        message: 'the ERC-721 registrant must move to the recipient',
+        timeout: 90_000,
+      })
+      .toBe(recipient.toLowerCase())
+    await expect
+      .poll(async () => (await readController(name)).toLowerCase(), {
+        message:
+          'and the legacy-registry controller must move too — otherwise the old owner keeps the ability to rewrite every record',
+        timeout: 90_000,
+      })
+      .toBe(recipient.toLowerCase())
+  })
+
+  test('refuses a V1 name the wallet manages but does not own, naming the registrant', {
+    tag: ['@scenario:F24'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const controller = accounts.getAddress('user')
+    const registrant = accounts.getAddress('user2')
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const name = await makeV1Name({ label: 'v1-xfer-f24', type: 'unwrapped' })
+    const label = name.replace(/\.eth$/, '')
+
+    // Split the two halves apart: hand the ERC-721 to user2 while leaving the
+    // legacy-registry controller as user. `safeTransferFrom` on the registrar
+    // does NOT touch the registry — which is exactly why this state is
+    // reachable, and why `reclaim` exists as a separate call.
+    const hash = await getOwnerClient(
+      accounts.getPrivateKey('user'),
+    ).sendTransaction({
+      to: V1_BASE_REGISTRAR,
+      data: encodeFunctionData({
+        abi: V1_BASE_REGISTRAR_ABI,
+        functionName: 'safeTransferFrom',
+        args: [controller, registrant, tokenIdFor(label)],
+      }),
+    })
+    await publicClient.waitForTransactionReceipt({ hash })
+
+    expect(
+      (await readRegistrant(label)).toLowerCase(),
+      'precondition: user2 is now the registrant',
+    ).toBe(registrant.toLowerCase())
+    expect(
+      (await readController(name)).toLowerCase(),
+      'precondition: while the connected wallet is still only the controller',
+    ).toBe(controller.toLowerCase())
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await expect(
+      page.getByText(/You manage this name but don’t own it/),
+      'a controller who is not the registrant must be refused, not offered the form',
+    ).toBeVisible({ timeout: 60_000 })
+    await expect(
+      page.getByPlaceholder('ENS name or address'),
+      'and must not be given the form anyway',
+    ).toBeHidden()
+
+    // Rendered in full, in a font-mono span — not truncated the way a table
+    // cell would be. The card exists to tell you who to go and ask, so the
+    // whole address is the point.
+    await expect(
+      page.getByText(registrant),
+      'the card must name the registrant in full so the reader knows who to ask',
+    ).toBeVisible({ timeout: 15_000 })
+  })
+
+  test('refuses a wrapped V1 name with CANNOT_TRANSFER burnt', {
+    tag: ['@scenario:F25'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    // `locked` forces CANNOT_UNWRAP; CANNOT_TRANSFER is the fuse under test.
+    const name = await makeV1Name({
+      label: 'v1-xfer-f25',
+      type: 'locked',
+      fuses: FUSES.CANNOT_TRANSFER,
+    })
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await expect(
+      page.getByText('Transfer permanently disabled'),
+      'a burnt CANNOT_TRANSFER fuse is irreversible, and the copy must say so rather than offering a form that would revert',
+    ).toBeVisible({ timeout: 60_000 })
+    await expect(page.getByPlaceholder('ENS name or address')).toBeHidden()
+
+    // The entry point must agree with the route. A Transfer link that leads to
+    // a refusal is the shape E2E-001 was about.
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership`)
+    await expect(
+      page.getByRole('link', { name: 'Transfer' }),
+      'the Ownership tab must not offer a transfer the route will refuse',
+    ).toHaveCount(0)
   })
 })
