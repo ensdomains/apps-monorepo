@@ -28,6 +28,7 @@ import {
   ensureNamesOnAnvil,
   fullNamesFor,
   getOnchainExpiries,
+  ownershipTargetFor,
   PRESET_FAMILY,
   PRESETS,
   type PresetType,
@@ -491,7 +492,9 @@ export function MigrationPanelContent() {
    * the indexer, so the injection is irrelevant here.
    */
   const openOwnership = useCallback((name: ActiveName) => {
-    window.location.href = `/${name.label}.eth/ownership`
+    // A subname-centred transfer preset (#1144's reassign family) opens the
+    // subname, not the 2LD that exists only to be its parent.
+    window.location.href = `/${ownershipTargetFor(name)}/ownership`
   }, [])
 
   const removeName = useCallback((id: string) => {

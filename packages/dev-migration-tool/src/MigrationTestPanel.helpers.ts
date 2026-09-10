@@ -331,6 +331,12 @@ export type PresetType =
   | 'manager-only'
   | 'owner-not-manager'
   | 'locked-no-resolver'
+  | 'reassign-wrapped'
+  | 'reassign-registry'
+  | 'reassign-emancipated'
+  | 'reassign-mismatch'
+  | 'reassign-registrant-only'
+  | 'reassign-grace'
 
 /**
  * Single source of truth for the SHAPE each preset creates.
@@ -375,6 +381,12 @@ export type PresetNodeShape = {
    * name whose parent is missing from the selection is expressed.
    */
   readonly offer?: boolean
+  /**
+   * Who the node is issued to. `'other'` is Anvil account 1, which is how the
+   * #1144 reassign presets leave YOU holding only the parent — the one role
+   * that reaches a subname through `setSubnodeOwner`. Defaults to you.
+   */
+  readonly holder?: 'you' | 'other'
   readonly descendants?: readonly PresetNodeShape[]
 }
 
@@ -550,6 +562,64 @@ export const PRESET_SHAPES: Record<PresetType, PresetShape> = {
     parentWrapped: true,
     parentFuses: LOCKED_2LD | CANNOT_SET_RESOLVER,
   },
+  // #1144 — a V1 subname moved by its PARENT (`setSubnodeOwner`). Every one
+  // leaves you holding the parent and somebody else holding the child, so the
+  // transfer route has to decide what the parent may do. The children are
+  // withheld from the migration mock: they are not yours to migrate.
+  'reassign-wrapped': {
+    parentWrapped: true,
+    parentFuses: EMANCIPATED_2LD,
+    descendants: [{ ...UNLOCKED_CHILD_SHAPE, holder: 'other', offer: false }],
+  },
+  'reassign-registry': {
+    parentWrapped: false,
+    parentFuses: 0,
+    descendants: [{ ...REGISTRY_CHILD_SHAPE, holder: 'other', offer: false }],
+  },
+  // PCC burned on the child: the wrapper's `canCallSetSubnodeOwner` refuses.
+  'reassign-emancipated': {
+    parentWrapped: true,
+    parentFuses: LOCKED_2LD,
+    descendants: [
+      {
+        labelPrefix: DEFAULT_CHILD_PREFIX,
+        wrapped: true,
+        fuses: PARENT_CANNOT_CONTROL,
+        holder: 'other',
+        offer: false,
+      },
+    ],
+  },
+  // Created wrapped and yours, then UNWRAPPED onto account 1 — see
+  // `finishReassignPreset`. A wrapped parent over a registry child.
+  'reassign-mismatch': {
+    parentWrapped: true,
+    parentFuses: EMANCIPATED_2LD,
+    descendants: [{ ...UNLOCKED_CHILD_SHAPE, offer: false }],
+  },
+  // The parent's CONTROLLER is handed to account 2 afterwards; you keep only
+  // its ERC-721, and `setSubnodeOwner` is the controller's power.
+  'reassign-registrant-only': {
+    parentWrapped: false,
+    parentFuses: 0,
+    descendants: [{ ...REGISTRY_CHILD_SHAPE, holder: 'other', offer: false }],
+  },
+  // Then the clock is pushed 30 days into the 2LD's grace period. `other-` is
+  // the parent's move (refused while the 2LD is in grace); `held-` is yours,
+  // and still transfers, with a warning.
+  'reassign-grace': {
+    parentWrapped: true,
+    parentFuses: EMANCIPATED_2LD,
+    descendants: [
+      {
+        ...UNLOCKED_CHILD_SHAPE,
+        labelPrefix: 'other',
+        holder: 'other',
+        offer: false,
+      },
+      { ...UNLOCKED_CHILD_SHAPE, labelPrefix: 'held', offer: false },
+    ],
+  },
 }
 
 /**
@@ -576,6 +646,8 @@ export type PresetNode = {
   readonly records: boolean
   readonly resolver: 'record' | 'custom' | 'none'
   readonly offer: boolean
+  /** Who the node is issued to on chain. */
+  readonly holder: Address
   /** The immediate parent's wrapper state, which the classifier reads. */
   readonly parentWrapped: boolean
   readonly parentFuses: number
@@ -623,6 +695,7 @@ export const walkPreset = (
     records: presetHasParentRecords(type),
     resolver: rootResolverKind(type),
     offer: shape.offerParent ?? true,
+    holder: DEFAULT_ACCOUNT,
     parentWrapped: false,
     parentFuses: 0,
   }
@@ -645,6 +718,8 @@ export const walkPreset = (
         records: child.records ?? false,
         resolver: child.resolver ?? (child.records ? 'record' : 'none'),
         offer: child.offer ?? true,
+        holder:
+          child.holder === 'other' ? V1_DISTINCT_MANAGER : DEFAULT_ACCOUNT,
         parentWrapped: node.wrapped,
         parentFuses: node.fuses,
       }
@@ -820,6 +895,42 @@ export const PRESETS: { type: PresetType; label: string; title: string }[] = [
     title:
       'Locked 2LD with ONLY CANNOT_SET_RESOLVER added -> migrates, but resolverStrategy is forced to keep-v1 so records are NOT replayed.',
   },
+  {
+    type: 'reassign-wrapped',
+    label: 'Reassign wrapped',
+    title:
+      "Wrapped 2LD you own + a wrapped subname held by account 1. Open lands on the SUBNAME. The Ownership tab offers Transfer; the form warns that account 1 loses it, offers no record options, and runs ONE 'Reassign subname' step (NameWrapper.setSubnodeOwner). Fuses and expiry must survive it.",
+  },
+  {
+    type: 'reassign-registry',
+    label: 'Reassign registry',
+    title:
+      "Unwrapped 2LD you own + a registry-only subname held by account 1. Same as 'Reassign wrapped' but the one step is ENSRegistry.setSubnodeOwner. Before #1144 this said 'Not authorized'.",
+  },
+  {
+    type: 'reassign-emancipated',
+    label: 'Reassign -PCC',
+    title:
+      "Locked 2LD you own + a subname held by account 1 with PARENT_CANNOT_CONTROL burned. No Transfer link; /transfer reads 'This subname is out of the parent's control'.",
+  },
+  {
+    type: 'reassign-mismatch',
+    label: 'Reassign ≠wrap',
+    title:
+      "Wrapped 2LD you own + a subname UNWRAPPED onto account 1. No Transfer link; /transfer reads 'Can't reassign this subname from here' — reassigning would force-wrap it.",
+  },
+  {
+    type: 'reassign-registrant-only',
+    label: 'Parent reg only',
+    title:
+      "Unwrapped 2LD whose ERC-721 you keep but whose controller is account 2, + a subname held by account 1. No Transfer link; /transfer reads 'Reclaim the parent first'.",
+  },
+  {
+    type: 'reassign-grace',
+    label: 'Reassign grace',
+    title:
+      "Wrapped 2LD you own pushed 30 days INTO GRACE (moves the shared clock ~13 months — seed it last). 'other-' (account 1): '<2LD> is in its grace period', no form. 'held-' (yours): the form, plus a warning that whoever registers the 2LD next can take it back.",
+  },
 ]
 
 export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
@@ -849,6 +960,12 @@ export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
   'manager-only': '#7c6bd6',
   'owner-not-manager': '#5b8def',
   'locked-no-resolver': '#a21caf',
+  'reassign-wrapped': '#0e7490',
+  'reassign-registry': '#0891b2',
+  'reassign-emancipated': '#be123c',
+  'reassign-mismatch': '#9f1239',
+  'reassign-registrant-only': '#a16207',
+  'reassign-grace': '#c2410c',
 }
 
 /**
@@ -884,6 +1001,12 @@ export const PRESET_FAMILY: Record<
   'manager-only': 'transfer',
   'owner-not-manager': 'transfer',
   'locked-no-resolver': 'migrate',
+  'reassign-wrapped': 'transfer',
+  'reassign-registry': 'transfer',
+  'reassign-emancipated': 'transfer',
+  'reassign-mismatch': 'transfer',
+  'reassign-registrant-only': 'transfer',
+  'reassign-grace': 'transfer',
 }
 
 // --- ABI fragments ----------------------------------------------------------
@@ -1187,6 +1310,7 @@ export async function createRegistryOnlySubname(
   endpoint: string,
   parentNode: `0x${string}`,
   sublabel: string,
+  owner: Address = DEFAULT_ACCOUNT,
 ): Promise<void> {
   await sendTx(
     endpoint,
@@ -1194,7 +1318,7 @@ export async function createRegistryOnlySubname(
     encodeFunctionData({
       abi: registrySetSubnodeOwnerSnippet,
       functionName: 'setSubnodeOwner',
-      args: [parentNode, labelhash(sublabel), DEFAULT_ACCOUNT],
+      args: [parentNode, labelhash(sublabel), owner],
     }),
   )
 }
@@ -1213,6 +1337,7 @@ export async function createWrappedSubnameWithFuses(
   parentNode: `0x${string}`,
   sublabel: string,
   fuses: number,
+  owner: Address = DEFAULT_ACCOUNT,
 ): Promise<void> {
   const now = await getBlockTimestamp(endpoint)
   await sendTx(
@@ -1221,13 +1346,7 @@ export async function createWrappedSubnameWithFuses(
     encodeFunctionData({
       abi: nameWrapperSetSubnodeOwnerSnippet,
       functionName: 'setSubnodeOwner',
-      args: [
-        parentNode,
-        sublabel,
-        DEFAULT_ACCOUNT,
-        fuses,
-        BigInt(now + ONE_YEAR * 2),
-      ],
+      args: [parentNode, sublabel, owner, fuses, BigInt(now + ONE_YEAR * 2)],
     }),
   )
 }
@@ -1863,9 +1982,15 @@ async function createDescendants(
         node.parentNode,
         node.label,
         node.fuses,
+        node.holder,
       )
     } else {
-      await createRegistryOnlySubname(endpoint, node.parentNode, node.label)
+      await createRegistryOnlySubname(
+        endpoint,
+        node.parentNode,
+        node.label,
+        node.holder,
+      )
     }
   }
 }
@@ -1924,10 +2049,79 @@ async function createPresetTreeOnAnvil(
   await reserveInV2(
     endpoint,
     label,
-    expiryDate,
+    // The grace preset outlives its V1 expiry; reserve the way production
+    // pre-migration does, or the V2 slot lapses first and the name reads as
+    // unregistered rather than in grace.
+    type === 'reassign-grace'
+      ? expiryDate + PREMIGRATION_BONUS_PERIOD
+      : expiryDate,
     root.records ? recordResolverFor(type) : undefined,
   )
+  await finishReassignPreset(endpoint, type, nodes)
   return { label, expiryDate }
+}
+
+/**
+ * The #1144 reassign presets whose defining write comes AFTER the tree
+ * exists, which `PresetNodeShape` cannot express — the same reason
+ * `manager-only` is an imperative arm rather than a shape.
+ */
+async function finishReassignPreset(
+  endpoint: string,
+  type: PresetType,
+  nodes: readonly PresetNode[],
+): Promise<void> {
+  const [root, child] = nodes
+  if (!root || !child) return
+  switch (type) {
+    // Unwrap the child onto account 1: the parent stays wrapped, the child
+    // becomes a plain registry node held by somebody else.
+    case 'reassign-mismatch':
+      await sendTx(
+        endpoint,
+        V1_NAME_WRAPPER,
+        encodeFunctionData({
+          abi: parseAbi([
+            'function unwrap(bytes32 parentNode, bytes32 labelhash, address controller)',
+          ]),
+          functionName: 'unwrap',
+          args: [child.parentNode, labelhash(child.label), V1_DISTINCT_MANAGER],
+        }),
+      )
+      return
+    // Hand the parent's controller away, keeping its ERC-721.
+    case 'reassign-registrant-only':
+      await sendTx(
+        endpoint,
+        V1_ENS_REGISTRY,
+        encodeFunctionData({
+          abi: parseAbi(['function setOwner(bytes32 node, address owner)']),
+          functionName: 'setOwner',
+          args: [root.node, V1_THIRD_ACCOUNT],
+        }),
+      )
+      return
+    // 30 days into the 2LD's 90-day grace period. The children's wrapper
+    // expiry is the 2LD's plus grace, so they are still live.
+    case 'reassign-grace':
+      await increaseTime(endpoint, ONE_YEAR + 30 * 86_400)
+      return
+  }
+}
+
+/**
+ * Where the panel's **Open** button lands. A transfer preset built around a
+ * subname opens the SUBNAME — the 2LD is only there to be its parent, and
+ * making the tester edit the URL invites testing the wrong name.
+ */
+export const ownershipTargetFor = (name: {
+  label: string
+  type: PresetType
+}): string => {
+  const [root, firstChild] = walkPreset(name.label, name.type)
+  return PRESET_FAMILY[name.type] === 'transfer' && firstChild
+    ? firstChild.fullName
+    : (root?.fullName ?? `${name.label}.eth`)
 }
 
 export async function createV1NameOnAnvil(

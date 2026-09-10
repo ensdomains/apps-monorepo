@@ -15,11 +15,13 @@ import {
   buildMockDomains,
   fullNamesFor,
   nodeForPath,
+  ownershipTargetFor,
   PRESET_FAMILY,
   PRESET_SHAPES,
   PRESETS,
   type PresetType,
   TYPE_BADGE_COLORS,
+  V1_DISTINCT_MANAGER,
   walkPreset,
 } from './MigrationTestPanel.helpers'
 
@@ -178,5 +180,47 @@ describe('preset tables', () => {
       expect(preset?.title).toContain('copy')
       expect(PRESET_FAMILY[type]).toBe('copy')
     }
+  })
+})
+
+describe('reassign presets (#1144)', () => {
+  const REASSIGN = [
+    'reassign-wrapped',
+    'reassign-registry',
+    'reassign-emancipated',
+    'reassign-mismatch',
+    'reassign-registrant-only',
+    'reassign-grace',
+  ] as const
+
+  it.each(REASSIGN)('%s opens the subname, not the 2LD', (type) => {
+    expect(PRESET_FAMILY[type]).toBe('transfer')
+    expect(ownershipTargetFor(activeName(type))).toBe(
+      walkPreset(ROOT, type)[1]?.fullName,
+    )
+  })
+
+  // Not yours to migrate: an injected child would appear in the migration
+  // list as if the connected wallet held it.
+  it.each(
+    REASSIGN,
+  )('%s keeps its subnames out of the migration mock', (type) => {
+    const injected = buildMockDomains(activeName(type)) as { name: string }[]
+    expect(injected.map((d) => d.name)).toEqual([`${ROOT}.eth`])
+  })
+
+  it('issues the reassignable child to another account', () => {
+    for (const type of [
+      'reassign-wrapped',
+      'reassign-registry',
+      'reassign-emancipated',
+      'reassign-registrant-only',
+    ] as const) {
+      expect(walkPreset(ROOT, type)[1]?.holder, type).toBe(V1_DISTINCT_MANAGER)
+    }
+  })
+
+  it('still opens the 2LD for a transfer preset with no subname', () => {
+    expect(ownershipTargetFor(activeName('manager-only'))).toBe(`${ROOT}.eth`)
   })
 })
