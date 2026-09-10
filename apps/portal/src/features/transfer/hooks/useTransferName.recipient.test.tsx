@@ -51,13 +51,18 @@ vi.mock('../queries/getOwnResolver', () => ({
  * Every `getEnsTokenId` call hands back a promise the test settles by hand, so
  * a run can be held pending while the form "changes" underneath it.
  */
-const pendingTokenIdReads: Array<(tokenId: bigint) => void> = []
+type TokenIdRead = {
+  readonly resolve: (tokenId: bigint) => void
+  readonly reject: (error: Error) => void
+}
+const pendingTokenIdReads: TokenIdRead[] = []
 vi.mock('@/features/profile/hooks/useTokenId', () => ({
   getEnsTokenId: () =>
-    ResultAsync.fromSafePromise(
-      new Promise<bigint>((resolve) => {
-        pendingTokenIdReads.push(resolve)
+    ResultAsync.fromPromise(
+      new Promise<bigint>((resolve, reject) => {
+        pendingTokenIdReads.push({ resolve, reject })
       }),
+      (error) => error as Error,
     ),
 }))
 
@@ -80,11 +85,15 @@ const NO_OPTIONS = {
   detachRegistry: false,
 } as const
 
+const tokenIdRead = (index: number) => {
+  const read = pendingTokenIdReads[index]
+  if (!read) throw new Error(`no token id read #${index} in flight`)
+  return read
+}
+
 const settleTokenIdRead = async (index: number) => {
-  const resolve = pendingTokenIdReads[index]
-  if (!resolve) throw new Error(`no token id read #${index} in flight`)
   await act(async () => {
-    resolve(TOKEN_ID)
+    tokenIdRead(index).resolve(TOKEN_ID)
   })
 }
 
@@ -196,6 +205,27 @@ describe('useTransferName preparation runs', () => {
     await waitFor(() => expect(result.current.isPreparing).toBe(false))
     expect(openModal).toHaveBeenCalledTimes(1)
     expect(encodedRecipient(result.current.transactions)).toBe(RECIPIENT_B)
+  })
+
+  it('clears a failure produced for the old values when the form is edited', async () => {
+    const { result } = render()
+
+    act(() => {
+      result.current.startTransfer({
+        recipient: RECIPIENT_A,
+        options: NO_OPTIONS,
+      })
+    })
+    await waitFor(() => expect(pendingTokenIdReads).toHaveLength(1))
+    await act(async () => {
+      tokenIdRead(0).reject(new Error('rpc down'))
+    })
+    await waitFor(() => expect(result.current.prepError).not.toBeNull())
+
+    act(() => {
+      result.current.discardPreparation()
+    })
+    expect(result.current.prepError).toBeNull()
   })
 
   it('drops an already-prepared plan when the form is edited afterwards', async () => {

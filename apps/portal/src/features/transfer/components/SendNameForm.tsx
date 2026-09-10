@@ -308,7 +308,7 @@ export const SendNameForm = ({
           options={options}
           visibleOptions={visibleOptions}
           onToggle={toggleOption}
-          disabled={isPreparing}
+          isLocked={isPreparing}
         />
       )}
 
@@ -434,13 +434,13 @@ const TransferDetachOptions = ({
   options,
   visibleOptions,
   onToggle,
-  disabled: allDisabled,
+  isLocked,
 }: {
   readonly options: Record<TransferOptionKey, boolean>
   readonly visibleOptions: readonly OptionConfig[]
   readonly onToggle: (key: TransferOptionKey) => void
   /** Locks every switch, e.g. while a plan is being prepared from them. */
-  readonly disabled: boolean
+  readonly isLocked: boolean
 }) => {
   if (visibleOptions.length === 0) return null
 
@@ -449,14 +449,14 @@ const TransferDetachOptions = ({
       {visibleOptions.map((option) => {
         const isRedundant =
           option.key === 'setEthAddress' && options.detachResolver
-        const disabled = isRedundant || allDisabled
+        const isDisabled = isRedundant || isLocked
 
         return (
           <div key={option.key} className="flex flex-col gap-2">
             <label
               htmlFor={`transfer-option-${option.key}`}
               className={`flex items-start justify-between gap-3 ${
-                disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
               }`}
             >
               <span className="flex flex-col">
@@ -473,12 +473,12 @@ const TransferDetachOptions = ({
                 id={`transfer-option-${option.key}`}
                 checked={options[option.key]}
                 onCheckedChange={() => onToggle(option.key)}
-                disabled={disabled}
+                disabled={isDisabled}
                 className="mt-1 shrink-0"
               />
             </label>
 
-            {!disabled && !options[option.key] && option.warning && (
+            {!isDisabled && !options[option.key] && option.warning && (
               <Alert variant="warning">
                 <AlertTriangle className="size-4" />
                 <AlertDescription>{option.warning}</AlertDescription>

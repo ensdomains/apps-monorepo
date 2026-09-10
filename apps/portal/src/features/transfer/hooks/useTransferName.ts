@@ -221,11 +221,6 @@ export const useTransferName = ({
   // with a recipient the form no longer shows (Immunefi #91822).
   const runIdRef = useRef(0)
 
-  const discardPreparation = () => {
-    runIdRef.current += 1
-    setSavedParams(null)
-  }
-
   const finishFlow = () => {
     closeModal()
     clearTransaction()
@@ -432,6 +427,15 @@ export const useTransferName = ({
       },
     }),
   )
+
+  const discardPreparation = () => {
+    runIdRef.current += 1
+    setSavedParams(null)
+    // A failure message for the old values would otherwise sit under the form
+    // until the next start; the in-flight run (if any) still finishes and is
+    // then dropped by the run id check above.
+    prepareMutation.reset()
+  }
 
   // Built fresh each render (like useRenewalTransactions) — the modal holds the
   // array in a ref for auto-advance, so referential stability isn't required.
