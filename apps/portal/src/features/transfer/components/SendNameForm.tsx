@@ -119,7 +119,7 @@ const ParentWarningAlert = ({
         <p>
           This is a subname of {parent}
           {parentIsSelf
-            ? ', which you own, so you keep authority over it - you can '
+            ? ', which you own, so you keep authority over it — you can '
             : ', and its owner keeps authority over it — they can '}
           {powers.length === 1 ? (
             powers[0]
