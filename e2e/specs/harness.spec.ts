@@ -119,6 +119,15 @@ const subregistry = async (registry: `0x${string}`, label: string) =>
 
 const labelOf = (name: string) => name.replace(/\.eth$/, '')
 
+/**
+ * How far Panoptes may read *ahead* of the chain head before it counts as
+ * being on a different history. `indexed` and `head` are two sequential RPC
+ * reads and Anvil can mine between them, so a block or two of overshoot is a
+ * race. A chain-snapshot revert leaves it thousands ahead and permanently
+ * stuck, so the gap between benign and real is wide.
+ */
+const INDEXER_OVERSHOOT_TOLERANCE = 50
+
 test.describe('Harness integrity', () => {
   test.describe.configure({ timeout: 300_000 })
 
@@ -458,8 +467,14 @@ test.describe('Harness integrity', () => {
     // regression. Recovery needs the volume wiped; a restart re-reads the same
     // row. See "A chain-snapshot revert permanently breaks Panoptes" in
     // docs/e2e-defects.md.
+    // Tolerance, not zero: `indexed` and `head` are two sequential RPC reads,
+    // and Anvil can mine between them, so a couple of blocks of overshoot is a
+    // race rather than a divergence. Measured: this fired at +2 on a perfectly
+    // healthy indexer. The failure this guards against was +1901 and growing,
+    // so the gap between benign and real is wide enough that a loose bound
+    // still catches it.
     expect(
-      indexed ?? 0,
+      (indexed ?? 0) - INDEXER_OVERSHOOT_TOLERANCE,
       `Panoptes holds events at block ${indexed} but the chain head is only ${head} — ` +
         'it is indexing a history this chain no longer has, almost certainly a ' +
         'evm_revert from an earlier run. It has stopped advancing and every ' +
