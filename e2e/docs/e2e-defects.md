@@ -435,10 +435,35 @@ on. Anything reading `registry(address:)` or `resolver(id:)` renders
 not-found, while anything reading names or replaying events works.
 
 That adds **C14** (resolver per-key roles, `/resolver/$address/roles` →
-`getResolverOverviewQueryOptions` → `resolver(id:)`) to the blocked set. Note
-E11 passes on `/resolver/$address/nodes`, which does not go through that query
-— so the blocker is per-route, not per-section, and is worth checking before
-scoping any future batch that touches a detail page.
+`getResolverOverviewQueryOptions` → `resolver(id:)`) to the blocked set.
+
+**Correction (2026-09-10) — this also blocks E11, contradicting what this note
+used to say.** It previously read "E11 passes on `/resolver/$address/nodes`,
+which does not go through that query — so the blocker is per-route". Measured
+against a healthy, fully synced indexer on a fresh fork, E11 fails, and for
+exactly this reason:
+
+```
+on-chain      registry.getResolver(label) -> 0x53363ceF…4497
+indexer       domains(where:{name}) { resolver { address } }
+              -> 0x53363cef…4497        ✓ present
+indexer       resolvers(where:{address:"0x53363cef…4497"})
+              -> []                     ✗ EMPTY
+```
+
+The `domains` row knows which resolver a name uses, but no `resolvers` **entity**
+is ever created for that address — and `/resolver/$address/nodes` reads the
+entity, so it renders an empty node list. Panoptes' own log says so directly
+while the suite runs: `Resolver indexing: N events processed, 1 skipped
+(unknown resolvers)`, on most batches.
+
+**E10 is blocked by the same thing**: `/resolver/$address/nodes` short-circuits
+with "This resolver has no nodes" before it evaluates permissions at all, so
+the alias-permission assertion never runs.
+
+So the blocked set is **C13, C14, D10–D14, E10, E11**, and the "per-route, not
+per-section" framing was wrong — every route that reads a `resolvers` or
+`registries` entity is affected, whichever page it lives on.
 
 **Widened again — even a `domains` entity can be permanently missing (2026-09-04):**
 found manually, not independently reproducible on demand, so recorded here
