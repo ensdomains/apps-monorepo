@@ -283,6 +283,66 @@ For a wrapped 2LD the registry owner is the **NameWrapper contract**, so #1144's
 gate falls through to "Not authorized". The PR's unit test passes because it
 builds the parent state by hand instead of from ensjs's shape.
 
+### Reproducing E2E-012 by hand
+
+**The defect:** the "Reclaim the parent first" card tells you to reclaim the
+manager role *from the parent's Ownership page*. That page has no reclaim
+control, so the instruction can't be followed. The refusal itself is right.
+
+Automated: `pnpm e2e:portal --grep "E2E-012"`. Introduced by #1144; the card
+does not exist on `main`.
+
+1. Drawer → **Migration ›** → **TRANSFER** → **Parent reg only**. Wait for the
+   name. It creates an unwrapped 2LD whose **ERC-721 you keep** but whose
+   **controller is account 2** (`0x3C44…93BC`), plus `sub-…` held by account 1.
+2. Press **Open**. You land on `sub-….eth/ownership`. No Transfer link is
+   correct: reassigning a subname is the controller's power, and you are
+   only the registrant.
+3. Append `/transfer`. You get **"Reclaim the parent first"**: *"You hold
+   2LD but another wallet manages it, and reassigning a subname is the
+   manager's power. Reclaim the manager role on 2LD from its Ownership
+   page, then come back."* This part is correct.
+4. **Do what it says.** Click through to the 2LD's **Ownership** tab
+   (`/<2LD>.eth/ownership`).
+   - **Expected:** a control to reclaim the manager role.
+   - **Actual:** Transfer, Extend, a read-only Manager row and History. There
+     is nothing to reclaim with.
+5. Transfer is not a workaround. Its flow does run `reclaim`, but only as the
+   first step of handing the 2LD to **another** address.
+
+> On that Ownership tab the Owner row shows **account 2** rather than you.
+> That is **E2E-011** (the controller shown as owner), already filed. Don't
+> re-file it here.
+
+### Reproducing E2E-013 by hand
+
+**The defect:** the card for an emancipated subname tells the parent's owner
+*"Once it expires you can issue it again from the Subnames page."* For a V1
+parent, the Subnames page cannot create subnames at all.
+
+Automated: `pnpm e2e:portal --grep "E2E-013"`. Introduced by #1144; the card
+does not exist on `main`.
+
+1. Drawer → **Migration ›** → **TRANSFER** → **Reassign -PCC**. Wait for the
+   name. It creates a locked 2LD you own, plus `sub-…` held by account 1 with
+   `PARENT_CANNOT_CONTROL` burned.
+2. Press **Open** → `sub-….eth/ownership`. No Transfer link is correct: an
+   emancipated subname is out of the parent's reach.
+3. Append `/transfer`. You get **"This subname is out of the parent's
+   control"**, ending with *"Once it expires you can issue it again from the
+   Subnames page."*
+4. **Do what it says.** Go to the 2LD's **Subnames** tab
+   (`/<2LD>.eth/subnames`).
+   - **Expected:** a way to issue a subname (a **Create subname** button).
+   - **Actual:** no Create button. The portal only wires it for ENSv2 names.
+     Going to `/<2LD>.eth/create-subname` directly answers *"This feature is
+     only available for ENSv2 names."*
+5. Also in the ticket, though the drawer can't reproduce it: the card makes
+   this promise even when the parent has burned `CANNOT_CREATE_SUBDOMAIN`, in
+   which case re-issuing is impossible on-chain too. #1144's own
+   `getV1ParentPowers` already drops that power for such a parent; this card
+   doesn't.
+
 ### Two reads that are not the parent path
 
 - **You hold the subname *and* own the parent** (the plain **Subname** and
