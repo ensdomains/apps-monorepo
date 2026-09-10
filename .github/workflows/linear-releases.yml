@@ -17,10 +17,10 @@ jobs:
           fetch-depth: 0
 
       - name: Manager release
-        uses: linear/linear-release-action@v0
+        uses: linear/linear-release-action@53ad0f863963e7f8e270fba18426bbb55ef55384 # v0.17.2
         with:
           access_key: ${{ secrets.LINEAR_RELEASE_MANAGER }}
-          include_paths: |
+          include_paths: >-
             apps/manager/**,
             packages/**,
             package.json,
@@ -29,10 +29,10 @@ jobs:
             patches/**
 
       - name: Portal release
-        uses: linear/linear-release-action@v0
+        uses: linear/linear-release-action@53ad0f863963e7f8e270fba18426bbb55ef55384 # v0.17.2
         with:
           access_key: ${{ secrets.LINEAR_RELEASE_PORTAL }}
-          include_paths: |
+          include_paths: >-
             apps/portal/**,
             packages/**,
             package.json,
@@ -41,10 +41,10 @@ jobs:
             patches/**
 
       - name: API Worker release
-        uses: linear/linear-release-action@v0
+        uses: linear/linear-release-action@53ad0f863963e7f8e270fba18426bbb55ef55384 # v0.17.2
         with:
           access_key: ${{ secrets.LINEAR_RELEASE_API_WORKER }}
-          include_paths: |
+          include_paths: >-
             workers/api-worker/**,
             packages/**,
             package.json,
