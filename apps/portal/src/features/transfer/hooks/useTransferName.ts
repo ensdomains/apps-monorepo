@@ -9,11 +9,13 @@ import type { Address, PublicClient, WalletClient } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
+import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { getEnsTokenId } from '@/features/profile/hooks/useTokenId'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getLabel } from '@/utils/token/getLabel'
 import { detachNameRegistry } from '../helpers/detachNameRegistry'
@@ -21,6 +23,7 @@ import { detachNameResolver } from '../helpers/detachNameResolver'
 import { setEthAddress } from '../helpers/setEthAddress'
 import { transferToken } from '../helpers/transferToken'
 import { getEthAddressQueryOptions } from '../queries/getEthAddress'
+import { getOwnResolverQueryOptions } from '../queries/getOwnResolver'
 import {
   buildTransferPlan,
   STEP_LABELS,
@@ -86,6 +89,10 @@ export const useTransferName = ({
     closeModal()
     clearTransaction()
     setSavedParams(null)
+    // The parent's subname table lists this name's owner, so it goes stale too.
+    // Only relevant below the TLD — a 2LD's "parent" is `eth`, which has no
+    // subname listing of its own in the app.
+    const parentName = is2LD(name) ? null : getParentName(name)
     const invalidate = () =>
       Promise.all([
         queryClient.invalidateQueries({
@@ -97,6 +104,16 @@ export const useTransferName = ({
         queryClient.invalidateQueries({
           queryKey: getEthAddressQueryOptions(name).queryKey,
         }),
+        ...(parentName
+          ? [
+              queryClient.invalidateQueries({
+                queryKey: getSubnamesQueryOptions({
+                  name: parentName,
+                  protocolVersion: 'ENSv2',
+                }).queryKey,
+              }),
+            ]
+          : []),
       ]).then(() => undefined)
     void invalidate()
     pollForIndexerSync({ invalidateQueries: invalidate })
@@ -132,7 +149,20 @@ export const useTransferName = ({
     const label = getLabel(name)
 
     await match(step)
-      .with('set-eth-addr', () => setEthAddress({ ...common, recipient, id }))
+      .with('set-eth-addr', async () => {
+        // The name's *own* resolver, not the one it may inherit from an
+        // ancestor — writing this name's record onto a parent's resolver
+        // targets a contract the sender doesn't control. The form only offers
+        // this step when the name has its own resolver, so a null here means
+        // the state changed underneath us; fail before touching the chain.
+        const resolverAddress = await queryClient.fetchQuery(
+          getOwnResolverQueryOptions({ label, registryAddress }),
+        )
+        if (!resolverAddress) {
+          throw new Error(`${name} has no resolver of its own to update`)
+        }
+        return setEthAddress({ ...common, resolverAddress, recipient, id })
+      })
       .with('detach-resolver', () =>
         detachNameResolver({ ...common, label, registryAddress, id }),
       )

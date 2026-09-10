@@ -2513,8 +2513,8 @@ msgid "This signature is free and doesn't cost any gas."
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
-msgid "This subname can’t be set up here yet. Please set it up in the ENS app first."
-msgstr ""
+#~ msgid "This subname can’t be set up here yet. Please set it up in the ENS app first."
+#~ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Times shown in your local time zone ({timezoneLabel})"
@@ -3097,7 +3097,12 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
-msgid "Your wallet does not have permission to change the resolver for this name."
+#~ msgid "Your wallet does not have permission to change the resolver for this name."
+#~ msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
 msgstr ""
 
 #: src/routes/wallet.tsx
