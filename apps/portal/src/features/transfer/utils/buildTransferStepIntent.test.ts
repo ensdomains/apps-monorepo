@@ -19,6 +19,7 @@ import { buildTransferStepIntent } from './buildTransferStepIntent'
 const ME = getAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
 const RECIPIENT = getAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
 const RESOLVER = getAddress('0x3333333333333333333333333333333333333333')
+const OTHER = getAddress('0xcccccccccccccccccccccccccccccccccccccccc')
 
 const REGISTRAR = getChainContractAddress({
   chain: sepoliaWithEns,
@@ -62,6 +63,8 @@ const call = (intent: CustomTransactionIntent) => {
         'function setOwner(bytes32 node, address owner)',
         'function setResolver(bytes32 node, address resolver)',
         'function setAddr(bytes32 node, uint256 coinType, bytes a)',
+        'function setSubnodeOwner(bytes32 parentNode, string label, address owner, uint32 fuses, uint64 expiry)',
+        'function setSubnodeOwner(bytes32 node, bytes32 label, address owner)',
       ]),
       data: intent.request.data ?? '0x',
     }),
@@ -177,6 +180,50 @@ describe('buildTransferStepIntent (v1)', () => {
 
   it('refuses a step the plan should never produce for the subject', () => {
     expect(() => buildTransferStepIntent('transfer-erc1155', ctx)).toThrow(
+      /does not apply/,
+    )
+  })
+
+  // Same call the legacy app sends: zero fuses and expiry keep the subname's
+  // own (`_updateName` ORs fuses; `_normaliseExpiry` never lowers expiry).
+  it('reassigns a wrapped subname on the NameWrapper by parent node and label', () => {
+    const intent = buildTransferStepIntent('set-subnode-owner', {
+      ...ctx,
+      name: 'sub.alice.eth',
+      subject: {
+        kind: 'v1-wrapped',
+        owner: OTHER,
+        fuses: {
+          cannotTransfer: false,
+          cannotSetResolver: false,
+          cannotUnwrap: false,
+          parentCannotControl: false,
+        },
+        expiry: null,
+      },
+    })
+    expect(call(intent)).toEqual({
+      to: NAME_WRAPPER,
+      functionName: 'setSubnodeOwner',
+      args: [namehash('alice.eth'), 'sub', RECIPIENT, 0, 0n],
+    })
+  })
+
+  it('reassigns an unwrapped subname on the legacy registry by labelhash', () => {
+    const intent = buildTransferStepIntent('set-subnode-owner', {
+      ...ctx,
+      name: 'sub.alice.eth',
+      subject: { kind: 'v1-registry', owner: OTHER },
+    })
+    expect(call(intent)).toEqual({
+      to: LEGACY_REGISTRY,
+      functionName: 'setSubnodeOwner',
+      args: [namehash('alice.eth'), labelhash('sub'), RECIPIENT],
+    })
+  })
+
+  it('refuses the parent step for a 2LD, which has no parent to act', () => {
+    expect(() => buildTransferStepIntent('set-subnode-owner', ctx)).toThrow(
       /does not apply/,
     )
   })

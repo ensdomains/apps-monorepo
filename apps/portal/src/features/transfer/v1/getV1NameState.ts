@@ -4,8 +4,11 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
   type GetExpiryErrorType,
+  type GetExpiryReturnType,
   type GetOwnerErrorType,
+  type GetOwnerReturnType,
   type GetWrapperDataErrorType,
+  type GetWrapperDataReturnType,
   getExpiry,
   getOwner,
   getWrapperData,
@@ -24,8 +27,13 @@ import { readContract } from 'viem/actions'
 import { normalize } from 'viem/ens'
 import { getAction } from 'viem/utils'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { getParentName, is2LD, isRegistrable } from '@/utils/ens/tldHelpers'
-import type { V1TransferSubject } from '../types'
+import {
+  getEth2LDAncestor,
+  getParentName,
+  is2LD,
+  isRegistrable,
+} from '@/utils/ens/tldHelpers'
+import type { V1ParentState, V1TransferSubject } from '../types'
 
 export class NameNotNormalizableError extends TaggedError(
   'NameNotNormalizableError',
@@ -41,13 +49,14 @@ export class GetV1NameStateError extends TaggedError('GetV1NameStateError')<{
     | ReadContractErrorType
 }> {}
 
+export type V1RegistrationStatus = 'active' | 'gracePeriod' | 'expired'
+
 /**
- * Everything the transfer flow needs to know about a V1 name, read once.
- *
  * `resolveEnsOwner` (what the rest of the app uses) flattens V1 ownership to a
  * single `owner`, which for an unwrapped `.eth` 2LD is the *controller* — not
- * the registrant who can actually move the token. This reads the full ensjs v1
- * `getOwner` shape and keeps the two slots apart.
+ * the registrant who can actually move the token. This keeps the two apart, and
+ * carries the parent's shape alongside so the parent-initiated path
+ * (`setSubnodeOwner`) can be gated off the same read.
  */
 export type V1NameState = {
   /**
@@ -62,73 +71,39 @@ export type V1NameState = {
    * reverts once expired), so the wrapper data alone cannot tell grace from
    * gone.
    */
-  readonly registration: 'active' | 'gracePeriod' | 'expired' | null
+  readonly registration: V1RegistrationStatus | null
   /** The resolver on the name's own registry slot, or null if none. */
   readonly resolverAddress: Address | null
+  /** How the parent node is held. Null for a 2LD, whose parent is a TLD. */
+  readonly parent: V1ParentState | null
   /**
-   * Who can `setSubnodeOwner` the name from above: the parent's wrapper owner
-   * or registry owner. Null for a 2LD, whose parent is a TLD.
+   * Registrar status of the `.eth` 2LD a deeper name sits under. Its lapse
+   * takes the whole subtree with it: whoever registers it next can re-issue
+   * every name below. Null for a 2LD itself or a non-`.eth` name.
    */
-  readonly parentOwner: Address | null
+  readonly ancestorRegistration: V1RegistrationStatus | null
 }
 
-type GetV1NameStateParameters = {
-  readonly name: string
+export type V1NameReads = {
+  readonly nameWrapper: Address
+  readonly owner: GetOwnerReturnType
+  readonly wrapped: GetWrapperDataReturnType
+  readonly resolver: Address
+  readonly expiry: GetExpiryReturnType | null
+  readonly parentOwner: GetOwnerReturnType | null
+  readonly parentWrapped: GetWrapperDataReturnType | null
+  readonly ancestorExpiry: GetExpiryReturnType | null
 }
 
-const getV1NameState = ResultFn(async function* ({
-  name: rawName,
-}: GetV1NameStateParameters) {
-  // Route-supplied, so normalise once here: every hash and ensjs read below
-  // must see the same canonical form or equivalent spellings diverge on-chain.
-  const name = yield* fromSync(
-    () => normalize(rawName),
-    (e) => new NameNotNormalizableError({ cause: e }),
-  )
+const nonZero = (address: Address | null | undefined): Address | null =>
+  address && !isAddressEqual(address, zeroAddress) ? address : null
 
-  const client = yield* safeGetClient()
-
-  const nameWrapper = getChainContractAddress({
-    chain: client.chain,
-    contract: 'ensNameWrapper',
-  })
-  const parentName = getParentName(name)
-
-  const fail = (e: unknown) =>
-    new GetV1NameStateError({ cause: e as GetV1NameStateError['cause'] })
-
-  const [owner, wrapped, resolver, expiry, parentOwner] = yield* fromPromise(
-    Promise.all([
-      getOwner(client, { name }),
-      // Only meaningful when the name turns out to be wrapped, but reading it
-      // in the same batch saves a round trip; for an unwrapped name it is null.
-      getWrapperData(client, { name }),
-      getAction(
-        client,
-        readContract,
-        'readContract',
-      )({
-        address: getChainContractAddress({
-          chain: client.chain,
-          contract: 'ensLegacyRegistry',
-        }),
-        abi: registryResolverSnippet,
-        functionName: 'resolver',
-        args: [namehash(name)],
-      }),
-      isRegistrable(name) ? getExpiry(client, { name }) : null,
-      // A 2LD's parent is a TLD: `.eth` is the registrar's, a DNS TLD is the
-      // DNSRegistrar's. Neither is a counterparty worth reading.
-      parentName !== null && !is2LD(name)
-        ? getOwner(client, { name: parentName })
-        : null,
-    ]),
-    fail,
-  )
-
-  if (!owner) return ok<V1NameState | null>(null)
-
-  const subject = match(owner)
+const deriveSubject = (
+  owner: NonNullable<GetOwnerReturnType>,
+  wrapped: GetWrapperDataReturnType,
+  nameWrapper: Address,
+): V1TransferSubject | null =>
+  match(owner)
     .with(
       { ownershipLevel: 'nameWrapper' },
       (): V1TransferSubject | null =>
@@ -156,10 +131,7 @@ const getV1NameState = ResultFn(async function* ({
       ({ registrant, owner: controller }): V1TransferSubject => ({
         kind: 'v1-registrar',
         registrant,
-        controller:
-          controller && !isAddressEqual(controller, zeroAddress)
-            ? controller
-            : null,
+        controller: nonZero(controller),
       }),
     )
     // Registry level. A registry owner that is the NameWrapper with no wrapper
@@ -174,12 +146,143 @@ const getV1NameState = ResultFn(async function* ({
     )
     .exhaustive()
 
-  return ok<V1NameState | null>({
-    subject,
-    registration: expiry?.status ?? null,
-    resolverAddress: isAddressEqual(resolver, zeroAddress) ? null : resolver,
-    parentOwner: parentOwner?.owner ?? null,
+/** As in `deriveSubject`, a registry slot held by the wrapper with nobody behind it is a lapsed emancipated name. */
+const deriveParent = (
+  owner: GetOwnerReturnType,
+  wrapped: GetWrapperDataReturnType,
+  nameWrapper: Address,
+): V1ParentState | null => {
+  if (!owner) return null
+  const asWrapped = (): V1ParentState => ({
+    owner: wrapped?.owner ?? null,
+    registrant: null,
+    isWrapped: true,
+    cannotCreateSubdomain:
+      wrapped?.fuses.child.CANNOT_CREATE_SUBDOMAIN ?? false,
   })
+  return match(owner)
+    .with({ ownershipLevel: 'nameWrapper' }, asWrapped)
+    .with(
+      { ownershipLevel: 'registry' },
+      ({ owner }) => isAddressEqual(owner, nameWrapper),
+      asWrapped,
+    )
+    .with({ ownershipLevel: 'registrar' }, ({ owner, registrant }) => ({
+      owner: nonZero(owner),
+      registrant: nonZero(registrant),
+      isWrapped: false,
+      cannotCreateSubdomain: false,
+    }))
+    .with({ ownershipLevel: 'registry' }, ({ owner }) => ({
+      owner: nonZero(owner),
+      registrant: null,
+      isWrapped: false,
+      cannotCreateSubdomain: false,
+    }))
+    .exhaustive()
+}
+
+/** Null when the name has no owner at any level. */
+export const deriveV1NameState = ({
+  nameWrapper,
+  owner,
+  wrapped,
+  resolver,
+  expiry,
+  parentOwner,
+  parentWrapped,
+  ancestorExpiry,
+}: V1NameReads): V1NameState | null => {
+  if (!owner) return null
+  return {
+    subject: deriveSubject(owner, wrapped, nameWrapper),
+    registration: expiry?.status ?? null,
+    resolverAddress: nonZero(resolver),
+    parent: deriveParent(parentOwner, parentWrapped, nameWrapper),
+    ancestorRegistration: ancestorExpiry?.status ?? null,
+  }
+}
+
+type GetV1NameStateParameters = {
+  readonly name: string
+}
+
+/**
+ * Everything the transfer flow needs to know about a V1 name, read once and
+ * handed to `deriveV1NameState`. All reads are independent and fired together
+ * so the client's batching coalesces them into one request.
+ */
+const getV1NameState = ResultFn(async function* ({
+  name: rawName,
+}: GetV1NameStateParameters) {
+  // Route-supplied, so normalise once here: every hash and ensjs read below
+  // must see the same canonical form or equivalent spellings diverge on-chain.
+  const name = yield* fromSync(
+    () => normalize(rawName),
+    (e) => new NameNotNormalizableError({ cause: e }),
+  )
+
+  const client = yield* safeGetClient()
+
+  const nameWrapper = getChainContractAddress({
+    chain: client.chain,
+    contract: 'ensNameWrapper',
+  })
+  // A 2LD's parent is a TLD: `.eth` is the registrar's, a DNS TLD is the
+  // DNSRegistrar's. Neither is a counterparty worth reading.
+  const parentName = is2LD(name) ? null : getParentName(name)
+  const ancestorName = getEth2LDAncestor(name)
+
+  const fail = (e: unknown) =>
+    new GetV1NameStateError({ cause: e as GetV1NameStateError['cause'] })
+
+  const [
+    owner,
+    wrapped,
+    resolver,
+    expiry,
+    parentOwner,
+    parentWrapped,
+    ancestorExpiry,
+  ] = yield* fromPromise(
+    Promise.all([
+      getOwner(client, { name }),
+      // Only meaningful when the name turns out to be wrapped, but reading it
+      // in the same batch saves a round trip; for an unwrapped name it is null.
+      getWrapperData(client, { name }),
+      getAction(
+        client,
+        readContract,
+        'readContract',
+      )({
+        address: getChainContractAddress({
+          chain: client.chain,
+          contract: 'ensLegacyRegistry',
+        }),
+        abi: registryResolverSnippet,
+        functionName: 'resolver',
+        args: [namehash(name)],
+      }),
+      isRegistrable(name) ? getExpiry(client, { name }) : null,
+      parentName ? getOwner(client, { name: parentName }) : null,
+      parentName ? getWrapperData(client, { name: parentName }) : null,
+      ancestorName ? getExpiry(client, { name: ancestorName }) : null,
+    ]),
+    fail,
+  )
+
+  return ok<V1NameState | null>(
+    deriveV1NameState({
+      nameWrapper,
+      owner,
+      wrapped,
+      resolver,
+      expiry,
+      parentOwner,
+      parentWrapped,
+      ancestorExpiry,
+    }),
+  )
 })
 
 const getV1NameStateQueryKey = createQueryKey<
