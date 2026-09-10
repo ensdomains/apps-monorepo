@@ -32,7 +32,9 @@ import {
   FUSES,
   V1_BASE_REGISTRAR,
   V1_ENS_REGISTRY,
+  V1_NAME_WRAPPER,
 } from '../../../fixtures/makeV1Name.js'
+import { makeV1RegistrySubname } from '../../../fixtures/makeV1RegistrySubname.js'
 import {
   connectWithHeadlessWallet,
   expect,
@@ -2216,6 +2218,15 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
       args: [tokenIdFor(label)],
     }) as Promise<Address>
 
+  /** ERC-1155 owner of a wrapped name, per the `NameWrapper`. */
+  const readWrapperOwner = (tokenId: bigint) =>
+    publicClient.readContract({
+      address: V1_NAME_WRAPPER,
+      abi: parseAbi(['function ownerOf(uint256 id) view returns (address)']),
+      functionName: 'ownerOf',
+      args: [tokenId],
+    }) as Promise<Address>
+
   /** The controller — who may set records, per the legacy `ENSRegistry`. */
   const readController = (name: string) =>
     publicClient.readContract({
@@ -2342,6 +2353,118 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
       page.getByText(registrant),
       'the card must name the registrant in full so the reader knows who to ask',
     ).toBeVisible({ timeout: 15_000 })
+  })
+
+  test('transfers a WRAPPED V1 name in a single ERC-1155 step', {
+    tag: ['@scenario:F26'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    // `wrapped`, not `locked`: no CANNOT_UNWRAP, no CANNOT_TRANSFER, so the
+    // gate says `ok` and the name is actually movable. F25 covers the same
+    // token type when the fuse forbids it.
+    const name = await makeV1Name({ label: 'v1-xfer-f26', type: 'wrapped' })
+    const tokenId = BigInt(namehash(name))
+
+    expect(
+      (await readWrapperOwner(tokenId)).toLowerCase(),
+      'precondition: the NameWrapper holds the token for the connected wallet',
+    ).toBe(owner.toLowerCase())
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+    await transferButton.click()
+
+    // ONE step, and that is the point of covering this kind separately. A
+    // wrapped name lives entirely in the NameWrapper: the legacy registry's
+    // owner is the wrapper contract itself, so there is no controller slot to
+    // hand over and no `reclaim` to sequence. Contrast F23, where the
+    // unwrapped equivalent needs two writes in a specific order.
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'transfer-erc1155'),
+    ])
+
+    await expect
+      .poll(async () => (await readWrapperOwner(tokenId)).toLowerCase(), {
+        message: 'the ERC-1155 must move to the recipient',
+        timeout: 90_000,
+      })
+      .toBe(recipient.toLowerCase())
+
+    // The registry owner stays the NameWrapper throughout — a plan that also
+    // tried to move a controller slot here would be writing to a contract the
+    // sender does not control.
+    expect(
+      (await readController(name)).toLowerCase(),
+      'the legacy registry owner must remain the NameWrapper',
+    ).toBe(V1_NAME_WRAPPER.toLowerCase())
+  })
+
+  test('transfers a V1 REGISTRY subname via setOwner alone', {
+    tag: ['@scenario:F27'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const owner = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+
+    // The parent must be UNWRAPPED: `setSubnodeOwner` is a legacy-registry
+    // write, and a wrapped parent's registry owner is the NameWrapper, which
+    // this account cannot write through.
+    const parent = await makeV1Name({ label: 'v1-xfer-f27', type: 'unwrapped' })
+    const name = await makeV1RegistrySubname({
+      parentName: parent.replace(/\.eth$/, ''),
+      childLabel: 'sub',
+      ownerAddress: owner,
+      parentOwnerAccount: parentAccount,
+    })
+
+    expect(
+      (await readController(name)).toLowerCase(),
+      'precondition: the subname is held directly in the legacy registry',
+    ).toBe(owner.toLowerCase())
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+    await transferButton.click()
+
+    // The fourth and last move path, and the simplest: a registry-only name
+    // has no ERC-721 and no ERC-1155 — there is nothing to move but the
+    // registry entry itself, so `setOwner` is the whole transfer. Covering it
+    // separately matters because it is the one kind where `reclaim` would be
+    // meaningless: there is no registrant to reclaim from.
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'set-registry-owner'),
+    ])
+
+    await expect
+      .poll(async () => (await readController(name)).toLowerCase(), {
+        message: 'the legacy-registry owner must move to the recipient',
+        timeout: 90_000,
+      })
+      .toBe(recipient.toLowerCase())
+
+    // The parent is a different registry node and must be untouched — a
+    // `setOwner` aimed at the wrong node would hand away the parent instead.
+    expect(
+      (await readController(parent)).toLowerCase(),
+      "transferring a subname must not touch the parent's registry entry",
+    ).toBe(owner.toLowerCase())
   })
 
   test('refuses a wrapped V1 name with CANNOT_TRANSFER burnt', {

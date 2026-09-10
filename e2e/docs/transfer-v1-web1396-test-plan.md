@@ -72,6 +72,8 @@ same from the browser.
 | `manager-only` | account 1 | **you** | `manager-only` |
 | `not-owner` | account 1 | account 1 | `not-owner` |
 | `cannot-transfer` | you (wrapped, `CANNOT_TRANSFER`) | NameWrapper | `cannot-transfer` |
+| `wrapped` (F26) | NameWrapper ERC-1155, you | NameWrapper | `ok` |
+| `registry-only` (F27) | *(none — no ERC-721)* | you | `ok` |
 | `grace` | you, expired 3d | you | `grace` |
 | `expired` | released | you | `expired` |
 
@@ -99,14 +101,27 @@ written for.
 
 ### New coverage — all passing, two consecutive runs
 
+`buildTransferPlan` emits a **different move path per subject kind**, so each
+kind needs its own end-to-end test — a plan that works for one says nothing
+about the others:
+
+| kind | move steps | covered by |
+|---|---|---|
+| `v2` | `transfer-token` | F15, F19, F20 (#1120) |
+| `v1-registrar` (unwrapped 2LD) | `reclaim` → `transfer-erc721` | **F23** |
+| `v1-wrapped` | `transfer-erc1155` | **F26** |
+| `v1-registry` (legacy subname) | `set-registry-owner` | **F27** |
+
 | # | Scenario | Oracle |
 |---|---|---|
-| F23 | Transfer an unwrapped V1 name end to end | **both** the registrant and the controller read as the recipient. Driven through `reclaim` → `transfer-erc721`, so a change in plan shape fails loudly |
+| F23 | Unwrapped V1 name, end to end | **both** the registrant and the controller read as the recipient. Driven through `reclaim` → `transfer-erc721`, so a change in plan shape fails loudly |
 | F24 | `manager-only` | the refusal renders **and names the registrant in full**, so the reader knows who to ask |
 | F25 | `CANNOT_TRANSFER` burnt | "Transfer permanently disabled", and the Ownership tab does not offer a link the route will refuse — the E2E-001 shape |
+| F26 | **Wrapped** V1 name, end to end | exactly **one** step. A wrapped name lives entirely in the NameWrapper — the registry owner is the wrapper contract, so there is no controller slot to hand over and no `reclaim` to sequence. The registry owner must still be the NameWrapper afterwards |
+| F27 | **Registry-only** V1 subname, end to end | `setOwner` is the whole transfer: no ERC-721, no ERC-1155, nothing to move but the registry entry. The **parent's** entry must be untouched |
 
-Not automated: `grace`, `expired`, `not-owner`. All three are covered by the
-manual plan and reachable from the seeder and the dev-tools panel.
+Not automated: `grace`, `expired`, `not-owner` — all refusal states, all covered
+by the manual plan and reachable from the dev-tools panel.
 
 ---
 
