@@ -320,6 +320,7 @@ export type PresetType =
   | 'copy-locked-parent'
   | 'copy-unsupported-resolver'
   | 'locked-no-transfer'
+  | 'manager-only'
   | 'locked-no-resolver'
 
 /**
@@ -529,6 +530,10 @@ export const PRESET_SHAPES: Record<PresetType, PresetShape> = {
     parentWrapped: true,
     parentFuses: LOCKED_2LD | CANNOT_TRANSFER,
   },
+  // A plain unwrapped 2LD as far as the shape goes: the registrant/controller
+  // split cannot be expressed here, because it is a write that happens AFTER
+  // registration. See the `manager-only` arm in createV1NameOnAnvil.
+  'manager-only': { parentWrapped: false, parentFuses: 0 },
   'locked-no-resolver': {
     parentWrapped: true,
     parentFuses: LOCKED_2LD | CANNOT_SET_RESOLVER,
@@ -780,6 +785,12 @@ export const PRESETS: { type: PresetType; label: string; title: string }[] = [
       "Unwrapped 2LD + two registry children: 'bad-' on an unrecognised resolver -> ineligible 'unsupported-resolver', and 'good-' with no resolver -> eligible. A copy always rewrites the resolver to the owner's PermissionedResolver and cannot carry an unknown one across. The good sibling is the control.",
   },
   {
+    type: 'manager-only',
+    label: 'Manager only',
+    title:
+      "Unwrapped 2LD, then the ERC-721 is handed to Anvil account 1 — leaving YOU as the ENSRegistry controller but NOT the BaseRegistrar registrant. Transfer must refuse with 'You manage this name but don't own it' and name the registrant. The one V1 ownership shape with no V2 analogue.",
+  },
+  {
     type: 'locked-no-transfer',
     label: 'Locked -xfer',
     title:
@@ -817,6 +828,7 @@ export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
   'copy-locked-parent': '#9d174d',
   'copy-unsupported-resolver': '#831843',
   'locked-no-transfer': '#991b1b',
+  'manager-only': '#7c6bd6',
   'locked-no-resolver': '#a21caf',
 }
 
@@ -827,7 +839,7 @@ export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
  */
 export const PRESET_FAMILY: Record<
   PresetType,
-  'migrate' | 'copy' | 'ineligible'
+  'migrate' | 'copy' | 'ineligible' | 'transfer'
 > = {
   unwrapped: 'migrate',
   wrapped: 'migrate',
@@ -850,6 +862,7 @@ export const PRESET_FAMILY: Record<
   'copy-locked-parent': 'ineligible',
   'copy-unsupported-resolver': 'ineligible',
   'locked-no-transfer': 'ineligible',
+  'manager-only': 'transfer',
   'locked-no-resolver': 'migrate',
 }
 
@@ -1914,6 +1927,37 @@ export async function createV1NameOnAnvil(
       const ts = await getBlockTimestamp(endpoint)
       const expiryDate = ts + ONE_YEAR
       await reserveInV2(endpoint, label, expiryDate)
+      return { label, expiryDate }
+    }
+    // Registrant and controller in different hands, with YOU holding only the
+    // controller. `BaseRegistrar.safeTransferFrom` moves the ERC-721 and
+    // pointedly does NOT touch the ENSRegistry — which is the whole reason
+    // `reclaim` exists as a separate call, and why a V1 transfer needs two
+    // writes rather than one.
+    case 'manager-only': {
+      await registerV1Name(endpoint, label, false)
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR
+      // Deliberately NOT reserved in V2, unlike every migrate-family preset.
+      // A reserved slot makes `resolveEnsOwner` report ENSv2, which routes the
+      // transfer page to the V2 component and renders "Transfer not available"
+      // instead of the V1 manager-only card — measured. This preset exists to
+      // exercise the V1 path, so the name has to stay purely V1.
+      await sendTx(
+        endpoint,
+        V1_BASE_REGISTRAR,
+        encodeFunctionData({
+          abi: parseAbi([
+            'function safeTransferFrom(address from, address to, uint256 tokenId)',
+          ]),
+          functionName: 'safeTransferFrom',
+          args: [
+            DEFAULT_ACCOUNT,
+            V1_DISTINCT_MANAGER,
+            BigInt(labelhash(label)),
+          ],
+        }),
+      )
       return { label, expiryDate }
     }
     case 'wrapped': {

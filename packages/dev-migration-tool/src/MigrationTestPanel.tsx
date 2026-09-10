@@ -273,29 +273,31 @@ function PresetButtons({
 }) {
   return (
     <div style={rowStyle}>
-      {(['migrate', 'copy', 'ineligible'] as const).map((family, index) => (
-        <Fragment key={family}>
-          {index > 0 && <span style={sepStyle} />}
-          <span style={familyLabelStyle}>{family}</span>
-          {PRESETS.filter((p) => PRESET_FAMILY[p.type] === family).map(
-            (preset) => {
-              const isThisBusy = busy && busyPreset === preset.type
-              return (
-                <button
-                  key={preset.type}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => onCreate(preset.type)}
-                  style={presetChipStyle(busy, isThisBusy)}
-                  title={preset.title}
-                >
-                  {isThisBusy ? '…' : preset.label}
-                </button>
-              )
-            },
-          )}
-        </Fragment>
-      ))}
+      {(['migrate', 'copy', 'transfer', 'ineligible'] as const).map(
+        (family, index) => (
+          <Fragment key={family}>
+            {index > 0 && <span style={sepStyle} />}
+            <span style={familyLabelStyle}>{family}</span>
+            {PRESETS.filter((p) => PRESET_FAMILY[p.type] === family).map(
+              (preset) => {
+                const isThisBusy = busy && busyPreset === preset.type
+                return (
+                  <button
+                    key={preset.type}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onCreate(preset.type)}
+                    style={presetChipStyle(busy, isThisBusy)}
+                    title={preset.title}
+                  >
+                    {isThisBusy ? '…' : preset.label}
+                  </button>
+                )
+              },
+            )}
+          </Fragment>
+        ),
+      )}
     </div>
   )
 }
@@ -309,6 +311,7 @@ function SelectedNameActions({
   onMigrate,
   onRemove,
   onSelect,
+  onTransfer,
   selectedName,
 }: {
   readonly activeNames: readonly ActiveName[]
@@ -318,6 +321,7 @@ function SelectedNameActions({
   readonly onMigrate: (name: ActiveName) => void
   readonly onRemove: (id: string) => void
   readonly onSelect: (id: string) => void
+  readonly onTransfer: (name: ActiveName) => void
   readonly selectedName: ActiveName | null
 }) {
   return (
@@ -342,6 +346,17 @@ function SelectedNameActions({
         title={selectedName ? `Migrate ${selectedName.label}.eth` : ''}
       >
         Migrate
+      </button>
+      <button
+        type="button"
+        disabled={busy || !selectedName}
+        onClick={() => selectedName && onTransfer(selectedName)}
+        style={smallChipStyle('#7c6bd6')}
+        title={
+          selectedName ? `Open ${selectedName.label}.eth's transfer route` : ''
+        }
+      >
+        Transfer
       </button>
       {/* A copy lands in a UserRegistry whose address derives from
           namehash(parentName), so re-migrating the same label hits the same slot
@@ -455,6 +470,23 @@ export function MigrationPanelContent() {
     [navigateToMigration],
   )
 
+  /**
+   * Open the selected name's transfer route.
+   *
+   * Deliberately does NOT sync to the subgraph mock the way `migrate` does:
+   * the transfer flow reads ownership from chain (BaseRegistrar / ENSRegistry
+   * / the V2 registry), not from the indexer, so the injection is irrelevant
+   * here and skipping it keeps the click fast.
+   *
+   * Exists because manual QA of the V1 transfer work (#1134) is run by a
+   * browser agent, which cannot invoke the CLI seeders. Without this the
+   * panel could create every V1 shape but offered no way to reach the screen
+   * that acts on them.
+   */
+  const transferSingle = useCallback((name: ActiveName) => {
+    window.location.href = `/${name.label}.eth/ownership/transfer`
+  }, [])
+
   const removeName = useCallback((id: string) => {
     setActiveNames((prev) => prev.filter((n) => n.id !== id))
   }, [])
@@ -484,6 +516,7 @@ export function MigrationPanelContent() {
             copyState={copyState}
             isCopyPreset={isCopyPreset}
             onMigrate={migrateSingle}
+            onTransfer={transferSingle}
             onRemove={removeName}
             onSelect={setSelectedId}
             selectedName={selectedName}
