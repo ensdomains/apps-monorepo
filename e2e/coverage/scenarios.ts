@@ -2067,7 +2067,7 @@ const extraF: Scenario[] = suite('F', 'transfer', 'portal', 'P5', [
   ],
   [
     'F16',
-    "Parent-authority warning enumerates exactly the powers the parent owner holds",
+    'Parent-authority warning enumerates exactly the powers the parent owner holds',
     'the rendered clauses match the three hasRoles reads (ROLE_UNREGISTER on the subname resource, ROLE_REGISTRAR at ROOT 0, ROLE_SET_SUBREGISTRY on the parent token), and a 2LD shows no such warning at all',
   ],
   [

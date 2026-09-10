@@ -17,10 +17,10 @@
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
-  createSubnameV2,
+  createSubname,
   deploySubregistry,
   setSubregistry,
-} from '@ensdomains/ensjs/wallet'
+} from '@ensdomains/ensjs/wallet/v2'
 import { proxyDeployedEventSnippet } from '@ensdomains/ensjs-abi/v2'
 import {
   type Account,
@@ -86,7 +86,7 @@ export interface SubnameResult {
 /**
  * The expiry to give a subname: its parent's, read from the registry.
  *
- * ensjs's `createSubnameV2` defaults `expires` to `Date.now()/1000 + 1 year`,
+ * ensjs's `createSubname` defaults `expires` to `Date.now()/1000 + 1 year`,
  * which is wrong here twice over. It uses wall-clock time, which drifts from a
  * fork that time-travels; and a year is longer than a test parent's 28-day
  * term, and a registry refuses a subname that would outlive its parent
@@ -208,7 +208,7 @@ export async function registerSubname(
   signer: Account,
 ): Promise<void> {
   const client = clientFor(signer)
-  const hash = await createSubnameV2(
+  const hash = await createSubname(
     client as never,
     {
       registryAddress,
@@ -275,7 +275,7 @@ export function createMakeSubname({ account }: Dependencies) {
       const isLast = index === levels.length - 1
       qualified = `${level.label}.${qualified}`
 
-      const hash = await createSubnameV2(
+      const hash = await createSubname(
         clientFor(account) as never,
         {
           registryAddress,

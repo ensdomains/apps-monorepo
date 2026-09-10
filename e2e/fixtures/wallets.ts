@@ -15,14 +15,8 @@
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
-import {
-  type Account,
-  type Address,
-  encodeFunctionData,
-  type Hash,
-  parseAbi,
-} from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import { type Address, encodeFunctionData, type Hash, parseAbi } from 'viem'
+import { type PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts'
 import {
   publicClient,
   testClient,
@@ -72,8 +66,16 @@ export interface AccountsApi {
 export interface Wallets {
   /** Address of a participant (or a raw user slot). */
   address: (who: Participant | User) => Address
-  /** Signing account for a participant — for fixtures that write directly. */
-  account: (who: Participant | User) => Account
+  /**
+   * Signing account for a participant — for fixtures that write directly.
+   *
+   * `PrivateKeyAccount`, not the wider `Account` union, because that is
+   * exactly what this returns. Fixtures that take a signer (`makeV1Name`,
+   * `makeSubname`, …) declare a non-optional `sign`, which `Account` and even
+   * `LocalAccount` leave optional — so the wider type made every such call
+   * site an error once ensjs narrowed its signer types.
+   */
+  account: (who: Participant | User) => PrivateKeyAccount
   /**
    * Make `who` the connected account, without a reload. Resolves once the
    * provider has emitted `accountsChanged`; the app still needs its own beat

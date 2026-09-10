@@ -41,7 +41,7 @@
  * only moves when the origin actually re-ran `buildMetadataFromBlockchain`.
  */
 import { getResolver, getTextRecord } from '@ensdomains/ensjs/public'
-import { setRecords } from '@ensdomains/ensjs/wallet'
+import { setRecords } from '@ensdomains/ensjs/wallet/v1'
 import { expect, test } from '@playwright/test'
 import { createWalletClient, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'

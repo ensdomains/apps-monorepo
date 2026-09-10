@@ -411,7 +411,7 @@ importers:
         version: 8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
       web-vitals:
         specifier: ^5.1.0
         version: 5.3.0
@@ -676,7 +676,7 @@ importers:
         version: 8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
       web-vitals:
         specifier: ^5.1.0
         version: 5.3.0
@@ -705,6 +705,9 @@ importers:
       tsx:
         specifier: ^4.20.6
         version: 4.21.0
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
 
   packages/dev-dqa-overlay:
     devDependencies:
@@ -742,6 +745,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
 
   packages/dev-time-travel:
     dependencies:
@@ -890,7 +896,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
 
   packages/shared-schema:
     dependencies:
@@ -903,7 +909,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
 
   packages/smart-account:
     dependencies:
@@ -934,7 +940,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
 
   packages/transaction-manager:
     dependencies:
@@ -983,7 +989,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
       wagmi:
         specifier: 'catalog:'
         version: 3.7.6(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(@walletconnect/ethereum-provider@2.21.10(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(zod@4.4.3))(react@19.2.5)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))
@@ -1017,7 +1023,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
 
   packages/weave-loader:
     dependencies:
@@ -1136,7 +1142,7 @@ importers:
         version: 8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
 
 packages:
 
@@ -8243,7 +8249,6 @@ packages:
       '@vitest/ui': 4.1.11
       happy-dom: '*'
       jsdom: '*'
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
@@ -8807,7 +8812,7 @@ snapshots:
       cjs-module-lexer: 1.2.3
       esbuild: 0.28.1
       miniflare: 4.20260617.1
-      vitest: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+      vitest: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
       wrangler: 4.103.0
       zod: 3.25.76
     transitivePeerDependencies:
@@ -12792,7 +12797,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+      vitest: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
 
   '@vitest/expect@3.2.4':
     dependencies:
@@ -16700,7 +16705,7 @@ snapshots:
     optionalDependencies:
       vite: 8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
 
-  vitest@4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)):
+  vitest@4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0):
     dependencies:
       '@vitest/expect': 4.1.11
       '@vitest/mocker': 4.1.11(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
@@ -16727,7 +16732,18 @@ snapshots:
       '@vitest/coverage-v8': 4.1.11(vitest@4.1.11)
       happy-dom: 20.13.2
     transitivePeerDependencies:
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
       - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
 
   wagmi@3.7.6(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(@walletconnect/ethereum-provider@2.21.10(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(zod@3.25.76))(react@19.2.5)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@3.25.76)):
     dependencies:
