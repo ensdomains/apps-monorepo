@@ -234,7 +234,14 @@ registrant — the account that holds the ERC-721 and the only one the registrar
 lets transfer — appears nowhere, and a non-owner is labelled Owner.
 
 The transfer route reads the same name correctly (F24 names the registrant), so
-the data is reachable. Not introduced by #1134; surfaced by testing it.
+the data is reachable.
+
+**Pre-existing — verified, not assumed.** Challenged in review, and rightly:
+#1134 *does* edit `ownership/index.tsx`, so "not this PR's code" was an
+inference. F33 was therefore run against a checkout **without** #1134 and
+reproduces identically there. The PR's only change to that file swaps
+`useCanTransferName` for `useCanTransfer`, gating the Transfer *button*; the
+Owner and Manager rows read from `useEnsOwner` and are untouched.
 
 **Lesson worth keeping:** the first two diagnoses were each made from a browser
 observation without checking the chain state that produced it. The third was
