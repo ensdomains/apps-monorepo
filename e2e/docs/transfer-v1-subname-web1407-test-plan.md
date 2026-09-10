@@ -85,7 +85,28 @@ What the contracts actually do, which the gate claims to mirror:
 
 ## 4. Results
 
-_(filled in from the runs below)_
+Unit tests and typecheck on the integration branch: `pnpm typecheck` clean;
+`vitest run src/features/transfer src/features/profile/hooks/useSubnames.test.ts
+src/utils/ens` → **152 passed, 1 expected fail** (our SUB-F2 guard). Dev-tools
+package: typecheck clean, **170 passed** including the new reassign-preset
+tests.
+
+E2E runs use `pnpm e2e:portal:review --no-deps --grep "@scenario:F(16|3[0-9]|40)\b"`
+(video, trace and screenshot for every test). `--no-deps` skips the harness
+project only because Panoptes was re-backfilling after the restart; none of
+these tests reads the indexer.
+
+| Run | Result | Notes |
+|---|---|---|
+| 1 | *void* | Anvil crashed 2 min in (upstream RPC). F16, F30–F33 passed first; the rest failed on `fetch failed` and never reached the app |
+| 2 | **13 passed, 1 failed** | F39 failed on its first assertion — the owner of a wrapped 2LD in grace read "Not authorized". Root-caused to **E2E-014** |
+| 2a | **2 passed** | After splitting F39: the holder and expired legs pass; the E2E-014 repro fails as expected |
+| 3 | **15 passed** (5.3 m) | All of F16, F30–F40 plus the three repros. E2E-012/013/014 "pass" as expected failures, each verified to fail at the followed instruction or the wrong card, not at a precondition. Anvil up throughout |
+
+Every test has two consecutive green runs (13 in runs 2 and 3; F39 and E2E-014
+in 2a and 3).
+
+_The control run without #1144 is recorded below._
 
 ## 5. Findings
 
