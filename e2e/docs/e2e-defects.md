@@ -109,6 +109,40 @@ table is the durable record.
 Not defects — the app behaves as designed — but they stop scenarios reaching a
 terminal state, so they are tracked here until fixed.
 
+### `anvil-mainnet` cannot fork, so the whole metadata suite (18 tests) never runs
+
+`docker-compose.yml` defaults `MAINNET_FORK_URL` to
+`https://ethereum-rpc.publicnode.com`, which refuses the archive request Anvil
+makes on startup:
+
+```
+Error: failed to get fork block number
+- HTTP error 403: {"message":"Archive requests require a personal token.
+   Get one at: https://www.allnodes.com/publicnode"}
+```
+
+`anvil-mainnet` therefore exits 1, and `metadata-service` — which depends on it
+— never starts, so `pnpm e2e:metadata` cannot run at all. Measured 2026-09-10:
+`docker compose up -d metadata-service` fails with
+`dependency failed to start: container infra-anvil-mainnet-1 exited (1)`.
+
+Note the asymmetry that hides this: `SEPOLIA_FORK_URL` has a **working** drpc
+endpoint baked in as its default, so the portal and manager suites come up on a
+bare checkout and nothing signals that the mainnet side did not. The failure is
+also silent from the suite's point of view — you get a connection error, not a
+"fork unavailable" message.
+
+**Fix:** put an archive-capable endpoint in `e2e/infra/.env` (gitignored;
+template at `e2e/infra/.env.example`):
+
+```
+MAINNET_FORK_URL=<archive-capable mainnet RPC>
+```
+
+Worth considering whether the compose default should be a URL that actually
+works, the way the Sepolia one is — or whether it should be absent, so the
+failure names itself instead of 403ing.
+
 ### The live Sepolia `.eth` registry's own history now exceeds Anvil's `eth_getLogs` cap — blocks C1, C4, C5, C11, C12
 
 `helpers/role-assertions.ts`'s `readRoleHolders` (the on-chain oracle several
