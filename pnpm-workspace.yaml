@@ -31,6 +31,12 @@ catalog:
   wagmi: ^3.7.6
   "@wagmi/core": ^3.6.4
   "@wagmi/connectors": ^8.1.0
+  # Optional peer of abitype (under viem). pnpm keys each viem copy by the zod it
+  # resolves, and the apps otherwise pick up tanstack router's zod 3 while every
+  # package gets zod 4. That splits viem into two module instances, and then
+  # `instanceof` on viem errors fails across the app/package boundary. Declared
+  # in the apps only to pin that peer; nothing imports it.
+  zod: ^4.4.3
 
 dedupeDirectDeps: true
 

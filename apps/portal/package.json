@@ -92,7 +92,8 @@
     "use-local-storage-state": "^20.0.0",
     "viem": "catalog:",
     "wagmi": "catalog:",
-    "xstate": "catalog:"
+    "xstate": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "catalog:",
