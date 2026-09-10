@@ -3257,6 +3257,94 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
     ).toBe(parentOwner.toLowerCase())
   })
 
+  // The two cards below each end by telling the user where to go next. A
+  // refusal is only useful if that instruction can be followed, so these
+  // follow it — and neither destination exists for a V1 name.
+
+  test('the "Reclaim the parent first" card points at a control the Ownership page does not have (E2E-012)', {
+    tag: ['@scenario:F37'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.fail(
+      true,
+      'E2E-012: the card says to reclaim the manager role "from its Ownership page", which has no reclaim control',
+    )
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+    const parent = await makeV1Name({
+      label: 'v1-xfer-e012',
+      type: 'unwrapped',
+    })
+    const name = await makeV1RegistrySubname({
+      parentName: parent.replace(/\.eth$/, ''),
+      childLabel: 'sub',
+      ownerAddress: accounts.getAddress('user3'),
+      parentOwnerAccount: parentAccount,
+    })
+    await setRegistryOwner(parentAccount, parent, accounts.getAddress('user2'))
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await expect(page.getByText(/Reclaim the parent first/)).toBeVisible({
+      timeout: 60_000,
+    })
+    await expect(
+      page.getByText(/from its\s+Ownership page/),
+      'precondition: the card sends the user to the parent Ownership page',
+    ).toBeVisible()
+
+    // Follow the instruction.
+    await page.goto(`${PORTAL_APP_URL}/${parent}/ownership`)
+    await expect(
+      page.getByRole('heading', { name: 'Ownership' }).first(),
+    ).toBeVisible({ timeout: 60_000 })
+    await expect(
+      page
+        .getByRole('button', { name: /reclaim/i })
+        .or(page.getByRole('link', { name: /reclaim/i })),
+      'the page the card names must offer the reclaim it tells the user to do',
+    ).toBeVisible({ timeout: 30_000 })
+  })
+
+  test('the emancipated card says to re-issue from the Subnames page, which cannot create V1 subnames (E2E-013)', {
+    tag: ['@scenario:F35'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.fail(
+      true,
+      'E2E-013: "issue it again from the Subnames page" — the portal only creates subnames under ENSv2 names',
+    )
+    test.setTimeout(300_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: parentAccount })
+    const parent = await makeV1Name({ label: 'v1-xfer-e013', type: 'locked' })
+    const name = await makeV1Subname({
+      parentName: parent.replace(/\.eth$/, ''),
+      childLabel: 'sub',
+      ownerAddress: accounts.getAddress('user3'),
+      parentOwnerAccount: parentAccount,
+      fuses: CHILD_FUSES.EMANCIPATED,
+    })
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await expect(
+      page.getByText(/issue it again from the Subnames page/),
+      'precondition: the card sends the parent to the Subnames page',
+    ).toBeVisible({ timeout: 60_000 })
+
+    // Follow the instruction: the parent's Subnames page, and the route its
+    // Create button would lead to.
+    await page.goto(`${PORTAL_APP_URL}/${parent}/subnames`)
+    await expect(
+      page
+        .getByRole('link', { name: 'Create subname' })
+        .or(page.getByRole('button', { name: 'Create subname' })),
+      'the page the card names must let the parent issue a subname',
+    ).toBeVisible({ timeout: 60_000 })
+  })
+
   test('says which subname does not exist, rather than calling it unregistered', {
     tag: ['@scenario:F40'],
   }, async ({ portalPage: page, wallet, accounts }) => {
