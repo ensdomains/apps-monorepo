@@ -50,6 +50,9 @@ export const toDisplayState = ({
   if (parsedInput.type === 'address') {
     return { type: 'address', address: parsedInput.value }
   }
+  if (parsedInput.type === 'invalid') {
+    return { type: 'not-supported', domainName: parsedInput.value }
+  }
   if (!instantName) return { type: 'idle' }
   if (instantKind?.type === 'invalid') {
     return { type: 'not-supported', domainName: instantName }

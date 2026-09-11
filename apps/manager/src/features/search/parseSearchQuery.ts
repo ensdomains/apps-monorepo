@@ -10,11 +10,14 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
     return { type: 'address', value: trimmed.toLowerCase() as Address }
   }
 
-  const candidate = /\.eth$/i.test(trimmed) ? trimmed : `${trimmed}.eth`
+  // Only bare labels get the convenient `.eth` suffix. A dotted input is
+  // already a complete name, so preserve it to allow unsupported TLDs to be
+  // classified instead of turning `name.xyz` into `name.xyz.eth`.
+  const candidate = trimmed.includes('.') ? trimmed : `${trimmed}.eth`
 
   try {
     return { type: 'name', value: normalize(candidate) }
   } catch {
-    return { type: 'name', value: candidate.toLowerCase() }
+    return { type: 'invalid', value: candidate.toLowerCase() }
   }
 }

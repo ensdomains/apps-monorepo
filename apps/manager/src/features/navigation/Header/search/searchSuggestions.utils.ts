@@ -58,9 +58,12 @@ export const buildSuggestions = ({
   if (parsedInput.type === 'empty') {
     for (const item of history) {
       if (item.kind === 'name') {
+        const parsedHistoryName = parseSearchQuery(item.value)
+        if (parsedHistoryName.type !== 'name') continue
+
         suggestions.push({
           type: 'name',
-          value: item.value,
+          value: parsedHistoryName.value,
         })
       } else {
         suggestions.push({ type: 'address', value: item.value })

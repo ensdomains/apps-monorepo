@@ -32,7 +32,7 @@ const toAvailabilitySignal = ({
   return isAvailable ? { status: 'available' } : { status: 'unavailable' }
 }
 
-const toExistenceSignal = ({
+export const toExistenceSignal = ({
   isSubname,
   ownerPending,
   ownerError,
@@ -50,7 +50,12 @@ const toExistenceSignal = ({
   readonly indexerHit: boolean
 }): ExistenceSignal => {
   if (!isSubname) return { status: 'unowned' }
-  if (hasOwner || indexerHit) return { status: 'owned' }
+
+  // Query errors can retain the previous successful data. Only trust a
+  // positive result from a source whose current request succeeded.
+  if ((hasOwner && !ownerError) || (indexerHit && !indexerError)) {
+    return { status: 'owned' }
+  }
   if (ownerPending || indexerPending) return { status: 'pending' }
   if (ownerError || indexerError) return { status: 'unknown' }
   return { status: 'unowned' }

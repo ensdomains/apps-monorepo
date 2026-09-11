@@ -4,6 +4,7 @@ export type ParsedSearchQuery =
   | { readonly type: 'empty' }
   | { readonly type: 'address'; readonly value: Address }
   | { readonly type: 'name'; readonly value: string }
+  | { readonly type: 'invalid'; readonly value: string }
 
 export type SearchNameInvalidReason =
   | 'too-short'

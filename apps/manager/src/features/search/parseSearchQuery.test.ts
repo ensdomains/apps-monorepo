@@ -21,6 +21,13 @@ describe('parseSearchQuery', () => {
     })
   })
 
+  it('preserves dotted names so unsupported TLDs can be classified', () => {
+    expect(parseSearchQuery('vitalik.xyz')).toEqual({
+      type: 'name',
+      value: 'vitalik.xyz',
+    })
+  })
+
   it('parses subnames', () => {
     expect(parseSearchQuery('sub.bigint.eth')).toEqual({
       type: 'name',
@@ -40,6 +47,13 @@ describe('parseSearchQuery', () => {
     expect(parseSearchQuery('ＦＯＯ.eth')).toEqual({
       type: 'name',
       value: 'foo.eth',
+    })
+  })
+
+  it('returns invalid when ENSIP-15 normalization fails', () => {
+    expect(parseSearchQuery('ab_c.eth')).toEqual({
+      type: 'invalid',
+      value: 'ab_c.eth',
     })
   })
 

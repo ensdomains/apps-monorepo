@@ -67,6 +67,19 @@ describe('buildSuggestions', () => {
     ])
   })
 
+  it('normalizes names from persisted history', () => {
+    const history: SearchHistoryItem[] = [
+      { kind: 'name', value: 'ＦＯＯ.eth', timestamp: 1 },
+    ]
+
+    const result = buildSuggestions({
+      parsedInput: { type: 'empty' },
+      history,
+    })
+
+    expect(result).toEqual([{ type: 'name', value: 'foo.eth' }])
+  })
+
   it('returns only the typed name as the single suggestion', () => {
     const result = buildSuggestions({
       parsedInput: { type: 'name', value: 'bigint.eth' },
