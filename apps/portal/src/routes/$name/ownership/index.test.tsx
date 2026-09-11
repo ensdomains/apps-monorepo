@@ -23,8 +23,7 @@ vi.mock('wagmi', async (importOriginal) => {
   return {
     ...actual,
     useConnection: () => ({ address: undefined }),
-    // `Owner` resolves a primary name for the address; none here, so the row
-    // shows the truncated address.
+    // No primary name, so the row shows the truncated address.
     useEnsName: () => ({ data: null, error: null, isLoading: false }),
   }
 })
@@ -200,8 +199,7 @@ describe('ownership route — Owner row', () => {
     expect(ownerRow()).toHaveTextContent('0x7099…79C8')
   })
 
-  // In grace the 721 `ownerOf` reverts, so there is no registrant to show; the
-  // registry owner is the only trace of who held it.
+  // In grace the 721 `ownerOf` reverts, so no registrant is left to show.
   it('falls back to the registry owner once the name has lapsed', () => {
     v1StateQuery.data = {
       subject: null,
