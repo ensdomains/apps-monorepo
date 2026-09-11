@@ -390,6 +390,60 @@ describe('assertNoLiveSubregistryOverwrite', () => {
     ).resolves.toBeUndefined()
   })
 
+  it('never reads a copied name from ETHRegistry by its own label', async () => {
+    // `sub.eth` is an unrelated 2LD. Reading its pointer for `sub.alice.eth`
+    // would refuse — or pass — the copy on someone else's registry.
+    const publicClient = makeRegistryClient({ subregistry: LIVE_REGISTRY })
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [
+          makeClassified({
+            tokenType: 'registry-child',
+            label: 'sub',
+            name: 'sub.alice.eth',
+            parentName: 'alice.eth',
+          }),
+        ],
+      }),
+    ).resolves.toBeUndefined()
+    expect(publicClient.readContract).not.toHaveBeenCalled()
+  })
+
+  it('leaves the UserRegistry route to copy readiness and checks the rest', async () => {
+    const publicClient = makeRegistryClient({})
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [
+          // Parent of a copy: its entry receives a UserRegistry, not address(0).
+          makeClassified({ tokenType: 'unwrapped', label: 'alice' }),
+          makeClassified({
+            tokenType: 'unlocked-child',
+            label: 'sub',
+            name: 'sub.alice.eth',
+            parentName: 'alice.eth',
+          }),
+          makeClassified({
+            tokenType: 'unwrapped',
+            label: 'bob',
+            name: 'bob.eth',
+          }),
+        ],
+      }),
+    ).resolves.toBeUndefined()
+
+    expect(publicClient.readContract).toHaveBeenCalledOnce()
+    expect(publicClient.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: V2_CONTRACTS.ETHRegistry,
+        args: ['bob'],
+      }),
+    )
+  })
+
   it('skips a destination registry that is not deployed', async () => {
     const publicClient = makeRegistryClient({ hasCode: false })
 

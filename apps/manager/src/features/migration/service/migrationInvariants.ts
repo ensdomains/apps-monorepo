@@ -233,16 +233,27 @@ const isChildName = (name: ClassifiedName): boolean =>
   name.tokenType === 'locked-child' || name.tokenType === 'detached-child'
 
 /**
- * Where a selected name's subregistry pointer gets written, or `null` when the
- * destination registry is created by this same migration — a wrapper deployed
- * mid-plan holds no entries, so it has nothing to detach.
+ * Where a selected name's subregistry pointer gets written, or `null` when this
+ * guard does not own that write:
+ *
+ * - the destination registry is created by this same migration — a wrapper
+ *   deployed mid-plan holds no entries, so it has nothing to detach;
+ * - the name is on the UserRegistry route, i.e. copied or the parent of a
+ *   copied name. `assertCopyMigrationReadiness` owns both of those slots.
  */
-const subregistryWriteFor = (
-  name: ClassifiedName,
-  selectedNames: ReadonlySet<string>,
-): SubregistryWrite | null => {
+const subregistryWriteFor = ({
+  name,
+  selectedNames,
+  copyParents,
+}: {
+  readonly name: ClassifiedName
+  readonly selectedNames: ReadonlySet<string>
+  readonly copyParents: ReadonlySet<string>
+}): SubregistryWrite | null => {
+  if (name.action === 'copy' || copyParents.has(name.domain.name)) return null
+
   // Locked names are re-pointed at their deterministic WrapperRegistry; every
-  // other route registers with `address(0)`.
+  // other direct route registers with `address(0)`.
   const nextSubregistry =
     name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child'
       ? computeExpectedWrapperRegistry({ name: name.domain.name })
@@ -278,6 +289,18 @@ const subregistryWriteFor = (
  * WrapperRegistry, and both discard whatever was configured. The pointer is
  * only re-read here, before the wallet signs anything, so a name that gained a
  * registry after selection fails closed instead of losing its subnames.
+ *
+ * This guard owns the direct routes. Every slot that receives a UserRegistry —
+ * a copied name's parent, and each copy's own entry inside that registry — is
+ * owned by `assertCopyMigrationReadiness`, which re-runs before every batch.
+ * The two treat a pointer that already holds the planned value differently,
+ * and that is deliberate:
+ *
+ * - Here, writing a pointer over itself detaches nothing, so it passes.
+ * - The UserRegistry route deploys the registry before pointing at it, so a
+ *   slot that already holds one is either an earlier attempt or a conflict.
+ *   That check accepts it only when the batch journal records such an attempt
+ *   and the registry verifies, and refuses any other non-zero pointer.
  */
 export const assertNoLiveSubregistryOverwrite = async ({
   publicClient,
@@ -287,8 +310,15 @@ export const assertNoLiveSubregistryOverwrite = async ({
   readonly names: readonly ClassifiedName[]
 }): Promise<void> => {
   const selectedNames = new Set(names.map((name) => name.domain.name))
+  // Copies can't complete ahead of their parent, so while a copy parent is
+  // still in `names`, its copies are too.
+  const copyParents = new Set(
+    names.flatMap((name) =>
+      name.action === 'copy' && name.parentName ? [name.parentName] : [],
+    ),
+  )
   const writes = names
-    .map((name) => subregistryWriteFor(name, selectedNames))
+    .map((name) => subregistryWriteFor({ name, selectedNames, copyParents }))
     .filter((write): write is SubregistryWrite => write !== null)
 
   await Promise.all(
