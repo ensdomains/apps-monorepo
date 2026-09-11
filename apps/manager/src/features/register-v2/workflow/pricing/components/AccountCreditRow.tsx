@@ -10,8 +10,8 @@ export const AccountCreditRow = ({
   credit,
   isLoading,
 }: {
-  credit: number
-  isLoading: boolean
+  readonly credit: number
+  readonly isLoading: boolean
 }) => {
   const { t } = useLingui()
 
