@@ -1163,7 +1163,7 @@ export async function sendTx(
   data: `0x${string}`,
   value = '0x0',
 ): Promise<void> {
-  await rpcCall(endpoint, 'eth_sendTransaction', [
+  const hash = (await rpcCall(endpoint, 'eth_sendTransaction', [
     {
       from: DEFAULT_ACCOUNT,
       to,
@@ -1172,8 +1172,19 @@ export async function sendTx(
       gasPrice: '0x3B9ACA00', // 1 gwei — override fork base fee
       value,
     },
-  ])
+  ])) as string
   await rpcCall(endpoint, 'evm_mine', [])
+  // Anvil mines a reverted transaction without throwing. Unchecked, a failed
+  // step leaves a preset half-built while the panel reports it created — the
+  // name then reads as "not registered" and looks like an app bug.
+  const receipt = (await rpcCall(endpoint, 'eth_getTransactionReceipt', [
+    hash,
+  ])) as { status?: string } | null
+  if (receipt?.status !== '0x1') {
+    throw new Error(
+      `Transaction to ${to} reverted (${hash}). The preset is incomplete — see the Anvil logs.`,
+    )
+  }
 }
 
 export async function increaseTime(
@@ -1765,8 +1776,19 @@ export async function isController(
  */
 export async function ensureFunded(endpoint: string): Promise<void> {
   const TARGET = '0x56BC75E2D63100000' // 100 ETH in wei
-  // Clear EOF code so Anvil treats the account as a plain EOA
-  await rpcCall(endpoint, 'anvil_setCode', [DEFAULT_ACCOUNT, '0x'])
+  // Anvil's well-known accounts carry squatted EIP-7702 delegation code on
+  // Sepolia. Clear it on EVERY account a preset hands a name to, not just
+  // ours: the NameWrapper and `safeTransferFrom` call the receiver hook on an
+  // address with code, and the delegate rejects it — which is how the
+  // reassign presets silently failed to create their subname after a fresh
+  // fork.
+  for (const account of [
+    DEFAULT_ACCOUNT,
+    V1_DISTINCT_MANAGER,
+    V1_THIRD_ACCOUNT,
+  ]) {
+    await rpcCall(endpoint, 'anvil_setCode', [account, '0x'])
+  }
   await rpcCall(endpoint, 'anvil_setBalance', [DEFAULT_ACCOUNT, TARGET])
   const actual = (await rpcCall(endpoint, 'eth_getBalance', [
     DEFAULT_ACCOUNT,
