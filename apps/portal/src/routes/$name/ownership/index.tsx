@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ClockIcon } from 'lucide-react'
-import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { ShieldPersonIcon } from '@/assets/icons'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -52,6 +52,50 @@ const OWNERSHIP_HISTORY_EVENT_TYPES = [
   'FusesSet',
 ] as const
 
+/**
+ * `resolveEnsOwner` reports the *controller* of an unwrapped `.eth` 2LD, so the
+ * Owner row reads the holder from the full V1 shape instead. Its own component
+ * because the read depends on `protocolVersion` (STYLEGUIDE, query waterfalls).
+ */
+const V1OwnerRow = ({
+  name,
+  label,
+  registryOwner,
+}: {
+  readonly name: string
+  readonly label: string
+  readonly registryOwner: Address
+}) => {
+  const { data, isLoading, isError } = useQuery(
+    getV1NameStateQueryOptions({ name }),
+  )
+
+  // Row-shaped states: the full-size blocks would break the header list.
+  if (isError)
+    return (
+      <InfoRow icon={ShieldPersonIcon} label={label}>
+        <span className="text-sm text-muted-foreground">
+          Failed to load owner
+        </span>
+      </InfoRow>
+    )
+  if (isLoading)
+    return (
+      <InfoRow icon={ShieldPersonIcon} label={label}>
+        <span className="text-sm text-muted-foreground">Loading</span>
+      </InfoRow>
+    )
+
+  // A lapsed name has no holder — the 721 `ownerOf` reverts in grace.
+  return (
+    <Owner
+      asRow
+      label={label}
+      owner={data?.subject ? getV1Holder(data.subject) : registryOwner}
+    />
+  )
+}
+
 export const Route = createFileRoute('/$name/ownership/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
@@ -77,15 +121,6 @@ function RouteComponent() {
     name,
     protocolVersion: data?.protocolVersion ?? 'ENSv2',
     enabled: grace.isInGrace,
-  })
-
-  // `resolveEnsOwner` flattens V1 ownership to the registry owner — the
-  // *controller* of an unwrapped `.eth` 2LD, not the registrant who holds the
-  // ERC-721. The Owner row needs the full shape (the same read `useCanTransfer`
-  // makes, so nothing extra goes out).
-  const v1StateQuery = useQuery({
-    ...getV1NameStateQueryOptions({ name }),
-    enabled: data?.protocolVersion === 'ENSv1',
   })
 
   const canTransfer = useCanTransfer({ name, owner: data, account: address })
@@ -158,28 +193,15 @@ function RouteComponent() {
           name={name}
           protocolVersion={data.protocolVersion}
         />
-        {match(v1StateQuery)
-          .with({ isError: true }, () => (
-            <InfoRow icon={ShieldPersonIcon} label={ownerLabel}>
-              <span className="text-sm text-muted-foreground">
-                Failed to load owner
-              </span>
-            </InfoRow>
-          ))
-          .with({ isLoading: true }, () => (
-            <InfoRow icon={ShieldPersonIcon} label={ownerLabel}>
-              <span className="text-sm text-muted-foreground">Loading</span>
-            </InfoRow>
-          ))
-          .otherwise(({ data: v1State }) => (
-            <Owner
-              asRow
-              label={ownerLabel}
-              owner={
-                v1State?.subject ? getV1Holder(v1State.subject) : data.owner
-              }
-            />
-          ))}
+        {data.protocolVersion === 'ENSv1' ? (
+          <V1OwnerRow
+            name={name}
+            label={ownerLabel}
+            registryOwner={data.owner}
+          />
+        ) : (
+          <Owner asRow label={ownerLabel} owner={data.owner} />
+        )}
         {data.protocolVersion === 'ENSv1' && (
           <V1NameManagerRecord asRow name={name} />
         )}
