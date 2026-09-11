@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ClockIcon } from 'lucide-react'
+import { match } from 'ts-pattern'
 import { useConnection } from 'wagmi'
+import { ShieldPersonIcon } from '@/assets/icons'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NameNotRegisteredMessage } from '@/components/NameNotRegisteredMessage'
@@ -13,6 +15,7 @@ import { ReclaimManagerButton } from '@/features/ownership/components/ReclaimMan
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
+import { InfoRow } from '@/features/profile/components/InfoRow'
 import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
@@ -20,6 +23,8 @@ import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { useCanTransfer } from '@/features/transfer/hooks/useCanTransfer'
+import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
+import { getV1Holder } from '@/features/transfer/v1/rules'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 
 /**
@@ -74,6 +79,15 @@ function RouteComponent() {
     enabled: grace.isInGrace,
   })
 
+  // `resolveEnsOwner` flattens V1 ownership to the registry owner — the
+  // *controller* of an unwrapped `.eth` 2LD, not the registrant who holds the
+  // ERC-721. The Owner row needs the full shape (the same read `useCanTransfer`
+  // makes, so nothing extra goes out).
+  const v1StateQuery = useQuery({
+    ...getV1NameStateQueryOptions({ name }),
+    enabled: data?.protocolVersion === 'ENSv1',
+  })
+
   const canTransfer = useCanTransfer({ name, owner: data, account: address })
 
   if (error)
@@ -111,6 +125,8 @@ function RouteComponent() {
       />
     )
 
+  const ownerLabel = grace.isInGrace ? 'Previous owner' : 'Owner'
+
   return (
     <div className="flex flex-col gap-8">
       {grace.isInGrace && grace.graceEndDate && (
@@ -142,11 +158,28 @@ function RouteComponent() {
           name={name}
           protocolVersion={data.protocolVersion}
         />
-        <Owner
-          asRow
-          label={grace.isInGrace ? 'Previous owner' : 'Owner'}
-          owner={data.owner}
-        />
+        {match(v1StateQuery)
+          .with({ isError: true }, () => (
+            <InfoRow icon={ShieldPersonIcon} label={ownerLabel}>
+              <span className="text-sm text-muted-foreground">
+                Failed to load owner
+              </span>
+            </InfoRow>
+          ))
+          .with({ isLoading: true }, () => (
+            <InfoRow icon={ShieldPersonIcon} label={ownerLabel}>
+              <span className="text-sm text-muted-foreground">Loading</span>
+            </InfoRow>
+          ))
+          .otherwise(({ data: v1State }) => (
+            <Owner
+              asRow
+              label={ownerLabel}
+              owner={
+                v1State?.subject ? getV1Holder(v1State.subject) : data.owner
+              }
+            />
+          ))}
         {data.protocolVersion === 'ENSv1' && (
           <V1NameManagerRecord asRow name={name} />
         )}
