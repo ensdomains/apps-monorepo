@@ -20,14 +20,14 @@ export const AccountCreditRow = ({
       amount={credit}
       isCredit
       isLoading={isLoading}
-      label={<Trans>Already in your ENS account</Trans>}
+      label={<Trans>Left from your last attempt</Trans>}
       tooltip={
         <Trans>
-          USDC left in your ENS account by an earlier registration. It is spent
-          first, so your wallet only covers the rest.
+          Money left in your ENS account from a registration you started
+          earlier. It is used first, so your wallet pays the rest.
         </Trans>
       }
-      tooltipLabel={t`Why is there a credit?`}
+      tooltipLabel={t`Where did this come from?`}
     />
   )
 }

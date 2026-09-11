@@ -30,7 +30,7 @@ export const PaymentBreakdown = ({
         <PaymentBreakdownRow
           amount={figures.registration}
           isLoading={funding.isLoading}
-          label={<Trans>Registration</Trans>}
+          label={<Trans>Name price</Trans>}
         />
       )}
       <NetworkCostRow

@@ -131,11 +131,11 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByText('Registration')).toBeVisible()
+    expect(screen.getByText('Name price')).toBeVisible()
     expect(screen.getByText('$160.00')).toBeVisible()
-    expect(screen.getByText('Already in your ENS account')).toBeVisible()
+    expect(screen.getByText('Left from your last attempt')).toBeVisible()
     expect(screen.getByText('-$1.82')).toBeVisible()
-    expect(screen.getByText('From your wallet')).toBeVisible()
+    expect(screen.getByText('You pay now')).toBeVisible()
     expect(screen.getByText('$162.50')).toBeVisible()
     expect(screen.queryByText('Total')).not.toBeInTheDocument()
     expect(screen.queryByText('$164.32')).not.toBeInTheDocument()
@@ -157,10 +157,10 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByText('Total')).toBeVisible()
     expect(screen.getByText('$164.32')).toBeVisible()
     expect(
-      screen.queryByText('Already in your ENS account'),
+      screen.queryByText('Left from your last attempt'),
     ).not.toBeInTheDocument()
-    expect(screen.queryByText('From your wallet')).not.toBeInTheDocument()
-    expect(screen.queryByText('Registration')).not.toBeInTheDocument()
+    expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
+    expect(screen.queryByText('Name price')).not.toBeInTheDocument()
   })
 
   it('says whose balance the token row is showing', () => {
@@ -206,7 +206,7 @@ describe('TokenPickerContentBase', () => {
     })
 
     expect(
-      screen.queryByText('Already in your ENS account'),
+      screen.queryByText('Left from your last attempt'),
     ).not.toBeInTheDocument()
     expect(screen.queryByText(/^--/)).not.toBeInTheDocument()
     expect(screen.getByText('Total')).toBeVisible()
@@ -230,9 +230,9 @@ describe('TokenPickerContentBase', () => {
     })
 
     expect(
-      screen.queryByText('Already in your ENS account'),
+      screen.queryByText('Left from your last attempt'),
     ).not.toBeInTheDocument()
-    expect(screen.queryByText('From your wallet')).not.toBeInTheDocument()
+    expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
     expect(screen.getByText('Total')).toBeVisible()
   })
 })
