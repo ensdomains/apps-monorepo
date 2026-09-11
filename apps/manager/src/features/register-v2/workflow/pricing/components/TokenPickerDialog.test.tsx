@@ -21,7 +21,7 @@ describe('PaymentDialogBase', () => {
     )
 
     const trigger = await screen.findByRole('button', {
-      name: 'What is the network cost?',
+      name: 'What is the network fee?',
     })
 
     await waitFor(() =>

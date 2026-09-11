@@ -310,12 +310,12 @@ export const TokenPickerContent = () => {
     .with(
       { funding: { isUnderfunded: true, hcaCredit: P.number.gt(0) } },
       ({ funding: f }) =>
-        t`Not enough USDC. This registration costs ${f.total.toFixed(2)} USDC and your account already holds ${f.hcaCredit.toFixed(2)}, so you need ${f.walletDebit.toFixed(2)} more — but your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
+        t`Not enough USDC. This name costs ${f.total.toFixed(2)} USDC, and ${f.hcaCredit.toFixed(2)} is left from your last attempt, so you pay ${f.walletDebit.toFixed(2)} now. Your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
     )
     .with(
       { funding: { isUnderfunded: true } },
       ({ funding: f }) =>
-        t`Not enough USDC. This registration needs ${f.walletDebit.toFixed(2)} USDC — a ${f.registration.toFixed(2)} registration plus a ${f.networkFee.toFixed(2)} network cost — but your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
+        t`Not enough USDC. This name costs ${f.walletDebit.toFixed(2)} USDC: ${f.registration.toFixed(2)} for the name plus ${f.networkFee.toFixed(2)} in network fees. Your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
     )
     .with(
       { mutationError: P.instanceOf(InsufficientFundingError) },
