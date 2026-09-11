@@ -146,7 +146,11 @@ const deriveSubject = (
     )
     .exhaustive()
 
-/** As in `deriveSubject`, a registry slot held by the wrapper with nobody behind it is a lapsed emancipated name. */
+/**
+ * As in `deriveSubject`, a slot held by the wrapper with nobody behind it is a
+ * lapsed emancipated name — but a `.eth` 2LD in grace reads back that way while
+ * the wrapper still names its owner, for the 90 days until the wrapper expiry.
+ */
 const deriveParent = (
   owner: GetOwnerReturnType,
   wrapped: GetWrapperDataReturnType,
@@ -163,7 +167,7 @@ const deriveParent = (
   return match(owner)
     .with({ ownershipLevel: 'nameWrapper' }, asWrapped)
     .with(
-      { ownershipLevel: 'registry' },
+      { ownershipLevel: P.union('registry', 'registrar') },
       ({ owner }) => isAddressEqual(owner, nameWrapper),
       asWrapped,
     )
