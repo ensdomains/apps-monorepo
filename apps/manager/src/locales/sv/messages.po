@@ -1812,8 +1812,8 @@ msgstr ""
 msgid "Registering name"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Registration"
 msgstr ""
 
