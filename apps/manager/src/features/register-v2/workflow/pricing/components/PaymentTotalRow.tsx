@@ -19,14 +19,14 @@ export const PaymentTotalRow = ({
   isEstimate,
   hasAccountCredit = false,
 }: {
-  total: number | undefined
-  isEstimate: boolean
+  readonly total: number | undefined
+  readonly isEstimate: boolean
   /**
    * A credit line sits above this row, so the figure is the wallet's share of
    * the total rather than the total itself. Named accordingly, or the two rows
    * read as the same number disagreeing.
    */
-  hasAccountCredit?: boolean
+  readonly hasAccountCredit?: boolean
 }) => (
   <div className="flex w-full items-baseline justify-between">
     <span className="text-ens-quartz-350 text-lg leading-ens-none tracking-[-0.36px]">
