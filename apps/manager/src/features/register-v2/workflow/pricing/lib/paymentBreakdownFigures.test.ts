@@ -10,6 +10,7 @@ describe('getPaymentBreakdownFigures', () => {
       registration: 1.004,
       networkFee: 1.004,
       walletDebit: 1,
+      hcaCredit: 1.008,
     })
 
     expect(figures).toEqual({
@@ -29,6 +30,7 @@ describe('getPaymentBreakdownFigures', () => {
         registration: 160,
         networkFee: 4.32,
         walletDebit: 162.5,
+        hcaCredit: 1.82,
       }),
     ).toEqual({
       registration: 160,
@@ -44,6 +46,7 @@ describe('getPaymentBreakdownFigures', () => {
         registration: 160,
         networkFee: 4.32,
         walletDebit: 164.32,
+        hcaCredit: 0,
       }).credit,
     ).toBe(0)
   })
@@ -56,6 +59,7 @@ describe('getPaymentBreakdownFigures', () => {
         registration: 4.994,
         networkFee: 4.994,
         walletDebit: 9.987,
+        hcaCredit: 0.001,
       }).credit,
     ).toBe(0)
   })
@@ -66,7 +70,21 @@ describe('getPaymentBreakdownFigures', () => {
         registration: 4.994,
         networkFee: 4.994,
         walletDebit: 9.974,
+        hcaCredit: 0.014,
       }).credit,
     ).toBe(0.01)
+  })
+
+  // The residue the other way: an empty account whose rounded lines leave a
+  // cent over would otherwise print a credit nobody has.
+  it('invents no credit for an empty account', () => {
+    expect(
+      getPaymentBreakdownFigures({
+        registration: 4.996,
+        networkFee: 4.996,
+        walletDebit: 9.992,
+        hcaCredit: 0,
+      }).credit,
+    ).toBe(0)
   })
 })

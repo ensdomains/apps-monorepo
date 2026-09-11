@@ -6,9 +6,9 @@ export type PaymentBreakdownFigures = {
   readonly networkFee: number
   readonly walletDebit: number
   /**
-   * What the ENS account covers, as the displayed lines imply it. Zero for a
-   * sub-cent balance, which has no honest line to render: callers show the
-   * plain total in that case.
+   * What the ENS account covers, as the displayed lines imply it. Zero when
+   * the account is empty or holds under a cent, neither of which has an honest
+   * line to render: callers show the plain total in that case.
    */
   readonly credit: number
 }
@@ -24,15 +24,19 @@ export type PaymentBreakdownFigures = {
  * three are amounts the user can compare against their wallet, the credit is
  * the app's own bookkeeping.
  *
- * A balance under a cent cannot be shown at all without breaking that: the
- * residue can drive the derived credit to zero or below (4.994 + 4.994 against
- * a 9.987 debit gives -0.01). It comes back as zero, and the sheet leaves the
- * credit off rather than printing a negative deduction.
+ * The residue cuts both ways, so `hcaCredit` decides whether there is a credit
+ * at all and the derived figure only says how it is shown. Without that, an
+ * empty account invents one (4.996 + 4.996 against a 9.992 debit leaves 0.01)
+ * and a balance under a cent produces a negative deduction (4.994 + 4.994
+ * against 9.987 leaves -0.01). Both come back as zero, and the sheet shows the
+ * plain total instead.
  */
 export const getPaymentBreakdownFigures = (funding: {
   readonly registration: number
   readonly networkFee: number
   readonly walletDebit: number
+  /** The account's real balance: what decides whether a credit exists. */
+  readonly hcaCredit: number
 }): PaymentBreakdownFigures => {
   const registration = toCents(funding.registration)
   const networkFee = toCents(funding.networkFee)
@@ -42,6 +46,9 @@ export const getPaymentBreakdownFigures = (funding: {
     registration,
     networkFee,
     walletDebit,
-    credit: Math.max(0, toCents(registration + networkFee - walletDebit)),
+    credit:
+      funding.hcaCredit > 0
+        ? Math.max(0, toCents(registration + networkFee - walletDebit))
+        : 0,
   }
 }
