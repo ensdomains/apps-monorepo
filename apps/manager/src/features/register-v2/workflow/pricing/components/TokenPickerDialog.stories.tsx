@@ -2,7 +2,10 @@ import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/en
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useState } from 'react'
 import type { StablecoinBalance } from '@/lib/smart-account'
-import { TokenPickerContentBase } from './TokenPickerContent'
+import {
+  type RegistrationFundingSummary,
+  TokenPickerContentBase,
+} from './TokenPickerContent'
 import { PaymentDialogBase } from './TokenPickerDialog'
 
 /**
@@ -73,6 +76,7 @@ interface TokenPickerDialogShellProps {
   stablecoinBalances?: StablecoinBalance[]
   errorMessage?: string | null
   initialSelectedToken?: SUPPORTED_TOKEN
+  funding?: RegistrationFundingSummary
 }
 
 const TokenPickerDialogShell = ({
@@ -86,6 +90,7 @@ const TokenPickerDialogShell = ({
   stablecoinBalances = MOCK_BALANCES,
   errorMessage = null,
   initialSelectedToken,
+  funding,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
   const [selectedToken, setSelectedToken] = useState<
@@ -100,6 +105,7 @@ const TokenPickerDialogShell = ({
     >
       <TokenPickerContentBase
         errorMessage={errorMessage}
+        funding={funding}
         isConnected={isConnected}
         isInPriceCooldown={isInPriceCooldown}
         isLoadingBalances={isLoadingBalances}
@@ -315,5 +321,24 @@ export const AvailabilityError: Story = {
     initialSelectedToken: 'USDC',
     errorMessage:
       "We couldn't confirm that erni.eth is still available. Please try again.",
+  },
+}
+
+/**
+ * An HCA still holding USDC from an aborted registration: the credit is its
+ * own line and the headline is the wallet's share, not the total.
+ */
+export const WithAccountCredit: Story = {
+  args: {
+    initialSelectedToken: 'USDC',
+    pricingData: 160,
+    funding: {
+      registration: 160,
+      networkFee: 4.32,
+      total: 164.32,
+      walletDebit: 162.5,
+      hcaCredit: 1.82,
+      isLoading: false,
+    },
   },
 }

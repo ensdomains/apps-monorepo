@@ -85,9 +85,11 @@ describe('TokenPickerContentBase', () => {
     // holding the budget, and the retry owes the wallet nothing.
     renderPicker({
       funding: {
+        registration: 330,
         networkFee: 0.196054,
         total: 330.196054,
         walletDebit: 0,
+        hcaCredit: 330.196054,
         isLoading: false,
       },
       selectedToken: 'USDC',
@@ -101,14 +103,70 @@ describe('TokenPickerContentBase', () => {
     // gating on the debit is what makes this fail.
     renderPicker({
       funding: {
+        registration: 1_999.803946,
         networkFee: 0.196054,
         total: 2_000,
         walletDebit: 2_000,
+        hcaCredit: 0,
         isLoading: false,
       },
       selectedToken: 'USDC',
     })
 
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  // The sheet quotes a wallet balance too, so a second balance described in a
+  // sentence read as the first one contradicting itself (Laura, 2026-09-08).
+  it('puts the account credit on its own line and bills the wallet the rest', () => {
+    renderPicker({
+      funding: {
+        registration: 160,
+        networkFee: 4.32,
+        total: 164.32,
+        walletDebit: 162.5,
+        hcaCredit: 1.82,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('Registration')).toBeVisible()
+    expect(screen.getByText('$160.00')).toBeVisible()
+    expect(screen.getByText('Already in your ENS account')).toBeVisible()
+    expect(screen.getByText('-$1.82')).toBeVisible()
+    expect(screen.getByText('From your wallet')).toBeVisible()
+    expect(screen.getByText('$162.50')).toBeVisible()
+    expect(screen.queryByText('Total')).not.toBeInTheDocument()
+    expect(screen.queryByText('$164.32')).not.toBeInTheDocument()
+  })
+
+  it('keeps a single total when the account carries nothing', () => {
+    renderPicker({
+      funding: {
+        registration: 160,
+        networkFee: 4.32,
+        total: 164.32,
+        walletDebit: 164.32,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('Total')).toBeVisible()
+    expect(screen.getByText('$164.32')).toBeVisible()
+    expect(
+      screen.queryByText('Already in your ENS account'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('From your wallet')).not.toBeInTheDocument()
+    expect(screen.queryByText('Registration')).not.toBeInTheDocument()
+  })
+
+  it('says whose balance the token row is showing', () => {
+    renderPicker({ selectedToken: 'USDC' })
+
+    expect(screen.getByText('in your wallet')).toBeVisible()
+    expect(screen.queryByText('available')).not.toBeInTheDocument()
   })
 })
