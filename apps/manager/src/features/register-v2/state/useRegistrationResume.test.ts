@@ -1,11 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ResumeAssessment } from '../service/assessResumableRegistration'
 import type { RegistrationV2UiActor } from './registrationUi.machine'
-import { useRegistrationResume } from './useRegistrationResume'
+import {
+  DISCONNECT_GRACE_MS,
+  useRegistrationResume,
+} from './useRegistrationResume'
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const OTHER = '0x2222222222222222222222222222222222222222' as Address
@@ -15,6 +18,7 @@ const clearStoredRegistration = vi.fn()
 const loadStoredRegistration = vi.fn()
 const needsSessionBeforeRegistration = vi.fn(() => false)
 const useSmartAccountContext = vi.fn()
+const useConnection = vi.fn(() => ({ isDisconnected: false }))
 const toast = vi.fn()
 
 // Mocked wholesale rather than via `importOriginal`: the real module pulls in
@@ -40,6 +44,8 @@ vi.mock('../service/registrationPersistence', () => ({
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
   useSmartAccountContext: () => useSmartAccountContext(),
 }))
+
+vi.mock('wagmi', () => ({ useConnection: () => useConnection() }))
 
 vi.mock('@/lib/smart-account/sessionGate', () => ({
   needsSessionBeforeRegistration: (...a: unknown[]) =>
@@ -103,6 +109,7 @@ describe('useRegistrationResume', () => {
     vi.clearAllMocks()
     needsSessionBeforeRegistration.mockReturnValue(false)
     useSmartAccountContext.mockReturnValue(account())
+    useConnection.mockReturnValue({ isDisconnected: false })
     loadStoredRegistration.mockReturnValue({ label: 'leon' })
     assessResumableRegistration.mockResolvedValue(resumableAssessment())
     enableSession.mockResolvedValue({ type: 'rhinestone' })
@@ -419,9 +426,63 @@ describe('useRegistrationResume', () => {
       )
     })
 
-    it('ignores a transient null owner', async () => {
-      // wagmi reports no wallet for a moment during reconnects; bouncing the
-      // run back to pricing on that would interrupt a healthy registration.
+    it('stops the run once a real disconnect outlasts the grace period', async () => {
+      // Otherwise it carries on in the background for a wallet the page no
+      // longer shows, and may finish before the user comes back.
+      const { result, rerender } = renderLiveRun()
+      await waitFor(() => expect(result.current.status).toBe('idle'))
+
+      assessResumableRegistration.mockResolvedValue(resumableAssessment())
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      try {
+        useConnection.mockReturnValue({ isDisconnected: true })
+        useSmartAccountContext.mockReturnValue(account({ ownerAddress: null }))
+        rerender({ runOwner: OWNER })
+
+        act(() => vi.advanceTimersByTime(DISCONNECT_GRACE_MS - 1))
+        expect(suspends()).toHaveLength(0)
+
+        act(() => vi.advanceTimersByTime(1))
+        expect(suspends()).toHaveLength(1)
+      } finally {
+        vi.useRealTimers()
+      }
+
+      rerender({ runOwner: undefined }) // The UI machine is back on pricing.
+      await waitFor(() =>
+        expect(result.current).toEqual({
+          status: 'no-wallet',
+          expectedOwner: OWNER,
+        }),
+      )
+    })
+
+    it('rides out a disconnect shorter than the grace period', async () => {
+      const { result, rerender } = renderLiveRun()
+      await waitFor(() => expect(result.current.status).toBe('idle'))
+
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      try {
+        useConnection.mockReturnValue({ isDisconnected: true })
+        useSmartAccountContext.mockReturnValue(account({ ownerAddress: null }))
+        rerender({ runOwner: OWNER })
+        act(() => vi.advanceTimersByTime(DISCONNECT_GRACE_MS / 2))
+
+        useConnection.mockReturnValue({ isDisconnected: false })
+        useSmartAccountContext.mockReturnValue(account())
+        rerender({ runOwner: OWNER })
+        act(() => vi.advanceTimersByTime(DISCONNECT_GRACE_MS * 2))
+      } finally {
+        vi.useRealTimers()
+      }
+
+      expect(suspends()).toHaveLength(0)
+    })
+
+    it('ignores a null owner while wagmi still reports a wallet', async () => {
+      // The owner address reads null for a moment during reconnects; bouncing
+      // the run back to pricing on that would interrupt a healthy
+      // registration.
       const { result, rerender } = renderLiveRun()
       await waitFor(() => expect(result.current.status).toBe('idle'))
 

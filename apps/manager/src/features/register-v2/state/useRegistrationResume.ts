@@ -14,9 +14,10 @@
 
 import { msg } from '@lingui/core/macro'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { Address } from 'viem'
+import { useConnection } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { needsSessionBeforeRegistration } from '@/lib/smart-account/sessionGate'
 import { translateMessage } from '@/utils/i18n/translateMessage'
@@ -59,6 +60,13 @@ export type RegistrationResumeState =
 
 const CHECKING: RegistrationResumeState = { status: 'checking' }
 const IDLE: RegistrationResumeState = { status: 'idle' }
+
+/**
+ * How long a disconnect must last before it stops a live run. Long enough to
+ * ride out a connector reporting a disconnect while it reconnects; short
+ * enough that the registering screen does not linger with no wallet behind it.
+ */
+export const DISCONNECT_GRACE_MS = 2_000
 
 function discardStaleRecord(
   label: string,
@@ -200,6 +208,7 @@ export function useRegistrationResume(params: {
   const { label, uiActor, enabled = true, suspendableRunOwner } = params
   const account = useSmartAccountContext()
   const { hasInitialized, ownerAddress } = account
+  const { isDisconnected: isWalletDisconnected } = useConnection()
 
   // A decision, tagged with the label it was made for. The route keeps the
   // provider mounted across a label change, so an untagged state would report
@@ -251,23 +260,50 @@ export function useRegistrationResume(params: {
   const verdict = assessment.data
   const assessmentError = assessment.isError ? assessment.error : null
 
-  // A live run belongs to the wallet that started it. A DIFFERENT wallet
-  // connecting mid-run suspends it (its record stays, as a closed tab would
-  // leave it) and the decision starts over: plain pricing for that wallet,
-  // until the owner reconnects and the run resumes. A null owner is not a
-  // switch: wagmi reports one briefly during reconnects, and suspending on it
-  // would bounce a healthy run (the same rule the session eviction in
-  // SmartAccountContext follows). Off with the kill switch, since nothing could
-  // resume the run afterwards.
+  // Bumped by a suspend so the decision below runs again even when none of its
+  // inputs changed, e.g. a verdict fetched during the disconnect grace period.
+  const [suspensions, countSuspension] = useReducer((n: number) => n + 1, 0)
+
+  // A live run belongs to the wallet that started it, and stops the moment
+  // that wallet is gone: its record stays, as a closed tab would leave it, and
+  // the decision starts over, which resumes it when the owner reconnects.
+  // Otherwise the run carries on in the background with the signer it
+  // captured, finishing (or failing) for a wallet the page no longer shows.
+  //
+  // A different wallet suspends at once. A disconnect waits out a grace period
+  // first, and only counts when wagmi says so explicitly: the owner address
+  // alone reads null for a moment during reconnects, HMR and tab focus, and
+  // suspending on that would bounce a healthy run. Off with the kill switch,
+  // since nothing could resume the run afterwards.
   useEffect(() => {
-    if (!enabled || !suspendableRunOwner || !ownerAddress) return
-    if (isResumeOwner(suspendableRunOwner, ownerAddress)) return
+    if (!enabled || !suspendableRunOwner) return
 
-    uiActor.send({ type: 'registration.suspend' })
-    decidedForLabel.current = null
-    setSettled({ label, state: CHECKING })
-  }, [enabled, suspendableRunOwner, ownerAddress, label, uiActor])
+    const suspend = () => {
+      uiActor.send({ type: 'registration.suspend' })
+      decidedForLabel.current = null
+      setSettled({ label, state: CHECKING })
+      countSuspension()
+    }
 
+    if (ownerAddress && !isResumeOwner(suspendableRunOwner, ownerAddress)) {
+      suspend()
+      return
+    }
+
+    if (isWalletDisconnected) {
+      const timer = setTimeout(suspend, DISCONNECT_GRACE_MS)
+      return () => clearTimeout(timer)
+    }
+  }, [
+    enabled,
+    suspendableRunOwner,
+    ownerAddress,
+    isWalletDisconnected,
+    label,
+    uiActor,
+  ])
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `suspensions` re-runs the decision after a suspend, whose other inputs may not have changed
   useEffect(() => {
     if (!enabled) {
       setSettled({ label, state: IDLE })
@@ -334,6 +370,7 @@ export function useRegistrationResume(params: {
     assessmentError,
     hasInitialized,
     ownerAddress,
+    suspensions,
   ])
 
   if (settled?.label === label) return settled.state
