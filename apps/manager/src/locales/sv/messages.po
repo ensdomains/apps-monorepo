@@ -2512,6 +2512,10 @@ msgstr ""
 msgid "This signature is free and doesn't cost any gas."
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+#~ msgid "This subname can’t be set up here yet. Please set it up in the ENS app first."
+#~ msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr ""
@@ -3090,6 +3094,11 @@ msgstr ""
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
 msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+#~ msgid "Your wallet does not have permission to change the resolver for this name."
+#~ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
