@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -41,10 +42,21 @@ export const PaymentDialogBase = ({
   onOpenChange: (open: boolean) => void
   children: React.ReactNode
 }) => {
+  const panelRef = useRef<HTMLDivElement>(null)
+
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
         className="flex max-h-[90vh] min-h-[500px] flex-col"
+        // The first focusable element here is an info button, and a tooltip
+        // opens on focus: without this the sheet opens with a tooltip already
+        // covering the price. Focus the panel itself instead, so the dialog
+        // still takes focus from the page behind it.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          panelRef.current?.focus()
+        }}
+        ref={panelRef}
         showCloseButton={true}
       >
         <DialogHeader>
