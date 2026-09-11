@@ -1,5 +1,8 @@
-import { zeroAddress } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import type { ProfileRecordsResult } from './service/profileRecords'
+
+export const DEBUG_PROFILE_OWNER =
+  '0x1234567890abcdef1234567890abcdef12345678' as Address
 
 export const DEBUG_PROFILE: ProfileRecordsResult = {
   texts: [
