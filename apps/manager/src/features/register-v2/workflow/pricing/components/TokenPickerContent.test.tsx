@@ -213,4 +213,26 @@ describe('TokenPickerContentBase', () => {
     // The headline is still what the wallet pays, not the total.
     expect(screen.getByText('$9.99')).toBeVisible()
   })
+
+  // Rounding can leave a cent over on an empty account; a credit line there
+  // would be money the user does not have.
+  it('shows no credit for an account that is empty', () => {
+    renderPicker({
+      funding: {
+        registration: 4.996,
+        networkFee: 4.996,
+        total: 9.992,
+        walletDebit: 9.992,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(
+      screen.queryByText('Already in your ENS account'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('From your wallet')).not.toBeInTheDocument()
+    expect(screen.getByText('Total')).toBeVisible()
+  })
 })
