@@ -17,13 +17,24 @@ import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 export const PaymentTotalRow = ({
   total,
   isEstimate,
+  hasAccountCredit = false,
 }: {
   total: number | undefined
   isEstimate: boolean
+  /**
+   * A credit line sits above this row, so the figure is the wallet's share of
+   * the total rather than the total itself. Named accordingly, or the two rows
+   * read as the same number disagreeing.
+   */
+  hasAccountCredit?: boolean
 }) => (
   <div className="flex w-full items-baseline justify-between">
     <span className="text-ens-quartz-350 text-lg leading-ens-none tracking-[-0.36px]">
-      <Trans>Total</Trans>
+      {hasAccountCredit ? (
+        <Trans>From your wallet</Trans>
+      ) : (
+        <Trans>Total</Trans>
+      )}
     </span>
     <div className="flex items-center gap-2">
       <p className="tracking-[0.36px]">
