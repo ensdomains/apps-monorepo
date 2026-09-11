@@ -23,15 +23,15 @@ export const NetworkCostRow = ({
     <PaymentBreakdownRow
       amount={networkFee}
       isLoading={isLoading}
-      label={<Trans>Network cost</Trans>}
+      label={<Trans>Network fee</Trans>}
       tooltip={
         <Trans>
           An estimate of what the two on-chain transactions that register your
-          name will cost. It is collected together with the rent, in the same
-          approval.
+          name will cost. It is collected together with the name price, in the
+          same approval.
         </Trans>
       }
-      tooltipLabel={t`What is the network cost?`}
+      tooltipLabel={t`What is the network fee?`}
     />
   )
 }

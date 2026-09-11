@@ -29,7 +29,7 @@ describe('PaymentBreakdownRow', () => {
   })
 
   it('holds the line while a figure is still being quoted', () => {
-    renderRow({ amount: undefined, isLoading: false, label: 'Network cost' })
+    renderRow({ amount: undefined, isLoading: false, label: 'Network fee' })
 
     expect(screen.getByText('—')).toBeVisible()
   })
@@ -38,13 +38,13 @@ describe('PaymentBreakdownRow', () => {
     renderRow({
       amount: 4.32,
       isLoading: false,
-      label: 'Network cost',
+      label: 'Network fee',
       tooltip: 'Why this costs what it does',
-      tooltipLabel: 'What is the network cost?',
+      tooltipLabel: 'What is the network fee?',
     })
 
     expect(
-      screen.getByRole('button', { name: 'What is the network cost?' }),
+      screen.getByRole('button', { name: 'What is the network fee?' }),
     ).toBeVisible()
 
     // A tooltip with no accessible name must not typecheck.
