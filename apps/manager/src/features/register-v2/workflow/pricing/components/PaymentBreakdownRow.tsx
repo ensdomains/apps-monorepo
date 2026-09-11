@@ -16,7 +16,11 @@ type PaymentBreakdownRowProps = {
   /** Undefined renders an em dash, for a figure still being quoted. */
   readonly amount: number | undefined
   readonly isLoading: boolean
-  /** Renders the amount as a deduction. */
+  /**
+   * Renders the line as a deduction: money that has already moved, set against
+   * the charges above it. Muted and off the white card so it does not read as
+   * another thing being charged.
+   */
   readonly isCredit?: boolean
 } & (
   | {
@@ -35,11 +39,18 @@ export const PaymentBreakdownRow = ({
   tooltip,
   tooltipLabel,
 }: PaymentBreakdownRowProps) => (
-  <div className="w-full rounded-xl bg-ens-quartz-0 p-4">
+  <div
+    className={tw(
+      'w-full rounded-xl',
+      isCredit ? 'px-4 pt-1 pb-2' : 'bg-ens-quartz-0 p-4',
+    )}
+  >
     <div
       className={tw(
         'flex w-full items-start justify-between gap-2',
-        'text-base text-ens-quartz-900',
+        isCredit
+          ? 'text-ens-quartz-500 text-sm'
+          : 'text-base text-ens-quartz-900',
         isLoading && 'animate-pulse',
       )}
     >

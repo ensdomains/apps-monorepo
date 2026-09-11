@@ -23,8 +23,9 @@ export const AccountCreditRow = ({
       label={<Trans>Left from your last attempt</Trans>}
       tooltip={
         <Trans>
-          Money left in your ENS account from a registration you started
-          earlier. It is used first, so your wallet pays the rest.
+          Your own USDC, moved to your ENS account by a registration you started
+          earlier. It is spent first, so your wallet pays the rest. Nothing
+          extra is charged for it.
         </Trans>
       }
       tooltipLabel={t`Where did this come from?`}
