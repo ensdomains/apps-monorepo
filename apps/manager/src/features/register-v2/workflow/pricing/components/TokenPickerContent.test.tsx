@@ -169,4 +169,24 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByText('in your wallet')).toBeVisible()
     expect(screen.queryByText('available')).not.toBeInTheDocument()
   })
+
+  // Six-decimal USDC: rounding each figure on its own would print
+  // 1.00 + 1.00 - 1.01 against a 1.00 debit.
+  it('keeps the credited lines adding up to the headline', () => {
+    renderPicker({
+      funding: {
+        registration: 1.004,
+        networkFee: 1.004,
+        total: 2.008,
+        walletDebit: 1,
+        hcaCredit: 1.008,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('-$1.00')).toBeVisible()
+    expect(screen.queryByText('-$1.01')).not.toBeInTheDocument()
+    expect(screen.getAllByText('$1.00').length).toBeGreaterThanOrEqual(3)
+  })
 })
