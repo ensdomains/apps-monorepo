@@ -1,0 +1,61 @@
+name: Linear Releases
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: linear-releases-main
+  cancel-in-progress: false
+  queue: max
+
+permissions:
+  contents: read
+
+jobs:
+  linear-releases:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        id: checkout
+        with:
+          fetch-depth: 0
+
+      - name: Manager release
+        uses: linear/linear-release-action@53ad0f863963e7f8e270fba18426bbb55ef55384 # v0.17.2
+        with:
+          access_key: ${{ secrets.LINEAR_RELEASE_MANAGER }}
+          include_paths: >-
+            apps/manager/**,
+            packages/**,
+            package.json,
+            pnpm-workspace.yaml,
+            pnpm-lock.yaml,
+            patches/**
+
+      - name: Portal release
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        uses: linear/linear-release-action@53ad0f863963e7f8e270fba18426bbb55ef55384 # v0.17.2
+        with:
+          access_key: ${{ secrets.LINEAR_RELEASE_PORTAL }}
+          include_paths: >-
+            apps/portal/**,
+            packages/**,
+            package.json,
+            pnpm-workspace.yaml,
+            pnpm-lock.yaml,
+            patches/**
+
+      - name: API Worker release
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        uses: linear/linear-release-action@53ad0f863963e7f8e270fba18426bbb55ef55384 # v0.17.2
+        with:
+          access_key: ${{ secrets.LINEAR_RELEASE_API_WORKER }}
+          include_paths: >-
+            workers/api-worker/**,
+            packages/**,
+            package.json,
+            pnpm-workspace.yaml,
+            pnpm-lock.yaml,
+            patches/**
