@@ -29,9 +29,7 @@ import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
-import { AccountCreditRow } from './AccountCreditRow'
-import { NetworkCostRow } from './NetworkCostRow'
-import { PaymentBreakdownRow } from './PaymentBreakdownRow'
+import { PaymentBreakdown } from './PaymentBreakdown'
 import { PaymentTotalRow } from './PaymentTotalRow'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { TokenListItem } from './TokenListItem'
@@ -448,11 +446,11 @@ export const TokenPickerContentBase = ({
 
   // With USDC already in the HCA the total is not what the wallet pays, so the
   // headline switches to the debit and a credit line accounts for the gap.
+  // Rounded together with the breakdown lines, so they add up on screen.
   const hasAccountCredit = !!funding && funding.hcaCredit > 0
-  // Rounded together, so the lines the user adds up match the headline.
-  const figures = funding && getPaymentBreakdownFigures(funding)
-  const headlineAmount =
-    hasAccountCredit && figures ? figures.walletDebit : displayTotal
+  const headlineAmount = hasAccountCredit
+    ? getPaymentBreakdownFigures(funding).walletDebit
+    : displayTotal
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
@@ -505,27 +503,7 @@ export const TokenPickerContentBase = ({
             {domainName}
           </span>
 
-          {hasAccountCredit && (
-            <PaymentBreakdownRow
-              amount={figures?.registration}
-              isLoading={funding.isLoading}
-              label={<Trans>Registration</Trans>}
-            />
-          )}
-
-          {(funding || isQuotingFunding) && (
-            <NetworkCostRow
-              isLoading={funding?.isLoading ?? true}
-              networkFee={figures?.networkFee}
-            />
-          )}
-
-          {hasAccountCredit && (
-            <AccountCreditRow
-              credit={figures?.credit ?? funding.hcaCredit}
-              isLoading={funding.isLoading}
-            />
-          )}
+          <PaymentBreakdown funding={funding} isQuoting={!!isQuotingFunding} />
         </div>
 
         <div className="flex w-full flex-col gap-6">

@@ -14,7 +14,7 @@ export const NetworkCostRow = ({
   isLoading,
 }: {
   /** Undefined while the budget is still being quoted. */
-  readonly networkFee: number | undefined
+  readonly networkFee?: number
   readonly isLoading: boolean
 }) => {
   const { t } = useLingui()
