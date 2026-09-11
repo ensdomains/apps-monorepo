@@ -7,7 +7,7 @@
     "debug:rhinestone-browser": "vite --config rhinestone-browser-debug/vite.config.ts",
     "dev:inspect": "VITE_INSPECT_XSTATE=true vite dev",
     "build": "NODE_OPTIONS='--max-old-space-size=8192' vite build",
-    "build:dqa": "VITE_DQA=1 pnpm build",
+    "build:dqa": "VITE_DQA=1 VITE_ENABLE_DEBUG_FEATURES=true pnpm build",
     "preview": "wrangler dev",
     "cf-typegen": "pnpm dlx wrangler types --env-interface Env worker-configuration.gen.d.ts",
     "test": "vitest run",
