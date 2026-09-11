@@ -446,11 +446,12 @@ export const TokenPickerContentBase = ({
 
   // With USDC already in the HCA the total is not what the wallet pays, so the
   // headline switches to the debit and a credit line accounts for the gap.
-  // Rounded together with the breakdown lines, so they add up on screen.
-  const hasAccountCredit = !!funding && funding.hcaCredit > 0
-  const headlineAmount = hasAccountCredit
-    ? getPaymentBreakdownFigures(funding).walletDebit
-    : displayTotal
+  // Rounded together with the breakdown lines, so they add up on screen. The
+  // headline is always the debit once a budget is quoted; the label only
+  // changes when a credit line is there to explain the gap.
+  const figures = funding && getPaymentBreakdownFigures(funding)
+  const hasAccountCredit = !!figures && figures.credit > 0
+  const headlineAmount = figures ? figures.walletDebit : displayTotal
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,

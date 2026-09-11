@@ -189,4 +189,28 @@ describe('TokenPickerContentBase', () => {
     expect(screen.queryByText('-$1.01')).not.toBeInTheDocument()
     expect(screen.getAllByText('$1.00').length).toBeGreaterThanOrEqual(3)
   })
+
+  // A balance under a cent: the deduction would print as "--$0.01", money the
+  // account actually holds shown as a charge.
+  it('leaves a sub-cent balance off the sheet', () => {
+    renderPicker({
+      funding: {
+        registration: 4.994,
+        networkFee: 4.994,
+        total: 9.988,
+        walletDebit: 9.987,
+        hcaCredit: 0.001,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(
+      screen.queryByText('Already in your ENS account'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/^--/)).not.toBeInTheDocument()
+    expect(screen.getByText('Total')).toBeVisible()
+    // The headline is still what the wallet pays, not the total.
+    expect(screen.getByText('$9.99')).toBeVisible()
+  })
 })
