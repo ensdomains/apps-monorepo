@@ -8,8 +8,8 @@ import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { BulkRenewDialog, type BulkRenewName } from '@/features/bulk-renew'
-import { isRenewableV2Domain } from '@/features/renew/utils/renewableName'
 import { isBackendAuthed } from '@/utils/backend-client'
+import { selectionKey, toBulkRenewName } from '../bulkRenewSelection'
 import {
   buildMergedNamesList,
   getMergedNamesCount,
@@ -21,7 +21,6 @@ import { removeFavoriteMutationOptions } from '../service/mutations/removeFavori
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
-import { resolveDomainLabel } from '../utils'
 import {
   FavoritesList,
   type FavoritesSort,
@@ -55,42 +54,6 @@ const toDirectionalSort = <Field extends string>(
 
 const reverseSortDir = (dir: SortDir): SortDir =>
   dir === 'asc' ? 'desc' : 'asc'
-
-type SelectableDomain = {
-  readonly id: string
-  readonly name?: string | null
-  readonly normalizedName?: string | null
-  readonly expiryDate?: number | null
-}
-
-// Single source of truth for bulk selection, shared by the select-all set and
-// the selected-names lookup so they can't drift apart.
-
-/** The canonical key a selection is stored under. */
-const selectionKey = (domain: SelectableDomain): string =>
-  resolveDomainLabel(domain).toLowerCase()
-
-/** A domain is selectable when it's a renewable v2 `.eth` 2LD (within grace). */
-const isSelectableDomain = (domain: SelectableDomain): boolean =>
-  isRenewableV2Domain(
-    domain.normalizedName ?? domain.name ?? '',
-    domain.expiryDate,
-  )
-
-/** Map a selectable domain to its bulk-renew payload, or `null` if ineligible. */
-const toBulkRenewName = (domain: SelectableDomain): BulkRenewName | null => {
-  if (!isSelectableDomain(domain)) return null
-  const displayName = resolveDomainLabel(domain)
-  // Use the canonical normalized name for the on-chain label — the display name
-  // may be unnormalized (e.g. mixed case) and would hash to the wrong label.
-  const name = domain.normalizedName ?? displayName
-  return {
-    displayName,
-    label: name.replace(/\.eth$/i, ''),
-    name,
-    currentExpiry: BigInt(domain.expiryDate as number),
-  }
-}
 
 export const NamesTable = ({
   migrationEnabled = false,
@@ -143,7 +106,7 @@ export const NamesTable = ({
         sortField: ownedSortState.field,
         sortDir: ownedSortState.dir,
       }).flatMap((item) =>
-        item.kind === 'v2' && isSelectableDomain(item.domain)
+        item.kind === 'v2' && toBulkRenewName(item.domain) !== null
           ? [selectionKey(item.domain)]
           : [],
       ),
