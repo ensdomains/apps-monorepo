@@ -1259,10 +1259,6 @@ msgstr ""
 msgid "More NFT actions"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
-msgid "Money left in your ENS account from a registration you started earlier. It is used first, so your wallet pays the rest."
-msgstr ""
-
 #: src/features/dashboard/components/NameRow.tsx
 msgid "More options for {label}"
 msgstr ""
@@ -2984,6 +2980,10 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Your permissions changed. Go back to check the updated estimate."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
+msgid "Your own USDC, moved to your ENS account by a registration you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
 msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
