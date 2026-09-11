@@ -337,6 +337,10 @@ does not exist on `main`.
    - **Actual:** no Create button. The portal only wires it for ENSv2 names.
      Going to `/<2LD>.eth/create-subname` directly answers *"This feature is
      only available for ENSv2 names."*
+   - The portal creates subnames on **V2** names only, so re-issuing really
+     means migrating the parent first — and the portal carries no migrate CTA
+     (migration lives in the manager app). ens-app-v3 can create the V1
+     subname directly. The card names neither.
 5. Also in the ticket, though the drawer can't reproduce it: the card makes
    this promise even when the parent has burned `CANNOT_CREATE_SUBDOMAIN`, in
    which case re-issuing is impossible on-chain too. #1144's own
