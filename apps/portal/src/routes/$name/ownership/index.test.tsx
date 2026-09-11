@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const REGISTRANT = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
 const CONTROLLER = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
 const REGISTRY = '0x1111111111111111111111111111111111111111'
 
@@ -20,23 +19,13 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
-  return {
-    ...actual,
-    useConnection: () => ({ address: undefined }),
-    // No primary name, so the row shows the truncated address.
-    useEnsName: () => ({ data: null, error: null, isLoading: false }),
-  }
+  return { ...actual, useConnection: () => ({ address: undefined }) }
 })
 
-// What `resolveEnsOwner` reports, keyed by whichever name the test asks for:
-// `null` (no registry entry) unless the test names an owner.
+// What `resolveEnsOwner` reports: `null` (no registry entry) unless the test
+// names an owner.
 let ownerQuery: { data: unknown; isLoading: boolean; error: unknown } = {
   data: null,
-  isLoading: false,
-  error: null,
-}
-const v1StateQuery: { data: unknown; isLoading: boolean; error: unknown } = {
-  data: undefined,
   isLoading: false,
   error: null,
 }
@@ -47,17 +36,11 @@ vi.mock('@tanstack/react-query', async () => {
   )
   return {
     ...actual,
-    useQuery: (options: { queryKey: readonly unknown[] }) => {
-      switch (options.queryKey[0]) {
-        case 'get-ens-owner':
-          return ownerQuery
-        case 'transfer-v1-name-state':
-          return v1StateQuery
-        // Availability (a .eth-only query) has nothing to add.
-        default:
-          return { data: null, isLoading: false, error: null }
-      }
-    },
+    useQuery: (options: { queryKey: readonly unknown[] }) =>
+      options.queryKey[0] === 'get-ens-owner'
+        ? ownerQuery
+        : // Availability (a .eth-only query) has nothing to add.
+          { data: null, isLoading: false, error: null },
   }
 })
 vi.mock('@/features/profile/hooks/useGraceStatus', () => ({
@@ -99,6 +82,14 @@ vi.mock('@/features/ownership/components/V1NameManagerRecord', () => ({
   V1NameManagerRecord: () => <div data-testid="manager-row" />,
 }))
 
+// The row's own V1-vs-V2 behaviour is covered in NameOwnerRow.test.tsx; this
+// route only has to hand it the name and the protocol it resolved.
+vi.mock('@/features/ownership/components/NameOwnerRow', () => ({
+  NameOwnerRow: (props: Record<string, unknown>) => (
+    <div data-testid="owner-row">{JSON.stringify(props)}</div>
+  ),
+}))
+
 // `Route` is the mocked options object (see createFileRoute above).
 const { Route } = await import('./index')
 const OwnershipRoute = (
@@ -108,11 +99,6 @@ const OwnershipRoute = (
 beforeEach(() => {
   routeName = 'jobintime.xyz'
   ownerQuery = { data: null, isLoading: false, error: null }
-  Object.assign(v1StateQuery, {
-    data: undefined,
-    isLoading: false,
-    error: null,
-  })
 })
 
 describe('ownership route', () => {
@@ -137,133 +123,46 @@ describe('ownership route', () => {
   })
 })
 
-const ownerRow = () => screen.getByText('Owner').closest('div')?.parentElement
-
 describe('ownership route — Owner row', () => {
-  beforeEach(() => {
+  const resolveAs = (protocolVersion: 'ENSv1' | 'ENSv2') => {
     routeName = 'alice.eth'
     ownerQuery = {
-      // What `resolveEnsOwner` reports for an unwrapped V1 2LD: the registry
-      // owner, i.e. the controller.
-      data: {
-        owner: CONTROLLER,
-        registryAddress: REGISTRY,
-        protocolVersion: 'ENSv1',
-      },
+      // `resolveEnsOwner` reports the controller for an unwrapped 2LD.
+      data: { owner: CONTROLLER, registryAddress: REGISTRY, protocolVersion },
       isLoading: false,
       error: null,
     }
-  })
+  }
 
-  it('names the registrant, not the controller, for an unwrapped V1 2LD', () => {
-    v1StateQuery.data = {
-      subject: {
-        kind: 'v1-registrar',
-        registrant: REGISTRANT,
-        controller: CONTROLLER,
-      },
-      registration: 'active',
-      resolverAddress: null,
-      parent: null,
-      ancestorRegistration: null,
-    }
+  it('delegates the V1 owner row to the shared component', () => {
+    resolveAs('ENSv1')
 
     render(<OwnershipRoute />)
 
-    expect(ownerRow()).toHaveTextContent('0x7099…79C8')
-    expect(ownerRow()).not.toHaveTextContent('0xf39F…2266')
+    expect(screen.getByTestId('owner-row')).toHaveTextContent(
+      JSON.stringify({
+        name: 'alice.eth',
+        label: 'Owner',
+        owner: CONTROLLER,
+        protocolVersion: 'ENSv1',
+      }),
+    )
     expect(screen.getByTestId('manager-row')).toBeInTheDocument()
   })
 
-  it('names the wrapper owner for a wrapped V1 name', () => {
-    v1StateQuery.data = {
-      subject: {
-        kind: 'v1-wrapped',
-        owner: REGISTRANT,
-        fuses: {
-          cannotTransfer: false,
-          cannotSetResolver: false,
-          cannotUnwrap: false,
-          parentCannotControl: false,
-        },
-        expiry: null,
-      },
-      registration: 'active',
-      resolverAddress: null,
-      parent: null,
-      ancestorRegistration: null,
-    }
+  it('passes the resolved owner through for a V2 name', () => {
+    resolveAs('ENSv2')
 
     render(<OwnershipRoute />)
 
-    expect(ownerRow()).toHaveTextContent('0x7099…79C8')
-  })
-
-  // In grace the 721 `ownerOf` reverts, so no registrant is left to show.
-  it('falls back to the registry owner once the name has lapsed', () => {
-    v1StateQuery.data = {
-      subject: null,
-      registration: 'gracePeriod',
-      resolverAddress: null,
-      parent: null,
-      ancestorRegistration: null,
-    }
-
-    render(<OwnershipRoute />)
-
-    expect(ownerRow()).toHaveTextContent('0xf39F…2266')
-  })
-
-  it('reports a failed V1 read instead of showing the controller as owner', () => {
-    v1StateQuery.error = new Error('boom')
-
-    render(<OwnershipRoute />)
-
-    expect(screen.getByText('Failed to load owner')).toBeInTheDocument()
-    expect(screen.queryByText('0xf39F…2266')).not.toBeInTheDocument()
-  })
-
-  it('shows a loading row, not the controller, while the V1 read is in flight', () => {
-    v1StateQuery.isLoading = true
-
-    render(<OwnershipRoute />)
-
-    expect(ownerRow()).toHaveTextContent('Loading')
-    expect(screen.queryByText('0xf39F…2266')).not.toBeInTheDocument()
-  })
-
-  it('reports no owner rather than the controller when the V1 read returned nothing', () => {
-    v1StateQuery.data = undefined
-
-    render(<OwnershipRoute />)
-
-    expect(ownerRow()).toHaveTextContent('Owner unavailable')
-    expect(screen.queryByText('0xf39F…2266')).not.toBeInTheDocument()
-  })
-
-  it('reports no owner rather than the controller when the V1 read returned nothing', () => {
-    v1StateQuery.data = undefined
-
-    render(<OwnershipRoute />)
-
-    expect(ownerRow()).toHaveTextContent('Owner unavailable')
-    expect(screen.queryByText('0xf39F…2266')).not.toBeInTheDocument()
-  })
-
-  it('uses the resolved owner directly for a V2 name', () => {
-    ownerQuery = {
-      data: {
+    expect(screen.getByTestId('owner-row')).toHaveTextContent(
+      JSON.stringify({
+        name: 'alice.eth',
+        label: 'Owner',
         owner: CONTROLLER,
-        registryAddress: REGISTRY,
         protocolVersion: 'ENSv2',
-      },
-      isLoading: false,
-      error: null,
-    }
-
-    render(<OwnershipRoute />)
-
-    expect(ownerRow()).toHaveTextContent('0xf39F…2266')
+      }),
+    )
     expect(screen.queryByTestId('manager-row')).not.toBeInTheDocument()
   })
 })
