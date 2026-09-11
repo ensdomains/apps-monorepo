@@ -1,5 +1,14 @@
+import { createStore } from '@xstate/store-react'
+import * as v from 'valibot'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createPersistedStore } from './xstate-store'
+import { createPersistedStore, persist } from './xstate-store'
+
+const countSchema = v.object({ count: v.number() })
+const valueSchema = v.object({ value: v.string() })
+const complexSchema = v.object({
+  user: v.object({ name: v.string(), age: v.number() }),
+  settings: v.object({ theme: v.string() }),
+})
 
 describe('xstate-store utils', () => {
   const STORAGE_KEY = 'test-store'
@@ -18,7 +27,7 @@ describe('xstate-store utils', () => {
         context: { count: 0 },
         on: {},
       },
-      { key: STORAGE_KEY },
+      { key: STORAGE_KEY, schema: countSchema },
     )
 
     expect(store.get().context.count).toBe(0)
@@ -32,7 +41,7 @@ describe('xstate-store utils', () => {
           increment: (context) => ({ count: context.count + 1 }),
         },
       },
-      { key: STORAGE_KEY },
+      { key: STORAGE_KEY, schema: countSchema },
     )
 
     store.trigger.increment()
@@ -52,7 +61,7 @@ describe('xstate-store utils', () => {
         context: { count: 0 },
         on: {},
       },
-      { key: STORAGE_KEY },
+      { key: STORAGE_KEY, schema: countSchema },
     )
 
     expect(store.get().context.count).toBe(42)
@@ -64,7 +73,7 @@ describe('xstate-store utils', () => {
         context: { count: 10 },
         on: {},
       },
-      { key: STORAGE_KEY },
+      { key: STORAGE_KEY, schema: countSchema },
     )
 
     expect(store.get().context.count).toBe(10)
@@ -79,7 +88,7 @@ describe('xstate-store utils', () => {
           decrement: (context) => ({ count: context.count - 1 }),
         },
       },
-      { key: STORAGE_KEY },
+      { key: STORAGE_KEY, schema: countSchema },
     )
 
     store.trigger.increment()
@@ -117,7 +126,7 @@ describe('xstate-store utils', () => {
           }),
         },
       },
-      { key: STORAGE_KEY },
+      { key: STORAGE_KEY, schema: complexSchema },
     )
 
     store.trigger.updateName({ name: 'Jane' })
@@ -131,18 +140,32 @@ describe('xstate-store utils', () => {
     }
   })
 
-  it('should handle invalid JSON in localStorage gracefully', () => {
+  it('should use fallback context when localStorage JSON is invalid', () => {
     localStorage.setItem(STORAGE_KEY, 'invalid json')
 
-    expect(() => {
-      createPersistedStore(
-        {
-          context: { count: 0 },
-          on: {},
-        },
-        { key: STORAGE_KEY },
-      )
-    }).toThrow()
+    const store = createPersistedStore(
+      {
+        context: { count: 0 },
+        on: {},
+      },
+      { key: STORAGE_KEY, schema: countSchema },
+    )
+
+    expect(store.get().context.count).toBe(0)
+  })
+
+  it('should use fallback context when persisted types do not match the schema', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ count: '42' }))
+
+    const store = createPersistedStore(
+      {
+        context: { count: 0 },
+        on: {},
+      },
+      { key: STORAGE_KEY, schema: countSchema },
+    )
+
+    expect(store.get().context.count).toBe(0)
   })
 
   it('should allow subscription to store changes', () => {
@@ -153,7 +176,7 @@ describe('xstate-store utils', () => {
           increment: (context) => ({ count: context.count + 1 }),
         },
       },
-      { key: STORAGE_KEY },
+      { key: STORAGE_KEY, schema: countSchema },
     )
 
     const snapshots: number[] = []
@@ -175,7 +198,7 @@ describe('xstate-store utils', () => {
           update: (context) => context,
         },
       },
-      { key: 'store1-key' },
+      { key: 'store1-key', schema: valueSchema },
     )
 
     const store2 = createPersistedStore(
@@ -185,10 +208,9 @@ describe('xstate-store utils', () => {
           update: (context) => context,
         },
       },
-      { key: 'store2-key' },
+      { key: 'store2-key', schema: valueSchema },
     )
 
-    // Trigger updates to ensure persistence
     store1.trigger.update()
     store2.trigger.update()
 
@@ -214,13 +236,72 @@ describe('xstate-store utils', () => {
           reset: () => ({ count: 0 }),
         },
       },
-      { key: STORAGE_KEY },
+      { key: STORAGE_KEY, schema: countSchema },
     )
 
     store.trigger.setValue({ value: 100 })
     expect(store.get().context.count).toBe(100)
 
     store.trigger.reset()
+    expect(store.get().context.count).toBe(0)
+  })
+})
+
+describe('persist', () => {
+  const STORAGE_KEY = 'persist-store'
+
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+  })
+
+  it('hydrates valid snapshot context', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ context: { count: 7 } }))
+
+    const store = createStore({
+      context: { count: 0 },
+      on: {},
+    }).with(persist({ name: STORAGE_KEY, schema: countSchema }))
+
+    expect(store.get().context.count).toBe(7)
+  })
+
+  it('uses fallback when persisted types do not match the schema', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ context: { count: '7' } }),
+    )
+
+    const store = createStore({
+      context: { count: 0 },
+      on: {},
+    }).with(persist({ name: STORAGE_KEY, schema: countSchema }))
+
+    expect(store.get().context.count).toBe(0)
+  })
+
+  it('uses fallback when the snapshot wrapper is missing', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ count: 7 }))
+
+    const store = createStore({
+      context: { count: 0 },
+      on: {},
+    }).with(persist({ name: STORAGE_KEY, schema: countSchema }))
+
+    expect(store.get().context.count).toBe(0)
+  })
+
+  it('uses fallback when localStorage JSON is invalid', () => {
+    localStorage.setItem(STORAGE_KEY, '{not-json')
+
+    const store = createStore({
+      context: { count: 0 },
+      on: {},
+    }).with(persist({ name: STORAGE_KEY, schema: countSchema }))
+
     expect(store.get().context.count).toBe(0)
   })
 })
