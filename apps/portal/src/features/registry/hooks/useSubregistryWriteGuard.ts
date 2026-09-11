@@ -60,7 +60,7 @@ export type UseSubregistryWriteGuardResult = {
  * confirmed empty slot. There is no "replace" intent to confirm in a flow that
  * exists because no registry is configured: a taken slot means the caller is
  * stale, not that the user asked to overwrite anything. Flows where replacing
- * is the point simply do not use this guard.
+ * is the point pass `assertWritable={null}` to `SubregistryConfigurator`.
  */
 export const useSubregistryWriteGuard = ({
   name,

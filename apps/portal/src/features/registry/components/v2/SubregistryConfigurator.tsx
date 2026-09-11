@@ -83,10 +83,10 @@ type SubregistryConfiguratorProps = {
   /**
    * Run immediately before each write, which is skipped when this resolves
    * `false`. The configure flow uses it to prove the name still has no registry
-   * (WEB-1249); the reconfigure flow, where replacing one is the whole point,
-   * omits it.
+   * (WEB-1249). Required so that skipping it is a decision a caller writes down:
+   * only a flow where replacing the registry is the whole point passes `null`.
    */
-  assertWritable?: () => Promise<boolean>
+  assertWritable: (() => Promise<boolean>) | null
 }
 
 export const SubregistryConfigurator = ({
