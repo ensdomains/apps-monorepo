@@ -28,7 +28,9 @@ import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
+import { AccountCreditRow } from './AccountCreditRow'
 import { NetworkCostRow } from './NetworkCostRow'
+import { PaymentBreakdownRow } from './PaymentBreakdownRow'
 import { PaymentTotalRow } from './PaymentTotalRow'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { TokenListItem } from './TokenListItem'
@@ -54,6 +56,8 @@ class InsufficientFundingError extends Error {
  * standalone-HCA route. See {@link computeRegistrationFunding}.
  */
 export type RegistrationFundingSummary = {
+  /** The registrar's charge, shown as its own line once a credit applies. */
+  registration: number
   networkFee: number
   /** What the registration costs — the figure shown on the total row. */
   total: number
@@ -62,6 +66,8 @@ export type RegistrationFundingSummary = {
    * This, not `total`, is what the affordability gates compare against.
    */
   walletDebit: number
+  /** What the HCA already covers: `total - walletDebit`, zero when it is empty. */
+  hcaCredit: number
   isLoading: boolean
 }
 
@@ -352,9 +358,11 @@ export const TokenPickerContent = () => {
       funding={
         funding
           ? {
+              registration: funding.registration,
               networkFee: funding.networkFee,
               total: funding.total,
               walletDebit: funding.walletDebit,
+              hcaCredit: funding.hcaCredit,
               isLoading: budgetQuery.isFetching,
             }
           : undefined
@@ -444,6 +452,11 @@ export const TokenPickerContentBase = ({
   // `requiredAmount` only when the HCA is already carrying USDC.
   const displayTotal = funding?.total ?? pricingData
 
+  // With USDC already in the HCA the total is not what the wallet pays, so the
+  // headline switches to the debit and a credit line accounts for the gap.
+  const hasAccountCredit = !!funding && funding.hcaCredit > 0
+  const headlineAmount = hasAccountCredit ? funding.walletDebit : displayTotal
+
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
   )
@@ -495,10 +508,25 @@ export const TokenPickerContentBase = ({
             {domainName}
           </span>
 
+          {hasAccountCredit && (
+            <PaymentBreakdownRow
+              amount={funding.registration}
+              isLoading={funding.isLoading}
+              label={<Trans>Registration</Trans>}
+            />
+          )}
+
           {(funding || isQuotingFunding) && (
             <NetworkCostRow
               isLoading={funding?.isLoading ?? true}
               networkFee={funding?.networkFee}
+            />
+          )}
+
+          {hasAccountCredit && (
+            <AccountCreditRow
+              credit={funding.hcaCredit}
+              isLoading={funding.isLoading}
             />
           )}
         </div>
@@ -581,7 +609,11 @@ export const TokenPickerContentBase = ({
         </div>
       </div>
 
-      <PaymentTotalRow isEstimate={!!funding} total={displayTotal} />
+      <PaymentTotalRow
+        hasAccountCredit={hasAccountCredit}
+        isEstimate={!!funding}
+        total={headlineAmount}
+      />
 
       <Button
         className={cn(
