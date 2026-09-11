@@ -13,6 +13,7 @@ import { MATERIAL_SYMBOLS_URL, MSymbol } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { RootProviders } from '@/lib/RootProviders'
 import appCss from '@/styles/index.css?url'
+import { defaultOgImageUrl, seo } from '@/utils/seo'
 
 type RootRouterContext = {
   queryClient: QueryClient
@@ -31,10 +32,14 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
         name: 'viewport',
         content: 'width=device-width, initial-scale=1',
       },
-      {
-        title: 'ENS App',
-      },
       { name: 'theme-color', content: '#0082BB' },
+      // Defaults for every route; a route with a card of its own (a name, say)
+      // overrides these from its own `head`.
+      ...seo({
+        title: 'ENS App',
+        description: 'Manage your ENS names, profiles and records.',
+        image: defaultOgImageUrl(),
+      }),
     ],
     links: [
       {
