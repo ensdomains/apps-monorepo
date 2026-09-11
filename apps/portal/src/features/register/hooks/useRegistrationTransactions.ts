@@ -4,6 +4,7 @@ import {
   encodeRegisterCall,
   REGISTRATION_TX_IDS,
   registrationMachine,
+  subscribeRegistrationPersistence,
   transactionManager,
 } from '@ens-apps/transaction-manager'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
@@ -34,6 +35,8 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
+import { createRegistrationPersistenceAdapter } from '../utils/registrationPersistence'
+import type { ResumableRun } from './useRegistrationResume'
 
 const ethRegistrar = getChainContractAddress({
   chain: sepoliaWithEns,
@@ -77,9 +80,24 @@ export const useRegistrationTransactions = ({
   const [savedParams, setSavedParams] =
     useState<SavedRegistrationParams | null>(null)
 
+  // Set when this run was picked back up after a reload. Its resolver and
+  // commitment were made in the earlier session, so there is no transaction
+  // left to show for either and the modal lists only the steps still ahead.
+  const [isResumed, setIsResumed] = useState(false)
+
   const actor: RegistrationMachineActor = useActorRef(registrationMachine, {
     input: { chainId },
   })
+
+  // Mirror progress into localStorage so a reload can pick it back up.
+  useEffect(
+    () =>
+      subscribeRegistrationPersistence(
+        actor,
+        createRegistrationPersistenceAdapter(),
+      ),
+    [actor],
+  )
 
   const machineState = useSelector(actor, (state) => state.value)
   const selectedToken = useSelector(
@@ -110,6 +128,7 @@ export const useRegistrationTransactions = ({
   // Visibility is gated in the modal (only when register is next), so Approve
   // In Progress does not show a misleading "Ready in Xs" on Register.
   const registerWaitUntil =
+    machineState === 'validatingCommitment' ||
     machineState === 'fetchingCommitmentAge' ||
     machineState === 'commitmentCooldown' ||
     machineState === 'checkingAllowance' ||
@@ -146,11 +165,17 @@ export const useRegistrationTransactions = ({
       )
     }
 
-    // Reset machine to idle if it's not already (e.g. after modal was closed on error)
     const currentState = actor.getSnapshot().value
+
+    // Already under way (e.g. resumed after a reload): starting over would
+    // cancel it, discard its record and pay for a second commitment.
+    if (isInProgressState(currentState)) return
+
+    // Reset machine to idle if it's not already (e.g. after modal was closed on error)
     if (currentState !== 'idle') {
       actor.send({ type: 'CANCEL' })
     }
+    setIsResumed(false)
 
     const walletClient = await getWalletClient(config, {
       account: connection.address,
@@ -193,7 +218,10 @@ export const useRegistrationTransactions = ({
   }, [closeModal, clearTransaction])
 
   const transactions: Transaction[] = useMemo(() => {
-    const steps: Transaction[] = [
+    // A resumed run is past its commitment (see `assessRegistrationResume`).
+    // Listing the deploy and commit steps would show them "Not Started", and
+    // the deploy step's Start would begin a second registration.
+    const setupSteps: Transaction[] = [
       {
         id: REGISTRATION_TX_IDS.deployResolver,
         title: 'Deploy resolver',
@@ -230,6 +258,7 @@ export const useRegistrationTransactions = ({
         onDone: handleProceed,
       },
     ]
+    const steps: Transaction[] = isResumed ? [] : setupSteps
 
     if (needsApproval) {
       steps.push({
@@ -294,6 +323,7 @@ export const useRegistrationTransactions = ({
     duration,
     connection.address,
     savedParams,
+    isResumed,
     needsApproval,
     commitment,
     resolverAddress,
@@ -313,12 +343,43 @@ export const useRegistrationTransactions = ({
     })
   }
 
+  /**
+   * Re-enter a run interrupted by a reload. Returns false, touching nothing,
+   * when a registration is already going on this page: the machine only takes
+   * RESUME from idle, and the page state belongs to the live run.
+   */
+  const resumeFlow = useCallback(
+    ({ record, token, signer }: ResumableRun): boolean => {
+      if (!publicClient || actor.getSnapshot().value !== 'idle') return false
+
+      setSavedParams({
+        tokenSymbol: token.symbol,
+        tokenAddress: token.address,
+        // What the user confirmed. The machine approves the LIVE price
+        // (`checkingAllowance`), so a premium that decayed meanwhile is safe.
+        tokenPrice: record.context.tokenPrice,
+        tokenDecimals: token.decimals,
+      })
+      setIsResumed(true)
+
+      actor.send({
+        type: 'RESUME',
+        stage: record.stage,
+        context: record.context,
+        deps: { signer, publicClient },
+      })
+      return true
+    },
+    [actor, publicClient],
+  )
+
   const paid = savedParams
     ? formatPriceDisplay(savedParams.tokenPrice, savedParams.tokenDecimals)
     : undefined
 
   const resetRegistration = useCallback(() => {
     actor.send({ type: 'CANCEL' })
+    setIsResumed(false)
     closeModal()
     clearTransaction()
   }, [actor, closeModal, clearTransaction])
@@ -342,6 +403,7 @@ export const useRegistrationTransactions = ({
     selectedToken,
     paid,
     startFlow,
+    resumeFlow,
     resetRegistration,
   }
 }

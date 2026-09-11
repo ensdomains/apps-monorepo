@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { useBlocker } from '@tanstack/react-router'
-import { AlertCircle, UserCheck } from 'lucide-react'
+import { AlertCircle, UserCheck, Wallet } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MessageCard } from '@/components/ui/message-card'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { useRegistrationResume } from '@/features/register/hooks/useRegistrationResume'
 import { useRegistrationSuccessRedirect } from '@/features/register/hooks/useRegistrationSuccessRedirect'
 import { useRegistrationTransactions } from '@/features/register/hooks/useRegistrationTransactions'
 import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
@@ -15,6 +17,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useConnectModal } from '@/features/wallet/ConnectModalProvider'
 import { usePreventUnload } from '@/hooks/usePreventUnload'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   validateNameLength,
   validateRegistrableEthName,
@@ -36,8 +39,25 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   const { openConnectModal } = useConnectModal()
   const { openModal } = useTransactionModal()
 
-  const { transactions, isRegistering, isSuccess, paid, startFlow } =
-    useRegistrationTransactions({ name, duration })
+  const {
+    transactions,
+    isRegistering,
+    isSuccess,
+    paid,
+    startFlow,
+    resumeFlow,
+  } = useRegistrationTransactions({ name, duration })
+
+  const resume = useRegistrationResume({
+    name,
+    onResume: (run) => {
+      if (!resumeFlow(run)) return false
+      // The run registers for the duration it committed to.
+      setDuration(Number(run.record.context.duration))
+      openModal()
+      return true
+    },
+  })
 
   const registrableEthError = validateRegistrableEthName(name)
   const nameLengthError = validateNameLength(name)
@@ -158,6 +178,17 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
         </div>
       ) : (
         <>
+          {resume.status === 'await-owner' && (
+            <Alert variant="warning">
+              <Wallet />
+              <AlertTitle>Unfinished registration</AlertTitle>
+              <AlertDescription>
+                Connect wallet {truncateAddress(resume.owner)} to resume
+                registering {name}. Starting over from another wallet would
+                abandon the commitment already paid for.
+              </AlertDescription>
+            </Alert>
+          )}
           <RegisterNameForm
             name={name}
             duration={duration}
