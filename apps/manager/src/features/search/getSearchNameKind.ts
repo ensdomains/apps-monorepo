@@ -1,3 +1,4 @@
+import { normalize } from 'viem/ens'
 import {
   getLabelLength,
   parseName,
@@ -13,13 +14,23 @@ export const getSearchNameKind = (name: string): SearchNameKind => {
     return { type: 'invalid', name, reason: 'invalid-format' }
   }
 
+  try {
+    normalize(trimmed)
+  } catch {
+    return { type: 'invalid', name, reason: 'invalid-format' }
+  }
+
   const parsedName = parseName(trimmed)
   if (parsedName.isErr()) {
     return { type: 'invalid', name, reason: 'invalid-format' }
   }
 
   if (parsedName.value.tld !== ETH_TLD) {
-    return { type: 'invalid', name, reason: 'unsupported-tld' }
+    return {
+      type: 'dns-name',
+      name: trimmed,
+      isSubname: parsedName.value.subLabels.length > 0,
+    }
   }
 
   const isSubname = parsedName.value.subLabels.length > 0

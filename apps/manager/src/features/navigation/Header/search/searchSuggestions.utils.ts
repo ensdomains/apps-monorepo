@@ -27,14 +27,33 @@ type BuildSuggestionsParams = {
   readonly parsedInput: ParsedInput
   readonly primaryName?: string | null
   readonly history: readonly SearchHistoryItem[]
+  readonly tldStatus?: 'supported' | 'unsupported' | 'unknown'
 }
 
 const MAX_SUGGESTIONS = 6
+
+const getTypedNameSuggestions = (
+  parsedInput: ParsedInput,
+  tldStatus: 'supported' | 'unsupported' | 'unknown',
+): string[] => {
+  if (parsedInput.type === 'invalid') return [parsedInput.value]
+  if (parsedInput.type !== 'name') return []
+
+  const shouldSuggestEthFallback =
+    tldStatus === 'unsupported' &&
+    parsedInput.value.includes('.') &&
+    !parsedInput.value.endsWith('.eth')
+
+  return shouldSuggestEthFallback
+    ? [parsedInput.value, `${parsedInput.value}.eth`]
+    : [parsedInput.value]
+}
 
 export const buildSuggestions = ({
   parsedInput,
   primaryName,
   history,
+  tldStatus = 'unknown',
 }: BuildSuggestionsParams): SuggestionItem[] => {
   const suggestions: SuggestionItem[] = []
 
@@ -48,10 +67,10 @@ export const buildSuggestions = ({
     }
   }
 
-  if (parsedInput.type === 'name') {
+  for (const value of getTypedNameSuggestions(parsedInput, tldStatus)) {
     suggestions.push({
       type: 'name',
-      value: parsedInput.value,
+      value,
     })
   }
 

@@ -13,6 +13,12 @@ const subname: SearchNameKind = {
   name: '1.1.sugh004.eth',
 }
 
+const dnsName: SearchNameKind = {
+  type: 'dns-name',
+  name: 'vitalik.xyz',
+  isSubname: false,
+}
+
 describe('classifyNameSearch', () => {
   it('returns invalid for invalid kinds', () => {
     expect(
@@ -102,5 +108,15 @@ describe('classifyNameSearch', () => {
         availability: { status: 'skipped' },
       }),
     ).toEqual({ type: 'loading', name: '1.1.sugh004.eth' })
+  })
+
+  it('keeps an unknown DNS 2LD viewable when it is not found', () => {
+    expect(
+      classifyNameSearch({
+        kind: dnsName,
+        existence: { status: 'unowned' },
+        availability: { status: 'skipped' },
+      }),
+    ).toEqual({ type: 'not-found', name: 'vitalik.xyz' })
   })
 })

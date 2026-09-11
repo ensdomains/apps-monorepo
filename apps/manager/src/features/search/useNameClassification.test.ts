@@ -5,7 +5,7 @@ describe('toExistenceSignal', () => {
   it('does not trust stale owner data after an owner refetch fails', () => {
     expect(
       toExistenceSignal({
-        isSubname: true,
+        isProfileName: true,
         ownerPending: false,
         ownerError: true,
         hasOwner: true,
@@ -19,7 +19,7 @@ describe('toExistenceSignal', () => {
   it('trusts a positive source when the other source fails', () => {
     expect(
       toExistenceSignal({
-        isSubname: true,
+        isProfileName: true,
         ownerPending: false,
         ownerError: true,
         hasOwner: true,

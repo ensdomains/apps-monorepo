@@ -33,7 +33,7 @@ const toAvailabilitySignal = ({
 }
 
 export const toExistenceSignal = ({
-  isSubname,
+  isProfileName,
   ownerPending,
   ownerError,
   hasOwner,
@@ -41,7 +41,7 @@ export const toExistenceSignal = ({
   indexerError,
   indexerHit,
 }: {
-  readonly isSubname: boolean
+  readonly isProfileName: boolean
   readonly ownerPending: boolean
   readonly ownerError: boolean
   readonly hasOwner: boolean
@@ -49,7 +49,7 @@ export const toExistenceSignal = ({
   readonly indexerError: boolean
   readonly indexerHit: boolean
 }): ExistenceSignal => {
-  if (!isSubname) return { status: 'unowned' }
+  if (!isProfileName) return { status: 'unowned' }
 
   // Query errors can retain the previous successful data. Only trust a
   // positive result from a source whose current request succeeded.
@@ -64,7 +64,7 @@ export const toExistenceSignal = ({
 export const useNameClassification = (name: string): NameClassification => {
   const kind = getSearchNameKind(name)
   const isEth2ld = kind.type === 'eth-2ld'
-  const isSubname = kind.type === 'eth-subname'
+  const isProfileName = kind.type === 'eth-subname' || kind.type === 'dns-name'
 
   const availabilityQuery = useQuery({
     ...getSearchNameQueryOptions(name),
@@ -73,12 +73,12 @@ export const useNameClassification = (name: string): NameClassification => {
 
   const ownerQuery = useQuery({
     ...profileOwnerQuery(name),
-    enabled: isSubname,
+    enabled: isProfileName,
   })
 
   const indexerQuery = useQuery({
     ...getDomainsQuery(
-      isSubname
+      isProfileName
         ? {
             where: { name },
             first: 1,
@@ -87,7 +87,7 @@ export const useNameClassification = (name: string): NameClassification => {
           }
         : undefined,
     ),
-    enabled: isSubname,
+    enabled: isProfileName,
   })
 
   const outcome = classifyNameSearch({
@@ -98,7 +98,7 @@ export const useNameClassification = (name: string): NameClassification => {
       isAvailable: availabilityQuery.data?.isAvailable,
     }),
     existence: toExistenceSignal({
-      isSubname,
+      isProfileName,
       ownerPending: ownerQuery.data === undefined && !ownerQuery.isError,
       ownerError: ownerQuery.isError,
       hasOwner: Boolean(ownerQuery.data?.owner),

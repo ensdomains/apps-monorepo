@@ -12,6 +12,29 @@ export type ClassifyNameSearchParams = {
   readonly availability: AvailabilitySignal
 }
 
+const classifyProfileName = (
+  name: string,
+  existence: ExistenceSignal,
+): NameSearchOutcome =>
+  match(existence)
+    .with({ status: 'pending' }, () => ({
+      type: 'loading' as const,
+      name,
+    }))
+    .with({ status: 'owned' }, () => ({
+      type: 'owned' as const,
+      name,
+    }))
+    .with({ status: 'unknown' }, () => ({
+      type: 'error' as const,
+      name,
+    }))
+    .with({ status: 'unowned' }, () => ({
+      type: 'not-found' as const,
+      name,
+    }))
+    .exhaustive()
+
 export const classifyNameSearch = ({
   kind,
   existence,
@@ -48,23 +71,9 @@ export const classifyNameSearch = ({
         .exhaustive(),
     )
     .with({ type: 'eth-subname' }, (subname) =>
-      match(existence)
-        .with({ status: 'pending' }, () => ({
-          type: 'loading' as const,
-          name: subname.name,
-        }))
-        .with({ status: 'owned' }, () => ({
-          type: 'owned' as const,
-          name: subname.name,
-        }))
-        .with({ status: 'unknown' }, () => ({
-          type: 'error' as const,
-          name: subname.name,
-        }))
-        .with({ status: 'unowned' }, () => ({
-          type: 'not-found' as const,
-          name: subname.name,
-        }))
-        .exhaustive(),
+      classifyProfileName(subname.name, existence),
+    )
+    .with({ type: 'dns-name' }, (dnsName) =>
+      classifyProfileName(dnsName.name, existence),
     )
     .exhaustive()

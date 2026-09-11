@@ -57,11 +57,19 @@ describe('getSearchNameKind', () => {
     })
   })
 
-  it('rejects unsupported TLDs', () => {
+  it('classifies non-ETH names as profile-viewable DNS names', () => {
     expect(getSearchNameKind('bigint.xyz')).toEqual({
-      type: 'invalid',
+      type: 'dns-name',
       name: 'bigint.xyz',
-      reason: 'unsupported-tld',
+      isSubname: false,
+    })
+  })
+
+  it('rejects invalid ENS syntax before classifying the TLD', () => {
+    expect(getSearchNameKind('ab_c.eth')).toEqual({
+      type: 'invalid',
+      name: 'ab_c.eth',
+      reason: 'invalid-format',
     })
   })
 })

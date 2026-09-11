@@ -48,8 +48,9 @@ export const NameSuggestionItem = ({
   const isOwned = outcome.type === 'owned'
   const isDisabled =
     outcome.type === 'invalid' ||
-    outcome.type === 'not-found' ||
-    outcome.type === 'error'
+    ((kind.type === 'eth-subname' ||
+      (kind.type === 'dns-name' && kind.isSubname)) &&
+      outcome.type === 'not-found')
 
   const registeredExpiryQuery = useQuery({
     ...profileExpiryQuery(name),

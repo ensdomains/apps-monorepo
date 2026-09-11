@@ -6,14 +6,16 @@ export type ParsedSearchQuery =
   | { readonly type: 'name'; readonly value: string }
   | { readonly type: 'invalid'; readonly value: string }
 
-export type SearchNameInvalidReason =
-  | 'too-short'
-  | 'invalid-format'
-  | 'unsupported-tld'
+export type SearchNameInvalidReason = 'too-short' | 'invalid-format'
 
 export type SearchNameKind =
   | { readonly type: 'eth-2ld'; readonly name: string; readonly label: string }
   | { readonly type: 'eth-subname'; readonly name: string }
+  | {
+      readonly type: 'dns-name'
+      readonly name: string
+      readonly isSubname: boolean
+    }
   | {
       readonly type: 'invalid'
       readonly name: string

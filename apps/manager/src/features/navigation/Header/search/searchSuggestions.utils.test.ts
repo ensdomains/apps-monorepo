@@ -94,6 +94,38 @@ describe('buildSuggestions', () => {
     ])
   })
 
+  it('keeps invalid names visible so the UI can explain why they are unsupported', () => {
+    const result = buildSuggestions({
+      parsedInput: { type: 'invalid', value: 'ab_c.eth' },
+      history: emptyHistory,
+    })
+
+    expect(result).toEqual([{ type: 'name', value: 'ab_c.eth' }])
+  })
+
+  it('suggests the raw name and its .eth form for an unsupported TLD', () => {
+    const result = buildSuggestions({
+      parsedInput: { type: 'name', value: '1.1.sugh004' },
+      history: emptyHistory,
+      tldStatus: 'unsupported',
+    })
+
+    expect(result).toEqual([
+      { type: 'name', value: '1.1.sugh004' },
+      { type: 'name', value: '1.1.sugh004.eth' },
+    ])
+  })
+
+  it('does not append .eth to a name with a supported non-ETH TLD', () => {
+    const result = buildSuggestions({
+      parsedInput: { type: 'name', value: 'vitalik.xyz' },
+      history: emptyHistory,
+      tldStatus: 'supported',
+    })
+
+    expect(result).toEqual([{ type: 'name', value: 'vitalik.xyz' }])
+  })
+
   it('returns address suggestion with primary name', () => {
     const address = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045'
     const result = buildSuggestions({
