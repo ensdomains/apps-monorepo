@@ -47,4 +47,26 @@ describe('getPaymentBreakdownFigures', () => {
       }).credit,
     ).toBe(0)
   })
+
+  // Rounding the three figures can drive the derived credit below zero, and a
+  // negative deduction would render as "--$0.01" for money the account holds.
+  it('reports no credit when the balance is under a cent', () => {
+    expect(
+      getPaymentBreakdownFigures({
+        registration: 4.994,
+        networkFee: 4.994,
+        walletDebit: 9.987,
+      }).credit,
+    ).toBe(0)
+  })
+
+  it('keeps a credit of a cent or more', () => {
+    expect(
+      getPaymentBreakdownFigures({
+        registration: 4.994,
+        networkFee: 4.994,
+        walletDebit: 9.974,
+      }).credit,
+    ).toBe(0.01)
+  })
 })

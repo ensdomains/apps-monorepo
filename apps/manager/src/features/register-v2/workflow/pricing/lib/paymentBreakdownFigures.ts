@@ -5,7 +5,11 @@ export type PaymentBreakdownFigures = {
   readonly registration: number
   readonly networkFee: number
   readonly walletDebit: number
-  /** What the ENS account covers, as the displayed lines imply it. */
+  /**
+   * What the ENS account covers, as the displayed lines imply it. Zero for a
+   * sub-cent balance, which has no honest line to render: callers show the
+   * plain total in that case.
+   */
   readonly credit: number
 }
 
@@ -19,6 +23,11 @@ export type PaymentBreakdownFigures = {
  * from the other three once they are rounded and absorbs the residue: those
  * three are amounts the user can compare against their wallet, the credit is
  * the app's own bookkeeping.
+ *
+ * A balance under a cent cannot be shown at all without breaking that: the
+ * residue can drive the derived credit to zero or below (4.994 + 4.994 against
+ * a 9.987 debit gives -0.01). It comes back as zero, and the sheet leaves the
+ * credit off rather than printing a negative deduction.
  */
 export const getPaymentBreakdownFigures = (funding: {
   readonly registration: number
@@ -33,6 +42,6 @@ export const getPaymentBreakdownFigures = (funding: {
     registration,
     networkFee,
     walletDebit,
-    credit: toCents(registration + networkFee - walletDebit),
+    credit: Math.max(0, toCents(registration + networkFee - walletDebit)),
   }
 }

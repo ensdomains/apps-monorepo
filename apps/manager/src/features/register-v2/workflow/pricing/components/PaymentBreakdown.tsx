@@ -21,7 +21,8 @@ export const PaymentBreakdown = ({
   if (!funding) return isQuoting ? <NetworkCostRow isLoading /> : null
 
   const figures = getPaymentBreakdownFigures(funding)
-  const hasCredit = funding.hcaCredit > 0
+  // The rounded credit, not the raw balance: a sub-cent balance has no line.
+  const hasCredit = figures.credit > 0
 
   return (
     <>
