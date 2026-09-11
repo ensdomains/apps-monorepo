@@ -1335,10 +1335,6 @@ msgstr "Minting…"
 msgid "MM/YY"
 msgstr "MM/YY"
 
-#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
-msgid "Money left in your ENS account from a registration you started earlier. It is used first, so your wallet pays the rest."
-msgstr "Money left in your ENS account from a registration you started earlier. It is used first, so your wallet pays the rest."
-
 #: src/features/dashboard/components/NameRow.tsx
 msgid "More options for {label}"
 msgstr "More options for {label}"
@@ -3073,6 +3069,10 @@ msgstr "Your names, text records, and addresses will migrate automatically"
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Your new profile is ready."
 msgstr "Your new profile is ready."
+
+#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
+msgid "Your own USDC, moved to your ENS account by a registration you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
+msgstr "Your own USDC, moved to your ENS account by a registration you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
