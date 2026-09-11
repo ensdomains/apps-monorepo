@@ -66,12 +66,12 @@ const V1OwnerRow = ({
   readonly label: string
   readonly registryOwner: Address
 }) => {
-  const { data, isLoading, isError } = useQuery(
+  const { data, isLoading, error } = useQuery(
     getV1NameStateQueryOptions({ name }),
   )
 
   // Row-shaped states: the full-size blocks would break the header list.
-  if (isError)
+  if (error)
     return (
       <InfoRow icon={ShieldPersonIcon} label={label}>
         <span className="text-sm text-muted-foreground">
@@ -85,13 +85,20 @@ const V1OwnerRow = ({
         <span className="text-sm text-muted-foreground">Loading</span>
       </InfoRow>
     )
+  // No result and no error — a paused query, or no V1 owner at any level.
+  if (!data)
+    return (
+      <InfoRow icon={ShieldPersonIcon} label={label}>
+        <span className="text-sm text-muted-foreground">Owner unavailable</span>
+      </InfoRow>
+    )
 
   // A lapsed name has no holder — the 721 `ownerOf` reverts in grace.
   return (
     <Owner
       asRow
       label={label}
-      owner={data?.subject ? getV1Holder(data.subject) : registryOwner}
+      owner={data.subject ? getV1Holder(data.subject) : registryOwner}
     />
   )
 }

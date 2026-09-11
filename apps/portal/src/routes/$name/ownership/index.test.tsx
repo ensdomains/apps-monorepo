@@ -35,10 +35,10 @@ let ownerQuery: { data: unknown; isLoading: boolean; error: unknown } = {
   isLoading: false,
   error: null,
 }
-const v1StateQuery: { data: unknown; isLoading: boolean; isError: boolean } = {
+const v1StateQuery: { data: unknown; isLoading: boolean; error: unknown } = {
   data: undefined,
   isLoading: false,
-  isError: false,
+  error: null,
 }
 
 vi.mock('@tanstack/react-query', async () => {
@@ -111,7 +111,7 @@ beforeEach(() => {
   Object.assign(v1StateQuery, {
     data: undefined,
     isLoading: false,
-    isError: false,
+    error: null,
   })
 })
 
@@ -215,7 +215,7 @@ describe('ownership route — Owner row', () => {
   })
 
   it('reports a failed V1 read instead of showing the controller as owner', () => {
-    v1StateQuery.isError = true
+    v1StateQuery.error = new Error('boom')
 
     render(<OwnershipRoute />)
 
@@ -229,6 +229,24 @@ describe('ownership route — Owner row', () => {
     render(<OwnershipRoute />)
 
     expect(ownerRow()).toHaveTextContent('Loading')
+    expect(screen.queryByText('0xf39F…2266')).not.toBeInTheDocument()
+  })
+
+  it('reports no owner rather than the controller when the V1 read returned nothing', () => {
+    v1StateQuery.data = undefined
+
+    render(<OwnershipRoute />)
+
+    expect(ownerRow()).toHaveTextContent('Owner unavailable')
+    expect(screen.queryByText('0xf39F…2266')).not.toBeInTheDocument()
+  })
+
+  it('reports no owner rather than the controller when the V1 read returned nothing', () => {
+    v1StateQuery.data = undefined
+
+    render(<OwnershipRoute />)
+
+    expect(ownerRow()).toHaveTextContent('Owner unavailable')
     expect(screen.queryByText('0xf39F…2266')).not.toBeInTheDocument()
   })
 
