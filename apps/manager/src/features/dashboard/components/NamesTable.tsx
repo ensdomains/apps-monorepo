@@ -9,7 +9,11 @@ import { Input } from '@/components/ui/input'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { BulkRenewDialog, type BulkRenewName } from '@/features/bulk-renew'
 import { isBackendAuthed } from '@/utils/backend-client'
-import { selectionKey, toBulkRenewName } from '../bulkRenewSelection'
+import {
+  selectionKey,
+  toBulkRenewName,
+  toSelectableDomain,
+} from '../bulkRenewSelection'
 import {
   buildMergedNamesList,
   getMergedNamesCount,
@@ -106,7 +110,8 @@ export const NamesTable = ({
         sortField: ownedSortState.field,
         sortDir: ownedSortState.dir,
       }).flatMap((item) =>
-        item.kind === 'v2' && toBulkRenewName(item.domain) !== null
+        item.kind === 'v2' &&
+        toBulkRenewName(toSelectableDomain(item.domain)) !== null
           ? [selectionKey(item.domain)]
           : [],
       ),
@@ -125,7 +130,7 @@ export const NamesTable = ({
     () =>
       v2Names
         .filter((domain) => selectedLabels.has(selectionKey(domain)))
-        .map(toBulkRenewName)
+        .map((domain) => toBulkRenewName(toSelectableDomain(domain)))
         .filter((name): name is BulkRenewName => name !== null),
     [v2Names, selectedLabels],
   )

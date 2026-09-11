@@ -1,5 +1,5 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { err, ok } from 'neverthrow'
+import { err, fromThrowable, ok } from 'neverthrow'
 import { normalize } from 'viem/ens'
 import { isRenewableV2EthName } from '@/features/grace/utils/gracePeriod'
 import { parseName } from '@/features/register-v2/utils/name-parser'
@@ -44,13 +44,10 @@ export const parseRenewableName = (name: string) =>
 export const isRenewableName = (name: string) => parseRenewableName(name).isOk()
 
 /** `normalize` throws on unnormalizable names; those are never renewable. */
-const safeNormalize = (name: string): string | null => {
-  try {
-    return normalize(name)
-  } catch {
-    return null
-  }
-}
+const safeNormalize = fromThrowable(
+  normalize,
+  () => new RenewableNameError({ reason: 'LABEL_NOT_NORMALIZED' as const }),
+)
 
 /**
  * The one label both the UI and the `renew` calldata use. `ALICE.eth` and its
@@ -59,15 +56,17 @@ const safeNormalize = (name: string): string | null => {
  */
 export const resolveRenewalLabel = (name: string) =>
   parseRenewableName(name).andThen(({ label }) =>
-    safeNormalize(name) === name
-      ? ok(label)
-      : RenewableNameError.err('LABEL_NOT_NORMALIZED'),
+    safeNormalize(name).andThen((normalized) =>
+      normalized === name
+        ? ok(label)
+        : RenewableNameError.err('LABEL_NOT_NORMALIZED'),
+    ),
   )
 
 /** The canonical `.eth` name a renewable name resolves to, or `null` if none. */
 export const toCanonicalRenewableName = (name: string): string | null =>
   parseRenewableName(name)
-    .map(({ label }) => safeNormalize(`${label}.eth`))
+    .andThen(({ label }) => safeNormalize(`${label}.eth`))
     .unwrapOr(null)
 
 export const canRenewV2Name = (

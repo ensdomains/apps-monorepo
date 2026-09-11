@@ -3,8 +3,8 @@ import { type SelectableDomain, toBulkRenewName } from './bulkRenewSelection'
 
 const NOW = new Date('2024-06-01T12:00:00Z')
 // Comfortably in the future, so eligibility turns only on the label.
-const EXPIRY_SECONDS = Math.floor(
-  new Date('2025-06-01T12:00:00Z').getTime() / 1000,
+const EXPIRY_SECONDS = BigInt(
+  Math.floor(new Date('2025-06-01T12:00:00Z').getTime() / 1000),
 )
 
 const domain = (overrides: Partial<SelectableDomain>): SelectableDomain => ({
@@ -29,7 +29,7 @@ describe('toBulkRenewName', () => {
       displayName: 'alice.eth',
       label: 'alice',
       name: 'alice.eth',
-      currentExpiry: BigInt(EXPIRY_SECONDS),
+      currentExpiry: EXPIRY_SECONDS,
     })
   })
 
@@ -68,8 +68,8 @@ describe('toBulkRenewName', () => {
   })
 
   it('excludes a name past its grace period', () => {
-    const expired = Math.floor(
-      new Date('2023-01-01T00:00:00Z').getTime() / 1000,
+    const expired = BigInt(
+      Math.floor(new Date('2023-01-01T00:00:00Z').getTime() / 1000),
     )
     expect(toBulkRenewName(domain({ expiryDate: expired }))).toBeNull()
   })
