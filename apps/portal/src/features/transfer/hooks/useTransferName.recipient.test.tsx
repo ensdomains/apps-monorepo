@@ -78,6 +78,19 @@ vi.mock('@/features/profile/hooks/useTokenId', () => ({
     ),
 }))
 
+// A registry-only V1 name: one `setOwner` move step, and no token id read.
+vi.mock('../v1/getV1NameState', () => ({
+  getV1NameStateQueryOptions: ({ name }: { name: string }) => ({
+    queryKey: ['v1-name-state-test', name],
+    queryFn: async () => ({
+      subject: { kind: 'v1-registry', owner: getAddress(TEST_ACCOUNTS.alice) },
+      registration: null,
+      resolverAddress: null,
+      parentOwner: null,
+    }),
+  }),
+}))
+
 const { useTransferName } = await import('./useTransferName')
 
 const render = () =>
@@ -87,6 +100,20 @@ const render = () =>
         name: 'foo.eth',
         account: TEST_ACCOUNTS.alice,
         subject: { kind: 'v2', registryAddress: REGISTRY },
+      }),
+    { wrapper: createTestWrapper() },
+  )
+
+const renderV1Registry = () =>
+  renderHook(
+    () =>
+      useTransferName({
+        name: 'sub.foo.eth',
+        account: TEST_ACCOUNTS.alice,
+        subject: {
+          kind: 'v1-registry',
+          owner: getAddress(TEST_ACCOUNTS.alice),
+        },
       }),
     { wrapper: createTestWrapper() },
   )
@@ -206,6 +233,22 @@ describe('useTransferName preparation runs', () => {
       { label: 'To', value: RECIPIENT_A },
     ])
     expect(encodedRecipient(result.current.transactions)).toBe(RECIPIENT_A)
+  })
+
+  // `set-registry-owner` is the only move step here, so misclassifying it
+  // leaves the modal with no "To" row at all.
+  it('shows the recipient on a v1-registry name’s move step', async () => {
+    const { result } = renderV1Registry()
+
+    act(() => {
+      result.current.startTransfer(to(RECIPIENT_A))
+    })
+
+    await waitFor(() => expect(openModal).toHaveBeenCalledTimes(1))
+    const move = result.current.transactions.at(-1)
+    // Step ids carry the attempt's scope after the step name.
+    expect(move?.id).toMatch(/^transfer-sub\.foo\.eth-set-registry-owner(--|$)/)
+    expect(move?.details).toEqual([{ label: 'To', value: RECIPIENT_A }])
   })
 
   // Immunefi #91822: the recipient was edited while the token id read was
