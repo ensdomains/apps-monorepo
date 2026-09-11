@@ -3008,12 +3008,6 @@ msgstr ""
 msgid "Your account"
 msgstr ""
 
-#. placeholder {0}: f.hcaCredit.toFixed(2)
-#. placeholder {1}: f.walletDebit.toFixed(2)
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Your account already holds {0} USDC, so only {1} USDC will be taken from your wallet."
-msgstr ""
-
 #. placeholder {0}: f.total.toFixed(2)
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your account already holds the {0} USDC this registration needs, so you won't be asked to approve a payment."

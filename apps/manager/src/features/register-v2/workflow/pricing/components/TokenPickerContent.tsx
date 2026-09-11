@@ -321,22 +321,17 @@ export const TokenPickerContent = () => {
     )
     .otherwise(() => null)
 
-  // Positive counterpart to the underfunded copy. A part- or fully-funded HCA
-  // changes both what the wallet is debited and how many prompts the user gets,
-  // and neither is legible from the token list — which shows wallet balances.
-  // Full coverage takes the no-permit branch in `computingHcaBudget`, so the
-  // approval step they saw last time simply will not appear; saying so up front
-  // is the difference between "it skipped a step" and "something went wrong".
+  // Positive counterpart to the underfunded copy, for the one thing no amount
+  // in the breakdown can show. Full coverage takes the no-permit branch in
+  // `computingHcaBudget`, so the approval step they saw last time simply will
+  // not appear; saying so up front is the difference between "it skipped a
+  // step" and "something went wrong". A partial credit is only an amount, and
+  // belongs in the breakdown rather than in a sentence repeating it.
   const infoMessage = match(funding)
     .with(
       { isUnderfunded: false, hcaCredit: P.number.gt(0), walletDebit: 0 },
       (f) =>
         t`Your account already holds the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
-    )
-    .with(
-      { isUnderfunded: false, hcaCredit: P.number.gt(0) },
-      (f) =>
-        t`Your account already holds ${f.hcaCredit.toFixed(2)} USDC, so only ${f.walletDebit.toFixed(2)} USDC will be taken from your wallet.`,
     )
     .otherwise(() => null)
 
