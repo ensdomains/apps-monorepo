@@ -37,12 +37,20 @@ export const createPersistedStore = <
   { key, schema }: PersistedStoreOptions<TContext>,
 ) => {
   const storage = getDefaultStorage()
-  const initialContext = parsePersistedContext({
+  const raw = storage?.getItem(key)
+  const hydratedContext = parsePersistedContext({
     key,
-    raw: storage?.getItem(key),
+    raw,
     schema,
-    fallback: context,
   })
+  const initialContext = hydratedContext ?? context
+
+  if (hydratedContext && storage) {
+    const next = JSON.stringify(hydratedContext)
+    if (next !== raw) {
+      storage.setItem(key, next)
+    }
+  }
 
   const store = createStore({
     context: initialContext,
@@ -75,12 +83,11 @@ const validatePersistedContext = <TContext>(
   key: string,
   context: unknown,
   schema: PersistedContextSchema<TContext>,
-  fallback: TContext,
-): TContext => {
+): TContext | undefined => {
   const result = v.safeParse(schema, context)
   if (!result.success) {
     console.warn(`Persisted state for key "${key}" failed schema validation`)
-    return fallback
+    return undefined
   }
 
   return result.output
@@ -90,25 +97,18 @@ const parsePersistedContext = <TContext>({
   key,
   raw,
   schema,
-  fallback,
 }: {
   readonly key: string
   readonly raw: string | undefined | null
   readonly schema: PersistedContextSchema<TContext>
-  readonly fallback: TContext
-}): TContext => {
-  if (!raw) return fallback
+}): TContext | undefined => {
+  if (!raw) return undefined
 
   try {
-    return validatePersistedContext(
-      key,
-      DEFAULT_SERDE.deserialize(raw),
-      schema,
-      fallback,
-    )
+    return validatePersistedContext(key, DEFAULT_SERDE.deserialize(raw), schema)
   } catch (error) {
     console.warn(`Failed to load persisted state for key "${key}":`, error)
-    return fallback
+    return undefined
   }
 }
 
@@ -129,24 +129,23 @@ function loadPersistedState<TContext extends StoreContext>(
   storage: Storage,
   serde: PersistOptions<TContext>['serde'],
   schema: PersistedContextSchema<TContext>,
-  fallbackContext: TContext,
-): TContext {
+): TContext | undefined {
   try {
     const serialized = storage.getItem(key)
     if (!serialized) {
-      return fallbackContext
+      return undefined
     }
 
     const { deserialize } = serde || DEFAULT_SERDE
     const context = getSnapshotContext(deserialize(serialized))
     if (context === undefined) {
-      return fallbackContext
+      return undefined
     }
 
-    return validatePersistedContext(key, context, schema, fallbackContext)
+    return validatePersistedContext(key, context, schema)
   } catch (error) {
     console.warn(`Failed to load persisted state for key "${key}":`, error)
-    return fallbackContext
+    return undefined
   }
 }
 
@@ -225,17 +224,22 @@ export const persist = <
     return {
       getInitialSnapshot() {
         const initialSnapshot = logic.getInitialSnapshot()
-
-        return {
+        const hydratedContext = loadPersistedState(
+          options.name,
+          storage,
+          options.serde,
+          options.schema,
+        )
+        const nextSnapshot = {
           ...initialSnapshot,
-          context: loadPersistedState(
-            options.name,
-            storage,
-            options.serde,
-            options.schema,
-            initialSnapshot.context,
-          ),
+          context: hydratedContext ?? initialSnapshot.context,
         }
+
+        if (hydratedContext) {
+          savePersistedState(options.name, nextSnapshot, options.serde, storage)
+        }
+
+        return nextSnapshot
       },
       transition(snapshot, event) {
         const [nextState, effects] = logic.transition(snapshot, event)

@@ -152,10 +152,12 @@ describe('xstate-store utils', () => {
     )
 
     expect(store.get().context.count).toBe(0)
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('invalid json')
   })
 
   it('should use fallback context when persisted types do not match the schema', () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ count: '42' }))
+    const raw = JSON.stringify({ count: '42' })
+    localStorage.setItem(STORAGE_KEY, raw)
 
     const store = createPersistedStore(
       {
@@ -166,6 +168,7 @@ describe('xstate-store utils', () => {
     )
 
     expect(store.get().context.count).toBe(0)
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(raw)
   })
 
   it('should allow subscription to store changes', () => {
@@ -281,6 +284,9 @@ describe('persist', () => {
     }).with(persist({ name: STORAGE_KEY, schema: countSchema }))
 
     expect(store.get().context.count).toBe(0)
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '')).toEqual({
+      context: { count: '7' },
+    })
   })
 
   it('uses fallback when the snapshot wrapper is missing', () => {
@@ -303,5 +309,34 @@ describe('persist', () => {
     }).with(persist({ name: STORAGE_KEY, schema: countSchema }))
 
     expect(store.get().context.count).toBe(0)
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('{not-json')
+  })
+
+  it('writes sanitized context back when hydration strips extra fields', () => {
+    const countOnlySchema = v.pipe(
+      v.object({
+        count: v.number(),
+        extra: v.optional(v.string()),
+      }),
+      v.transform(({ count }) => ({ count })),
+    )
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ context: { count: 7, extra: 'drop-me' } }),
+    )
+
+    const store = createStore({
+      context: { count: 0 },
+      on: {},
+    }).with(persist({ name: STORAGE_KEY, schema: countOnlySchema }))
+
+    expect(store.get().context).toEqual({ count: 7 })
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '')).toMatchObject({
+      context: { count: 7 },
+    })
+    expect(
+      JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '').context,
+    ).not.toHaveProperty('extra')
   })
 })

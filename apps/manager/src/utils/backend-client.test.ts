@@ -82,6 +82,11 @@ describe('apiBaseUrlOverride when debug features are disabled', () => {
 
     expect(isolatedStore.get().context.apiBaseUrlOverride).toBeUndefined()
     expect(isolatedGetBackendApiBaseUrl()).toBe(isolatedDefaultUrl)
+
+    const persisted = JSON.parse(
+      localStorage.getItem('@manager-v4/backend_auth') ?? '',
+    )
+    expect(persisted.context.apiBaseUrlOverride).toBeUndefined()
   })
 
   it('uses fallback context when persisted auth types are invalid', async () => {
