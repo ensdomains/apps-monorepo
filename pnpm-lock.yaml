@@ -683,6 +683,9 @@ importers:
 
   e2e:
     dependencies:
+      '@ens-apps/v1-name-shapes':
+        specifier: workspace:*
+        version: link:../packages/v1-name-shapes
       '@ensdomains/ensjs':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4018fc9(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))

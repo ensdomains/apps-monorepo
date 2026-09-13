@@ -23,6 +23,8 @@
  * in a `@scenario:` tag. The `planId` field carries the plan's own label.
  */
 
+import { v1MatrixScenarios } from '../matrix/scenarios.js'
+
 export const PHASES = ['P0', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as const
 export type Phase = (typeof PHASES)[number]
 
@@ -84,6 +86,25 @@ const AREA_TIER: Record<string, Tier> = {
   // R4 — resilience & quality
   K: 'R4',
   L: 'R4',
+  // V — the V1 name-shape matrix. One prefix per portal tab, tiered by what
+  // the tab can cost rather than by how prominent it is: a transfer and a fuse
+  // burn are irreversible, the authorization surfaces decide who is *shown* to
+  // be able to act, the rest are display. Rows are generated from the shape
+  // table (`matrix/scenarios.ts`), never hand-written.
+  VT: 'R0',
+  VF: 'R0',
+  VV: 'R2',
+  VO: 'R2',
+  VL: 'R2',
+  VE: 'R2',
+  VC: 'R2',
+  VG: 'R2',
+  VD: 'R3',
+  VS: 'R3',
+  VR: 'R3',
+  VK: 'R3',
+  VH: 'R3',
+  VA: 'R3',
 }
 
 /** Longest alphabetic prefix of an id — `GW3` → `GW`, `A21` → `A`. */
@@ -2634,6 +2655,7 @@ export const scenarios: Scenario[] = [
   ...crossAppX,
   ...extraX,
   ...metadataMD,
+  ...v1MatrixScenarios(),
 ]
 
 export const scenarioById = new Map(scenarios.map((row) => [row.id, row]))
