@@ -59,6 +59,36 @@ export const readAddressRows = (page: Page): Promise<AddressRow[]> =>
     return out
   })
 
+
+/**
+ * The fuses table as `{ display name → burnt }`.
+ *
+ * The table lists every fuse whether or not it is burned, so asserting that a
+ * fuse *appears* proves only that the table rendered. What matters is its Burnt
+ * cell. Rows are read from `innerText` — name, "Copy value", scope, then the
+ * boolean — because the grid is divs with utility classes and no test ids.
+ */
+export const readFuseRows = (page: Page): Promise<Record<string, boolean>> =>
+  page.evaluate(() => {
+    const main = document.querySelector('main')
+    const lines = ((main as HTMLElement | null)?.innerText ?? '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+    const out: Record<string, boolean> = {}
+    for (const [index, line] of lines.entries()) {
+      if (line !== 'Copy value') continue
+      // The fuse name is the line above "Copy value"; its state is the next
+      // True/False below it.
+      const name = lines[index - 1]
+      const state = lines
+        .slice(index + 1, index + 5)
+        .find((l) => l === 'True' || l === 'False')
+      if (name && state) out[name] = state === 'True'
+    }
+    return out
+  })
+
 /** Resolve a symbolic expectation against what the chain actually says. */
 export const resolveRef = (ref: AddressRef, truth: ChainTruth): string => {
   const value = {
@@ -135,6 +165,45 @@ export const assertTab = async (
         `the "${row.label}" row must show the ${row.shows} (${expected}). Rendered: ${describeRows(rows)}`,
       ).toBe(expected)
     }
+  }
+
+  if (expectation.heading) {
+    // The page heading, not a bare text match: every tab's name also appears in
+    // the sidebar, and `getByText(...).first()` picked that hidden copy — which
+    // failed as "History is not visible" on a page that plainly showed it.
+    await expect(
+      page.getByRole('heading', { name: expectation.heading }).first(),
+      `this tab must render its "${expectation.heading}" heading`,
+    ).toBeVisible({ timeout: 30_000 })
+  }
+
+  if (expectation.fuses) {
+    await expect
+      .poll(async () => Object.keys(await readFuseRows(page)).length, {
+        timeout: 30_000,
+        message: 'the fuses table never rendered',
+      })
+      .toBeGreaterThan(0)
+    const rows = await readFuseRows(page)
+    for (const fuse of expectation.fuses.burnt) {
+      expect(
+        rows[fuse],
+        `"${fuse}" must be burnt for this shape. Table: ${JSON.stringify(rows)}`,
+      ).toBe(true)
+    }
+    for (const fuse of expectation.fuses.unburnt ?? []) {
+      expect(
+        rows[fuse],
+        `"${fuse}" must NOT be burnt for this shape. Table: ${JSON.stringify(rows)}`,
+      ).toBe(false)
+    }
+  }
+
+  for (const text of expectation.text ?? []) {
+    await expect(
+      page.getByText(text, { exact: false }).first(),
+      `this tab must show "${text}" for this shape`,
+    ).toBeVisible({ timeout: 30_000 })
   }
 
   if (expectation.form) {

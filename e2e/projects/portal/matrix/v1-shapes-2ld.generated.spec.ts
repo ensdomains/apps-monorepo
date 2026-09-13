@@ -48,6 +48,72 @@ test.describe('V1 shape · 2ld-unwrapped:owner', () => {
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'transfer')
   })
+
+  test('fuses · explains that an unwrapped V1 name has no fuses, and offers migration', {
+    tag: ['@scenario:VF1', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'fuses')
+  })
+
+  test('roles · refuses role management for a V1 name, and says why', {
+    tag: ['@scenario:VL1', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'roles')
+  })
+
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+    tag: ['@scenario:VE1', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'resolver')
+  })
+
+  test('records · renders the records tab for a V1 name', {
+    tag: ['@scenario:VD1', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
+  test('subnames · renders the subnames tab for a V1 name', {
+    tag: ['@scenario:VS1', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'subnames')
+  })
+
+  test('registry · renders the registry tab for a V1 name', {
+    tag: ['@scenario:VR1', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'registry')
+  })
+
+  test('token · names the BaseRegistrar as the contract holding the token', {
+    tag: ['@scenario:VK1', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'token')
+  })
+
+  test('history · renders the history tab for a V1 name', {
+    tag: ['@scenario:VH1', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · renders address resolution for a V1 name', {
+    tag: ['@scenario:VA1', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
+  })
+
+  test('create-subname · refuses subname creation for a V1 name, and says why', {
+    tag: ['@scenario:VC1', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'create-subname')
+  })
+
+  test('change-resolver · refuses a resolver change for a V1 name, and says why', {
+    tag: ['@scenario:VG1', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'change-resolver')
+  })
 })
 
 test.describe('V1 shape · 2ld-unwrapped:manager', () => {
@@ -92,6 +158,54 @@ test.describe('V1 shape · 2ld-unwrapped:manager', () => {
     tag: ['@scenario:VT2', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'transfer')
+  })
+
+  test('fuses · explains that an unwrapped V1 name has no fuses, and offers migration', {
+    tag: ['@scenario:VF2', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'fuses')
+  })
+
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+    tag: ['@scenario:VE2', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'resolver')
+  })
+
+  test('records · renders the records tab for a V1 name', {
+    tag: ['@scenario:VD2', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
+  test('subnames · renders the subnames tab for a V1 name', {
+    tag: ['@scenario:VS2', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'subnames')
+  })
+
+  test('registry · renders the registry tab for a V1 name', {
+    tag: ['@scenario:VR2', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'registry')
+  })
+
+  test('token · names the BaseRegistrar as the contract holding the token', {
+    tag: ['@scenario:VK2', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'token')
+  })
+
+  test('history · renders the history tab for a V1 name', {
+    tag: ['@scenario:VH2', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · renders address resolution for a V1 name', {
+    tag: ['@scenario:VA2', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
   })
 })
 
@@ -138,6 +252,54 @@ test.describe('V1 shape · 2ld-unwrapped:registrant', () => {
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'transfer')
   })
+
+  test('fuses · explains that an unwrapped V1 name has no fuses, and offers migration', {
+    tag: ['@scenario:VF3', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'fuses')
+  })
+
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+    tag: ['@scenario:VE3', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'resolver')
+  })
+
+  test('records · renders the records tab for a V1 name', {
+    tag: ['@scenario:VD3', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
+  test('subnames · renders the subnames tab for a V1 name', {
+    tag: ['@scenario:VS3', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'subnames')
+  })
+
+  test('registry · renders the registry tab for a V1 name', {
+    tag: ['@scenario:VR3', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'registry')
+  })
+
+  test('token · names the BaseRegistrar as the contract holding the token', {
+    tag: ['@scenario:VK3', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'token')
+  })
+
+  test('history · renders the history tab for a V1 name', {
+    tag: ['@scenario:VH3', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · renders address resolution for a V1 name', {
+    tag: ['@scenario:VA3', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
+  })
 })
 
 test.describe('V1 shape · 2ld-unwrapped:stranger', () => {
@@ -172,6 +334,54 @@ test.describe('V1 shape · 2ld-unwrapped:stranger', () => {
     tag: ['@scenario:VT4', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'transfer')
+  })
+
+  test('fuses · explains that an unwrapped V1 name has no fuses, and offers migration', {
+    tag: ['@scenario:VF4', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'fuses')
+  })
+
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+    tag: ['@scenario:VE4', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'resolver')
+  })
+
+  test('records · renders the records tab for a V1 name', {
+    tag: ['@scenario:VD4', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
+  test('subnames · renders the subnames tab for a V1 name', {
+    tag: ['@scenario:VS4', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'subnames')
+  })
+
+  test('registry · renders the registry tab for a V1 name', {
+    tag: ['@scenario:VR4', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'registry')
+  })
+
+  test('token · names the BaseRegistrar as the contract holding the token', {
+    tag: ['@scenario:VK4', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'token')
+  })
+
+  test('history · renders the history tab for a V1 name', {
+    tag: ['@scenario:VH4', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · renders address resolution for a V1 name', {
+    tag: ['@scenario:VA4', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
   })
 })
 
@@ -208,6 +418,54 @@ test.describe('V1 shape · 2ld-emancipated:owner', () => {
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'transfer')
   })
+
+  test('fuses · shows Is Dot ETH as burnt, and the fuses it does not burn as unburnt', {
+    tag: ['@scenario:VF5', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'fuses')
+  })
+
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+    tag: ['@scenario:VE5', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'resolver')
+  })
+
+  test('records · renders the records tab for a V1 name', {
+    tag: ['@scenario:VD5', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
+  test('subnames · renders the subnames tab for a V1 name', {
+    tag: ['@scenario:VS5', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'subnames')
+  })
+
+  test('registry · renders the registry tab for a V1 name', {
+    tag: ['@scenario:VR5', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'registry')
+  })
+
+  test('token · names the NameWrapper as the contract holding the token', {
+    tag: ['@scenario:VK5', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'token')
+  })
+
+  test('history · renders the history tab for a V1 name', {
+    tag: ['@scenario:VH5', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · renders address resolution for a V1 name', {
+    tag: ['@scenario:VA5', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
+  })
 })
 
 test.describe('V1 shape · 2ld-emancipated:stranger', () => {
@@ -242,6 +500,54 @@ test.describe('V1 shape · 2ld-emancipated:stranger', () => {
     tag: ['@scenario:VT6', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'transfer')
+  })
+
+  test('fuses · shows Is Dot ETH as burnt, and the fuses it does not burn as unburnt', {
+    tag: ['@scenario:VF6', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'fuses')
+  })
+
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+    tag: ['@scenario:VE6', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'resolver')
+  })
+
+  test('records · renders the records tab for a V1 name', {
+    tag: ['@scenario:VD6', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
+  test('subnames · renders the subnames tab for a V1 name', {
+    tag: ['@scenario:VS6', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'subnames')
+  })
+
+  test('registry · renders the registry tab for a V1 name', {
+    tag: ['@scenario:VR6', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'registry')
+  })
+
+  test('token · names the NameWrapper as the contract holding the token', {
+    tag: ['@scenario:VK6', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'token')
+  })
+
+  test('history · renders the history tab for a V1 name', {
+    tag: ['@scenario:VH6', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · renders address resolution for a V1 name', {
+    tag: ['@scenario:VA6', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
   })
 })
 
@@ -283,6 +589,54 @@ test.describe('V1 shape · 2ld-locked:owner', () => {
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'transfer')
   })
+
+  test('fuses · shows Cannot Unwrap as burnt, and the fuses it does not burn as unburnt', {
+    tag: ['@scenario:VF7', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'fuses')
+  })
+
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+    tag: ['@scenario:VE7', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'resolver')
+  })
+
+  test('records · renders the records tab for a V1 name', {
+    tag: ['@scenario:VD7', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
+  test('subnames · renders the subnames tab for a V1 name', {
+    tag: ['@scenario:VS7', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'subnames')
+  })
+
+  test('registry · renders the registry tab for a V1 name', {
+    tag: ['@scenario:VR7', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'registry')
+  })
+
+  test('token · names the NameWrapper as the contract holding the token', {
+    tag: ['@scenario:VK7', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'token')
+  })
+
+  test('history · renders the history tab for a V1 name', {
+    tag: ['@scenario:VH7', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · renders address resolution for a V1 name', {
+    tag: ['@scenario:VA7', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
+  })
 })
 
 test.describe('V1 shape · 2ld-locked-no-transfer:owner', () => {
@@ -312,6 +666,54 @@ test.describe('V1 shape · 2ld-locked-no-transfer:owner', () => {
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'transfer')
   })
+
+  test('fuses · shows Cannot Transfer as burnt, and the fuses it does not burn as unburnt', {
+    tag: ['@scenario:VF8', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'fuses')
+  })
+
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+    tag: ['@scenario:VE8', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'resolver')
+  })
+
+  test('records · renders the records tab for a V1 name', {
+    tag: ['@scenario:VD8', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
+  test('subnames · renders the subnames tab for a V1 name', {
+    tag: ['@scenario:VS8', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'subnames')
+  })
+
+  test('registry · renders the registry tab for a V1 name', {
+    tag: ['@scenario:VR8', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'registry')
+  })
+
+  test('token · names the NameWrapper as the contract holding the token', {
+    tag: ['@scenario:VK8', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'token')
+  })
+
+  test('history · renders the history tab for a V1 name', {
+    tag: ['@scenario:VH8', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · renders address resolution for a V1 name', {
+    tag: ['@scenario:VA8', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
+  })
 })
 
 test.describe('V1 shape · 2ld-locked-no-resolver:owner', () => {
@@ -340,5 +742,53 @@ test.describe('V1 shape · 2ld-locked-no-resolver:owner', () => {
     tag: ['@scenario:VT9', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'transfer')
+  })
+
+  test('fuses · shows Cannot Set Resolver as burnt, and the fuses it does not burn as unburnt', {
+    tag: ['@scenario:VF9', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'fuses')
+  })
+
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+    tag: ['@scenario:VE9', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'resolver')
+  })
+
+  test('records · renders the records tab for a V1 name', {
+    tag: ['@scenario:VD9', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
+  test('subnames · renders the subnames tab for a V1 name', {
+    tag: ['@scenario:VS9', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'subnames')
+  })
+
+  test('registry · renders the registry tab for a V1 name', {
+    tag: ['@scenario:VR9', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'registry')
+  })
+
+  test('token · names the NameWrapper as the contract holding the token', {
+    tag: ['@scenario:VK9', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'token')
+  })
+
+  test('history · renders the history tab for a V1 name', {
+    tag: ['@scenario:VH9', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · renders address resolution for a V1 name', {
+    tag: ['@scenario:VA9', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
   })
 })
