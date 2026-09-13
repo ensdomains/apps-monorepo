@@ -317,6 +317,21 @@ const harness: Scenario[] = [
     oracle: 'fixtures/premigration.ts',
     modules: ['fixtures/premigration.ts'],
   },
+  {
+    id: 'HW11',
+    kind: 'harness',
+    tier: 'HW',
+    phase: 'P0',
+    section: '2',
+    planId: 'H11',
+    area: 'records',
+    app: 'shared',
+    title:
+      'makeV1Name writes V1 records that actually land — the resolver authorises against the canonical registry',
+    oracle:
+      'fixtures/makeV1Name.ts V1_PUBLIC_RESOLVER; read back text() and addr() on chain, wrapped and unwrapped',
+    modules: ['fixtures/makeV1Name.ts'],
+  },
 ]
 
 // ── P1 · §5.C Roles and permissions ──────────────────────────────────────

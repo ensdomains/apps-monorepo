@@ -31,8 +31,10 @@
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
-import { parseAbi } from 'viem'
+import { namehash, parseAbi } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 import { revertTo, takeSnapshot } from '../fixtures/chain-snapshot.js'
+import { createMakeV1Name, V1_PUBLIC_RESOLVER } from '../fixtures/makeV1Name.js'
 import {
   assertQueryFields,
   isReachable,
@@ -72,6 +74,12 @@ const REGISTRY_ABI = parseAbi([
 
 /** `PermissionedRegistry.getStatus` — 0 available, 1 reserved, 2 registered. */
 const REGISTERED = 2
+
+/** The two V1 record reads `makeV1Name`'s `records` option claims to write. */
+const V1_RESOLVER_ABI = parseAbi([
+  'function text(bytes32 node, string key) view returns (string)',
+  'function addr(bytes32 node) view returns (address)',
+])
 
 const tokenId = async (label: string) => {
   const { keccak256, toHex } = await import('viem')
@@ -237,6 +245,65 @@ test.describe('Harness integrity', () => {
       ).toBeLessThan(now)
     } finally {
       await revertTo(before)
+    }
+  })
+
+  // ── makeV1Name ─────────────────────────────────────────────────────────
+
+  test('makeV1Name: the records it asks for are actually written, wrapped and unwrapped', async ({
+    accounts,
+  }) => {
+    // This is the incident in this file's header, one layer down. The fixture
+    // was repointed onto the canonical V1 registry, but `V1_PUBLIC_RESOLVER`
+    // was left on a resolver whose immutable `ens` is the *superseded*
+    // registry — so `isAuthorised` looked the name up in a registry where it
+    // does not exist, and every record write reverted. `setV1Records` did not
+    // check, so the fixture reported success and any record assertion above it
+    // would have been testing an empty resolver.
+    //
+    // Both wrap states, because they authorise through different paths: an
+    // unwrapped name via `ens.owner(node)`, a wrapped one via the NameWrapper
+    // owner. A resolver can satisfy one and not the other.
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const expectedAddr = accounts.getAddress('user2')
+
+    for (const type of ['unwrapped', 'wrapped'] as const) {
+      const name = await makeV1Name({
+        label: `harness-v1-records-${type}`,
+        type,
+        records: {
+          texts: [{ key: 'com.twitter', value: 'ensdomains' }],
+          addresses: [{ coinType: 60, value: expectedAddr }],
+        },
+      })
+      const node = namehash(name)
+
+      // Read straight off the resolver, not off anything the fixture returned.
+      const [text, addr] = await Promise.all([
+        publicClient.readContract({
+          address: V1_PUBLIC_RESOLVER,
+          abi: V1_RESOLVER_ABI,
+          functionName: 'text',
+          args: [node, 'com.twitter'],
+        }),
+        publicClient.readContract({
+          address: V1_PUBLIC_RESOLVER,
+          abi: V1_RESOLVER_ABI,
+          functionName: 'addr',
+          args: [node],
+        }),
+      ])
+
+      expect(
+        text,
+        `makeV1Name claimed to write a text record to ${name} (${type}), but ${V1_PUBLIC_RESOLVER} has none. The resolver most likely authorises against a different registry than the one the name was registered in, which reverts the write silently.`,
+      ).toBe('ensdomains')
+      expect(
+        addr.toLowerCase(),
+        `makeV1Name claimed to write addr(60) to ${name} (${type}), and the resolver disagrees`,
+      ).toBe(expectedAddr.toLowerCase())
     }
   })
 

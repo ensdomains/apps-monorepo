@@ -112,9 +112,9 @@ const ALLOWED: Record<string, Allowance> = {
   // canonical addresses the apps read. `V1_PUBLIC_RESOLVER` is the one
   // address that genuinely stays a literal — it isn't in ensjs's config at
   // all (see below) — so it's the only entry left in this block.
-  '0x640294a2b2d87e7f522db3e3e3e876764bce170d': {
+  '0x8fade66b79cc9f707ab26799354482eb93a5b7dd': {
     reason:
-      "V1 PublicResolver, pinned deployment, absent from ensL1Contracts entirely (settled 2026-08-29, coverage/handoff.md iteration 15 — verified on Sepolia Etherscan as a real, verified PublicResolver deployed for this project's own former V1 fixture stack, constructor args matching that stack's old controller/registry/wrapper). Still fine as a placeholder resolver post-repoint (iteration 23) since reads do not check authorisation — only setV1Records' writes do, and those are a known, separately-tracked gap for GR* scenarios specifically. See makeV1Name.ts header.",
+      'V1 PublicResolver used by `makeV1Name`. Absent from ensL1Contracts entirely, so it cannot be derived from a config — but it is NOT arbitrary: it is a member of KNOWN_PUBLIC_RESOLVERS (packages/migration/src/contracts/knownResolvers.ts), which is what makes migration classify it `to-owned-permres` instead of degrading to `keep-v1`. Chosen by measurement on 2026-09-13, not by assumption: simulating `setText` as the registry owner of a real Sepolia name showed the previous pin (0x640294a2…) reverts because its immutable `ens` is the superseded fixture registry, while this one authorises against the canonical registry and stays authorised for a wrapped name called by its NameWrapper owner. See makeV1Name.ts header.',
   },
 
   // ── HCA account, derived outside the e2e dependency graph.

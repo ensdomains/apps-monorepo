@@ -68,22 +68,28 @@ const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 // both the old and new pairs, so it was never a requirement and needs no
 // equivalent grant.
 //
-// KNOWN GAP, not fixed here: `V1_PUBLIC_RESOLVER` is unaffected by this
-// repoint (still the same address) and is fine as a placeholder resolver —
-// reads work regardless of which registry points at it. But `setV1Records`
-// (GR* scenarios only) writes `setText`/`setAddr` directly to it as the
-// name's owner, and this resolver's own authorisation is hardcoded to the
-// *old* fixture registry (confirmed via its constructor args on Sepolia
-// Etherscan, iteration 15) — a node registered in the new canonical registry
-// has no ownership record in the resolver's own `_ens`, so those writes will
-// revert post-repoint. Unwrapped/wrapped/locked registration and migration
-// (the other ~47 of the 59 `G*` rows) do not go through this path at all.
-// See coverage/handoff.md, iteration 23.
+// `V1_PUBLIC_RESOLVER` was the last casualty of the repoint, now fixed. A
+// PublicResolver's `ens` is immutable, set at construction, and
+// `isAuthorised(node)` compares `msg.sender` against `ens.owner(node)`. The
+// old pin (`0x640294a2…`) is bound to the *superseded* fixture registry, so a
+// name registered in the canonical one has no ownership record there and
+// every `setText`/`setAddr` reverted — which is what blocked all of `GR*` and
+// the positive half of `setEthAddress`.
+//
+// Measured on the fork (2026-09-13), simulating `setText` as the registry
+// owner of a real Sepolia name: `0x640294a2…` reverts; `0xE99638b4…` and this
+// one pass, and both stay authorised for a WRAPPED name when called by the
+// NameWrapper owner. This one is chosen because it is also a member of
+// `KNOWN_PUBLIC_RESOLVERS` (`packages/migration/src/contracts/knownResolvers.ts`),
+// so migration classifies it `to-owned-permres` rather than silently
+// degrading to `keep-v1` — i.e. the `GR*` rows exercise the branch they name.
+// It is the resolver live Sepolia names use, and the one the dev-tools drawer
+// already writes records through (`V1_RECORD_RESOLVER`).
 const V1_ETH_REGISTRAR_CONTROLLER = APP_V1_CONTROLLER
 export const V1_BASE_REGISTRAR = APP_V1_BASE_REGISTRAR
 export const V1_NAME_WRAPPER = APP_V1_NAME_WRAPPER
 export const V1_PUBLIC_RESOLVER =
-  '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address
+  '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD' as Address
 export const V1_ENS_REGISTRY = ensjsSepolia.ensLegacyRegistry.address
 
 // ---------------------------------------------------------------------------

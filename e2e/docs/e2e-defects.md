@@ -173,29 +173,37 @@ of the chain head, so this announces itself instead of masquerading as a
 regression. The harness already checks Panoptes is *reachable* and *synced* —
 it does not check that it is on the same history.
 
-### `V1_PUBLIC_RESOLVER.setAddr` reverts, so no V1 name can hold an addr(60)
+### ~~`V1_PUBLIC_RESOLVER.setAddr` reverts, so no V1 name can hold an addr(60)~~ — FIXED 2026-09-13
 
-Writing an address record to a V1 name reverts for the node's registry owner,
-through **both** routes tried:
+Writing any record to a V1 name reverted for the node's registry owner, through
+both `makeV1Name({ records })` and ensjs `setRecords`. `setResolver` succeeded;
+only the record write failed.
 
-- `makeV1Name({ records: { addresses: [...] } })` → `setV1Records` →
-  `setAddr(bytes32,uint256,bytes)` on `V1_PUBLIC_RESOLVER`
-- ensjs `setRecords` against the same resolver — the helper `transfer.spec.ts`
-  already uses successfully for V2 names
+**Cause.** A `PublicResolver`'s `ens` is **immutable**, fixed at construction,
+and `isAuthorised(node)` compares `msg.sender` against `ens.owner(node)`. The
+pinned `0x640294a2…` is bound to the *superseded* fixture registry, while
+iteration 23 repointed the fixture onto the canonical `ensLegacyRegistry`. The
+name therefore had no ownership record in the registry the resolver consults,
+so every write failed authorisation. The last line of the old entry — "worth
+checking whether `V1_PUBLIC_RESOLVER` is the right address" — was the answer.
 
-`setResolver` on the legacy registry succeeds; only the record write fails. The
-caller is the node's registry owner, which is what `PublicResolver` authorises
-against, so from outside it is neither an ordering nor an authority problem —
-the resolver simply refuses.
+**How it was settled.** Measured, not reasoned: simulating `setText` with
+`eth_call --from` the registry owner of a real Sepolia name (`demo.eth`, owned
+by an EOA) against every `KNOWN_PUBLIC_RESOLVERS` entry. `0x640294a2…` reverts;
+`0xE99638b4…` and `0x8FADE66B…` pass, and both stay authorised for a **wrapped**
+name called by its NameWrapper owner.
 
-**What it blocks:** `getV1DetachTargets` only offers `setEthAddress` when the
-name has an `addr(60)`, so that option's positive case is unreachable for V1.
-F29 covers the `detachResolver` half instead and asserts `setEthAddress` is
-withheld — correct, but for want of a record rather than want of authority,
-which is weaker than intended.
+**Fix.** `V1_PUBLIC_RESOLVER` → `0x8FADE66B…` in `fixtures/makeV1Name.ts`. It is
+a `KNOWN_PUBLIC_RESOLVERS` member, so migration classifies it
+`to-owned-permres` rather than silently degrading to `keep-v1` — i.e. the `GR*`
+rows exercise the branch they claim. Guarded by harness case **HW11**, which
+seeds a wrapped and an unwrapped name with records and reads both back off the
+resolver.
 
-Worth checking whether `V1_PUBLIC_RESOLVER` is the right address for this
-deployment; a working one would also close the gap above.
+**What it unblocks:** the positive `setEthAddress` case in
+`getV1DetachTargets` (F29 could previously only assert the option was withheld,
+for want of a record rather than want of authority), every `GR*` record-replay
+row, and the record cells of the V1 shape matrix.
 
 ### `anvil-mainnet` cannot fork, so the whole metadata suite (18 tests) never runs
 
