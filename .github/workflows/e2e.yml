@@ -84,6 +84,14 @@ jobs:
             for i in 1 2; do
               configs+=("{\"project\":\"portal\",\"shardIndex\":$i,\"shardTotal\":2}")
             done
+            # The V1 shape matrix: one cell per (portal tab x way a V1 name can
+            # be held). Its own entry so it shards independently and a red cell
+            # names the matrix rather than the portal suite. The clock-moving
+            # `-time` project is deliberately NOT here: it advances the shared
+            # fork clock irreversibly, so it runs on demand, last.
+            for i in 1 2; do
+              configs+=("{\"project\":\"portal-v1-matrix\",\"shardIndex\":$i,\"shardTotal\":2}")
+            done
           fi
           if [[ ${#configs[@]} -eq 0 ]]; then
             echo "configs=[]" >> "$GITHUB_OUTPUT"
@@ -117,6 +125,8 @@ jobs:
       # its coverage.
       - name: Harness integrity — address literals
         run: pnpm e2e:check:addresses
+      - name: Fail if the generated V1 matrix specs are stale
+        run: pnpm --filter @ens-apps/e2e matrix:check
       - name: Reconcile E2E coverage
         run: pnpm e2e:coverage
       - name: Fail if the generated report is stale
@@ -311,17 +321,27 @@ jobs:
           echo "Checking app RPC URL..."
           curl -s http://localhost:${APP_PORT}/ | grep -oE 'http://[^"]+:8545[^"]*' | head -3 || echo "(RPC URL not found in HTML — may be in JS chunks)"
 
-          # Map project name to its playwright config path
+          # Map project name to its playwright config path, and to the
+          # playwright project inside it. The --project filter matters: the
+          # portal config now carries the V1 matrix and the clock-moving
+          # matrix-time project too, and an unfiltered run would execute every
+          # one of them in the same job.
+          PLAYWRIGHT_PROJECT=""
           if [[ "${{ matrix.config.project }}" == "manager-premium" ]]; then
             PLAYWRIGHT_CONFIG="projects/manager/playwright.premium.config.ts"
           elif [[ "${{ matrix.config.project }}" == "portal" ]]; then
             PLAYWRIGHT_CONFIG="projects/portal/playwright.config.ts"
+            PLAYWRIGHT_PROJECT="--project=portal-e2e"
+          elif [[ "${{ matrix.config.project }}" == "portal-v1-matrix" ]]; then
+            PLAYWRIGHT_CONFIG="projects/portal/playwright.config.ts"
+            PLAYWRIGHT_PROJECT="--project=portal-v1-matrix"
           else
             PLAYWRIGHT_CONFIG="projects/manager/playwright.config.ts"
           fi
 
           pnpm --filter @ens-apps/e2e exec playwright test \
             --config=${PLAYWRIGHT_CONFIG} \
+            ${PLAYWRIGHT_PROJECT} \
             --shard=${{ matrix.config.shardIndex }}/${{ matrix.config.shardTotal }}
           TEST_EXIT=$?
           kill $APP_PID 2>/dev/null || true
