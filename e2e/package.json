@@ -23,7 +23,9 @@
     "clear-own-resolver": "tsx scripts/clear-own-resolver.ts",
     "probe:subname-transfer": "tsx scripts/probe-subname-transfer.ts",
     "lint": "biome check",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "matrix:generate": "tsx scripts/generate-v1-matrix.ts",
+    "matrix:check": "tsx scripts/generate-v1-matrix.ts --check"
   },
   "postinstall": "playwright install --with-deps chromium",
   "dependencies": {
