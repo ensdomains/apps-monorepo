@@ -472,12 +472,68 @@ for (const t of taggedTests) {
 
 /** Hard failures — a false claim in the ledger, or a ratchet regression. */
 const problems: string[] = []
+
 /**
  * Diagnostics. An excluded test is a gap in the *runner config*, not a false
  * claim: the ledger already refuses to count it as terminal, so it does not
  * need to also break the build.
  */
 const warnings: string[] = []
+
+/**
+ * Spec files that are committed but run by no config, with the reason and who
+ * owns getting them back. A dark spec is worse than a missing one — it reads as
+ * coverage to anyone scanning the tree — so new ones are a hard failure and
+ * these are listed, loudly, until they are adopted or deleted.
+ */
+const KNOWN_DARK_SPECS: Record<string, string> = {
+  'projects/manager/tests/migration.spec.ts':
+    'untagged, excluded by projects/manager testIgnore. Adopt in the migration matrix (plan P2-0) after auditing each test against its G* oracle — one of them asserts a CANNOT_TRANSFER name migrates, which GW5 says is ineligible. Owner: sugh01',
+  'projects/manager/tests/migration-fuses.spec.ts':
+    'as above — the six single-fuse combinations, worth ~6 GW rows once audited. Owner: sugh01',
+  'projects/manager/tests/migration-premium.spec.ts':
+    'as above — grace/renew cases belonging to the premium config. Owner: sugh01',
+  'projects/manager/tests/notification.spec.ts':
+    'untagged and excluded; the N suite has no runner config at all. Owner: sugh01',
+}
+
+/**
+ * Every committed spec must be run by *some* config, tagged or not.
+ *
+ * The `excluded` status below only notices a spec that carries `@scenario`
+ * tags. Three migration spec files are committed, untagged, and run by no
+ * config at all, so they show up nowhere: `migration.spec.ts`,
+ * `migration-fuses.spec.ts` and `migration-premium.spec.ts` are 16 tests that
+ * have never run and never been counted as missing. A spec nobody runs is
+ * strictly worse than one nobody wrote — it reads as coverage to anyone
+ * scanning the tree.
+ *
+ * Skipped when `--no-list` is set, since without the listing every file looks
+ * unexecuted.
+ */
+if (!hasFlag('--no-list')) {
+  const executedFiles = new Set(
+    [...executable.keys()]
+      .filter((key) => !key.startsWith('tag::'))
+      .map((key) => key.slice(0, key.lastIndexOf('::'))),
+  )
+  const orphans = allSpecFiles
+    .filter((file) => !executedFiles.has(file))
+    .map((file) => relative(e2eRoot, file))
+  if (executedFiles.size > 0) {
+    const unexplained = orphans.filter((file) => !(file in KNOWN_DARK_SPECS))
+    if (unexplained.length > 0) {
+      problems.push(
+        `${unexplained.length} committed spec file(s) are run by no project config, so nothing in them can ever count:\n` +
+          unexplained.map((file) => `      ${file}`).join('\n') +
+          '\n      Add them to a config’s testMatch/testDir, or delete them.',
+      )
+    }
+    for (const file of orphans.filter((f) => f in KNOWN_DARK_SPECS)) {
+      warnings.push(`${file} runs in no config — ${KNOWN_DARK_SPECS[file]}`)
+    }
+  }
+}
 
 // Tags that name a scenario or an invariant site the registry has never heard
 // of. Both are hard failures: a tag pointing at nothing is a coverage claim

@@ -86,6 +86,10 @@ Sites checked: **0 / 32**. A site is `checked` on the same evidence a scenario i
 
 Committed tests that no project config executes. Not counted as terminal.
 
+- projects/manager/tests/migration-fuses.spec.ts runs in no config — as above — the six single-fuse combinations, worth ~6 GW rows once audited. Owner: sugh01
+- projects/manager/tests/migration-premium.spec.ts runs in no config — as above — grace/renew cases belonging to the premium config. Owner: sugh01
+- projects/manager/tests/migration.spec.ts runs in no config — untagged, excluded by projects/manager testIgnore. Adopt in the migration matrix (plan P2-0) after auditing each test against its G* oracle — one of them asserts a CANNOT_TRANSFER name migrates, which GW5 says is ineligible. Owner: sugh01
+- projects/manager/tests/notification.spec.ts runs in no config — untagged and excluded; the N suite has no runner config at all. Owner: sugh01
 - A11: covering test exists but no playwright config runs it (projects/manager/tests/migration.spec.ts)
 
 ## Scenarios
