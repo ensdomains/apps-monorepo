@@ -15,7 +15,14 @@
  * One file per shape group, because `fullyParallel: false` shards by file.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -80,13 +87,16 @@ const testBlock = (shape: Shape): string => {
       const fail = expectation?.defect
         ? `\n    test.fail(true, '${expectation.defect.id}: ${expectation.defect.actual.replace(/'/g, "\\'")}')\n`
         : ''
-      return `  test(
-    '${tab.id} · ${expectation?.title.replace(/'/g, "\\'")}',
-    { tag: ['@scenario:${id}', '@v1matrix'] },
-    async ({ portalPage: page, wallet }) => {${fail}
-      await runCell(page, wallet, seeded, '${tab.id}')
-    },
-  )`
+      // The title MUST stay on the same line as `test(`. reconcile.ts finds
+      // tests with /^\s*test\s*\(\s*['"`]/ — a title on the following line is
+      // not a test as far as the ledger is concerned, so the tags below it are
+      // never attributed and the cells read "no covering test" while passing.
+      // Measured: regenerating without a formatter pass dropped 6 terminal rows.
+      return `  test('${tab.id} · ${expectation?.title.replace(/'/g, "\\'")}', {
+    tag: ['@scenario:${id}', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {${fail}
+    await runCell(page, wallet, seeded, '${tab.id}')
+  })`
     })
     .join('\n\n')
 
@@ -123,10 +133,37 @@ for (const shape of SHAPES) {
 const check = process.argv.includes('--check')
 let stale = false
 
+/**
+ * Format with the repo's own formatter before comparing or committing.
+ *
+ * Without this the staleness gate is unusable: biome reformats whatever the
+ * generator emits, so the committed file never equals the raw template and
+ * `--check` fails forever. Both sides go through the formatter instead, which
+ * also means the generated specs are not a formatting exception anybody has to
+ * remember.
+ */
+const formatted = (contents: string, sampleName: string): string => {
+  // Inside the project, or biome refuses the file as out of scope — and named
+  // `.gen-tmp.ts` rather than `.spec.ts` so a leftover can never be collected
+  // as a test.
+  const tmp = join(OUT_DIR, `.${process.pid}-${sampleName}.gen-tmp.ts`)
+  writeFileSync(tmp, contents)
+  try {
+    execFileSync('npx', ['biome', 'format', '--write', tmp], {
+      cwd: join(here, '..'),
+      stdio: 'ignore',
+    })
+    return readFileSync(tmp, 'utf8')
+  } finally {
+    rmSync(tmp, { force: true })
+  }
+}
+
 mkdirSync(OUT_DIR, { recursive: true })
 for (const [group, blocks] of groups) {
-  const file = join(OUT_DIR, `v1-shapes-${group}.generated.spec.ts`)
-  const contents = `${header(group)}\n${blocks.join('\n')}`
+  const name = `v1-shapes-${group}.generated.spec.ts`
+  const file = join(OUT_DIR, name)
+  const contents = formatted(`${header(group)}\n${blocks.join('\n')}`, name)
   const current = existsSync(file) ? readFileSync(file, 'utf8') : ''
   if (current === contents) continue
   if (check) {

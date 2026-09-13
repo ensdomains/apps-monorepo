@@ -99,12 +99,25 @@ export const assertTab = async (
   }
 
   if (expectation.rows) {
-    // Wait for at least one row before reading, or a slow query reads as an
-    // empty page and every row assertion fails with the same useless message.
-    await expect(
-      page.locator('a[href^="/addr/"]').first(),
-      'no address row ever rendered on this tab',
-    ).toBeVisible({ timeout: 30_000 })
+    // Poll until every expected label is present, rather than reading once.
+    //
+    // Rows arrive as their queries resolve, so a single read is a race: the
+    // Owner row can be on the page while the Manager row is still loading, and
+    // a probe measured an overview tab that was empty at 2.5 s and complete at
+    // 10 s. Reading once would have produced "the Owner row is missing" —
+    // indistinguishable from the app genuinely not rendering it, across 347
+    // cells.
+    const wanted = expectation.rows
+      .filter((row) => row.kind === 'address-row')
+      .map((row) => row.label)
+    if (wanted.length > 0) {
+      await expect
+        .poll(async () => (await readAddressRows(page)).map((r) => r.label), {
+          timeout: 30_000,
+          message: `these rows never rendered: ${wanted.join(', ')}`,
+        })
+        .toEqual(expect.arrayContaining(wanted))
+    }
     const rows = await readAddressRows(page)
 
     for (const row of expectation.rows) {
@@ -121,6 +134,21 @@ export const assertTab = async (
         actual?.toLowerCase(),
         `the "${row.label}" row must show the ${row.shows} (${expected}). Rendered: ${describeRows(rows)}`,
       ).toBe(expected)
+    }
+  }
+
+  if (expectation.form) {
+    const recipient = page.getByPlaceholder('ENS name or address')
+    if (expectation.form === 'visible') {
+      await expect(
+        recipient,
+        'this shape is transferable, so the recipient form must be reachable',
+      ).toBeVisible({ timeout: 30_000 })
+    } else {
+      await expect(
+        recipient,
+        'this shape is refused, so no recipient form may be offered — a form that leads to a revert is worse than a refusal',
+      ).toHaveCount(0, { timeout: 30_000 })
     }
   }
 

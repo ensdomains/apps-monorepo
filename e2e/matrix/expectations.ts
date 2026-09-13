@@ -51,6 +51,8 @@ export type TabExpectation = {
   readonly refusal?: string
   readonly rows?: readonly RowExpectation[]
   readonly ctas?: readonly CtaExpectation[]
+  /** Transfer tab: whether the recipient form is reachable for this shape. */
+  readonly form?: 'visible' | 'absent'
   /** Known wrong today. The expectation above stays correct. */
   readonly defect?: { readonly id: string; readonly actual: string }
   /** Not yet decided — the generator emits no test and the row stays open. */
@@ -67,6 +69,12 @@ type TabId = string
 export const EXPECTATIONS: Partial<
   Record<ShapeId, Partial<Record<TabId, TabExpectation>>>
 > = {
+  // ── Unwrapped 2LDs: the registrant/controller split ───────────────────
+  //
+  // The four shapes below are the same name held four ways, which is what
+  // makes them evidence rather than anecdote: where registrant and controller
+  // are one wallet the rows are right, and where they diverge the Owner row
+  // follows the controller. One variable, one outcome.
   '2ld-unwrapped:owner': {
     overview: {
       title: 'names the registrant as owner',
@@ -79,6 +87,10 @@ export const EXPECTATIONS: Partial<
         { kind: 'address-row', label: 'Manager', shows: 'controller' },
       ],
       ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    transfer: {
+      title: 'offers the form to the wallet that holds both halves',
+      form: 'visible',
     },
   },
 
@@ -104,8 +116,148 @@ export const EXPECTATIONS: Partial<
           'the Owner row shows the controller, so the same address appears as both Owner and Manager and the real owner is absent',
       },
     },
+    transfer: {
+      title: 'refuses a wallet that manages the name but does not hold it',
+      refusal: 'You manage this name but don\u2019t own it',
+      form: 'absent',
+    },
   },
 
+  '2ld-unwrapped:registrant': {
+    overview: {
+      title: 'names the registrant as owner, not the wallet that manages it',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'registrant' }],
+      defect: {
+        id: 'E2E-011',
+        actual:
+          'the overview Owner row shows the controller, so the wallet that actually holds the name is absent from its own page',
+      },
+    },
+    ownership: {
+      title: 'names the holder of the ERC-721 as owner',
+      rows: [
+        { kind: 'address-row', label: 'Owner', shows: 'registrant' },
+        { kind: 'address-row', label: 'Manager', shows: 'controller' },
+      ],
+      defect: {
+        id: 'E2E-011',
+        actual:
+          'both rows show the controller; the registrant — the only account the registrar will let transfer the name — appears nowhere',
+      },
+    },
+    transfer: {
+      title: 'offers the form to the registrant, who alone can move the token',
+      form: 'visible',
+    },
+  },
+
+  '2ld-unwrapped:stranger': {
+    overview: {
+      title: 'names the holder even when the viewer is nobody',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'registrant' }],
+    },
+    ownership: {
+      title: 'names the holder, and offers a stranger no transfer',
+      rows: [
+        { kind: 'address-row', label: 'Owner', shows: 'registrant' },
+        { kind: 'address-row', label: 'Manager', shows: 'controller' },
+      ],
+      ctas: [{ name: 'Transfer', state: 'absent' }],
+    },
+    transfer: {
+      title: 'refuses a wallet with no claim on the name',
+      refusal: 'Not authorized',
+      form: 'absent',
+    },
+  },
+
+  // ── Wrapped 2LDs: one holder, read from the NameWrapper ───────────────
+  '2ld-emancipated:owner': {
+    overview: {
+      title: 'names the wrapper owner',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+    },
+    ownership: {
+      title: 'names the wrapper owner, and offers the transfer',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    transfer: {
+      title: 'offers the form for a wrapped name with no blocking fuse',
+      form: 'visible',
+    },
+  },
+
+  '2ld-emancipated:stranger': {
+    overview: {
+      title: 'names the wrapper owner to a viewer who holds nothing',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+    },
+    ownership: {
+      title: 'offers a stranger no transfer of a wrapped name',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'absent' }],
+    },
+    transfer: {
+      title: 'refuses a stranger to a wrapped name',
+      refusal: 'Not authorized',
+      form: 'absent',
+    },
+  },
+
+  '2ld-locked:owner': {
+    overview: {
+      title: 'names the wrapper owner of a locked name',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+    },
+    // The single witness for E2E-015. The other wrapped shapes assert their
+    // Owner row in a test that PASSES, which is what keeps that assertion
+    // meaningful — inside a `test.fail()` cell a correct Owner row would be
+    // indistinguishable from a wrong one.
+    ownership: {
+      title: 'does not present the NameWrapper contract as the manager',
+      rows: [
+        { kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' },
+        { kind: 'absent', label: 'Manager' },
+      ],
+      defect: {
+        id: 'E2E-015',
+        actual:
+          'the Manager row renders the NameWrapper contract address, which is nobody\u2019s account; ens-app-v3 shows no manager row at all for a wrapped name',
+      },
+    },
+    transfer: {
+      title: 'offers the form for a locked name that may still move',
+      form: 'visible',
+    },
+  },
+
+  '2ld-locked-no-transfer:owner': {
+    ownership: {
+      title: 'names the wrapper owner of a name that can never move',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'absent' }],
+    },
+    transfer: {
+      title: 'refuses permanently once CANNOT_TRANSFER is burned',
+      refusal: 'Transfer permanently disabled',
+      form: 'absent',
+    },
+  },
+
+  '2ld-locked-no-resolver:owner': {
+    ownership: {
+      title: 'still offers the transfer when only the resolver fuse is burned',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    transfer: {
+      title: 'CANNOT_SET_RESOLVER does not block the move itself',
+      form: 'visible',
+    },
+  },
+
+  // ── Three-level ───────────────────────────────────────────────────────
   '3ld-registry+unwrapped-2ld:owner': {
     overview: {
       title: 'names the registry owner of a subname that has no token',
@@ -115,6 +267,10 @@ export const EXPECTATIONS: Partial<
       title: 'names the registry owner, and offers the transfer it can perform',
       rows: [{ kind: 'address-row', label: 'Owner', shows: 'controller' }],
       ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    transfer: {
+      title: 'offers the form to a registry subname\u2019s holder',
+      form: 'visible',
     },
   },
 }

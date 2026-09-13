@@ -13,7 +13,7 @@
  */
 
 import { expect, test } from '../../../fixtures/playwright.portal.fixture.js'
-import { runCell, type SeededShape, seedForSuite } from '../../../matrix/run.js'
+import { type SeededShape, runCell, seedForSuite } from '../../../matrix/run.js'
 
 test.describe('V1 shape · 3ld-registry+unwrapped-2ld:owner', () => {
   // Seeding a V1 name is ~14 s and every tab below reuses it.
@@ -41,5 +41,11 @@ test.describe('V1 shape · 3ld-registry+unwrapped-2ld:owner', () => {
     tag: ['@scenario:VO20', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'ownership')
+  })
+
+  test('transfer · offers the form to a registry subname’s holder', {
+    tag: ['@scenario:VT20', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'transfer')
   })
 })
