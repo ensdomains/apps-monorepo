@@ -21,7 +21,7 @@ const PaymentCardLineItem = ({
 }: PaymentCardLineItemProps) => (
   <div
     className={tw(
-      'flex w-full items-center justify-between gap-2 whitespace-nowrap text-ens-lapis-500 text-sm',
+      'flex w-full items-center justify-between gap-4 whitespace-nowrap text-ens-lapis-500 text-sm',
       isLoading && 'animate-pulse',
     )}
   >
