@@ -5,6 +5,7 @@
 @font-face {
   font-family: "ABCMonumentGrotesk";
   src: url("@/assets/fonts/abc-monument-grotesk-variable.woff2") format("woff2");
+  font-weight: 200 1000;
 }
 
 /* ===============================

@@ -9,6 +9,12 @@
   --leading-ens-tight: 112%;
   --leading-ens-normal: 120%;
 
+  /* Letter spacing */
+  --tracking-ens-wide: 0.015em;
+
+  /* Font weights */
+  --font-weight-ens-450: 450;
+
   /* Experimental new brand colors */
   --color-ens-lapis-100: #dbf0f8;
   --color-ens-lapis-300: #80c4e0;
