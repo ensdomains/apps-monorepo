@@ -23,7 +23,8 @@ export type ActionIcon =
 
 /**
  * An inline piece of an action label. `name`/`address`/`contract` render as
- * `EntityBadge` chips; `text` is monospace; `glyph`/`connective` are muted joiners;
+ * `EntityBadge` chips; `text` is a neutral `EntityBadge` value pill — a raw
+ * record key or value is an entity, not code; `glyph`/`connective` are muted joiners;
  * `placeholder` marks data we don't have yet.
  */
 export type ActionSlot =

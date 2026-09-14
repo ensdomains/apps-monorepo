@@ -16,6 +16,12 @@ export type FormattedActivity = {
   actor?: ActivityEntity
   /** Fallback entity for the name column when event.name is null */
   entityFromData?: ActivityEntity
+  /**
+   * A raw on-chain value belonging to the event rather than to an account —
+   * a text-record key, say. Rendered as a neutral entity pill, the same way
+   * the history timeline renders its `text` slots.
+   */
+  value?: string
 }
 
 type StaticDescriptor = {
@@ -25,8 +31,8 @@ type StaticDescriptor = {
   /** Extract a display entity from data when event.name is null */
   entityField?: string
   entityType?: 'address' | 'name'
-  /** Append a raw data field value to the text (e.g. text record key) */
-  textSuffixField?: string
+  /** Raw data field shown as a value pill after the text (e.g. text record key) */
+  valueField?: string
 }
 
 /** Events whose rendering depends on more than one raw field build their row directly. */
@@ -86,7 +92,7 @@ const EVENT_DESCRIPTORS: Record<string, Descriptor> = {
           : undefined,
     }
   },
-  TextChanged: { text: 'Text record updated', textSuffixField: 'key' },
+  TextChanged: { text: 'Text record updated', valueField: 'key' },
   ContenthashChanged: { text: 'Contenthash updated' },
   VersionChanged: { text: 'Resolver records cleared' },
 
@@ -130,13 +136,12 @@ export const formatActivityEvent = (
   const parsedData = parseEventData(event.data)
   if (typeof descriptor === 'function') return descriptor(parsedData)
 
-  let text = descriptor.text
-  if (descriptor.textSuffixField) {
-    const suffix = readString(parsedData, descriptor.textSuffixField)
-    if (suffix) text = `${descriptor.text} (${suffix})`
-  }
+  const result: FormattedActivity = { text: descriptor.text }
 
-  const result: FormattedActivity = { text }
+  if (descriptor.valueField) {
+    const value = readString(parsedData, descriptor.valueField)
+    if (value) result.value = value
+  }
 
   if (descriptor.actorField) {
     const actorValue = readString(parsedData, descriptor.actorField)
