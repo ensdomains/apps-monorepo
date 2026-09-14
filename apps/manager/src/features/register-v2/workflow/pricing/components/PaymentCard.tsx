@@ -107,9 +107,9 @@ export const PaymentCardBase = ({
         'rounded-xl border-[#DDDDDE] border-[0.5px] bg-white px-12 py-6 shadow-temp-card',
       )}
     >
-      <div className="flex w-full max-w-55 flex-col items-center space-y-3 text-center">
+      <div className="w-full max-w-64 space-y-3 text-center">
         {premiumAmount !== undefined && premiumAmount > 0 && (
-          <div className="w-max space-y-2">
+          <div className="mx-auto w-max space-y-2">
             {basePrice !== undefined && (
               <PaymentCardBaseLine
                 basePrice={basePrice}
