@@ -138,6 +138,8 @@ export const cropImageFile = async ({
   )
   bitmap.close()
 
+  // Always re-encode uploaded images. Besides applying the crop,
+  // this prevents source metadata such as JPEG EXIF/GPS from being uploaded.
   const blob = await canvasToBlob(canvas, 'image/jpeg', CROP_JPEG_QUALITY)
 
   return new File([blob], getCroppedFileName(file.name), {

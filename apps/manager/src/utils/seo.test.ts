@@ -22,7 +22,10 @@ describe('seo utils', () => {
         name: 'twitter:title',
         content: 'Test Page',
       })
-      expect(tags).toContainEqual({ name: 'og:title', content: 'Test Page' })
+      expect(tags).toContainEqual({
+        property: 'og:title',
+        content: 'Test Page',
+      })
     })
 
     it('should generate meta tags with description', () => {
@@ -40,7 +43,7 @@ describe('seo utils', () => {
         content: 'Test description',
       })
       expect(tags).toContainEqual({
-        name: 'og:description',
+        property: 'og:description',
         content: 'Test description',
       })
     })
@@ -73,7 +76,7 @@ describe('seo utils', () => {
     it('should include Open Graph metadata', () => {
       const tags = seo({ title: 'Test Page' })
 
-      expect(tags).toContainEqual({ name: 'og:type', content: 'website' })
+      expect(tags).toContainEqual({ property: 'og:type', content: 'website' })
     })
 
     it('should include image tags when image is provided', () => {
@@ -91,7 +94,7 @@ describe('seo utils', () => {
         content: 'summary_large_image',
       })
       expect(tags).toContainEqual({
-        name: 'og:image',
+        property: 'og:image',
         content: 'https://example.com/image.jpg',
       })
     })
@@ -106,7 +109,7 @@ describe('seo utils', () => {
         'name' in tag ? tag.name === 'twitter:card' : false,
       )
       const ogImageTag = tags.find((tag) =>
-        'name' in tag ? tag.name === 'og:image' : false,
+        'property' in tag ? tag.property === 'og:image' : false,
       )
 
       expect(imageTag).toBeUndefined()
@@ -171,6 +174,12 @@ describe('seo utils', () => {
           (tag): tag is { name: string; content?: string } => 'name' in tag,
         )
         .map((tag) => tag.name)
+      const tagProperties = tags
+        .filter(
+          (tag): tag is { property: string; content?: string } =>
+            'property' in tag,
+        )
+        .map((tag) => tag.property)
 
       expect(tagNames).toContain('description')
       expect(tagNames).toContain('keywords')
@@ -178,9 +187,9 @@ describe('seo utils', () => {
       expect(tagNames).toContain('twitter:description')
       expect(tagNames).toContain('twitter:creator')
       expect(tagNames).toContain('twitter:site')
-      expect(tagNames).toContain('og:type')
-      expect(tagNames).toContain('og:title')
-      expect(tagNames).toContain('og:description')
+      expect(tagProperties).toContain('og:type')
+      expect(tagProperties).toContain('og:title')
+      expect(tagProperties).toContain('og:description')
     })
 
     it('should handle empty string values', () => {
