@@ -43,10 +43,10 @@ export class ParseNameError<
 }
 
 type ParsedName = {
-  subLabels: string[]
-  label: string
-  tld: string
-  name: string
+  readonly subLabels: readonly string[]
+  readonly label: string
+  readonly tld: string
+  readonly name: string
 }
 
 export const parseName = (
