@@ -20,7 +20,7 @@ import { profileRegistrationQuery } from '@/features/profile/service/profileRegi
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { parseName } from '@/features/register-v2/utils/name-parser'
-import { nameOgImageUrl, seo } from '@/utils/seo'
+import { defaultOgImageUrl, nameOgImageUrl, seo } from '@/utils/seo'
 
 // `/register/$name` redirects straight back here when the registrar says the
 // name isn't free, so every hand off to it is gated on this.
@@ -165,10 +165,20 @@ export const Route = createFileRoute('/$name/')({
       name: normalizedName,
     }
   },
-  head: ({ params: { name }, loaderData }) => {
-    const canonicalName = loaderData?.name ?? name
+  head: ({ loaderData }) => {
+    if (!loaderData) {
+      return {
+        meta: seo({
+          title: 'ENS App',
+          description: 'Manage your ENS names, profiles and records.',
+          image: defaultOgImageUrl(),
+        }),
+      }
+    }
+
+    const canonicalName = loaderData.name
     const metaDescription =
-      loaderData?.description || `View the ENS profile for ${canonicalName}`
+      loaderData.description || `View the ENS profile for ${canonicalName}`
 
     return {
       meta: seo({
