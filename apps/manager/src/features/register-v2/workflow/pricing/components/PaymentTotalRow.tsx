@@ -10,9 +10,9 @@ import { formatUsd } from '@/utils/formatting/formatUsdCeil'
  * the total is exact rent and the hedge would be a lie, so it is dropped.
  *
  * The `tracking-*` values are Figma-spec (node 3867:126050) and stay arbitrary:
- * `theme.css` defines no letter-spacing tokens, and Tailwind's default scale is
- * em-relative (`tracking-tight` is -0.45px at this size, not -0.36px), so no
- * utility expresses them.
+ * the theme's only letter-spacing token (`--tracking-ens-wide`, +0.015em) does
+ * not match, and Tailwind's default scale is em-relative (`tracking-tight` is
+ * -0.45px at this size, not -0.36px), so no utility expresses them.
  */
 export const PaymentTotalRow = ({
   total,
