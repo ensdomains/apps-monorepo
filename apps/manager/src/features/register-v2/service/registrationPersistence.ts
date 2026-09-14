@@ -37,7 +37,8 @@ import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
 /** Bump when {@link StoredRegistrationEnvelope} changes shape. */
 export const REGISTRATION_RESUME_VERSION = 1
 
-const STORAGE_KEY = 'ens-apps:register-v2:resume:v1'
+/** Exported so the disconnect-time storage sweep can leave the record alone. */
+export const REGISTRATION_RESUME_STORAGE_KEY = 'ens-apps:register-v2:resume:v1'
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
@@ -154,7 +155,7 @@ export function loadStoredRegistration(
 
   let raw: string | null
   try {
-    raw = storage.getItem(STORAGE_KEY)
+    raw = storage.getItem(REGISTRATION_RESUME_STORAGE_KEY)
   } catch {
     return null
   }
@@ -194,7 +195,7 @@ export function clearStoredRegistration(
   storage: StorageLike | null = getBrowserStorage(),
 ): void {
   try {
-    storage?.removeItem(STORAGE_KEY)
+    storage?.removeItem(REGISTRATION_RESUME_STORAGE_KEY)
   } catch {
     // Nothing to do: a record we cannot delete is one the preflight will
     // reject anyway, and failing here would break the flow that called us.
@@ -236,7 +237,10 @@ export function createRegistrationPersistenceAdapter(options: {
       }
 
       try {
-        storage.setItem(STORAGE_KEY, JSON.stringify(envelope))
+        storage.setItem(
+          REGISTRATION_RESUME_STORAGE_KEY,
+          JSON.stringify(envelope),
+        )
       } catch {
         // Quota or private mode. The user loses resume, not the registration.
       }
