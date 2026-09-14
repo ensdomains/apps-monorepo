@@ -38,8 +38,7 @@ export const Route = createFileRoute('/register/$name')({
     }
 
     // Availability, display and commit/reveal calldata all read this one
-    // normalised name, so the label that gets hashed is the label that was
-    // checked for availability.
+    // normalised name, so the label hashed is the label checked as available.
     const { label, name: normalizedName } = parsedName.value
 
     // Labels under 3 code points can't be registered; send them to the

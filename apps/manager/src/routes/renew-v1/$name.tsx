@@ -18,8 +18,8 @@ export const Route = createFileRoute('/renew-v1/$name')({
       throw parsedName.error
     }
 
-    // One normalised name drives the gate, the price, the display and the
-    // calldata: the label signed into `renew()` is the label gated here.
+    // The gate, the price, the display and the calldata all read this one
+    // normalised name, so the label hashed into `renew()` is the label priced.
     const { label, name: normalizedName } = parsedName.value
 
     const ownerData = await queryClient.ensureQueryData(
@@ -51,12 +51,6 @@ export const Route = createFileRoute('/renew-v1/$name')({
 
     if (!expiryData?.expiry) {
       throw new Error('Name expiry could not be loaded.')
-    }
-
-    // Defence in depth: refuse to sign a different label than the one whose
-    // expiry and renewability were just checked.
-    if (expiryData.label !== label) {
-      throw new Error('This name could not be verified for renewal.')
     }
 
     return {

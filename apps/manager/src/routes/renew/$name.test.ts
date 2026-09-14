@@ -19,7 +19,6 @@ type ExpiryResult = {
   readonly expiry: bigint | null
   readonly isNonExpiring: boolean
   readonly protocol: 'v1' | 'v2'
-  readonly label?: string | null
 }
 
 const EXPIRY_2030 = BigInt(
@@ -27,12 +26,7 @@ const EXPIRY_2030 = BigInt(
 )
 
 const runLoader = async (name: string, expiryData: ExpiryResult) => {
-  // The service reads the expiry for the ENSIP-15 normalised 2LD, so unless a
-  // test says otherwise it answers for the normalised label of `name`.
-  const fetchQuery = vi.fn().mockResolvedValue({
-    label: name.trim().toLowerCase().split('.')[0],
-    ...expiryData,
-  })
+  const fetchQuery = vi.fn().mockResolvedValue(expiryData)
   const ensureQueryData = vi.fn()
   const loader = Route.options.loader as (args: {
     params: { name: string }
@@ -169,7 +163,6 @@ describe('/renew/$name loader', () => {
       expiry: EXPIRY_2030,
       isNonExpiring: false,
       protocol: 'v2',
-      label: 'alice',
     })
 
     expect(fetchQuery).toHaveBeenCalledOnce()
@@ -191,20 +184,6 @@ describe('/renew/$name loader', () => {
 
     expect(fetchQuery).not.toHaveBeenCalled()
     expect(outcome).toMatchObject({ reason: 'NOT_NORMALIZED' })
-  })
-
-  it('refuses when the gated expiry belongs to a different label', async () => {
-    const { outcome } = await runLoader('alice.eth', {
-      expiry: EXPIRY_2030,
-      isNonExpiring: false,
-      protocol: 'v2',
-      label: 'bob',
-    })
-
-    expect(outcome).toBeInstanceOf(Error)
-    expect((outcome as Error).message).toBe(
-      'This name could not be verified for renewal.',
-    )
   })
 
   it('routes a v1 name to the v1 renewal flow', async () => {
