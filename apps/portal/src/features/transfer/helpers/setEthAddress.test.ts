@@ -26,6 +26,10 @@ vi.mock('@ensdomains/ensjs/public', () => ({
   getResolver,
 }))
 
+vi.mock('@/features/resolver/hooks/useIsPermissionedResolver', () => ({
+  getIsPermissionedResolver: vi.fn(async () => ok(true)),
+}))
+
 const mockClient = { chain: { id: 11155111 } }
 vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok(mockClient),
@@ -67,6 +71,7 @@ describe('setEthAddress', () => {
       coinType: MAINNET_COIN_TYPE,
       resolverAddress: RESOLVER,
       targetAddress: RECIPIENT,
+      permissioned: true,
     })
     expect(setForwardResolution).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'transfer-alice.eth-set-eth-addr' }),

@@ -1,20 +1,13 @@
-import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
 import { type FormEvent, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from '@/components/ui/combobox'
-import { Field, FieldError } from '@/components/ui/field'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Sheet,
   SheetContent,
@@ -23,20 +16,48 @@ import {
 } from '@/components/ui/sheet'
 import { AddressNameInput } from '@/features/address/components/AddressNameInput'
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { prepareGrantResolverRolesTransaction } from '@/features/resolver/helpers/grantResolverRoles'
+import {
+  describeGrantScope,
+  prepareGrantResolverRolesTransaction,
+  type ResolverGrantScope,
+} from '@/features/resolver/helpers/grantResolverRoles'
 import { useGrantResolverRoles } from '@/features/resolver/hooks/useGrantResolverRoles'
-import type { ResolverNode } from '@/features/resolver/hooks/useResolverOverview'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { resolverPermissions } from '@/lib/roles/resolverRoles'
+import {
+  type ResolverPermissionKey,
+  type ResolverSetterScope,
+  resolverPermissions,
+} from '@/lib/roles/resolverRoles'
 import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 const GRANT_RESOLVER_ROLES_TX_ID = 'tx-grant-resolver-roles'
-// Empty string = root resource (roles apply to all names).
-const ROOT_NODE_VALUE = ''
+
+/**
+ * Where the grant applies. `root` is every name on the resolver; the setter
+ * scopes narrow one role to a single argument (post-audit-2
+ * `grantSetterRoles`). Per-name grants no longer exist.
+ */
+type ScopeKind = 'root' | 'text' | 'address'
+
+const SCOPE_OPTIONS: ReadonlyArray<{
+  value: ScopeKind
+  label: string
+  hint: string
+}> = [
+  { value: 'root', label: 'All names', hint: 'Roles apply to every name' },
+  {
+    value: 'text',
+    label: 'One text key',
+    hint: 'Set Text for a single key, on every name',
+  },
+  {
+    value: 'address',
+    label: 'One coin type',
+    hint: 'Set Address for a single coin type, on every name',
+  },
+]
 
 const RolePermissionList = ({
   selectedRoles,
@@ -44,8 +65,8 @@ const RolePermissionList = ({
   disabled,
   isInvalid,
 }: {
-  readonly selectedRoles: Set<ResolverRole>
-  readonly onToggle: (role: ResolverRole, checked: boolean) => void
+  readonly selectedRoles: Set<ResolverPermissionKey>
+  readonly onToggle: (role: ResolverPermissionKey, checked: boolean) => void
   readonly disabled: boolean
   readonly isInvalid: boolean
 }) => (
@@ -56,52 +77,48 @@ const RolePermissionList = ({
     )}
     aria-invalid={isInvalid}
   >
-    {resolverPermissions.map((permission, index) => {
-      const role = permission.key as ResolverRole
-
-      return (
-        <div
-          key={permission.key}
-          className={cn(
-            'flex items-center justify-between px-6 py-4 gap-4',
-            index !== 0 && 'border-t border-border',
-          )}
-        >
-          <div className="flex flex-col gap-1 flex-1 min-w-64">
-            <div className="font-medium">{permission.title}</div>
-            <div className="text-sm text-muted-foreground">
-              {permission.description}
-            </div>
-          </div>
-          <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
-            <div className="flex items-center gap-2 min-w-24">
-              <Checkbox
-                id={`add-${permission.key}-manager`}
-                checked={selectedRoles.has(role)}
-                onCheckedChange={(checked) =>
-                  onToggle(role, checked as boolean)
-                }
-              />
-              <Label
-                htmlFor={`add-${permission.key}-manager`}
-                className="font-medium cursor-pointer"
-              >
-                Manager
-              </Label>
-            </div>
-            <div className="flex items-center gap-2 min-w-24">
-              <Checkbox id={`add-${permission.key}-admin`} disabled />
-              <Label
-                htmlFor={`add-${permission.key}-admin`}
-                className="font-medium cursor-pointer"
-              >
-                Admin
-              </Label>
-            </div>
+    {resolverPermissions.map((permission, index) => (
+      <div
+        key={permission.key}
+        className={cn(
+          'flex items-center justify-between px-6 py-4 gap-4',
+          index !== 0 && 'border-t border-border',
+        )}
+      >
+        <div className="flex flex-col gap-1 flex-1 min-w-64">
+          <div className="font-medium">{permission.title}</div>
+          <div className="text-sm text-muted-foreground">
+            {permission.description}
           </div>
         </div>
-      )
-    })}
+        <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
+          <div className="flex items-center gap-2 min-w-24">
+            <Checkbox
+              id={`add-${permission.key}-manager`}
+              checked={selectedRoles.has(permission.key)}
+              onCheckedChange={(checked) =>
+                onToggle(permission.key, checked as boolean)
+              }
+            />
+            <Label
+              htmlFor={`add-${permission.key}-manager`}
+              className="font-medium cursor-pointer"
+            >
+              Manager
+            </Label>
+          </div>
+          <div className="flex items-center gap-2 min-w-24">
+            <Checkbox id={`add-${permission.key}-admin`} disabled />
+            <Label
+              htmlFor={`add-${permission.key}-admin`}
+              className="font-medium cursor-pointer"
+            >
+              Admin
+            </Label>
+          </div>
+        </div>
+      </div>
+    ))}
   </div>
 )
 
@@ -111,30 +128,34 @@ type ResolverAddUserSheetProps = {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly resolverAddress: Address
-  readonly nodes: readonly ResolverNode[]
+}
+
+const parseCoinType = (value: string): bigint | null => {
+  const trimmed = value.trim()
+  if (!/^\d+$/.test(trimmed)) return null
+  return BigInt(trimmed)
 }
 
 export const ResolverAddUserSheet = ({
   open,
   onOpenChange,
   resolverAddress,
-  nodes,
 }: ResolverAddUserSheetProps) => {
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
 
   const [nameOrAddressInput, setNameOrAddressInput] = useState('')
-  const [selectedNode, setSelectedNode] = useState<string>(ROOT_NODE_VALUE)
-  const [selectedRoles, setSelectedRoles] = useState<Set<ResolverRole>>(
-    new Set(),
-  )
+  const [scopeKind, setScopeKind] = useState<ScopeKind>('root')
+  const [scopeArgument, setScopeArgument] = useState('')
+  const [selectedRoles, setSelectedRoles] = useState<
+    Set<ResolverPermissionKey>
+  >(new Set())
   const [pendingGrant, setPendingGrant] = useState<{
-    name: string
     account: Address
-    roles: ResolverRole[]
+    scope: ResolverGrantScope
   } | null>(null)
   const [formError, setFormError] = useState<{
-    field: 'roles'
+    field: 'roles' | 'scope'
     message: string
   } | null>(null)
 
@@ -158,7 +179,8 @@ export const ResolverAddUserSheet = ({
   useEffect(() => {
     if (open) return
     setNameOrAddressInput('')
-    setSelectedNode(ROOT_NODE_VALUE)
+    setScopeKind('root')
+    setScopeArgument('')
     setSelectedRoles(new Set())
     setPendingGrant(null)
     setFormError(null)
@@ -170,7 +192,7 @@ export const ResolverAddUserSheet = ({
     setFormError(null)
   }
 
-  const toggleRole = (role: ResolverRole, checked: boolean) => {
+  const toggleRole = (role: ResolverPermissionKey, checked: boolean) => {
     setSelectedRoles((prev) => {
       const next = new Set(prev)
       if (checked) next.add(role)
@@ -180,10 +202,29 @@ export const ResolverAddUserSheet = ({
     setFormError(null)
   }
 
-  const canSave =
-    !!address && !isResolvingAddress && selectedRoles.size > 0 && !isSuccess
+  const setterScope: ResolverSetterScope | null = match(scopeKind)
+    .with('root', () => null)
+    .with('text', () =>
+      scopeArgument.trim()
+        ? ({
+            kind: 'text',
+            key: scopeArgument.trim(),
+          } satisfies ResolverSetterScope)
+        : null,
+    )
+    .with('address', () => {
+      const coinType = parseCoinType(scopeArgument)
+      return coinType === null
+        ? null
+        : ({ kind: 'address', coinType } satisfies ResolverSetterScope)
+    })
+    .exhaustive()
 
-  const nameOptions = nodes.map((n) => n.name).filter(Boolean)
+  const scopeReady = scopeKind === 'root' || setterScope !== null
+  const rolesReady = scopeKind !== 'root' || selectedRoles.size > 0
+
+  const canSave =
+    !!address && !isResolvingAddress && scopeReady && rolesReady && !isSuccess
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -191,18 +232,34 @@ export const ResolverAddUserSheet = ({
 
     if (!e.currentTarget.reportValidity()) return
 
-    const roles = Array.from(selectedRoles)
-    if (roles.length === 0) {
-      setFormError({
-        field: 'roles',
-        message: 'Please select at least one role',
-      })
-      return
+    let scope: ResolverGrantScope
+    if (scopeKind === 'root') {
+      const roles = Array.from(selectedRoles)
+      if (roles.length === 0) {
+        setFormError({
+          field: 'roles',
+          message: 'Please select at least one role',
+        })
+        return
+      }
+      scope = { type: 'root', roles }
+    } else {
+      if (!setterScope) {
+        setFormError({
+          field: 'scope',
+          message:
+            scopeKind === 'text'
+              ? 'Enter the text key to scope the role to'
+              : 'Enter a numeric coin type (60 for Ethereum)',
+        })
+        return
+      }
+      scope = { type: 'setter', setter: setterScope }
     }
 
     if (isResolvingAddress || !address) return
 
-    setPendingGrant({ name: selectedNode, account: address, roles })
+    setPendingGrant({ account: address, scope })
     openModal()
   }
 
@@ -245,63 +302,82 @@ export const ResolverAddUserSheet = ({
                 />
               </Field>
 
-              <Field>
-                <Combobox
-                  value={selectedNode}
-                  onValueChange={(v) => setSelectedNode(v ?? ROOT_NODE_VALUE)}
-                >
-                  <ComboboxInput placeholder="Root (all nodes)" />
-                  <ComboboxContent>
-                    <ComboboxList>
-                      <ComboboxItem value={ROOT_NODE_VALUE}>
-                        <span className="text-sm text-muted-foreground">
-                          Root (all nodes)
-                        </span>
-                      </ComboboxItem>
-                      {nameOptions.map((name) => {
-                        const node = nodes.find((n) => n.name === name)
-                        return (
-                          <ComboboxItem key={name} value={name}>
-                            <div className="flex items-center gap-2">
-                              <NameAvatar
-                                name={name}
-                                width="24px"
-                                height="24px"
-                                rounded="rounded-sm"
-                              />
-                              <span className="font-mono text-sm">{name}</span>
-                              {node?.owner?.id && (
-                                <span className="text-xs text-muted-foreground truncate ml-auto">
-                                  {truncateAddress(
-                                    node.owner.id as Address,
-                                    6,
-                                    4,
-                                  )}
-                                </span>
-                              )}
-                            </div>
-                          </ComboboxItem>
-                        )
-                      })}
-                      <ComboboxEmpty>No names found</ComboboxEmpty>
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-              </Field>
-
-              <Field data-invalid={formError?.field === 'roles'}>
-                <RolePermissionList
-                  selectedRoles={selectedRoles}
-                  onToggle={toggleRole}
+              <Field data-invalid={formError?.field === 'scope'}>
+                <FieldLabel>Scope</FieldLabel>
+                <RadioGroup
+                  value={scopeKind}
+                  onValueChange={(value) => {
+                    setScopeKind(value as ScopeKind)
+                    setScopeArgument('')
+                    setFormError(null)
+                  }}
                   disabled={isPending || isSuccess}
-                  isInvalid={formError?.field === 'roles'}
-                />
-                {formError?.field === 'roles' && (
+                  className="gap-3"
+                >
+                  {SCOPE_OPTIONS.map((option) => (
+                    <div key={option.value} className="flex items-start gap-3">
+                      <RadioGroupItem
+                        id={`scope-${option.value}`}
+                        value={option.value}
+                        className="mt-0.5"
+                      />
+                      <Label
+                        htmlFor={`scope-${option.value}`}
+                        className="flex flex-col gap-0.5 cursor-pointer font-normal"
+                      >
+                        <span className="font-medium">{option.label}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {option.hint}
+                        </span>
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+                {scopeKind !== 'root' && (
+                  <Input
+                    aria-label={scopeKind === 'text' ? 'Text key' : 'Coin type'}
+                    placeholder={
+                      scopeKind === 'text' ? 'avatar' : '60 (Ethereum)'
+                    }
+                    value={scopeArgument}
+                    onChange={(e) => {
+                      setScopeArgument(e.target.value)
+                      setFormError(null)
+                    }}
+                    disabled={isPending || isSuccess}
+                    className="h-12 bg-background border font-mono"
+                  />
+                )}
+                {formError?.field === 'scope' && (
                   <FieldError className="mt-1.5">
                     {formError.message}
                   </FieldError>
                 )}
               </Field>
+
+              {scopeKind === 'root' ? (
+                <Field data-invalid={formError?.field === 'roles'}>
+                  <RolePermissionList
+                    selectedRoles={selectedRoles}
+                    onToggle={toggleRole}
+                    disabled={isPending || isSuccess}
+                    isInvalid={formError?.field === 'roles'}
+                  />
+                  {formError?.field === 'roles' && (
+                    <FieldError className="mt-1.5">
+                      {formError.message}
+                    </FieldError>
+                  )}
+                </Field>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Grants{' '}
+                  <span className="font-medium text-foreground">
+                    {scopeKind === 'text' ? 'Set Text' : 'Set Address'}
+                  </span>{' '}
+                  for that argument only, on every name of this resolver.
+                </p>
+              )}
 
               <div className="flex justify-end pb-3">
                 <Button type="submit" variant="default" disabled={!canSave}>
@@ -318,7 +394,7 @@ export const ResolverAddUserSheet = ({
                 {
                   id: GRANT_RESOLVER_ROLES_TX_ID,
                   title: 'Grant resolver roles',
-                  transactionName: `Grant resolver roles for ${pendingGrant?.name || '(root)'}`,
+                  transactionName: `Grant resolver roles for ${pendingGrant ? describeGrantScope(pendingGrant.scope) : ''}`,
                   // Deterministic once the user has confirmed the grant, so the
                   // modal can estimate gas the moment it opens.
                   intent: {
@@ -326,9 +402,8 @@ export const ResolverAddUserSheet = ({
                       ? ({ walletClient, chainId }) =>
                           prepareGrantResolverRolesTransaction({
                             resolverAddress,
-                            name: pendingGrant.name,
                             account: pendingGrant.account,
-                            roles: pendingGrant.roles,
+                            scope: pendingGrant.scope,
                             walletClient,
                             chainId,
                           })

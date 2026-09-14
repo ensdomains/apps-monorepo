@@ -36,19 +36,19 @@ import {
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
-import { prepareDeleteAliasTransaction } from '@/features/resolver/helpers/setAlias'
-import { useDeleteAlias } from '@/features/resolver/hooks/useDeleteAlias'
+import { prepareUnlinkTransaction } from '@/features/resolver/helpers/linkRecords'
 import {
   getResolverOverviewQueryOptions,
-  type ResolverAlias,
+  type ResolverLink,
 } from '@/features/resolver/hooks/useResolverOverview'
+import { useUnlink } from '@/features/resolver/hooks/useUnlink'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 
-export const Route = createFileRoute('/resolver/$address/aliases')({
+export const Route = createFileRoute('/resolver/$address/links')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) => {
@@ -60,7 +60,7 @@ export const Route = createFileRoute('/resolver/$address/aliases')({
   },
 })
 
-const baseColumns: ColumnDef<ResolverAlias>[] = [
+const baseColumns: ColumnDef<ResolverLink>[] = [
   {
     id: 'name',
     accessorKey: 'fromName',
@@ -90,9 +90,9 @@ const baseColumns: ColumnDef<ResolverAlias>[] = [
     enableSorting: false,
   },
   {
-    id: 'aliasedNode',
+    id: 'linkedRecord',
     accessorKey: 'toName',
-    header: 'Aliased node',
+    header: 'Uses the record of',
     cell: ({ row }) => (
       <div className="flex items-center gap-3">
         <NameAvatar
@@ -110,7 +110,7 @@ const baseColumns: ColumnDef<ResolverAlias>[] = [
   },
 ]
 
-const deleteColumn: ColumnDef<ResolverAlias> = {
+const deleteColumn: ColumnDef<ResolverLink> = {
   id: 'delete',
   size: 50,
   header: () => null,
@@ -123,7 +123,7 @@ const deleteColumn: ColumnDef<ResolverAlias> = {
         onClick={(e) => {
           e.stopPropagation()
           const meta = table.options.meta as {
-            onDelete?: (alias: ResolverAlias) => void
+            onDelete?: (link: ResolverLink) => void
           }
           meta?.onDelete?.(row.original)
         }}
@@ -135,7 +135,7 @@ const deleteColumn: ColumnDef<ResolverAlias> = {
   enableSorting: false,
 }
 
-const DELETE_ALIAS_TX_ID = 'tx-delete-alias'
+const UNLINK_TX_ID = 'tx-unlink'
 
 function RouteComponent() {
   const { address } = Route.useParams()
@@ -145,8 +145,7 @@ function RouteComponent() {
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()
   const { address: accountAddress } = useConnection()
-  const [pendingDeleteAlias, setPendingDeleteAlias] =
-    useState<ResolverAlias | null>(null)
+  const [pendingUnlink, setPendingUnlink] = useState<ResolverLink | null>(null)
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
   const {
@@ -155,40 +154,40 @@ function RouteComponent() {
     error,
   } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
 
-  const { data: hasSetAliasRole } = useQuery({
+  const { data: hasLinkRole } = useQuery({
     ...getHasRolesQueryOptions({
       resolverAddress: address as Address,
-      roles: ['ROLE_SET_ALIAS'],
+      roles: ['ROLE_LINK'],
       account: accountAddress as Address,
     }),
     enabled: !!accountAddress,
   })
 
-  const canSetAlias = Boolean(hasSetAliasRole)
+  const canLink = Boolean(hasLinkRole)
 
-  const aliases = (resolver?.aliases ?? []) as ResolverAlias[]
+  const links = resolver?.links ?? []
 
   const columns = useMemo(
-    () => (canSetAlias ? [...baseColumns, deleteColumn] : baseColumns),
-    [canSetAlias],
+    () => (canLink ? [...baseColumns, deleteColumn] : baseColumns),
+    [canLink],
   )
 
-  const deleteMutation = useDeleteAlias({
+  const unlinkMutation = useUnlink({
     resolverAddress: address as Address,
     walletClient,
     publicClient,
     chainId,
-    id: DELETE_ALIAS_TX_ID,
+    id: UNLINK_TX_ID,
   })
 
-  const handleDelete = (alias: ResolverAlias) => {
-    deleteMutation.reset()
-    setPendingDeleteAlias(alias)
+  const handleUnlink = (link: ResolverLink) => {
+    unlinkMutation.reset()
+    setPendingUnlink(link)
     openModal()
   }
 
   const table = useReactTable({
-    data: aliases,
+    data: Array.from(links),
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -199,7 +198,7 @@ function RouteComponent() {
     globalFilterFn: 'includesString',
     getRowId: (row) => row.fromName,
     meta: {
-      onDelete: handleDelete,
+      onDelete: handleUnlink,
     },
   })
 
@@ -208,7 +207,7 @@ function RouteComponent() {
     return (
       <ErrorMessage
         compact
-        description="Error fetching aliases. Please refresh the page."
+        description="Error fetching links. Please refresh the page."
       />
     )
 
@@ -216,19 +215,19 @@ function RouteComponent() {
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
         <PageHeading parent={{ type: 'resolver', address: address as Address }}>
-          {aliases.length > 0 ? `Aliases (${aliases.length})` : 'Aliases'}
+          {links.length > 0 ? `Links (${links.length})` : 'Links'}
         </PageHeading>
-        {canSetAlias && (
+        {canLink && (
           <Button asChild>
-            <Link to="/resolver/$address/create-alias" params={{ address }}>
+            <Link to="/resolver/$address/create-link" params={{ address }}>
               <PlusIcon className="size-4" />
-              Create alias
+              Link a name
             </Link>
           </Button>
         )}
       </div>
 
-      {aliases.length > 0 && (
+      {links.length > 0 && (
         <InputGroup className="bg-background rounded-sm">
           <InputGroupAddon>
             <Search />
@@ -241,22 +240,22 @@ function RouteComponent() {
         </InputGroup>
       )}
 
-      {deleteMutation.error && (
+      {unlinkMutation.error && (
         <Alert variant="destructive">
-          <AlertDescription>{deleteMutation.error.message}</AlertDescription>
+          <AlertDescription>{unlinkMutation.error.message}</AlertDescription>
         </Alert>
       )}
       <TransactionModal
         transactions={[
           {
-            id: DELETE_ALIAS_TX_ID,
-            title: 'Delete alias',
-            transactionName: `Delete alias ${pendingDeleteAlias?.fromName ?? ''}`,
+            id: UNLINK_TX_ID,
+            title: 'Unlink name',
+            transactionName: `Unlink ${pendingUnlink?.fromName ?? ''}`,
             intent: {
-              prepare: pendingDeleteAlias
+              prepare: pendingUnlink
                 ? ({ walletClient, chainId }) =>
-                    prepareDeleteAliasTransaction({
-                      fromName: pendingDeleteAlias.fromName,
+                    prepareUnlinkTransaction({
+                      sourceName: pendingUnlink.fromName,
                       resolverAddress: address as Address,
                       walletClient,
                       chainId,
@@ -264,22 +263,22 @@ function RouteComponent() {
                 : undefined,
             },
             onStart: () => {
-              if (!pendingDeleteAlias) return
-              deleteMutation.mutate(pendingDeleteAlias.fromName)
+              if (!pendingUnlink) return
+              unlinkMutation.mutate(pendingUnlink.fromName)
             },
             onDone: () => {
               closeModal()
               clearTransaction()
-              setPendingDeleteAlias(null)
+              setPendingUnlink(null)
             },
           },
         ]}
       />
 
-      {aliases.length === 0 ? (
+      {links.length === 0 ? (
         <NoResultsMessage
-          title="No aliases yet"
-          description="Create an alias to redirect resolution from one name to another."
+          title="No linked names yet"
+          description="Link a name to another name's record so both serve the same records."
           className="mx-0"
         />
       ) : (
@@ -292,8 +291,8 @@ function RouteComponent() {
                   key={row.id}
                   className={cn(
                     'flex flex-col gap-3 px-4 py-4 border-b border-border last:border-b-0',
-                    deleteMutation.isPending &&
-                      deleteMutation.variables === row.original.fromName &&
+                    unlinkMutation.isPending &&
+                      unlinkMutation.variables === row.original.fromName &&
                       'opacity-50',
                   )}
                 >
@@ -310,14 +309,14 @@ function RouteComponent() {
                       </span>
                       <CopyButton value={row.original.fromName} />
                     </div>
-                    {canSetAlias && (
+                    {canLink && (
                       <Button
                         variant="ghost"
                         size="icon"
                         className="size-8 shrink-0"
                         onClick={() => {
                           const meta = table.options.meta as {
-                            onDelete?: (alias: ResolverAlias) => void
+                            onDelete?: (link: ResolverLink) => void
                           }
                           meta?.onDelete?.(row.original)
                         }}
@@ -345,7 +344,7 @@ function RouteComponent() {
               ))
             ) : (
               <div className="px-6 py-24 text-center border border-border rounded-sm">
-                No aliases match your search.
+                No links match your search.
               </div>
             )}
           </div>
@@ -378,8 +377,8 @@ function RouteComponent() {
                     <TableRow
                       key={row.id}
                       className={cn(
-                        deleteMutation.isPending &&
-                          deleteMutation.variables === row.original.fromName &&
+                        unlinkMutation.isPending &&
+                          unlinkMutation.variables === row.original.fromName &&
                           'opacity-50',
                       )}
                     >
@@ -402,7 +401,7 @@ function RouteComponent() {
                       colSpan={table.getAllColumns().length}
                       className="h-24 text-center"
                     >
-                      No aliases match your search.
+                      No links match your search.
                     </TableCell>
                   </TableRow>
                 )}

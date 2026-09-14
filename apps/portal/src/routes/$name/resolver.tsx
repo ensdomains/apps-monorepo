@@ -163,7 +163,7 @@ const ResolverInfoList = ({
   const { data: resolver } = useQuery(
     getResolverOverviewQueryOptions({ address: resolverAddress }),
   )
-  const isAliased = resolver?.aliases.some((a) => a.fromName === name) ?? false
+  const isLinked = resolver?.links.some((l) => l.fromName === name) ?? false
   const nodeHash = namehash(name)
 
   return (
@@ -189,7 +189,7 @@ const ResolverInfoList = ({
           <EntityBadge variant="name" name={name} showAvatar>
             {name}
           </EntityBadge>
-          {isAliased && <Badge variant="outline">Aliased</Badge>}
+          {isLinked && <Badge variant="outline">Linked</Badge>}
         </div>
       </InfoRow>
       <InfoRow label="Namehash">

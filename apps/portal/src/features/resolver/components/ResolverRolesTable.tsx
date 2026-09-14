@@ -4,10 +4,7 @@ import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ResolverRolesSidebar } from '@/features/resolver/components/ResolverRolesSidebar'
-import type {
-  ResolverNode,
-  ResolverRole,
-} from '@/features/resolver/hooks/useResolverOverview'
+import type { ResolverRole } from '@/features/resolver/hooks/useResolverOverview'
 import {
   buildActionSpacerColumn,
   buildEditActionColumn,
@@ -17,16 +14,15 @@ import {
 } from '@/features/roles/components/roleTableColumns'
 import {
   type AccountRoleGroup,
-  buildResourceToNameMap,
   groupRolesByAccount,
   resolverPermissions,
 } from '@/lib/roles/resolverRoles'
 import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
+import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type ResolverRolesTableProps = {
   readonly roles: readonly ResolverRole[]
-  readonly nodes: readonly ResolverNode[]
   readonly resolverAddress: Address
   readonly canManageRoles: boolean
   /** Render read-only: no edit action, no slider (e.g. embedded on /$name/roles). */
@@ -63,24 +59,19 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
     ),
   },
   {
-    id: 'name',
-    header: () => <span className="text-muted-foreground">Name</span>,
-    cell: ({ row }) => {
-      const names = row.original.resolvedNames
-      if (names.length === 0) return null
-      return (
-        <div className="flex flex-wrap gap-1">
-          {names.map((name) => (
-            <span
-              key={name}
-              className="font-mono text-sm text-muted-foreground"
-            >
-              {name}
-            </span>
-          ))}
-        </div>
-      )
-    },
+    id: 'scope',
+    accessorKey: 'resourceLabel',
+    header: () => <span className="text-muted-foreground">Scope</span>,
+    cell: ({ row }) => (
+      <span
+        className={cn(
+          'text-sm',
+          row.original.isRoot ? 'text-muted-foreground' : 'font-mono',
+        )}
+      >
+        {row.original.resourceLabel}
+      </span>
+    ),
   },
   ...buildRoleColumns<AccountRoleGroup>((row) =>
     toRoleEntries(row.decodedRoles),
@@ -89,7 +80,6 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
 
 export const ResolverRolesTable = ({
   roles,
-  nodes,
   resolverAddress,
   canManageRoles,
   disableEdit = false,
@@ -99,10 +89,7 @@ export const ResolverRolesTable = ({
   )
   const [open, setOpen] = useState(false)
 
-  const data = useMemo(
-    () => groupRolesByAccount(roles, buildResourceToNameMap(nodes)),
-    [roles, nodes],
-  )
+  const data = useMemo(() => groupRolesByAccount(roles), [roles])
 
   const showActions = canManageRoles && !disableEdit
 

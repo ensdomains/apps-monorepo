@@ -42,7 +42,7 @@ function RouteComponent() {
   const { data: hasRootRole } = useQuery({
     ...getHasRolesQueryOptions({
       resolverAddress: address as Address,
-      roles: ['ROLE_SET_ADDR'],
+      roles: ['ROLE_SET_ADDRESS'],
       account: accountAddress as Address,
     }),
     enabled: !!accountAddress,
@@ -60,7 +60,6 @@ function RouteComponent() {
     )
 
   const roles = resolver?.roles ?? []
-  const nodes = resolver?.nodes ?? []
 
   return (
     <div className="flex flex-col gap-8">
@@ -88,7 +87,6 @@ function RouteComponent() {
       ) : (
         <ResolverRolesTable
           roles={roles}
-          nodes={nodes}
           resolverAddress={address as Address}
           canManageRoles={canManageRoles}
         />
@@ -97,7 +95,6 @@ function RouteComponent() {
         open={addUserOpen}
         onOpenChange={setAddUserOpen}
         resolverAddress={address as Address}
-        nodes={nodes}
       />
     </div>
   )

@@ -17,7 +17,14 @@ import {
   type WaitForTransactionResult,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v1'
+import {
+  dnsEncodeName,
+  resolverMulticallParameters,
+} from '@ensdomains/ensjs/utils/v2'
+import {
+  permissionedResolverLinkToRecordSnippet,
+  permissionedResolverMulticallSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import * as v from 'valibot'
 import {
   type Address,
@@ -374,14 +381,7 @@ function createTransactionRequest(
 export async function buildRecordsUpdateCalls(
   params: BuildRecordsUpdateCallsParams,
 ): Promise<BuildRecordsUpdateCallsResult> {
-  const {
-    name,
-    before,
-    after,
-    shouldClearRecords,
-    publicClient,
-    resolverAddress,
-  } = params
+  const { name, before, after, shouldClearRecords, resolverAddress } = params
 
   const changes = computeRecordChanges(before, after)
 
@@ -406,11 +406,7 @@ export async function buildRecordsUpdateCalls(
   }
 
   // Transform changes to ensjs format
-  const ensParams: Parameters<typeof setRecordsWriteParameters>[1] = {
-    name,
-    resolverAddress,
-    clearRecords: shouldClearRecords,
-  }
+  const ensParams: Parameters<typeof resolverMulticallParameters>[0] = { name }
 
   if (changes.texts.length > 0) {
     ensParams.texts = changes.texts.map(({ key, value }) => ({
@@ -449,18 +445,36 @@ export async function buildRecordsUpdateCalls(
     }
   }
 
-  // Use ensjs to build the write parameters
-  // publicClient is used only for chain metadata — ensjs doesn't send transactions here
-  const client = publicClient as unknown as Parameters<
-    typeof setRecordsWriteParameters
-  >[0]
-  const writeParams = await setRecordsWriteParameters(client, ensParams)
+  const setterCalls = (await resolverMulticallParameters(ensParams)).map(
+    (call) =>
+      encodeFunctionData(call as Parameters<typeof encodeFunctionData>[0]),
+  )
 
-  const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
+  // The V2 resolver has no `clearRecords`. Unlinking the name drops it to the
+  // resolver's default record, and the setters that follow in the same
+  // multicall allocate it a fresh one, which is the same clean slate.
+  const calls = shouldClearRecords
+    ? [
+        encodeFunctionData({
+          abi: permissionedResolverLinkToRecordSnippet,
+          functionName: 'linkToRecord',
+          args: [dnsEncodeName(name), 0n],
+        }),
+        ...setterCalls,
+      ]
+    : setterCalls
+
+  const [firstCall] = calls
+  if (!firstCall) throw new Error('No profile record changes to apply')
+
+  const data =
+    calls.length === 1
+      ? firstCall
+      : encodeFunctionData({
+          abi: permissionedResolverMulticallSnippet,
+          functionName: 'multicall',
+          args: [calls],
+        })
 
   return {
     calls: [{ to: resolverAddress, data, value: 0n }],
