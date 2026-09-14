@@ -685,13 +685,13 @@ describe('executeMigration HCA orchestration', () => {
       expect.objectContaining({
         currentStep: 1,
         totalSteps: 2,
-        description: 'HCA already ready',
+        description: 'Already set up',
       }),
     )
     expect(progressEvents.at(-1)).toMatchObject({
       currentStep: 2,
       totalSteps: 2,
-      description: 'Atomic batch verified',
+      description: 'Batch confirmed',
     })
   })
 
@@ -1275,12 +1275,18 @@ describe('executeMigration HCA orchestration', () => {
       },
     )
 
-    const { result } = await runExecute({
+    const { result, progressEvents } = await runExecute({
       plan,
       onBatchComplete,
       reconcileBeforeSubmit: true,
     })
 
+    expect(progressEvents).toContainEqual(
+      expect.objectContaining({
+        description: `${copy.domain.name} was already copied`,
+        isRecovering: true,
+      }),
+    )
     expect(mocks.reconcileAtomicMigrationBatch).toHaveBeenCalledOnce()
     expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
     expect(mocks.startTransaction).not.toHaveBeenCalled()
@@ -1480,7 +1486,7 @@ describe('executeMigration HCA orchestration', () => {
     expect(progressEvents.at(-1)).toMatchObject({
       currentStep: 4,
       totalSteps: 4,
-      description: 'Migration complete',
+      description: 'Upgrade complete',
     })
     expect(progressEvents.every(({ currentStep }) => currentStep <= 4)).toBe(
       true,
