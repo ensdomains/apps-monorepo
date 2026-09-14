@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store-react'
 import { useMemo } from 'react'
+import { dnsSecEnabledQuery } from '@/features/profile/service/dnsSecEnabled'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { buildSuggestions, parseSearchInput } from './searchSuggestions.utils'
 import { searchHistoryStore } from './useSearchHistory'
@@ -14,6 +15,24 @@ export const useSearchSuggestions = (searchValue: string) => {
     enabled: parsedInput.type === 'address',
   })
 
+  const searchTld =
+    parsedInput.type === 'name' && parsedInput.value.includes('.')
+      ? parsedInput.value.split('.').at(-1)
+      : undefined
+  const tldQuery = useQuery({
+    ...dnsSecEnabledQuery(searchTld ?? ''),
+    enabled: Boolean(searchTld && searchTld !== 'eth'),
+  })
+
+  const tldStatus =
+    !searchTld || searchTld === 'eth'
+      ? 'supported'
+      : tldQuery.data === true
+        ? 'supported'
+        : tldQuery.data === false
+          ? 'unsupported'
+          : 'unknown'
+
   const history = useSelector(
     searchHistoryStore,
     (state) => state.context.history,
@@ -25,7 +44,8 @@ export const useSearchSuggestions = (searchValue: string) => {
         parsedInput,
         primaryName: primaryNameQuery.data,
         history,
+        tldStatus,
       }),
-    [parsedInput, primaryNameQuery.data, history],
+    [parsedInput, primaryNameQuery.data, history, tldStatus],
   )
 }
