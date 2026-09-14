@@ -107,11 +107,6 @@ export const PaymentCardBase = ({
         'rounded-xl border-[#DDDDDE] border-[0.5px] bg-white px-12 py-6 shadow-temp-card',
       )}
     >
-      {/* The line items span the card's full inner width; only the total
-          block below is capped. Under the shared max-w-55 the cooldown row
-          (label + a premium that starts near $100M) needed ~250px against
-          220px, so both the label and the amount wrapped and the two rows
-          rendered at different heights. */}
       <div className="w-full space-y-3 text-center">
         {premiumAmount !== undefined && premiumAmount > 0 && (
           <div className="space-y-2">
