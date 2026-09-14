@@ -19,6 +19,7 @@ type ExpiryResult = {
   readonly expiry: bigint | null
   readonly isNonExpiring: boolean
   readonly protocol: 'v1' | 'v2'
+  readonly label?: string | null
 }
 
 const EXPIRY_2030 = BigInt(
@@ -26,7 +27,12 @@ const EXPIRY_2030 = BigInt(
 )
 
 const runLoader = async (name: string, expiryData: ExpiryResult) => {
-  const fetchQuery = vi.fn().mockResolvedValue(expiryData)
+  // The service reads the expiry for the ENSIP-15 normalised 2LD, so unless a
+  // test says otherwise it answers for the normalised label of `name`.
+  const fetchQuery = vi.fn().mockResolvedValue({
+    label: name.trim().toLowerCase().split('.')[0],
+    ...expiryData,
+  })
   const ensureQueryData = vi.fn()
   const loader = Route.options.loader as (args: {
     params: { name: string }
@@ -156,6 +162,49 @@ describe('/renew/$name loader', () => {
         replace: true,
       },
     })
+  })
+
+  it('renews the normalised label for an upper-case name', async () => {
+    const { outcome, fetchQuery } = await runLoader('ALICE.ETH', {
+      expiry: EXPIRY_2030,
+      isNonExpiring: false,
+      protocol: 'v2',
+      label: 'alice',
+    })
+
+    expect(fetchQuery).toHaveBeenCalledOnce()
+    expect(outcome).toEqual({ label: 'alice', currentExpiry: EXPIRY_2030 })
+  })
+
+  it.each([
+    ['a zero-width space', 'ali\u200bce.eth'],
+    ['a stray variation selector', 'alice\ufe0f.eth'],
+  ])('refuses a label containing %s', async (_label, name) => {
+    // The registrar hashes the label bytes it is handed, so a name that renders
+    // as `alice` but carries an invisible character would renew a different
+    // registration than the one the gate priced.
+    const { outcome, fetchQuery } = await runLoader(name, {
+      expiry: EXPIRY_2030,
+      isNonExpiring: false,
+      protocol: 'v2',
+    })
+
+    expect(fetchQuery).not.toHaveBeenCalled()
+    expect(outcome).toMatchObject({ reason: 'NOT_NORMALIZED' })
+  })
+
+  it('refuses when the gated expiry belongs to a different label', async () => {
+    const { outcome } = await runLoader('alice.eth', {
+      expiry: EXPIRY_2030,
+      isNonExpiring: false,
+      protocol: 'v2',
+      label: 'bob',
+    })
+
+    expect(outcome).toBeInstanceOf(Error)
+    expect((outcome as Error).message).toBe(
+      'This name could not be verified for renewal.',
+    )
   })
 
   it('routes a v1 name to the v1 renewal flow', async () => {

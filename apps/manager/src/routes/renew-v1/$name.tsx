@@ -18,11 +18,17 @@ export const Route = createFileRoute('/renew-v1/$name')({
       throw parsedName.error
     }
 
-    const ownerData = await queryClient.ensureQueryData(profileOwnerQuery(name))
+    // One normalised name drives the gate, the price, the display and the
+    // calldata: the label signed into `renew()` is the label gated here.
+    const { label, name: normalizedName } = parsedName.value
+
+    const ownerData = await queryClient.ensureQueryData(
+      profileOwnerQuery(normalizedName),
+    )
 
     if (ownerData?.protocol === 'v2') {
       throw redirect({
-        params: { name },
+        params: { name: normalizedName },
         to: '/renew/$name',
         replace: true,
       })
@@ -33,8 +39,8 @@ export const Route = createFileRoute('/renew-v1/$name')({
     }
 
     const [expiryData, isRenewable] = await Promise.all([
-      queryClient.ensureQueryData(profileExpiryQuery(name, 'v1')),
-      queryClient.ensureQueryData(getV1RenewableQueryOptions(name)),
+      queryClient.ensureQueryData(profileExpiryQuery(normalizedName, 'v1')),
+      queryClient.ensureQueryData(getV1RenewableQueryOptions(normalizedName)),
     ])
 
     if (!isRenewable) {
@@ -47,8 +53,14 @@ export const Route = createFileRoute('/renew-v1/$name')({
       throw new Error('Name expiry could not be loaded.')
     }
 
+    // Defence in depth: refuse to sign a different label than the one whose
+    // expiry and renewability were just checked.
+    if (expiryData.label !== label) {
+      throw new Error('This name could not be verified for renewal.')
+    }
+
     return {
-      label: parsedName.value.label,
+      label,
       currentExpiry: expiryData.expiry,
     }
   },

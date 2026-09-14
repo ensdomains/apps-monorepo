@@ -77,6 +77,7 @@ describe('getExpiry', () => {
       expiry: 1_793_442_936n,
       isNonExpiring: false,
       protocol: 'v1',
+      label: 'fgeorgescu',
     })
     expect(mocks.getV1Expiry).toHaveBeenCalledWith(mocks.client, {
       name: 'fgeorgescu.eth',
@@ -98,6 +99,7 @@ describe('getExpiry', () => {
       expiry: 1_793_442_936n,
       isNonExpiring: false,
       protocol: 'v1',
+      label: 'fgeorgescu',
     })
     expect(mocks.getV2Expiry).not.toHaveBeenCalled()
     expect(mocks.getV1Expiry).toHaveBeenCalledWith(mocks.client, {
@@ -115,6 +117,7 @@ describe('getExpiry', () => {
       expiry: 1_801_218_936n,
       isNonExpiring: false,
       protocol: 'v2',
+      label: 'fgeorgescu',
     })
     expect(mocks.getV1Expiry).not.toHaveBeenCalled()
   })
@@ -133,6 +136,7 @@ describe('getExpiry', () => {
       expiry: null,
       isNonExpiring: true,
       protocol: 'v1',
+      label: 'pokemon',
     })
   })
 
@@ -149,6 +153,7 @@ describe('getExpiry', () => {
       expiry: null,
       isNonExpiring: false,
       protocol: 'v2',
+      label: 'android17',
     })
   })
 
@@ -165,6 +170,7 @@ describe('getExpiry', () => {
       expiry: null,
       isNonExpiring: true,
       protocol: 'v2',
+      label: 'permanent',
     })
   })
 
@@ -178,6 +184,7 @@ describe('getExpiry', () => {
       ),
       isNonExpiring: false,
       protocol: 'v1',
+      label: 'foo',
     })
 
     expect(status.isInGrace).toBe(true)

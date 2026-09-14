@@ -42,6 +42,8 @@ export const Route = createFileRoute('/renew/$name')({
       throw renewalLabel.error
     }
 
+    const label = renewalLabel.value
+
     // Fetched rather than read through the cache: a name registered moments ago
     // has an entry from before it existed, and serving that reports the name as
     // unrenewable for the rest of the session.
@@ -88,8 +90,15 @@ export const Route = createFileRoute('/renew/$name')({
       throw new Error('This name is outside its renewal window.')
     }
 
+    // Defence in depth: the expiry the user is shown, and the price they pay,
+    // belong to the registration the resolver actually read. Refuse to sign a
+    // different label than the one that was gated.
+    if (expiryData.label !== label) {
+      throw new Error('This name could not be verified for renewal.')
+    }
+
     return {
-      label: renewalLabel.value,
+      label,
       currentExpiry: expiryData.expiry,
     }
   },
