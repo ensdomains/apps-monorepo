@@ -43,6 +43,16 @@ msgstr ""
 msgid "{0, plural, one {# year} other {# years}}"
 msgstr ""
 
+#. placeholder {0}: eligibleV1Names.length
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "{0, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
+msgstr ""
+
+#. placeholder {0}: eligibleV1Names.length
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "{0, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
+msgstr ""
+
 #. placeholder {0}: selectedNames.length
 #: src/features/migration/components/GameStep.tsx
 msgid "{0, plural, one {Upgrading your name...} other {Upgrading your names...}}"
@@ -104,6 +114,14 @@ msgstr ""
 #. placeholder {1}: index + 1
 #: src/features/migration/components/GameStep.tsx
 msgid "{count, plural, one {Upgrading batch {0} of {total} (# name)...} other {Upgrading batch {1} of {total} (# names)...}}"
+msgstr ""
+
+#: src/features/migration/components/MigrationModal.tsx
+msgid "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile and claim your commemorative NFT.} other {Upgrade your names in just a couple steps to unlock your new ENS profile and claim your commemorative NFT.}}"
+msgstr ""
+
+#: src/features/migration/components/MigrationModal.tsx
+msgid "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile.} other {Upgrade your names in just a couple steps to unlock your new ENS profile.}}"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
@@ -680,8 +698,8 @@ msgid "Contact methods"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
-msgid "Continue to dashboard"
-msgstr ""
+#~ msgid "Continue to dashboard"
+#~ msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Continue to Home"
@@ -1175,6 +1193,8 @@ msgid "Go make it yours"
 msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
+#: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
+#: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "Go to dashboard"
 msgstr ""
 
@@ -1616,7 +1636,11 @@ msgid "Notifications blocked"
 msgstr ""
 
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "Offered after your first migration"
+#~ msgid "Offered after your first migration"
+#~ msgstr ""
+
+#: src/features/migration/pages/MigrationNftInfoPage.tsx
+msgid "Offered after your first upgrade"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -1652,8 +1676,8 @@ msgid "One username everywhere"
 msgstr ""
 
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "Open Dashboard"
-msgstr ""
+#~ msgid "Open Dashboard"
+#~ msgstr ""
 
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
 msgid "Open navigation"
@@ -2787,20 +2811,20 @@ msgid "Upgrade your name to edit your new ENS profile."
 msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx
-msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
-msgstr ""
+#~ msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
+#~ msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx
-msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile."
-msgstr ""
+#~ msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile."
+#~ msgstr ""
 
 #: src/features/migration/components/UpgradeBanner.tsx
-msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
-msgstr ""
+#~ msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
+#~ msgstr ""
 
 #: src/features/migration/components/UpgradeBanner.tsx
-msgid "Upgrade your name(s) to unlock your new ENS profile."
-msgstr ""
+#~ msgid "Upgrade your name(s) to unlock your new ENS profile."
+#~ msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Upgrade your names and bring their records across."
@@ -3238,8 +3262,12 @@ msgid "Your names were upgraded. One thing left: a temporary permission on your 
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-msgid "Your names, text records, and addresses will migrate automatically"
+msgid "Your names, text records, and addresses will be carried over during the upgrade"
 msgstr ""
+
+#: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
+#~ msgid "Your names, text records, and addresses will migrate automatically"
+#~ msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Your new profile is ready."

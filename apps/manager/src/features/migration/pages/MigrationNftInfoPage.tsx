@@ -34,7 +34,7 @@ const facts = [
   },
   {
     icon: 'auto_awesome',
-    title: <Trans>Offered after your first migration</Trans>,
+    title: <Trans>Offered after your first upgrade</Trans>,
     body: (
       <Trans>
         You can preview the card after migrating one name, mint immediately, or
@@ -209,7 +209,7 @@ const MigrationNftInfoContent = () => {
           </div>
           <MigrationPrimaryButton asChild className="shrink-0">
             <Link to="/dashboard">
-              <Trans>Open Dashboard</Trans>
+              <Trans>Go to dashboard</Trans>
               <MSymbol className="text-[19px]" symbol="arrow_forward" />
             </Link>
           </MigrationPrimaryButton>

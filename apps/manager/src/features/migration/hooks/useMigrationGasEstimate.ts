@@ -90,14 +90,12 @@ const buildEstimate = async (params: {
   params.signal.throwIfAborted()
   if (!ownerAddress || !hcaAddress || !publicClient) {
     throw new Error(
-      'Cannot estimate migration gas without a wallet and HCA address',
+      'Connect your wallet and wait for setup to finish before estimating the network fee.',
     )
   }
   if (params.recoverySnapshot) {
     if (!params.recoverySelectionMatches) {
-      throw new Error(
-        'Select every remaining name to safely resume this migration.',
-      )
+      throw new Error('Select every remaining name to continue your upgrade.')
     }
     const plan = await buildMigrationRecoveryPlan({
       snapshot: params.recoverySnapshot,
