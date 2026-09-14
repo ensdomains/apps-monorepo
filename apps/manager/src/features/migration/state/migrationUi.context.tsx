@@ -7,7 +7,7 @@ import {
   migrationUiMachine,
 } from './migrationUi.machine'
 
-const MigrationUiContext = createContext<{
+export const MigrationUiContext = createContext<{
   uiActor: Actor<typeof migrationUiMachine>
 } | null>(null)
 
