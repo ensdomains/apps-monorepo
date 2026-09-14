@@ -334,6 +334,10 @@ Each of these actually happened. Check for them by reflex.
 | **Dead reason codes** | A declared error the code can never emit; you write a test for a state that cannot occur | Grep for emit sites before scoping. Three of eight migration reasons are unreachable. |
 | **Clock desync** | Time-dependent tests fail like app bugs | Rule 8. |
 | **Two harnesses diverging** | Your best findings live in untracked ad-hoc scripts | Exploratory work is allowed, in a tracked tier, and must be promoted to a tagged spec within one batch or it does not count. |
+| **Extrapolated expectation** | A batch of cells fails on assertions you wrote from a sibling shape you never opened | Probe *each* rendering you are about to assert, not one and then the family. Measured in the V1 matrix: every expectation extrapolated from a probed shape to an unprobed one was wrong, and each cost a 25-minute run to discover what 2 minutes of probing would have shown. |
+| **Match on the sidebar, not the page** | "X is not visible" on a page that plainly shows X | Every tab's name is also a nav link, so `getByText(name).first()` can resolve to a hidden nav node. Assert the page's own heading (`getByRole('heading', …)`), or scope to `main`. |
+| **Presence where state is the point** | A cell passes for every shape and distinguishes nothing | A table that lists all its rows regardless of state (the fuses tab lists all eight fuses, burnt or not) makes "the row appears" a tautology. Assert the *state* column, and assert a neighbour's state too, so the result is attributable. |
+| **Tag the generator cannot see** | Tests run and pass; the ledger says not-started | `reconcile.ts` scans spec text, so a tag must be a literal in a committed file, and the title must sit on the same line as `test(`. Generating specs? Format them the way the repo formats, and gate on a `--check` run, or a formatter silently un-tags the suite. |
 
 ---
 
