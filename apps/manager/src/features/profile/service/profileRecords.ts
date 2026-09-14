@@ -11,6 +11,7 @@ import {
 import { fromPromise, fromThrowable, ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { isDebugProfileName } from '@/utils/debug-features'
 import {
   addressRecords,
   alwaysProbeAddressRecords,
@@ -74,7 +75,7 @@ const isSupportedCoinType = (coinType: number): boolean =>
   safeGetCoderFromCoin(coinType).isOk()
 
 export const getProfileRecords = ResultFn(async function* (name: string) {
-  if (name === 'debug') {
+  if (isDebugProfileName(name)) {
     return ok({
       ...DEBUG_PROFILE,
       _rawSubgraphRecords: {
