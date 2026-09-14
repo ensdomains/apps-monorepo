@@ -66,7 +66,7 @@ const ActorSlot = ({
 }
 
 /**
- * Renders one label slot — an entity chip, a monospace value, or a muted joiner.
+ * Renders one label slot — an entity chip, an entity-styled value, or a muted joiner.
  * A joiner tucks under the padding of the chip before it; the first slot follows
  * the plain-text label instead, which has none to tuck under.
  */
@@ -97,9 +97,9 @@ const Slot = ({
       <ContractBadge address={value} isRegistry={isRegistry} label={label} />
     ))
     .with({ kind: 'text' }, ({ value }) => (
-      <code className="inline-block max-w-60 truncate rounded bg-neutral-1 px-1.5 py-0.5 align-bottom font-mono text-p text-neutral-7">
+      <EntityBadge variant="default" format="truncate" className="max-w-60">
         {value}
-      </code>
+      </EntityBadge>
     ))
     .with({ kind: 'glyph' }, ({ value }) => (
       <span className="text-muted-foreground">{value}</span>

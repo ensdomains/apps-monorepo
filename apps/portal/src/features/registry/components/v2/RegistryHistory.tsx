@@ -78,6 +78,8 @@ export const RegistryHistoryByAddress = ({
       breakContent="load-more"
       heading={heading}
       action={action}
+      // The registry is the subject, not the actor, so each row says who did it.
+      showActor
       emptyTitle="No history yet"
       emptyDescription="Events for this registry will appear here."
     />

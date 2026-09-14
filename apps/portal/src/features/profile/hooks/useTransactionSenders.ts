@@ -51,6 +51,8 @@ const getTransactionSendersQueryOptions = ({
     queryFn: ({ queryKey: [, params] }) => getTransactionSenders(params),
   })
 
-export const useTransactionSenders = (
-  params: GetTransactionSendersParameters,
-) => useQuery(getTransactionSendersQueryOptions(params))
+export const useTransactionSenders = ({
+  enabled = true,
+  ...params
+}: GetTransactionSendersParameters & { readonly enabled?: boolean }) =>
+  useQuery({ ...getTransactionSendersQueryOptions(params), enabled })

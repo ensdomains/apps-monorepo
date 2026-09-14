@@ -27,6 +27,8 @@ interface HistoryTimelineViewProps {
   readonly heading?: ReactNode
   readonly action?: ReactNode
   readonly filters?: ReactNode
+  /** Lead each row with the transaction sender — see `ActionSummaryRow`. */
+  readonly showActor?: boolean
   readonly emptyTitle?: string
   readonly emptyDescription?: string
 }
@@ -42,6 +44,7 @@ export const HistoryTimelineView = ({
   heading,
   action,
   filters,
+  showActor = false,
   emptyTitle = 'No history yet',
   emptyDescription = "This name doesn't have any recorded history. Activity will appear here once transactions are made.",
 }: HistoryTimelineViewProps) => {
@@ -156,6 +159,7 @@ export const HistoryTimelineView = ({
           actions={actions}
           openIds={openIds}
           onToggle={toggleAction}
+          showActor={showActor}
           connectBelow={showBreak && 'dashed'}
         />
         {showBreak && breakRow}
@@ -164,6 +168,7 @@ export const HistoryTimelineView = ({
             actions={[pinnedAction]}
             openIds={openIds}
             onToggle={toggleAction}
+            showActor={showActor}
             connectAbove="dashed"
           />
         )}
