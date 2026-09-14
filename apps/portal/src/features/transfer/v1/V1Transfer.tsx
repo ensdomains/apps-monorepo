@@ -276,10 +276,19 @@ export const V1Transfer = ({
               and reassigning a subname is the manager’s power.
             </p>
             <Muted>
-              Reclaim the manager role on <Name>{parentName}</Name> from its
-              Ownership page, then come back.
+              As its holder you can take the role back: use{' '}
+              <Name>Reclaim manager</Name> on the parent’s Ownership page, then
+              come back.
             </Muted>
           </>
+        }
+        actionButton={
+          parentName
+            ? {
+                label: `Go to ${parentName}`,
+                href: `/${encodeURIComponent(parentName)}/ownership`,
+              }
+            : undefined
         }
       />
     ))
