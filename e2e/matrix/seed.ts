@@ -13,7 +13,12 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { createMakeV1Name } from '../fixtures/makeV1Name.js'
 import { makeV1RegistrySubname } from '../fixtures/makeV1RegistrySubname.js'
 import { CHILD_FUSES, makeV1Subname } from '../fixtures/makeV1Subname.js'
-import { splitController, splitRegistrant } from '../fixtures/v1-tails.js'
+import {
+  splitController,
+  splitRegistrant,
+  unwrapChild,
+  unwrapParent2LD,
+} from '../fixtures/v1-tails.js'
 import { testClient } from '../helpers/anvil-client.js'
 
 type Accounts = {
@@ -112,10 +117,18 @@ export const seedShape = async (
     ? (root.controller ?? 'user')
     : (root.holder ?? 'user')
 
+  // A wrapped child can only be minted by the NameWrapper, which must hold the
+  // parent at the time — so a shape that wants a wrapped child under an
+  // UNWRAPPED parent is built wrapped and unwrapped afterwards. The declared
+  // shape is what the test sees; this is only how it gets there.
+  const seedRootWrap = shape.tails?.includes('unwrap-parent-2ld')
+    ? 'emancipated'
+    : root.wrap
+
   const makeV1Name = createMakeV1Name({ userAccount: signer(rootActor) })
   const rootName = await makeV1Name({
     label: `v1m-${shape.n}`,
-    type: rootTypeFor(root.wrap),
+    type: rootTypeFor(seedRootWrap),
     duration: TWO_YEARS,
     ...(root.extraFuses ? { fuses: root.extraFuses } : {}),
   })
@@ -132,19 +145,32 @@ export const seedShape = async (
     const ownerAddress = accounts.getAddress(node.holder ?? 'user')
 
     if (node.wrap === 'unwrapped') {
-      if (parentNode.wrap !== 'unwrapped') {
-        throw new Error(
-          `shape ${shape.id}: a registry-only child under a wrapped parent has to be created wrapped and then unwrapped (tail "unwrap-child") — a wrapped parent's registry owner is the NameWrapper, so an EOA's setSubnodeOwner reverts`,
+      // Under an unwrapped parent this is a plain registry write.
+      if (parentNode.wrap === 'unwrapped') {
+        levels.push(
+          await makeV1RegistrySubname({
+            parentName,
+            childLabel,
+            ownerAddress,
+            parentOwnerAccount: signer(parentActor),
+          }),
         )
+        continue
       }
-      levels.push(
-        await makeV1RegistrySubname({
-          parentName,
-          childLabel,
-          ownerAddress,
-          parentOwnerAccount: signer(parentActor),
-        }),
-      )
+
+      // Under a WRAPPED parent it cannot be: the parent's registry owner is the
+      // NameWrapper, so an EOA's `setSubnodeOwner` reverts. Mint it wrapped to
+      // the parent's holder, then unwrap it onto the declared holder — which is
+      // also the only way this mismatch arises in the wild.
+      const wrappedChild = await makeV1Subname({
+        parentName,
+        childLabel,
+        ownerAddress: accounts.getAddress(parentActor),
+        parentOwnerAccount: signer(parentActor),
+        fuses: CHILD_FUSES.UNLOCKED_CHILD,
+      })
+      await unwrapChild(wrappedChild, signer(parentActor), ownerAddress)
+      levels.push(wrappedChild)
       continue
     }
 
@@ -175,9 +201,18 @@ export const seedShape = async (
           accounts.getAddress(root.controller ?? 'user2'),
         )
         break
+      case 'unwrap-parent-2ld':
+        // Runs last: the child had to be minted while the wrapper still held
+        // the parent.
+        await unwrapParent2LD(
+          rootName,
+          signer(rootActor),
+          accounts.getAddress(root.holder ?? 'user'),
+        )
+        break
       default:
         throw new Error(
-          `shape ${shape.id}: seed tail "${tail}" is not implemented yet — the wrapper-mismatch tails land in batch B4, the clock tails in B6`,
+          `shape ${shape.id}: seed tail "${tail}" is not implemented yet — the clock tails land in batch B6`,
         )
     }
   }

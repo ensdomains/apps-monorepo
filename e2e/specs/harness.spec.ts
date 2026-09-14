@@ -29,6 +29,7 @@
  *   are required; the incident above passes the first half.
  */
 
+import { shapeById } from '@ens-apps/v1-name-shapes'
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import { namehash, parseAbi } from 'viem'
@@ -50,6 +51,8 @@ import {
 } from '../fixtures/playwright.portal.fixture.js'
 import { publicClient, testClient } from '../helpers/anvil-client.js'
 import { ETH_REGISTRY, readNameRoles } from '../helpers/role-assertions.js'
+import { readChainTruth } from '../matrix/chain.js'
+import { seedShape } from '../matrix/seed.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 
@@ -304,6 +307,39 @@ test.describe('Harness integrity', () => {
         addr.toLowerCase(),
         `makeV1Name claimed to write addr(60) to ${name} (${type}), and the resolver disagrees`,
       ).toBe(expectedAddr.toLowerCase())
+    }
+  })
+
+  test('v1 shapes: a wrapper mismatch really is mismatched, in both directions', async ({
+    accounts,
+  }) => {
+    // The two shapes no fixture could build before: a registry-only child under
+    // a WRAPPED parent, and a wrapped child under an UNWRAPPED one. Neither can
+    // be created directly — the first because a wrapped parent's registry owner
+    // is the NameWrapper, the second because only the wrapper can mint a
+    // wrapped child — so the seeder builds each the long way round and undoes
+    // one half afterwards.
+    //
+    // Worth a harness case precisely because the failure mode is silence: if
+    // the unwrap step no-ops, the seed degrades into an ordinary same-wrap
+    // shape, every cell above it still passes, and the mismatch this batch
+    // exists to test is never exercised.
+    for (const [id, expected] of [
+      ['3ld-registry+emancipated-2ld:parent', 'unwrapped'],
+      ['3ld-wrapped+unwrapped-2ld:owner', 'wrapped'],
+    ] as const) {
+      const seeded = await seedShape(shapeById(id), accounts)
+      const child = await readChainTruth(seeded.name)
+      const parent = await readChainTruth(seeded.levels[0] as string)
+
+      expect(
+        child.wrapClass,
+        `${id}: the child should be ${expected} after seeding`,
+      ).toBe(expected)
+      expect(
+        parent.wrapClass === 'unwrapped',
+        `${id}: the parent and child must be on OPPOSITE sides of the wrapper line — got parent=${parent.wrapClass}, child=${child.wrapClass}`,
+      ).toBe(expected === 'wrapped')
     }
   })
 

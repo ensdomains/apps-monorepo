@@ -646,6 +646,58 @@ export const EXPECTATIONS: Partial<
       form: 'absent',
     },
   },
+
+  // ── The wrapper line ──────────────────────────────────────────────────
+  // Crossing it in either direction is refused, because reassigning across it
+  // would force-wrap or force-unwrap the child. Both directions are asserted:
+  // ens-app-v3 refuses both, and neither has ever been exercised here.
+  '3ld-registry+emancipated-2ld:parent': {
+    ...subnameReadOnlyTabs({ token: NO_TOKEN, fuses: NO_FUSES }),
+    ownership: {
+      title: 'offers no transfer across the wrapper line',
+      rows: registrySubnameRows,
+      ctas: [{ name: 'Transfer', state: 'absent' }],
+    },
+    transfer: {
+      title: 'refuses a wrapped parent over an unwrapped subname',
+      refusal: 'Can\u2019t reassign this subname from here',
+      form: 'absent',
+    },
+  },
+
+  '3ld-wrapped+unwrapped-2ld:owner': {
+    ...subnameReadOnlyTabs({
+      token: WRAPPED_TOKEN,
+      fuses: fuseState([], ['Parent Cannot Control', 'Cannot Unwrap']),
+    }),
+    ownership: {
+      title: 'names the holder of a wrapped subname under an unwrapped parent',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    transfer: {
+      title: 'lets the holder move it, whatever the parent is wrapped in',
+      form: 'visible',
+    },
+  },
+
+  '3ld-wrapped+unwrapped-2ld:parent': {
+    ...subnameReadOnlyTabs({
+      token: WRAPPED_TOKEN,
+      fuses: fuseState([], ['Parent Cannot Control', 'Cannot Unwrap']),
+    }),
+    ownership: {
+      title:
+        'offers no transfer across the wrapper line, in the other direction',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'absent' }],
+    },
+    transfer: {
+      title: 'refuses an unwrapped parent over a wrapped subname',
+      refusal: 'Can\u2019t reassign this subname from here',
+      form: 'absent',
+    },
+  },
 }
 
 export const expectationFor = (

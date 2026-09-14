@@ -239,7 +239,6 @@ const SHAPE_LIST = [
     path: [{ wrap: 'emancipated' }, { wrap: 'unwrapped', holder: 'user2' }],
     role: 'parent',
     registration: 'active',
-    tails: ['unwrap-child'],
     rationale:
       'Wrapped parent over an unwrapped child. Reassigning across that line would force-wrap the child, so the app must refuse — the wrapper-mismatch case, reachable today only through an imperative unwrap.',
     v3NameType: 'eth-unwrapped-subname',
@@ -373,7 +372,6 @@ const SHAPE_LIST = [
     ],
     role: 'parent',
     registration: 'active',
-    tails: ['unwrap-parent-subname'],
     rationale:
       'Wrapper mismatch where neither level is a 2LD — the highest-value four-level shape, and the only one needing new fixture work.',
     v3NameType: 'eth-unwrapped-subname',

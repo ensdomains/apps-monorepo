@@ -669,6 +669,242 @@ test.describe('V1 shape · 3ld-locked+locked-2ld:owner', () => {
   })
 })
 
+test.describe('V1 shape · 3ld-registry+emancipated-2ld:parent', () => {
+  // Seeding a V1 name is ~14 s and every tab below reuses it.
+  test.describe.configure({ timeout: 600_000 })
+
+  let seeded: SeededShape
+
+  test.beforeAll(async () => {
+    seeded = await seedForSuite('3ld-registry+emancipated-2ld:parent')
+  })
+
+  test('the fixture built the shape it claims', {
+    tag: ['@v1matrix'],
+  }, async () => {
+    expect(seeded.name, 'seeding produced no name').toBeTruthy()
+  })
+
+  test('ownership · offers no transfer across the wrapper line', {
+    tag: ['@scenario:VO28', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'ownership')
+  })
+
+  test('transfer · refuses a wrapped parent over an unwrapped subname', {
+    tag: ['@scenario:VT28', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'transfer')
+  })
+
+  test('fuses · explains that an unwrapped V1 name has no fuses, and offers migration', {
+    tag: ['@scenario:VF28', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'fuses')
+  })
+
+  test('resolver · renders the resolver tab for a V1 subname', {
+    tag: ['@scenario:VE28', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'resolver')
+  })
+
+  test('records · renders the records tab for a V1 subname', {
+    tag: ['@scenario:VD28', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
+  test('subnames · renders the subnames tab for a V1 subname', {
+    tag: ['@scenario:VS28', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'subnames')
+  })
+
+  test('registry · renders the registry tab for a V1 subname', {
+    tag: ['@scenario:VR28', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'registry')
+  })
+
+  test('token · does not claim a BaseRegistrar token for a name that has none', {
+    tag: ['@scenario:VK28', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-016: claims ERC-721 on the BaseRegistrar with token id labelhash(leaf label) — a 2LD id that reverts on ownerOf today, and belongs to a different name if that 2LD is ever registered',
+    )
+
+    await runCell(page, wallet, seeded, 'token')
+  })
+
+  test('history · renders the history tab for a V1 subname', {
+    tag: ['@scenario:VH28', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · renders address resolution for a V1 subname', {
+    tag: ['@scenario:VA28', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
+  })
+})
+
+test.describe('V1 shape · 3ld-wrapped+unwrapped-2ld:owner', () => {
+  // Seeding a V1 name is ~14 s and every tab below reuses it.
+  test.describe.configure({ timeout: 600_000 })
+
+  let seeded: SeededShape
+
+  test.beforeAll(async () => {
+    seeded = await seedForSuite('3ld-wrapped+unwrapped-2ld:owner')
+  })
+
+  test('the fixture built the shape it claims', {
+    tag: ['@v1matrix'],
+  }, async () => {
+    expect(seeded.name, 'seeding produced no name').toBeTruthy()
+  })
+
+  test('ownership · names the holder of a wrapped subname under an unwrapped parent', {
+    tag: ['@scenario:VO29', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'ownership')
+  })
+
+  test('transfer · lets the holder move it, whatever the parent is wrapped in', {
+    tag: ['@scenario:VT29', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'transfer')
+  })
+
+  test('fuses · shows a wrapped subname with no fuses burnt', {
+    tag: ['@scenario:VF29', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'fuses')
+  })
+
+  test('resolver · renders the resolver tab for a V1 subname', {
+    tag: ['@scenario:VE29', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'resolver')
+  })
+
+  test('records · renders the records tab for a V1 subname', {
+    tag: ['@scenario:VD29', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
+  test('subnames · renders the subnames tab for a V1 subname', {
+    tag: ['@scenario:VS29', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'subnames')
+  })
+
+  test('registry · renders the registry tab for a V1 subname', {
+    tag: ['@scenario:VR29', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'registry')
+  })
+
+  test('token · names the NameWrapper as the contract holding the token', {
+    tag: ['@scenario:VK29', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'token')
+  })
+
+  test('history · renders the history tab for a V1 subname', {
+    tag: ['@scenario:VH29', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · renders address resolution for a V1 subname', {
+    tag: ['@scenario:VA29', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
+  })
+})
+
+test.describe('V1 shape · 3ld-wrapped+unwrapped-2ld:parent', () => {
+  // Seeding a V1 name is ~14 s and every tab below reuses it.
+  test.describe.configure({ timeout: 600_000 })
+
+  let seeded: SeededShape
+
+  test.beforeAll(async () => {
+    seeded = await seedForSuite('3ld-wrapped+unwrapped-2ld:parent')
+  })
+
+  test('the fixture built the shape it claims', {
+    tag: ['@v1matrix'],
+  }, async () => {
+    expect(seeded.name, 'seeding produced no name').toBeTruthy()
+  })
+
+  test('ownership · offers no transfer across the wrapper line, in the other direction', {
+    tag: ['@scenario:VO30', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'ownership')
+  })
+
+  test('transfer · refuses an unwrapped parent over a wrapped subname', {
+    tag: ['@scenario:VT30', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'transfer')
+  })
+
+  test('fuses · shows a wrapped subname with no fuses burnt', {
+    tag: ['@scenario:VF30', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'fuses')
+  })
+
+  test('resolver · renders the resolver tab for a V1 subname', {
+    tag: ['@scenario:VE30', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'resolver')
+  })
+
+  test('records · renders the records tab for a V1 subname', {
+    tag: ['@scenario:VD30', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
+  test('subnames · renders the subnames tab for a V1 subname', {
+    tag: ['@scenario:VS30', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'subnames')
+  })
+
+  test('registry · renders the registry tab for a V1 subname', {
+    tag: ['@scenario:VR30', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'registry')
+  })
+
+  test('token · names the NameWrapper as the contract holding the token', {
+    tag: ['@scenario:VK30', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'token')
+  })
+
+  test('history · renders the history tab for a V1 subname', {
+    tag: ['@scenario:VH30', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · renders address resolution for a V1 subname', {
+    tag: ['@scenario:VA30', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
+  })
+})
+
 test.describe('V1 shape · 3ld-registry+unwrapped-2ld:parent-registrant-only', () => {
   // Seeding a V1 name is ~14 s and every tab below reuses it.
   test.describe.configure({ timeout: 600_000 })

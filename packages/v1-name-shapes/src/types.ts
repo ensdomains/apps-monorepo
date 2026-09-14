@@ -83,12 +83,15 @@ export type SeedTail =
   | 'split-registrant'
   /** `ENSRegistry.setOwner` — hand the controller away, keep the ERC-721. */
   | 'split-controller'
-  /** `NameWrapper.unwrap` the child: wrapped parent over a registry child. */
-  | 'unwrap-child'
-  /** `NameWrapper.unwrapETH2LD` the 2LD: unwrapped parent under a wrapped child. */
+  /**
+   * `NameWrapper.unwrapETH2LD` the 2LD, after its children exist: leaves a
+   * wrapped child under an unwrapped parent.
+   *
+   * Its mirror — an unwrapped child under a wrapped parent — needs no tail: the
+   * seeder derives it from the shape, because a registry-only child simply
+   * cannot be created under a wrapped parent any other way.
+   */
   | 'unwrap-parent-2ld'
-  /** `NameWrapper.unwrap` the 3LD: a mixed-shape 4LD, neither level a 2LD. */
-  | 'unwrap-parent-subname'
   /** Advance the clock into the 2LD's 90-day grace window. */
   | 'to-grace'
   /** Advance the clock past grace entirely. */
