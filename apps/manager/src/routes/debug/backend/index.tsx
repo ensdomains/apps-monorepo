@@ -27,8 +27,10 @@ import {
   getSiweUri,
   isBackendAuthed,
 } from '@/utils/backend-client'
+import { debugRouteBeforeLoad } from '../-guard'
 
 export const Route = createFileRoute('/debug/backend/')({
+  beforeLoad: debugRouteBeforeLoad,
   component: RouteComponent,
 })
 

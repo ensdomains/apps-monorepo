@@ -22,6 +22,7 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { parseName } from '@/features/register-v2/utils/name-parser'
 import { getSearchNameKind } from '@/features/search/getSearchNameKind'
+import { isDebugProfileName } from '@/utils/debug-features'
 import { defaultOgImageUrl, nameOgImageUrl, seo } from '@/utils/seo'
 
 // `/register/$name` redirects straight back here when the registrar says the
@@ -87,7 +88,7 @@ export const Route = createFileRoute('/$name/')({
     // Validate the TLD before showing any profile data: a TLD is supported
     // if it's .eth or has DNSSEC enabled. On DoH failure, prefer the profile
     // fallback over a false "unsupported"
-    if (!isEth) {
+    if (!isEth && !isDebugProfileName(name)) {
       const dnsSecEnabled = parsed.isOk()
         ? await queryClient
             .ensureQueryData(dnsSecEnabledQuery(parsed.value.tld))
