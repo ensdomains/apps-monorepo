@@ -58,6 +58,39 @@ describe('/renew/$name loader', () => {
     })
   })
 
+  it('redirects a look-alike label to the name it would actually renew', async () => {
+    // `ALICE.eth` renews `alice.eth`, a registration someone else may own, so
+    // the user lands on — and pays on — a page titled with the real name.
+    const { outcome, fetchQuery } = await runLoader('ALICE.eth', {
+      expiry: EXPIRY_2030,
+      isNonExpiring: false,
+      protocol: 'v2',
+    })
+
+    expect(outcome).toEqual({
+      redirect: {
+        params: { name: 'alice.eth' },
+        to: '/renew/$name',
+        replace: true,
+      },
+    })
+    expect(fetchQuery).not.toHaveBeenCalled()
+  })
+
+  it('refuses a label with no normalized form to redirect to', async () => {
+    const { outcome, fetchQuery } = await runLoader('te_st.eth', {
+      expiry: EXPIRY_2030,
+      isNonExpiring: false,
+      protocol: 'v2',
+    })
+
+    expect(outcome).toBeInstanceOf(Error)
+    expect((outcome as Error).message).toBe(
+      'This name is not in its normalized form, so it cannot be renewed here',
+    )
+    expect(fetchQuery).not.toHaveBeenCalled()
+  })
+
   it('sends a label with no expiry record to registration', async () => {
     const { outcome } = await runLoader('never-registered.eth', {
       expiry: null,
