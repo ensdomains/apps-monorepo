@@ -1,4 +1,4 @@
-import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromSync, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, ok, type Result } from 'neverthrow'
 import { normalize } from 'viem/ens'
 
@@ -73,34 +73,32 @@ export const parseName = (
 
   const joined = rawLabels.join('.')
 
-  let normalized: string
-  try {
-    normalized = normalize(joined)
-  } catch {
-    return ParseNameError.err('NOT_NORMALIZED')
-  }
+  return fromSync(
+    () => normalize(joined),
+    () => new ParseNameError({ reason: 'NOT_NORMALIZED' as const }),
+  ).andThen((normalized) => {
+    // `normalize` maps rather than rejects: it deletes a zero-width space or a
+    // stray variation selector and folds confusables like `ⓝ` onto `n`. A name
+    // it rewrites is one that renders as one label and hashes as another, so
+    // refuse it instead of silently signing the rewrite.
+    if (normalized !== joined && normalized !== joined.toLowerCase()) {
+      return ParseNameError.err('NOT_NORMALIZED')
+    }
 
-  // `normalize` maps rather than rejects: it deletes a zero-width space or a
-  // stray variation selector and folds confusables like `ⓝ` onto `n`. A name it
-  // rewrites is one that renders as one label and hashes as another, so refuse
-  // it instead of silently signing the rewrite.
-  if (normalized !== joined && normalized !== joined.toLowerCase()) {
-    return ParseNameError.err('NOT_NORMALIZED')
-  }
+    const labels = normalized.split('.')
+    const tld = labels.length > 1 ? labels.pop() : 'eth'
+    const label = labels.pop()
 
-  const labels = normalized.split('.')
-  const tld = labels.length > 1 ? labels.pop() : 'eth'
-  const label = labels.pop()
+    if (!label || !tld) {
+      return ParseNameError.err('LABEL_NOT_FOUND')
+    }
 
-  if (!label || !tld) {
-    return ParseNameError.err('LABEL_NOT_FOUND')
-  }
-
-  return ok({
-    subLabels: labels,
-    label,
-    tld,
-    name: [...labels, label, tld].join('.'),
+    return ok({
+      subLabels: labels,
+      label,
+      tld,
+      name: [...labels, label, tld].join('.'),
+    })
   })
 }
 
