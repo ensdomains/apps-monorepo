@@ -41,7 +41,9 @@ export const ReclaimManagerButton = ({
   })
 
   const id = `reclaim-manager-${name}`
-  const activeTxState = useActiveTransactionState()
+  // Scoped to this flow's own id: the cancel below must never reach another
+  // flow's entry in the manager.
+  const reclaimTxState = useActiveTransactionState(id)
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const { mutate: reclaimManager } = useReclaimManagerMutation({ name, id })
 
@@ -53,10 +55,11 @@ export const ReclaimManagerButton = ({
         variant="outline"
         className="gap-2"
         onClick={() => {
-          // A stale terminal-state transaction blocks the modal; drop just that
-          // entry so a fresh reclaim can start (same guard as ExtendNameButton).
-          if (activeTxState && !isTransactionInFlight(activeTxState))
-            transactionManager.cancelTransaction(activeTxState.txId)
+          // A stale terminal-state transaction under this id blocks the modal;
+          // drop just that entry so a fresh reclaim can start (same guard as
+          // ExtendNameButton).
+          if (reclaimTxState && !isTransactionInFlight(reclaimTxState))
+            transactionManager.cancelTransaction(reclaimTxState.txId)
           openModal()
         }}
       >
