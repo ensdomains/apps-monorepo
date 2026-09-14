@@ -92,10 +92,19 @@ const testBlock = (shape: Shape): string => {
       // not a test as far as the ledger is concerned, so the tags below it are
       // never attributed and the cells read "no covering test" while passing.
       // Measured: regenerating without a formatter pass dropped 6 terminal rows.
+      // Clock-moving shapes take the `time` fixture so the browser clock can
+      // be brought forward with the chain; nothing else needs it.
+      const movesClock = shape.registration !== 'active'
+      const args = movesClock
+        ? '{ portalPage: page, wallet, time }'
+        : '{ portalPage: page, wallet }'
+      const call = movesClock
+        ? `runCell(page, wallet, seeded, '${tab.id}', time)`
+        : `runCell(page, wallet, seeded, '${tab.id}')`
       return `  test('${tab.id} · ${expectation?.title.replace(/'/g, "\\'")}', {
     tag: ['@scenario:${id}', '@v1matrix'],
-  }, async ({ portalPage: page, wallet }) => {${fail}
-    await runCell(page, wallet, seeded, '${tab.id}')
+  }, async (${args}) => {${fail}
+    await ${call}
   })`
     })
     .join('\n\n')
@@ -141,6 +150,13 @@ let stale = false
  * `--check` fails forever. Both sides go through the formatter instead, which
  * also means the generated specs are not a formatting exception anybody has to
  * remember.
+ *
+ * It is `check --write`, not `format --write`, and the difference is load-
+ * bearing: `format` leaves import order alone, so the generator's output failed
+ * `biome check`'s organizeImports. Anyone who then ran `biome check --write`
+ * over the repo silently rewrote the committed specs into something the
+ * generator can no longer reproduce, and `--check` starts failing for a reason
+ * that has nothing to do with the matrix. One tool decides the bytes.
  */
 const formatted = (contents: string, sampleName: string): string => {
   // Inside the project, or biome refuses the file as out of scope — and named
@@ -149,7 +165,7 @@ const formatted = (contents: string, sampleName: string): string => {
   const tmp = join(OUT_DIR, `.${process.pid}-${sampleName}.gen-tmp.ts`)
   writeFileSync(tmp, contents)
   try {
-    execFileSync('npx', ['biome', 'format', '--write', tmp], {
+    execFileSync('npx', ['biome', 'check', '--write', tmp], {
       cwd: join(here, '..'),
       stdio: 'ignore',
     })

@@ -791,6 +791,95 @@ export const EXPECTATIONS: Partial<
       form: 'absent',
     },
   },
+
+  // ── The clock ─────────────────────────────────────────────────────────
+  // These move the fork clock forward permanently, so they live in their own
+  // spec file and project, and sort last. Only the ownership-shaped tabs are
+  // asserted: the read-only tabs are the same code as the active shapes, and
+  // re-probing them is not worth another 29 days of shared clock.
+  '2ld-unwrapped:grace:owner': {
+    overview: {
+      title: 'relabels the holder as the previous owner once a name lapses',
+      // In grace the registrar's `ownerOf` reverts, so there is no registrant
+      // left to read — the controller is all that remains, and the app says so
+      // by renaming the row rather than showing a stale "Owner".
+      rows: [
+        { kind: 'address-row', label: 'Previous owner', shows: 'controller' },
+      ],
+    },
+    ownership: {
+      title: 'offers no transfer of a name in its grace period',
+      rows: [
+        { kind: 'address-row', label: 'Previous owner', shows: 'controller' },
+      ],
+      ctas: [{ name: 'Transfer', state: 'absent' }],
+    },
+    transfer: {
+      title: 'refuses while the registration is lapsed but recoverable',
+      refusal: 'This name is in its grace period',
+      form: 'absent',
+    },
+  },
+
+  '2ld-unwrapped:expired:owner': {
+    overview: {
+      title: 'says the name is available once grace has passed',
+      text: ['is available'],
+    },
+    ownership: {
+      title: 'treats a fully expired name as unregistered',
+      refusal: 'Name not registered',
+    },
+    transfer: {
+      title: 'refuses a name anyone can now register',
+      refusal: 'This name has expired',
+      form: 'absent',
+    },
+  },
+
+  '3ld-wrapped+emancipated-2ld:grace:parent': {
+    ownership: {
+      title: 'names the subname holder while the 2LD above is in grace',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'absent' }],
+    },
+    transfer: {
+      title:
+        'tells the 2LD owner why the wrapper refuses, and offers a renewal',
+      // Substring: the card names the 2LD, whose label is generated per run.
+      refusal: 'is in its grace period',
+      form: 'absent',
+      defect: {
+        id: 'E2E-014',
+        actual:
+          'says "Not authorized" to the wallet that owns the 2LD, because in grace ensjs reports the wrapped parent at registrar level with the NameWrapper as owner',
+      },
+    },
+  },
+
+  '3ld-wrapped+emancipated-2ld:expired:parent': {
+    transfer: {
+      title: 'refuses once the 2LD above has lapsed past grace',
+      refusal: 'has expired',
+      form: 'absent',
+    },
+  },
+
+  '4ld-wrapped+wrapped-3ld+emancipated-2ld:grace:owner': {
+    ownership: {
+      title: 'still names the holder three levels under a lapsing 2LD',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    // The holder's own move is not blocked by an ancestor in grace — the
+    // child's wrapper expiry is the 2LD's plus the grace window, so it is still
+    // live. Only the parent's reassign is refused, which is the distinction
+    // E2E-014 is about.
+    transfer: {
+      title: 'lets the holder move it while the .eth ancestor is in grace',
+      form: 'visible',
+    },
+  },
 }
 
 export const expectationFor = (

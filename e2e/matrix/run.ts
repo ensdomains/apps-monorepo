@@ -49,6 +49,8 @@ export const runCell = async (
   wallet: Web3ProviderBackend,
   seeded: SeededShape,
   tabId: string,
+  /** Supplied only for the clock-moving shapes. */
+  time?: { sync: (offset?: number) => Promise<void> },
 ): Promise<void> => {
   const { shape, name } = seeded
   const expectation = expectationFor(shape.id as ShapeId, tabId)
@@ -69,6 +71,12 @@ export const runCell = async (
     (truth.wrapperOwner ?? truth.registrant ?? truth.controller)?.toLowerCase(),
     `precondition: ${name} is not held by the wallet the shape names`,
   ).toBe(seeded.holder.toLowerCase())
+
+  // Ground rule 8: a browser clock left behind the chain makes a grace-period
+  // name look active to anything comparing against Date.now(), which reads as
+  // an app bug. Seeding moved the chain in `beforeAll`, where there is no page
+  // to move with it, so the page catches up here.
+  if (time) await time.sync()
 
   await connectWithHeadlessWallet(page, wallet)
   await page.goto(`${PORTAL_APP_URL}${tabById(tabId).path(name)}`)

@@ -43,6 +43,19 @@ export type SeededShape = {
  * — which reads as an app bug, not a fixture one.
  */
 const TWO_YEARS = 2 * 365 * 24 * 60 * 60
+const DAY = 24 * 60 * 60
+
+/**
+ * The registrar's minimum. Clock-moving shapes register for exactly this, so
+ * reaching grace costs 29 days of shared fork clock instead of two years —
+ * every day of it is permanent, and every other name on the fork ages with it.
+ */
+const MIN_REGISTRATION = 28 * DAY
+
+/** One day past expiry: inside the 90-day grace window. */
+const INTO_GRACE = 29 * DAY
+/** Past expiry AND past grace: the name is anyone's to register. */
+const PAST_GRACE = 119 * DAY
 
 /** `wrapETH2LD` burns PCC itself, so an emancipated 2LD is just "wrapped". */
 const rootTypeFor = (wrap: WrapClass): 'unwrapped' | 'wrapped' | 'locked' => {
@@ -129,7 +142,7 @@ export const seedShape = async (
   const rootName = await makeV1Name({
     label: `v1m-${shape.n}`,
     type: rootTypeFor(seedRootWrap),
-    duration: TWO_YEARS,
+    duration: shape.registration === 'active' ? TWO_YEARS : MIN_REGISTRATION,
     ...(root.extraFuses ? { fuses: root.extraFuses } : {}),
   })
 
@@ -200,6 +213,18 @@ export const seedShape = async (
           signer(root.holder ?? 'user'),
           accounts.getAddress(root.controller ?? 'user2'),
         )
+        break
+      // Forward only, and never inside a chain snapshot: `evm_revert` rewinds
+      // the chain but not Panoptes, which then halts permanently on a history
+      // that no longer exists. These shapes live in their own project and sort
+      // last precisely so nothing downstream depends on the clock they move.
+      case 'to-grace':
+        await testClient.increaseTime({ seconds: INTO_GRACE })
+        await testClient.mine({ blocks: 1 })
+        break
+      case 'past-grace':
+        await testClient.increaseTime({ seconds: PAST_GRACE })
+        await testClient.mine({ blocks: 1 })
         break
       case 'unwrap-parent-2ld':
         // Runs last: the child had to be minted while the wrapper still held
