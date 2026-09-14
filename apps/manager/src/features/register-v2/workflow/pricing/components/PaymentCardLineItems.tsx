@@ -21,7 +21,7 @@ const PaymentCardLineItem = ({
 }: PaymentCardLineItemProps) => (
   <div
     className={tw(
-      'flex w-full items-center justify-between gap-2 text-ens-lapis-500 text-sm',
+      'flex w-full items-center justify-between gap-2 whitespace-nowrap text-ens-lapis-500 text-sm',
       isLoading && 'animate-pulse',
     )}
   >
@@ -29,7 +29,7 @@ const PaymentCardLineItem = ({
       <MSymbol className="ms-opsz-16 ms-wght-400" symbol={symbol} />
       <span>{label}</span>
     </div>
-    <span className="whitespace-nowrap tabular-nums">
+    <span className="tabular-nums">
       {showPlus && '+ '}
       <AnimatedPrice value={amount} />
     </span>
