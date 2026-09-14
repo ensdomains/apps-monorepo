@@ -461,8 +461,8 @@ importers:
         specifier: ^1.1.4
         version: 1.1.4
       '@ensdomains/dnsprovejs':
-        specifier: ^0.5.4
-        version: 0.5.4
+        specifier: ^1.0.0
+        version: 1.0.0
       '@ensdomains/ensjs':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@252068c(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@3.25.76))
@@ -1513,9 +1513,9 @@ packages:
   '@ensdomains/content-hash@3.1.0-rc.1':
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
 
-  '@ensdomains/dnsprovejs@0.5.4':
-    resolution: {integrity: sha512-M7dfCF6OE119s9QYsZowp6ZD9/DGNoALQjB9zxXrjNx7mAZaypZG8Td5fpaDDTmBo0wsHC3GhEtZ+BMUbTArFw==}
-    engines: {node: '>=16.8'}
+  '@ensdomains/dnsprovejs@1.0.0':
+    resolution: {integrity: sha512-OCIC7VchGx7A40P9TQxvgP+A6naAv+l/aEGwE8QwCB2o4EdNSRQlD7vBbg7pOZ9nqxKkkJfVwb8cW4HdCHB9HA==}
+    engines: {node: '>=20.19.0'}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@252068c':
     resolution: {integrity: sha512-guKzI62wuCz746fHtXrtdwUwzbGTsVjHX2D8TpqIUqeQIGvHe8mNCj1ivqQmyT+79nGRcMZduDB2gsMEwoEf7A==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@252068c}
@@ -3120,6 +3120,10 @@ packages:
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
+  '@noble/hashes@2.4.0':
+    resolution: {integrity: sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==}
+    engines: {node: '>= 20.19.0'}
+
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
     engines: {node: '>= 8'}
@@ -4499,6 +4503,9 @@ packages:
   '@scure/base@1.2.6':
     resolution: {integrity: sha512-g/nm5FgUa//MCj1gV09zTJTaM6KBAHqLN907YVQqf7zC49+DcO4B1so4ZX07Ef10Twr6nuqYEH9GEggFXA4Fmg==}
 
+  '@scure/base@2.4.0':
+    resolution: {integrity: sha512-thZ1TuJwFwBblOhgsjDKvvGirBxNp+wSvY/DR6tJBJOTDhdAAcHJ8Vbr2eFnqaxeca4+t0i9KBf+uHYGWwZORg==}
+
   '@scure/bip32@1.4.0':
     resolution: {integrity: sha512-sVUpc0Vq3tXCkDGYVWGIZTRfnvu8LoTDaev7vbwh0omSvVORONr960MQWdKqJDCReIEmTj3PAr73O3aoxz7OPg==}
 
@@ -5057,6 +5064,9 @@ packages:
 
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
+
+  '@types/dns-packet@5.6.5':
+    resolution: {integrity: sha512-qXOC7XLOEe43ehtWJCMnQXvgcIpv6rPmQ1jXT98Ad8A3TB1Ue50jsCbSSSyuazScEuZ/Q026vHbrOTVkmwA+7Q==}
 
   '@types/doctrine@0.0.9':
     resolution: {integrity: sha512-eOIHzCUSH7SMfonMG1LsC2f8vxBFtho6NGBznK41R84YzPuvSBzrhEps33IsQiOW9+VL6NQ9DbjQJznk/S4uRA==}
@@ -8986,9 +8996,12 @@ snapshots:
       '@noble/curves': 1.9.7
       '@scure/base': 1.2.6
 
-  '@ensdomains/dnsprovejs@0.5.4':
+  '@ensdomains/dnsprovejs@1.0.0':
     dependencies:
-      '@noble/hashes': 1.8.0
+      '@noble/hashes': 2.4.0
+      '@scure/base': 2.4.0
+      '@types/dns-packet': 5.6.5
+      buffer: 6.0.3
       dns-packet: 5.6.1
       typescript-logging: 1.0.1
 
@@ -10404,6 +10417,8 @@ snapshots:
   '@noble/hashes@1.7.0': {}
 
   '@noble/hashes@1.8.0': {}
+
+  '@noble/hashes@2.4.0': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -12075,6 +12090,8 @@ snapshots:
 
   '@scure/base@1.2.6': {}
 
+  '@scure/base@2.4.0': {}
+
   '@scure/bip32@1.4.0':
     dependencies:
       '@noble/curves': 1.4.2
@@ -12696,6 +12713,10 @@ snapshots:
       '@types/ms': 2.1.0
 
   '@types/deep-eql@4.0.2': {}
+
+  '@types/dns-packet@5.6.5':
+    dependencies:
+      '@types/node': 24.10.2
 
   '@types/doctrine@0.0.9': {}
 
