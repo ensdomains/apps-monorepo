@@ -10,7 +10,6 @@ import {
   matchContractRoute,
   RESERVED_ROUTE_SEGMENTS,
   STATIC_PATH_PREFIXES,
-  truncate,
 } from './routePaths'
 
 const ADDR = '0x2245606Dd6B3ae61205fCf8c843E200CC2f1123d'
@@ -320,32 +319,6 @@ describe('routing', () => {
       expect(isRegistryRoute(`/registry/${ADDR}`)).toBe(true)
       expect(isRegistryRoute(`/registry/${ADDR}/labels`)).toBe(true)
       expect(isRegistryRoute(`/resolver/${ADDR}`)).toBe(false)
-    })
-  })
-
-  describe('truncate', () => {
-    it('should not truncate short text', () => {
-      expect(truncate('hello', 10)).toBe('hello')
-    })
-
-    it('should truncate long text with ellipsis', () => {
-      expect(truncate('hello world', 8)).toBe('hello w…')
-    })
-
-    it('should handle exact length', () => {
-      expect(truncate('hello', 5)).toBe('hello')
-    })
-
-    it('should handle maxLength of 1', () => {
-      expect(truncate('hello', 1)).toBe('…')
-    })
-
-    it('should handle empty string', () => {
-      expect(truncate('', 5)).toBe('')
-    })
-
-    it('should handle text shorter than maxLength', () => {
-      expect(truncate('hi', 10)).toBe('hi')
     })
   })
 })

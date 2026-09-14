@@ -45,7 +45,7 @@ export const PriceCooldownBannerHeader = ({
       <h2
         className={tw(
           'font-normal text-[#353535] leading-[1.1] tracking-tight',
-          'text-base md:whitespace-nowrap md:text-xl',
+          'text-base md:text-xl',
         )}
       >
         <Trans>This name is in price cooldown</Trans>

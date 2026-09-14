@@ -141,6 +141,9 @@ importers:
       '@ens-apps/migration':
         specifier: workspace:*
         version: link:../../packages/migration
+      '@ens-apps/og':
+        specifier: workspace:*
+        version: link:../../packages/og
       '@ens-apps/shared-schema':
         specifier: workspace:*
         version: link:../../packages/shared-schema
@@ -445,6 +448,9 @@ importers:
       '@ens-apps/migration':
         specifier: workspace:*
         version: link:../../packages/migration
+      '@ens-apps/og':
+        specifier: workspace:*
+        version: link:../../packages/og
       '@ens-apps/transaction-manager':
         specifier: workspace:*
         version: link:../../packages/transaction-manager
@@ -619,9 +625,6 @@ importers:
       wagmi:
         specifier: 'catalog:'
         version: 3.7.6(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(@walletconnect/ethereum-provider@2.21.10(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(zod@3.25.76))(react@19.2.5)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@3.25.76))
-      workers-og:
-        specifier: ^0.0.27
-        version: 0.0.27
       xstate:
         specifier: 'catalog:'
         version: 5.24.0(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5)
@@ -884,6 +887,19 @@ importers:
       viem:
         specifier: 'catalog:'
         version: 2.52.2(typescript@7.0.2)(zod@4.4.3)
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+
+  packages/og:
+    dependencies:
+      workers-og:
+        specifier: ^0.0.27
+        version: 0.0.27
     devDependencies:
       typescript:
         specifier: 'catalog:'

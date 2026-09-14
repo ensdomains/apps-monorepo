@@ -20,7 +20,7 @@ import { profileRegistrationQuery } from '@/features/profile/service/profileRegi
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { parseName } from '@/features/register-v2/utils/name-parser'
-import { seo } from '@/utils/seo'
+import { nameOgImageUrl, seo } from '@/utils/seo'
 
 // `/register/$name` redirects straight back here when the registrar says the
 // name isn't free, so every hand off to it is gated on this.
@@ -174,6 +174,7 @@ export const Route = createFileRoute('/$name/')({
       meta: seo({
         title: `${canonicalName} - ENS Profile`,
         description: metaDescription,
+        image: nameOgImageUrl(canonicalName),
       }),
     }
   },
@@ -184,7 +185,10 @@ export const Route = createFileRoute('/$name/')({
 })
 
 function ProfileRoutePending() {
-  const name = Route.useParams({ select: (params) => params.name })
+  // Pending UI can render before the loader redirects to the canonical URL.
+  const name = Route.useParams({
+    select: (params) => normalizeProfileName(params.name) ?? undefined,
+  })
   return <ProfileLoading name={name} />
 }
 
