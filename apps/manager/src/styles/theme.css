@@ -12,12 +12,7 @@
   /* Letter spacing */
   --tracking-ens-wide: 0.015em;
 
-  /* Font weights. ABCMonumentGrotesk is a variable font, so weights off the
-     100-step scale are reachable; 450 sits between normal (400) and medium
-     (500). Named by value: the weight has no official design-system name (cf.
-     --text-temp-64px below), and the portal likewise carries intermediate
-     weights as raw numbers (--text-h1--font-weight: 425) rather than inventing
-     a term. Rename if the design system ever gives this weight one. */
+  /* Font weights */
   --font-weight-ens-450: 450;
 
   /* Experimental new brand colors */
