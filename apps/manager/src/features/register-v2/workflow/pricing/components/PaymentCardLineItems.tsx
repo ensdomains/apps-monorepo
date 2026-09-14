@@ -29,9 +29,6 @@ const PaymentCardLineItem = ({
       <MSymbol className="ms-opsz-16 ms-wght-400" symbol={symbol} />
       <span>{label}</span>
     </div>
-    {/* nowrap: the "+" is a separate text node from the animated figure, so
-        without it a narrow row breaks between them and strands the sign on
-        its own line above the amount. */}
     <span className="whitespace-nowrap tabular-nums">
       {showPlus && '+ '}
       <AnimatedPrice value={amount} />
