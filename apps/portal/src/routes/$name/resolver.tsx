@@ -163,7 +163,7 @@ const ResolverInfoList = ({
   const { data: resolver } = useQuery(
     getResolverOverviewQueryOptions({ address: resolverAddress }),
   )
-  const isLinked = resolver?.links.some((l) => l.fromName === name) ?? false
+  const isLinked = resolver?.links.some((l) => l.name === name) ?? false
   const nodeHash = namehash(name)
 
   return (

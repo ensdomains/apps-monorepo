@@ -135,7 +135,7 @@ function RouteComponent() {
     : null
 
   const isAlreadyLinked = fromName
-    ? existingLinks.some((l) => l.fromName === fromName)
+    ? existingLinks.some((l) => l.name === fromName)
     : false
 
   const mutation = useLinkToNode({

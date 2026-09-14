@@ -150,10 +150,54 @@ const buildKnownResourceLabels = (): Map<bigint, string> => {
   return map
 }
 
-/** Label for an EAC resource: root, a known setter argument, or its hash. */
-export const describeResolverResource = (resource: bigint | string): string => {
+/**
+ * A resource preimage the resolver revealed through `ResourceArgument`, as the
+ * indexer decodes it. Labels any scoped grant, not just the well-known keys.
+ */
+export type ResourceArgumentLabel = {
+  readonly resource: string
+  readonly recordKind: string | null
+  readonly recordKey: string | null
+  readonly coinType: string | null
+}
+
+/** The label for one revealed preimage, or null when it carries no argument. */
+const labelForNamedResource = (entry: ResourceArgumentLabel): string | null => {
+  if (entry.recordKind === 'addr')
+    return entry.coinType ? `address (coin type ${entry.coinType})` : null
+  if (!entry.recordKey) return null
+  return `${entry.recordKind ?? 'record'} "${entry.recordKey}"`
+}
+
+/** Build a resource -> label lookup from the indexer's revealed preimages. */
+export const buildResourceLabels = (
+  named: readonly ResourceArgumentLabel[],
+): Map<bigint, string> => {
+  const map = new Map<bigint, string>()
+  for (const entry of named) {
+    const label = labelForNamedResource(entry)
+    if (!label) continue
+    try {
+      map.set(BigInt(entry.resource), label)
+    } catch {
+      // A resource the indexer could not normalise; fall back to the hash.
+    }
+  }
+  return map
+}
+
+/**
+ * Label for an EAC resource: root, a revealed setter argument, a well-known
+ * one, or its truncated hash.
+ */
+export const describeResolverResource = (
+  resource: bigint | string,
+  revealed?: ReadonlyMap<bigint, string>,
+): string => {
   const value = typeof resource === 'string' ? BigInt(resource) : resource
   if (value === ROOT_RESOURCE) return ROOT_RESOURCE_LABEL
+  const fromChain = revealed?.get(value)
+  if (fromChain) return fromChain
   knownResourceLabels ??= buildKnownResourceLabels()
   const known = knownResourceLabels.get(value)
   if (known) return known
@@ -192,6 +236,7 @@ const normalizeResource = (resource: string): bigint => {
  */
 export const groupRolesByAccount = <T extends RoleInput>(
   roles: readonly T[],
+  revealed?: ReadonlyMap<bigint, string>,
 ): AccountRoleGroup<T>[] => {
   const grouped = new Map<
     string,
@@ -222,7 +267,7 @@ export const groupRolesByAccount = <T extends RoleInput>(
     account: g.account,
     resource: g.resource.toString(),
     isRoot: g.resource === ROOT_RESOURCE,
-    resourceLabel: describeResolverResource(g.resource),
+    resourceLabel: describeResolverResource(g.resource, revealed),
     roles: g.roles,
     decodedRoles: g.decodedRoles,
   }))

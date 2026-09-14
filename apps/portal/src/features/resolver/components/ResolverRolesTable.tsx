@@ -4,7 +4,10 @@ import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ResolverRolesSidebar } from '@/features/resolver/components/ResolverRolesSidebar'
-import type { ResolverRole } from '@/features/resolver/hooks/useResolverOverview'
+import type {
+  ResolverNamedResource,
+  ResolverRole,
+} from '@/features/resolver/hooks/useResolverOverview'
 import {
   buildActionSpacerColumn,
   buildEditActionColumn,
@@ -14,6 +17,7 @@ import {
 } from '@/features/roles/components/roleTableColumns'
 import {
   type AccountRoleGroup,
+  buildResourceLabels,
   groupRolesByAccount,
   resolverPermissions,
 } from '@/lib/roles/resolverRoles'
@@ -23,6 +27,8 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type ResolverRolesTableProps = {
   readonly roles: readonly ResolverRole[]
+  /** Resource preimages from `ResourceArgument`, for labelling scoped grants. */
+  readonly namedResources?: readonly ResolverNamedResource[]
   readonly resolverAddress: Address
   readonly canManageRoles: boolean
   /** Render read-only: no edit action, no slider (e.g. embedded on /$name/roles). */
@@ -80,6 +86,7 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
 
 export const ResolverRolesTable = ({
   roles,
+  namedResources,
   resolverAddress,
   canManageRoles,
   disableEdit = false,
@@ -89,7 +96,10 @@ export const ResolverRolesTable = ({
   )
   const [open, setOpen] = useState(false)
 
-  const data = useMemo(() => groupRolesByAccount(roles), [roles])
+  const data = useMemo(
+    () => groupRolesByAccount(roles, buildResourceLabels(namedResources ?? [])),
+    [roles, namedResources],
+  )
 
   const showActions = canManageRoles && !disableEdit
 

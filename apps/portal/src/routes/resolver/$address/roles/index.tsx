@@ -87,6 +87,7 @@ function RouteComponent() {
       ) : (
         <ResolverRolesTable
           roles={roles}
+          namedResources={resolver?.namedResources ?? []}
           resolverAddress={address as Address}
           canManageRoles={canManageRoles}
         />

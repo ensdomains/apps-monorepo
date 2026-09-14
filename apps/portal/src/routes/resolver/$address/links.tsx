@@ -63,20 +63,18 @@ export const Route = createFileRoute('/resolver/$address/links')({
 const baseColumns: ColumnDef<ResolverLink>[] = [
   {
     id: 'name',
-    accessorKey: 'fromName',
+    accessorKey: 'name',
     header: 'Name',
     cell: ({ row }) => (
       <div className="flex items-center gap-3">
         <NameAvatar
-          name={row.original.fromName}
+          name={row.original.name}
           width="28px"
           height="28px"
           rounded="rounded-sm"
         />
-        <span className="font-mono text-sm truncate">
-          {row.original.fromName}
-        </span>
-        <CopyButton value={row.original.fromName} />
+        <span className="font-mono text-sm truncate">{row.original.name}</span>
+        <CopyButton value={row.original.name} />
       </div>
     ),
   },
@@ -90,22 +88,35 @@ const baseColumns: ColumnDef<ResolverLink>[] = [
     enableSorting: false,
   },
   {
-    id: 'linkedRecord',
-    accessorKey: 'toName',
-    header: 'Uses the record of',
+    id: 'sharedWith',
+    header: 'Shares its record with',
     cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <NameAvatar
-          name={row.original.toName}
-          width="28px"
-          height="28px"
-          rounded="rounded-sm"
-        />
-        <span className="font-mono text-sm truncate">
-          {row.original.toName}
-        </span>
-        <CopyButton value={row.original.toName} />
+      <div className="flex flex-col gap-1 min-w-0">
+        {row.original.sharedWith.map((other) => (
+          <div key={other} className="flex items-center gap-3 min-w-0">
+            <NameAvatar
+              name={other}
+              width="28px"
+              height="28px"
+              rounded="rounded-sm"
+            />
+            <span className="font-mono text-sm truncate">{other}</span>
+            <CopyButton value={other} />
+          </div>
+        ))}
       </div>
+    ),
+    enableSorting: false,
+  },
+  {
+    id: 'record',
+    accessorKey: 'recordId',
+    header: 'Record',
+    size: 96,
+    cell: ({ row }) => (
+      <span className="font-mono text-sm text-muted-foreground">
+        #{row.original.recordId}
+      </span>
     ),
   },
 ]
@@ -196,7 +207,7 @@ function RouteComponent() {
     state: { sorting, globalFilter },
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: 'includesString',
-    getRowId: (row) => row.fromName,
+    getRowId: (row) => row.name,
     meta: {
       onDelete: handleUnlink,
     },
@@ -250,12 +261,12 @@ function RouteComponent() {
           {
             id: UNLINK_TX_ID,
             title: 'Unlink name',
-            transactionName: `Unlink ${pendingUnlink?.fromName ?? ''}`,
+            transactionName: `Unlink ${pendingUnlink?.name ?? ''}`,
             intent: {
               prepare: pendingUnlink
                 ? ({ walletClient, chainId }) =>
                     prepareUnlinkTransaction({
-                      sourceName: pendingUnlink.fromName,
+                      sourceName: pendingUnlink.name,
                       resolverAddress: address as Address,
                       walletClient,
                       chainId,
@@ -264,7 +275,7 @@ function RouteComponent() {
             },
             onStart: () => {
               if (!pendingUnlink) return
-              unlinkMutation.mutate(pendingUnlink.fromName)
+              unlinkMutation.mutate(pendingUnlink.name)
             },
             onDone: () => {
               closeModal()
@@ -292,22 +303,22 @@ function RouteComponent() {
                   className={cn(
                     'flex flex-col gap-3 px-4 py-4 border-b border-border last:border-b-0',
                     unlinkMutation.isPending &&
-                      unlinkMutation.variables === row.original.fromName &&
+                      unlinkMutation.variables === row.original.name &&
                       'opacity-50',
                   )}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 min-w-0">
                       <NameAvatar
-                        name={row.original.fromName}
+                        name={row.original.name}
                         width="28px"
                         height="28px"
                         rounded="rounded-sm"
                       />
                       <span className="font-mono text-sm truncate">
-                        {row.original.fromName}
+                        {row.original.name}
                       </span>
-                      <CopyButton value={row.original.fromName} />
+                      <CopyButton value={row.original.name} />
                     </div>
                     {canLink && (
                       <Button
@@ -325,21 +336,23 @@ function RouteComponent() {
                       </Button>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 pl-2">
-                    <ArrowRightIcon className="size-3 text-muted-foreground shrink-0" />
-                    <div className="flex items-center gap-3 min-w-0">
-                      <NameAvatar
-                        name={row.original.toName}
-                        width="24px"
-                        height="24px"
-                        rounded="rounded-sm"
-                      />
-                      <span className="font-mono text-sm truncate">
-                        {row.original.toName}
-                      </span>
-                      <CopyButton value={row.original.toName} />
+                  {row.original.sharedWith.map((other) => (
+                    <div key={other} className="flex items-center gap-2 pl-2">
+                      <ArrowRightIcon className="size-3 text-muted-foreground shrink-0" />
+                      <div className="flex items-center gap-3 min-w-0">
+                        <NameAvatar
+                          name={other}
+                          width="24px"
+                          height="24px"
+                          rounded="rounded-sm"
+                        />
+                        <span className="font-mono text-sm truncate">
+                          {other}
+                        </span>
+                        <CopyButton value={other} />
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               ))
             ) : (
@@ -378,7 +391,7 @@ function RouteComponent() {
                       key={row.id}
                       className={cn(
                         unlinkMutation.isPending &&
-                          unlinkMutation.variables === row.original.fromName &&
+                          unlinkMutation.variables === row.original.name &&
                           'opacity-50',
                       )}
                     >

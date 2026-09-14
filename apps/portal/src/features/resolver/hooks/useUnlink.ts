@@ -51,7 +51,7 @@ export const useUnlink = ({
           if (!current) return current
           return {
             ...current,
-            links: current.links.filter((l) => l.fromName !== sourceName),
+            links: current.links.filter((l) => l.name !== sourceName),
             linkCount: Math.max(0, current.linkCount - 1),
           }
         },
