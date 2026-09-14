@@ -82,7 +82,7 @@ describe('WalletConfirmationStepsDialog', () => {
     ])
 
     expect(dialog).toHaveTextContent(
-      'Your names are upgraded in a single transaction. If any part of it fails, nothing changes. Nothing is signed automatically, so review every request in your wallet.',
+      'Your names are upgraded in batches, each in a single transaction. If a batch fails, none of its names change. Nothing is signed automatically, so review every request in your wallet.',
     )
     expect(dialog.textContent).not.toMatch(
       /migrat|HCA|atomic|revok|registration/i,

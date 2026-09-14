@@ -92,6 +92,7 @@ export const MigrationFailureResult = ({
       transition={{ duration: 0.5, ease: 'easeOut' }}
     >
       <div className="flex flex-col items-center gap-2">
+        {/* Same display scale as the upgrade screen's heading in GameStep. */}
         <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
           <Trans>Upgrade didn&apos;t finish</Trans>
         </p>

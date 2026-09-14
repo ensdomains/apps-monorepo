@@ -3053,8 +3053,8 @@ msgid "Your names are safe."
 msgstr "Your names are safe."
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Your names are upgraded in a single transaction. If any part of it fails, nothing changes. Nothing is signed automatically, so review every request in your wallet."
-msgstr "Your names are upgraded in a single transaction. If any part of it fails, nothing changes. Nothing is signed automatically, so review every request in your wallet."
+msgid "Your names are upgraded in batches, each in a single transaction. If a batch fails, none of its names change. Nothing is signed automatically, so review every request in your wallet."
+msgstr "Your names are upgraded in batches, each in a single transaction. If a batch fails, none of its names change. Nothing is signed automatically, so review every request in your wallet."
 
 #: src/features/migration/components/MigrationFailureResult.tsx
 msgid "Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed."

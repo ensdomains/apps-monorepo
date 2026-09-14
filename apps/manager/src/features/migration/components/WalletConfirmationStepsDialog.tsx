@@ -183,9 +183,9 @@ export const WalletConfirmationStepsDialog = ({
 
         <p className="text-pretty px-5 pt-2 pb-5 text-ens-garnet-800/70 text-xs leading-normal sm:px-6 sm:pb-6">
           <Trans>
-            Your names are upgraded in a single transaction. If any part of it
-            fails, nothing changes. Nothing is signed automatically, so review
-            every request in your wallet.
+            Your names are upgraded in batches, each in a single transaction. If
+            a batch fails, none of its names change. Nothing is signed
+            automatically, so review every request in your wallet.
           </Trans>
         </p>
       </DialogContent>
