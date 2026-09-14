@@ -33,6 +33,12 @@ describe('formatActivityEvent', () => {
     ).toEqual({ type: 'address', value: OWNER })
   })
 
+  it('carries a text-record key as a value, not appended to the label', () => {
+    expect(
+      formatActivityEvent(event('TextChanged', { key: 'com.twitter' })),
+    ).toEqual({ text: 'Text record updated', value: 'com.twitter' })
+  })
+
   it('links an ETH multicoin address as an address entity', () => {
     expect(
       formatActivityEvent(

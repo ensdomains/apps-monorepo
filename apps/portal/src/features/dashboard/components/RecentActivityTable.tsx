@@ -1,10 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { timelineBreakActionClassName } from '@/features/history/components/TimelineBreak'
+import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { truncateName } from '@/utils/formatting/truncateName'
 import { getRecentActivityQueryOptions } from '../hooks/useRecentActivity'
@@ -14,15 +16,19 @@ import {
 } from '../utils/formatActivityEvent'
 
 export const RecentActivityTable = () => {
-  const { data, isLoading, error } = useQuery({
-    ...getRecentActivityQueryOptions(),
-    staleTime: 15_000,
-  })
-  const events = data ?? []
+  const {
+    data,
+    isLoading,
+    error,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery(getRecentActivityQueryOptions())
+  const events = data?.pages.flatMap((page) => page.events) ?? []
 
   return (
     <div className="flex flex-col overflow-hidden w-full">
-      <div className="flex gap-2 h-12 items-center px-4 border-b border-border shrink-0">
+      <div className="flex gap-2 h-12 items-center border-b border-border shrink-0">
         <span className="text-caps">Recent Activity</span>
       </div>
       {match({ isLoading, error, count: events.length })
@@ -34,7 +40,7 @@ export const RecentActivityTable = () => {
         .with({ error: P.nonNullable }, () => (
           <ErrorMessage
             compact
-            className="m-4"
+            className="my-4"
             description="Error fetching recent activity. Please refresh the page."
           />
         ))
@@ -45,7 +51,8 @@ export const RecentActivityTable = () => {
         ))
         .otherwise(() =>
           events.map((event, index) => {
-            const { text, actor, entityFromData } = formatActivityEvent(event)
+            const { text, value, actor, entityFromData } =
+              formatActivityEvent(event)
             const rawName =
               event.name?.trim() || event.domain?.name?.trim() || null
             const resolvedName =
@@ -64,7 +71,7 @@ export const RecentActivityTable = () => {
               <div
                 // biome-ignore lint/suspicious/noArrayIndexKey: a single transaction can emit multiple events of the same type, so the index is required to disambiguate otherwise-identical rows
                 key={`${txHash}-${event.type}-${index}`}
-                className="flex flex-col sm:flex-row sm:gap-6 sm:items-center sm:py-4 px-4 border-b border-border last:border-b-0"
+                className="flex flex-col sm:flex-row sm:gap-6 sm:items-center sm:py-2 border-b border-border last:border-b-0"
               >
                 {/* Mobile: top row — entity left, time right
                   Desktop: sm:contents spreads children into parent flex */}
@@ -99,6 +106,15 @@ export const RecentActivityTable = () => {
                   <span className="text-sm text-muted-foreground sm:truncate">
                     {text}
                   </span>
+                  {value && (
+                    <EntityBadge
+                      variant="default"
+                      format="truncate"
+                      className="max-w-40"
+                    >
+                      {value}
+                    </EntityBadge>
+                  )}
                   {match(actor)
                     .with({ type: 'address' }, ({ value }) => (
                       <EntityBadge variant="address" address={value as Address}>
@@ -116,6 +132,21 @@ export const RecentActivityTable = () => {
             )
           }),
         )}
+      {/* Quotes no number, like the timeline's own break: the remainder would
+          read as what one click fetches when it is what several would. */}
+      {events.length > 0 && hasNextPage && (
+        <button
+          type="button"
+          onClick={() => void fetchNextPage()}
+          disabled={isFetchingNextPage}
+          className={cn(
+            timelineBreakActionClassName,
+            'w-fit cursor-pointer py-2.5 text-[14px] text-neutral-7 tracking-[0.02em]',
+          )}
+        >
+          {isFetchingNextPage ? 'Loading…' : 'Load more events'}
+        </button>
+      )}
     </div>
   )
 }
