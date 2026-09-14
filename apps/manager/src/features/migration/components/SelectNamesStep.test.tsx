@@ -169,6 +169,53 @@ describe('SelectNamesStep', () => {
     expect(getByRole('button', { name: 'Upgrade 9 names' })).not.toBeDisabled()
   })
 
+  it('tells the owner what the wallet will ask for alongside the fee', () => {
+    const { getByRole, getByText } = renderStep({
+      gasEstimate: {
+        ...readyGasEstimate,
+        plan: {
+          stepDescriptors: [
+            { type: 'deploy-hca' },
+            {
+              type: 'atomic-batch',
+              index: 0,
+              total: 1,
+              count: 9,
+              migrateCount: 8,
+              copyCount: 1,
+            },
+          ],
+        } as unknown as MigrationPlan,
+      },
+      gasFundingStatus: 'settled',
+    })
+
+    const feeLine = getByText(/Estimated network fee/)
+    expect(feeLine).toHaveTextContent(
+      /^Estimated network fee: ~0\.001 ETH\. You'll approve 2 requests\./,
+    )
+    expect(feeLine).toHaveTextContent(
+      'Your wallet shows the final fee before you approve.',
+    )
+    expect(getByRole('button', { name: '2 requests' })).toBeInTheDocument()
+  })
+
+  it('reports the estimating state without jargon', () => {
+    const { getByText } = renderStep({
+      gasEstimate: { status: 'loading' } as MigrationGasEstimateState,
+    })
+    expect(getByText('Estimating the network fee...')).toBeInTheDocument()
+  })
+
+  it('reports an estimate error with its detail', () => {
+    const { getByText } = renderStep({
+      gasEstimate: { status: 'error', message: 'rpc down' },
+    })
+    expect(
+      getByText("Couldn't estimate the network fee: rpc down"),
+    ).toBeInTheDocument()
+  })
+
   it('allows retrying when upgrade start exits without transitioning', async () => {
     const onNext = vi.fn(async () => false)
     const { getByRole } = renderStep({

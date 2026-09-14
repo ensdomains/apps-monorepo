@@ -9,10 +9,10 @@ batch calls MigrationHelper once, restores legacy manager access, and replays
 records. Fresh HCA setup and required permissions are handled in-flow, with
 execution paid in Sepolia ETH.
 
-## Wallet confirmations
+## Wallet requests
 
-The preview displays an expected confirmation count and estimated network fee
-for the selected names. Permission state is rechecked before the first wallet
+The preview displays the number of wallet requests to approve and the estimated
+network fee for the selected names. Permission state is rechecked before the first wallet
 prompt; if it changed, the flow asks the owner to review a refreshed preview
 instead of silently adding or removing confirmations. Gas-safe batches are
 re-estimated against live state during execution, so a large selection can use
@@ -70,7 +70,7 @@ confirmation.
   automatically after the atomic batches verify. This includes NFT access for
   MigrationHelper and any manager-restoration access for the HCA. If cleanup is
   rejected or fails, the recovery action remains labelled
-  `Revoke temporary HCA access`. Per-token approvals clear automatically when
+  `Remove temporary access`. Per-token approvals clear automatically when
   their transfers succeed.
 - Text, address, contenthash, and ABI records are read from the V1 resolver,
   replayed in the HCA batch, and verified on-chain before completion.

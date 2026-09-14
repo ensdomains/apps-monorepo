@@ -182,19 +182,17 @@ const createTracker = (
     txHash?: Hex,
     operations?: readonly MigrationJournalOperation[],
   ) => {
-    const migratedCount = operations?.filter(
-      ({ action }) => action === 'migrate',
-    ).length
+    const counts = operations ? countOperations(operations) : undefined
     onProgress({
       currentStep,
       totalSteps: normalizedTotal,
       description,
       txHash,
-      ...(operations
+      ...(operations && counts
         ? {
             operations,
-            migratedCount,
-            copiedCount: operations.length - (migratedCount ?? 0),
+            migratedCount: counts.migrated,
+            copiedCount: counts.copied,
           }
         : {}),
     })
@@ -383,7 +381,7 @@ const submitCall = async (
       timeout: RECEIPT_TIMEOUT_MS,
     }))
   if (receipt.status !== 'success') {
-    throw new Error(`${description} reverted (tx ${hash})`)
+    throw new Error(`Transaction reverted (tx ${hash})`)
   }
   return { hash, receipt }
 }
@@ -410,7 +408,7 @@ const ensureHcaDeployment = async (params: {
           expectedHca: ctx.hcaAddress,
           expectedOwner: ctx.walletAddress,
         }),
-        'Setting up your HCA',
+        'Getting ready',
       )
       await verifyStandaloneHca({
         publicClient: ctx.publicClient,
@@ -420,7 +418,7 @@ const ensureHcaDeployment = async (params: {
       })
       await refreshAccount()
       ctx.tracker.next()
-      ctx.tracker.emit('HCA ready', hash)
+      ctx.tracker.emit('Ready', hash)
       return hash
     } catch (error) {
       throw wrapMigrationError(error, 'Setting up HCA')
@@ -438,22 +436,22 @@ const ensureHcaDeployment = async (params: {
   // even though no second transaction is sent.
   if (plannedDeployment) {
     ctx.tracker.next()
-    ctx.tracker.emit('HCA already ready')
+    ctx.tracker.emit('Already set up')
   }
   return null
 }
 
 const approvalDescription = (approval: MigrationApproval): string => {
   if (approval.kind === 'erc721-token') {
-    return 'Allowing the migration helper to migrate this registration'
+    return 'Getting permission to upgrade this name'
   }
   switch (approval.id) {
     case 'base-registrar:hca':
-      return 'Allowing the migration helper to migrate registrations'
+      return 'Getting permission to upgrade your names'
     case 'name-wrapper:hca':
-      return 'Allowing the migration helper to migrate wrapped names'
+      return 'Getting permission to upgrade your wrapped names'
     case 'eth-registry:hca':
-      return 'Allowing your HCA to restore managers'
+      return 'Getting permission to restore your managers'
   }
 }
 
@@ -545,7 +543,7 @@ const ensureMigrationApprovals = async (params: {
   for (const { approval, missing: missingApproval } of orderedApprovals) {
     if (!missingApproval) {
       ctx.tracker.next()
-      ctx.tracker.emit('Permission already confirmed')
+      ctx.tracker.emit('Permission already granted')
       continue
     }
     const description = approvalDescription(approval)
@@ -557,7 +555,7 @@ const ensureMigrationApprovals = async (params: {
       )
       hashes.push(hash)
       ctx.tracker.next()
-      ctx.tracker.emit('Permission confirmed', hash)
+      ctx.tracker.emit('Permission granted', hash)
     } catch (error) {
       throw wrapMigrationError(error, description)
     }
@@ -566,7 +564,7 @@ const ensureMigrationApprovals = async (params: {
 }
 
 const cleanupDescription = (_approval: MigrationCleanupApproval): string =>
-  'Removing manager-restoration access from your HCA'
+  'Removing temporary access'
 
 const revokeTemporaryOperatorApprovals = async (params: {
   readonly ctx: MigrationCtx
@@ -1283,19 +1281,65 @@ const operationsForNames = (
   )
 }
 
-const completedOperationDescription = (
+const countOperations = (
   operations: readonly MigrationJournalOperation[],
-): string => {
+): { readonly migrated: number; readonly copied: number } => {
   const migrated = operations.filter(
     ({ action }) => action === 'migrate',
   ).length
-  const copied = operations.length - migrated
-  const parts = [
-    ...(migrated > 0 ? [`${migrated} migrated`] : []),
-    ...(copied > 0 ? [`${copied} copied`] : []),
-  ]
-  return parts.join(' and ')
+  return { migrated, copied: operations.length - migrated }
 }
+
+const namesLabel = (count: number): string =>
+  count === 1 ? `${count} name` : `${count} names`
+
+// Progress statuses are rendered as the upgrade screen's subtitle, so they are
+// user-facing copy: they describe what is happening to the user's names and
+// never mention the account doing the work.
+const batchDescription = (batch: {
+  readonly names: readonly string[]
+  readonly operations: readonly MigrationJournalOperation[]
+}): string => {
+  if (batch.names.length === 1) {
+    return batch.operations[0]?.action === 'copy'
+      ? `Copying ${batch.names[0]}`
+      : `Upgrading ${batch.names[0]}`
+  }
+  const { migrated, copied } = countOperations(batch.operations)
+  if (copied === 0) return `Upgrading ${namesLabel(migrated)}`
+  if (migrated === 0) return `Copying ${namesLabel(copied)}`
+  return `Upgrading ${namesLabel(migrated)}, copying ${copied}`
+}
+
+// Work recovered from a previous attempt arrives in the same single-line
+// subtitle channel with nothing else to explain it, so the lead-in that the
+// copy asks for above the recovered list is carried inline instead.
+const RECOVERED_LEAD_IN = 'Picking up where you left off'
+
+const recoveredDetail = (
+  names: readonly string[],
+  operations: readonly MigrationJournalOperation[],
+): string => {
+  if (names.length === 1) {
+    switch (operations[0]?.action) {
+      case 'migrate':
+        return `${names[0]} was already upgraded`
+      case 'copy':
+        return `${names[0]} was already copied`
+      default:
+        return `${names[0]} was already done`
+    }
+  }
+  const { migrated, copied } = countOperations(operations)
+  if (copied === 0) return `${namesLabel(migrated)} were already upgraded`
+  if (migrated === 0) return `${namesLabel(copied)} were already copied`
+  return `${migrated} already upgraded, ${copied} already copied`
+}
+
+const recoveredDescription = (
+  names: readonly string[],
+  operations: readonly MigrationJournalOperation[],
+): string => `${RECOVERED_LEAD_IN}: ${recoveredDetail(names, operations)}`
 
 let atomicMigrationIntentNonce = 0
 const createAtomicMigrationIntentId = (): string => {
@@ -1365,9 +1409,7 @@ const prepareExecutionPlan = async (params: {
       params.onBatchComplete?.(operations, hash)
       params.ctx.tracker.next()
       params.ctx.tracker.emit(
-        names.length === 1
-          ? `Recovered verified ${operations[0]?.action ?? 'migration'} for ${names[0]}`
-          : `Recovered ${completedOperationDescription(operations)}`,
+        recoveredDescription(names, operations),
         hash,
         operations,
       )
@@ -1404,9 +1446,7 @@ const prepareExecutionPlan = async (params: {
       params.onBatchComplete?.(operations)
       params.ctx.tracker.next()
       params.ctx.tracker.emit(
-        names.length === 1
-          ? `Recovered verified ${operations[0]?.action ?? 'migration'} for ${names[0]}`
-          : `Recovered ${completedOperationDescription(operations)}`,
+        recoveredDescription(names, operations),
         undefined,
         operations,
       )
@@ -1448,10 +1488,7 @@ const executeRemainingAtomicBatches = async (params: {
       remaining,
       registryContext: params.plan.registryContext,
     })
-    const description =
-      batch.names.length === 1
-        ? `Atomically ${batch.operations[0]?.action === 'copy' ? 'copying' : 'upgrading'} ${batch.names[0]}`
-        : `Atomically upgrading ${completedOperationDescription(batch.operations)}`
+    const description = batchDescription(batch)
     const intent = {
       id: createAtomicMigrationIntentId(),
       names: batch.names,
@@ -1507,7 +1544,7 @@ const executeRemainingAtomicBatches = async (params: {
       params.onBatchComplete?.(batch.operations, hash)
       remaining = nextRemaining
       params.ctx.tracker.next()
-      params.ctx.tracker.emit('Atomic batch verified', hash, batch.operations)
+      params.ctx.tracker.emit('Batch confirmed', hash, batch.operations)
     } catch (error) {
       if (!submittedHash && isUserRejection(error)) {
         removePendingAtomicMigrationIntent(journalScope, intent.id)
@@ -1622,7 +1659,7 @@ export const executeMigration = async (params: {
       plan,
     })),
   )
-  ctx.tracker.complete('Migration complete', txHashes.at(-1))
+  ctx.tracker.complete('Upgrade complete', txHashes.at(-1))
 
   if (usesDurableCopyRecovery(plan)) {
     clearCompletedRecoveryPlanJournal(batchJournalScope(ctx), plan)
@@ -1638,13 +1675,11 @@ export const executeMigration = async (params: {
     ).values(),
   ]
 
+  const { migrated, copied } = countOperations(uniqueCompletedOperations)
   return {
     completed: uniqueCompletedOperations.length,
-    migrated: uniqueCompletedOperations.filter(
-      ({ action }) => action === 'migrate',
-    ).length,
-    copied: uniqueCompletedOperations.filter(({ action }) => action === 'copy')
-      .length,
+    migrated,
+    copied,
     completedOperations: uniqueCompletedOperations,
     txHashes,
     ineligible: [...ineligible],

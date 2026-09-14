@@ -35,7 +35,7 @@ describe('extractErrorMessage', () => {
     [null, 'null'],
     [undefined, 'undefined'],
     [new Error('boom'), 'boom'],
-    [new Error(''), 'Migration failed'],
+    [new Error(''), 'Something went wrong. Refresh and try again.'],
   ])('%s → %s', (input, expected) => {
     expect(extractErrorMessage(input)).toBe(expected)
   })
@@ -295,7 +295,7 @@ describe('decodeMigrationError — helper, HCA, and token reverts', () => {
     })
     expect(decodeMigrationError(revertWith(data))).toEqual({
       type: 'generic',
-      message: 'A parent name must migrate before its child names.',
+      message: 'Upgrade the parent name first, then its subnames.',
     })
   })
 

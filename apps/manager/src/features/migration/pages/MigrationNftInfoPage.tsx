@@ -27,17 +27,17 @@ const facts = [
     title: <Trans>One NFT per address</Trans>,
     body: (
       <Trans>
-        The token is tied to your eligible EOA. Migrating more names later does
+        The token is tied to your eligible EOA. Upgrading more names later does
         not create another commemorative NFT.
       </Trans>
     ),
   },
   {
     icon: 'auto_awesome',
-    title: <Trans>Offered after your first migration</Trans>,
+    title: <Trans>Offered after your first upgrade</Trans>,
     body: (
       <Trans>
-        You can preview the card after migrating one name, mint immediately, or
+        You can preview the card after upgrading one name, mint immediately, or
         return from your Dashboard or canonical profile later.
       </Trans>
     ),
@@ -209,7 +209,7 @@ const MigrationNftInfoContent = () => {
           </div>
           <MigrationPrimaryButton asChild className="shrink-0">
             <Link to="/dashboard">
-              <Trans>Open Dashboard</Trans>
+              <Trans>Go to dashboard</Trans>
               <MSymbol className="text-[19px]" symbol="arrow_forward" />
             </Link>
           </MigrationPrimaryButton>

@@ -2,8 +2,7 @@ import type { Signer } from '@ens-apps/transaction-manager'
 import { Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
-import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
@@ -11,18 +10,15 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import { MigrationFailureResult } from '@/features/migration/components/MigrationFailureResult'
 import { MigrationNftMintDialog } from '@/features/migration/components/MigrationNftMintDialog'
-import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { CommemorativeNftClaimDialog } from '@/features/migration/components/success/CommemorativeNftClaimDialog'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { useMigrationGasFunding } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
-import {
-  decodeMigrationError,
-  type MigrationError,
-} from '@/features/migration/service/decodeMigrationError'
+import { decodeMigrationError } from '@/features/migration/service/decodeMigrationError'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
   useMigrationCompletedOperations,
@@ -33,17 +29,6 @@ import {
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { isMigrationQueryKey } from './MigrationPage.helpers'
-
-const ResultLayout = ({ children }: { children: ReactNode }) => (
-  <motion.div
-    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-    className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 px-5"
-    initial={{ opacity: 0, y: 20, filter: 'blur(6px)' }}
-    transition={{ duration: 0.5, ease: 'easeOut' }}
-  >
-    {children}
-  </motion.div>
-)
 
 const disabledNftSuccessState = {
   status: 'error',
@@ -72,90 +57,6 @@ const PlainMigrationSuccessDialog = ({
     state={disabledNftSuccessState}
   />
 )
-
-const formatMigrationError = (error: MigrationError): ReactNode => {
-  switch (error.type) {
-    case 'generic':
-      return error.message
-    case 'plan-changed':
-      return (
-        <div>
-          <Trans>
-            Migration permissions changed. Go back to review the updated
-            confirmation estimate.
-          </Trans>
-        </div>
-      )
-    case 'retry-blocked':
-      return (
-        <div>
-          <Trans>
-            The previous atomic transaction could not be safely retried. No new
-            migration was submitted.
-          </Trans>
-        </div>
-      )
-    case 'cleanup-failed':
-      return (
-        <div>
-          <Trans>
-            Your names were upgraded, but temporary HCA access still needs to be
-            revoked.
-          </Trans>
-        </div>
-      )
-    case 'profile-fetch-failed':
-      return <div>Couldn&apos;t read your current records.</div>
-    case 'user-rejected':
-      return <div>Request cancelled.</div>
-    case 'preflight-timeout':
-      return <div>This is taking longer than expected.</div>
-    case 'permission-missing':
-      return (
-        <div>
-          <Trans>Permission missing. Please try again.</Trans>
-        </div>
-      )
-    case 'token-owner-changed':
-      return (
-        <div>
-          <Trans>
-            One of your names changed owners. Refresh and select it again.
-          </Trans>
-        </div>
-      )
-    case 'hca-owner-mismatch':
-      return (
-        <div>
-          <Trans>This migration account belongs to a different wallet.</Trans>
-        </div>
-      )
-    case 'direct-transfer-unauthorized':
-    case 'name-data-mismatch':
-    case 'invalid-data':
-      return (
-        <div>
-          <Trans>Something went wrong. Please refresh and try again.</Trans>
-        </div>
-      )
-    case 'name-not-locked':
-    case 'name-requires-migration':
-      return (
-        <div>
-          <Trans>
-            Couldn&apos;t upgrade one of your names. Please try again.
-          </Trans>
-        </div>
-      )
-    case 'name-is-locked':
-    case 'frozen-token-approval':
-      return (
-        <div>
-          <Trans>One of your names can&apos;t be upgraded right now.</Trans>
-        </div>
-      )
-  }
-}
 
 const invalidateMigrationQueries = (
   queryClient: ReturnType<typeof useQueryClient>,
@@ -344,46 +245,11 @@ export const MigrationPage = () => {
         ))
         .with('migrate', () => <GameStep />)
         .with('failure', () => (
-          <ResultLayout>
-            <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
-              <Trans>Migration failed</Trans>
-            </p>
-            <motion.div
-              animate={{ opacity: 1, y: 0 }}
-              className="max-h-50 w-full max-w-md overflow-y-auto rounded-sm bg-ens-garnet-900/5 p-3"
-              initial={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.4, delay: 0.15 }}
-            >
-              <p className="whitespace-pre-wrap break-all font-mono text-ens-garnet-900/70 text-xs leading-normal">
-                {lastError && formatMigrationError(lastError)}
-              </p>
-            </motion.div>
-
-            <motion.div
-              animate={{ opacity: 1, y: 0 }}
-              className="flex max-w-full flex-wrap justify-center gap-3"
-              initial={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.4, delay: 0.35 }}
-            >
-              <button
-                className="rounded-sm bg-ens-garnet-900/10 px-4 py-3 font-semi-mono text-ens-garnet-900 text-sm uppercase tracking-[1.68px]"
-                onClick={() => uiActor.send({ type: 'cancel' })}
-                type="button"
-              >
-                <Trans>Back</Trans>
-              </button>
-              <MigrationPrimaryButton
-                onClick={() => uiActor.send({ type: 'retry' })}
-                type="button"
-              >
-                {lastError?.type === 'cleanup-failed' ? (
-                  <Trans>Revoke temporary HCA access</Trans>
-                ) : (
-                  <Trans>Retry</Trans>
-                )}
-              </MigrationPrimaryButton>
-            </motion.div>
-          </ResultLayout>
+          <MigrationFailureResult
+            error={lastError}
+            onBack={() => uiActor.send({ type: 'cancel' })}
+            onRetry={() => uiActor.send({ type: 'retry' })}
+          />
         ))
         .with('success', () =>
           migrationNftEnabled ? null : (

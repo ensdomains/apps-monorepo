@@ -137,6 +137,19 @@ const APPROVAL: MigrationApproval = {
   contractAddress: APPROVAL_CONTRACT,
   operatorAddress: HCA,
 }
+const TOKEN_APPROVAL: MigrationApproval = {
+  kind: 'erc721-token',
+  id: 'base-registrar:hca-token',
+  contractAddress: APPROVAL_CONTRACT,
+  operatorAddress: HCA,
+  tokenId: 1n,
+}
+const WRAPPER_APPROVAL: MigrationApproval = {
+  kind: 'operator',
+  id: 'name-wrapper:hca',
+  contractAddress: APPROVAL_CONTRACT,
+  operatorAddress: HCA,
+}
 const MANAGER_APPROVAL: MigrationApproval = {
   kind: 'operator',
   id: 'eth-registry:hca',
@@ -449,6 +462,47 @@ beforeEach(() => {
 })
 
 describe('executeMigration HCA orchestration', () => {
+  it('describes migrate, copy, and mixed batches in user-facing terms', async () => {
+    const migrateDescriptions = (
+      await runExecute({ plan: planFor(['alice']) })
+    ).progressEvents.map(({ description }) => description)
+    expect(migrateDescriptions).toContain('Upgrading alice.eth')
+
+    const copy = copyClassifiedFor()
+    const copyDescriptions = (
+      await runExecute({
+        plan: planFromClassified([copy], [classifiedFor('alice'), copy]),
+      })
+    ).progressEvents.map(({ description }) => description)
+    expect(copyDescriptions).toContain('Copying sub.alice.eth')
+
+    const multipleMigrateDescriptions = (
+      await runExecute({ plan: planFor(['alice', 'bob']) })
+    ).progressEvents.map(({ description }) => description)
+    expect(multipleMigrateDescriptions).toContain('Upgrading 2 names')
+
+    const secondCopy = copyClassifiedFor({ label: 'other' })
+    const multipleCopyDescriptions = (
+      await runExecute({
+        plan: planFromClassified(
+          [copy, secondCopy],
+          [classifiedFor('alice'), copy, secondCopy],
+        ),
+      })
+    ).progressEvents.map(({ description }) => description)
+    expect(multipleCopyDescriptions).toContain('Copying 2 names')
+
+    const mixedDescriptions = (
+      await runExecute({
+        plan: planFromClassified(
+          [classifiedFor('alice'), copy],
+          [classifiedFor('alice'), copy],
+        ),
+      })
+    ).progressEvents.map(({ description }) => description)
+    expect(mixedDescriptions).toContain('Upgrading 1 name, copying 1')
+  })
+
   it('durably retains the full tree while advancing only verified gas-split nodes', async () => {
     const parent = classifiedFor('alice')
     const copy = copyClassifiedFor()
@@ -551,13 +605,19 @@ describe('executeMigration HCA orchestration', () => {
     mocks.waitForTransactionHash.mockResolvedValue(hashFor(4))
     mocks.buildAtomicMigrationBatches.mockClear()
 
-    const { result } = await runExecute({
+    const { progressEvents, result } = await runExecute({
       plan,
       reconcileBeforeSubmit: true,
     })
 
     expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
     expect(result).toMatchObject({ completed: 2, migrated: 1, copied: 1 })
+    expect(progressEvents).toContainEqual(
+      expect.objectContaining({
+        description:
+          'Picking up where you left off: 1 already upgraded, 1 already copied',
+      }),
+    )
     expect(loadMigrationRecoverySnapshot(scope)).toBeNull()
     expect(loadSubmittedAtomicMigrationBatches(scope)).toEqual([])
   })
@@ -616,7 +676,7 @@ describe('executeMigration HCA orchestration', () => {
     getCodeMock.mockResolvedValueOnce('0x')
     const refreshAccount = vi.fn(() => Promise.resolve())
 
-    const { result } = await runExecute({ refreshAccount })
+    const { progressEvents, result } = await runExecute({ refreshAccount })
 
     expect(mocks.buildHcaDeploymentCall).toHaveBeenCalledWith({
       client: HCA_CLIENT,
@@ -643,6 +703,9 @@ describe('executeMigration HCA orchestration', () => {
       }),
     )
     expect(refreshAccount).toHaveBeenCalledOnce()
+    expect(progressEvents.map(({ description }) => description)).toEqual(
+      expect.arrayContaining(['Getting ready', 'Ready']),
+    )
     expect(result.completed).toBe(1)
     expect(result.txHashes).toEqual([hashFor(1), hashFor(2)])
   })
@@ -685,13 +748,13 @@ describe('executeMigration HCA orchestration', () => {
       expect.objectContaining({
         currentStep: 1,
         totalSteps: 2,
-        description: 'HCA already ready',
+        description: 'Already set up',
       }),
     )
     expect(progressEvents.at(-1)).toMatchObject({
       currentStep: 2,
       totalSteps: 2,
-      description: 'Atomic batch verified',
+      description: 'Batch confirmed',
     })
   })
 
@@ -813,6 +876,64 @@ describe('executeMigration HCA orchestration', () => {
       totalSteps: 4,
       description: 'Temporary access removed',
     })
+  })
+
+  it('uses plain-language descriptions for every approval and cleanup kind', async () => {
+    const approvals = [
+      TOKEN_APPROVAL,
+      APPROVAL,
+      WRAPPER_APPROVAL,
+      MANAGER_APPROVAL,
+    ]
+    mocks.planMigrationApprovals.mockReturnValue(approvals)
+    const basePlan = planFor()
+    const plan = {
+      ...basePlan,
+      preflight: {
+        ...basePlan.preflight,
+        migrationApprovals: approvals,
+      },
+    }
+
+    const { progressEvents } = await runExecute({ plan })
+
+    expect(progressEvents.map(({ description }) => description)).toEqual(
+      expect.arrayContaining([
+        'Getting permission to upgrade this name',
+        'Getting permission to upgrade your names',
+        'Getting permission to upgrade your wrapped names',
+        'Getting permission to restore your managers',
+        'Permission granted',
+        'Removing temporary access',
+        'Temporary access removed',
+      ]),
+    )
+  })
+
+  it('reports a planned approval that a retry finds already granted', async () => {
+    mocks.planMigrationApprovals.mockReturnValue([])
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
+      status: 'incomplete',
+      verification: { batchIndex: 0, status: 'confirmed', results: [] },
+      mismatches: [{ expectationId: 'alice.eth:name-owner' }],
+    })
+    const basePlan = planFor()
+    const plan = {
+      ...basePlan,
+      preflight: {
+        ...basePlan.preflight,
+        migrationApprovals: [APPROVAL],
+      },
+    }
+
+    const { progressEvents } = await runExecute({
+      plan,
+      reconcileBeforeSubmit: true,
+    })
+
+    expect(progressEvents).toContainEqual(
+      expect.objectContaining({ description: 'Permission already granted' }),
+    )
   })
 
   it('retries a permission-shaped gas estimate after a freshly mined approval', async () => {
@@ -1221,7 +1342,7 @@ describe('executeMigration HCA orchestration', () => {
       },
     )
 
-    const { result } = await runExecute({
+    const { progressEvents, result } = await runExecute({
       onBatchComplete,
       reconcileBeforeSubmit: true,
     })
@@ -1241,6 +1362,12 @@ describe('executeMigration HCA orchestration', () => {
     expect(onBatchComplete).toHaveBeenCalledWith([
       { name: 'alice.eth', action: 'migrate' },
     ])
+    expect(progressEvents).toContainEqual(
+      expect.objectContaining({
+        description:
+          'Picking up where you left off: alice.eth was already upgraded',
+      }),
+    )
     expect(result.completed).toBe(1)
     expect(result.txHashes).toEqual([])
   })
@@ -1275,7 +1402,7 @@ describe('executeMigration HCA orchestration', () => {
       },
     )
 
-    const { result } = await runExecute({
+    const { progressEvents, result } = await runExecute({
       plan,
       onBatchComplete,
       reconcileBeforeSubmit: true,
@@ -1293,6 +1420,11 @@ describe('executeMigration HCA orchestration', () => {
       copied: 1,
       completedOperations: [{ name: copy.domain.name, action: 'copy' }],
     })
+    expect(progressEvents).toContainEqual(
+      expect.objectContaining({
+        description: `Picking up where you left off: ${copy.domain.name} was already copied`,
+      }),
+    )
     expect(
       loadPendingAtomicMigrationIntents({
         chainId: 11155111,
@@ -1480,7 +1612,7 @@ describe('executeMigration HCA orchestration', () => {
     expect(progressEvents.at(-1)).toMatchObject({
       currentStep: 4,
       totalSteps: 4,
-      description: 'Migration complete',
+      description: 'Upgrade complete',
     })
     expect(progressEvents.every(({ currentStep }) => currentStep <= 4)).toBe(
       true,

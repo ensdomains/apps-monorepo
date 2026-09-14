@@ -43,7 +43,7 @@ export const extractErrorMessage = (err: unknown): string => {
   if (typeof short === 'string') return short
   if (deepest !== err && deepest.message) return deepest.message
 
-  return err.message || 'Migration failed'
+  return err.message || 'Something went wrong. Refresh and try again.'
 }
 
 const walkCauseChain = (err: unknown): Error[] => {
@@ -137,7 +137,7 @@ const tryDecodeMigrationExecutionError = (data: Hex): MigrationError | null => {
       case 'ParentNotMigrated':
         return {
           type: 'generic',
-          message: 'A parent name must migrate before its child names.',
+          message: 'Upgrade the parent name first, then its subnames.',
         }
       case 'ERC721InsufficientApproval':
         return {
