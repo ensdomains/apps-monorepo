@@ -3,7 +3,7 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
-import { type ChangeEvent, useRef, useState } from 'react'
+import { type ChangeEvent, type ReactNode, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import {
@@ -31,6 +31,31 @@ const dropdownAnimation = {
   exit: { opacity: 0, y: -8, scale: 0.98 },
   transition: { duration: 0.2 },
 }
+
+const SearchStatusResult = ({
+  domainName,
+  badge,
+}: {
+  readonly domainName: string
+  readonly badge: ReactNode
+}) => (
+  <motion.div {...dropdownAnimation}>
+    <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
+      <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-ens-quartz-50">
+        <PatternAvatar
+          className="size-full rounded-md border-none bg-transparent p-0 shadow-none"
+          name={domainName}
+        />
+      </div>
+      <span className="font-medium text-ens-blue text-lg leading-tight tracking-tight">
+        {domainName}
+      </span>
+      <div className="ml-auto shrink-0 rounded-full bg-red-50 px-2 py-1 font-normal text-red-500 text-xs">
+        {badge}
+      </div>
+    </div>
+  </motion.div>
+)
 
 export type CheckAvailabilityProps = {
   onRegistrationComplete?: (name: string) => void
@@ -115,67 +140,25 @@ export const CheckAvailability = ({
           <AnimatePresence mode="wait">
             {match(displayState)
               .with({ type: 'not-supported' }, (state) => (
-                <motion.div
+                <SearchStatusResult
+                  badge={<Trans>Not supported</Trans>}
+                  domainName={state.domainName}
                   key={`result-${state.domainName}`}
-                  {...dropdownAnimation}
-                >
-                  <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
-                    <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-ens-quartz-50">
-                      <PatternAvatar
-                        className="size-full rounded-md border-none bg-transparent p-0 shadow-none"
-                        name={state.domainName}
-                      />
-                    </div>
-                    <span className="font-medium text-ens-blue text-lg leading-tight tracking-tight">
-                      {state.domainName}
-                    </span>
-                    <div className="ml-auto shrink-0 rounded-full bg-red-50 px-2 py-1 font-normal text-red-500 text-xs">
-                      <Trans>Not supported</Trans>
-                    </div>
-                  </div>
-                </motion.div>
+                />
               ))
               .with({ type: 'error' }, (state) => (
-                <motion.div
+                <SearchStatusResult
+                  badge={<Trans>Couldn't check this name</Trans>}
+                  domainName={state.domainName}
                   key={`result-${state.domainName}`}
-                  {...dropdownAnimation}
-                >
-                  <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
-                    <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-ens-quartz-50">
-                      <PatternAvatar
-                        className="size-full rounded-md border-none bg-transparent p-0 shadow-none"
-                        name={state.domainName}
-                      />
-                    </div>
-                    <span className="font-medium text-ens-blue text-lg leading-tight tracking-tight">
-                      {state.domainName}
-                    </span>
-                    <div className="ml-auto shrink-0 rounded-full bg-red-50 px-2 py-1 font-normal text-red-500 text-xs">
-                      <Trans>Couldn't check this name</Trans>
-                    </div>
-                  </div>
-                </motion.div>
+                />
               ))
               .with({ type: 'not-found' }, (state) => (
-                <motion.div
+                <SearchStatusResult
+                  badge={<Trans>Name not found</Trans>}
+                  domainName={state.domainName}
                   key={`result-${state.domainName}`}
-                  {...dropdownAnimation}
-                >
-                  <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
-                    <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-ens-quartz-50">
-                      <PatternAvatar
-                        className="size-full rounded-md border-none bg-transparent p-0 shadow-none"
-                        name={state.domainName}
-                      />
-                    </div>
-                    <span className="font-medium text-ens-blue text-lg leading-tight tracking-tight">
-                      {state.domainName}
-                    </span>
-                    <div className="ml-auto shrink-0 rounded-full bg-red-50 px-2 py-1 font-normal text-red-500 text-xs">
-                      <Trans>Name not found</Trans>
-                    </div>
-                  </div>
-                </motion.div>
+                />
               ))
               .with({ type: 'address' }, (state) => (
                 <motion.div

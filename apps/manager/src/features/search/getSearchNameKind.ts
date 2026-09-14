@@ -14,21 +14,22 @@ export const getSearchNameKind = (name: string): SearchNameKind => {
     return { type: 'invalid', name, reason: 'invalid-format' }
   }
 
+  let normalized: string
   try {
-    normalize(trimmed)
+    normalized = normalize(trimmed)
   } catch {
-    return { type: 'invalid', name, reason: 'invalid-format' }
+    return { type: 'invalid', name: trimmed, reason: 'invalid-format' }
   }
 
-  const parsedName = parseName(trimmed)
+  const parsedName = parseName(normalized)
   if (parsedName.isErr()) {
-    return { type: 'invalid', name, reason: 'invalid-format' }
+    return { type: 'invalid', name: normalized, reason: 'invalid-format' }
   }
 
   if (parsedName.value.tld !== ETH_TLD) {
     return {
       type: 'dns-name',
-      name: trimmed,
+      name: normalized,
       isSubname: parsedName.value.subLabels.length > 0,
     }
   }
@@ -38,16 +39,16 @@ export const getSearchNameKind = (name: string): SearchNameKind => {
     !isSubname &&
     getLabelLength(parsedName.value.label) < MIN_REGISTRABLE_LABEL_LENGTH
   ) {
-    return { type: 'invalid', name, reason: 'too-short' }
+    return { type: 'invalid', name: normalized, reason: 'too-short' }
   }
 
   if (isSubname) {
-    return { type: 'eth-subname', name: trimmed }
+    return { type: 'eth-subname', name: normalized }
   }
 
   return {
     type: 'eth-2ld',
-    name: trimmed,
+    name: normalized,
     label: parsedName.value.label,
   }
 }

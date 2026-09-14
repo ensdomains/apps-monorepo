@@ -72,4 +72,17 @@ describe('getSearchNameKind', () => {
       reason: 'invalid-format',
     })
   })
+
+  it('returns the ENSIP-15-normalized name', () => {
+    expect(getSearchNameKind('FOO.ETH')).toEqual({
+      type: 'eth-2ld',
+      name: 'foo.eth',
+      label: 'foo',
+    })
+    expect(getSearchNameKind('ＦＯＯ.eth')).toEqual({
+      type: 'eth-2ld',
+      name: 'foo.eth',
+      label: 'foo',
+    })
+  })
 })
