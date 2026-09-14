@@ -1,13 +1,6 @@
-import { ArrowUpCircle, CircleAlert } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 import { Alert } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import {
-  LANDING_PAGE_BASE_URL,
-  MANAGER_APP_BASE_URL,
-} from '@/lib/constants/domain'
-
-const MANAGER_MIGRATE_URL = `${MANAGER_APP_BASE_URL}/migration`
-const LEARN_MORE_URL = `${LANDING_PAGE_BASE_URL}/ensv2`
+import { UpgradeActions } from '@/features/migration/components/UpgradeActions'
 
 /**
  * Prompts the connected owner of a migratable v1 name to upgrade it to ENSv2 in
@@ -29,34 +22,7 @@ export const UpgradeBanner = ({ name }: { name: string }) => (
       <p className="text-p">
         This name is reserved on ENS v2 until it is migrated from ENS v1{' '}
       </p>
-      <div className="flex items-center gap-4">
-        <Button
-          className="rounded-xs"
-          asChild
-          variant="entity-outline"
-          size="xs"
-        >
-          {/** biome-ignore lint/a11y/noAmbiguousAnchorText: aria-label is used */}
-          <a
-            href={LEARN_MORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Learn more about migrating ${name} to ENS v2`}
-          >
-            Learn more
-          </a>
-        </Button>
-        <Button className="rounded-xs" asChild variant="entity" size="xs">
-          <a
-            href={MANAGER_MIGRATE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <ArrowUpCircle className="size-4 shrink-0" />
-            Upgrade to v2
-          </a>
-        </Button>
-      </div>
+      <UpgradeActions name={name} />
     </div>
   </Alert>
 )

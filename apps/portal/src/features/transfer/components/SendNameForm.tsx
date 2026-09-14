@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
@@ -13,20 +13,34 @@ import { useAddressResolution } from '@/features/address/hooks/useAddressResolut
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
-import { useTransferDetachTargets } from '../hooks/useTransferDetachTargets'
-import { useTransferName } from '../hooks/useTransferName'
+import type { TransferControls } from '../hooks/useTransferName'
+import type {
+  ParentWarning,
+  TransferDetachTargets,
+  TransferOptionKey,
+} from '../types'
 import type { TransferOptions } from '../utils/buildTransferPlan'
 
+/**
+ * The transfer form, protocol-agnostic. Everything that depends on how the name
+ * is held — which options exist, what the parent can still do, which contracts
+ * the steps call — is computed by a per-protocol container (`V2SendName`,
+ * `V1SendName`) and handed in. This component only owns the recipient input,
+ * the option toggles and the modal.
+ */
 type SendNameFormProps = {
-  readonly name: string
-  readonly registryAddress: Address
+  /** The connected wallet doing the sending. */
   readonly owner: Address
+  readonly detachTargets: TransferDetachTargets
+  /** Null when the name has no parent worth warning about (a 2LD). */
+  readonly parentWarning: ParentWarning | null
+  readonly transfer: TransferControls
+  /** Protocol-specific notices, rendered under the irreversibility warning. */
+  readonly notices?: ReactNode
 }
 
-type OptionKey = 'setEthAddress' | 'detachResolver' | 'detachRegistry'
-
 type OptionConfig = {
-  readonly key: OptionKey
+  readonly key: TransferOptionKey
   readonly label: string
   readonly description: string
   /** Shown right below the toggle when it's turned off. */
@@ -60,29 +74,88 @@ const OPTIONS: readonly OptionConfig[] = [
   },
 ]
 
+/**
+ * What the parent owner can still do to this subname, stated only where the
+ * container says they can do it. Renders nothing when the parent holds no
+ * power: such a subname transfers as finally as a 2LD, and warning about it
+ * would be false.
+ */
+const ParentWarningAlert = ({
+  warning,
+}: {
+  readonly warning: ParentWarning
+}) => {
+  const { parentName, parentIsSelf, powers, isLoading, isError } = warning
+
+  // Nothing is claimed until the reads land: an alert that appears and then
+  // rewrites itself is worse than one that arrives a beat late.
+  if (isLoading) return null
+
+  const parent = <span className="font-medium inline-block">{parentName}</span>
+
+  // Unknown, not absent — the reads failed, so the powers stay unlisted and the
+  // sender is told the check itself didn't complete.
+  if (isError)
+    return (
+      <Alert variant="warning">
+        <AlertTriangle className="size-4" />
+        <AlertDescription>
+          <p>
+            This is a subname of {parent}. We couldn't check what its owner can
+            still do to it, so treat this transfer as reversible by them: a
+            parent can hold authority that lets them reclaim or re-issue a
+            subname.
+          </p>
+        </AlertDescription>
+      </Alert>
+    )
+
+  if (powers.length === 0) return null
+
+  return (
+    <Alert variant="warning">
+      <AlertTriangle className="size-4" />
+      <AlertDescription>
+        <p>
+          This is a subname of {parent}, and its owner{' '}
+          {parentIsSelf ? '(you) ' : ''}keeps authority over it — they can{' '}
+          {powers.length === 1 ? (
+            powers[0]
+          ) : (
+            <>
+              {powers.slice(0, -1).join('; ')}; and {powers.at(-1)}
+            </>
+          )}
+          .{' '}
+          {parentIsSelf
+            ? `This transfer isn't final the way transferring ${parentName} itself would be.`
+            : `Transferring it doesn't give the recipient what owning ${parentName} would.`}
+        </p>
+      </AlertDescription>
+    </Alert>
+  )
+}
+
 export const SendNameForm = ({
-  name,
-  registryAddress,
   owner,
+  detachTargets,
+  parentWarning,
+  transfer,
+  notices,
 }: SendNameFormProps) => {
   const [recipientInput, setRecipientInput] = useState('')
-  const [options, setOptions] = useState<Record<OptionKey, boolean>>({
+  const [options, setOptions] = useState<Record<TransferOptionKey, boolean>>({
     setEthAddress: true,
     detachResolver: true,
     detachRegistry: true,
   })
 
-  const {
-    optionIsVisible,
-    settled: detachTargetsSettled,
-    failed: detachTargetsFailed,
-  } = useTransferDetachTargets({ name, registryAddress, owner })
+  const { isOptionVisible, isSettled, hasFailed } = detachTargets
 
   const resolution = useAddressResolution(recipientInput)
   const { address: recipient, isResolving } = resolution
 
-  const { startTransfer, transactions, isPreparing, prepError } =
-    useTransferName({ name, registryAddress, owner })
+  const { startTransfer, transactions, isPreparing, prepError } = transfer
 
   const isSelf = !!recipient && isAddressEqual(recipient, owner)
   const isZeroAddress = !!recipient && isAddressEqual(recipient, zeroAddress)
@@ -90,17 +163,21 @@ export const SendNameForm = ({
 
   // A hidden option never contributes to the plan, whatever its stored value.
   const effectiveOptions: TransferOptions = {
-    setEthAddress: options.setEthAddress && optionIsVisible.setEthAddress,
-    detachResolver: options.detachResolver && optionIsVisible.detachResolver,
-    detachRegistry: options.detachRegistry && optionIsVisible.detachRegistry,
+    setEthAddress: options.setEthAddress && isOptionVisible.setEthAddress,
+    detachResolver: options.detachResolver && isOptionVisible.detachResolver,
+    detachRegistry: options.detachRegistry && isOptionVisible.detachRegistry,
   }
 
-  const visibleOptions = OPTIONS.filter((option) => optionIsVisible[option.key])
+  const visibleOptions = OPTIONS.filter((option) => isOptionVisible[option.key])
 
   const canStart =
-    hasValidRecipient && !isResolving && !isPreparing && detachTargetsSettled
+    hasValidRecipient &&
+    !isResolving &&
+    !isPreparing &&
+    isSettled &&
+    !parentWarning?.isLoading
 
-  const toggleOption = (key: OptionKey) =>
+  const toggleOption = (key: TransferOptionKey) =>
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
 
   const runTransfer = () => {
@@ -117,6 +194,10 @@ export const SendNameForm = ({
           check the recipient address before proceeding.
         </AlertDescription>
       </Alert>
+
+      {notices}
+
+      {parentWarning && <ParentWarningAlert warning={parentWarning} />}
 
       <div className="flex flex-col gap-1">
         <span className="font-medium">Recipient</span>
@@ -152,7 +233,7 @@ export const SendNameForm = ({
         {isPreparing ? 'Preparing…' : 'Transfer name'}
       </Button>
 
-      {hasValidRecipient && detachTargetsFailed && (
+      {hasValidRecipient && hasFailed && (
         <span className="text-destructive text-sm">
           Couldn’t check this name’s current resolver and registry. Refresh and
           try again before transferring.
@@ -173,9 +254,9 @@ const TransferDetachOptions = ({
   visibleOptions,
   onToggle,
 }: {
-  readonly options: Record<OptionKey, boolean>
+  readonly options: Record<TransferOptionKey, boolean>
   readonly visibleOptions: readonly OptionConfig[]
-  readonly onToggle: (key: OptionKey) => void
+  readonly onToggle: (key: TransferOptionKey) => void
 }) => {
   if (visibleOptions.length === 0) return null
 

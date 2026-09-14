@@ -1,20 +1,23 @@
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Fragment, useState } from 'react'
+import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
+import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Button } from '@/components/ui/button'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
+import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
+import { rootNameAuthority } from '@/features/roles/utils/rootNameAuthority'
+import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { isAdminRole } from '@/lib/roles/permissions'
-
-const ROLES_FROM_BLOCK = 9783977n
 
 const V2NameRoles = ({
   name,
@@ -25,13 +28,12 @@ const V2NameRoles = ({
   registryAddress: Address
   canManageRoles: boolean
 }) => {
-  const { currentLabel, labels } = getNameLabels(name)
+  const { labels } = getNameLabels(name)
 
   const nameRolesQuery = useQuery({
     ...getNameRolesAccountsQueryOptions({
-      label: currentLabel,
+      name,
       registryAddress,
-      fromBlock: ROLES_FROM_BLOCK,
     }),
     enabled: labels.length >= 2,
   })
@@ -57,6 +59,65 @@ const V2NameRoles = ({
       canManageRoles={canManageRoles}
       registryAddress={registryAddress}
     />
+  )
+}
+
+/**
+ * Accounts holding roles at the registry's root can act on every name it holds,
+ * including this one, and they never appear in the table above: that table
+ * replays per-name grants, and a root grant is not one.
+ *
+ * Read-only, because the manage flows write per-name grants, so a revoke aimed
+ * at a root holder would silently do nothing.
+ */
+const RegistryRootAuthority = ({
+  registryAddress,
+}: {
+  registryAddress: Address
+}) => {
+  const { data, isLoading, error } = useQuery(
+    getRegistryRootRoleHoldersQueryOptions({ registryAddress }),
+  )
+
+  const holders = rootNameAuthority(data)
+
+  return (
+    match({ isLoading, error, data, count: holders.length })
+      // Nothing is claimed until the read lands, and nothing is claimed when
+      // nobody holds these powers, which is the case for a `.eth` 2LD.
+      .with({ isLoading: true }, () => null)
+      // A read that failed or never landed is unknown, not none. Staying silent
+      // would reproduce the absence this section exists to correct.
+      .with({ error: P.nonNullable }, { data: undefined }, () => (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-caps leading-none">registry-wide roles</h3>
+          <ErrorMessage
+            compact
+            description="Couldn't check whether anyone holds roles on the registry itself. If they do, they can act on this name and won't be listed above."
+          />
+        </div>
+      ))
+      .with({ count: 0 }, () => null)
+      .otherwise(() => (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-caps leading-none">registry-wide roles</h3>
+          <p className="text-muted-foreground text-sm">
+            These are held on the registry itself, so they apply to every name
+            in it rather than being granted on this one. They are not listed
+            above and can't be changed from this page.
+          </p>
+          <ul className="flex flex-col gap-2">
+            {holders.map(({ account, powers }) => (
+              <li key={account} className="flex flex-col gap-1 text-sm">
+                <AddressDisplay address={account} />
+                <span className="text-muted-foreground">
+                  {powers.map(formatRoleLabel).join(', ')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))
   )
 }
 
@@ -122,6 +183,7 @@ export const NameRolesOverviewTable = ({
         registryAddress={registryAddress}
         canManageRoles={canManageRoles}
       />
+      <RegistryRootAuthority registryAddress={registryAddress} />
       <RolesAddUserSheet
         open={addUserOpen}
         onOpenChange={setAddUserOpen}

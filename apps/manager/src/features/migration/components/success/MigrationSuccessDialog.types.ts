@@ -6,7 +6,6 @@ import type {
 } from '../../commemorative-nft/types'
 
 export type CommemorativeNftCardData = {
-  readonly artworkUrl?: string
   readonly assets: CommemorativeNftAssets
   readonly eligibility: CommemorativeNftEligibility
   readonly marketplaceUrl?: string
@@ -18,7 +17,6 @@ export type CommemorativeNftCardData = {
 export type MigrationSuccessDialogState =
   | { readonly status: 'loadingEligibility' }
   | { readonly status: 'ineligible' }
-  | { readonly status: 'revealing'; readonly card: CommemorativeNftCardData }
   | { readonly status: 'readyToMint'; readonly card: CommemorativeNftCardData }
   | {
       readonly status: 'minting'

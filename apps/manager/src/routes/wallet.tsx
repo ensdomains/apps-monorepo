@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { useConnectModal, useWalletDisconnect } from '@/lib/wallet'
-import { describeConnectError, type ErrorTone } from './wallet.errors'
+import { describeConnectError, type ErrorTone } from './-wallet.errors'
 
 export const Route = createFileRoute('/wallet')({
   component: RouteComponent,

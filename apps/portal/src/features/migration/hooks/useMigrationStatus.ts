@@ -7,8 +7,15 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
+import { useQuery } from '@tanstack/react-query'
 import { err, fromPromise, ok } from 'neverthrow'
-import { type Address, isAddress, type PublicClient } from 'viem'
+import {
+  type Address,
+  isAddress,
+  isAddressEqual,
+  type PublicClient,
+} from 'viem'
+import { useConnection } from 'wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { gql } from '@/utils/subgraph/gql'
 
@@ -124,3 +131,36 @@ export const getMigrationStatusQueryOptions = (
     enabled: !!params.name,
     retry: 2,
   })
+
+/**
+ * Migration status for the connected wallet.
+ *
+ * `isMigratableByConnectedOwner` is the answer every migration prompt wants:
+ * the name is migratable *and* this wallet holds the v1 token. A non-owner
+ * cannot migrate, so nothing should offer them the action.
+ *
+ * `enabled` exists because the read is not cheap: a subgraph request plus
+ * on-chain eligibility checks. Callers pass false for anything that is not a
+ * v1 name.
+ */
+export const useMigrationStatus = (
+  name: string,
+  { enabled = true }: { enabled?: boolean } = {},
+) => {
+  const { address } = useConnection()
+
+  const { data, isLoading, error } = useQuery({
+    ...getMigrationStatusQueryOptions({ name, address }),
+    enabled: enabled && !!address,
+  })
+
+  return {
+    data,
+    error,
+    isLoading,
+    isMigratableByConnectedOwner:
+      data?.migratable === true &&
+      !!address &&
+      isAddressEqual(address, data.tokenHolder),
+  }
+}

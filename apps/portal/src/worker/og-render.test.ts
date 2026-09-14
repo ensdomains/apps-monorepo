@@ -1,120 +1,141 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// og-render imports workers-og, which loads a WASM module at import time that
-// the node test environment can't resolve. Stub it, recording the HTML each
-// render was handed and letting a test decide how that render behaves — that
-// hook is what drives the degradation paths below.
+// og-render renders through @ens-apps/og, which pulls in a WASM module the node
+// test environment can't resolve. Stub the renderer, recording the HTML each
+// card was built from and letting a test decide how that render resolves — that
+// hook is what drives the degradation paths below. Whether a card rasterises at
+// all is the package's own concern, and tested there.
 const og = vi.hoisted(() => ({
   htmls: [] as string[],
-  render: (_html: string): ArrayBuffer => new ArrayBuffer(8),
+  render: (_html: string): Response | null =>
+    new Response(new ArrayBuffer(8), {
+      headers: { 'Content-Type': 'image/png' },
+    }),
 }))
 
-vi.mock('workers-og', () => ({
-  ImageResponse: class {
-    readonly html: string
-    constructor(html: string) {
-      this.html = html
-      og.htmls.push(html)
-    }
-    arrayBuffer(): Promise<ArrayBuffer> {
-      return Promise.resolve(og.render(this.html))
-    }
+vi.mock('@ens-apps/og/render', () => ({
+  OG_CARD_HEIGHT: 630,
+  OG_CARD_WIDTH: 1200,
+  renderOgCard: (html: string) => {
+    og.htmls.push(html)
+    return Promise.resolve(og.render(html))
   },
 }))
 
 const {
-  escapeHtml,
-  resolverSubtitle,
-  resolverPageLabel,
-  registryPageLabel,
+  registryChipLabel,
+  renderAddressOgImage,
   renderOgImage,
+  renderRegistryOgImage,
+  renderResolverOgImage,
+  resolverChipLabel,
 } = await import('./og-render')
 
-describe('escapeHtml', () => {
-  it('escapes the five HTML-sensitive characters', () => {
-    expect(escapeHtml('&')).toBe('&amp;')
-    expect(escapeHtml('<')).toBe('&lt;')
-    expect(escapeHtml('>')).toBe('&gt;')
-    expect(escapeHtml('"')).toBe('&quot;')
-    expect(escapeHtml("'")).toBe('&#39;')
+// Fonts are irrelevant here: a 404 leaves the font list empty, which is already
+// the production behaviour when an asset lookup misses.
+const env = {
+  ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
+} as unknown as Env
+
+const ADDRESS = '0xCC692D6E11268B40A1E3C58e3D86Fc4CAAb9b77a'
+const OWNER = '0x1234567890123456789012345678901234567890'
+const URL_ = 'https://example.com/og/snowman.eth.png'
+
+beforeEach(() => {
+  og.htmls = []
+  og.render = () =>
+    new Response(new ArrayBuffer(8), {
+      headers: { 'Content-Type': 'image/png' },
+    })
+})
+
+describe('chip labels', () => {
+  // An address that is nobody's known ENS contract, so both fall through to the
+  // label the route itself implies.
+  it('names an unknown permissioned resolver as one', () => {
+    expect(resolverChipLabel(ADDRESS, true)).toBe('permissioned resolver')
   })
 
-  it('neutralizes a single-quote attribute breakout', () => {
-    expect(escapeHtml("vitalik' onerror='alert(1)")).toBe(
-      'vitalik&#39; onerror=&#39;alert(1)',
-    )
+  it('calls any other resolver a plain resolver', () => {
+    expect(resolverChipLabel(ADDRESS, false)).toBe('resolver')
   })
 
-  it('does not double-escape ampersands in its own output', () => {
-    // a combined input confirms neither replacement double-escapes the
-    // other's output — notably the & inside the &#39; emitted for '
-    expect(escapeHtml("a&'b")).toBe('a&amp;&#39;b')
-  })
-
-  it('leaves slashes untouched so base64 data: URIs survive intact', () => {
-    const url = 'data:image/png;base64,iVBOR/w0KGgo+AAAA=='
-    expect(escapeHtml(url)).toBe(url)
+  it('calls an unknown registry a permissioned registry', () => {
+    expect(registryChipLabel(ADDRESS)).toBe('permissioned registry')
   })
 })
 
-describe('resolverSubtitle', () => {
-  it('labels permissioned resolvers', () => {
-    expect(resolverSubtitle(true)).toBe('Permissioned Resolver')
+describe('entity colour coding', () => {
+  // The point of the set (WEB-1265): the tint says what kind of thing the link
+  // is about before the page opens. The fills mirror --{accent,success,danger}
+  // -fill in styles/index.css.
+  it('tints a name card blue', async () => {
+    await renderOgImage('snowman.eth', null, OWNER, URL_, env)
+
+    expect(og.htmls[0]).toContain('#ebf7fd')
   })
 
-  it('labels plain resolvers', () => {
-    expect(resolverSubtitle(false)).toBe('Resolver')
+  it('tints an address card green', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env)
+
+    expect(og.htmls[0]).toContain('#e8f6ef')
+  })
+
+  it('tints a resolver card pink', async () => {
+    await renderResolverOgImage(ADDRESS, URL_, env, true)
+
+    expect(og.htmls[0]).toContain('#fef0f6')
+  })
+
+  it('tints a registry card pink', async () => {
+    await renderRegistryOgImage(ADDRESS, URL_, env)
+
+    expect(og.htmls[0]).toContain('#fef0f6')
   })
 })
 
-describe('resolverPageLabel', () => {
-  it('defaults to the overview label', () => {
-    expect(resolverPageLabel(null)).toBe('Resolver Overview')
+describe('renderAddressOgImage', () => {
+  it('labels the entity kind, then carries the address itself', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env)
+
+    expect(og.htmls[0]).toContain('>address</div>')
+    expect(og.htmls[0]).toContain(ADDRESS)
   })
 
-  it('maps known subpages', () => {
-    expect(resolverPageLabel('roles')).toBe('Roles')
-    expect(resolverPageLabel('nodes')).toBe('Nodes')
-    expect(resolverPageLabel('aliases')).toBe('Aliases')
-    expect(resolverPageLabel('create-alias')).toBe('Create Alias')
-    expect(resolverPageLabel('history')).toBe('History')
-  })
+  it('leaves the address chip unfilled so the card tint shows through', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env)
 
-  it('title-cases unknown subpages', () => {
-    expect(resolverPageLabel('something')).toBe('Something')
+    expect(og.htmls[0]).toContain('background: transparent')
   })
 })
 
-describe('registryPageLabel', () => {
-  it('defaults to the overview label', () => {
-    expect(registryPageLabel(null)).toBe('Registry Overview')
+describe('card geometry', () => {
+  // Measured against the Figma frames: an 83px header row puts the mark 5.77px
+  // below the card's padding, and a 50px stack gap puts the chip at y=213.
+  it('gives the header row the height the design draws it at', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env)
+
+    expect(og.htmls[0]).toContain('height: 83px')
   })
 
-  it('maps known subpages', () => {
-    expect(registryPageLabel('labels')).toBe('Labels')
-    expect(registryPageLabel('roles')).toBe('Roles')
-    expect(registryPageLabel('history')).toBe('History')
+  it('stacks with the design gap', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env)
+
+    expect(og.htmls[0]).toContain('gap: 50px')
+  })
+
+  it('sizes a chip border-box, so min-height counts its padding', async () => {
+    await renderAddressOgImage(ADDRESS, URL_, env)
+
+    expect(og.htmls[0]).toContain('box-sizing: border-box')
   })
 })
 
 describe('renderOgImage', () => {
-  // Fonts are irrelevant here: a 404 leaves the font list empty, which is
-  // already the production behaviour when an asset lookup misses.
-  const env = {
-    ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
-  } as unknown as Env
-
   const AVATAR = 'data:image/jpeg;base64,AAAA'
-  const OWNER = '0x1234567890123456789012345678901234567890'
-  const URL_ = 'https://example.com/og/snowman.eth.png'
 
   const renderName = () =>
     renderOgImage('snowman.eth', AVATAR, OWNER, URL_, env)
-
-  beforeEach(() => {
-    og.htmls = []
-    og.render = () => new ArrayBuffer(8)
-  })
 
   it('renders a PNG when the avatar renders', async () => {
     const res = await renderName()
@@ -125,36 +146,40 @@ describe('renderOgImage', () => {
     expect(og.htmls[0]).toContain(AVATAR)
   })
 
-  it('retries without the avatar when rendering it throws', async () => {
+  it('renders the owner address as the subtitle', async () => {
+    await renderName()
+
+    expect(og.htmls[0]).toContain(OWNER)
+  })
+
+  it('offers an unowned name as available', async () => {
+    await renderOgImage('snowman.eth', null, null, URL_, env)
+
+    expect(og.htmls[0]).toContain('Available to register')
+  })
+
+  it('retries without the avatar when that card fails to render', async () => {
     // An avatar is the one element of the card sized by someone else, so it is
-    // the part a render realistically dies on — see renderOgResponse.
-    og.render = (html) => {
-      if (html.includes(AVATAR)) throw new Error('Out of memory')
-      return new ArrayBuffer(8)
-    }
+    // the part a render realistically dies on — see renderOgCard.
+    og.render = (html) =>
+      html.includes(AVATAR)
+        ? null
+        : new Response(new ArrayBuffer(8), {
+            headers: { 'Content-Type': 'image/png' },
+          })
 
     const res = await renderName()
 
     expect(res?.status).toBe(200)
     expect(og.htmls).toHaveLength(2)
-    // The retry falls back to the same initial-letter tile an avatar-less name
-    // gets, rather than dropping the card entirely.
+    // The retry falls back to the same text-only chip an avatar-less name gets,
+    // rather than dropping the card entirely.
     expect(og.htmls[1]).not.toContain(AVATAR)
-    expect(og.htmls[1]).toContain('>S</div>')
-  })
-
-  it('retries when the avatar render yields no bytes instead of throwing', async () => {
-    og.render = (html) =>
-      html.includes(AVATAR) ? new ArrayBuffer(0) : new ArrayBuffer(8)
-
-    expect((await renderName())?.status).toBe(200)
-    expect(og.htmls).toHaveLength(2)
+    expect(og.htmls[1]).toContain('>snowman.eth</div>')
   })
 
   it('reports null when the card fails to render with or without the avatar', async () => {
-    og.render = () => {
-      throw new Error('Out of memory')
-    }
+    og.render = () => null
 
     // null, not a throw: an uncaught error here reaches the runtime as a 1101,
     // which breaks the card on the name page and every subpage at once.
@@ -163,9 +188,7 @@ describe('renderOgImage', () => {
   })
 
   it('does not retry a card that never had an avatar', async () => {
-    og.render = () => {
-      throw new Error('Out of memory')
-    }
+    og.render = () => null
 
     expect(
       await renderOgImage('snowman.eth', null, OWNER, URL_, env),

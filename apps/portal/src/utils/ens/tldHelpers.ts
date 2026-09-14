@@ -74,3 +74,16 @@ export const isRegistrable = (name: string): boolean =>
  */
 export const isClaimable = (name: string): boolean =>
   is2LD(name) && !name.endsWith('.eth')
+
+/**
+ * The parent of a name — everything after the first label.
+ *
+ * @example
+ * getParentName('sub.florin.eth') // 'florin.eth'
+ * getParentName('florin.eth') // 'eth'
+ * getParentName('eth') // null (a TLD has no parent in the namespace we show)
+ */
+export const getParentName = (name: string): string | null => {
+  const labels = name.split('.')
+  return labels.length > 1 ? labels.slice(1).join('.') : null
+}

@@ -1,6 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import { Trans } from '@lingui/react/macro'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
@@ -9,8 +8,11 @@ import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import { MigrationNftMintDialog } from '@/features/migration/components/MigrationNftMintDialog'
+import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { CommemorativeNftClaimDialog } from '@/features/migration/components/success/CommemorativeNftClaimDialog'
@@ -28,7 +30,7 @@ import {
   useMigrationSelectedNames,
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { isMigrationQueryKey } from './MigrationPage.helpers'
 
@@ -65,7 +67,6 @@ const PlainMigrationSuccessDialog = ({
     onClose={onContinue}
     onMint={noop}
     onRetry={noop}
-    onRevealComplete={noop}
     onViewProfile={onContinue}
     open
     state={disabledNftSuccessState}
@@ -182,14 +183,16 @@ export const MigrationPage = () => {
   } = useSmartAccountContext()
   const { data: wagmiWalletClient } = useWalletClient()
   const queryClient = useQueryClient()
-  const migrationNftEnabled = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.MIGRATION_NFT,
-    false,
-  )
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const migrationNftEnabled = useMigrationNftEnabled()
+  const [isNftMintOpen, setIsNftMintOpen] = useState(false)
+  const visibleNft = useVisibleCommemorativeNftEligibility({
+    enabled: migrationNftEnabled && import.meta.env.DEV && step === 'select',
+  })
+  useEffect(() => {
+    if (!migrationNftEnabled) setIsNftMintOpen(false)
+  }, [migrationNftEnabled])
   const isMigrationSuccess = step === 'success'
-  const dialogOpen =
-    migrationNftEnabled && (isMigrationSuccess || isPreviewOpen)
+  const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)
   const dialogNames = isMigrationSuccess ? completedNames : selectedNames
   const gasEstimate = useMigrationGasEstimate({
@@ -221,7 +224,7 @@ export const MigrationPage = () => {
       return
     }
 
-    setIsPreviewOpen(false)
+    setIsNftMintOpen(false)
   }, [isMigrationSuccess, uiActor, navigate])
 
   const handleViewProfile = useCallback(
@@ -231,7 +234,7 @@ export const MigrationPage = () => {
       if (isMigrationSuccess) {
         uiActor.send({ type: 'done' })
       } else {
-        setIsPreviewOpen(false)
+        setIsNftMintOpen(false)
       }
 
       if (name) {
@@ -318,13 +321,13 @@ export const MigrationPage = () => {
               <Trans>Back</Trans>
             </span>
           </button>
-          {import.meta.env.DEV && migrationNftEnabled ? (
+          {migrationNftEnabled && import.meta.env.DEV && visibleNft ? (
             <button
               className="absolute top-6 right-5 z-20 px-2 py-2 text-ens-garnet-900 text-xs underline underline-offset-2 md:right-8"
-              onClick={() => setIsPreviewOpen(true)}
+              onClick={() => setIsNftMintOpen(true)}
               type="button"
             >
-              <Trans>Preview success dialog</Trans>
+              <Trans>Mint commemorative NFT</Trans>
             </button>
           ) : null}
         </>
@@ -358,7 +361,7 @@ export const MigrationPage = () => {
 
             <motion.div
               animate={{ opacity: 1, y: 0 }}
-              className="flex gap-3"
+              className="flex max-w-full flex-wrap justify-center gap-3"
               initial={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.4, delay: 0.35 }}
             >
@@ -369,8 +372,7 @@ export const MigrationPage = () => {
               >
                 <Trans>Back</Trans>
               </button>
-              <button
-                className="rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
+              <MigrationPrimaryButton
                 onClick={() => uiActor.send({ type: 'retry' })}
                 type="button"
               >
@@ -379,7 +381,7 @@ export const MigrationPage = () => {
                 ) : (
                   <Trans>Retry</Trans>
                 )}
-              </button>
+              </MigrationPrimaryButton>
             </motion.div>
           </ResultLayout>
         ))
@@ -401,8 +403,12 @@ export const MigrationPage = () => {
           onViewProfile={handleViewProfile}
           open={dialogOpen}
           ownerAddress={ownerAddress as Address | undefined}
-          preview={isPreviewOpen && !isMigrationSuccess}
-          previewProfileName={dialogNames[0]}
+        />
+      ) : null}
+      {migrationNftEnabled && import.meta.env.DEV && isNftMintOpen ? (
+        <MigrationNftMintDialog
+          onClose={() => setIsNftMintOpen(false)}
+          onViewProfile={handleViewProfile}
         />
       ) : null}
     </div>

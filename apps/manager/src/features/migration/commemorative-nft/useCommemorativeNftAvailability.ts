@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useChainId, useConfig } from 'wagmi'
+import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { getCommemorativeNftContractAddress } from './config'
+import { isCommemorativeNftClaimResultFresh } from './flowState'
 import {
   commemorativeNftClaimedQueryOptions,
   commemorativeNftEligibilityQueryOptions,
@@ -11,19 +13,19 @@ export const useCommemorativeNftAvailability = (params: {
   readonly ownerAddress: Address | undefined
   readonly enabled: boolean
   readonly pollClaimed?: boolean
-  readonly allowDevFixture?: boolean
 }) => {
+  const featureEnabled = useMigrationNftEnabled()
   const chainId = useChainId()
   const wagmiConfig = useConfig()
   const supported = !!getCommemorativeNftContractAddress(chainId)
   const ownerAddress = params.ownerAddress
-  const enabled = params.enabled && supported && !!ownerAddress
+  const enabled =
+    featureEnabled && params.enabled && supported && !!ownerAddress
 
   const eligibility = useQuery({
     ...commemorativeNftEligibilityQueryOptions({
       ownerAddress:
         ownerAddress ?? '0x0000000000000000000000000000000000000000',
-      allowDevFixture: params.allowDevFixture,
     }),
     enabled,
   })
@@ -37,11 +39,27 @@ export const useCommemorativeNftAvailability = (params: {
     }),
     enabled,
   })
+  const hasFreshClaimedResult =
+    enabled &&
+    isCommemorativeNftClaimResultFresh({
+      isFetchedAfterMount: claimed.isFetchedAfterMount,
+      isSuccess: claimed.isSuccess,
+      fetchStatus: claimed.fetchStatus,
+    })
+  const hasFreshEligibilityResult =
+    enabled &&
+    eligibility.isFetchedAfterMount &&
+    eligibility.isSuccess &&
+    eligibility.fetchStatus === 'idle'
 
   return {
+    featureEnabled,
     chainId,
     supported,
     eligibility,
     claimed,
+    hasFreshEligibilityResult,
+    hasFreshClaimedResult,
+    isConfirmedUnclaimed: hasFreshClaimedResult && claimed.data === false,
   }
 }

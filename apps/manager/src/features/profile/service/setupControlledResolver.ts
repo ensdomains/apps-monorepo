@@ -5,7 +5,6 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { parseInput } from '@ensdomains/ensjs/utils'
 import type { Address, PublicClient } from 'viem'
 import {
   buildDeployOwnedPermResCall,
@@ -13,7 +12,7 @@ import {
   simulateOwnedPermResAddress,
 } from '@/features/migration/service/ensureOwnedPermRes'
 import { checkMigrationResolverReadiness } from '@/features/migration/service/migrationInvariants'
-import { buildSetResolverCall } from './changeResolver'
+import { buildSetResolverCall, resolveNameRegistry } from './changeResolver'
 import {
   type ServiceRecordSnapshot,
   saveRecords,
@@ -96,8 +95,10 @@ export interface SetupControlledResolverParams {
  * pointer changes so a rejected record transaction cannot leave the live name
  * on an empty resolver, and a retry cannot publish stale attempted values.
  *
- * Only supports `.eth` 2LDs — subnames live in a parent registry we can't
- * deploy or point at, so this throws for them before submitting anything.
+ * Works for any name under `.eth`: `setResolver` is sent to whichever V2
+ * registry holds the name's leaf label (the `.eth` registry for a 2LD, the
+ * parent's registry for a subname). Locating that registry happens first, so a
+ * name no V2 registry holds fails before anything is submitted.
  *
  * Resolves with the resolver address once the final transaction is confirmed.
  */
@@ -112,11 +113,7 @@ export async function setupControlledResolver({
   description = `Set up resolver for ${name}`,
 }: SetupControlledResolverParams): Promise<Address> {
   const fullName = name.endsWith('.eth') ? name : `${name}.eth`
-  if (!parseInput(fullName).is2LD) {
-    throw new Error(
-      'This subname can’t be set up here yet. Please set it up in the ENS app first.',
-    )
-  }
+  const location = await resolveNameRegistry(fullName)
 
   const existing = await findExistingPermRes({
     eoa: ownerAddress,
@@ -129,9 +126,12 @@ export async function setupControlledResolver({
       publicClient,
     }))
 
-  const setResolverCall = buildSetResolverCall({ name, newResolver: resolver })
+  const setResolverCall = buildSetResolverCall({
+    ...location,
+    newResolver: resolver,
+  })
   const canRepoint = await canSetNameResolver({
-    name,
+    location,
     resolver,
     ownerAddress,
     publicClient,
@@ -184,7 +184,7 @@ export async function setupControlledResolver({
   }
 
   const canStillRepoint = await canSetNameResolver({
-    name,
+    location,
     resolver,
     ownerAddress,
     publicClient,

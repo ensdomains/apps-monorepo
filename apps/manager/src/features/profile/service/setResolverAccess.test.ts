@@ -9,13 +9,14 @@ import { canSetNameResolver } from './setResolverAccess'
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
+const REGISTRY = '0x2222222222222222222222222222222222222222' as Address
 
 const clientWith = (call: PublicClient['call']) =>
   ({ call }) as unknown as PublicClient
 
 const probe = (publicClient: PublicClient) =>
   canSetNameResolver({
-    name: 'leon.eth',
+    location: { label: 'leon', registryAddress: REGISTRY },
     resolver: RESOLVER,
     ownerAddress: OWNER,
     publicClient,
@@ -27,7 +28,7 @@ describe('canSetNameResolver', () => {
 
     await expect(probe(clientWith(call))).resolves.toBe(true)
     expect(call).toHaveBeenCalledWith(
-      expect.objectContaining({ account: OWNER }),
+      expect.objectContaining({ account: OWNER, to: REGISTRY }),
     )
   })
 

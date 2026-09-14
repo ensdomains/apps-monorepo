@@ -26,6 +26,7 @@ import { prepareGrantRegistryRolesTransaction } from '@/features/registry/helper
 import { prepareRevokeRegistryRolesTransaction } from '@/features/registry/helpers/revokeRegistryRoles'
 import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
 import { useRevokeRegistryRolesMutation } from '@/features/registry/hooks/useRevokeRegistryRoles'
+import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type {
@@ -33,7 +34,6 @@ import type {
   Transaction,
 } from '@/features/transaction-manager/types'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { getRegistryRolesQueryOptions } from '../../hooks/useRegistryRoles'
 import {
   computeRoleDiff,
   getAccountAdminRoles,
@@ -74,7 +74,7 @@ export const RegistryEditUserSheet = ({
     : 'Edit user'
 
   const { data: rolesData } = useQuery({
-    ...getRegistryRolesQueryOptions({ address: registryAddress }),
+    ...getRegistryRootRoleHoldersQueryOptions({ registryAddress }),
     enabled: Boolean(callerAddress),
   })
 

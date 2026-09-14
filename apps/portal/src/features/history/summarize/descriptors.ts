@@ -59,18 +59,23 @@ const resolvedNameSlot = (
       eventName,
   )
 
+/**
+ * Labels are lowercase past-tense verb phrases: every row is rendered as
+ * "{actor} {label} {slots}", with the transaction sender as its subject (see
+ * `summarizeEvents`), so a label must read on from a name or an address.
+ */
 export const DESCRIPTORS = {
   AddressChanged: {
     icon: 'address',
     build: (primary) => ({
-      label: 'Set address to',
+      label: 'set address to',
       slots: [addressSlot(primary.asAddressChanged?.address)],
     }),
   },
   AddrChanged: {
     icon: 'address',
     build: (primary) => ({
-      label: 'Set address to',
+      label: 'set address to',
       slots: [
         addressSlot(
           primary.asAddressChanged?.address ??
@@ -89,7 +94,7 @@ export const DESCRIPTORS = {
       if (value) {
         slots.push({ kind: 'glyph', value: '→' }, { kind: 'text', value })
       }
-      return { label: 'Set text record', slots }
+      return { label: 'set text record', slots }
     },
   },
 
@@ -102,7 +107,7 @@ export const DESCRIPTORS = {
         'contentHash',
       )
       return {
-        label: 'Set content hash',
+        label: 'set content hash to',
         slots: [
           {
             kind: 'text',
@@ -119,7 +124,7 @@ export const DESCRIPTORS = {
       const setName =
         readString(parseEventData(primary.data), 'name') ?? primary.name
       return {
-        label: 'Set primary name',
+        label: 'set primary name to',
         slots: [nameSlot(setName)],
       }
     },
@@ -127,7 +132,7 @@ export const DESCRIPTORS = {
   ReverseClaimed: {
     icon: 'primary',
     build: (primary) => ({
-      label: 'Set primary name',
+      label: 'set primary name',
       slots: [
         nameSlot(primary.name),
         { kind: 'glyph', value: '↔' },
@@ -141,7 +146,7 @@ export const DESCRIPTORS = {
     build: (primary) => {
       if (isZero(primary.asTransfer?.from)) return null
       return {
-        label: 'Transfer name',
+        label: 'transferred',
         slots: [
           nameSlot(primary.name),
           { kind: 'glyph', value: '→' },
@@ -153,7 +158,7 @@ export const DESCRIPTORS = {
   RegistryTransfer: {
     icon: 'transfer',
     build: (primary) => ({
-      label: 'Transfer name',
+      label: 'transferred',
       slots: [
         nameSlot(primary.name),
         { kind: 'glyph', value: '→' },
@@ -165,36 +170,29 @@ export const DESCRIPTORS = {
   LabelRegistered: {
     icon: 'subname',
     build: (primary) => ({
-      label: 'Register subname',
+      label: 'registered subname',
       slots: [resolvedNameSlot(primary.asLabelRegistered?.name, primary.name)],
     }),
   },
   NameRegistered: {
     icon: 'register',
     build: (primary) => ({
-      label: 'Register name',
-      slots: [
-        resolvedNameSlot(primary.asNameRegistered?.name, primary.name),
-        { kind: 'connective', value: 'by' },
-        { kind: 'actor', txHash: primary.transactionHash },
-      ],
+      label: 'registered',
+      slots: [resolvedNameSlot(primary.asNameRegistered?.name, primary.name)],
     }),
   },
   NameRenewed: {
     icon: 'renew',
     build: (primary) => ({
-      label: 'Renew',
-      slots: [
-        { kind: 'connective', value: 'by' },
-        { kind: 'actor', txHash: primary.transactionHash },
-      ],
+      label: 'renewed',
+      slots: [nameSlot(primary.name)],
     }),
   },
 
   ResolverUpdated: {
     icon: 'resolver',
     build: (primary) => ({
-      label: 'Update resolver',
+      label: 'updated resolver to',
       slots: [
         contractSlot(primary.asResolverUpdated?.resolver, {
           label: 'resolver',
@@ -212,10 +210,10 @@ export const DESCRIPTORS = {
         'subregistry',
       )
       if (isZero(registry)) {
-        return { label: 'Unlink subregistry', slots: [] }
+        return { label: 'unlinked subregistry', slots: [] }
       }
       return {
-        label: 'Deploy and link subregistry',
+        label: 'deployed and linked subregistry',
         slots: [contractSlot(registry, { isRegistry: true })],
       }
     },
@@ -245,7 +243,7 @@ export const DESCRIPTORS = {
       if (change.direction === 'revoke') {
         return {
           icon: 'revoke',
-          label: 'Revoke role',
+          label: 'revoked role',
           slots: [
             { kind: 'text', value: roleText },
             { kind: 'connective', value: 'from' },
@@ -255,7 +253,7 @@ export const DESCRIPTORS = {
       }
       if (change.direction === 'grant') {
         return {
-          label: 'Grant role',
+          label: 'granted role',
           slots: [
             { kind: 'text', value: roleText },
             { kind: 'connective', value: 'to' },
@@ -264,7 +262,7 @@ export const DESCRIPTORS = {
         }
       }
       return {
-        label: 'Update roles',
+        label: 'updated roles',
         slots: [{ kind: 'text', value: roleText }],
       }
     },
@@ -277,52 +275,62 @@ export const DESCRIPTORS = {
     build: (primary) =>
       primary.protocol === V1_PROTOCOL
         ? {
-            label: 'Wrap name',
+            label: 'wrapped',
             slots: [
               nameSlot(primary.name),
               { kind: 'connective', value: 'for' },
               addressSlot(primary.asNameWrapped?.owner),
             ],
           }
-        : { label: 'Migrated to ENSv2', slots: [] },
+        : {
+            label: 'migrated',
+            slots: [
+              nameSlot(primary.name),
+              { kind: 'connective', value: 'to ENSv2' },
+            ],
+          },
   },
   NameUnwrapped: {
     icon: 'migrate',
     build: (primary) =>
       primary.protocol === V1_PROTOCOL
         ? {
-            label: 'Unwrap name',
+            label: 'unwrapped',
             slots: [
               nameSlot(primary.name),
               { kind: 'connective', value: 'to' },
               addressSlot(primary.asNameUnwrapped?.owner),
             ],
           }
-        : { label: 'Unwrapped from ENSv2', slots: [] },
+        : {
+            label: 'unwrapped',
+            slots: [
+              nameSlot(primary.name),
+              { kind: 'connective', value: 'from ENSv2' },
+            ],
+          },
   },
   FusesSet: {
     icon: 'fuses',
-    build: () => ({ label: 'Set fuses', slots: [] }),
+    build: () => ({ label: 'set fuses', slots: [] }),
   },
   ExpiryUpdated: {
     icon: 'expiry',
-    build: () => ({ label: 'Expiry updated', slots: [] }),
+    build: () => ({ label: 'updated expiry', slots: [] }),
   },
 
   // ENS v1 types with no v2 counterpart, so no collision to disambiguate.
-  // The v1 resolver events left out here (AbiChanged, PubkeyChanged,
-  // VersionChanged, …) read fine straight from `humanizeType`.
   NewOwner: {
     icon: 'registry',
     build: (primary) => ({
-      label: 'Set registry owner',
+      label: 'set registry owner to',
       slots: [addressSlot(primary.asRegistryTransfer?.owner)],
     }),
   },
   WrappedTransfer: {
     icon: 'transfer',
     build: (primary) => ({
-      label: 'Transfer wrapped name',
+      label: 'transferred wrapped name',
       slots: [
         nameSlot(primary.name),
         { kind: 'glyph', value: '→' },
@@ -333,12 +341,57 @@ export const DESCRIPTORS = {
   NameTransferred: {
     icon: 'transfer',
     build: (primary) => ({
-      label: 'Transfer registrant',
+      label: 'transferred registrant to',
       slots: [
-        { kind: 'connective', value: 'to' },
         addressSlot(readString(parseEventData(primary.data), 'newOwner')),
       ],
     }),
+  },
+  NewTTL: {
+    icon: 'registry',
+    build: (primary) => ({
+      label: 'set TTL to',
+      slots: [
+        {
+          kind: 'text',
+          value: readString(parseEventData(primary.data), 'ttl') ?? '—',
+        },
+      ],
+    }),
+  },
+  AbiChanged: {
+    icon: 'records',
+    build: () => ({ label: 'changed ABI', slots: [] }),
+  },
+  PubkeyChanged: {
+    icon: 'records',
+    build: () => ({ label: 'changed public key', slots: [] }),
+  },
+  InterfaceChanged: {
+    icon: 'records',
+    build: (primary) => ({
+      label: 'set interface',
+      slots: [
+        {
+          kind: 'text',
+          value: readString(parseEventData(primary.data), 'interfaceID') ?? '—',
+        },
+        { kind: 'glyph', value: '→' },
+        addressSlot(readString(parseEventData(primary.data), 'implementer')),
+      ],
+    }),
+  },
+  AuthorisationChanged: {
+    icon: 'grant',
+    build: (primary) => ({
+      label: 'changed authorisation for',
+      slots: [addressSlot(readString(parseEventData(primary.data), 'target'))],
+    }),
+  },
+  // The PublicResolver bumps the record version to clear every record at once.
+  VersionChanged: {
+    icon: 'records',
+    build: () => ({ label: 'cleared records', slots: [] }),
   },
 } satisfies Record<string, Descriptor>
 

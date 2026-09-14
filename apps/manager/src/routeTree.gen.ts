@@ -23,6 +23,8 @@ import { Route as RenewV1NameRouteImport } from './routes/renew-v1/$name'
 import { Route as RegisterNameRouteImport } from './routes/register/$name'
 import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
+import { Route as OgDefaultDotpngRouteImport } from './routes/og/default[.]png'
+import { Route as OgNameRouteImport } from './routes/og/$name'
 import { Route as MigrationNftRouteImport } from './routes/migration_.nft'
 import { Route as LegalTrademarkGuidelinesRouteImport } from './routes/legal/trademark-guidelines'
 import { Route as LegalTermsOfUseRouteImport } from './routes/legal/terms-of-use'
@@ -105,6 +107,16 @@ const PaymentAddRoute = PaymentAddRouteImport.update({
   path: '/payment/add',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OgDefaultDotpngRoute = OgDefaultDotpngRouteImport.update({
+  id: '/og/default.png',
+  path: '/og/default.png',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OgNameRoute = OgNameRouteImport.update({
+  id: '/og/$name',
+  path: '/og/$name',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MigrationNftRoute = MigrationNftRouteImport.update({
   id: '/migration_/nft',
   path: '/migration/nft',
@@ -178,6 +190,8 @@ export interface FileRoutesByFullPath {
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/migration/nft': typeof MigrationNftRoute
+  '/og/$name': typeof OgNameRoute
+  '/og/default.png': typeof OgDefaultDotpngRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
@@ -202,6 +216,8 @@ export interface FileRoutesByTo {
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/migration/nft': typeof MigrationNftRoute
+  '/og/$name': typeof OgNameRoute
+  '/og/default.png': typeof OgDefaultDotpngRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
@@ -230,6 +246,8 @@ export interface FileRoutesById {
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/migration_/nft': typeof MigrationNftRoute
+  '/og/$name': typeof OgNameRoute
+  '/og/default.png': typeof OgDefaultDotpngRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
@@ -259,6 +277,8 @@ export interface FileRouteTypes {
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
     | '/migration/nft'
+    | '/og/$name'
+    | '/og/default.png'
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
@@ -283,6 +303,8 @@ export interface FileRouteTypes {
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
     | '/migration/nft'
+    | '/og/$name'
+    | '/og/default.png'
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
@@ -310,6 +332,8 @@ export interface FileRouteTypes {
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
     | '/migration_/nft'
+    | '/og/$name'
+    | '/og/default.png'
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
@@ -338,6 +362,8 @@ export interface RootRouteChildren {
   LegalTermsOfUseRoute: typeof LegalTermsOfUseRoute
   LegalTrademarkGuidelinesRoute: typeof LegalTrademarkGuidelinesRoute
   MigrationNftRoute: typeof MigrationNftRoute
+  OgNameRoute: typeof OgNameRoute
+  OgDefaultDotpngRoute: typeof OgDefaultDotpngRoute
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
   RegisterNameRoute: typeof RegisterNameRoute
@@ -448,6 +474,20 @@ declare module '@tanstack/react-router' {
       path: '/payment/add'
       fullPath: '/payment/add'
       preLoaderRoute: typeof PaymentAddRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/og/default.png': {
+      id: '/og/default.png'
+      path: '/og/default.png'
+      fullPath: '/og/default.png'
+      preLoaderRoute: typeof OgDefaultDotpngRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/og/$name': {
+      id: '/og/$name'
+      path: '/og/$name'
+      fullPath: '/og/$name'
+      preLoaderRoute: typeof OgNameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/migration_/nft': {
@@ -584,6 +624,8 @@ const rootRouteChildren: RootRouteChildren = {
   LegalTermsOfUseRoute: LegalTermsOfUseRoute,
   LegalTrademarkGuidelinesRoute: LegalTrademarkGuidelinesRoute,
   MigrationNftRoute: MigrationNftRoute,
+  OgNameRoute: OgNameRoute,
+  OgDefaultDotpngRoute: OgDefaultDotpngRoute,
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
   RegisterNameRoute: RegisterNameRoute,

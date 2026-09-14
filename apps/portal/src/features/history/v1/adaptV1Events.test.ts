@@ -304,14 +304,14 @@ describe('summarizeEvents over adapted v1 history', () => {
 
   it('headlines the registration transaction as a register, not a record write', () => {
     const [, register] = actions()
-    expect(register.label).toBe('Register name')
+    expect(register.label).toBe('registered')
     expect(register.icon).toBe('register')
     // The duplicate coin-60 write is gone; the other eight events survive.
     expect(register.events).toHaveLength(8)
   })
 
   it('summarizes a pure record transaction with the multi-record recipe', () => {
-    expect(actions()[0].label).toBe('Set 2 records')
+    expect(actions()[0].label).toBe('set 2 records')
   })
 })
 
@@ -320,28 +320,39 @@ describe('v1 descriptors', () => {
     summarizeEvents(adapt([partial]))[0].label
 
   it('labels NameWrapped as a wrap rather than the v2 migration', () => {
-    expect(label({ type: 'NameWrapped', owner: { id: OWNER } })).toBe(
-      'Wrap name',
-    )
+    expect(label({ type: 'NameWrapped', owner: { id: OWNER } })).toBe('wrapped')
   })
 
   it('labels NameUnwrapped as an unwrap', () => {
     expect(label({ type: 'NameUnwrapped', owner: { id: OWNER } })).toBe(
-      'Unwrap name',
+      'unwrapped',
     )
   })
 
   it('describes v1-only types instead of falling back to the humanized type', () => {
     expect(label({ type: 'NewOwner', owner: { id: REGISTRANT } })).toBe(
-      'Set registry owner',
+      'set registry owner to',
     )
     expect(label({ type: 'WrappedTransfer', owner: { id: OWNER } })).toBe(
-      'Transfer wrapped name',
+      'transferred wrapped name',
+    )
+  })
+
+  it('describes the v1 resolver and registry events in the past tense', () => {
+    expect(label({ type: 'NewTTL', ttl: '300' })).toBe('set TTL to')
+    expect(label({ type: 'AbiChanged', contentType: '1' })).toBe('changed ABI')
+    expect(label({ type: 'PubkeyChanged' })).toBe('changed public key')
+    expect(label({ type: 'InterfaceChanged' })).toBe('set interface')
+    expect(label({ type: 'AuthorisationChanged' })).toBe(
+      'changed authorisation for',
+    )
+    expect(label({ type: 'VersionChanged', version: '2' })).toBe(
+      'cleared records',
     )
   })
 
   it('reuses the shared descriptor where v1 and v2 agree', () => {
-    expect(label({ type: 'FusesSet', fuses: 65536 })).toBe('Set fuses')
+    expect(label({ type: 'FusesSet', fuses: 65536 })).toBe('set fuses')
   })
 })
 
@@ -357,6 +368,6 @@ describe('v2 events are unaffected', () => {
         timestamp: 1,
       },
     ])
-    expect(action.label).toBe('Migrated to ENSv2')
+    expect(action.label).toBe('migrated')
   })
 })

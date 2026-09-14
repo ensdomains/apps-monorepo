@@ -20,14 +20,10 @@ export type RendererTraits = {
 export type CommemorativeNftAssets = {
   readonly metadataUrl?: string
   readonly imageUrl?: string
-  readonly animationUrl?: string
   readonly externalUrl?: string
 }
 
-export type CommemorativeNftEligibilitySource =
-  | 'remote'
-  | 'dev-fixture'
-  | 'preview'
+export type CommemorativeNftEligibilitySource = 'static' | 'preview'
 
 export type CommemorativeNftEligibility = {
   readonly ownerAddress: Address

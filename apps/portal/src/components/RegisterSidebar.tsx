@@ -15,7 +15,7 @@ import {
 export const RegisterSidebar = () => (
   <Sidebar collapsible="icon">
     <SidebarRail />
-    <SidebarTrigger className="hidden group-data-[collapsible=icon]:flex absolute right-0 translate-x-full top-6 z-50 bg-secondary hover:bg-quartz-100 border border-border rounded-r-md shadow-sm" />
+    <SidebarTrigger className="hidden group-data-[collapsible=icon]:flex absolute right-0 translate-x-full top-6 z-50 border border-border rounded-r-md shadow-sm" />
     <SidebarBrandHeader />
     <SidebarContent />
     <SidebarUserFooter />

@@ -2,9 +2,8 @@ import * as v from 'valibot'
 import { type Address, getAddress, type Hex, isAddress, isHex } from 'viem'
 import {
   buildCommemorativeNftAssets,
-  buildCommemorativeNftEligibilityUrl,
+  getCommemorativeNftTokenId,
 } from './config'
-import { getCommemorativeNftDevFixture } from './eligibility.fixture'
 import {
   COMMEMORATIVE_NFT_TRAIT_VALUES,
   type CommemorativeNftAssets,
@@ -37,6 +36,7 @@ const attributeSchema = v.object({
 const payloadSchema = v.object({
   address: v.string(),
   name: v.string(),
+  token_id: v.string(),
   profileName: v.optional(v.string()),
   profile_name: v.optional(v.string()),
   rendererName: v.optional(v.string()),
@@ -45,7 +45,6 @@ const payloadSchema = v.object({
   traits: v.optional(v.unknown()),
   attributes: v.optional(v.array(attributeSchema)),
   image: v.optional(v.string()),
-  animation_url: v.optional(v.string()),
   external_url: v.optional(v.string()),
 })
 
@@ -69,6 +68,28 @@ const parseHttpUrl = (value: string | undefined): string | undefined => {
   } catch {
     return undefined
   }
+}
+
+const parseExternalUrl = (
+  value: string | undefined,
+  metadataUrl: string | undefined,
+  expectedTokenId: string,
+): string | undefined => {
+  const externalUrl = parseHttpUrl(value)
+  if (!externalUrl) return undefined
+
+  const url = new URL(externalUrl)
+  if (url.searchParams.has('tokenId') || url.searchParams.has('tokenURI')) {
+    const tokenIds = url.searchParams.getAll('tokenId')
+    if (
+      !metadataUrl ||
+      url.searchParams.has('tokenURI') ||
+      tokenIds.length !== 1 ||
+      tokenIds[0] !== expectedTokenId
+    )
+      return undefined
+  }
+  return externalUrl
 }
 
 const parseTraits = (
@@ -103,11 +124,15 @@ const parseProof = (proof: readonly string[]): readonly Hex[] => {
 const mergeAssets = (
   derived: CommemorativeNftAssets,
   payload: v.InferOutput<typeof payloadSchema>,
+  expectedTokenId: string,
 ): CommemorativeNftAssets => ({
   metadataUrl: derived.metadataUrl,
-  imageUrl: parseHttpUrl(payload.image) ?? derived.imageUrl,
-  animationUrl: parseHttpUrl(payload.animation_url) ?? derived.animationUrl,
-  externalUrl: parseHttpUrl(payload.external_url),
+  imageUrl: derived.imageUrl,
+  externalUrl: parseExternalUrl(
+    payload.external_url,
+    derived.metadataUrl,
+    expectedTokenId,
+  ),
 })
 
 export const parseCommemorativeNftEligibility = (params: {
@@ -137,6 +162,15 @@ export const parseCommemorativeNftEligibility = (params: {
     )
   }
 
+  const expectedTokenId = getCommemorativeNftTokenId(
+    params.ownerAddress,
+  ).toString()
+  if (parsed.output.token_id !== expectedTokenId) {
+    throw new CommemorativeNftEligibilityError(
+      'Eligibility payload contains an unexpected token ID',
+    )
+  }
+
   const profileName = normalizeProfileName(
     parsed.output.profileName ??
       parsed.output.profile_name ??
@@ -156,36 +190,29 @@ export const parseCommemorativeNftEligibility = (params: {
     assets: mergeAssets(
       buildCommemorativeNftAssets(params.assetOrigin, params.ownerAddress),
       parsed.output,
+      expectedTokenId,
     ),
-    source: 'remote',
+    source: 'static',
   }
 }
 
 export const fetchCommemorativeNftEligibility = async (params: {
   readonly ownerAddress: Address
-  readonly eligibilityOrigin?: string
   readonly assetOrigin?: string
-  readonly allowDevFixture?: boolean
   readonly fetcher?: typeof fetch
 }): Promise<CommemorativeNftEligibilityResult> => {
-  if (!params.eligibilityOrigin) {
-    const fixture =
-      params.allowDevFixture && import.meta.env.DEV
-        ? getCommemorativeNftDevFixture(params.ownerAddress)
-        : undefined
-    return fixture
-      ? { status: 'eligible', eligibility: fixture }
-      : { status: 'unavailable' }
-  }
+  if (!params.assetOrigin) return { status: 'unavailable' }
 
-  const response = await (params.fetcher ?? fetch)(
-    buildCommemorativeNftEligibilityUrl(
-      params.eligibilityOrigin,
-      params.ownerAddress,
-    ),
+  const assets = buildCommemorativeNftAssets(
+    params.assetOrigin,
+    params.ownerAddress,
   )
+  if (!assets.metadataUrl) return { status: 'unavailable' }
 
-  if (response.status === 404) return { status: 'ineligible' }
+  const response = await (params.fetcher ?? fetch)(assets.metadataUrl)
+
+  if (response.status === 404 || response.status === 410)
+    return { status: 'ineligible' }
   if (!response.ok) {
     throw new CommemorativeNftEligibilityError(
       `Eligibility request failed with HTTP ${response.status}`,
@@ -193,12 +220,10 @@ export const fetchCommemorativeNftEligibility = async (params: {
   }
 
   const payload: unknown = await response.json()
-  return {
-    status: 'eligible',
-    eligibility: parseCommemorativeNftEligibility({
-      ownerAddress: params.ownerAddress,
-      payload,
-      assetOrigin: params.assetOrigin,
-    }),
-  }
+  const eligibility = parseCommemorativeNftEligibility({
+    ownerAddress: params.ownerAddress,
+    payload,
+    assetOrigin: params.assetOrigin,
+  })
+  return { status: 'eligible', eligibility }
 }

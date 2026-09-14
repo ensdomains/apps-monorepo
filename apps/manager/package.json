@@ -30,6 +30,7 @@
     "@ens-apps/dev-tools": "workspace:*",
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/migration": "workspace:*",
+    "@ens-apps/og": "workspace:*",
     "@ens-apps/shared-schema": "workspace:*",
     "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",

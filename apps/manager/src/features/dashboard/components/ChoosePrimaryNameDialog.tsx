@@ -537,7 +537,7 @@ export const ChoosePrimaryNameDialog = ({
       )
       .otherwise(() => undefined) ??
     getSetupResolverErrorMessage(setupResolverMutation.error, {
-      notAuthorized: t`Your wallet does not have permission to change the resolver for this name.`,
+      notAuthorized: t`Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this.`,
       notReady: t`The replacement resolver could not be verified. Please try again.`,
     }) ??
     updateEthAddressMutation.error?.message ??
