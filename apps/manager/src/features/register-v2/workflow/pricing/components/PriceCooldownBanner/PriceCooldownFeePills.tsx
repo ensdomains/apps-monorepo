@@ -8,13 +8,24 @@ import type { PriceCooldownFees } from './types'
 const pillShadow =
   'shadow-[inset_0px_0px_4px_0px_rgba(198,223,233,0.3)]' as const
 
+// Label stacked above the value (mobile and tablet).
+const stackedPill =
+  'flex min-h-[78px] flex-col items-center justify-center gap-1.5 py-3'
+// Label beside the value (desktop only).
+const inlinePillAtDesktop =
+  'lg:min-h-11.5 lg:flex-row lg:justify-start lg:gap-3 lg:py-2'
+
 type FeePillProps = {
   label: ReactNode
   value: string
   animatedValue?: number
   variant: 'base' | 'premium'
   showDecayIcon?: boolean
-  layout?: 'row' | 'column'
+  /**
+   * `column`: always stacked, full width (the mobile list).
+   * `responsive`: stacked until the desktop breakpoint, then inline.
+   */
+  layout?: 'responsive' | 'column'
 }
 
 const FeePill = ({
@@ -23,16 +34,16 @@ const FeePill = ({
   animatedValue,
   variant,
   showDecayIcon = false,
-  layout = 'row',
+  layout = 'responsive',
 }: FeePillProps) => (
   <div
     className={tw(
       'relative rounded-xl px-4',
       variant === 'base' ? 'bg-[#effafe]' : 'bg-ens-lapis-100',
       pillShadow,
-      layout === 'row' && 'flex min-h-11.5 items-center gap-3 py-2',
-      layout === 'column' &&
-        'flex min-h-[78px] w-full flex-col items-center justify-center gap-1.5 py-3',
+      stackedPill,
+      layout === 'column' && 'w-full',
+      layout === 'responsive' && inlinePillAtDesktop,
     )}
   >
     <span className="font-medium text-ens-quartz-500 text-xs leading-normal tracking-ens-wide">

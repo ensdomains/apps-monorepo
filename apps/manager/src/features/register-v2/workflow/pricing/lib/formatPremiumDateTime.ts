@@ -1,12 +1,27 @@
-/** Formats an epoch timestamp as local date + time for premium cooldown UI. */
-export const formatPremiumDateTimeLocal = (epochMs: number): string =>
-  new Date(epochMs).toLocaleString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+const premiumDateTimeFormat = new Intl.DateTimeFormat('en-US', {
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+})
+
+/**
+ * Formats an epoch timestamp as local date + time for premium cooldown UI.
+ *
+ * The space before the AM/PM marker is a no-break space so a wrapped label
+ * never orphans "PM" onto its own line (Chrome's ICU emits a plain space there).
+ */
+export const formatPremiumDateTimeLocal = (epochMs: number): string => {
+  const parts = premiumDateTimeFormat.formatToParts(new Date(epochMs))
+  return parts
+    .map((part, index) =>
+      part.type === 'literal' && parts[index + 1]?.type === 'dayPeriod'
+        ? '\u00A0'
+        : part.value,
+    )
+    .join('')
+}
 
 /** Short label for chart axis (e.g. "$100M"). */
 export const formatPremiumAxisLabel = (valueUsd: number): string => {
