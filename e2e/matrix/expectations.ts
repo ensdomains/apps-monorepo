@@ -246,6 +246,12 @@ const subnameReadOnlyTabs = ({
 const NO_TOKEN: TabExpectation = {
   title: 'does not claim a BaseRegistrar token for a name that has none',
   heading: 'Token Info',
+  // The positive anchor matters: `notText` is an absence check, and an absence
+  // check on a page that has not finished rendering passes vacuously. One of
+  // these cells reported "expected to fail, but passed" exactly once, because
+  // the heading was up while the contract row was still loading. Waiting for a
+  // row that every token tab renders makes the absence mean something.
+  text: ['Token Standard'],
   notText: ['BaseRegistrar'],
   defect: {
     id: 'E2E-016',
@@ -694,6 +700,93 @@ export const EXPECTATIONS: Partial<
     },
     transfer: {
       title: 'refuses an unwrapped parent over a wrapped subname',
+      refusal: 'Can\u2019t reassign this subname from here',
+      form: 'absent',
+    },
+  },
+
+  // ── Four levels ───────────────────────────────────────────────────────
+  // Depth is not a free axis — every subname is one class to the app — so these
+  // exist to probe the three places depth actually bites: the single level of
+  // parent `getV1NameState` reads, the ancestor jump that skips levels, and the
+  // expiry read that only ever looks at the .eth 2LD.
+  '4ld-locked+locked-3ld+locked-2ld:owner': {
+    ...subnameReadOnlyTabs({
+      token: WRAPPED_TOKEN,
+      fuses: fuseState(['Parent Cannot Control', 'Cannot Unwrap'], []),
+    }),
+    ownership: {
+      title: 'names the holder of a locked name three levels down',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    transfer: {
+      title: 'offers the holder the form at depth four',
+      form: 'visible',
+    },
+  },
+
+  '4ld-locked+locked-3ld:parent': {
+    ...subnameReadOnlyTabs({
+      token: WRAPPED_TOKEN,
+      fuses: fuseState(['Parent Cannot Control', 'Cannot Unwrap'], []),
+    }),
+    ownership: {
+      title:
+        'offers the parent no transfer of an emancipated name at depth four',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'absent' }],
+    },
+    // The parent here is itself a subname, so `deriveParent` takes its
+    // non-registrar arm — the arm E2E-014 shows is the fragile one.
+    transfer: {
+      title: 'refuses a parent that is itself a subname, on the same grounds',
+      refusal: 'This subname is out of the parent\u2019s control',
+      form: 'absent',
+    },
+  },
+
+  '4ld-registry+registry-3ld+unwrapped-2ld:owner': {
+    ...subnameReadOnlyTabs({ token: NO_TOKEN, fuses: NO_FUSES }),
+    ownership: {
+      title: 'names the registry owner two levels below the 2LD',
+      rows: registrySubnameRows,
+      ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    transfer: {
+      title: 'offers the holder the form two levels below the 2LD',
+      form: 'visible',
+    },
+  },
+
+  '4ld-registry+registry-3ld:parent': {
+    ...subnameReadOnlyTabs({ token: NO_TOKEN, fuses: NO_FUSES }),
+    ownership: {
+      title: 'offers the reassign to a parent two levels below the 2LD',
+      rows: registrySubnameRows,
+      ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    // `getV1NameState` reads exactly one level of parent and jumps to the .eth
+    // 2LD for expiry, skipping this shape's middle level entirely. If that
+    // shortcut were wrong anywhere, it would be here.
+    transfer: {
+      title: 'lets a parent reassign a subname two levels below the 2LD',
+      form: 'visible',
+    },
+  },
+
+  '4ld-registry+wrapped-3ld:parent': {
+    ...subnameReadOnlyTabs({ token: NO_TOKEN, fuses: NO_FUSES }),
+    ownership: {
+      title: 'offers no transfer across the wrapper line at depth four',
+      rows: registrySubnameRows,
+      ctas: [{ name: 'Transfer', state: 'absent' }],
+    },
+    // The same refusal as the 3LD mismatch, but with no 2LD on either side of
+    // the line — which is the only thing this shape adds, and the reason it is
+    // the one four-level shape worth new fixture work.
+    transfer: {
+      title: 'refuses the mismatch when neither level is a 2LD',
       refusal: 'Can\u2019t reassign this subname from here',
       form: 'absent',
     },
