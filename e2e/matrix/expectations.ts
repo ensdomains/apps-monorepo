@@ -57,6 +57,8 @@ export type TabExpectation = {
   readonly text?: readonly string[]
   /** The tab's own page heading — distinct from the sidebar link of the same name. */
   readonly heading?: string
+  /** Strings that must NOT appear — a claim the tab has no business making. */
+  readonly notText?: readonly string[]
   /** Fuses tab: which fuses must read burnt, by their displayed name. */
   readonly fuses?: {
     readonly burnt: readonly string[]
@@ -134,7 +136,8 @@ const readOnlyTabs = ({
 
 /** The fuses tab for a name that is not wrapped and so has none. */
 const NO_FUSES: TabExpectation = {
-  title: 'explains that an unwrapped V1 name has no fuses, and offers migration',
+  title:
+    'explains that an unwrapped V1 name has no fuses, and offers migration',
   text: ['This name is not wrapped, so it has no fuses to show.'],
 }
 
@@ -153,6 +156,19 @@ const burntFuse = (
   title: `shows ${fuse} as burnt, and the fuses it does not burn as unburnt`,
   heading: 'Fuses',
   fuses: { burnt: ['Parent Cannot Control', fuse], unburnt },
+})
+
+/** The fuses tab for a wrapped name, stating both halves explicitly. */
+const fuseState = (
+  burnt: readonly string[],
+  unburnt: readonly string[],
+): TabExpectation => ({
+  title:
+    burnt.length > 0
+      ? `shows ${burnt.join(' and ')} burnt, and the rest unburnt`
+      : 'shows a wrapped subname with no fuses burnt',
+  heading: 'Fuses',
+  fuses: { burnt, unburnt },
 })
 
 /**
@@ -175,6 +191,81 @@ const v2OnlyRefusals: Record<string, TabExpectation> = {
     refusal: 'Not Available for V1 Names',
   },
 }
+
+/**
+ * The read-only tabs for a **subname**.
+ *
+ * Same surfaces as a 2LD, but the token tab is where depth bites: a
+ * registry-only subname owns no token at all, while a wrapped one is an
+ * ERC-1155 in the NameWrapper like any other wrapped name.
+ */
+const subnameReadOnlyTabs = ({
+  token,
+  fuses,
+}: {
+  readonly token: TabExpectation
+  readonly fuses: TabExpectation
+}): Record<string, TabExpectation> => ({
+  fuses,
+  token,
+  records: {
+    title: 'renders the records tab for a V1 subname',
+    heading: 'Records',
+  },
+  subnames: {
+    title: 'renders the subnames tab for a V1 subname',
+    heading: 'Subnames',
+  },
+  registry: {
+    title: 'renders the registry tab for a V1 subname',
+    heading: 'Registry',
+  },
+  history: {
+    title: 'renders the history tab for a V1 subname',
+    heading: 'History',
+  },
+  address: {
+    title: 'renders address resolution for a V1 subname',
+    heading: 'Address Resolution',
+  },
+  resolver: {
+    title: 'renders the resolver tab for a V1 subname',
+    heading: 'Resolver',
+    ctas: [{ name: 'Change resolver', state: 'absent' }],
+  },
+})
+
+/**
+ * The token tab for a registry-only subname, which owns no token at all.
+ *
+ * The page answers with an ERC-721 on the BaseRegistrar whose id is
+ * `labelhash(leaf label)` — an id in the *2LD* namespace. Measured on the fork:
+ * `ownerOf` on that id reverts, so the page names a token that does not exist,
+ * and it would name somebody else's the moment that 2LD is registered.
+ */
+const NO_TOKEN: TabExpectation = {
+  title: 'does not claim a BaseRegistrar token for a name that has none',
+  heading: 'Token Info',
+  notText: ['BaseRegistrar'],
+  defect: {
+    id: 'E2E-016',
+    actual:
+      'claims ERC-721 on the BaseRegistrar with token id labelhash(leaf label) — a 2LD id that reverts on ownerOf today, and belongs to a different name if that 2LD is ever registered',
+  },
+}
+
+/** The token tab for a wrapped subname: a real ERC-1155 in the NameWrapper. */
+const WRAPPED_TOKEN: TabExpectation = {
+  title: 'names the NameWrapper as the contract holding the token',
+  heading: 'Token Info',
+  text: ['NameWrapper', 'ERC-1155'],
+}
+
+/** Ownership rows for a registry-only subname: one address, in both roles. */
+const registrySubnameRows: readonly RowExpectation[] = [
+  { kind: 'address-row', label: 'Owner', shows: 'controller' },
+  { kind: 'address-row', label: 'Manager', shows: 'controller' },
+]
 
 export const EXPECTATIONS: Partial<
   Record<ShapeId, Partial<Record<TabId, TabExpectation>>>
@@ -288,7 +379,10 @@ export const EXPECTATIONS: Partial<
 
   // ── Wrapped 2LDs: one holder, read from the NameWrapper ───────────────
   '2ld-emancipated:owner': {
-    ...readOnlyTabs({ token: 'NameWrapper', fuses: burntFuse('Is Dot ETH', ['Cannot Unwrap', 'Cannot Transfer']) }),
+    ...readOnlyTabs({
+      token: 'NameWrapper',
+      fuses: burntFuse('Is Dot ETH', ['Cannot Unwrap', 'Cannot Transfer']),
+    }),
     overview: {
       title: 'names the wrapper owner',
       rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
@@ -305,7 +399,10 @@ export const EXPECTATIONS: Partial<
   },
 
   '2ld-emancipated:stranger': {
-    ...readOnlyTabs({ token: 'NameWrapper', fuses: burntFuse('Is Dot ETH', ['Cannot Unwrap', 'Cannot Transfer']) }),
+    ...readOnlyTabs({
+      token: 'NameWrapper',
+      fuses: burntFuse('Is Dot ETH', ['Cannot Unwrap', 'Cannot Transfer']),
+    }),
     overview: {
       title: 'names the wrapper owner to a viewer who holds nothing',
       rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
@@ -323,7 +420,13 @@ export const EXPECTATIONS: Partial<
   },
 
   '2ld-locked:owner': {
-    ...readOnlyTabs({ token: 'NameWrapper', fuses: burntFuse('Cannot Unwrap', ['Cannot Transfer', 'Cannot Set Resolver']) }),
+    ...readOnlyTabs({
+      token: 'NameWrapper',
+      fuses: burntFuse('Cannot Unwrap', [
+        'Cannot Transfer',
+        'Cannot Set Resolver',
+      ]),
+    }),
     overview: {
       title: 'names the wrapper owner of a locked name',
       rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
@@ -351,7 +454,10 @@ export const EXPECTATIONS: Partial<
   },
 
   '2ld-locked-no-transfer:owner': {
-    ...readOnlyTabs({ token: 'NameWrapper', fuses: burntFuse('Cannot Transfer', ['Cannot Set Resolver']) }),
+    ...readOnlyTabs({
+      token: 'NameWrapper',
+      fuses: burntFuse('Cannot Transfer', ['Cannot Set Resolver']),
+    }),
     ownership: {
       title: 'names the wrapper owner of a name that can never move',
       rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
@@ -365,7 +471,10 @@ export const EXPECTATIONS: Partial<
   },
 
   '2ld-locked-no-resolver:owner': {
-    ...readOnlyTabs({ token: 'NameWrapper', fuses: burntFuse('Cannot Set Resolver', ['Cannot Transfer']) }),
+    ...readOnlyTabs({
+      token: 'NameWrapper',
+      fuses: burntFuse('Cannot Set Resolver', ['Cannot Transfer']),
+    }),
     ownership: {
       title: 'still offers the transfer when only the resolver fuse is burned',
       rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
@@ -379,6 +488,7 @@ export const EXPECTATIONS: Partial<
 
   // ── Three-level ───────────────────────────────────────────────────────
   '3ld-registry+unwrapped-2ld:owner': {
+    ...subnameReadOnlyTabs({ token: NO_TOKEN, fuses: NO_FUSES }),
     overview: {
       title: 'names the registry owner of a subname that has no token',
       rows: [{ kind: 'address-row', label: 'Owner', shows: 'controller' }],
@@ -391,6 +501,149 @@ export const EXPECTATIONS: Partial<
     transfer: {
       title: 'offers the form to a registry subname\u2019s holder',
       form: 'visible',
+    },
+  },
+
+  '3ld-registry+unwrapped-2ld:parent': {
+    ...subnameReadOnlyTabs({ token: NO_TOKEN, fuses: NO_FUSES }),
+    overview: {
+      title: 'names the subname holder, not the wallet that holds its parent',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'controller' }],
+    },
+    ownership: {
+      title:
+        'names the holder, and offers the parent the reassign it can perform',
+      rows: registrySubnameRows,
+      ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    transfer: {
+      title: 'offers the parent the reassign path #1144 added',
+      form: 'visible',
+    },
+  },
+
+  '3ld-registry+unwrapped-2ld:stranger': {
+    ...subnameReadOnlyTabs({ token: NO_TOKEN, fuses: NO_FUSES }),
+    ownership: {
+      title: 'offers a stranger no transfer of a subname',
+      rows: registrySubnameRows,
+      ctas: [{ name: 'Transfer', state: 'absent' }],
+    },
+    transfer: {
+      title: 'refuses a wallet holding neither the subname nor its parent',
+      refusal: 'Not authorized',
+      form: 'absent',
+    },
+  },
+
+  '3ld-wrapped+emancipated-2ld:owner': {
+    ...subnameReadOnlyTabs({
+      token: WRAPPED_TOKEN,
+      fuses: fuseState([], ['Parent Cannot Control', 'Cannot Unwrap']),
+    }),
+    overview: {
+      title: 'names the wrapper owner of a wrapped subname',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+    },
+    ownership: {
+      title: 'names the wrapper owner, and offers the holder the transfer',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    transfer: {
+      title: 'offers the holder of a wrapped subname the form',
+      form: 'visible',
+    },
+  },
+
+  '3ld-wrapped+emancipated-2ld:parent': {
+    ...subnameReadOnlyTabs({
+      token: WRAPPED_TOKEN,
+      fuses: fuseState([], ['Parent Cannot Control', 'Cannot Unwrap']),
+    }),
+    // The subname witness for E2E-015. A wrapped name's registry slot is the
+    // NameWrapper by construction, so rendering it as "Manager" presents a
+    // contract as an account at every depth, not only on a 2LD.
+    ownership: {
+      title: 'does not present the NameWrapper contract as the manager',
+      rows: [
+        { kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' },
+        { kind: 'absent', label: 'Manager' },
+      ],
+      defect: {
+        id: 'E2E-015',
+        actual:
+          'the Manager row renders the NameWrapper contract address for a wrapped subname, as it does for a wrapped 2LD',
+      },
+    },
+    transfer: {
+      title: 'lets the parent reassign a wrapped subname it does not hold',
+      form: 'visible',
+    },
+  },
+
+  '3ld-emancipated+locked-2ld:owner': {
+    ...subnameReadOnlyTabs({
+      token: WRAPPED_TOKEN,
+      fuses: fuseState(['Parent Cannot Control'], ['Cannot Unwrap']),
+    }),
+    ownership: {
+      title: 'names the holder of an emancipated subname',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    transfer: {
+      title: 'offers the holder of an emancipated subname the form',
+      form: 'visible',
+    },
+  },
+
+  '3ld-emancipated+locked-2ld:parent': {
+    ...subnameReadOnlyTabs({
+      token: WRAPPED_TOKEN,
+      fuses: fuseState(['Parent Cannot Control'], ['Cannot Unwrap']),
+    }),
+    ownership: {
+      title: 'offers the parent no transfer of an emancipated subname',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'absent' }],
+    },
+    transfer: {
+      title:
+        'refuses the parent once the subname has burned PARENT_CANNOT_CONTROL',
+      refusal: 'This subname is out of the parent\u2019s control',
+      form: 'absent',
+    },
+  },
+
+  '3ld-locked+locked-2ld:owner': {
+    ...subnameReadOnlyTabs({
+      token: WRAPPED_TOKEN,
+      fuses: fuseState(['Parent Cannot Control', 'Cannot Unwrap'], []),
+    }),
+    ownership: {
+      title: 'names the holder of a locked subname',
+      rows: [{ kind: 'address-row', label: 'Owner', shows: 'wrapperOwner' }],
+      ctas: [{ name: 'Transfer', state: 'enabled' }],
+    },
+    transfer: {
+      title: 'offers the holder of a locked subname the form',
+      form: 'visible',
+    },
+  },
+
+  '3ld-registry+unwrapped-2ld:parent-registrant-only': {
+    ...subnameReadOnlyTabs({ token: NO_TOKEN, fuses: NO_FUSES }),
+    ownership: {
+      title:
+        'offers no transfer to a parent registrant who cannot write the registry',
+      rows: registrySubnameRows,
+      ctas: [{ name: 'Transfer', state: 'absent' }],
+    },
+    transfer: {
+      title: 'tells the parent registrant to reclaim the manager role first',
+      refusal: 'Reclaim the parent first',
+      form: 'absent',
     },
   },
 }

@@ -59,7 +59,6 @@ export const readAddressRows = (page: Page): Promise<AddressRow[]> =>
     return out
   })
 
-
 /**
  * The fuses table as `{ display name → burnt }`.
  *
@@ -204,6 +203,13 @@ export const assertTab = async (
       page.getByText(text, { exact: false }).first(),
       `this tab must show "${text}" for this shape`,
     ).toBeVisible({ timeout: 30_000 })
+  }
+
+  for (const text of expectation.notText ?? []) {
+    await expect(
+      page.getByText(text, { exact: false }),
+      `this tab must not claim "${text}" for this shape`,
+    ).toHaveCount(0, { timeout: 30_000 })
   }
 
   if (expectation.form) {

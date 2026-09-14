@@ -13,7 +13,7 @@
  */
 
 import { expect, test } from '../../../fixtures/playwright.portal.fixture.js'
-import { type SeededShape, runCell, seedForSuite } from '../../../matrix/run.js'
+import { runCell, type SeededShape, seedForSuite } from '../../../matrix/run.js'
 
 test.describe('V1 shape · 2ld-unwrapped:owner', () => {
   // Seeding a V1 name is ~14 s and every tab below reuses it.
