@@ -44,12 +44,6 @@ export type ProfileExpiryResult = {
   readonly isNonExpiring: boolean
   readonly protocol: 'v1' | 'v2'
   readonly isSubname?: boolean
-  /**
-   * The normalised 2LD label this expiry was read for, or `null` when the name
-   * normalised to nothing readable. Callers that go on to sign a renewal check
-   * it against the label they are about to hash.
-   */
-  readonly label: string | null
 }
 
 export const getProfileExpiryResultStatus = (
@@ -70,17 +64,15 @@ const ENS_REGISTRY = getChainContractAddress({
 
 const normalizeV1Expiry = (
   expiry: GetV1ExpiryReturnType,
-  label: string,
 ): ProfileExpiryResult => {
   if (expiry?.expiry === 0n) {
-    return { expiry: null, isNonExpiring: true, protocol: 'v1', label }
+    return { expiry: null, isNonExpiring: true, protocol: 'v1' }
   }
 
   return {
     expiry: expiry?.expiry ?? null,
     isNonExpiring: false,
     protocol: 'v1',
-    label,
   }
 }
 
@@ -146,7 +138,6 @@ export const getExpiry = ResultFn(async function* (
       expiry: null,
       isNonExpiring: false,
       protocol: 'v2',
-      label: null,
     } satisfies ProfileExpiryResult)
   }
 
@@ -164,7 +155,7 @@ export const getExpiry = ResultFn(async function* (
         }),
     )
 
-    return ok(normalizeV1Expiry(v1Expiry, ethName.label))
+    return ok(normalizeV1Expiry(v1Expiry))
   }
 
   const expiry = yield* fromPromise(
@@ -180,7 +171,6 @@ export const getExpiry = ResultFn(async function* (
       expiry,
       isNonExpiring: false,
       protocol: 'v2',
-      label: ethName.label,
     } satisfies ProfileExpiryResult)
   }
 
@@ -192,7 +182,6 @@ export const getExpiry = ResultFn(async function* (
     expiry: null,
     isNonExpiring: !!owner?.owner,
     protocol: 'v2',
-    label: ethName.label,
   } satisfies ProfileExpiryResult)
 })
 
