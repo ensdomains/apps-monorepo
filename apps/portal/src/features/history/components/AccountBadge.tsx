@@ -24,11 +24,8 @@ export const FullOnDesktop = ({ value }: { value: string }) => (
 )
 
 /**
- * Renders an account as its **primary ENS name** (no avatar) when one resolves,
- * otherwise the truncated address. A resolved name is the name entity — it reads
- * and links like every other name on the page — with the wallet a chip away;
- * an unresolved account is the address entity. Kept here (not in EntityBadge)
- * so the shared badge stays presentational.
+ * An account as its primary ENS name when one resolves, else the truncated
+ * address. Kept out of `EntityBadge` so the shared badge stays presentational.
  */
 export const AccountBadge = ({
   address,

@@ -20,7 +20,7 @@ export type RecentActivityEvent = {
   readonly data: string | null
 }
 
-/** One page of the protocol-wide feed, as the table renders it. */
+/** One page of the protocol-wide feed. */
 export type RecentActivityPage = {
   readonly events: readonly RecentActivityEvent[]
   readonly endCursor: string | null
@@ -33,12 +33,7 @@ class GetRecentActivityError extends TaggedError('GetRecentActivityError')<{
 
 const RECENT_ACTIVITY_PAGE_SIZE = 15
 
-/**
- * The newest protocol-wide events, one row each. Read off the top-level
- * connection because it is the only one that honours `first`/`after`/`orderBy`
- * (see `timelineEventPage.ts`); the types the timeline never renders are
- * excluded in the query so they don't eat into the page.
- */
+/** Only the top-level connection honours `first`/`after`/`orderBy` (see `timelineEventPage.ts`). */
 const recentActivityQuery = gql`
   query getRecentActivity($first: Int, $after: String, $where: EventFilter) {
     eventConnection(
@@ -105,14 +100,10 @@ export const getRecentActivityQueryOptions = () =>
     queryKey: getRecentActivityQueryKey({}),
     queryFn: ({ pageParam }) => getRecentActivityPage(pageParam),
     initialPageParam: undefined as string | undefined,
-    // Falling back to `undefined` when `endCursor` is null stops a connection
-    // that claims `hasNextPage` from refetching page one forever.
+    // A null `endCursor` must stop paging, or page one refetches forever.
     getNextPageParam: (last: RecentActivityPage) =>
       last.hasNextPage ? (last.endCursor ?? undefined) : undefined,
-    // An infinite query refetches *every* loaded page in sequence, so a flat
-    // interval costs N+1 requests every 30s after N "Load more" clicks. The
-    // poll exists to bring new events in at the top; a reader who has paged
-    // past the first page is no longer watching it, so it stops there.
+    // Polling refetches every loaded page, so it stops once the reader pages on.
     refetchInterval: (query) =>
       (query.state.data?.pages.length ?? 0) > 1 ? false : 30_000,
     staleTime: 15_000,

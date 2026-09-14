@@ -69,12 +69,11 @@ export const RecentActivityTable = () => {
 
             return (
               <div
-                // biome-ignore lint/suspicious/noArrayIndexKey: a single transaction can emit multiple events of the same type, so the index is required to disambiguate otherwise-identical rows
+                // biome-ignore lint/suspicious/noArrayIndexKey: one tx can emit identical events
                 key={`${txHash}-${event.type}-${index}`}
                 className="flex flex-col sm:flex-row sm:gap-6 sm:items-center sm:py-2 border-b border-border last:border-b-0"
               >
-                {/* Mobile: top row — entity left, time right
-                  Desktop: sm:contents spreads children into parent flex */}
+                {/* Desktop: sm:contents spreads these into the parent flex. */}
                 <div className="flex items-center justify-between pt-3 pb-1 sm:contents">
                   <div className="sm:order-2 sm:w-32 sm:shrink-0">
                     {match(nameEntity)
@@ -100,8 +99,6 @@ export const RecentActivityTable = () => {
                   </span>
                 </div>
 
-                {/* Mobile: bottom row — description + actor wrapping
-                  Desktop: right-aligned flex */}
                 <div className="sm:order-3 flex flex-wrap items-center gap-1 pb-3 sm:pb-0 sm:flex-nowrap sm:flex-1 sm:gap-2 sm:justify-end sm:min-w-0">
                   <span className="text-sm text-muted-foreground sm:truncate">
                     {text}
@@ -132,8 +129,6 @@ export const RecentActivityTable = () => {
             )
           }),
         )}
-      {/* Quotes no number, like the timeline's own break: the remainder would
-          read as what one click fetches when it is what several would. */}
       {events.length > 0 && hasNextPage && (
         <button
           type="button"

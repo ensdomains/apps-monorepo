@@ -15,11 +15,7 @@ import { TransactionHeaderRow } from './TransactionHeaderRow'
 interface ActionSummaryRowProps {
   readonly action: Action
   readonly senders: TransactionSenders
-  /**
-   * Lead the row with the account that sent the transaction. Off on a name's
-   * own history, where every row is something the name did; on for a feed
-   * whose subject is not the actor, such as a registry contract's.
-   */
+  /** Lead the row with the tx sender — for feeds whose subject is not the actor. */
   readonly showActor?: boolean
   readonly showDate?: boolean
   readonly isOpen: boolean

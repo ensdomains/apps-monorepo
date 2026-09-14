@@ -23,12 +23,8 @@ interface ActionTimelineProps {
 
 /**
  * A run of tier-1 action rows joined by the timeline rail, with the date column
- * shown only on the first row of each day.
- *
- * The transaction senders are looked up here as one batched request for the run
- * rather than one RPC per row. They lead every row when `showActor` is set;
- * otherwise only an expanded row's transaction header reads them, so the lookup
- * waits for the first row to open.
+ * shown only on the first row of each day. Senders are one batched lookup for
+ * the run, deferred until a row needs them.
  */
 export const ActionTimeline = ({
   actions,

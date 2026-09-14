@@ -16,11 +16,7 @@ export type FormattedActivity = {
   actor?: ActivityEntity
   /** Fallback entity for the name column when event.name is null */
   entityFromData?: ActivityEntity
-  /**
-   * A raw on-chain value belonging to the event rather than to an account —
-   * a text-record key, say. Rendered as a neutral entity pill, the same way
-   * the history timeline renders its `text` slots.
-   */
+  /** A raw on-chain value (e.g. a text-record key), shown as a neutral entity pill. */
   value?: string
 }
 
@@ -56,8 +52,7 @@ const EVENT_DESCRIPTORS: Record<string, Descriptor> = {
   },
   NameRenewed: { text: 'Name renewed' },
 
-  // Ownership — ERC-1155/721 transfers carry `to`, the registry's
-  // Transfer(node, owner) carries `owner` (see indexer `TransferData`).
+  // ERC-1155/721 transfers carry `to`; the registry's Transfer carries `owner`.
   Transfer: (data) => {
     const to = readString(data, 'to', 'owner')
     return {
@@ -78,8 +73,7 @@ const EVENT_DESCRIPTORS: Record<string, Descriptor> = {
     actorType: 'address',
   },
   AddrChanged: { text: 'ETH address updated' },
-  // Multicoin: `address` is raw bytes for the given coin type, so it is only
-  // an Ethereum address (and a valid /addr link) when the coin type is ETH.
+  // `address` is raw bytes per coin type — only a real address when ETH.
   AddressChanged: (data) => {
     const coinType = data.coinType
     const address = readString(data, 'address')

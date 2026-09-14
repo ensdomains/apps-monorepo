@@ -449,8 +449,7 @@ export const EntityBadge = ({
           </Link>
         )}
 
-        {/* An account shown by its primary name: the pill is the name, the
-            chip reaches the wallet. */}
+        {/* Pill is the primary name; the chip reaches the wallet. */}
         {variant === 'name' && address && (
           <Link
             to="/addr/$addr"

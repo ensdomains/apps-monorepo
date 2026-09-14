@@ -22,10 +22,8 @@ export type ActionIcon =
   | 'default'
 
 /**
- * An inline piece of an action label. `name`/`address`/`contract` render as
- * `EntityBadge` chips; `text` is a neutral `EntityBadge` value pill — a raw
- * record key or value is an entity, not code; `glyph`/`connective` are muted joiners;
- * `placeholder` marks data we don't have yet.
+ * An inline piece of an action label. `name`/`address`/`contract`/`text` render
+ * as `EntityBadge` pills; `glyph`/`connective` are muted joiners.
  */
 export type ActionSlot =
   | { readonly kind: 'name'; readonly value: string }
