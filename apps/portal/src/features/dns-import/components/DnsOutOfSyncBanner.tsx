@@ -1,4 +1,5 @@
 import { CircleAlert, RefreshCw } from 'lucide-react'
+import { AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 
 /**
@@ -18,9 +19,7 @@ export const DnsOutOfSyncBanner = ({
   <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-6 rounded-sm bg-message-warning-fill text-message-warning-text">
     <CircleAlert className="size-6 shrink-0 self-start" strokeWidth={1.5} />
     <div className="flex flex-col gap-1 flex-1">
-      <span className="font-serif text-3xl font-normal leading-none tracking-[-0.02em]">
-        DNS record is out of sync
-      </span>
+      <AlertTitle>DNS record is out of sync</AlertTitle>
       <p className="text-sm">
         The domain {name} currently designates a different Ethereum address than
         the one controlling this name. Verify carefully before sending funds or

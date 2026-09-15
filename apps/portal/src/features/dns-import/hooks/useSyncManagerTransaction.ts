@@ -4,21 +4,20 @@ import {
 } from '@ens-apps/transaction-manager'
 import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import type { GetDnsImportDataReturnType } from '@ensdomains/ensjs/dns'
-import { importDnsName } from '@ensdomains/ensjs/dns'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useRef, useState } from 'react'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { prepareSyncManagerTransaction } from '../helpers/syncManager'
 import { getDnsImportDataResult } from '../queries/getDnsImportData'
 import { getDnsOwnerQueryOptions } from '../queries/getDnsOwner'
 
-const chainId = sepoliaWithEns.id
+const CHAIN_ID = sepoliaWithEns.id
 
 /**
  * Sync Manager (WEB-465): re-proves the `_ens` TXT record and runs a plain
@@ -78,25 +77,23 @@ export const useSyncManagerTransaction = ({
       if (!walletClient?.account || !publicClient) {
         throw new Error('No connected wallet')
       }
-      // No address → plain proveAndClaim: ownership goes to the TXT record
-      // address (the connected wallet, per the banner's gating).
-      const call = importDnsName.makeFunctionData(sepoliaWithEns, {
-        name,
-        dnsImportData: proof,
-      })
+      // The modal's "Try again" re-runs this under the same id, and the
+      // manager reports a terminal state only once per id — clear the failed
+      // attempt so a successful retry still reaches history and telemetry.
+      clearTransaction()
       const id = transactionManager.startTransaction(
-        toEoaCustomIntent({
+        prepareSyncManagerTransaction({
+          chain: sepoliaWithEns,
+          name,
+          dnsImportData: proof,
           from: walletClient.account.address,
-          to: call.to,
-          data: call.data,
-          chainId,
         }),
         createEOASigner(walletClient),
         {
           id: txId,
           description: `Sync manager for ${name}`,
           publicClient,
-          chainId,
+          chainId: CHAIN_ID,
         },
       )
       await waitForTransaction(id)
@@ -114,18 +111,13 @@ export const useSyncManagerTransaction = ({
           transactionName: `Sync manager for ${name}`,
           intent: {
             prepare: connectedAddress
-              ? ({ walletClient }) => {
-                  const call = importDnsName.makeFunctionData(sepoliaWithEns, {
+              ? ({ walletClient }) =>
+                  prepareSyncManagerTransaction({
+                    chain: sepoliaWithEns,
                     name,
                     dnsImportData: proof,
-                  })
-                  return toEoaCustomIntent({
                     from: walletClient.account.address,
-                    to: call.to,
-                    data: call.data,
-                    chainId,
                   })
-                }
               : undefined,
           },
           onStart: () => void runSync(),
