@@ -15,8 +15,9 @@ import {
   expect,
 } from '../fixtures/playwright.portal.fixture.js'
 import { assertTab } from './assert.js'
-import { readChainTruth } from './chain.js'
+import { readChainTruth, readRecords } from './chain.js'
 import { expectationFor } from './expectations.js'
+import { ETH_COIN_TYPE, MATRIX_TEXT_KEYS } from './records.js'
 import { type SeededShape, seedShape } from './seed.js'
 
 export type { SeededShape } from './seed.js'
@@ -78,7 +79,13 @@ export const runCell = async (
   // to move with it, so the page catches up here.
   if (time) await time.sync()
 
+  // Read the resolver only for the cells that assert records: it is two more
+  // round trips, and every other cell would pay for them.
+  const records = expectation.records
+    ? await readRecords(name, MATRIX_TEXT_KEYS, [ETH_COIN_TYPE])
+    : undefined
+
   await connectWithHeadlessWallet(page, wallet)
   await page.goto(`${PORTAL_APP_URL}${tabById(tabId).path(name)}`)
-  await assertTab(page, expectation, truth)
+  await assertTab(page, expectation, truth, records)
 }

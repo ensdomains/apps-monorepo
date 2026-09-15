@@ -61,9 +61,14 @@ test.describe('V1 shape · 3ld-registry+unwrapped-2ld:owner', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 subname', {
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
     tag: ['@scenario:VD20', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: says "No records set" — the same record on a V1 2LD renders correctly',
+    )
+
     await runCell(page, wallet, seeded, 'records')
   })
 
@@ -96,9 +101,14 @@ test.describe('V1 shape · 3ld-registry+unwrapped-2ld:owner', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 subname', {
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
     tag: ['@scenario:VA20', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: the Mainnet row is empty for a subname whose resolver has addr(60)',
+    )
+
     await runCell(page, wallet, seeded, 'address')
   })
 })
@@ -149,9 +159,14 @@ test.describe('V1 shape · 3ld-registry+unwrapped-2ld:parent', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 subname', {
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
     tag: ['@scenario:VD21', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: says "No records set" — the same record on a V1 2LD renders correctly',
+    )
+
     await runCell(page, wallet, seeded, 'records')
   })
 
@@ -184,9 +199,14 @@ test.describe('V1 shape · 3ld-registry+unwrapped-2ld:parent', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 subname', {
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
     tag: ['@scenario:VA21', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: the Mainnet row is empty for a subname whose resolver has addr(60)',
+    )
+
     await runCell(page, wallet, seeded, 'address')
   })
 })
@@ -231,9 +251,14 @@ test.describe('V1 shape · 3ld-registry+unwrapped-2ld:stranger', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 subname', {
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
     tag: ['@scenario:VD22', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: says "No records set" — the same record on a V1 2LD renders correctly',
+    )
+
     await runCell(page, wallet, seeded, 'records')
   })
 
@@ -266,9 +291,14 @@ test.describe('V1 shape · 3ld-registry+unwrapped-2ld:stranger', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 subname', {
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
     tag: ['@scenario:VA22', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: the Mainnet row is empty for a subname whose resolver has addr(60)',
+    )
+
     await runCell(page, wallet, seeded, 'address')
   })
 })
@@ -319,9 +349,14 @@ test.describe('V1 shape · 3ld-wrapped+emancipated-2ld:owner', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 subname', {
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
     tag: ['@scenario:VD23', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: says "No records set" — the same record on a V1 2LD renders correctly',
+    )
+
     await runCell(page, wallet, seeded, 'records')
   })
 
@@ -349,9 +384,14 @@ test.describe('V1 shape · 3ld-wrapped+emancipated-2ld:owner', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 subname', {
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
     tag: ['@scenario:VA23', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: the Mainnet row is empty for a subname whose resolver has addr(60)',
+    )
+
     await runCell(page, wallet, seeded, 'address')
   })
 })
@@ -401,9 +441,14 @@ test.describe('V1 shape · 3ld-wrapped+emancipated-2ld:parent', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 subname', {
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
     tag: ['@scenario:VD24', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: says "No records set" — the same record on a V1 2LD renders correctly',
+    )
+
     await runCell(page, wallet, seeded, 'records')
   })
 
@@ -431,9 +476,14 @@ test.describe('V1 shape · 3ld-wrapped+emancipated-2ld:parent', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 subname', {
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
     tag: ['@scenario:VA24', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: the Mainnet row is empty for a subname whose resolver has addr(60)',
+    )
+
     await runCell(page, wallet, seeded, 'address')
   })
 })
@@ -478,9 +528,14 @@ test.describe('V1 shape · 3ld-emancipated+locked-2ld:owner', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 subname', {
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
     tag: ['@scenario:VD25', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: says "No records set" — the same record on a V1 2LD renders correctly',
+    )
+
     await runCell(page, wallet, seeded, 'records')
   })
 
@@ -508,9 +563,14 @@ test.describe('V1 shape · 3ld-emancipated+locked-2ld:owner', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 subname', {
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
     tag: ['@scenario:VA25', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: the Mainnet row is empty for a subname whose resolver has addr(60)',
+    )
+
     await runCell(page, wallet, seeded, 'address')
   })
 })
@@ -555,9 +615,14 @@ test.describe('V1 shape · 3ld-emancipated+locked-2ld:parent', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 subname', {
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
     tag: ['@scenario:VD26', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: says "No records set" — the same record on a V1 2LD renders correctly',
+    )
+
     await runCell(page, wallet, seeded, 'records')
   })
 
@@ -585,9 +650,14 @@ test.describe('V1 shape · 3ld-emancipated+locked-2ld:parent', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 subname', {
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
     tag: ['@scenario:VA26', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: the Mainnet row is empty for a subname whose resolver has addr(60)',
+    )
+
     await runCell(page, wallet, seeded, 'address')
   })
 })
@@ -632,9 +702,14 @@ test.describe('V1 shape · 3ld-locked+locked-2ld:owner', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 subname', {
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
     tag: ['@scenario:VD27', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: says "No records set" — the same record on a V1 2LD renders correctly',
+    )
+
     await runCell(page, wallet, seeded, 'records')
   })
 
@@ -662,9 +737,14 @@ test.describe('V1 shape · 3ld-locked+locked-2ld:owner', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 subname', {
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
     tag: ['@scenario:VA27', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: the Mainnet row is empty for a subname whose resolver has addr(60)',
+    )
+
     await runCell(page, wallet, seeded, 'address')
   })
 })
@@ -709,9 +789,14 @@ test.describe('V1 shape · 3ld-registry+emancipated-2ld:parent', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 subname', {
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
     tag: ['@scenario:VD28', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: says "No records set" — the same record on a V1 2LD renders correctly',
+    )
+
     await runCell(page, wallet, seeded, 'records')
   })
 
@@ -744,9 +829,14 @@ test.describe('V1 shape · 3ld-registry+emancipated-2ld:parent', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 subname', {
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
     tag: ['@scenario:VA28', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: the Mainnet row is empty for a subname whose resolver has addr(60)',
+    )
+
     await runCell(page, wallet, seeded, 'address')
   })
 })
@@ -791,9 +881,14 @@ test.describe('V1 shape · 3ld-wrapped+unwrapped-2ld:owner', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 subname', {
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
     tag: ['@scenario:VD29', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: says "No records set" — the same record on a V1 2LD renders correctly',
+    )
+
     await runCell(page, wallet, seeded, 'records')
   })
 
@@ -821,9 +916,14 @@ test.describe('V1 shape · 3ld-wrapped+unwrapped-2ld:owner', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 subname', {
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
     tag: ['@scenario:VA29', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: the Mainnet row is empty for a subname whose resolver has addr(60)',
+    )
+
     await runCell(page, wallet, seeded, 'address')
   })
 })
@@ -868,9 +968,14 @@ test.describe('V1 shape · 3ld-wrapped+unwrapped-2ld:parent', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 subname', {
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
     tag: ['@scenario:VD30', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: says "No records set" — the same record on a V1 2LD renders correctly',
+    )
+
     await runCell(page, wallet, seeded, 'records')
   })
 
@@ -898,9 +1003,14 @@ test.describe('V1 shape · 3ld-wrapped+unwrapped-2ld:parent', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 subname', {
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
     tag: ['@scenario:VA30', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: the Mainnet row is empty for a subname whose resolver has addr(60)',
+    )
+
     await runCell(page, wallet, seeded, 'address')
   })
 })
@@ -947,9 +1057,14 @@ test.describe('V1 shape · 3ld-registry+unwrapped-2ld:parent-registrant-only', (
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 subname', {
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
     tag: ['@scenario:VD31', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: says "No records set" — the same record on a V1 2LD renders correctly',
+    )
+
     await runCell(page, wallet, seeded, 'records')
   })
 
@@ -982,9 +1097,14 @@ test.describe('V1 shape · 3ld-registry+unwrapped-2ld:parent-registrant-only', (
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 subname', {
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
     tag: ['@scenario:VA31', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
+    test.fail(
+      true,
+      'E2E-017: the Mainnet row is empty for a subname whose resolver has addr(60)',
+    )
+
     await runCell(page, wallet, seeded, 'address')
   })
 })

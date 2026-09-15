@@ -353,6 +353,21 @@ const harness: Scenario[] = [
       'fixtures/makeV1Name.ts V1_PUBLIC_RESOLVER; read back text() and addr() on chain, wrapped and unwrapped',
     modules: ['fixtures/makeV1Name.ts'],
   },
+  {
+    id: 'HW12',
+    kind: 'harness',
+    tier: 'HW',
+    phase: 'P0',
+    section: '2',
+    planId: 'H12',
+    area: 'v1-shapes',
+    app: 'shared',
+    title:
+      'A seeded subname expires in the CHAIN future, however far the fork clock has been moved',
+    oracle:
+      'NameWrapper getData(expiry) vs the latest block timestamp, on a wrapped, an emancipated and a locked child — only the PCC-burnt ones fail loudly when this is wrong',
+    modules: ['fixtures/makeV1Subname.ts'],
+  },
 ]
 
 // ── P1 · §5.C Roles and permissions ──────────────────────────────────────

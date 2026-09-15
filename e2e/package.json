@@ -25,7 +25,9 @@
     "lint": "biome check",
     "typecheck": "tsc --noEmit",
     "matrix:generate": "tsx scripts/generate-v1-matrix.ts",
-    "matrix:check": "tsx scripts/generate-v1-matrix.ts --check"
+    "matrix:check": "tsx scripts/generate-v1-matrix.ts --check",
+    "matrix:docs": "tsx matrix/render-docs.ts",
+    "matrix:docs:check": "tsx matrix/render-docs.ts --check"
   },
   "postinstall": "playwright install --with-deps chromium",
   "dependencies": {

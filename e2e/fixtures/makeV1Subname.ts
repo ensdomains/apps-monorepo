@@ -122,8 +122,20 @@ export async function makeV1Subname(config: V1SubnameConfig): Promise<string> {
 
   const parentNode = namehash(`${parentName}.eth`)
   const childName = `${childLabel}.${parentName}.eth`
-  const expiry =
-    config.expiry ?? BigInt(Math.floor(Date.now() / 1000) + expiryOffset)
+  // Relative to the CHAIN's clock, never the runner's.
+  //
+  // The fork's timestamp only moves forward and the V1 matrix's grace/expired
+  // shapes push it months ahead of real time — it sat at 2028-02-28 while the
+  // runner said 2026-09-15. `Date.now() + a year` was therefore a timestamp in
+  // the chain's past, so every subname was born already expired.
+  //
+  // That failed in the least honest way available: the NameWrapper only zeroes
+  // an expired name's owner once PARENT_CANNOT_CONTROL is burnt, so emancipated
+  // and locked children threw on their read-back while merely-wrapped ones were
+  // created expired and reported success. A whole class of shapes was silently
+  // the wrong shape, and the tests above them were asserting against it.
+  const now = (await publicClient.getBlock({ blockTag: 'latest' })).timestamp
+  const expiry = config.expiry ?? now + BigInt(expiryOffset)
 
   console.log(
     `[makeV1Subname] creating ${childName} (fuses=0x${fuses.toString(16)}, expiry=${expiry})`,

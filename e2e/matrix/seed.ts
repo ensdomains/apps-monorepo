@@ -19,6 +19,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { createMakeV1Name } from '../fixtures/makeV1Name.js'
 import { makeV1RegistrySubname } from '../fixtures/makeV1RegistrySubname.js'
 import { CHILD_FUSES, makeV1Subname } from '../fixtures/makeV1Subname.js'
+import { setV1RecordsOn } from '../fixtures/v1-records.js'
 import {
   splitController,
   splitRegistrant,
@@ -26,6 +27,8 @@ import {
   unwrapParent2LD,
 } from '../fixtures/v1-tails.js'
 import { testClient } from '../helpers/anvil-client.js'
+import { readChainTruth } from './chain.js'
+import { recordsFor, recordWriterFor } from './records.js'
 
 type Accounts = {
   getAddress: (user: Actor) => Address
@@ -40,6 +43,8 @@ export type SeededShape = {
   readonly levels: readonly string[]
   /** Who ends up holding the leaf. */
   readonly holder: Address
+  /** True when the leaf carries the matrix record set. */
+  readonly hasRecords: boolean
 }
 
 /**
@@ -279,6 +284,21 @@ export const seedShape = async (
   for (const tail of shape.tails ?? []) await applyTail(ctx, tail)
 
   const leaf = levels.at(-1) as string
+
+  // Records go on last, and only once the tree and its tails are final: the
+  // wallet permitted to write them is decided by the *finished* shape, and a
+  // split tail moves exactly that permission.
+  const records = recordsFor(shape, accounts.getAddress('user3'))
+  if (records) {
+    const truth = await readChainTruth(leaf)
+    await setV1RecordsOn(
+      leaf,
+      signer(recordWriterFor(truth, accounts.getAddress)),
+      truth.wrapperOwner !== null,
+      records,
+    )
+  }
+
   return {
     shape,
     name: leaf,
@@ -286,5 +306,6 @@ export const seedShape = async (
     holder: accounts.getAddress(
       (shape.path.at(-1) as (typeof shape.path)[number]).holder ?? 'user',
     ),
+    hasRecords: records !== null,
   }
 }

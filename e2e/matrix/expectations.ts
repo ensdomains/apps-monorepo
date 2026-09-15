@@ -64,6 +64,19 @@ export type TabExpectation = {
     readonly burnt: readonly string[]
     readonly unburnt?: readonly string[]
   }
+  /**
+   * Records and Address tabs: what the seeded records must render as.
+   *
+   * Keys only — the values are read off the resolver at run time, so the
+   * assertion is "the page agrees with the chain", not "the page agrees with a
+   * string I typed next to the fixture that wrote it".
+   */
+  readonly records?: {
+    /** Text keys whose rendered value must equal the chain's. */
+    readonly texts?: readonly string[]
+    /** The Mainnet address row must equal the chain's `addr(60)`. */
+    readonly ethAddress?: 'shown' | 'missing'
+  }
   /** Known wrong today. The expectation above stays correct. */
   readonly defect?: { readonly id: string; readonly actual: string }
   /** Not yet decided — the generator emits no test and the row stays open. */
@@ -102,9 +115,16 @@ const readOnlyTabs = ({
     text: [token],
   },
   records: {
-    title: 'renders the records tab for a V1 name',
+    title: "shows a V1 name's text record with the value the resolver holds",
     heading: 'Records',
-    text: ['No records set'],
+    // Only `com.twitter` is asserted, and that is a statement about key
+    // *discovery*, not about the resolver. For a V1 name the portal learns
+    // which keys exist from the public V1 subgraph (`v1-graphql.ens.dev`),
+    // which cannot know about a name seeded on a local fork — so the key set
+    // collapses to the six the app hardcodes, and `com.twitter` is the one of
+    // those the matrix seeds. The seeded `url` record is deliberately not
+    // asserted: its absence here is the fork's, not the app's.
+    records: { texts: ['com.twitter'] },
   },
   subnames: {
     title: 'renders the subnames tab for a V1 name',
@@ -121,8 +141,12 @@ const readOnlyTabs = ({
     text: ['No history yet'],
   },
   address: {
-    title: 'renders address resolution for a V1 name',
+    title: 'resolves a V1 name to the ETH address its resolver holds',
     heading: 'Address Resolution',
+    // The seeded address is `user3`, which no shape ever gives a name to — so
+    // an assertion that drifted onto an ownership row would fail rather than
+    // pass on the holder's address by coincidence.
+    records: { ethAddress: 'shown' },
   },
   resolver: {
     title: 'renders the resolver tab, and offers a V1 name no resolver edit',
@@ -209,8 +233,14 @@ const subnameReadOnlyTabs = ({
   fuses,
   token,
   records: {
-    title: 'renders the records tab for a V1 subname',
+    title: "shows a V1 subname's text record with the value the resolver holds",
     heading: 'Records',
+    records: { texts: ['com.twitter'] },
+    defect: {
+      id: 'E2E-017',
+      actual:
+        'says "No records set" — the same record on a V1 2LD renders correctly',
+    },
   },
   subnames: {
     title: 'renders the subnames tab for a V1 subname',
@@ -225,8 +255,14 @@ const subnameReadOnlyTabs = ({
     heading: 'History',
   },
   address: {
-    title: 'renders address resolution for a V1 subname',
+    title: 'resolves a V1 subname to the ETH address its resolver holds',
     heading: 'Address Resolution',
+    records: { ethAddress: 'shown' },
+    defect: {
+      id: 'E2E-017',
+      actual:
+        'the Mainnet row is empty for a subname whose resolver has addr(60)',
+    },
   },
   resolver: {
     title: 'renders the resolver tab for a V1 subname',

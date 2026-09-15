@@ -11,7 +11,14 @@
  */
 
 import { FUSES } from '@ens-apps/v1-name-shapes'
-import { type Address, labelhash, namehash, parseAbi, zeroAddress } from 'viem'
+import {
+  type Address,
+  getAddress,
+  labelhash,
+  namehash,
+  parseAbi,
+  zeroAddress,
+} from 'viem'
 import {
   V1_BASE_REGISTRAR,
   V1_ENS_REGISTRY,
@@ -55,6 +62,11 @@ export type ChainTruth = {
   /** What the chain says this name's wrap class is. */
   readonly wrapClass: ObservedWrap
 }
+
+const RESOLVER_ABI = parseAbi([
+  'function text(bytes32 node, string key) view returns (string)',
+  'function addr(bytes32 node, uint256 coinType) view returns (bytes)',
+])
 
 const PARENT_CANNOT_CONTROL = 1 << 16
 
@@ -106,6 +118,79 @@ const classify = (
   if (fuses & FUSES.CANNOT_UNWRAP) return 'locked'
   if (fuses & PARENT_CANNOT_CONTROL) return 'emancipated'
   return 'wrapped'
+}
+
+/** What the resolver actually returns for one name. */
+export type RecordTruth = {
+  /** Text records, by key. A key with no value is absent from the map. */
+  readonly texts: Readonly<Record<string, string>>
+  /** Addresses by coin type, checksummed. */
+  readonly addresses: Readonly<Record<number, Address>>
+}
+
+/**
+ * Read records straight off the resolver the registry points at.
+ *
+ * Same reason as everything else in this file: the portal resolves records
+ * through its own hooks, and asking those what the records tab should show
+ * would agree with the hook rather than with the chain. The keys come from the
+ * caller because the resolver cannot be enumerated — there is no "list every
+ * text record" on a PublicResolver, which is also why the app relies on an
+ * indexer for that and why an empty records tab can mean two different things.
+ */
+export const readRecords = async (
+  name: string,
+  textKeys: readonly string[],
+  coinTypes: readonly number[],
+): Promise<RecordTruth> => {
+  const node = namehash(name)
+  const resolver = await publicClient.readContract({
+    address: V1_ENS_REGISTRY,
+    abi: REGISTRY_ABI,
+    functionName: 'resolver',
+    args: [node],
+  })
+  if (!nonZero(resolver)) return { texts: {}, addresses: {} }
+
+  const [texts, addresses] = await Promise.all([
+    Promise.all(
+      textKeys.map((key) =>
+        publicClient
+          .readContract({
+            address: resolver,
+            abi: RESOLVER_ABI,
+            functionName: 'text',
+            args: [node, key],
+          })
+          .catch(() => ''),
+      ),
+    ),
+    Promise.all(
+      coinTypes.map((coinType) =>
+        publicClient
+          .readContract({
+            address: resolver,
+            abi: RESOLVER_ABI,
+            functionName: 'addr',
+            args: [node, BigInt(coinType)],
+          })
+          .catch(() => '0x' as const),
+      ),
+    ),
+  ])
+
+  return {
+    texts: Object.fromEntries(
+      textKeys.map((key, i) => [key, texts[i] ?? '']).filter(([, v]) => v),
+    ),
+    addresses: Object.fromEntries(
+      coinTypes
+        .map((coinType, i) => [coinType, addresses[i]] as const)
+        // `addr` returns empty bytes, not the zero address, when unset.
+        .filter(([, value]) => value && value !== '0x' && BigInt(value) !== 0n)
+        .map(([coinType, value]) => [coinType, getAddress(value as Address)]),
+    ),
+  }
 }
 
 /**

@@ -67,7 +67,7 @@ test.describe('V1 shape · 2ld-unwrapped:owner', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 name', {
+  test("records · shows a V1 name's text record with the value the resolver holds", {
     tag: ['@scenario:VD1', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'records')
@@ -97,7 +97,7 @@ test.describe('V1 shape · 2ld-unwrapped:owner', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 name', {
+  test('address · resolves a V1 name to the ETH address its resolver holds', {
     tag: ['@scenario:VA1', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'address')
@@ -172,7 +172,7 @@ test.describe('V1 shape · 2ld-unwrapped:manager', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 name', {
+  test("records · shows a V1 name's text record with the value the resolver holds", {
     tag: ['@scenario:VD2', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'records')
@@ -202,7 +202,7 @@ test.describe('V1 shape · 2ld-unwrapped:manager', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 name', {
+  test('address · resolves a V1 name to the ETH address its resolver holds', {
     tag: ['@scenario:VA2', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'address')
@@ -265,7 +265,7 @@ test.describe('V1 shape · 2ld-unwrapped:registrant', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 name', {
+  test("records · shows a V1 name's text record with the value the resolver holds", {
     tag: ['@scenario:VD3', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'records')
@@ -295,7 +295,7 @@ test.describe('V1 shape · 2ld-unwrapped:registrant', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 name', {
+  test('address · resolves a V1 name to the ETH address its resolver holds', {
     tag: ['@scenario:VA3', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'address')
@@ -348,7 +348,7 @@ test.describe('V1 shape · 2ld-unwrapped:stranger', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 name', {
+  test("records · shows a V1 name's text record with the value the resolver holds", {
     tag: ['@scenario:VD4', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'records')
@@ -378,7 +378,7 @@ test.describe('V1 shape · 2ld-unwrapped:stranger', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 name', {
+  test('address · resolves a V1 name to the ETH address its resolver holds', {
     tag: ['@scenario:VA4', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'address')
@@ -431,7 +431,7 @@ test.describe('V1 shape · 2ld-emancipated:owner', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 name', {
+  test("records · shows a V1 name's text record with the value the resolver holds", {
     tag: ['@scenario:VD5', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'records')
@@ -461,7 +461,7 @@ test.describe('V1 shape · 2ld-emancipated:owner', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 name', {
+  test('address · resolves a V1 name to the ETH address its resolver holds', {
     tag: ['@scenario:VA5', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'address')
@@ -514,7 +514,7 @@ test.describe('V1 shape · 2ld-emancipated:stranger', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 name', {
+  test("records · shows a V1 name's text record with the value the resolver holds", {
     tag: ['@scenario:VD6', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'records')
@@ -544,7 +544,7 @@ test.describe('V1 shape · 2ld-emancipated:stranger', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 name', {
+  test('address · resolves a V1 name to the ETH address its resolver holds', {
     tag: ['@scenario:VA6', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'address')
@@ -602,7 +602,7 @@ test.describe('V1 shape · 2ld-locked:owner', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 name', {
+  test("records · shows a V1 name's text record with the value the resolver holds", {
     tag: ['@scenario:VD7', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'records')
@@ -632,7 +632,7 @@ test.describe('V1 shape · 2ld-locked:owner', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 name', {
+  test('address · resolves a V1 name to the ETH address its resolver holds', {
     tag: ['@scenario:VA7', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'address')
@@ -679,7 +679,7 @@ test.describe('V1 shape · 2ld-locked-no-transfer:owner', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 name', {
+  test("records · shows a V1 name's text record with the value the resolver holds", {
     tag: ['@scenario:VD8', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'records')
@@ -709,7 +709,7 @@ test.describe('V1 shape · 2ld-locked-no-transfer:owner', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 name', {
+  test('address · resolves a V1 name to the ETH address its resolver holds', {
     tag: ['@scenario:VA8', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'address')
@@ -756,7 +756,7 @@ test.describe('V1 shape · 2ld-locked-no-resolver:owner', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
-  test('records · renders the records tab for a V1 name', {
+  test("records · shows a V1 name's text record with the value the resolver holds", {
     tag: ['@scenario:VD9', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'records')
@@ -786,7 +786,7 @@ test.describe('V1 shape · 2ld-locked-no-resolver:owner', () => {
     await runCell(page, wallet, seeded, 'history')
   })
 
-  test('address · renders address resolution for a V1 name', {
+  test('address · resolves a V1 name to the ETH address its resolver holds', {
     tag: ['@scenario:VA9', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'address')

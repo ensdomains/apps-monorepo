@@ -343,6 +343,43 @@ test.describe('Harness integrity', () => {
     }
   })
 
+  test('v1 shapes: a subname is created live, not already expired, however far the fork clock has moved', async ({
+    accounts,
+  }) => {
+    // The fork's timestamp only moves forward, and this suite's own grace and
+    // expired shapes push it months past real time — measured at 2028-02-28
+    // while the runner's clock said 2026-09-15. A fixture that derives a
+    // subname's expiry from `Date.now()` therefore mints it already expired.
+    //
+    // The reason this needs a harness case rather than trust: the NameWrapper
+    // only zeroes an expired name's owner once PARENT_CANNOT_CONTROL is burnt.
+    // So the bug announced itself on emancipated and locked children, and stayed
+    // completely silent on merely-wrapped ones — which were created expired,
+    // reported success, and had a dozen cells asserted against them. The two
+    // classes are checked together here precisely because only one of them
+    // fails loudly.
+    const chainNow = (await publicClient.getBlock({ blockTag: 'latest' }))
+      .timestamp
+
+    for (const id of [
+      '3ld-wrapped+emancipated-2ld:owner',
+      '3ld-emancipated+locked-2ld:owner',
+      '3ld-locked+locked-2ld:owner',
+    ] as const) {
+      const seeded = await seedShape(shapeById(id), accounts)
+      const truth = await readChainTruth(seeded.name)
+
+      expect(
+        truth.expiry > chainNow,
+        `${id}: the subname's wrapper expiry (${truth.expiry}) is not in the chain's future (${chainNow}) — it was seeded against the runner's clock, not the chain's`,
+      ).toBe(true)
+      expect(
+        truth.wrapperOwner,
+        `${id}: the NameWrapper reports no owner, which is what an expired emancipated name looks like`,
+      ).not.toBeNull()
+    }
+  })
+
   // ── makeSubname ────────────────────────────────────────────────────────
 
   test('makeSubname: every level it reports is registered in its stated parent registry, with the roles it claims', async ({
