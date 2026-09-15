@@ -213,6 +213,18 @@ export const getV1DetachTargets = ({
 }
 
 /**
+ * Whether the parent gets the label back once an emancipated subname lapses.
+ * `_checkCanCallSetSubnodeOwner` lets the parent re-issue an expired subname
+ * unless it burned CANNOT_CREATE_SUBDOMAIN. That bit holds only until the
+ * parent's own wrapper expiry — `_clearOwnerAndFuses` zeroes every fuse past
+ * it — so this answers "can it today", not "can it ever". A null parent is
+ * unknown, not a no.
+ */
+export const canParentReissueV1Subname = (
+  parent: V1ParentState | null,
+): boolean => !(parent?.isWrapped && parent.cannotCreateSubdomain)
+
+/**
  * What the parent can still do to a subname after it is transferred — each
  * entry finishes the sentence "they can…". Empty for any 2LD: a `.eth` 2LD's
  * parent is the registrar, and a DNS name's exposure is to the domain holder
@@ -229,12 +241,11 @@ export const getV1ParentPowers = (
       () => [],
     )
     // Emancipated: the parent is locked out until the wrapper expiry lapses,
-    // then can re-issue the label — unless it burned CANNOT_CREATE_SUBDOMAIN
-    // (`_checkCanCallSetSubnodeOwner`). A null expiry is unknown, not "never".
+    // and only then if it can still re-issue the label.
     .with({ kind: 'v1-wrapped', fuses: { parentCannotControl: true } }, () =>
-      parent?.isWrapped && parent.cannotCreateSubdomain
-        ? []
-        : ['issue it to someone else once it expires'],
+      canParentReissueV1Subname(parent)
+        ? ['issue it to someone else once it expires']
+        : [],
     )
     // `setSubnodeOwner` on the parent node, with no fuse to stop it — on either
     // contract, whichever way the child is held.
