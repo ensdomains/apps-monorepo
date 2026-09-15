@@ -3,15 +3,13 @@ import { Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useEffect, useState } from 'react'
+import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
-import { MigrationNftMintDialog } from '@/features/migration/components/MigrationNftMintDialog'
 import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
@@ -184,13 +182,6 @@ export const MigrationPage = () => {
   const { data: wagmiWalletClient } = useWalletClient()
   const queryClient = useQueryClient()
   const migrationNftEnabled = useMigrationNftEnabled()
-  const [isNftMintOpen, setIsNftMintOpen] = useState(false)
-  const visibleNft = useVisibleCommemorativeNftEligibility({
-    enabled: migrationNftEnabled && import.meta.env.DEV && step === 'select',
-  })
-  useEffect(() => {
-    if (!migrationNftEnabled) setIsNftMintOpen(false)
-  }, [migrationNftEnabled])
   const isMigrationSuccess = step === 'success'
   const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)
@@ -221,10 +212,7 @@ export const MigrationPage = () => {
     if (isMigrationSuccess) {
       uiActor.send({ type: 'done' })
       navigate({ to: '/dashboard', replace: true })
-      return
     }
-
-    setIsNftMintOpen(false)
   }, [isMigrationSuccess, uiActor, navigate])
 
   const handleViewProfile = useCallback(
@@ -233,8 +221,6 @@ export const MigrationPage = () => {
 
       if (isMigrationSuccess) {
         uiActor.send({ type: 'done' })
-      } else {
-        setIsNftMintOpen(false)
       }
 
       if (name) {
@@ -309,28 +295,17 @@ export const MigrationPage = () => {
       <GrainOverlay className="opacity-70" />
 
       {step === 'select' && (
-        <>
-          <button
-            aria-label="Back"
-            className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"
-            onClick={handleBack}
-            type="button"
-          >
-            <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
-            <span className="max-xl:hidden">
-              <Trans>Back</Trans>
-            </span>
-          </button>
-          {migrationNftEnabled && import.meta.env.DEV && visibleNft ? (
-            <button
-              className="absolute top-6 right-5 z-20 px-2 py-2 text-ens-garnet-900 text-xs underline underline-offset-2 md:right-8"
-              onClick={() => setIsNftMintOpen(true)}
-              type="button"
-            >
-              <Trans>Mint commemorative NFT</Trans>
-            </button>
-          ) : null}
-        </>
+        <button
+          aria-label="Back"
+          className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"
+          onClick={handleBack}
+          type="button"
+        >
+          <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
+          <span className="max-xl:hidden">
+            <Trans>Back</Trans>
+          </span>
+        </button>
       )}
 
       {match(step)
@@ -403,12 +378,6 @@ export const MigrationPage = () => {
           onViewProfile={handleViewProfile}
           open={dialogOpen}
           ownerAddress={ownerAddress as Address | undefined}
-        />
-      ) : null}
-      {migrationNftEnabled && import.meta.env.DEV && isNftMintOpen ? (
-        <MigrationNftMintDialog
-          onClose={() => setIsNftMintOpen(false)}
-          onViewProfile={handleViewProfile}
         />
       ) : null}
     </div>
