@@ -262,7 +262,7 @@ export const V1Transfer = ({
           canReissue && parentName
             ? {
                 label: 'Open in ENS Manager',
-                href: `${LEGACY_APP_BASE_URL}/${encodeURIComponent(parentName)}`,
+                href: `${LEGACY_APP_BASE_URL}/${encodeURIComponent(parentName)}?tab=subnames`,
                 external: true,
                 variant: 'outline',
               }

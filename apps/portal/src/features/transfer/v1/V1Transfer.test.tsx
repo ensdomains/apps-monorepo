@@ -132,7 +132,7 @@ describe('V1Transfer — an emancipated subname, seen by the parent’s owner', 
     expect(screen.queryByText(/Subnames page/)).not.toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'Open in ENS Manager' }),
-    ).toHaveAttribute('href', `${LEGACY_APP_BASE_URL}/label.eth`)
+    ).toHaveAttribute('href', `${LEGACY_APP_BASE_URL}/label.eth?tab=subnames`)
   })
 
   it('promises no re-issue once the parent has burned CANNOT_CREATE_SUBDOMAIN', async () => {
