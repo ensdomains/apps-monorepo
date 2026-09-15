@@ -1,6 +1,6 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { Address, Hex, PublicClient } from 'viem'
-import type { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
+import type { V1_RESOLVER_PROFILE_ABI } from '../contracts/abis'
 import { cleanResolverTextRecords } from './cleanResolverTextRecords'
 import {
   buildProfileMulticallPlan,
@@ -52,7 +52,7 @@ const executeMulticallChunks = async (
       const results = (await publicClient.multicall({
         contracts: [...chunk] as {
           address: Address
-          abi: typeof PERMISSIONED_RESOLVER_ABI
+          abi: typeof V1_RESOLVER_PROFILE_ABI
           functionName: 'text' | 'addr' | 'contenthash' | 'ABI'
           args: readonly unknown[]
         }[],

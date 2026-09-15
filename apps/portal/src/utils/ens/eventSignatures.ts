@@ -51,6 +51,25 @@ const RESOLVER_INDEXER_EVENT_SIGNATURES: Record<string, string> = {
     'AddressChanged (bytes32 indexed node, uint256 coinType, bytes newAddress)',
   ABIChanged: 'ABIChanged (bytes32 indexed node, uint256 indexed contentType)',
   AliasChanged: 'AliasChanged (bytes32 indexed node, bytes alias)',
+  // Post-audit-2 PermissionedResolver (contracts-v2 PR #417): records are
+  // inodes keyed by `recordId`, names are linked to them.
+  ResolverCreated: 'ResolverCreated ()',
+  Linked: 'Linked (uint256 indexed recordId, bytes32 indexed node, bytes name)',
+  Cleared: 'Cleared (uint256 indexed recordId)',
+  AddressUpdated:
+    'AddressUpdated (uint256 indexed recordId, uint256 coinType, bytes addressBytes)',
+  TextUpdated:
+    'TextUpdated (uint256 indexed recordId, string indexed keyHash, string key, string value)',
+  DataUpdated:
+    'DataUpdated (uint256 indexed recordId, string indexed keyHash, string key, bytes value)',
+  ABIUpdated:
+    'ABIUpdated (uint256 indexed recordId, uint256 indexed contentType)',
+  ContenthashUpdated:
+    'ContenthashUpdated (uint256 indexed recordId, bytes hash)',
+  InterfaceUpdated:
+    'InterfaceUpdated (uint256 indexed recordId, bytes4 indexed interfaceId, address implementer)',
+  NameUpdated: 'NameUpdated (uint256 indexed recordId, string primaryName)',
+  ResourceArgument: 'ResourceArgument (uint256 indexed resource, bytes arg)',
   EACRolesChanged:
     'EACRolesChanged (uint256 resource, address account, uint256 oldRoleBitmap, uint256 newRoleBitmap)',
   ResolverUpdated: 'ResolverUpdated (uint256 tokenId, address resolver)',
@@ -99,6 +118,61 @@ const RESOLVER_INDEXER_TYPE_MAPPING: Record<string, Record<string, string>> = {
   },
   ABIChanged: { namehash: 'bytes32', contentType: 'uint256' },
   AliasChanged: { namehash: 'bytes32', alias: 'bytes' },
+  // Keys below match the indexer's decoded payload, not the raw event ABI:
+  // it resolves the node to a dotted `name` and drops the indexed key hashes.
+  ResolverCreated: { resolver: 'address' },
+  Linked: {
+    resolver: 'address',
+    recordId: 'uint256',
+    node: 'bytes32',
+    name: 'string',
+  },
+  Cleared: { resolver: 'address', recordId: 'uint256' },
+  AddressUpdated: {
+    resolver: 'address',
+    recordId: 'uint256',
+    coinType: 'uint256',
+    addressBytes: 'bytes',
+  },
+  TextUpdated: {
+    resolver: 'address',
+    recordId: 'uint256',
+    key: 'string',
+    value: 'string',
+  },
+  DataUpdated: {
+    resolver: 'address',
+    recordId: 'uint256',
+    key: 'string',
+    value: 'bytes',
+  },
+  ABIUpdated: {
+    resolver: 'address',
+    recordId: 'uint256',
+    contentType: 'uint256',
+  },
+  ContenthashUpdated: {
+    resolver: 'address',
+    recordId: 'uint256',
+    hash: 'bytes',
+  },
+  InterfaceUpdated: {
+    resolver: 'address',
+    recordId: 'uint256',
+    interfaceId: 'bytes4',
+    implementer: 'address',
+  },
+  NameUpdated: {
+    resolver: 'address',
+    recordId: 'uint256',
+    primaryName: 'string',
+  },
+  ResourceArgument: {
+    resolver: 'address',
+    resource: 'uint256',
+    arg: 'bytes',
+    argument: 'string',
+  },
   EACRolesChanged: {
     resource: 'uint256',
     account: 'address',
