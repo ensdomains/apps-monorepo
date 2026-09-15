@@ -117,7 +117,8 @@ export const SelectNamesStepSelectionOptions = ({
               strokeWidth={1.8}
             />
             <Trans>
-              Your names, text records, and addresses will migrate automatically
+              Your names, text records, and addresses will be carried over
+              during the upgrade
             </Trans>
           </p>
         </div>
