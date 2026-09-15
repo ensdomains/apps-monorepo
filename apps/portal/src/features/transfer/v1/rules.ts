@@ -215,8 +215,10 @@ export const getV1DetachTargets = ({
 /**
  * Whether the parent gets the label back once an emancipated subname lapses.
  * `_checkCanCallSetSubnodeOwner` lets the parent re-issue an expired subname
- * unless it burned CANNOT_CREATE_SUBDOMAIN, which is permanent. A null parent
- * is unknown, not "never".
+ * unless it burned CANNOT_CREATE_SUBDOMAIN. That bit holds only until the
+ * parent's own wrapper expiry — `_clearOwnerAndFuses` zeroes every fuse past
+ * it — so this answers "can it today", not "can it ever". A null parent is
+ * unknown, not a no.
  */
 export const canParentReissueV1Subname = (
   parent: V1ParentState | null,

@@ -141,9 +141,7 @@ describe('V1Transfer — an emancipated subname, seen by the parent’s owner', 
       reads(emancipatedUnder(PARENT_CANNOT_CONTROL | CANNOT_CREATE_SUBDOMAIN)),
     )
 
-    expect(
-      await screen.findByText(/can never be issued again/),
-    ).toBeInTheDocument()
+    expect(await screen.findByText(/while that fuse holds/)).toBeInTheDocument()
     expect(screen.queryByText(/issue the label again/)).not.toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })

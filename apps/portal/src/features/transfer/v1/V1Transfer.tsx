@@ -87,7 +87,7 @@ export const V1Transfer = ({
 
   // Whether the emancipated card can point anywhere: re-issuing a lapsed V1
   // label happens in ens-app-v3 (our Subnames page is read-only for a V1
-  // parent), and CANNOT_CREATE_SUBDOMAIN closes even that door.
+  // parent), and a burned CANNOT_CREATE_SUBDOMAIN closes even that door.
   const canReissue = canParentReissueV1Subname(state.parent)
 
   return match(getV1TransferGate(state, account))
@@ -253,8 +253,7 @@ export const V1Transfer = ({
               <Muted>
                 <Name>{parentName}</Name> has also burned{' '}
                 <span className="font-mono">CANNOT_CREATE_SUBDOMAIN</span>, so
-                this subname can never be issued again — not even once it
-                expires.
+                it can’t issue this label again while that fuse holds.
               </Muted>
             )}
           </>
