@@ -4,7 +4,60 @@
  * Business logic kept outside the React component for testability.
  */
 
+import { getCanonicalPrimaryName } from '@/features/profile/service/profileName'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
+import { resolveDomainLabel } from '../utils'
+
+export const PRIMARY_NAME_PAGE_SIZE = 5
+
+export function getPrimaryNamePage<
+  TDomain extends Parameters<typeof resolveDomainLabel>[0],
+>(
+  domains: readonly TDomain[],
+  {
+    searchQuery,
+    page,
+    reverseName,
+  }: {
+    readonly searchQuery: string
+    readonly page: number
+    readonly reverseName?: string | null
+  },
+) {
+  const query = searchQuery.trim().normalize('NFC').toLowerCase()
+  const filtered = domains
+    .filter((domain) => resolveDomainLabel(domain).includes(query))
+    .sort(
+      (a, b) =>
+        Number(resolveDomainLabel(b) === reverseName) -
+        Number(resolveDomainLabel(a) === reverseName),
+    )
+  const total = filtered.length
+  const totalPages = Math.max(1, Math.ceil(total / PRIMARY_NAME_PAGE_SIZE))
+  const currentPage = Math.min(Math.max(1, page), totalPages)
+  const offset = (currentPage - 1) * PRIMARY_NAME_PAGE_SIZE
+  return {
+    domains: filtered.slice(offset, offset + PRIMARY_NAME_PAGE_SIZE),
+    total,
+    totalPages,
+    currentPage,
+    rangeStart: total === 0 ? 0 : offset + 1,
+    rangeEnd: Math.min(offset + PRIMARY_NAME_PAGE_SIZE, total),
+  }
+}
+
+/** Never substitute a normalized twin for the raw name of an owned row. */
+export function getPrimaryNameCandidates<
+  TDomain extends Parameters<typeof resolveDomainLabel>[0],
+>(domains: readonly TDomain[]): TDomain[] {
+  return domains.filter((domain) => {
+    const name = domain.name ?? domain.id
+    return (
+      getCanonicalPrimaryName(name) === name &&
+      resolveDomainLabel(domain) === name
+    )
+  })
+}
 
 const ETH_COIN_TYPE = 60
 
@@ -74,6 +127,7 @@ export function isConfirmBlocked({
     !resolverAccessSettled ||
     !recordsSettled ||
     !hasChanges ||
-    !selectedName
+    !selectedName ||
+    getCanonicalPrimaryName(selectedName) !== selectedName
   )
 }

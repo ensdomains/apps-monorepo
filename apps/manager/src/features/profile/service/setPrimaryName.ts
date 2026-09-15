@@ -25,7 +25,8 @@ import {
   type WalletClient,
   zeroAddress,
 } from 'viem'
-import { normalize } from 'viem/ens'
+import { assertPrimaryNameForwardResolution } from './primaryNameForwardAddress'
+import { requireCanonicalPrimaryName } from './profileName'
 
 export interface SetPrimaryNameParams {
   /** ENS name, with or without the `.eth` suffix */
@@ -42,11 +43,6 @@ export interface SetPrimaryNameParams {
   /** Called with each submitted txId so the UI can track it via a selector */
   onTxId?: (txId: string) => void
 }
-
-// Normalized claim string: a non-canonical name would fail the bidirectional
-// check at resolution time and read as "no primary name".
-const withEthSuffix = (name: string) =>
-  normalize(name.endsWith('.eth') ? name : `${name}.eth`)
 
 const reverseAdapterAbi = parseAbi([
   'function setNameWithHCA(address addr, string name)',
@@ -137,7 +133,7 @@ export async function setPrimaryNameWithHca(
     chainId,
     onTxId,
   } = params
-  const cleanName = withEthSuffix(name)
+  const cleanName = requireCanonicalPrimaryName(name)
 
   if (
     !walletClient.account ||
@@ -147,6 +143,12 @@ export async function setPrimaryNameWithHca(
       'Cannot set primary name - the connected wallet does not control the owner address.',
     )
   }
+
+  await assertPrimaryNameForwardResolution(
+    publicClient,
+    cleanName,
+    ownerAddress,
+  )
 
   const clearsStaleAddrReverse = await hasStaleAddrReverse({
     publicClient,
@@ -227,14 +229,19 @@ export async function setPrimaryNameWithHca(
 }
 
 /** EOA forward leg: setName on the default reverse registrar. */
-export function submitPrimaryNameForward(input: {
+export async function submitPrimaryNameForward(input: {
   name: string
   signer: Signer
   accountAddress: Address
   publicClient: PublicClient
   chainId: number
-}): string {
-  const cleanName = withEthSuffix(input.name)
+}): Promise<string> {
+  const cleanName = requireCanonicalPrimaryName(input.name)
+  await assertPrimaryNameForwardResolution(
+    input.publicClient,
+    cleanName,
+    input.accountAddress,
+  )
   const data = encodeFunctionData({
     abi: defaultReverseRegistrarSetNameSnippet,
     functionName: 'setName',
@@ -312,14 +319,19 @@ export function submitClearAddrReverse(input: {
 }
 
 /** EOA reverse leg: setName on the reverse registrar. */
-export function submitPrimaryNameReverse(input: {
+export async function submitPrimaryNameReverse(input: {
   name: string
   signer: Signer
   accountAddress: Address
   publicClient: PublicClient
   chainId: number
-}): string {
-  const cleanName = withEthSuffix(input.name)
+}): Promise<string> {
+  const cleanName = requireCanonicalPrimaryName(input.name)
+  await assertPrimaryNameForwardResolution(
+    input.publicClient,
+    cleanName,
+    input.accountAddress,
+  )
   const data = encodeFunctionData({
     abi: reverseRegistrarSetNameSnippet,
     functionName: 'setName',
@@ -374,7 +386,7 @@ export async function setPrimaryName(
 
   const signer: Signer = { type: 'eoa', walletClient }
 
-  const forwardTxId = submitPrimaryNameForward({
+  const forwardTxId = await submitPrimaryNameForward({
     name,
     signer,
     accountAddress: ownerAddress,
@@ -384,7 +396,7 @@ export async function setPrimaryName(
   onTxId?.(forwardTxId)
   await waitForTransaction(forwardTxId)
 
-  const reverseTxId = submitPrimaryNameReverse({
+  const reverseTxId = await submitPrimaryNameReverse({
     name,
     signer,
     accountAddress: ownerAddress,

@@ -25,10 +25,16 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { encodeFunctionData, parseAbi, zeroAddress } from 'viem'
+import { getEnsAddress } from 'viem/actions'
+
+vi.mock('viem/actions', () => ({ getEnsAddress: vi.fn() }))
+
 import {
   addrReverseNode,
   setPrimaryName,
   setPrimaryNameWithHca,
+  submitPrimaryNameForward,
+  submitPrimaryNameReverse,
 } from './setPrimaryName'
 
 const DEFAULT_REVERSE = '0x00000000000000000000000000000000000000d0'
@@ -67,6 +73,7 @@ const wait = vi.mocked(waitForTransaction)
 const planFunding = vi.mocked(planHcaIntentFunding)
 
 beforeEach(() => {
+  vi.mocked(getEnsAddress).mockReset().mockResolvedValue(EOA_OWNER)
   // Default: the HCA covers its own fee, so the batch passes through unchanged.
   planFunding.mockImplementation(async ({ calls }) => ({
     calls: [...calls],
@@ -242,32 +249,6 @@ describe('setPrimaryNameWithHca', () => {
     )
   })
 
-  it('normalizes the claimed name before encoding it', async () => {
-    start.mockReturnValueOnce('tx-intent')
-
-    await setPrimaryNameWithHca({
-      name: 'LeOn',
-      signer: hcaSigner,
-      ownerAddress: EOA_OWNER,
-      walletClient: ownerWalletClient,
-      publicClient: hcaPublicClient(zeroAddress),
-      chainId: CHAIN_ID,
-    })
-
-    const calls = (
-      start.mock.calls[0]?.[0] as unknown as {
-        request: { rhinestoneParams: { calls: { data: Hex }[] } }
-      }
-    ).request.rhinestoneParams.calls
-    expect(calls[0]?.data).toBe(
-      encodeFunctionData({
-        abi: adapterAbi,
-        functionName: 'setNameWithHCA',
-        args: [EOA_OWNER, 'leon.eth'],
-      }),
-    )
-  })
-
   it('clears a live addr.reverse entry that would shadow the default', async () => {
     start.mockReturnValueOnce('tx-intent')
     const client = hcaPublicClient(
@@ -427,5 +408,119 @@ describe('setPrimaryNameWithHca funding', () => {
     ).rejects.toThrow(/does not control the owner address/)
 
     expect(start).not.toHaveBeenCalled()
+  })
+})
+
+describe('primary-name identity validation', () => {
+  const submitters = {
+    EOA: (name: string) =>
+      setPrimaryName({
+        name,
+        ownerAddress: EOA_OWNER,
+        walletClient: ownerWalletClient,
+        publicClient,
+        chainId: CHAIN_ID,
+      }),
+    HCA: (name: string) =>
+      setPrimaryNameWithHca({
+        name,
+        signer: hcaSigner,
+        ownerAddress: EOA_OWNER,
+        walletClient: ownerWalletClient,
+        publicClient: hcaPublicClient(zeroAddress),
+        chainId: CHAIN_ID,
+      }),
+    defaultReverse: (name: string) =>
+      submitPrimaryNameForward({
+        name,
+        signer: { type: 'eoa', walletClient: ownerWalletClient },
+        accountAddress: EOA_OWNER,
+        publicClient,
+        chainId: CHAIN_ID,
+      }),
+    addrReverse: (name: string) =>
+      submitPrimaryNameReverse({
+        name,
+        signer: { type: 'eoa', walletClient: ownerWalletClient },
+        accountAddress: EOA_OWNER,
+        publicClient,
+        chainId: CHAIN_ID,
+      }),
+  }
+
+  describe.each(Object.entries(submitters))('%s', (_, submit) => {
+    it.each([
+      'ALICE.eth',
+      'ALICE',
+      'cafe\u0301.eth',
+      'alice..eth',
+      '',
+    ])('rejects %j before resolving or submitting', async (name) => {
+      await expect(submit(name)).rejects.toThrow(/canonical/)
+      expect(getEnsAddress).not.toHaveBeenCalled()
+      expect(planFunding).not.toHaveBeenCalled()
+      expect(start).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      null,
+      zeroAddress,
+      HCA_ADDRESS,
+    ])('rejects an unmatched forward address %s', async (address) => {
+      vi.mocked(getEnsAddress).mockResolvedValue(address)
+      await expect(submit('alice.eth')).rejects.toThrow(
+        /does not resolve to the owner/,
+      )
+      expect(getEnsAddress).toHaveBeenCalledWith(expect.anything(), {
+        name: 'alice.eth',
+        coinType: 60n,
+        strict: true,
+      })
+      expect(planFunding).not.toHaveBeenCalled()
+      expect(start).not.toHaveBeenCalled()
+    })
+
+    it('does not submit when forward resolution fails', async () => {
+      vi.mocked(getEnsAddress).mockRejectedValue(new Error('RPC unavailable'))
+      await expect(submit('alice.eth')).rejects.toThrow('RPC unavailable')
+      expect(planFunding).not.toHaveBeenCalled()
+      expect(start).not.toHaveBeenCalled()
+    })
+  })
+
+  it('checks the same canonical name before both EOA claims', async () => {
+    start.mockReturnValue('tx-name')
+    await submitters.EOA('café.eth')
+    expect(getEnsAddress).toHaveBeenCalledTimes(2)
+    expect(getEnsAddress).toHaveBeenNthCalledWith(1, publicClient, {
+      name: 'café.eth',
+      coinType: 60n,
+      strict: true,
+    })
+    expect(getEnsAddress).toHaveBeenNthCalledWith(2, publicClient, {
+      name: 'café.eth',
+      coinType: 60n,
+      strict: true,
+    })
+    const expectedData = encodeFunctionData({
+      abi: parseAbi(['function setName(string name)']),
+      functionName: 'setName',
+      args: ['café.eth'],
+    })
+    for (const [intent, , metadata] of start.mock.calls) {
+      expect(intent).toMatchObject({ request: { data: expectedData } })
+      expect(metadata).toMatchObject({ name: 'café.eth' })
+    }
+  })
+
+  it('stops the second EOA claim if forward resolution changes', async () => {
+    start.mockReturnValue('tx-name')
+    vi.mocked(getEnsAddress)
+      .mockResolvedValueOnce(EOA_OWNER)
+      .mockResolvedValueOnce(HCA_ADDRESS)
+    await expect(submitters.EOA('alice.eth')).rejects.toThrow(
+      /does not resolve to the owner/,
+    )
+    expect(start).toHaveBeenCalledTimes(1)
   })
 })

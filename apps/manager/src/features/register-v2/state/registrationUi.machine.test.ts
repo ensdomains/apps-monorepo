@@ -85,8 +85,8 @@ vi.mock('../service/syncEthAddressRecord', () => ({
 }))
 
 vi.mock('../../profile/service/setPrimaryName', () => ({
-  submitPrimaryNameForward: vi.fn(() => 'tx-primary-forward'),
-  submitPrimaryNameReverse: vi.fn(() => 'tx-primary-reverse'),
+  submitPrimaryNameForward: vi.fn(async () => 'tx-primary-forward'),
+  submitPrimaryNameReverse: vi.fn(async () => 'tx-primary-reverse'),
   // Default to a clean owner: the cleanup pass is a no-op for anyone who has
   // never set an `addr.reverse` name, which is the common case.
   hasStaleAddrReverse: vi.fn(async () => false),
@@ -278,6 +278,80 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     ownerAddress: EOA_ADDRESS,
     walletClient: { account: { address: EOA_ADDRESS } } as any,
   } as unknown as SmartAccountContextValue
+
+  describe.each([
+    'EOA',
+    'HCA',
+  ])('%s canonical primary-name registration', (mode) => {
+    it.each([
+      'ALICE',
+      'cafe\u0301',
+    ])('refuses noncanonical label %s before starting registration', (label) => {
+      const actor = startActorInTokens()
+      actor.send({
+        ...startEvent(mode === 'EOA' ? eoaAccount : smartAccount, {
+          enabled: true,
+        }),
+        label,
+      })
+      expect(actor.getSnapshot().matches('failure')).toBe(true)
+      expect(actor.getSnapshot().context.lastErrorMessage).toMatch(/canonical/)
+      expect(getChild(actor).getSnapshot().matches('idle')).toBe(true)
+      expect(startSyncEthRecord).not.toHaveBeenCalled()
+      expect(startPrimaryNameForward).not.toHaveBeenCalled()
+      actor.stop()
+    })
+  })
+
+  it('keeps the registered Unicode label in both EOA primary-name legs', async () => {
+    const actor = startActorInTokens()
+    actor.send({ ...startEvent(eoaAccount, { enabled: true }), label: 'café' })
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
+    await flush(24)
+    expect(actor.getSnapshot().context.confirmedData?.label).toBe('café')
+    expect(startPrimaryNameForward).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'café.eth' }),
+    )
+    expect(startPrimaryNameReverse).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'café.eth' }),
+    )
+    actor.stop()
+  })
+
+  it('keeps the registered Unicode label in the HCA primary-name bundle', () => {
+    const actor = startActorInTokens()
+    actor.send({
+      ...startEvent(smartAccount, { enabled: true }),
+      label: 'café',
+    })
+    expect(actor.getSnapshot().context.confirmedData?.label).toBe('café')
+    expect(getChild(actor).getSnapshot().context.primaryName).toBe('café.eth')
+    actor.stop()
+  })
+
+  it('waits for forward verification and preserves registration success when it fails', async () => {
+    const verification = deferred<string>()
+    startPrimaryNameForward.mockReturnValueOnce(verification.promise)
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount, { enabled: true }))
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
+    await flush()
+    expect(
+      actor
+        .getSnapshot()
+        .matches({ registering: { transaction: 'settingPrimaryNameForward' } }),
+    ).toBe(true)
+    expect(waitForKnownTransaction).not.toHaveBeenCalled()
+    expect(startPrimaryNameReverse).not.toHaveBeenCalled()
+    verification.reject(new Error('Name does not resolve to owner'))
+    await flush()
+    expect(
+      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
+    ).toBe(true)
+    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
+    expect(startPrimaryNameReverse).not.toHaveBeenCalled()
+    actor.stop()
+  })
 
   it('keeps the existing no-setup success path immediate', async () => {
     const actor = startActorInTokens()

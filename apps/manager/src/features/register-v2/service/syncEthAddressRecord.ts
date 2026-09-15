@@ -12,6 +12,7 @@ import {
   encodeFunctionData,
   type PublicClient,
 } from 'viem'
+import { requireCanonicalPrimaryName } from '@/features/profile/service/profileName'
 
 type SyncEthAddressRecordParams = {
   name: string
@@ -23,9 +24,6 @@ type SyncEthAddressRecordParams = {
   chainId: number
   onTxId?: (txId: string) => void
 }
-
-const withEthSuffix = (name: string) =>
-  name.endsWith('.eth') ? name : `${name}.eth`
 
 export async function startSyncEthAddressRecordTransaction(
   params: SyncEthAddressRecordParams,
@@ -41,7 +39,7 @@ export async function startSyncEthAddressRecordTransaction(
     onTxId,
   } = params
 
-  const cleanName = withEthSuffix(name)
+  const cleanName = requireCanonicalPrimaryName(name)
 
   // Use ensjs to build the write parameters
   // publicClient is used only for chain metadata — ensjs doesn't send transactions here

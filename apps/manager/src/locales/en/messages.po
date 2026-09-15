@@ -2076,6 +2076,7 @@ msgstr "Search my names"
 msgid "Search name, address..."
 msgstr "Search name, address..."
 
+#: src/features/dashboard/components/PrimaryNameListControls.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Search names"
@@ -2126,6 +2127,10 @@ msgstr "Select coin"
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Select payment"
 msgstr "Select payment"
+
+#: src/features/dashboard/components/PrimaryNameListControls.tsx
+msgid "Selected: {selectedName}"
+msgstr "Selected: {selectedName}"
 
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Send Verification"

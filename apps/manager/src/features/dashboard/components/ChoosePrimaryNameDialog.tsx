@@ -1,13 +1,9 @@
-import {
-  Domain_OrderBy,
-  type DomainsQuery,
-  OrderDirection,
-} from '@ens-apps/indexer'
+import type { DomainsQuery } from '@ens-apps/indexer'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Check } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
@@ -44,13 +40,18 @@ import {
 } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { hasOwnerWallet } from '@/lib/wallet'
-import { getDomainsQuery } from '../service/queries/getDashboardDomains'
+import { usePrimaryNameDomains } from '../hooks/usePrimaryNameDomains'
 import { resolveDomainLabel } from '../utils'
 import {
   getEthAddressFromRecords,
   isConfirmBlocked,
+  PRIMARY_NAME_PAGE_SIZE,
   shouldUpdateEthAddress,
 } from './ChoosePrimaryNameDialog.handlers'
+import {
+  PrimaryNameListFooter,
+  PrimaryNameSearch,
+} from './PrimaryNameListControls'
 
 interface ChoosePrimaryNameDialogProps {
   readonly onUpdated?: () => void
@@ -58,8 +59,12 @@ interface ChoosePrimaryNameDialogProps {
 }
 
 type PrimaryNameDomain = DomainsQuery['domains'][number]
-type PrimaryNameQueryVariables = Parameters<typeof getDomainsQuery>[0]
 type SelectedNameRecords = Parameters<typeof getEthAddressFromRecords>[0]
+
+const getPrimaryNameErrorMessage = (
+  error: Error | null,
+  fallback: string,
+): string | undefined => (error ? error.message || fallback : undefined)
 
 const getSetupResolverErrorMessage = (
   error: Error | null,
@@ -79,7 +84,10 @@ const getSetupResolverErrorMessage = (
 
 const PrimaryNameSkeletonList = () => (
   <div className="flex flex-col gap-2">
-    {Array.from({ length: 3 }, (_, i) => `skeleton-${i}`).map((skeletonId) => (
+    {Array.from(
+      { length: PRIMARY_NAME_PAGE_SIZE },
+      (_, i) => `skeleton-${i}`,
+    ).map((skeletonId) => (
       <div className="flex items-center gap-3 rounded-sm p-3" key={skeletonId}>
         <div className="size-8.5 shrink-0 animate-pulse rounded-sm bg-gray-200" />
         <div className="h-5 w-37.5 animate-pulse rounded bg-gray-200" />
@@ -197,6 +205,36 @@ const PrimaryNameErrorNotice = ({
   )
 }
 
+const EthAddressUpdateNotice = ({
+  show,
+  ownerAddress,
+  existingEthAddress,
+}: {
+  readonly show: boolean
+  readonly ownerAddress: Address | null
+  readonly existingEthAddress: string | undefined
+}) => {
+  const { t } = useLingui()
+  if (!show || !ownerAddress) return null
+  return (
+    <Alert variant="warning">
+      <AlertCircle />
+      <AlertDescription>
+        <p>
+          {existingEthAddress
+            ? t`This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary.`
+            : t`This name doesn’t have a wallet address yet. If you continue, we’ll set it to your current wallet and make this name your primary.`}
+        </p>
+        <div className="mt-2 w-full rounded-md bg-amber-100/60 px-2.5 py-1.5">
+          <p className="break-all font-mono text-amber-900 text-xs">
+            {ownerAddress}
+          </p>
+        </div>
+      </AlertDescription>
+    </Alert>
+  )
+}
+
 const useUpdateEthAddressMutation = ({
   account,
   chainId,
@@ -310,21 +348,6 @@ const useSetupResolverMutation = ({
   })
 }
 
-const getPrimaryNameQueryVariables = (
-  address: string | undefined,
-): PrimaryNameQueryVariables => {
-  const normalizedAddress = address?.toLowerCase()
-  if (!normalizedAddress) return undefined
-
-  return {
-    where: { owner: normalizedAddress },
-    first: 100,
-    skip: 0,
-    orderBy: Domain_OrderBy.Name,
-    orderDirection: OrderDirection.Asc,
-  }
-}
-
 export const ChoosePrimaryNameDialog = ({
   onUpdated,
   children,
@@ -341,7 +364,6 @@ export const ChoosePrimaryNameDialog = ({
   const {
     submit: submitPrimaryName,
     isSubmitting,
-    isError,
     error: primaryNameError,
   } = useSetPrimaryName({
     onSuccess: () => {
@@ -360,9 +382,10 @@ export const ChoosePrimaryNameDialog = ({
     },
   })
 
-  const primaryNameErrorMessage =
-    (isError && (primaryNameError?.message || t`Failed to set primary name`)) ||
-    undefined
+  const primaryNameErrorMessage = getPrimaryNameErrorMessage(
+    primaryNameError,
+    t`Failed to set primary name`,
+  )
 
   // Fetch current primary name from reverse resolver
   const { data: reverseName } = useQuery({
@@ -370,29 +393,15 @@ export const ChoosePrimaryNameDialog = ({
     enabled: open && !!account.ownerAddress,
   })
 
-  // Fetch all owned names
-  const queryVariables = getPrimaryNameQueryVariables(address)
-
-  const { data: domainsData, isLoading } = useQuery(
-    getDomainsQuery(open ? queryVariables : undefined),
-  )
-  const allDomains = domainsData?.domains ?? []
-
-  // Sort domains to always show primary name first
-  const domains = useMemo(
-    () =>
-      [...allDomains].sort((a, b) => {
-        const labelA = resolveDomainLabel(a)
-        const labelB = resolveDomainLabel(b)
-        const isPrimaryA = labelA.toLowerCase() === reverseName?.toLowerCase()
-        const isPrimaryB = labelB.toLowerCase() === reverseName?.toLowerCase()
-
-        if (isPrimaryA) return -1
-        if (isPrimaryB) return 1
-        return 0
-      }),
-    [allDomains, reverseName],
-  )
+  const nameList = usePrimaryNameDomains({
+    address,
+    ownerAddress: account.ownerAddress,
+    open,
+    reverseName,
+    selectedName,
+  })
+  const { domains, isLoading, hasForwardAddressError, isSelectedNameOffered } =
+    nameList
 
   const {
     data: selectedNameRecords,
@@ -400,7 +409,7 @@ export const ChoosePrimaryNameDialog = ({
     isError: isRecordsError,
   } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
-    enabled: open && !!selectedName,
+    enabled: open && isSelectedNameOffered,
   })
   const existingEthAddress = getEthAddressFromRecords(selectedNameRecords)
   const needsEthAddressUpdate = shouldUpdateEthAddress({
@@ -427,7 +436,7 @@ export const ChoosePrimaryNameDialog = ({
       selectedName ?? undefined,
       (account.ownerAddress as Address | null) ?? undefined,
     ),
-    enabled: open && Boolean(selectedName) && Boolean(account.ownerAddress),
+    enabled: open && isSelectedNameOffered,
   })
 
   // No write access → confirm, then set up a controlled resolver before primary.
@@ -450,7 +459,7 @@ export const ChoosePrimaryNameDialog = ({
   }, [reverseName, selectedName])
 
   const handleSelectName = (name: string) => {
-    if (!isSubmitting) {
+    if (!isSubmitting && !isPreparing) {
       updateEthAddressMutation.reset()
       setupResolverMutation.reset()
       setSelectedName(name)
@@ -458,7 +467,7 @@ export const ChoosePrimaryNameDialog = ({
   }
 
   const runConfirm = async () => {
-    if (!selectedName || !account.ownerAddress) return
+    if (!selectedName || !account.ownerAddress || !isSelectedNameOffered) return
 
     if (!hasOwnerWallet(account.walletClient, account.ownerAddress)) {
       toast.error(t`Wallet isn’t ready yet. Try again in a moment.`)
@@ -486,7 +495,7 @@ export const ChoosePrimaryNameDialog = ({
   }
 
   const handleConfirm = () => {
-    if (!selectedName || !account.ownerAddress) return
+    if (!selectedName || !account.ownerAddress || !isSelectedNameOffered) return
 
     if (!hasOwnerWallet(account.walletClient, account.ownerAddress)) {
       toast.error(t`Wallet isn’t ready yet. Try again in a moment.`)
@@ -513,13 +522,14 @@ export const ChoosePrimaryNameDialog = ({
   const showEthAddressInfo = needsEthAddressUpdate && !needsResolverSetup
   const isPreparing =
     updateEthAddressMutation.isPending || setupResolverMutation.isPending
+  const isBusy = isSubmitting || isPreparing
   const confirmDisabled = isConfirmBlocked({
     isSubmitting,
     isPreparing,
     resolverAccessSettled: resolverWriteAccess.isSuccess,
     recordsSettled,
     hasChanges,
-    selectedName,
+    selectedName: isSelectedNameOffered ? selectedName : null,
   })
   const actionErrorMessage =
     // Probe failures first: both choose the branch, so neither can be silent —
@@ -541,7 +551,10 @@ export const ChoosePrimaryNameDialog = ({
       notReady: t`The replacement resolver could not be verified. Please try again.`,
     }) ??
     updateEthAddressMutation.error?.message ??
-    primaryNameErrorMessage
+    primaryNameErrorMessage ??
+    (hasForwardAddressError
+      ? t`Couldn’t load this name’s records. Please try again in a moment.`
+      : undefined)
 
   return (
     <>
@@ -561,10 +574,19 @@ export const ChoosePrimaryNameDialog = ({
           </DialogHeader>
 
           <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
+            <PrimaryNameSearch
+              disabled={isBusy}
+              onChange={nameList.onSearchChange}
+              value={nameList.searchQuery}
+            />
             {/* Names List */}
-            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
-              {match({ isLoading, domains })
+            <div
+              aria-busy={isLoading}
+              className="flex h-80 min-h-0 flex-col gap-2 overflow-y-auto pr-1"
+            >
+              {match({ isLoading, domains, hasForwardAddressError })
                 .with({ isLoading: true }, () => <PrimaryNameSkeletonList />)
+                .with({ domains: [], hasForwardAddressError: true }, () => null)
                 .with({ domains: [] }, () => (
                   <div className="py-8 text-center font-sans text-muted-foreground text-sm">
                     <Trans>No names found</Trans>
@@ -574,7 +596,7 @@ export const ChoosePrimaryNameDialog = ({
                   domains.map((domain) => (
                     <PrimaryNameOption
                       domain={domain}
-                      isSubmitting={isSubmitting}
+                      isSubmitting={isBusy}
                       key={domain.id}
                       onSelectName={handleSelectName}
                       selectedName={selectedName}
@@ -583,31 +605,25 @@ export const ChoosePrimaryNameDialog = ({
                 )}
             </div>
 
+            <PrimaryNameListFooter
+              disabled={isBusy}
+              pagination={nameList}
+              selectedName={selectedName}
+            />
+
             {/* Error Message */}
             <PrimaryNameErrorNotice errorMessage={actionErrorMessage} />
             {/* ETH Address Mismatch/Missing Info */}
-            {showEthAddressInfo && account.ownerAddress && (
-              <Alert variant="warning">
-                <AlertCircle />
-                <AlertDescription>
-                  <p>
-                    {existingEthAddress
-                      ? t`This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary.`
-                      : t`This name doesn’t have a wallet address yet. If you continue, we’ll set it to your current wallet and make this name your primary.`}
-                  </p>
-                  <div className="mt-2 w-full rounded-md bg-amber-100/60 px-2.5 py-1.5">
-                    <p className="break-all font-mono text-amber-900 text-xs">
-                      {account.ownerAddress}
-                    </p>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
+            <EthAddressUpdateNotice
+              existingEthAddress={existingEthAddress}
+              ownerAddress={account.ownerAddress}
+              show={showEthAddressInfo}
+            />
             {/* Action Buttons */}
             <div className="flex shrink-0 gap-3">
               <Button
                 className="h-12 flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
-                disabled={isSubmitting || isPreparing}
+                disabled={isBusy}
                 onClick={handleCancel}
                 variant="outline"
               >

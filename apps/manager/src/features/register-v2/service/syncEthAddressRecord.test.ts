@@ -51,6 +51,25 @@ afterEach(() => {
 })
 
 describe('syncEthAddressRecord', () => {
+  it.each([
+    'ALICE.eth',
+    'cafe\u0301.eth',
+  ])('rejects the noncanonical registered name %s before writing', async (name) => {
+    await expect(
+      startSyncEthAddressRecordTransaction({
+        name,
+        ownerAddress: OWNER,
+        resolverAddress: RESOLVER,
+        signer: { type: 'eoa', walletClient: {} as never },
+        accountAddress: ACCOUNT,
+        publicClient,
+        chainId: CHAIN_ID,
+      }),
+    ).rejects.toThrow(/canonical/)
+    expect(setRecords).not.toHaveBeenCalled()
+    expect(start).not.toHaveBeenCalled()
+  })
+
   it('starts an EOA request and returns its tx id', async () => {
     const onTxId = vi.fn()
 

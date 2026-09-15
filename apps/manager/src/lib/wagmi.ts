@@ -2,12 +2,12 @@ import {
   orderedSepoliaRpcUrls,
   WALLETCONNECT_PROJECT_ID,
 } from '@ens-apps/indexer/chain'
-import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { createIsomorphicFn } from '@tanstack/react-start'
 import { createPublicClient, fallback, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
+import { managerEnsChain } from '@/lib/ensChain'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
 // Manager owns its Sepolia RPC URL — it must NOT reuse the RPC URL exported by
@@ -63,7 +63,10 @@ export const customSepolia = {
   },
 }
 
-export const sepoliaWithEns = extendChainWithEns(customSepolia)
+export const sepoliaWithEns = {
+  ...managerEnsChain,
+  rpcUrls: customSepolia.rpcUrls,
+}
 
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,

@@ -2081,6 +2081,7 @@ msgstr ""
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
+#: src/features/dashboard/components/PrimaryNameListControls.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Search names"
@@ -2130,6 +2131,10 @@ msgstr ""
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Select payment"
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameListControls.tsx
+msgid "Selected: {selectedName}"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
