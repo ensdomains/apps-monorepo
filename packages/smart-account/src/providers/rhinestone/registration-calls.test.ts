@@ -41,7 +41,7 @@ const EXPECTED_ROLES_ALL =
 describe('computeResolverAddress', () => {
   it('uses the pinned proxy logic to derive the exact CREATE2 address', () => {
     expect(computeResolverAddress({ chainId: sepolia.id, hca: HCA })).toBe(
-      '0xA7b56bee6642A7EF6e68231ce6a5B94a6Ba4F5f9',
+      '0x5eAfCf4a3Dcd46E477fFB7CDe15B32AC14c7a436',
     )
   })
 })
@@ -79,12 +79,13 @@ describe('buildRevealBatch ordering', () => {
   })
 
   it('matches the deployed policy keccak for the deployProxy call', () => {
-    // HCAResolverPolicyLib.checkDeployment builds the ENTIRE expected calldata
-    // from its own constants — only the salt is read from ours — and compares
-    // keccak hashes. Reproduced here from the Sourcify-verified source of the
-    // deployed validator (0xeb099163), so any drift in grants, in the empty
-    // `calls` array, or in the impl address fails here rather than on chain as
-    // an opaque PolicyRuleFailed()/InvalidSignature().
+    // HCAResolverPolicyLib.checkDeployment requires grants of exactly
+    // [(hca, ALL_ROLES), (owner, ALL_ROLES)], re-encodes the call around its
+    // own PERMITTED_RESOLVER_IMPL and compares keccak hashes. Reproduced here
+    // from the deployed validator's source (0x6a62af42, the build-info in
+    // contracts-v2 `deployments/sepolia` @ 71a3b733), so drift in the grants,
+    // the encoding or the impl address fails here rather than on chain as an
+    // opaque PolicyRuleFailed()/InvalidSignature().
     const calls = buildRevealBatch({ ...base, resolverDeployed: false })
     const salt = computeResolverSalt(HCA)
 
@@ -155,10 +156,9 @@ describe('buildRevealBatch ordering', () => {
     expect(grants[1].roleBitmap).toBe(EXPECTED_ROLES_ALL)
     expect((init.args as any)[1]).toHaveLength(0)
 
-    // ...and the record write is a standalone, individually-whitelisted call.
-    // 0xb4436dde is what the deployed validator's SET_ADDRESS_SELECTOR()
-    // returns; the v1 setAddr 0x8b95dd71 is on neither the resolver nor the
-    // policy's whitelist.
+    // ...and the record write is a standalone, individually-checked call.
+    // 0xb4436dde is `IAddressSetter.setAddress`, on the policy's record-setter
+    // list; the v1 setAddr 0x8b95dd71 is on neither the resolver nor that list.
     const setAddressCalls = calls.filter(
       (c) =>
         c.to.toLowerCase() === RESOLVER.toLowerCase() &&
@@ -210,7 +210,8 @@ describe('buildRevealBatch ordering', () => {
     )
     expect(adapterIdx).toBeGreaterThan(-1)
     expect(adapterIdx).toBeGreaterThan(lastRecordIdx)
-    // setNameWithHCA — matches the validator's SET_NAME_WITH_HCA_SELECTOR()
+    // setNameWithHCA(address,string) — the only selector the validator accepts
+    // on DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER
     expect(calls[adapterIdx].data.startsWith('0xab863445')).toBe(true)
   })
 

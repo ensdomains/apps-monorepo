@@ -17,7 +17,7 @@
  *   - Reveal leg (after cooldown, session-signed, no wallet prompt):
  *       price re-read immediately before; exact-ordered reveal batch from
  *       `buildRevealBatch` (deployProxy? → approve(price) → register(wallet) →
- *       setters → setNameWithHCA? → authorizeNameRoles).
+ *       setters → setNameWithHCA?).
  */
 
 import {

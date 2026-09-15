@@ -117,8 +117,8 @@ const getPendingSave = (
 
   // In-place record writes are ALWAYS plain owner-EOA transactions, never HCA
   // intents. Registration hands the owner wallet every role on the resolver
-  // (`authorizeNameRoles('0x00', ROLES.ALL, wallet, true)` closes the reveal
-  // batch), so the EOA can write directly. Routing the same write through the
+  // (the resolver's `initialize` grants it the root roles alongside the HCA),
+  // so the EOA can write directly. Routing the same write through the
   // HCA instead fails twice over: a session-signed intent hits
   // `HCAOwnerAndSessionValidator`, whose action policy allowlists only the
   // registration selectors, and reverts `PolicyRuleFailed()` re-wrapped as

@@ -53,8 +53,8 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  *    the HCA lazily
  * 4. Shared cooldown spine (against the standalone registrar)
  * 5. `submittingRhinestoneBundle` — price re-read + exact-ordered reveal batch
- *    (deployProxy? → approve → register(wallet) → setters → setNameWithHCA? →
- *    authorizeNameRoles); session-signed, no wallet prompt
+ *    (deployProxy? → approve → register(wallet) → setters → setNameWithHCA?);
+ *    session-signed, no wallet prompt
  * 6. Verify against the standalone registry
  *
  * Persistence is handled automatically via inspect option (see export at bottom)
