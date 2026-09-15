@@ -165,7 +165,14 @@ describe('/renew/$name loader', () => {
       protocol: 'v2',
     })
 
+    // Asserted by name, not just call count: reading the expiry for the raw
+    // `ALICE.ETH` would price a different registration than the one renewed.
     expect(fetchQuery).toHaveBeenCalledOnce()
+    expect(fetchQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: [expect.objectContaining({ name: 'alice.eth' })],
+      }),
+    )
     expect(outcome).toEqual({ label: 'alice', currentExpiry: EXPIRY_2030 })
   })
 
