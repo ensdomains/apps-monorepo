@@ -15,6 +15,8 @@
  *   parent's registry owner. Crossing the two — a wrapped parent over an
  *   unwrapped child or vice versa — would forcibly wrap or unwrap the child, so
  *   like the legacy app we don't offer it.
+ * - `BaseRegistrar.reclaim` is `onlyTokenOwner` + `live`, so only the registrant
+ *   of an unwrapped, unexpired `.eth` 2LD can take its manager role back.
  */
 
 import { match, P } from 'ts-pattern'
@@ -248,3 +250,26 @@ export const getV1Holder = (subject: V1TransferSubject): Address =>
     .with({ kind: 'v1-registrar' }, ({ registrant }) => registrant)
     .with({ kind: 'v1-wrapped' }, { kind: 'v1-registry' }, ({ owner }) => owner)
     .exhaustive()
+
+/**
+ * Whether `account` can take the manager role back with
+ * `BaseRegistrar.reclaim(tokenId, account)` — what the Ownership page's Reclaim
+ * button is gated on, and the way out of the `registrant-only` refusal above.
+ *
+ * Only an unwrapped `.eth` 2LD reaches this: it is the one shape where the
+ * ERC-721 registrant and the registry owner can be different wallets. `live(id)`
+ * rules out grace (`expiries[id]` has already passed), though in practice a name
+ * in grace arrives with no registrant at all because `ownerOf` reverts first.
+ * A manager that is already `account` has nothing to reclaim; an absent one does.
+ */
+export const canReclaimV1Manager = (
+  state: V1NameState | null | undefined,
+  account: Address | undefined,
+): boolean =>
+  !!state &&
+  !!account &&
+  state.subject?.kind === 'v1-registrar' &&
+  state.registration === 'active' &&
+  isAddressEqual(state.subject.registrant, account) &&
+  (!state.subject.controller ||
+    !isAddressEqual(state.subject.controller, account))
