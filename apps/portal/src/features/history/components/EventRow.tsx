@@ -1,6 +1,7 @@
 import { match } from 'ts-pattern'
 import { isAddress, zeroAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
+import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   decodeRoleChange,
@@ -114,7 +115,7 @@ const EventContent = ({ event }: { event: TimelineIndexerEvent }) =>
         <span className={muted}>set</span>
         {event.asTextChanged?.key && (
           <ActionValue copyValue={event.asTextChanged.key}>
-            {event.asTextChanged.key}
+            {sanitizeOnChainText(event.asTextChanged.key)}
           </ActionValue>
         )}
       </>

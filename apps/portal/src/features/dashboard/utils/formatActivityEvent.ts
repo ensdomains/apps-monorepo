@@ -3,6 +3,7 @@ import {
   parseEventData,
   readString,
 } from '@/features/history/summarize/decodeRawData'
+import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
 
 type ActivityEntity = {
@@ -133,7 +134,10 @@ export const formatActivityEvent = (
   const result: FormattedActivity = { text: descriptor.text }
 
   if (descriptor.valueField) {
-    const value = readString(parsedData, descriptor.valueField)
+    const raw = readString(parsedData, descriptor.valueField)
+    // Anyone can put arbitrary bytes in a text record key, and this feed is the
+    // landing page for every visitor — sanitize before it reaches the row.
+    const value = raw && sanitizeOnChainText(raw)
     if (value) result.value = value
   }
 
