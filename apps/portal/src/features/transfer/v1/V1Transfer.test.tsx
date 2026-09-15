@@ -1,4 +1,4 @@
-import { decodeFuses } from '@ensdomains/ensjs/utils'
+import { ChildFuses, decodeFuses, ParentFuses } from '@ensdomains/ensjs/utils'
 import { render, screen } from '@testing-library/react'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -16,15 +16,21 @@ vi.mock('./getV1NameState', async (importOriginal) => ({
 
 const { getV1NameStateQueryOptions } = await import('./getV1NameState')
 
+const PARENT_CANNOT_CONTROL = Number(ParentFuses.PARENT_CANNOT_CONTROL)
+const CANNOT_CREATE_SUBDOMAIN = Number(ChildFuses.CANNOT_CREATE_SUBDOMAIN)
+
 const A = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
 const B = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
 const WRAPPER = '0x0635513f179D50A207757E05759CbD106d7dFcE8' as Address
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
 
-const wrapperData = (owner: Address): V1NameReads['wrapped'] => ({
+const wrapperData = (
+  owner: Address,
+  fuses = 0,
+): NonNullable<V1NameReads['wrapped']> => ({
   owner,
   expiry: 1_821_784_092_000n,
-  fuses: { ...decodeFuses(0), value: 0 },
+  fuses: { ...decodeFuses(fuses), value: fuses },
 })
 
 /** `other.label.eth`: wrapped, held by B, issued by the owner of `label.eth`. */
@@ -100,5 +106,47 @@ describe('V1Transfer — a subname whose parent is in its grace period', () => {
     )
 
     expect(await screen.findByText('Not authorized')).toBeInTheDocument()
+  })
+})
+
+/** `other.label.eth` emancipated under a wrapped `label.eth` held by A. */
+const emancipatedUnder = (parentFuses: number): Partial<V1NameReads> => ({
+  wrapped: wrapperData(B, PARENT_CANNOT_CONTROL),
+  parentOwner: {
+    owner: WRAPPER,
+    registrant: null,
+    ownershipLevel: 'registrar',
+  },
+  parentWrapped: wrapperData(A, parentFuses),
+})
+
+describe('V1Transfer — an emancipated subname, seen by the parent’s owner', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  // The card used to send them to the Subnames page, which is read-only for a
+  // V1 parent — this app only creates subnames on an ENSv2 name.
+  it('points the re-issue route at the ENS Manager, not the Subnames page', async () => {
+    renderAs(A, reads(emancipatedUnder(PARENT_CANNOT_CONTROL)))
+
+    expect(
+      await screen.findByText('This subname is out of the parent’s control'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Subnames page/)).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Open in ENS Manager' }),
+    ).toHaveAttribute('href', 'https://app.ens.domains/label.eth')
+  })
+
+  it('promises no re-issue once the parent has burned CANNOT_CREATE_SUBDOMAIN', async () => {
+    renderAs(
+      A,
+      reads(emancipatedUnder(PARENT_CANNOT_CONTROL | CANNOT_CREATE_SUBDOMAIN)),
+    )
+
+    expect(
+      await screen.findByText(/can never be issued again/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/issue the label again/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 })

@@ -8,7 +8,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { MessageCard } from '@/components/ui/message-card'
 import { getEth2LDAncestor, getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { getV1NameStateQueryOptions } from './getV1NameState'
-import { getV1TransferGate } from './rules'
+import { canParentReissueV1Subname, getV1TransferGate } from './rules'
 import { V1SendName } from './V1SendName'
 
 const Name = ({ children }: { readonly children: ReactNode }) => (
@@ -238,10 +238,33 @@ export const V1Transfer = ({
               <span className="font-mono">PARENT_CANNOT_CONTROL</span> fuse.
               Until it expires, only its own owner can move it.
             </p>
-            <Muted>
-              Once it expires you can issue it again from the Subnames page.
-            </Muted>
+            {canParentReissueV1Subname(state.parent) ? (
+              // This app only issues subnames on ENSv2 names, so the way to
+              // re-issue a V1 label is the legacy manager — not our Subnames
+              // page, which is read-only for a V1 parent.
+              <Muted>
+                Once it expires you can issue the label again from{' '}
+                <Name>{parentName}</Name> in the ENS Manager.
+              </Muted>
+            ) : (
+              <Muted>
+                <Name>{parentName}</Name> has also burned{' '}
+                <span className="font-mono">CANNOT_CREATE_SUBDOMAIN</span>, so
+                this subname can never be issued again — not even once it
+                expires.
+              </Muted>
+            )}
           </>
+        }
+        actionButton={
+          parentName && canParentReissueV1Subname(state.parent)
+            ? {
+                label: 'Open in ENS Manager',
+                href: `https://app.ens.domains/${encodeURIComponent(parentName)}`,
+                external: true,
+                variant: 'outline',
+              }
+            : undefined
         }
       />
     ))
