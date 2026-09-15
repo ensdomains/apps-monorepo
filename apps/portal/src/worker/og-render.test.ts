@@ -75,8 +75,8 @@ describe('resolverPageLabel', () => {
   it('maps known subpages', () => {
     expect(resolverPageLabel('roles')).toBe('Roles')
     expect(resolverPageLabel('nodes')).toBe('Nodes')
-    expect(resolverPageLabel('aliases')).toBe('Aliases')
-    expect(resolverPageLabel('create-alias')).toBe('Create Alias')
+    expect(resolverPageLabel('links')).toBe('Links')
+    expect(resolverPageLabel('create-link')).toBe('Link a Name')
     expect(resolverPageLabel('history')).toBe('History')
   })
 

@@ -1,4 +1,3 @@
-import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
 import { Trash2 } from 'lucide-react'
@@ -39,7 +38,8 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { AccountRoleGroup } from '@/lib/roles/resolverRoles'
 import {
-  type ResolverRoleKey,
+  type ResolverRole,
+  ROOT_RESOURCE,
   resolverPermissions,
 } from '@/lib/roles/resolverRoles'
 import {
@@ -68,6 +68,7 @@ const EditPermissionList = ({
   editedPermissions,
   onChange,
   canManageRoles,
+  canGrant,
   disabled,
 }: {
   readonly editedPermissions: Map<string, Permission>
@@ -77,6 +78,8 @@ const EditPermissionList = ({
     checked: boolean,
   ) => void
   readonly canManageRoles: boolean
+  /** False for argument-scoped rows: roles there can only be revoked. */
+  readonly canGrant: boolean
   readonly disabled: boolean
 }) => (
   <div className="border border-border rounded-sm overflow-hidden">
@@ -105,7 +108,11 @@ const EditPermissionList = ({
               <Checkbox
                 id={`${permission.key}-manager`}
                 checked={rolePerms.manager}
-                disabled={!canManageRoles || disabled}
+                disabled={
+                  !canManageRoles ||
+                  disabled ||
+                  (!canGrant && !rolePerms.manager)
+                }
                 onCheckedChange={(checked) =>
                   onChange(permission.key, 'manager', checked as boolean)
                 }
@@ -163,10 +170,10 @@ export const ResolverRolesSidebar = ({
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
   const selectedAccount = row?.original.account as Address
-  const decodedRoles = (row?.original.decodedRoles ?? []) as ResolverRoleKey[]
-  const resolvedNames = row?.original.resolvedNames ?? []
-
-  const roleName = resolvedNames.find((n) => n !== '(root)') ?? ''
+  const decodedRoles = (row?.original.decodedRoles ?? []) as ResolverRole[]
+  const resource = row ? BigInt(row.original.resource) : ROOT_RESOURCE
+  const isRootScope = resource === ROOT_RESOURCE
+  const resourceLabel = row?.original.resourceLabel
   const originalPermissions = useMemo(
     () => roleToPermissions(decodedRoles),
     [decodedRoles],
@@ -194,15 +201,15 @@ export const ResolverRolesSidebar = ({
 
   const saveMutation = useMutation({
     mutationFn: async ({
-      name,
+      resource,
       account,
       rolesToGrant,
       rolesToRevoke,
     }: {
-      readonly name: string
+      readonly resource: bigint
       readonly account: Address
       readonly rolesToGrant: ResolverRole[]
-      readonly rolesToRevoke: ResolverRoleKey[]
+      readonly rolesToRevoke: ResolverRole[]
     }) => {
       if (!walletClient?.account || !publicClient) {
         throw new Error('Wallet not connected')
@@ -210,11 +217,15 @@ export const ResolverRolesSidebar = ({
       const signer = createEOASigner(walletClient)
 
       if (rolesToGrant.length > 0) {
+        if (resource !== ROOT_RESOURCE) {
+          throw new Error(
+            'Argument-scoped roles are granted from the Add user form',
+          )
+        }
         await grantResolverRoles({
           resolverAddress,
-          name,
           account,
-          roles: rolesToGrant,
+          scope: { type: 'root', roles: rolesToGrant },
           walletClient,
           publicClient,
           signer,
@@ -226,7 +237,7 @@ export const ResolverRolesSidebar = ({
       if (rolesToRevoke.length > 0) {
         await revokeResolverRoles({
           resolverAddress,
-          name,
+          resource,
           account,
           roles: rolesToRevoke,
           walletClient,
@@ -250,13 +261,13 @@ export const ResolverRolesSidebar = ({
 
   const removeUserMutation = useMutation({
     mutationFn: async ({
-      name,
+      resource,
       account,
       roles,
     }: {
-      readonly name: string
+      readonly resource: bigint
       readonly account: Address
-      readonly roles: readonly ResolverRoleKey[]
+      readonly roles: readonly ResolverRole[]
     }) => {
       if (!walletClient?.account || !publicClient) {
         throw new Error('Wallet not connected')
@@ -265,7 +276,7 @@ export const ResolverRolesSidebar = ({
 
       return revokeResolverRoles({
         resolverAddress,
-        name,
+        resource,
         account,
         roles,
         walletClient,
@@ -296,7 +307,7 @@ export const ResolverRolesSidebar = ({
     if (!selectedAccount || saveMutation.isPending) return
     setPendingAction({
       type: 'save',
-      name: roleName,
+      resource,
       account: selectedAccount,
       rolesToGrant: rolesToGrant,
       rolesToRevoke: rolesToRevoke,
@@ -315,7 +326,7 @@ export const ResolverRolesSidebar = ({
     removeUserMutation.reset()
     setPendingAction({
       type: 'remove',
-      name: roleName,
+      resource,
       account: selectedAccount,
       roles: decodedRoles,
     })
@@ -388,11 +399,11 @@ export const ResolverRolesSidebar = ({
 
             {row ? (
               <div className="flex flex-col gap-6">
-                {selectedAccount && resolvedNames.length > 0 && (
+                {selectedAccount && resourceLabel && (
                   <p className="text-sm text-muted-foreground">
-                    {resolvedNames.includes('(root)')
+                    {isRootScope
                       ? 'Global roles (all names)'
-                      : `Roles scoped to ${resolvedNames.filter((n) => n !== '(root)').join(', ')}`}
+                      : `Roles scoped to ${resourceLabel}. Scoped roles can be revoked here; grant new ones from Add user.`}
                   </p>
                 )}
 
@@ -410,6 +421,7 @@ export const ResolverRolesSidebar = ({
                     editedPermissions={editedPermissions}
                     onChange={handlePermissionChange}
                     canManageRoles={canEdit}
+                    canGrant={isRootScope}
                     disabled={saveMutation.isPending}
                   />
                 </div>
@@ -487,14 +499,14 @@ export const ResolverRolesSidebar = ({
                 if (!pendingAction) return
                 if (pendingAction.type === 'remove') {
                   removeUserMutation.mutate({
-                    name: pendingAction.name,
+                    resource: pendingAction.resource,
                     account: pendingAction.account,
                     roles: pendingAction.roles,
                   })
                   return
                 }
                 saveMutation.mutate({
-                  name: pendingAction.name,
+                  resource: pendingAction.resource,
                   account: pendingAction.account,
                   rolesToGrant: pendingAction.rolesToGrant,
                   rolesToRevoke: pendingAction.rolesToRevoke,
