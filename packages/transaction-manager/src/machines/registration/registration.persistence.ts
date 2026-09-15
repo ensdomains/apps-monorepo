@@ -261,9 +261,20 @@ export function buildRegistrationRecord(
  *
  * Same `{ __bigint }` envelope `helpers/transaction-persistence.ts` already
  * uses, so a record written by either path reads back the same way.
+ *
+ * The replacer reads the original value off its holder rather than trusting
+ * the `value` argument: `JSON.stringify` runs a `toJSON` method before the
+ * replacer, and an app that shims `BigInt.prototype.toJSON` (the portal emits
+ * them as bare `JSON.rawJSON` numbers) would otherwise hand it a non-bigint.
+ * The record was then written without envelopes, failed validation on load,
+ * and read as "nothing stored": every reload restarted the registration.
  */
-const bigintReplacer = (_key: string, value: unknown) =>
-  typeof value === 'bigint' ? { __bigint: value.toString() } : value
+function bigintReplacer(this: unknown, key: string, value: unknown) {
+  const original = (this as Record<string, unknown>)[key]
+  return typeof original === 'bigint'
+    ? { __bigint: original.toString() }
+    : value
+}
 
 const bigintReviver = (_key: string, value: unknown) =>
   value && typeof value === 'object' && '__bigint' in value

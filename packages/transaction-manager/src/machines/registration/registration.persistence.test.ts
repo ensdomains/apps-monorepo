@@ -196,6 +196,40 @@ describe('registration record serialization', () => {
     )
   })
 
+  it('round-trips bigints under an app-wide BigInt toJSON shim', () => {
+    // The portal installs exactly this in main.tsx. `JSON.stringify` runs it
+    // before any replacer, so a record written through it lost its envelopes,
+    // failed validation on load, and every reload restarted the registration.
+    const proto = BigInt.prototype as { toJSON?: () => unknown }
+    const previous = Object.getOwnPropertyDescriptor(proto, 'toJSON')
+    proto.toJSON = function (this: bigint) {
+      return (
+        JSON as unknown as { rawJSON: (text: string) => unknown }
+      ).rawJSON(this.toString())
+    }
+
+    try {
+      const record = buildRegistrationRecord(
+        'commitmentCooldown',
+        baseContext({
+          resolverSalt: 2n ** 200n,
+          commitment: { commitment: COMMITMENT, secret: SECRET },
+        }),
+        42,
+      )
+
+      const result = parseRegistrationRecord(
+        serializeRegistrationRecord(record),
+      )
+
+      expect(result._unsafeUnwrap()).toEqual(record)
+      expect(result._unsafeUnwrap().context.resolverSalt).toBe(2n ** 200n)
+    } finally {
+      if (previous) Object.defineProperty(proto, 'toJSON', previous)
+      else delete proto.toJSON
+    }
+  })
+
   it('drops the non-serializable deps rather than trying to encode them', () => {
     const serialized = serializeRegistrationContext(
       baseContext({
