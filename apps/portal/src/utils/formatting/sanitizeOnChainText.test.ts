@@ -26,6 +26,21 @@ describe('sanitizeOnChainText', () => {
     expect(sanitizeOnChainText(`a${cp(0x200b)}b${cp(0xfeff)}c`)).toBe('a b c')
   })
 
+  it('should keep the joiners that hold emoji and Persian words together', () => {
+    const zwj = String.fromCodePoint(0x200d)
+    const zwnj = String.fromCodePoint(0x200c)
+    const devTeam = `\u{1F468}${zwj}\u{1F4BB}`
+    const persian = `می${zwnj}روم`
+    expect(sanitizeOnChainText(devTeam)).toBe(devTeam)
+    expect(sanitizeOnChainText(persian)).toBe(persian)
+  })
+
+  it('should trim joiners from the edges, where they only pad invisibly', () => {
+    const zwj = String.fromCodePoint(0x200d)
+    expect(sanitizeOnChainText(`${zwj} avatar ${zwj}`)).toBe('avatar')
+    expect(sanitizeOnChainText(zwj)).toBe('')
+  })
+
   it('should strip line and paragraph separators', () => {
     expect(sanitizeOnChainText(`a${String.fromCodePoint(0x2028)}b`)).toBe('a b')
   })
