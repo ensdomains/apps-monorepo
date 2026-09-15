@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro'
+import { Plural, Trans } from '@lingui/react/macro'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
@@ -85,15 +85,18 @@ export const UpgradeBanner = ({
                   <Trans>Upgrade your name to edit your new ENS profile.</Trans>
                 ))
                 .with({ isProfileBanner: false, nftCopyEnabled: true }, () => (
-                  <Trans>
-                    Upgrade your name(s) to unlock your new ENS profile and
-                    claim your personalized NFT.
-                  </Trans>
+                  <Plural
+                    one="Upgrade your name to unlock your new ENS profile and claim your personalized NFT."
+                    other="Upgrade your names to unlock your new ENS profile and claim your personalized NFT."
+                    value={eligibleV1Names.length}
+                  />
                 ))
                 .with({ isProfileBanner: false, nftCopyEnabled: false }, () => (
-                  <Trans>
-                    Upgrade your name(s) to unlock your new ENS profile.
-                  </Trans>
+                  <Plural
+                    one="Upgrade your name to unlock your new ENS profile."
+                    other="Upgrade your names to unlock your new ENS profile."
+                    value={eligibleV1Names.length}
+                  />
                 ))
                 .exhaustive()}
             </p>
