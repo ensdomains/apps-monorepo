@@ -127,6 +127,23 @@ export const toLinks = (
   return links
 }
 
+/**
+ * The links remaining after `sourceName` is unlinked. A link is a view over a
+ * shared-record group, so the unlinked name leaves every group it appeared in,
+ * and any row left sharing with nobody is no longer a link at all.
+ */
+export const pruneLinksAfterUnlink = (
+  links: readonly ResolverLink[],
+  sourceName: string,
+): ResolverLink[] =>
+  links
+    .filter((link) => link.name !== sourceName)
+    .map((link) => ({
+      ...link,
+      sharedWith: link.sharedWith.filter((other) => other !== sourceName),
+    }))
+    .filter((link) => link.sharedWith.length > 0)
+
 const getResolverOverview = ResultFn(async function* ({
   address,
 }: GetResolverOverviewParameters) {

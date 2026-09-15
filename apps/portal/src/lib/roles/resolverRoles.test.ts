@@ -111,3 +111,19 @@ describe('groupRolesByAccount', () => {
     expect(groupRolesByAccount([])).toEqual([])
   })
 })
+
+describe('groupRolesByAccount with a malformed resource', () => {
+  it('skips the row rather than folding it into the account root grant', () => {
+    const account = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+    const groups = groupRolesByAccount([
+      makeRole(account, 1n << 0n),
+      { account, resource: 'not-a-number', roleBitmap: (1n << 4n).toString() },
+    ])
+
+    // One group, the genuine root grant, and it must not have absorbed the
+    // malformed row's role: revoking it would otherwise target root.
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.isRoot).toBe(true)
+    expect(groups[0]?.decodedRoles).toEqual(['ROLE_SET_ADDRESS'])
+  })
+})

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toLinks } from './useResolverOverview'
+import { pruneLinksAfterUnlink, toLinks } from './useResolverOverview'
 
 // Shape mirrors the indexer's `resolvers(where: { address }) { linkedNames }`,
 // which is the live name -> recordId mapping built from `Linked` events. The
@@ -55,5 +55,47 @@ describe('toLinks', () => {
     expect(
       links.find((l) => l.name === 'b.eth')?.sharedWith.toSorted(),
     ).toEqual(['a.eth', 'c.eth'])
+  })
+})
+
+describe('pruneLinksAfterUnlink', () => {
+  const linksFor = (...entries: [string, string[]][]) =>
+    entries.map(([name, sharedWith]) => ({
+      name,
+      namehash: '0x00',
+      recordId: '7',
+      sharedWith,
+    }))
+
+  it('clears both rows when one of a pair is unlinked', () => {
+    const links = linksFor(['a.eth', ['b.eth']], ['b.eth', ['a.eth']])
+    expect(pruneLinksAfterUnlink(links, 'a.eth')).toEqual([])
+  })
+
+  it('keeps the rest of a larger group and drops the unlinked name from it', () => {
+    const links = linksFor(
+      ['a.eth', ['b.eth', 'c.eth']],
+      ['b.eth', ['a.eth', 'c.eth']],
+      ['c.eth', ['a.eth', 'b.eth']],
+    )
+    const pruned = pruneLinksAfterUnlink(links, 'a.eth')
+
+    expect(pruned.map((l) => l.name)).toEqual(['b.eth', 'c.eth'])
+    expect(pruned.every((l) => !l.sharedWith.includes('a.eth'))).toBe(true)
+    expect(pruned.find((l) => l.name === 'b.eth')?.sharedWith).toEqual([
+      'c.eth',
+    ])
+  })
+
+  it('leaves unrelated groups alone', () => {
+    const links = [
+      ...linksFor(['a.eth', ['b.eth']], ['b.eth', ['a.eth']]),
+      { name: 'x.eth', namehash: '0x00', recordId: '9', sharedWith: ['y.eth'] },
+      { name: 'y.eth', namehash: '0x00', recordId: '9', sharedWith: ['x.eth'] },
+    ]
+    expect(pruneLinksAfterUnlink(links, 'a.eth').map((l) => l.name)).toEqual([
+      'x.eth',
+      'y.eth',
+    ])
   })
 })

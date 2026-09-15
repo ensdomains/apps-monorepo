@@ -221,11 +221,16 @@ export type AccountRoleGroup<T extends RoleInput = RoleInput> = {
   readonly decodedRoles: readonly string[]
 }
 
-const normalizeResource = (resource: string): bigint => {
+/**
+ * Null when the indexer hands back a resource we cannot parse. Coercing it to
+ * `ROOT_RESOURCE` would merge the row into the account's root grant, and
+ * revoking from that row would then target root roles.
+ */
+const normalizeResource = (resource: string): bigint | null => {
   try {
     return BigInt(resource)
   } catch {
-    return ROOT_RESOURCE
+    return null
   }
 }
 
@@ -246,6 +251,7 @@ export const groupRolesByAccount = <T extends RoleInput>(
   for (const role of roles) {
     const account = role.account.toLowerCase()
     const resource = normalizeResource(role.resource)
+    if (resource === null) continue
     const decoded = decodeResolverRoleBitmap(BigInt(role.roleBitmap))
     const groupKey = `${account}:${resource}`
 

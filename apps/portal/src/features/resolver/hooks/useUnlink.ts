@@ -4,6 +4,7 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { unlink } from '@/features/resolver/helpers/linkRecords'
 import {
   getResolverOverviewQueryOptions,
+  pruneLinksAfterUnlink,
   type ResolverOverview,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
@@ -49,11 +50,8 @@ export const useUnlink = ({
         resolverOverviewQueryKey,
         (current) => {
           if (!current) return current
-          return {
-            ...current,
-            links: current.links.filter((l) => l.name !== sourceName),
-            linkCount: Math.max(0, current.linkCount - 1),
-          }
+          const links = pruneLinksAfterUnlink(current.links, sourceName)
+          return { ...current, links, linkCount: links.length }
         },
       )
 
