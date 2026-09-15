@@ -1,6 +1,6 @@
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import type { Address, PublicClient, WalletClient } from 'viem'
-import { decodeFunctionData, erc20Abi } from 'viem'
+import { decodeFunctionData, erc20Abi, toFunctionSelector } from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -90,11 +90,14 @@ describe('V1 renewal actors', () => {
 
     expect(request.to).toBe(V1_RENEWER)
     expect(decoded.functionName).toBe('renew')
+    // The deployed renewers only expose the struct form; the flat
+    // `renew(string,uint64,address,bytes32)` selector reverts with empty data.
+    expect(request.data.slice(0, 10)).toBe(
+      toFunctionSelector('renew((string,uint64,bytes32),address)'),
+    )
     expect(decoded.args).toEqual([
-      'alice',
-      31_536_000n,
+      { label: 'alice', duration: 31_536_000n, referrer: REFERER_ADDRESS },
       TOKENS.USDC.address,
-      REFERER_ADDRESS,
     ])
   })
 
