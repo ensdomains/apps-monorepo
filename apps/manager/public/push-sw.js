@@ -7,35 +7,71 @@
 
 const sw = /** @type {ServiceWorkerGlobalScope} */ (self);
 
-const TRUSTED_EXTERNAL_ORIGINS = new Set(['https://ens.domains']);
+const TRUSTED_NAVIGATION_ORIGINS = new Set(['https://ens.domains']);
+const DEFAULT_NOTIFICATION_RESOURCE = '/logo192.png';
+
+/**
+ * @param {unknown} rawUrl
+ * @returns {URL | null}
+ */
+const parseHttpUrl = (rawUrl) => {
+  if (typeof rawUrl !== 'string') return null;
+
+  try {
+    const url = new URL(rawUrl, sw.location.origin);
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null;
+    }
+
+    return url;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * @param {URL} url
+ * @returns {boolean}
+ */
+const isSameOriginUrl = (url) =>
+  url.origin === sw.location.origin && url.protocol === sw.location.protocol;
 
 /**
  * @param {unknown} rawUrl
  * @returns {URL | null}
  */
 const getSafeNotificationUrl = (rawUrl) => {
-  if (typeof rawUrl !== 'string') return null;
+  const url = parseHttpUrl(rawUrl);
 
-  let url;
+  if (!url) return null;
 
-  try {
-    url = new URL(rawUrl, sw.location.origin);
-  } catch {
-    return null;
+  if (isSameOriginUrl(url)) {
+    return url;
   }
 
   if (
-    url.origin === sw.location.origin &&
-    url.protocol === sw.location.protocol
+    url.protocol === 'https:' &&
+    TRUSTED_NAVIGATION_ORIGINS.has(url.origin)
   ) {
     return url;
   }
 
-  if (url.protocol === 'https:' && TRUSTED_EXTERNAL_ORIGINS.has(url.origin)) {
-    return url;
+  return null;
+};
+
+/**
+ * @param {unknown} rawUrl
+ * @returns {string}
+ */
+const getSafeNotificationResourceUrl = (rawUrl) => {
+  const url = parseHttpUrl(rawUrl);
+
+  if (!url || !isSameOriginUrl(url)) {
+    return DEFAULT_NOTIFICATION_RESOURCE;
   }
 
-  return null;
+  return url.href;
 };
 
 // activate immediately
@@ -55,9 +91,9 @@ sw.addEventListener('push', (event) => {
   let title = 'ENS Notification';
   /** @type {string} */
   let body = rawText;
-  /** @type {string | undefined} */
+  /** @type {unknown} */
   let icon;
-  /** @type {string | undefined} */
+  /** @type {unknown} */
   let badge;
   /** @type {string | undefined} */
   let tag;
@@ -79,8 +115,8 @@ sw.addEventListener('push', (event) => {
   event.waitUntil(
     sw.registration.showNotification(title, {
       body,
-      icon: icon ?? '/logo192.png',
-      badge: badge ?? '/logo192.png',
+      icon: getSafeNotificationResourceUrl(icon),
+      badge: getSafeNotificationResourceUrl(badge),
       tag,
       data,
     })

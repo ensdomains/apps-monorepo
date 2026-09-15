@@ -9,24 +9,18 @@ const pushSwSource = readFileSync(
 )
 
 const ORIGIN = 'https://app.ens.domains'
+const DEFAULT_NOTIFICATION_RESOURCE = '/logo192.png'
 
 type ExistingClient = {
-  url: string
-  focus?: ReturnType<typeof vi.fn>
+  readonly url: string
+  readonly focus?: ReturnType<typeof vi.fn>
 }
 
-const clickNotification = async (
-  rawUrl: unknown,
-  options?: {
-    origin?: string
-    clients?: ExistingClient[]
-  },
-) => {
-  const origin = options?.origin ?? ORIGIN
+const loadPushServiceWorker = (origin = ORIGIN) => {
   const listeners = new Map<string, (event: unknown) => void>()
   const openWindow = vi.fn().mockResolvedValue(undefined)
-  const matchAll = vi.fn().mockResolvedValue(options?.clients ?? [])
-  let waitUntilPromise: Promise<unknown> | undefined
+  const matchAll = vi.fn().mockResolvedValue([])
+  const showNotification = vi.fn().mockResolvedValue(undefined)
 
   runInNewContext(pushSwSource, {
     URL,
@@ -42,12 +36,31 @@ const clickNotification = async (
         openWindow,
       },
       registration: {
-        showNotification: vi.fn(),
+        showNotification,
       },
     },
   })
 
-  const handler = listeners.get('notificationclick')
+  return {
+    listeners,
+    matchAll,
+    openWindow,
+    showNotification,
+  }
+}
+
+const clickNotification = async (
+  rawUrl: unknown,
+  options?: {
+    readonly origin?: string
+    readonly clients?: readonly ExistingClient[]
+  },
+) => {
+  const sw = loadPushServiceWorker(options?.origin)
+  sw.matchAll.mockResolvedValue(options?.clients ?? [])
+  let waitUntilPromise: Promise<unknown> | undefined
+
+  const handler = sw.listeners.get('notificationclick')
   if (!handler) throw new Error('notificationclick handler missing')
 
   handler({
@@ -65,9 +78,38 @@ const clickNotification = async (
   if (waitUntilPromise) await waitUntilPromise
 
   return {
-    matchAll,
-    openWindow,
+    matchAll: sw.matchAll,
+    openWindow: sw.openWindow,
     waitUntilCalled: waitUntilPromise !== undefined,
+  }
+}
+
+const showPushNotification = async (
+  payload: unknown,
+  options?: {
+    readonly origin?: string
+  },
+) => {
+  const sw = loadPushServiceWorker(options?.origin)
+  let waitUntilPromise: Promise<unknown> | undefined
+
+  const handler = sw.listeners.get('push')
+  if (!handler) throw new Error('push handler missing')
+
+  handler({
+    data: {
+      text: () =>
+        typeof payload === 'string' ? payload : JSON.stringify(payload),
+    },
+    waitUntil: (promise: Promise<unknown>) => {
+      waitUntilPromise = promise
+    },
+  })
+
+  if (waitUntilPromise) await waitUntilPromise
+
+  return {
+    showNotification: sw.showNotification,
   }
 }
 
@@ -170,5 +212,86 @@ describe('push-sw notificationclick URL validation', () => {
 
     expect(focus).toHaveBeenCalledOnce()
     expect(result.openWindow).not.toHaveBeenCalled()
+  })
+})
+
+describe('push-sw notification resource URL validation', () => {
+  it('accepts relative same-origin icon and badge URLs', async () => {
+    const result = await showPushNotification({
+      title: 'Expiry',
+      body: 'Your name is expiring',
+      icon: '/icons/custom.png',
+      badge: '/icons/badge.png',
+    })
+
+    expect(result.showNotification).toHaveBeenCalledWith(
+      'Expiry',
+      expect.objectContaining({
+        icon: 'https://app.ens.domains/icons/custom.png',
+        badge: 'https://app.ens.domains/icons/badge.png',
+      }),
+    )
+  })
+
+  it('accepts same-origin absolute icon and badge URLs', async () => {
+    const result = await showPushNotification({
+      title: 'Expiry',
+      body: 'Your name is expiring',
+      icon: 'https://app.ens.domains/icons/custom.png',
+      badge: 'https://app.ens.domains/icons/badge.png',
+    })
+
+    expect(result.showNotification).toHaveBeenCalledWith(
+      'Expiry',
+      expect.objectContaining({
+        icon: 'https://app.ens.domains/icons/custom.png',
+        badge: 'https://app.ens.domains/icons/badge.png',
+      }),
+    )
+  })
+
+  it('rejects cross-origin icon and badge URLs and uses the fallback', async () => {
+    const result = await showPushNotification({
+      title: 'Expiry',
+      body: 'Your name is expiring',
+      icon: 'https://attacker.example/icon.png',
+      badge: 'https://ens.domains/badge.png',
+    })
+
+    expect(result.showNotification).toHaveBeenCalledWith(
+      'Expiry',
+      expect.objectContaining({
+        icon: DEFAULT_NOTIFICATION_RESOURCE,
+        badge: DEFAULT_NOTIFICATION_RESOURCE,
+      }),
+    )
+  })
+
+  it('rejects malformed, javascript:, and data: resource URLs', async () => {
+    const malformed = await showPushNotification({
+      title: 'Expiry',
+      icon: 'http://[',
+      badge: 'javascript:alert(1)',
+    })
+    const dataUrl = await showPushNotification({
+      title: 'Expiry',
+      icon: 'data:image/png;base64,aaaa',
+      badge: { href: 'https://app.ens.domains/icons/badge.png' },
+    })
+
+    expect(malformed.showNotification).toHaveBeenCalledWith(
+      'Expiry',
+      expect.objectContaining({
+        icon: DEFAULT_NOTIFICATION_RESOURCE,
+        badge: DEFAULT_NOTIFICATION_RESOURCE,
+      }),
+    )
+    expect(dataUrl.showNotification).toHaveBeenCalledWith(
+      'Expiry',
+      expect.objectContaining({
+        icon: DEFAULT_NOTIFICATION_RESOURCE,
+        badge: DEFAULT_NOTIFICATION_RESOURCE,
+      }),
+    )
   })
 })
