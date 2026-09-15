@@ -20,8 +20,10 @@ import {
   DEFAULT_BACKEND_API_URL,
   getBackendApiBaseUrl,
 } from '@/utils/backend-client'
+import { debugRouteBeforeLoad } from '../-guard'
 
 export const Route = createFileRoute('/debug/backend/settings')({
+  beforeLoad: debugRouteBeforeLoad,
   component: RouteComponent,
 })
 

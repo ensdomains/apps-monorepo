@@ -299,10 +299,6 @@ msgstr ""
 msgid "Allow this temporary account to move this name."
 msgstr ""
 
-#: src/features/landing/check-availability/CheckAvailability.tsx
-msgid "An error occurred"
-msgstr ""
-
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "An error occurred during verification"
 msgstr ""
@@ -749,6 +745,10 @@ msgstr ""
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
+msgstr ""
+
+#: src/features/landing/check-availability/CheckAvailability.tsx
+msgid "Couldn't check this name"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
@@ -1481,6 +1481,11 @@ msgstr "Namn"
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "Name Expiry"
+msgstr ""
+
+#: src/features/landing/check-availability/CheckAvailability.tsx
+#: src/features/navigation/Header/search/SuggestionItem.tsx
+msgid "Name not found"
 msgstr ""
 
 #: src/features/payment/components/add.tsx

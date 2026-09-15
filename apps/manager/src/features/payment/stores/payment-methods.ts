@@ -1,5 +1,17 @@
+import * as v from 'valibot'
 import { createPersistedStore } from '@/utils/xstate-store'
 import type { PaymentMethod } from '../types'
+
+const paymentMethodSchema = v.object({
+  id: v.string(),
+  name: v.string(),
+  type: v.picklist(['card', 'google-pay', 'apple-pay', 'paypal']),
+  expires: v.string(),
+}) satisfies v.GenericSchema<unknown, PaymentMethod>
+
+const paymentMethodsContextSchema = v.object({
+  paymentMethods: v.array(paymentMethodSchema),
+}) satisfies v.GenericSchema<unknown, { paymentMethods: PaymentMethod[] }>
 
 export const paymentMethodsStore = createPersistedStore(
   {
@@ -33,5 +45,6 @@ export const paymentMethodsStore = createPersistedStore(
   },
   {
     key: '@manager-v4/payment-methods',
+    schema: paymentMethodsContextSchema,
   },
 )
