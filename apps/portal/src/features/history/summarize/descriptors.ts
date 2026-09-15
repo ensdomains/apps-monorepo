@@ -89,9 +89,9 @@ export const DESCRIPTORS = {
   TextChanged: {
     icon: 'text',
     build: (primary) => {
-      const key = sanitizeOnChainText(
-        primary.asTextChanged?.key ?? primary.key ?? '—',
-      )
+      const key =
+        sanitizeOnChainText(primary.asTextChanged?.key ?? primary.key ?? '') ||
+        '—'
       const value = sanitizeOnChainText(
         primary.asTextChanged?.value ?? primary.value ?? '',
       )

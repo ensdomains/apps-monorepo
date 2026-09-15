@@ -134,10 +134,10 @@ export const formatActivityEvent = (
   const result: FormattedActivity = { text: descriptor.text }
 
   if (descriptor.valueField) {
-    const raw = readString(parsedData, descriptor.valueField)
-    // Anyone can put arbitrary bytes in a text record key, and this feed is the
-    // landing page for every visitor — sanitize before it reaches the row.
-    const value = raw && sanitizeOnChainText(raw)
+    // A text record key is arbitrary user-authored bytes, and this feed is the landing page.
+    const value = sanitizeOnChainText(
+      readString(parsedData, descriptor.valueField) ?? '',
+    )
     if (value) result.value = value
   }
 

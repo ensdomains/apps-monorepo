@@ -18,21 +18,16 @@ describe('sanitizeOnChainText', () => {
     )
   })
 
-  it('should strip bidi overrides and isolates', () => {
-    const rtlOverride = String.fromCodePoint(0x202e)
-    const popDirectional = String.fromCodePoint(0x202c)
-    const isolate = String.fromCodePoint(0x2066)
-    const popIsolate = String.fromCodePoint(0x2069)
-    expect(sanitizeOnChainText(`${rtlOverride}evil${popDirectional}`)).toBe(
-      'evil',
-    )
-    expect(sanitizeOnChainText(`a${isolate}b${popIsolate}c`)).toBe('a b c')
+  it('should strip bidi overrides, isolates and zero-width characters', () => {
+    // literals would be invisible in this file, so build them from code points
+    const cp = String.fromCodePoint
+    expect(sanitizeOnChainText(`${cp(0x202e)}evil${cp(0x202c)}`)).toBe('evil')
+    expect(sanitizeOnChainText(`a${cp(0x2066)}b${cp(0x2069)}c`)).toBe('a b c')
+    expect(sanitizeOnChainText(`a${cp(0x200b)}b${cp(0xfeff)}c`)).toBe('a b c')
   })
 
-  it('should strip zero-width characters and the BOM', () => {
-    const zeroWidthSpace = String.fromCodePoint(0x200b)
-    const bom = String.fromCodePoint(0xfeff)
-    expect(sanitizeOnChainText(`a${zeroWidthSpace}b${bom}c`)).toBe('a b c')
+  it('should strip line and paragraph separators', () => {
+    expect(sanitizeOnChainText(`a${String.fromCodePoint(0x2028)}b`)).toBe('a b')
   })
 
   it('should cap the length and mark the truncation', () => {
