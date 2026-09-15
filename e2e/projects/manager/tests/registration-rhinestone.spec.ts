@@ -10,7 +10,7 @@
  *      enableSessionWithRefund + commit; deploys the HCA lazily)
  *   4. [commitment age wait — handled by the app]
  *   5. reveal batch         (session-signed: price re-read + deployProxy? →
- *      approve → register(wallet) → setters → authorizeNameRoles; no user tx)
+ *      approve → register(wallet) → setters; no user tx)
  *
  * Two signatures, zero wallet transactions. The mockestrator impersonates the
  * HCA on the Anvil fork to fill each intent; it needs ETH in the HCA address to
