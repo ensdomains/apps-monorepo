@@ -77,10 +77,6 @@ export const useSyncManagerTransaction = ({
       if (!walletClient?.account || !publicClient) {
         throw new Error('No connected wallet')
       }
-      // The modal's "Try again" re-runs this under the same id, and the
-      // manager reports a terminal state only once per id — clear the failed
-      // attempt so a successful retry still reaches history and telemetry.
-      clearTransaction()
       const id = transactionManager.startTransaction(
         prepareSyncManagerTransaction({
           chain: sepoliaWithEns,
