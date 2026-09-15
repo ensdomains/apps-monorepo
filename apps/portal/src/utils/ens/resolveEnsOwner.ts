@@ -64,10 +64,18 @@ async function resolveV2EthOwner(
 /**
  * Resolve the owner of an ENS name across the V2 and V1 registries.
  *
- * V2 is tried first, but only for `.eth` names — the V2 registry is rooted at
- * `.eth`, so traversing it for a non-`.eth` name (e.g. `florin.xyz`) would
- * incorrectly resolve against the `.eth` namespace. Falls back to the V1
- * registry. Returns `null` when the name is unowned in both.
+ * V2 is tried first, but only for `.eth` names, because DNS names are V1-only:
+ * `.eth` is the sole TLD with a subregistry under the V2 root, so a DNS name
+ * has no registry containing it and `findOwner` has nothing to walk into.
+ * (`getNameRegistries` returns `[0x0, 0x0, root]` for `alice.xyz` versus
+ * `[0x0, ethRegistry, root]` for `alice.eth`.) Querying V2 for a DNS name is
+ * therefore always a wasted round trip that can only return zero — never a
+ * verdict that the name is unowned.
+ *
+ * Falls back to the V1 registry, which is where both DNS imports and
+ * unmigrated `.eth` names live. Returns `null` when the name is unowned there
+ * — note that for a DNS name this does NOT mean "does not exist": a gasless
+ * (off-chain) DNS name resolves through CCIP with no registry entry at all.
  */
 export async function resolveEnsOwner(
   client: EnsResolveClient,
