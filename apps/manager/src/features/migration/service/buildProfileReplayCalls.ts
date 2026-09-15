@@ -1,19 +1,28 @@
 import type { Call } from '@ens-apps/transaction-manager'
+import { dnsEncodeName } from '@ensdomains/ensjs/utils/v2'
 import { type Address, encodeFunctionData, type Hex } from 'viem'
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
 import type { Profile } from './fetchV1Profiles'
 
+/**
+ * Encode the V1 profile of each name as V2 resolver setter calls.
+ *
+ * Keyed by the dotted name, not the node: every `PermissionedResolver` setter
+ * takes the DNS-encoded name and derives the record from it. Passing a namehash
+ * hits the resolver's fallback and reverts with empty data.
+ */
 export const flattenProfileInnerCalls = (
-  profiles: ReadonlyMap<Hex, Profile>,
+  profiles: ReadonlyMap<string, Profile>,
 ): Hex[] => {
   const innerCalls: Hex[] = []
-  for (const [nodeHex, profile] of profiles) {
+  for (const [name, profile] of profiles) {
+    const encodedName = dnsEncodeName(name)
     for (const t of profile.texts) {
       innerCalls.push(
         encodeFunctionData({
           abi: PERMISSIONED_RESOLVER_ABI,
           functionName: 'setText',
-          args: [nodeHex, t.key, t.value],
+          args: [encodedName, t.key, t.value],
         }),
       )
     }
@@ -21,8 +30,8 @@ export const flattenProfileInnerCalls = (
       innerCalls.push(
         encodeFunctionData({
           abi: PERMISSIONED_RESOLVER_ABI,
-          functionName: 'setAddr',
-          args: [nodeHex, a.coinType, a.value],
+          functionName: 'setAddress',
+          args: [encodedName, a.coinType, a.value],
         }),
       )
     }
@@ -31,7 +40,7 @@ export const flattenProfileInnerCalls = (
         encodeFunctionData({
           abi: PERMISSIONED_RESOLVER_ABI,
           functionName: 'setContenthash',
-          args: [nodeHex, profile.contentHash],
+          args: [encodedName, profile.contentHash],
         }),
       )
     }
@@ -40,7 +49,7 @@ export const flattenProfileInnerCalls = (
         encodeFunctionData({
           abi: PERMISSIONED_RESOLVER_ABI,
           functionName: 'setABI',
-          args: [nodeHex, abiRecord.contentType, abiRecord.value],
+          args: [encodedName, abiRecord.contentType, abiRecord.value],
         }),
       )
     }

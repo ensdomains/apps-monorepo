@@ -1,3 +1,4 @@
+import { dnsEncodeName } from '@ensdomains/ensjs/utils/v2'
 import { type Address, decodeFunctionData, type Hex } from 'viem'
 import { assert, describe, expect, it } from 'vitest'
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
@@ -8,16 +9,15 @@ import {
 import type { Profile } from './fetchV1Profiles'
 
 const RESOLVER: Address = '0x000000000000000000000000000000000000d002'
-const NODE: Hex =
-  '0x1111111111111111111111111111111111111111111111111111111111111111'
+const NAME = 'replay.eth'
 
 describe('buildProfileReplayCalls helpers', () => {
   it('flattens no calls for empty profiles', () => {
     expect(flattenProfileInnerCalls(new Map())).toEqual([])
     expect(
       flattenProfileInnerCalls(
-        new Map<Hex, Profile>([
-          [NODE, { texts: [], addresses: [], contentHash: null, abis: [] }],
+        new Map<string, Profile>([
+          [NAME, { texts: [], addresses: [], contentHash: null, abis: [] }],
         ]),
       ),
     ).toEqual([])
@@ -36,7 +36,7 @@ describe('buildProfileReplayCalls helpers', () => {
       abis: [{ contentType: 1n, value: '0x5b5d' as Hex }],
     }
     const innerCalls = flattenProfileInnerCalls(
-      new Map<Hex, Profile>([[NODE, profile]]),
+      new Map<string, Profile>([[NAME, profile]]),
     )
     expect(innerCalls).toHaveLength(4)
 
@@ -58,28 +58,44 @@ describe('buildProfileReplayCalls helpers', () => {
       abi: PERMISSIONED_RESOLVER_ABI,
       data: firstInner,
     })
+    // Every V2 setter addresses the record by DNS-encoded name, not by node.
     expect(setText.functionName).toBe('setText')
-    expect((setText.args as [Hex, string, string])[1]).toBe('email')
+    expect(setText.args as [Hex, string, string]).toEqual([
+      dnsEncodeName(NAME),
+      'email',
+      'a@b.c',
+    ])
 
     const setAddr = decodeFunctionData({
       abi: PERMISSIONED_RESOLVER_ABI,
       data: secondInner,
     })
-    expect(setAddr.functionName).toBe('setAddr')
-    expect((setAddr.args as [Hex, bigint, Hex])[1]).toBe(60n)
+    expect(setAddr.functionName).toBe('setAddress')
+    expect(setAddr.args as [Hex, bigint, Hex]).toEqual([
+      dnsEncodeName(NAME),
+      60n,
+      '0x0000000000000000000000000000000000000abc',
+    ])
 
     const setContenthash = decodeFunctionData({
       abi: PERMISSIONED_RESOLVER_ABI,
       data: thirdInner,
     })
     expect(setContenthash.functionName).toBe('setContenthash')
-    expect((setContenthash.args as [Hex, Hex])[1]).toBe('0xe301')
+    expect(setContenthash.args as [Hex, Hex]).toEqual([
+      dnsEncodeName(NAME),
+      '0xe301',
+    ])
 
     const setAbi = decodeFunctionData({
       abi: PERMISSIONED_RESOLVER_ABI,
       data: fourthInner,
     })
     expect(setAbi.functionName).toBe('setABI')
-    expect((setAbi.args as [Hex, bigint, Hex]).slice(1)).toEqual([1n, '0x5b5d'])
+    expect(setAbi.args as [Hex, bigint, Hex]).toEqual([
+      dnsEncodeName(NAME),
+      1n,
+      '0x5b5d',
+    ])
   })
 })
