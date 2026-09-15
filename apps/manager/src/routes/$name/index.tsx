@@ -4,6 +4,7 @@ import {
   type ErrorComponentProps,
   redirect,
 } from '@tanstack/react-router'
+import { match } from 'ts-pattern'
 import {
   NameFallbackCard,
   type NameFallbackReason,
@@ -20,6 +21,7 @@ import { profileRegistrationQuery } from '@/features/profile/service/profileRegi
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { parseName } from '@/features/register-v2/utils/name-parser'
+import { getSearchNameKind } from '@/features/search/getSearchNameKind'
 import { isDebugProfileName } from '@/utils/debug-features'
 import { defaultOgImageUrl, nameOgImageUrl, seo } from '@/utils/seo'
 
@@ -40,13 +42,13 @@ const isFreeToRegister = async (
 // registrar counts code points, not UTF-16 units) can be registered,
 // everything else maps to a fallback card reason
 const classifyMissingName = (
-  parsed: ReturnType<typeof parseName>,
-): NameFallbackReason | 'registrable' => {
-  if (!parsed.isOk() || parsed.value.tld !== 'eth') return 'not-imported'
-  if (parsed.value.subLabels.length > 0) return 'not-found'
-  if ([...parsed.value.label].length >= 3) return 'registrable'
-  return 'too-short'
-}
+  name: string,
+): NameFallbackReason | 'registrable' =>
+  match(getSearchNameKind(name))
+    .with({ type: 'eth-2ld' }, () => 'registrable' as const)
+    .with({ type: 'eth-subname' }, () => 'not-found' as const)
+    .with({ type: 'invalid', reason: 'too-short' }, () => 'too-short' as const)
+    .otherwise(() => 'not-imported' as const)
 
 const isEthName = (parsed: ReturnType<typeof parseName>): boolean =>
   parsed.isOk() && parsed.value.tld === 'eth'
@@ -104,7 +106,7 @@ export const Route = createFileRoute('/$name/')({
 
     // Name doesn't exist in v2 or v1
     if (!ownerData) {
-      const missing = classifyMissingName(parsed)
+      const missing = classifyMissingName(normalizedName)
 
       if (missing === 'registrable') {
         if (await isFreeToRegister(queryClient, normalizedName)) {

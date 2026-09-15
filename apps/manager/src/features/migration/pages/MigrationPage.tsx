@@ -3,15 +3,13 @@ import { Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useEffect, useState } from 'react'
+import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
-import { MigrationNftMintDialog } from '@/features/migration/components/MigrationNftMintDialog'
 import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
@@ -76,13 +74,14 @@ const PlainMigrationSuccessDialog = ({
 const formatMigrationError = (error: MigrationError): ReactNode => {
   switch (error.type) {
     case 'generic':
-      return error.message
+      return <Trans>Upgrade details: {error.message}</Trans>
+    case 'parent-not-upgraded':
+      return <Trans>Upgrade the parent name first, then its subnames.</Trans>
     case 'plan-changed':
       return (
         <div>
           <Trans>
-            Migration permissions changed. Go back to review the updated
-            confirmation estimate.
+            Your permissions changed. Go back to check the updated estimate.
           </Trans>
         </div>
       )
@@ -90,8 +89,8 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
       return (
         <div>
           <Trans>
-            The previous atomic transaction could not be safely retried. No new
-            migration was submitted.
+            We couldn&apos;t safely retry. Contact ENS support before trying
+            again.
           </Trans>
         </div>
       )
@@ -99,21 +98,33 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
       return (
         <div>
           <Trans>
-            Your names were upgraded, but temporary HCA access still needs to be
-            revoked.
+            Your names were upgraded. One thing left: a temporary permission on
+            your names still needs to be removed.
           </Trans>
         </div>
       )
     case 'profile-fetch-failed':
-      return <div>Couldn&apos;t read your current records.</div>
+      return (
+        <div>
+          <Trans>We couldn&apos;t read your current records.</Trans>
+        </div>
+      )
     case 'user-rejected':
-      return <div>Request cancelled.</div>
+      return (
+        <div>
+          <Trans>You cancelled the request.</Trans>
+        </div>
+      )
     case 'preflight-timeout':
-      return <div>This is taking longer than expected.</div>
+      return (
+        <div>
+          <Trans>This is taking longer than expected.</Trans>
+        </div>
+      )
     case 'permission-missing':
       return (
         <div>
-          <Trans>Permission missing. Please try again.</Trans>
+          <Trans>A permission is missing. Try again.</Trans>
         </div>
       )
     case 'token-owner-changed':
@@ -127,7 +138,10 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
     case 'hca-owner-mismatch':
       return (
         <div>
-          <Trans>This migration account belongs to a different wallet.</Trans>
+          <Trans>
+            This wasn&apos;t set up with the wallet you&apos;re using now.
+            Connect the original wallet.
+          </Trans>
         </div>
       )
     case 'direct-transfer-unauthorized':
@@ -135,23 +149,24 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
     case 'invalid-data':
       return (
         <div>
-          <Trans>Something went wrong. Please refresh and try again.</Trans>
+          <Trans>Something went wrong. Refresh and try again.</Trans>
         </div>
       )
     case 'name-not-locked':
     case 'name-requires-migration':
       return (
         <div>
-          <Trans>
-            Couldn&apos;t upgrade one of your names. Please try again.
-          </Trans>
+          <Trans>We couldn&apos;t upgrade one of your names. Try again.</Trans>
         </div>
       )
     case 'name-is-locked':
     case 'frozen-token-approval':
       return (
         <div>
-          <Trans>One of your names can&apos;t be upgraded right now.</Trans>
+          <Trans>
+            One of your names can&apos;t be upgraded right now. Contact support
+            if this keeps happening.
+          </Trans>
         </div>
       )
   }
@@ -184,13 +199,6 @@ export const MigrationPage = () => {
   const { data: wagmiWalletClient } = useWalletClient()
   const queryClient = useQueryClient()
   const migrationNftEnabled = useMigrationNftEnabled()
-  const [isNftMintOpen, setIsNftMintOpen] = useState(false)
-  const visibleNft = useVisibleCommemorativeNftEligibility({
-    enabled: migrationNftEnabled && import.meta.env.DEV && step === 'select',
-  })
-  useEffect(() => {
-    if (!migrationNftEnabled) setIsNftMintOpen(false)
-  }, [migrationNftEnabled])
   const isMigrationSuccess = step === 'success'
   const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)
@@ -221,10 +229,7 @@ export const MigrationPage = () => {
     if (isMigrationSuccess) {
       uiActor.send({ type: 'done' })
       navigate({ to: '/dashboard', replace: true })
-      return
     }
-
-    setIsNftMintOpen(false)
   }, [isMigrationSuccess, uiActor, navigate])
 
   const handleViewProfile = useCallback(
@@ -233,8 +238,6 @@ export const MigrationPage = () => {
 
       if (isMigrationSuccess) {
         uiActor.send({ type: 'done' })
-      } else {
-        setIsNftMintOpen(false)
       }
 
       if (name) {
@@ -309,28 +312,17 @@ export const MigrationPage = () => {
       <GrainOverlay className="opacity-70" />
 
       {step === 'select' && (
-        <>
-          <button
-            aria-label="Back"
-            className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"
-            onClick={handleBack}
-            type="button"
-          >
-            <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
-            <span className="max-xl:hidden">
-              <Trans>Back</Trans>
-            </span>
-          </button>
-          {migrationNftEnabled && import.meta.env.DEV && visibleNft ? (
-            <button
-              className="absolute top-6 right-5 z-20 px-2 py-2 text-ens-garnet-900 text-xs underline underline-offset-2 md:right-8"
-              onClick={() => setIsNftMintOpen(true)}
-              type="button"
-            >
-              <Trans>Mint commemorative NFT</Trans>
-            </button>
-          ) : null}
-        </>
+        <button
+          aria-label="Back"
+          className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"
+          onClick={handleBack}
+          type="button"
+        >
+          <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
+          <span className="max-xl:hidden">
+            <Trans>Back</Trans>
+          </span>
+        </button>
       )}
 
       {match(step)
@@ -346,17 +338,24 @@ export const MigrationPage = () => {
         .with('failure', () => (
           <ResultLayout>
             <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
-              <Trans>Migration failed</Trans>
+              <Trans>Upgrade didn&apos;t finish</Trans>
             </p>
+            {lastError &&
+              lastError.type !== 'cleanup-failed' &&
+              lastError.type !== 'retry-blocked' && (
+                <p className="text-center text-ens-garnet-900/75 text-sm">
+                  <Trans>Your names are safe.</Trans>
+                </p>
+              )}
             <motion.div
               animate={{ opacity: 1, y: 0 }}
               className="max-h-50 w-full max-w-md overflow-y-auto rounded-sm bg-ens-garnet-900/5 p-3"
               initial={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.4, delay: 0.15 }}
             >
-              <p className="whitespace-pre-wrap break-all font-mono text-ens-garnet-900/70 text-xs leading-normal">
+              <div className="whitespace-pre-wrap break-words text-ens-garnet-900/70 text-sm leading-normal">
                 {lastError && formatMigrationError(lastError)}
-              </p>
+              </div>
             </motion.div>
 
             <motion.div
@@ -377,9 +376,9 @@ export const MigrationPage = () => {
                 type="button"
               >
                 {lastError?.type === 'cleanup-failed' ? (
-                  <Trans>Revoke temporary HCA access</Trans>
+                  <Trans>Remove temporary access</Trans>
                 ) : (
-                  <Trans>Retry</Trans>
+                  <Trans>Try again</Trans>
                 )}
               </MigrationPrimaryButton>
             </motion.div>
@@ -403,12 +402,6 @@ export const MigrationPage = () => {
           onViewProfile={handleViewProfile}
           open={dialogOpen}
           ownerAddress={ownerAddress as Address | undefined}
-        />
-      ) : null}
-      {migrationNftEnabled && import.meta.env.DEV && isNftMintOpen ? (
-        <MigrationNftMintDialog
-          onClose={() => setIsNftMintOpen(false)}
-          onViewProfile={handleViewProfile}
         />
       ) : null}
     </div>

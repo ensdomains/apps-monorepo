@@ -3,8 +3,8 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
-import { type ChangeEvent, useRef, useState } from 'react'
-import { match, P } from 'ts-pattern'
+import { type ChangeEvent, type ReactNode, useRef, useState } from 'react'
+import { match } from 'ts-pattern'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import {
   AddressSuggestionCard,
@@ -13,7 +13,6 @@ import {
   domainResultStatusFromGrace,
 } from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useCheckAvailability } from '@/features/landing/check-availability/useCheckAvailability'
 import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
@@ -32,6 +31,31 @@ const dropdownAnimation = {
   exit: { opacity: 0, y: -8, scale: 0.98 },
   transition: { duration: 0.2 },
 }
+
+const SearchStatusResult = ({
+  domainName,
+  badge,
+}: {
+  readonly domainName: string
+  readonly badge: ReactNode
+}) => (
+  <motion.div {...dropdownAnimation}>
+    <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
+      <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-ens-quartz-50">
+        <PatternAvatar
+          className="size-full rounded-md border-none bg-transparent p-0 shadow-none"
+          name={domainName}
+        />
+      </div>
+      <span className="font-medium text-ens-blue text-lg leading-tight tracking-tight">
+        {domainName}
+      </span>
+      <div className="ml-auto shrink-0 rounded-full bg-red-50 px-2 py-1 font-normal text-red-500 text-xs">
+        {badge}
+      </div>
+    </div>
+  </motion.div>
+)
 
 export type CheckAvailabilityProps = {
   onRegistrationComplete?: (name: string) => void
@@ -53,7 +77,6 @@ export const CheckAvailability = ({
     isInCooldown,
     primaryName,
     isLoading,
-    error,
   } = useCheckAvailability({ inputValue, debouncedInput: debouncedValue })
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -115,144 +138,116 @@ export const CheckAvailability = ({
           ref={resultsContainerRef}
         >
           <AnimatePresence mode="wait">
-            {match({ error, displayState })
-              .with({ error: P.nonNullable }, ({ error: err }) => (
-                <motion.div key="error" {...dropdownAnimation}>
-                  <Alert variant="destructive">
-                    <AlertDescription>
-                      {err instanceof Error ? (
-                        err.message
-                      ) : (
-                        <Trans>An error occurred</Trans>
-                      )}
-                    </AlertDescription>
-                  </Alert>
+            {match(displayState)
+              .with({ type: 'not-supported' }, (state) => (
+                <SearchStatusResult
+                  badge={<Trans>Not supported</Trans>}
+                  domainName={state.domainName}
+                  key={`result-${state.domainName}`}
+                />
+              ))
+              .with({ type: 'error' }, (state) => (
+                <SearchStatusResult
+                  badge={<Trans>Couldn't check this name</Trans>}
+                  domainName={state.domainName}
+                  key={`result-${state.domainName}`}
+                />
+              ))
+              .with({ type: 'not-found' }, (state) => (
+                <SearchStatusResult
+                  badge={<Trans>Name not found</Trans>}
+                  domainName={state.domainName}
+                  key={`result-${state.domainName}`}
+                />
+              ))
+              .with({ type: 'address' }, (state) => (
+                <motion.div
+                  key={`result-${state.address}`}
+                  {...dropdownAnimation}
+                >
+                  <div className="flex flex-col gap-3">
+                    <AddressSuggestionCard
+                      address={state.address}
+                      variant="card"
+                    />
+                    {primaryName && (
+                      <Link params={{ name: primaryName }} to="/$name">
+                        <DomainProfileCard
+                          avatarUrl={profileAvatar}
+                          clickable
+                          domainName={primaryName}
+                          expiryDate={
+                            profileExpiry?.expiry == null
+                              ? null
+                              : new Date(Number(profileExpiry.expiry) * 1000)
+                          }
+                          registeredDate={
+                            profileRegistration?.registrationDate == null
+                              ? null
+                              : new Date(
+                                  profileRegistration.registrationDate * 1000,
+                                )
+                          }
+                          themeColor={themeColor}
+                        />
+                      </Link>
+                    )}
+                  </div>
                 </motion.div>
               ))
-              .with(
-                { displayState: { type: 'not-supported' } },
-                ({ displayState: state }) => (
-                  <motion.div
-                    key={`result-${state.domainName}`}
-                    {...dropdownAnimation}
-                  >
-                    <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
-                      <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-ens-quartz-50">
-                        <PatternAvatar
-                          className="size-full rounded-md border-none bg-transparent p-0 shadow-none"
-                          name={state.domainName}
-                        />
-                      </div>
-                      <span className="font-medium text-ens-blue text-lg leading-tight tracking-tight">
-                        {state.domainName}
-                      </span>
-                      <div className="ml-auto shrink-0 rounded-full bg-red-50 px-2 py-1 font-normal text-red-500 text-xs">
-                        <Trans>Not supported</Trans>
-                      </div>
-                    </div>
-                  </motion.div>
-                ),
-              )
-              .with(
-                { displayState: { type: 'address' } },
-                ({ displayState: state }) => (
-                  <motion.div
-                    key={`result-${state.address}`}
-                    {...dropdownAnimation}
-                  >
-                    <div className="flex flex-col gap-3">
-                      <AddressSuggestionCard
-                        address={state.address}
-                        variant="card"
-                      />
-                      {primaryName && (
-                        <Link params={{ name: primaryName }} to="/$name">
-                          <DomainProfileCard
-                            avatarUrl={profileAvatar}
-                            clickable
-                            domainName={primaryName}
-                            expiryDate={
-                              profileExpiry?.expiry == null
-                                ? null
-                                : new Date(Number(profileExpiry.expiry) * 1000)
-                            }
-                            registeredDate={
-                              profileRegistration?.registrationDate == null
-                                ? null
-                                : new Date(
-                                    profileRegistration.registrationDate * 1000,
-                                  )
-                            }
-                            themeColor={themeColor}
-                          />
-                        </Link>
-                      )}
-                    </div>
-                  </motion.div>
-                ),
-              )
-              .with(
-                { displayState: { type: 'searching' } },
-                ({ displayState: state }) => (
-                  <motion.div
-                    key={`result-${state.domainName}`}
-                    {...dropdownAnimation}
+              .with({ type: 'searching' }, (state) => (
+                <motion.div
+                  key={`result-${state.domainName}`}
+                  {...dropdownAnimation}
+                >
+                  <DomainResultCard
+                    domainName={state.domainName}
+                    isLoading={true}
+                    premiumLabel={premiumLabel}
+                    price={pricing[1]?.price}
+                    status="available"
+                  />
+                </motion.div>
+              ))
+              .with({ type: 'available' }, (state) => (
+                <motion.div
+                  key={`result-${state.domainName}`}
+                  {...dropdownAnimation}
+                >
+                  <Link
+                    params={{ name: state.domainName }}
+                    to="/register/$name"
                   >
                     <DomainResultCard
+                      clickable
                       domainName={state.domainName}
-                      isLoading={true}
+                      isInCooldown={isInCooldown}
+                      isLoading={false}
                       premiumLabel={premiumLabel}
                       price={pricing[1]?.price}
                       status="available"
                     />
-                  </motion.div>
-                ),
-              )
-              .with(
-                { displayState: { type: 'available' } },
-                ({ displayState: state }) => (
-                  <motion.div
-                    key={`result-${state.domainName}`}
-                    {...dropdownAnimation}
-                  >
-                    <Link
-                      params={{ name: state.domainName }}
-                      to="/register/$name"
-                    >
-                      <DomainResultCard
-                        clickable
-                        domainName={state.domainName}
-                        isInCooldown={isInCooldown}
-                        isLoading={false}
-                        premiumLabel={premiumLabel}
-                        price={pricing[1]?.price}
-                        status="available"
-                      />
-                    </Link>
-                  </motion.div>
-                ),
-              )
-              .with(
-                { displayState: { type: 'unavailable' } },
-                ({ displayState: state }) => (
-                  <motion.div
-                    key={`result-${state.domainName}`}
-                    {...dropdownAnimation}
-                  >
-                    <Link params={{ name: state.domainName }} to="/$name">
-                      <DomainResultCard
-                        avatarUrl={profileAvatar}
-                        clickable
-                        domainName={state.domainName}
-                        status={domainResultStatusFromGrace(
-                          getProfileExpiryResultStatus(profileExpiry).isInGrace,
-                        )}
-                        themeColor={themeColor}
-                      />
-                    </Link>
-                  </motion.div>
-                ),
-              )
+                  </Link>
+                </motion.div>
+              ))
+              .with({ type: 'unavailable' }, (state) => (
+                <motion.div
+                  key={`result-${state.domainName}`}
+                  {...dropdownAnimation}
+                >
+                  <Link params={{ name: state.domainName }} to="/$name">
+                    <DomainResultCard
+                      avatarUrl={profileAvatar}
+                      clickable
+                      domainName={state.domainName}
+                      status={domainResultStatusFromGrace(
+                        getProfileExpiryResultStatus(profileExpiry).isInGrace,
+                      )}
+                      themeColor={themeColor}
+                    />
+                  </Link>
+                </motion.div>
+              ))
               .otherwise(() => null)}
           </AnimatePresence>
         </div>
