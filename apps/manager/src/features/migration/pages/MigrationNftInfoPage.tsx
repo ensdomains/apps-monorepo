@@ -27,8 +27,8 @@ const facts = [
     title: <Trans>One NFT per address</Trans>,
     body: (
       <Trans>
-        The token is tied to your eligible EOA. Migrating more names later does
-        not create another commemorative NFT.
+        Each eligible wallet address can claim one personalized NFT. Upgrading
+        more names later does not create another NFT.
       </Trans>
     ),
   },
@@ -37,8 +37,9 @@ const facts = [
     title: <Trans>Offered after your first upgrade</Trans>,
     body: (
       <Trans>
-        You can preview the card after migrating one name, mint immediately, or
-        return from your Dashboard or canonical profile later.
+        You can preview your personalized NFT after upgrading your first name,
+        claim it immediately, or return from your Dashboard or ENS profile
+        later.
       </Trans>
     ),
   },

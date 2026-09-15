@@ -65,8 +65,8 @@ export const MigrationModal = () => {
           <DialogDescription className="w-full text-[15px] text-ens-garnet-500 leading-[1.15] tracking-[-0.2px] sm:text-base sm:leading-[1.2] sm:tracking-[-0.24px]">
             {nftCopyEnabled ? (
               <Plural
-                one="Upgrade your name in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
-                other="Upgrade your names in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
+                one="Upgrade your name in just a couple steps to unlock your new ENS profile and claim your personalized NFT."
+                other="Upgrade your names in just a couple steps to unlock your new ENS profile and claim your personalized NFT."
                 value={eligibleNameCount}
               />
             ) : (

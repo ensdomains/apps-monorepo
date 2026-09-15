@@ -117,7 +117,11 @@ msgid "{count, plural, one {Upgrading batch {0} of {total} (# name)...} other {U
 msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx
-msgid "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile and claim your commemorative NFT.} other {Upgrade your names in just a couple steps to unlock your new ENS profile and claim your commemorative NFT.}}"
+#~ msgid "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile and claim your commemorative NFT.} other {Upgrade your names in just a couple steps to unlock your new ENS profile and claim your commemorative NFT.}}"
+#~ msgstr ""
+
+#: src/features/migration/components/MigrationModal.tsx
+msgid "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names in just a couple steps to unlock your new ENS profile and claim your personalized NFT.}}"
 msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx
@@ -887,6 +891,10 @@ msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Each batch of names is upgraded in a single transaction. If any part of that transaction fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
+msgstr ""
+
+#: src/features/migration/pages/MigrationNftInfoPage.tsx
+msgid "Each eligible wallet address can claim one personalized NFT. Upgrading more names later does not create another NFT."
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
@@ -2626,8 +2634,8 @@ msgid "The replacement resolver could not be verified. Please try again."
 msgstr ""
 
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "The token is tied to your eligible EOA. Migrating more names later does not create another commemorative NFT."
-msgstr ""
+#~ msgid "The token is tied to your eligible EOA. Migrating more names later does not create another commemorative NFT."
+#~ msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "There was a problem verifying your email address."
@@ -3139,7 +3147,11 @@ msgid "You can now receive notifications at this email address."
 msgstr ""
 
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "You can preview the card after migrating one name, mint immediately, or return from your Dashboard or canonical profile later."
+#~ msgid "You can preview the card after migrating one name, mint immediately, or return from your Dashboard or canonical profile later."
+#~ msgstr ""
+
+#: src/features/migration/pages/MigrationNftInfoPage.tsx
+msgid "You can preview your personalized NFT after upgrading your first name, claim it immediately, or return from your Dashboard or ENS profile later."
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
