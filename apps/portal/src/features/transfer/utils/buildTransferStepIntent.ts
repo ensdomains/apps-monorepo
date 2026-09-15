@@ -32,6 +32,12 @@ export type TransferStepContext = IntentContext & {
    * control.
    */
   readonly resolverAddress: Address | null
+  /**
+   * Whether `resolverAddress` is a V2 `PermissionedResolver`, whose setters take
+   * the DNS-encoded name rather than the node. Null when it was never read: the
+   * name has no resolver, or the plan never writes to it.
+   */
+  readonly isPermissionedResolver: boolean | null
 }
 
 /**
@@ -47,6 +53,7 @@ export const buildTransferStepIntent = (
     recipient,
     tokenId,
     resolverAddress,
+    isPermissionedResolver,
     walletClient,
     chainId,
   }: TransferStepContext,
@@ -62,12 +69,17 @@ export const buildTransferStepIntent = (
         // a null here means the state changed underneath us.
         if (!resolverAddress)
           throw new Error(`${name} has no resolver of its own to update`)
+        // Never default the kind: the wrong setter shape hits the other
+        // resolver's fallback and reverts with empty data.
+        if (isPermissionedResolver === null)
+          throw new Error(`Could not tell what kind of resolver ${name} uses`)
         return prepareSetForwardResolutionTransaction({
           request: createSetForwardResolutionRequest({
             name,
             coinType: MAINNET_COIN_TYPE,
             resolverAddress,
             targetAddress: recipient,
+            permissioned: isPermissionedResolver,
           }),
           from: walletClient.account.address,
           chainId,
