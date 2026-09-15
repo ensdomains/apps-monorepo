@@ -6,6 +6,7 @@ import type { Address } from 'viem'
 import { normalize } from 'viem/ens'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { MessageCard } from '@/components/ui/message-card'
+import { LEGACY_APP_BASE_URL } from '@/lib/constants/domain'
 import { getEth2LDAncestor, getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { getV1NameStateQueryOptions } from './getV1NameState'
 import { canParentReissueV1Subname, getV1TransferGate } from './rules'
@@ -83,6 +84,11 @@ export const V1Transfer = ({
         }
       />
     )
+
+  // Whether the emancipated card can point anywhere: re-issuing a lapsed V1
+  // label happens in ens-app-v3 (our Subnames page is read-only for a V1
+  // parent), and CANNOT_CREATE_SUBDOMAIN closes even that door.
+  const canReissue = canParentReissueV1Subname(state.parent)
 
   return match(getV1TransferGate(state, account))
     .with({ reason: 'ok' }, ({ subject, actor }) => (
@@ -238,10 +244,7 @@ export const V1Transfer = ({
               <span className="font-mono">PARENT_CANNOT_CONTROL</span> fuse.
               Until it expires, only its own owner can move it.
             </p>
-            {canParentReissueV1Subname(state.parent) ? (
-              // This app only issues subnames on ENSv2 names, so the way to
-              // re-issue a V1 label is the legacy manager — not our Subnames
-              // page, which is read-only for a V1 parent.
+            {canReissue ? (
               <Muted>
                 Once it expires you can issue the label again from{' '}
                 <Name>{parentName}</Name> in the ENS Manager.
@@ -257,10 +260,10 @@ export const V1Transfer = ({
           </>
         }
         actionButton={
-          parentName && canParentReissueV1Subname(state.parent)
+          canReissue && parentName
             ? {
                 label: 'Open in ENS Manager',
-                href: `https://app.ens.domains/${encodeURIComponent(parentName)}`,
+                href: `${LEGACY_APP_BASE_URL}/${encodeURIComponent(parentName)}`,
                 external: true,
                 variant: 'outline',
               }

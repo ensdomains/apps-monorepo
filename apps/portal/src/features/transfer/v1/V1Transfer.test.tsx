@@ -2,6 +2,7 @@ import { ChildFuses, decodeFuses, ParentFuses } from '@ensdomains/ensjs/utils'
 import { render, screen } from '@testing-library/react'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { LEGACY_APP_BASE_URL } from '@/lib/constants/domain'
 import { createTestWrapper } from '@/test-utils/providers'
 import { deriveV1NameState, type V1NameReads } from './getV1NameState'
 import { V1Transfer } from './V1Transfer'
@@ -24,10 +25,7 @@ const B = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
 const WRAPPER = '0x0635513f179D50A207757E05759CbD106d7dFcE8' as Address
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
 
-const wrapperData = (
-  owner: Address,
-  fuses = 0,
-): NonNullable<V1NameReads['wrapped']> => ({
+const wrapperData = (owner: Address, fuses = 0): V1NameReads['wrapped'] => ({
   owner,
   expiry: 1_821_784_092_000n,
   fuses: { ...decodeFuses(fuses), value: fuses },
@@ -134,7 +132,7 @@ describe('V1Transfer — an emancipated subname, seen by the parent’s owner', 
     expect(screen.queryByText(/Subnames page/)).not.toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'Open in ENS Manager' }),
-    ).toHaveAttribute('href', 'https://app.ens.domains/label.eth')
+    ).toHaveAttribute('href', `${LEGACY_APP_BASE_URL}/label.eth`)
   })
 
   it('promises no re-issue once the parent has burned CANNOT_CREATE_SUBDOMAIN', async () => {
