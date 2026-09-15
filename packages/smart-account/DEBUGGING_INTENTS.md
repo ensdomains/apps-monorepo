@@ -45,16 +45,22 @@ Notes:
 
 ## 3. Decode the selector against the validator source
 
-`HCAOwnerAndSessionValidator.sol` is **not on contracts-v2 `main`** — it lives on
-the HCA PR branch. Fetch that one file; do not grep the repo (it will match
-thousands of lines in `deployments/` and `lib/`):
+Read the source the validator was **built from**, not a contracts-v2 branch —
+branches carry variants that differ. Each deployment artifact names its
+build-info, which embeds every source file verbatim. Do not grep the repo (it
+will match thousands of lines in `deployments/` and `lib/`):
 
 ```bash
-git -C ../contracts-v2 fetch origin 'refs/pull/362/head:refs/remotes/pr/362'
-git -C ../contracts-v2 show refs/remotes/pr/362:contracts/src/hca/HCAOwnerAndSessionValidator.sol > /tmp/HCAV.sol
+NS=contracts/deployments/sepolia
+BI=$(git -C ../contracts-v2 show "HEAD:$NS/HCAOwnerAndSessionValidator.json" | jq -r .buildInfoId)
+git -C ../contracts-v2 show "HEAD:$NS/build-info/$BI.json" \
+  | jq -r '.input.sources["project/src/hca/HCAOwnerAndSessionValidator.sol"].content' > /tmp/HCAV.sol
 rg -o "error \w+\([^)]*\);" /tmp/HCAV.sol | sed 's/error //; s/;//' \
   | while read -r s; do printf "%-42s %s\n" "$s" "$(cast sig "$s")"; done
 ```
+
+The policy libraries (`HCAResolverPolicyLib.sol`, `HCARegistrarPolicyLib.sol`)
+are in the same build-info under `project/src/hca/libraries/`.
 
 Known selectors:
 
@@ -64,9 +70,13 @@ Known selectors:
 | `0xde1834f2` | `ActionNotAllowed(address,bytes4)` | target/selector outside the allowlist |
 | `0x0672e151` | `GasRefundNotAllowed()` | quoted executor refund exceeded the session caps |
 | `0x815e1d64` | `InvalidSigner()` | a bad key **or** a session that was never enabled — see below |
-| `0x9bdfc59f` | `InvalidSessionData()` | payload is not the Smart Session USE form |
+| `0x9bdfc59f` | `InvalidSessionData()` | payload is not the Smart Session USE form, or the enable proof is expired (`validUntil`), carries a stale session nonce, or has zero refund caps |
 | `0x037b5679` | `CallerNotIntentExecutor()` | presented by someone other than the IntentExecutor |
-| `0x1fd05a4a` | `SessionExpired()` | `validUntil` elapsed |
+| `0xf679d4db` | `InvalidOperationEncoding()` | operation data is not an ERC-7579 operation payload |
+| `0xbff8a462` | `OwnerUnavailable()` | the account returned no owner from `ownerAndSessionNonce` |
+
+The previous validator reverted `SessionExpired()` (`0x1fd05a4a`) for an elapsed
+`validUntil`; the 2026-09-15 one folds that into `InvalidSessionData()`.
 
 A trace only ever reveals the **first** violation. After fixing one, re-check
 the remaining calls against the policy loop rather than assuming.
@@ -80,18 +90,21 @@ recovered and it is the very first check,
 
 ## 4. The policy pins exact calldata — not just arguments
 
-`HCAResolverPolicyLib.checkDeployment` does not inspect `deployProxy`'s
-arguments. It **builds the entire expected calldata from its own constants and
-compares keccak hashes** — only the salt is read from ours:
+`HCAResolverPolicyLib.checkDeployment` decodes `deployProxy`'s arguments,
+checks them, then **re-encodes the call around its own constants and compares
+keccak hashes** (validator `0x6a62af42`, the 2026-09-15 Sepolia deployment):
 
 ```solidity
-uint256 salt = readUint(callData, 4 + 32);           // the ONLY caller-supplied input
-Grant[] memory grants = new Grant[](2);
-grants[0] = Grant({account: account, roleBitmap: ALL_ROLES});   // the HCA
-grants[1] = Grant({account: owner,   roleBitmap: ALL_ROLES});   // the wallet
-bytes[] memory calls = new bytes[](0);               // hardcoded EMPTY
-expectedInitData = abi.encodeCall(initialize, (grants, calls));
-expectedCallData = abi.encodeCall(deployProxy, (implementation, salt, expectedInitData));
+(address impl, uint256 salt, bytes memory initData) = abi.decode(args, ...);
+if (impl != implementation || selector(initData) != initialize.selector) revert PolicyRuleFailed();
+(Grant[] memory grants, bytes[] memory calls) = abi.decode(args(initData), ...);
+if (grants.length != 2 ||
+    grants[0] != (account, ALL_ROLES) ||          // the HCA
+    grants[1] != (owner,   ALL_ROLES)             // the wallet
+) revert PolicyRuleFailed();
+_checkCalls(calls);                                // each must be a record setter
+expectedCallData = abi.encodeCall(deployProxy,
+    (implementation, salt, abi.encodeCall(initialize, (grants, calls))));
 if (keccak256(callData) != keccak256(expectedCallData) ||
     resolverAddress(account, salt, factory, proxyLogic) != resolver
 ) revert PolicyRuleFailed();
@@ -99,30 +112,33 @@ if (keccak256(callData) != keccak256(expectedCallData) ||
 
 The wallet's roles are granted **here**, as `grants[1]` — there is no trailing
 `authorizeNameRoles` call any more. That function is gone from
-`PermissionedResolver` (`0xbbd9abb5`) and is not on the validator's whitelist.
+`PermissionedResolver` (`0xbbd9abb5`) and the policy does not accept it.
 
 Consequences:
 - The grants array is exactly two entries in that order. The older single-grant
   form reverts `PolicyRuleFailed()`.
-- `initialize`'s `calls` **must** be empty — the policy hardcodes an empty array,
-  so folding record writes in there changes the hash. They go out as standalone
-  calls, individually whitelisted by `checkCall`.
+- `initialize`'s `calls` may carry record setters — `checkCall` accepts
+  `setAddress`, `setText`, `setContenthash`, `setABI`, `setData`,
+  `setInterface`, `setName`, `linkToNode`, `linkToRecord` and a `multicall` of
+  those. The previous (hackathon) validator hardcoded `calls` empty, so do not
+  assume either without reading the deployed source (§3). We send it empty and
+  write records as standalone calls, which both validators accept.
 - The CREATE2 address derived from the salt must equal the session's resolver, so
   a stale `verifiableFactoryProxyLogic` fails here even when the calldata matches.
 - Record setters are the **V2** shapes, which take the DNS-encoded name:
   `setAddress` `0xb4436dde`, `setText` `0xc7279f88`. The v1 `PublicResolver`
   shapes (`setAddr` `0x8b95dd71`, `setText` `0x10f13a8c`) are rejected twice
-  over — not whitelisted, and not implemented by the resolver.
+  over — not accepted by the policy, and not implemented by the resolver.
 - Any change to how the resolver is deployed or initialized breaks this check.
   `registration-calls.test.ts` reconstructs the policy's expected calldata and
   asserts keccak equality; keep that in step.
 
-The validator exposes every pinned address and selector as a public getter
-(`SET_ADDRESS_SELECTOR()`, `VERIFIABLE_PROXY_LOGIC()`, …), so after any redeploy
-read them off chain rather than trusting the manifest. It is verified on
-Sourcify (exact match), which is the authoritative source for these rules —
-contracts-v2 branches carry variants that differ, e.g. one that decodes and
-validates `calls` instead of hardcoding it empty.
+The validator exposes its pinned addresses as public getters
+(`VERIFIABLE_PROXY_LOGIC()`, `PERMITTED_RESOLVER_IMPL()`, `VERIFIABLE_FACTORY()`,
+`ETH_REGISTRY()`, `DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER()`,
+`REVERSE_REGISTRAR_HCA_ADAPTER()`), so after any redeploy read them off chain
+rather than trusting the manifest. Selectors are not exposed; they come from the
+interfaces in the source.
 
 ## 5. Reproduce end-to-end with a real signed intent
 

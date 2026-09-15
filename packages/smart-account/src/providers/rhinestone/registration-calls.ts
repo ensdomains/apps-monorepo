@@ -10,7 +10,6 @@
  *   3. ETHRegistrar.register(..., wallet as owner, ...)
  *   4. resolver setters                        — only selected records
  *   5. DefaultReverseRegistrarAdapter.setNameWithHCA(wallet, name) — primary only
- *   6. PermissionedResolver.authorizeNameRoles(hex"00", ROLES.ALL, wallet, true)
  *
  * Price MUST be read immediately before the reveal (never cached from commit
  * time) via `readRegisterPrice`, and `approve` must approve exactly that price.
@@ -211,10 +210,10 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
   //
   // These are the V2 `PermissionedResolver` setters, which take the DNS-encoded
   // name rather than `bytes32 node` — `setAddress` 0xb4436dde and `setText`
-  // 0xc7279f88, exactly what the validator's `SET_ADDRESS_SELECTOR()` and
-  // `SET_TEXT_SELECTOR()` return. The v1 `PublicResolver` shapes are rejected
-  // twice over: the policy does not whitelist their selectors, and the resolver
-  // does not implement them.
+  // 0xc7279f88, both on the validator's record-setter list
+  // (`HCAResolverPolicyLib._isRecordSelector`). The v1 `PublicResolver` shapes
+  // are rejected twice over: the policy does not accept their selectors, and
+  // the resolver does not implement them.
   const dnsName = toHex(packetToBytes(name))
   const recordSetters: Hex[] = [
     encodeFunctionData({
@@ -236,24 +235,25 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
 
   // 1. deployProxy (omit when resolver exists).
   //
-  //    `calls` MUST be empty. `HCAOwnerAndSessionValidator._checkResolverDeployment`
-  //    reconstructs the expected calldata as
-  //      deployProxy(PERMITTED_RESOLVER_IMPL, salt, initialize(grants, []))
-  //    and compares `keccak256(callData)` against it, so folding the record
-  //    writes into `calls` — even though the resolver would happily execute
-  //    them during initialization — makes the hashes differ and reverts with
-  //    `PolicyRuleFailed()` (0xe50c42ea), which the emissary re-wraps as
-  //    `InvalidSignature()`. Records go out as standalone calls in step 4;
-  //    their selectors are individually whitelisted by the same policy.
+  //    `HCAResolverPolicyLib.checkDeployment` decodes our initializer, checks
+  //    it, then re-encodes it as
+  //      deployProxy(PERMITTED_RESOLVER_IMPL, salt, initialize(grants, calls))
+  //    and compares `keccak256(callData)` against that, so the encoding must be
+  //    canonical. A mismatch reverts `PolicyRuleFailed()` (0xe50c42ea), which
+  //    the emissary re-wraps as `InvalidSignature()`.
   //
-  //    The grants array is pinned too, and must be EXACTLY two entries in this
-  //    order — `HCAResolverPolicyLib.checkDeployment`:
+  //    The grants array must be EXACTLY two entries in this order:
   //      grants.length == 2
   //      grants[0] == (hca,    ALL_ROLES)
   //      grants[1] == (owner,  ALL_ROLES)
   //    This is what replaced the old standalone `authorizeNameRoles` call: the
   //    wallet's roles are granted at init rather than afterwards, which is why
   //    the initializer takes a list.
+  //
+  //    `calls` is left empty. The deployed policy would accept record setters
+  //    there (it runs each through `checkCall`), but the existing-resolver path
+  //    has no initializer, so the records go out as standalone calls in step 4
+  //    on both paths.
   if (!params.resolverDeployed) {
     const salt = computeResolverSalt(params.hca)
     calls.push({
@@ -313,9 +313,9 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
   })
 
   // 4. resolver setters — ALWAYS standalone, on both the fresh-deploy and the
-  //    existing-resolver path (see step 1: the policy forbids folding them into
-  //    `initialize`). These are ordinary permissioned writes, authorized because
-  //    the HCA holds the root roles granted by `initialize`.
+  //    existing-resolver path (see step 1). These are ordinary permissioned
+  //    writes, authorized because the HCA holds the root roles granted by
+  //    `initialize`.
   for (const data of recordSetters) {
     calls.push({ to: params.resolver, value: 0n, data })
   }

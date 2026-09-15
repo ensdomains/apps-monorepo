@@ -283,9 +283,9 @@ export const getMigrationResolverAddress = (hca: Address): Address =>
 /**
  * Verify a reused HCA resolver; counterfactual resolvers remain deployable.
  *
- * `authorizeNameRoles(0x00, ROLES_ALL, wallet, true)` maps the empty DNS name
- * to the resolver root resource. We report that wallet grant separately from
- * the HCA's initializer grant even though both use `hasRootRoles` on-chain.
+ * The wallet's root roles come from the resolver's `initialize` (its second
+ * grant) or a later `grantRootRoles`. We report that wallet grant separately
+ * from the HCA's initializer grant even though both use `hasRootRoles` on-chain.
  */
 export const checkMigrationResolverReadiness = async (params: {
   readonly publicClient: PublicClient

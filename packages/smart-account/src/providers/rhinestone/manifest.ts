@@ -1,13 +1,10 @@
 /**
  * Standalone-HCA contract manifest.
  *
- * Provenance: most ENS-side addresses come from the ensjs `e96662c` Sepolia
- * manifest, whose values match the remediated deployment published by
- * `ensdomains/contracts-v2` PR #388 at `8d1c893`. The HCA-aware
- * `MigrationHelper` was deployed separately from contracts-v2 PR #402. The
- * standalone HCA implementation and validator were redeployed in PR #409 so
- * the validator accepts MockUSDC refunds. These contracts remain pinned below
- * because ensjs does not expose them yet.
+ * Provenance: the 2026-09-15 Sepolia v2 redeploy, contracts-v2
+ * `contracts/deployments/sepolia` @ `71a3b733`. The ENS-side addresses come
+ * from ensjs (ensdomains/ensjs#380, which targets the same deployment); the
+ * rest are pinned below because ensjs does not expose them yet.
  *
  * Re-point the remaining hardcoded extras to `getChainContractAddress(...)`
  * when ensjs exposes them. Until then, this local, chain-keyed table remains
@@ -84,59 +81,56 @@ export interface SharedContracts {
 
 export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
   [sepolia.id]: {
-    // From ensjs e96662c, which matches the remediated PR #388 deployment.
     standaloneHcaFactory: ensjsSepolia.ensHcaFactory.address,
     verifiableFactory: ensjsSepolia.ensVerifiableFactory.address,
     permissionedResolverImpl: ensjsSepolia.ensPermissionedResolverImpl.address,
     ethRegistrar: ensjsSepolia.ensEthRegistrar.address,
     ethRegistry: ensjsSepolia.ensRegistry.address,
-    // HCA-aware helper. The ensjs entry still points at the preceding helper
-    // deployment, which cannot resolve an HCA caller back to its certified EOA
-    // owner.
-    migrationHelper: '0x540f222a6FD9A54E77989556f366940d1ad81aec',
+    // HCA-aware: resolves an HCA caller to its owner through the standalone
+    // HCA factory's `authorizedOwnerOf`.
+    migrationHelper: ensjsSepolia.ensMigrationHelper.address,
     unlockedMigrationController:
       ensjsSepolia.ensUnlockedMigrationController.address,
     lockedMigrationController:
       ensjsSepolia.ensLockedMigrationController.address,
+    userRegistryImpl: ensjsSepolia.ensUserRegistryImpl.address,
 
-    // Not in ensjs yet — from the clean testnet deployment of 2026-09-03.
+    // Not in ensjs yet — contracts-v2 `deployments/sepolia` @ 71a3b733.
     //
-    // The validator pins the whole registration batch: it reconstructs the
-    // expected `deployProxy` calldata and compares keccak hashes, and matches
-    // every other call against a fixed selector list. Its constants are public
-    // getters, so anything here that it also declares can be checked against
-    // the chain rather than trusted — `VERIFIABLE_PROXY_LOGIC()`,
-    // `PERMITTED_RESOLVER_IMPL()`, `ETH_REGISTRY()`,
-    // `DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER()` and the `*_SELECTOR()` set all
-    // agree with the values below. Re-read them after any redeploy.
-    standaloneHcaImplementation: '0x7328a1926B45F0339913Ab654fb98d1A0f5ec894',
-    hcaOwnerAndSessionValidator: '0xeb099163a41912A94E56b2143fEB6eB7979a51f0',
+    // The validator pins the whole registration batch: it rebuilds the
+    // expected `deployProxy` calldata and compares keccak hashes, and only
+    // accepts known selectors on known targets. Its `VERIFIABLE_PROXY_LOGIC()`,
+    // `PERMITTED_RESOLVER_IMPL()`, `VERIFIABLE_FACTORY()`, `ETH_REGISTRY()` and
+    // `DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER()` getters all agree with the
+    // values here. Re-read them after any redeploy.
+    //
+    // The implementation is the one the factory approves
+    // (`approvedImplementations`), and was constructed with this validator.
+    standaloneHcaImplementation: '0xdF4a24c42921810fed9363b07292E9152578D706',
+    hcaOwnerAndSessionValidator: '0x6A62Af42D4241a02547b096C7DB43ca6411AF813',
     defaultReverseRegistrarHcaAdapter:
-      '0x0A8d7eD4061548FB3CB192d0cBE9E1A57B3B1ae9',
+      '0x4F32A1c62E202922d4d6307126F43218DB9dA6f5',
     // Not deployed as its own artifact — VerifiableFactory creates it in its
     // constructor and exposes it as the immutable `proxyLogic`, so this is read
     // off `ensVerifiableFactory` above. It MUST stay paired with that factory:
     // it is the EIP-1167 runtime hashed into every CREATE2 proxy address.
-    verifiableFactoryProxyLogic: '0x2fDCaC2F94B2E65c5d5fBf36EC34483d25Ca9025',
-    verifiableFactoryDeployBlock: 11_626_639n,
-    rootRegistry: '0xe7f0D5724f8337e3Aa9A9910540341Ff4273fEd9',
-    publicResolverSet: '0x3866e84B54a78d1e3778421E0fbf3607fA9c402f',
-    userRegistryImpl: ensjsSepolia.ensUserRegistryImpl.address,
-    wrapperRegistryImpl: '0x7c53b9dceF516662E9e8a229448CaC30b90673CD',
-    publicResolverV2: '0xF9de4979DdB290baF5B760D0e788125017Bc33f6',
+    verifiableFactoryProxyLogic: '0xC6dbA04e7c6264e85A459Dd592a6CBC2D2a6Ad8E',
+    verifiableFactoryDeployBlock: 11_708_995n,
+    rootRegistry: '0x9703DBD26dAB89504490994138cF2c575251a9cE',
+    publicResolverSet: '0xd12aF6aC82648056Fe7D6B2a9dB97235Aa509021',
+    wrapperRegistryImpl: '0x2741543c3B14640b97bC70a233318032f7E35bAC',
+    publicResolverV2: '0xd7e590Ad0E92A6aC1d81f4483A9B951D3585a50F',
 
     // MockUSDC — the ETHRegistrar payment token, mintable via the api-worker
     // faucet (`POST /wallet/fund`).
     //
-    // NOT currently usable as the intent fee asset. Rhinestone's registry has
-    // an `ensUSDC` entry, but it still points at the PRE-clean-testnet MockUSDC
-    // (0x768f42455a2d082e23ceef7d51e5787c82d67a39). The address below moved with
-    // the 2026-09-03 redeploy and was never registered, so the orchestrator's
-    // portfolio for an HCA holding it reads zero and every route planner fails
-    // with NO_PLAN_AVAILABLE / `sourceChains: []` — before any signing, so it
-    // looks nothing like a policy failure. Verified against
-    // `GET /accounts/{hca}/portfolio`. Fixing it means asking Rhinestone to
-    // repoint `ensUSDC`; nothing app-side can work around it.
+    // Only usable as the intent fee asset once Rhinestone's `ensUSDC` registry
+    // entry points at this address. It has lagged every redeploy so far; while
+    // it does, the orchestrator's portfolio for an HCA holding the token reads
+    // zero and every planner fails NO_PLAN_AVAILABLE / `sourceChains: []`,
+    // before any signing, so it looks nothing like a policy failure. Check
+    // `GET /accounts/{hca}/portfolio` first. Nothing app-side can work around a
+    // stale entry.
     usdc: ensjsSepolia.usdc.address,
   },
 }
