@@ -1003,7 +1003,7 @@ export function pollTransactionStatusActor(input: {
 // Renewal Actor Functions
 // ============================================================================
 //
-// `ETHRegistrar.renew(label, duration, paymentToken, referrer)` pulls the rent
+// `ETHRegistrar.renew((label, duration, referrer), paymentToken)` pulls the rent
 // from `_msgSender()` (see AbstractETHRegistrar.renew). Crucially, the registrar
 // uses HCA-aware sender resolution: when an HCA calls `renew`, `_msgSender()`
 // unwraps to the HCA's owner EOA (HCAEquivalence). So the registrar always pulls
@@ -1015,7 +1015,9 @@ export function pollTransactionStatusActor(input: {
 // intent (rhinestone/HCA), or do a plain on-chain `approve` (EOA).
 
 /**
- * Encode `renew(label, duration, paymentToken, referrer)` calldata.
+ * Encode `renew(RenewData, paymentToken)` calldata, where
+ * `RenewData = (label, duration, referrer)`. Both renewers dropped the flat
+ * `renew(string,uint64,address,bytes32)`; that selector now reverts empty.
  */
 function encodeRenewData(
   label: string,
@@ -1026,7 +1028,10 @@ function encodeRenewData(
   return encodeFunctionData({
     abi: ethRegistrarRenewSnippet,
     functionName: 'renew',
-    args: [cleanLabel, duration, paymentToken, REFERER_ADDRESS],
+    args: [
+      { label: cleanLabel, duration, referrer: REFERER_ADDRESS },
+      paymentToken,
+    ],
   })
 }
 
