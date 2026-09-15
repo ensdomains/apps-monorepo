@@ -287,6 +287,7 @@ export const V1Transfer = ({
             ? {
                 label: `Go to ${parentName}`,
                 href: `/${encodeURIComponent(parentName)}/ownership`,
+                variant: 'outline',
               }
             : undefined
         }
