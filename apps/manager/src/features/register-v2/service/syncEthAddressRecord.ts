@@ -5,7 +5,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v1'
+import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
   checksumAddress,

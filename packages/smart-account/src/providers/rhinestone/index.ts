@@ -84,7 +84,6 @@ export {
   readRegisterPrice,
 } from './registration-calls'
 export {
-  buildEnableSessionWithRefundCall,
   type ChainDigest,
   computeDestinationSessionSalt,
   computeSourceSessionSalt,

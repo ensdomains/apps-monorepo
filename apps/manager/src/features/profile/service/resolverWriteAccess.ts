@@ -1,7 +1,7 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v1'
+import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,
