@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { cn } from '@/lib/utils'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -25,6 +24,7 @@ import {
 import { ConfigureRegistryForm } from './ConfigureRegistryForm'
 import { MigrateRegistryPrompt } from './MigrateRegistryPrompt'
 import { ReconfigureRegistryForm } from './ReconfigureRegistryForm'
+import { RegistryPanel } from './RegistryPanel'
 
 type RegistryTreeItemProps = {
   chainId: number
@@ -340,35 +340,26 @@ const RegistryEmptyState = ({
  * registry here is a re-mint surface, not a setup step, so the path out is
  * restoring the old pointer rather than creating a replacement.
  */
-const DetachedRegistryNotice = () => {
-  const isMobile = useIsMobile()
-
-  return (
-    <div
-      className={cn(
-        'flex flex-col gap-4 max-w-xl',
-        isMobile ? 'pl-0 pt-3' : 'pl-14',
-      )}
-    >
-      <Alert className="p-5 gap-2" variant="warning">
-        <TriangleAlert className="size-4" />
-        <AlertTitle>Registry detached</AlertTitle>
-        <AlertDescription>
-          <p>
-            This name pointed at a registry and no longer does, so its subnames
-            have stopped resolving. They still exist in the old registry — point
-            this name back at that registry to restore them.
-          </p>
-          <p>
-            Configuring a new registry here won't recover them: it would create
-            a second, empty namespace in which the old subnames can be re-issued
-            to someone else.
-          </p>
-        </AlertDescription>
-      </Alert>
-    </div>
-  )
-}
+const DetachedRegistryNotice = () => (
+  <RegistryPanel>
+    <Alert className="p-5 gap-2" variant="warning">
+      <TriangleAlert className="size-4" />
+      <AlertTitle>Registry detached</AlertTitle>
+      <AlertDescription>
+        <p>
+          This name pointed at a registry and no longer does, so its subnames
+          have stopped resolving. They still exist in the old registry — point
+          this name back at that registry to restore them.
+        </p>
+        <p>
+          Configuring a new registry here won't recover them: it would create a
+          second, empty namespace in which the old subnames can be re-issued to
+          someone else.
+        </p>
+      </AlertDescription>
+    </Alert>
+  </RegistryPanel>
+)
 
 const SummaryLoadError = () => (
   <span className="inline-flex items-center gap-1 text-destructive">

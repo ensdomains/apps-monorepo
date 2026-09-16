@@ -17,7 +17,7 @@ class GetSubregistryHistoryError extends TaggedError(
 }> {}
 
 type GetSubregistryHistoryParameters = {
-  name: string
+  readonly name: string
 }
 
 const getSubregistryHistory = ResultFn(async function* ({
@@ -82,7 +82,7 @@ export type SubregistrySlot =
  */
 export const useSubregistrySlot = (
   name: string,
-  { enabled = true }: { enabled?: boolean } = {},
+  { enabled = true }: { readonly enabled?: boolean } = {},
 ): SubregistrySlot => {
   const { data, isError } = useQuery({
     ...resultQueryOptions({

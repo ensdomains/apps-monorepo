@@ -112,10 +112,21 @@ const nameRegistriesResult: {
 // Whether the name was ever pointed at a registry. An empty slot is only
 // "never configured" when this is false; true means the pointer was zeroed and
 // the name is damaged, not new. See `useSubregistrySlot`.
-const subregistryHistoryResult: {
-  data: number | null | undefined
-  isError: boolean
-} = { data: 0, isError: false }
+type SubregistryHistoryResult = {
+  readonly data: number | null | undefined
+  readonly isError: boolean
+}
+
+// Replaced wholesale per test rather than mutated field-by-field, so no case
+// can leak a half-reset fixture into the next one.
+let subregistryHistoryResult: SubregistryHistoryResult = {
+  data: 0,
+  isError: false,
+}
+
+const setSubregistryHistory = (result: Partial<SubregistryHistoryResult>) => {
+  subregistryHistoryResult = { data: 0, isError: false, ...result }
+}
 
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
@@ -170,8 +181,7 @@ describe('V2RegistryInfo', () => {
     setRegistries(undefined)
     mockHasSetSubregistryRole.hasRole = false
     mockHasSetSubregistryRole.error = null
-    subregistryHistoryResult.data = 0
-    subregistryHistoryResult.isError = false
+    setSubregistryHistory({})
   })
 
   const configuredLeaf = (subregistry: string) =>
@@ -218,7 +228,7 @@ describe('V2RegistryInfo', () => {
         '0x1111111111111111111111111111111111111111', // .eth registry
         '0x0000000000000000000000000000000000000000', // root
       ])
-      subregistryHistoryResult.data = 1
+      setSubregistryHistory({ data: 1 })
     }
 
     it('does not offer the configure form on a detached slot', () => {
@@ -250,7 +260,7 @@ describe('V2RegistryInfo', () => {
         '0x1111111111111111111111111111111111111111',
         '0x0000000000000000000000000000000000000000',
       ])
-      subregistryHistoryResult.data = undefined
+      setSubregistryHistory({ data: undefined })
 
       render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
 
@@ -267,7 +277,7 @@ describe('V2RegistryInfo', () => {
         '0x1111111111111111111111111111111111111111',
         '0x0000000000000000000000000000000000000000',
       ])
-      subregistryHistoryResult.data = null
+      setSubregistryHistory({ data: null })
 
       render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
 
@@ -283,8 +293,7 @@ describe('V2RegistryInfo', () => {
         '0x1111111111111111111111111111111111111111',
         '0x0000000000000000000000000000000000000000',
       ])
-      subregistryHistoryResult.data = undefined
-      subregistryHistoryResult.isError = true
+      setSubregistryHistory({ data: undefined, isError: true })
 
       render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
 

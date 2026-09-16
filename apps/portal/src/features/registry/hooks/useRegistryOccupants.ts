@@ -14,9 +14,9 @@ class GetRegistryOccupantsError extends TaggedError(
 }> {}
 
 type GetRegistryOccupantsParameters = {
-  address: Address
+  readonly address: Address
   /** Whoever is about to write; every other holder in the registry is a third party. */
-  account: Address
+  readonly account: Address
 }
 
 /**
@@ -34,42 +34,56 @@ export type RegistryOccupants = {
   readonly thirdPartyCount: number
 }
 
+/**
+ * Counted through the root `domainConnection` rather than
+ * `registry(address:).labelConnection`, which looks like the natural home for
+ * it. Two indexer quirks rule that out, and both fail *open* — they return the
+ * unfiltered count rather than erroring:
+ *
+ * - `owner_not` is advertised by the schema but not implemented, so asking for
+ *   "everyone else" reports every non-empty registry as full of strangers.
+ * - on `labelConnection`, `where` is only honoured as an inline literal; passed
+ *   a GraphQL variable (or the whole filter as one) it is silently dropped.
+ *
+ * The root connection honours variables, so the third-party count is the total
+ * minus the caller's own — both filtered server-side, nothing interpolated into
+ * the document.
+ */
 const getRegistryOccupants = ResultFn(async function* ({
   address,
   account,
 }: GetRegistryOccupantsParameters) {
-  const { registry } = yield* fromPromise(
+  const { total, own } = yield* fromPromise(
     graphqlIndexerClient.request<{
-      registry: {
-        labelCount: number
-        thirdParty: { totalCount: number | null }
-      } | null
+      total: { totalCount: number | null }
+      own: { totalCount: number | null }
     }>(
       gql`
-        query getRegistryOccupants($address: String!, $account: String!) {
-          registry(address: $address) {
-            labelCount
-            thirdParty: labelConnection(
-              first: 1
-              where: { owner_not: $account }
-            ) {
-              totalCount
-            }
+        query getRegistryOccupants($registry: String!, $account: String!) {
+          total: domainConnection(first: 1, where: { registry: $registry }) {
+            totalCount
+          }
+          own: domainConnection(
+            first: 1
+            where: { registry: $registry, owner: $account }
+          ) {
+            totalCount
           }
         }
       `,
-      { address: address.toLowerCase(), account: account.toLowerCase() },
+      { registry: address.toLowerCase(), account: account.toLowerCase() },
     ),
     (e) => new GetRegistryOccupantsError({ cause: e as GraphqlRequestError }),
   )
 
-  // null = the indexer has no record of this registry. Distinct from a registry
-  // it knows about that holds nothing.
-  if (!registry) return ok(null)
+  // A connection that reports no count leaves the subtraction undefined, and
+  // guessing here would under-report third parties. Absent, not zero — the
+  // caller renders this as "we couldn't check" and blocks the write.
+  if (total.totalCount === null || own.totalCount === null) return ok(null)
 
   return ok({
-    count: registry.labelCount,
-    thirdPartyCount: registry.thirdParty.totalCount ?? 0,
+    count: total.totalCount,
+    thirdPartyCount: Math.max(0, total.totalCount - own.totalCount),
   } satisfies RegistryOccupants)
 })
 
