@@ -93,18 +93,29 @@ describe('assessRegistrationResume', () => {
 
     const verdict = await assess(record)
 
-    expect(verdict).toMatchObject({ status: 'resumable', record })
+    expect(verdict).toMatchObject({
+      status: 'resumable',
+      record,
+      commitmentOnChain: true,
+    })
     expect(verdict.status === 'resumable' && verdict.token.symbol).toBe('USDC')
   })
 
   it('resumes a submitted register, which the machine verifies first', async () => {
+    // The register was accepted against a landed commitment, so the commit
+    // step is behind it even when the chain cannot be read.
+    readContract.mockRejectedValue(new Error('rpc down'))
+
     const verdict = await assess(
       recordAt('waitingForRegistration', {
         registrationTxId: 'tx-reg-register',
       }),
     )
 
-    expect(verdict.status).toBe('resumable')
+    expect(verdict).toMatchObject({
+      status: 'resumable',
+      commitmentOnChain: true,
+    })
   })
 
   it('drops a run that stopped before its commitment', async () => {
@@ -128,21 +139,27 @@ describe('assessRegistrationResume', () => {
     // Discarding over an RPC blip would cost the user a second commitment.
     readContract.mockRejectedValue(new Error('rpc down'))
 
-    expect((await assess(recordAt('commitmentCooldown'))).status).toBe(
-      'resumable',
-    )
+    expect(await assess(recordAt('commitmentCooldown'))).toMatchObject({
+      status: 'resumable',
+      // Unconfirmed, so the commit step stays in view.
+      commitmentOnChain: false,
+    })
   })
 
-  it('leaves an unrecorded commitment to the machine', async () => {
+  it('keeps the commit ahead of a run left at its commit prompt', async () => {
+    // The record holds the commitment before the prompt opens. Closing the tab
+    // and rejecting the prompt leaves it unsent, and the run must not look as
+    // if it had moved past it.
     readContract.mockImplementation(
       async (_client: Client, { functionName }: { functionName: string }) =>
         functionName === 'commitmentAt' ? 0n : MAX_AGE,
     )
     getBlock.mockResolvedValue({ timestamp: 10n ** 12n })
 
-    expect((await assess(recordAt('commitmentCooldown'))).status).toBe(
-      'resumable',
-    )
+    expect(await assess(recordAt('waitingForCommitment'))).toMatchObject({
+      status: 'resumable',
+      commitmentOnChain: false,
+    })
   })
 
   it.each([
@@ -175,6 +192,7 @@ describe('decideRegistrationResume', () => {
   ): RegistrationResumeVerdict => ({
     status: 'resumable',
     record: recordAt('commitmentCooldown', overrides),
+    commitmentOnChain: true,
     token: {
       symbol: 'USDC',
       address: '0x0000000000000000000000000000000000000001',

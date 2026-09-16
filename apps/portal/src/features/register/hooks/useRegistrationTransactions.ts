@@ -24,6 +24,7 @@ import {
   usePublicClient,
   useReadContract,
 } from 'wagmi'
+import { waitFor } from 'xstate'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
@@ -55,6 +56,12 @@ type SavedRegistrationParams = {
   readonly tokenDecimals: number
 }
 
+/** States in which the machine is reading the chain before it moves on. */
+const CHECKING_CHAIN_STATES: ReadonlySet<string> = new Set([
+  'validatingCommitment',
+  'verifyingRegistration',
+])
+
 /** Map machine states to whether registration is actively in progress */
 function isInProgressState(
   stateValue: string | Record<string, unknown>,
@@ -80,10 +87,11 @@ export const useRegistrationTransactions = ({
   const [savedParams, setSavedParams] =
     useState<SavedRegistrationParams | null>(null)
 
-  // Set when this run was picked back up after a reload. Its resolver and
-  // commitment were made in the earlier session, so there is no transaction
-  // left to show for either and the modal lists only the steps still ahead.
-  const [isResumed, setIsResumed] = useState(false)
+  // Set when this run was picked back up after a reload, with what the chain
+  // said about its commitment. The modal lists only the steps still ahead.
+  const [resumed, setResumed] = useState<{
+    readonly commitmentOnChain: boolean
+  } | null>(null)
 
   const actor: RegistrationMachineActor = useActorRef(registrationMachine, {
     input: { chainId },
@@ -175,7 +183,7 @@ export const useRegistrationTransactions = ({
     if (currentState !== 'idle') {
       actor.send({ type: 'CANCEL' })
     }
-    setIsResumed(false)
+    setResumed(null)
 
     const walletClient = await getWalletClient(config, {
       account: connection.address,
@@ -201,15 +209,27 @@ export const useRegistrationTransactions = ({
     })
   }, [actor, name, duration, publicClient, connection, config, savedParams])
 
-  const handleProceed = useCallback(() => {
-    const currentState = actor.getSnapshot().value
-    if (currentState === 'error') {
-      for (const id of Object.values(REGISTRATION_TX_IDS)) {
-        if (transactionManager.getTransaction(id)?.getSnapshot().context.error)
-          transactionManager.cancelTransaction(id)
-      }
-      actor.send({ type: 'RETRY' })
+  // A resumed run reads the chain before it takes a retry: a commit that was
+  // never sent only fails its check after several seconds. A click landing in
+  // that window waits for the verdict instead of being dropped, so Start on
+  // that commit step puts the prompt back up.
+  const handleProceed = useCallback(async () => {
+    await waitFor(
+      actor,
+      (snapshot) => !CHECKING_CHAIN_STATES.has(String(snapshot.value)),
+    ).catch(() => null)
+    // Read the state now, not the snapshot the wait resolved with: several
+    // clicks can be waiting on the same verdict, and only the first may retry.
+    // A later one would retire the transaction that retry just started.
+    if (actor.getSnapshot().value !== 'error') return
+    // Only the failed attempt is retired. The machine resumes from that step,
+    // so clearing every transaction would send steps that already landed back
+    // to "Not Started".
+    for (const id of Object.values(REGISTRATION_TX_IDS)) {
+      if (transactionManager.getTransaction(id)?.getSnapshot().context.error)
+        transactionManager.cancelTransaction(id)
     }
+    actor.send({ type: 'RETRY' })
   }, [actor])
 
   const handleDone = useCallback(() => {
@@ -218,9 +238,12 @@ export const useRegistrationTransactions = ({
   }, [closeModal, clearTransaction])
 
   const transactions: Transaction[] = useMemo(() => {
-    // A resumed run is past its commitment (see `assessRegistrationResume`).
-    // Listing the deploy and commit steps would show them "Not Started", and
-    // the deploy step's Start would begin a second registration.
+    // A resumed run deployed its resolver in the earlier session: listing that
+    // step would show it "Not Started", and its Start would begin a second
+    // registration. The commit step stays until the commitment is on-chain.
+    // The record holds a commitment from before the commit prompt opens, so a
+    // run interrupted at that prompt never sent it (see
+    // `assessRegistrationResume`).
     const setupSteps: Transaction[] = [
       {
         id: REGISTRATION_TX_IDS.deployResolver,
@@ -258,7 +281,11 @@ export const useRegistrationTransactions = ({
         onDone: handleProceed,
       },
     ]
-    const steps: Transaction[] = isResumed ? [] : setupSteps
+    const steps: Transaction[] = setupSteps.filter(
+      (step) =>
+        !resumed ||
+        (step.id === REGISTRATION_TX_IDS.commit && !resumed.commitmentOnChain),
+    )
 
     if (needsApproval) {
       steps.push({
@@ -323,7 +350,7 @@ export const useRegistrationTransactions = ({
     duration,
     connection.address,
     savedParams,
-    isResumed,
+    resumed,
     needsApproval,
     commitment,
     resolverAddress,
@@ -349,7 +376,7 @@ export const useRegistrationTransactions = ({
    * RESUME from idle, and the page state belongs to the live run.
    */
   const resumeFlow = useCallback(
-    ({ record, token, signer }: ResumableRun): boolean => {
+    ({ record, token, signer, commitmentOnChain }: ResumableRun): boolean => {
       if (!publicClient || actor.getSnapshot().value !== 'idle') return false
 
       setSavedParams({
@@ -360,7 +387,7 @@ export const useRegistrationTransactions = ({
         tokenPrice: record.context.tokenPrice,
         tokenDecimals: token.decimals,
       })
-      setIsResumed(true)
+      setResumed({ commitmentOnChain })
 
       actor.send({
         type: 'RESUME',
@@ -379,7 +406,7 @@ export const useRegistrationTransactions = ({
 
   const resetRegistration = useCallback(() => {
     actor.send({ type: 'CANCEL' })
-    setIsResumed(false)
+    setResumed(null)
     closeModal()
     clearTransaction()
   }, [actor, closeModal, clearTransaction])

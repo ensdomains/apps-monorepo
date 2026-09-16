@@ -47,21 +47,34 @@ export type RegistrationResumeVerdict =
       readonly record: PersistedRegistrationRecord
       /** The record's token, narrowed to the ones the portal offers. */
       readonly token: PaymentToken
+      /**
+       * Whether the commit is confirmed on-chain. A record holds its commitment
+       * from before the commit prompt opens, so a run interrupted at that
+       * prompt has one that was never sent; its commit step is still ahead.
+       */
+      readonly commitmentOnChain: boolean
     }
 
 const stale = (
   reason: RegistrationResumeStaleReason,
 ): RegistrationResumeVerdict => ({ status: 'stale', reason })
 
+type CommitmentState = {
+  readonly onChain: boolean
+  readonly expired: boolean
+}
+
 /**
  * Chain time, not wall-clock: `commitmentAt` is a block timestamp. A failed
  * read counts as "not expired": resuming a dead commitment costs a reveal that
  * fails and can be retried, while discarding a live one costs a second commit.
+ * It also counts as "not on-chain", which keeps the commit step in view; the
+ * machine checks the chain again before it acts either way.
  */
-const isCommitmentExpired = (
+const readCommitment = (
   client: Client,
   commitment: Hash,
-): Promise<boolean> =>
+): Promise<CommitmentState> =>
   ResultAsync.fromPromise(
     Promise.all([
       readContract(client, {
@@ -80,15 +93,15 @@ const isCommitmentExpired = (
     ]),
     (error) => error,
   )
-    .map(
-      ([committedAt, maxAge, block]) =>
-        // 0 means not recorded yet (still filling, or failed), which
-        // `validatingCommitment` is better placed to tell apart. `>=` because
-        // the reveal runs after this check: a commitment at the boundary is
-        // already doomed.
-        committedAt !== 0n && block.timestamp - committedAt >= maxAge,
-    )
-    .unwrapOr(false)
+    .map(([committedAt, maxAge, block]) => ({
+      // 0 means not recorded: never sent, still pending, or failed. Only
+      // `validatingCommitment` can tell those apart.
+      onChain: committedAt !== 0n,
+      // `>=` because the reveal runs after this check: a commitment at the
+      // boundary is already doomed.
+      expired: committedAt !== 0n && block.timestamp - committedAt >= maxAge,
+    }))
+    .unwrapOr({ onChain: false, expired: false })
 
 export const assessRegistrationResume = async (params: {
   /** The name this page is for, as passed to START_REGISTRATION. */
@@ -119,11 +132,19 @@ export const assessRegistrationResume = async (params: {
   }
 
   const commitment = record.context.commitment?.commitment
-  if (commitment && (await isCommitmentExpired(params.client, commitment))) {
-    return stale('commitment-expired')
-  }
+  const chain = commitment
+    ? await readCommitment(params.client, commitment)
+    : { onChain: false, expired: false }
+  if (chain.expired) return stale('commitment-expired')
 
-  return { status: 'resumable', record, token }
+  return {
+    status: 'resumable',
+    record,
+    token,
+    // A register that went out was accepted against a landed commitment.
+    commitmentOnChain:
+      chain.onChain || getResumeTarget(record) === 'verifyingRegistration',
+  }
 }
 
 const isSameAddress = (a: Address, b: Address) =>
