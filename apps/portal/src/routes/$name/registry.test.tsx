@@ -113,10 +113,9 @@ const nameRegistriesResult: {
 // "never configured" when this is false; true means the pointer was zeroed and
 // the name is damaged, not new. See `useSubregistrySlot`.
 const subregistryHistoryResult: {
-  data: boolean | undefined
-  isLoading: boolean
+  data: number | null | undefined
   isError: boolean
-} = { data: false, isLoading: false, isError: false }
+} = { data: 0, isError: false }
 
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
@@ -171,8 +170,7 @@ describe('V2RegistryInfo', () => {
     setRegistries(undefined)
     mockHasSetSubregistryRole.hasRole = false
     mockHasSetSubregistryRole.error = null
-    subregistryHistoryResult.data = false
-    subregistryHistoryResult.isLoading = false
+    subregistryHistoryResult.data = 0
     subregistryHistoryResult.isError = false
   })
 
@@ -220,7 +218,7 @@ describe('V2RegistryInfo', () => {
         '0x1111111111111111111111111111111111111111', // .eth registry
         '0x0000000000000000000000000000000000000000', // root
       ])
-      subregistryHistoryResult.data = true
+      subregistryHistoryResult.data = 1
     }
 
     it('does not offer the configure form on a detached slot', () => {
@@ -253,7 +251,23 @@ describe('V2RegistryInfo', () => {
         '0x0000000000000000000000000000000000000000',
       ])
       subregistryHistoryResult.data = undefined
-      subregistryHistoryResult.isLoading = true
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(
+        screen.queryByTestId('configure-registry-form'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('treats a missing history count as unknown, not as "never configured"', () => {
+      // The indexer declining to count is not a name with no history; reading
+      // it as zero would hand back the re-mint surface.
+      setRegistries([
+        zeroAddress,
+        '0x1111111111111111111111111111111111111111',
+        '0x0000000000000000000000000000000000000000',
+      ])
+      subregistryHistoryResult.data = null
 
       render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
 

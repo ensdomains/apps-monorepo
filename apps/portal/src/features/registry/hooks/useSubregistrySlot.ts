@@ -5,6 +5,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
+import { match, P } from 'ts-pattern'
 import { namehash } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
@@ -41,7 +42,9 @@ const getSubregistryHistory = ResultFn(async function* ({
     (e) => new GetSubregistryHistoryError({ cause: e as GraphqlRequestError }),
   )
 
-  return ok((eventConnection.totalCount ?? 0) > 0)
+  // A connection that reports no count at all is not a name with no history —
+  // the caller must be able to tell those apart, so the absence is preserved.
+  return ok(eventConnection.totalCount)
 })
 
 const getSubregistryHistoryQueryKey = createQueryKey<
@@ -50,8 +53,8 @@ const getSubregistryHistoryQueryKey = createQueryKey<
 >('get-subregistry-history')
 
 /**
- * How to read an *empty* subregistry slot. The two cases look identical
- * on-chain and mean opposite things:
+ * How to read an *empty* subregistry slot. The two configured states look
+ * identical on-chain and mean opposite things:
  *
  * - `never-configured` — no `SubregistryUpdated` was ever emitted for this
  *   name. Nothing has been lost; configuring a registry is a setup step.
@@ -60,31 +63,43 @@ const getSubregistryHistoryQueryKey = createQueryKey<
  *   resolving when the pointer went. Offering to configure a *new* registry
  *   here would let whoever holds the name re-mint someone else's label into it
  *   and strand the original token.
- * - `unknown` — still loading, or the lookup failed. Fails closed: callers
- *   gating a destructive offer on "never configured" can't be walked past the
- *   gate by an indexer that is down.
+ *
+ * `loading` and `error` are states of their own rather than flags beside the
+ * verdict, so there is no value that means both "we don't know" and "never
+ * configured" — a caller gating a destructive offer can only reach it through
+ * `never-configured`.
  */
-export type SubregistrySlotState = 'unknown' | 'never-configured' | 'detached'
+export type SubregistrySlot =
+  | { readonly status: 'loading' }
+  | { readonly status: 'error' }
+  | { readonly status: 'never-configured' }
+  | { readonly status: 'detached' }
 
-export type SubregistrySlot = {
-  readonly state: SubregistrySlotState
-  readonly isLoading: boolean
-  readonly isError: boolean
-}
-
+/**
+ * Opts out of the app-wide one-hour `staleTime`: this gates whether the app
+ * offers to deploy a registry, and a cached "never configured" from before a
+ * detach is the exact answer that would re-open the re-mint surface.
+ */
 export const useSubregistrySlot = (
   name: string,
   { enabled = true }: { enabled?: boolean } = {},
 ): SubregistrySlot => {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isError } = useQuery({
     ...resultQueryOptions({
       queryKey: getSubregistryHistoryQueryKey({ name }),
       queryFn: ({ queryKey: [, params] }) => getSubregistryHistory(params),
     }),
     enabled,
+    staleTime: 0,
   })
 
-  if (data === undefined) return { state: 'unknown', isLoading, isError }
-
-  return { state: data ? 'detached' : 'never-configured', isLoading, isError }
+  return (
+    match({ isError, data })
+      .with({ isError: true }, () => ({ status: 'error' }) as const)
+      // A null count is the indexer declining to answer, not a zero.
+      .with({ data: null }, () => ({ status: 'error' }) as const)
+      .with({ data: P.nullish }, () => ({ status: 'loading' }) as const)
+      .with({ data: P.number.gt(0) }, () => ({ status: 'detached' }) as const)
+      .otherwise(() => ({ status: 'never-configured' }) as const)
+  )
 }

@@ -106,11 +106,16 @@ export type ParentWarning = {
 /**
  * The blast radius of the "Detach the registry" step: how many subnames stop
  * resolving, and whether any of them belong to someone other than the sender.
- * Loading and error are distinct from zero — see `useRegistryDetachImpact`.
+ *
+ * A union rather than a counter beside two flags, because "we couldn't size it"
+ * and "it is empty" must never be representable as the same value — the count
+ * gates a destructive write, so only `ready` carries numbers at all.
  */
-export type RegistryDetachImpact = {
-  readonly subnameCount: number
-  readonly hasThirdPartySubnames: boolean
-  readonly isLoading: boolean
-  readonly isError: boolean
-}
+export type RegistryDetachImpact =
+  | { readonly status: 'pending' }
+  | { readonly status: 'error' }
+  | {
+      readonly status: 'ready'
+      readonly subnameCount: number
+      readonly hasThirdPartySubnames: boolean
+    }

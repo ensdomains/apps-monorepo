@@ -154,15 +154,21 @@ const ParentWarningAlert = ({
 const getDetachConsentState = (
   impact: RegistryDetachImpact | null,
   isAcknowledged: boolean,
-) => {
-  if (!impact) return { needsConsent: false, isBlocked: false }
-
-  const isUnknown = impact.isLoading || impact.isError
-  if (!isUnknown && impact.subnameCount === 0)
-    return { needsConsent: false, isBlocked: false }
-
-  return { needsConsent: true, isBlocked: isUnknown || !isAcknowledged }
-}
+) =>
+  match(impact)
+    .with(null, () => ({ needsConsent: false, isBlocked: false }))
+    // Nothing to lose, so nothing to sign off.
+    .with({ status: 'ready', subnameCount: 0 }, () => ({
+      needsConsent: false,
+      isBlocked: false,
+    }))
+    // An unsized radius needs consent like a sized one — and can't be given it,
+    // so the transfer stays blocked until the count lands.
+    .with({ status: P.union('pending', 'error') }, () => ({
+      needsConsent: true,
+      isBlocked: true,
+    }))
+    .otherwise(() => ({ needsConsent: true, isBlocked: !isAcknowledged }))
 
 export const SendNameForm = ({
   owner,
@@ -311,18 +317,16 @@ export const SendNameForm = ({
  * `needsDetachConsent`.
  */
 const RegistryDetachConsent = ({
-  impact: { subnameCount, hasThirdPartySubnames, isLoading, isError },
+  impact,
   isAcknowledged,
   onAcknowledge,
 }: {
   readonly impact: RegistryDetachImpact
   readonly isAcknowledged: boolean
   readonly onAcknowledge: (value: boolean) => void
-}) => {
-  const countLabel = `${subnameCount} subname${subnameCount === 1 ? '' : 's'}`
-
-  return match({ isLoading, isError })
-    .with({ isLoading: true }, () => (
+}) =>
+  match(impact)
+    .with({ status: 'pending' }, () => (
       <Alert variant="warning">
         <AlertTriangle className="size-4" />
         <AlertDescription>
@@ -330,7 +334,7 @@ const RegistryDetachConsent = ({
         </AlertDescription>
       </Alert>
     ))
-    .with({ isError: true }, () => (
+    .with({ status: 'error' }, () => (
       <Alert variant="destructive">
         <AlertTriangle className="size-4" />
         <AlertDescription>
@@ -340,37 +344,41 @@ const RegistryDetachConsent = ({
         </AlertDescription>
       </Alert>
     ))
-    .otherwise(() => (
-      <Alert variant="destructive">
-        <AlertTriangle className="size-4" />
-        <AlertDescription className="flex flex-col gap-3">
-          <p>
-            Detaching the registry will stop{' '}
-            <span className="font-medium">{countLabel}</span> under this name
-            from resolving.{' '}
-            {hasThirdPartySubnames
-              ? 'Some of them belong to other people. They aren’t part of this transfer, won’t be told, and can’t repair it — only whoever ends up owning this name can.'
-              : 'The subnames stay in the old registry but nothing points at them any more.'}
-          </p>
-          <label
-            htmlFor="transfer-detach-registry-ack"
-            className="flex items-start gap-2 cursor-pointer"
-          >
-            <Checkbox
-              id="transfer-detach-registry-ack"
-              checked={isAcknowledged}
-              onCheckedChange={(checked) => onAcknowledge(checked === true)}
-              className="mt-0.5 shrink-0"
-            />
-            <span>
-              I understand this breaks {countLabel}
-              {hasThirdPartySubnames ? ', including ones I don’t own' : ''}.
-            </span>
-          </label>
-        </AlertDescription>
-      </Alert>
-    ))
-}
+    .with({ status: 'ready' }, ({ subnameCount, hasThirdPartySubnames }) => {
+      const countLabel = `${subnameCount} subname${subnameCount === 1 ? '' : 's'}`
+
+      return (
+        <Alert variant="destructive">
+          <AlertTriangle className="size-4" />
+          <AlertDescription className="flex flex-col gap-3">
+            <p>
+              Detaching the registry will stop{' '}
+              <span className="font-medium">{countLabel}</span> under this name
+              from resolving.{' '}
+              {hasThirdPartySubnames
+                ? 'Some of them belong to other people. They aren’t part of this transfer, won’t be told, and can’t repair it — only whoever ends up owning this name can.'
+                : 'The subnames stay in the old registry but nothing points at them any more.'}
+            </p>
+            <label
+              htmlFor="transfer-detach-registry-ack"
+              className="flex items-start gap-2 cursor-pointer"
+            >
+              <Checkbox
+                id="transfer-detach-registry-ack"
+                checked={isAcknowledged}
+                onCheckedChange={(checked) => onAcknowledge(checked === true)}
+                className="mt-0.5 shrink-0"
+              />
+              <span>
+                I understand this breaks {countLabel}
+                {hasThirdPartySubnames ? ', including ones I don’t own' : ''}.
+              </span>
+            </label>
+          </AlertDescription>
+        </Alert>
+      )
+    })
+    .exhaustive()
 
 const TransferDetachOptions = ({
   options,

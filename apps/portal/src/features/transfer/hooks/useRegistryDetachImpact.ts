@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getRegistryOccupantsQueryOptions } from '@/features/registry/hooks/useRegistryOccupants'
@@ -15,8 +16,10 @@ import type { RegistryDetachImpact } from '../types'
  * rather than a sibling in one `useQueries`; the discovery query itself is the
  * same cache entry `useTransferDetachTargets` already reads.
  *
- * Loading and error are surfaced rather than folded into zero: "we couldn't
- * count the subnames" must not read as "there are none".
+ * Both reads opt out of the app-wide one-hour `staleTime`: they gate a
+ * destructive, irreversible step, and an hour-old "this registry is empty" is
+ * exactly the answer that would wave a detach through after someone registered
+ * a subname.
  */
 export const useRegistryDetachImpact = ({
   name,
@@ -26,7 +29,10 @@ export const useRegistryDetachImpact = ({
   /** The account doing the transfer — everyone else in the registry is a third party. */
   readonly owner: Address
 }): RegistryDetachImpact => {
-  const registriesQuery = useQuery(getNameRegistriesQueryOptions({ name }))
+  const registriesQuery = useQuery({
+    ...getNameRegistriesQueryOptions({ name }),
+    staleTime: 0,
+  })
 
   // registries are `[name, ...ancestors, root]`, so index 0 is the name's own
   // subregistry — the slot the detach step zeroes.
@@ -40,12 +46,37 @@ export const useRegistryDetachImpact = ({
       account: owner,
     }),
     enabled: hasSubregistry,
+    staleTime: 0,
   })
 
-  return {
-    subnameCount: occupantsQuery.data?.count ?? 0,
-    hasThirdPartySubnames: (occupantsQuery.data?.thirdPartyCount ?? 0) > 0,
-    isLoading: registriesQuery.isLoading || occupantsQuery.isLoading,
-    isError: registriesQuery.isError || occupantsQuery.isError,
-  }
+  return (
+    match({
+      isError: registriesQuery.isError || occupantsQuery.isError,
+      hasSubregistry,
+      registriesSettled: registriesQuery.isSuccess,
+      occupants: occupantsQuery.data,
+    })
+      .with({ isError: true }, () => ({ status: 'error' }) as const)
+      // Nothing is attached, so the step destroys nothing. The only "ready with
+      // zero" the form is allowed to see.
+      .with(
+        { registriesSettled: true, hasSubregistry: false },
+        () =>
+          ({
+            status: 'ready',
+            subnameCount: 0,
+            hasThirdPartySubnames: false,
+          }) as const,
+      )
+      // null = the indexer has no record of a registry we know is attached. That
+      // is "we can't size this", not "it's empty" — fail closed.
+      .with({ occupants: null }, () => ({ status: 'error' }) as const)
+      .with({ occupants: P.nullish }, () => ({ status: 'pending' }) as const)
+      .with({ occupants: P.nonNullable }, ({ occupants }) => ({
+        status: 'ready' as const,
+        subnameCount: occupants.count,
+        hasThirdPartySubnames: occupants.thirdPartyCount > 0,
+      }))
+      .exhaustive()
+  )
 }

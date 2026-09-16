@@ -313,8 +313,8 @@ const RegistryEmptyState = ({
 
   return (
     match(slot)
-      .with({ state: 'detached' }, () => <DetachedRegistryNotice />)
-      .with({ state: 'unknown', isError: true }, () => (
+      .with({ status: 'detached' }, () => <DetachedRegistryNotice />)
+      .with({ status: 'error' }, () => (
         <div className="pt-4 pl-1 lg:pl-14 max-w-xl">
           <ErrorMessage
             compact
@@ -322,12 +322,12 @@ const RegistryEmptyState = ({
           />
         </div>
       ))
-      // Loading, or a lookup that resolved to nothing conclusive: claim nothing,
-      // and above all don't offer the write.
-      .with({ state: 'unknown' }, () => (
+      // Claim nothing while the lookup is in flight, and above all don't offer
+      // the write.
+      .with({ status: 'loading' }, () => (
         <LoadingSpinner title="Checking registry history..." />
       ))
-      .with({ state: 'never-configured' }, () => (
+      .with({ status: 'never-configured' }, () => (
         <ConfigureRegistryForm name={name} />
       ))
       .exhaustive()

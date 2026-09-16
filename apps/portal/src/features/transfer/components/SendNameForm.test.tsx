@@ -27,17 +27,15 @@ const ALL_TARGETS: TransferDetachTargets = {
 
 /** `parent.eth`'s registry holds one subname, owned by someone else. */
 const THIRD_PARTY_SUBNAME: RegistryDetachImpact = {
+  status: 'ready',
   subnameCount: 1,
   hasThirdPartySubnames: true,
-  isLoading: false,
-  isError: false,
 }
 
 const EMPTY_REGISTRY: RegistryDetachImpact = {
+  status: 'ready',
   subnameCount: 0,
   hasThirdPartySubnames: false,
-  isLoading: false,
-  isError: false,
 }
 
 const renderForm = (impact: RegistryDetachImpact) =>
@@ -143,7 +141,7 @@ describe('SendNameForm — an unknown blast radius', () => {
 
   it('blocks while the count is still loading', async () => {
     // An uncounted registry is not an empty one — fail closed.
-    await renderAndArmDetach({ ...EMPTY_REGISTRY, isLoading: true })
+    await renderAndArmDetach({ status: 'pending' })
 
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(
@@ -152,7 +150,7 @@ describe('SendNameForm — an unknown blast radius', () => {
   })
 
   it('blocks, and says why, when the count cannot be read at all', async () => {
-    await renderAndArmDetach({ ...EMPTY_REGISTRY, isError: true })
+    await renderAndArmDetach({ status: 'error' })
 
     expect(
       screen.getByText(/couldn’t check how many subnames/i),
