@@ -1192,10 +1192,6 @@ msgid "Go back home"
 msgstr "Go back home"
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Go make it yours"
-msgstr "Go make it yours"
-
-#: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "Go to dashboard"

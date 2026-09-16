@@ -207,7 +207,7 @@ const StatusContent = ({
             </p>
             <MigrationPrimaryButton onClick={onViewProfile}>
               <span className="flex items-center gap-2">
-                <Trans>Go make it yours</Trans>
+                <Trans>Go to dashboard</Trans>
                 <MSymbol
                   aria-hidden
                   className="text-lg leading-none"
