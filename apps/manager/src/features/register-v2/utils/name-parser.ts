@@ -49,9 +49,33 @@ type ParsedName = {
   readonly name: string
 }
 
-export const parseName = (
+type CanonicalName = ParsedName & {
+  /**
+   * `true` when ENSIP-15 rewrote the input beyond case — a fullwidth or
+   * confusable character folded, a zero-width space or variation selector
+   * deleted, an NFD sequence composed. The parsed name is then the canonical
+   * spelling and the input is a different name that merely looks like it.
+   *
+   * Case folding alone does not count: `VITALIK.ETH` is unambiguously
+   * `vitalik.eth`, and every caller already reads the normalised name.
+   */
+  readonly wasRewritten: boolean
+}
+
+/**
+ * Parses a name into its canonical ENSIP-15 spelling.
+ *
+ * Refuses only what has no canonical form: characters ENS never allows, and
+ * labels `normalize` throws on (an `xn--` extension, a disallowed character).
+ * Everything else comes back normalised, with `wasRewritten` saying whether
+ * the caller is holding a different name than the one it passed in.
+ *
+ * Callers that act on a name the user already owns want {@link parseName},
+ * which refuses a rewrite outright.
+ */
+export const parseCanonicalName = (
   name: string,
-): Result<ParsedName, ParseNameError<ParseNameReason>> => {
+): Result<CanonicalName, ParseNameError<ParseNameReason>> => {
   // Remove any leading or trailing whitespace
   const trimmed = name.trim()
 
@@ -77,14 +101,6 @@ export const parseName = (
     () => normalize(joined),
     () => new ParseNameError({ reason: 'NOT_NORMALIZED' as const }),
   ).andThen((normalized) => {
-    // `normalize` maps rather than rejects: it deletes a zero-width space or a
-    // stray variation selector and folds confusables like `ⓝ` onto `n`. A name
-    // it rewrites is one that renders as one label and hashes as another, so
-    // refuse it instead of silently signing the rewrite.
-    if (normalized !== joined && normalized !== joined.toLowerCase()) {
-      return ParseNameError.err('NOT_NORMALIZED')
-    }
-
     const labels = normalized.split('.')
     const tld = labels.length > 1 ? labels.pop() : 'eth'
     const label = labels.pop()
@@ -98,9 +114,31 @@ export const parseName = (
       label,
       tld,
       name: [...labels, label, tld].join('.'),
+      wasRewritten:
+        normalized !== joined && normalized !== joined.toLowerCase(),
     })
   })
 }
+
+/**
+ * Parses a name and refuses anything ENSIP-15 rewrites.
+ *
+ * `normalize` maps rather than rejects: it deletes a zero-width space or a
+ * stray variation selector and folds confusables like `ⓝ` onto `n`. A name it
+ * rewrites is one that renders as one label and hashes as another, so refuse
+ * it instead of silently signing the rewrite. Pure case folding is not a
+ * rewrite — `VITALIK.ETH` is unambiguously `vitalik.eth`.
+ *
+ * Use this wherever the name identifies something the user already holds
+ * (renew, transfer). Registration has no such name to diverge from, so it
+ * uses {@link parseCanonicalName} and redirects to the canonical spelling.
+ */
+export const parseName = (
+  name: string,
+): Result<ParsedName, ParseNameError<ParseNameReason>> =>
+  parseCanonicalName(name).andThen(({ wasRewritten, ...parsed }) =>
+    wasRewritten ? ParseNameError.err('NOT_NORMALIZED') : ok(parsed),
+  )
 
 /**
  * Correctly calculates the length of a ENS label by iterating over the string iterator and counting the number of code points.

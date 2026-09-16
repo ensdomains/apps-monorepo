@@ -10,7 +10,7 @@ import {
   FailureStep,
   getRegistrationV2AvailabilityQueryOptions,
   PricingStep,
-  parseName,
+  parseCanonicalName,
   RegisteringStep,
   RegistrationV2UiProvider,
   ResumeCheckPlaceholder,
@@ -23,23 +23,39 @@ export const Route = createFileRoute('/register/$name')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
     // Validate the name shape first: the availability query can throw on
     // names the registrar doesn't understand
-    const parsedName = parseName(name)
+    const parsedName = parseCanonicalName(name)
 
     if (parsedName.isErr()) {
       throw parsedName.error
     }
 
-    if (parsedName.value.tld !== 'eth') {
+    const {
+      label,
+      name: normalizedName,
+      subLabels,
+      tld,
+      wasRewritten,
+    } = parsedName.value
+
+    // Nothing is owned yet, so a name ENSIP-15 rewrites has an unambiguous
+    // canonical spelling to send the buyer to. Redirecting here is what makes
+    // availability, price, display and commit/reveal calldata all read the one
+    // normalised name, never the look-alike that was typed or linked.
+    if (wasRewritten) {
+      throw redirect({
+        params: { name: normalizedName },
+        to: '/register/$name',
+        replace: true,
+      })
+    }
+
+    if (tld !== 'eth') {
       return { fallback: 'unsupported-tld' as const, label: '' }
     }
 
-    if (parsedName.value.subLabels.length > 0) {
+    if (subLabels.length > 0) {
       throw new Error('Subnames are not supported')
     }
-
-    // Availability, display and commit/reveal calldata all read this one
-    // normalised name, so the label hashed is the label checked as available.
-    const { label, name: normalizedName } = parsedName.value
 
     // Labels under 3 code points can't be registered; send them to the
     // profile fallback instead of surfacing the availability error

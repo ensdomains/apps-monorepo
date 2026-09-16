@@ -1,5 +1,5 @@
 import { assert, describe, expect, it } from 'vitest'
-import { parseName } from './name-parser'
+import { parseCanonicalName, parseName } from './name-parser'
 
 describe('parseName', () => {
   it('parses a plain label as an .eth name', () => {
@@ -152,5 +152,71 @@ describe('parseName', () => {
       tld: 'eth',
       name: 'sub.vitalik.eth',
     })
+  })
+})
+
+describe('parseCanonicalName', () => {
+  it('reports a name that is already canonical as unrewritten', () => {
+    const result = parseCanonicalName('vitalik.eth')
+
+    assert(result.isOk())
+    expect(result.value).toEqual({
+      subLabels: [],
+      label: 'vitalik',
+      tld: 'eth',
+      name: 'vitalik.eth',
+      wasRewritten: false,
+    })
+  })
+
+  it('does not count case folding as a rewrite', () => {
+    // `VITALIK.ETH` is unambiguously `vitalik.eth`: there is no second name it
+    // could be confused with, and every caller reads the normalised name.
+    const result = parseCanonicalName('VITALIK.ETH')
+
+    assert(result.isOk())
+    expect(result.value).toMatchObject({
+      label: 'vitalik',
+      name: 'vitalik.eth',
+      wasRewritten: false,
+    })
+  })
+
+  it.each([
+    ['a fullwidth look-alike', 'ｖｉｔａｌｉｋ.eth', 'vitalik.eth'],
+    ['a soft hyphen', 'vi­talik.eth', 'vitalik.eth'],
+    ['a zero-width space', 'vitalik​.eth', 'vitalik.eth'],
+    ['a circled-letter confusable', 'vitalikⓝ.eth', 'vitalikn.eth'],
+    ['a stray variation selector', 'thumbs\u{1f44d}️.eth', 'thumbs👍.eth'],
+    ['an NFD accent', 'cafés.eth', 'cafés.eth'],
+  ])('canonicalises %s and flags it as rewritten', (_case, name, canonicalName) => {
+    const result = parseCanonicalName(name)
+
+    assert(result.isOk())
+    expect(result.value).toMatchObject({
+      name: canonicalName,
+      wasRewritten: true,
+    })
+  })
+
+  it.each([
+    // `xn--` is reserved for punycode, which ENS never issues. A zero-width
+    // non-joiner is disallowed outside the few scripts that need it. Neither
+    // has a canonical spelling to redirect a buyer to.
+    ['an xn-- extension', 'xn--ls8h.eth'],
+    ['a zero-width non-joiner', 'vitalik\u200c.eth'],
+    ['a null character', 'vitalik\u0000.eth'],
+  ])('refuses %s, which has no canonical form', (_case, name) => {
+    const result = parseCanonicalName(name)
+
+    assert(result.isErr())
+    expect(result.error).toMatchObject({ reason: 'NOT_NORMALIZED' })
+  })
+
+  it('refuses a bracket-encoded labelhash', () => {
+    const result = parseCanonicalName('[deadbeef].eth')
+
+    assert(result.isErr())
+    expect(result.error).toMatchObject({ reason: 'INVALID_CHARACTER' })
   })
 })

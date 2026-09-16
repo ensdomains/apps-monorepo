@@ -59,6 +59,7 @@ import {
   zeroAddress,
 } from 'viem'
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
+import { normalize } from 'viem/ens'
 import { transactionManager } from '../../providers/transactionManager'
 import type { RhinestoneSigner, Signer } from '../../types/signer.types'
 import type {
@@ -487,6 +488,30 @@ const toCalls = (calls: readonly HcaCall[]): Call[] =>
 
 const cleanLabel = (name: string): string => name.replace(/\.eth$/, '')
 
+/**
+ * The label for a call that will be signed, hashed or registered.
+ *
+ * `keccak256(label)` is the name's identity, so a label that is not already in
+ * ENSIP-15 canonical form buys a different name than the one the confirm step
+ * displayed and priced. The app canonicalises at the entry of the flow; this
+ * is the last line before the wallet, and it refuses rather than signs.
+ */
+const canonicalLabel = (name: string): string => {
+  const label = cleanLabel(name)
+
+  // `normalize` throws on a label ENS can never issue (an `xn--` extension, a
+  // disallowed character); its own error says which, so let it through.
+  const normalized = normalize(label)
+
+  if (normalized !== label) {
+    throw new Error(
+      `Refusing to register "${label}": its canonical form is "${normalized}", so it would register a different name than the one shown.`,
+    )
+  }
+
+  return label
+}
+
 /** User-paid request shape shared by both legs. */
 function buildUserPaidRequest(params: {
   from: Address
@@ -824,7 +849,7 @@ export function submitFundingAndCommitActor(input: {
     (async () => {
       const chainId = requireChainId(input.publicClient, 'HCA registration')
       const contracts = getDestinationContracts(chainId)
-      const label = cleanLabel(input.name)
+      const label = canonicalLabel(input.name)
 
       const resolverAddress = computeResolverAddress({
         chainId,
@@ -966,7 +991,7 @@ export function verifyHcaRegistrationActor(
   }> => {
     const chainId = requireChainId(input.publicClient, 'HCA registration')
     const contracts = getDestinationContracts(chainId)
-    const label = cleanLabel(input.name)
+    const label = canonicalLabel(input.name)
     const expectedResolver = computeResolverAddress({
       chainId,
       hca: input.hca,
@@ -1091,7 +1116,7 @@ export function submitRevealBatchActor(input: {
   return fromPromise(
     (async () => {
       const chainId = requireChainId(input.publicClient, 'HCA registration')
-      const label = cleanLabel(input.name)
+      const label = canonicalLabel(input.name)
 
       const resolverAddress = computeResolverAddress({
         chainId,
