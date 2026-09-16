@@ -4,6 +4,7 @@ import { useConnection } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { resolveVerifiedOwner } from '@/lib/smart-account/sessionGate'
 import { useCommemorativeNftAvailability } from '../../commemorative-nft/useCommemorativeNftAvailability'
+import { useCommemorativeNftMigrationCompletion } from '../../commemorative-nft/useCommemorativeNftMigrationCompletion'
 import { getVisibleCommemorativeNftEligibility } from '../../commemorative-nft/visibility'
 import { CommemorativeNftClaimDialog } from './CommemorativeNftClaimDialog'
 import { CommemorativeNftMintBanner } from './CommemorativeNftMintBanner'
@@ -22,6 +23,13 @@ export const CommemorativeNftDashboardPrompt = () => {
     ownerAddress: verifiedOwner,
     enabled: true,
   })
+  const migrationCompletion = useCommemorativeNftMigrationCompletion({
+    ownerAddress: verifiedOwner,
+    enabled:
+      availability.featureEnabled &&
+      availability.supported &&
+      availability.claimed.data !== true,
+  })
 
   // Keep a resolved offer in place during background checks. Mint still
   // requires fresh, idle results and is revalidated again by the claim dialog.
@@ -37,11 +45,14 @@ export const CommemorativeNftDashboardPrompt = () => {
   })
   const shouldShow =
     !!eligibility &&
+    migrationCompletion.isComplete &&
     availability.claimed.isFetchedAfterMount &&
     availability.claimed.isSuccess &&
     availability.claimed.data === false
   const canMint =
-    availability.hasFreshEligibilityResult && availability.isConfirmedUnclaimed
+    availability.hasFreshEligibilityResult &&
+    availability.isConfirmedUnclaimed &&
+    migrationCompletion.isFreshComplete
 
   return (
     <>
@@ -55,6 +66,10 @@ export const CommemorativeNftDashboardPrompt = () => {
       <CommemorativeNftClaimDialog
         context="mint-later"
         onClose={() => setOpen(false)}
+        onOpenDashboard={() => {
+          setOpen(false)
+          navigate({ to: '/dashboard' })
+        }}
         onViewProfile={(profileName) => {
           setOpen(false)
           const name = profileName ?? eligibility?.profileName

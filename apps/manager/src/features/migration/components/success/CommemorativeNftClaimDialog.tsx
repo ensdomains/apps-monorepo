@@ -21,6 +21,7 @@ type CommemorativeNftClaimDialogProps = {
   readonly context: 'migration' | 'mint-later'
   readonly migratedNameCount?: number
   readonly onClose: () => void
+  readonly onOpenDashboard: () => void
   readonly onViewProfile: (profileName: string | undefined) => void
   readonly open: boolean
   readonly ownerAddress: Address | undefined
@@ -110,6 +111,7 @@ const OpenCommemorativeNftClaimDialog = ({
   context,
   migratedNameCount = 0,
   onClose,
+  onOpenDashboard,
   onViewProfile,
   ownerAddress,
   preview,
@@ -185,6 +187,7 @@ const OpenCommemorativeNftClaimDialog = ({
       migratedNameCount={migratedNameCount}
       onClose={onClose}
       onMint={flow.mint}
+      onOpenDashboard={onOpenDashboard}
       onRetry={flow.retry}
       onViewProfile={() => onViewProfile(flow.eligibility?.profileName)}
       open
@@ -209,6 +212,7 @@ export const CommemorativeNftClaimDialog = (
         migratedNameCount={props.migratedNameCount ?? 0}
         onClose={props.onClose}
         onMint={noop}
+        onOpenDashboard={props.onOpenDashboard}
         onRetry={noop}
         onViewProfile={() => props.onViewProfile(undefined)}
         open

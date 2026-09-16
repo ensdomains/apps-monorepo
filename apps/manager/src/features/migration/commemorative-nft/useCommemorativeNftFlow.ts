@@ -30,6 +30,7 @@ import type {
   CommemorativeNftEligibilityResult,
 } from './types'
 import { useCommemorativeNftAvailability } from './useCommemorativeNftAvailability'
+import { useCommemorativeNftMigrationCompletion } from './useCommemorativeNftMigrationCompletion'
 
 type UseCommemorativeNftFlowOptions = {
   readonly open: boolean
@@ -58,12 +59,18 @@ const getEligibilityFlowStatus = (params: {
   readonly isPending: boolean
   readonly hasEligibility: boolean
   readonly dataStatus?: 'eligible' | 'ineligible' | 'unavailable'
+  readonly migrationStatus: 'pending' | 'error' | 'incomplete' | 'complete'
 }): 'pending' | 'error' | 'eligible' | 'ineligible' | 'unavailable' => {
   if (!params.available) return 'unavailable'
   if (params.dataStatus === 'ineligible') return 'ineligible'
   if (params.isError) return 'error'
   if (params.isPending && !params.hasEligibility) return 'pending'
-  if (params.hasEligibility) return 'eligible'
+  if (params.hasEligibility) {
+    if (params.migrationStatus === 'incomplete') return 'ineligible'
+    return params.migrationStatus === 'complete'
+      ? 'eligible'
+      : params.migrationStatus
+  }
   if (params.dataStatus === 'eligible') return 'unavailable'
   return params.dataStatus ?? 'pending'
 }
@@ -125,6 +132,76 @@ const getArtworkDialogState = (params: {
   }
 }
 
+const getClaimSessionState = ({
+  admitted,
+  availability,
+  claimedStatus,
+  claimError,
+  hasEligibility,
+  isTrackingClaim,
+  migrationCompletion,
+  ownerAddress,
+  preview,
+}: {
+  readonly admitted: boolean
+  readonly availability: ReturnType<typeof useCommemorativeNftAvailability>
+  readonly claimedStatus: boolean | undefined
+  readonly claimError: boolean
+  readonly hasEligibility: boolean
+  readonly isTrackingClaim: boolean
+  readonly migrationCompletion: ReturnType<
+    typeof useCommemorativeNftMigrationCompletion
+  >
+  readonly ownerAddress: Address | undefined
+  readonly preview: boolean
+}) => {
+  const preserveClaim = claimedStatus === true || isTrackingClaim
+  const eligibilityStatus = getEligibilityFlowStatus({
+    available:
+      availability.featureEnabled && (availability.supported || preview),
+    isError: availability.eligibility.isError,
+    isPending: availability.eligibility.isPending,
+    hasEligibility,
+    dataStatus: availability.eligibility.data?.status,
+    // Once a claim is in progress, continue tracking its result even if a
+    // background migration read starts. Fresh completion still gates mint.
+    migrationStatus:
+      preview || preserveClaim ? 'complete' : migrationCompletion.status,
+  })
+  const admission: CommemorativeNftAdmission = availability.featureEnabled
+    ? getCommemorativeNftAdmission({
+        admitted,
+        preview,
+        hasOwner: !!ownerAddress,
+        supported: availability.supported,
+        eligibilityStatus,
+        claimed: availability.claimed.data,
+        // Admit only after published metadata validation, or to show a completed
+        // eligibility error in the existing retry UI.
+        isFresh:
+          availability.hasFreshClaimedResult &&
+          ((availability.hasFreshEligibilityResult &&
+            (migrationCompletion.isFreshComplete || preserveClaim)) ||
+            eligibilityStatus === 'error'),
+        claimReadError: availability.claimed.isError,
+        fetchStatus: availability.claimed.fetchStatus,
+      })
+    : { status: 'fallback' }
+  const flowStatus = getCommemorativeNftFlowStatus({
+    eligibilityStatus,
+    // Keep admitted artwork visible during background reads. Only a fresh
+    // unclaimed result below can enable the mint action.
+    claimed:
+      admission.status === 'admitted' && !preview
+        ? availability.claimed.data
+        : claimedStatus,
+    claimPending: isTrackingClaim,
+    claimError: claimError || (!preview && availability.claimed.isError),
+  })
+
+  return { admission, flowStatus }
+}
+
 export const useCommemorativeNftFlow = ({
   open,
   ownerAddress,
@@ -151,6 +228,15 @@ export const useCommemorativeNftFlow = ({
     pollClaimed: awaitingClaim || hasPendingClaim,
   })
   const featureEnabled = availability.featureEnabled
+  const migrationCompletion = useCommemorativeNftMigrationCompletion({
+    ownerAddress,
+    enabled:
+      open &&
+      featureEnabled &&
+      availability.supported &&
+      !preview &&
+      availability.claimed.data !== true,
+  })
   const featureEnabledRef = useRef(featureEnabled)
   const eligibility = getPublishedEligibility(
     availability.eligibility.data,
@@ -183,6 +269,16 @@ export const useCommemorativeNftFlow = ({
         eligibility.proof.length === 0
       ) {
         throw new Error('This preview is display-only.')
+      }
+
+      // Recheck immediately before asking the wallet to mint. A cached offer
+      // or a retained click handler must not bypass newly unfinished upgrades.
+      const completion = await migrationCompletion.recheck()
+      if (!completion.isSuccess || !completion.data.isComplete) {
+        throw new Error('Upgrade all your names before minting your NFT.')
+      }
+      if (!featureEnabledRef.current) {
+        throw new Error('The commemorative NFT feature is disabled.')
       }
 
       const hash = await claimCommemorativeNft({
@@ -235,32 +331,19 @@ export const useCommemorativeNftFlow = ({
     isFresh: availability.hasFreshClaimedResult,
   })
   const claimed = claimedStatus === true
-
-  const eligibilityStatus = getEligibilityFlowStatus({
-    available: featureEnabled && (availability.supported || preview),
-    isError: availability.eligibility.isError,
-    isPending: availability.eligibility.isPending,
+  const isTrackingClaim =
+    claimMutation.isPending || awaitingClaim || hasPendingClaim
+  const { admission, flowStatus } = getClaimSessionState({
+    admitted,
+    availability,
+    claimedStatus,
+    claimError: claimMutation.isError,
     hasEligibility: !!eligibility,
-    dataStatus: availability.eligibility.data?.status,
+    isTrackingClaim,
+    migrationCompletion,
+    ownerAddress,
+    preview,
   })
-  const admission: CommemorativeNftAdmission = featureEnabled
-    ? getCommemorativeNftAdmission({
-        admitted,
-        preview,
-        hasOwner: !!ownerAddress,
-        supported: availability.supported,
-        eligibilityStatus,
-        claimed: availability.claimed.data,
-        // Admit only after published metadata validation, or to show a completed
-        // eligibility error in the existing retry UI.
-        isFresh:
-          availability.hasFreshClaimedResult &&
-          (availability.hasFreshEligibilityResult ||
-            eligibilityStatus === 'error'),
-        claimReadError: availability.claimed.isError,
-        fetchStatus: availability.claimed.fetchStatus,
-      })
-    : { status: 'fallback' }
   const isAdmitted = admission.status === 'admitted'
 
   useEffect(() => {
@@ -268,15 +351,6 @@ export const useCommemorativeNftFlow = ({
     else if (isAdmitted) setAdmitted(true)
   }, [featureEnabled, isAdmitted])
 
-  const flowStatus = getCommemorativeNftFlowStatus({
-    eligibilityStatus,
-    // Keep admitted artwork visible during background reads. Only a fresh
-    // unclaimed result below can enable the mint action.
-    claimed: isAdmitted && !preview ? availability.claimed.data : claimedStatus,
-    claimPending: claimMutation.isPending || awaitingClaim || hasPendingClaim,
-    claimError:
-      claimMutation.isError || (!preview && availability.claimed.isError),
-  })
   const card = useMemo<CommemorativeNftCardData | undefined>(() => {
     if (!eligibility) return undefined
 
@@ -299,7 +373,8 @@ export const useCommemorativeNftFlow = ({
   const state =
     getNonArtworkDialogState({
       flowStatus,
-      eligibilityError: availability.eligibility.error,
+      eligibilityError:
+        availability.eligibility.error || migrationCompletion.query.error,
       claimError:
         availability.claimed.error ||
         (claimMutation.error instanceof Error ? claimMutation.error : null),
@@ -315,18 +390,21 @@ export const useCommemorativeNftFlow = ({
     void Promise.allSettled([
       availability.eligibility.refetch(),
       availability.claimed.refetch(),
+      migrationCompletion.recheck(),
     ])
   }, [
     availability.claimed,
     availability.eligibility,
     awaitingClaim,
     claimMutation,
+    migrationCompletion.recheck,
   ])
   const canMint =
     featureEnabled &&
     isAdmitted &&
     flowStatus === 'readyToMint' &&
     availability.hasFreshEligibilityResult &&
+    migrationCompletion.isFreshComplete &&
     claimedStatus === false &&
     !preview &&
     !!eligibility &&

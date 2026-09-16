@@ -4,6 +4,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useChainId, useConfig } from 'wagmi'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import {
   claimCommemorativeNft,
   readCommemorativeNftClaimed,
@@ -12,14 +13,39 @@ import {
 import { fetchCommemorativeNftEligibility } from './eligibility'
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
 import {
+  commemorativeNftMigrationCompletionQueryOptions,
+  fetchCommemorativeNftMigrationCompletion,
+} from './migrationCompletion'
+import {
   commemorativeNftClaimedQueryOptions,
   commemorativeNftEligibilityQueryOptions,
 } from './queries'
 import type { CommemorativeNftEligibility } from './types'
 import { useCommemorativeNftFlow } from './useCommemorativeNftFlow'
+import {
+  recordVerifiedNftMigration,
+  type VerifiedNftMigration,
+} from './verifiedMigration'
 
 vi.mock('wagmi', () => ({ useChainId: vi.fn(), useConfig: vi.fn() }))
 vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: vi.fn() }))
+vi.mock('@/lib/smart-account', () => ({ useSmartAccountContext: vi.fn() }))
+vi.mock('./migrationCompletion', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./migrationCompletion')>()
+  const fetchCompletion = vi.fn()
+  return {
+    ...actual,
+    fetchCommemorativeNftMigrationCompletion: fetchCompletion,
+    commemorativeNftMigrationCompletionQueryOptions: (
+      params: Parameters<
+        typeof actual.commemorativeNftMigrationCompletionQueryOptions
+      >[0],
+    ) => ({
+      ...actual.commemorativeNftMigrationCompletionQueryOptions(params),
+      queryFn: () => fetchCompletion(params),
+    }),
+  }
+})
 vi.mock('./contract', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./contract')>()),
   claimCommemorativeNft: vi.fn(),
@@ -32,6 +58,13 @@ vi.mock('./eligibility', async (importOriginal) => ({
 }))
 
 const ownerAddress = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
+const hcaAddress = '0x1111111111111111111111111111111111111111'
+const verifiedMigration: VerifiedNftMigration = {
+  ownerAddress,
+  hcaAddress,
+  chainId: 11155111,
+  completedOperations: [{ name: 'yoginth.eth', action: 'migrate' }],
+}
 const wagmiConfig = {} as ReturnType<typeof useConfig>
 const eligibility: CommemorativeNftEligibility = {
   ...createCommemorativeNftPreviewEligibility({
@@ -46,6 +79,17 @@ const readClaimed = vi.mocked(readCommemorativeNftClaimed)
 const claim = vi.mocked(claimCommemorativeNft)
 const waitForReceipt = vi.mocked(waitForCommemorativeNftClaimReceipt)
 const fetchEligibility = vi.mocked(fetchCommemorativeNftEligibility)
+const fetchCompletion = vi.mocked(fetchCommemorativeNftMigrationCompletion)
+const completeMigration = {
+  isComplete: true,
+  remainingNameCount: 0,
+  migratedNameCount: 5,
+}
+const partialMigration = {
+  isComplete: false,
+  remainingNameCount: 2,
+  migratedNameCount: 3,
+}
 const featureFlag = vi.mocked(useFeatureFlagEnabled)
 const clients: QueryClient[] = []
 
@@ -61,6 +105,13 @@ const claimQueryKey = commemorativeNftClaimedQueryOptions({
   ownerAddress,
   chainId: 11155111,
   wagmiConfig,
+}).queryKey
+const completionQueryKey = commemorativeNftMigrationCompletionQueryOptions({
+  ownerAddress,
+  hcaAddress,
+  chainId: 11155111,
+  wagmiConfig,
+  journalRevision: 0,
 }).queryKey
 
 const mountFlow = (
@@ -96,6 +147,11 @@ describe('commemorative NFT flow session', () => {
     vi.mocked(useChainId).mockReturnValue(11155111)
     vi.mocked(useConfig).mockReturnValue(wagmiConfig)
     featureFlag.mockReturnValue(true)
+    vi.mocked(useSmartAccountContext, { partial: true }).mockReturnValue({
+      ownerAddress,
+      accountAddress: hcaAddress,
+    })
+    fetchCompletion.mockResolvedValue(completeMigration)
     fetchEligibility.mockResolvedValue({ status: 'eligible', eligibility })
     readClaimed.mockResolvedValue(false)
     claim.mockResolvedValue('0xabc')
@@ -161,6 +217,194 @@ describe('commemorative NFT flow session', () => {
     expect(result.current.admission.status).toBe('admitted')
     expect(fetchEligibility).toHaveBeenCalledTimes(1)
     expect(readClaimed).toHaveBeenCalledTimes(1)
+  })
+
+  it('requires every eligible name to be migrated even with a published NFT proof', async () => {
+    fetchCompletion.mockResolvedValue(partialMigration)
+    const { result } = mountFlow(createClient())
+
+    await waitFor(() => expect(result.current.state.status).toBe('ineligible'))
+    expect(result.current.admission.status).toBe('fallback')
+    expect(result.current.canMint).toBe(false)
+    act(() => result.current.mint())
+    expect(claim).not.toHaveBeenCalled()
+  })
+
+  it('admits a verified final migration despite a cached zero indexed count and keeps the evidence for mint later', async () => {
+    const client = createClient()
+    const zeroIndexedMigration = {
+      isComplete: false,
+      remainingNameCount: 0,
+      migratedNameCount: 0,
+    }
+    client.setQueryData(completionQueryKey, zeroIndexedMigration)
+    fetchCompletion.mockImplementation(
+      async ({ verifiedMigration: evidence }) =>
+        evidence ? completeMigration : zeroIndexedMigration,
+    )
+    const firstOpening = mountFlow(client)
+    await waitFor(() =>
+      expect(firstOpening.result.current.state.status).toBe('ineligible'),
+    )
+
+    act(() =>
+      recordVerifiedNftMigration({
+        queryClient: client,
+        evidence: verifiedMigration,
+      }),
+    )
+    await waitFor(() => expect(firstOpening.result.current.canMint).toBe(true))
+    expect(firstOpening.result.current.admission.status).toBe('admitted')
+    firstOpening.unmount()
+
+    const { result } = mountFlow(client, { migratedNameCount: 0 })
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+    act(() => result.current.mint())
+    await waitFor(() => expect(claim).toHaveBeenCalledTimes(1))
+    expect(fetchCompletion).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        verifiedMigration: expect.objectContaining({
+          ownerAddress: ownerAddress.toLowerCase(),
+          hcaAddress,
+          chainId: 11155111,
+          completedOperations: verifiedMigration.completedOperations,
+        }),
+      }),
+    )
+  })
+
+  it('does not admit cached completion until the current opening verifies it', async () => {
+    const pending = deferred<typeof completeMigration>()
+    fetchCompletion.mockReturnValueOnce(pending.promise)
+    const client = createClient()
+    client.setQueryData(completionQueryKey, completeMigration)
+    const { result } = mountFlow(client)
+
+    await waitFor(() => expect(client.getQueryData(claimQueryKey)).toBe(false))
+    expect(result.current.admission.status).toBe('checking')
+    expect(result.current.canMint).toBe(false)
+
+    await act(async () => pending.resolve(completeMigration))
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+  })
+
+  it('keeps admitted artwork during revalidation but revokes minting when names remain', async () => {
+    const client = createClient()
+    const { result } = mountFlow(client)
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+    const retainedMint = result.current.mint
+    const pending = deferred<typeof completeMigration>()
+    fetchCompletion.mockReturnValueOnce(pending.promise)
+    let invalidation!: Promise<void>
+    act(() => {
+      invalidation = client.invalidateQueries({ queryKey: completionQueryKey })
+    })
+    await waitFor(() => expect(result.current.canMint).toBe(false))
+    expect(result.current.state.status).toBe('readyToMint')
+
+    await act(async () => {
+      pending.resolve(partialMigration)
+      await invalidation
+    })
+    await waitFor(() => expect(result.current.state.status).toBe('ineligible'))
+    fetchCompletion.mockResolvedValue(partialMigration)
+    act(() => retainedMint())
+    await waitFor(() => expect(client.isMutating()).toBe(0))
+    expect(claim).not.toHaveBeenCalled()
+  })
+
+  it('requires a successful completion check and supports retry after failure', async () => {
+    fetchCompletion.mockRejectedValueOnce(new Error('Migration check failed'))
+    const { result } = mountFlow(createClient())
+
+    await waitFor(() => expect(result.current.state.status).toBe('error'))
+    expect(result.current.canMint).toBe(false)
+    expect(result.current.state).toMatchObject({ stage: 'eligibility' })
+    act(() => result.current.retry())
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+  })
+
+  it('rechecks completion before submission and refuses newly remaining names', async () => {
+    fetchCompletion
+      .mockResolvedValueOnce(completeMigration)
+      .mockResolvedValue(partialMigration)
+    const client = createClient()
+    const { result } = mountFlow(client)
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+
+    act(() => result.current.mint())
+    await waitFor(() => expect(fetchCompletion).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(client.isMutating()).toBe(0))
+    expect(claim).not.toHaveBeenCalled()
+    expect(waitForReceipt).not.toHaveBeenCalled()
+    expect(result.current.canMint).toBe(false)
+  })
+
+  it('blocks submission if the feature is disabled during the final completion check', async () => {
+    const pending = deferred<typeof completeMigration>()
+    fetchCompletion
+      .mockResolvedValueOnce(completeMigration)
+      .mockReturnValueOnce(pending.promise)
+    const client = createClient()
+    const { result, rerender } = mountFlow(client)
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+    act(() => result.current.mint())
+    await waitFor(() => expect(fetchCompletion).toHaveBeenCalledTimes(2))
+    featureFlag.mockReturnValue(false)
+    rerender()
+
+    await act(async () => pending.resolve(completeMigration))
+    await waitFor(() => expect(client.isMutating()).toBe(0))
+    expect(claim).not.toHaveBeenCalled()
+  })
+
+  it('rejects an in-flight completion result after the migration account disappears', async () => {
+    const pending = deferred<typeof completeMigration>()
+    fetchCompletion
+      .mockResolvedValueOnce(completeMigration)
+      .mockReturnValueOnce(pending.promise)
+    const client = createClient()
+    const { result, rerender } = mountFlow(client)
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+    const retainedMint = result.current.mint
+    act(() => result.current.mint())
+    await waitFor(() => expect(fetchCompletion).toHaveBeenCalledTimes(2))
+    vi.mocked(useSmartAccountContext, { partial: true }).mockReturnValue({
+      ownerAddress,
+      accountAddress: null,
+    })
+    rerender()
+
+    await act(async () => pending.resolve(completeMigration))
+    await waitFor(() => expect(client.isMutating()).toBe(0))
+    expect(claim).not.toHaveBeenCalled()
+    act(() => retainedMint())
+    await waitFor(() => expect(client.isMutating()).toBe(0))
+    expect(fetchCompletion).toHaveBeenCalledTimes(2)
+    expect(claim).not.toHaveBeenCalled()
+  })
+
+  it('keeps tracking a submitted claim if a later completion check fails', async () => {
+    const pendingReceipt = deferred<void>()
+    waitForReceipt.mockReturnValueOnce(pendingReceipt.promise)
+    const client = createClient()
+    const { result } = mountFlow(client)
+    await waitFor(() => expect(result.current.canMint).toBe(true))
+    act(() => result.current.mint())
+    await waitFor(() => expect(waitForReceipt).toHaveBeenCalledTimes(1))
+
+    fetchCompletion.mockRejectedValueOnce(new Error('Migration RPC failed'))
+    await act(async () =>
+      client.invalidateQueries({ queryKey: completionQueryKey }),
+    )
+    expect(result.current.state.status).toBe('minting')
+    expect(result.current.canMint).toBe(false)
+
+    readClaimed.mockResolvedValue(true)
+    await act(async () => pendingReceipt.resolve())
+    await waitFor(() => expect(result.current.state.status).toBe('minted'))
+    expect(result.current.admission.status).toBe('admitted')
+    expect(claim).toHaveBeenCalledTimes(1)
   })
 
   it('revokes an admitted flow and retained callbacks when the flag turns off', async () => {

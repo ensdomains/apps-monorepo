@@ -8,6 +8,7 @@ import { resolveVerifiedOwner } from '@/lib/smart-account/sessionGate'
 import { buildCommemorativeNftCardData } from '../../commemorative-nft/cardData'
 import { isCommemorativeNftCanonicalProfile } from '../../commemorative-nft/sharing'
 import { useCommemorativeNftAvailability } from '../../commemorative-nft/useCommemorativeNftAvailability'
+import { useCommemorativeNftMigrationCompletion } from '../../commemorative-nft/useCommemorativeNftMigrationCompletion'
 import { getVisibleCommemorativeNftEligibility } from '../../commemorative-nft/visibility'
 import { MigrationPrimaryButton } from '../MigrationPrimaryButton'
 import { CommemorativeNftCard } from './CommemorativeNftCard'
@@ -37,6 +38,14 @@ export const CommemorativeNftProfileSection = ({
   })
 
   const minted = availability.claimed.data === true
+  const migrationCompletion = useCommemorativeNftMigrationCompletion({
+    ownerAddress: verifiedOwner,
+    enabled:
+      isOwner &&
+      availability.featureEnabled &&
+      availability.supported &&
+      !minted,
+  })
   const eligibility = getVisibleCommemorativeNftEligibility({
     featureEnabled: availability.featureEnabled,
     ownerAddress: verifiedOwner,
@@ -67,7 +76,8 @@ export const CommemorativeNftProfileSection = ({
 
   return (
     <>
-      {minted || availability.isConfirmedUnclaimed ? (
+      {minted ||
+      (availability.isConfirmedUnclaimed && migrationCompletion.isComplete) ? (
         <section className="border-[0.25px] border-transparent bg-transparent px-5 py-6 lg:landscape:px-8 lg:landscape:pt-8 lg:landscape:pb-6">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-sans text-base text-ens-quartz-900 leading-normal">
@@ -101,6 +111,7 @@ export const CommemorativeNftProfileSection = ({
                 </div>
                 <MigrationPrimaryButton
                   className="shrink-0"
+                  disabled={!migrationCompletion.isFreshComplete}
                   onClick={() => setOpen(true)}
                   type="button"
                 >
@@ -116,6 +127,10 @@ export const CommemorativeNftProfileSection = ({
       <CommemorativeNftClaimDialog
         context="mint-later"
         onClose={() => setOpen(false)}
+        onOpenDashboard={() => {
+          setOpen(false)
+          navigate({ to: '/dashboard' })
+        }}
         onViewProfile={(profileName) => {
           setOpen(false)
           if (profileName) {

@@ -28,6 +28,7 @@ type MigrationSuccessDialogProps = {
   readonly canMint: boolean
   readonly canRetry?: boolean
   readonly onClose: () => void
+  readonly onOpenDashboard: () => void
   readonly onMint: () => void
   readonly onRetry: () => void
   readonly onViewProfile: () => void
@@ -141,6 +142,7 @@ const StatusContent = ({
   canRetry,
   onClose,
   onMint,
+  onOpenDashboard,
   onRetry,
   onViewProfile,
 }: Omit<
@@ -229,7 +231,7 @@ const StatusContent = ({
             >
               <Trans>Your new profile is ready.</Trans>
             </p>
-            <MigrationPrimaryButton onClick={onViewProfile}>
+            <MigrationPrimaryButton onClick={onOpenDashboard}>
               <span className="flex items-center gap-2">
                 <Trans>Go to dashboard</Trans>
                 <MSymbol
@@ -272,6 +274,7 @@ export const MigrationSuccessDialog = ({
   canRetry = true,
   onClose,
   onMint,
+  onOpenDashboard,
   onRetry,
   onViewProfile,
 }: MigrationSuccessDialogProps) => {
@@ -322,7 +325,7 @@ export const MigrationSuccessDialog = ({
           {showPlainMigrationSuccess ? (
             <PlainMigrationSuccessContent
               migratedNameCount={migratedNameCount}
-              onOpenDashboard={onClose}
+              onOpenDashboard={onOpenDashboard}
             />
           ) : (
             <>
@@ -337,6 +340,7 @@ export const MigrationSuccessDialog = ({
                 }
                 onClose={onClose}
                 onMint={onMint}
+                onOpenDashboard={onOpenDashboard}
                 onRetry={onRetry}
                 onViewProfile={onViewProfile}
                 state={state}

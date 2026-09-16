@@ -82,6 +82,7 @@ const PreviewDialog = ({
         migratedNameCount={1}
         onClose={() => setOpen(false)}
         onMint={interactive ? () => setMintStatus('minting') : noop}
+        onOpenDashboard={() => setOpen(false)}
         onRetry={retry}
         onViewProfile={() => setOpen(false)}
         open={open}
