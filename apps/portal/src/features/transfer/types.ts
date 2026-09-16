@@ -102,3 +102,15 @@ export type ParentWarning = {
   readonly parentIsSelf: boolean
   readonly powers: readonly string[]
 }
+
+/**
+ * The blast radius of the "Detach the registry" step: how many subnames stop
+ * resolving, and whether any of them belong to someone other than the sender.
+ * Loading and error are distinct from zero — see `useRegistryDetachImpact`.
+ */
+export type RegistryDetachImpact = {
+  readonly subnameCount: number
+  readonly hasThirdPartySubnames: boolean
+  readonly isLoading: boolean
+  readonly isError: boolean
+}

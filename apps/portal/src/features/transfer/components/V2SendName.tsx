@@ -1,6 +1,7 @@
 import type { Address } from 'viem'
 import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { useParentAuthority } from '../hooks/useParentAuthority'
+import { useRegistryDetachImpact } from '../hooks/useRegistryDetachImpact'
 import { useTransferDetachTargets } from '../hooks/useTransferDetachTargets'
 import { useTransferName } from '../hooks/useTransferName'
 import { SendNameForm } from './SendNameForm'
@@ -38,6 +39,10 @@ export const V2SendName = ({
     owner,
   })
 
+  // Sized before the step can run: detaching the registry is the one option
+  // whose damage lands on people who aren't party to the transfer.
+  const registryDetachImpact = useRegistryDetachImpact({ name, owner })
+
   const transfer = useTransferName({
     name,
     account: owner,
@@ -48,6 +53,7 @@ export const V2SendName = ({
     <SendNameForm
       owner={owner}
       detachTargets={detachTargets}
+      registryDetachImpact={registryDetachImpact}
       parentWarning={
         parentName === null
           ? null
