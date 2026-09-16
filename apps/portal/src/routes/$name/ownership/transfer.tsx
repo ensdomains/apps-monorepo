@@ -27,14 +27,11 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { address } = useConnection()
 
-  // Every write below keys off the *normalised* label — the token id, the
-  // roles, the V1 state read — while the page shows the URL's spelling. For a
-  // name that isn't already its own ENSIP-15 form those are two different
-  // names, and the owner can hold both (a non-canonical label is registrable
-  // on-chain and can be gifted), so the flow would authorise `ALICE.eth` and
-  // move `alice.eth`. Refuse instead of redirecting: the non-canonical name is
-  // a real, separately-owned token, so sending the user to the canonical one
-  // would hide it.
+  // Every write below keys off the *normalised* label while the page shows the
+  // URL's spelling, and both names can be owned at once — a non-canonical label
+  // is registrable on-chain — so `ALICE.eth` would authorise here and move
+  // `alice.eth`. Refused, not redirected: the non-canonical name is a real
+  // token of its own, and a redirect would hide it.
   const isCanonical = isCanonicalName(name)
 
   const ownerQuery = useQuery({

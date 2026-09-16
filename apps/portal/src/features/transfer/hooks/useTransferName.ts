@@ -110,9 +110,7 @@ export class V1TransferRefusedError extends TaggedError(
  */
 export class NonCanonicalNameError extends TaggedError(
   'NonCanonicalNameError',
-)<{
-  readonly name: string
-}> {}
+) {}
 
 /** Simulating the move step failed, so no config step was sent. */
 export class TransferPreflightError extends TaggedError(
@@ -357,19 +355,24 @@ export const useTransferName = ({
       mutationFn: (
         params: StartTransferParams,
       ): ResultAsync<SavedParams, PrepareError> =>
-        !isCanonicalName(name)
-          ? errAsync(
+        match({ canonical: isCanonicalName(name), subject })
+          .with({ canonical: false }, () =>
+            errAsync(
               new NonCanonicalNameError({
-                name,
                 message:
                   'This name isn’t written in its normalized form, so transferring it would move a different name. Nothing was sent.',
               }),
-            )
-          : subject.kind === 'v2'
-            ? readV2(params, subject.registryAddress)
-                .andThen(readResolverKind)
-                .andThen(preflightMove)
-            : readV1(params).andThen(readResolverKind).andThen(preflightMove),
+            ),
+          )
+          .with({ subject: { kind: 'v2' } }, ({ subject }) =>
+            readV2(params, subject.registryAddress)
+              .andThen(readResolverKind)
+              .andThen(preflightMove),
+          )
+          // Every remaining kind is a V1 subject.
+          .otherwise(() =>
+            readV1(params).andThen(readResolverKind).andThen(preflightMove),
+          ),
       onSuccess: (params) => {
         startedStepsRef.current = new Set()
         setSavedParams(params)

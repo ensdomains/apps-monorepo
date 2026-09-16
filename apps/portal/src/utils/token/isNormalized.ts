@@ -13,8 +13,7 @@ const ENCODED_LABELHASH_RE = /^\[[0-9a-f]{64}\]$/
 export const isEncodedLabelhash = (label: string) =>
   ENCODED_LABELHASH_RE.test(label)
 
-/** `label` is already its own ENSIP-15 form, so it names the token its hash names. */
-export const isNormalizedLabel = (label: string) => {
+const isNormalizedLabel = (label: string) => {
   try {
     return ens_normalize(label) === label
   } catch {
@@ -37,9 +36,14 @@ export const isNormalized = (name: string) =>
  * name than the one shown. Gate *writes* on this; `isValidEnsName` stays the
  * gate for display.
  */
-export const isCanonicalName = (name: string) =>
-  !!name &&
-  name.split('.').every((label) => !!label && isNormalizedLabel(label))
+export const isCanonicalName = (name: string) => {
+  if (!name) return false
+  try {
+    return ens_normalize(name) === name
+  } catch {
+    return false
+  }
+}
 
 /**
  * Check if a name is a valid ENS name.
