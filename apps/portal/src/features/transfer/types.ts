@@ -118,4 +118,16 @@ export type RegistryDetachImpact =
       readonly status: 'ready'
       readonly subnameCount: number
       readonly hasThirdPartySubnames: boolean
+      /**
+       * The registry these numbers describe, or null when there is nothing
+       * attached. `setSubregistry` zeroes whatever the pointer holds at
+       * signing time, so consent is tied to this — if the pointer moves, what
+       * the sender agreed to no longer describes what the write would destroy.
+       */
+      readonly countedRegistry: Address | null
+      /**
+       * A re-check is in flight. The counts on screen are the previous
+       * answer and may be about to change, so they can't be signed off yet.
+       */
+      readonly isRevalidating: boolean
     }

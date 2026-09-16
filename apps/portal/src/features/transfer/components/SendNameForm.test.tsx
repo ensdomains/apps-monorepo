@@ -13,6 +13,7 @@ vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
 }))
 
 const OWNER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
+const REGISTRY = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
 
 /** Every option has something to detach, so the form offers all three. */
 const ALL_TARGETS: TransferDetachTargets = {
@@ -30,30 +31,35 @@ const THIRD_PARTY_SUBNAME: RegistryDetachImpact = {
   status: 'ready',
   subnameCount: 1,
   hasThirdPartySubnames: true,
+  countedRegistry: REGISTRY,
+  isRevalidating: false,
 }
 
 const EMPTY_REGISTRY: RegistryDetachImpact = {
   status: 'ready',
   subnameCount: 0,
   hasThirdPartySubnames: false,
+  countedRegistry: null,
+  isRevalidating: false,
 }
 
+const formWith = (impact: RegistryDetachImpact) => (
+  <SendNameForm
+    owner={OWNER}
+    detachTargets={ALL_TARGETS}
+    parentWarning={null}
+    registryDetachImpact={impact}
+    transfer={{
+      startTransfer: vi.fn(),
+      transactions: [],
+      isPreparing: false,
+      prepError: null,
+    }}
+  />
+)
+
 const renderForm = (impact: RegistryDetachImpact) =>
-  render(
-    <SendNameForm
-      owner={OWNER}
-      detachTargets={ALL_TARGETS}
-      parentWarning={null}
-      registryDetachImpact={impact}
-      transfer={{
-        startTransfer: vi.fn(),
-        transactions: [],
-        isPreparing: false,
-        prepError: null,
-      }}
-    />,
-    { wrapper: createTestWrapper() },
-  )
+  render(formWith(impact), { wrapper: createTestWrapper() })
 
 const enterRecipient = async () => {
   const user = userEvent.setup()
@@ -127,6 +133,64 @@ describe('SendNameForm — detaching the registry (immunefi #93026)', () => {
 
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /transfer name/i })).toBeEnabled()
+  })
+})
+
+describe('SendNameForm — consent is tied to what was counted', () => {
+  const armDetach = async (impact: RegistryDetachImpact) => {
+    const view = renderForm(impact)
+    const user = await enterRecipient()
+    await user.click(
+      await screen.findByRole('switch', { name: /detach the registry/i }),
+    )
+    return { user, view }
+  }
+
+  it('voids the tick when the counted registry changes under the form', async () => {
+    const { user, view } = await armDetach(THIRD_PARTY_SUBNAME)
+    await user.click(screen.getByRole('checkbox'))
+    expect(screen.getByRole('button', { name: /transfer name/i })).toBeEnabled()
+
+    // The pointer moved: the sender agreed to break a different registry's
+    // names than the one `setSubregistry(0)` would now zero.
+    view.rerender(
+      formWith({
+        ...THIRD_PARTY_SUBNAME,
+        countedRegistry:
+          '0xcccccccccccccccccccccccccccccccccccccccc' as Address,
+      }),
+    )
+
+    expect(screen.getByRole('checkbox')).not.toBeChecked()
+    expect(
+      screen.getByRole('button', { name: /transfer name/i }),
+    ).toBeDisabled()
+  })
+
+  it('voids the tick when the count changes under the form', async () => {
+    const { user, view } = await armDetach(THIRD_PARTY_SUBNAME)
+    await user.click(screen.getByRole('checkbox'))
+
+    view.rerender(formWith({ ...THIRD_PARTY_SUBNAME, subnameCount: 9 }))
+
+    expect(screen.getByRole('checkbox')).not.toBeChecked()
+    expect(
+      screen.getByRole('button', { name: /transfer name/i }),
+    ).toBeDisabled()
+  })
+
+  it('blocks an already-given tick once a re-check starts', async () => {
+    const { user, view } = await armDetach(THIRD_PARTY_SUBNAME)
+    await user.click(screen.getByRole('checkbox'))
+    expect(screen.getByRole('button', { name: /transfer name/i })).toBeEnabled()
+
+    // Focus returns, `staleTime: 0` refetches: the numbers on screen are the
+    // previous answer and may be about to be replaced, so the tick can't stand.
+    view.rerender(formWith({ ...THIRD_PARTY_SUBNAME, isRevalidating: true }))
+
+    expect(
+      screen.getByRole('button', { name: /transfer name/i }),
+    ).toBeDisabled()
   })
 })
 

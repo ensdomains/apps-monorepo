@@ -151,9 +151,21 @@ const ParentWarningAlert = ({
  * like a known one — and can't be given it, so the transfer stays blocked until
  * the count lands. Split out only to keep the form under the complexity limit.
  */
+/**
+ * Identifies the exact claim the sender is asked to sign off: this registry,
+ * this many names, these owners. Used as the acknowledgement's key rather than
+ * a bare boolean, so a tick can never carry over to a different claim — if the
+ * pointer moves or the counts change under the form, consent is void and the
+ * sender is asked again.
+ */
+const getDetachConsentKey = (impact: RegistryDetachImpact | null) =>
+  impact?.status === 'ready' && impact.countedRegistry !== null
+    ? `${impact.countedRegistry}:${impact.subnameCount}:${impact.hasThirdPartySubnames}`
+    : null
+
 const getDetachConsentState = (
   impact: RegistryDetachImpact | null,
-  isAcknowledged: boolean,
+  acknowledgedFor: string | null,
 ) =>
   match(impact)
     .with(null, () => ({ needsConsent: false, isBlocked: false }))
@@ -168,7 +180,16 @@ const getDetachConsentState = (
       needsConsent: true,
       isBlocked: true,
     }))
-    .otherwise(() => ({ needsConsent: true, isBlocked: !isAcknowledged }))
+    // Mid-revalidation the visible numbers are the previous answer; signing off
+    // on them would approve a count the write may no longer match.
+    .with({ status: 'ready', isRevalidating: true }, () => ({
+      needsConsent: true,
+      isBlocked: true,
+    }))
+    .otherwise((impact) => ({
+      needsConsent: true,
+      isBlocked: getDetachConsentKey(impact) !== acknowledgedFor,
+    }))
 
 export const SendNameForm = ({
   owner,
@@ -187,7 +208,9 @@ export const SendNameForm = ({
     // a stranger's subname because a toggle shipped on.
     detachRegistry: false,
   })
-  const [hasAcknowledgedDetach, setHasAcknowledgedDetach] = useState(false)
+  // What was acknowledged, not merely that something was — see
+  // `getDetachConsentKey`.
+  const [acknowledgedFor, setAcknowledgedFor] = useState<string | null>(null)
 
   const { isOptionVisible, isSettled, hasFailed } = detachTargets
 
@@ -212,7 +235,7 @@ export const SendNameForm = ({
   const { needsConsent: needsDetachConsent, isBlocked: isDetachBlocked } =
     getDetachConsentState(
       effectiveOptions.detachRegistry ? registryDetachImpact : null,
-      hasAcknowledgedDetach,
+      acknowledgedFor,
     )
 
   const canStart =
@@ -226,7 +249,7 @@ export const SendNameForm = ({
   const toggleOption = (key: TransferOptionKey) => {
     // Consent is given for one specific plan; turning the step off and on again
     // must ask again rather than carry a stale tick forward.
-    if (key === 'detachRegistry') setHasAcknowledgedDetach(false)
+    if (key === 'detachRegistry') setAcknowledgedFor(null)
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
@@ -277,8 +300,14 @@ export const SendNameForm = ({
       {needsDetachConsent && registryDetachImpact && (
         <RegistryDetachConsent
           impact={registryDetachImpact}
-          isAcknowledged={hasAcknowledgedDetach}
-          onAcknowledge={setHasAcknowledgedDetach}
+          isAcknowledged={
+            getDetachConsentKey(registryDetachImpact) === acknowledgedFor
+          }
+          onAcknowledge={(checked) =>
+            setAcknowledgedFor(
+              checked ? getDetachConsentKey(registryDetachImpact) : null,
+            )
+          }
         />
       )}
 

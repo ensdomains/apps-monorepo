@@ -19,7 +19,10 @@ import type { RegistryDetachImpact } from '../types'
  *
  * Opted out of the app-wide one-hour staleTime for the same reason that hook
  * is: an hour-old "this registry is empty" is exactly the answer that would
- * wave a detach through after someone registered a subname.
+ * wave a detach through after someone registered a subname. The flip side is
+ * that a revisit re-reads in the background while still showing the old
+ * answer, so `isRevalidating` and `countedRegistry` let the form tell whether
+ * what it is showing still describes what the write would destroy.
  */
 export const useRegistryDetachImpact = ({
   subregistryAddress,
@@ -30,7 +33,7 @@ export const useRegistryDetachImpact = ({
   /** The account doing the transfer — everyone else in the registry is a third party. */
   readonly owner: Address
 }): RegistryDetachImpact => {
-  const { data, isError } = useQuery({
+  const { data, isError, isFetching } = useQuery({
     ...getRegistryOccupantsQueryOptions({
       address: subregistryAddress ?? zeroAddress,
       account: owner,
@@ -42,7 +45,13 @@ export const useRegistryDetachImpact = ({
   // Nothing attached means the step destroys nothing — the only "ready with
   // zero" the form is allowed to see.
   if (subregistryAddress === null)
-    return { status: 'ready', subnameCount: 0, hasThirdPartySubnames: false }
+    return {
+      status: 'ready',
+      subnameCount: 0,
+      hasThirdPartySubnames: false,
+      countedRegistry: null,
+      isRevalidating: false,
+    }
 
   return (
     match({ isError, data })
@@ -55,6 +64,11 @@ export const useRegistryDetachImpact = ({
         status: 'ready' as const,
         subnameCount: data.count,
         hasThirdPartySubnames: data.thirdPartyCount > 0,
+        countedRegistry: subregistryAddress,
+        // `staleTime: 0` means a revisit refetches while keeping the previous
+        // answer visible and the query successful. Surfaced so the form can
+        // refuse to act on numbers that are already being replaced.
+        isRevalidating: isFetching,
       }))
       .exhaustive()
   )
