@@ -7,7 +7,7 @@ import type { Hash } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
 // ---------------------------------------------------------------------------
-// Connect wallet (connect dialog + headless web3 provider)
+// Connect wallet (Privy modal + headless web3 provider)
 // ---------------------------------------------------------------------------
 
 /**
@@ -30,7 +30,7 @@ export const PERMITTED_SIGN_KINDS = [
 ] as const
 
 /**
- * Select "Headless Web3 Provider" in an already-open connect dialog and
+ * Select "Headless Web3 Provider" in an already-open Privy modal and
  * authorize the queued permission + account requests.
  *
  * Use this when a connect modal has already been opened (e.g. the pricing
@@ -41,20 +41,22 @@ export async function authorizeHeadlessConnection(
   page: Page,
   wallet: Web3ProviderBackend,
 ): Promise<void> {
+  // Privy's first login screen offers social + "Continue with a wallet"; the
+  // injected EIP-6963 wallet ("Headless Web3 Provider") lives behind that
+  // button, so step into the wallet list first.
+  const continueWithWallet = page.getByRole('button', {
+    name: /continue with a wallet/i,
+  })
+  await continueWithWallet.waitFor({ state: 'visible', timeout: 15_000 })
+  await continueWithWallet.click()
+
   const headlessOption = page.getByText('Headless Web3 Provider')
   await headlessOption.waitFor({ state: 'visible', timeout: 10_000 })
   await headlessOption.click()
 
-  // The dialog asks the provider to confirm — authorize programmatically.
-  // The headless provider queues RequestPermissions then RequestAccounts.
-  await expect
-    .poll(
-      () => wallet.getPendingRequestCount(Web3RequestKind.RequestPermissions),
-      { timeout: 15_000 },
-    )
-    .toBeGreaterThanOrEqual(1)
-  await wallet.authorize(Web3RequestKind.RequestPermissions)
-
+  // Privy connects an injected wallet by calling `eth_requestAccounts` only —
+  // unlike RainbowKit, it never issues a `wallet_requestPermissions` first, so
+  // we authorize accounts directly.
   await expect
     .poll(
       () => wallet.getPendingRequestCount(Web3RequestKind.RequestAccounts),
@@ -67,12 +69,12 @@ export async function authorizeHeadlessConnection(
 }
 
 /**
- * Connect the headless web3 wallet through the manager's connect dialog.
+ * Connect the headless web3 wallet through the manager's Privy modal.
  *
  * Flow:
  *  1. Click the "Connect" button in the nav bar
- *  2. Select "Headless Web3 Provider" from the wallet list
- *  3. Authorize the wallet_requestPermissions + eth_requestAccounts calls
+ *  2. Select "Headless Web3 Provider" from Privy's wallet list
+ *  3. Authorize the eth_requestAccounts call Privy issues to connect
  *
  * After this resolves the wallet is connected and the nav "Connect" button
  * is gone. The smart-account machine then initialises asynchronously — the
@@ -92,22 +94,74 @@ export async function connectWithHeadlessWallet(
   await connectButton.waitFor({ state: 'visible', timeout: 15_000 })
 
   // The manager is an SSR app: the server-rendered Connect button can be
-  // clickable before the wallet layer hydrates `openConnectModal`, so the
-  // first click is sometimes a no-op and the modal never opens. Retry
-  // opening until the connect dialog (with the injected-provider entry)
-  // appears — this also absorbs any EIP-6963 discovery delay.
-  const modal = page.getByRole('dialog')
-  const headlessOption = page.getByText('Headless Web3 Provider')
+  // clickable before wagmi/Privy hydrate `openConnectModal`, so the first
+  // click is sometimes a no-op and the modal never opens. Retry opening until
+  // Privy's login dialog (its "Continue with a wallet" entry) appears.
+  const continueWithWallet = page.getByRole('button', {
+    name: /continue with a wallet/i,
+  })
   await expect(async () => {
-    if (!(await modal.isVisible().catch(() => false))) {
+    if (!(await continueWithWallet.isVisible().catch(() => false))) {
       await connectButton.click({ timeout: 5_000 }).catch(() => {})
     }
-    await expect(headlessOption).toBeVisible({ timeout: 3_000 })
+    await expect(continueWithWallet).toBeVisible({ timeout: 3_000 })
   }).toPass({ timeout: 40_000 })
 
   await authorizeHeadlessConnection(page, wallet)
 
   await expect(connectButton).not.toBeVisible({ timeout: 15_000 })
+}
+
+/**
+ * Log in with a Privy test account (email + deterministic OTP) — exercises the
+ * real social/email login UX instead of an injected wallet. Credentials come
+ * from PRIVY_TEST_EMAIL / PRIVY_TEST_OTP (Privy Dashboard → User management →
+ * Authentication → Advanced → test accounts); the OTP is fixed, so no real
+ * OAuth or inbox is involved.
+ *
+ * Note: this connects Privy's embedded wallet (a fresh address), not the funded
+ * Anvil account — use it for login/connection coverage, not on-chain tx specs.
+ */
+export async function connectWithPrivyTestAccount(page: Page): Promise<void> {
+  const email = process.env.PRIVY_TEST_EMAIL
+  const otp = process.env.PRIVY_TEST_OTP
+  if (!email || !otp) {
+    throw new Error(
+      'connectWithPrivyTestAccount requires PRIVY_TEST_EMAIL and PRIVY_TEST_OTP',
+    )
+  }
+
+  const connectButton = page.getByRole('button', {
+    name: /^connect( login)?$/i,
+  })
+  await connectButton.waitFor({ state: 'visible', timeout: 15_000 })
+
+  // Open Privy's login and reach the email field (retry through hydration).
+  // These selectors necessarily target Privy's hosted modal DOM (#privy-dialog,
+  // the numeric OTP inputs below) — there's no public API to drive it. They're
+  // verified against the current modal; if Privy changes its markup these
+  // waitFor calls fail loudly in CI, pointing here, and the selector is updated.
+  const emailInput = page.locator('#privy-dialog input[type="email"]')
+  await expect(async () => {
+    if (!(await emailInput.isVisible().catch(() => false))) {
+      await connectButton.click({ timeout: 5_000 }).catch(() => {})
+    }
+    await expect(emailInput).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 40_000 })
+
+  await emailInput.fill(email)
+  await emailInput.press('Enter')
+
+  // OTP screen: six single-digit numeric inputs; focus the first and type the
+  // code (each digit advances to the next box).
+  const firstOtp = page
+    .locator('#privy-dialog input[inputmode="numeric"]')
+    .first()
+  await firstOtp.waitFor({ state: 'visible', timeout: 15_000 })
+  await firstOtp.click()
+  await page.keyboard.type(otp)
+
+  await expect(connectButton).not.toBeVisible({ timeout: 30_000 })
 }
 
 /**

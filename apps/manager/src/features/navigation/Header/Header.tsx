@@ -1,6 +1,7 @@
 import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { useHydrated } from '@tanstack/react-router'
 import { useConnection } from 'wagmi'
+import { useConnectModal } from '@/lib/wallet'
 import { DesktopHeader } from './desktop/Desktop'
 import { MobileHeader } from './mobile/MobileHeader'
 
@@ -24,10 +25,13 @@ export const Header = ({
   )
   const isHydrated = useHydrated()
   const { isConnected, isConnecting, isReconnecting } = useConnection()
+  const { isReady } = useConnectModal()
 
-  // Show a loading placeholder (not "Connect") until hydrated and nothing is
-  // mid-connect, so the slot doesn't flash during reconnection.
-  const connectionSettled = isHydrated && !isConnecting && !isReconnecting
+  // Show a loading placeholder (not "Connect") until hydrated, the wallet layer
+  // is ready, and wagmi isn't mid-(re)connect — so the slot doesn't flash
+  // "Connect" while Privy restores a session and @privy-io/wagmi reconnects.
+  const isConnectionSettled =
+    isHydrated && isReady && !isConnecting && !isReconnecting
 
   // Default to desktop until hydrated: useMediaQuery is false on the server /
   // first client render, which would flash the mobile header before hydration.
@@ -36,9 +40,9 @@ export const Header = ({
   if (showMobileHeader) {
     return (
       <MobileHeader
-        connectionSettled={connectionSettled}
         hasBlurredBackground={hasMobileBlurredBackground}
         isConnected={isConnected}
+        isConnectionSettled={isConnectionSettled}
         transparentBackground={transparentBackground}
       />
     )
@@ -46,8 +50,8 @@ export const Header = ({
 
   return (
     <DesktopHeader
-      connectionSettled={connectionSettled}
       isConnected={isConnected}
+      isConnectionSettled={isConnectionSettled}
       profileThemeColor={profileThemeColor}
       transparentBackground={transparentBackground}
     />

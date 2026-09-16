@@ -59,8 +59,9 @@ interface AllTheProvidersProps {
 }
 
 const AllTheProviders = ({ children }: AllTheProvidersProps) => (
-  // Just wagmi (mock connector) — the wallet hooks read wagmi, which
-  // this provides; no wallet-stack provider needed for the hooks under test.
+  // Just wagmi (mock connector). The wallet hooks also call usePrivy(); with no
+  // PrivyProvider it returns its default un-ready state, which is fine for the
+  // render smoke tests here (no live connect/login is exercised).
   <I18nProvider i18n={i18n}>
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>

@@ -7,14 +7,14 @@ import { DisconnectedRightBlock } from './DisconnectedRightBlock'
 
 type DesktopHeaderProps = {
   readonly isConnected: boolean
-  readonly connectionSettled: boolean
+  readonly isConnectionSettled: boolean
   readonly profileThemeColor?: string
   readonly transparentBackground?: boolean
 }
 
 export const DesktopHeader = ({
   isConnected,
-  connectionSettled,
+  isConnectionSettled,
   profileThemeColor,
   transparentBackground = false,
 }: DesktopHeaderProps) => {
@@ -32,7 +32,7 @@ export const DesktopHeader = ({
         />
         <DesktopSearch />
       </FloatingWrapper>
-      {connectionSettled ? (
+      {isConnectionSettled ? (
         isConnected ? (
           <DesktopAccountSection />
         ) : (

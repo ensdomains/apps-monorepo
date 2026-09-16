@@ -5,17 +5,24 @@ import { useConnection, useConnectionEffect } from 'wagmi'
 import { track } from '@/lib/posthog/events'
 import { backendAuthStore } from '@/utils/backend-client'
 
-// Blanket localStorage.clear() corrupts reconnection — preserve wagmi.*
-// (wagmi's connection storage).
+// Disconnect is a full session reset: evict app localStorage so no per-account
+// state leaks into the next session. Two prefixes survive.
 //
-// Also preserve the standalone-HCA session store (`ens-sessions-*`): a valid,
-// non-expired scoped session must survive disconnect/reconnect so the next
-// registration reuses it with ZERO wallet prompts (per the HCA handoff doc —
-// "a valid session supports later ENS actions without another wallet prompt").
-// Wiping it here forced a re-ENABLE on every reconnect. Cross-owner safety is
-// handled separately by `removeSessionsByOwner` on an actual owner switch, and
-// each session is owner+chain+HCA scoped and on-chain-expiring, so keeping it
-// across a disconnect is safe.
+// `wagmi`: wagmi manages its own connection/disconnect state and a blanket
+// clear would corrupt its reconnection.
+//
+// `ens-session`: a valid, non-expired scoped HCA session must survive
+// disconnect/reconnect so the next registration reuses it with ZERO wallet
+// prompts (per the HCA handoff doc). Wiping it forced a re-ENABLE on every
+// reconnect. Cross-owner safety is handled by `removeSessionsByOwner` on an
+// actual owner switch, and each session is owner+chain+HCA scoped and
+// on-chain-expiring, so keeping it across a disconnect is safe.
+//
+// Privy keys are NOT preserved, and must be cleared here rather than left to
+// logout(): logout() failures are swallowed upstream, so a stale session would
+// otherwise auto-re-authenticate on the next load. The sweep also covers any
+// other client state (e.g. PostHog) — PostHog is additionally reset explicitly
+// in onDisconnect below.
 const PRESERVED_KEY_PREFIXES = ['wagmi', 'ens-session'] as const
 const clearAppLocalStorage = () => {
   for (const key of Object.keys(localStorage)) {

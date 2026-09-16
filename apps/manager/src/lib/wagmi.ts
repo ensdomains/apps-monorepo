@@ -3,12 +3,14 @@ import {
   WALLETCONNECT_PROJECT_ID,
 } from '@ens-apps/indexer/chain'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
+// Privy's createConfig (NOT wagmi's) — @privy-io/wagmi builds the connectors
+// from Privy's connected wallet.
+import { createConfig } from '@privy-io/wagmi'
 import { createIsomorphicFn } from '@tanstack/react-start'
 import { createPublicClient, fallback, http } from 'viem'
 import { sepolia } from 'viem/chains'
-import { createConfig } from 'wagmi'
-import { walletConnect } from 'wagmi/connectors'
-import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
+
+export { WALLETCONNECT_PROJECT_ID }
 
 // Manager owns its Sepolia RPC URL — it must NOT reuse the RPC URL exported by
 // `@ens-apps/indexer/chain`, so each app's DRPC key is attributed separately.
@@ -73,27 +75,14 @@ export const publicClient = createPublicClient({
   },
 })
 
+// @privy-io/wagmi's createConfig sets `ssr: true` and
+// `multiInjectedProviderDiscovery: false` internally, so we don't pass them; it
+// also manages the connectors (Privy's wallet), so none are configured here.
 export const wagmiConfig = createConfig({
-  syncConnectedChain: false,
-  ssr: true,
-  multiInjectedProviderDiscovery: true,
   chains: [sepoliaWithEns],
   transports: {
     [sepoliaWithEns.id]: sepoliaFallbackTransport,
   },
-  // Injected wallets (MetaMask, Rabby, Frame, …) are discovered via EIP-6963
-  // (multiInjectedProviderDiscovery above), so WalletConnect is the only
-  // explicit connector — same setup as the portal app.
-  connectors: [
-    walletConnect({
-      projectId: WALLETCONNECT_PROJECT_ID,
-      // The QR modal follows the OS theme by default; the manager app is
-      // light-only, so pin it.
-      qrModalOptions: { themeMode: 'light' },
-    }),
-    // Test-only: auto-signing wallet for Playwright/agents. Off in production.
-    ...(isMockWalletEnabled ? [mockConnector] : []),
-  ],
 })
 
 export type ClientType = ReturnType<typeof wagmiConfig.getClient>

@@ -180,7 +180,7 @@ export const PaymentCardBase = ({
           <Button
             className="w-full font-medium font-mono uppercase tracking-widest"
             color="blue"
-            disabled={connectModalOpen}
+            disabled={!openConnectModal || connectModalOpen}
             onClick={() => openConnectModal?.()}
             size="lg"
           >

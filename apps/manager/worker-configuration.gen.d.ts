@@ -11,6 +11,7 @@ declare namespace Cloudflare {
 		VITE_PUBLIC_POSTHOG_KEY: string;
 		VITE_PUBLIC_POSTHOG_HOST: string;
 		VITE_FF_USE_EOA: string;
+		VITE_PRIVY_APP_ID: string;
 	}
 }
 interface Env extends Cloudflare.Env {}
