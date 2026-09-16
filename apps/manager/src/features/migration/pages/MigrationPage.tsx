@@ -77,7 +77,7 @@ const formatMigrationError = (
 ): ReactNode => {
   switch (error.type) {
     case 'generic':
-      return <Trans>Your wallet reported: {error.message}</Trans>
+      return <Trans>Upgrade details: {error.message}</Trans>
     case 'parent-not-upgraded':
       return <Trans>Upgrade the parent name first, then its subnames.</Trans>
     case 'plan-changed':
