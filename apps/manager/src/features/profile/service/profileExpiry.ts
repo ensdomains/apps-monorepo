@@ -16,6 +16,7 @@ import {
   getNameExpiryStatus,
   type NameExpiryStatus,
 } from '@/features/grace/utils/gracePeriod'
+import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEth2LdName } from './profileName'
@@ -31,9 +32,9 @@ export const profileExpiryDateFromSeconds = (
 
 export const getProfileNameExpiryStatus = (
   expirySeconds: number | bigint | null | undefined,
-  isV2 = true,
+  protocol: RenewalProtocol,
 ): NameExpiryStatus =>
-  getNameExpiryStatus(profileExpiryDateFromSeconds(expirySeconds), isV2)
+  getNameExpiryStatus(profileExpiryDateFromSeconds(expirySeconds), protocol)
 
 export type ProfileExpiryResult = {
   readonly expiry: bigint | null
@@ -44,7 +45,7 @@ export type ProfileExpiryResult = {
 export const getProfileExpiryResultStatus = (
   expiry: ProfileExpiryResult | null | undefined,
 ): NameExpiryStatus =>
-  getProfileNameExpiryStatus(expiry?.expiry, expiry?.protocol !== 'v1')
+  getProfileNameExpiryStatus(expiry?.expiry, expiry?.protocol ?? 'v2')
 
 class GetProfileExpiryError extends TaggedError('GetProfileExpiryError')<{
   cause: GetV1ExpiryErrorType | GetV2ExpiryErrorType
@@ -83,8 +84,8 @@ export const getExpiry = ResultFn(async function* (
     } satisfies ProfileExpiryResult)
   }
 
-  const resolvedProtocol =
-    protocol ?? (yield* getOwner({ name: ethName.name }))?.protocol ?? 'v2'
+  const ownerRecord = protocol ? null : yield* getOwner({ name: ethName.name })
+  const resolvedProtocol = protocol ?? ownerRecord?.protocol ?? 'v2'
 
   const client = yield* safeGetClient()
 
@@ -116,9 +117,13 @@ export const getExpiry = ResultFn(async function* (
     } satisfies ProfileExpiryResult)
   }
 
+  // The registry reads 0 both for a label it holds no record of and for one
+  // that never expires, so the owner is what separates them.
+  const owner = protocol ? yield* getOwner({ name: ethName.name }) : ownerRecord
+
   return ok({
     expiry: null,
-    isNonExpiring: true,
+    isNonExpiring: !!owner?.owner,
     protocol: 'v2',
   } satisfies ProfileExpiryResult)
 })

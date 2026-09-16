@@ -1,8 +1,15 @@
 import { Trans } from '@lingui/react/macro'
-import { Link } from '@tanstack/react-router'
+import { Link, Navigate, useHydrated } from '@tanstack/react-router'
 import { motion, useReducedMotion } from 'motion/react'
+import { useConnection } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
+import { useSmartAccountContext } from '@/lib/smart-account'
+import { resolveVerifiedOwner } from '@/lib/smart-account/sessionGate'
+import { useCommemorativeNftAvailability } from '../commemorative-nft/useCommemorativeNftAvailability'
+import { getVisibleCommemorativeNftEligibility } from '../commemorative-nft/visibility'
 import { GrainOverlay } from '../components/GrainOverlay'
+import { MigrationPrimaryButton } from '../components/MigrationPrimaryButton'
 
 const facts = [
   {
@@ -20,24 +27,114 @@ const facts = [
     title: <Trans>One NFT per address</Trans>,
     body: (
       <Trans>
-        The token is tied to your eligible EOA. Migrating more names later does
-        not create another commemorative NFT.
+        Each eligible wallet address can claim one personalized NFT. Upgrading
+        more names later does not create another NFT.
       </Trans>
     ),
   },
   {
     icon: 'auto_awesome',
-    title: <Trans>Offered after your first migration</Trans>,
+    title: <Trans>Offered after your first upgrade</Trans>,
     body: (
       <Trans>
-        You can preview the card after migrating one name, mint immediately, or
-        return from your Dashboard or canonical profile later.
+        You can preview your personalized NFT after upgrading your first name,
+        claim it immediately, or return from your Dashboard or ENS profile
+        later.
       </Trans>
     ),
   },
 ] as const
 
+const InfoPageStatus = ({
+  onRetry,
+  unavailable = false,
+}: {
+  readonly onRetry?: () => void
+  readonly unavailable?: boolean
+}) => (
+  <main className="flex min-h-[calc(100dvh-80px)] flex-col items-center justify-center gap-5 px-5 text-center">
+    {unavailable ? (
+      <Link className="text-ens-garnet-700 text-sm underline" to="/dashboard">
+        <Trans>Back to Dashboard</Trans>
+      </Link>
+    ) : onRetry ? (
+      <>
+        <p className="text-ens-garnet-700 text-sm">
+          <Trans>This page could not be loaded. Please try again.</Trans>
+        </p>
+        <MigrationPrimaryButton onClick={onRetry}>
+          <Trans>Try again</Trans>
+        </MigrationPrimaryButton>
+        <Link className="text-ens-garnet-700 text-sm underline" to="/dashboard">
+          <Trans>Back to Dashboard</Trans>
+        </Link>
+      </>
+    ) : (
+      <div aria-label="Loading" role="status">
+        <div className="size-5 animate-spin rounded-full border-2 border-ens-garnet-900/20 border-t-ens-garnet-900 motion-reduce:animate-none" />
+      </div>
+    )}
+  </main>
+)
+
 export const MigrationNftInfoPage = () => {
+  const featureEnabled = useMigrationNftEnabled()
+  const isHydrated = useHydrated()
+  const { ownerAddress, hasInitialized } = useSmartAccountContext()
+  const {
+    address: walletAddress,
+    isConnected,
+    isConnecting,
+    isReconnecting,
+  } = useConnection()
+  const verifiedOwner =
+    resolveVerifiedOwner(
+      ownerAddress,
+      isConnected ? walletAddress : undefined,
+    ) ?? undefined
+  const availability = useCommemorativeNftAvailability({
+    ownerAddress: verifiedOwner,
+    enabled: isHydrated && featureEnabled,
+  })
+  const eligibility = getVisibleCommemorativeNftEligibility({
+    featureEnabled: availability.featureEnabled,
+    ownerAddress: verifiedOwner,
+    supported: availability.supported,
+    result: availability.eligibility.data,
+    hasFreshEligibilityResult: availability.hasFreshEligibilityResult,
+    minted: availability.claimed.data === true,
+  })
+
+  if (
+    !isHydrated ||
+    (isConnected && !hasInitialized) ||
+    isConnecting ||
+    isReconnecting
+  ) {
+    return <InfoPageStatus />
+  }
+  if (!featureEnabled) return <InfoPageStatus unavailable />
+  if (
+    !verifiedOwner ||
+    !availability.supported ||
+    availability.eligibility.data?.status === 'ineligible' ||
+    availability.eligibility.data?.status === 'unavailable'
+  ) {
+    return <Navigate replace to="/dashboard" />
+  }
+  if (eligibility) return <MigrationNftInfoContent />
+  if (
+    availability.eligibility.isError ||
+    availability.eligibility.fetchStatus === 'paused'
+  ) {
+    return (
+      <InfoPageStatus onRetry={() => void availability.eligibility.refetch()} />
+    )
+  }
+  return <InfoPageStatus />
+}
+
+const MigrationNftInfoContent = () => {
   const shouldReduceMotion = useReducedMotion()
 
   return (
@@ -111,13 +208,12 @@ export const MigrationNftInfoPage = () => {
               </Trans>
             </p>
           </div>
-          <Link
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xs bg-ens-garnet-900 px-5 font-semi-mono text-ens-garnet-50 text-xs uppercase tracking-[0.12em]"
-            to="/dashboard"
-          >
-            <Trans>Open Dashboard</Trans>
-            <MSymbol className="text-[19px]" symbol="arrow_forward" />
-          </Link>
+          <MigrationPrimaryButton asChild className="shrink-0">
+            <Link to="/dashboard">
+              <Trans>Go to dashboard</Trans>
+              <MSymbol className="text-[19px]" symbol="arrow_forward" />
+            </Link>
+          </MigrationPrimaryButton>
         </section>
       </motion.div>
     </main>

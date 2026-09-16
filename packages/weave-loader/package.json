@@ -18,7 +18,8 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check"
   },
   "dependencies": {
     "@ens-apps/utils": "workspace:*",
@@ -32,7 +33,7 @@
     "@storybook/tanstack-react": "^10.4.2",
     "@types/react": "^19.1.12",
     "react": "^19.2.5",
-    "typescript": "catalog:typescript6",
+    "typescript": "catalog:",
     "vite": "catalog:"
   }
 }

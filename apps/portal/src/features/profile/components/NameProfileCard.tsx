@@ -148,28 +148,18 @@ export const NameProfileCard = ({
             />
           </div>
         </div>
-        <Link
-          search={{ view: 'list' }}
-          to="/$name/records"
-          params={{ name }}
-          className="flex flex-row gap-x-2 gap-y-1"
-        >
-          <div className="flex flex-row">
-            {Object.entries(evmChains).map(([k, v]) => (
+        <div className="flex max-w-35.5 flex-row flex-wrap gap-1">
+          {[...Object.entries(evmChains), ...Object.entries(nonEvmChains)].map(
+            ([k, v]) => (
               <CoinRecord
                 key={k}
+                name={name}
                 coinType={k as CoinTypeWithIcon}
                 value={v}
-                className="first:-mr-1"
               />
-            ))}
-          </div>
-          <div className="flex flex-row gap-2">
-            {Object.entries(nonEvmChains).map(([k, v]) => (
-              <CoinRecord key={k} coinType={k as CoinTypeWithIcon} value={v} />
-            ))}
-          </div>
-        </Link>
+            ),
+          )}
+        </div>
       </div>
     </div>
   )

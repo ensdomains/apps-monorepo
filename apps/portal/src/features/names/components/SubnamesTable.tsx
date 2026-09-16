@@ -14,8 +14,8 @@ import React, { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { SortButton } from '@/components/table/SortButton'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -31,7 +31,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
@@ -156,7 +155,6 @@ export const SubnamesTable = ({
   const pendingSet = pendingNames ?? EMPTY_PENDING_SET
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
-  const [tableView] = useTableViewSettings()
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [pendingDeleteName, setPendingDeleteName] = useState<string | null>(
     null,
@@ -208,11 +206,9 @@ export const SubnamesTable = ({
     <>
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row items-center gap-2">
-          <h1 className="text-h1 flex-1">
-            {subnames.length > 0
-              ? `${subnames.length} subname${subnames.length !== 1 ? 's' : ''}`
-              : 'Subnames'}
-          </h1>
+          <PageHeading parent={{ type: 'name', name }} className="flex-1">
+            {subnames.length > 0 ? `Subnames (${subnames.length})` : 'Subnames'}
+          </PageHeading>
           {canCreateSubname && (
             <Button variant="default" asChild>
               <Link to="/$name/create-subname" params={{ name }}>
@@ -398,16 +394,12 @@ export const SubnamesTable = ({
                   <TableRow
                     data-state={row.getIsSelected() && 'selected'}
                     className={cn(
-                      stripedRowClassName(tableView.strippedRows),
                       isPendingTx && 'opacity-50 pointer-events-none',
                     )}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
-                        className={cn(
-                          'px-6',
-                          tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
-                        )}
+                        className={cn('px-6', 'h-10 py-0')}
                         key={cell.id}
                       >
                         {flexRender(
@@ -418,7 +410,7 @@ export const SubnamesTable = ({
                     ))}
                   </TableRow>
                   {isPendingDelete && (
-                    <TableRow className="bg-muted hover:bg-muted">
+                    <TableRow className="bg-muted">
                       <TableCell colSpan={columns.length} className="px-6 py-3">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">

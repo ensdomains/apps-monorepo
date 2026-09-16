@@ -2,6 +2,13 @@ import {
   coinNameToTypeMap,
   type coinTypeToNameMap,
 } from '@ensdomains/address-encoder'
+import { Link } from '@tanstack/react-router'
+import { EntityActionCopy } from '@/components/EntityAction'
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
 import { cn } from '@/lib/utils'
 
 type CoinType = keyof typeof coinTypeToNameMap
@@ -27,23 +34,48 @@ const icons: Partial<Record<CoinType, string>> = {
 export type CoinTypeWithIcon = keyof typeof icons
 
 export const CoinRecord = ({
+  name,
   coinType,
   value,
-  className,
 }: {
+  name: string
   coinType: CoinTypeWithIcon
   value?: string
-  className?: string
 }) => {
   if (!value) return null
   return (
-    <img
-      src={icons[coinType]}
-      className={cn(
-        'size-6 first:z-10 w-max duration-150 will-change-transform hover:-translate-y-0.5',
-        className,
-      )}
-      alt={coinType}
-    />
+    <HoverCard openDelay={150} closeDelay={200}>
+      <HoverCardTrigger asChild>
+        <Link
+          to="/$name/address"
+          params={{ name }}
+          aria-label={`${coinType} address — view address resolution`}
+          className={cn(
+            'block rounded-full outline-hidden transition-shadow duration-150',
+            'hover:ring-[3px] hover:ring-neutral-8',
+            'focus-visible:ring-[3px] focus-visible:ring-neutral-8',
+          )}
+        >
+          <img
+            src={icons[coinType]}
+            alt={coinType}
+            className="block size-6 rounded-full"
+          />
+        </Link>
+      </HoverCardTrigger>
+      <HoverCardContent
+        side="top"
+        align="start"
+        sideOffset={6}
+        className="w-auto max-w-(--radix-hover-card-content-available-width) border-0 bg-transparent p-0 shadow-none"
+      >
+        <EntityActionCopy
+          value={value}
+          label={value}
+          font="mono"
+          className="max-w-full shadow-sm"
+        />
+      </HoverCardContent>
+    </HoverCard>
   )
 }

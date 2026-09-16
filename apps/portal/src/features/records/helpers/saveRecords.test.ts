@@ -23,7 +23,7 @@ const encodeSetText = (name: string, key: string, value: string) =>
   })
 
 // Mock setRecordsWriteParameters to return realistic data
-vi.mock('@ensdomains/ensjs/wallet', () => ({
+vi.mock('@ensdomains/ensjs/wallet/v1', () => ({
   setRecordsWriteParameters: vi
     .fn()
     .mockImplementation(async (_client, params) => {
@@ -138,7 +138,7 @@ describe('saveRecords', () => {
 
   it('calls setRecordsWriteParameters with correct params', async () => {
     const { setRecordsWriteParameters } = await import(
-      '@ensdomains/ensjs/wallet'
+      '@ensdomains/ensjs/wallet/v1'
     )
 
     await saveRecords(mockParams)

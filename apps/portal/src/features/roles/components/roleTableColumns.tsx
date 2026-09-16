@@ -3,34 +3,47 @@ import { Check, PanelRight } from 'lucide-react'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { Button } from '@/components/ui/button'
+import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 /**
  * Shared building blocks for the flat roles tables (name registry + resolver).
  * Each table supplies its own `getEntries` mapping from its row to the common
- * `RoleRowEntry[]`; the Role / Admin / Manager columns and the edit action are
+ * `RoleRowEntry[]`; the Role / Admin / User columns and the edit action are
  * identical across both, so they live here.
  */
+
+/**
+ * One shared grid for every roles table, so the ones stacked on a name's Roles
+ * page line up. `DataTable` switches to a fixed layout when a column declares a
+ * width, and a fixed table spreads leftover space in proportion, so these read
+ * as the ratio rather than as pixels: 2-1-3-1-1 across account, name, role,
+ * admin and user.
+ *
+ * A table without a Name column gives that width to the account instead, which
+ * keeps role, admin and user in the same place in both. They were set per table
+ * before, which is how the alignment drifted after WEB-710 fixed it once.
+ */
+const UNIT = 96
+
+export const ROLE_COLUMN_WIDTH = {
+  /** Account, in a table that also has a Name column. */
+  account: UNIT * 2,
+  /** Account, in a table that does not: it absorbs the Name width. */
+  accountOnly: UNIT * 3,
+  name: UNIT,
+  role: UNIT * 3,
+  /** Admin and User both. */
+  mark: UNIT,
+  action: 48,
+} as const
 
 export type RoleRowEntry = {
   label: string
   hasAdmin: boolean
   hasUser: boolean
 }
-
-/**
- * Strip the `ROLE_` prefix / `_ADMIN` suffix and Title-Case a raw role name,
- * e.g. `ROLE_SET_RESOLVER_ADMIN` -> `Set Resolver`.
- */
-export const formatRoleLabel = (role: string) =>
-  role
-    .replace(/^ROLE_/, '')
-    .replace(/_ADMIN$/, '')
-    .toLowerCase()
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
 
 /**
  * Collapse a flat list of role names (with `_ADMIN` variants interleaved) into
@@ -54,7 +67,7 @@ export const rolesToEntries = (roles: readonly string[]): RoleRowEntry[] => {
   return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
 }
 
-/** Fixed-width account badge used as the leading "User" column cell. */
+/** Fixed-width account badge used as the leading Account column cell. */
 export const UserCell = ({ account }: { account: Address }) => (
   <div className="w-32">
     <EntityBadge variant="address" address={account}>
@@ -68,7 +81,7 @@ export const GreenCheck = () => (
 )
 
 export const GrayDot = () => (
-  <div className="size-5 rounded-full bg-neutral-2" />
+  <div className="size-3 rounded-full bg-neutral-2" />
 )
 
 export const PermissionMark = ({ isHeld }: { isHeld: boolean }) =>
@@ -80,9 +93,11 @@ export const buildRoleColumns = <T,>(
 ): ColumnDef<T>[] => [
   {
     id: 'role',
+    meta: { width: ROLE_COLUMN_WIDTH.role },
     header: 'Role',
+    // pt-1.5 centers the first line against the User badge line
     cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5 text-muted-foreground">
+      <div className="flex flex-col gap-0.5 pt-1.5 text-muted-foreground">
         {getEntries(row.original).map((entry) => (
           <span
             className="font-mono pb-2 leading-5 h-5 box-content"
@@ -96,9 +111,10 @@ export const buildRoleColumns = <T,>(
   },
   {
     id: 'admin',
+    meta: { width: ROLE_COLUMN_WIDTH.mark },
     header: () => <div className="text-center">Admin</div>,
     cell: ({ row }) => (
-      <div className="flex flex-col items-center gap-0.5">
+      <div className="flex flex-col items-center gap-0.5 pt-1.5">
         {getEntries(row.original).map((entry) => (
           <div
             className="h-5 pb-2 box-content flex items-center"
@@ -112,9 +128,10 @@ export const buildRoleColumns = <T,>(
   },
   {
     id: 'user-level',
-    header: () => <div className="text-center">Manager</div>,
+    meta: { width: ROLE_COLUMN_WIDTH.mark },
+    header: () => <div className="text-center">User</div>,
     cell: ({ row }) => (
-      <div className="flex flex-col items-center gap-0.5">
+      <div className="flex flex-col items-center gap-0.5 pt-1.5">
         {getEntries(row.original).map((entry) => (
           <div
             className="h-5 pb-2 box-content flex items-center"
@@ -128,11 +145,23 @@ export const buildRoleColumns = <T,>(
   },
 ]
 
+/**
+ * Invisible stand-in for the edit-action column so tables without edit
+ * permission keep the same Role/Admin/User alignment as tables with it.
+ */
+export const buildActionSpacerColumn = <T,>(): ColumnDef<T> => ({
+  id: 'actions-spacer',
+  meta: { width: ROLE_COLUMN_WIDTH.action },
+  header: () => null,
+  cell: () => null,
+})
+
 /** Full-height edit action that opens the row's roles slider (admins only). */
 export const buildEditActionColumn = <T,>(
   onEdit: (row: Row<T>) => void,
 ): ColumnDef<T> => ({
   id: 'actions',
+  meta: { width: ROLE_COLUMN_WIDTH.action },
   header: () => null,
   cell: ({ row }) => (
     <Button

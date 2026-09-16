@@ -1,7 +1,7 @@
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
-import { STABLECOINS } from '@/features/register/utils'
+import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -35,8 +35,8 @@ export const TokenListItem = ({
     <button
       aria-label={t`Select ${stablecoin.symbol}`}
       className={cn(
-        'flex h-11 items-center justify-between rounded px-2.5 py-4 transition-colors',
-        isSelected ? 'bg-ens-blue-light' : 'hover:bg-ens-gray-two/50',
+        'flex h-11 items-center justify-between rounded px-3 py-4 transition-colors',
+        isSelected ? 'bg-ens-quartz-75' : 'hover:bg-ens-quartz-50',
         hasInsufficientBalanceForCoin && 'cursor-not-allowed opacity-50',
       )}
       disabled={hasInsufficientBalanceForCoin}

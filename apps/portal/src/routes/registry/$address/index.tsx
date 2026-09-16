@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   ChevronRight,
+  ClockIcon,
   GitBranch,
   ShieldIcon,
   TriangleAlert,
@@ -14,6 +15,8 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
@@ -89,7 +92,7 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-6">
-        <h1 className="text-h1">Registry Contract</h1>
+        <PageHeading>Registry Contract</PageHeading>
         <div className="flex lg:items-center flex-col lg:flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
           <EntityBadge variant="default" label="type" className="font-normal">
             PermissionedRegistry
@@ -164,10 +167,10 @@ function RouteComponent() {
               ))}
           </dd>
 
-          <dt className="text-muted-foreground flex items-center min-h-9 self-start">
+          <dt className="text-ui text-muted-foreground flex items-center h-10 self-start">
             Referenced by
           </dt>
-          <dd className="flex flex-wrap items-center gap-x-2 min-h-9 self-start -mt-2">
+          <dd className="flex flex-wrap items-center gap-x-2 gap-y-2 min-h-10 self-start">
             {referencedByNames.length > 0 ? (
               referencedByNames.map((name) => (
                 <EntityBadge key={name} variant="name" name={name} showAvatar>
@@ -198,7 +201,18 @@ function RouteComponent() {
         </div>
       </div>
 
-      <RegistryHistoryByAddress address={address} name={registry.name} />
+      <RegistryHistoryByAddress
+        address={address}
+        heading={<h2 className="text-caps text-foreground">History</h2>}
+        action={
+          <Button variant="outline" size="xs" asChild>
+            <Link to="/registry/$address/history" params={{ address }}>
+              <ClockIcon className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
     </div>
   )
 }

@@ -75,7 +75,7 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
   return (
     <Sidebar collapsible="icon">
       <SidebarRail />
-      <SidebarTrigger className="hidden group-data-[collapsible=icon]:flex absolute right-0 translate-x-full top-6 z-50 bg-secondary hover:bg-quartz-100 border border-border rounded-r-md shadow-sm" />
+      <SidebarTrigger className="hidden group-data-[collapsible=icon]:flex absolute right-0 translate-x-full top-6 z-50 border border-border rounded-r-md shadow-sm" />
       <SidebarHeader className="p-0 gap-0">
         {isIconMode ? (
           <div className="flex flex-col items-center gap-4 pt-6 px-2">

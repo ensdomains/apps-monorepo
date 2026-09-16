@@ -3,18 +3,27 @@ import { describe, expect, it, vi } from 'vitest'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
+import { SmartAccountContextProvider } from '@/lib/smart-account'
 import { render } from '@/utils/test-utils'
 import type { ClassifiedName } from '../service/classifyNames'
 
 const makeName = (
   fullName: string,
-  tokenType: ClassifiedName['tokenType'],
+  tokenType: ClassifiedName['tokenType'] | 'unlocked-child',
+  action: 'copy' | 'migrate' = 'migrate',
 ): ClassifiedName => {
   const label = fullName.split('.')[0] ?? fullName
   const parentName = fullName.includes('.')
     ? fullName.split('.').slice(1).join('.')
     : null
   return {
+    action,
+    ...(action === 'copy'
+      ? {
+          copySource: 'name-wrapper' as const,
+          sourceExpiry: 4_102_444_800n,
+        }
+      : {}),
     domain: {
       id: fullName,
       name: fullName,
@@ -33,7 +42,7 @@ const makeName = (
 
 const eligibleFixture: readonly ClassifiedName[] = [
   makeName('sub1234.eth', 'unwrapped'),
-  makeName('gm.sub1234.eth', 'locked-child'),
+  makeName('gm.sub1234.eth', 'unlocked-child', 'copy'),
   makeName('sub123.eth', 'unwrapped'),
   makeName('one.eth', 'unwrapped'),
   makeName('two.eth', 'unwrapped'),
@@ -44,7 +53,11 @@ const eligibleFixture: readonly ClassifiedName[] = [
 ]
 
 vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
-  useEligibleV1Names: () => ({ eligible: eligibleFixture, isPending: false }),
+  useEligibleV1Names: () => ({
+    eligible: eligibleFixture,
+    isPending: false,
+    recoveryState: { status: 'none' },
+  }),
 }))
 
 // eslint-disable-next-line import/first
@@ -52,7 +65,7 @@ import { SelectNamesStep } from './SelectNamesStep'
 
 const readyGasEstimate: MigrationGasEstimateState = {
   status: 'ready',
-  plan: {} as MigrationPlan,
+  plan: { stepDescriptors: [] } as unknown as MigrationPlan,
   formattedEth: '0.001',
   gasUnits: 1n,
   feeWei: 1n,
@@ -70,12 +83,14 @@ const renderStep = ({
 } = {}) => {
   const onNamesChange = vi.fn<(names: string[]) => void>()
   const utils = render(
-    <SelectNamesStep
-      gasEstimate={gasEstimate}
-      gasFundingStatus={gasFundingStatus}
-      onNamesChange={onNamesChange}
-      onNext={onNext}
-    />,
+    <SmartAccountContextProvider>
+      <SelectNamesStep
+        gasEstimate={gasEstimate}
+        gasFundingStatus={gasFundingStatus}
+        onNamesChange={onNamesChange}
+        onNext={onNext}
+      />
+    </SmartAccountContextProvider>,
   )
   return { onNamesChange, onNext, ...utils }
 }

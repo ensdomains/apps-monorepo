@@ -69,9 +69,21 @@ export function DevDrawer() {
  * event (if not already fired) plus an idle/settle tick.
  */
 function DevDrawerGate() {
-  const [ready, setReady] = useState(
-    () => typeof document !== 'undefined' && document.readyState === 'complete',
-  )
+  // MUST start `false`, even when the document has already finished loading.
+  //
+  // Seeding from `document.readyState` made the FIRST client render disagree
+  // with the server, which rendered `null` (no `document`): React then hydrated
+  // a subtree that was not in the server HTML and threw #418, discarding the
+  // whole root -- and because the app calls `hydrateRoot(document, ...)`, that
+  // regenerates every provider, aborting any in-flight wallet connect.
+  //
+  // It only bit production: dev serves an unbundled module graph, so hydration
+  // starts long before `load` and the seed was false anyway. A built bundle
+  // hydrates from an `async` module script that often runs after `load`, making
+  // the seed true. It also only bit preview branches, where `VITE_DQA=1` gives
+  // `DevDrawerInner` something to render -- on main it renders nothing, so both
+  // sides agreed on empty output by accident.
+  const [ready, setReady] = useState(false)
   useEffect(() => {
     if (ready) return
     let done = false
@@ -488,6 +500,7 @@ function DevDrawerInner() {
           {dqaAuthenticated && dqaApi?.setShowPins && (
             // Quick pins toggle without opening the drawer. A span (not a
             // nested <button>) because it sits inside the trigger button.
+            // biome-ignore lint/a11y/useSemanticElements: a <button> here would nest inside the trigger <button>, which is invalid HTML
             <span
               onClick={(event) => {
                 event.stopPropagation()
@@ -643,6 +656,11 @@ const panelStyle: CSSProperties = {
   left: 0,
   right: 0,
   zIndex: Z_PANEL,
+  // A Radix modal Dialog (portal's TransactionModal) sets
+  // `body { pointer-events: none }` while open, which children inherit — the
+  // drawer would render on top but swallow every click. Opt back in so dev
+  // tools (e.g. time-travel Skip+70s during the commit cooldown) stay usable.
+  pointerEvents: 'auto',
   display: 'flex',
   flexDirection: 'column',
   background: DRAWER.bg,
@@ -661,6 +679,7 @@ const sidebarPanelStyle: CSSProperties = {
   right: 0,
   bottom: 0,
   zIndex: Z_PANEL,
+  pointerEvents: 'auto', // see panelStyle
   display: 'flex',
   flexDirection: 'column',
   height: '100%',
@@ -809,6 +828,7 @@ const toggleStyle: CSSProperties = {
   bottom: 7,
   right: TANSTACK_DEVTOOLS_OFFSET,
   zIndex: Z_TOGGLE,
+  pointerEvents: 'auto', // see panelStyle
   display: 'inline-flex',
   alignItems: 'center',
   gap: 8,

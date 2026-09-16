@@ -16,6 +16,7 @@ import {
   type ProfileRecordsResult,
   profileRecordsQuery,
 } from '@/features/profile/service/profileRecords'
+import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { tw } from '@/utils/tailwind'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
@@ -37,7 +38,12 @@ interface MyNamesListProps {
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
+  readonly selectedLabels?: ReadonlySet<string>
+  readonly onToggleSelect?: (label: string) => void
 }
+
+const EMPTY_SELECTION: ReadonlySet<string> = new Set()
+const noopToggleSelect = () => {}
 
 const NameRowSkeleton = () => (
   <div className="flex flex-col gap-4">
@@ -73,6 +79,9 @@ const AnimatedNameRow = ({
   favoriteLabels,
   onToggleFavorite,
   isAuthenticated,
+  selectedLabels,
+  onToggleSelect,
+  isV1Renewable,
 }: {
   readonly metadata: MergedNameRowMetadata
   readonly item: MergedItem
@@ -84,6 +93,9 @@ const AnimatedNameRow = ({
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
+  readonly selectedLabels: ReadonlySet<string>
+  readonly onToggleSelect: (label: string) => void
+  readonly isV1Renewable: boolean
 }) => {
   const {
     label,
@@ -122,6 +134,12 @@ const AnimatedNameRow = ({
     }))
     .exhaustive()
 
+  // V1 rows use the authoritative renewer read; V2 rows use their grace window.
+  // Only V2 names can expose the bulk-selection checkbox.
+  const isRenewable = isV1
+    ? isV1Renewable
+    : isRenewableV2EthName(label, metadata.expiryDate)
+
   return (
     <motion.div
       className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none md:first:pt-8"
@@ -140,17 +158,21 @@ const AnimatedNameRow = ({
       <NameRow
         avatarPending={profilePreview.isAvatarPending}
         avatarUrl={profilePreview.avatarUrl}
-        canRenew={!isV1 && isRenewableV2EthName(label, metadata.expiryDate)}
+        canRenew={isRenewable}
         cta={cta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
         expiryLabel={formattedExpiryDate}
         isAuthenticated={isAuthenticated}
         isFavorite={favoriteLabels.has(label.toLowerCase())}
         isInGrace={isInGrace}
+        isSelected={selectedLabels.has(label.toLowerCase())}
         label={label}
         nameRoles={nameRoles}
         nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
+        onToggleSelect={() => onToggleSelect(label)}
+        renewalProtocol={isV1 ? 'v1' : 'v2'}
+        selectable={!isV1 && isRenewable}
         showFavoriteButton
         status={status}
         themeColor={profilePreview.themeColor}
@@ -168,6 +190,8 @@ export const MyNamesList = ({
   favoriteLabels,
   onToggleFavorite,
   isAuthenticated,
+  selectedLabels = EMPTY_SELECTION,
+  onToggleSelect = noopToggleSelect,
 }: MyNamesListProps) => {
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
@@ -239,6 +263,9 @@ export const MyNamesList = ({
         isLoading: result.isLoading,
       })),
   })
+  const { isRenewable: isV1Renewable } = useV1Renewable(
+    pageRows.filter(({ item }) => item.kind === 'v1').map(({ name }) => name),
+  )
 
   if (hasError && !hasNames) {
     return (
@@ -297,12 +324,17 @@ export const MyNamesList = ({
                   isProfileRecordsLoading={
                     profileRecordState?.isLoading ?? false
                   }
+                  isV1Renewable={
+                    row.item.kind === 'v1' && isV1Renewable(row.name)
+                  }
                   item={row.item}
                   key={row.item.key}
                   metadata={row.metadata}
                   name={row.name}
                   onToggleFavorite={onToggleFavorite}
+                  onToggleSelect={onToggleSelect}
                   profileRecords={profileRecordState?.records}
+                  selectedLabels={selectedLabels}
                   shouldReduceMotion={shouldReduceMotion}
                 />
               )

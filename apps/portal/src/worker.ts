@@ -1,15 +1,5 @@
-import { withSecurityHeaders } from './worker/csp'
-import { fetchEnsData, fetchIsPermissionedResolver } from './worker/ens'
-import { MetaTagInjector, TitleRewriter } from './worker/html-rewriter'
-import {
-  escapeHtml,
-  renderAddressOgImage,
-  renderDefaultOgImage,
-  renderOgImage,
-  renderRegistryOgImage,
-  renderResolverOgImage,
-  renderTldOgImage,
-} from './worker/og-render'
+import { escapeHtml } from '@ens-apps/og/markup'
+import { getPageTitle, TITLE_SUFFIX } from './utils/pageTitle'
 import {
   extractAddrFromPath,
   extractNameFromPath,
@@ -19,8 +9,18 @@ import {
   isAddrSubpage,
   isTldRoute,
   matchContractRoute,
-  truncateAddress,
-} from './worker/routing'
+} from './utils/routePaths'
+import { withSecurityHeaders } from './worker/csp'
+import { fetchEnsData, fetchIsPermissionedResolver } from './worker/ens'
+import { MetaTagInjector, TitleRewriter } from './worker/html-rewriter'
+import {
+  renderAddressOgImage,
+  renderDefaultOgImage,
+  renderOgImage,
+  renderRegistryOgImage,
+  renderResolverOgImage,
+  renderTldOgImage,
+} from './worker/og-render'
 
 /** Only inject meta tags / render OG cards for navigations, not asset fetches. */
 function wantsHtml(request: Request): boolean {
@@ -78,7 +78,13 @@ async function injectMeta(
   return rewriter.transform(response)
 }
 
-/** Serve a pre-rendered PNG asset, falling back to a rendered default. */
+/**
+ * Serve a pre-rendered PNG asset, falling back to a rendered default.
+ *
+ * Also the last resort for every other OG route: a card whose own render failed
+ * degrades to this rather than 500ing, so a name with an unrenderable avatar
+ * still gets a usable preview instead of a broken image on every page.
+ */
 async function serveDefaultOgImage(
   request: Request,
   url: URL,
@@ -95,28 +101,35 @@ async function serveDefaultOgImage(
       },
     })
   }
-  return renderDefaultOgImage(request.url, env)
+
+  return (
+    (await renderDefaultOgImage(request.url, env)) ??
+    new Response('OG image rendering failed', { status: 500 })
+  )
 }
 
-const OG_ADDRESS_RE = /^addr\/(0x[0-9a-fA-F]{40})(?:\/(.+))?$/
-const OG_RESOLVER_RE = /^resolver\/(0x[0-9a-fA-F]{40})(?:\/(.+))?$/
-const OG_REGISTRY_RE = /^registry\/(0x[0-9a-fA-F]{40})(?:\/(.+))?$/
+// A card is per-entity, not per-subpage, so the pages no longer point at a
+// subpage-qualified image — but links already shared (and crawler caches)
+// still carry one, so the trailing segment stays matched and ignored.
+const OG_ADDRESS_RE = /^addr\/(0x[0-9a-fA-F]{40})(?:\/.+)?$/
+const OG_RESOLVER_RE = /^resolver\/(0x[0-9a-fA-F]{40})(?:\/.+)?$/
+const OG_REGISTRY_RE = /^registry\/(0x[0-9a-fA-F]{40})(?:\/.+)?$/
 const OG_TLD_RE = /^tld\/(.+)$/
 
-/** Dispatch an `/og/...png` request to the matching OG renderer. */
+/**
+ * Dispatch an `/og/...png` request to the matching OG renderer.
+ *
+ * Returns `null` when the chosen renderer couldn't produce an image, so the
+ * caller can serve the default card instead of letting the failure surface.
+ */
 async function handleOgImage(
   decoded: string,
   request: Request,
   env: Env,
-): Promise<Response> {
+): Promise<Response | null> {
   const addrMatch = decoded.match(OG_ADDRESS_RE)
   if (addrMatch) {
-    return renderAddressOgImage(
-      addrMatch[1],
-      request.url,
-      env,
-      addrMatch[2] ?? null,
-    )
+    return renderAddressOgImage(addrMatch[1], request.url, env)
   }
 
   const resolverMatch = decoded.match(OG_RESOLVER_RE)
@@ -129,19 +142,13 @@ async function handleOgImage(
       resolverMatch[1],
       request.url,
       env,
-      resolverMatch[2] ?? null,
       isPermissioned,
     )
   }
 
   const registryMatch = decoded.match(OG_REGISTRY_RE)
   if (registryMatch) {
-    return renderRegistryOgImage(
-      registryMatch[1],
-      request.url,
-      env,
-      registryMatch[2] ?? null,
-    )
+    return renderRegistryOgImage(registryMatch[1], request.url, env)
   }
 
   const tldMatch = decoded.match(OG_TLD_RE)
@@ -149,17 +156,14 @@ async function handleOgImage(
     return renderTldOgImage(tldMatch[1], request.url, env)
   }
 
-  // Name OG image with optional subpage: /og/name/subpage.png
-  const nameParts = decoded.split('/')
-  const { avatar, owner } = await fetchEnsData(env, nameParts[0])
-  return renderOgImage(
-    nameParts[0],
-    avatar,
-    owner,
-    request.url,
+  // Name OG image, with any legacy subpage segment ignored as above.
+  const name = decoded.split('/')[0]
+  const { avatar, owner } = await fetchEnsData(
     env,
-    nameParts[1] ?? null,
+    name,
+    new URL(request.url).host,
   )
+  return renderOgImage(name, avatar, owner, request.url, env)
 }
 
 /** Inject meta tags for an `/addr/0x…` page. */
@@ -172,16 +176,12 @@ function handleAddressPage(
   if (!address) return env.ASSETS.fetch(request)
 
   const decodedAddress = decodeURIComponent(address)
-  const displayAddress = truncateAddress(decodedAddress, 6, 5)
-  const segments = url.pathname.split('/')
-  const subpage = segments.length > 3 ? segments.slice(3).join('/') : ''
   const encoded = encodeURIComponent(decodedAddress)
-  const imageUrl = subpage
-    ? `https://${url.host}/og/addr/${encoded}/${encodeURIComponent(subpage)}.png`
-    : `https://${url.host}/og/addr/${encoded}.png`
-  const pageTitle = subpage
-    ? `${displayAddress} > ${subpage} — ENS Explorer App`
-    : `${displayAddress} — ENS Explorer App`
+  const imageUrl = `https://${url.host}/og/addr/${encoded}.png`
+  const pageTitle = getPageTitle(
+    url.pathname,
+    url.searchParams.get('name') ?? undefined,
+  )
 
   return injectMeta(request, env, {
     title: pageTitle,
@@ -199,18 +199,15 @@ function handleContractPage(
   env: Env,
   kind: 'resolver' | 'registry',
   address: string,
-  subpage: string | null,
 ): Promise<Response> {
   const label = kind === 'resolver' ? 'Resolver' : 'Registry'
   const decodedAddress = decodeURIComponent(address)
-  const displayAddress = truncateAddress(decodedAddress, 6, 5)
   const encoded = encodeURIComponent(decodedAddress)
-  const imageUrl = subpage
-    ? `https://${url.host}/og/${kind}/${encoded}/${encodeURIComponent(subpage)}.png`
-    : `https://${url.host}/og/${kind}/${encoded}.png`
-  const pageTitle = subpage
-    ? `${label} ${displayAddress} > ${subpage} — ENS Explorer App`
-    : `${label} ${displayAddress} — ENS Explorer App`
+  const imageUrl = `https://${url.host}/og/${kind}/${encoded}.png`
+  const pageTitle = getPageTitle(
+    url.pathname,
+    url.searchParams.get('name') ?? undefined,
+  )
 
   return injectMeta(request, env, {
     title: pageTitle,
@@ -230,20 +227,16 @@ async function handleNamePage(
   const decodedName = decodeURIComponent(name)
   const [response, ensData] = await Promise.all([
     env.ASSETS.fetch(request),
-    fetchEnsData(env, decodedName),
+    fetchEnsData(env, decodedName, url.host),
   ])
 
   const { description, avatar } = ensData
-  const segments = url.pathname.split('/')
-  const subpage = segments.length > 2 ? segments.slice(2).join('/') : ''
   const encoded = encodeURIComponent(decodedName)
-  const imageUrl = subpage
-    ? `https://${url.host}/og/${encoded}/${encodeURIComponent(subpage)}.png`
-    : `https://${url.host}/og/${encoded}.png`
-  const subpageTitle = segments.length > 2 ? segments.slice(2).join(' > ') : ''
-  const pageTitle = subpageTitle
-    ? `${decodedName} > ${subpageTitle} — ENS Explorer App`
-    : `${decodedName} — ENS Explorer App`
+  const imageUrl = `https://${url.host}/og/${encoded}.png`
+  const pageTitle = getPageTitle(
+    url.pathname,
+    url.searchParams.get('name') ?? undefined,
+  )
 
   return new HTMLRewriter()
     .on(
@@ -272,7 +265,10 @@ function handleTldPage(
   if (!tld) return env.ASSETS.fetch(request)
 
   const decodedTld = decodeURIComponent(tld)
-  const pageTitle = `${decodedTld} — ENS Explorer App`
+  const pageTitle = getPageTitle(
+    url.pathname,
+    url.searchParams.get('name') ?? undefined,
+  )
 
   return injectMeta(request, env, {
     title: pageTitle,
@@ -309,7 +305,6 @@ function handlePageMeta(
       env,
       'resolver',
       resolverRoute.address,
-      resolverRoute.subpage,
     )
   }
 
@@ -321,7 +316,6 @@ function handlePageMeta(
       env,
       'registry',
       registryRoute.address,
-      registryRoute.subpage,
     )
   }
 
@@ -343,7 +337,9 @@ function handlePageMeta(
 
   // All other routes: inject default OG meta tags.
   return injectMeta(request, env, {
-    title: 'ENS Explorer App',
+    // Every matcher getPageTitle would run has already failed above, so this
+    // branch is the bare app name by definition.
+    title: TITLE_SUFFIX,
     description: 'Explore ENS names and addresses',
     imageUrl: `https://${url.host}/og/default.png`,
   })
@@ -361,7 +357,12 @@ async function handle(request: Request, env: Env): Promise<Response> {
   // OG image route: /og/:name.png or /og/:name/:subpage.png
   const ogMatch = pathname.match(/^\/og\/(.+)\.png$/)
   if (ogMatch) {
-    return handleOgImage(decodeURIComponent(ogMatch[1]), request, env)
+    const rendered = await handleOgImage(
+      decodeURIComponent(ogMatch[1]),
+      request,
+      env,
+    )
+    return rendered ?? serveDefaultOgImage(request, url, env)
   }
 
   // Page routes: only inject meta tags for HTML navigations, never assets.

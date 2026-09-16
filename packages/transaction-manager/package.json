@@ -10,16 +10,18 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "test": "echo \"No tests defined for @ens-apps/transaction-manager\"",
-    "typecheck": "tsc --noEmit"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check"
   },
   "dependencies": {
+    "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.2",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@rhinestone/sdk": "catalog:",
-    "@xstate/react": "^4.0.0-beta.12",
     "idb": "^8.0.3",
     "neverthrow": "^8.1.1",
     "valibot": "^1.2.0",
@@ -33,9 +35,9 @@
   },
   "devDependencies": {
     "@types/react": "^19.0.6",
-    "typescript": "catalog:typescript6",
+    "react": "^19.2.5",
+    "typescript": "catalog:",
     "vitest": "catalog:",
-    "wagmi": "^3.0.2",
-    "react": "^19.2.5"
+    "wagmi": "catalog:"
   }
 }

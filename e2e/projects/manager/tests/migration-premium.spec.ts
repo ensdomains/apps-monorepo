@@ -19,10 +19,14 @@
  *   - Manager app running on MANAGER_APP_URL (default localhost:3000)
  */
 import { privateKeyToAccount } from 'viem/accounts'
-import { test, expect, authorizeTransaction } from '../../../fixtures/playwright.manager.fixture.js'
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
-import { mockV1Subgraph } from '../../../helpers/mock-v1-subgraph.js'
+import {
+  authorizeTransaction,
+  expect,
+  test,
+} from '../../../fixtures/playwright.manager.fixture.js'
 import { assertV2Registered } from '../../../helpers/migration-assertions.js'
+import { mockV1Subgraph } from '../../../helpers/mock-v1-subgraph.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
@@ -41,7 +45,9 @@ async function runMigrationFlow(
   await page.goto(`${MANAGER_APP_URL}/dashboard`)
   await page.waitForLoadState('networkidle')
 
-  const upgradeButton = page.getByRole('button', { name: 'Upgrade Names' }).first()
+  const upgradeButton = page
+    .getByRole('button', { name: 'Upgrade Names' })
+    .first()
   await upgradeButton.waitFor({ state: 'visible', timeout: 10_000 })
   await upgradeButton.click()
 
@@ -49,7 +55,10 @@ async function runMigrationFlow(
 
   const confirmButton = page.getByRole('button', { name: 'Upgrade Names' })
   await confirmButton.waitFor({ state: 'visible', timeout: 10_000 })
-  await Promise.all([confirmButton.click(), authorizeTransaction(wallet, 90_000)])
+  await Promise.all([
+    confirmButton.click(),
+    authorizeTransaction(wallet, 90_000),
+  ])
 
   const successIndicator = page.getByText("You're on ENS v2!")
   await successIndicator.waitFor({ state: 'visible', timeout: 60_000 })
@@ -92,7 +101,9 @@ test.describe('ENS V1→V2 Migration — Time-Based Scenarios', () => {
 
     // Confirm V2 registry reflects REGISTERED status after migration.
     await assertV2Registered(label)
-    console.log(`[migration-premium] ✅ Active name migration verified for ${v1Name}`)
+    console.log(
+      `[migration-premium] ✅ Active name migration verified for ${v1Name}`,
+    )
   })
 
   test('migrate in grace period — 45 days past expiry', async ({
@@ -146,9 +157,13 @@ test.describe('ENS V1→V2 Migration — Time-Based Scenarios', () => {
     const nameOrExpiredText = page
       .getByText(v1Name)
       .or(page.getByText(/expired/i).first())
-    await nameOrExpiredText.first().waitFor({ state: 'visible', timeout: 20_000 })
+    await nameOrExpiredText
+      .first()
+      .waitFor({ state: 'visible', timeout: 20_000 })
 
-    console.log(`[migration-premium] ✅ Grace-period UI state verified for ${v1Name}`)
+    console.log(
+      `[migration-premium] ✅ Grace-period UI state verified for ${v1Name}`,
+    )
   })
 
   test('prior owner renews without premium — 5 days past expiry', async ({
@@ -208,6 +223,8 @@ test.describe('ENS V1→V2 Migration — Time-Based Scenarios', () => {
       page.getByRole('button', { name: /pay with stablecoins/i }),
     ).toBeVisible({ timeout: 30_000 })
 
-    console.log(`[migration-premium] ✅ Prior owner renewal (no premium) verified for ${v1Name}`)
+    console.log(
+      `[migration-premium] ✅ Prior owner renewal (no premium) verified for ${v1Name}`,
+    )
   })
 })

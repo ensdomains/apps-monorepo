@@ -1,12 +1,14 @@
 import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useRef } from 'react'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
+import type { RenewalProtocol } from '../utils/renewalProtocol'
 import { renewalUiMachine } from './renewalUi.machine'
 
 const RenewalUiContext = createContext<{
   uiActor: Actor<typeof renewalUiMachine>
   label: string
   currentExpiry: bigint
+  protocol: RenewalProtocol
 } | null>(null)
 
 export type RenewalUiActor = ActorRefFrom<typeof renewalUiMachine>
@@ -16,13 +18,15 @@ export const RenewalUiProvider = ({
   children,
   label,
   currentExpiry,
+  protocol,
 }: {
   children: React.ReactNode
   label: string
   currentExpiry: bigint
+  protocol: RenewalProtocol
 }) => {
   const uiActor = useActorRef(renewalUiMachine, {
-    input: { currentExpiry },
+    input: { currentExpiry, protocol },
   })
   const previousLabel = useRef(label)
 
@@ -46,7 +50,9 @@ export const RenewalUiProvider = ({
   }, [label, uiActor])
 
   return (
-    <RenewalUiContext.Provider value={{ uiActor, label, currentExpiry }}>
+    <RenewalUiContext.Provider
+      value={{ uiActor, label, currentExpiry, protocol }}
+    >
       {children}
     </RenewalUiContext.Provider>
   )

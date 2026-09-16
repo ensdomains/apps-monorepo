@@ -7,6 +7,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { AddressHistoryDataTable } from '@/features/address/components/AddressHistoryDataTable'
 import { getV2HistoryForAddressQueryOptions } from '@/features/address/components/hooks/useV2HistoryForAddress'
 import { getV1HistoryForAddressQueryOptions } from '@/features/address/hooks/useV1HistoryForAddress'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/addr/$addr/history')({
@@ -56,7 +57,7 @@ function RouteComponent() {
     return (
       <ErrorMessage
         title="Error loading V1 history"
-        description={v1Error.cause?.message}
+        description={extractErrorMessage(v1Error, '')}
       />
     )
   }
@@ -65,13 +66,14 @@ function RouteComponent() {
     return (
       <ErrorMessage
         title="Error loading V2 history"
-        description={v2Error.cause?.message}
+        description={extractErrorMessage(v2Error, '')}
       />
     )
   }
 
   return (
     <AddressHistoryDataTable
+      address={addr}
       history={{
         v1Events: v1Data,
         v2Events: v2Data,

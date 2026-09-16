@@ -3,7 +3,7 @@ import type {
   OwnedNamesCountQueryVariables,
 } from '@ens-apps/indexer'
 import { OwnedNamesCountDocument } from '@ens-apps/indexer'
-import indexerClient from '@ens-apps/indexer/urql'
+import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -20,17 +20,11 @@ export const getOwnedNamesCount = ResultFn(async function* (
   variables: OwnedNamesCountQueryVariables,
 ) {
   const data = yield* await ResultAsync.fromPromise(
-    indexerClient
-      .query<OwnedNamesCountQuery, OwnedNamesCountQueryVariables>(
-        OwnedNamesCountDocument,
-        variables,
-      )
-      .toPromise()
-      .then((result) => {
-        if (result.error) throw result.error
-        if (!result.data) throw new Error('Indexer query returned no data')
-        return result.data
-      }),
+    graphqlRequest<OwnedNamesCountQuery, OwnedNamesCountQueryVariables>(
+      indexerClient,
+      OwnedNamesCountDocument,
+      variables,
+    ),
     (error) => new GetOwnedNamesCountError({ cause: error }),
   )
 

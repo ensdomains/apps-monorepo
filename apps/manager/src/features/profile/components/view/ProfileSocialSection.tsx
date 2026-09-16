@@ -14,6 +14,7 @@ import {
   profileCardCopyIconClassName,
   profileCardTrailingIconStrokeWidth,
 } from './ProfileCard'
+import { getSecondarySocialRecords } from './ProfileView.helpers'
 
 const socialLabelClassName =
   'truncate text-ens-quartz-500 text-xs leading-[16.5px] lg:landscape:leading-4.5'
@@ -81,7 +82,7 @@ export const ProfileSocialSection = ({
 }: {
   readonly records: ProfileRecords
 }) => {
-  const socialRecords = records.social.filter((record) => record.value.trim())
+  const socialRecords = getSecondarySocialRecords(records)
   if (socialRecords.length === 0) return null
 
   return (

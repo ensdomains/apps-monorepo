@@ -1,22 +1,33 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import posthog from 'posthog-js'
+import posthog from 'posthog-js/dist/module.full.no-external'
 import { useEffect } from 'react'
 import { useConnection, useConnectionEffect } from 'wagmi'
 import { track } from '@/lib/posthog/events'
 import { backendAuthStore } from '@/utils/backend-client'
 
-// Disconnect is a full session reset: intentionally evict ALL app localStorage
-// so no per-account state (incl. Privy session keys) leaks into the next
-// session. Only wagmi.* is preserved — wagmi manages its own connection/
-// disconnect state and a blanket clear would corrupt its reconnection.
+// Disconnect is a full session reset: evict app localStorage so no per-account
+// state leaks into the next session. Two prefixes survive.
 //
-// Privy keys must be cleared here, not left to logout(): logout() failures are
-// swallowed upstream, so a stale session would otherwise auto-re-authenticate
-// on the next load. The broad sweep also covers any other client state (e.g.
-// PostHog) — PostHog is additionally reset explicitly in onDisconnect below.
+// `wagmi`: wagmi manages its own connection/disconnect state and a blanket
+// clear would corrupt its reconnection.
+//
+// `ens-session`: a valid, non-expired scoped HCA session must survive
+// disconnect/reconnect so the next registration reuses it with ZERO wallet
+// prompts (per the HCA handoff doc). Wiping it forced a re-ENABLE on every
+// reconnect. Cross-owner safety is handled by `removeSessionsByOwner` on an
+// actual owner switch, and each session is owner+chain+HCA scoped and
+// on-chain-expiring, so keeping it across a disconnect is safe.
+//
+// Privy keys are NOT preserved, and must be cleared here rather than left to
+// logout(): logout() failures are swallowed upstream, so a stale session would
+// otherwise auto-re-authenticate on the next load. The sweep also covers any
+// other client state (e.g. PostHog) — PostHog is additionally reset explicitly
+// in onDisconnect below.
+const PRESERVED_KEY_PREFIXES = ['wagmi', 'ens-session'] as const
 const clearAppLocalStorage = () => {
   for (const key of Object.keys(localStorage)) {
-    if (key.startsWith('wagmi')) continue
+    if (PRESERVED_KEY_PREFIXES.some((prefix) => key.startsWith(prefix)))
+      continue
     localStorage.removeItem(key)
   }
 }

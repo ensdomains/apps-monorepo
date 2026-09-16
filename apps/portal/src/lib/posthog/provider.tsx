@@ -1,3 +1,8 @@
+import {
+  boot as bootIntercom,
+  getVisitorId,
+  trackEvent as trackIntercomEvent,
+} from '@intercom/messenger-js-sdk'
 import { PostHogProvider } from '@posthog/react'
 // @posthog/react types its `client` prop with the `PostHog` type from the
 // default `posthog-js` build, which is a *nominally* distinct declaration from
@@ -17,7 +22,8 @@ import type { PostHog } from 'posthog-js'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { useEffect } from 'react'
 import { useConnectionEffect } from 'wagmi'
-import { track } from './events'
+import { INTERCOM_APP_ID } from '@/lib/intercom'
+import { track, trackWithOptions } from './events'
 
 export const PHProvider = ({
   children,
@@ -25,42 +31,79 @@ export const PHProvider = ({
   children: React.ReactNode
 }): React.ReactNode => {
   useEffect(() => {
-    posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
-      api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-      capture_pageview: 'history_change',
-      disable_session_recording: !!import.meta.env.DEV,
-      defaults: '2025-11-30',
-      person_profiles: 'identified_only',
-    })
+    // Non-critical analytics init; Intercom can throw on blocked domains (403)
+    // and this runs in an effect, so an unguarded throw would crash the app.
+    try {
+      posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
+        api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
+        capture_pageview: 'history_change',
+        disable_session_recording: !!import.meta.env.DEV,
+        defaults: '2025-11-30',
+        person_profiles: 'identified_only',
+      })
+
+      bootIntercom({
+        app_id: INTERCOM_APP_ID,
+        posthog_distinct_id: posthog.get_distinct_id(),
+        recent_replay: posthog.get_session_replay_url(),
+      })
+
+      const intercomVisitorId = getVisitorId()
+
+      if (intercomVisitorId) {
+        trackWithOptions('intercom:booted', undefined, {
+          $set: {
+            intercom_visitor_id: intercomVisitorId,
+          },
+        })
+      }
+    } catch (error) {
+      console.warn('[analytics] init failed', error)
+    }
   }, [])
 
   useConnectionEffect({
     onConnect(data) {
-      posthog.identify(
-        data.address,
-        {
-          address: data.address,
-        },
-        {
-          initial_address: data.address,
-        },
-      )
+      // Analytics on connect is non-critical; never let it crash the app.
+      try {
+        posthog.identify(
+          data.address,
+          {
+            address: data.address,
+          },
+          {
+            initial_address: data.address,
+          },
+        )
 
-      posthog.register({
-        wallet_address: data.address,
-        chain_id: data.chainId,
-        wallet_connector: data.connector.name,
-      })
+        posthog.register({
+          wallet_address: data.address,
+          chain_id: data.chainId,
+          wallet_connector: data.connector.name,
+        })
 
-      track('wallet:connect', {
-        wallet_address: data.address,
-        chain_id: data.chainId,
-        wallet_connector: data.connector.name,
-      })
+        track('wallet:connect', {
+          wallet_address: data.address,
+          chain_id: data.chainId,
+          wallet_connector: data.connector.name,
+        })
+
+        trackIntercomEvent('wallet:connect', {
+          wallet_address: data.address,
+          chain_id: data.chainId,
+          wallet_connector: data.connector.name,
+        })
+      } catch (error) {
+        console.warn('[analytics] wallet:connect tracking failed', error)
+      }
     },
     onDisconnect() {
-      track('wallet:disconnect')
-      posthog.reset()
+      try {
+        track('wallet:disconnect')
+        posthog.reset()
+      } catch (error) {
+        console.warn('[analytics] wallet:disconnect tracking failed', error)
+      }
     },
   })
 

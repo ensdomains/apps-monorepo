@@ -20,6 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { EXPLORER_URL } from '@/constants'
 import { NON_EXPIRING_DATE_LABEL } from '@/features/dashboard/utils'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import {
@@ -28,6 +29,10 @@ import {
   getFavoriteActionIntent,
 } from '@/features/profile/components/common/favoriteAction.helpers'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
+import {
+  getRenewalRoute,
+  type RenewalProtocol,
+} from '@/features/renew/utils/renewalProtocol'
 import { cn } from '@/lib/utils'
 import {
   EligibleForUpgradePill,
@@ -59,9 +64,13 @@ interface NameRowProps {
   readonly isAuthenticated?: boolean
   readonly isInGrace?: boolean
   readonly canRenew?: boolean
+  readonly selectable?: boolean
+  readonly isSelected?: boolean
+  readonly onToggleSelect?: () => void
+  readonly renewalProtocol?: RenewalProtocol
 }
 
-const explorerUrl = (label: string) => `https://explorer.ens.dev/${label}`
+const explorerUrl = (label: string) => `${EXPLORER_URL}/${label}`
 
 const namePillVariants = cva(
   'inline-flex max-w-full items-center gap-2 rounded-sm px-1.5 py-1.75',
@@ -78,11 +87,16 @@ const namePillVariants = cva(
 const NamePill = ({
   label,
   variant,
+  selected = false,
 }: {
   readonly label: string
   readonly variant: 'primary' | 'secondary'
+  readonly selected?: boolean
 }) => {
-  const className = namePillVariants({ variant })
+  const className = cn(
+    namePillVariants({ variant }),
+    selected && 'bg-ens-lapis-core text-ens-quartz-0',
+  )
   const textClassName =
     'min-w-0 break-all font-medium font-semi-mono text-base leading-none tracking-[-0.32px] [text-wrap:pretty]'
 
@@ -106,6 +120,12 @@ const VerifiedCheck = () => (
   </span>
 )
 
+const SelectedCheck = () => (
+  <span className="flex size-5.5 shrink-0 items-center justify-center rounded-full bg-ens-lapis-core">
+    <Check className="size-3.5 text-ens-quartz-0" strokeWidth={3} />
+  </span>
+)
+
 const ctaVariants = cva(
   'flex items-center gap-1.5 font-normal font-semi-mono text-base uppercase leading-none tracking-[-0.16px] hover:opacity-80',
   {
@@ -122,9 +142,11 @@ const ctaVariants = cva(
 const RowCta = ({
   cta,
   label,
+  renewalProtocol,
 }: {
   readonly cta: NameRowCta
   readonly label: string
+  readonly renewalProtocol: RenewalProtocol
 }) => {
   if (cta === 'manageExplorer') {
     return (
@@ -159,7 +181,7 @@ const RowCta = ({
     <Link
       className={ctaVariants({ kind: 'renew' })}
       params={{ name: label }}
-      to="/renew/$name"
+      to={getRenewalRoute(renewalProtocol)}
     >
       <Trans>Renew</Trans>
       <MSymbol className="ms-opsz-20 text-xl" symbol="double_arrow" />
@@ -319,11 +341,17 @@ const NameAvatar = ({
   avatarUrl,
   isPending,
   themeColor,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: {
   readonly label: string
   readonly avatarUrl?: string
   readonly isPending?: boolean
   readonly themeColor?: string
+  readonly selectable?: boolean
+  readonly selected?: boolean
+  readonly onToggleSelect?: () => void
 }) => {
   const { t } = useLingui()
 
@@ -336,8 +364,8 @@ const NameAvatar = ({
     )
   }
 
-  return (
-    <div className="relative size-8.5 shrink-0 overflow-hidden rounded-sm bg-ens-quartz-50">
+  const inner = (
+    <>
       <ImageFallback.Root className="contents">
         <ImageFallback.Image
           alt={t`${label} avatar`}
@@ -352,16 +380,42 @@ const NameAvatar = ({
           />
         </ImageFallback.Fallback>
       </ImageFallback.Root>
-    </div>
+      {selected && (
+        <div className="absolute inset-0 flex items-center justify-center rounded-sm bg-ens-lapis-500/60">
+          <Check className="size-5 text-ens-quartz-0" strokeWidth={3} />
+        </div>
+      )}
+    </>
   )
+
+  const containerClassName =
+    'relative size-8.5 shrink-0 overflow-hidden rounded-sm bg-ens-quartz-50'
+
+  if (selectable) {
+    return (
+      <button
+        aria-label={selected ? t`Deselect ${label}` : t`Select ${label}`}
+        aria-pressed={selected}
+        className={containerClassName}
+        onClick={onToggleSelect}
+        type="button"
+      >
+        {inner}
+      </button>
+    )
+  }
+
+  return <div className={containerClassName}>{inner}</div>
 }
 
 const NameOptionsMenu = ({
   canRenew,
   label,
+  renewalProtocol,
 }: {
   readonly canRenew: boolean
   readonly label: string
+  readonly renewalProtocol: RenewalProtocol
 }) => {
   const { t } = useLingui()
 
@@ -389,7 +443,7 @@ const NameOptionsMenu = ({
             <Link
               className="flex h-12 items-center justify-between rounded-[10px] bg-ens-quartz-50 px-4 py-3 font-semi-mono text-[14px] text-ens-quartz-900 uppercase focus:bg-ens-quartz-50 focus:text-ens-quartz-900"
               params={{ name: label }}
-              to="/renew/$name"
+              to={getRenewalRoute(renewalProtocol)}
             >
               <Trans>Renew name</Trans>
               <MSymbol
@@ -420,7 +474,8 @@ const ExpiryDetails = ({
   expiryLabel,
   cta,
   label,
-}: Pick<NameRowProps, 'expiryLabel' | 'cta' | 'label'>) => {
+  renewalProtocol,
+}: Pick<NameRowProps, 'expiryLabel' | 'cta' | 'label' | 'renewalProtocol'>) => {
   if (!expiryLabel && !cta) return null
 
   const isNonExpiring = expiryLabel === NON_EXPIRING_DATE_LABEL
@@ -446,7 +501,13 @@ const ExpiryDetails = ({
       ) : (
         <span />
       )}
-      {cta && <RowCta cta={cta} label={label} />}
+      {cta && (
+        <RowCta
+          cta={cta}
+          label={label}
+          renewalProtocol={renewalProtocol ?? 'v2'}
+        />
+      )}
     </div>
   )
 }
@@ -470,6 +531,10 @@ export const NameRow = ({
   isAuthenticated = true,
   isInGrace = false,
   canRenew = true,
+  selectable = false,
+  isSelected = false,
+  onToggleSelect,
+  renewalProtocol = 'v2',
 }: NameRowProps) => {
   const themeVars =
     themeColor && !isInGrace ? getThemeVars(themeColor) : undefined
@@ -498,16 +563,28 @@ export const NameRow = ({
             avatarUrl={avatarUrl}
             isPending={avatarPending}
             label={label}
+            onToggleSelect={onToggleSelect}
+            selectable={selectable}
+            selected={isSelected}
             themeColor={resolvedThemeColor}
           />
-          <NamePill label={label} variant={nameVariant} />
-          {verified && <VerifiedCheck />}
+          <NamePill label={label} selected={isSelected} variant={nameVariant} />
+          {isSelected ? <SelectedCheck /> : verified && <VerifiedCheck />}
         </div>
 
-        <NameOptionsMenu canRenew={canRenew} label={label} />
+        <NameOptionsMenu
+          canRenew={canRenew}
+          label={label}
+          renewalProtocol={renewalProtocol}
+        />
       </div>
 
-      <ExpiryDetails cta={cta} expiryLabel={expiryLabel} label={label} />
+      <ExpiryDetails
+        cta={cta}
+        expiryLabel={expiryLabel}
+        label={label}
+        renewalProtocol={renewalProtocol}
+      />
     </div>
   )
 }

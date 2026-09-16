@@ -2,7 +2,8 @@ import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
+import { useConnection } from 'wagmi'
+import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
@@ -80,6 +81,7 @@ export const PaymentCardBase = ({
   premiumAmount,
   basePrice,
   type,
+  connectionSource = 'smart-account',
 }: {
   canNext: boolean
   onNext: () => void
@@ -90,9 +92,13 @@ export const PaymentCardBase = ({
   basePrice?: number
   isLoading: boolean
   type: 'register' | 'renew'
+  connectionSource?: 'eoa' | 'smart-account'
 }) => {
-  const { isConnected } = useSmartAccountContext()
-  const { openConnectModal } = useConnectModal()
+  const { isConnected: isSmartAccountConnected } = useSmartAccountContext()
+  const { isConnected: isEoaConnected } = useConnection()
+  const isConnected =
+    connectionSource === 'eoa' ? isEoaConnected : isSmartAccountConnected
+  const { openConnectModal, connectModalOpen } = useConnectModal()
 
   return (
     <div
@@ -101,9 +107,9 @@ export const PaymentCardBase = ({
         'rounded-xl border-[#DDDDDE] border-[0.5px] bg-white px-12 py-6 shadow-temp-card',
       )}
     >
-      <div className="w-full max-w-55 space-y-3 text-center">
+      <div className="w-full max-w-64 space-y-3 text-center">
         {premiumAmount !== undefined && premiumAmount > 0 && (
-          <div className="space-y-2">
+          <div className="mx-auto w-max space-y-2">
             {basePrice !== undefined && (
               <PaymentCardBaseLine
                 basePrice={basePrice}
@@ -156,9 +162,7 @@ export const PaymentCardBase = ({
           </p>
           {/* Stablecoin icons */}
           <div className="flex items-center gap-1">
-            <USDTIcon className="h-7 w-7" />
             <USDCIcon className="h-7 w-7" />
-            <DAI className="h-7 w-7" />
           </div>
         </div>
 
@@ -176,7 +180,7 @@ export const PaymentCardBase = ({
           <Button
             className="w-full font-medium font-mono uppercase tracking-widest"
             color="blue"
-            disabled={!openConnectModal}
+            disabled={!openConnectModal || connectModalOpen}
             onClick={() => openConnectModal?.()}
             size="lg"
           >

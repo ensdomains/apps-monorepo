@@ -1,4 +1,3 @@
-import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link, linkOptions } from '@tanstack/react-router'
@@ -8,17 +7,13 @@ import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
-import {
-  getNamePricingQueryOptions,
-  getSearchNameQueryOptions,
-} from '@/features/register/services/checkNameAvailabilityService'
-import { isFeatureEnabled } from '@/utils/feature-flags'
+import { useNameClassification } from '@/features/search/useNameClassification'
+import { getNamePricingQueryOptions } from '@/features/shared/service/checkNameAvailabilityService'
 import { tw } from '@/utils/tailwind'
 import { recordNameSearch } from './recordNameSearch'
 import { searchHistoryStore } from './useSearchHistory'
@@ -30,112 +25,42 @@ const LINK_OPTIONS = {
       params: { name },
     }),
   register: (name: string) =>
-    isFeatureEnabled('REGISTRATION_V2')
-      ? linkOptions({
-          to: '/register/$name',
-          params: { name },
-        })
-      : linkOptions({
-          to: '/register',
-          search: {
-            name,
-          },
-          reloadDocument: location.pathname === '/register',
-        }),
+    linkOptions({
+      to: '/register/$name',
+      params: { name },
+    }),
 } as const
 
 type NameSuggestionItemProps = {
   readonly name: string
   readonly avatarUrl?: string
   readonly onNavigate?: () => void
-  readonly isRegistered?: boolean
-  readonly isLoading?: boolean
-  readonly isError?: boolean
-  readonly isSupported?: boolean
 }
 
 export const NameSuggestionItem = ({
   name,
   avatarUrl,
   onNavigate,
-  isRegistered: isRegisteredProp,
-  isLoading: isLoadingProp,
-  isError: isErrorProp,
-  isSupported = true,
 }: NameSuggestionItemProps) => {
-  const isSubname = name.split('.').length > 2
-  const needsSelfCheck =
-    isSupported &&
-    isRegisteredProp === undefined &&
-    !isLoadingProp &&
-    !isErrorProp
+  const { kind, outcome } = useNameClassification(name)
+  const isEth2ld = kind.type === 'eth-2ld'
+  const isAvailable = outcome.type === 'available'
+  const isOwned = outcome.type === 'owned'
+  const isDisabled =
+    outcome.type === 'invalid' ||
+    ((kind.type === 'eth-subname' ||
+      (kind.type === 'dns-name' && kind.isSubname)) &&
+      outcome.type === 'not-found')
 
-  const registrarQuery = useQuery({
-    ...getSearchNameQueryOptions(name),
-    enabled: needsSelfCheck && !isSubname,
-  })
-  const indexerQuery = useQuery({
-    ...getDomainsQuery(
-      needsSelfCheck && isSubname
-        ? {
-            where: { name },
-            first: 1,
-            orderBy: Domain_OrderBy.Name,
-            orderDirection: OrderDirection.Asc,
-          }
-        : undefined,
-    ),
-    enabled: needsSelfCheck && isSubname,
-  })
-
-  const activeQuery = isSubname ? indexerQuery : registrarQuery
-  const isRegistered = match({
-    needsSelfCheck,
-    isSubname,
-    indexerQuery,
-    registrarQuery,
-  })
-    .with({ needsSelfCheck: false }, () => isRegisteredProp)
-    .with({ isSubname: true }, ({ indexerQuery: query }) =>
-      query.data ? query.data.domains.length > 0 : undefined,
-    )
-    .otherwise(({ registrarQuery: query }) =>
-      query.data ? !query.data.isAvailable : undefined,
-    )
   const registeredExpiryQuery = useQuery({
     ...profileExpiryQuery(name),
-    enabled:
-      !isSubname &&
-      isSupported &&
-      isRegistered !== undefined &&
-      !(needsSelfCheck ? activeQuery.isLoading : isLoadingProp),
+    enabled: isEth2ld && isOwned,
   })
   const { isInGrace } = getProfileExpiryResultStatus(registeredExpiryQuery.data)
-  const isCheckingGrace =
-    !isSubname && isRegistered === false && registeredExpiryQuery.isLoading
-  const isLoading =
-    (needsSelfCheck ? activeQuery.isLoading : isLoadingProp) || isCheckingGrace
-  const isError =
-    (needsSelfCheck ? activeQuery.isError : isErrorProp) ||
-    (isRegistered !== true && registeredExpiryQuery.isError)
-  const isAvailable =
-    isSupported &&
-    !isSubname &&
-    isRegistered === false &&
-    !isInGrace &&
-    !isCheckingGrace &&
-    !registeredExpiryQuery.isError
-  const isDisabled =
-    !isSupported ||
-    (isSubname && isRegistered === false) ||
-    isCheckingGrace ||
-    (isRegistered !== true && registeredExpiryQuery.isError)
 
-  // Only fetch pricing for rows that are actually available — registered
-  // names and subnames can't be in cooldown.
   const pricingQuery = useQuery({
     ...getNamePricingQueryOptions(isAvailable ? name : undefined),
-    enabled: isAvailable && !isSubname,
+    enabled: isAvailable,
   })
   const isInCooldown =
     isAvailable &&
@@ -181,37 +106,37 @@ export const NameSuggestionItem = ({
             <MSymbol className="ms-opsz-14 ms-wght-400" symbol="hourglass" />
           </div>
         )}
-        {match({ isSupported, isSubname, isLoading, isError, isRegistered })
-          .with({ isSupported: false }, () => (
+        {match(outcome)
+          .with({ type: 'invalid' }, () => (
             <div className="shrink-0 rounded-full bg-red-50 px-1.5 py-1 font-normal text-red-500 text-xs">
               <Trans>Not supported</Trans>
             </div>
           ))
-          .with({ isLoading: true }, () => (
+          .with({ type: 'loading' }, () => (
             <Loader2Icon className="size-4 animate-spin text-slate-500" />
           ))
-          .with({ isError: true }, () => (
-            <XIcon className="size-4 text-slate-500" />
+          .with({ type: 'owned' }, () => (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <span className="inline-flex h-5 items-center justify-center rounded-xl bg-ens-white px-2 py-1 font-sans text-ens-lapis-core text-xs leading-none">
+                <Trans>Registered</Trans>
+              </span>
+              {isInGrace && <GracePeriodBadge />}
+            </div>
           ))
-          .when(
-            ({ isRegistered }) =>
-              isRegistered === true || (isRegistered === false && isInGrace),
-            () => (
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <span className="inline-flex h-5 items-center justify-center rounded-xl bg-ens-white px-2 py-1 font-sans text-ens-lapis-core text-xs leading-none">
-                  <Trans>Registered</Trans>
-                </span>
-                {isInGrace && <GracePeriodBadge />}
-              </div>
-            ),
-          )
-          .with({ isSubname: true }, () => null)
-          .with({ isRegistered: false }, () => (
+          .with({ type: 'available' }, () => (
             <div className="shrink-0 rounded-full bg-ens-peridot-bg px-1.5 py-1 font-normal text-ens-peridot-core text-xs">
               <Trans>Available</Trans>
             </div>
           ))
-          .otherwise(() => null)}
+          .with({ type: 'not-found' }, () => (
+            <div className="shrink-0 rounded-full bg-red-50 px-1.5 py-1 font-normal text-red-500 text-xs">
+              <Trans>Name not found</Trans>
+            </div>
+          ))
+          .with({ type: 'error' }, () => (
+            <XIcon className="size-4 text-slate-500" />
+          ))
+          .exhaustive()}
       </div>
     </Link>
   )

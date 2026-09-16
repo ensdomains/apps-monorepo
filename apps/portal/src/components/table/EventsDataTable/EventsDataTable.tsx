@@ -130,9 +130,7 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
         <header className="flex flex-col gap-4">
           {enableTransactionCount && (
             <div className="flex flex-row justify-between">
-              <h1 className="text-h1">
-                {eventCount} Transaction{eventCount !== 1 ? 's' : ''}
-              </h1>
+              <h1 className="text-h1">{`Transactions (${eventCount})`}</h1>
             </div>
           )}
 

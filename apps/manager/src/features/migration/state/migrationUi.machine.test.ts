@@ -1,4 +1,5 @@
-import type { Call, Signer } from '@ens-apps/transaction-manager'
+import type { Signer } from '@ens-apps/transaction-manager'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -32,7 +33,11 @@ const OWNER: Address = '0x0000000000000000000000000000000000000001'
 const SCA: Address = '0x0000000000000000000000000000000000000002'
 const SIGNER = {} as Signer
 const WAGMI = {} as WagmiConfig
-
+const HCA_CLIENT = {
+  getAddress: vi.fn(),
+  getInitData: vi.fn(),
+} as unknown as Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
+const REFRESH_ACCOUNT = vi.fn<() => Promise<void>>()
 const domain = (id: string): V1Domain =>
   ({
     id,
@@ -50,6 +55,7 @@ const EMPTY_GROUPS: GroupedNames = {
 }
 
 const makeClassified = (d: V1Domain): ClassifiedName => ({
+  action: 'migrate',
   domain: d,
   tokenType: 'unwrapped',
   label: d.labelName ?? '',
@@ -64,40 +70,27 @@ const makeClassified = (d: V1Domain): ClassifiedName => ({
 const makePlan = (
   domains: V1Domain[],
   overrides: Partial<MigrationPlan> = {},
-): MigrationPlan => ({
-  migrationOwner: OWNER,
-  domains,
-  classified: domains.map(makeClassified),
-  ineligible: [],
-  groups: EMPTY_GROUPS,
-  preflight: {
-    preExistingOwnedPermRes: null,
-    skipApprovalPhase: false,
-    skipFetchProfilesPhase: false,
-    baseRegistrarApproved: false,
-    nameWrapperApproved: false,
-  },
-  ownedPermRes: null,
-  profiles: new Map(),
-  migrateCalls: [
-    {
-      to: '0x0000000000000000000000000000000000000000',
-      data: '0x',
-      value: 0n,
-    } as Call,
-  ],
-  batches: [
-    {
-      index: 0,
-      names: domains.map((d) => d.name),
-      estimatedGas: 0n,
+): MigrationPlan => {
+  const classified = overrides.classified ?? domains.map(makeClassified)
+  return {
+    hcaAddress: SCA,
+    hcaDeploymentRequired: false,
+    migrationOwner: OWNER,
+    classified,
+    registryContext: classified,
+    ineligible: [],
+    groups: EMPTY_GROUPS,
+    preflight: {
+      skipFetchProfilesPhase: false,
     },
-  ],
-  roleGrantCalls: [],
-  profileReplayCalls: [],
-  stepDescriptors: [],
-  ...overrides,
-})
+    ownedPermRes: null,
+    profiles: new Map(),
+    atomicBatches: [],
+    stepDescriptors: [],
+    ...overrides,
+    directRoutes: overrides.directRoutes ?? new Map(),
+  }
+}
 
 const start = (domains: V1Domain[] = [domain('alice')]) => {
   const actor = createActor(migrationUiMachine, {
@@ -108,7 +101,8 @@ const start = (domains: V1Domain[] = [domain('alice')]) => {
     type: 'migration.start',
     plan: makePlan(domains),
     signer: SIGNER,
-    accountAddress: SCA,
+    hcaClient: HCA_CLIENT,
+    refreshAccount: REFRESH_ACCOUNT,
   })
   return actor
 }
@@ -117,6 +111,9 @@ const migrationResult = (
   overrides: Partial<MigrationResult> = {},
 ): MigrationResult => ({
   completed: 1,
+  migrated: 1,
+  copied: 0,
+  completedOperations: [{ name: 'alice.eth', action: 'migrate' }],
   txHashes: ['0xabc'] as readonly Hex[],
   ineligible: [],
   ...overrides,
@@ -124,6 +121,7 @@ const migrationResult = (
 
 beforeEach(() => {
   executeMigrationMock.mockReset()
+  REFRESH_ACCOUNT.mockReset()
   vi.useFakeTimers()
 })
 
@@ -159,7 +157,8 @@ describe('migrationUiMachine', () => {
         type: 'migration.start',
         plan: makePlan([], { classified: [] }),
         signer: SIGNER,
-        accountAddress: SCA,
+        hcaClient: HCA_CLIENT,
+        refreshAccount: REFRESH_ACCOUNT,
       })
       expect(actor.getSnapshot().value).toBe('select')
     })
@@ -170,8 +169,16 @@ describe('migrationUiMachine', () => {
       executeMigrationMock.mockImplementation(() => new Promise(() => {}))
       const actor = start()
       expect(actor.getSnapshot().value).toEqual({ migrate: 'running' })
-      expect(actor.getSnapshot().context.plan?.domains).toHaveLength(1)
+      expect(actor.getSnapshot().context.plan?.classified).toHaveLength(1)
       expect(actor.getSnapshot().context.plan?.migrationOwner).toBe(OWNER)
+      expect(executeMigrationMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          signer: SIGNER,
+          hcaClient: HCA_CLIENT,
+          refreshAccount: REFRESH_ACCOUNT,
+          reconcileBeforeSubmit: false,
+        }),
+      )
     })
 
     it('records progress events into context', async () => {
@@ -200,7 +207,10 @@ describe('migrationUiMachine', () => {
   describe('migrate.running → success', () => {
     it('transitions directly to success when migration resolves', async () => {
       executeMigrationMock.mockImplementation(async (params) => {
-        params.onBatchComplete?.(['alice.eth'], '0xabc' as Hex)
+        params.onBatchComplete?.(
+          [{ name: 'alice.eth', action: 'migrate' }],
+          '0xabc' as Hex,
+        )
         return migrationResult()
       })
       const actor = start()
@@ -208,29 +218,71 @@ describe('migrationUiMachine', () => {
 
       expect(actor.getSnapshot().value).toBe('success')
       expect(actor.getSnapshot().context.txHashes).toEqual(['0xabc'])
-      expect(actor.getSnapshot().context.migratedNames).toEqual(['alice.eth'])
+      expect(actor.getSnapshot().context.completedOperations).toEqual([
+        { name: 'alice.eth', action: 'migrate' },
+      ])
     })
 
-    it('accumulates migratedNames across multiple batchComplete events', async () => {
+    it('accumulates migrate and copy operations across batchComplete events', async () => {
       executeMigrationMock.mockImplementation(async (params) => {
-        params.onBatchComplete?.(['a.eth'], '0x1' as Hex)
-        params.onBatchComplete?.(['b.eth', 'c.eth'], '0x2' as Hex)
-        params.onBatchComplete?.(['d.eth'], '0x3' as Hex)
-        return migrationResult()
+        params.onBatchComplete?.(
+          [{ name: 'a.eth', action: 'migrate' }],
+          '0x1' as Hex,
+        )
+        params.onBatchComplete?.(
+          [
+            { name: 'b.a.eth', action: 'copy' },
+            { name: 'c.a.eth', action: 'copy' },
+          ],
+          '0x2' as Hex,
+        )
+        params.onBatchComplete?.(
+          [{ name: 'd.eth', action: 'migrate' }],
+          '0x3' as Hex,
+        )
+        return migrationResult({
+          completed: 4,
+          migrated: 2,
+          copied: 2,
+          completedOperations: [
+            { name: 'a.eth', action: 'migrate' },
+            { name: 'b.a.eth', action: 'copy' },
+            { name: 'c.a.eth', action: 'copy' },
+            { name: 'd.eth', action: 'migrate' },
+          ],
+        })
       })
       const actor = start()
       await vi.advanceTimersByTimeAsync(0)
-      expect(actor.getSnapshot().context.migratedNames).toEqual([
-        'a.eth',
-        'b.eth',
-        'c.eth',
-        'd.eth',
+      expect(actor.getSnapshot().context.completedOperations).toEqual([
+        { name: 'a.eth', action: 'migrate' },
+        { name: 'b.a.eth', action: 'copy' },
+        { name: 'c.a.eth', action: 'copy' },
+        { name: 'd.eth', action: 'migrate' },
       ])
+    })
+
+    it('records a reconciled batch when no transaction hash is available', async () => {
+      executeMigrationMock.mockImplementation(async (params) => {
+        params.onBatchComplete?.([{ name: 'alice.eth', action: 'migrate' }])
+        return migrationResult({ txHashes: [] })
+      })
+      const actor = start()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(actor.getSnapshot().value).toBe('success')
+      expect(actor.getSnapshot().context.completedOperations).toEqual([
+        { name: 'alice.eth', action: 'migrate' },
+      ])
+      expect(actor.getSnapshot().context.txHashes).toEqual([])
     })
 
     it('resetAll returns to select and wipes context on done', async () => {
       executeMigrationMock.mockImplementation(async (params) => {
-        params.onBatchComplete?.(['alice.eth'], '0xabc' as Hex)
+        params.onBatchComplete?.(
+          [{ name: 'alice.eth', action: 'migrate' }],
+          '0xabc' as Hex,
+        )
         return migrationResult()
       })
       const actor = start()
@@ -239,7 +291,7 @@ describe('migrationUiMachine', () => {
       actor.send({ type: 'done' })
       expect(actor.getSnapshot().value).toBe('select')
       expect(actor.getSnapshot().context.plan).toBeUndefined()
-      expect(actor.getSnapshot().context.migratedNames).toEqual([])
+      expect(actor.getSnapshot().context.completedOperations).toEqual([])
       expect(actor.getSnapshot().context.txHashes).toEqual([])
     })
   })
@@ -247,7 +299,12 @@ describe('migrationUiMachine', () => {
   describe('migrate.failing → failure', () => {
     it('routes to failing when migration complete but no tx hashes (isOnlyFailures guard)', async () => {
       executeMigrationMock.mockResolvedValueOnce(
-        migrationResult({ txHashes: [] }),
+        migrationResult({
+          completed: 0,
+          migrated: 0,
+          completedOperations: [],
+          txHashes: [],
+        }),
       )
       const actor = start()
       await vi.advanceTimersByTimeAsync(0)
@@ -276,28 +333,52 @@ describe('migrationUiMachine', () => {
       actor.send({ type: 'selection.set', names: ['alice.eth', 'bob.eth'] })
 
       executeMigrationMock.mockImplementation(async (params) => {
-        params.onBatchComplete?.(['alice.eth'], '0xabc' as Hex)
+        params.onBatchComplete?.(
+          [{ name: 'alice.eth', action: 'migrate' }],
+          '0xabc' as Hex,
+        )
         throw new Error('boom')
       })
       actor.send({
         type: 'migration.start',
         plan: makePlan([domain('alice'), domain('bob')]),
         signer: SIGNER,
-        accountAddress: SCA,
+        hcaClient: HCA_CLIENT,
+        refreshAccount: REFRESH_ACCOUNT,
       })
 
       await vi.advanceTimersByTimeAsync(1500)
       expect(actor.getSnapshot().value).toBe('failure')
-      expect(actor.getSnapshot().context.migratedNames).toEqual(['alice.eth'])
+      expect(actor.getSnapshot().context.completedOperations).toEqual([
+        { name: 'alice.eth', action: 'migrate' },
+      ])
 
       executeMigrationMock.mockImplementation(() => new Promise(() => {}))
       actor.send({ type: 'retry' })
 
       const ctx = actor.getSnapshot().context
       expect(ctx.selectedNames).toEqual(['bob.eth'])
-      expect(ctx.plan?.domains.map((d) => d.name)).toEqual(['bob.eth'])
+      expect(ctx.plan?.classified.map(({ domain }) => domain.name)).toEqual([
+        'bob.eth',
+      ])
       expect(ctx.lastError).toBeUndefined()
       expect(ctx.progress).toBeUndefined()
+    })
+
+    it('enables reconciliation mode for retries', async () => {
+      executeMigrationMock.mockRejectedValueOnce(new Error('boom'))
+      const actor = start()
+      await vi.advanceTimersByTimeAsync(1500)
+
+      executeMigrationMock.mockImplementation(() => new Promise(() => {}))
+      actor.send({ type: 'retry' })
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(executeMigrationMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          reconcileBeforeSubmit: true,
+        }),
+      )
     })
 
     it('cancel returns to select and wipes context', async () => {

@@ -131,13 +131,6 @@ msgstr ""
 msgid "60-second wait prevents attacks"
 msgstr ""
 
-#: src/features/migration/components/ProfileCardPreview.tsx
-msgid ""
-"A scrappy generalist builder with taste. Senior Product Designer and "
-"Researcher at ENS Labs, dedicated to making web3 feel straightforward to "
-"newcomers."
-msgstr ""
-
 #: src/features/register/pages/CheckDomainPage.tsx src/routes/index.tsx
 msgid "A simple, portable identity that you control"
 msgstr ""
@@ -267,10 +260,6 @@ msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Are you sure?"
-msgstr ""
-
-#: src/features/migration/components/ProfileCardPreview.tsx
-msgid "August 28, 2024"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
@@ -1174,7 +1163,6 @@ msgid "Link copied to clipboard"
 msgstr ""
 
 #: src/features/landing/components/ProfileCard.tsx
-#: src/features/migration/components/ProfileCardPreview.tsx
 msgid "links"
 msgstr ""
 
@@ -1680,7 +1668,6 @@ msgstr ""
 #: src/components/molecules/DomainResultCard/DomainResultCard.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/landing/components/ProfileCard.tsx
-#: src/features/migration/components/ProfileCardPreview.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 #: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
 msgid "Registered"

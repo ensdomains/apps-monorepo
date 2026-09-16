@@ -8,7 +8,9 @@ import { getOwner as ensjsv2_getOwner } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, namehash, zeroAddress } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { normalizeEthName } from './profileName'
+import { isDebugProfileName } from '@/utils/debug-features'
+import { DEBUG_PROFILE_OWNER } from '../MOCK'
+import { normalizeDnsName, normalizeEthName } from './profileName'
 
 class GetOwnerError extends TaggedError('GetOwnerError')<{
   cause: unknown
@@ -22,9 +24,38 @@ export type ProfileOwnerResult = {
 }
 
 export const getOwner = ResultFn(async function* (params: { name: string }) {
+  if (isDebugProfileName(params.name)) {
+    return ok({
+      owner: DEBUG_PROFILE_OWNER,
+      protocol: 'v2',
+    } satisfies ProfileOwnerResult)
+  }
+
   const ethName = normalizeEthName(params.name)
 
+  // Non-.eth names (imported DNS names) only exist in the v1 registry;
+  // the v2 registry is rooted at .eth
   if (!ethName) {
+    const dnsName = normalizeDnsName(params.name)
+
+    if (!dnsName) {
+      return ok(null)
+    }
+
+    const client = yield* safeGetClient()
+
+    const dnsOwner = yield* fromPromise(
+      ensjsv1_getOwner(client, { name: dnsName }),
+      (e) => new GetOwnerError({ cause: e }),
+    )
+
+    if (dnsOwner?.owner && dnsOwner.owner !== zeroAddress) {
+      return ok({
+        owner: dnsOwner.owner,
+        protocol: 'v1',
+      } satisfies ProfileOwnerResult)
+    }
+
     return ok(null)
   }
 
@@ -43,6 +74,8 @@ export const getOwner = ResultFn(async function* (params: { name: string }) {
   }
 
   if (ethName.parentLabelsRootFirst.length === 0) {
+    // Not `graphqlRequest`: an empty payload is a valid answer here (the name
+    // simply isn't indexed), so this tolerates missing data instead of throwing.
     const v2Domain = yield* fromPromise(
       indexerClient
         .query<DomainQuery>(DomainDocument, { id: namehash(ethName.name) })

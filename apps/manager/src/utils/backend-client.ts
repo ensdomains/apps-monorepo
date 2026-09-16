@@ -1,17 +1,36 @@
 import { createStore } from '@xstate/store-react'
 import type { AppRouter } from 'api-worker/hc'
 import { hc } from 'hono/client'
-import posthog from 'posthog-js'
+import posthog from 'posthog-js/dist/module.full.no-external'
+import * as v from 'valibot'
+import { DEBUG_FEATURES_ENABLED } from './debug-features'
 import { persist } from './xstate-store'
 
 const BACKEND_AUTH_STORAGE_KEY = '@manager-v4/backend_auth'
 
-type BackendAuthContext = {
-  authKey: string | undefined
-  address: string | undefined
-  modalDismissed: boolean
-  apiBaseUrlOverride: string | undefined
-}
+const optionalPersistedString = v.pipe(
+  v.optional(v.nullish(v.string())),
+  v.transform((value): string | undefined => value ?? undefined),
+)
+
+const backendAuthContextSchema = v.pipe(
+  v.object({
+    authKey: optionalPersistedString,
+    address: optionalPersistedString,
+    modalDismissed: v.optional(v.boolean(), false),
+    apiBaseUrlOverride: optionalPersistedString,
+  }),
+  v.transform((context) => ({
+    authKey: context.authKey,
+    address: context.address,
+    modalDismissed: context.modalDismissed,
+    apiBaseUrlOverride: DEBUG_FEATURES_ENABLED
+      ? context.apiBaseUrlOverride
+      : undefined,
+  })),
+)
+
+type BackendAuthContext = v.InferOutput<typeof backendAuthContextSchema>
 
 type BackendAuthEvents = {
   signIn: { authKey: string; address: string }
@@ -54,18 +73,27 @@ export const backendAuthStore = createStore<
       ...context,
       modalDismissed: false,
     }),
-    setApiBaseUrlOverride: (context, event: { url: string }) => ({
-      ...context,
-      apiBaseUrlOverride: event.url,
-    }),
-    clearApiBaseUrlOverride: (context) => ({
-      ...context,
-      apiBaseUrlOverride: undefined,
-    }),
+    setApiBaseUrlOverride: (context, event: { url: string }) => {
+      if (!DEBUG_FEATURES_ENABLED) return context
+
+      return {
+        ...context,
+        apiBaseUrlOverride: event.url,
+      }
+    },
+    clearApiBaseUrlOverride: (context) => {
+      if (!DEBUG_FEATURES_ENABLED) return context
+
+      return {
+        ...context,
+        apiBaseUrlOverride: undefined,
+      }
+    },
   },
 }).with(
   persist({
     name: BACKEND_AUTH_STORAGE_KEY,
+    schema: backendAuthContextSchema,
   }),
 )
 
@@ -91,8 +119,16 @@ export const getSiweDomain = (): AllowedSiweDomain => {
 
 export const getSiweUri = (): string => `https://${getSiweDomain()}`
 
+export const resolveBackendApiBaseUrl = (
+  override: string | undefined,
+  isDebugFeaturesEnabled = DEBUG_FEATURES_ENABLED,
+) =>
+  isDebugFeaturesEnabled
+    ? (override ?? DEFAULT_BACKEND_API_URL)
+    : DEFAULT_BACKEND_API_URL
+
 export const getBackendApiBaseUrl = () =>
-  backendAuthStore.get().context.apiBaseUrlOverride ?? DEFAULT_BACKEND_API_URL
+  resolveBackendApiBaseUrl(backendAuthStore.get().context.apiBaseUrlOverride)
 
 const resolveBaseUrl = (baseUrl: string) => {
   if (baseUrl.startsWith('/')) {

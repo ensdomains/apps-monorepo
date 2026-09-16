@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { HomeSearchInput } from './HomeSearchInput'
@@ -29,6 +29,22 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   NameAvatar: ({ name }: { name: string }) => (
     <div data-testid="name-avatar">{name}</div>
   ),
+}))
+
+// A name row's description is a loading skeleton until its availability check
+// answers, and which TLD rows exist at all depends on live DNSSEC lookups.
+// Unmocked, both reach the network: the assertions below only held while those
+// calls happened to answer inside `waitFor`, so CI — where they don't — saw a
+// lone `.eth` row still showing its skeleton.
+vi.mock('../hooks/useSuggestionTlds', () => ({
+  useSuggestionTlds: () => ({ validTlds: ['eth'], isLoading: false }),
+}))
+
+vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
+  getNameAvailabilityQueryOptions: (params: { name: string }) => ({
+    queryKey: ['check-name-availability', params],
+    queryFn: () => Promise.resolve({ isAvailable: false, name: params.name }),
+  }),
 }))
 
 vi.mock('@/features/profile/hooks/useEnsOwner', () => ({
@@ -236,6 +252,21 @@ describe('HomeSearchInput', () => {
       expect(
         screen.queryByText('View ENS name details'),
       ).not.toBeInTheDocument()
+    })
+
+    it('normalizes pasted two-word names by lowercasing and removing spaces', async () => {
+      vi.mocked(useIsMobile).mockReturnValue(false)
+
+      render(<HomeSearchInput />, { wrapper: createWrapper() })
+
+      const input = screen.getByPlaceholderText('Search...')
+      fireEvent.paste(input, {
+        clipboardData: {
+          getData: () => 'Hello World',
+        },
+      })
+
+      expect(input).toHaveValue('helloworld')
     })
 
     it('should update suggestions when input changes', async () => {

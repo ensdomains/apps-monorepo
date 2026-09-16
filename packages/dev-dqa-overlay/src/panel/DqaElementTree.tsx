@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useState } from 'react'
+import { type CSSProperties, useCallback, useEffect, useState } from 'react'
 import type { DqaApi, DqaElementNode } from '../types'
 import { PANEL } from './panelTheme'
 
@@ -16,7 +16,9 @@ export function DqaElementTree({ api }: DqaElementTreeProps) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [ready, setReady] = useState(false)
 
-  const refresh = () => {
+  // useCallback so the identity only changes with `api`: the effect below
+  // depends on it, and it is also passed straight to the Refresh button.
+  const refresh = useCallback(() => {
     const next = api?.getElementTree?.() ?? []
     setTree(next)
     // Auto-expand the first two levels so the tree is immediately useful.
@@ -30,13 +32,14 @@ export function DqaElementTree({ api }: DqaElementTreeProps) {
     walk(next, 0)
     setExpanded(open)
     setReady(true)
-  }
+  }, [api])
 
   useEffect(() => {
     refresh()
+    // `api` is also read directly by the cleanup, so it stays a dependency
+    // alongside `refresh` (which only changes when `api` does).
     return () => api?.clearHoverElement?.()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api])
+  }, [refresh, api])
 
   if (!api?.getElementTree) {
     return (

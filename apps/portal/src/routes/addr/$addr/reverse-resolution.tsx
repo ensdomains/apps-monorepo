@@ -14,6 +14,7 @@ import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import {
   InputGroup,
   InputGroupAddon,
@@ -24,6 +25,10 @@ import { ReverseResolutionTable } from '@/features/reverse-resolution/components
 import { REVERSE_RESOLUTION_NETWORKS } from '@/features/reverse-resolution/config'
 import { getReverseResolutionQueryOptions } from '@/features/reverse-resolution/hooks/useReverseResolution'
 import { queryClient } from '@/utils/queryClient'
+
+// Stable identity: a fresh `[]` each render makes the table recompute its row
+// model, which auto-resets the page index and re-renders.
+const NO_ROWS: never[] = []
 
 export const Route = createFileRoute('/addr/$addr/reverse-resolution')({
   component: RouteComponent,
@@ -49,7 +54,7 @@ function RouteComponent() {
   )
 
   const table = useReactTable({
-    data: data || [],
+    data: data ?? NO_ROWS,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
@@ -95,7 +100,9 @@ function RouteComponent() {
     return (
       <>
         <header className="flex flex-col gap-4">
-          <h1 className="text-h1">Reverse resolution</h1>
+          <PageHeading parent={{ type: 'addr', addr: address }}>
+            Reverse resolution
+          </PageHeading>
         </header>
         <NoResultsMessage
           title="No reverse records yet"
@@ -109,7 +116,9 @@ function RouteComponent() {
     <>
       <header className="flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-h1">Reverse resolution</h1>
+          <PageHeading parent={{ type: 'addr', addr: address }}>
+            Reverse resolution
+          </PageHeading>
         </div>
         <InputGroup className="bg-background rounded-sm">
           <InputGroupInput

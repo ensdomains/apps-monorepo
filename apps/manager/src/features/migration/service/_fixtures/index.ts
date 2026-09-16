@@ -1,5 +1,11 @@
 import type { Address } from 'viem'
-import type { ClassifiedName } from '../classifyNames'
+import type {
+  ClassifiedName,
+  CopyClassifiedName,
+  CopyTokenType,
+  DirectClassifiedName,
+  MigrationTokenType,
+} from '../classifyNames'
 import type { V1Domain } from '../v1SubgraphClient'
 
 export const OWNER: Address = '0x0000000000000000000000000000000000000001'
@@ -31,20 +37,31 @@ export type DomainOverrides = {
   isWrapped?: boolean
 }
 
+const parentFor = (o: DomainOverrides): V1Domain['parent'] =>
+  o.parentName === null
+    ? null
+    : {
+        name: o.parentName ?? 'eth',
+        wrappedDomain:
+          o.parentFuses == null ? null : { fuses: Number(o.parentFuses) },
+      }
+
+const wrappedOwnerFor = (
+  o: DomainOverrides,
+  isWrapped: boolean,
+): V1Domain['wrappedOwner'] => {
+  if (o.wrappedOwnerId === null || !isWrapped) return null
+  return { id: o.wrappedOwnerId ?? OWNER }
+}
+
 export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
   const isWrapped = o.isWrapped ?? false
-  const parent: V1Domain['parent'] =
-    o.parentName === null
-      ? null
-      : {
-          name: o.parentName ?? 'eth',
-          wrappedDomain:
-            o.parentFuses == null ? null : { fuses: Number(o.parentFuses) },
-        }
   return {
     id: o.id ?? '0xabc',
     labelName: o.labelName === undefined ? 'alice' : o.labelName,
-    labelhash: o.labelhash ?? '0xlabelhash',
+    labelhash:
+      o.labelhash ??
+      '0x0000000000000000000000000000000000000000000000000000000000000001',
     name: o.name ?? 'alice.eth',
     resolver:
       o.resolverAddress === null
@@ -53,13 +70,8 @@ export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
     owner: { id: o.ownerId ?? OWNER },
     registrant:
       o.registrantId === null ? null : { id: o.registrantId ?? OWNER },
-    wrappedOwner:
-      o.wrappedOwnerId === null
-        ? null
-        : isWrapped
-          ? { id: o.wrappedOwnerId ?? OWNER }
-          : null,
-    parent,
+    wrappedOwner: wrappedOwnerFor(o, isWrapped),
+    parent: parentFor(o),
     registration: o.registrationExpiry
       ? { expiryDate: o.registrationExpiry }
       : null,
@@ -73,7 +85,10 @@ export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
 }
 
 export type ClassifiedOverrides = {
+  action?: ClassifiedName['action']
   tokenType?: ClassifiedName['tokenType']
+  copySource?: 'name-wrapper' | 'registry'
+  sourceExpiry?: bigint
   resolverStrategy?: ClassifiedName['resolverStrategy']
   v1ResolverAddress?: string | null
   parentName?: string | null
@@ -86,24 +101,71 @@ export type ClassifiedOverrides = {
   tokenHolder?: Address
 }
 
-export const makeClassified = (
-  o: ClassifiedOverrides = {},
-): ClassifiedName => ({
-  tokenType: o.tokenType ?? 'unwrapped',
+const makeClassifiedDomain = (o: ClassifiedOverrides): V1Domain =>
+  ({
+    id: o.id ?? '0x01',
+    labelhash: o.labelhash ?? '0x02',
+    name: o.name ?? 'alice.eth',
+  }) as unknown as V1Domain
+
+const makeClassifiedBase = (o: ClassifiedOverrides) => ({
   label: o.label ?? 'alice',
   parentName: o.parentName === undefined ? 'eth' : o.parentName,
   fuses: o.fuses ?? 0n,
   tokenHolder: o.tokenHolder ?? OWNER,
   v1ResolverAddress:
     o.v1ResolverAddress === undefined ? null : o.v1ResolverAddress,
-  resolverStrategy: o.resolverStrategy ?? 'to-owned-permres',
-  managerAddress: o.managerAddress ?? null,
-  domain: {
-    id: o.id ?? '0x01',
-    labelhash: o.labelhash ?? '0x02',
-    name: o.name ?? 'alice.eth',
-  } as unknown as V1Domain,
+  domain: makeClassifiedDomain(o),
 })
+
+const isCopyOverride = (o: ClassifiedOverrides): boolean =>
+  o.action === 'copy' ||
+  o.tokenType === 'unlocked-child' ||
+  o.tokenType === 'registry-child'
+
+const copyTokenTypeFor = (o: ClassifiedOverrides): CopyTokenType =>
+  o.tokenType === 'registry-child' ? 'registry-child' : 'unlocked-child'
+
+export function makeClassified(
+  o?: ClassifiedOverrides & {
+    action?: 'migrate'
+    tokenType?: MigrationTokenType
+  },
+): DirectClassifiedName
+export function makeClassified(
+  o: ClassifiedOverrides & ({ action: 'copy' } | { tokenType: CopyTokenType }),
+): CopyClassifiedName
+export function makeClassified(o?: ClassifiedOverrides): ClassifiedName
+export function makeClassified(o: ClassifiedOverrides = {}): ClassifiedName {
+  const base = makeClassifiedBase(o)
+  if (isCopyOverride(o)) {
+    const tokenType = copyTokenTypeFor(o)
+    return {
+      ...base,
+      action: 'copy',
+      tokenType,
+      copySource:
+        o.copySource ??
+        (tokenType === 'registry-child' ? 'registry' : 'name-wrapper'),
+      sourceExpiry: o.sourceExpiry ?? 4_102_444_800n,
+      resolverStrategy: 'to-owned-permres',
+      managerAddress: null,
+    }
+  }
+
+  return {
+    ...base,
+    action: 'migrate',
+    tokenType:
+      o.tokenType &&
+      o.tokenType !== 'unlocked-child' &&
+      o.tokenType !== 'registry-child'
+        ? o.tokenType
+        : 'unwrapped',
+    resolverStrategy: o.resolverStrategy ?? 'to-owned-permres',
+    managerAddress: o.managerAddress ?? null,
+  }
+}
 
 export const jsonResponse = <T>(body: T, status = 200): Response =>
   ({

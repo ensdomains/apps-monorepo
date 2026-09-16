@@ -13,7 +13,7 @@ const buttonVariants = cva(
         danger:
           'bg-button-danger-default text-foreground hover:bg-button-danger-hover focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
         outline:
-          'border bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50',
+          'border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50',
         secondary:
           'bg-secondary text-secondary-foreground hover:bg-secondary/50',
         success:
@@ -66,4 +66,8 @@ function Button({
   )
 }
 
+type ButtonVariant = VariantProps<typeof buttonVariants>['variant']
+type ButtonSize = VariantProps<typeof buttonVariants>['size']
+
+export type { ButtonSize, ButtonVariant }
 export { Button, buttonVariants }

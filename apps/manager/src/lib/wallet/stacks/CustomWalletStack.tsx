@@ -4,7 +4,7 @@ import { wagmiConfig } from '@/lib/wagmi'
 import { MockWalletAutoConnect } from '../MockWalletAutoConnect'
 import { ConnectModalProvider } from './custom/ConnectModalProvider'
 
-// Custom wagmi wallet stack (replaces RainbowKit): injected wallets arrive via
+// Custom wagmi wallet stack: injected wallets arrive via
 // EIP-6963 discovery, WalletConnect is the only explicit connector, and the
 // wallet-selection UI is our own dialog (see ./custom/). Same pattern as the
 // portal app, restyled with the manager's ui kit.

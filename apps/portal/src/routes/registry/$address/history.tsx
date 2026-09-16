@@ -4,6 +4,7 @@ import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -45,11 +46,13 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-h2 md:text-h1">History</h1>
       <RegistryHistoryByAddress
         address={address}
-        name={registry.name}
-        enableHeader={false}
+        heading={
+          <PageHeading parent={{ type: 'registry', address }}>
+            History
+          </PageHeading>
+        }
       />
     </div>
   )

@@ -15,7 +15,10 @@ const DELAY_MS = 2000
 const INITIAL_DELAY_MS = 3000
 
 const url = new URL(ANVIL_RPC)
-const port = parseInt(url.port || (url.protocol === 'https:' ? '443' : '80'), 10)
+const port = parseInt(
+  url.port || (url.protocol === 'https:' ? '443' : '80'),
+  10,
+)
 const body = JSON.stringify({
   jsonrpc: '2.0',
   method: 'eth_chainId',
@@ -40,18 +43,26 @@ function check(hostname) {
           try {
             const j = JSON.parse(data)
             // Valid JSON-RPC response has .result (or .error); chainId returns hex string
-            const ok = j && (j.result !== undefined)
-            if (process.env.DEBUG && !ok) console.error('Anvil response:', data?.slice(0, 200))
+            const ok = j && j.result !== undefined
+            if (process.env.DEBUG && !ok)
+              console.error('Anvil response:', data?.slice(0, 200))
             resolve(ok)
           } catch (e) {
-            if (process.env.DEBUG) console.error('Parse error:', e.message, 'body:', data?.slice(0, 200))
+            if (process.env.DEBUG)
+              console.error(
+                'Parse error:',
+                e.message,
+                'body:',
+                data?.slice(0, 200),
+              )
             resolve(false)
           }
         })
-      }
+      },
     )
     req.on('error', (err) => {
-      if (process.env.DEBUG) console.error('Anvil check error:', err.code || err.message)
+      if (process.env.DEBUG)
+        console.error('Anvil check error:', err.code || err.message)
       resolve(false)
     })
     req.setTimeout(5000, () => {

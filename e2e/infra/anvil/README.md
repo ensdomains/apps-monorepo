@@ -21,12 +21,15 @@ Contracts baked:
 | ENS V2 core | ETH Registry, ETH Registrar, FastTest Registrar, Registry Datastore, Public Resolver, Reverse Registrar, ENS Registry (v1), Name Wrapper |
 | ENS V2 resolution | Universal Resolver V2, BatchGatewayProvider, Root Registry (+ `"eth"` subregistry slots), UserRegistry Impl |
 | ENS factories | HCA Factory, Verifiable Factory, Dedicated Resolver Impl |
+| Standalone HCA | StandaloneHCAFactory + Impl, HCAOwnerAndSessionValidator (+ its INTENT_EXECUTOR / GAS_REFUND_PAYMASTER immutables), standalone ETH Registrar/Registry/PermissionedResolver impl + Verifiable Factory (+ proxy logic), DefaultReverseRegistrarHCAAdapter, Circle Sepolia USDC |
 | Safe / Rhinestone | SafeProxyFactory, Safe Singleton, Safe7579 adapters/launchpads, all Rhinestone modules + impl contracts, known smart accounts |
 
 Special cases in the bake script:
-- **ETH Registry `_roles` at slot 2** — `ERC1155Singleton` occupies slots 0–1 before `EnhancedAccessControl` in the C3 MRO, so `_roles` is at slot 2, not 0.
+- **ETH Registry `_roles` at slot 2** — `ERC1155Singleton` occupies slots 0–1 before `EnhancedAccessControl` in the C3 MRO, so `_roles` is at slot 2, not 0. Applies to BOTH the ENS-V2 core registry and the standalone registry (same `PermissionedRegistry` layout).
 - **Root Registry `"eth"` entry** — two hash-addressed storage slots hardcoded as `ROOT_REGISTRY_ETH_SLOTS` (found via `prestateTracer`).
-- **Price oracle dynamic arrays** — base-rate arrays at slots 3/4 need element-level baking via `bake_dynamic_array()`.
+- **Price oracle dynamic arrays** — base-rate arrays at slots 3/4 need element-level baking via `bake_dynamic_array()`. Both registrars' oracles are discovered via `rentPriceOracle()` and baked.
+- **Standalone validator immutables** — `INTENT_EXECUTOR` / `GAS_REFUND_PAYMASTER` are read from `HCAOwnerAndSessionValidator` on the fork and their code baked (the intent executor is already covered by the Rhinestone module set; the gas-refund paymaster is standalone-only).
+- **Circle USDC** — FiatTokenV2_2: `balances` mapping at slot 9, `allowed` at slot 10 (mockestrator `chains.json` uses these). Balances are set per-account via `anvil_setStorageAt` at fund time (no open `mint`).
 
 ## state.json is NOT committed
 

@@ -61,11 +61,16 @@ export const loadDqaOverlay = (): Promise<DqaApi> => {
   return new Promise((resolve, reject) => {
     const script = document.createElement('script')
     script.id = SCRIPT_ID
-    script.src = `${DQA_URL.replace(/\/$/, '')}/overlay.js?embed=drawer`
+    // overlay.js is an ES module, so it can't read data-* attributes off its
+    // own tag (`document.currentScript` is null in modules). Config rides on
+    // the URL instead and is read back via `import.meta.url`.
+    const src = new URL(`${DQA_URL.replace(/\/$/, '')}/overlay.js`)
+    src.searchParams.set('embed', 'drawer')
+    if (DQA_LINEAR_ISSUE) src.searchParams.set('issue', DQA_LINEAR_ISSUE)
+    script.type = 'module'
+    script.src = src.toString()
+    // Kept for the dedupe check below — the overlay itself no longer reads it.
     script.setAttribute('data-embed', 'drawer')
-    if (DQA_LINEAR_ISSUE) {
-      script.setAttribute('data-linear-issue', DQA_LINEAR_ISSUE)
-    }
     script.onload = () => {
       waitForDqaApi().then(resolve).catch(reject)
     }

@@ -20,10 +20,11 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "echo \"No tests defined for @ens-apps/l2-primary\""
+    "test": "echo \"No tests defined for @ens-apps/l2-primary\"",
+    "lint": "biome check"
   },
   "devDependencies": {
-    "typescript": "catalog:typescript6"
+    "typescript": "catalog:"
   },
   "keywords": [],
   "dependencies": {

@@ -22,9 +22,16 @@
  *   - Manager app running with Rhinestone enabled
  */
 import { privateKeyToAccount } from 'viem/accounts'
-import { test, expect, authorizeTransaction } from '../../../fixtures/playwright.manager.fixture.js'
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
-import { mockV1Subgraph, type MockV1Name } from '../../../helpers/mock-v1-subgraph.js'
+import {
+  authorizeTransaction,
+  expect,
+  test,
+} from '../../../fixtures/playwright.manager.fixture.js'
+import {
+  type MockV1Name,
+  mockV1Subgraph,
+} from '../../../helpers/mock-v1-subgraph.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -146,8 +153,12 @@ test.describe('ENS V1 → V2 Migration', () => {
 
     // ── Post-migration: search for the name and go to profile ────
     await searchAndNavigateToProfile(page, v1Name)
-    await expect(page.getByText(v1Name).first()).toBeVisible({ timeout: 10_000 })
-    console.log(`[migration] ✅ Unwrapped migration + profile verified for ${v1Name}`)
+    await expect(page.getByText(v1Name).first()).toBeVisible({
+      timeout: 10_000,
+    })
+    console.log(
+      `[migration] ✅ Unwrapped migration + profile verified for ${v1Name}`,
+    )
   })
 
   test('migrate a wrapped (unlocked) V1 name to V2', async ({
@@ -198,7 +209,10 @@ test.describe('ENS V1 → V2 Migration', () => {
     })
 
     const unwrappedName = await makeV1Name({ label: 'migbatch-u' })
-    const wrappedName = await makeV1Name({ label: 'migbatch-w', type: 'wrapped' })
+    const wrappedName = await makeV1Name({
+      label: 'migbatch-w',
+      type: 'wrapped',
+    })
     const lockedName = await makeV1Name({ label: 'migbatch-l', type: 'locked' })
     console.log(
       `[migration] batch names created: ${unwrappedName}, ${wrappedName}, ${lockedName}`,
@@ -206,7 +220,11 @@ test.describe('ENS V1 → V2 Migration', () => {
 
     const mockNames: MockV1Name[] = [
       { name: unwrappedName, ownerAddress: HEADLESS_USER_ADDRESS },
-      { name: wrappedName, ownerAddress: HEADLESS_USER_ADDRESS, type: 'wrapped' },
+      {
+        name: wrappedName,
+        ownerAddress: HEADLESS_USER_ADDRESS,
+        type: 'wrapped',
+      },
       { name: lockedName, ownerAddress: HEADLESS_USER_ADDRESS, type: 'locked' },
     ]
     await mockV1Subgraph(page, mockNames)
@@ -253,16 +271,18 @@ test.describe('ENS V1 → V2 Migration', () => {
     await goToProfile(page, v1Name)
 
     // The description should appear in the Bio section
-    await expect(
-      page.getByText('Migrated from V1 with records'),
-    ).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('Migrated from V1 with records')).toBeVisible({
+      timeout: 15_000,
+    })
 
     // The URL should appear in the Bio section
-    await expect(
-      page.getByText('https://example.com/v1-migrated'),
-    ).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('https://example.com/v1-migrated')).toBeVisible(
+      { timeout: 10_000 },
+    )
 
-    console.log(`[migration] ✅ V1 records preserved after migration for ${v1Name}`)
+    console.log(
+      `[migration] ✅ V1 records preserved after migration for ${v1Name}`,
+    )
   })
 
   test('pre-registered V1 name is not available for new registration', async ({
@@ -288,11 +308,13 @@ test.describe('ENS V1 → V2 Migration', () => {
     await searchInput.fill(nameOnly)
 
     // The dropdown should show DomainProfileCard ("Registered") not DomainResultCard ("available")
-    await expect(
-      page.getByText('Available').first(),
-    ).not.toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText('Available').first()).not.toBeVisible({
+      timeout: 5_000,
+    })
 
-    console.log(`[migration] ✅ Pre-registered V1 name correctly blocked for ${v1Name}`)
+    console.log(
+      `[migration] ✅ Pre-registered V1 name correctly blocked for ${v1Name}`,
+    )
   })
 
   test('can edit profile after migration', async ({
@@ -335,9 +357,7 @@ test.describe('ENS V1 → V2 Migration', () => {
       pillName: /^Website\b/,
       fieldLabel: 'Website',
     })
-    await page
-      .getByLabel('Website')
-      .fill('https://post-migration.example.com')
+    await page.getByLabel('Website').fill('https://post-migration.example.com')
 
     // Contact + social: add one record each (arrays — only add if not already on the form)
     if ((await page.getByLabel('Email Address').count()) === 0) {
@@ -374,10 +394,12 @@ test.describe('ENS V1 → V2 Migration', () => {
     await authorizeTransaction(wallet, 90_000)
 
     // Wait for the transaction to complete
-    await expect(
-      page.getByText('Profile updated'),
-    ).toBeVisible({ timeout: 90_000 })
+    await expect(page.getByText('Profile updated')).toBeVisible({
+      timeout: 90_000,
+    })
 
-    console.log(`[migration] ✅ Profile edit after migration succeeded for ${v1Name}`)
+    console.log(
+      `[migration] ✅ Profile edit after migration succeeded for ${v1Name}`,
+    )
   })
 })

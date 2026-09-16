@@ -11,13 +11,14 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "biome check"
   },
   "dependencies": {
     "valibot": "^1.2.0"
   },
   "devDependencies": {
-    "typescript": "catalog:typescript6",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   }
 }

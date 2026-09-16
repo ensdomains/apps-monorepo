@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { createRouter as createTanStackRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
+import { getGlobalStartContext } from '@tanstack/react-start'
 import { NotFoundPage } from './features/not-found/pages/NotFoundPage'
 import { initializeIntercom } from './lib/intercom'
 import { getLocale, loadCatalog } from './lib/locale'
@@ -66,6 +67,9 @@ export async function getRouter() {
     context: {
       queryClient,
     },
+    // Nonce from the security-headers middleware (src/start.ts); TanStack
+    // stamps it onto its <script> tags. Undefined on the client.
+    ssr: { nonce: getGlobalStartContext()?.cspNonce },
   })
 
   setupRouterSsrQueryIntegration({

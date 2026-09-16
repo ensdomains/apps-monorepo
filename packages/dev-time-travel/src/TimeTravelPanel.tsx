@@ -250,6 +250,9 @@ const panelStyle: CSSProperties = {
   bottom: 12,
   left: 12,
   zIndex: 2_147_483_000,
+  // Radix modal dialogs set `body { pointer-events: none }` while open, which
+  // this fixed panel would inherit — visible but unclickable. Opt back in.
+  pointerEvents: 'auto',
   width: 248,
   padding: 12,
   borderRadius: 10,
@@ -265,6 +268,7 @@ const collapsedStyle: CSSProperties = {
   bottom: 12,
   left: 12,
   zIndex: 2_147_483_000,
+  pointerEvents: 'auto', // see panelStyle
   padding: '6px 10px',
   borderRadius: 8,
   background: 'rgba(17, 24, 39, 0.96)',

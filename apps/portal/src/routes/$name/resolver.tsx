@@ -1,5 +1,6 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
+import type { GetEnsResolverErrorType } from '@wagmi/core'
 import { ClockIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
@@ -9,19 +10,18 @@ import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { EditNoteIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NameNotRegisteredMessage } from '@/components/NameNotRegisteredMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useDnsOffchainName } from '@/features/dns-import/hooks/useDnsOffchainName'
+import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { InfoRow } from '@/features/profile/components/InfoRow'
-import {
-  type GetEnsOwnerReturnType,
-  getEnsOwnerQueryOptions,
-} from '@/features/profile/hooks/useEnsOwner'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
@@ -38,8 +38,6 @@ import {
 import { wagmiConfig } from '@/lib/wagmi'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
-import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
-import { NameSubgraphHistory } from '../../components/table/NameSubgraphHistory/NameSubgraphHistory'
 
 export const Route = createFileRoute('/$name/resolver')({
   component: RouteComponent,
@@ -207,85 +205,25 @@ const ResolverInfoList = ({
   )
 }
 
-const HistorySection = ({
-  name,
-  protocolVersion,
-}: {
-  name: string
-  protocolVersion: NonNullable<GetEnsOwnerReturnType>['protocolVersion']
-}) => {
-  const v2HistoryQuery = useQuery({
-    ...getV2NameHistoryQueryOptions({ name }),
-    enabled: protocolVersion === 'ENSv2',
-  })
-
-  if (protocolVersion === 'ENSv2') {
-    if (v2HistoryQuery.isLoading) {
-      return <LoadingSpinner title="Loading history..." />
-    }
-
-    if (v2HistoryQuery.error) {
-      return (
-        <div className="text-sm text-destructive">
-          {v2HistoryQuery.error.cause?.message || v2HistoryQuery.error.message}
-        </div>
-      )
-    }
-
-    return (
-      <div className="flex flex-col gap-4">
-        <HistorySectionHeader
-          action={
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-neutral-7"
-              asChild
-            >
-              <Link to="/$name/history" params={{ name }}>
-                <ClockIcon className="size-4" />
-                Full history
-              </Link>
-            </Button>
-          }
-        />
-        <NameSubgraphHistory
-          name={name}
-          v2Events={transformV2EventsToSubgraphFormat(
-            v2HistoryQuery.data || [],
-          )}
-          enableHeader={false}
-        />
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <HistorySectionHeader
-        action={
-          <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
-            <Link to="/$name/history" params={{ name }}>
-              <ClockIcon className="size-4" />
-              Full history
-            </Link>
-          </Button>
-        }
-      />
-      <NameSubgraphHistory name={name} enableHeader={false} />
-    </div>
-  )
-}
+const RESOLVER_HISTORY_EVENT_TYPES = [
+  'ResolverUpdated',
+  'AddressChanged',
+  'AddrChanged',
+  'TextChanged',
+  'ContenthashChanged',
+  'NameChanged',
+] as const
 
 interface ResolverViewProps {
   name: string
-  ownerData: NonNullable<GetEnsOwnerReturnType>
+  /** Undefined for a gasless DNS name: no registry entry, nothing to edit. */
+  registryAddress: Address | undefined
   resolverAddress: Address
 }
 
 const ResolverView = ({
   name,
-  ownerData,
+  registryAddress,
   resolverAddress,
 }: ResolverViewProps) => {
   const { address } = useConnection()
@@ -314,13 +252,13 @@ const ResolverView = ({
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-h1">Resolver</h1>
-        {address ? (
+        <PageHeading parent={{ type: 'name', name }}>Resolver</PageHeading>
+        {address && registryAddress ? (
           <EditButtons
             address={address}
             name={name}
             resolverAddress={resolverAddress}
-            registryAddress={ownerData.registryAddress}
+            registryAddress={registryAddress}
           />
         ) : null}
       </div>
@@ -347,7 +285,22 @@ const ResolverView = ({
         />
       )}
 
-      <HistorySection name={name} protocolVersion={ownerData.protocolVersion} />
+      <HistoryTimeline
+        name={name}
+        scope={RESOLVER_HISTORY_EVENT_TYPES}
+        showFilters={false}
+        emptyTitle="No resolver history"
+        emptyDescription="Resolver changes and record writes for this name will appear here as they happen."
+        heading={<h2 className="text-caps text-foreground">History</h2>}
+        action={
+          <Button variant="outline" size="xs" asChild>
+            <Link to="/$name/history" params={{ name }}>
+              <ClockIcon className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
     </div>
   )
 }
@@ -388,18 +341,18 @@ const NoResolverSet = ({
   registryAddress,
 }: {
   name: string
-  registryAddress: Address
+  registryAddress: Address | undefined
 }) => {
   const { address: account } = useConnection()
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-h1">Resolver</h1>
+      <PageHeading parent={{ type: 'name', name }}>Resolver</PageHeading>
       <div className="flex items-center gap-4 rounded-sm bg-accent-fill/40 p-6">
         <p className="flex-1 text-base text-muted-foreground">
           This name does not have a resolver set.
         </p>
-        {account && (
+        {account && registryAddress && (
           <SetResolverButton
             name={name}
             account={account}
@@ -417,10 +370,20 @@ function RouteComponent() {
   const [ownerQuery, resolverQuery] = useQueries({
     queries: [
       getEnsOwnerQueryOptions({ name }),
-      getEnsResolverQueryOptions(wagmiConfig, {
-        name,
-        universalResolverAddress,
-      }),
+      {
+        ...getEnsResolverQueryOptions(wagmiConfig, {
+          name,
+          universalResolverAddress,
+        }),
+        // useQueries reads each query's error type off `throwOnError`, and
+        // wagmi's factory returns query-core options, which have no such field
+        // — so TError falls back to DefaultError and collides with the
+        // factory's own `retry: RetryValue<GetEnsResolverErrorType>`. Naming
+        // the error here is what restores the narrowed type the
+        // ChainDoesNotSupportContract branch below reads. `false` is already
+        // the default, so behaviour is unchanged.
+        throwOnError: (_error: GetEnsResolverErrorType) => false,
+      },
     ],
   })
 
@@ -431,6 +394,10 @@ function RouteComponent() {
     ...getNameAvailabilityQueryOptions({ name }),
     enabled: isRegistrable(name),
   })
+
+  // A gasless DNS name has no registry entry by design, yet the
+  // UniversalResolver still finds a resolver for it (by wildcard).
+  const offchain = useDnsOffchainName({ name, owner: ownerQuery.data })
 
   if (ownerQuery.error) {
     return (
@@ -455,6 +422,7 @@ function RouteComponent() {
   if (
     ownerQuery.isLoading ||
     resolverQuery.isLoading ||
+    offchain.isLoading ||
     (availabilityQuery.isLoading && isRegistrable(name))
   )
     return <LoadingMessage />
@@ -471,10 +439,13 @@ function RouteComponent() {
     )
   }
 
-  if (availabilityQuery.data?.isAvailable || !ownerQuery.data)
+  if (
+    availabilityQuery.data?.isAvailable ||
+    (!ownerQuery.data && !offchain.resolvedAddress)
+  )
     return (
-      <NotFoundMessage
-        title="Name not registered"
+      <NameNotRegisteredMessage
+        name={name}
         description={
           <>
             <strong>{name}</strong> is not registered, so there is no resolver
@@ -485,20 +456,16 @@ function RouteComponent() {
     )
 
   const resolverAddress = resolverQuery.data
+  const registryAddress = ownerQuery.data?.registryAddress
 
   if (resolverAddress) {
     if (resolverAddress === zeroAddress) {
-      return (
-        <NoResolverSet
-          name={name}
-          registryAddress={ownerQuery.data.registryAddress}
-        />
-      )
+      return <NoResolverSet name={name} registryAddress={registryAddress} />
     }
     return (
       <ResolverView
         name={name}
-        ownerData={ownerQuery.data}
+        registryAddress={registryAddress}
         resolverAddress={resolverAddress}
       />
     )

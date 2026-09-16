@@ -1,3 +1,4 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -5,7 +6,7 @@ import {
   getSubnames as ensjs_getSubnames,
   type GetSubnamesErrorType,
 } from '@ensdomains/ensjs/subgraph'
-import { type ClientError, gql } from 'graphql-request'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, checksumAddress, type Hex } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
@@ -13,7 +14,7 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 import type { ProtocolVersion } from '@/utils/types'
 
 class GetSubnamesError extends TaggedError('GetSubnamesError')<{
-  cause: GetSubnamesErrorType | ClientError
+  cause: GetSubnamesErrorType | GraphqlRequestError
 }> {}
 
 type Subname = {
@@ -43,7 +44,19 @@ export const getSubnames = ResultFn(async function* ({
         }),
     )
 
-    return ok(subnames ?? [])
+    return ok(
+      // `owner` is the registry owner, which for a wrapped subname is the
+      // NameWrapper contract. Report the wrapper owner instead so `owner`
+      // means "who holds this name" for every consumer - the subnames table
+      // and the transfer flow alike - rather than "which contract custodies
+      // it".
+      (subnames ?? []).map(
+        ({ owner, wrappedOwner, ...subname }): Subname => ({
+          ...subname,
+          owner: wrappedOwner ?? owner,
+        }),
+      ),
+    )
   } else {
     const v2Request = yield* fromPromise(
       graphqlIndexerClient.request<
@@ -73,7 +86,7 @@ export const getSubnames = ResultFn(async function* ({
       }`,
         { name },
       ),
-      (e) => new GetSubnamesError({ cause: e as ClientError }),
+      (e) => new GetSubnamesError({ cause: e as GraphqlRequestError }),
     )
 
     const domain = v2Request.domains[0]

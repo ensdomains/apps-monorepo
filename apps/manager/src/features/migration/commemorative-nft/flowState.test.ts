@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getCommemorativeNftAdmission,
   getCommemorativeNftClaimedStatus,
   getCommemorativeNftFlowStatus,
+  getCommemorativeNftSessionKey,
   isCommemorativeNftClaimResultFresh,
 } from './flowState'
 
 const base = {
   eligibilityStatus: 'eligible' as const,
   claimed: false,
-  revealComplete: true,
   claimPending: false,
   claimError: false,
 }
@@ -61,10 +62,7 @@ describe('commemorative NFT flow state', () => {
   it('does not treat an idle cached result as fresh for a new dialog opening', () => {
     expect(
       isCommemorativeNftClaimResultFresh({
-        claimReadKey: '11155111:0x123',
-        requiredClaimReadKey: '11155111:0x123',
-        dataUpdatedAt: 100,
-        requiredDataUpdatedAt: 100,
+        isFetchedAfterMount: false,
         isSuccess: true,
         fetchStatus: 'idle',
       }),
@@ -74,10 +72,7 @@ describe('commemorative NFT flow state', () => {
   it('accepts a successful idle result fetched after the dialog opens', () => {
     expect(
       isCommemorativeNftClaimResultFresh({
-        claimReadKey: '11155111:0x123',
-        requiredClaimReadKey: '11155111:0x123',
-        dataUpdatedAt: 101,
-        requiredDataUpdatedAt: 100,
+        isFetchedAfterMount: true,
         isSuccess: true,
         fetchStatus: 'idle',
       }),
@@ -87,24 +82,18 @@ describe('commemorative NFT flow state', () => {
   it('does not accept a result while its claim query is refetching', () => {
     expect(
       isCommemorativeNftClaimResultFresh({
-        claimReadKey: '11155111:0x123',
-        requiredClaimReadKey: '11155111:0x123',
-        dataUpdatedAt: 101,
-        requiredDataUpdatedAt: 100,
+        isFetchedAfterMount: true,
         isSuccess: true,
         fetchStatus: 'fetching',
       }),
     ).toBe(false)
   })
 
-  it('does not accept a fresh result for a different claim query', () => {
+  it('does not accept a failed read even after the observer mounted', () => {
     expect(
       isCommemorativeNftClaimResultFresh({
-        claimReadKey: '11155111:0x456',
-        requiredClaimReadKey: '11155111:0x123',
-        dataUpdatedAt: 101,
-        requiredDataUpdatedAt: 100,
-        isSuccess: true,
+        isFetchedAfterMount: true,
+        isSuccess: false,
         fetchStatus: 'idle',
       }),
     ).toBe(false)
@@ -117,7 +106,6 @@ describe('commemorative NFT flow state', () => {
       { ...base, eligibilityStatus: 'unavailable' as const },
       'configurationError',
     ],
-    [{ ...base, revealComplete: false }, 'revealing'],
     [{ ...base, claimed: undefined }, 'loadingEligibility'],
     [{ ...base, claimed: undefined, claimPending: true }, 'minting'],
     [{ ...base }, 'readyToMint'],
@@ -127,5 +115,158 @@ describe('commemorative NFT flow state', () => {
     [{ ...base, claimed: true, claimError: true }, 'minted'],
   ])('derives %s as %s', (input, expected) => {
     expect(getCommemorativeNftFlowStatus(input)).toBe(expected)
+  })
+})
+
+describe('commemorative NFT dialog admission', () => {
+  const pending = {
+    admitted: false,
+    preview: false,
+    hasOwner: true,
+    supported: true,
+    eligibilityStatus: 'eligible' as const,
+    claimed: undefined,
+    isFresh: false,
+    claimReadError: false,
+    fetchStatus: 'idle' as const,
+  }
+
+  it('suppresses a cached minted NFT without waiting for eligibility or refetch', () => {
+    expect(
+      getCommemorativeNftAdmission({
+        ...pending,
+        claimed: true,
+        eligibilityStatus: 'pending',
+        fetchStatus: 'fetching',
+      }),
+    ).toEqual({ status: 'alreadyMinted' })
+    expect(
+      getCommemorativeNftAdmission({
+        ...pending,
+        claimed: true,
+        supported: false,
+      }),
+    ).toEqual({ status: 'alreadyMinted' })
+  })
+
+  it('requires a fresh false before admitting the mint dialog', () => {
+    expect(getCommemorativeNftAdmission(pending)).toEqual({
+      status: 'checking',
+    })
+    expect(
+      getCommemorativeNftAdmission({ ...pending, claimed: false }),
+    ).toEqual({ status: 'checking' })
+    expect(
+      getCommemorativeNftAdmission({
+        ...pending,
+        claimed: false,
+        isFresh: true,
+      }),
+    ).toEqual({ status: 'admitted' })
+  })
+
+  it('keeps the current session admitted after minting and background errors', () => {
+    expect(
+      getCommemorativeNftAdmission({
+        ...pending,
+        admitted: true,
+        claimed: true,
+      }),
+    ).toEqual({ status: 'admitted' })
+    expect(
+      getCommemorativeNftAdmission({
+        ...pending,
+        admitted: true,
+        claimReadError: true,
+      }),
+    ).toEqual({ status: 'admitted' })
+  })
+
+  it('keeps failed or paused reads outside the artwork dialog', () => {
+    expect(
+      getCommemorativeNftAdmission({ ...pending, claimReadError: true }),
+    ).toEqual({ status: 'unavailable', reason: 'claimReadFailed' })
+    expect(
+      getCommemorativeNftAdmission({ ...pending, fetchStatus: 'paused' }),
+    ).toEqual({ status: 'unavailable', reason: 'offline' })
+    expect(
+      getCommemorativeNftAdmission({
+        ...pending,
+        claimReadError: true,
+        fetchStatus: 'fetching',
+      }),
+    ).toEqual({ status: 'checking' })
+  })
+
+  it('does not leave a disabled owner query checking forever', () => {
+    expect(
+      getCommemorativeNftAdmission({ ...pending, hasOwner: false }),
+    ).toEqual({ status: 'unavailable', reason: 'ownerMissing' })
+  })
+
+  it('falls back when the network or published metadata is unavailable', () => {
+    expect(
+      getCommemorativeNftAdmission({ ...pending, supported: false }),
+    ).toEqual({ status: 'fallback' })
+    expect(
+      getCommemorativeNftAdmission({
+        ...pending,
+        eligibilityStatus: 'ineligible',
+      }),
+    ).toEqual({ status: 'fallback' })
+  })
+
+  it.each([
+    { admitted: true, preview: false },
+    { admitted: false, preview: true },
+  ])('does not let session admission or preview bypass ineligibility: %s', (session) => {
+    expect(
+      getCommemorativeNftAdmission({
+        ...pending,
+        ...session,
+        eligibilityStatus: 'ineligible',
+        claimed: false,
+        isFresh: true,
+      }),
+    ).toEqual({ status: 'fallback' })
+  })
+
+  it('lets display-only previews bypass wallet and claimed checks', () => {
+    expect(
+      getCommemorativeNftAdmission({
+        ...pending,
+        preview: true,
+        hasOwner: false,
+        supported: false,
+      }),
+    ).toEqual({ status: 'admitted' })
+  })
+
+  it('remounts admission for owner, chain, wallet, and preview changes', () => {
+    const session = {
+      chainId: 11155111,
+      ownerAddress: '0xABC',
+      walletAddress: '0xABC',
+      preview: false,
+    }
+    const key = getCommemorativeNftSessionKey(session)
+    expect(
+      getCommemorativeNftSessionKey({
+        ...session,
+        ownerAddress: '0xabc',
+        walletAddress: '0xabc',
+      }),
+    ).toBe(key)
+    for (const change of [
+      { ownerAddress: '0xdef' },
+      { walletAddress: '0xdef' },
+      { walletAddress: undefined },
+      { chainId: 1 },
+      { preview: true },
+    ]) {
+      expect(getCommemorativeNftSessionKey({ ...session, ...change })).not.toBe(
+        key,
+      )
+    }
   })
 })

@@ -242,7 +242,7 @@ const CHECKPOINTS = [
   {
     id: 'hca',
     label: 'Register HCA Owner',
-    hint: 'Runs HCAFactory.setAccountOwner via a sponsored warp intent.',
+    hint: 'Runs HCAFactory.setAccountOwner via a user-paid warp intent.',
   },
   {
     id: 'pricing',
@@ -879,11 +879,13 @@ export function App() {
       args: [smartAccount, owner],
     })
 
-    pushLog('Submitting HCA registration via sponsored warp intent...')
+    pushLog('Submitting HCA registration via user-paid warp intent...')
     const tx = await rhinestoneAccount.sendTransaction({
       sourceChains: [customSepolia],
       targetChain: customSepolia,
-      sponsored: true,
+      // User-paid in USDC — this deployment has no gas sponsorship.
+      sponsored: { gas: false, bridging: false, swaps: false },
+      feeAsset: 'USDC',
       calls: [
         {
           to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
@@ -968,7 +970,8 @@ export function App() {
         const prepared = await rhinestoneAccount.prepareTransaction({
           chain: customSepolia,
           calls: [enableCall],
-          sponsored: true,
+          sponsored: { gas: false, bridging: false, swaps: false },
+          feeAsset: 'USDC',
           signers: perChainSigners,
         })
         const signed = await rhinestoneAccount.signTransaction(prepared)
@@ -988,7 +991,8 @@ export function App() {
           sourceChains: [customSepolia],
           targetChain: customSepolia,
           calls: [enableCall],
-          sponsored: true,
+          sponsored: { gas: false, bridging: false, swaps: false },
+          feeAsset: 'USDC',
         })
         pushLog(`Enable tx (legacy): ${stringify(enableTx)}`)
         const receipt = await rhinestoneAccount.waitForExecution(
@@ -1019,7 +1023,8 @@ export function App() {
       sourceChains: [chain],
       targetChain: chain,
       calls,
-      sponsored: true,
+      sponsored: { gas: false, bridging: false, swaps: false },
+      feeAsset: 'USDC',
       signers: {
         type: 'experimental_session',
         session: sessionBundle.session,
@@ -1121,8 +1126,10 @@ export function App() {
           }
         }
 
+        // `deploy` takes a plain boolean, not the per-flag object the
+        // intent path uses. Either way: no sponsorship on this deployment.
         const deployTx = await rhinestoneAccount.deploy(customSepolia, {
-          sponsored: true,
+          sponsored: false,
         })
         return {
           value: undefined,

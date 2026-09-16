@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as config from './config'
 import {
   buildCommemorativeNftMarketplaceUrl,
   buildCommemorativeNftProfileUrl,
@@ -9,6 +10,10 @@ import {
 const ownerAddress = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 
 describe('commemorative NFT sharing', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('matches only the canonical name profile', () => {
     expect(
       isCommemorativeNftCanonicalProfile('Yoginth.eth.', 'yoginth.eth'),
@@ -19,13 +24,40 @@ describe('commemorative NFT sharing', () => {
   })
 
   it('builds encoded share intents only when an external URL exists', () => {
-    expect(buildCommemorativeNftShareUrls(undefined)).toEqual({})
+    expect(buildCommemorativeNftShareUrls(undefined, false)).toEqual({})
+    expect(buildCommemorativeNftShareUrls(undefined, true)).toEqual({})
     const urls = buildCommemorativeNftShareUrls(
       'https://example.com/nft/hello world',
+      false,
     )
     expect(urls.x).toContain('x.com/intent/post')
     expect(urls.x).toContain('hello+world')
     expect(urls.telegram).toContain('t.me/share/url')
+  })
+
+  it.each([
+    {
+      minted: false,
+      text: 'I upgraded to ENSv2. Take a look at my commemorative NFT.',
+    },
+    {
+      minted: true,
+      text: 'I upgraded to ENSv2 and minted my commemorative NFT.',
+    },
+  ])('shares accurate mint status when minted is $minted', ({
+    minted,
+    text,
+  }) => {
+    const externalUrl = 'https://example.com/nft/hello world'
+    const urls = buildCommemorativeNftShareUrls(externalUrl, minted)
+
+    expect(urls.external).toBe(externalUrl)
+    for (const intent of [urls.x, urls.telegram]) {
+      expect(intent).toBeDefined()
+      const params = new URL(intent ?? '').searchParams
+      expect(params.get('text')).toBe(text)
+      expect(params.get('url')).toBe(externalUrl)
+    }
   })
 
   it('builds a Manager profile fallback on the active environment', () => {
@@ -52,17 +84,52 @@ describe('commemorative NFT sharing', () => {
     ).toBe('https://app.ens.domains/p/hello%20world.eth')
   })
 
-  it('does not expose OpenSea for Sepolia claims', () => {
+  it('does not expose OpenSea before minting', () => {
+    vi.spyOn(config, 'getCommemorativeNftContractAddress').mockReturnValue(
+      '0x0000000000000000000000000000000000000001',
+    )
+
     expect(
       buildCommemorativeNftMarketplaceUrl({
-        chainId: 11155111,
+        chainId: 1,
         ownerAddress,
         minted: false,
       }),
     ).toBeUndefined()
+  })
+
+  it('does not expose OpenSea for minted Sepolia NFTs after testnet support ended', () => {
     expect(
       buildCommemorativeNftMarketplaceUrl({
         chainId: 11155111,
+        ownerAddress,
+        minted: true,
+      }),
+    ).toBeUndefined()
+  })
+
+  it('links a minted NFT to Ethereum OpenSea when its mainnet contract is configured', () => {
+    vi.spyOn(config, 'getCommemorativeNftContractAddress').mockReturnValue(
+      '0x0000000000000000000000000000000000000001',
+    )
+
+    expect(
+      buildCommemorativeNftMarketplaceUrl({
+        chainId: 1,
+        ownerAddress,
+        minted: true,
+      }),
+    ).toBe(
+      'https://opensea.io/assets/ethereum/0x0000000000000000000000000000000000000001/46455108410614081663945406319915307572171076188378075311311703967581922008221',
+    )
+  })
+
+  it.each([
+    1, 10,
+  ])('does not expose OpenSea without a configured contract on chain %s', (chainId) => {
+    expect(
+      buildCommemorativeNftMarketplaceUrl({
+        chainId,
         ownerAddress,
         minted: true,
       }),

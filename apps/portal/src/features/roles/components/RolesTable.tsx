@@ -6,8 +6,10 @@ import { DataTable } from '@/components/DataTable'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { RolesSidebar } from '@/features/roles/components/RolesSidebar'
 import {
+  buildActionSpacerColumn,
   buildEditActionColumn,
   buildRoleColumns,
+  ROLE_COLUMN_WIDTH,
   rolesTableClassName,
   rolesToEntries,
   UserCell,
@@ -29,7 +31,8 @@ const baseColumns: ColumnDef<AccountGroup>[] = [
   {
     id: 'user',
     accessorKey: 'account',
-    header: 'User',
+    meta: { width: ROLE_COLUMN_WIDTH.accountOnly },
+    header: 'Account',
     cell: ({ row }) => <UserCell account={row.original.account} />,
   },
   ...buildRoleColumns<AccountGroup>((row) => rolesToEntries(row.items)),
@@ -65,7 +68,7 @@ export const RolesTable = ({
           setOpen(true)
         }),
       ]
-    : baseColumns
+    : [...baseColumns, buildActionSpacerColumn<AccountGroup>()]
 
   return (
     <RolesSidebar

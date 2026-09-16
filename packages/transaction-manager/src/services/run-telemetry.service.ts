@@ -47,7 +47,6 @@ interface SnapshotLike {
       gasPrice?: bigint
       maxFeePerGas?: bigint
       maxPriorityFeePerGas?: bigint
-      rhinestoneParams?: { sponsored?: boolean }
     }
     intent?: { type?: string }
     signer?: { type?: string }
@@ -426,16 +425,6 @@ function buildRequestSnapshot(
   }
 }
 
-function resolveSponsorship(
-  request: TransactionRequest | undefined,
-): boolean | undefined {
-  if (!request) return undefined
-  if (request.type === 'rhinestone-intent') {
-    return request.rhinestoneParams?.sponsored
-  }
-  return undefined
-}
-
 function getRequestFingerprint(initial: TransactionRunInitialSnapshot): string {
   const parts = [
     initial.chainId || '',
@@ -474,7 +463,6 @@ function buildInitialSnapshot(
     smartAccount: {
       enabled: Boolean(input.useSmartAccount || input.signer?.type !== 'eoa'),
       signerType: input.signer?.type,
-      sponsored: resolveSponsorship(request),
     },
   }
 }

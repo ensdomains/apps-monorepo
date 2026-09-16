@@ -1,6 +1,10 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  injectHeadlessWeb3Provider,
+  type Web3ProviderBackend,
+} from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import { test as base } from '@playwright/test'
 import type { Address, Hash } from 'viem'
@@ -11,17 +15,13 @@ import {
   privateKeyToAccount,
 } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
-import {
-  injectHeadlessWeb3Provider,
-  type Web3ProviderBackend,
-} from '@ensdomains/headless-web3-provider'
+import { testClient } from '../helpers/anvil-client.js'
 import {
   connectWithHeadlessWallet,
   dismissBackendAuthModal,
   PERMITTED_SIGN_KINDS,
   signInBackendAuthModal,
 } from '../helpers/manager-auth.js'
-import { testClient } from '../helpers/anvil-client.js'
 import { createIndexerMock, type MockDomain } from '../helpers/mock-indexer.js'
 import type { PortalAccounts } from '../helpers/portal-auth.js'
 import { createMakeName } from './makeName.js'
@@ -92,9 +92,11 @@ async function waitForManagerFeatureFlagOverride(page: Page): Promise<void> {
   await page
     .waitForFunction(
       () =>
-        (window as Window & {
-          managerFeatureFlagsOverridden?: boolean
-        }).managerFeatureFlagsOverridden === true,
+        (
+          window as Window & {
+            managerFeatureFlagsOverridden?: boolean
+          }
+        ).managerFeatureFlagsOverridden === true,
       undefined,
       { timeout: FEATURE_FLAG_OVERRIDE_TIMEOUT },
     )
@@ -285,10 +287,7 @@ export const test = base.extend<ManagerFixtures>({
     await use(page)
   },
 
-  profileAuthenticatedPageWithBackend: async (
-    { page, wallet },
-    use,
-  ) => {
+  profileAuthenticatedPageWithBackend: async ({ page, wallet }, use) => {
     await overrideManagerFeatureFlags(page, PROFILE_FEATURE_FLAGS)
     await connectHeadless(page, wallet)
     await signInBackendAuthModal(page)

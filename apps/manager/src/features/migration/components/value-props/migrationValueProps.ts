@@ -15,7 +15,7 @@ export type MigrationValuePropSlide = {
   readonly media: MigrationValuePropMedia
 }
 
-export const MIGRATION_VALUE_PROP_SLIDES: readonly MigrationValuePropSlide[] = [
+const ALL_SLIDES: readonly MigrationValuePropSlide[] = [
   {
     id: 'profiles',
     label: msg`Custom profiles`,
@@ -64,3 +64,10 @@ export const MIGRATION_VALUE_PROP_SLIDES: readonly MigrationValuePropSlide[] = [
     },
   },
 ] as const
+
+const NON_NFT_SLIDES = ALL_SLIDES.filter((slide) => slide.id !== 'nft')
+
+export const getMigrationValuePropSlides = (
+  shouldShowNft = false,
+): readonly MigrationValuePropSlide[] =>
+  shouldShowNft ? ALL_SLIDES : NON_NFT_SLIDES

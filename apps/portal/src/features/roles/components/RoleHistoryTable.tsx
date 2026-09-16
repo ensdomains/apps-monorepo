@@ -36,8 +36,8 @@ const roleHistoryEntryToTransaction = (
   entry: RoleHistoryEntry,
 ): EventsTableData<ENSEvent> => ({
   transactionID: entry.transactionHash,
-  blockNumber: entry.blockNumber,
-  timestamp: BigInt(entry.timestamp),
+  blockNumber: Number(entry.blockNumber),
+  timestamp: entry.timestamp,
   from: entry.account,
   network: { name: 'Sepolia', chainId: sepoliaWithEns.id },
   events: [
@@ -114,7 +114,7 @@ const RoleHistoryMobileCard = ({
 
     <div className="text-sm font-medium">Date</div>
     <div className="text-base text-muted-foreground">
-      {formatTimestamp(BigInt(entry.timestamp))}
+      {formatTimestamp(entry.timestamp)}
     </div>
 
     <div className="text-sm font-medium">Account</div>
@@ -136,11 +136,11 @@ const RoleHistoryMobileCard = ({
 
 export const RoleHistoryTable = ({
   name,
-  label,
+  registryAddress,
   account,
 }: {
   readonly name: string
-  readonly label?: string
+  readonly registryAddress: Address
   readonly account?: Address
 }) => {
   const [selectedEntry, setSelectedEntry] = useState<RoleHistoryEntry | null>(
@@ -148,19 +148,13 @@ export const RoleHistoryTable = ({
   )
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const {
-    data: allData,
-    isLoading,
-    error,
-  } = useQuery(getRoleHistoryQueryOptions({ label }))
-
-  // Filter by account if provided
-  const data =
-    account && allData
-      ? allData.filter(
-          (entry) => entry.account.toLowerCase() === account.toLowerCase(),
-        )
-      : allData
+  const { data, isLoading, error } = useQuery(
+    getRoleHistoryQueryOptions({
+      account,
+      name,
+      registryAddress,
+    }),
+  )
 
   const handleMoreClick = (entry: RoleHistoryEntry) => {
     setSelectedEntry(entry)
@@ -221,19 +215,19 @@ export const RoleHistoryTable = ({
           <TableBody>
             {data.map((entry) => (
               <TableRow key={`${entry.transactionHash}-${entry.account}`}>
-                <TableCell className="px-4 sm:px-6 h-10 py-2 text-sm text-muted-foreground">
-                  {formatTimestamp(BigInt(entry.timestamp))}
+                <TableCell className="px-4 sm:px-6 h-10 py-1 text-sm text-muted-foreground">
+                  {formatTimestamp(entry.timestamp)}
                 </TableCell>
-                <TableCell className="px-4 sm:px-6 h-10 py-2">
+                <TableCell className="px-4 sm:px-6 h-10 py-1">
                   <AddressDisplay address={entry.account} />
                 </TableCell>
-                <TableCell className="px-4 sm:px-6 h-10 py-2">
+                <TableCell className="px-4 sm:px-6 h-10 py-1">
                   <RoleDiff entry={entry} />
                 </TableCell>
-                <TableCell className="px-4 sm:px-6 h-10 py-2">
+                <TableCell className="px-4 sm:px-6 h-10 py-1">
                   <RoleCountChange entry={entry} />
                 </TableCell>
-                <TableCell className="px-4 sm:px-6 h-10 py-2">
+                <TableCell className="px-4 sm:px-6 h-10 py-1">
                   <div className="flex justify-end">
                     <MoreButton onClick={() => handleMoreClick(entry)} />
                   </div>

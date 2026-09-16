@@ -107,7 +107,7 @@ export function usePriceCooldownChartSelection(
       return (
         <>
           The fee will reach $0 on{' '}
-          <span className="text-[#353535]">
+          <span className="font-ens-450 text-[#353535]">
             {formatPremiumDateTimeLocal(endDate.getTime())}
           </span>{' '}
           — the end of the cooldown.
@@ -119,7 +119,10 @@ export function usePriceCooldownChartSelection(
       return (
         <>
           You&apos;re in luck — the fee is already below your{' '}
-          <span className="text-[#353535]">{formatUsd(parsed)}</span> target.
+          <span className="font-ens-450 text-[#353535]">
+            {formatUsd(parsed)}
+          </span>{' '}
+          target.
         </>
       )
     }
@@ -128,8 +131,10 @@ export function usePriceCooldownChartSelection(
       return (
         <>
           The fee is currently at{' '}
-          <span className="text-[#353535]">{formatUsd(currentPrice)}</span>, you
-          can buy now.
+          <span className="font-ens-450 text-[#353535]">
+            {formatUsd(currentPrice)}
+          </span>
+          , you can buy now.
         </>
       )
     }
@@ -138,7 +143,7 @@ export function usePriceCooldownChartSelection(
     return (
       <>
         The fee will reach {formatUsd(parsed)} on{' '}
-        <span className="text-[#353535]">
+        <span className="font-ens-450 text-[#353535]">
           {formatPremiumDateTimeLocal(reachDate.getTime())}.
         </span>
       </>

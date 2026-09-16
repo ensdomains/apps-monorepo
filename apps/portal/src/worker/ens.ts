@@ -2,11 +2,13 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getRecords } from '@ensdomains/ensjs/public'
 import type { Address, Hex } from 'viem'
 import { getStorageAt } from 'viem/actions'
-import { parseAvatarRecord } from 'viem/ens'
 
 import { decodeImplementationAddress } from '@/features/resolver/utils/permissionedResolver'
 import { resolveEnsOwner } from '@/utils/ens/resolveEnsOwner'
+import { resolveAvatarRecord } from './avatar'
+import { type AvatarBitmap, downscaleAvatar } from './avatar-image'
 import { createClient, type EnsClient } from './clients'
+import { safeFetch } from './safe-fetch'
 
 export interface EnsData {
   avatar: string | null
@@ -14,8 +16,6 @@ export interface EnsData {
   owner: string | null
 }
 
-/** Abort the avatar fetch if the upstream is slow/hanging. */
-const AVATAR_FETCH_TIMEOUT_MS = 20_000
 /** Cap the avatar payload to avoid memory-exhaustion / amplification abuse. */
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024
 
@@ -38,66 +38,85 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-/** Read a response body into a buffer, aborting once `maxBytes` is exceeded. */
-async function readCapped(
-  res: Response,
-  maxBytes: number,
-): Promise<Uint8Array | null> {
-  const reader = res.body?.getReader()
-  if (!reader) return null
-  const chunks: Uint8Array[] = []
-  let total = 0
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    if (!value) continue
-    total += value.byteLength
-    if (total > maxBytes) {
-      await reader.cancel()
-      return null
-    }
-    chunks.push(value)
-  }
-  const out = new Uint8Array(total)
-  let offset = 0
-  for (const chunk of chunks) {
-    out.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return out
+/** Render an already-downscaled bitmap as the `data:` URI satori embeds. */
+function toDataUri({ bytes, contentType }: AvatarBitmap): string {
+  return `data:${contentType};base64,${bytesToBase64(bytes)}`
 }
 
+/**
+ * `data:<mime>;base64,<payload>` — the only inline form we can hand to the
+ * Images binding. Anything else (percent-encoded SVG, say) is passed through
+ * untouched, which is what happened to every inline avatar before WEB-1218.
+ */
+const BASE64_DATA_URI_RE = /^data:([^;,]+);base64,(.*)$/s
+
+/**
+ * Downscale an on-chain `data:` avatar.
+ *
+ * These skip {@link safeFetch} entirely, so they also skip its byte cap: the
+ * pixel cap from {@link downscaleAvatar} is the only bound on how much bitmap
+ * an NFT contract can push into the renderer.
+ */
+async function inlineAvatarDataUri(
+  uri: string,
+  images: ImagesBinding | undefined,
+): Promise<string> {
+  const match = BASE64_DATA_URI_RE.exec(uri)
+  if (!match) return uri
+
+  const downscaled = await downscaleAvatar(images, {
+    data: match[2],
+    contentType: match[1],
+    encoding: 'base64',
+  })
+
+  return downscaled ? toDataUri(downscaled) : uri
+}
+
+/**
+ * Resolve an ENS `avatar` text record to an inline `data:` URI for OG rendering.
+ *
+ * The record is attacker-controlled for any name, and this runs server-side on
+ * the worker's egress, so every dereference goes through {@link safeFetch} —
+ * see `safe-fetch.ts` for the guards and WEB-672 for the residual risk.
+ *
+ * `selfHost` is the worker's own host, rejected so an avatar pointing back at
+ * `/og/<name>.png` can't make the worker recurse into itself.
+ *
+ * `images` is the Cloudflare Images binding used to cap the avatar's pixel
+ * dimensions (WEB-1218); without it the original bytes are embedded as-is.
+ */
 export async function resolveAvatarDataUri(
   client: EnsClient,
   avatarRecord: string,
+  selfHost?: string,
+  images?: ImagesBinding,
 ): Promise<string | null> {
   try {
-    const url = await parseAvatarRecord(client, {
-      record: avatarRecord,
-      gatewayUrls: { ipfs: 'https://ipfs.euc.li' },
-    })
+    const resolved = await resolveAvatarRecord(client, avatarRecord, selfHost)
 
     // On-chain avatars (data:/base64 SVGs etc.) are already inline — pass them
     // through without re-fetching (fetching a huge data: URI is itself abusable).
     // Still enforce the image/* requirement on the embedded MIME type.
-    if (url.startsWith('data:')) {
-      return url.startsWith('data:image/') ? url : null
+    if (resolved.kind === 'inline') {
+      return resolved.uri.startsWith('data:image/')
+        ? inlineAvatarDataUri(resolved.uri, images)
+        : null
     }
 
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(AVATAR_FETCH_TIMEOUT_MS),
+    const result = await safeFetch(resolved.url, {
+      accept: (contentType) => contentType.startsWith('image/'),
+      maxBytes: AVATAR_MAX_BYTES,
+      selfHost,
     })
-    if (!res.ok) return null
+    if (!result) return null
 
-    const contentType = res.headers.get('content-type')
-    // Only embed actual images; reject anything else the upstream returns,
-    // including responses that omit Content-Type entirely.
-    if (!contentType?.startsWith('image/')) return null
+    const downscaled = await downscaleAvatar(images, {
+      data: result.bytes,
+      contentType: result.contentType,
+    })
 
-    const bytes = await readCapped(res, AVATAR_MAX_BYTES)
-    if (!bytes) return null
-
-    return `data:${contentType};base64,${bytesToBase64(bytes)}`
+    return toDataUri(downscaled ?? result)
   } catch {
     return null
   }
@@ -160,7 +179,11 @@ export async function fetchIsPermissionedResolver(
   }
 }
 
-export async function fetchEnsData(env: Env, name: string): Promise<EnsData> {
+export async function fetchEnsData(
+  env: Env,
+  name: string,
+  selfHost?: string,
+): Promise<EnsData> {
   const client = createClient(env)
   try {
     const [records, owner] = await Promise.all([
@@ -183,7 +206,7 @@ export async function fetchEnsData(env: Env, name: string): Promise<EnsData> {
       records.texts.find((r) => r.key === 'avatar')?.value ?? null
 
     const avatar = avatarRecord
-      ? await resolveAvatarDataUri(client, avatarRecord)
+      ? await resolveAvatarDataUri(client, avatarRecord, selfHost, env.IMAGES)
       : null
 
     return {

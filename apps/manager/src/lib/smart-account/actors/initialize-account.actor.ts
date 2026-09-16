@@ -7,7 +7,7 @@ import type {
   OrchestratorError,
 } from '@rhinestone/sdk/errors'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
-import type { Address, WalletClient } from 'viem'
+import type { Address, PublicClient, WalletClient } from 'viem'
 import {
   initializeRhinestoneAccount,
   type RhinestoneInitResult,
@@ -36,11 +36,13 @@ export interface AccountInitResult {
 interface InitializeAccountInput {
   readonly walletSource: WalletSource
   readonly walletClient?: WalletClient
+  readonly publicClient?: PublicClient
 }
 
 class AccountInitializationError extends TaggedError(
   'AccountInitializationError',
 )<{
+  message: string
   provider: 'rhinestone' | 'routing'
   cause: AccountInitializationErrorCause
 }> {}
@@ -73,13 +75,23 @@ function mapRhinestoneConfig(
 export function initializeAccountActor(
   input: InitializeAccountInput,
 ): ResultAsync<AccountInitResult, AccountInitializationError> {
-  const { walletClient } = input
+  const { walletClient, publicClient } = input
 
   if (!walletClient) {
     return errAsync(
       new AccountInitializationError({
+        message: 'Missing wallet client for Rhinestone initialization',
         provider: 'routing',
         cause: new Error('Missing wallet client for Rhinestone initialization'),
+      }),
+    )
+  }
+  if (!publicClient) {
+    return errAsync(
+      new AccountInitializationError({
+        message: 'Missing public client for Rhinestone initialization',
+        provider: 'routing',
+        cause: new Error('Missing public client for Rhinestone initialization'),
       }),
     )
   }
@@ -87,11 +99,18 @@ export function initializeAccountActor(
   return fromPromise(
     initializeRhinestoneAccount({
       walletClient,
+      publicClient,
     }),
-    (error) =>
-      new AccountInitializationError({
+    (error) => {
+      const cause = error as RhinestoneErrorCause
+      return new AccountInitializationError({
+        message:
+          cause instanceof Error && cause.message
+            ? cause.message
+            : 'Failed to initialize Rhinestone account',
         provider: 'rhinestone',
-        cause: error as RhinestoneErrorCause,
-      }),
+        cause,
+      })
+    },
   ).map((result) => mapRhinestoneConfig(result, result.ownerAddress))
 }

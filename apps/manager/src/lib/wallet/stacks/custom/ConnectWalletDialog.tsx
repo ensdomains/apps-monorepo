@@ -1,7 +1,8 @@
+import { logger } from '@ens-apps/utils/logger'
 import { Wallet } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import type { Connector } from 'wagmi'
-import { useConnect, useConnectors } from 'wagmi'
+import { useConnect, useConnectors, useSwitchChain } from 'wagmi'
 import {
   Dialog,
   DialogContent,
@@ -11,12 +12,12 @@ import {
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import {
+  connectOnSupportedChain,
   isCoinbase,
   isConnectionCancelled,
   isMetaMask,
   METAMASK_DOWNLOAD_URL,
   normalizeConnectError,
-  resolveConnectChainId,
   WALLETCONNECT_ID,
 } from './connect.helpers'
 import { CoinbaseIcon, MetaMaskIcon, WalletConnectIcon } from './WalletIcons'
@@ -108,6 +109,7 @@ export const ConnectWalletDialog = ({
 }: ConnectWalletDialogProps) => {
   const connectors = useConnectors()
   const { mutateAsync: connectAsync } = useConnect()
+  const { switchChainAsync } = useSwitchChain()
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -148,6 +150,28 @@ export const ConnectWalletDialog = ({
   // failure (timeout, relay error) would otherwise vanish with both modals
   // closed, so reopen ours with the error.
   const handleConnectError = (e: unknown, usesOwnModal: boolean) => {
+    // Log the RAW error before it is normalised away.
+    //
+    // `normalizeConnectError` deliberately returns fixed copy so technical
+    // detail never reaches the UI, and `isConnectionCancelled` matches on
+    // message text as loosely as /cancell?ed/i. Between them a genuine
+    // failure -- a bad relay, a blocked origin, an aborted request -- is
+    // indistinguishable from the user closing the prompt, and nothing else
+    // records it. That left "Connection cancelled" on screen as the only
+    // evidence of failures that were never a cancellation.
+    logger.error('[wallet] connect failed', {
+      usesOwnModal,
+      classifiedAsCancelled: isConnectionCancelled(e),
+      name: e instanceof Error ? e.name : typeof e,
+      message: e instanceof Error ? e.message : String(e),
+      // EIP-1193 puts the real reason (4001 = user rejected) on the error or
+      // its cause chain; viem wraps provider errors, so the top level often
+      // carries neither.
+      code: (e as { code?: unknown })?.code,
+      cause: (e as { cause?: unknown })?.cause,
+      error: e,
+    })
+
     if (usesOwnModal && isConnectionCancelled(e)) return
 
     setError(normalizeConnectError(e))
@@ -174,11 +198,15 @@ export const ConnectWalletDialog = ({
     }
 
     try {
-      // Connect on a supported chain so wallets that default to mainnet land on
-      // the right chain from the first connect.
-      const walletChainId = await connector.getChainId()
-      const chainId = resolveConnectChainId(walletChainId, wagmiConfig.chains)
-      await connectAsync({ connector, chainId })
+      // Leaves the wallet on a chain the app supports, without handing
+      // WalletConnect a target chain up front — that deadlocks wagmi's
+      // connector. See `connectOnSupportedChain`.
+      await connectOnSupportedChain(connector, wagmiConfig.chains, {
+        connect: connectAsync,
+        switchChain: switchChainAsync,
+        onChainSwitchFailed: (error) =>
+          logger.error('[wallet] connected, but chain switch failed', error),
+      })
       onOpenChange(false)
     } catch (e) {
       handleConnectError(e, usesOwnModal)

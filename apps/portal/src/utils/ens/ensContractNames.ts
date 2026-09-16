@@ -1,6 +1,8 @@
 import {
   ensL1Contracts,
   type SupportedL1Contract,
+  supportedL1Chains,
+  supportedL1Contracts,
 } from '@ensdomains/ensjs/chain'
 import { type Address, zeroAddress } from 'viem'
 
@@ -32,33 +34,43 @@ const contractDisplayNames: Record<SupportedL1Contract, string> = {
   dai: 'DAI',
 }
 
-type ContractLookup = Map<string, string>
+const contractPillLabels: Partial<Record<SupportedL1Contract, string>> = {
+  ensRegistry: 'root registry',
+  ensLegacyRegistry: 'legacy registry',
+  ensUserRegistryImpl: 'permissioned registry',
+  ensPublicResolver: 'public resolver',
+  ensUniversalResolver: 'universal resolver',
+  ensDefaultReverseResolver: 'reverse resolver',
+  ensPermissionedResolverImpl: 'permissioned resolver',
+}
 
-const lookupByChain = new Map<number, ContractLookup>()
+// TODO(multichain): these lookups are keyed by address alone, so every
+// supported chain's contracts are merged into one table — an address that's an
+// ENS contract on one chain would also be labeled on another. Safe today: the
+// app is sepolia-scoped, and ENS deploys many core contracts (Registry,
+// BaseRegistrar, …) at the same address on both chains anyway. Once the UI
+// renders data from >1 L1 chain at once, key these maps by (chainId, address)
+// and thread chainId through getEnsContractName / getContractLabel and their
+// EntityBadge / ContractBadge callers.
+const contractNames = new Map<string, string>()
+const contractPills = new Map<string, string>()
 
-for (const [chainIdStr, contracts] of Object.entries(ensL1Contracts)) {
-  const chainId = Number(chainIdStr)
-  const lookup: ContractLookup = new Map()
-
-  for (const [key, contract] of Object.entries(contracts)) {
-    const addr = (contract as { address: Address }).address
-    if (!addr || addr === zeroAddress) continue
-    const label = contractDisplayNames[key as SupportedL1Contract] ?? key
-    lookup.set(addr.toLowerCase(), label)
+for (const chainId of Object.values(supportedL1Chains)) {
+  const contracts = ensL1Contracts[chainId]
+  for (const key of supportedL1Contracts) {
+    const { address } = contracts[key]
+    if (address === zeroAddress) continue
+    const normalized = address.toLowerCase()
+    contractNames.set(normalized, contractDisplayNames[key])
+    const pill = contractPillLabels[key]
+    if (pill) contractPills.set(normalized, pill)
   }
-
-  lookupByChain.set(chainId, lookup)
 }
 
-/**
- * Returns the human-readable ENS contract name for a given address on a chain,
- * or undefined if the address is not a known ENS contract.
- */
-export const getEnsContractName = (
-  chainId: number,
-  address: Address,
-): string | undefined => {
-  const lookup = lookupByChain.get(chainId)
-  if (!lookup) return undefined
-  return lookup.get(address.toLowerCase())
-}
+/** Human-readable ENS contract name, or undefined if not a known ENS contract. */
+export const getEnsContractName = (address: Address): string | undefined =>
+  contractNames.get(address.toLowerCase())
+
+/** EntityBadge label: short pill when known, otherwise the contract display name. */
+export const getContractLabel = (address: Address): string | undefined =>
+  contractPills.get(address.toLowerCase()) ?? getEnsContractName(address)

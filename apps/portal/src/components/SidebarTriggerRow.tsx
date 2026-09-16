@@ -1,14 +1,11 @@
 import { flexRender, type Row, type RowData } from '@tanstack/react-table'
 import { ArrowRightFromLineIcon } from 'lucide-react'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
-import type { TableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 
 export const SidebarTriggerRow = <T extends RowData = RowData>({
   row,
-  tableView,
   setOpen,
   setClickedRow,
   open,
@@ -17,21 +14,13 @@ export const SidebarTriggerRow = <T extends RowData = RowData>({
   row: Row<T>
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
   setClickedRow: React.Dispatch<React.SetStateAction<Row<T> | null>>
-  tableView: TableViewSettings
   open: boolean
   showMoreButton?: boolean
 }) => {
   return (
-    <TableRow
-      className={stripedRowClassName(tableView.strippedRows)}
-      key={row.id}
-      data-state={row.getIsSelected() && 'selected'}
-    >
+    <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
       {row.getVisibleCells().map((cell) => (
-        <TableCell
-          key={cell.id}
-          className={cn('px-6', tableView.compact ? 'h-8 py-1' : 'h-10 py-2')}
-        >
+        <TableCell key={cell.id} className={cn('px-6', 'h-10 py-0')}>
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </TableCell>
       ))}

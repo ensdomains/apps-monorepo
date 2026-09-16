@@ -7,11 +7,8 @@ import {
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import {
-  getAddressRecord,
-  getName,
-  getReverseRecordFromRegistry,
-} from '@ensdomains/ensjs/public'
+import { getAddressRecord, getName } from '@ensdomains/ensjs/public'
+import { getReverseRecordFromRegistry } from '@ensdomains/ensjs/public/v1'
 import { ok } from 'neverthrow'
 import {
   type Address,

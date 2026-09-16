@@ -2,14 +2,18 @@ import type { ClassifiedName } from '@ens-apps/migration'
 
 export {
   type ClassifiedName,
-  type ClassifyNamesResult,
+  type CopyClassifiedName,
+  type CopySource,
+  type CopyTokenType,
   classifyName,
   classifyNames,
+  type DirectClassifiedName,
   FUSES,
   hasFuse,
   type IneligibleName,
   type IneligibleReason,
   type MigrationTokenType,
+  type ResolverStrategy,
 } from '@ens-apps/migration'
 
 export const is2LD = (name: ClassifiedName): boolean =>
@@ -42,7 +46,9 @@ export const groupClassifiedNames = (names: ClassifiedName[]): GroupedNames => {
         locked2ld.push(name)
         break
       case 'locked-child':
-      case 'detached-child': {
+      case 'detached-child':
+      case 'unlocked-child':
+      case 'registry-child': {
         const parent = name.parentName
         if (!parent) break
         const existing = childNames.get(parent) ?? []

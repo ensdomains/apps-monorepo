@@ -11,12 +11,15 @@ import { useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NameNotRegisteredMessage } from '@/components/NameNotRegisteredMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageHeading } from '@/components/PageHeading'
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
+import { useDnsOffchainName } from '@/features/dns-import/hooks/useDnsOffchainName'
 import { AddressResolutionTable } from '@/features/forward-resolution/components/AddressResolution/AddressResolutionTable'
 import { columns } from '@/features/forward-resolution/components/AddressResolution/columns'
 import {
@@ -99,6 +102,9 @@ function RouteComponent() {
       protocolVersion: ownerQuery.data?.protocolVersion,
     }),
   })
+  // Addresses come from resolution, not the registry, so a gasless DNS name —
+  // which has no registry entry by design — still has a full table to show.
+  const offchain = useDnsOffchainName({ name, owner: ownerQuery.data })
   const { data: resolverAddress } = useNameResolverAddress({ name })
 
   const addressByCoinType = new Map(
@@ -168,7 +174,8 @@ function RouteComponent() {
 
   const searchNamesId = useId()
 
-  if (ownerQuery.isLoading || profileQuery.isLoading) return <LoadingMessage />
+  if (ownerQuery.isLoading || profileQuery.isLoading || offchain.isLoading)
+    return <LoadingMessage />
 
   if (ownerQuery.error) {
     return (
@@ -188,10 +195,10 @@ function RouteComponent() {
     )
   }
 
-  if (!ownerQuery.data) {
+  if (!ownerQuery.data && !offchain.resolvedAddress) {
     return (
-      <NotFoundMessage
-        title="Name not registered"
+      <NameNotRegisteredMessage
+        name={name}
         description={
           <>
             <strong>{name}</strong> is not registered, so there is no address
@@ -206,7 +213,9 @@ function RouteComponent() {
     <>
       <header className="flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-h1">Address Resolution</h1>
+          <PageHeading parent={{ type: 'name', name }}>
+            Address Resolution
+          </PageHeading>
         </div>
         <InputGroup className="bg-background rounded-sm">
           <InputGroupInput

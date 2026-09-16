@@ -107,11 +107,7 @@ export function DqaCommentFilters({
           )}
 
           {onOwnershipChange && (
-            <div
-              aria-label="Comment ownership"
-              role="group"
-              style={segmentStyle}
-            >
+            <fieldset aria-label="Comment ownership" style={segmentStyle}>
               {(['all', 'mine'] as const).map((key) => {
                 const active = ownership === key
                 return (
@@ -134,7 +130,7 @@ export function DqaCommentFilters({
                   </button>
                 )
               })}
-            </div>
+            </fieldset>
           )}
         </div>
       )}
@@ -219,6 +215,12 @@ const actionChipStyle: CSSProperties = {
 }
 
 const segmentStyle: CSSProperties = {
+  // <fieldset> (implicit role="group") carries browser defaults that break
+  // this inline-flex pill: a groove border, inline margins, and
+  // min-inline-size: min-content. Reset them before the real styling.
+  border: 'none',
+  margin: 0,
+  minInlineSize: 0,
   marginLeft: 'auto',
   display: 'inline-flex',
   padding: 2,

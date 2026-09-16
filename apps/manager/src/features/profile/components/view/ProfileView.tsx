@@ -20,10 +20,8 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
-import {
-  isMigrationNftEnabled,
-  POSTHOG_FEATURE_FLAGS,
-} from '@/lib/posthog/feature-flags'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { ProfileActions, ProfileMobileActions } from './ProfileActions'
 import { ProfileBanner } from './ProfileBanner'
@@ -82,14 +80,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     POSTHOG_FEATURE_FLAGS.MIGRATION,
     false,
   )
-  const migrationNftEnabled = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.MIGRATION_NFT,
-    false,
-  )
-  const commemorativeNftEnabled = isMigrationNftEnabled({
-    migrationEnabled,
-    migrationNftEnabled,
-  })
+  const commemorativeNftEnabled = useMigrationNftEnabled()
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -173,6 +164,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           expiry={expiry}
           isOwner={resolvedIsOwner}
           name={name}
+          protocol={ownerData?.protocol}
         />
         <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-11.25 lg:landscape:max-w-226.25">
           <div>
@@ -186,6 +178,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               expiry={expiry}
               isOwner={resolvedIsOwner}
               name={name}
+              protocol={ownerData?.protocol}
             />
             <ProfileHeader
               avatarLoading={false}
@@ -197,6 +190,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
                   avatarUrl={avatarUrl}
                   isOwner={resolvedIsOwner}
                   name={name}
+                  renewalProtocol={ownerData?.protocol}
                   url={getProfileUrl(name)}
                 />
               }
@@ -229,6 +223,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           onUpdated={refetchRecords}
           owner={owner}
           records={records}
+          renewalProtocol={ownerData?.protocol}
           url={getProfileUrl(name)}
         />
       </ProfileThemeColorProvider>

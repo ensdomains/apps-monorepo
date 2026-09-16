@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
+import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { DataTable } from '@/components/DataTable'
@@ -8,7 +9,7 @@ import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
-import type { RoleHistoryEntry } from '@/lib/roles/filterEventsByResource'
+import type { RoleHistoryEntry } from '@/lib/roles/roleChangeLogs'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import { getRegistryRoleHistoryForAccountQueryOptions } from '../../hooks/useRegistryRoleHistoryForAccount'
 
@@ -28,7 +29,7 @@ const columns: ColumnDef<EnrichedEntry>[] = [
     header: 'Date',
     cell: ({ row }) => (
       <div className="text-sm text-muted-foreground whitespace-nowrap mt-4">
-        {formatTimestamp(BigInt(row.original.timestamp))}
+        {formatTimestamp(row.original.timestamp)}
       </div>
     ),
   },
@@ -70,8 +71,8 @@ export const RegistryUserRoleHistory = ({
 }: RegistryUserRoleHistoryProps) => {
   const { data, isLoading, error } = useQuery({
     ...getRegistryRoleHistoryForAccountQueryOptions({
-      registryAddress,
       account: account ?? zeroAddress,
+      registryAddress,
     }),
     enabled: Boolean(account),
   })
@@ -89,27 +90,28 @@ export const RegistryUserRoleHistory = ({
   return (
     <section className="flex flex-col gap-3">
       <HistorySectionHeader />
-      {isLoading && (
-        <p className="text-sm text-muted-foreground">Loading history…</p>
-      )}
-      {error && (
-        <ErrorMessage
-          compact
-          description="Error fetching role history. Please refresh the page."
-        />
-      )}
-      {!isLoading && !error && rows.length === 0 && (
-        <NoResultsMessage
-          title="No role changes yet"
-          description="This user has no recorded role grants or revokes on this registry."
-          className="mx-0 my-0"
-        />
-      )}
-      {!isLoading && !error && rows.length > 0 && (
-        <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent">
-          <DataTable columns={columns} data={rows} />
-        </div>
-      )}
+      {match({ isLoading, error, count: rows.length })
+        .with({ isLoading: true }, () => (
+          <p className="text-sm text-muted-foreground">Loading history…</p>
+        ))
+        .with({ error: P.nonNullable }, () => (
+          <ErrorMessage
+            compact
+            description="Error fetching role history. Please refresh the page."
+          />
+        ))
+        .with({ count: 0 }, () => (
+          <NoResultsMessage
+            title="No role changes yet"
+            description="This user has no recorded role grants or revokes on this registry."
+            className="mx-0 my-0"
+          />
+        ))
+        .otherwise(() => (
+          <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent">
+            <DataTable columns={columns} data={rows} />
+          </div>
+        ))}
     </section>
   )
 }

@@ -7,10 +7,11 @@ import {
 } from 'motion/react'
 import type { KeyboardEvent } from 'react'
 import { useCallback, useRef, useState } from 'react'
+import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { cn } from '@/lib/utils'
 import { MigrationValuePropMediaCard } from './MigrationValuePropMediaCard'
 import {
-  MIGRATION_VALUE_PROP_SLIDES,
+  getMigrationValuePropSlides,
   type MigrationValuePropSlide,
 } from './migrationValueProps'
 
@@ -133,16 +134,16 @@ const DesktopSlideButton = ({
 export const MigrationValuePropsCarousel = () => {
   const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion() ?? false
-  const [activeIndex, setActiveIndex] = useState(0)
+  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility()
+  const slides = getMigrationValuePropSlides(nftCopyEnabled)
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const activeIndex = clampIndex(selectedIndex, slides.length)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const goToIndex = useCallback(
     (nextIndex: number) => {
-      const clampedIndex = clampIndex(
-        nextIndex,
-        MIGRATION_VALUE_PROP_SLIDES.length,
-      )
-      setActiveIndex(clampedIndex)
+      const clampedIndex = clampIndex(nextIndex, slides.length)
+      setSelectedIndex(clampedIndex)
 
       const el = scrollRef.current
       if (!el || el.offsetWidth === 0) return
@@ -152,7 +153,7 @@ export const MigrationValuePropsCarousel = () => {
         behavior: shouldReduceMotion ? 'auto' : 'smooth',
       })
     },
-    [shouldReduceMotion],
+    [shouldReduceMotion, slides.length],
   )
 
   const goToNext = useCallback(
@@ -170,8 +171,8 @@ export const MigrationValuePropsCarousel = () => {
     if (!el || el.offsetWidth === 0) return
 
     const nextIndex = Math.round(el.scrollLeft / el.offsetWidth)
-    setActiveIndex(clampIndex(nextIndex, MIGRATION_VALUE_PROP_SLIDES.length))
-  }, [])
+    setSelectedIndex(clampIndex(nextIndex, slides.length))
+  }, [slides.length])
 
   const handleDesktopDragEnd = useCallback(
     (offsetX: number, velocityX: number) => {
@@ -208,7 +209,7 @@ export const MigrationValuePropsCarousel = () => {
   return (
     <section aria-label={t`Migration value propositions`} className="w-full">
       <div className="mb-2 flex items-center justify-center gap-0.5">
-        {MIGRATION_VALUE_PROP_SLIDES.map((slide, index) => (
+        {slides.map((slide, index) => (
           <button
             aria-current={index === activeIndex ? 'true' : undefined}
             aria-label={t(slide.label)}
@@ -233,7 +234,7 @@ export const MigrationValuePropsCarousel = () => {
           onScroll={handleScroll}
           ref={scrollRef}
         >
-          {MIGRATION_VALUE_PROP_SLIDES.map((slide) => (
+          {slides.map((slide) => (
             <div
               className="flex w-full shrink-0 snap-center flex-col items-center gap-3 px-5 max-[700px]:gap-2.5"
               key={slide.id}
@@ -253,7 +254,7 @@ export const MigrationValuePropsCarousel = () => {
       </div>
 
       <div className="relative hidden min-h-94 w-full overflow-hidden pt-1 md:block">
-        {MIGRATION_VALUE_PROP_SLIDES.map((slide, index) => {
+        {slides.map((slide, index) => {
           const { distance, isActive, isVisible, offset } =
             getDesktopSlideState(index, activeIndex)
 
@@ -271,7 +272,7 @@ export const MigrationValuePropsCarousel = () => {
               onDragEnd={handleDesktopDragEnd}
               onKeyDown={handleKeyDown}
               shouldReduceMotion={shouldReduceMotion}
-              zIndex={MIGRATION_VALUE_PROP_SLIDES.length - distance}
+              zIndex={slides.length - distance}
             />
           )
         })}

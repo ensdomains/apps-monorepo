@@ -15,6 +15,7 @@ import { getAddress } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -24,22 +25,31 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
+import {
+  OwnedResolverNotReadyError,
+  ResolverChangeNotAuthorizedError,
+  setupControlledResolver,
+} from '@/features/profile/service/setupControlledResolver'
 import {
   type SmartAccountContextValue,
   useSmartAccountContext,
 } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
+import { hasOwnerWallet } from '@/lib/wallet'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { resolveDomainLabel } from '../utils'
 import {
   getEthAddressFromRecords,
-  hasMatchingEthAddress,
+  isConfirmBlocked,
+  shouldUpdateEthAddress,
 } from './ChoosePrimaryNameDialog.handlers'
 
 interface ChoosePrimaryNameDialogProps {
@@ -50,6 +60,22 @@ interface ChoosePrimaryNameDialogProps {
 type PrimaryNameDomain = DomainsQuery['domains'][number]
 type PrimaryNameQueryVariables = Parameters<typeof getDomainsQuery>[0]
 type SelectedNameRecords = Parameters<typeof getEthAddressFromRecords>[0]
+
+const getSetupResolverErrorMessage = (
+  error: Error | null,
+  messages: {
+    readonly notAuthorized: string
+    readonly notReady: string
+  },
+): string | undefined => {
+  if (error instanceof ResolverChangeNotAuthorizedError) {
+    return messages.notAuthorized
+  }
+  if (error instanceof OwnedResolverNotReadyError) {
+    return messages.notReady
+  }
+  return error?.message
+}
 
 const PrimaryNameSkeletonList = () => (
   <div className="flex flex-col gap-2">
@@ -119,6 +145,58 @@ const PrimaryNameOption = ({
   )
 }
 
+/**
+ * The connected wallet can't write to the name's resolver — either it has no
+ * resolver (reset during transfer) or the resolver belongs to a previous owner.
+ * Surfaced from the write path as a fallback; the pre-flight normally catches
+ * this first and routes the flow through the resolver-setup path instead.
+ */
+class ResolverNotControlledError extends Error {
+  constructor(options?: { cause?: unknown }) {
+    super('Wallet cannot write to this name’s resolver', options)
+    this.name = 'ResolverNotControlledError'
+  }
+}
+
+/** Label for the confirm button, reflecting the current step of the flow. */
+const ConfirmButtonLabel = ({
+  settingUpResolver,
+  settingEthAddress,
+  isSubmitting,
+}: {
+  readonly settingUpResolver: boolean
+  readonly settingEthAddress: boolean
+  readonly isSubmitting: boolean
+}) => {
+  const { t } = useLingui()
+
+  return match({
+    settingUpResolver,
+    settingEthAddress,
+    isSubmitting,
+  })
+    .with({ settingUpResolver: true }, () => <>{t`Updating profile...`}</>)
+    .with({ settingEthAddress: true }, () => <>{t`Updating address...`}</>)
+    .with({ isSubmitting: true }, () => <>{t`Setting...`}</>)
+    .otherwise(() => <>{t`Set as Primary`}</>)
+}
+
+/** Renders a plain error message for any failure in the set-primary flow. */
+const PrimaryNameErrorNotice = ({
+  errorMessage,
+}: {
+  readonly errorMessage: string | undefined
+}) => {
+  if (!errorMessage) return null
+
+  return (
+    <Alert variant="destructive">
+      <AlertCircle />
+      <AlertDescription>{errorMessage}</AlertDescription>
+    </Alert>
+  )
+}
+
 const useUpdateEthAddressMutation = ({
   account,
   chainId,
@@ -135,9 +213,18 @@ const useUpdateEthAddressMutation = ({
   return useMutation({
     mutationFn: async () => {
       if (!selectedName || !account.ownerAddress) return
-      if (!account.signer || !account.accountAddress) return
 
       const walletAddress = account.ownerAddress as Address
+
+      // Writing a record on an existing resolver is an owner-EOA transaction,
+      // not an HCA intent — the resolver authorizes the owner wallet, and the
+      // session validator's action policy rejects the same call as an intent.
+      // Require the wallet still bound to the owner: `resolverWriteAccess`
+      // probed from that address, so a mid-switch wallet would revert on-chain.
+      const { walletClient } = account
+      if (!hasOwnerWallet(walletClient, walletAddress)) {
+        return
+      }
 
       const snapshot = await getProfileEthAddressSnapshot(
         selectedName,
@@ -146,13 +233,13 @@ const useUpdateEthAddressMutation = ({
 
       if (snapshot.isErr()) {
         const name = selectedName
-        throw new Error(t`Could not read ETH address record for ${name}`)
+        throw new Error(t`Couldn’t read the wallet address for ${name}`)
       }
 
       const { resolverAddress, ethAddress } = snapshot.value
+
       if (!resolverAddress) {
-        const name = selectedName
-        throw new Error(t`Could not find resolver for ${name}`)
+        throw new ResolverNotControlledError()
       }
 
       if (ethAddress?.toLowerCase() === walletAddress.toLowerCase()) return
@@ -167,8 +254,8 @@ const useUpdateEthAddressMutation = ({
           texts: [],
           coins: [{ coinType: 60, value: getAddress(walletAddress) }],
         },
-        signer: account.signer,
-        accountAddress: account.accountAddress,
+        signer: { type: 'eoa', walletClient },
+        accountAddress: walletClient.account.address,
         publicClient: publicClient as PublicClient,
         chainId,
         resolverAddress,
@@ -176,25 +263,52 @@ const useUpdateEthAddressMutation = ({
     },
     onError: (error) => {
       console.error('Failed to set ETH address record:', error)
-      toast.error(error.message || t`Failed to set ETH address record`)
     },
   })
 }
 
-const shouldUpdateEthAddress = ({
+/**
+ * Set up a resolver this wallet can write to, then seed the ETH address.
+ * Owner-EOA transactions; runs before set-primary when write access is missing.
+ */
+const useSetupResolverMutation = ({
+  account,
+  chainId,
   selectedName,
-  isLoadingRecords,
-  selectedNameRecords,
-  ownerAddress,
 }: {
+  readonly account: SmartAccountContextValue
+  readonly chainId: number
   readonly selectedName: string | null
-  readonly isLoadingRecords: boolean
-  readonly selectedNameRecords: SelectedNameRecords
-  readonly ownerAddress?: string
-}) =>
-  Boolean(selectedName) &&
-  !isLoadingRecords &&
-  !hasMatchingEthAddress(selectedNameRecords, ownerAddress)
+}) => {
+  const { t } = useLingui()
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!selectedName || !account.ownerAddress) return
+
+      const { walletClient } = account
+      if (!hasOwnerWallet(walletClient, account.ownerAddress)) {
+        throw new Error(t`Please finish connecting your wallet, then try again`)
+      }
+
+      await setupControlledResolver({
+        name: selectedName,
+        signer: { type: 'eoa', walletClient },
+        ownerAddress: account.ownerAddress,
+        publicClient: publicClient as PublicClient,
+        chainId,
+        before: { texts: [], coins: [] },
+        after: {
+          texts: [],
+          coins: [{ coinType: 60, value: getAddress(account.ownerAddress) }],
+        },
+      })
+    },
+    onError: (error) => {
+      console.error('Failed to set up resolver for primary name:', error)
+    },
+  })
+}
 
 const getPrimaryNameQueryVariables = (
   address: string | undefined,
@@ -218,6 +332,7 @@ export const ChoosePrimaryNameDialog = ({
   const { t } = useLingui()
   const [open, setOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<string | null>(null)
+  const [setupConfirmOpen, setSetupConfirmOpen] = useState(false)
   const { address } = useConnection()
   const account = useSmartAccountContext()
   const queryClient = useQueryClient()
@@ -233,6 +348,12 @@ export const ChoosePrimaryNameDialog = ({
       toast.success(t`Primary name set successfully`)
       queryClient.invalidateQueries({
         queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
+      })
+      queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'resolver_write_access' }),
+      })
+      queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'get_records' }),
       })
       setOpen(false)
       onUpdated?.()
@@ -273,14 +394,18 @@ export const ChoosePrimaryNameDialog = ({
     [allDomains, reverseName],
   )
 
-  const { data: selectedNameRecords, isLoading: isLoadingRecords } = useQuery({
+  const {
+    data: selectedNameRecords,
+    isSuccess: recordsSettled,
+    isError: isRecordsError,
+  } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
     enabled: open && !!selectedName,
   })
   const existingEthAddress = getEthAddressFromRecords(selectedNameRecords)
   const needsEthAddressUpdate = shouldUpdateEthAddress({
     selectedName,
-    isLoadingRecords,
+    recordsSettled,
     selectedNameRecords,
     ownerAddress: account.ownerAddress ?? undefined,
   })
@@ -290,6 +415,32 @@ export const ChoosePrimaryNameDialog = ({
     selectedName,
     selectedNameRecords,
   })
+  const setupResolverMutation = useSetupResolverMutation({
+    account,
+    chainId,
+    selectedName,
+  })
+
+  // Probe whether this wallet can write to the selected name's resolver.
+  const resolverWriteAccess = useQuery({
+    ...resolverWriteAccessQuery(
+      selectedName ?? undefined,
+      (account.ownerAddress as Address | null) ?? undefined,
+    ),
+    enabled: open && Boolean(selectedName) && Boolean(account.ownerAddress),
+  })
+
+  // No write access → confirm, then set up a controlled resolver before primary.
+  const resolverBlocked = resolverWriteAccess.data === false
+
+  // Only set up a resolver when a forward write actually needs one. When the ETH
+  // record already points at this wallet, setting primary writes nothing but the
+  // reverse record, which the reverse registrar authorizes on `msg.sender` — so
+  // it lands whoever owns the name. The picker is indexer-fed and lags a
+  // transfer, so a name this wallet no longer owns can still be offered; without
+  // the `needsEthAddressUpdate` half the dialog offers to replace a resolver it
+  // has since lost `ROLE_SET_RESOLVER` on, and the setup reverts in simulation.
+  const needsResolverSetup = resolverBlocked && needsEthAddressUpdate
 
   // Set selected name to current primary on mount
   useEffect(() => {
@@ -300,20 +451,26 @@ export const ChoosePrimaryNameDialog = ({
 
   const handleSelectName = (name: string) => {
     if (!isSubmitting) {
+      updateEthAddressMutation.reset()
+      setupResolverMutation.reset()
       setSelectedName(name)
     }
   }
 
-  const handleConfirm = async () => {
+  const runConfirm = async () => {
     if (!selectedName || !account.ownerAddress) return
 
-    if (!account.signer || !account.accountAddress) {
-      toast.error(t`Wallet signer not available`)
+    if (!hasOwnerWallet(account.walletClient, account.ownerAddress)) {
+      toast.error(t`Wallet isn’t ready yet. Try again in a moment.`)
       return
     }
 
     try {
-      await updateEthAddressMutation.mutateAsync()
+      if (needsResolverSetup) {
+        await setupResolverMutation.mutateAsync()
+      } else if (needsEthAddressUpdate) {
+        await updateEthAddressMutation.mutateAsync()
+      }
     } catch {
       return
     }
@@ -328,6 +485,22 @@ export const ChoosePrimaryNameDialog = ({
     }
   }
 
+  const handleConfirm = () => {
+    if (!selectedName || !account.ownerAddress) return
+
+    if (!hasOwnerWallet(account.walletClient, account.ownerAddress)) {
+      toast.error(t`Wallet isn’t ready yet. Try again in a moment.`)
+      return
+    }
+
+    if (needsResolverSetup) {
+      setSetupConfirmOpen(true)
+      return
+    }
+
+    void runConfirm()
+  }
+
   const handleCancel = () => {
     if (!isSubmitting) {
       setOpen(false)
@@ -337,99 +510,133 @@ export const ChoosePrimaryNameDialog = ({
 
   const hasChanges = selectedName !== reverseName
 
+  const showEthAddressInfo = needsEthAddressUpdate && !needsResolverSetup
+  const isPreparing =
+    updateEthAddressMutation.isPending || setupResolverMutation.isPending
+  const confirmDisabled = isConfirmBlocked({
+    isSubmitting,
+    isPreparing,
+    resolverAccessSettled: resolverWriteAccess.isSuccess,
+    recordsSettled,
+    hasChanges,
+    selectedName,
+  })
+  const actionErrorMessage =
+    // Probe failures first: both choose the branch, so neither can be silent —
+    // confirm is disabled and nothing else would say why.
+    match({ isRecordsError, isAccessError: resolverWriteAccess.isError })
+      .with(
+        { isRecordsError: true },
+        () =>
+          t`Couldn’t load this name’s records. Please try again in a moment.`,
+      )
+      .with(
+        { isAccessError: true },
+        () =>
+          t`Couldn’t check this name’s resolver. Please try again in a moment.`,
+      )
+      .otherwise(() => undefined) ??
+    getSetupResolverErrorMessage(setupResolverMutation.error, {
+      notAuthorized: t`Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this.`,
+      notReady: t`The replacement resolver could not be verified. Please try again.`,
+    }) ??
+    updateEthAddressMutation.error?.message ??
+    primaryNameErrorMessage
+
   return (
-    <Dialog onOpenChange={setOpen} open={open}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="flex max-h-[90vh] max-w-125 flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="text-[24px] text-foreground">
-            <Trans>Choose Primary Name</Trans>
-          </DialogTitle>
-          <DialogDescription className="font-sans text-muted-foreground text-sm">
-            <Trans>
-              Set which ENS name displays as your identity across apps and
-              wallets.
-            </Trans>
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog onOpenChange={setOpen} open={open}>
+        <DialogTrigger asChild>{children}</DialogTrigger>
+        <DialogContent className="flex max-h-[90vh] max-w-125 flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-[24px] text-foreground">
+              <Trans>Choose Primary Name</Trans>
+            </DialogTitle>
+            <DialogDescription className="font-sans text-muted-foreground text-sm">
+              <Trans>
+                Set which ENS name displays as your identity across apps and
+                wallets.
+              </Trans>
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
-          {/* Names List */}
-          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
-            {match({ isLoading, domains })
-              .with({ isLoading: true }, () => <PrimaryNameSkeletonList />)
-              .with({ domains: [] }, () => (
-                <div className="py-8 text-center font-sans text-muted-foreground text-sm">
-                  <Trans>No names found</Trans>
-                </div>
-              ))
-              .otherwise(({ domains }) =>
-                domains.map((domain) => (
-                  <PrimaryNameOption
-                    domain={domain}
-                    isSubmitting={isSubmitting}
-                    key={domain.id}
-                    onSelectName={handleSelectName}
-                    selectedName={selectedName}
-                  />
-                )),
-              )}
-          </div>
-
-          {/* Error Message */}
-          {primaryNameErrorMessage && (
-            <div className="flex items-start gap-2 rounded-sm border border-red-200 bg-red-50 p-3 text-red-600 text-sm">
-              <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
-              <p>{primaryNameErrorMessage}</p>
+          <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
+            {/* Names List */}
+            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
+              {match({ isLoading, domains })
+                .with({ isLoading: true }, () => <PrimaryNameSkeletonList />)
+                .with({ domains: [] }, () => (
+                  <div className="py-8 text-center font-sans text-muted-foreground text-sm">
+                    <Trans>No names found</Trans>
+                  </div>
+                ))
+                .otherwise(({ domains }) =>
+                  domains.map((domain) => (
+                    <PrimaryNameOption
+                      domain={domain}
+                      isSubmitting={isSubmitting}
+                      key={domain.id}
+                      onSelectName={handleSelectName}
+                      selectedName={selectedName}
+                    />
+                  )),
+                )}
             </div>
-          )}
-          {/* ETH Address Mismatch/Missing Info */}
-          {needsEthAddressUpdate && account.ownerAddress && (
-            <div className="flex items-start gap-2 rounded-sm border border-amber-200 bg-amber-50 p-3">
-              <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-              <div className="text-amber-800 text-sm">
-                <p>
-                  {existingEthAddress
-                    ? t`The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.`
-                    : t`No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name.`}
-                </p>
-                <div className="mt-2 rounded-md bg-amber-100/60 px-2.5 py-1.5">
-                  <p className="break-all font-mono text-amber-900 text-xs">
-                    {account.ownerAddress}
+
+            {/* Error Message */}
+            <PrimaryNameErrorNotice errorMessage={actionErrorMessage} />
+            {/* ETH Address Mismatch/Missing Info */}
+            {showEthAddressInfo && account.ownerAddress && (
+              <Alert variant="warning">
+                <AlertCircle />
+                <AlertDescription>
+                  <p>
+                    {existingEthAddress
+                      ? t`This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary.`
+                      : t`This name doesn’t have a wallet address yet. If you continue, we’ll set it to your current wallet and make this name your primary.`}
                   </p>
-                </div>
-              </div>
+                  <div className="mt-2 w-full rounded-md bg-amber-100/60 px-2.5 py-1.5">
+                    <p className="break-all font-mono text-amber-900 text-xs">
+                      {account.ownerAddress}
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+            {/* Action Buttons */}
+            <div className="flex shrink-0 gap-3">
+              <Button
+                className="h-12 flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
+                disabled={isSubmitting || isPreparing}
+                onClick={handleCancel}
+                variant="outline"
+              >
+                <Trans>Cancel</Trans>
+              </Button>
+              <Button
+                className="h-12 flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
+                disabled={confirmDisabled}
+                onClick={handleConfirm}
+              >
+                <ConfirmButtonLabel
+                  isSubmitting={isSubmitting}
+                  settingEthAddress={updateEthAddressMutation.isPending}
+                  settingUpResolver={setupResolverMutation.isPending}
+                />
+              </Button>
             </div>
-          )}
-          {/* Action Buttons */}
-          <div className="flex shrink-0 gap-3">
-            <Button
-              className="h-12 flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
-              disabled={isSubmitting || updateEthAddressMutation.isPending}
-              onClick={handleCancel}
-              variant="outline"
-            >
-              <Trans>Cancel</Trans>
-            </Button>
-            <Button
-              className="h-12 flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
-              disabled={
-                isSubmitting ||
-                updateEthAddressMutation.isPending ||
-                !hasChanges ||
-                !selectedName
-              }
-              onClick={handleConfirm}
-            >
-              {updateEthAddressMutation.isPending
-                ? t`Setting ETH address...`
-                : isSubmitting
-                  ? t`Setting...`
-                  : t`Set as Primary`}
-            </Button>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <ResolverSetupConfirmDialog
+        intent="primary-name"
+        onConfirm={() => {
+          void runConfirm()
+        }}
+        onOpenChange={setSetupConfirmOpen}
+        open={setupConfirmOpen}
+      />
+    </>
   )
 }

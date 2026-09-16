@@ -1,7 +1,7 @@
 import type { DecodedFuses } from '@ensdomains/ensjs/utils'
 import { describe, expect, it, vi } from 'vitest'
 
-// Mock to avoid RainbowKit import issues
+// Mock to avoid pulling the full wallet stack into the test
 vi.mock('./useNameWrapperData', () => ({
   getNameWrapperData: vi.fn(),
 }))

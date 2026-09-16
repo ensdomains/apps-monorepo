@@ -9,8 +9,10 @@ import type {
   ResolverRole,
 } from '@/features/resolver/hooks/useResolverOverview'
 import {
+  buildActionSpacerColumn,
   buildEditActionColumn,
   buildRoleColumns,
+  ROLE_COLUMN_WIDTH,
   type RoleRowEntry,
   rolesTableClassName,
 } from '@/features/roles/components/roleTableColumns'
@@ -48,7 +50,8 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
   {
     id: 'user',
     accessorKey: 'account',
-    header: () => <span className="text-muted-foreground">User</span>,
+    meta: { width: ROLE_COLUMN_WIDTH.account },
+    header: () => <span className="text-muted-foreground">Account</span>,
     cell: ({ row }) => (
       <div className="w-32">
         <EntityBadge
@@ -62,6 +65,7 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
   },
   {
     id: 'name',
+    meta: { width: ROLE_COLUMN_WIDTH.name },
     header: () => <span className="text-muted-foreground">Name</span>,
     cell: ({ row }) => {
       const names = row.original.resolvedNames
@@ -112,7 +116,7 @@ export const ResolverRolesTable = ({
           setOpen(true)
         }),
       ]
-    : baseColumns
+    : [...baseColumns, buildActionSpacerColumn<AccountRoleGroup>()]
 
   const table = (
     <div className={rolesTableClassName(showActions)}>

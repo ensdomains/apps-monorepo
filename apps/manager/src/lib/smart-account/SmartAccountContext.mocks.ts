@@ -13,6 +13,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
 // Mock all external dependencies
 vi.mock('wagmi', () => ({
   useWalletClient: vi.fn().mockReturnValue({ data: null }),
+  usePublicClient: vi.fn().mockReturnValue({ chain: { id: 11155111 } }),
   useConnection: vi.fn().mockReturnValue({
     address: undefined,
     isConnected: false,
@@ -33,7 +34,7 @@ vi.mock('@/lib/wagmi', () => ({
   SEPOLIA_RPC_URL: 'https://sepolia.example.com',
 }))
 
-vi.mock('@/features/register/services/nameChainContractService', () => ({
+vi.mock('@/features/shared/service/nameChainContractService', () => ({
   SUPPORTED_TOKENS: {},
 }))
 

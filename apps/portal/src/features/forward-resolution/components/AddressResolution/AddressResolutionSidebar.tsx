@@ -1,7 +1,7 @@
 import { getRegistrarAddress } from '@ens-apps/l2-primary/v1'
 import { defaultReverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/defaultReverseRegistrar'
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
 import {
   ArrowLeftRight,
@@ -21,6 +21,8 @@ import { match } from 'ts-pattern'
 import { type Address, isAddress, isAddressEqual } from 'viem'
 import { useConnection } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { EntityBadge } from '@/components/EntityBadge'
+import { InfoRow } from '@/components/InfoCard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,10 +32,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { RecentActivity } from '@/features/profile/components/RecentActivity'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
+import { DEFAULT_REVERSE_REGISTRAR_ADDRESS } from '@/features/reverse-resolution/config'
 import { useSetL2ReverseName } from '@/features/reverse-resolution/hooks/useSetL2ReverseName'
 import { useSetReverseResolution } from '@/features/reverse-resolution/hooks/useSetReverseResolution'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -44,14 +47,25 @@ import { names } from '@/lib/reverseRegistrarChainId'
 import { cn, fromCoinType } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
-import type { ProtocolVersion } from '@/utils/types'
 import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
 import { L1_VERIFICATION_LAG_ESTIMATES } from './networks'
 import type { AddressResolutionRow } from './types'
 
-// The sidebar's history covers the name's resolution records only — address
-// record writes and (v1) reverse-name changes — not transfers/registrations.
-const ADDRESS_HISTORY_EVENT_TYPES = ['AddressChanged', 'NameChanged'] as const
+// Address-record writes only, forward direction. `AddrChanged` is v1's ETH-only
+// event and stays distinct from v2's multicoin `AddressChanged` all the way
+// through the timeline's descriptors, so both belong here or a v1 name's
+// resolution history filters down to nothing.
+//
+// `NameChanged` is the v1 `name()` record written on *this* node, kept because
+// the sidebar covers the name's primary-name state alongside its addresses.
+// Note it is not where a primary name actually lives — that record sits on
+// `{address}.addr.reverse`, a different node this query never reads — so this
+// surfaces `name()` writes on the name itself, which are rare in practice.
+const ADDRESS_HISTORY_EVENT_TYPES = [
+  'AddressChanged',
+  'AddrChanged',
+  'NameChanged',
+] as const
 
 const coinNetworkName = (coinType: number, fallback: string) => {
   try {
@@ -63,10 +77,6 @@ const coinNetworkName = (coinType: number, fallback: string) => {
     return fallback
   }
 }
-
-const RowLabel = ({ children }: PropsWithChildren) => (
-  <div className="w-40 font-medium shrink-0">{children}</div>
-)
 
 const Banner = ({
   status,
@@ -81,7 +91,17 @@ const Banner = ({
   errorDetail?: string | null
   action?: ReactNode
 }) => (
-  <div className="flex items-center justify-between gap-3 bg-muted p-4 rounded-md">
+  <div
+    className={cn(
+      'flex items-center justify-between gap-3 p-4 rounded-md',
+      match(status)
+        .with('verified', () => 'bg-success-fill text-success-text')
+        .with('pending', () => 'bg-accent-fill text-accent-text')
+        .with('unverifiable', () => 'bg-danger-fill text-danger-text')
+        .with('mismatch', () => 'bg-danger-fill text-danger-text')
+        .exhaustive(),
+    )}
+  >
     <div className="flex items-center gap-3">
       {match(status)
         .with('verified', () => (
@@ -109,7 +129,7 @@ const Banner = ({
                 Can't verify reverse resolution on {label} right now
               </span>
               {errorDetail && (
-                <code className="font-mono text-xs text-muted-foreground break-all">
+                <code className="font-mono text-xs opacity-80 break-all">
                   {errorDetail}
                 </code>
               )}
@@ -139,20 +159,19 @@ const CoinTypeRow = ({
   icon: string
   label: string
 }) => (
-  <div className="flex flex-row items-start">
-    <RowLabel>Coin Type</RowLabel>
+  <InfoRow label="Coin Type">
     <div className="flex items-center gap-2">
       {icon && <img src={icon} alt={label} className="w-5 h-5" />}
       <span>
         {coinType} {coinNetworkName(coinType, label)}
       </span>
     </div>
-  </div>
+  </InfoRow>
 )
 
 const AddressField = ({
   address,
-  isOwner,
+  canEdit,
   addressInput,
   setAddressInput,
   disabled,
@@ -161,7 +180,7 @@ const AddressField = ({
   onSave,
 }: {
   address: string | null
-  isOwner: boolean
+  canEdit: boolean
   addressInput: string
   setAddressInput: (v: string) => void
   disabled: boolean
@@ -169,19 +188,27 @@ const AddressField = ({
   saveLabel: string
   onSave: () => void
 }) => (
-  <div className="flex flex-row items-start">
-    <RowLabel>Address</RowLabel>
+  <InfoRow label="Address">
     <div className="flex-1 flex flex-col gap-2">
       {address ? (
-        <CopyableRecord
-          value={address}
-          truncate={false}
-          className="font-mono text-sm"
-        />
+        isAddress(address) ? (
+          <EntityBadge variant="address" address={address} format="wrap">
+            {address}
+          </EntityBadge>
+        ) : (
+          <EntityBadge
+            type="content"
+            variant="default"
+            format="wrap"
+            copyValue={address}
+          >
+            {address}
+          </EntityBadge>
+        )
       ) : (
         <span className="font-mono text-sm text-muted-foreground/50">null</span>
       )}
-      {isOwner && (
+      {canEdit && (
         <div className="flex gap-2">
           <Input
             value={addressInput}
@@ -201,7 +228,7 @@ const AddressField = ({
         </div>
       )}
     </div>
-  </div>
+  </InfoRow>
 )
 
 const PrimaryNameRow = ({
@@ -217,8 +244,7 @@ const PrimaryNameRow = ({
   icon: string
   label: string
 }) => (
-  <div className="flex flex-row items-start">
-    <RowLabel>Primary name</RowLabel>
+  <InfoRow label="Primary name">
     <div className="flex items-center gap-2 flex-wrap">
       <Badge
         variant="outline"
@@ -271,7 +297,7 @@ const PrimaryNameRow = ({
         </div>
       )}
     </div>
-  </div>
+  </InfoRow>
 )
 
 const saveButtonLabel = (s: {
@@ -293,14 +319,13 @@ const ResolutionDetails = ({
   row,
   name,
   address,
-  isOwner,
+  canEdit,
   addressInput,
   setAddressInput,
   isBusy,
   hasResolver,
   saveLabel,
   onSave,
-  protocolVersion,
   canSetPrimaryName,
   isSettingPrimaryName,
   onSetPrimaryName,
@@ -308,14 +333,13 @@ const ResolutionDetails = ({
   row: AddressResolutionRow
   name: string
   address: string | null
-  isOwner: boolean
+  canEdit: boolean
   addressInput: string
   setAddressInput: (v: string) => void
   isBusy: boolean
   hasResolver: boolean
   saveLabel: string
   onSave: () => void
-  protocolVersion: ProtocolVersion | undefined
   canSetPrimaryName: boolean
   isSettingPrimaryName: boolean
   onSetPrimaryName: () => void
@@ -335,8 +359,8 @@ const ResolutionDetails = ({
   const offerSetPrimary = status === 'mismatch' && canSetPrimaryName
 
   return (
-    <div className="p-6 flex flex-col gap-6">
-      <SheetHeader>
+    <div className="p-6 flex flex-col gap-6 [&_[data-slot=info-row]]:px-0">
+      <SheetHeader className="p-0">
         <SheetTitle className="font-sans text-h2">
           {label} resolution
         </SheetTitle>
@@ -369,7 +393,7 @@ const ResolutionDetails = ({
         <CoinTypeRow coinType={coinType} icon={icon} label={label} />
         <AddressField
           address={address}
-          isOwner={isOwner}
+          canEdit={canEdit}
           addressInput={addressInput}
           setAddressInput={setAddressInput}
           disabled={isBusy}
@@ -384,29 +408,21 @@ const ResolutionDetails = ({
           icon={icon}
           label={label}
         />
-        {protocolVersion && (
-          <div className="border-t pt-6">
-            <RecentActivity
-              name={name}
-              protocolVersion={protocolVersion}
-              eventTypes={ADDRESS_HISTORY_EVENT_TYPES}
-            />
-          </div>
-        )}
+        <div className="border-t pt-6">
+          <HistoryTimeline
+            name={name}
+            scope={ADDRESS_HISTORY_EVENT_TYPES}
+            heading={<h2 className="text-caps text-foreground">History</h2>}
+            emptyTitle="No resolution history"
+            emptyDescription="Resolution record changes will appear here as they happen."
+          />
+        </div>
       </div>
     </div>
   )
 }
 
 const SET_PRIMARY_TX_ID = 'tx-forward-set-primary-name'
-
-// Standalone ENSv1 `DefaultReverseRegistrar` on Sepolia (ENSIP-19
-// `default.reverse`, coin type 0x80000000). `setName(string)` sets the caller's
-// cross-chain primary name — NOT the ENSv2 permissioned-resolver path.
-// TODO: Sepolia-only; move to a network-keyed source (e.g. @ens-apps/l2-primary)
-// when mainnet is supported.
-const DEFAULT_REVERSE_REGISTRAR_ADDRESS =
-  '0x4f382928805ba0e23b30cfb75fc9e848e82dfd47' as const
 
 /**
  * Owns the two write flows for the selected network — editing the
@@ -420,7 +436,6 @@ const useAddressRecordEditor = (
   resolverAddress: Address | undefined,
 ) => {
   const { address: connectedAddress, isConnected } = useConnection()
-  const { data: owner } = useQuery(getEnsOwnerQueryOptions({ name }))
   const queryClient = useQueryClient()
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const {
@@ -460,9 +475,9 @@ const useAddressRecordEditor = (
   // The address input is fully derived — no state writes during render and no
   // effect needed: an edit applies only to the row (coin type) it was typed
   // on, so switching rows implicitly falls back to that row's current address.
-  // When the record is unset, fall back to the connected wallet so owners
+  // When the record is unset, fall back to the connected wallet so editors
   // setting their own address don't have to copy-paste it. The edit UI only
-  // renders for owners, so non-owners never see this default.
+  // renders for accounts that can write records, so others never see this default.
   const [edit, setEdit] = useState<{ coinType: number; value: string } | null>(
     null,
   )
@@ -474,10 +489,10 @@ const useAddressRecordEditor = (
     if (data) setEdit({ coinType: data.coinType, value })
   }
 
-  const isOwner =
-    !!connectedAddress &&
-    !!owner?.owner &&
-    isAddressEqual(connectedAddress, owner.owner)
+  const { canEdit } = useCanEditRecords({
+    name,
+    roles: ['ROLE_SET_ADDR'],
+  })
 
   const txId = data ? `tx-set-addr-${data.coinType}` : 'tx-set-addr'
   const onTransactionDone = () => {
@@ -606,9 +621,8 @@ const useAddressRecordEditor = (
         ]
 
   return {
-    isOwner,
+    canEdit,
     canSetPrimaryName,
-    protocolVersion: owner?.protocolVersion,
     hasResolver: !!resolverAddress,
     addressInput,
     setAddressInput,
@@ -638,7 +652,7 @@ const useAddressRecordEditor = (
 
 /**
  * Sheet for a single network's forward resolution. Editing writes the
- * `addr(coinType)` record for the connected name owner.
+ * `addr(coinType)` record for accounts with resolver write permission.
  *
  * `TransactionModal` is a sibling of `SheetContent` (never nested inside it),
  * mirroring `ReverseResolutionSidebar`.
@@ -661,30 +675,31 @@ export const AddressResolutionSidebar: FC<
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-background overflow-y-auto"
+        className="bg-background p-0"
       >
-        {data ? (
-          <ResolutionDetails
-            row={data}
-            name={name}
-            address={data.address}
-            isOwner={editor.isOwner}
-            addressInput={editor.addressInput}
-            setAddressInput={editor.setAddressInput}
-            isBusy={editor.isBusy}
-            hasResolver={editor.hasResolver}
-            saveLabel={editor.saveLabel}
-            onSave={editor.onSave}
-            protocolVersion={editor.protocolVersion}
-            canSetPrimaryName={editor.canSetPrimaryName}
-            isSettingPrimaryName={editor.isSettingPrimaryName}
-            onSetPrimaryName={editor.onSetPrimaryName}
-          />
-        ) : (
-          <div className="p-6 text-muted-foreground text-center py-12">
-            No resolution selected
-          </div>
-        )}
+        <div className="h-full overflow-y-auto">
+          {data ? (
+            <ResolutionDetails
+              row={data}
+              name={name}
+              address={data.address}
+              canEdit={editor.canEdit}
+              addressInput={editor.addressInput}
+              setAddressInput={editor.setAddressInput}
+              isBusy={editor.isBusy}
+              hasResolver={editor.hasResolver}
+              saveLabel={editor.saveLabel}
+              onSave={editor.onSave}
+              canSetPrimaryName={editor.canSetPrimaryName}
+              isSettingPrimaryName={editor.isSettingPrimaryName}
+              onSetPrimaryName={editor.onSetPrimaryName}
+            />
+          ) : (
+            <div className="p-6 text-muted-foreground text-center py-12">
+              No resolution selected
+            </div>
+          )}
+        </div>
       </SheetContent>
       <TransactionModal transactions={editor.transactions} />
     </Sheet>

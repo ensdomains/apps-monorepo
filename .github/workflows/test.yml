@@ -44,10 +44,19 @@ jobs:
           echo "🔍 Type checking changed packages and their dependents..."
           pnpm --filter="...[${{ steps.base.outputs.ref }}]" typecheck
 
-      - name: Run Biome lint on changed files
+      # No `--if-present`: a package without a `lint` script must fail the
+      # build, not be skipped. That flag silently green-lit every package
+      # except manager/portal (the only two that had the script).
+      - name: Run Biome lint on changed packages
         run: |
           echo "🔍 Running Biome on changed packages..."
-          pnpm --filter="...[${{ steps.base.outputs.ref }}]" --if-present lint
+          pnpm --filter="...[${{ steps.base.outputs.ref }}]" lint
+
+      # Safety net for anything the workspace filter can't see: root-level
+      # config, files in a package whose manifest didn't change, and new
+      # directories not yet added to biome.jsonc's `files.includes`.
+      - name: Run Biome on the whole repo
+        run: pnpm exec biome ci --reporter=github
 
       - name: Run tests with coverage on changed packages
         run: |

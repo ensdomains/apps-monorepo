@@ -74,3 +74,32 @@ export const isRegistrable = (name: string): boolean =>
  */
 export const isClaimable = (name: string): boolean =>
   is2LD(name) && !name.endsWith('.eth')
+
+/**
+ * The parent of a name — everything after the first label.
+ *
+ * @example
+ * getParentName('sub.florin.eth') // 'florin.eth'
+ * getParentName('florin.eth') // 'eth'
+ * getParentName('eth') // null (a TLD has no parent in the namespace we show)
+ */
+export const getParentName = (name: string): string | null => {
+  const labels = name.split('.')
+  return labels.length > 1 ? labels.slice(1).join('.') : null
+}
+
+/**
+ * The `.eth` 2LD a deeper name sits under — the registration whose expiry
+ * governs the whole subtree. Null for a 2LD itself or for a non-`.eth` name.
+ *
+ * @example
+ * getEth2LDAncestor('sub.florin.eth') // 'florin.eth'
+ * getEth2LDAncestor('florin.eth') // null
+ * getEth2LDAncestor('sub.florin.xyz') // null
+ */
+export const getEth2LDAncestor = (name: string): string | null => {
+  const labels = name.split('.')
+  return isEthName(name) && labels.length >= 3
+    ? labels.slice(-2).join('.')
+    : null
+}

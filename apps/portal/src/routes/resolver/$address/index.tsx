@@ -9,11 +9,16 @@ import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import {
+  inlineAddressHeadingClassName,
+  PageHeading,
+} from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
 import { ResolverTypeValue } from '@/features/resolver/components/ResolverTypeValue'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { queryClient } from '@/utils/queryClient'
 import type { HttpsUrl } from '@/utils/types'
@@ -54,15 +59,18 @@ function RouteComponent() {
     return (
       <ErrorMessage
         title="Resolver unavailable"
-        description={error.cause?.message}
+        description={extractErrorMessage(error, '')}
       />
     )
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-h2 md:text-h1">
-        Resolver {truncateAddress(address, 6, 4, '...')}
-      </h1>
+      <PageHeading>
+        Resolver{' '}
+        <span className={inlineAddressHeadingClassName}>
+          {truncateAddress(address)}
+        </span>
+      </PageHeading>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <CounterCard to="/resolver/$address/nodes" params={{ address }}>

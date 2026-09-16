@@ -13,7 +13,7 @@ import { DomainAttributePill } from '@/components/molecules/DomainResultCard/Dom
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { STABLECOINS } from '@/features/register/utils'
+import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { cn } from '@/lib/utils'
@@ -76,7 +76,11 @@ export const ConfirmPurchase = () => {
 
       return { availability, existingPrimaryName, ownedNamesCount }
     },
-    onSuccess: ({ availability, existingPrimaryName, ownedNamesCount }) => {
+    onSuccess: async ({
+      availability,
+      existingPrimaryName,
+      ownedNamesCount,
+    }) => {
       if (!pricingQuery.data || !selectedToken) {
         return
       }
@@ -90,6 +94,10 @@ export const ConfirmPurchase = () => {
         return
       }
 
+      // Resolve the session-enable payload up front (checks on-chain
+      // enablement so an already-enabled session skips the enable call).
+      const hcaSessionEnable = await account.getSessionEnablePayload()
+
       uiActor.send({
         type: 'registration.start',
         label,
@@ -97,6 +105,7 @@ export const ConfirmPurchase = () => {
         token: selectedToken,
         totalPrice: pricingQuery.data.rawPrice,
         account,
+        hcaSessionEnable,
         basePriceNumber: pricingQuery.data.basePriceNumber,
         premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
         postRegistrationSetup: getManagerRegistrationPostRegistrationSetup({
@@ -125,6 +134,13 @@ export const ConfirmPurchase = () => {
       onNext={() => availabilityMutation.mutate()}
       pricingData={pricingQuery.data?.totalPriceNumber}
       selectedToken={selectedToken}
+      supportingMessage={
+        <Trans>
+          If your connected wallet has fewer than two names and no primary name
+          yet, ENS may set this name as your primary name and link it to your
+          connected wallet automatically.
+        </Trans>
+      }
       title={<Trans>Registering</Trans>}
     />
   )
@@ -139,6 +155,7 @@ export const ConfirmPurchaseBase = ({
   nextMessage,
   canNext,
   title,
+  supportingMessage,
 }: {
   label: string
   pricingData: number | undefined
@@ -148,6 +165,7 @@ export const ConfirmPurchaseBase = ({
   nextMessage: ReactNode
   canNext: boolean
   title: ReactNode
+  supportingMessage?: ReactNode
 }) => {
   const { t } = useLingui()
 
@@ -205,13 +223,11 @@ export const ConfirmPurchaseBase = ({
           </Alert>
         )}
 
-        <p className="text-center text-ens-gray-three text-sm">
-          <Trans>
-            If your connected wallet has fewer than two names and no primary
-            name yet, ENS may set this name as your primary name and link it to
-            your connected wallet automatically.
-          </Trans>
-        </p>
+        {supportingMessage ? (
+          <p className="text-center text-ens-gray-three text-sm">
+            {supportingMessage}
+          </p>
+        ) : null}
       </div>
 
       <Button

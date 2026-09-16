@@ -7,14 +7,16 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@97bcdf0"
-  "@ensdomains/ensjs-abi": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@97bcdf0"
+  "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@252068c"
+  "@ensdomains/ensjs-abi": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@252068c"
   xstate: ^5.24.0
-  "@typescript/native-preview": 7.0.0-dev.20260421.2
+  typescript: ^7.0.2
   vite: ^8.0.10
-  vitest: ^4.1.5
-  "@cloudflare/vite-plugin": ^1.33.1
-  wrangler: ^4.51.0
+  vitest: ^4.1.11
+  "@vitest/coverage-v8": ^4.1.11
+  happy-dom: ^20.13.2
+  "@cloudflare/vite-plugin": ^1.54.2
+  wrangler: ^4.127.1
   posthog-js: ^1.398.3
   "@posthog/react": ^1.10.3
   viem: ^2.52.2
@@ -23,13 +25,12 @@ catalog:
   # v3 all connector deps are optional peers, and autoInstallPeers is false, so it
   # must be declared explicitly or the prod bundle fails to resolve it at runtime.
   "@walletconnect/ethereum-provider": ~2.21.1
-  wagmi: ^3.0.2
-  "@wagmi/core": ^3.0.0
-  "@wagmi/connectors": ^7.1.1
-
-catalogs:
-  typescript6:
-    typescript: ^6.0.3
+  # wagmi pins @wagmi/core and @wagmi/connectors to exact versions, so these
+  # three only ever move together — bumping one alone just re-duplicates the
+  # tree at wagmi's pinned version.
+  wagmi: ^3.7.6
+  "@wagmi/core": ^3.6.4
+  "@wagmi/connectors": ^8.1.0
 
 dedupeDirectDeps: true
 

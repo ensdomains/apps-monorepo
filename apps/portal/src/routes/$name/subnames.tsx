@@ -7,6 +7,7 @@ import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NameNotRegisteredMessage } from '@/components/NameNotRegisteredMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { MessageCard } from '@/components/ui/message-card'
 import {
@@ -27,6 +28,7 @@ import type {
   Transaction,
 } from '@/features/transaction-manager/types'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 const DELETE_SUBNAME_TX_ID_PREFIX = 'tx-delete-ens-subname'
 const deleteTxId = (subnameName: string) =>
@@ -362,7 +364,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     return (
       <ErrorMessage
         title="Failed to load subnames"
-        description={subnamesError.cause?.message || subnamesError.message}
+        description={extractErrorMessage(subnamesError, '')}
       />
     )
   }
@@ -420,7 +422,7 @@ const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
     return (
       <ErrorMessage
         title="Failed to load subnames"
-        description={error.cause?.message || error.message}
+        description={extractErrorMessage(error, '')}
       />
     )
   }
@@ -477,8 +479,8 @@ function RouteComponent() {
 
   if (availabilityQuery.data?.isAvailable || !ownerData) {
     return (
-      <NotFoundMessage
-        title="Name not registered"
+      <NameNotRegisteredMessage
+        name={name}
         description={
           <>
             <strong>{name}</strong> is not registered, so there are no subnames

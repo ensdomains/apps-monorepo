@@ -7,26 +7,42 @@ import {
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import { ThirdPartyRenewalDialog } from '@/features/renew/components/ThirdPartyRenewalDialog'
+import { getV1RenewableQueryOptions } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
+import {
+  getRenewalRoute,
+  type RenewalProtocol,
+} from '@/features/renew/utils/renewalProtocol'
 import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/thirdPartyRenewalWarning'
 
 type ProfileRenewActionProps = {
   readonly className: string
   readonly isOwner?: boolean
   readonly name: string
+  readonly protocol?: RenewalProtocol
 }
 
 export const ProfileRenewAction = ({
   className,
   isOwner,
   name,
+  protocol,
 }: ProfileRenewActionProps) => {
   const { data: expiryData } = useQuery({
-    ...profileExpiryQuery(name),
+    ...profileExpiryQuery(name, protocol),
   })
   const expiryDate = profileExpiryDateFromSeconds(expiryData?.expiry)
+  const resolvedProtocol = protocol ?? expiryData?.protocol ?? 'v2'
+  const { data: isV1Renewable } = useQuery({
+    ...getV1RenewableQueryOptions(name),
+    enabled: resolvedProtocol === 'v1',
+  })
+  const canRenew =
+    resolvedProtocol === 'v1'
+      ? isV1Renewable === true
+      : canRenewV2Name(name, expiryDate)
 
-  if (!canRenewV2Name(name, expiryDate)) return null
+  if (!canRenew) return null
 
   const buttonContent = (
     <>
@@ -51,6 +67,7 @@ export const ProfileRenewAction = ({
     return (
       <ThirdPartyRenewalDialog
         name={name}
+        protocol={resolvedProtocol}
         trigger={
           <button className={className} type="button">
             {buttonContent}
@@ -61,7 +78,11 @@ export const ProfileRenewAction = ({
   }
 
   return (
-    <LinkButton className={className} params={{ name }} to="/renew/$name">
+    <LinkButton
+      className={className}
+      params={{ name }}
+      to={getRenewalRoute(resolvedProtocol)}
+    >
       {buttonContent}
     </LinkButton>
   )

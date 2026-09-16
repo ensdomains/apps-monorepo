@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-router'
 import { motion } from 'motion/react'
 import { match } from 'ts-pattern'
+import { NameFallbackCard } from '@/components/NameFallbackCard'
 import {
   FailureStep,
   getRegistrationV2AvailabilityQueryOptions,
@@ -18,6 +19,28 @@ import { useRegistrationFlowController } from '@/features/weave-registration'
 
 export const Route = createFileRoute('/register/$name')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
+    // Validate the name shape first: the availability query can throw on
+    // names the registrar doesn't understand
+    const parsedName = parseName(name)
+
+    if (parsedName.isErr()) {
+      throw parsedName.error
+    }
+
+    if (parsedName.value.tld !== 'eth') {
+      return { fallback: 'unsupported-tld' as const, label: '' }
+    }
+
+    if (parsedName.value.subLabels.length > 0) {
+      throw new Error('Subnames are not supported')
+    }
+
+    // Labels under 3 code points can't be registered; send them to the
+    // profile fallback instead of surfacing the availability error
+    if ([...parsedName.value.label].length < 3) {
+      throw redirect({ params: { name }, to: '/$name', replace: true })
+    }
+
     const availability = await queryClient.ensureQueryData(
       getRegistrationV2AvailabilityQueryOptions(name),
     )
@@ -29,21 +52,8 @@ export const Route = createFileRoute('/register/$name')({
       })
     }
 
-    const parsedName = parseName(name)
-
-    if (parsedName.isErr()) {
-      throw parsedName.error
-    }
-
-    if (parsedName.value.tld !== 'eth') {
-      throw new Error('Only .eth names are supported')
-    }
-
-    if (parsedName.value.subLabels.length > 0) {
-      throw new Error('Subnames are not supported')
-    }
-
     return {
+      fallback: undefined,
       label: parsedName.value.label,
     }
   },
@@ -52,9 +62,10 @@ export const Route = createFileRoute('/register/$name')({
 })
 
 function RouteComponent() {
-  const label = Route.useLoaderData({
-    select: (data) => data.label,
-  })
+  const name = Route.useParams({ select: (params) => params.name })
+  const { label, fallback } = Route.useLoaderData()
+
+  if (fallback) return <NameFallbackCard name={name} reason={fallback} />
 
   return (
     <RegistrationV2UiProvider label={label}>

@@ -1,7 +1,7 @@
 import type { Address, PublicClient } from 'viem'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@ensdomains/ensjs/wallet', () => ({
+vi.mock('@ensdomains/ensjs/wallet/v1', () => ({
   setRecordsWriteParameters: vi.fn(async () => ({
     abi: [
       {
@@ -28,7 +28,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet'
+import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v1'
 import { checksumAddress } from 'viem'
 import {
   startSyncEthAddressRecordTransaction,
@@ -108,7 +108,7 @@ describe('syncEthAddressRecord', () => {
     expect(wait).toHaveBeenCalledWith('tx-record')
   })
 
-  it('submits a sponsored rhinestone intent with a single call', async () => {
+  it('submits a rhinestone intent with a single call', async () => {
     await startSyncEthAddressRecordTransaction({
       name: 'leon.eth',
       ownerAddress: OWNER,
@@ -136,7 +136,7 @@ describe('syncEthAddressRecord', () => {
               value: 0n,
             }),
           ],
-          sponsored: true,
+          feeAsset: 'USDC',
         },
       }),
     })

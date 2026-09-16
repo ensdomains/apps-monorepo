@@ -1,3 +1,4 @@
+export { hasOwnerWallet } from './hasOwnerWallet'
 export { useConnectModal } from './useConnectModal'
 export { useWalletDisconnect } from './useWalletDisconnect'
 export { WalletLifecycle } from './WalletLifecycle'

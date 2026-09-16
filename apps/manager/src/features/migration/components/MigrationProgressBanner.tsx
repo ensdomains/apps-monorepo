@@ -1,11 +1,14 @@
 import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
+import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const MigrationProgressBanner = () => {
+  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility()
   const navigate = useNavigate()
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isV1Pending } =
@@ -53,19 +56,23 @@ export const MigrationProgressBanner = () => {
               <Trans>You're almost there!</Trans>
             </h2>
             <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
-              <Trans>
-                Complete upgrade and receive a collectible marking your place in
-                ENS history.
-              </Trans>
+              {nftCopyEnabled ? (
+                <Trans>
+                  Complete upgrade and receive a collectible marking your place
+                  in ENS history.
+                </Trans>
+              ) : (
+                <Trans>Complete upgrade to unlock your new ENS profile.</Trans>
+              )}
             </p>
           </div>
-          <button
-            className="w-full shrink-0 rounded-sm bg-ens-garnet-900 px-4 py-3.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[0.24px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] md:w-[338px]"
+          <MigrationPrimaryButton
+            className="w-full shrink-0 md:w-[338px]"
             onClick={() => navigate({ to: '/migration' })}
             type="button"
           >
             <Trans>Complete Upgrade</Trans>
-          </button>
+          </MigrationPrimaryButton>
         </div>
       </div>
     </div>

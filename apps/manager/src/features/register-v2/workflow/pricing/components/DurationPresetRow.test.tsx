@@ -34,6 +34,6 @@ describe('DurationPresetRow', () => {
 
     expect(screen.getByText('3 years')).toBeInTheDocument()
     expect(screen.queryByText(/6 hours/i)).not.toBeInTheDocument()
-    expect(screen.getByText('$14/year')).toBeInTheDocument()
+    expect(screen.getByText('$14.00/year')).toBeInTheDocument()
   })
 })

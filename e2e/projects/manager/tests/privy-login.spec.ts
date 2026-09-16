@@ -1,4 +1,4 @@
-import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
+import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
 import { connectWithPrivyTestAccount } from '../../../helpers/manager-auth.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'

@@ -1,15 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
-import { type Address, isAddressEqual } from 'viem'
-import { useConnection, useEnsResolver } from 'wagmi'
+import type { Address } from 'viem'
+import { useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { nameHeadingClassName, PageHeading } from '@/components/PageHeading'
+import { DnsClaimableMessage } from '@/features/dns-import/components/DnsClaimableMessage'
+import { RecentHistoryTimeline } from '@/features/history/components/RecentHistoryTimeline'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
-import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
+import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
@@ -17,7 +20,6 @@ import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
 import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
 import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
-import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { RecordCount } from '@/features/profile/components/RecordCount'
 import { RegistryCard } from '@/features/profile/components/RegistryCard'
 import { ResolverCard } from '@/features/profile/components/ResolverCard'
@@ -38,8 +40,10 @@ import {
   isRegistrable,
   isTLD,
 } from '@/utils/ens/tldHelpers'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
+import { validateNameLength } from '@/utils/token/nameValidation'
 
 type NameSearch = {
   readonly registered?: boolean
@@ -122,22 +126,20 @@ const Profile = ({
   // 'ENSv2' in that case so it consults the indexer to detect grace state.
   // (v1 names in grace still return an owner from the registrar, so a null
   // owner implies the name isn't a v1-in-grace case.)
+  //
+  // DNS names are excluded entirely: they're V1-only, and a DNS import carries
+  // no registrar expiry, so neither grace path applies. `undefined` keeps both
+  // queries disabled rather than asking the v2 indexer about a name that
+  // cannot exist in v2, or the .eth registrar about a name it doesn't hold.
   const grace = useGraceStatus({
     name,
-    protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
+    protocolVersion: isEthTld
+      ? (ownerQuery.data?.protocolVersion ?? 'ENSv2')
+      : undefined,
   })
 
-  const { address: connectedAddress } = useConnection()
-
-  // Migration eligibility is only meaningful for v1 names, and the verdict is
-  // owner-scoped (evaluated for the connected wallet). Gate the query on both so
-  // non-v1 names and disconnected viewers skip the on-chain checks and see no
-  // migration status.
-  const isV1Name = ownerQuery.data?.protocolVersion === 'ENSv1'
-
-  const migrationQuery = useQuery({
-    ...getMigrationStatusQueryOptions({ name, address: connectedAddress }),
-    enabled: isV1Name && !!connectedAddress,
+  const migrationQuery = useMigrationStatus(name, {
+    enabled: ownerQuery.data?.protocolVersion === 'ENSv1',
   })
 
   const { canExtend: graceCanExtend, isLoading: graceCanExtendLoading } =
@@ -158,6 +160,20 @@ const Profile = ({
   // Wait for DNSSEC check for non-.eth TLDs
   if (!isEthTld && dnsSecQuery.isLoading) {
     return <LoadingSpinner title="Validating TLD..." />
+  }
+
+  // A failed DNSSEC lookup is an error, not a verdict on the TLD — only a
+  // completed check that returns false may declare the TLD invalid.
+  if (!isEthTld && dnsSecQuery.isError) {
+    return (
+      <ErrorMessage
+        title="Could not validate TLD"
+        description={
+          dnsSecQuery.error.message ||
+          `Checking DNSSEC for .${tld} failed. Try refreshing the page.`
+        }
+      />
+    )
   }
 
   // IMPORTANT: Check TLD validity FIRST, before showing any profile data
@@ -196,7 +212,14 @@ const Profile = ({
       )
     }
 
-    // Case 3: It's a 2LD - check availability
+    // Case 3: A DNS 2LD with no registry entry — offer the import flow, or
+    // the custom-TLD notice when the TLD operator runs its own integration.
+    // (The availability query below is .eth-only, so this must come first.)
+    if (isClaimable(name)) {
+      return <DnsClaimableMessage name={name} />
+    }
+
+    // Case 4: It's a .eth 2LD - check availability
     if (availabilityQuery.isLoading) {
       return <LoadingSpinner title="Checking availability..." />
     }
@@ -205,20 +228,14 @@ const Profile = ({
     if (availabilityQuery.data?.isAvailable) {
       // .eth names can be registered
       if (isRegistrable(name)) {
-        return <AvailableNameMessage name={name} />
-      }
-      // Other valid TLD names - DNS import not available on ENSv2 yet
-      if (isClaimable(name)) {
-        return (
-          <NotFoundMessage
-            title="DNS import not available"
-            description={
-              <>
-                <strong>{name}</strong> could be claimed via DNS import, but
-                this feature isn't available yet on ENSv2.
-              </>
-            }
+        const lengthError = validateNameLength(name)
+        return lengthError ? (
+          <InvalidNameMessage
+            title="Name too short"
+            description={lengthError}
           />
+        ) : (
+          <AvailableNameMessage name={name} />
         )
       }
     }
@@ -250,9 +267,7 @@ const Profile = ({
             canExtend={graceCanExtend}
           />
           <div className="flex flex-row justify-between items-center">
-            <h1 className="font-serif text-4xl font-medium leading-none">
-              {name}
-            </h1>
+            <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
             <ExtendNameButton name={name} protocolVersion="ENSv2" />
           </div>
         </div>
@@ -307,14 +322,22 @@ const Profile = ({
   }
 
   if (availabilityQuery.data?.isAvailable && isRegistrable(name)) {
-    return <AvailableNameMessage name={name} />
+    const lengthError = validateNameLength(name)
+    return lengthError ? (
+      <InvalidNameMessage title="Name too short" description={lengthError} />
+    ) : (
+      <AvailableNameMessage name={name} />
+    )
   }
 
   // Profile query error - but we have owner, so name exists
   if (profileQuery.error) {
     // Don't show error for profile fetch failures on existing names
     // The name exists (we have owner), just profile data failed
-    console.warn('Profile fetch failed:', profileQuery.error.cause?.message)
+    console.warn(
+      'Profile fetch failed:',
+      extractErrorMessage(profileQuery.error, ''),
+    )
   }
 
   // Match the grace/canExtend default above: a missing protocolVersion means the
@@ -322,14 +345,7 @@ const Profile = ({
   const resolvedProtocolVersion = ownerQuery.data.protocolVersion ?? 'ENSv2'
 
   const migration = migrationQuery.data
-  // Migration status is owner-only: surface it (both the banner and the
-  // Protocol-row label) only when the name is migratable AND the connected
-  // wallet holds the v1 token. Non-owners and disconnected viewers see no
-  // migration text.
-  const isMigratableByConnectedOwner =
-    migration?.migratable === true &&
-    !!connectedAddress &&
-    isAddressEqual(connectedAddress, migration.tokenHolder)
+  const { isMigratableByConnectedOwner } = migrationQuery
 
   // Suppress the upgrade prompt whenever the name is expired (grace period or
   // fully expired past grace) — the user must extend/renew first. The upgrade
@@ -356,7 +372,7 @@ const Profile = ({
 
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
-        <h1 className="font-serif text-4xl font-medium leading-none">{name}</h1>
+        <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
         {resolvedProtocolVersion !== 'ENSv1' && (
           <ExtendNameButton
             name={name}
@@ -365,8 +381,8 @@ const Profile = ({
         )}
       </div>
 
-      {/* Main section: profile | metadata rows | counters */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_2fr] gap-3">
+      {/* Profile | metadata | counters at xl; counters wrap to their own row below that */}
+      <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(min-content,1fr)] xl:grid-cols-[240px_auto_300px] xl:justify-between gap-3">
         {/* Left: avatar + bio + socials */}
         <NameProfileCard name={name} stacked />
 
@@ -398,8 +414,8 @@ const Profile = ({
           />
         </div>
 
-        {/* Right: counter cards */}
-        <div className="flex flex-col gap-3 shrink-0">
+        {/* Counter cards */}
+        <div className="grid grid-cols-1 gap-3 content-start sm:grid-cols-3 lg:col-span-2 xl:col-span-1 xl:grid-cols-1">
           <SubnameCount name={name} protocolVersion={resolvedProtocolVersion} />
           <ProtocolVersionWithCounter
             name={name}
@@ -415,8 +431,7 @@ const Profile = ({
         </div>
       </div>
 
-      {/* History */}
-      <RecentActivity name={name} protocolVersion={resolvedProtocolVersion} />
+      <RecentHistoryTimeline name={name} />
     </div>
   )
 }

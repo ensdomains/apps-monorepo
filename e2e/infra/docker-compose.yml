@@ -11,11 +11,55 @@
 # Optional: override fork URL (e.g. for CI)
 #   SEPOLIA_FORK_URL=https://ethereum-sepolia-rpc.publicnode.com
 #
-# Paymaster is optional; host port 3002 to avoid clashing with app. VITE_PAYMASTER_URL=http://127.0.0.1:3002
+# Paymaster is optional; host port 3002 to avoid clashing with app.
+#
+# ── Why some images are pinned by digest ──────────────────────────────────────
+# CI runs on throwaway runners, so every job pulls its images fresh. Any service
+# left on a moving tag therefore ships a *different build on every run*, and an
+# upstream push can turn CI red with no change in this repo.
+#
+# `ghcr.io/foundry-rs/foundry:latest` is a nightly that upstream rebuilds per
+# master commit (the registry carries ~1250 `nightly-<sha>` tags), so `:latest`
+# moves several times a day and two CI runs an hour apart can get different
+# anvils. A newer nightly breaks the path the mockestrator uses to fill an
+# intent: it fills one by impersonating the smart account and firing one
+# `eth_sendTransaction` per call in the batch. Measured on a clean fork with
+# identical repo code and the same mockestrator image, manager shard 3/3:
+#
+#   anvil 1.7.1            (the pin below)  — all 6 calls mined, 3/3 tests pass
+#   anvil 1.8.0-nightly    (56b854e401f5748989d346f0aea871bac5d3e266,
+#                           `:latest` on 2026-08-12) — only the first 3 calls
+#                           mined; calls 4-6 were handed a transaction hash and
+#                           then dropped (unknown to the node, empty txpool,
+#                           funded account, negligible base fee, no error
+#                           anywhere), and the test hung
+#
+# The mockestrator still reports the intent COMPLETED, carrying the last call's
+# hash, so the app waits forever for a receipt that will never exist and the
+# registration flow parks on "Waiting for the registration transaction". That is
+# what made `registration.spec.ts` "registers a name after connecting from the
+# pricing page" fail intermittently from 2026-08-06 onwards: the outcome tracked
+# whichever nightly the runner happened to pull, which is why no commit bisects
+# it. Which anvil release first regressed this was not bisected.
+#
+# Anvil and the mockestrator are therefore pinned to digests verified green.
+# Alto, the paymaster and Panoptes are deliberately left on moving tags for now:
+# the standalone-HCA path does not route through the bundler or paymaster, and
+# CI mocks the indexer (E2E_MOCK_INDEXER=true). Pin them too if they ever drift.
+#
+# To bump a pin:
+#   1. docker pull <image>:<tag>
+#   2. docker inspect --format '{{index .RepoDigests 0}}' <image>:<tag>
+#      (that is the multi-arch index digest — it works on CI amd64 and arm64 dev
+#      machines alike; do NOT use a per-architecture manifest digest)
+#   3. Put the digest below, run the manager E2E shards locally, and record the
+#      resolved version in the trailing comment so the pin stays legible.
 
 services:
   anvil:
-    image: ghcr.io/foundry-rs/foundry:latest
+    # anvil 1.7.1 (Commit SHA 4072e48705af9d93e3c0f6e29e93b5e9a40caed8).
+    # Do not move this to `:latest` — see the note above.
+    image: ghcr.io/foundry-rs/foundry@sha256:8347b728d5d393dac1c018691b36f506d23b9dcd78341d40ea0fcb11c3a19cdd
     networks:
       e2e:
         aliases:
@@ -159,9 +203,13 @@ services:
     restart: on-failure
 
   # Rhinestone mockestrator: local orchestrator for Rhinestone intent-based transactions.
-  # Only needed when running Rhinestone e2e tests (VITE_FF_RHINESTONE_SESSIONS=true).
+  # Only needed when running the standalone-HCA e2e tests (VITE_FF_USE_EOA=false).
   mockestrator:
-    image: ghcr.io/ensdomains/mockestrator:latest
+    # ENS fork of the Rhinestone mockestrator, pinned so the orchestrator stand-in
+    # cannot drift underneath the patched @rhinestone/sdk. This digest is the
+    # build `:latest` has resolved to since 2026-06-07, so pinning it is a no-op
+    # today and only stops a future push from silently changing CI.
+    image: ghcr.io/ensdomains/mockestrator@sha256:d30d9328d774e15a77f107e02733379078b1806d72598d4ffa151d8b507550ba
     networks:
       e2e:
         aliases:

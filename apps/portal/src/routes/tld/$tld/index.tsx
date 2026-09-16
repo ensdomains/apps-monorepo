@@ -16,6 +16,7 @@ import { InfoRow } from '@/features/profile/components/InfoRow'
 import { Owner } from '@/features/profile/components/Owner'
 import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
 import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
+import { NAME_HISTORY_PAGE_SIZE } from '@/features/profile/hooks/useNameHistory'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import {
   type GetTldDataReturnType,
@@ -105,7 +106,9 @@ const TldRegistryRow = ({
 )
 
 const HistorySection = ({ tld }: { tld: string }) => {
-  const v2HistoryQuery = useQuery(getV2NameHistoryQueryOptions({ name: tld }))
+  const v2HistoryQuery = useQuery(
+    getV2NameHistoryQueryOptions({ name: tld, first: NAME_HISTORY_PAGE_SIZE }),
+  )
 
   if (v2HistoryQuery.isLoading) {
     return <LoadingSpinner title="Loading history..." />

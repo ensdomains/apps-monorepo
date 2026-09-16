@@ -27,25 +27,50 @@ describe('getSubnames', () => {
   })
 
   it('returns subnames using ensjs for sepolia network', async () => {
-    const mockSubnames = [
-      {
-        name: 'sub.test.eth',
-        labelName: 'sub',
-        labelhash: '0x1234',
-        owner: '0x1234567890123456789012345678901234567890',
-      },
-    ]
-    mockEnsjsGetSubnames.mockResolvedValue(mockSubnames)
+    const subname = {
+      name: 'sub.test.eth',
+      labelName: 'sub',
+      labelhash: '0x1234',
+      owner: '0x1234567890123456789012345678901234567890',
+    }
+    mockEnsjsGetSubnames.mockResolvedValue([{ ...subname, wrappedOwner: null }])
 
     const result = await getSubnames({
       name: 'test.eth',
       protocolVersion: 'ENSv1',
     })
 
-    expect(result._unsafeUnwrap()).toEqual(mockSubnames)
+    expect(result._unsafeUnwrap()).toEqual([subname])
     expect(mockEnsjsGetSubnames).toHaveBeenCalledWith(mockClient, {
       name: 'test.eth',
     })
+  })
+
+  // The registry slot of a wrapped name belongs to the NameWrapper contract.
+  it('reports the wrapper owner, not the NameWrapper, for a wrapped V1 subname', async () => {
+    mockEnsjsGetSubnames.mockResolvedValue([
+      {
+        name: 'sub.test.eth',
+        labelName: 'sub',
+        labelhash: '0x1234',
+        owner: '0x0635513f179D50A207757E05759CbD106d7dFcE8',
+        wrappedOwner: '0x1234567890123456789012345678901234567890',
+      },
+    ])
+
+    const result = await getSubnames({
+      name: 'test.eth',
+      protocolVersion: 'ENSv1',
+    })
+
+    expect(result._unsafeUnwrap()).toEqual([
+      {
+        name: 'sub.test.eth',
+        labelName: 'sub',
+        labelhash: '0x1234',
+        owner: '0x1234567890123456789012345678901234567890',
+      },
+    ])
   })
 
   it('returns subnames using graphql indexer for namechainSepolia', async () => {

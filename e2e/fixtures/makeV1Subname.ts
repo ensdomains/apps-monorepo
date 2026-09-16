@@ -1,16 +1,13 @@
 import {
   type Address,
-  type Hash,
   encodeFunctionData,
+  type Hash,
   namehash,
   parseAbi,
 } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import type { privateKeyToAccount } from 'viem/accounts'
 
-import {
-  publicClient,
-  walletClient,
-} from '../helpers/anvil-client.js'
+import { publicClient, walletClient } from '../helpers/anvil-client.js'
 import { V1_NAME_WRAPPER } from './makeV1Name.js'
 
 // ---------------------------------------------------------------------------

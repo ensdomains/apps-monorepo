@@ -1,7 +1,7 @@
 import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
+import { MS_PER_SECOND } from '@/features/renew/utils/nameExtension'
+import { toValidDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
-
-const MS_PER_SECOND = 1000
 
 /**
  * V1 roles - owner and manager for ENS V1 names
@@ -81,7 +81,7 @@ export const mergeNamesData = (
   const v1Transformed: MergedName[] = (v1Names || []).map(
     ({ name, expiryDate, relation }) => ({
       name,
-      expiryDate: expiryDate ? expiryDate.date : null,
+      expiryDate: toValidDate(expiryDate?.date),
       protocolVersion: 'ENSv1' as ProtocolVersion,
       roleBitmap: null,
       v1Roles: {
@@ -102,9 +102,9 @@ export const mergeNamesData = (
     return {
       name: item.name,
       expiryDate:
-        item.expiryDate !== null && item.expiryDate !== undefined
-          ? new Date(item.expiryDate * MS_PER_SECOND)
-          : null,
+        item.expiryDate == null
+          ? null
+          : toValidDate(new Date(item.expiryDate * MS_PER_SECOND)),
       protocolVersion: 'ENSv2' as ProtocolVersion,
       subdomainCount: hasSubdomainsArray
         ? item.subdomains.length

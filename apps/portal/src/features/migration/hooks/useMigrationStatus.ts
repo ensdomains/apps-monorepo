@@ -7,10 +7,17 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
-import { gql } from 'graphql-request'
+import { useQuery } from '@tanstack/react-query'
 import { err, fromPromise, ok } from 'neverthrow'
-import type { Address, PublicClient } from 'viem'
+import {
+  type Address,
+  isAddress,
+  isAddressEqual,
+  type PublicClient,
+} from 'viem'
+import { useConnection } from 'wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { gql } from '@/utils/subgraph/gql'
 
 /**
  * Migration status for a name, scoped to the connected wallet: whether it can
@@ -28,16 +35,22 @@ class GetMigrationStatusError extends TaggedError('GetMigrationStatusError')<{
 
 type GetMigrationStatusParameters = {
   name: string
-  /** The wallet to evaluate migratability for; the verdict is owner-scoped. */
-  address: Address | undefined
+  /**
+   * The wallet to evaluate migratability for. Omit for a name-scoped verdict:
+   * migratability is then evaluated against the name's own V1 token holder —
+   * wrappedOwner while the wrap is live, otherwise the Base Registrar
+   * registrant (the registry `owner` is the controller, which may be a
+   * different address, so it is only a last-resort fallback). Use the
+   * name-scoped form for surfaces shown to any visitor (e.g. the registry
+   * page's migrate prompt).
+   */
+  address?: Address
 }
 
 const getMigrationStatus = ResultFn(async function* ({
   name,
   address,
 }: GetMigrationStatusParameters) {
-  if (!address) return ok<MigrationStatus>({ migratable: false })
-
   const client = yield* safeGetClient()
   const subgraphClient = createSubgraphClient(client)
 
@@ -68,7 +81,16 @@ const getMigrationStatus = ResultFn(async function* ({
   const domain = domains[0] ?? null
   if (!domain) return ok<MigrationStatus>({ migratable: false })
 
-  const classified = classifyName(domain, address)
+  const holderCandidate =
+    address ??
+    domain.wrappedOwner?.id ??
+    domain.registrant?.id ??
+    domain.owner?.id
+  if (!holderCandidate || !isAddress(holderCandidate))
+    return ok<MigrationStatus>({ migratable: false })
+  const evaluationAddress = holderCandidate
+
+  const classified = classifyName(domain, evaluationAddress)
   if (classified?.type !== 'classified')
     return ok<MigrationStatus>({ migratable: false })
 
@@ -76,7 +98,7 @@ const getMigrationStatus = ResultFn(async function* ({
     runEligibilityChecks(
       client as unknown as PublicClient,
       [classified.name],
-      address,
+      evaluationAddress,
     ),
     (e) => new GetMigrationStatusError({ cause: e }),
   )
@@ -106,6 +128,39 @@ export const getMigrationStatusQueryOptions = (
   resultQueryOptions({
     queryKey: getMigrationStatusQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getMigrationStatus(params),
-    enabled: !!params.name && !!params.address,
+    enabled: !!params.name,
     retry: 2,
   })
+
+/**
+ * Migration status for the connected wallet.
+ *
+ * `isMigratableByConnectedOwner` is the answer every migration prompt wants:
+ * the name is migratable *and* this wallet holds the v1 token. A non-owner
+ * cannot migrate, so nothing should offer them the action.
+ *
+ * `enabled` exists because the read is not cheap: a subgraph request plus
+ * on-chain eligibility checks. Callers pass false for anything that is not a
+ * v1 name.
+ */
+export const useMigrationStatus = (
+  name: string,
+  { enabled = true }: { enabled?: boolean } = {},
+) => {
+  const { address } = useConnection()
+
+  const { data, isLoading, error } = useQuery({
+    ...getMigrationStatusQueryOptions({ name, address }),
+    enabled: enabled && !!address,
+  })
+
+  return {
+    data,
+    error,
+    isLoading,
+    isMigratableByConnectedOwner:
+      data?.migratable === true &&
+      !!address &&
+      isAddressEqual(address, data.tokenHolder),
+  }
+}

@@ -1,9 +1,9 @@
-import { expect, type Page } from '@playwright/test'
-import type { Address, Hash } from 'viem'
 import {
   type Web3ProviderBackend,
   Web3RequestKind,
 } from '@ensdomains/headless-web3-provider'
+import { expect, type Page } from '@playwright/test'
+import type { Address, Hash } from 'viem'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,11 +21,11 @@ export interface PortalAccounts {
 // ---------------------------------------------------------------------------
 
 /**
- * Connect the headless web3 wallet through the portal's RainbowKit modal.
+ * Connect the headless web3 wallet through the portal's connect dialog.
  *
  * Flow:
  *  1. Click the "Connect" button in the portal nav bar
- *  2. Select "Headless Web3 Provider" from the RainbowKit wallet list
+ *  2. Select "Headless Web3 Provider" from the wallet list
  *  3. Programmatically authorize the wallet_requestPermissions and eth_requestAccounts calls
  *
  * After this function resolves the wallet is connected and the page shows
@@ -36,32 +36,41 @@ export async function connectWithHeadlessWallet(
   wallet: Web3ProviderBackend,
 ): Promise<void> {
   // 1. Click the portal's Connect button
-  const connectButton = page.getByRole('button', { name: 'Connect', exact: true })
+  const connectButton = page.getByRole('button', {
+    name: 'Connect',
+    exact: true,
+  })
   await connectButton.waitFor({ state: 'visible', timeout: 15_000 })
   await connectButton.click()
 
-  // 2. Select "Headless Web3 Provider" from the RainbowKit modal
+  // 2. Select "Headless Web3 Provider" from the connect dialog
   const headlessOption = page.getByText('Headless Web3 Provider')
   await headlessOption.waitFor({ state: 'visible', timeout: 10_000 })
   await headlessOption.click()
 
-  // 3. RainbowKit asks the extension to confirm — authorize programmatically.
+  // 3. The dialog asks the extension to confirm — authorize programmatically.
   //    The headless provider queues RequestPermissions then RequestAccounts.
   await expect
-    .poll(() => wallet.getPendingRequestCount(Web3RequestKind.RequestPermissions), {
-      timeout: 15_000,
-    })
+    .poll(
+      () => wallet.getPendingRequestCount(Web3RequestKind.RequestPermissions),
+      {
+        timeout: 15_000,
+      },
+    )
     .toBeGreaterThanOrEqual(1)
   await wallet.authorize(Web3RequestKind.RequestPermissions)
 
   await expect
-    .poll(() => wallet.getPendingRequestCount(Web3RequestKind.RequestAccounts), {
-      timeout: 15_000,
-    })
+    .poll(
+      () => wallet.getPendingRequestCount(Web3RequestKind.RequestAccounts),
+      {
+        timeout: 15_000,
+      },
+    )
     .toBeGreaterThanOrEqual(1)
   await wallet.authorize(Web3RequestKind.RequestAccounts)
 
-  // Wait until RainbowKit shows the connected state (the Connect button disappears)
+  // Wait until the nav shows the connected state (the Connect button disappears)
   await expect(connectButton).not.toBeVisible({ timeout: 15_000 })
 }
 

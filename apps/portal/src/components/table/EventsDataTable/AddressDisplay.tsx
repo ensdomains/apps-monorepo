@@ -34,6 +34,7 @@ export const AddressDisplay = ({
       name={ensName ?? undefined}
       address={address}
       showAvatar
+      format="truncate"
     >
       {displayName}
     </EntityBadge>

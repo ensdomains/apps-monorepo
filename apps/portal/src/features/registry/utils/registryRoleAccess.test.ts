@@ -1,7 +1,7 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
-import type { RegistryRoleRow } from '../hooks/useRegistryRoles'
+import type { RootRoleHolder } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import {
   computeRoleDiff,
   getAccountAdminRoles,
@@ -17,7 +17,7 @@ const CAROL = '0xcCCccCCCCCcCcCCCcCcccCcCcCCCCccCcccCccCC' as Address
 
 const rows = (
   entries: Array<{ account: Address; roles: Role[] }>,
-): RegistryRoleRow[] => entries
+): RootRoleHolder[] => entries
 
 describe('isAdminRole', () => {
   it('detects the _ADMIN suffix', () => {

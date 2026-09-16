@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { LoadingMessage } from '@/components/LoadingMessage'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Button } from '@/components/ui/button'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
@@ -12,7 +12,8 @@ import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useRe
 
 /**
  * Read-only resolver roles for a name's resolver, for embedding on a name page.
- * Management happens on the resolver page itself, so the slider is disabled here.
+ * Management happens on the resolver page itself, so the slider is disabled here
+ * and a "View and manage" link points there instead.
  */
 export const NameResolverRolesOverviewTable = ({ name }: { name: string }) => {
   const {
@@ -21,7 +22,7 @@ export const NameResolverRolesOverviewTable = ({ name }: { name: string }) => {
     error,
   } = useNameResolverAddress({ name })
 
-  if (isLoading) return <LoadingMessage />
+  if (isLoading) return <LoadingSpinner title="Loading resolver roles..." />
 
   if (error)
     return (
@@ -60,7 +61,7 @@ const ResolverRolesOverview = ({
     error,
   } = useQuery(getResolverOverviewQueryOptions({ address: resolverAddress }))
 
-  if (isLoading) return <LoadingMessage />
+  if (isLoading) return <LoadingSpinner title="Loading resolver roles..." />
 
   if (error)
     return (
@@ -74,15 +75,17 @@ const ResolverRolesOverview = ({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-caps leading-none">{name} resolver roles</h3>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h3 className="text-caps leading-none min-w-0 break-words">
+          {name} resolver / roles
+        </h3>
         <Button className="text-muted-foreground" variant="ghost" asChild>
           <Link
             params={{ address: resolverAddress }}
             to="/resolver/$address/roles"
           >
             <ArrowUpRight className="size-5" />
-            View
+            View and manage
           </Link>
         </Button>
       </div>

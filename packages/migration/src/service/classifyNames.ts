@@ -30,6 +30,10 @@ export type MigrationTokenType =
   | 'locked-child'
   | 'detached-child'
 
+export type CopyTokenType = 'unlocked-child' | 'registry-child'
+
+export type CopySource = 'name-wrapper' | 'registry'
+
 export type IneligibleReason =
   | 'unlocked-subname'
   | 'expired-registration'
@@ -39,31 +43,45 @@ export type IneligibleReason =
   | 'frozen-approval'
   | 'already-migrated'
   | 'unknown-label'
+  | 'invalid-label'
+  | 'unsupported-resolver'
 
 export type IneligibleName = {
   readonly domain: V1Domain
   readonly reason: IneligibleReason
 }
 
-type ResolverStrategy = 'keep-v1' | 'to-owned-permres'
+export type ResolverStrategy = 'keep-v1' | 'to-owned-permres'
 
-export type ClassifiedName = {
+type ClassifiedNameBase = {
   readonly domain: V1Domain
-  readonly tokenType: MigrationTokenType
   readonly label: string
   readonly parentName: string | null
   readonly fuses: bigint
   readonly tokenHolder: Address
   readonly v1ResolverAddress: string | null
+}
+
+export type DirectClassifiedName = ClassifiedNameBase & {
+  readonly action: 'migrate'
+  readonly tokenType: MigrationTokenType
   readonly resolverStrategy: ResolverStrategy
   readonly managerAddress: Address | null
 }
 
+export type CopyClassifiedName = ClassifiedNameBase & {
+  readonly action: 'copy'
+  readonly tokenType: CopyTokenType
+  readonly copySource: CopySource
+  readonly sourceExpiry: bigint
+  readonly resolverStrategy: 'to-owned-permres'
+  readonly managerAddress: null
+}
+
+export type ClassifiedName = DirectClassifiedName | CopyClassifiedName
+
 export const hasFuse = (fuses: bigint, fuse: bigint): boolean =>
   (fuses & fuse) !== 0n
-
-export const is2LD = (name: ClassifiedName): boolean =>
-  ['unwrapped', 'unlocked', 'locked-2ld'].includes(name.tokenType)
 
 const resolverStrategyFor = (params: {
   tokenType: MigrationTokenType
@@ -76,7 +94,11 @@ const resolverStrategyFor = (params: {
     (tokenType === 'locked-2ld' || tokenType === 'locked-child') &&
     hasFuse(fuses, FUSES.CANNOT_SET_RESOLVER)
 
-  if (cannotSetResolverLocked && v1ResolverAddress) {
+  // LockedWrapperReceiver ignores the resolver supplied in Migration.Data when
+  // CANNOT_SET_RESOLVER is burned. It always reads the V1 registry instead,
+  // including preserving address(0), so this path can never move to the HCA
+  // resolver even when there is no existing resolver.
+  if (cannotSetResolverLocked) {
     return 'keep-v1'
   }
 
@@ -93,12 +115,30 @@ type ClassifyResult =
   | null
 
 const UNKNOWN_LABEL_PATTERN = /\[[0-9a-fA-F]{64}\]/
+const MAX_UINT64 = (1n << 64n) - 1n
+
 const hasUnknownLabel = (domain: V1Domain): boolean => {
   if (!domain.labelName) return true
   if (UNKNOWN_LABEL_PATTERN.test(domain.labelName)) return true
   if (UNKNOWN_LABEL_PATTERN.test(domain.name)) return true
   return false
 }
+
+const isValidLabel = (label: string): boolean => {
+  const byteLength = new TextEncoder().encode(label).length
+  return byteLength > 0 && byteLength <= 255 && !label.includes('.')
+}
+
+const isDotEthSubname = (
+  domain: V1Domain,
+  parentName: string | null,
+): parentName is string =>
+  parentName !== null &&
+  parentName !== 'eth' &&
+  domain.name.toLowerCase().endsWith('.eth')
+
+const hasSupportedCopyResolver = (resolverAddress: string | null): boolean =>
+  resolverAddress === null || isKnownPublicResolver(resolverAddress)
 
 const hasExpiredDotEthRegistration = (
   domain: V1Domain,
@@ -121,117 +161,108 @@ const hasExpiredDotEthRegistration = (
   return false
 }
 
-export const classifyName = (
+type ClassificationContext = {
+  readonly domain: V1Domain
+  readonly label: string
+  readonly ownerAddressLower: string
+  readonly parentName: string | null
+  readonly v1ResolverAddress: string | null
+  readonly nowSeconds: bigint
+}
+
+const ineligible = (
   domain: V1Domain,
-  ownerAddress: Address,
+  reason: IneligibleReason,
+): ClassifyResult => ({ type: 'ineligible', name: { domain, reason } })
+
+const classifyWithoutActiveWrapper = (
+  context: ClassificationContext,
 ): ClassifyResult => {
-  if (hasUnknownLabel(domain)) {
-    return { type: 'ineligible', name: { domain, reason: 'unknown-label' } }
-  }
-  const label = domain.labelName
-  if (!label) return null
+  const {
+    domain,
+    label,
+    ownerAddressLower,
+    parentName,
+    v1ResolverAddress,
+    nowSeconds,
+  } = context
 
-  const parentName = domain.parent?.name ?? null
-  const addr = ownerAddress.toLowerCase()
-  const v1ResolverAddress = domain.resolver?.address ?? null
-  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
-  const wrappedOwner = domain.wrappedOwner
-  const wrappedOwnerMatches = wrappedOwner?.id.toLowerCase() === addr
-  const effectiveWrappedDomain =
-    domain.wrappedDomain &&
-    (BigInt(domain.wrappedDomain.expiryDate) > nowSeconds ||
-      wrappedOwnerMatches)
-      ? domain.wrappedDomain
-      : null
-
-  if (!effectiveWrappedDomain) {
-    const registrant = domain.registrant
-    if (registrant?.id.toLowerCase() !== addr) return null
-    if (parentName !== 'eth') return null
-    if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
-      return {
-        type: 'ineligible',
-        name: { domain, reason: 'expired-registration' },
-      }
+  if (isDotEthSubname(domain, parentName)) {
+    const registryOwner = toAddress(domain.owner.id)
+    if (!registryOwner || registryOwner.toLowerCase() !== ownerAddressLower) {
+      return null
     }
-
-    const tokenHolder = toAddress(registrant.id)
-    if (!tokenHolder) return null
-
-    const registryOwnerAddress = toAddress(domain.owner.id)
-    const managerAddress: Address | null =
-      registryOwnerAddress &&
-      registryOwnerAddress.toLowerCase() !== registrant.id.toLowerCase()
-        ? registryOwnerAddress
-        : null
-
+    if (!hasSupportedCopyResolver(v1ResolverAddress)) {
+      return ineligible(domain, 'unsupported-resolver')
+    }
     return {
       type: 'classified',
       name: {
+        action: 'copy',
         domain,
-        tokenType: 'unwrapped',
+        tokenType: 'registry-child',
+        copySource: 'registry',
+        sourceExpiry: MAX_UINT64,
         label,
         parentName,
         fuses: 0n,
-        tokenHolder,
+        tokenHolder: registryOwner,
         v1ResolverAddress,
-        resolverStrategy: resolverStrategyFor({
-          tokenType: 'unwrapped',
-          fuses: 0n,
-          v1ResolverAddress,
-        }),
-        managerAddress,
+        resolverStrategy: 'to-owned-permres',
+        managerAddress: null,
       },
     }
   }
 
-  if (!wrappedOwner || !wrappedOwnerMatches) return null
-
-  const fuses = BigInt(effectiveWrappedDomain.fuses)
-  const wrappedHolder = toAddress(wrappedOwner.id)
-  if (!wrappedHolder) return null
+  const registrant = domain.registrant
+  if (registrant?.id.toLowerCase() !== ownerAddressLower) return null
+  if (parentName !== 'eth') return null
   if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
-    return {
-      type: 'ineligible',
-      name: { domain, reason: 'expired-registration' },
-    }
+    return ineligible(domain, 'expired-registration')
   }
 
-  if (!hasFuse(fuses, FUSES.CANNOT_UNWRAP)) {
-    if (parentName !== 'eth') {
-      if (
-        hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL) &&
-        parentName &&
-        domain.parent?.wrappedDomain &&
-        hasFuse(BigInt(domain.parent.wrappedDomain.fuses), FUSES.CANNOT_UNWRAP)
-      ) {
-        return {
-          type: 'classified',
-          name: {
-            domain,
-            tokenType: 'detached-child',
-            label,
-            parentName,
-            fuses,
-            tokenHolder: wrappedHolder,
-            v1ResolverAddress,
-            resolverStrategy: resolverStrategyFor({
-              tokenType: 'detached-child',
-              fuses,
-              v1ResolverAddress,
-            }),
-            managerAddress: null,
-          },
-        }
-      }
-      return {
-        type: 'ineligible',
-        name: { domain, reason: 'unlocked-subname' },
-      }
-    }
+  const tokenHolder = toAddress(registrant.id)
+  if (!tokenHolder) return null
+  const registryOwnerAddress = toAddress(domain.owner.id)
+  const managerAddress =
+    registryOwnerAddress &&
+    registryOwnerAddress.toLowerCase() !== registrant.id.toLowerCase()
+      ? registryOwnerAddress
+      : null
+
+  return {
+    type: 'classified',
+    name: {
+      action: 'migrate',
+      domain,
+      tokenType: 'unwrapped',
+      label,
+      parentName,
+      fuses: 0n,
+      tokenHolder,
+      v1ResolverAddress,
+      resolverStrategy: resolverStrategyFor({
+        tokenType: 'unwrapped',
+        fuses: 0n,
+        v1ResolverAddress,
+      }),
+      managerAddress,
+    },
+  }
+}
+
+const classifyUnlockedWrapper = (
+  context: ClassificationContext,
+  wrappedDomain: NonNullable<V1Domain['wrappedDomain']>,
+  wrappedHolder: Address,
+  fuses: bigint,
+): ClassifyResult => {
+  const { domain, label, parentName, v1ResolverAddress, nowSeconds } = context
+  if (parentName === 'eth') {
     return {
       type: 'classified',
       name: {
+        action: 'migrate',
         domain,
         tokenType: 'unlocked',
         label,
@@ -248,35 +279,154 @@ export const classifyName = (
       },
     }
   }
+  if (!parentName) return ineligible(domain, 'missing-parent')
 
-  if (hasFuse(fuses, FUSES.CANNOT_TRANSFER)) {
-    return { type: 'ineligible', name: { domain, reason: 'not-transferable' } }
+  const parentFuses = domain.parent?.wrappedDomain?.fuses
+  if (
+    hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL) &&
+    parentFuses !== undefined &&
+    hasFuse(BigInt(parentFuses), FUSES.CANNOT_UNWRAP)
+  ) {
+    return {
+      type: 'classified',
+      name: {
+        action: 'migrate',
+        domain,
+        tokenType: 'detached-child',
+        label,
+        parentName,
+        fuses,
+        tokenHolder: wrappedHolder,
+        v1ResolverAddress,
+        resolverStrategy: resolverStrategyFor({
+          tokenType: 'detached-child',
+          fuses,
+          v1ResolverAddress,
+        }),
+        managerAddress: null,
+      },
+    }
   }
-  if (!parentName) {
-    return { type: 'ineligible', name: { domain, reason: 'missing-parent' } }
+  if (!isDotEthSubname(domain, parentName)) return null
+
+  const sourceExpiry = BigInt(wrappedDomain.expiryDate)
+  // Parent-controlled NameWrapper subnames may retain an unset zero expiry.
+  // Once emancipated, the same value is already expired.
+  const hasNoIndependentExpiry =
+    sourceExpiry === 0n && !hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL)
+  if (!hasNoIndependentExpiry && sourceExpiry <= nowSeconds) {
+    return ineligible(domain, 'expired-registration')
   }
-
-  const lockedTokenType: MigrationTokenType =
-    parentName === 'eth' ? 'locked-2ld' : 'locked-child'
-
+  if (!hasSupportedCopyResolver(v1ResolverAddress)) {
+    return ineligible(domain, 'unsupported-resolver')
+  }
   return {
     type: 'classified',
     name: {
+      action: 'copy',
       domain,
-      tokenType: lockedTokenType,
+      tokenType: 'unlocked-child',
+      copySource: 'name-wrapper',
+      sourceExpiry,
+      label,
+      parentName,
+      fuses,
+      tokenHolder: wrappedHolder,
+      v1ResolverAddress,
+      resolverStrategy: 'to-owned-permres',
+      managerAddress: null,
+    },
+  }
+}
+
+const classifyLockedWrapper = (
+  context: ClassificationContext,
+  wrappedHolder: Address,
+  fuses: bigint,
+): ClassifyResult => {
+  const { domain, label, parentName, v1ResolverAddress } = context
+  if (hasFuse(fuses, FUSES.CANNOT_TRANSFER)) {
+    return ineligible(domain, 'not-transferable')
+  }
+  if (!parentName) return ineligible(domain, 'missing-parent')
+
+  const tokenType: MigrationTokenType =
+    parentName === 'eth' ? 'locked-2ld' : 'locked-child'
+  return {
+    type: 'classified',
+    name: {
+      action: 'migrate',
+      domain,
+      tokenType,
       label,
       parentName,
       fuses,
       tokenHolder: wrappedHolder,
       v1ResolverAddress,
       resolverStrategy: resolverStrategyFor({
-        tokenType: lockedTokenType,
+        tokenType,
         fuses,
         v1ResolverAddress,
       }),
       managerAddress: null,
     },
   }
+}
+
+const classifyActiveWrapper = (
+  context: ClassificationContext,
+  wrappedDomain: NonNullable<V1Domain['wrappedDomain']>,
+): ClassifyResult => {
+  const { domain, ownerAddressLower, parentName, nowSeconds } = context
+  const wrappedOwner = domain.wrappedOwner
+  if (!wrappedOwner || wrappedOwner.id.toLowerCase() !== ownerAddressLower) {
+    return null
+  }
+  const wrappedHolder = toAddress(wrappedOwner.id)
+  if (!wrappedHolder) return null
+  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
+    return ineligible(domain, 'expired-registration')
+  }
+
+  const fuses = BigInt(wrappedDomain.fuses)
+  return hasFuse(fuses, FUSES.CANNOT_UNWRAP)
+    ? classifyLockedWrapper(context, wrappedHolder, fuses)
+    : classifyUnlockedWrapper(context, wrappedDomain, wrappedHolder, fuses)
+}
+
+export const classifyName = (
+  domain: V1Domain,
+  ownerAddress: Address,
+): ClassifyResult => {
+  if (hasUnknownLabel(domain)) return ineligible(domain, 'unknown-label')
+  const label = domain.labelName
+  if (!label) return null
+  if (!isValidLabel(label)) {
+    return { type: 'ineligible', name: { domain, reason: 'invalid-label' } }
+  }
+
+  const ownerAddressLower = ownerAddress.toLowerCase()
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+  const context: ClassificationContext = {
+    domain,
+    label,
+    ownerAddressLower,
+    parentName: domain.parent?.name ?? null,
+    v1ResolverAddress: domain.resolver?.address ?? null,
+    nowSeconds,
+  }
+  const wrappedOwnerMatches =
+    domain.wrappedOwner?.id.toLowerCase() === ownerAddressLower
+  const wrappedDomain =
+    domain.wrappedDomain &&
+    (BigInt(domain.wrappedDomain.expiryDate) > nowSeconds ||
+      wrappedOwnerMatches)
+      ? domain.wrappedDomain
+      : null
+
+  return wrappedDomain
+    ? classifyActiveWrapper(context, wrappedDomain)
+    : classifyWithoutActiveWrapper(context)
 }
 
 export type ClassifyNamesResult = {
@@ -288,13 +438,51 @@ export const classifyNames = (
   domains: V1Domain[],
   ownerAddress: Address,
 ): ClassifyNamesResult => {
+  const results = domains.map((domain) => classifyName(domain, ownerAddress))
+  const classifiedByName = new Map<string, ClassifiedName>()
+
+  for (const result of results) {
+    if (result?.type === 'classified') {
+      classifiedByName.set(result.name.domain.name.toLowerCase(), result.name)
+    }
+  }
+
+  const hasCompleteCopyRoute = (name: CopyClassifiedName): boolean => {
+    const visited = new Set<string>()
+    let parentName: string | null = name.parentName
+
+    while (parentName && parentName !== 'eth') {
+      const key = parentName.toLowerCase()
+      if (visited.has(key)) return false
+      visited.add(key)
+
+      const parent = classifiedByName.get(key)
+      if (!parent) return false
+      if (parent.action === 'migrate') {
+        return (
+          parent.parentName === 'eth' &&
+          (parent.tokenType === 'unwrapped' || parent.tokenType === 'unlocked')
+        )
+      }
+      parentName = parent.parentName
+    }
+
+    return false
+  }
+
   const classified: ClassifiedName[] = []
   const ineligible: IneligibleName[] = []
 
-  for (const domain of domains) {
-    const result = classifyName(domain, ownerAddress)
+  for (const result of results) {
     if (!result) continue
     if (result.type === 'classified') {
+      if (result.name.action === 'copy' && !hasCompleteCopyRoute(result.name)) {
+        ineligible.push({
+          domain: result.name.domain,
+          reason: 'missing-parent',
+        })
+        continue
+      }
       classified.push(result.name)
     } else {
       ineligible.push(result.name)
@@ -302,43 +490,4 @@ export const classifyNames = (
   }
 
   return { classified, ineligible }
-}
-
-export type GroupedNames = {
-  readonly unwrapped: readonly ClassifiedName[]
-  readonly unlocked: readonly ClassifiedName[]
-  readonly locked2ld: readonly ClassifiedName[]
-  readonly childNames: ReadonlyMap<string, readonly ClassifiedName[]>
-}
-
-export const groupClassifiedNames = (names: ClassifiedName[]): GroupedNames => {
-  const unwrapped: ClassifiedName[] = []
-  const unlocked: ClassifiedName[] = []
-  const locked2ld: ClassifiedName[] = []
-  const childNames = new Map<string, ClassifiedName[]>()
-
-  for (const name of names) {
-    switch (name.tokenType) {
-      case 'unwrapped':
-        unwrapped.push(name)
-        break
-      case 'unlocked':
-        unlocked.push(name)
-        break
-      case 'locked-2ld':
-        locked2ld.push(name)
-        break
-      case 'locked-child':
-      case 'detached-child': {
-        const parent = name.parentName
-        if (!parent) break
-        const existing = childNames.get(parent) ?? []
-        existing.push(name)
-        childNames.set(parent, existing)
-        break
-      }
-    }
-  }
-
-  return { unwrapped, unlocked, locked2ld, childNames }
 }

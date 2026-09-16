@@ -1,5 +1,10 @@
+import {
+  createPlainClient,
+  EmptyGraphQLResponseError,
+  graphqlRequest,
+} from '@ens-apps/indexer/urql/request'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { ClientError, gql, request } from 'graphql-request'
+import { CombinedError, gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import * as v from 'valibot'
 import { logger } from '#utils/logger.js'
@@ -16,7 +21,7 @@ const expiringNamesQuery = gql`
       where: { expiry_gt: $cursor, expiry_lte: $upper_bound }
       orderBy: expiryDate
       orderDirection: asc
-      first: ${PAGE_SIZE}
+      first: ${String(PAGE_SIZE)}
     ) {
       name
       expiryDate
@@ -70,13 +75,25 @@ function toRetryDelayMs(attempt: number): number {
   return BASE_RETRY_DELAY_MS * 2 ** (attempt - 1) + jitter
 }
 
-function isRetryableRequestError(error: unknown): boolean {
-  if (error instanceof ClientError) {
-    const status = error.response.status
-    return status === 429 || status >= 500
-  }
+/**
+ * `CombinedError.response` is whatever the exchange put there — a `Response`
+ * for the fetch exchange we use, but urql neither types nor guarantees it — so
+ * read the status defensively and fall back to "retryable" when it's absent.
+ */
+function responseStatus(error: unknown): number | undefined {
+  if (!(error instanceof CombinedError)) return undefined
+  const status = (error.response as { status?: unknown } | undefined)?.status
+  return typeof status === 'number' ? status : undefined
+}
 
-  return true
+function isRetryableRequestError(error: unknown): boolean {
+  // A successful request that carried no `data` returns the same empty payload
+  // however many times it's re-sent.
+  if (error instanceof EmptyGraphQLResponseError) return false
+
+  const status = responseStatus(error)
+  if (status === undefined) return true
+  return status === 429 || status >= 500
 }
 
 async function wait(ms: number): Promise<void> {
@@ -97,13 +114,16 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
   attempt: number
 }) {
   const rawResponse = yield* fromPromise(
-    request(getIndexerUrl(ctx.env), expiringNamesQuery, {
-      cursor: ctx.cursor,
-      upper_bound: ctx.upperBound,
-    } satisfies ExpiringNamesQueryVariables),
+    graphqlRequest(
+      createPlainClient(getIndexerUrl(ctx.env)),
+      expiringNamesQuery,
+      {
+        cursor: ctx.cursor,
+        upper_bound: ctx.upperBound,
+      } satisfies ExpiringNamesQueryVariables,
+    ),
     (error) => {
-      const status =
-        error instanceof ClientError ? error.response.status : undefined
+      const status = responseStatus(error)
 
       return new IndexerRequestError({
         message: `Indexer query failed for stage ${ctx.stage.id}`,

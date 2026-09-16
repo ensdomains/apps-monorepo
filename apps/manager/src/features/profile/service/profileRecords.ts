@@ -1,5 +1,5 @@
 import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
-import indexerClient from '@ens-apps/indexer/urql'
+import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -11,6 +11,7 @@ import {
 import { fromPromise, fromThrowable, ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { isDebugProfileName } from '@/utils/debug-features'
 import {
   addressRecords,
   alwaysProbeAddressRecords,
@@ -45,17 +46,11 @@ function fetchIndexerDomain(name: string): Promise<DomainQuery> {
   const existing = indexerDomainInflight.get(name)
   if (existing) return existing
 
-  const promise = indexerClient
-    .query<DomainQuery>(DomainDocument, { id: name })
-    .toPromise()
-    .then((result) => {
-      if (result.error) throw result.error
-      if (!result.data) throw new Error('Indexer query returned no data')
-      return result.data
-    })
-    .finally(() => {
-      indexerDomainInflight.delete(name)
-    })
+  const promise = graphqlRequest<DomainQuery>(indexerClient, DomainDocument, {
+    id: name,
+  }).finally(() => {
+    indexerDomainInflight.delete(name)
+  })
 
   indexerDomainInflight.set(name, promise)
   return promise
@@ -80,7 +75,7 @@ const isSupportedCoinType = (coinType: number): boolean =>
   safeGetCoderFromCoin(coinType).isOk()
 
 export const getProfileRecords = ResultFn(async function* (name: string) {
-  if (name === 'debug') {
+  if (isDebugProfileName(name)) {
     return ok({
       ...DEBUG_PROFILE,
       _rawSubgraphRecords: {

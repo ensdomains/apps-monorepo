@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro'
+import { Plural, Trans } from '@lingui/react/macro'
 import {
   Dialog,
   DialogContent,
@@ -7,7 +7,12 @@ import {
 } from '@/components/ui/dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
-import { shouldShowPlainMigrationSuccess } from './MigrationSuccessDialog.helpers'
+import { cn } from '@/lib/utils'
+import { MigrationPrimaryButton } from './MigrationPrimaryButton'
+import {
+  shouldHideCommemorativeNftDialog,
+  shouldShowPlainMigrationSuccess,
+} from './MigrationSuccessDialog.helpers'
 import { CommemorativeNftCard } from './success/CommemorativeNftCard'
 import type { MigrationSuccessDialogState } from './success/MigrationSuccessDialog.types'
 
@@ -15,58 +20,76 @@ type MigrationSuccessDialogProps = {
   readonly context: 'migration' | 'mint-later'
   readonly open: boolean
   readonly state: MigrationSuccessDialogState
+  readonly migratedNameCount: number
   readonly canMint: boolean
   readonly onClose: () => void
   readonly onMint: () => void
   readonly onRetry: () => void
-  readonly onRevealComplete: () => void
   readonly onViewProfile: () => void
 }
 
 const DialogHeading = ({
   context,
-  showPlainMigrationSuccess,
+  state,
 }: {
   readonly context: MigrationSuccessDialogProps['context']
-  readonly showPlainMigrationSuccess: boolean
+  readonly state: MigrationSuccessDialogState
 }) => (
-  <div className="flex w-full shrink-0 flex-col items-start gap-3 pt-3 pr-8">
-    <DialogTitle className="font-normal text-[34px] text-ens-garnet-900 leading-[1.04] tracking-[-0.68px]">
+  <div className="flex w-full max-w-[486px] shrink-0 flex-col items-center gap-2 text-center md:gap-4">
+    <DialogTitle className="w-full text-balance font-normal font-serif text-[20px] text-ens-garnet-900 leading-[1.1] tracking-[-0.02em] md:text-[32px]">
       {context === 'migration' ? (
         <Trans>Your name(s) have been upgraded!</Trans>
       ) : (
         <Trans>Your ENSv2 moment is waiting</Trans>
       )}
     </DialogTitle>
-    <DialogDescription className="font-normal text-[15px] text-ens-garnet-500 leading-[1.3] tracking-[0.08px]">
-      {showPlainMigrationSuccess ? (
-        <Trans>Continue to profile</Trans>
+    <DialogDescription className="max-w-[400px] font-normal font-sans text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.01em]">
+      {state.status === 'loadingEligibility' ? (
+        <Trans>
+          Here&apos;s a gift to celebrate your upgrade to the next era of ENS
+        </Trans>
       ) : (
         <Trans>
-          You&apos;re among the first on ENSv2. This NFT marks the moment.
+          Congratulations, you&apos;re among the first on ENSv2. This
+          personalized NFT marks the moment.
         </Trans>
       )}
     </DialogDescription>
   </div>
 )
 
-const PrimaryButton = ({
-  children,
-  disabled,
-  onClick,
+const PlainMigrationSuccessContent = ({
+  migratedNameCount,
+  onOpenDashboard,
 }: {
-  readonly children: React.ReactNode
-  readonly disabled?: boolean
-  readonly onClick: () => void
+  readonly migratedNameCount: number
+  readonly onOpenDashboard: () => void
 }) => (
-  <button
-    className="flex min-h-12 w-full items-center justify-center rounded-xs bg-ens-garnet-900 px-5 py-3 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[0.1em] shadow-[inset_0_-3px_0_rgba(0,0,0,0.3)] transition hover:bg-ens-garnet-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45"
-    disabled={disabled}
-    onClick={onClick}
-    type="button"
-  >
-    {children}
-  </button>
+  <div className="flex w-full flex-col items-center text-center">
+    <DialogTitle className="max-w-sm text-balance font-normal text-[30px] text-ens-garnet-900 leading-[1.05] tracking-[-0.03em] sm:text-[34px]">
+      <Plural
+        one="Your name has been upgraded!"
+        other="Your names have been upgraded!"
+        value={migratedNameCount}
+      />
+    </DialogTitle>
+    <DialogDescription className="mt-3 max-w-80 text-pretty font-normal text-[15px] text-ens-garnet-800/75 leading-[1.45]">
+      <Trans>Manage your newly upgraded names from the dashboard.</Trans>
+    </DialogDescription>
+
+    <div className="mt-8 flex w-full justify-center">
+      <MigrationPrimaryButton onClick={onOpenDashboard}>
+        <span className="flex items-center gap-2">
+          <Trans>Go to dashboard</Trans>
+          <MSymbol
+            aria-hidden
+            className="text-[20px] transition-transform duration-150 ease-out group-hover/button:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none"
+            symbol="arrow_forward"
+          />
+        </span>
+      </MigrationPrimaryButton>
+    </div>
+  </div>
 )
 
 const SecondaryButton = ({
@@ -77,7 +100,7 @@ const SecondaryButton = ({
   readonly onClick: () => void
 }) => (
   <button
-    className="min-h-10 px-4 font-semi-mono text-ens-garnet-500 text-xs uppercase tracking-[0.1em] transition-opacity hover:opacity-65"
+    className="min-h-11 rounded-xl px-4 py-3 font-medium font-sans text-ens-garnet-900 text-sm uppercase tracking-[0.1em] transition-opacity hover:opacity-65 focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2 motion-reduce:transition-none"
     onClick={onClick}
     type="button"
   >
@@ -91,55 +114,11 @@ const StatusContent = ({
   onClose,
   onMint,
   onRetry,
-  onRevealComplete,
   onViewProfile,
-  showPlainMigrationSuccess,
-}: Omit<MigrationSuccessDialogProps, 'context' | 'open'> & {
-  readonly showPlainMigrationSuccess: boolean
-}) => {
-  if (state.status === 'ineligible') {
-    return (
-      <div className="flex min-h-86 w-full flex-col items-center justify-center gap-5 px-4 text-center">
-        <div className="flex size-14 items-center justify-center rounded-full bg-white/60 text-ens-garnet-500">
-          <MSymbol className="text-[28px]" symbol="info" />
-        </div>
-        <div className="max-w-80 space-y-2">
-          <p className="font-sans text-ens-garnet-900 text-xl">
-            <Trans>This address is not in the commemorative snapshot.</Trans>
-          </p>
-          <p className="font-sans text-ens-garnet-500 text-sm leading-relaxed">
-            <Trans>
-              Eligibility was frozen on June 1 and is limited to one NFT per
-              address.
-            </Trans>
-          </p>
-        </div>
-        <a
-          className="font-semi-mono text-ens-garnet-500 text-xs uppercase tracking-[0.12em] underline underline-offset-4"
-          href="/migration/nft"
-        >
-          <Trans>Learn about eligibility</Trans>
-        </a>
-        <PrimaryButton onClick={onViewProfile}>
-          <Trans>Continue to profile</Trans>
-        </PrimaryButton>
-      </div>
-    )
-  }
-
-  if (showPlainMigrationSuccess) {
-    return (
-      <div className="flex min-h-86 w-full flex-col items-center justify-center gap-5 px-4 text-center">
-        <div className="flex size-14 items-center justify-center rounded-full bg-white/60 text-ens-garnet-500">
-          <MSymbol className="text-[28px]" symbol="check" />
-        </div>
-        <PrimaryButton onClick={onViewProfile}>
-          <Trans>Continue to profile</Trans>
-        </PrimaryButton>
-      </div>
-    )
-  }
-
+}: Omit<
+  MigrationSuccessDialogProps,
+  'context' | 'migratedNameCount' | 'open'
+>) => {
   if (state.status === 'error' && !state.card) {
     return (
       <div className="flex min-h-86 w-full flex-col items-center justify-center gap-5 px-4 text-center">
@@ -150,52 +129,63 @@ const StatusContent = ({
           {state.message}
         </p>
         {state.stage === 'eligibility' ? (
-          <PrimaryButton onClick={onRetry}>
+          <MigrationPrimaryButton onClick={onRetry}>
             <Trans>Try again</Trans>
-          </PrimaryButton>
+          </MigrationPrimaryButton>
         ) : (
-          <PrimaryButton onClick={onViewProfile}>
+          <MigrationPrimaryButton onClick={onViewProfile}>
             <Trans>Continue to profile</Trans>
-          </PrimaryButton>
+          </MigrationPrimaryButton>
         )}
       </div>
     )
   }
 
   return (
-    <div className="flex w-full flex-col items-center gap-4">
-      <CommemorativeNftCard onRevealComplete={onRevealComplete} state={state} />
+    <div className="flex w-full max-w-[486px] flex-col items-center gap-4 md:gap-6">
+      <CommemorativeNftCard state={state} variant="dialog" />
 
       <div className="flex w-full flex-col items-center gap-1">
-        {state.status === 'loadingEligibility' ||
-        state.status === 'revealing' ? (
-          <p
-            aria-live="polite"
-            className="py-3 font-semi-mono text-ens-garnet-500 text-xs uppercase tracking-[0.12em]"
-          >
-            <Trans>Preparing your commemorative NFT…</Trans>
-          </p>
+        {state.status === 'loadingEligibility' ? (
+          <>
+            <MigrationPrimaryButton disabled onClick={onMint}>
+              <Trans>Mint</Trans>
+              <MSymbol
+                aria-hidden
+                className="text-lg leading-none"
+                symbol="spa"
+              />
+            </MigrationPrimaryButton>
+            <SecondaryButton onClick={onClose}>
+              <Trans>Later</Trans>
+            </SecondaryButton>
+          </>
         ) : null}
 
         {state.status === 'readyToMint' ? (
           <>
-            <PrimaryButton disabled={!canMint} onClick={onMint}>
-              {canMint ? <Trans>Mint NFT</Trans> : <Trans>Preview only</Trans>}
-            </PrimaryButton>
+            <MigrationPrimaryButton disabled={!canMint} onClick={onMint}>
+              <Trans>Mint</Trans>
+              <MSymbol
+                aria-hidden
+                className="text-lg leading-none"
+                symbol="spa"
+              />
+            </MigrationPrimaryButton>
             <SecondaryButton onClick={onClose}>
-              <Trans>Maybe later</Trans>
+              <Trans>Later</Trans>
             </SecondaryButton>
           </>
         ) : null}
 
         {state.status === 'minting' ? (
           <>
-            <PrimaryButton disabled onClick={onMint}>
+            <MigrationPrimaryButton disabled onClick={onMint}>
               <span className="flex items-center gap-2">
-                <span className="size-3 animate-spin rounded-full border border-current border-t-transparent" />
+                <span className="size-3 animate-spin rounded-full border border-current border-t-transparent motion-reduce:animate-none" />
                 <Trans>Minting…</Trans>
               </span>
-            </PrimaryButton>
+            </MigrationPrimaryButton>
             <p
               aria-live="polite"
               className="pt-2 font-sans text-ens-garnet-500 text-xs"
@@ -211,16 +201,20 @@ const StatusContent = ({
           <>
             <p
               aria-live="polite"
-              className="pb-2 font-sans text-ens-garnet-700 text-sm"
+              className="pb-2 text-center font-sans text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.01em]"
             >
-              <Trans>Your commemorative NFT is now yours.</Trans>
+              <Trans>Your new profile is ready.</Trans>
             </p>
-            <PrimaryButton onClick={onViewProfile}>
+            <MigrationPrimaryButton onClick={onViewProfile}>
               <span className="flex items-center gap-2">
-                <Trans>View profile</Trans>
-                <MSymbol className="text-[20px]" symbol="arrow_forward" />
+                <Trans>Go make it yours</Trans>
+                <MSymbol
+                  aria-hidden
+                  className="text-lg leading-none"
+                  symbol="face_retouching_natural"
+                />
               </span>
-            </PrimaryButton>
+            </MigrationPrimaryButton>
           </>
         ) : null}
 
@@ -232,11 +226,11 @@ const StatusContent = ({
             >
               {state.message}
             </p>
-            <PrimaryButton onClick={onRetry}>
+            <MigrationPrimaryButton onClick={onRetry}>
               <Trans>Try again</Trans>
-            </PrimaryButton>
+            </MigrationPrimaryButton>
             <SecondaryButton onClick={onClose}>
-              <Trans>Maybe later</Trans>
+              <Trans>Later</Trans>
             </SecondaryButton>
           </>
         ) : null}
@@ -249,13 +243,14 @@ export const MigrationSuccessDialog = ({
   context,
   open,
   state,
+  migratedNameCount,
   canMint,
   onClose,
   onMint,
   onRetry,
-  onRevealComplete,
   onViewProfile,
 }: MigrationSuccessDialogProps) => {
+  if (shouldHideCommemorativeNftDialog({ context, state })) return null
   const showPlainMigrationSuccess = shouldShowPlainMigrationSuccess({
     context,
     state,
@@ -269,36 +264,54 @@ export const MigrationSuccessDialog = ({
       open={open}
     >
       <DialogContent
-        className="h-auto max-h-[calc(100dvh-1rem)] w-[min(456px,calc(100vw-1rem))] max-w-none gap-0 overflow-y-auto overflow-x-hidden rounded-sm border-0 bg-[linear-gradient(180.8deg,#feeaf0_0.45%,#ffc6e0_173.91%)] p-0 shadow-[0_24px_90px_rgba(70,0,30,0.24)] sm:max-w-none"
+        className="h-auto max-h-[calc(100dvh-2rem)] w-[min(353px,calc(100vw-2rem))] max-w-none gap-0 overflow-y-auto overflow-x-hidden rounded-lg border-0 bg-[linear-gradient(181deg,var(--color-ens-garnet-100)_0.45%,var(--color-ens-garnet-200)_173.91%)] p-0 shadow-[0_24px_90px_rgba(70,0,30,0.24)] motion-reduce:animate-none sm:max-w-none md:w-[min(726px,calc(100vw-3rem))]"
+        onFocusCapture={(event) => {
+          // Radix loops focus with preventScroll; keep off-screen actions visible.
+          if (event.target !== event.currentTarget) {
+            event.target.scrollIntoView({ block: 'nearest' })
+          }
+        }}
+        overlayClassName="bg-ens-garnet-900/50"
         showCloseButton={false}
       >
         <GrainOverlay className="opacity-40" />
         <button
-          className="absolute top-6 right-6 z-20 flex size-7 items-center justify-center rounded-full text-ens-garnet-900 transition hover:bg-white/40 focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2"
+          className="absolute top-1 right-1 z-20 flex size-11 items-center justify-center rounded-full text-ens-garnet-800 transition-colors duration-150 ease-out hover:bg-white/30 focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-[-4px] motion-reduce:transition-none"
           onClick={onClose}
           type="button"
         >
-          <MSymbol className="text-[21px]" symbol="close" />
+          <MSymbol aria-hidden className="text-xl" symbol="close" />
           <span className="sr-only">
             <Trans>Close</Trans>
           </span>
         </button>
 
-        <div className="relative z-10 flex w-full flex-col items-center gap-4 px-5 py-7 min-[420px]:px-8">
-          <DialogHeading
-            context={context}
-            showPlainMigrationSuccess={showPlainMigrationSuccess}
-          />
-          <StatusContent
-            canMint={canMint}
-            onClose={onClose}
-            onMint={onMint}
-            onRetry={onRetry}
-            onRevealComplete={onRevealComplete}
-            onViewProfile={onViewProfile}
-            showPlainMigrationSuccess={showPlainMigrationSuccess}
-            state={state}
-          />
+        <div
+          className={cn(
+            'relative z-10 flex w-full flex-col items-center px-5',
+            showPlainMigrationSuccess
+              ? 'pt-16 pb-9 sm:pb-10'
+              : 'gap-5 pt-13 pb-8 md:gap-6 md:py-13',
+          )}
+        >
+          {showPlainMigrationSuccess ? (
+            <PlainMigrationSuccessContent
+              migratedNameCount={migratedNameCount}
+              onOpenDashboard={onClose}
+            />
+          ) : (
+            <>
+              <DialogHeading context={context} state={state} />
+              <StatusContent
+                canMint={canMint}
+                onClose={onClose}
+                onMint={onMint}
+                onRetry={onRetry}
+                onViewProfile={onViewProfile}
+                state={state}
+              />
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

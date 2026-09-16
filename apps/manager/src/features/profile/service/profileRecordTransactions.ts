@@ -7,6 +7,7 @@
  */
 
 import {
+  type Call,
   type EOATransactionRequest,
   getSmartAccountAddress,
   type RhinestoneTransactionRequest,
@@ -16,7 +17,7 @@ import {
   type WaitForTransactionResult,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet'
+import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v1'
 import * as v from 'valibot'
 import {
   type Address,
@@ -80,6 +81,8 @@ export interface SaveRecordsParams {
   name: string
   before: ServiceRecordSnapshot
   after: ServiceRecordSnapshot
+  /** Clear the target node before applying the before-to-after diff. */
+  readonly shouldClearRecords?: boolean
   signer: Signer
   accountAddress: Address
   publicClient: PublicClient
@@ -117,13 +120,13 @@ interface CreateTransactionRequestParams {
    * store the batch verbatim with no divergent top-level copy.
    */
   readonly calls: TransactionCall[]
-  readonly sponsored?: boolean
 }
 
 interface BuildRecordsUpdateRequestParams {
   readonly name: string
   readonly before: ServiceRecordSnapshot
   readonly after: ServiceRecordSnapshot
+  readonly shouldClearRecords?: boolean
   readonly signer: Signer
   readonly accountAddress: Address
   readonly publicClient: PublicClient
@@ -133,6 +136,20 @@ interface BuildRecordsUpdateRequestParams {
 
 interface BuildRecordsUpdateRequestResult {
   readonly request: TransactionRequest
+  readonly description: string
+}
+
+export interface BuildRecordsUpdateCallsParams {
+  readonly name: string
+  readonly before: ServiceRecordSnapshot
+  readonly after: ServiceRecordSnapshot
+  readonly shouldClearRecords?: boolean
+  readonly publicClient: PublicClient
+  readonly resolverAddress: Address
+}
+
+export interface BuildRecordsUpdateCallsResult {
+  readonly calls: Call[]
   readonly description: string
 }
 
@@ -299,7 +316,7 @@ const validateFinalCoinRecords = (
 function createTransactionRequest(
   params: CreateTransactionRequestParams,
 ): TransactionRequest {
-  const { signer, from, chainId, calls, sponsored } = params
+  const { signer, from, chainId, calls } = params
 
   if (calls.length === 0) {
     throw new Error('createTransactionRequest requires at least one call')
@@ -332,7 +349,9 @@ function createTransactionRequest(
       chainId,
       rhinestoneParams: {
         calls,
-        sponsored: sponsored ?? true,
+        // User-paid in USDC out of the HCA's own balance; this deployment
+        // offers no gas sponsorship. See `signer.types.ts`.
+        feeAsset: 'USDC',
       },
     } satisfies RhinestoneTransactionRequest
   }
@@ -343,23 +362,31 @@ function createTransactionRequest(
   )
 }
 
-async function buildRecordsUpdateRequest(
-  params: BuildRecordsUpdateRequestParams,
-): Promise<BuildRecordsUpdateRequestResult> {
+/**
+ * Build the resolver `multicall` write for a record diff, without submitting it.
+ *
+ * Returns the raw call(s) (today: a single multicall to the resolver) plus a
+ * human description so callers can submit them through the appropriate signer.
+ *
+ * @throws RecordsValidationError if the final records fail validation
+ * @throws Error if the diff is empty
+ */
+export async function buildRecordsUpdateCalls(
+  params: BuildRecordsUpdateCallsParams,
+): Promise<BuildRecordsUpdateCallsResult> {
   const {
     name,
     before,
     after,
-    signer,
-    accountAddress,
+    shouldClearRecords,
     publicClient,
-    chainId,
     resolverAddress,
   } = params
 
   const changes = computeRecordChanges(before, after)
 
   const hasChanges =
+    shouldClearRecords ||
     changes.texts.length > 0 ||
     changes.coins.length > 0 ||
     changes.contentHash !== undefined ||
@@ -378,23 +405,11 @@ async function buildRecordsUpdateRequest(
     throw new RecordsValidationError(issues)
   }
 
-  let fromAddress: Address
-
-  if (signer.type === 'eoa') {
-    fromAddress = accountAddress
-  } else if (signer.type === 'rhinestone') {
-    fromAddress = getSmartAccountAddress(signer)
-  } else {
-    signer satisfies never
-    throw new Error(
-      'Only EOA or Rhinestone signer is supported for profile updates',
-    )
-  }
-
   // Transform changes to ensjs format
   const ensParams: Parameters<typeof setRecordsWriteParameters>[1] = {
     name,
     resolverAddress,
+    clearRecords: shouldClearRecords,
   }
 
   if (changes.texts.length > 0) {
@@ -447,13 +462,31 @@ async function buildRecordsUpdateRequest(
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
 
-  const calls = [
-    {
-      to: resolverAddress,
-      data,
-      value: 0n,
-    },
-  ]
+  return {
+    calls: [{ to: resolverAddress, data, value: 0n }],
+    description: `Update profile records for ${name}`,
+  }
+}
+
+async function buildRecordsUpdateRequest(
+  params: BuildRecordsUpdateRequestParams,
+): Promise<BuildRecordsUpdateRequestResult> {
+  const { signer, accountAddress, chainId, ...callParams } = params
+
+  const { calls, description } = await buildRecordsUpdateCalls(callParams)
+
+  let fromAddress: Address
+
+  if (signer.type === 'eoa') {
+    fromAddress = accountAddress
+  } else if (signer.type === 'rhinestone') {
+    fromAddress = getSmartAccountAddress(signer)
+  } else {
+    signer satisfies never
+    throw new Error(
+      'Only EOA or Rhinestone signer is supported for profile updates',
+    )
+  }
 
   const request = createTransactionRequest({
     signer,
@@ -462,10 +495,7 @@ async function buildRecordsUpdateRequest(
     calls,
   })
 
-  return {
-    request,
-    description: `Update profile records for ${name}`,
-  }
+  return { request, description }
 }
 
 // --- Public API ---

@@ -4,12 +4,13 @@ import type { ColumnDef } from '@tanstack/react-table'
 import type { Hash } from 'viem'
 import { useEnsResolver } from 'wagmi'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
-import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataTable } from '@/components/DataTable'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
+import { NAME_HISTORY_PAGE_SIZE } from '@/features/profile/hooks/useNameHistory'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
@@ -29,7 +30,7 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
   switch (record.type) {
     case 'address':
       return (
-        <div className="flex flex-col gap-4 p-6">
+        <div className="flex flex-col">
           <InfoRow label="Coin Type">
             <span className="font-mono">
               {record.id}{' '}
@@ -39,26 +40,32 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
             </span>
           </InfoRow>
           <InfoRow label="Value">
-            <CopyableRecord
-              value={record.value}
-              truncate={false}
-              textClassName="break-all"
-            />
+            <EntityBadge
+              type="content"
+              variant="default"
+              format="wrap"
+              copyValue={record.value}
+            >
+              {record.value}
+            </EntityBadge>
           </InfoRow>
         </div>
       )
     case 'text':
       return (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col">
           <InfoRow label="Key">
             <span className="font-mono">{record.key}</span>
           </InfoRow>
           <InfoRow label="Value">
-            <CopyableRecord
-              value={record.value}
-              truncate={false}
-              textClassName="break-all"
-            />
+            <EntityBadge
+              type="content"
+              variant="default"
+              format="wrap"
+              copyValue={record.value}
+            >
+              {record.value}
+            </EntityBadge>
           </InfoRow>
         </div>
       )
@@ -67,13 +74,14 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
       return (
         <InfoCard title={record.type === 'abi' ? 'ABI' : 'Content hash'}>
           <InfoRow label="Value">
-            <div className="pl-3.5">
-              <CopyableRecord
-                value={record.value}
-                truncate={false}
-                textClassName="break-all"
-              />
-            </div>
+            <EntityBadge
+              type="content"
+              variant="default"
+              format="wrap"
+              copyValue={record.value}
+            >
+              {record.value}
+            </EntityBadge>
           </InfoRow>
         </InfoCard>
       )
@@ -109,9 +117,14 @@ const ResolverView = ({ name }: ResolverViewProps) => {
   return (
     <InfoCard title="Resolver">
       <InfoRow label="Resolver address">
-        <div className="pl-3.5">
-          <CopyableRecord value={resolverAddress} />
-        </div>
+        <EntityBadge
+          type="content"
+          variant="default"
+          format="wrap"
+          copyValue={resolverAddress}
+        >
+          {resolverAddress}
+        </EntityBadge>
       </InfoRow>
     </InfoCard>
   )
@@ -194,7 +207,7 @@ const HistoryView = ({ name, record, protocolVersion }: HistoryViewProps) => {
   })
 
   const v2HistoryQuery = useQuery({
-    ...getV2NameHistoryQueryOptions({ name }),
+    ...getV2NameHistoryQueryOptions({ name, first: NAME_HISTORY_PAGE_SIZE }),
     enabled: isV2,
   })
 
@@ -263,10 +276,10 @@ const HistoryView = ({ name, record, protocolVersion }: HistoryViewProps) => {
 
   return (
     <div className="rounded-sm bg-background overflow-hidden">
-      <div className="px-6 py-3">
+      <div className="pb-3">
         <span className="text-caps leading-none text-foreground">History</span>
       </div>
-      <div className="px-6 pb-6">
+      <div>
         {hasNoHistory ? (
           <p className="text-muted-foreground text-sm py-4">
             No history available for this record.
@@ -291,7 +304,7 @@ export const RecordDetails = ({
   protocolVersion,
 }: RecordDetailsProps) => {
   return (
-    <div className="p-6 flex flex-col gap-6">
+    <div className="p-6 flex flex-col gap-6 [&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0">
       <RecordDetailsView record={record} />
       <ResolverView name={name} />
       <HistoryView {...{ name, record, protocolVersion }} />
