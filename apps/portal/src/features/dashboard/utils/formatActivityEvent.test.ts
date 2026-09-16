@@ -39,6 +39,30 @@ describe('formatActivityEvent', () => {
     ).toEqual({ text: 'Text record updated', value: 'com.twitter' })
   })
 
+  it('sanitizes an attacker-chosen text record key', () => {
+    expect(
+      formatActivityEvent(
+        event('TextChanged', { key: '\u202Eens.eth\nclaim at evil.example' }),
+      ),
+    ).toEqual({
+      text: 'Text record updated',
+      value: 'ens.eth claim at evil.example',
+    })
+  })
+
+  it('caps the length of an oversized text record key', () => {
+    const { value } = formatActivityEvent(
+      event('TextChanged', { key: 'a'.repeat(500) }),
+    )
+    expect(value).toBe(`${'a'.repeat(64)}\u2026`)
+  })
+
+  it('drops a text record key with nothing printable in it', () => {
+    expect(
+      formatActivityEvent(event('TextChanged', { key: '\u200B\u202E' })),
+    ).toEqual({ text: 'Text record updated' })
+  })
+
   it('links an ETH multicoin address as an address entity', () => {
     expect(
       formatActivityEvent(

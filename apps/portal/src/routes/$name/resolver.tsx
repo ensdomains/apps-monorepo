@@ -12,16 +12,15 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NameNotRegisteredMessage } from '@/components/NameNotRegisteredMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useDnsOffchainName } from '@/features/dns-import/hooks/useDnsOffchainName'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { InfoRow } from '@/features/profile/components/InfoRow'
-import {
-  type GetEnsOwnerReturnType,
-  getEnsOwnerQueryOptions,
-} from '@/features/profile/hooks/useEnsOwner'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
@@ -217,13 +216,14 @@ const RESOLVER_HISTORY_EVENT_TYPES = [
 
 interface ResolverViewProps {
   name: string
-  ownerData: NonNullable<GetEnsOwnerReturnType>
+  /** Undefined for a gasless DNS name: no registry entry, nothing to edit. */
+  registryAddress: Address | undefined
   resolverAddress: Address
 }
 
 const ResolverView = ({
   name,
-  ownerData,
+  registryAddress,
   resolverAddress,
 }: ResolverViewProps) => {
   const { address } = useConnection()
@@ -253,12 +253,12 @@ const ResolverView = ({
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <PageHeading parent={{ type: 'name', name }}>Resolver</PageHeading>
-        {address ? (
+        {address && registryAddress ? (
           <EditButtons
             address={address}
             name={name}
             resolverAddress={resolverAddress}
-            registryAddress={ownerData.registryAddress}
+            registryAddress={registryAddress}
           />
         ) : null}
       </div>
@@ -341,7 +341,7 @@ const NoResolverSet = ({
   registryAddress,
 }: {
   name: string
-  registryAddress: Address
+  registryAddress: Address | undefined
 }) => {
   const { address: account } = useConnection()
 
@@ -352,7 +352,7 @@ const NoResolverSet = ({
         <p className="flex-1 text-base text-muted-foreground">
           This name does not have a resolver set.
         </p>
-        {account && (
+        {account && registryAddress && (
           <SetResolverButton
             name={name}
             account={account}
@@ -395,6 +395,10 @@ function RouteComponent() {
     enabled: isRegistrable(name),
   })
 
+  // A gasless DNS name has no registry entry by design, yet the
+  // UniversalResolver still finds a resolver for it (by wildcard).
+  const offchain = useDnsOffchainName({ name, owner: ownerQuery.data })
+
   if (ownerQuery.error) {
     return (
       <ErrorMessage
@@ -418,6 +422,7 @@ function RouteComponent() {
   if (
     ownerQuery.isLoading ||
     resolverQuery.isLoading ||
+    offchain.isLoading ||
     (availabilityQuery.isLoading && isRegistrable(name))
   )
     return <LoadingMessage />
@@ -434,10 +439,13 @@ function RouteComponent() {
     )
   }
 
-  if (availabilityQuery.data?.isAvailable || !ownerQuery.data)
+  if (
+    availabilityQuery.data?.isAvailable ||
+    (!ownerQuery.data && !offchain.resolvedAddress)
+  )
     return (
-      <NotFoundMessage
-        title="Name not registered"
+      <NameNotRegisteredMessage
+        name={name}
         description={
           <>
             <strong>{name}</strong> is not registered, so there is no resolver
@@ -448,20 +456,16 @@ function RouteComponent() {
     )
 
   const resolverAddress = resolverQuery.data
+  const registryAddress = ownerQuery.data?.registryAddress
 
   if (resolverAddress) {
     if (resolverAddress === zeroAddress) {
-      return (
-        <NoResolverSet
-          name={name}
-          registryAddress={ownerQuery.data.registryAddress}
-        />
-      )
+      return <NoResolverSet name={name} registryAddress={registryAddress} />
     }
     return (
       <ResolverView
         name={name}
-        ownerData={ownerQuery.data}
+        registryAddress={registryAddress}
         resolverAddress={resolverAddress}
       />
     )

@@ -1,4 +1,5 @@
-import { Trans, useLingui } from '@lingui/react/macro'
+import { plural } from '@lingui/core/macro'
+import { Plural, Trans, useLingui } from '@lingui/react/macro'
 import { AnimatePresence, motion } from 'motion/react'
 import { match } from 'ts-pattern'
 import { useElementWidth } from '@/features/migration/hooks/useElementWidth'
@@ -7,6 +8,7 @@ import { useMigrationUiContext } from '@/features/migration/state/migrationUi.co
 import {
   useMigrateSubstep,
   useMigrationProgress,
+  useMigrationSelectedNames,
   useMigrationStepDescriptors,
 } from '@/features/migration/state/migrationUi.selectors'
 import { cn } from '@/lib/utils'
@@ -117,33 +119,36 @@ const useStepDescriptionText = (
   return match(stepDescription)
     .with({ kind: 'progress' }, ({ text }) => text)
     .with({ kind: 'preparing' }, () => t`Getting ready...`)
-    .with(
-      { kind: 'deploy-hca' },
-      () => `${t`Setting up your migration account`}...`,
-    )
+    .with({ kind: 'deploy-hca' }, () => `${t`Setting things up`}...`)
     .with({ kind: 'approval' }, ({ approvalId }) =>
       match(approvalId)
         .with(
           'base-registrar:hca-token',
-          () => `${t`Approve this name for your migration account`}...`,
+          () => `${t`Approve this name in your wallet`}...`,
         )
         .with(
           'base-registrar:hca',
           'name-wrapper:hca',
-          () => `${t`Approve your migration account in your wallet`}...`,
+          () => `${t`Approve the temporary account in your wallet`}...`,
         )
         .with(
           'eth-registry:hca',
-          () => `${t`Approve manager restoration in your wallet`}...`,
+          () => `${t`Approve restoring your managers in your wallet`}...`,
         )
         .exhaustive(),
     )
     .with({ kind: 'atomic-batch' }, ({ index, total, count }) =>
       total === 1
-        ? `${t`Upgrading ${count} name(s) atomically`}...`
-        : `${t`Upgrading atomic batch ${index + 1} of ${total} (${count} name(s))`}...`,
+        ? plural(count, {
+            one: 'Upgrading # name...',
+            other: 'Upgrading # names...',
+          })
+        : plural(count, {
+            one: `Upgrading batch ${index + 1} of ${total} (# name)...`,
+            other: `Upgrading batch ${index + 1} of ${total} (# names)...`,
+          }),
     )
-    .with({ kind: 'cleanup' }, () => `${t`Revoking temporary HCA access`}...`)
+    .with({ kind: 'cleanup' }, () => `${t`Removing temporary access`}...`)
     .exhaustive()
 }
 
@@ -264,6 +269,7 @@ export const GameStep = () => {
   const { uiActor } = useMigrationUiContext()
   const substep = useMigrateSubstep(uiActor)
   const progress = useMigrationProgress(uiActor)
+  const selectedNames = useMigrationSelectedNames(uiActor)
   const stepDescriptors = useMigrationStepDescriptors(uiActor)
 
   const hasCollapsed = substep === 'failing'
@@ -300,19 +306,28 @@ export const GameStep = () => {
           transition={{ duration: 0.3 }}
         >
           <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
-            <Trans>Upgrading your names...</Trans>
+            <Plural
+              one="Upgrading your name..."
+              other="Upgrading your names..."
+              value={selectedNames.length}
+            />
           </p>
         </motion.div>
 
         <motion.div
           animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
-          className="flex h-6 shrink-0 items-center overflow-hidden"
+          className="flex min-h-6 shrink-0 flex-col items-center"
           transition={{ duration: 0.3 }}
         >
+          {progress?.isRecovering && (
+            <p className="mb-1 text-center text-ens-garnet-500 text-sm">
+              <Trans>Picking up where you left off</Trans>
+            </p>
+          )}
           <AnimatePresence mode="popLayout">
             <motion.span
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              className="font-semi-mono text-ens-garnet-500 text-xs uppercase tracking-[0.12px]"
+              className="max-w-full text-center font-semi-mono text-ens-garnet-500 text-xs uppercase tracking-[0.12px]"
               exit={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
               initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
               key={descriptionText}
