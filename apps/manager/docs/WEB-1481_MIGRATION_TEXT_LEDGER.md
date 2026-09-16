@@ -8,9 +8,9 @@ This is the implementation and QA ledger for the captain-approved WEB-1481 plan.
 - Fresh base: `origin/main` at `eeff2f0341f45a0355f70cd785b01fe6f48b0e44`; `origin/HEAD` resolved to `refs/remotes/origin/main`; branch creation and ancestry were verified before edits.
 - Closed PR #1161 was not inspected as an implementation source and no code, wording, test, assumption, structure, or commit was copied/cherry-picked from it.
 - `gh-axi pr view 1158 -R ensdomains/apps-monorepo --full` reported PR #1158 **merged** at `2026-09-15T12:49:27Z`. Its merge commit `554d6298e8c2f350e57ecb072d5a8b2bda6b6dcb` is an ancestor of this base. Its current-main overlap includes `GameStep`, selection/footer, success, wallet confirmation, failure/decoder, progress/service, tests, and the English/Swedish catalogs.
-- Current main contained #1158's recovery lead-in and `isRecovering` marker, which conflict with approved D6. WEB-1481 explicitly removes both rather than silently retaining them. It preserves the one-at-a-time `MigrationProgress.description` subtitle and every unrelated current-main behavior.
+- Current main contained #1158's recovery lead-in and narrow `isRecovering` marker. The captain clarified that they are uncited baseline behavior outside WEB-1481's copy scope, so both remain exact while the six approved one-at-a-time `MigrationProgress.description` strings change.
 - Current main also contained alternative footer, retry, generic-error, cleanup/standing, saved-state, and NFT-heading wording. The rows below explicitly reconcile those gaps to approved D2-D9. All uncited #1158 copy remains current-main copy with `uncited-no-change` disposition.
-- No open ownership/product choice remains: D6 directly resolves the merged overlap. Merge-order risk is therefore historical, but this reconciliation must remain visible in the PR description.
+- No open ownership/product choice remains: the captain's clarification resolves the apparent D6 overlap in favor of preserving uncited baseline behavior. Merge-order risk is therefore historical, but this reconciliation must remain visible in the PR description.
 
 Accepted copy caveats remain intentional QA evidence:
 
@@ -18,7 +18,7 @@ Accepted copy caveats remain intentional QA evidence:
 2. D3's exact reassurance may appear after earlier approvals or batches succeeded.
 3. D4's exact retry sentence may overstate that nothing changed.
 4. D5's exact wallet prefix can label contract/app/RPC text as wallet-reported.
-5. D6 excludes a recovery lead-in, list, marker, metadata, retained history, or layout/state change.
+5. D6 controls the six approved recovery strings and forbids adding new recovery UI; the existing recovery lead-in and its narrow transport marker remain unchanged baseline behavior per the captain's clarification.
 6. D7 permits only `to move` and `bring`; D8 permits only cited count-driven grammar; D9 is English-only and freezes translation architecture.
 
 ## Dispositions and validation owners
@@ -33,7 +33,7 @@ Every row uses exactly one of the four required classifications:
 Validation owner keys:
 
 - **T-SERVICE** — `migrationProgressCopy.test.ts` and `migrationService.test.ts`; executes helper/service paths and checks descriptions, placeholders, counts, recovery event shape, request order, and completion.
-- **T-GAME** — `GameStep.test.tsx`; renders heading/fallback/recovery one/many/multi-batch states and proves no recovery lead-in/list.
+- **T-GAME** — `GameStep.test.tsx`; renders heading/fallback/recovery one/many/multi-batch states and proves the baseline recovery lead-in remains without adding a list.
 - **T-SELECT** — `SelectNamesStep.test.tsx`; renders preparation, fee, account-error, CTA, saved-state, and the adjacent uncited helper.
 - **T-WALLET** — `WalletConfirmationStepsDialog.test.tsx`; renders every descriptor, placeholder/count branch, footer, trigger, dialog, and focus return.
 - **T-FAIL** — `MigrationPage.test.tsx` plus `decodeMigrationError.test.ts`; renders every failure family/action/reassurance branch and executes `ParentNotMigrated` decoding.
@@ -66,9 +66,9 @@ Validation owner keys:
 | `GameStep.tsx:308-314`, plural heading | `Upgrading your names...` | unchanged | `approved-copy` | Notion heading keep | T-GAME, C-PO |
 | same, singular heading | `Upgrading your name...` | same | `approved-copy` | D8 missing singular | T-GAME, C-PO |
 
-## Cited recovery text and D6 exclusion
+## Cited recovery text and preserved baseline context
 
-All six rows render one at a time in the existing animated subtitle. `{name}`, `{count}`, `{migratedCount}`, and `{copiedCount}` are preserved. There is no list/lead-in/marker/metadata.
+All six rows render one at a time in the existing animated subtitle. `{name}`, `{count}`, `{migratedCount}`, and `{copiedCount}` are preserved. The baseline `Picking up where you left off` lead-in and narrow `isRecovering` transport marker remain exact; no list, retained history, or new recovery UI is added.
 
 | Source/state | Approved result | Disposition | Authority/reason | Validation owner |
 |---|---|---|---|---|
@@ -78,7 +78,7 @@ All six rows render one at a time in the existing animated subtitle. `{name}`, `
 | same, migrate-only group | `{count} names were already upgraded` | `approved-copy` | Notion §5C, D6 | T-SERVICE, T-GAME |
 | same, copy-only group | `{count} names were already copied` | `approved-copy` | Notion §5C, D6 | T-SERVICE, T-GAME |
 | same, mixed group | `{migratedCount} already upgraded, {copiedCount} already copied` | `approved-copy` | Notion §5C, D6 | T-SERVICE, T-GAME |
-| `GameStep.tsx` + `MigrationProgress` | base had `Picking up where you left off` and `isRecovering` | absent; prose-only event shape | `excluded` | D6 explicit exclusion and merged #1158 reconciliation | T-SERVICE, T-GAME, D-ALLOW |
+| `GameStep.tsx` + `MigrationProgress` | `Picking up where you left off` and narrow `isRecovering` marker | unchanged | `uncited-no-change` | Captain clarification preserves exact origin/main recovery context | T-SERVICE, T-GAME, C-PO, D-ALLOW |
 
 ## Cited selection, fee, saved-state, and CTA copy
 
@@ -188,9 +188,9 @@ The following inventory is exhaustive for migration entry, selection, progress b
 | `NameRow.tsx:49-96`, missing-label fallback | `?` | `uncited-no-change`; dynamic display fallback |
 | `MigrationNftInfoPage.tsx:73`, load status | accessible label `Loading` | `uncited-no-change` |
 
-The exact long NFT-info paragraphs remain in source/catalog and are represented by their named row above; no shortening or wording normalization is authorized. The active English catalog contains 143 message IDs referenced by `src/features/migration`; each maps to either a cited table row or an uncited row in this section. Shared IDs such as `Back`, `Close`, `Try again`, and the completion plural are classified by their migration source/render context, not globally across unrelated features.
+The exact long NFT-info paragraphs remain in source/catalog and are represented by their named row above; no shortening or wording normalization is authorized. The active English catalog contains 144 message IDs referenced by `src/features/migration`; each maps to either a cited table row or an uncited row in this section. Shared IDs such as `Back`, `Close`, `Try again`, and the completion plural are classified by their migration source/render context, not globally across unrelated features.
 
-### Full active English catalog manifest (143/143)
+### Full active English catalog manifest (144/144)
 
 This generated manifest is the one-to-one reconciliation surface for **every active English `msgid`** whose source reference is under `src/features/migration/`. Source line numbers are intentionally omitted because extraction rewrites them; source files and exact IDs are stable. Detailed evidence, wording decisions, placeholder meanings, and owner reasoning remain in the primary tables above. `approved-copy` includes source-approved text deliberately preserved as well as text changed by WEB-1481; `excluded` is reserved for the exact §6 surfaces the report explicitly names; all other uncited copy is `uncited-no-change`.
 
@@ -204,6 +204,7 @@ This generated manifest is the one-to-one reconciliation surface for **every act
 | `src/features/migration/components/GameStep.tsx` | `Approve the temporary account in your wallet` | `approved-copy` |
 | `src/features/migration/components/GameStep.tsx` | `Approve this name in your wallet` | `approved-copy` |
 | `src/features/migration/components/GameStep.tsx` | `Getting ready...` | `approved-copy` |
+| `src/features/migration/components/GameStep.tsx` | `Picking up where you left off` | `uncited-no-change` |
 | `src/features/migration/components/GameStep.tsx` | `Removing temporary access` | `approved-copy` |
 | `src/features/migration/components/GameStep.tsx` | `Setting things up` | `approved-copy` |
 | `src/features/migration/components/GameStep.tsx` | `{0, plural, one {Upgrading your name...} other {Upgrading your names...}}` | `approved-copy` |
@@ -338,9 +339,9 @@ This generated manifest is the one-to-one reconciliation surface for **every act
 | `src/features/migration/pages/MigrationPage.tsx` | `Your permissions changed. Go back to check the updated estimate.` | `approved-copy` |
 | `src/features/migration/pages/MigrationPage.tsx` | `Your wallet reported: {0}` | `approved-copy` |
 | `src/features/migration/pages/MigrationPage.tsx` | `{0, plural, one {Your name is safe.} other {Your names are safe.}}` | `approved-copy` |
-| `src/features/migration/pages/MigrationPage.tsx` | `{selectedNameCount, plural, one {Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed.} other {Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed.}}` | `approved-copy` |
+| `src/features/migration/pages/MigrationPage.tsx` | `{completedNameCount, plural, one {Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed.} other {Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed.}}` | `approved-copy` |
 
-Classification totals: **61 `approved-copy` + 72 `uncited-no-change` + 10 `excluded` = 143 active IDs.**
+Classification totals: **61 `approved-copy` + 73 `uncited-no-change` + 10 `excluded` = 144 active IDs.**
 
 ## Service prose and technical exclusions
 
@@ -351,10 +352,10 @@ Classification totals: **61 `approved-copy` + 72 `uncited-no-change` + 10 `exclu
 | `useMigrationGasEstimate.ts` thrown query errors | wallet/setup, stale-selection, and estimate internals | `technical/non-user-facing` | Query failures collapse to approved fee error; only `{accountError}` is displayed. R-TECH |
 | `decodeMigrationError.ts` types and decoder | `MigrationError` discriminants, ABI/custom error names, extraction fallback | `technical/non-user-facing` | Routing taxonomy frozen except existing narrow parent route; UI outputs are fully listed above. T-FAIL/R-TECH |
 | `contracts/abis.ts`, migration contract/service files | Solidity error/function names, HCA/migration/atomic identifiers, addresses, calls, journal keys | `technical/non-user-facing` | Protocol and source symbols explicitly excluded. R-TECH |
-| `migrationUi.machine.ts`, context/selectors | state/event keys, `MigrationProgress`, `/migration` route wiring | `technical/non-user-facing` | XState/transport behavior frozen. R-TECH |
+| `migrationUi.machine.ts`, context/selectors | state/event keys, `MigrationProgress`, narrow `isRecovering` marker, `/migration` route wiring | `technical/non-user-facing` | XState/transport behavior frozen; baseline marker preserved. R-TECH |
 | logs/comments/docs/fixtures/tests | source comments, logger strings, operator docs, fixture errors, test labels | `technical/non-user-facing` | Not rendered product copy. R-TECH |
 | Storybook-only preview controls | `Open preview` and story names | `technical/non-user-facing` | QA harness only, not shipped in the app. V-COPY |
-| English PO obsolete history | old marker, footer, retry, generic, saved-state, literal `name(s)`, reassurance, cleanup, and fallback IDs | `technical/non-user-facing` | Lingui's unchanged PO formatter retains removed IDs as obsolete history; no active render. C-PO |
+| English PO obsolete history | old footer, retry, generic, saved-state, literal `name(s)`, reassurance, cleanup, and fallback IDs | `technical/non-user-facing` | Lingui's unchanged PO formatter retains removed IDs as obsolete history; no active render. C-PO |
 | stale current-main catalog ID | `Mint commemorative NFT` becomes obsolete during normal extraction | `technical/non-user-facing` | No current source reference; extraction reconciliation, not new product copy. C-PO |
 | Swedish PO generated entries | same new/obsolete IDs, empty `msgstr` for new English messages | `technical/non-user-facing` | Generated by unchanged extraction; no Swedish wording was authored/reviewed under D9. C-PO |
 
@@ -364,10 +365,10 @@ Classification totals: **61 `approved-copy` + 72 `uncited-no-change` + 10 `exclu
 
 - New count messages: standing reassurance and cleanup one/many.
 - New active messages: `Approve registration`; saved-state ASCII sentence and support; exact D4 retry; D2 footer; D5 generic prefix.
-- Removed/obsolete active messages: `Approve this name`; #1158 per-batch footer; recovery lead-in; curly-apostrophe saved sentence and old support; `Upgrade details`; #1158 retry alternative; literal NFT `name(s)`; plural-only reassurance; plural-only cleanup.
+- Removed/obsolete active messages: `Approve this name`; #1158 per-batch footer; curly-apostrophe saved sentence and old support; `Upgrade details`; #1158 retry alternative; literal NFT `name(s)`; plural-only reassurance; plural-only cleanup. The baseline recovery lead-in remains active and unchanged.
 - `Mint commemorative NFT` was already absent from current source and is obsoleted by the normal extraction pass; it is the sole stale current-main catalog reconciliation unrelated to a source edit in this branch.
 - Service runtime/recovery prose is intentionally outside Lingui and reconciled by T-SERVICE instead.
-- Placeholder inventory is complete: `{name}`, `{count}`, `{migratedCount}`, `{copiedCount}`, `{batchNumber}`, `{total}`, `{amount}`, `{accountError}`, raw `{error}`, `{selectedNameCount}`, `{migratedNameCount}`, `{eligibleNameCount}`, `{visibleCount}`, `{totalSelected}`, `{migrated}`, and dynamic `{rendererName}`/`{state.message}`.
+- Placeholder inventory is complete: `{name}`, `{count}`, `{migratedCount}`, `{copiedCount}`, `{batchNumber}`, `{total}`, `{amount}`, `{accountError}`, raw `{error}`, `{completedNameCount}`, `{migratedNameCount}`, `{eligibleNameCount}`, `{visibleCount}`, `{totalSelected}`, `{migrated}`, and dynamic `{rendererName}`/`{state.message}`.
 
 ### Exact final diff allowlist and plan mapping
 
@@ -375,14 +376,13 @@ This is the complete approved branch diff. The ledger is the **only** documentat
 
 | Exact changed path (under `apps/manager/`) | Kind | Approved-plan mapping |
 |---|---|---|
-| `src/features/migration/components/GameStep.tsx` | source | D6: remove only #1158's excluded recovery lead-in render |
-| `src/features/migration/service/migrationService.ts` | source | D6: remove only #1158's excluded `isRecovering` transport metadata; preserve transaction behavior/order |
+| `src/features/migration/service/migrationService.ts` | source | retry correction resolves recovered operations before filtering; baseline `isRecovering` transport remains exact |
 | `src/features/migration/pages/MigrationPage.tsx` | source | D3-D5/D8: count-aware reassurance/cleanup, exact retry and generic prefix; no taxonomy expansion |
 | `src/features/migration/components/SelectNamesStep.tsx` | source | §5F/R4: exact two saved-state paragraph replacements |
 | `src/features/migration/components/MigrationSuccessDialog.tsx` | source | D8: cited NFT completion heading one/many branch |
 | `src/features/migration/components/WalletConfirmationStepsDialog.tsx` | source | §5H/D2: restore cited kept fallback and exact accepted-risk footer |
-| `src/features/migration/components/GameStep.test.tsx` | test | T-GAME: heading/fallback/recovery-slot/D6 regression lock |
-| `src/features/migration/service/migrationService.test.ts` | test | T-SERVICE: all runtime/recovery descriptions and unchanged event shape/order |
+| `src/features/migration/components/GameStep.test.tsx` | test | T-GAME: heading/fallback/recovery-slot and baseline lead-in regression lock |
+| `src/features/migration/service/migrationService.test.ts` | test | T-SERVICE: all runtime/recovery descriptions, exact operation recovery, and baseline event marker/order |
 | `src/features/migration/pages/MigrationPage.test.tsx` | test | T-FAIL: all failure families, one/many reassurance/cleanup, generic raw error, actions |
 | `src/features/migration/components/SelectNamesStep.test.tsx` | test | T-SELECT: saved-state exact copy plus fee/CTA rendering coverage |
 | `src/features/migration/components/MigrationSuccessDialog.test.tsx` | test | T-SUCCESS: plain/NFT completion one/many and fallback/action copy |
@@ -400,8 +400,8 @@ No migration modal/banner/progress-banner/selection-helper/NFT-info/value-prop/N
 - [x] **Focused migration tests:** 8 files, 164 tests passed with no type errors. Happy DOM emitted known teardown `AbortError` noise after success; exit status was zero.
 - [x] **Full Manager tests:** `TZ=UTC pnpm --filter manager test --run` passed 212 files / 2,017 tests with 1 skip and no type errors. The first run in the host's `Asia/Taipei` timezone exposed three unchanged date-sensitive tests; all three files and implementations are byte-identical to `origin/main`, and the UTC rerun used CI's configured timezone and passed.
 - [x] **Types, lint, and builds:** Manager typecheck, Manager production build, Storybook build, Manager lint, and root `pnpm check` completed successfully. Biome reported only existing repository warnings; build tooling reported existing dependency/chunk annotations.
-- [x] **Catalogs:** unchanged `i18n:extract` and `i18n:compile` passed. Automated reconciliation found 143 unique active English migration IDs, 143 manifest rows, zero missing exact IDs, and classifications totaling 61 `approved-copy` + 72 `uncited-no-change` + 10 `excluded`. All eight generated new Swedish entries have empty `msgstr`; no Swedish translation or locale/framework change was authored.
+- [x] **Catalogs:** unchanged `i18n:extract` and `i18n:compile` passed. Automated reconciliation found 144 unique active English migration IDs, 144 manifest rows, zero missing exact IDs, and classifications totaling 61 `approved-copy` + 73 `uncited-no-change` + 10 `excluded`. All eight generated new Swedish entries have empty `msgstr`; no Swedish translation or locale/framework change was authored.
 - [x] **Storybook/visual QA:** deterministic stories cover progress one/many/recovery/long name, selection fee one/many/error, wallet explainer, generic/retry/cleanup/parent-first failures, and plain/NFT completion one/many. `chrome-devtools-axi` reviewed the matrix at 1440×900 and emulated 375×812 (2× mobile/touch): exact copy rendered, text/body overflow scans were empty, long names wrapped, wallet content remained scrollable, close received focus, Escape closed and restored trigger focus, and representative screenshots were visually inspected.
 - [x] **Manager E2E applicability:** repository Manager config explicitly ignores `/migration/` specs, and direct migration E2E requires the Anvil/mockestrator Docker stack; the local Docker daemon was unavailable. Exact environment blocker recorded rather than changing infrastructure or running unrelated E2E.
-- [x] **Diff/accountability gate:** automated comparison found exactly the 17 allowlisted files above, no extras/missing paths, no other documentation, and no uncited production source diff. `git diff --check`, word-diff review, generated-catalog review, D6 absence checks, and Swedish `msgstr` scan passed.
+- [x] **Diff/accountability gate:** automated comparison found exactly the 16 allowlisted files above, no extras/missing paths, no other documentation, and no uncited production copy diff. `git diff --check`, word-diff review, generated-catalog review, baseline recovery-preservation checks, and Swedish `msgstr` scan passed.
 - [x] **Current base/independence:** immediately before commit, `git fetch origin main` still resolved `origin/main`, `HEAD`, and merge-base to `eeff2f0341f45a0355f70cd785b01fe6f48b0e44`; `origin/main` is an ancestor. No #1161 commit/material was copied or cherry-picked.

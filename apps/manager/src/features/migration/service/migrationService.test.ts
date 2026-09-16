@@ -1422,8 +1422,8 @@ describe('executeMigration HCA orchestration', () => {
       operations: [{ name: copy.domain.name, action: 'copy' }],
       migratedCount: 0,
       copiedCount: 1,
+      isRecovering: true,
     })
-    expect(recoveredEvent).not.toHaveProperty('isRecovering')
     expect(mocks.reconcileAtomicMigrationBatch).toHaveBeenCalledOnce()
     expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
     expect(mocks.startTransaction).not.toHaveBeenCalled()
@@ -1552,6 +1552,7 @@ describe('executeMigration HCA orchestration', () => {
     ])
     expect(progressEvents[0]).toMatchObject({
       description: `${parent.domain.name} was already upgraded`,
+      isRecovering: true,
       operations: [{ name: parent.domain.name, action: 'migrate' }],
     })
     expect(onBatchComplete).toHaveBeenNthCalledWith(

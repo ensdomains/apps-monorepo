@@ -31,14 +31,16 @@ import { GameStep } from './GameStep'
 const renderGame = ({
   description,
   descriptor,
+  isRecovering = false,
   selectedNames = ['alice.eth'],
 }: {
   readonly description?: string
   readonly descriptor?: MigrationStepDescriptor
+  readonly isRecovering?: boolean
   readonly selectedNames?: string[]
 } = {}) => {
   gameState.progress = description
-    ? { currentStep: 0, totalSteps: 1, description }
+    ? { currentStep: 0, totalSteps: 1, description, isRecovering }
     : undefined
   gameState.selectedNames = selectedNames
   gameState.stepDescriptors = descriptor ? [descriptor] : []
@@ -135,11 +137,12 @@ describe('GameStep migration copy', () => {
     const { container, getByText, queryByText } = renderGame({
       description: text,
       descriptor: batch({ count: 2 }),
+      isRecovering: true,
     })
 
     expect(getByText(text)).toBeInTheDocument()
     expect(queryByText('Upgrading 2 names...')).not.toBeInTheDocument()
-    expect(queryByText('Picking up where you left off')).not.toBeInTheDocument()
+    expect(getByText('Picking up where you left off')).toBeInTheDocument()
     expect(container.querySelectorAll('li')).toHaveLength(0)
   })
 

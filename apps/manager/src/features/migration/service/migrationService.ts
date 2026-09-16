@@ -154,6 +154,7 @@ export type MigrationProgress = {
   readonly operations?: readonly MigrationJournalOperation[]
   readonly migratedCount?: number
   readonly copiedCount?: number
+  readonly isRecovering?: boolean
 }
 
 export type MigrationResult = {
@@ -170,6 +171,7 @@ type Tracker = {
     description: string,
     txHash?: Hex,
     operations?: readonly MigrationJournalOperation[],
+    isRecovering?: boolean,
   ) => void
   next: () => void
   complete: (description: string, txHash?: Hex) => void
@@ -185,6 +187,7 @@ const createTracker = (
     description: string,
     txHash?: Hex,
     operations?: readonly MigrationJournalOperation[],
+    isRecovering?: boolean,
   ) => {
     const migratedCount = operations?.filter(
       ({ action }) => action === 'migrate',
@@ -194,6 +197,7 @@ const createTracker = (
       totalSteps: normalizedTotal,
       description,
       txHash,
+      ...(isRecovering ? { isRecovering } : {}),
       ...(operations
         ? {
             operations,
@@ -1358,6 +1362,7 @@ const prepareExecutionPlan = async (params: {
         describeRecoveredOperations(names, operations),
         hash,
         operations,
+        true,
       )
     }
 
@@ -1398,6 +1403,7 @@ const prepareExecutionPlan = async (params: {
         describeRecoveredOperations(names, operations),
         undefined,
         operations,
+        true,
       )
     }
 

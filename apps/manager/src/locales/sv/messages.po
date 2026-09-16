@@ -90,6 +90,10 @@ msgstr ""
 msgid "{0}% discount"
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "{completedNameCount, plural, one {Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed.} other {Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed.}}"
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Approve # name} other {Approve # names}}"
 msgstr ""
@@ -139,8 +143,8 @@ msgid "{selectedCount} selected"
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
-msgid "{selectedNameCount, plural, one {Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed.} other {Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed.}}"
-msgstr ""
+#~ msgid "{selectedNameCount, plural, one {Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed.} other {Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed.}}"
+#~ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
@@ -1670,8 +1674,8 @@ msgid "Personalized NFT"
 msgstr ""
 
 #: src/features/migration/components/GameStep.tsx
-#~ msgid "Picking up where you left off"
-#~ msgstr ""
+msgid "Picking up where you left off"
+msgstr ""
 
 #: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Placing your new identity in your wallet"
