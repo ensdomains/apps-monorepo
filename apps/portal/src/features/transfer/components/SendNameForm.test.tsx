@@ -179,6 +179,28 @@ describe('SendNameForm — consent is tied to what was counted', () => {
     ).toBeDisabled()
   })
 
+  it('blocks a cached zero count that is being re-checked', async () => {
+    // The registry was empty when last read and is being re-read now. A
+    // retained zero must not read as "nothing to lose" — subnames may have been
+    // registered since, and detaching would break them with no acknowledgement.
+    renderForm({
+      status: 'ready',
+      subnameCount: 0,
+      hasThirdPartySubnames: false,
+      countedRegistry: REGISTRY,
+      isRevalidating: true,
+    })
+    const user = await enterRecipient()
+    await user.click(
+      await screen.findByRole('switch', { name: /detach the registry/i }),
+    )
+
+    expect(screen.getByText(/checking how many subnames/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /transfer name/i }),
+    ).toBeDisabled()
+  })
+
   it('blocks an already-given tick once a re-check starts', async () => {
     const { user, view } = await armDetach(THIRD_PARTY_SUBNAME)
     await user.click(screen.getByRole('checkbox'))

@@ -144,14 +144,6 @@ const ParentWarningAlert = ({
 }
 
 /**
- * Whether the detach has to be signed off, and whether that sign-off is still
- * outstanding. `impact` is null when the step isn't in the plan.
- *
- * An unknown blast radius (still counting, or the count failed) needs consent
- * like a known one — and can't be given it, so the transfer stays blocked until
- * the count lands. Split out only to keep the form under the complexity limit.
- */
-/**
  * Identifies the exact claim the sender is asked to sign off: this registry,
  * this many names, these owners. Used as the acknowledgement's key rather than
  * a bare boolean, so a tick can never carry over to a different claim — if the
@@ -163,12 +155,26 @@ const getDetachConsentKey = (impact: RegistryDetachImpact | null) =>
     ? `${impact.countedRegistry}:${impact.subnameCount}:${impact.hasThirdPartySubnames}`
     : null
 
+/**
+ * Whether the detach has to be signed off, and whether that sign-off is still
+ * outstanding. `impact` is null when the step isn't in the plan. Split out only
+ * to keep the form under the complexity limit.
+ */
 const getDetachConsentState = (
   impact: RegistryDetachImpact | null,
   acknowledgedFor: string | null,
 ) =>
   match(impact)
     .with(null, () => ({ needsConsent: false, isBlocked: false }))
+    // Ordered ahead of the zero-count arm on purpose: a retained zero is a
+    // number like any other, and "empty" is exactly the cached answer that
+    // would wave the detach through after someone registered a subname.
+    // Mid-revalidation the visible numbers are the previous answer; signing off
+    // on them would approve a count the write may no longer match.
+    .with({ status: 'ready', isRevalidating: true }, () => ({
+      needsConsent: true,
+      isBlocked: true,
+    }))
     // Nothing to lose, so nothing to sign off.
     .with({ status: 'ready', subnameCount: 0 }, () => ({
       needsConsent: false,
@@ -177,12 +183,6 @@ const getDetachConsentState = (
     // An unsized radius needs consent like a sized one — and can't be given it,
     // so the transfer stays blocked until the count lands.
     .with({ status: P.union('pending', 'error') }, () => ({
-      needsConsent: true,
-      isBlocked: true,
-    }))
-    // Mid-revalidation the visible numbers are the previous answer; signing off
-    // on them would approve a count the write may no longer match.
-    .with({ status: 'ready', isRevalidating: true }, () => ({
       needsConsent: true,
       isBlocked: true,
     }))
@@ -355,14 +355,20 @@ const RegistryDetachConsent = ({
   readonly onAcknowledge: (value: boolean) => void
 }) =>
   match(impact)
-    .with({ status: 'pending' }, () => (
-      <Alert variant="warning">
-        <AlertTriangle className="size-4" />
-        <AlertDescription>
-          Checking how many subnames detaching the registry would break…
-        </AlertDescription>
-      </Alert>
-    ))
+    // A re-check in flight reads the same as a first read: the counts on screen
+    // are provisional either way, so don't state them as fact.
+    .with(
+      { status: 'pending' },
+      { status: 'ready', isRevalidating: true },
+      () => (
+        <Alert variant="warning">
+          <AlertTriangle className="size-4" />
+          <AlertDescription>
+            Checking how many subnames detaching the registry would break…
+          </AlertDescription>
+        </Alert>
+      ),
+    )
     .with({ status: 'error' }, () => (
       <Alert variant="destructive">
         <AlertTriangle className="size-4" />
