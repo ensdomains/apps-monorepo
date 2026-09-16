@@ -45,7 +45,12 @@ import {
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import type { Transaction } from '@rhinestone/sdk'
-import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
+import {
+  errAsync,
+  fromPromise,
+  fromThrowable,
+  type ResultAsync,
+} from 'neverthrow'
 import type { Address, Chain, Hash, Hex, PublicClient } from 'viem'
 import {
   bytesToHex,
@@ -329,7 +334,15 @@ export function estimateHcaBudgetActor(input: {
    */
   primaryName?: string
 }): ResultAsync<HcaBudgetBreakdown, Error> {
-  const label = cleanLabel(input.name)
+  // This label prices the registration and sizes the funding permit, so a
+  // non-canonical one funds a different name than the reveal batch registers.
+  // Wrapped because the refusal must be an `err`, not a throw.
+  const labelResult = fromThrowable(canonicalLabel, (error) =>
+    error instanceof Error ? error : new Error(String(error)),
+  )(input.name)
+  if (labelResult.isErr()) return errAsync(labelResult.error)
+  const label = labelResult.value
+
   const chainId = input.chainId
 
   // Build a best-effort per-leg quoter whenever we have a Rhinestone account.

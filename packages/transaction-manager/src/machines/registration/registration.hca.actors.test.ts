@@ -783,4 +783,16 @@ describe('estimateHcaBudgetActor', () => {
       ),
     ).toBe(false)
   })
+
+  it('refuses a non-canonical label instead of pricing the twin', async () => {
+    const result = await estimateHcaBudgetActor({
+      ...input,
+      name: 'MyName.eth',
+    })
+
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().message).toMatch(/canonical form/)
+    // The refusal lands before any leg is priced.
+    expect(prepareTransaction).not.toHaveBeenCalled()
+  })
 })
