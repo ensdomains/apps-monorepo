@@ -489,9 +489,13 @@ const useAddressRecordEditor = (
     if (data) setEdit({ coinType: data.coinType, value })
   }
 
+  // Root `ROLE_SET_ADDRESS`, or the role scoped to this row's coin type.
   const { canEdit } = useCanEditRecords({
     name,
-    roles: ['ROLE_SET_ADDR'],
+    roles: ['ROLE_SET_ADDRESS'],
+    scope: data
+      ? { kind: 'address', coinType: BigInt(data.coinType) }
+      : undefined,
   })
 
   const txId = data ? `tx-set-addr-${data.coinType}` : 'tx-set-addr'

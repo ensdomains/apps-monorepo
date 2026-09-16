@@ -167,6 +167,27 @@ describe('deriveV1NameState — the parent', () => {
     })
   })
 
+  // In grace, `ownerOf` reverts and ensjs reports the registry slot instead.
+  it('reads a wrapped 2LD parent in its grace period from the wrapper', () => {
+    const state = deriveV1NameState(
+      reads({
+        ...child,
+        parentOwner: {
+          owner: WRAPPER,
+          registrant: null,
+          ownershipLevel: 'registrar',
+        },
+        parentWrapped: wrapperData(OTHER),
+      }),
+    )
+    expect(state?.parent).toEqual({
+      owner: OTHER,
+      registrant: null,
+      isWrapped: true,
+      cannotCreateSubdomain: false,
+    })
+  })
+
   it('reads an unwrapped 2LD parent with both its roles', () => {
     const state = deriveV1NameState(
       reads({

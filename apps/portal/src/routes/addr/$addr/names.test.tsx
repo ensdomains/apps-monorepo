@@ -1,66 +1,41 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { TransactionManagerProvider } from '@ens-apps/transaction-manager'
+import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { usePublicClient } from 'wagmi'
+import {
+  createTestWrapper,
+  expectSettled,
+  renderWithCommitCounter,
+} from '@/test-utils'
+import type { V1Name, V2NameWithRoles } from '@/utils/names/mergeNamesData'
 
-const ADDR = '0x55e55c649895940826a852820d9e1a076ec47b09'
+const ADDRESS = '0x55e55c649895940826a852820d9e1a076ec47b09'
+const V1_NAME = 'sugh004.eth'
+const V2_NAME = 'ensv2sg2.eth'
+const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
+  Link: ({ children, to }: { children: ReactNode; to: string }) => (
     <a href={to}>{children}</a>
   ),
   createFileRoute: () => (options: Record<string, unknown>) => ({
     ...options,
-    useParams: () => ({ addr: ADDR }),
+    useParams: () => ({ addr: ADDRESS }),
   }),
 }))
 
-vi.mock('wagmi', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('wagmi')>()
-  return {
-    ...actual,
-    useConnection: () => ({ address: ADDR }),
-    useConfig: () => ({ chains: [], state: { chainId: 11155111 } }),
-    useChainId: () => 11155111,
-    useAccount: () => ({ address: ADDR, isConnected: true }),
-  }
-})
-
-// The extend flow is a whole transaction stack; this route test is about how
-// often the table's rows are rebuilt.
-vi.mock('@ens-apps/transaction-manager', () => ({
-  transactionManager: { cancelTransaction: vi.fn() },
-}))
-vi.mock('@/features/renew/hooks/useRenewalTransactions', () => ({
-  useRenewalTransactions: () => ({
-    transactions: [],
-    startFlow: vi.fn(),
-    startMultiFlow: vi.fn(),
-    clearIncompatibleRenewalState: vi.fn(),
-  }),
-}))
-vi.mock(
-  '@/features/transaction-manager/hooks/useActiveTransactionState',
-  () => ({
-    useActiveTransactionState: () => undefined,
-    isTransactionInFlight: () => false,
-  }),
-)
-vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
-  useTransactionModal: () => ({ isOpen: false, openModal: vi.fn() }),
-}))
-vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
-  TransactionModal: () => null,
-}))
-vi.mock('@/features/renew/hooks/useIsRenewable', () => ({
-  useV1Renewable: () => ({ isRenewable: () => false, isLoading: false }),
-}))
-
+// One `useEnsAvatar` per row; the avatars say nothing about the table's render
+// behaviour and their in-flight resolution would add re-renders of its own.
 vi.mock('@/features/profile/components/NameAvatar', () => ({
-  NameAvatar: () => null,
+  NameAvatar: ({ name }: { name: string }) => <span data-name={name} />,
 }))
 
-// The defect this file exists for: a fresh rows array on every render makes
-// TanStack Table recompute its row model, whose memo auto-resets the page
-// index, which re-renders — forever. Counting the merge is counting renders.
+// The route's own memo is keyed on the two query results, so counting the merge
+// pins that specific contract — a tighter statement than "the page settles",
+// and the one that would catch the memo being dropped again (#1115 did exactly
+// that) even if some future table no longer looped over it.
 let mergeCalls = 0
 vi.mock('@/utils/names/mergeNamesData', async (importOriginal) => {
   const actual =
@@ -76,55 +51,143 @@ vi.mock('@/utils/names/mergeNamesData', async (importOriginal) => {
   }
 })
 
-// Stable across calls, like a real query's cached data: the memo this test
-// guards is keyed on these references.
-const v1Names: never[] = []
-const v2Names = [
-  { name: 'test12345.eth', expiryDate: 1790000000, roleBitmap: 31n },
-  { name: 'sugh004.eth', expiryDate: 1800000000, roleBitmap: 63n },
-]
+// Expiries are relative to now, because the route reads them through windows
+// that move: `getNameStatus` and, for the selection test, `isExtendable2LD`'s
+// 90-day v1 grace — a fixed date would eventually fall outside it and quietly
+// stop exercising the renewable path while still passing. `mergeNamesData`
+// sorts ascending by expiry, so the shorter v1 expiry keeps that name at row 0.
+const V1_NAMES = [
+  {
+    name: V1_NAME,
+    expiryDate: { date: new Date(Date.now() + 365 * MS_PER_DAY) },
+    relation: { registrant: true, owner: true, wrappedOwner: false },
+  },
+] satisfies V1Name[]
 
-const settled = (data: unknown) => ({
-  data,
-  error: undefined,
-  isLoading: false,
-})
+const V2_NAMES = [
+  {
+    name: V2_NAME,
+    expiryDate: Math.floor((Date.now() + 730 * MS_PER_DAY) / 1000),
+    roleBitmap: '0x5',
+    subdomainCount: 0,
+    recordCount: 0,
+  },
+] satisfies V2NameWithRoles[]
 
-vi.mock('@tanstack/react-query', async () => {
-  const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
-    '@tanstack/react-query',
-  )
+const QUERY_DATA: Record<string, unknown> = {
+  'get-names-for-address': V1_NAMES,
+  'get-v2-names-with-roles-for-address': V2_NAMES,
+}
+
+/** Every query key the route handed to `useQueries`, in request order. */
+const requestedQueryKeys: (readonly unknown[])[] = []
+
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>()
   return {
     ...actual,
-    // Every badge and chip in the rows runs its own reads; none of them are
-    // what this test measures.
-    useQuery: () => settled(undefined),
     useQueries: ({
       queries,
     }: {
-      queries: { queryKey: readonly unknown[] }[]
+      queries: readonly { queryKey: readonly unknown[] }[]
     }) =>
-      queries.map(({ queryKey }) =>
-        queryKey[0] === 'get-v2-names-with-roles-for-address'
-          ? settled(v2Names)
-          : settled(v1Names),
-      ),
+      queries.map(({ queryKey }) => {
+        requestedQueryKeys.push(queryKey)
+        return {
+          data: QUERY_DATA[queryKey[0] as string],
+          isLoading: false,
+          error: null,
+        }
+      }),
   }
 })
 
+// `createFileRoute` is mocked to hand back the options object, so `Route` is
+// that object and `Route.component` is the page. See ../../$name/fuses tests.
 const { Route } = await import('./names')
-const NamesRoute = (Route as unknown as { component: () => React.ReactElement })
+const NamesRoute = (Route as unknown as { component: () => ReactNode })
   .component
 
-describe('addr names route', () => {
-  it('keeps the table rows stable across a re-render', async () => {
-    const { rerender } = render(<NamesRoute />)
+/** Mirrors `__root.tsx`: the route reads the transaction manager's context. */
+const TransactionManagerScope = ({ children }: { children: ReactNode }) => {
+  const publicClient = usePublicClient()
+  if (!publicClient) return <>{children}</>
+  return (
+    <TransactionManagerProvider publicClient={publicClient}>
+      {children}
+    </TransactionManagerProvider>
+  )
+}
 
-    // Rendered twice: the desktop table and the mobile card list.
-    expect(await screen.findAllByText('test12345.eth')).not.toHaveLength(0)
+/** The provider tree is built per call so each test gets a fresh QueryClient. */
+const renderRoute = () => {
+  const TestProviders = createTestWrapper()
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <TestProviders>
+      <TransactionManagerScope>{children}</TransactionManagerScope>
+    </TestProviders>
+  )
+
+  return renderWithCommitCounter(() => <NamesRoute />, { wrapper })
+}
+
+/**
+ * Upper bounds on the first window, one per test so their legitimate render
+ * costs can drift apart — the selection case carries the pointer sequence and
+ * the header's swap to the selected-count bar. Both measure 7 settled commits
+ * today, stable across runs. Without the route's memo the same windows measure
+ * 19-33 (mount) and 54-71 (selection), so 14 sits clear of both.
+ */
+const MAX_SETTLED_COMMITS = { onMount: 14, afterSelection: 14 }
+
+beforeEach(() => {
+  requestedQueryKeys.length = 0
+  mergeCalls = 0
+})
+
+describe('addr names route', () => {
+  it('stops re-rendering once the names are shown', async () => {
+    const counter = renderRoute()
+
+    expect(await screen.findByText('Names (2)')).toBeInTheDocument()
+    // Once in the mobile card list, once in the desktop table.
+    expect(screen.getAllByText(V1_NAME)).toHaveLength(2)
+
+    counter.rerenderSubject()
+
+    await expectSettled(counter, MAX_SETTLED_COMMITS.onMount)
+  })
+
+  it('stops re-rendering after a row is selected', async () => {
+    const user = userEvent.setup()
+    const counter = renderRoute()
+
+    expect(await screen.findByText('Names (2)')).toBeInTheDocument()
+
+    // The reported symptom is a freeze on interaction, and a real click is also
+    // what puts these updates on React's sync lane. Selecting row 0 doubles as
+    // the second render the loop needs to arm itself.
+    await user.click(screen.getAllByRole('checkbox', { name: 'Select row' })[0])
+    expect(await screen.findByText('1 selected')).toBeInTheDocument()
+
+    // ...and it is what switches on `useRenewableNames` / `useV1Renewable`.
+    // Assert the route actually asked for the selected v1 name's on-chain
+    // renewability, so the extra coverage this test claims is real.
+    expect(requestedQueryKeys).toContainEqual([
+      'is-renewable',
+      expect.objectContaining({ name: V1_NAME }),
+    ])
+
+    await expectSettled(counter, MAX_SETTLED_COMMITS.afterSelection)
+  })
+
+  it('keeps the merged rows stable across a re-render', async () => {
+    const counter = renderRoute()
+
+    expect(await screen.findByText('Names (2)')).toBeInTheDocument()
 
     const afterFirstPaint = mergeCalls
-    rerender(<NamesRoute />)
+    counter.rerenderSubject()
 
     expect(mergeCalls).toBe(afterFirstPaint)
   })

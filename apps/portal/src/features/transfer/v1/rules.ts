@@ -15,6 +15,8 @@
  *   parent's registry owner. Crossing the two — a wrapped parent over an
  *   unwrapped child or vice versa — would forcibly wrap or unwrap the child, so
  *   like the legacy app we don't offer it.
+ * - `BaseRegistrar.reclaim` is `onlyTokenOwner` + `live`, so only the registrant
+ *   of an unwrapped, unexpired `.eth` 2LD can take its manager role back.
  */
 
 import { match, P } from 'ts-pattern'
@@ -211,6 +213,18 @@ export const getV1DetachTargets = ({
 }
 
 /**
+ * Whether the parent gets the label back once an emancipated subname lapses.
+ * `_checkCanCallSetSubnodeOwner` lets the parent re-issue an expired subname
+ * unless it burned CANNOT_CREATE_SUBDOMAIN. That bit holds only until the
+ * parent's own wrapper expiry — `_clearOwnerAndFuses` zeroes every fuse past
+ * it — so this answers "can it today", not "can it ever". A null parent is
+ * unknown, not a no.
+ */
+export const canParentReissueV1Subname = (
+  parent: V1ParentState | null,
+): boolean => !(parent?.isWrapped && parent.cannotCreateSubdomain)
+
+/**
  * What the parent can still do to a subname after it is transferred — each
  * entry finishes the sentence "they can…". Empty for any 2LD: a `.eth` 2LD's
  * parent is the registrar, and a DNS name's exposure is to the domain holder
@@ -227,12 +241,11 @@ export const getV1ParentPowers = (
       () => [],
     )
     // Emancipated: the parent is locked out until the wrapper expiry lapses,
-    // then can re-issue the label — unless it burned CANNOT_CREATE_SUBDOMAIN
-    // (`_checkCanCallSetSubnodeOwner`). A null expiry is unknown, not "never".
+    // and only then if it can still re-issue the label.
     .with({ kind: 'v1-wrapped', fuses: { parentCannotControl: true } }, () =>
-      parent?.isWrapped && parent.cannotCreateSubdomain
-        ? []
-        : ['issue it to someone else once it expires'],
+      canParentReissueV1Subname(parent)
+        ? ['issue it to someone else once it expires']
+        : [],
     )
     // `setSubnodeOwner` on the parent node, with no fuse to stop it — on either
     // contract, whichever way the child is held.
@@ -248,3 +261,26 @@ export const getV1Holder = (subject: V1TransferSubject): Address =>
     .with({ kind: 'v1-registrar' }, ({ registrant }) => registrant)
     .with({ kind: 'v1-wrapped' }, { kind: 'v1-registry' }, ({ owner }) => owner)
     .exhaustive()
+
+/**
+ * Whether `account` can take the manager role back with
+ * `BaseRegistrar.reclaim(tokenId, account)` — what the Ownership page's Reclaim
+ * button is gated on, and the way out of the `registrant-only` refusal above.
+ *
+ * Only an unwrapped `.eth` 2LD reaches this: it is the one shape where the
+ * ERC-721 registrant and the registry owner can be different wallets. `live(id)`
+ * rules out grace (`expiries[id]` has already passed), though in practice a name
+ * in grace arrives with no registrant at all because `ownerOf` reverts first.
+ * A manager that is already `account` has nothing to reclaim; an absent one does.
+ */
+export const canReclaimV1Manager = (
+  state: V1NameState | null | undefined,
+  account: Address | undefined,
+): boolean =>
+  !!state &&
+  !!account &&
+  state.subject?.kind === 'v1-registrar' &&
+  state.registration === 'active' &&
+  isAddressEqual(state.subject.registrant, account) &&
+  (!state.subject.controller ||
+    !isAddressEqual(state.subject.controller, account))

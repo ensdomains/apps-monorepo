@@ -8,6 +8,8 @@ import { getOwner as ensjsv2_getOwner } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, namehash, zeroAddress } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { isDebugProfileName } from '@/utils/debug-features'
+import { DEBUG_PROFILE_OWNER } from '../MOCK'
 import { normalizeDnsName, normalizeEthName } from './profileName'
 
 class GetOwnerError extends TaggedError('GetOwnerError')<{
@@ -22,6 +24,13 @@ export type ProfileOwnerResult = {
 }
 
 export const getOwner = ResultFn(async function* (params: { name: string }) {
+  if (isDebugProfileName(params.name)) {
+    return ok({
+      owner: DEBUG_PROFILE_OWNER,
+      protocol: 'v2',
+    } satisfies ProfileOwnerResult)
+  }
+
   const ethName = normalizeEthName(params.name)
 
   // Non-.eth names (imported DNS names) only exist in the v1 registry;

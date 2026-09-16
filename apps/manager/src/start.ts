@@ -18,6 +18,7 @@ declare module '@tanstack/router-core' {
     server: {
       requestContext: {
         cspNonce?: string
+        origin?: string
       }
     }
   }
@@ -30,8 +31,13 @@ const securityHeadersMiddleware = createMiddleware().server(
       setResponseHeader(name, value)
     }
 
+    // Every render needs the origin it is being served from, to build the
+    // absolute og:image URLs (see `getSiteOrigin`); the CSP below is
+    // production-only, the origin is not.
+    const origin = new URL(request.url).origin
+
     if (import.meta.env.DEV || request.method !== 'GET') {
-      return next()
+      return next({ context: { origin } })
     }
 
     const cspNonce = crypto.randomUUID()
@@ -44,7 +50,7 @@ const securityHeadersMiddleware = createMiddleware().server(
     )
 
     return next({
-      context: { cspNonce },
+      context: { cspNonce, origin },
     })
   },
 )

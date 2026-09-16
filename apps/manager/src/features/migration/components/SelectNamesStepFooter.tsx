@@ -24,7 +24,7 @@ const GasEstimateMessage = ({
   if (isWaitingForGasFunding) {
     return (
       <p>
-        <Trans>Preparing your wallet with gas for the upgrade...</Trans>
+        <Trans>Getting your wallet ready...</Trans>
       </p>
     )
   }
@@ -32,7 +32,7 @@ const GasEstimateMessage = ({
   return match(gasEstimate)
     .with({ status: 'loading' }, () => (
       <p>
-        <Trans>Estimating migration gas...</Trans>
+        <Trans>Estimating the network fee...</Trans>
       </p>
     ))
     .with({ status: 'ready' }, (estimate) => (
@@ -42,7 +42,7 @@ const GasEstimateMessage = ({
           <strong className="font-semibold">
             ~{estimate.formattedEth} ETH
           </strong>
-          . Expected:{' '}
+          . You&apos;ll approve{' '}
           <span className="whitespace-nowrap">
             <WalletConfirmationStepsDialog
               steps={estimate.plan.stepDescriptors}
@@ -50,13 +50,13 @@ const GasEstimateMessage = ({
             .
           </span>
           <br />
-          Final confirmations and fee are shown in your wallet.
+          Your wallet shows the final fee before you approve.
         </Trans>
       </p>
     ))
     .with({ status: 'error' }, (estimate) => (
       <p>
-        <Trans>Gas estimate unavailable</Trans>
+        <Trans>Couldn&apos;t estimate the network fee</Trans>
         {estimate.message ? `: ${estimate.message}` : null}
       </p>
     ))

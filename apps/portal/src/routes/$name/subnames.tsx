@@ -7,6 +7,7 @@ import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NameNotRegisteredMessage } from '@/components/NameNotRegisteredMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { MessageCard } from '@/components/ui/message-card'
 import {
@@ -478,8 +479,8 @@ function RouteComponent() {
 
   if (availabilityQuery.data?.isAvailable || !ownerData) {
     return (
-      <NotFoundMessage
-        title="Name not registered"
+      <NameNotRegisteredMessage
+        name={name}
         description={
           <>
             <strong>{name}</strong> is not registered, so there are no subnames

@@ -6,9 +6,10 @@ import type { Address } from 'viem'
 import { normalize } from 'viem/ens'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { MessageCard } from '@/components/ui/message-card'
+import { LEGACY_APP_BASE_URL } from '@/lib/constants/domain'
 import { getEth2LDAncestor, getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { getV1NameStateQueryOptions } from './getV1NameState'
-import { getV1TransferGate } from './rules'
+import { canParentReissueV1Subname, getV1TransferGate } from './rules'
 import { V1SendName } from './V1SendName'
 
 const Name = ({ children }: { readonly children: ReactNode }) => (
@@ -83,6 +84,11 @@ export const V1Transfer = ({
         }
       />
     )
+
+  // Whether the emancipated card can point anywhere: re-issuing a lapsed V1
+  // label happens in ens-app-v3 (our Subnames page is read-only for a V1
+  // parent), and a burned CANNOT_CREATE_SUBDOMAIN closes even that door.
+  const canReissue = canParentReissueV1Subname(state.parent)
 
   return match(getV1TransferGate(state, account))
     .with({ reason: 'ok' }, ({ subject, actor }) => (
@@ -238,10 +244,29 @@ export const V1Transfer = ({
               <span className="font-mono">PARENT_CANNOT_CONTROL</span> fuse.
               Until it expires, only its own owner can move it.
             </p>
-            <Muted>
-              Once it expires you can issue it again from the Subnames page.
-            </Muted>
+            {canReissue ? (
+              <Muted>
+                Once it expires you can issue the label again from{' '}
+                <Name>{parentName}</Name> in the ENS Manager.
+              </Muted>
+            ) : (
+              <Muted>
+                <Name>{parentName}</Name> has also burned{' '}
+                <span className="font-mono">CANNOT_CREATE_SUBDOMAIN</span>, so
+                it can’t issue this label again while that fuse holds.
+              </Muted>
+            )}
           </>
+        }
+        actionButton={
+          canReissue && parentName
+            ? {
+                label: 'Open in ENS Manager',
+                href: `${LEGACY_APP_BASE_URL}/${encodeURIComponent(parentName)}?tab=subnames`,
+                external: true,
+                variant: 'outline',
+              }
+            : undefined
         }
       />
     ))
@@ -276,10 +301,20 @@ export const V1Transfer = ({
               and reassigning a subname is the manager’s power.
             </p>
             <Muted>
-              Reclaim the manager role on <Name>{parentName}</Name> from its
-              Ownership page, then come back.
+              As its holder you can take the role back: use{' '}
+              <Name>Reclaim manager</Name> on the parent’s Ownership page, then
+              come back.
             </Muted>
           </>
+        }
+        actionButton={
+          parentName
+            ? {
+                label: `Go to ${parentName}`,
+                href: `/${encodeURIComponent(parentName)}/ownership`,
+                variant: 'outline',
+              }
+            : undefined
         }
       />
     ))

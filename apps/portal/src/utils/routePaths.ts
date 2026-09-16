@@ -22,6 +22,7 @@ export const STATIC_PATH_PREFIXES = [
  */
 export const RESERVED_ROUTE_SEGMENTS = new Set([
   'addr',
+  'import',
   'register',
   'registry',
   'resolver',
@@ -134,11 +135,6 @@ export function extractNameFromPath(pathname: string): string | null {
   if (RESERVED_ROUTE_SEGMENTS.has(name)) return null
 
   return name
-}
-
-export function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text
-  return `${text.slice(0, maxLength - 1)}…`
 }
 
 export { truncateAddress }

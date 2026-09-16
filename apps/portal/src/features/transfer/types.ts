@@ -66,7 +66,7 @@ export type V1ParentState = {
   /** Unwrapped `.eth` 2LD parent only: the 721 holder, who can `reclaim` and then act as `owner`. */
   readonly registrant: Address | null
   readonly isWrapped: boolean
-  /** Wrapped parent only. Burned, a lapsed emancipated subname can never be re-issued. */
+  /** Wrapped parent only. Burned, it can't re-issue a lapsed emancipated subname — until its own expiry clears the fuse. */
   readonly cannotCreateSubdomain: boolean
 }
 

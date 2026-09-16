@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { V1ParentState, V1TransferSubject } from '../types'
 import type { V1NameState } from './getV1NameState'
 import {
+  canReclaimV1Manager,
   getV1DetachTargets,
   getV1Holder,
   getV1ParentPowers,
@@ -35,6 +36,11 @@ const registry = (owner: Address = ME): V1TransferSubject => ({
   kind: 'v1-registry',
   owner,
 })
+
+const registrar = (
+  registrant: Address = ME,
+  controller: Address | null = OTHER,
+): V1TransferSubject => ({ kind: 'v1-registrar', registrant, controller })
 
 const wrappedParent = (
   owner: Address | null = OTHER,
@@ -433,5 +439,60 @@ describe('getV1Holder', () => {
     ).toBe(ME)
     expect(getV1Holder(wrapped({}, null, OTHER))).toBe(OTHER)
     expect(getV1Holder(registry(OTHER))).toBe(OTHER)
+  })
+})
+
+describe('canReclaimV1Manager', () => {
+  const live = { registration: 'active' } as const
+
+  it('lets the registrant reclaim a manager role held by someone else', () => {
+    expect(canReclaimV1Manager(state(registrar(), live), ME)).toBe(true)
+  })
+
+  it('offers the reclaim when the registry slot has no owner at all', () => {
+    expect(canReclaimV1Manager(state(registrar(ME, null), live), ME)).toBe(true)
+  })
+
+  it('has nothing to reclaim when the registrant already manages it', () => {
+    expect(canReclaimV1Manager(state(registrar(ME, ME), live), ME)).toBe(false)
+  })
+
+  it('refuses the manager, who holds no token to reclaim with', () => {
+    expect(canReclaimV1Manager(state(registrar(OTHER, ME), live), ME)).toBe(
+      false,
+    )
+  })
+
+  it('refuses a stranger', () => {
+    expect(canReclaimV1Manager(state(registrar(OTHER), live), ME)).toBe(false)
+  })
+
+  // `reclaim` is `live(id)`: grace has already passed `expiries[id]`, so the
+  // call reverts. `ownerOf` reverts first in practice — belt as well as braces.
+  it('refuses once the registration has lapsed', () => {
+    expect(
+      canReclaimV1Manager(
+        state(registrar(), { registration: 'gracePeriod' }),
+        ME,
+      ),
+    ).toBe(false)
+    expect(
+      canReclaimV1Manager(state(registrar(), { registration: 'expired' }), ME),
+    ).toBe(false)
+  })
+
+  it('refuses a wrapped name, whose registrant is the wrapper itself', () => {
+    expect(canReclaimV1Manager(state(wrapped({}, null, ME), live), ME)).toBe(
+      false,
+    )
+  })
+
+  it('refuses a plain registry name, which has no registrant at all', () => {
+    expect(canReclaimV1Manager(state(registry(ME), live), ME)).toBe(false)
+  })
+
+  it('refuses with no state or no connected wallet', () => {
+    expect(canReclaimV1Manager(null, ME)).toBe(false)
+    expect(canReclaimV1Manager(state(registrar(), live), undefined)).toBe(false)
   })
 })
