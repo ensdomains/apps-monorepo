@@ -1,16 +1,24 @@
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { ok, type Result } from 'neverthrow'
-import { createPublicClient, http } from 'viem'
+import {
+  createPublicClient,
+  type HttpTransport,
+  http,
+  type PublicClient,
+} from 'viem'
 import { sepolia } from 'viem/chains'
-import { error } from '../../utils/result'
+import { error, type GenericError } from '../../utils/result'
 
 const sepoliaWithEns = extendChainWithEns(sepolia)
-export type ViemClient =
-  ReturnType<typeof createEnsClient> extends Result<infer T, infer _E>
-    ? T
-    : never
 
-export const createEnsClient = (env: CloudflareBindings) => {
+// Annotated rather than inferred: viem's own action types aren't all reachable
+// from the package root, so `tsc --emitDeclarationOnly` can't name the inferred
+// client ("cannot be named without a reference to viem/_types/actions/token").
+export type ViemClient = PublicClient<HttpTransport, typeof sepoliaWithEns>
+
+export const createEnsClient = (
+  env: CloudflareBindings,
+): Result<ViemClient, GenericError> => {
   if ((env.CHAIN as string) !== 'sepolia') {
     return error({
       code: 'INVALID_CHAIN',

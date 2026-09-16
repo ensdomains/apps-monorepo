@@ -19,7 +19,10 @@ catalog:
   wrangler: ^4.127.1
   posthog-js: ^1.398.3
   "@posthog/react": ^1.10.3
-  viem: ^2.52.2
+  # Exact, not a range: @privy-io/react-auth depends on viem 2.56.0 directly and
+  # its sub-packages peer on that exact version, so any other spec here puts a
+  # second viem in the tree alongside the app's.
+  viem: 2.56.0
   "@rhinestone/sdk": 1.8.0
   # Optional peer dep of @wagmi/connectors (walletConnect connector). Since wagmi
   # v3 all connector deps are optional peers, and autoInstallPeers is false, so it
@@ -28,9 +31,9 @@ catalog:
   # wagmi pins @wagmi/core and @wagmi/connectors to exact versions, so these
   # three only ever move together — bumping one alone just re-duplicates the
   # tree at wagmi's pinned version.
-  wagmi: ^3.7.6
-  "@wagmi/core": ^3.6.4
-  "@wagmi/connectors": ^8.1.0
+  wagmi: ^3.7.7
+  "@wagmi/core": ^3.6.5
+  "@wagmi/connectors": ^8.2.0
 
 dedupeDirectDeps: true
 
