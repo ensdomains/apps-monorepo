@@ -1,37 +1,41 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { deleteAlias } from '@/features/resolver/helpers/setAlias'
-import {
-  getResolverOverviewQueryOptions,
-  type ResolverOverview,
-} from '@/features/resolver/hooks/useResolverOverview'
+import { linkToNode } from '@/features/resolver/helpers/linkRecords'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
-interface UseDeleteAliasOptions {
+interface UseLinkToNodeOptions {
   readonly resolverAddress: Address
   readonly walletClient: WalletClient | undefined
   readonly publicClient: PublicClient | undefined
   readonly chainId: number
   readonly id: string
+  readonly onSuccess?: () => void
 }
 
-export const useDeleteAlias = ({
+interface LinkToNodeMutationParams {
+  readonly sourceName: string
+  readonly targetName: string
+}
+
+export const useLinkToNode = ({
   resolverAddress,
   walletClient,
   publicClient,
   chainId,
   id,
-}: UseDeleteAliasOptions) => {
+  onSuccess,
+}: UseLinkToNodeOptions) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (fromName: string) => {
+    mutationFn: ({ sourceName, targetName }: LinkToNodeMutationParams) => {
       if (!walletClient || !publicClient) {
         throw new Error('Wallet not connected')
       }
-      return deleteAlias({
-        fromName,
+      return linkToNode({
+        sourceName,
+        targetName,
         resolverAddress,
         walletClient,
         publicClient,
@@ -40,23 +44,7 @@ export const useDeleteAlias = ({
         id,
       })
     },
-    onSuccess: async (_result, fromName) => {
-      const resolverOverviewQueryKey = getResolverOverviewQueryOptions({
-        address: resolverAddress,
-      }).queryKey
-
-      queryClient.setQueryData<ResolverOverview | null>(
-        resolverOverviewQueryKey,
-        (current) => {
-          if (!current) return current
-          return {
-            ...current,
-            aliases: current.aliases.filter((a) => a.fromName !== fromName),
-            aliasCount: Math.max(0, current.aliasCount - 1),
-          }
-        },
-      )
-
+    onSuccess: async () => {
       await pollForIndexerSync({
         invalidateQueries: () =>
           queryClient.invalidateQueries({
@@ -64,6 +52,7 @@ export const useDeleteAlias = ({
             refetchType: 'all',
           }),
       })
+      onSuccess?.()
     },
   })
 }

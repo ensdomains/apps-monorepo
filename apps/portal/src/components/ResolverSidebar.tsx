@@ -57,10 +57,10 @@ const getItems = (address: string) => [
     },
   }),
   defineResolverSidebarItem({
-    title: 'Aliases',
+    title: 'Links',
     icon: SplitIcon,
     link: {
-      to: '/resolver/$address/aliases',
+      to: '/resolver/$address/links',
       params: { address },
     },
   }),

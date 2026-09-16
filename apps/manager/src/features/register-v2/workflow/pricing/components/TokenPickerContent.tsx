@@ -202,7 +202,7 @@ export const TokenPickerContent = () => {
   // or enable prompt is needed at this step.
   const startRegistration = async (resolvedSetAsPrimary: boolean) => {
     if (!pricingQuery.data || !selectedToken) return
-    // Resolve the session-enable payload up front (checks on-chain enablement).
+    // Resolve the session-enable payload up front; both legs are signed with it.
     const hcaSessionEnable = await account.getSessionEnablePayload()
     uiActor.send({
       type: 'registration.start',

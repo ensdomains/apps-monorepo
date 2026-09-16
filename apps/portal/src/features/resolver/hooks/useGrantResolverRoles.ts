@@ -1,8 +1,10 @@
-import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { grantResolverRoles } from '@/features/resolver/helpers/grantResolverRoles'
+import {
+  grantResolverRoles,
+  type ResolverGrantScope,
+} from '@/features/resolver/helpers/grantResolverRoles'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
 interface UseGrantResolverRolesOptions {
@@ -15,9 +17,8 @@ interface UseGrantResolverRolesOptions {
 }
 
 interface GrantResolverRolesMutationParams {
-  readonly name: string
   readonly account: Address
-  readonly roles: ResolverRole[]
+  readonly scope: ResolverGrantScope
 }
 
 export const useGrantResolverRoles = ({
@@ -31,19 +32,14 @@ export const useGrantResolverRoles = ({
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({
-      name,
-      account,
-      roles,
-    }: GrantResolverRolesMutationParams) => {
+    mutationFn: ({ account, scope }: GrantResolverRolesMutationParams) => {
       if (!walletClient || !publicClient) {
         throw new Error('Wallet not connected')
       }
       return grantResolverRoles({
         resolverAddress,
-        name,
         account,
-        roles,
+        scope,
         walletClient,
         publicClient,
         signer: createEOASigner(walletClient),

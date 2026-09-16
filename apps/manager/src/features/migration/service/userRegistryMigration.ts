@@ -72,7 +72,7 @@ export const buildDeployUserRegistryCall = (params: {
       encodeFunctionData({
         abi: userRegistryInitializeSnippet,
         functionName: 'initialize',
-        args: [params.hca, ROLES_ALL],
+        args: [[{ account: params.hca, roleBitmap: ROLES_ALL }]],
       }),
     ],
   }),

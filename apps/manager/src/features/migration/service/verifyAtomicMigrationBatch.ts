@@ -1,11 +1,16 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   type Address,
+  decodeFunctionResult,
+  encodeFunctionData,
+  type Hex,
   isAddressEqual,
   type PublicClient,
   parseAbi,
+  toHex,
   zeroAddress,
 } from 'viem'
+import { packetToBytes } from 'viem/ens'
 
 import type {
   AtomicMigrationBatch,
@@ -33,10 +38,27 @@ const STATUS_REGISTERED = 2
 
 const permissionedResolverReadAbi = parseAbi([
   'function hasRootRoles(uint256 roleBitmap, address account) view returns (bool)',
+])
+
+/**
+ * Record getters, for building the inner calldata of an ENSIP-10 `resolve`.
+ *
+ * The V2 `PermissionedResolver` does not implement these directly — `resolve`
+ * dispatches on the selector and ignores the `bytes32 node` inside, deriving
+ * the record from the DNS-encoded name instead. Calling them on the resolver
+ * would hit its fallback and revert with empty data.
+ */
+type ResolverProfileFunction = 'text' | 'addr' | 'contenthash' | 'ABI'
+
+const resolverProfileAbi = parseAbi([
   'function text(bytes32 node, string key) view returns (string)',
   'function addr(bytes32 node, uint256 coinType) view returns (bytes)',
   'function contenthash(bytes32 node) view returns (bytes)',
   'function ABI(bytes32 node, uint256 contentTypes) view returns (uint256, bytes)',
+])
+
+const resolveProfileAbi = parseAbi([
+  'function resolve(bytes name, bytes data) view returns (bytes)',
 ])
 
 const wrapperRegistryReadAbi = parseAbi([
@@ -112,6 +134,45 @@ const hasContractCode = (
     .then((code) => Boolean(code && code !== '0x'))
   context.codeCache.set(cacheKey, read)
   return read
+}
+
+type DecodeResolverProfileResult<fn extends ResolverProfileFunction> =
+  fn extends 'text'
+    ? string
+    : fn extends 'addr' | 'contenthash'
+      ? Hex
+      : readonly [bigint, Hex]
+
+/** Read one record through `resolve`, returning the decoded getter result. */
+const resolveRecord = async <fn extends ResolverProfileFunction>(
+  context: ReadContext,
+  block: { readonly blockNumber?: bigint },
+  resolver: Address,
+  name: string,
+  functionName: fn,
+  args: readonly unknown[],
+) => {
+  const data = await context.publicClient.readContract({
+    address: resolver,
+    abi: resolveProfileAbi,
+    functionName: 'resolve',
+    args: [
+      toHex(packetToBytes(name)),
+      encodeFunctionData({
+        abi: resolverProfileAbi,
+        functionName,
+        args,
+      } as Parameters<typeof encodeFunctionData>[0]),
+    ],
+    ...block,
+  })
+  return decodeFunctionResult({
+    abi: resolverProfileAbi,
+    functionName,
+    data,
+  } as Parameters<
+    typeof decodeFunctionResult
+  >[0]) as DecodeResolverProfileResult<fn>
 }
 
 /** Starting at ETHRegistry, omit the `eth` suffix and walk root-to-leaf. */
@@ -431,46 +492,50 @@ const checkExpectation = async (
     }
     case 'profile-text': {
       if (!(await hasContractCode(context, expectation.resolver))) return false
-      const value = await context.publicClient.readContract({
-        address: expectation.resolver,
-        abi: permissionedResolverReadAbi,
-        functionName: 'text',
-        args: [expectation.node, expectation.key],
-        ...block,
-      })
+      const value = await resolveRecord(
+        context,
+        block,
+        expectation.resolver,
+        expectation.name,
+        'text',
+        [expectation.node, expectation.key],
+      )
       return value === expectation.value
     }
     case 'profile-address': {
       if (!(await hasContractCode(context, expectation.resolver))) return false
-      const value = await context.publicClient.readContract({
-        address: expectation.resolver,
-        abi: permissionedResolverReadAbi,
-        functionName: 'addr',
-        args: [expectation.node, expectation.coinType],
-        ...block,
-      })
+      const value = await resolveRecord(
+        context,
+        block,
+        expectation.resolver,
+        expectation.name,
+        'addr',
+        [expectation.node, expectation.coinType],
+      )
       return value.toLowerCase() === expectation.value.toLowerCase()
     }
     case 'profile-contenthash': {
       if (!(await hasContractCode(context, expectation.resolver))) return false
-      const value = await context.publicClient.readContract({
-        address: expectation.resolver,
-        abi: permissionedResolverReadAbi,
-        functionName: 'contenthash',
-        args: [expectation.node],
-        ...block,
-      })
+      const value = await resolveRecord(
+        context,
+        block,
+        expectation.resolver,
+        expectation.name,
+        'contenthash',
+        [expectation.node],
+      )
       return value.toLowerCase() === expectation.value.toLowerCase()
     }
     case 'profile-abi': {
       if (!(await hasContractCode(context, expectation.resolver))) return false
-      const [contentType, value] = await context.publicClient.readContract({
-        address: expectation.resolver,
-        abi: permissionedResolverReadAbi,
-        functionName: 'ABI',
-        args: [expectation.node, expectation.contentType],
-        ...block,
-      })
+      const [contentType, value] = await resolveRecord(
+        context,
+        block,
+        expectation.resolver,
+        expectation.name,
+        'ABI',
+        [expectation.node, expectation.contentType],
+      )
       return (
         contentType === expectation.contentType &&
         value.toLowerCase() === expectation.value.toLowerCase()
