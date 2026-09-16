@@ -5,7 +5,7 @@ import {
   SiX,
 } from '@icons-pack/react-simple-icons'
 import { Trans } from '@lingui/react/macro'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,7 @@ import {
   getCommemorativeNftConfig,
 } from '../../commemorative-nft/config'
 import { CommemorativeNftRendererSurface } from './CommemorativeNftRendererSurface'
+import { CommemorativeNftSurpriseCard } from './CommemorativeNftSurpriseCard'
 import type {
   CommemorativeNftCardData,
   MigrationSuccessDialogState,
@@ -134,123 +135,214 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
 }
 
 type CardVariant = 'dialog' | 'profile'
+export type CommemorativeNftArtworkStatus =
+  | 'loading'
+  | 'ready'
+  | 'error'
+  | 'paused'
+
+type ArtworkStatusCallback = (status: CommemorativeNftArtworkStatus) => void
+
+const getArtworkStatus = (
+  rendererStatus: CommemorativeNftArtworkStatus,
+  imageStatus: CommemorativeNftArtworkStatus,
+  imageUrl: string | undefined,
+): CommemorativeNftArtworkStatus => {
+  if (rendererStatus !== 'error') return rendererStatus
+  return imageUrl ? imageStatus : 'error'
+}
+
+const CardFrame = ({
+  children,
+  variant,
+}: {
+  readonly children: ReactNode
+  readonly variant: CardVariant
+}) => (
+  <div
+    className={cn(
+      'flex w-full items-center justify-center',
+      variant === 'dialog' ? 'h-[310px]' : 'h-[308px]',
+    )}
+  >
+    <div
+      className={cn(
+        // Equal space on both sides keeps the artwork centered. The sharing
+        // rail sits outside this frame instead of shifting the card left.
+        'relative',
+        variant === 'dialog'
+          ? 'aspect-[193/273] w-[min(193px,calc(100%-7rem))]'
+          : 'aspect-[200/282] w-[min(200px,calc(100%-7rem))]',
+      )}
+    >
+      {children}
+    </div>
+  </div>
+)
+
+const ArtworkLoading = ({ paused = false }: { readonly paused?: boolean }) => (
+  <div className="absolute inset-0" role="status">
+    <CommemorativeNftSurpriseCard className="w-full" />
+    <span className="sr-only">
+      {paused ? (
+        <Trans>Play artwork to preview your NFT.</Trans>
+      ) : (
+        <Trans>Loading NFT artwork…</Trans>
+      )}
+    </span>
+  </div>
+)
 
 const ArtworkCard = ({
   interactive,
+  onStatusChange,
+  onRetry,
+  rendererUrl,
   state,
   variant,
 }: {
   readonly interactive: boolean
+  readonly onStatusChange?: ArtworkStatusCallback
+  readonly onRetry: () => void
+  readonly rendererUrl: string | undefined
   readonly state: CardDialogState
   readonly variant: CardVariant
 }) => {
-  const [artworkFailed, setArtworkFailed] = useState(false)
-  const [imageFailed, setImageFailed] = useState(false)
-  const [imageLoaded, setImageLoaded] = useState(false)
-  const [attempt, setAttempt] = useState(0)
-  const rendererUrl = buildCommemorativeNftRendererUrl({
-    eligibility: state.card.eligibility,
-    rendererOrigin: getCommemorativeNftConfig().rendererOrigin,
-  })
-  const showImage =
-    artworkFailed && !!state.card.assets.imageUrl && !imageFailed
+  const [rendererStatus, setRendererStatus] =
+    useState<CommemorativeNftArtworkStatus>('loading')
+  const [imageStatus, setImageStatus] =
+    useState<CommemorativeNftArtworkStatus>('loading')
+  const onPausedChange = useCallback((paused: boolean) => {
+    setRendererStatus((current) => {
+      if (paused) return 'paused'
+      return current === 'paused' ? 'loading' : current
+    })
+  }, [])
+  const imageUrl = state.card.assets.imageUrl
+  const showImage = rendererStatus === 'error' && !!imageUrl
+  const status = getArtworkStatus(rendererStatus, imageStatus, imageUrl)
+  const artworkReady = status === 'ready'
+  const artworkFailed = status === 'error'
+
+  useEffect(() => {
+    onStatusChange?.(status)
+  }, [onStatusChange, status])
+
+  useEffect(() => {
+    if (!showImage || imageStatus !== 'loading') return
+    const timer = window.setTimeout(() => setImageStatus('error'), 10_000)
+    return () => window.clearTimeout(timer)
+  }, [imageStatus, showImage])
 
   return (
-    <fieldset
-      aria-label={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
-      className={cn(
-        'flex items-center justify-center border-0 p-0',
-        variant === 'dialog'
-          ? 'h-[310px] w-[250px] min-w-0 shrink'
-          : 'h-[308px] w-[236px] shrink-0',
-      )}
-    >
-      <div
-        className={cn(
-          'relative rounded-lg bg-transparent drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)]',
-          variant === 'dialog' ? 'h-68.25 w-48.25' : 'h-70.5 w-50',
-        )}
-      >
+    <CardFrame variant={variant}>
+      {rendererStatus === 'error' ? (
+        artworkReady ? null : (
+          <ArtworkLoading />
+        )
+      ) : (
         <CommemorativeNftRendererSurface
           eligibility={state.card.eligibility}
           interactive={interactive}
-          key={attempt}
-          onError={() => {
-            setArtworkFailed(true)
-          }}
-          onReady={() => {
-            setArtworkFailed(false)
-          }}
+          onError={() => setRendererStatus('error')}
+          onPausedChange={onPausedChange}
+          onReady={() => setRendererStatus('ready')}
+          placeholder={<ArtworkLoading paused={rendererStatus === 'paused'} />}
           rendererUrl={rendererUrl}
         />
-        {showImage ? (
-          <img
-            alt={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
-            className="absolute inset-0 z-30 h-full w-full rounded-lg object-contain"
-            onError={() => setImageFailed(true)}
-            onLoad={() => setImageLoaded(true)}
-            src={state.card.assets.imageUrl}
-          />
-        ) : null}
-        {artworkFailed && (!showImage || !imageLoaded) ? (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-lg bg-ens-garnet-100 p-4 text-center text-ens-garnet-900 text-sm">
-            <p role="status">
-              {showImage ? (
-                <Trans>Loading NFT artwork…</Trans>
-              ) : (
-                <Trans>Artwork could not be loaded.</Trans>
-              )}
-            </p>
-            <button
-              className="min-h-11 rounded-lg border border-ens-garnet-900 px-4 py-2 font-medium focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2"
-              onClick={() => {
-                setArtworkFailed(false)
-                setImageFailed(false)
-                setImageLoaded(false)
-                setAttempt((current) => current + 1)
-              }}
-              type="button"
-            >
-              <Trans>Retry artwork</Trans>
-            </button>
-          </div>
-        ) : null}
-      </div>
-    </fieldset>
+      )}
+      {showImage && imageStatus !== 'error' ? (
+        <img
+          alt={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
+          aria-hidden={imageStatus !== 'ready'}
+          className={cn(
+            'absolute inset-0 h-full w-full rounded-lg object-contain drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)]',
+            imageStatus === 'ready' ? 'opacity-100' : 'opacity-0',
+          )}
+          onError={() => setImageStatus('error')}
+          onLoad={(event) => {
+            void event.currentTarget.decode().then(
+              () =>
+                setImageStatus((current) =>
+                  current === 'loading' ? 'ready' : current,
+                ),
+              () => setImageStatus('error'),
+            )
+          }}
+          src={imageUrl}
+        />
+      ) : null}
+      {artworkFailed ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-lg bg-ens-garnet-100/95 p-4 text-center text-ens-garnet-900 text-sm">
+          <p role="status">
+            <Trans>Artwork could not be loaded.</Trans>
+          </p>
+          <button
+            className="min-h-11 rounded-lg border border-ens-garnet-900 px-4 py-2 font-medium focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2"
+            onClick={onRetry}
+            type="button"
+          >
+            <Trans>Retry artwork</Trans>
+          </button>
+        </div>
+      ) : null}
+      {artworkReady ? (
+        <div className="absolute top-1/2 left-full ml-3 -translate-y-1/2">
+          <SharingRail state={state} />
+        </div>
+      ) : null}
+    </CardFrame>
+  )
+}
+
+const RetryableArtworkCard = (
+  props: Omit<Parameters<typeof ArtworkCard>[0], 'onRetry'>,
+) => {
+  const [attempt, setAttempt] = useState(0)
+  return (
+    <ArtworkCard
+      {...props}
+      key={attempt}
+      onRetry={() => setAttempt((current) => current + 1)}
+    />
   )
 }
 
 export const CommemorativeNftCard = ({
   interactive = true,
+  onStatusChange,
   state,
   variant = 'profile',
 }: {
   readonly interactive?: boolean
+  readonly onStatusChange?: ArtworkStatusCallback
   readonly state: MigrationSuccessDialogState
   readonly variant?: CardVariant
 }) => {
   const cardState = hasCardData(state) ? state : undefined
+  const rendererOrigin = getCommemorativeNftConfig().rendererOrigin
+  const rendererUrl = cardState
+    ? buildCommemorativeNftRendererUrl({
+        eligibility: cardState.card.eligibility,
+        rendererOrigin,
+      })
+    : undefined
+
+  if (!cardState)
+    return (
+      <CardFrame variant={variant}>
+        <ArtworkLoading />
+      </CardFrame>
+    )
 
   return (
-    <div
-      className={cn(
-        'flex w-full items-center justify-center',
-        variant === 'dialog' ? 'h-[310px]' : 'h-[308px] gap-1',
-      )}
-    >
-      {cardState ? (
-        <ArtworkCard
-          interactive={interactive}
-          key={`${cardState.card.eligibility.ownerAddress}:${cardState.card.eligibility.rendererName}`}
-          state={cardState}
-          variant={variant}
-        />
-      ) : (
-        <p className="font-sans text-ens-garnet-500 text-sm" role="status">
-          <Trans>Loading NFT details…</Trans>
-        </p>
-      )}
-      {cardState ? <SharingRail state={cardState} /> : null}
-    </div>
+    <RetryableArtworkCard
+      interactive={interactive}
+      key={`${rendererUrl}:${cardState.card.eligibility.rendererName}:${cardState.card.assets.imageUrl}`}
+      onStatusChange={onStatusChange}
+      rendererUrl={rendererUrl}
+      state={cardState}
+      variant={variant}
+    />
   )
 }

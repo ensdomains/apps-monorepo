@@ -72,7 +72,6 @@ export const DashboardPage = () => {
             <UpgradeBanner />
           </motion.div>
         )}
-        {commemorativeNftEnabled ? <CommemorativeNftDashboardPrompt /> : null}
         <motion.div
           className="w-full px-4 empty:hidden md:px-0"
           {...stagger(1, shouldReduceMotion)}
@@ -121,6 +120,7 @@ export const DashboardPage = () => {
           />
         </motion.div>
         {migrationEnabled && <MigrationProgressBanner />}
+        {commemorativeNftEnabled ? <CommemorativeNftDashboardPrompt /> : null}
         {commemorativeNftEnabled ? <CommemorativeNftDashboardSection /> : null}
         <motion.div
           className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"

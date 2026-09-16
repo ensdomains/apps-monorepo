@@ -1,15 +1,12 @@
-import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
-import { motion } from 'motion/react'
 import { useState } from 'react'
 import { useConnection } from 'wagmi'
-import { MSymbol } from '@/components/ui/material-symbol'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { resolveVerifiedOwner } from '@/lib/smart-account/sessionGate'
 import { useCommemorativeNftAvailability } from '../../commemorative-nft/useCommemorativeNftAvailability'
 import { getVisibleCommemorativeNftEligibility } from '../../commemorative-nft/visibility'
-import { MigrationPrimaryButton } from '../MigrationPrimaryButton'
 import { CommemorativeNftClaimDialog } from './CommemorativeNftClaimDialog'
+import { CommemorativeNftMintBanner } from './CommemorativeNftMintBanner'
 
 export const CommemorativeNftDashboardPrompt = () => {
   const navigate = useNavigate()
@@ -26,52 +23,33 @@ export const CommemorativeNftDashboardPrompt = () => {
     enabled: true,
   })
 
+  // Keep a resolved offer in place during background checks. Mint still
+  // requires fresh, idle results and is revalidated again by the claim dialog.
   const eligibility = getVisibleCommemorativeNftEligibility({
     featureEnabled: availability.featureEnabled,
     ownerAddress: verifiedOwner,
     supported: availability.supported,
     result: availability.eligibility.data,
-    hasFreshEligibilityResult: availability.hasFreshEligibilityResult,
+    hasFreshEligibilityResult:
+      availability.eligibility.isFetchedAfterMount &&
+      availability.eligibility.isSuccess,
     minted: availability.claimed.data === true,
   })
-  const shouldShow = !!eligibility && availability.isConfirmedUnclaimed
+  const shouldShow =
+    !!eligibility &&
+    availability.claimed.isFetchedAfterMount &&
+    availability.claimed.isSuccess &&
+    availability.claimed.data === false
+  const canMint =
+    availability.hasFreshEligibilityResult && availability.isConfirmedUnclaimed
 
   return (
     <>
       {shouldShow ? (
-        <motion.section
-          animate={{ opacity: 1, y: 0 }}
-          className="relative mx-4 overflow-hidden rounded-xl border border-ens-pink/25 bg-[linear-gradient(108deg,#fff4f8_0%,#ffe1ed_58%,#ffd2e7_100%)] px-5 py-5 shadow-[0_8px_30px_rgba(128,0,54,0.06)] md:mx-0 md:px-6"
-          initial={{ opacity: 0, y: 8 }}
-        >
-          <div className="absolute -top-14 -right-10 size-40 rounded-full bg-white/45 blur-2xl" />
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-white/70 text-ens-garnet-500">
-                <MSymbol className="text-[22px]" symbol="auto_awesome" />
-              </div>
-              <div>
-                <h2 className="font-sans text-ens-garnet-900 text-lg leading-tight">
-                  <Trans>Your ENSv2 commemorative NFT is ready</Trans>
-                </h2>
-                <p className="mt-1 max-w-xl font-sans text-ens-garnet-500 text-sm leading-relaxed">
-                  <Trans>
-                    Preview your one-of-a-kind card and mint it whenever
-                    you&apos;re ready.
-                  </Trans>
-                </p>
-              </div>
-            </div>
-            <MigrationPrimaryButton
-              className="shrink-0"
-              onClick={() => setOpen(true)}
-              type="button"
-            >
-              <Trans>View and mint</Trans>
-              <MSymbol className="text-[18px]" symbol="arrow_forward" />
-            </MigrationPrimaryButton>
-          </div>
-        </motion.section>
+        <CommemorativeNftMintBanner
+          disabled={!canMint}
+          onMint={() => setOpen(true)}
+        />
       ) : null}
 
       <CommemorativeNftClaimDialog

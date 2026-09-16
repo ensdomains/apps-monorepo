@@ -5,11 +5,11 @@ import type { CommemorativeNftEligibility } from './types'
 import { useCommemorativeNftAvailability } from './useCommemorativeNftAvailability'
 import { getVisibleCommemorativeNftEligibility } from './visibility'
 
-export const useVisibleCommemorativeNftEligibility = ({
+export const useVisibleCommemorativeNftStatus = ({
   enabled = true,
 }: {
   readonly enabled?: boolean
-} = {}): CommemorativeNftEligibility | undefined => {
+} = {}) => {
   const { ownerAddress } = useSmartAccountContext()
   const { address: walletAddress, isConnected } = useConnection()
   const verifiedOwner =
@@ -22,7 +22,7 @@ export const useVisibleCommemorativeNftEligibility = ({
     enabled,
   })
 
-  return getVisibleCommemorativeNftEligibility({
+  const eligibility = getVisibleCommemorativeNftEligibility({
     featureEnabled: availability.featureEnabled,
     ownerAddress: enabled ? verifiedOwner : undefined,
     supported: availability.supported,
@@ -30,4 +30,14 @@ export const useVisibleCommemorativeNftEligibility = ({
     hasFreshEligibilityResult: availability.hasFreshEligibilityResult,
     minted: availability.claimed.data === true,
   })
+
+  return {
+    eligibility,
+    isConfirmedUnclaimed: availability.isConfirmedUnclaimed,
+  }
 }
+
+export const useVisibleCommemorativeNftEligibility = (
+  options: { readonly enabled?: boolean } = {},
+): CommemorativeNftEligibility | undefined =>
+  useVisibleCommemorativeNftStatus(options).eligibility

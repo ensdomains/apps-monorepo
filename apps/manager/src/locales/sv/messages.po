@@ -636,8 +636,8 @@ msgid "Confirming the name is now owned by your account"
 msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Congratulations, you're among the first on ENSv2. This personalized NFT marks the moment."
-msgstr ""
+#~ msgid "Congratulations, you're among the first on ENSv2. This personalized NFT marks the moment."
+#~ msgstr ""
 
 #: src/features/navigation/Header/desktop/DisconnectedRightBlock.tsx
 #: src/features/navigation/Header/mobile/MobileConnectButton.tsx
@@ -1236,6 +1236,7 @@ msgstr ""
 #~ msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
+#: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 msgid "Here's a gift to celebrate your upgrade to the next era of ENS"
 msgstr ""
 
@@ -1346,8 +1347,8 @@ msgid "Loading NFT artwork…"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Loading NFT details…"
-msgstr ""
+#~ msgid "Loading NFT details…"
+#~ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Loading pricing..."
@@ -1364,6 +1365,10 @@ msgstr ""
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Loading..."
 msgstr "Laddar..."
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Loading…"
+msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Long-term identity"
@@ -1442,6 +1447,7 @@ msgid "Migration value propositions"
 msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
+#: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 msgid "Mint"
 msgstr ""
 
@@ -1778,6 +1784,10 @@ msgstr ""
 msgid "Play artwork"
 msgstr ""
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Play artwork to preview your NFT."
+msgstr ""
+
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Please connect your wallet first"
@@ -1832,8 +1842,8 @@ msgid "Preview and mint"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftDashboardPrompt.tsx
-msgid "Preview your one-of-a-kind card and mint it whenever you're ready."
-msgstr ""
+#~ msgid "Preview your one-of-a-kind card and mint it whenever you're ready."
+#~ msgstr ""
 
 #: src/features/dashboard/components/EducationCarousel.tsx
 msgid "Previous card"
@@ -2929,8 +2939,8 @@ msgid "Verifying..."
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftDashboardPrompt.tsx
-msgid "View and mint"
-msgstr ""
+#~ msgid "View and mint"
+#~ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "View on OpenSea"
@@ -3194,6 +3204,10 @@ msgstr ""
 msgid "You're almost there!"
 msgstr ""
 
+#: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
+msgid "You're on ENSv2!"
+msgstr ""
+
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Your account"
 msgstr ""
@@ -3231,8 +3245,8 @@ msgid "Your ENS name works across web3"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftDashboardPrompt.tsx
-msgid "Your ENSv2 commemorative NFT is ready"
-msgstr ""
+#~ msgid "Your ENSv2 commemorative NFT is ready"
+#~ msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Your ENSv2 moment is waiting"

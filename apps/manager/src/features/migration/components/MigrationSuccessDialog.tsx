@@ -1,4 +1,5 @@
 import { Plural, Trans } from '@lingui/react/macro'
+import { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,10 @@ import {
   shouldHideCommemorativeNftDialog,
   shouldShowPlainMigrationSuccess,
 } from './MigrationSuccessDialog.helpers'
-import { CommemorativeNftCard } from './success/CommemorativeNftCard'
+import {
+  type CommemorativeNftArtworkStatus,
+  CommemorativeNftCard,
+} from './success/CommemorativeNftCard'
 import type { MigrationSuccessDialogState } from './success/MigrationSuccessDialog.types'
 
 type MigrationSuccessDialogProps = {
@@ -22,6 +26,7 @@ type MigrationSuccessDialogProps = {
   readonly state: MigrationSuccessDialogState
   readonly migratedNameCount: number
   readonly canMint: boolean
+  readonly canRetry?: boolean
   readonly onClose: () => void
   readonly onMint: () => void
   readonly onRetry: () => void
@@ -30,10 +35,8 @@ type MigrationSuccessDialogProps = {
 
 const DialogHeading = ({
   context,
-  state,
 }: {
   readonly context: MigrationSuccessDialogProps['context']
-  readonly state: MigrationSuccessDialogState
 }) => (
   <div className="flex w-full max-w-[486px] shrink-0 flex-col items-center gap-2 text-center md:gap-4">
     <DialogTitle className="w-full text-balance font-normal font-serif text-[20px] text-ens-garnet-900 leading-[1.1] tracking-[-0.02em] md:text-[32px]">
@@ -43,17 +46,10 @@ const DialogHeading = ({
         <Trans>Your ENSv2 moment is waiting</Trans>
       )}
     </DialogTitle>
-    <DialogDescription className="max-w-[400px] font-normal font-sans text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.01em]">
-      {state.status === 'loadingEligibility' ? (
-        <Trans>
-          Here&apos;s a gift to celebrate your upgrade to the next era of ENS
-        </Trans>
-      ) : (
-        <Trans>
-          Congratulations, you&apos;re among the first on ENSv2. This
-          personalized NFT marks the moment.
-        </Trans>
-      )}
+    <DialogDescription className="min-h-[3.6em] max-w-[400px] font-normal font-sans text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.01em] md:min-h-[2.4em]">
+      <Trans>
+        Here&apos;s a gift to celebrate your upgrade to the next era of ENS
+      </Trans>
     </DialogDescription>
   </div>
 )
@@ -108,9 +104,41 @@ const SecondaryButton = ({
   </button>
 )
 
+const ErrorContent = ({
+  state,
+  canRetry,
+  onClose,
+  onRetry,
+  onViewProfile,
+}: Pick<
+  MigrationSuccessDialogProps,
+  'canRetry' | 'onClose' | 'onRetry' | 'onViewProfile'
+> & {
+  readonly state: Extract<MigrationSuccessDialogState, { status: 'error' }>
+}) => (
+  <div className="flex min-h-86 w-full flex-col items-center justify-center gap-5 px-4 text-center">
+    <div className="flex size-14 items-center justify-center rounded-full bg-white/60 text-ens-garnet-500">
+      <MSymbol aria-hidden className="text-[28px]" symbol="warning" />
+    </div>
+    <p className="max-w-80 font-sans text-ens-garnet-700 text-sm leading-relaxed">
+      {state.message}
+    </p>
+    {state.stage === 'eligibility' ? (
+      <MigrationPrimaryButton onClick={canRetry ? onRetry : onClose}>
+        {canRetry ? <Trans>Try again</Trans> : <Trans>Close</Trans>}
+      </MigrationPrimaryButton>
+    ) : (
+      <MigrationPrimaryButton onClick={onViewProfile}>
+        <Trans>Continue to profile</Trans>
+      </MigrationPrimaryButton>
+    )}
+  </div>
+)
+
 const StatusContent = ({
   state,
   canMint,
+  canRetry,
   onClose,
   onMint,
   onRetry,
@@ -119,58 +147,54 @@ const StatusContent = ({
   MigrationSuccessDialogProps,
   'context' | 'migratedNameCount' | 'open'
 >) => {
+  const [artworkStatus, setArtworkStatus] =
+    useState<CommemorativeNftArtworkStatus>('loading')
   if (state.status === 'error' && !state.card) {
     return (
-      <div className="flex min-h-86 w-full flex-col items-center justify-center gap-5 px-4 text-center">
-        <div className="flex size-14 items-center justify-center rounded-full bg-white/60 text-ens-garnet-500">
-          <MSymbol className="text-[28px]" symbol="warning" />
-        </div>
-        <p className="max-w-80 font-sans text-ens-garnet-700 text-sm leading-relaxed">
-          {state.message}
-        </p>
-        {state.stage === 'eligibility' ? (
-          <MigrationPrimaryButton onClick={onRetry}>
-            <Trans>Try again</Trans>
-          </MigrationPrimaryButton>
-        ) : (
-          <MigrationPrimaryButton onClick={onViewProfile}>
-            <Trans>Continue to profile</Trans>
-          </MigrationPrimaryButton>
-        )}
-      </div>
+      <ErrorContent
+        canRetry={canRetry}
+        onClose={onClose}
+        onRetry={onRetry}
+        onViewProfile={onViewProfile}
+        state={state}
+      />
     )
   }
 
   return (
     <div className="flex w-full max-w-[486px] flex-col items-center gap-4 md:gap-6">
-      <CommemorativeNftCard state={state} variant="dialog" />
+      <CommemorativeNftCard
+        onStatusChange={setArtworkStatus}
+        state={state}
+        variant="dialog"
+      />
 
       <div className="flex w-full flex-col items-center gap-1">
-        {state.status === 'loadingEligibility' ? (
+        {state.status === 'loadingEligibility' ||
+        state.status === 'readyToMint' ? (
           <>
-            <MigrationPrimaryButton disabled onClick={onMint}>
-              <Trans>Mint</Trans>
-              <MSymbol
-                aria-hidden
-                className="text-lg leading-none"
-                symbol="spa"
-              />
-            </MigrationPrimaryButton>
-            <SecondaryButton onClick={onClose}>
-              <Trans>Later</Trans>
-            </SecondaryButton>
-          </>
-        ) : null}
-
-        {state.status === 'readyToMint' ? (
-          <>
-            <MigrationPrimaryButton disabled={!canMint} onClick={onMint}>
-              <Trans>Mint</Trans>
-              <MSymbol
-                aria-hidden
-                className="text-lg leading-none"
-                symbol="spa"
-              />
+            <MigrationPrimaryButton
+              disabled={!canMint || artworkStatus !== 'ready'}
+              onClick={onMint}
+            >
+              {artworkStatus === 'loading' ? (
+                <>
+                  <span
+                    aria-hidden
+                    className="size-3 animate-spin rounded-full border border-current border-t-transparent motion-reduce:animate-none"
+                  />
+                  <Trans>Loading…</Trans>
+                </>
+              ) : (
+                <>
+                  <Trans>Mint</Trans>
+                  <MSymbol
+                    aria-hidden
+                    className="text-lg leading-none"
+                    symbol="spa"
+                  />
+                </>
+              )}
             </MigrationPrimaryButton>
             <SecondaryButton onClick={onClose}>
               <Trans>Later</Trans>
@@ -245,6 +269,7 @@ export const MigrationSuccessDialog = ({
   state,
   migratedNameCount,
   canMint,
+  canRetry = true,
   onClose,
   onMint,
   onRetry,
@@ -301,9 +326,15 @@ export const MigrationSuccessDialog = ({
             />
           ) : (
             <>
-              <DialogHeading context={context} state={state} />
+              <DialogHeading context={context} />
               <StatusContent
                 canMint={canMint}
+                canRetry={canRetry}
+                key={
+                  'card' in state && state.card
+                    ? `${state.card.eligibility.ownerAddress}:${state.card.eligibility.rendererName}:${state.card.assets.imageUrl}`
+                    : 'loading'
+                }
                 onClose={onClose}
                 onMint={onMint}
                 onRetry={onRetry}

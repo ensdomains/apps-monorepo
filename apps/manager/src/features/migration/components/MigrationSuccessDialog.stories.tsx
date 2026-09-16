@@ -25,11 +25,13 @@ type PreviewProps = {
 const noop = () => undefined
 
 const PreviewDialog = ({
+  canRetry = true,
   state,
   context,
   interactive,
   retry,
 }: {
+  readonly canRetry?: boolean
   readonly state: MigrationSuccessDialogState
   readonly context: PreviewProps['context']
   readonly interactive?: boolean
@@ -75,6 +77,7 @@ const PreviewDialog = ({
         canMint={
           interactive === true && displayedState.status === 'readyToMint'
         }
+        canRetry={canRetry}
         context={context}
         migratedNameCount={1}
         onClose={() => setOpen(false)}
@@ -143,6 +146,42 @@ export const InlineMintedProfile: Story = {
 export const MintLater: Story = { args: { context: 'mint-later' } }
 export const LoadingEligibility: Story = {
   args: { presentation: 'loadingEligibility' },
+}
+export const MintLaterChecking: Story = {
+  render: () => (
+    <PreviewDialog
+      context="mint-later"
+      retry={noop}
+      state={{ status: 'loadingEligibility' }}
+    />
+  ),
+}
+export const MintLaterCheckFailed: Story = {
+  render: () => (
+    <PreviewDialog
+      context="mint-later"
+      retry={noop}
+      state={{
+        status: 'error',
+        stage: 'eligibility',
+        message: 'Your account could not be checked. Please try again.',
+      }}
+    />
+  ),
+}
+export const MintLaterOwnerMissing: Story = {
+  render: () => (
+    <PreviewDialog
+      canRetry={false}
+      context="mint-later"
+      retry={noop}
+      state={{
+        status: 'error',
+        stage: 'eligibility',
+        message: 'Reconnect your owner wallet to continue.',
+      }}
+    />
+  ),
 }
 export const Ineligible: Story = { args: { presentation: 'ineligible' } }
 

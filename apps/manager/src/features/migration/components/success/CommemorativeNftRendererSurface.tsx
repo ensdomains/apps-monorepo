@@ -1,6 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { useReducedMotion } from 'motion/react'
-import { useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { tw } from '@/utils/tailwind'
 import { getCommemorativeNftConfig } from '../../commemorative-nft/config'
 import type { CommemorativeNftEligibility } from '../../commemorative-nft/types'
@@ -12,6 +12,8 @@ type CommemorativeNftRendererSurfaceProps = {
   readonly interactive?: boolean
   readonly onReady?: () => void
   readonly onError?: () => void
+  readonly onPausedChange?: (paused: boolean) => void
+  readonly placeholder?: ReactNode
   readonly rendererUrl?: string
 }
 
@@ -55,11 +57,17 @@ const RendererSurface = (props: CommemorativeNftRendererSurfaceProps) => {
 
   return (
     <>
-      {showRenderer ? null : (
-        <ArtworkPlaceholder failed={source.failed} showError={!props.onError} />
-      )}
+      {showRenderer
+        ? null
+        : (props.placeholder ?? (
+            <ArtworkPlaceholder
+              failed={source.failed}
+              showError={!props.onError}
+            />
+          ))}
       {props.rendererUrl && source.rendererStatus !== 'failed' ? (
         <iframe
+          aria-hidden={!showRenderer}
           className={tw(
             'absolute top-1/2 left-1/2 z-0 h-full w-[109%] -translate-x-1/2 -translate-y-1/2 scale-[1.15] border-0',
             showRenderer ? 'opacity-100' : 'opacity-0',
@@ -94,13 +102,19 @@ export const CommemorativeNftRendererSurface = (
 ) => {
   const shouldReduceMotion = useReducedMotion()
   const [playArtwork, setPlayArtwork] = useState(false)
+  const paused = !!shouldReduceMotion && !playArtwork
+
+  useEffect(() => {
+    props.onPausedChange?.(paused)
+  }, [paused, props.onPausedChange])
 
   // The external renderer cannot pause, so reduced-motion users opt in to it.
-  if (shouldReduceMotion && !playArtwork) {
+  if (paused) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center rounded-[inherit] bg-ens-garnet-100 p-4">
+      <div className="absolute inset-0 flex items-center justify-center rounded-[inherit]">
+        {props.placeholder}
         <button
-          className="min-h-11 rounded-lg border border-ens-garnet-900 px-4 py-2 text-ens-garnet-900 text-sm focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2"
+          className="relative z-10 min-h-11 rounded-lg border border-ens-garnet-900 bg-ens-garnet-100 px-4 py-2 text-ens-garnet-900 text-sm focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2"
           onClick={() => setPlayArtwork(true)}
           type="button"
         >

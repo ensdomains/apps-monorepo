@@ -1,4 +1,4 @@
-import { Plural, Trans } from '@lingui/react/macro'
+import { Plural, Trans, useLingui } from '@lingui/react/macro'
 import { useEffect, useRef } from 'react'
 import type { Address } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
@@ -15,6 +15,7 @@ import {
 } from '../MigrationPrimaryButton'
 import { MigrationSuccessDialog } from '../MigrationSuccessDialog'
 import { shouldHideCommemorativeNftDialog } from '../MigrationSuccessDialog.helpers'
+import type { MigrationSuccessDialogState } from './MigrationSuccessDialog.types'
 
 type CommemorativeNftClaimDialogProps = {
   readonly context: 'migration' | 'mint-later'
@@ -116,6 +117,7 @@ const OpenCommemorativeNftClaimDialog = ({
 }: CommemorativeNftClaimDialogProps & {
   readonly walletAddress: Address | undefined
 }) => {
+  const { t } = useLingui()
   const flow = useCommemorativeNftFlow({
     open: true,
     ownerAddress,
@@ -139,8 +141,9 @@ const OpenCommemorativeNftClaimDialog = ({
 
   if (shouldSkip) return null
   if (
-    flow.admission.status === 'checking' ||
-    flow.admission.status === 'unavailable'
+    context === 'migration' &&
+    (flow.admission.status === 'checking' ||
+      flow.admission.status === 'unavailable')
   ) {
     return (
       <ClaimAdmissionStatus
@@ -153,9 +156,31 @@ const OpenCommemorativeNftClaimDialog = ({
     )
   }
 
+  // Keep the same dialog mounted while admission resolves. These states must
+  // never render inline on the dashboard or reveal cached artwork early.
+  const admissionMessages = {
+    ownerMissing: t`Reconnect your owner wallet to continue.`,
+    offline: t`Reconnect to the internet to continue.`,
+    claimReadFailed: t`Your account could not be checked. Please try again.`,
+  }
+  const state: MigrationSuccessDialogState =
+    flow.admission.status === 'checking'
+      ? { status: 'loadingEligibility' }
+      : flow.admission.status === 'unavailable'
+        ? {
+            status: 'error',
+            stage: 'eligibility',
+            message: admissionMessages[flow.admission.reason],
+          }
+        : flow.state
+
   return (
     <MigrationSuccessDialog
       canMint={flow.canMint}
+      canRetry={
+        flow.admission.status !== 'unavailable' ||
+        flow.admission.reason !== 'ownerMissing'
+      }
       context={context}
       migratedNameCount={migratedNameCount}
       onClose={onClose}
@@ -163,7 +188,7 @@ const OpenCommemorativeNftClaimDialog = ({
       onRetry={flow.retry}
       onViewProfile={() => onViewProfile(flow.eligibility?.profileName)}
       open
-      state={flow.state}
+      state={state}
     />
   )
 }

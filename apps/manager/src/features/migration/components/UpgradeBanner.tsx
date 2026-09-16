@@ -3,7 +3,7 @@ import { useFeatureFlagEnabled } from '@posthog/react'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { match } from 'ts-pattern'
-import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
+import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { shouldShowUpgradeBanner } from '@/features/migration/components/UpgradeBanner.helpers'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
@@ -27,9 +27,9 @@ export const UpgradeBanner = ({
     POSTHOG_FEATURE_FLAGS.MIGRATION,
     false,
   )
-  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility({
-    enabled: migrationEnabled,
-  })
+  const { eligibility: nftEligibility, isConfirmedUnclaimed } =
+    useVisibleCommemorativeNftStatus({ enabled: migrationEnabled })
+  const nftCopyEnabled = !!nftEligibility
   const isProfileBanner = profileName !== undefined
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isV1NamesPending } =
@@ -112,7 +112,10 @@ export const UpgradeBanner = ({
             )}
           </div>
         </div>
-        <UpgradeNamesButton className="w-full shrink-0 md:w-75" />
+        <UpgradeNamesButton
+          className="w-full shrink-0 md:w-75"
+          showNftPlaceholder={nftCopyEnabled && isConfirmedUnclaimed}
+        />
       </div>
     </div>
   )
