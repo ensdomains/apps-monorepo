@@ -301,7 +301,8 @@ describe('commemorative NFT availability observer', () => {
 
     expect(result.current.claimed.data).toBeUndefined()
     expect(result.current.isConfirmedUnclaimed).toBe(false)
-    expect(client.getQueryData(claimQueryKey())).toBe(false)
+    expect(readClaimed.mock.calls[0]?.[0].signal?.aborted).toBe(true)
+    expect(client.getQueryData(claimQueryKey())).toBeUndefined()
 
     await act(async () => newOwnerRead.resolve(true))
     await waitFor(() => expect(result.current.hasFreshClaimedResult).toBe(true))

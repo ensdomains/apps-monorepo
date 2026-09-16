@@ -22,10 +22,8 @@ type CommemorativeNftClaimDialogProps = {
   readonly migratedNameCount?: number
   readonly onClose: () => void
   readonly onOpenDashboard: () => void
-  readonly onViewProfile: (profileName: string | undefined) => void
   readonly open: boolean
   readonly ownerAddress: Address | undefined
-  readonly preview?: boolean
 }
 
 const noop = () => undefined
@@ -112,9 +110,7 @@ const OpenCommemorativeNftClaimDialog = ({
   migratedNameCount = 0,
   onClose,
   onOpenDashboard,
-  onViewProfile,
   ownerAddress,
-  preview,
   walletAddress,
 }: CommemorativeNftClaimDialogProps & {
   readonly walletAddress: Address | undefined
@@ -124,8 +120,6 @@ const OpenCommemorativeNftClaimDialog = ({
     open: true,
     ownerAddress,
     walletAddress,
-    migratedNameCount,
-    preview,
   })
   const shouldSkip =
     shouldHideCommemorativeNftDialog({ context, state: flow.state }) ||
@@ -152,7 +146,7 @@ const OpenCommemorativeNftClaimDialog = ({
         admission={flow.admission}
         context={context}
         migratedNameCount={migratedNameCount}
-        onClose={onClose}
+        onClose={onOpenDashboard}
         onRetry={flow.retry}
       />
     )
@@ -185,11 +179,11 @@ const OpenCommemorativeNftClaimDialog = ({
       }
       context={context}
       migratedNameCount={migratedNameCount}
+      onCheckStatus={flow.checkStatus}
       onClose={onClose}
       onMint={flow.mint}
       onOpenDashboard={onOpenDashboard}
       onRetry={flow.retry}
-      onViewProfile={() => onViewProfile(flow.eligibility?.profileName)}
       open
       state={state}
     />
@@ -214,7 +208,6 @@ export const CommemorativeNftClaimDialog = (
         onMint={noop}
         onOpenDashboard={props.onOpenDashboard}
         onRetry={noop}
-        onViewProfile={() => props.onViewProfile(undefined)}
         open
         state={{ status: 'error', stage: 'configuration', message: '' }}
       />

@@ -1,6 +1,11 @@
+import {
+  buildHcaOwnerExecutionCall,
+  getDestinationContracts,
+} from '@ens-apps/smart-account'
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
+import { Storage } from 'happy-dom'
 import {
   type Address,
   encodeErrorResult,
@@ -9,7 +14,7 @@ import {
   parseAbi,
   type TransactionReceipt,
 } from 'viem'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   buildHcaDeploymentCall: vi.fn(),
@@ -71,9 +76,11 @@ import type {
   AtomicMigrationNameExecution,
   BuildAtomicMigrationBatchesParams,
 } from './buildAtomicMigrationBatches'
+import { buildMigrationHelperCall } from './buildMigrationHelperCall'
 import type { MigrationPlan } from './buildMigrationPlan'
 import type { ClassifiedName, CopyClassifiedName } from './classifyNames'
 import { groupClassifiedNames } from './classifyNames'
+import { createMigrationData } from './encodeMigration'
 import type { MigrationApproval } from './migrationApprovals'
 import {
   loadMigrationRecoverySnapshot,
@@ -121,6 +128,7 @@ const getCodeMock = vi.fn()
 const estimateGasMock = vi.fn()
 const readContractMock = vi.fn()
 const getTransactionReceiptMock = vi.fn()
+const getTransactionMock = vi.fn()
 const waitForReceiptMock = vi.fn()
 const PUBLIC_CLIENT = {
   chain: { id: 11155111 },
@@ -128,6 +136,7 @@ const PUBLIC_CLIENT = {
   estimateGas: estimateGasMock,
   readContract: readContractMock,
   getTransactionReceipt: getTransactionReceiptMock,
+  getTransaction: getTransactionMock,
   waitForTransactionReceipt: waitForReceiptMock,
 } as unknown as PublicClient
 
@@ -349,7 +358,7 @@ const runExecute = async (
 
 beforeEach(() => {
   vi.clearAllMocks()
-  localStorage.clear()
+  vi.stubGlobal('localStorage', new Storage())
 
   let nextTransaction = 0
   mocks.startTransaction.mockImplementation(() => `tx-${nextTransaction++}`)
@@ -1712,4 +1721,140 @@ describe('executeMigration HCA orchestration', () => {
     expect(getCodeMock).not.toHaveBeenCalled()
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
+})
+
+afterEach(() => vi.unstubAllGlobals())
+
+describe('durable migration completion handoff', () => {
+  const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+  const checkpointKeys = () =>
+    Array.from(
+      { length: localStorage.length },
+      (_, index) => localStorage.key(index) ?? '',
+    ).filter((key) => key.startsWith('ens-apps:migration-completion:'))
+
+  it('writes receipt-backed evidence after verification and before removing retry protection', async () => {
+    mocks.verifyAtomicMigrationBatch.mockImplementationOnce(async () => {
+      expect(checkpointKeys()).toHaveLength(0)
+      expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(1)
+      return { batchIndex: 0, status: 'confirmed', results: [] }
+    })
+    const onBatchComplete = vi.fn(() => {
+      expect(checkpointKeys()).toHaveLength(1)
+      expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(0)
+    })
+    await runExecute({ onBatchComplete })
+    expect(onBatchComplete).toHaveBeenCalledOnce()
+    const checkpoint = JSON.parse(
+      localStorage.getItem(checkpointKeys()[0] ?? '') ?? '{}',
+    )
+    expect(checkpoint).toMatchObject({
+      transactionHash: hashFor(1),
+      operation: { name: 'alice.eth', action: 'migrate' },
+    })
+  })
+
+  it('retains the submitted journal and suppresses success if checkpoint storage fails', async () => {
+    const original = localStorage.setItem.bind(localStorage)
+    vi.spyOn(localStorage, 'setItem').mockImplementation((key, value) => {
+      if (key.startsWith('ens-apps:migration-completion:'))
+        throw new Error('Checkpoint quota exceeded')
+      original(key, value)
+    })
+    const onBatchComplete = vi.fn()
+    await expect(runExecute({ onBatchComplete })).rejects.toThrow()
+    expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(1)
+    expect(onBatchComplete).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+  })
+
+  it('persists proof when recovering a submitted confirmed batch without resubmitting', async () => {
+    persistSubmittedAtomicMigrationBatch(scope, {
+      intentId: 'recovered',
+      hash: hashFor(9),
+      names: ['alice.eth'],
+      operations: [{ name: 'alice.eth', action: 'migrate' }],
+    })
+    await runExecute()
+    const checkpoint = JSON.parse(
+      localStorage.getItem(checkpointKeys()[0] ?? '') ?? '{}',
+    )
+    expect(checkpoint.transactionHash).toBe(hashFor(9))
+    expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(0)
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+})
+
+it.each([
+  false,
+  true,
+])('verifies older completed receipt journals before deleting them (forged=%s)', async (forged) => {
+  const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+  const completed = { name: 'alice.eth', action: 'migrate' as const }
+  const hash = hashFor(9)
+  persistSubmittedAtomicMigrationBatch(scope, {
+    intentId: 'older-completed',
+    hash,
+    names: ['alice.eth'],
+    operations: [completed],
+  })
+  const contracts = getDestinationContracts(11155111)
+  const blockHash = hashFor(99)
+  const input = buildHcaOwnerExecutionCall({
+    hca: HCA,
+    calls: [
+      buildMigrationHelperCall([
+        {
+          name: 'alice.eth',
+          tokenType: 'unwrapped',
+          parentName: 'eth',
+          data: createMigrationData({
+            label: 'alice',
+            owner: OWNER,
+            resolver: RESOLVER,
+          }),
+        },
+      ]),
+    ],
+  }).data
+  getTransactionReceiptMock.mockResolvedValue({
+    status: 'success',
+    blockNumber: 123n,
+    blockHash,
+    transactionHash: hash,
+    from: OWNER,
+    to: HCA,
+  })
+  getTransactionMock.mockResolvedValue({
+    hash,
+    blockNumber: 123n,
+    blockHash,
+    from: forged ? RESOLVER : OWNER,
+    to: HCA,
+    input,
+  })
+  readContractMock.mockImplementation(({ functionName }) =>
+    Promise.resolve(
+      functionName === 'verifyContract'
+        ? contracts.standaloneHcaImplementation
+        : OWNER,
+    ),
+  )
+  const plan = {
+    ...planFor([]),
+    registryContext: [classifiedFor('alice')],
+    priorCompletedOperations: [completed],
+  }
+  const pending = runExecute({ plan, reconcileBeforeSubmit: true })
+  if (forged) {
+    await expect(pending).rejects.toMatchObject({
+      cause: { message: expect.stringContaining('transaction does not match') },
+    })
+    expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(1)
+  } else {
+    await expect(pending).resolves.toBeDefined()
+    expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(0)
+    expect(getTransactionMock).toHaveBeenCalledOnce()
+  }
+  expect(mocks.startTransaction).not.toHaveBeenCalled()
 })

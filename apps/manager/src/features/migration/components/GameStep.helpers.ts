@@ -18,55 +18,34 @@ export const computeBridgeLayout = (params: {
   readonly trackWidth: number
   readonly visiblePlanks?: number
 }): BridgeLayout => {
-  const { totalSteps, completedSteps, trackWidth } = params
-  const visiblePlanks = params.visiblePlanks ?? VISIBLE_PLANKS
-  const activeStep = Math.min(
-    Math.max(completedSteps, 0),
-    Math.max(totalSteps - 1, 0),
+  const totalSteps = Math.max(0, Math.floor(params.totalSteps))
+  const completedSteps = Math.min(
+    Math.max(0, Math.floor(params.completedSteps)),
+    totalSteps,
+  )
+  const trackWidth = Math.max(0, params.trackWidth)
+  const visiblePlanks = Math.max(
+    1,
+    params.visiblePlanks ??
+      (trackWidth > 0
+        ? Math.min(VISIBLE_PLANKS, Math.floor(trackWidth / 40))
+        : VISIBLE_PLANKS),
   )
   const needsScroll = totalSteps > visiblePlanks
   const plankWidth =
-    trackWidth > 0 ? trackWidth / Math.min(totalSteps, visiblePlanks) : 0
+    totalSteps > 0 ? trackWidth / Math.min(totalSteps, visiblePlanks) : 0
   const totalBridgeWidth = plankWidth * totalSteps
-
-  if (!needsScroll || trackWidth === 0) {
-    const frensX = ((activeStep + 0.5) / totalSteps) * trackWidth
-    return {
-      plankWidth,
-      frensX,
-      scrollOffset: 0,
-      totalBridgeWidth,
-      needsScroll,
-    }
-  }
-
-  const midPlank = Math.floor(visiblePlanks / 2)
-  const scrollStart = midPlank
-  const scrollEnd = totalSteps - (visiblePlanks - midPlank)
-
-  if (activeStep < scrollStart) {
-    return {
-      plankWidth,
-      frensX: (activeStep + 0.5) * plankWidth,
-      scrollOffset: 0,
-      totalBridgeWidth,
-      needsScroll,
-    }
-  }
-  if (activeStep >= scrollEnd) {
-    const stepsFromEnd = totalSteps - activeStep
-    return {
-      plankWidth,
-      frensX: trackWidth - (stepsFromEnd - 0.5) * plankWidth,
-      scrollOffset: (scrollEnd - scrollStart) * plankWidth,
-      totalBridgeWidth,
-      needsScroll,
-    }
-  }
+  // The party's right edge stops at the end of the last completed plank.
+  // At zero completed transactions it stays entirely on the starting shore.
+  const completedWidth = completedSteps * plankWidth
+  const scrollOffset = Math.min(
+    Math.max(0, completedWidth - trackWidth / 2),
+    Math.max(0, totalBridgeWidth - trackWidth),
+  )
   return {
     plankWidth,
-    frensX: (midPlank + 0.5) * plankWidth,
-    scrollOffset: (activeStep - scrollStart) * plankWidth,
+    frensX: completedWidth - scrollOffset,
+    scrollOffset,
     totalBridgeWidth,
     needsScroll,
   }

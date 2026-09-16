@@ -5,6 +5,7 @@ import type { Address } from 'viem'
 import {
   buildCommemorativeNftAssets,
   getCommemorativeNftConfig,
+  getCommemorativeNftContractAddress,
 } from './config'
 import { readCommemorativeNftClaimed } from './contract'
 import { fetchCommemorativeNftEligibility } from './eligibility'
@@ -30,11 +31,14 @@ export const commemorativeNftEligibilityQueryOptions = (params: {
       // Published metadata determines eligibility; discard prior WebP checks.
       validationVersion: 3,
     }),
-    queryFn: () =>
-      fetchCommemorativeNftEligibility({
-        ownerAddress: params.ownerAddress,
-        assetOrigin: config.assetOrigin,
-      }),
+    queryFn: ({ signal }) =>
+      config.valid
+        ? fetchCommemorativeNftEligibility({
+            ownerAddress: params.ownerAddress,
+            assetOrigin: config.assetOrigin,
+            signal,
+          })
+        : Promise.resolve({ status: 'unavailable' as const }),
     staleTime: (query) =>
       query.state.data?.status === 'eligible'
         ? Number.POSITIVE_INFINITY
@@ -52,9 +56,10 @@ export const commemorativeNftClaimedQueryOptions = (params: {
   queryOptions({
     queryKey: qk('commemorative_nft', 'claimed', {
       chainId: params.chainId,
+      contractAddress: getCommemorativeNftContractAddress(params.chainId),
       ownerAddress: params.ownerAddress.toLowerCase(),
     }),
-    queryFn: () => readCommemorativeNftClaimed(params),
+    queryFn: ({ signal }) => readCommemorativeNftClaimed({ ...params, signal }),
     refetchInterval: (query) =>
       getCommemorativeNftClaimedRefetchInterval({
         poll: params.poll === true,
@@ -71,6 +76,7 @@ export const invalidateCommemorativeNftStatus = async (params: {
   await params.queryClient.invalidateQueries({
     queryKey: qk('commemorative_nft', 'claimed', {
       chainId: params.chainId,
+      contractAddress: getCommemorativeNftContractAddress(params.chainId),
       ownerAddress: params.ownerAddress.toLowerCase(),
     }),
   })

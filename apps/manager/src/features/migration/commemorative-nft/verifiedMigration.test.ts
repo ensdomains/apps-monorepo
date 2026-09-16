@@ -193,7 +193,10 @@ describe('verified NFT migration evidence', () => {
     const observer = new QueryObserver(queryClient, options)
     const unsubscribe = observer.subscribe(() => undefined)
     await queryClient.invalidateQueries({ queryKey: options.queryKey })
-    expect(observer.getCurrentResult().data).toEqual(evidence)
+    expect(observer.getCurrentResult().data).toEqual({
+      ...evidence,
+      revision: 1,
+    })
     expect(observer.getCurrentResult().fetchStatus).toBe('idle')
     unsubscribe()
   })
@@ -202,7 +205,7 @@ describe('verified NFT migration evidence', () => {
     vi.useFakeTimers()
     recordVerifiedNftMigration({ queryClient, evidence })
     vi.advanceTimersByTime(60 * 60 * 1_000)
-    expect(cachedEvidence()).toEqual(evidence)
+    expect(cachedEvidence()).toEqual({ ...evidence, revision: 1 })
     const anotherClient = new QueryClient()
     expect(
       anotherClient.getQueryData(
@@ -211,4 +214,18 @@ describe('verified NFT migration evidence', () => {
     ).toBeUndefined()
     anotherClient.clear()
   })
+})
+
+it('increments a compact revision when verified evidence changes', () => {
+  recordVerifiedNftMigration({ queryClient, evidence })
+  expect(cachedEvidence()?.revision).toBe(1)
+  recordVerifiedNftMigration({
+    queryClient,
+    evidence: {
+      ...evidence,
+      completedOperations: [{ name: 'bob.eth', action: 'migrate' }],
+    },
+  })
+  expect(cachedEvidence()?.revision).toBe(2)
+  expect(cachedEvidence()?.completedOperations).toHaveLength(2)
 })

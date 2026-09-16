@@ -1,6 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { useReducedMotion } from 'motion/react'
-import { type ReactNode, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { tw } from '@/utils/tailwind'
 import { getCommemorativeNftConfig } from '../../commemorative-nft/config'
 import type { CommemorativeNftEligibility } from '../../commemorative-nft/types'
@@ -12,7 +11,6 @@ type CommemorativeNftRendererSurfaceProps = {
   readonly interactive?: boolean
   readonly onReady?: () => void
   readonly onError?: () => void
-  readonly onPausedChange?: (paused: boolean) => void
   readonly placeholder?: ReactNode
   readonly rendererUrl?: string
 }
@@ -50,7 +48,9 @@ const ArtworkPlaceholder = ({
   </div>
 )
 
-const RendererSurface = (props: CommemorativeNftRendererSurfaceProps) => {
+export const CommemorativeNftRendererSurface = (
+  props: CommemorativeNftRendererSurfaceProps,
+) => {
   const interactive = props.interactive !== false
   const source = useCommemorativeNftRenderer(props)
   const showRenderer = source.ready
@@ -95,34 +95,4 @@ const RendererSurface = (props: CommemorativeNftRendererSurfaceProps) => {
       ) : null}
     </>
   )
-}
-
-export const CommemorativeNftRendererSurface = (
-  props: CommemorativeNftRendererSurfaceProps,
-) => {
-  const shouldReduceMotion = useReducedMotion()
-  const [playArtwork, setPlayArtwork] = useState(false)
-  const paused = !!shouldReduceMotion && !playArtwork
-
-  useEffect(() => {
-    props.onPausedChange?.(paused)
-  }, [paused, props.onPausedChange])
-
-  // The external renderer cannot pause, so reduced-motion users opt in to it.
-  if (paused) {
-    return (
-      <div className="absolute inset-0 flex items-center justify-center rounded-[inherit]">
-        {props.placeholder}
-        <button
-          className="relative z-10 min-h-11 rounded-lg border border-ens-garnet-900 bg-ens-garnet-100 px-4 py-2 text-ens-garnet-900 text-sm focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2"
-          onClick={() => setPlayArtwork(true)}
-          type="button"
-        >
-          <Trans>Play artwork</Trans>
-        </button>
-      </div>
-    )
-  }
-
-  return <RendererSurface {...props} key={props.rendererUrl} />
 }

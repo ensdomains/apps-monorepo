@@ -50,8 +50,9 @@ import {
   requiresMigrationApprovalCleanup,
 } from './migrationApprovals'
 import {
-  loadPendingAtomicMigrationIntents,
-  loadSubmittedAtomicMigrationBatches,
+  loadMigrationBatchJournal,
+  type loadPendingAtomicMigrationIntents,
+  type loadSubmittedAtomicMigrationBatches,
   type MigrationBatchJournalScope,
   type MigrationJournalOperation,
   type MigrationRecoverySnapshot,
@@ -62,6 +63,10 @@ import {
   removePendingAtomicMigrationIntent,
   removeSubmittedAtomicMigrationBatch,
 } from './migrationBatchJournal'
+import {
+  persistMigrationCompletionCheckpoint,
+  verifyAndPersistMigrationCompletionCheckpoint,
+} from './migrationCompletionCheckpoint'
 import { checkDeterministicMigrationResolverReadiness } from './migrationInvariants'
 import {
   describeRecoveredOperations,
@@ -316,12 +321,13 @@ const clearCompletedRecoveryPlanJournal = (
   // snapshot whose final operation has already been verified.
   removeMigrationRecoverySnapshot(scope)
 
-  for (const intent of loadPendingAtomicMigrationIntents(scope)) {
+  const journal = loadMigrationBatchJournal(scope)
+  for (const intent of journal.pending) {
     if (belongsToPlan(intent.operations)) {
       removePendingAtomicMigrationIntent(scope, intent.id)
     }
   }
-  for (const submission of loadSubmittedAtomicMigrationBatches(scope)) {
+  for (const submission of journal.submitted) {
     if (belongsToPlan(submission.operations)) {
       removeSubmittedAtomicMigrationBatch(scope, submission.hash)
     }
@@ -739,6 +745,11 @@ const reconcileSubmittedAtomicBatch = async (params: {
       cause,
     })
   }
+  persistMigrationCompletionCheckpoint({
+    scope: params.scope,
+    transactionHash: submission.hash,
+    operations: submission.operations,
+  })
   return submission
 }
 
@@ -812,15 +823,16 @@ const reconcileJournaledSubmission = async (params: {
   }
 }
 
-const discardJournalEntriesAlreadyInRecoverySnapshot = (params: {
+const discardJournalEntriesAlreadyInRecoverySnapshot = async (params: {
+  readonly publicClient: PublicClient
   readonly scope: MigrationBatchJournalScope
   readonly plan: MigrationPlan
   readonly intents: ReturnType<typeof loadPendingAtomicMigrationIntents>
   readonly submissions: ReturnType<typeof loadSubmittedAtomicMigrationBatches>
-}): {
+}): Promise<{
   readonly intents: ReturnType<typeof loadPendingAtomicMigrationIntents>
   readonly submissions: ReturnType<typeof loadSubmittedAtomicMigrationBatches>
-} => {
+}> => {
   const priorCompleted = new Map(
     (params.plan.priorCompletedOperations ?? []).map(({ name, action }) => [
       name,
@@ -865,6 +877,12 @@ const discardJournalEntriesAlreadyInRecoverySnapshot = (params: {
       !includesCurrentName(submission.names) &&
       submission.operations.every(isDurablyCompleted)
     ) {
+      await verifyAndPersistMigrationCompletionCheckpoint({
+        publicClient: params.publicClient,
+        scope: params.scope,
+        transactionHash: submission.hash,
+        operations: submission.operations,
+      })
       removeSubmittedAtomicMigrationBatch(params.scope, submission.hash)
       removePendingAtomicMigrationIntent(params.scope, submission.intentId)
     }
@@ -885,10 +903,11 @@ const reconcileSubmittedAtomicBatches = async (params: {
   readonly allowStateFallback: boolean
 }): Promise<SubmittedBatchReconciliation> => {
   const scope = batchJournalScope(params.ctx)
-  const storedIntents = loadPendingAtomicMigrationIntents(scope)
-  const storedSubmissions = loadSubmittedAtomicMigrationBatches(scope)
+  const { pending: storedIntents, submitted: storedSubmissions } =
+    loadMigrationBatchJournal(scope)
   const { intents, submissions } =
-    discardJournalEntriesAlreadyInRecoverySnapshot({
+    await discardJournalEntriesAlreadyInRecoverySnapshot({
+      publicClient: params.ctx.publicClient,
       scope,
       plan: params.plan,
       intents: storedIntents,
@@ -1476,6 +1495,11 @@ const executeRemainingAtomicBatches = async (params: {
         publicClient: params.publicClient,
         batch,
         blockNumber: receipt.blockNumber,
+      })
+      persistMigrationCompletionCheckpoint({
+        scope: journalScope,
+        transactionHash: hash,
+        operations: batch.operations,
       })
       const nextRemaining = removeNames(remaining, batch.names)
       const retainFinalReceiptForCleanup =

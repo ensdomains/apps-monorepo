@@ -1,3 +1,4 @@
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { Storage } from 'happy-dom'
 import { err, ok } from 'neverthrow'
 import { type Address, type Hex, namehash, zeroAddress } from 'viem'
@@ -9,7 +10,17 @@ const mocks = vi.hoisted(() => ({
   getV1NamesForAddress: vi.fn(),
   getMigratedNamesCount: vi.fn(),
   runEligibilityChecks: vi.fn(),
+  restoreCheckpoint: vi.fn(),
 }))
+
+vi.mock('../service/migrationCompletionCheckpoint', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('../service/migrationCompletionCheckpoint')
+  >()),
+  restoreMigrationCompletionCheckpoint: mocks.restoreCheckpoint,
+}))
+
+vi.mock('./diagnostics', () => ({ trackNftEvent: vi.fn() }))
 
 vi.mock('@wagmi/core', () => ({ getPublicClient: mocks.getPublicClient }))
 vi.mock('../service/v1SubgraphClient', () => ({
@@ -80,6 +91,7 @@ const submittedBatch = {
 beforeEach(() => {
   vi.stubGlobal('localStorage', new Storage())
   vi.resetAllMocks()
+  mocks.restoreCheckpoint.mockResolvedValue(null)
   mocks.getPublicClient.mockReturnValue(publicClient)
   mocks.getV1NamesForAddress.mockResolvedValue(ok([]))
   mocks.getMigratedNamesCount.mockResolvedValue(ok(1))
@@ -88,6 +100,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 describe('commemorative NFT migration completion', () => {
@@ -114,11 +127,14 @@ describe('commemorative NFT migration completion', () => {
     await expect(
       fetchCommemorativeNftMigrationCompletion(params),
     ).resolves.toEqual({
+      status: 'incomplete',
       isComplete: false,
       remainingNameCount: 1,
       migratedNameCount: 1,
     })
-    expect(mocks.getV1NamesForAddress).toHaveBeenCalledWith(ownerAddress)
+    expect(mocks.getV1NamesForAddress).toHaveBeenCalledWith(ownerAddress, {
+      signal: expect.any(AbortSignal),
+    })
     expect(mocks.runEligibilityChecks).toHaveBeenCalledWith(
       publicClient,
       classified,
@@ -140,6 +156,7 @@ describe('commemorative NFT migration completion', () => {
     await expect(
       fetchCommemorativeNftMigrationCompletion(params),
     ).resolves.toEqual({
+      status: 'complete',
       isComplete: true,
       remainingNameCount: 0,
       migratedNameCount: 3,
@@ -152,6 +169,7 @@ describe('commemorative NFT migration completion', () => {
     await expect(
       fetchCommemorativeNftMigrationCompletion(params),
     ).resolves.toEqual({
+      status: 'reconciling',
       isComplete: false,
       remainingNameCount: 0,
       migratedNameCount: 0,
@@ -172,12 +190,15 @@ describe('commemorative NFT migration completion', () => {
         verifiedMigration,
       }),
     ).resolves.toEqual({
+      status: 'complete',
       isComplete: true,
       remainingNameCount: 0,
       migratedNameCount: 1,
     })
     expect(mocks.getMigratedNamesCount).not.toHaveBeenCalled()
-    expect(mocks.getV1NamesForAddress).toHaveBeenCalledWith(ownerAddress)
+    expect(mocks.getV1NamesForAddress).toHaveBeenCalledWith(ownerAddress, {
+      signal: expect.any(AbortSignal),
+    })
     expect(mocks.runEligibilityChecks).toHaveBeenCalled()
   })
 
@@ -308,6 +329,7 @@ describe('commemorative NFT migration completion', () => {
     await expect(
       fetchCommemorativeNftMigrationCompletion(params),
     ).resolves.toEqual({
+      status: 'incomplete',
       isComplete: false,
       remainingNameCount: 1,
       migratedNameCount: 1,
@@ -330,6 +352,7 @@ describe('commemorative NFT migration completion', () => {
     await expect(
       fetchCommemorativeNftMigrationCompletion(params),
     ).resolves.toEqual({
+      status: 'incomplete',
       isComplete: false,
       remainingNameCount: 1,
       migratedNameCount: 1,
@@ -345,6 +368,7 @@ describe('commemorative NFT migration completion', () => {
     await expect(
       fetchCommemorativeNftMigrationCompletion(params),
     ).resolves.toEqual({
+      status: 'incomplete',
       isComplete: false,
       remainingNameCount: 1,
       migratedNameCount: 1,
@@ -363,6 +387,7 @@ describe('commemorative NFT migration completion', () => {
     await expect(
       fetchCommemorativeNftMigrationCompletion(params),
     ).resolves.toMatchObject({
+      status: 'complete',
       isComplete: true,
       remainingNameCount: 0,
     })
@@ -414,4 +439,157 @@ describe('commemorative NFT migration completion', () => {
       ).not.toEqual(options.queryKey)
     }
   })
+})
+
+describe('completion restoration and bounded reconciliation', () => {
+  it('restores historical receipt evidence after reload while the indexer is still zero', async () => {
+    mocks.getMigratedNamesCount.mockResolvedValue(ok(0))
+    mocks.restoreCheckpoint.mockResolvedValue({
+      name: 'alice.eth',
+      action: 'migrate',
+    })
+    await expect(
+      fetchCommemorativeNftMigrationCompletion(params),
+    ).resolves.toMatchObject({ status: 'complete', isComplete: true })
+    expect(mocks.restoreCheckpoint).toHaveBeenCalledWith({
+      scope,
+      publicClient,
+      signal: expect.any(AbortSignal),
+    })
+  })
+
+  it('keeps restored evidence blocked by fresh remaining-name checks', async () => {
+    mocks.getMigratedNamesCount.mockResolvedValue(ok(0))
+    mocks.restoreCheckpoint.mockResolvedValue({
+      name: 'old.eth',
+      action: 'migrate',
+    })
+    mocks.getV1NamesForAddress.mockResolvedValue(ok([domain]))
+    mocks.runEligibilityChecks.mockResolvedValue({
+      ...emptyEligibility(),
+      eligible: classified,
+    })
+    await expect(
+      fetchCommemorativeNftMigrationCompletion(params),
+    ).resolves.toMatchObject({
+      status: 'incomplete',
+      isComplete: false,
+      remainingNameCount: 1,
+    })
+  })
+
+  it('fails closed when a stored receipt cannot be verified', async () => {
+    mocks.getMigratedNamesCount.mockResolvedValue(ok(0))
+    mocks.restoreCheckpoint.mockRejectedValue(new Error('Invalid receipt'))
+    await expect(
+      fetchCommemorativeNftMigrationCompletion(params),
+    ).rejects.toThrow('Invalid receipt')
+  })
+
+  it('does not reread the receipt when positive live or current-session evidence already exists', async () => {
+    await fetchCommemorativeNftMigrationCompletion(params)
+    await fetchCommemorativeNftMigrationCompletion({
+      ...params,
+      verifiedMigration,
+    })
+    expect(mocks.restoreCheckpoint).not.toHaveBeenCalled()
+  })
+
+  it('aborts a whole completion scan after 30 seconds', async () => {
+    vi.useFakeTimers()
+    mocks.getV1NamesForAddress.mockReturnValue(new Promise(() => {}))
+    const pending = expect(
+      fetchCommemorativeNftMigrationCompletion(params),
+    ).rejects.toThrow('Request timed out')
+    await vi.advanceTimersByTimeAsync(30_000)
+    await pending
+    expect(mocks.getV1NamesForAddress.mock.calls[0]?.[1].signal.aborted).toBe(
+      true,
+    )
+    expect(mocks.runEligibilityChecks).not.toHaveBeenCalled()
+  })
+
+  it('cancels the active scan and ignores its late completion', async () => {
+    let finish: ((value: unknown) => void) | undefined
+    mocks.getV1NamesForAddress.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+    )
+    const controller = new AbortController()
+    const pending = expect(
+      fetchCommemorativeNftMigrationCompletion({
+        ...params,
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow('Account changed')
+    controller.abort(new Error('Account changed'))
+    finish?.(ok([]))
+    await pending
+    expect(mocks.runEligibilityChecks).not.toHaveBeenCalled()
+  })
+
+  it('uses a compact evidence revision instead of serializing every completed operation into the query key', () => {
+    const evidence = {
+      ...verifiedMigration,
+      revision: 2,
+      completedOperations: Array.from({ length: 1000 }, (_, i) => ({
+        name: `name${i}.eth`,
+        action: 'migrate' as const,
+      })),
+    }
+    const key = commemorativeNftMigrationCompletionQueryOptions({
+      ...params,
+      verifiedMigration: evidence,
+    }).queryKey
+    expect(JSON.stringify(key)).not.toContain('name999.eth')
+    expect(JSON.stringify(key).length).toBeLessThan(600)
+    expect(key).not.toEqual(
+      commemorativeNftMigrationCompletionQueryOptions({
+        ...params,
+        verifiedMigration: { ...evidence, revision: 3 },
+      }).queryKey,
+    )
+  })
+
+  it('stops automatic reconciliation after six passes while remaining explicitly reconciling', async () => {
+    vi.useFakeTimers()
+    mocks.getMigratedNamesCount.mockResolvedValue(ok(0))
+    const client = new QueryClient()
+    const observer = new QueryObserver(
+      client,
+      commemorativeNftMigrationCompletionQueryOptions(params),
+    )
+    const unsubscribe = observer.subscribe(() => undefined)
+    try {
+      await vi.advanceTimersByTimeAsync(20_000)
+      expect(mocks.getV1NamesForAddress).toHaveBeenCalledTimes(6)
+      expect(observer.getCurrentResult().data?.status).toBe('reconciling')
+      expect(observer.getCurrentResult().fetchStatus).toBe('idle')
+      await observer.refetch()
+      expect(mocks.getV1NamesForAddress).toHaveBeenCalledTimes(7)
+    } finally {
+      unsubscribe()
+      client.clear()
+    }
+  })
+})
+
+it.each([
+  0, 1, 1000, 2000,
+])('checks %i names in one scan with two journal boundary reads', async (count) => {
+  const domains = Array.from({ length: count }, (_, i) =>
+    makeDomain({
+      name: `name${i}.eth`,
+      labelName: `name${i}`,
+      id: namehash(`name${i}.eth`),
+    }),
+  )
+  mocks.getV1NamesForAddress.mockResolvedValue(ok(domains))
+  const getItem = vi.spyOn(localStorage, 'getItem')
+  await fetchCommemorativeNftMigrationCompletion(params)
+  expect(mocks.getV1NamesForAddress).toHaveBeenCalledOnce()
+  expect(mocks.runEligibilityChecks).toHaveBeenCalledOnce()
+  expect(mocks.runEligibilityChecks.mock.calls[0]?.[1]).toHaveLength(count)
+  expect(getItem).toHaveBeenCalledTimes(2)
 })

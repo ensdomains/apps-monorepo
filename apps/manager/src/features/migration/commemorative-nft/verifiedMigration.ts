@@ -6,6 +6,8 @@ import {
 } from '@tanstack/react-query'
 import { type Address, isAddress, zeroAddress } from 'viem'
 import type { MigrationJournalOperation } from '../service/migrationBatchJournal'
+import { getMigrationCompletionDeploymentIdentity } from '../service/migrationCompletionCheckpoint'
+import { getCommemorativeNftContractAddress } from './config'
 
 type VerifiedNftMigrationScope = {
   readonly ownerAddress: Address
@@ -14,6 +16,7 @@ type VerifiedNftMigrationScope = {
 }
 
 export type VerifiedNftMigration = VerifiedNftMigrationScope & {
+  readonly revision?: number
   readonly completedOperations: readonly MigrationJournalOperation[]
 }
 
@@ -76,6 +79,8 @@ export const verifiedNftMigrationQueryOptions = (
       ownerAddress: scope.ownerAddress.toLowerCase(),
       hcaAddress: scope.hcaAddress.toLowerCase(),
       chainId: scope.chainId,
+      contractAddress: getCommemorativeNftContractAddress(scope.chainId),
+      deployment: getMigrationCompletionDeploymentIdentity(scope.chainId),
     }),
     queryFn: skipToken,
     enabled: false,
@@ -114,6 +119,7 @@ export const recordVerifiedNftMigration = (params: {
       ownerAddress: evidence.ownerAddress.toLowerCase() as Address,
       hcaAddress: evidence.hcaAddress.toLowerCase() as Address,
       chainId: evidence.chainId,
+      revision: (previous?.revision ?? 0) + 1,
       completedOperations,
     })
   })

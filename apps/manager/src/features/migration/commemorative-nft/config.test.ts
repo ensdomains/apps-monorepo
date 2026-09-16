@@ -1,12 +1,15 @@
+import { QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildCommemorativeNftAssets,
   getCommemorativeNftConfig,
 } from './config'
+import { commemorativeNftEligibilityQueryOptions } from './queries'
 
 describe('commemorative NFT config', () => {
   afterEach(() => {
     vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
   })
 
   it('uses the configured renderer origin', () => {
@@ -34,6 +37,54 @@ describe('commemorative NFT config', () => {
     expect(getCommemorativeNftConfig().assetOrigin).toBe(
       'https://nft-assets.ens.dev',
     )
+  })
+
+  it.each([
+    'not a URL',
+    'javascript:alert(1)',
+    'https://user:password@assets.example',
+    'https://assets.example/path',
+    'https://assets.example?debug=1',
+    'https://assets.example#fragment',
+    'http://assets.example',
+  ])('disables malformed or unsafe origins without throwing: %s', (origin) => {
+    vi.stubEnv('VITE_COMMEMORATIVE_NFT_ASSET_ORIGIN', origin)
+    expect(getCommemorativeNftConfig()).toMatchObject({ valid: false })
+    expect(() => new URL(getCommemorativeNftConfig().assetOrigin)).not.toThrow()
+  })
+
+  it('only allows local HTTP in development', () => {
+    vi.stubEnv(
+      'VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN',
+      'http://localhost:4000',
+    )
+    vi.stubEnv('DEV', false)
+    expect(getCommemorativeNftConfig().valid).toBe(false)
+    vi.stubEnv('DEV', true)
+    expect(getCommemorativeNftConfig()).toMatchObject({
+      valid: true,
+      rendererOrigin: 'http://localhost:4000',
+    })
+  })
+
+  it('reuses the validated configuration object', () => {
+    expect(getCommemorativeNftConfig()).toBe(getCommemorativeNftConfig())
+  })
+
+  it('never fetches default assets after an invalid configuration, even on manual refetch', async () => {
+    vi.stubEnv('VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN', 'invalid')
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    const client = new QueryClient()
+    await expect(
+      client.fetchQuery(
+        commemorativeNftEligibilityQueryOptions({
+          ownerAddress: '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF',
+        }),
+      ),
+    ).resolves.toEqual({ status: 'unavailable' })
+    expect(fetcher).not.toHaveBeenCalled()
+    client.clear()
   })
 
   it.each([

@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
-import surpriseCard from '../assets/surprise-card-upright.png'
+import surpriseCardRetina from '../assets/surprise-card-upright@2x.webp'
+import surpriseCard from '../assets/surprise-card-upright.webp'
 
 export const CommemorativeNftSurpriseCard = ({
   className,
@@ -17,9 +18,11 @@ export const CommemorativeNftSurpriseCard = ({
     <img
       alt=""
       className="pointer-events-none absolute -top-[0.89%] -left-[4.18%] w-[108.75%] max-w-none select-none"
+      decoding="async"
       draggable={false}
       height={718}
       src={surpriseCard}
+      srcSet={`${surpriseCard} 1x, ${surpriseCardRetina} 2x`}
       width={521}
     />
   </div>

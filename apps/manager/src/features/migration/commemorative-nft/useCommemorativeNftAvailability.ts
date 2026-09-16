@@ -2,7 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useChainId, useConfig } from 'wagmi'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
-import { getCommemorativeNftContractAddress } from './config'
+import {
+  getCommemorativeNftConfig,
+  getCommemorativeNftContractAddress,
+} from './config'
 import { isCommemorativeNftClaimResultFresh } from './flowState'
 import {
   commemorativeNftClaimedQueryOptions,
@@ -17,7 +20,9 @@ export const useCommemorativeNftAvailability = (params: {
   const featureEnabled = useMigrationNftEnabled()
   const chainId = useChainId()
   const wagmiConfig = useConfig()
-  const supported = !!getCommemorativeNftContractAddress(chainId)
+  const supported =
+    getCommemorativeNftConfig().valid &&
+    !!getCommemorativeNftContractAddress(chainId)
   const ownerAddress = params.ownerAddress
   const enabled =
     featureEnabled && params.enabled && supported && !!ownerAddress
@@ -51,6 +56,8 @@ export const useCommemorativeNftAvailability = (params: {
     eligibility.isFetchedAfterMount &&
     eligibility.isSuccess &&
     eligibility.fetchStatus === 'idle'
+  const hasResolvedEligibility =
+    enabled && eligibility.isFetchedAfterMount && eligibility.data !== undefined
 
   return {
     featureEnabled,
@@ -59,6 +66,7 @@ export const useCommemorativeNftAvailability = (params: {
     eligibility,
     claimed,
     hasFreshEligibilityResult,
+    hasResolvedEligibility,
     hasFreshClaimedResult,
     isConfirmedUnclaimed: hasFreshClaimedResult && claimed.data === false,
   }

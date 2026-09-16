@@ -1,19 +1,23 @@
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { queryOptions } from '@tanstack/react-query'
 import { getPublicClient, type Config as WagmiConfig } from '@wagmi/core'
-import { ok } from 'neverthrow'
 import { type Address, isAddress, type PublicClient, zeroAddress } from 'viem'
+import { abortablePublicClient } from '../service/abortablePublicClient'
 import { classifyNames } from '../service/classifyNames'
 import { getMigratedNamesCount } from '../service/getMigratedNamesCount'
 import {
-  loadMigrationRecoverySnapshot,
-  loadPendingAtomicMigrationIntents,
-  loadSubmittedAtomicMigrationBatches,
+  loadMigrationBatchJournal,
   type MigrationBatchJournalScope,
 } from '../service/migrationBatchJournal'
+import {
+  getMigrationCompletionDeploymentIdentity,
+  restoreMigrationCompletionCheckpoint,
+} from '../service/migrationCompletionCheckpoint'
 import { runEligibilityChecks } from '../service/preflightChecks'
+import { withRequestDeadline } from '../service/requestDeadline'
 import { getV1NamesForAddress } from '../service/v1SubgraphClient'
 import { getCommemorativeNftContractAddress } from './config'
+import { trackNftEvent } from './diagnostics'
 import {
   getVerifiedNftMigrationCount,
   type VerifiedNftMigration,
@@ -25,9 +29,11 @@ export type CommemorativeNftMigrationCompletionParams = {
   readonly chainId: number
   readonly wagmiConfig: WagmiConfig
   readonly verifiedMigration?: VerifiedNftMigration
+  readonly signal?: AbortSignal
 }
 
-export type CommemorativeNftMigrationCompletion = {
+type CommemorativeNftMigrationCompletion = {
+  readonly status: 'complete' | 'incomplete' | 'reconciling'
   readonly isComplete: boolean
   readonly remainingNameCount: number
   readonly migratedNameCount: number
@@ -36,9 +42,7 @@ export type CommemorativeNftMigrationCompletion = {
 const loadRemainingJournalNames = (
   scope: MigrationBatchJournalScope,
 ): readonly string[] => {
-  const recovery = loadMigrationRecoverySnapshot(scope)
-  const pending = loadPendingAtomicMigrationIntents(scope)
-  const submitted = loadSubmittedAtomicMigrationBatches(scope)
+  const { recovery, pending, submitted } = loadMigrationBatchJournal(scope)
 
   return [
     ...(recovery?.remainingOperations ?? []),
@@ -47,7 +51,33 @@ const loadRemainingJournalNames = (
   ].map(({ name }) => name.toLowerCase())
 }
 
-export const fetchCommemorativeNftMigrationCompletion = async (
+const getPositiveMigrationEvidence = async (
+  params: CommemorativeNftMigrationCompletionParams,
+  publicClient: PublicClient,
+  scope: MigrationBatchJournalScope,
+  verifiedCount: number,
+): Promise<number> => {
+  if (verifiedCount > 0) return verifiedCount
+  const migrated = await withRequestDeadline(
+    async () => getMigratedNamesCount(params.ownerAddress),
+    { signal: params.signal },
+  )
+  if (migrated.isErr())
+    throw new Error('Your upgraded names could not be checked.', {
+      cause: migrated.error,
+    })
+  if (!Number.isSafeInteger(migrated.value) || migrated.value < 0)
+    throw new Error('The upgraded name count is invalid.')
+  if (migrated.value > 0) return migrated.value
+  const restored = await restoreMigrationCompletionCheckpoint({
+    scope,
+    publicClient,
+    signal: params.signal,
+  })
+  return restored ? 1 : 0
+}
+
+const checkMigrationCompletion = async (
   params: CommemorativeNftMigrationCompletionParams,
 ): Promise<CommemorativeNftMigrationCompletion> => {
   if (
@@ -80,35 +110,30 @@ export const fetchCommemorativeNftMigrationCompletion = async (
   )
   // Read through the services directly: the dashboard's cached name counts
   // and eligibility lists do not certify completion for a new mint.
-  const [namesResult, migratedResult] = await Promise.all([
-    getV1NamesForAddress(params.ownerAddress),
-    // A receipt-confirmed and post-state-verified migration proves the upgrade
-    // happened before the indexer catches up. It never proves all names are done:
-    // the fresh V1, preflight and journal checks below still establish that.
-    verifiedMigratedCount > 0
-      ? Promise.resolve(ok(verifiedMigratedCount))
-      : getMigratedNamesCount(params.ownerAddress),
+  const [namesResult, migratedNameCount] = await Promise.all([
+    getV1NamesForAddress(params.ownerAddress, { signal: params.signal }),
+    getPositiveMigrationEvidence(
+      params,
+      publicClient as PublicClient,
+      scope,
+      verifiedMigratedCount,
+    ),
   ])
   if (namesResult.isErr()) {
     throw new Error('Your remaining ENSv1 names could not be checked.', {
       cause: namesResult.error,
     })
   }
-  if (migratedResult.isErr()) {
-    throw new Error('Your upgraded names could not be checked.', {
-      cause: migratedResult.error,
-    })
-  }
-  const migratedNameCount = migratedResult.value
-  if (!Number.isSafeInteger(migratedNameCount) || migratedNameCount < 0) {
-    throw new Error('The upgraded name count is invalid.')
-  }
-
   const { classified } = classifyNames(namesResult.value, params.ownerAddress)
-  const eligibility = await runEligibilityChecks(
-    publicClient as PublicClient,
-    classified,
-    params.ownerAddress,
+  params.signal?.throwIfAborted()
+  const eligibility = await withRequestDeadline(
+    (signal) =>
+      runEligibilityChecks(
+        abortablePublicClient(publicClient as PublicClient, signal),
+        classified,
+        params.ownerAddress,
+      ),
+    { signal: params.signal },
   )
   if (eligibility.failed.length > 0) {
     throw new Error('Some ENSv1 names could not be checked. Please try again.')
@@ -120,10 +145,42 @@ export const fetchCommemorativeNftMigrationCompletion = async (
   // Work seen at either boundary blocks this result until a fresh check.
   for (const name of loadRemainingJournalNames(scope)) remainingNames.add(name)
 
+  params.signal?.throwIfAborted()
+  const status =
+    remainingNames.size > 0
+      ? 'incomplete'
+      : migratedNameCount > 0
+        ? 'complete'
+        : 'reconciling'
   return {
-    isComplete: remainingNames.size === 0 && migratedNameCount > 0,
+    status,
+    isComplete: status === 'complete',
     remainingNameCount: remainingNames.size,
     migratedNameCount,
+  }
+}
+
+export const fetchCommemorativeNftMigrationCompletion = async (
+  params: CommemorativeNftMigrationCompletionParams,
+): Promise<CommemorativeNftMigrationCompletion> => {
+  const startedAt = Date.now()
+  try {
+    const result = await withRequestDeadline(
+      (signal) => checkMigrationCompletion({ ...params, signal }),
+      { signal: params.signal, timeoutMs: 30_000 },
+    )
+    trackNftEvent('nft:completion_check', {
+      outcome: result.status,
+      duration_ms: Date.now() - startedAt,
+      remaining_count: result.remainingNameCount,
+    })
+    return result
+  } catch (error) {
+    trackNftEvent('nft:completion_check', {
+      outcome: params.signal?.aborted ? 'aborted' : 'error',
+      duration_ms: Date.now() - startedAt,
+    })
+    throw error
   }
 }
 
@@ -137,10 +194,20 @@ export const commemorativeNftMigrationCompletionQueryOptions = (
       ownerAddress: params.ownerAddress.toLowerCase(),
       hcaAddress: params.hcaAddress.toLowerCase(),
       chainId: params.chainId,
+      contractAddress: getCommemorativeNftContractAddress(params.chainId),
+      deployment: getMigrationCompletionDeploymentIdentity(params.chainId),
       journalRevision: params.journalRevision ?? 0,
-      verifiedMigration: params.verifiedMigration,
+      evidenceRevision: params.verifiedMigration?.revision ?? 0,
     }),
-    queryFn: () => fetchCommemorativeNftMigrationCompletion(params),
+    queryFn: ({ signal }) =>
+      fetchCommemorativeNftMigrationCompletion({ ...params, signal }),
+    retry: false,
+    refetchInterval: (query) =>
+      query.state.status === 'success' &&
+      query.state.data?.status === 'reconciling' &&
+      query.state.dataUpdateCount < 6
+        ? 2_000
+        : false,
     staleTime: 0,
     refetchOnMount: 'always',
   })

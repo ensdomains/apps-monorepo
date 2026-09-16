@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react'
 import { cn } from '@/lib/utils'
-import surpriseCard from './assets/surprise-card.png'
+import surpriseCardRetina from './assets/surprise-card@2x.webp'
+import surpriseCard from './assets/surprise-card.webp'
 import { MigrationPrimaryButton } from './MigrationPrimaryButton'
 
 type MigrationUpgradeButtonProps = ComponentProps<'button'> & {
@@ -27,9 +28,11 @@ export const MigrationUpgradeButton = ({
         <img
           alt=""
           className="relative size-full object-contain"
+          decoding="async"
           draggable={false}
           height={296}
           src={surpriseCard}
+          srcSet={`${surpriseCard} 1x, ${surpriseCardRetina} 2x`}
           width={245}
         />
       </span>

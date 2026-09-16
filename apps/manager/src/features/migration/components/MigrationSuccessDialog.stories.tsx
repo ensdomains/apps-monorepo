@@ -53,8 +53,6 @@ const PreviewDialog = ({
           card: buildCommemorativeNftCardData({
             chainId: sepolia.id,
             eligibility: state.card.eligibility,
-            migratedAt: state.card.migratedAt,
-            migratedNameCount: state.card.migratedNameCount,
             minted: mintStatus === 'minted',
             ownerAddress: state.card.eligibility.ownerAddress,
           }),
@@ -84,7 +82,6 @@ const PreviewDialog = ({
         onMint={interactive ? () => setMintStatus('minting') : noop}
         onOpenDashboard={() => setOpen(false)}
         onRetry={retry}
-        onViewProfile={() => setOpen(false)}
         open={open}
         state={displayedState}
       />

@@ -1,8 +1,6 @@
-import { useConnection } from 'wagmi'
-import { useSmartAccountContext } from '@/lib/smart-account'
-import { resolveVerifiedOwner } from '@/lib/smart-account/sessionGate'
 import type { CommemorativeNftEligibility } from './types'
 import { useCommemorativeNftAvailability } from './useCommemorativeNftAvailability'
+import { useVerifiedCommemorativeNftOwner } from './useVerifiedCommemorativeNftOwner'
 import { getVisibleCommemorativeNftEligibility } from './visibility'
 
 export const useVisibleCommemorativeNftStatus = ({
@@ -10,13 +8,7 @@ export const useVisibleCommemorativeNftStatus = ({
 }: {
   readonly enabled?: boolean
 } = {}) => {
-  const { ownerAddress } = useSmartAccountContext()
-  const { address: walletAddress, isConnected } = useConnection()
-  const verifiedOwner =
-    resolveVerifiedOwner(
-      ownerAddress,
-      isConnected ? walletAddress : undefined,
-    ) ?? undefined
+  const verifiedOwner = useVerifiedCommemorativeNftOwner()
   const availability = useCommemorativeNftAvailability({
     ownerAddress: verifiedOwner,
     enabled,
@@ -27,7 +19,7 @@ export const useVisibleCommemorativeNftStatus = ({
     ownerAddress: enabled ? verifiedOwner : undefined,
     supported: availability.supported,
     result: availability.eligibility.data,
-    hasFreshEligibilityResult: availability.hasFreshEligibilityResult,
+    hasFreshEligibilityResult: availability.hasResolvedEligibility,
     minted: availability.claimed.data === true,
   })
 

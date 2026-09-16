@@ -5,6 +5,27 @@ import type { CaptureOptions } from 'posthog-js'
 import posthog from 'posthog-js/dist/module.full.no-external'
 
 export type PostHogEvents = {
+  'nft:completion_check': {
+    outcome: 'complete' | 'incomplete' | 'reconciling' | 'error' | 'aborted'
+    duration_ms: number
+    remaining_count?: number
+  }
+  'nft:claim_outcome': {
+    outcome:
+      | 'submitted'
+      | 'minted'
+      | 'cancelled'
+      | 'replaced'
+      | 'reverted'
+      | 'pending'
+      | 'error'
+  }
+  'nft:renderer_fallback': {
+    reason: 'renderer_failed' | 'renderer_timeout' | 'reduced_motion'
+  }
+  'nft:download_failure': {
+    reason: 'network' | 'http' | 'timeout' | 'aborted' | 'unknown'
+  }
   'name:search_selected': {
     name: string
     source: 'header_search'

@@ -28,10 +28,10 @@ type MigrationSuccessDialogProps = {
   readonly canMint: boolean
   readonly canRetry?: boolean
   readonly onClose: () => void
+  readonly onCheckStatus?: () => void
   readonly onOpenDashboard: () => void
   readonly onMint: () => void
   readonly onRetry: () => void
-  readonly onViewProfile: () => void
 }
 
 const DialogHeading = ({
@@ -110,10 +110,10 @@ const ErrorContent = ({
   canRetry,
   onClose,
   onRetry,
-  onViewProfile,
+  onOpenDashboard,
 }: Pick<
   MigrationSuccessDialogProps,
-  'canRetry' | 'onClose' | 'onRetry' | 'onViewProfile'
+  'canRetry' | 'onClose' | 'onRetry' | 'onOpenDashboard'
 > & {
   readonly state: Extract<MigrationSuccessDialogState, { status: 'error' }>
 }) => (
@@ -124,14 +124,21 @@ const ErrorContent = ({
     <p className="max-w-80 font-sans text-ens-garnet-700 text-sm leading-relaxed">
       {state.message}
     </p>
-    {state.stage === 'eligibility' ? (
-      <MigrationPrimaryButton onClick={canRetry ? onRetry : onClose}>
-        {canRetry ? <Trans>Try again</Trans> : <Trans>Close</Trans>}
+    {state.stage === 'configuration' ? (
+      <MigrationPrimaryButton onClick={onOpenDashboard}>
+        <Trans>Go to dashboard</Trans>
       </MigrationPrimaryButton>
     ) : (
-      <MigrationPrimaryButton onClick={onViewProfile}>
-        <Trans>Continue to profile</Trans>
-      </MigrationPrimaryButton>
+      <>
+        <MigrationPrimaryButton onClick={canRetry ? onRetry : onClose}>
+          {canRetry ? <Trans>Try again</Trans> : <Trans>Close</Trans>}
+        </MigrationPrimaryButton>
+        {canRetry ? (
+          <SecondaryButton onClick={onClose}>
+            <Trans>Close</Trans>
+          </SecondaryButton>
+        ) : null}
+      </>
     )}
   </div>
 )
@@ -141,10 +148,10 @@ const StatusContent = ({
   canMint,
   canRetry,
   onClose,
+  onCheckStatus,
   onMint,
   onOpenDashboard,
   onRetry,
-  onViewProfile,
 }: Omit<
   MigrationSuccessDialogProps,
   'context' | 'migratedNameCount' | 'open'
@@ -156,8 +163,8 @@ const StatusContent = ({
       <ErrorContent
         canRetry={canRetry}
         onClose={onClose}
+        onOpenDashboard={onOpenDashboard}
         onRetry={onRetry}
-        onViewProfile={onViewProfile}
         state={state}
       />
     )
@@ -172,6 +179,29 @@ const StatusContent = ({
       />
 
       <div className="flex w-full flex-col items-center gap-1">
+        {state.status === 'claimPending' ? (
+          <>
+            <p
+              aria-live="polite"
+              className="pb-2 text-center font-sans text-ens-garnet-700 text-sm"
+            >
+              {state.message}
+            </p>
+            <MigrationPrimaryButton
+              disabled={state.checking || !onCheckStatus}
+              onClick={onCheckStatus}
+            >
+              {state.checking ? (
+                <Trans>Checking status…</Trans>
+              ) : (
+                <Trans>Check status</Trans>
+              )}
+            </MigrationPrimaryButton>
+            <SecondaryButton onClick={onClose}>
+              <Trans>Later</Trans>
+            </SecondaryButton>
+          </>
+        ) : null}
         {state.status === 'loadingEligibility' ||
         state.status === 'readyToMint' ? (
           <>
@@ -273,10 +303,10 @@ export const MigrationSuccessDialog = ({
   canMint,
   canRetry = true,
   onClose,
+  onCheckStatus,
   onMint,
   onOpenDashboard,
   onRetry,
-  onViewProfile,
 }: MigrationSuccessDialogProps) => {
   if (shouldHideCommemorativeNftDialog({ context, state })) return null
   const showPlainMigrationSuccess = shouldShowPlainMigrationSuccess({
@@ -338,11 +368,11 @@ export const MigrationSuccessDialog = ({
                     ? `${state.card.eligibility.ownerAddress}:${state.card.eligibility.rendererName}:${state.card.assets.imageUrl}`
                     : 'loading'
                 }
+                onCheckStatus={onCheckStatus}
                 onClose={onClose}
                 onMint={onMint}
                 onOpenDashboard={onOpenDashboard}
                 onRetry={onRetry}
-                onViewProfile={onViewProfile}
                 state={state}
               />
             </>

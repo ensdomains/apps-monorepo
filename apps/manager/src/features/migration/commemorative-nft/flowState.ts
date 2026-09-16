@@ -1,4 +1,4 @@
-export type CommemorativeNftFlowStatusInput = {
+type CommemorativeNftFlowStatusInput = {
   readonly eligibilityStatus:
     | 'pending'
     | 'error'
@@ -21,11 +21,9 @@ export type CommemorativeNftFlowStatus =
   | 'claimError'
 
 export const getCommemorativeNftClaimedStatus = (params: {
-  readonly preview: boolean
   readonly claimed: boolean | undefined
   readonly isFresh: boolean
 }): boolean | undefined => {
-  if (params.preview) return false
   if (params.claimed === true) return true
   return params.isFresh ? params.claimed : undefined
 }
@@ -51,7 +49,6 @@ export type CommemorativeNftAdmission =
 
 export const getCommemorativeNftAdmission = (params: {
   readonly admitted: boolean
-  readonly preview: boolean
   readonly hasOwner: boolean
   readonly supported: boolean
   readonly eligibilityStatus: CommemorativeNftFlowStatusInput['eligibilityStatus']
@@ -61,7 +58,7 @@ export const getCommemorativeNftAdmission = (params: {
   readonly fetchStatus: 'fetching' | 'paused' | 'idle'
 }): CommemorativeNftAdmission => {
   if (params.eligibilityStatus === 'ineligible') return { status: 'fallback' }
-  if (params.preview || params.admitted) return { status: 'admitted' }
+  if (params.admitted) return { status: 'admitted' }
   if (!params.hasOwner) {
     return { status: 'unavailable', reason: 'ownerMissing' }
   }
@@ -84,13 +81,11 @@ export const getCommemorativeNftSessionKey = (params: {
   readonly chainId: number
   readonly ownerAddress: string | undefined
   readonly walletAddress: string | undefined
-  readonly preview?: boolean
 }): string =>
   JSON.stringify([
     params.chainId,
     params.ownerAddress?.toLowerCase(),
     params.walletAddress?.toLowerCase(),
-    params.preview === true,
   ])
 
 export const getCommemorativeNftFlowStatus = (

@@ -69,7 +69,6 @@ const PlainMigrationSuccessDialog = ({
     onMint={noop}
     onOpenDashboard={onContinue}
     onRetry={noop}
-    onViewProfile={onContinue}
     open
     state={disabledNftSuccessState}
   />
@@ -248,24 +247,6 @@ export const MigrationPage = () => {
     }
   }, [isMigrationSuccess, uiActor, navigate])
 
-  const handleViewProfile = useCallback(
-    (profileName?: string) => {
-      const name = profileName ?? dialogNames[0]
-
-      if (isMigrationSuccess) {
-        uiActor.send({ type: 'done' })
-      }
-
-      if (name) {
-        navigate({ to: '/$name', params: { name } })
-        return
-      }
-
-      navigate({ to: '/dashboard' })
-    },
-    [dialogNames, isMigrationSuccess, uiActor, navigate],
-  )
-
   const handleNamesChange = useCallback(
     (names: string[]) => uiActor.send({ type: 'selection.set', names }),
     [uiActor],
@@ -416,7 +397,6 @@ export const MigrationPage = () => {
           migratedNameCount={dialogNames.length}
           onClose={handleSuccessClose}
           onOpenDashboard={handleSuccessClose}
-          onViewProfile={handleViewProfile}
           open={dialogOpen}
           ownerAddress={ownerAddress as Address | undefined}
         />
