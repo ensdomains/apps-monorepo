@@ -1,7 +1,5 @@
 import { Plural, Trans } from '@lingui/react/macro'
 import { useFeatureFlagEnabled } from '@posthog/react'
-import { useNavigate } from '@tanstack/react-router'
-import { ArrowUpRight } from 'lucide-react'
 import { match } from 'ts-pattern'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
@@ -22,7 +20,6 @@ export const UpgradeBanner = ({
   className,
   profileName,
 }: UpgradeBannerProps) => {
-  const navigate = useNavigate()
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
     false,
@@ -100,16 +97,6 @@ export const UpgradeBanner = ({
                 ))
                 .exhaustive()}
             </p>
-            {isProfileBanner ? null : (
-              <button
-                className="inline-flex shrink-0 cursor-pointer items-center gap-1 text-ens-garnet-500 text-sm uppercase leading-[1.2]"
-                onClick={() => navigate({ to: '/migration' })}
-                type="button"
-              >
-                <Trans>See what's new</Trans>
-                <ArrowUpRight className="size-5" />
-              </button>
-            )}
           </div>
         </div>
         <UpgradeNamesButton
