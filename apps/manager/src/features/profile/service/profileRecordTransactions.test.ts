@@ -4,8 +4,16 @@ import { describe, expect, it } from 'vitest'
 import { buildRecordsUpdateCalls } from './profileRecordTransactions'
 
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
-const publicClient = {} as PublicClient
 const multicallAbi = parseAbi(['function multicall(bytes[] data)'])
+
+/** Answers the resolver's `supportsInterface(IAddressSetter)` probe. */
+const clientFor = (supportsNameSetters: boolean) =>
+  ({
+    multicall: async () => [{ status: 'success', result: supportsNameSetters }],
+  }) as unknown as PublicClient
+
+/** A V2 PermissionedResolver. */
+const publicClient = clientFor(true)
 
 describe('buildRecordsUpdateCalls', () => {
   it('unlinks the name before applying the current record diff', async () => {
@@ -66,5 +74,34 @@ describe('buildRecordsUpdateCalls', () => {
     expect(calls[0]?.data.slice(0, 10)).toBe(
       toFunctionSelector('setText(bytes,string,string)'),
     )
+  })
+
+  // PublicResolverV2 (migration's default resolver) and V1 resolvers only have
+  // node-based setters, and revert on the name-based ones.
+  it('writes node-based setters to a public or legacy resolver', async () => {
+    const { calls } = await buildRecordsUpdateCalls({
+      name: 'leon.eth',
+      before: { texts: [{ key: 'avatar', value: 'old' }], coins: [] },
+      after: {
+        texts: [{ key: 'avatar', value: 'new' }],
+        coins: [
+          { coinType: 60, value: '0x1111111111111111111111111111111111111111' },
+        ],
+      },
+      publicClient: clientFor(false),
+      resolverAddress: RESOLVER,
+    })
+
+    expect(calls).toEqual([
+      expect.objectContaining({ to: RESOLVER, value: 0n }),
+    ])
+    const decoded = decodeFunctionData({
+      abi: multicallAbi,
+      data: calls[0]?.data ?? '0x',
+    })
+    expect(decoded.args[0].map((call) => call.slice(0, 10))).toEqual([
+      toFunctionSelector('setText(bytes32,string,string)'),
+      toFunctionSelector('setAddr(bytes32,uint256,bytes)'),
+    ])
   })
 })

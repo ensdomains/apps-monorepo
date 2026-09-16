@@ -5,13 +5,11 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import { type Address, checksumAddress, type PublicClient } from 'viem'
 import {
-  type Address,
-  checksumAddress,
-  encodeFunctionData,
-  type PublicClient,
-} from 'viem'
+  encodeResolverRecordsCall,
+  getResolverSetterKind,
+} from '@/features/profile/service/resolverRecordCalls'
 
 type SyncEthAddressRecordParams = {
   name: string
@@ -43,19 +41,13 @@ export async function startSyncEthAddressRecordTransaction(
 
   const cleanName = withEthSuffix(name)
 
-  // Use ensjs to build the write parameters
-  // publicClient is used only for chain metadata — ensjs doesn't send transactions here
-  const client = publicClient as unknown as Parameters<
-    typeof setRecordsWriteParameters
-  >[0]
-
-  const data = encodeFunctionData(
-    (await setRecordsWriteParameters(client, {
-      name: cleanName,
-      resolverAddress,
-      coins: [{ coin: 60, value: checksumAddress(ownerAddress) }],
-    })) as Parameters<typeof encodeFunctionData>[0],
-  )
+  // Encoded for the resolver's setter family: the name-based V2 setters and
+  // the node-based public/legacy ones revert on each other's selectors.
+  const data = await encodeResolverRecordsCall({
+    kind: await getResolverSetterKind(publicClient, resolverAddress),
+    name: cleanName,
+    records: { coins: [{ coin: 60, value: checksumAddress(ownerAddress) }] },
+  })
 
   const from =
     signer.type === 'eoa' ? accountAddress : getSmartAccountAddress(signer)
