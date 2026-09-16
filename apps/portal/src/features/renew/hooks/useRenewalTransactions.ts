@@ -24,6 +24,7 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { getLabel } from '@/utils/token/getLabel'
+import { isCanonicalName } from '@/utils/token/isNormalized'
 import { getRenewerAddress } from '../utils/renewer'
 import { planMultiRenewSteps } from '../utils/renewerPayments'
 import { getIsRenewableQueryOptions } from './useIsRenewable'
@@ -190,8 +191,18 @@ function buildApproveTransaction(
 
 // Shared builder: the renew intent used by BOTH the pre-start gas estimate and
 // the submit path. `renewNameWriteParameters` is a pure encode (no network I/O);
-// the client only supplies chain contract addresses.
-function buildRenewIntent(params: RenewParams): CustomTransactionIntent {
+// the client only supplies chain contract addresses. Exported so its refusals
+// can be tested directly — every renew in the app is built here.
+export function buildRenewIntent(params: RenewParams): CustomTransactionIntent {
+  // The same gate `isExtendable2LD` applies to the UI, repeated at the point of
+  // signing so no path into the flow can substitute the canonical twin: the
+  // label below comes from `getLabel`, which normalises, so renewing
+  // `ALICE.eth` would push `alice.eth`'s expiry instead. Throwing here stops
+  // both the modal's gas estimate and the submit.
+  if (!isCanonicalName(params.name))
+    throw new Error(
+      `Refusing to renew "${params.name}": the name isn't written in its normalized form, so renewing it would extend a different name.`,
+    )
   // ensjs splits the label without normalizing, so pass a normalized 2LD name.
   const writeParams = renewNameWriteParameters(
     params.publicClient as unknown as Parameters<
