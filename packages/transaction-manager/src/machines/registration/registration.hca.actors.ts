@@ -9,8 +9,11 @@
  *   - Commit leg (first HCA action, session-signed, one request):
  *       USDC.permit(wallet, HCA, budget)        — only when funding is needed
  *       USDC.transferFrom(wallet, HCA, budget)  — only when funding is needed
- *       HCAOwnerAndSessionValidator.enableSessionWithRefund(...) — only until enabled
  *       ETHRegistrar.commit(commitment)
+ *     No separate on-chain session-enable call — the redeployed
+ *     HCAOwnerAndSessionValidator (2026-09-15, stateless sessions) has no
+ *     `enableSessionWithRefund` anymore; the enable proof travels entirely in
+ *     the signature (`sessionEnableData`), re-validated fresh on every use.
  *     The same request lazily deploys the HCA. `sponsored: { gas:false,
  *     bridging:false, swaps:false }`, `feeAsset: 'USDC'` — execution costs are
  *     refunded from the HCA's USDC.
@@ -22,7 +25,6 @@
 
 import {
   buildCommitCall,
-  buildEnableSessionWithRefundCall,
   buildRevealBatch,
   computeResolverAddress,
   estimateHcaBudget,
@@ -345,31 +347,18 @@ export function estimateHcaBudgetActor(input: {
           if (leg === 'commit') {
             // Quote the SAME shape `submitFundingAndCommitActor` submits: when
             // the session still needs enabling, the commit intent carries
-            // `enableData` (first-use mode 05) AND an `enableSessionWithRefund`
-            // call — both materially change the gas. The funding
-            // permit/transferFrom pair is two cheap ERC-20 calls on top; the
-            // `HCA_LEG_GAS_LIMITS.commit` bound (a proven upper bound over the
-            // measured ~393k first-commit fill, which the rail prices the quote
-            // on) covers them, so a successful quote never underfunds the HCA.
+            // `enableData` (first-use mode 05) — the proof lives entirely in
+            // the signature, not as a separate on-chain call (see the NOTE in
+            // `submitFundingAndCommitActor`). The funding permit/transferFrom
+            // pair is two cheap ERC-20 calls on top; the `HCA_LEG_GAS_LIMITS.commit`
+            // bound (a proven upper bound over the measured first-commit fill,
+            // which the rail prices the quote on) covers them, so a successful
+            // quote never underfunds the HCA.
             const commitSigners = withEnableData(
               baseSigners,
               input.sessionEnable?.enableData,
             )
             const calls: Call[] = []
-            if (input.sessionEnable) {
-              const enableCall = buildEnableSessionWithRefundCall({
-                chainId,
-                permissionId: input.sessionEnable.permissionId,
-                sessionKey: input.sessionEnable.sessionKey,
-                validUntil: input.sessionEnable.validUntil,
-                resolver,
-              })
-              calls.push({
-                to: enableCall.to,
-                value: enableCall.value,
-                data: enableCall.data,
-              })
-            }
             const commitCall = buildCommitCall({
               chainId,
               commitment: `0x${'11'.repeat(32)}` as Hex,
@@ -844,21 +833,15 @@ export function submitFundingAndCommitActor(input: {
         })
       }
 
-      // Session enablement — only until the on-chain enable lands.
-      if (input.sessionEnable) {
-        const enableCall = buildEnableSessionWithRefundCall({
-          chainId,
-          permissionId: input.sessionEnable.permissionId,
-          sessionKey: input.sessionEnable.sessionKey,
-          validUntil: input.sessionEnable.validUntil,
-          resolver: resolverAddress,
-        })
-        calls.push({
-          to: enableCall.to,
-          value: enableCall.value,
-          data: enableCall.data,
-        })
-      }
+      // NOTE: no separate on-chain enable call. The redeployed
+      // HCAOwnerAndSessionValidator (2026-09-15, stateless-sessions redesign)
+      // dropped `enableSessionWithRefund` entirely — there is no such function
+      // on it anymore. The session-enable proof lives ENTIRELY in the
+      // signature (`sessionEnableData` below, mirroring
+      // `HCAOwnerAndSessionValidator._validateFixedRefundSessionEnable`,
+      // re-validated fresh on every use, not persisted on first enable).
+      // Embedding a call to the old selector here reverts
+      // `ActionNotAllowed(validator, 0x4a9b6c49)`.
 
       const commitCall = buildCommitCall({
         chainId,

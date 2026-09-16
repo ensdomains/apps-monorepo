@@ -29,7 +29,6 @@ export {
   type BuildHcaDeploymentCallParams,
   type BuildHcaOwnerExecutionCallParams,
   buildCommitCall,
-  buildEnableSessionWithRefundCall,
   buildHcaDeploymentCall,
   buildHcaOwnerExecutionCall,
   buildHcaSessionEnablePayload,

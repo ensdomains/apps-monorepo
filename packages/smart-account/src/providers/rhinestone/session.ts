@@ -3,9 +3,12 @@
  *
  * A "session" here is a scoped ERC-7579 SmartSession on the standalone
  * `HCAOwnerAndSessionValidator` — NOT the old ephemeral-owner model. The wallet
- * signs ONE multi-chain authorization up front (before route selection); the
- * session is then enabled lazily inside the first HCA action via
- * `enableSessionWithRefund(...)`. No separate ENABLE transaction.
+ * signs ONE multi-chain authorization up front (before route selection). The
+ * redeployed (2026-09-15) validator is stateless: there is no separate ENABLE
+ * transaction or on-chain `enableSessionWithRefund` call at all — every use
+ * re-validates a full session-enable proof carried entirely in the signature
+ * (see `hcaSessionConfig` below, and `buildStandaloneHcaEnableProof` in the
+ * patched `@rhinestone/sdk`).
  *
  * First pass is SAME-CHAIN ONLY: we build just the destination (Sepolia) HCA
  * session and its enable-data. The source-session salt encoder is included as a
@@ -30,7 +33,6 @@ import {
   type Address,
   type Chain,
   encodeAbiParameters,
-  encodeFunctionData,
   type Hex,
   keccak256,
   type PublicClient,
@@ -248,6 +250,15 @@ export function createDestinationSession(
         hashesAndChainIds: details.hashesAndChainIds,
         sessionToEnableIndex: 0,
         hcaSessionNonce,
+        hcaSessionConfig: {
+          sessionKey: params.sessionAccount.address,
+          validUntil: Number(params.validUntil),
+          resolver: params.resolver,
+          refundToken: c.usdc,
+          maxRefundExchangeRate: MAX_REFUND_EXCHANGE_RATE,
+          maxRefundGasOverhead: Number(MAX_REFUND_GAS_OVERHEAD),
+          maxRefundAmount: MAX_REFUND_AMOUNT,
+        },
       }
 
       return {
@@ -264,43 +275,6 @@ export function createDestinationSession(
         cause: error,
       }),
   )
-}
-
-/**
- * Build the `enableSessionWithRefund(...)` validator call for the first HCA
- * action. Arg order is EXACT: permissionId, sessionKey, validUntil, resolver,
- * refundToken, maxRefundExchangeRate, maxRefundGasOverhead, maxRefundAmount.
- */
-const enableSessionWithRefundAbi = parseAbi([
-  'function enableSessionWithRefund(bytes32 permissionId, address sessionKey, uint48 validUntil, address resolver, address refundToken, uint96 maxRefundExchangeRate, uint48 maxRefundGasOverhead, uint96 maxRefundAmount)',
-])
-
-export function buildEnableSessionWithRefundCall(params: {
-  readonly chainId: number
-  readonly permissionId: Hex
-  readonly sessionKey: Address
-  readonly validUntil: bigint
-  readonly resolver: Address
-}): { to: Address; value: bigint; data: Hex } {
-  const c = getDestinationContracts(params.chainId)
-  return {
-    to: c.hcaOwnerAndSessionValidator,
-    value: 0n,
-    data: encodeFunctionData({
-      abi: enableSessionWithRefundAbi,
-      functionName: 'enableSessionWithRefund',
-      args: [
-        params.permissionId,
-        params.sessionKey,
-        Number(params.validUntil),
-        params.resolver,
-        c.usdc,
-        MAX_REFUND_EXCHANGE_RATE,
-        Number(MAX_REFUND_GAS_OVERHEAD),
-        MAX_REFUND_AMOUNT,
-      ],
-    }),
-  }
 }
 
 /**

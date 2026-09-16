@@ -111,11 +111,13 @@ describe('submitFundingAndCommitActor', () => {
     const request = submittedRequest()
     const calls = request.rhinestoneParams.calls
 
-    // permit → transferFrom → enableSessionWithRefund → commit, in this order.
+    // permit → transferFrom → commit, in this order. No separate on-chain
+    // session-enable call: the redeployed HCAOwnerAndSessionValidator
+    // (2026-09-15, stateless sessions) has no `enableSessionWithRefund`
+    // anymore — the enable proof travels entirely in `sessionEnableData`.
     expect(calls.map((c) => c.to.toLowerCase())).toEqual([
       C.usdc.toLowerCase(),
       C.usdc.toLowerCase(),
-      C.hcaOwnerAndSessionValidator.toLowerCase(),
       C.ethRegistrar.toLowerCase(),
     ])
 
