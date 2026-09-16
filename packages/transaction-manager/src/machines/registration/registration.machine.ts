@@ -1329,8 +1329,22 @@ export const registrationMachine = setup({
         }),
         onDone: [
           // The commitment is confirmed on-chain; HCA needs no allowance step.
-          { guard: 'isRhinestoneSigner', target: 'commitmentCooldown' },
-          { target: 'checkingAllowance' },
+          // Either way `commitmentCooldown` waits out the rest of its age.
+          {
+            guard: 'isRhinestoneSigner',
+            target: 'commitmentCooldown',
+            actions: assign({
+              registerReadyTimestamp: ({ event }) =>
+                event.output.registerReadyTimestamp,
+            }),
+          },
+          {
+            target: 'checkingAllowance',
+            actions: assign({
+              registerReadyTimestamp: ({ event }) =>
+                event.output.registerReadyTimestamp,
+            }),
+          },
         ],
         onError: {
           target: 'error',

@@ -894,16 +894,20 @@ export function verifyRegistrationActor(
 }
 
 /**
- * Validate commitment readiness before proceeding to registration
- * Checks commitmentAt timestamp and MIN_COMMITMENT_AGE from contract
- * This ensures the commitment is recorded on-chain before registration
+ * Confirm the commitment is recorded on-chain, and work out when it becomes
+ * old enough to reveal.
+ *
+ * It does not wait for that moment itself: `commitmentCooldown` does, off the
+ * returned `registerReadyTimestamp`, which is what both apps render as the
+ * countdown. Waiting here instead left a resumed run showing "validating
+ * commitment" for the whole cooldown and then skipping the countdown.
  */
 export function validateCommitmentActor(input: {
   commitment: CommitmentData
   publicClient: PublicClient
   /** Override for the standalone-HCA registrar; defaults to the EOA deployment. */
   registrarAddress?: Address
-}): ResultAsync<void, Error> {
+}): ResultAsync<{ registerReadyTimestamp: number }, Error> {
   const registrarAddress =
     input.registrarAddress ??
     getChainContractAddress({
@@ -983,30 +987,23 @@ export function validateCommitmentActor(input: {
         `✅ [REGISTRATION ACTOR] Commitment recorded at timestamp: ${committedAt.toString()}`,
       )
 
-      // If MIN_COMMITMENT_AGE is 0, we can proceed immediately
       if (minAge === 0n) {
         console.log(
           '✅ [REGISTRATION ACTOR] MIN_COMMITMENT_AGE is 0, commitment is ready',
         )
-        return
+        return { registerReadyTimestamp: Date.now() }
       }
 
-      // Otherwise, wait until MIN_COMMITMENT_AGE has elapsed
+      // Measured in chain time, since `commitmentAt` is a block timestamp, and
+      // handed back as a wall-clock deadline for the cooldown to wait on.
       const latestBlock = await getBlock(input.publicClient)
-      const nowTs = latestBlock.timestamp as bigint
-      const elapsed = nowTs - committedAt
+      const elapsed = (latestBlock.timestamp as bigint) - committedAt
+      const remainingSeconds = elapsed < minAge ? Number(minAge - elapsed) : 0
 
-      if (elapsed < minAge) {
-        const waitSeconds = Number(minAge - elapsed)
-        console.log(
-          `⏳ [REGISTRATION ACTOR] Waiting ${waitSeconds}s for MIN_COMMITMENT_AGE before registering...`,
-        )
-        await sleep(waitSeconds * 1000)
-      } else {
-        console.log(
-          `✅ [REGISTRATION ACTOR] MIN_COMMITMENT_AGE requirement satisfied (elapsed: ${elapsed.toString()}s, required: ${minAge.toString()}s)`,
-        )
-      }
+      console.log(
+        `✅ [REGISTRATION ACTOR] Commitment is ${elapsed.toString()}s old (${minAge.toString()}s required); ready in ${remainingSeconds}s`,
+      )
+      return { registerReadyTimestamp: Date.now() + remainingSeconds * 1000 }
     })(),
     (error) => {
       console.error(

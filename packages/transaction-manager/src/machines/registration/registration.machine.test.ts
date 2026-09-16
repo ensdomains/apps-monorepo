@@ -529,6 +529,59 @@ describe('registrationMachine — RESUME', () => {
     actor.stop()
   })
 
+  it('waits out the commitment age in the cooldown, where it shows', async () => {
+    // Stored before `fetchingCommitmentAge` ran, so the record has no ready
+    // time. Validation supplies it; the cooldown, which the apps render as a
+    // countdown, does the waiting.
+    const readyAt = Date.now() + 42_000
+    const waitAfterCommitment = vi.fn(
+      (_args: { input: { targetMs: number } }) => new Promise(() => {}),
+    )
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          validateCommitment: fromPromise(async () => ({
+            registerReadyTimestamp: readyAt,
+          })) as never,
+          waitAfterCommitment: fromPromise(waitAfterCommitment) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'waitingForCommitment',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+        commitmentTxId: 'tx-reg-commit',
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        hcaSessionEnable: SESSION_ENABLE,
+      },
+    })
+
+    await waitFor(actor, (s) => s.matches('commitmentCooldown'))
+
+    expect(actor.getSnapshot().context.registerReadyTimestamp).toBe(readyAt)
+    expect(waitAfterCommitment).toHaveBeenCalledWith(
+      expect.objectContaining({ input: { targetMs: readyAt } }),
+    )
+    actor.stop()
+  })
+
   it('restarts a pre-commit run from setup', async () => {
     const estimateHcaBudget = vi.fn(() => new Promise(() => {}))
     const actor = createActor(
