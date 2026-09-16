@@ -147,7 +147,7 @@ export const assessRegistrationResume = async (params: {
   }
 }
 
-const isSameAddress = (a: Address, b: Address) =>
+export const isSameAddress = (a: Address, b: Address) =>
   a.toLowerCase() === b.toLowerCase()
 
 export type RegistrationResumeDecision =

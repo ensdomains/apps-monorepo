@@ -20,7 +20,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { fromPromise, ok } from 'neverthrow'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -36,6 +36,7 @@ import {
 import {
   assessRegistrationResume,
   decideRegistrationResume,
+  isSameAddress,
   type RegistrationResumeDecision,
 } from '../utils/registrationResume'
 
@@ -46,6 +47,11 @@ type RegistrationResumeParameters = {
    * key so that connecting a different wallet re-assesses.
    */
   readonly ownerAddress: Address | null
+  /**
+   * Counts suspends on this page. A verdict from before one can predate the
+   * record the suspended run wrote, so each suspend asks again.
+   */
+  readonly generation: number
 }
 
 const assessStoredRegistration = ResultFn(async function* ({
@@ -98,6 +104,12 @@ export type RegistrationResumeState =
 
 const IDLE: RegistrationResumeState = { status: 'idle' }
 
+/**
+ * How long a disconnect must last before it stops a live run: long enough to
+ * ride out a connector that reports one while it reconnects.
+ */
+export const DISCONNECT_GRACE_MS = 2_000
+
 const resumingMessage = 'Resuming your registration.'
 const expiredMessage =
   'Your previous registration attempt expired. Starting over.'
@@ -127,6 +139,8 @@ const settleDecision = (
 export const useRegistrationResume = ({
   name,
   onResume,
+  suspendableRunOwner,
+  onSuspend,
 }: {
   readonly name: string
   /**
@@ -134,9 +148,17 @@ export const useRegistrationResume = ({
    * already started on this page; the record is then left alone.
    */
   readonly onResume: (run: ResumableRun) => boolean
+  /**
+   * The wallet a run on this page belongs to, while stopping it still protects
+   * something. See `useRegistrationTransactions`.
+   */
+  readonly suspendableRunOwner?: Address
+  /** Stop the live run, keeping its record for the owner to resume. */
+  readonly onSuspend: () => void
 }): RegistrationResumeState => {
   const config = useConfig()
-  const { address, isConnecting, isReconnecting } = useConnection()
+  const { address, isConnecting, isReconnecting, isDisconnected } =
+    useConnection()
 
   // Tagged with the name it was decided for: `RegisterName` stays mounted when
   // the name in the URL changes.
@@ -150,19 +172,53 @@ export const useRegistrationResume = ({
   const decidedFor = useRef<string | null>(null)
 
   const onResumeRef = useRef(onResume)
+  const onSuspendRef = useRef(onSuspend)
   useEffect(() => {
     onResumeRef.current = onResume
+    onSuspendRef.current = onSuspend
   })
+
+  // Bumped by a suspend, which re-keys the assessment and runs the decision
+  // below again.
+  const [suspensions, countSuspension] = useReducer((n: number) => n + 1, 0)
 
   const { data: verdict } = useQuery({
     ...getRegistrationResumeQueryOptions({
       name,
       ownerAddress: address ?? null,
+      generation: suspensions,
     }),
     // Assessing mid-restore would read "no wallet" for the owner themself.
     enabled: !isConnecting && !isReconnecting,
   })
 
+  // A live run belongs to the wallet that started it. When that wallet is gone
+  // the run stops, as a closed tab would, and its record stays for the owner:
+  // otherwise it carries on with the signer it captured, under whichever
+  // wallet the page now shows. A different wallet suspends at once; a
+  // disconnect waits out a grace period and only counts when wagmi says so,
+  // since the address alone reads empty for a moment during reconnects.
+  useEffect(() => {
+    if (!suspendableRunOwner) return
+
+    const suspend = () => {
+      onSuspendRef.current()
+      decidedFor.current = null
+      countSuspension()
+    }
+
+    if (address && !isSameAddress(suspendableRunOwner, address)) {
+      suspend()
+      return
+    }
+
+    if (isDisconnected) {
+      const timer = setTimeout(suspend, DISCONNECT_GRACE_MS)
+      return () => clearTimeout(timer)
+    }
+  }, [suspendableRunOwner, address, isDisconnected])
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `suspensions` re-runs the decision after a suspend
   useEffect(() => {
     if (!verdict || decidedFor.current === name) return
 
@@ -207,7 +263,7 @@ export const useRegistrationResume = ({
     return () => {
       cancelled = true
     }
-  }, [verdict, address, name, config])
+  }, [verdict, address, name, config, suspensions])
 
   return awaiting?.name === name
     ? { status: 'await-owner', owner: awaiting.owner }

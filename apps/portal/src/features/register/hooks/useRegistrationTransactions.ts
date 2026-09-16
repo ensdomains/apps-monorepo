@@ -149,6 +149,14 @@ export const useRegistrationTransactions = ({
   // Any run the modal can still act on, a failed one included: its steps
   // carry the retry.
   const hasActiveRun = machineState !== 'idle' && machineState !== 'success'
+  // The wallet the run belongs to, while stopping it still protects something:
+  // any live stage, a failure included, since its retry would carry on with
+  // that wallet's signer.
+  const suspendableRunOwner = useSelector(actor, (state) =>
+    state.value === 'idle' || state.value === 'success'
+      ? undefined
+      : (state.context.ownerAddress ?? state.context.accountAddress),
+  )
 
   // Read existing allowance for the chosen token so we can omit the approval
   // step entirely when the user has already approved enough.
@@ -407,6 +415,15 @@ export const useRegistrationTransactions = ({
     ? formatPriceDisplay(savedParams.tokenPrice, savedParams.tokenDecimals)
     : undefined
 
+  // Stop the run for a wallet that went away. Unlike a cancel, persistence
+  // keeps its record, so the owner can resume it on reconnect.
+  const suspendFlow = useCallback(() => {
+    actor.send({ type: 'SUSPEND' })
+    setResumed(null)
+    closeModal()
+    clearTransaction()
+  }, [actor, closeModal, clearTransaction])
+
   const resetRegistration = useCallback(() => {
     actor.send({ type: 'CANCEL' })
     setResumed(null)
@@ -435,6 +452,8 @@ export const useRegistrationTransactions = ({
     paid,
     startFlow,
     resumeFlow,
+    suspendableRunOwner,
+    suspendFlow,
     resetRegistration,
   }
 }

@@ -43,6 +43,8 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     transactions,
     isRegistering,
     hasActiveRun,
+    suspendableRunOwner,
+    suspendFlow,
     isSuccess,
     paid,
     startFlow,
@@ -58,6 +60,8 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
       openModal()
       return true
     },
+    suspendableRunOwner,
+    onSuspend: suspendFlow,
   })
 
   const registrableEthError = validateRegistrableEthName(name)
