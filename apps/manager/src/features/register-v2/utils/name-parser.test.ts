@@ -170,8 +170,6 @@ describe('parseCanonicalName', () => {
   })
 
   it('does not count case folding as a rewrite', () => {
-    // `VITALIK.ETH` is unambiguously `vitalik.eth`: there is no second name it
-    // could be confused with, and every caller reads the normalised name.
     const result = parseCanonicalName('VITALIK.ETH')
 
     assert(result.isOk())
@@ -200,9 +198,6 @@ describe('parseCanonicalName', () => {
   })
 
   it.each([
-    // `xn--` is reserved for punycode, which ENS never issues. A zero-width
-    // non-joiner is disallowed outside the few scripts that need it. Neither
-    // has a canonical spelling to redirect a buyer to.
     ['an xn-- extension', 'xn--ls8h.eth'],
     ['a zero-width non-joiner', 'vitalik\u200c.eth'],
     ['a null character', 'vitalik\u0000.eth'],

@@ -37,10 +37,9 @@ export const Route = createFileRoute('/register/$name')({
       wasRewritten,
     } = parsedName.value
 
-    // Nothing is owned yet, so a name ENSIP-15 rewrites has an unambiguous
-    // canonical spelling to send the buyer to. Redirecting here is what makes
-    // availability, price, display and commit/reveal calldata all read the one
-    // normalised name, never the look-alike that was typed or linked.
+    // Nothing is owned yet, so a rewritten name has an unambiguous canonical
+    // spelling to send the buyer to. Redirecting here is what makes
+    // availability, price, display and calldata read the one normalised name.
     if (wasRewritten) {
       throw redirect({
         params: { name: normalizedName },

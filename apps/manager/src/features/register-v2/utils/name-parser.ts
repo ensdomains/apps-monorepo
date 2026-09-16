@@ -51,27 +51,17 @@ type ParsedName = {
 
 type CanonicalName = ParsedName & {
   /**
-   * `true` when ENSIP-15 rewrote the input beyond case — a fullwidth or
-   * confusable character folded, a zero-width space or variation selector
-   * deleted, an NFD sequence composed. The parsed name is then the canonical
-   * spelling and the input is a different name that merely looks like it.
-   *
-   * Case folding alone does not count: `VITALIK.ETH` is unambiguously
-   * `vitalik.eth`, and every caller already reads the normalised name.
+   * `true` when normalisation changed the name beyond case, so the input is a
+   * different name that merely looks like the parsed one. Case folding alone
+   * does not count.
    */
   readonly wasRewritten: boolean
 }
 
 /**
- * Parses a name into its canonical ENSIP-15 spelling.
- *
- * Refuses only what has no canonical form: characters ENS never allows, and
- * labels `normalize` throws on (an `xn--` extension, a disallowed character).
- * Everything else comes back normalised, with `wasRewritten` saying whether
- * the caller is holding a different name than the one it passed in.
- *
- * Callers that act on a name the user already owns want {@link parseName},
- * which refuses a rewrite outright.
+ * Parses a name into its canonical ENSIP-15 spelling, refusing only what has
+ * no canonical form. Callers acting on a name the user already owns want
+ * {@link parseName} instead.
  */
 export const parseCanonicalName = (
   name: string,
@@ -123,15 +113,13 @@ export const parseCanonicalName = (
 /**
  * Parses a name and refuses anything ENSIP-15 rewrites.
  *
- * `normalize` maps rather than rejects: it deletes a zero-width space or a
- * stray variation selector and folds confusables like `ⓝ` onto `n`. A name it
- * rewrites is one that renders as one label and hashes as another, so refuse
- * it instead of silently signing the rewrite. Pure case folding is not a
- * rewrite — `VITALIK.ETH` is unambiguously `vitalik.eth`.
+ * `normalize` maps rather than rejects: it deletes a zero-width space and
+ * folds confusables like `ⓝ` onto `n`. A name it rewrites renders as one
+ * label and hashes as another, so refuse it rather than sign the rewrite.
  *
- * Use this wherever the name identifies something the user already holds
- * (renew, transfer). Registration has no such name to diverge from, so it
- * uses {@link parseCanonicalName} and redirects to the canonical spelling.
+ * Use this where the name identifies something the user already holds (renew,
+ * transfer). Registration owns nothing yet, so it takes
+ * {@link parseCanonicalName} and redirects to the canonical spelling.
  */
 export const parseName = (
   name: string,

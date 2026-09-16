@@ -491,16 +491,16 @@ const cleanLabel = (name: string): string => name.replace(/\.eth$/, '')
 /**
  * The label for a call that will be signed, hashed or registered.
  *
- * `keccak256(label)` is the name's identity, so a label that is not already in
- * ENSIP-15 canonical form buys a different name than the one the confirm step
- * displayed and priced. The app canonicalises at the entry of the flow; this
- * is the last line before the wallet, and it refuses rather than signs.
+ * `keccak256(label)` is the name's identity, so a non-canonical label buys a
+ * different name than the confirm step displayed and priced. The app
+ * canonicalises at the entry of the flow; this is the last line before the
+ * wallet, and it refuses rather than signs.
  */
 const canonicalLabel = (name: string): string => {
   const label = cleanLabel(name)
 
-  // `normalize` throws on a label ENS can never issue (an `xn--` extension, a
-  // disallowed character); its own error says which, so let it through.
+  // `normalize` throws on a label ENS can never issue; its own error says
+  // which, so let it through.
   const normalized = normalize(label)
 
   if (normalized !== label) {

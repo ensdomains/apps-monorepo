@@ -33,10 +33,8 @@ export class NameChainContractError extends TaggedError(
 export const checkRealNameAvailability = ResultFn(async function* (
   name: string,
 ) {
-  // `isAvailable` answers about the label it is handed, so a name ENSIP-15
-  // would rewrite gets a truthful answer about the wrong label — the raw
-  // look-alike reads as available while the canonical spelling is taken.
-  // Callers are expected to canonicalise before asking; refuse if one didn't.
+  // `isAvailable` answers about the label it is handed, so a look-alike reads
+  // as available while the canonical spelling it maps to is taken.
   const parsed = parseName(name)
 
   if (parsed.isErr()) {
@@ -57,9 +55,8 @@ export const checkRealNameAvailability = ResultFn(async function* (
     })
   })
 
-  // Check availability via the v2 registrar's `isAvailable`. The ensjs action
-  // reads `client.chain.contracts.ensEthRegistrar` and is eth-2ld-only, which
-  // matches what `parseName` already guarantees here.
+  // The ensjs action reads `client.chain.contracts.ensEthRegistrar` and is
+  // eth-2ld-only, which is what `parseName` already guarantees here.
   const normalizedName = parsed.value.name
 
   const availability = yield* fromPromise(
@@ -70,8 +67,6 @@ export const checkRealNameAvailability = ResultFn(async function* (
       }),
   )
 
-  // Return the name the registrar actually answered about, so a caller that
-  // renders or registers this result cannot drift back to the raw input.
   return ok({
     isAvailable: availability,
     name: normalizedName,
