@@ -47,19 +47,24 @@ export type RegistryOccupants = {
  *
  * The root connection honours variables, so the third-party count is the total
  * minus the caller's own — both filtered server-side, nothing interpolated into
- * the document.
+ * the document. `registry(address:)` still rides along, purely as the
+ * existence probe the connection can't provide.
  */
 const getRegistryOccupants = ResultFn(async function* ({
   address,
   account,
 }: GetRegistryOccupantsParameters) {
-  const { total, own } = yield* fromPromise(
+  const { registry, total, own } = yield* fromPromise(
     graphqlIndexerClient.request<{
+      registry: { labelCount: number } | null
       total: { totalCount: number | null }
       own: { totalCount: number | null }
     }>(
       gql`
         query getRegistryOccupants($registry: String!, $account: String!) {
+          registry(address: $registry) {
+            labelCount
+          }
           total: domainConnection(first: 1, where: { registry: $registry }) {
             totalCount
           }
@@ -75,6 +80,12 @@ const getRegistryOccupants = ResultFn(async function* ({
     ),
     (e) => new GetRegistryOccupantsError({ cause: e as GraphqlRequestError }),
   )
+
+  // `domainConnection` answers 0 both for a registry it has indexed and found
+  // empty and for one it has never heard of — the second must not read as "safe
+  // to detach". `registry` is the only field that tells them apart: null means
+  // no record, so the count is unknown rather than zero.
+  if (!registry) return ok(null)
 
   // A connection that reports no count leaves the subtraction undefined, and
   // guessing here would under-report third parties. Absent, not zero — the

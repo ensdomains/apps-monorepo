@@ -40,8 +40,13 @@ export const V2SendName = ({
   })
 
   // Sized before the step can run: detaching the registry is the one option
-  // whose damage lands on people who aren't party to the transfer.
-  const registryDetachImpact = useRegistryDetachImpact({ name, owner })
+  // whose damage lands on people who aren't party to the transfer. Reads the
+  // subregistry `detachTargets` already resolved, so visibility and blast
+  // radius can't describe different registries.
+  const registryDetachImpact = useRegistryDetachImpact({
+    subregistryAddress: detachTargets.subregistryAddress,
+    owner,
+  })
 
   const transfer = useTransferName({
     name,
