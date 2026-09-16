@@ -42,6 +42,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   const {
     transactions,
     isRegistering,
+    hasActiveRun,
     isSuccess,
     paid,
     startFlow,
@@ -207,6 +208,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
             onConnectWallet={openConnectModal}
             isConnected={isConnected}
             isRegistering={isRegistering}
+            onViewProgress={hasActiveRun ? openModal : undefined}
           />
           <TransactionModal transactions={transactions} />
         </>

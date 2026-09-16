@@ -146,6 +146,9 @@ export const useRegistrationTransactions = ({
       : undefined
   const isSuccess = machineState === 'success'
   const isRegistering = isInProgressState(machineState)
+  // Any run the modal can still act on, a failed one included: its steps
+  // carry the retry.
+  const hasActiveRun = machineState !== 'idle' && machineState !== 'success'
 
   // Read existing allowance for the chosen token so we can omit the approval
   // step entirely when the user has already approved enough.
@@ -426,6 +429,7 @@ export const useRegistrationTransactions = ({
     transactions,
     actor,
     isRegistering,
+    hasActiveRun,
     isSuccess,
     selectedToken,
     paid,
