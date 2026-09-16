@@ -18,6 +18,7 @@ type PreviewProps = {
   readonly ownerAddress: Address
   readonly context: ComponentProps<typeof MigrationSuccessDialog>['context']
   readonly presentation: Presentation
+  readonly migratedNameCount: number
   readonly interactive?: boolean
   readonly inline?: boolean
 }
@@ -28,11 +29,13 @@ const PreviewDialog = ({
   state,
   context,
   interactive,
+  migratedNameCount,
   retry,
 }: {
   readonly state: MigrationSuccessDialogState
   readonly context: PreviewProps['context']
   readonly interactive?: boolean
+  readonly migratedNameCount: number
   readonly retry: () => void
 }) => {
   const [open, setOpen] = useState(true)
@@ -76,7 +79,7 @@ const PreviewDialog = ({
           interactive === true && displayedState.status === 'readyToMint'
         }
         context={context}
-        migratedNameCount={1}
+        migratedNameCount={migratedNameCount}
         onClose={() => setOpen(false)}
         onMint={interactive ? () => setMintStatus('minting') : noop}
         onRetry={retry}
@@ -112,6 +115,7 @@ const DialogPreview = (args: PreviewProps) => (
         <PreviewDialog
           context={args.context}
           interactive={args.interactive}
+          migratedNameCount={args.migratedNameCount}
           retry={retry}
           state={presentationState}
         />
@@ -126,6 +130,7 @@ const meta = {
   parameters: { layout: 'centered' },
   args: {
     context: 'migration',
+    migratedNameCount: 1,
     presentation: 'readyToMint',
     ownerAddress: publishedNftStoryOwner,
   },
@@ -144,7 +149,13 @@ export const MintLater: Story = { args: { context: 'mint-later' } }
 export const LoadingEligibility: Story = {
   args: { presentation: 'loadingEligibility' },
 }
-export const Ineligible: Story = { args: { presentation: 'ineligible' } }
+export const LoadingEligibilityMany: Story = {
+  args: { migratedNameCount: 3, presentation: 'loadingEligibility' },
+}
+export const PlainOneName: Story = { args: { presentation: 'ineligible' } }
+export const PlainManyNames: Story = {
+  args: { migratedNameCount: 3, presentation: 'ineligible' },
+}
 
 // This only simulates the button states. The artwork always comes from the
 // published token, and this story has no wallet or transaction integration.

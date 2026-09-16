@@ -1,5 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import { Trans } from '@lingui/react/macro'
+import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
@@ -71,10 +71,13 @@ const PlainMigrationSuccessDialog = ({
   />
 )
 
-const formatMigrationError = (error: MigrationError): ReactNode => {
+const formatMigrationError = (
+  error: MigrationError,
+  selectedNameCount: number,
+): ReactNode => {
   switch (error.type) {
     case 'generic':
-      return <Trans>Upgrade details: {error.message}</Trans>
+      return <Trans>Your wallet reported: {error.message}</Trans>
     case 'parent-not-upgraded':
       return <Trans>Upgrade the parent name first, then its subnames.</Trans>
     case 'plan-changed':
@@ -89,18 +92,19 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
       return (
         <div>
           <Trans>
-            We couldn&apos;t safely retry. Contact ENS support before trying
-            again.
+            We couldn&apos;t safely retry. Nothing was submitted and nothing
+            changed.
           </Trans>
         </div>
       )
     case 'cleanup-failed':
       return (
         <div>
-          <Trans>
-            Your names were upgraded. One thing left: a temporary permission on
-            your names still needs to be removed.
-          </Trans>
+          <Plural
+            one="Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed."
+            other="Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed."
+            value={selectedNameCount}
+          />
         </div>
       )
     case 'profile-fetch-failed':
@@ -340,13 +344,15 @@ export const MigrationPage = () => {
             <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
               <Trans>Upgrade didn&apos;t finish</Trans>
             </p>
-            {lastError &&
-              lastError.type !== 'cleanup-failed' &&
-              lastError.type !== 'retry-blocked' && (
-                <p className="text-center text-ens-garnet-900/75 text-sm">
-                  <Trans>Your names are safe.</Trans>
-                </p>
-              )}
+            {lastError && lastError.type !== 'cleanup-failed' && (
+              <p className="text-center text-ens-garnet-900/75 text-sm">
+                <Plural
+                  one="Your name is safe."
+                  other="Your names are safe."
+                  value={selectedNames.length}
+                />
+              </p>
+            )}
             <motion.div
               animate={{ opacity: 1, y: 0 }}
               className="max-h-50 w-full max-w-md overflow-y-auto rounded-sm bg-ens-garnet-900/5 p-3"
@@ -354,7 +360,8 @@ export const MigrationPage = () => {
               transition={{ duration: 0.4, delay: 0.15 }}
             >
               <div className="whitespace-pre-wrap break-words text-ens-garnet-900/70 text-sm leading-normal">
-                {lastError && formatMigrationError(lastError)}
+                {lastError &&
+                  formatMigrationError(lastError, selectedNames.length)}
               </div>
             </motion.div>
 

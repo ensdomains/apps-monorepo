@@ -1,5 +1,5 @@
 import { plural } from '@lingui/core/macro'
-import { Plural, Trans, useLingui } from '@lingui/react/macro'
+import { Plural, useLingui } from '@lingui/react/macro'
 import { AnimatePresence, motion } from 'motion/react'
 import { match } from 'ts-pattern'
 import { useElementWidth } from '@/features/migration/hooks/useElementWidth'
@@ -319,11 +319,6 @@ export const GameStep = () => {
           className="flex min-h-6 shrink-0 flex-col items-center"
           transition={{ duration: 0.3 }}
         >
-          {progress?.isRecovering && (
-            <p className="mb-1 text-center text-ens-garnet-500 text-sm">
-              <Trans>Picking up where you left off</Trans>
-            </p>
-          )}
           <AnimatePresence mode="popLayout">
             <motion.span
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
