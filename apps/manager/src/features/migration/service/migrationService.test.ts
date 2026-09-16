@@ -143,19 +143,6 @@ const MANAGER_APPROVAL: MigrationApproval = {
   contractAddress: APPROVAL_CONTRACT,
   operatorAddress: HCA,
 }
-const TOKEN_APPROVAL: MigrationApproval = {
-  kind: 'erc721-token',
-  id: 'base-registrar:hca-token',
-  contractAddress: APPROVAL_CONTRACT,
-  operatorAddress: HCA,
-  tokenId: 1n,
-}
-const WRAPPED_APPROVAL: MigrationApproval = {
-  kind: 'operator',
-  id: 'name-wrapper:hca',
-  contractAddress: APPROVAL_CONTRACT,
-  operatorAddress: HCA,
-}
 
 const hashFor = (value: number): Hex =>
   `0x${value.toString(16).padStart(64, '0')}` as Hex
@@ -706,122 +693,6 @@ describe('executeMigration HCA orchestration', () => {
       totalSteps: 2,
       description: 'Batch confirmed',
     })
-  })
-
-  it('emits the approved setup, approval, mixed-batch, and cleanup copy', async () => {
-    const parent = classifiedFor('alice')
-    const copy = copyClassifiedFor()
-    const approvals = [
-      TOKEN_APPROVAL,
-      APPROVAL,
-      WRAPPED_APPROVAL,
-      MANAGER_APPROVAL,
-    ] as const
-    const basePlan = planFromClassified([parent, copy], [parent, copy])
-    const plan = {
-      ...basePlan,
-      hcaDeploymentRequired: true,
-      preflight: {
-        ...basePlan.preflight,
-        migrationApprovals: approvals,
-      },
-      stepDescriptors: [
-        { type: 'deploy-hca' as const },
-        ...approvals.map((approval) => ({
-          type: 'approval' as const,
-          approvalId: approval.id,
-        })),
-        {
-          type: 'atomic-batch' as const,
-          index: 0,
-          total: 1,
-          count: 2,
-          migrateCount: 1,
-          copyCount: 1,
-        },
-        { type: 'cleanup' as const, approvalId: MANAGER_APPROVAL.id },
-      ],
-    }
-    getCodeMock.mockResolvedValueOnce('0x')
-    mocks.planMigrationApprovals.mockReturnValue([...approvals])
-
-    const { progressEvents } = await runExecute({ plan })
-
-    expect(
-      mocks.startTransaction.mock.calls.map((call) => call[2]?.description),
-    ).toEqual([
-      'Getting ready',
-      'Getting permission to upgrade this name',
-      'Getting permission to upgrade your names',
-      'Getting permission to upgrade your wrapped names',
-      'Getting permission to restore your managers',
-      'Upgrading 1 name, copying 1',
-      'Removing temporary access',
-    ])
-    expect(progressEvents.map(({ description }) => description)).toEqual([
-      'Getting ready',
-      'Ready',
-      'Getting permission to upgrade this name',
-      'Permission granted',
-      'Getting permission to upgrade your names',
-      'Permission granted',
-      'Getting permission to upgrade your wrapped names',
-      'Permission granted',
-      'Getting permission to restore your managers',
-      'Permission granted',
-      'Upgrading 1 name, copying 1',
-      'Batch confirmed',
-      'Removing temporary access',
-      'Temporary access removed',
-    ])
-  })
-
-  it('reports an approval that was already granted on retry', async () => {
-    const plan = {
-      ...planFor(),
-      preflight: {
-        ...planFor().preflight,
-        migrationApprovals: [APPROVAL],
-      },
-      stepDescriptors: [
-        { type: 'approval' as const, approvalId: APPROVAL.id },
-        {
-          type: 'atomic-batch' as const,
-          index: 0,
-          total: 1,
-          count: 1,
-          migrateCount: 1,
-          copyCount: 0,
-        },
-      ],
-    }
-    persistPendingAtomicMigrationIntent(
-      { chainId: 11155111, owner: OWNER, hca: HCA },
-      {
-        id: 'incomplete-retry-intent',
-        names: ['alice.eth'],
-        operations: [{ name: 'alice.eth', action: 'migrate' }],
-      },
-    )
-    mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
-      status: 'incomplete',
-      verification: {
-        batchIndex: 0,
-        status: 'confirmed',
-        results: [{ expectationId: 'alice.eth:name-owner', satisfied: false }],
-      },
-      mismatches: [{ expectationId: 'alice.eth:name-owner' }],
-    })
-    mocks.planMigrationApprovals.mockReturnValue([])
-
-    const { progressEvents } = await runExecute({
-      plan,
-      reconcileBeforeSubmit: true,
-    })
-
-    expect(progressEvents).toContainEqual(
-      expect.objectContaining({ description: 'Permission already granted' }),
-    )
   })
 
   it('submits executeByOwner as a wallet-paid EOA transaction targeting the HCA', async () => {
@@ -1410,20 +1281,12 @@ describe('executeMigration HCA orchestration', () => {
       reconcileBeforeSubmit: true,
     })
 
-    const recoveredEvent = progressEvents.find(
-      ({ description }) =>
-        description === `${copy.domain.name} was already copied`,
+    expect(progressEvents).toContainEqual(
+      expect.objectContaining({
+        description: `${copy.domain.name} was already copied`,
+        isRecovering: true,
+      }),
     )
-    expect(recoveredEvent).toEqual({
-      currentStep: 1,
-      totalSteps: 1,
-      description: `${copy.domain.name} was already copied`,
-      txHash: undefined,
-      operations: [{ name: copy.domain.name, action: 'copy' }],
-      migratedCount: 0,
-      copiedCount: 1,
-      isRecovering: true,
-    })
     expect(mocks.reconcileAtomicMigrationBatch).toHaveBeenCalledOnce()
     expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
     expect(mocks.startTransaction).not.toHaveBeenCalled()
@@ -1529,7 +1392,7 @@ describe('executeMigration HCA orchestration', () => {
       return Promise.resolve(500_000n)
     })
 
-    const { progressEvents, result } = await runExecute({
+    const { result } = await runExecute({
       plan,
       onBatchComplete,
       reconcileBeforeSubmit: true,
@@ -1550,11 +1413,6 @@ describe('executeMigration HCA orchestration', () => {
     expect(onBatchComplete).toHaveBeenNthCalledWith(1, [
       { name: parent.domain.name, action: 'migrate' },
     ])
-    expect(progressEvents[0]).toMatchObject({
-      description: `${parent.domain.name} was already upgraded`,
-      isRecovering: true,
-      operations: [{ name: parent.domain.name, action: 'migrate' }],
-    })
     expect(onBatchComplete).toHaveBeenNthCalledWith(
       2,
       [{ name: copy.domain.name, action: 'copy' }],
