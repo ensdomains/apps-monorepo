@@ -36,7 +36,7 @@ const StepCopy = ({ step }: StepCopyProps) =>
             {name ? (
               <Trans>Approve {name}</Trans>
             ) : (
-              <Trans>Approve registration</Trans>
+              <Trans>Approve this name</Trans>
             )}
           </h3>
           <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">

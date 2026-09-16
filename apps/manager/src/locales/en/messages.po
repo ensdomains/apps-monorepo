@@ -302,10 +302,6 @@ msgstr "Approve {name}"
 msgid "Approve payment"
 msgstr "Approve payment"
 
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Approve registration"
-msgstr "Approve registration"
-
 #: src/features/migration/components/GameStep.tsx
 msgid "Approve restoring your managers in your wallet"
 msgstr "Approve restoring your managers in your wallet"
@@ -317,6 +313,10 @@ msgstr "Approve the signature in your wallet, then wait for on-chain confirmatio
 #: src/features/migration/components/GameStep.tsx
 msgid "Approve the temporary account in your wallet"
 msgstr "Approve the temporary account in your wallet"
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Approve this name"
+msgstr "Approve this name"
 
 #: src/features/migration/components/GameStep.tsx
 msgid "Approve this name in your wallet"
