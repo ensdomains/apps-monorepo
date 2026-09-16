@@ -10,11 +10,9 @@
  *       USDC.permit(wallet, HCA, budget)        — only when funding is needed
  *       USDC.transferFrom(wallet, HCA, budget)  — only when funding is needed
  *       ETHRegistrar.commit(commitment)
- *     No separate on-chain session-enable call — the redeployed
- *     HCAOwnerAndSessionValidator (2026-09-15, stateless sessions) has no
- *     `enableSessionWithRefund` anymore; the enable proof travels entirely in
- *     the signature (`sessionEnableData`), re-validated fresh on every use.
- *     The same request lazily deploys the HCA. `sponsored: { gas:false,
+ *     The same request lazily deploys the HCA. Like every session-signed
+ *     intent, it carries the session authorization as `enableData`: the
+ *     validator keeps no session state. `sponsored: { gas:false,
  *     bridging:false, swaps:false }`, `feeAsset: 'USDC'` — execution costs are
  *     refunded from the HCA's USDC.
  *   - Reveal leg (after cooldown, session-signed, no wallet prompt):
@@ -67,7 +65,7 @@ type CommitmentData = {
   secret: Hex
 }
 
-/** Session-enable payload threaded from the manager (absent once enabled). */
+/** The session authorization threaded from the manager, sent with every leg. */
 export interface HcaSessionEnableParams {
   readonly enableData: SessionEnableData
   readonly permissionId: Hex
@@ -286,25 +284,23 @@ type SessionSigners = Extract<
   { type: 'experimental_session' }
 >
 
-/** Session-signed `signers` for a quote, or `undefined` to quote owner-signed. */
+/**
+ * Session-signed `signers` for a quote, or `undefined` to quote owner-signed.
+ * Carries the session authorization (`enableData`) exactly as the transport
+ * will, so the quote prices the same envelope.
+ */
 function sessionSigners(
   activeSession: RhinestoneSigner['session'],
-): SessionSigners | undefined {
-  return activeSession
-    ? {
-        type: 'experimental_session',
-        session: activeSession.session,
-        verifyExecutions: true,
-      }
-    : undefined
-}
-
-/** Attach first-use `enableData`, but only to an existing session signer. */
-function withEnableData(
-  signers: SessionSigners | undefined,
   enableData: SessionEnableData | undefined,
 ): SessionSigners | undefined {
-  return signers && enableData ? { ...signers, enableData } : signers
+  if (!activeSession) return undefined
+  const authorization = enableData ?? activeSession.enableData
+  return {
+    type: 'experimental_session',
+    session: activeSession.session,
+    ...(authorization ? { enableData: authorization } : {}),
+    verifyExecutions: true,
+  }
 }
 
 export function estimateHcaBudgetActor(input: {
@@ -327,7 +323,7 @@ export function estimateHcaBudgetActor(input: {
   // Build a best-effort per-leg quoter whenever we have a Rhinestone account.
   //
   // An active session is NOT required. A first-time user has no session at
-  // budget time (it is enabled by the commit leg itself), so gating the quoter
+  // budget time (it is authorized later in the flow), so gating the quoter
   // on one meant new users could never quote and always fell through to the
   // fallback model — which, because the price service is unreachable from the
   // browser (see `estimateHcaBudget`), degrades further to a flat per-leg fee
@@ -343,21 +339,15 @@ export function estimateHcaBudgetActor(input: {
       ? async (leg: HcaLeg, incomingUsdc?: bigint): Promise<QuoteLegResult> => {
           const hca = rhinestone.account.getAddress() as Address
           const resolver = computeResolverAddress({ chainId, hca })
-          const baseSigners = sessionSigners(activeSession)
+          const signers = sessionSigners(
+            activeSession,
+            input.sessionEnable?.enableData,
+          )
           if (leg === 'commit') {
-            // Quote the SAME shape `submitFundingAndCommitActor` submits: when
-            // the session still needs enabling, the commit intent carries
-            // `enableData` (first-use mode 05) — the proof lives entirely in
-            // the signature, not as a separate on-chain call (see the NOTE in
-            // `submitFundingAndCommitActor`). The funding permit/transferFrom
-            // pair is two cheap ERC-20 calls on top; the `HCA_LEG_GAS_LIMITS.commit`
-            // bound (a proven upper bound over the measured first-commit fill,
-            // which the rail prices the quote on) covers them, so a successful
-            // quote never underfunds the HCA.
-            const commitSigners = withEnableData(
-              baseSigners,
-              input.sessionEnable?.enableData,
-            )
+            // Quote the SAME shape `submitFundingAndCommitActor` submits. The
+            // funding permit/transferFrom pair is two cheap ERC-20 calls on
+            // top; the `HCA_LEG_GAS_LIMITS.commit` bound covers them, so a
+            // successful quote never underfunds the HCA.
             const calls: Call[] = []
             const commitCall = buildCommitCall({
               chainId,
@@ -373,12 +363,12 @@ export function estimateHcaBudgetActor(input: {
               chain,
               calls,
               HCA_LEG_GAS_LIMITS.commit,
-              commitSigners,
+              signers,
               incomingUsdc,
             )
           }
-          // register leg: full reveal batch at the current price (the session
-          // is enabled by the commit, so no enableData here).
+          // register leg: full reveal batch at the current price, signed with
+          // the same session authorization as the commit.
           const price = await readRegisterPrice({
             publicClient: input.publicClient,
             chainId,
@@ -415,7 +405,7 @@ export function estimateHcaBudgetActor(input: {
             chain,
             toCalls(revealCalls),
             registerLegGasLimit(input.primaryName),
-            baseSigners,
+            signers,
             incomingUsdc,
           )
         }
@@ -714,10 +704,10 @@ export function signFundingPermitActor(input: {
 }
 
 /**
- * Commit leg: fund the HCA (when needed), enable the session (when needed),
- * and submit the commitment — ONE session-signed, user-paid request. Deploys
- * the HCA lazily when absent. Generates the secret + commitment here so the
- * reveal binds to the exact same inputs.
+ * Commit leg: fund the HCA (when needed) and submit the commitment — ONE
+ * session-signed, user-paid request. Deploys the HCA lazily when absent.
+ * Generates the secret + commitment here so the reveal binds to the exact same
+ * inputs.
  */
 export function submitFundingAndCommitActor(input: {
   name: string
@@ -735,48 +725,6 @@ export function submitFundingAndCommitActor(input: {
 > {
   return fromPromise(
     (async () => {
-      // INVARIANT: a funding permit REQUIRES the session-enable proof in the
-      // same batch.
-      //
-      // `HCAOwnerAndSessionValidator` only tolerates the `permit` +
-      // `transferFrom` pair inside `_checkInitialRegistrationPolicy`, which is
-      // reached by presenting the proof and which strips enable + permit +
-      // transfer before applying the fixed policy. Without the proof the pair
-      // falls through to `_checkRegistrationExecutions`, whose payment-token
-      // branch allows ONLY `approve`:
-      //
-      //   if (selector != APPROVE_SELECTOR)
-      //       revert ActionNotAllowed(execution.target, selector);
-      //
-      // That reverts `ActionNotAllowed(USDC, 0xd505accf)` (0xde1834f2), which
-      // the emissary re-wraps as `InvalidSignature()` (0x8baa579f) — an error
-      // that says nothing about the real cause. Fail here instead, where the
-      // message can name it.
-      // Check `enableData` itself, NOT just its wrapper.
-      //
-      // Testing `!input.sessionEnable` let a hollow object through: the enable
-      // CALL is built from `.permissionId`/`.sessionKey`/`.validUntil` below,
-      // while the PROOF is `.enableData`, so a payload carrying the first three
-      // and not the fourth produced a batch that contained
-      // `enableSessionWithRefund` yet signed without the proof. The SDK picks
-      // the mode purely from `signers.enableData` being truthy
-      // (`packStandaloneHcaFixedSessionSignature`: truthy -> 0x05 with proof,
-      // falsy + gas refund -> 0x02), so an absent proof silently downgrades to
-      // 0x02 and the validator then rejects `permit`. That is precisely the
-      // failure this guard exists to prevent, and it walked straight past it.
-      if (input.permit && !input.sessionEnable?.enableData) {
-        throw new Error(
-          'HCA funding permit requires the session-enable proof in the same ' +
-            'batch: the validator rejects USDC.permit outside the initial ' +
-            'registration policy path (ActionNotAllowed(USDC, permit), masked ' +
-            'as InvalidSignature()). Attach `sessionEnable.enableData` ' +
-            'whenever `permit` is set. Received: ' +
-            `sessionEnable=${input.sessionEnable ? 'present' : 'MISSING'}, ` +
-            `enableData=${input.sessionEnable?.enableData ? 'present' : 'MISSING'}, ` +
-            `permissionId=${input.sessionEnable?.permissionId ?? 'MISSING'}`,
-        )
-      }
-
       const chainId = input.publicClient.chain?.id ?? sepolia.id
       const contracts = getDestinationContracts(chainId)
       const label = cleanLabel(input.name)
@@ -832,16 +780,6 @@ export function submitFundingAndCommitActor(input: {
           }),
         })
       }
-
-      // NOTE: no separate on-chain enable call. The redeployed
-      // HCAOwnerAndSessionValidator (2026-09-15, stateless-sessions redesign)
-      // dropped `enableSessionWithRefund` entirely — there is no such function
-      // on it anymore. The session-enable proof lives ENTIRELY in the
-      // signature (`sessionEnableData` below, mirroring
-      // `HCAOwnerAndSessionValidator._validateFixedRefundSessionEnable`,
-      // re-validated fresh on every use, not persisted on first enable).
-      // Embedding a call to the old selector here reverts
-      // `ActionNotAllowed(validator, 0x4a9b6c49)`.
 
       const commitCall = buildCommitCall({
         chainId,
@@ -936,8 +874,8 @@ export function verifyHcaRegistrationActor(input: {
 
 /**
  * Reveal leg: re-read the CURRENT price, then submit the exact-ordered reveal
- * batch session-signed (no wallet prompt, no enable data — the session was
- * enabled by the commit leg).
+ * batch session-signed (no wallet prompt). It carries the same session
+ * authorization as the commit: the validator keeps no session state.
  */
 export function submitRevealBatchActor(input: {
   name: string
@@ -945,6 +883,7 @@ export function submitRevealBatchActor(input: {
   hca: Address
   duration: bigint
   secret: Hex
+  sessionEnable?: HcaSessionEnableParams
   signer: Signer
   publicClient: PublicClient
   primaryName?: string
@@ -990,6 +929,7 @@ export function submitRevealBatchActor(input: {
         from: input.hca,
         chainId,
         calls: toCalls(revealCalls),
+        sessionEnableData: input.sessionEnable?.enableData,
       })
 
       const txId = transactionManager.startTransaction(

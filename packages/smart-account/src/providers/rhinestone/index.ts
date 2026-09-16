@@ -11,8 +11,8 @@
  * This is the STANDALONE-HCA surface. Registration is prompt-free via a scoped
  * ERC-7579 SmartSession on the standalone validator
  * (`HCAOwnerAndSessionValidator`): the wallet signs ONE multi-chain session
- * authorization up front, and the session is enabled lazily inside the first
- * HCA action via `enableSessionWithRefund(...)`. The old ephemeral-OWNER model
+ * authorization up front and presents it with every session-signed intent (the
+ * validator keeps no session state). The old ephemeral-OWNER model
  * (`updateConfig` add-owner) is gone.
  *
  * Exports: `initialize-account` (create/adopt the standalone HCA), `manifest`
@@ -84,12 +84,14 @@ export {
   readRegisterPrice,
 } from './registration-calls'
 export {
+  buildHcaSessionConfig,
   type ChainDigest,
   computeDestinationSessionSalt,
   computeSourceSessionSalt,
   createDestinationSession,
   type DestinationSessionParams,
   type DestinationSessionResult,
+  type HcaSessionConfig,
   rebuildDestinationSession,
   type SessionEnableData,
 } from './session'

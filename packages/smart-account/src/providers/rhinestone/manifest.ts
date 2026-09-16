@@ -11,7 +11,9 @@
  * the complete source. Keep it grouped per chain so a redeploy is a
  * single-block edit and adding a source chain is additive.
  *
- * SDK patch SHA-256: 5e0a5f328ccf65514b051f255c217e693d81a9bfcf8ccbbd71dc2729e8932867
+ * SDK patch SHA-256: 805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf
+ * (byte-identical to contracts-v2 `patches/@rhinestone%2Fsdk@1.8.0.patch` @ 71a3b733,
+ * the patch built for this deployment's validator).
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'

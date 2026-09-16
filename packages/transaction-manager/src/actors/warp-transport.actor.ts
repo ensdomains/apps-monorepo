@@ -74,6 +74,22 @@ export function submitWarpTransaction(
     )
   }
 
+  // The validator is stateless: a session signature without the owner's
+  // authorization (envelope 0x01/0x02) reverts InvalidSessionData(), which the
+  // router surfaces as an opaque UnclassifiedRevert. Refuse it here instead.
+  const enableData = sessionEnableData ?? signer.session?.enableData
+  if (signer.session && !enableData) {
+    return errAsync(
+      new TransactionSubmissionError(
+        request,
+        new Error(
+          'A session-signed intent needs the session enable data: the ' +
+            'standalone HCA validator rejects session signatures without it',
+        ),
+      ),
+    )
+  }
+
   if (!calls || calls.length === 0) {
     return errAsync(
       new TransactionSubmissionError(
@@ -106,19 +122,18 @@ export function submitWarpTransaction(
 
   // Authorization: if the signer carries an active scoped session, the SDK
   // signs this Intent with the ephemeral SESSION KEY (no wallet prompt) via
-  // `experimental_session`. `enableData` is attached ONLY on the request that
-  // also carries the on-chain `enableSessionWithRefund` call (the first HCA
-  // action); afterwards it is omitted per the standalone-HCA spec. Without a
-  // session we omit `signers` and the SDK uses the connected owner
+  // `experimental_session`, always with `enableData` (checked above). Without
+  // a session we omit `signers` and the SDK uses the connected owner
   // (owner-signed).
-  const sessionSigners = signer.session
-    ? ({
-        type: 'experimental_session' as const,
-        session: signer.session.session,
-        ...(sessionEnableData ? { enableData: sessionEnableData } : {}),
-        verifyExecutions: true,
-      } satisfies NonNullable<Transaction['signers']>)
-    : undefined
+  const sessionSigners =
+    signer.session && enableData
+      ? ({
+          type: 'experimental_session' as const,
+          session: signer.session.session,
+          enableData,
+          verifyExecutions: true,
+        } satisfies NonNullable<Transaction['signers']>)
+      : undefined
 
   // Funds arriving DURING this intent (the HCA's `permit` + `transferFrom`
   // pair). The planner only credits balances it can already see, so without

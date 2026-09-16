@@ -7,7 +7,7 @@
  *      authorization signed BEFORE route selection, via the EnableSessions gate)
  *   2. USDC funding permit  (eth_signTypedData_v4 — EIP-2612, wallet → HCA budget)
  *   3. commit leg           (session-signed request: permit + transferFrom +
- *      enableSessionWithRefund + commit; deploys the HCA lazily)
+ *      commit; deploys the HCA lazily)
  *   4. [commitment age wait — handled by the app]
  *   5. reveal batch         (session-signed: price re-read + deployProxy? →
  *      approve → register(wallet) → setters; no user tx)
