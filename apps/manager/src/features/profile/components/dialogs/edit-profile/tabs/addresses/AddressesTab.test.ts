@@ -1,3 +1,4 @@
+import { getCoinTypeForReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
 import { describe, expect, it } from 'vitest'
 import type { AddressRecordValue } from '@/features/profile/types'
 import {
@@ -82,8 +83,8 @@ describe('address row helpers', () => {
   const ethAddress = '0x1111111111111111111111111111111111111111'
   const nextEthAddress = '0x2222222222222222222222222222222222222222'
   const customBaseAddress = '0x3333333333333333333333333333333333333333'
-  const baseCoinType = 2147492101
-  const optimismCoinType = 2147483658
+  const baseCoinType = getCoinTypeForReverseRegistrarChainId(8453, 'sepolia')
+  const optimismCoinType = getCoinTypeForReverseRegistrarChainId(10, 'sepolia')
   const bitcoinCoinType = 0
 
   const address = (coinType: number, value: string): AddressRecordValue => ({
