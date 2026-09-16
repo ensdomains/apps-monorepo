@@ -199,26 +199,33 @@ describe('MigrationPage failure copy', () => {
 
   it.each([
     [
-      ['alice.eth'],
+      [{ name: 'alice.eth', action: 'migrate' } as const],
       'Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed.',
     ],
     [
-      ['alice.eth', 'bob.eth'],
+      [
+        { name: 'alice.eth', action: 'migrate' } as const,
+        { name: 'bob.eth', action: 'copy' } as const,
+      ],
       'Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed.',
     ],
-  ])('renders count-aware cleanup copy for %j', (selectedNames, expected) => {
-    const { getByRole, getByText, queryByText } = renderFailure(
-      { type: 'cleanup-failed' },
-      selectedNames,
-    )
+  ])(
+    'renders count-aware cleanup copy after retry clears the selection for %j',
+    (completedOperations, expected) => {
+      migrationState.completedOperations = completedOperations
+      const { getByRole, getByText, queryByText } = renderFailure(
+        { type: 'cleanup-failed' },
+        [],
+      )
 
-    expect(getByText(expected)).toBeInTheDocument()
-    expect(queryByText('Your name is safe.')).not.toBeInTheDocument()
-    expect(queryByText('Your names are safe.')).not.toBeInTheDocument()
-    expect(
-      getByRole('button', { name: 'Remove temporary access' }),
-    ).toBeInTheDocument()
-  })
+      expect(getByText(expected)).toBeInTheDocument()
+      expect(queryByText('Your name is safe.')).not.toBeInTheDocument()
+      expect(queryByText('Your names are safe.')).not.toBeInTheDocument()
+      expect(
+        getByRole('button', { name: 'Remove temporary access' }),
+      ).toBeInTheDocument()
+    },
+  )
 
   it('preserves the failure actions and their events', () => {
     const { getByRole } = renderFailure({ type: 'user-rejected' })

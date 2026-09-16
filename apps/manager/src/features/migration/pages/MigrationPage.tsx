@@ -73,7 +73,7 @@ const PlainMigrationSuccessDialog = ({
 
 const formatMigrationError = (
   error: MigrationError,
-  selectedNameCount: number,
+  completedNameCount: number,
 ): ReactNode => {
   switch (error.type) {
     case 'generic':
@@ -103,7 +103,7 @@ const formatMigrationError = (
           <Plural
             one="Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed."
             other="Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed."
-            value={selectedNameCount}
+            value={completedNameCount}
           />
         </div>
       )
@@ -361,7 +361,7 @@ export const MigrationPage = () => {
             >
               <div className="whitespace-pre-wrap break-words text-ens-garnet-900/70 text-sm leading-normal">
                 {lastError &&
-                  formatMigrationError(lastError, selectedNames.length)}
+                  formatMigrationError(lastError, completedOperations.length)}
               </div>
             </motion.div>
 

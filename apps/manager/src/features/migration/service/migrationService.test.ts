@@ -1529,7 +1529,7 @@ describe('executeMigration HCA orchestration', () => {
       return Promise.resolve(500_000n)
     })
 
-    const { result } = await runExecute({
+    const { progressEvents, result } = await runExecute({
       plan,
       onBatchComplete,
       reconcileBeforeSubmit: true,
@@ -1550,6 +1550,10 @@ describe('executeMigration HCA orchestration', () => {
     expect(onBatchComplete).toHaveBeenNthCalledWith(1, [
       { name: parent.domain.name, action: 'migrate' },
     ])
+    expect(progressEvents[0]).toMatchObject({
+      description: `${parent.domain.name} was already upgraded`,
+      operations: [{ name: parent.domain.name, action: 'migrate' }],
+    })
     expect(onBatchComplete).toHaveBeenNthCalledWith(
       2,
       [{ name: copy.domain.name, action: 'copy' }],
