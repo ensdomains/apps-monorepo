@@ -95,6 +95,8 @@ export type ResumableRun = {
   readonly signer: EOASigner
   /** See the resumable verdict: false keeps the commit step ahead. */
   readonly commitmentOnChain: boolean
+  /** See the resumable verdict: true keeps the approve step ahead. */
+  readonly approvalNeeded: boolean
 }
 
 export type RegistrationResumeState =
@@ -240,13 +242,15 @@ export const useRegistrationResume = ({
     ).match(
       (walletClient) => {
         if (cancelled) return
-        const { record, token, commitmentOnChain } = decision.verdict
+        const { record, token, commitmentOnChain, approvalNeeded } =
+          decision.verdict
         if (
           !onResumeRef.current({
             record,
             token,
             signer: createEOASigner(walletClient),
             commitmentOnChain,
+            approvalNeeded,
           })
         ) {
           return

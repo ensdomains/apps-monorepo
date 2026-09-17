@@ -62,11 +62,18 @@ const assess = (record: PersistedRegistrationRecord | null) =>
     record,
   })
 
-/** The chain as seen `ageSeconds` after the commitment landed. */
-const chainAt = (ageSeconds: bigint) => {
+/**
+ * The chain as seen `ageSeconds` after the commitment landed, with `allowance`
+ * of the payment token granted to the registrar.
+ */
+const chainAt = (ageSeconds: bigint, allowance = 0n) => {
   readContract.mockImplementation(
     async (_client: Client, { functionName }: { functionName: string }) =>
-      functionName === 'commitmentAt' ? COMMITTED_AT : MAX_AGE,
+      functionName === 'commitmentAt'
+        ? COMMITTED_AT
+        : functionName === 'allowance'
+          ? allowance
+          : MAX_AGE,
   )
   getBlock.mockResolvedValue({ timestamp: COMMITTED_AT + ageSeconds })
 }
@@ -116,6 +123,45 @@ describe('assessRegistrationResume', () => {
       status: 'resumable',
       commitmentOnChain: true,
     })
+  })
+
+  it('keeps the approve step only while the allowance is short', async () => {
+    // The page's own allowance read can predate an approve that landed, and
+    // listed the step again after the owner came back.
+    chainAt(60n, 5_000_000n)
+    expect(await assess(recordAt('commitmentCooldown'))).toMatchObject({
+      approvalNeeded: false,
+    })
+
+    chainAt(60n, 4_999_999n)
+    expect(await assess(recordAt('commitmentCooldown'))).toMatchObject({
+      approvalNeeded: true,
+    })
+  })
+
+  it('keeps the approve step when the allowance cannot be read', async () => {
+    // The machine reads it again before it prompts.
+    readContract.mockImplementation(
+      async (_client: Client, { functionName }: { functionName: string }) => {
+        if (functionName === 'allowance') throw new Error('rpc down')
+        return functionName === 'commitmentAt' ? COMMITTED_AT : MAX_AGE
+      },
+    )
+
+    expect(await assess(recordAt('commitmentCooldown'))).toMatchObject({
+      status: 'resumable',
+      approvalNeeded: true,
+    })
+  })
+
+  it('counts a sent register as approved, though it spent the allowance', async () => {
+    expect(
+      await assess(
+        recordAt('waitingForRegistration', {
+          registrationTxId: 'tx-reg-register',
+        }),
+      ),
+    ).toMatchObject({ approvalNeeded: false })
   })
 
   it('drops a run that stopped before its commitment', async () => {
@@ -193,6 +239,7 @@ describe('decideRegistrationResume', () => {
     status: 'resumable',
     record: recordAt('commitmentCooldown', overrides),
     commitmentOnChain: true,
+    approvalNeeded: false,
     token: {
       symbol: 'USDC',
       address: '0x0000000000000000000000000000000000000001',

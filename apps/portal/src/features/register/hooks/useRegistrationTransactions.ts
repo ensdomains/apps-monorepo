@@ -93,6 +93,11 @@ export const useRegistrationTransactions = ({
     readonly commitmentOnChain: boolean
   } | null>(null)
 
+  // Whether this run approves the registrar, fixed when it starts or resumes.
+  // The page's own allowance read can lag the chain, and a step list that
+  // changes under a running flow misleads either way.
+  const [approvalPlanned, setApprovalPlanned] = useState<boolean | null>(null)
+
   const actor: RegistrationMachineActor = useActorRef(registrationMachine, {
     input: { chainId },
   })
@@ -132,9 +137,9 @@ export const useRegistrationTransactions = ({
     actor,
     (state) => state.context.registerReadyTimestamp,
   )
-  // Keep the commit-reveal deadline on the register step whenever we know it.
-  // Visibility is gated in the modal (only when register is next), so Approve
-  // In Progress does not show a misleading "Ready in Xs" on Register.
+  // Put the commit-reveal deadline on the register step from the moment it is
+  // known. It runs from the commit, so it is shown while the approve is still
+  // going too: hiding it until then made it appear partway through.
   const registerWaitUntil =
     machineState === 'validatingCommitment' ||
     machineState === 'fetchingCommitmentAge' ||
@@ -170,12 +175,17 @@ export const useRegistrationTransactions = ({
         : undefined,
     query: {
       enabled: Boolean(savedParams && connection.address),
+      // The app default keeps reads for an hour. An allowance read before an
+      // approve would then outlive it, listing the approve step again.
+      staleTime: 0,
     },
   })
   const needsApproval =
     !savedParams ||
     allowanceQuery.data === undefined ||
     allowanceQuery.data < savedParams.tokenPrice
+  const { refetch: refetchAllowance } = allowanceQuery
+  const showApprovalStep = approvalPlanned ?? needsApproval
 
   const handleStart = useCallback(async () => {
     if (!publicClient || !connection.address || !savedParams) {
@@ -204,6 +214,13 @@ export const useRegistrationTransactions = ({
       throw new Error('Failed to get wallet client')
     }
 
+    // Read now, not from the cache: an approve from an earlier run on this page
+    // may have landed since.
+    const { data: allowance } = await refetchAllowance()
+    setApprovalPlanned(
+      allowance === undefined || allowance < savedParams.tokenPrice,
+    )
+
     transactionManager.clear()
 
     const signer = createEOASigner(walletClient)
@@ -218,7 +235,16 @@ export const useRegistrationTransactions = ({
       accountAddress: connection.address,
       publicClient,
     })
-  }, [actor, name, duration, publicClient, connection, config, savedParams])
+  }, [
+    actor,
+    name,
+    duration,
+    publicClient,
+    connection,
+    config,
+    savedParams,
+    refetchAllowance,
+  ])
 
   // A resumed run reads the chain before it takes a retry: a commit that was
   // never sent only fails its check after several seconds. A click landing in
@@ -298,7 +324,7 @@ export const useRegistrationTransactions = ({
         (step.id === REGISTRATION_TX_IDS.commit && !resumed.commitmentOnChain),
     )
 
-    if (needsApproval) {
+    if (showApprovalStep) {
       steps.push({
         id: REGISTRATION_TX_IDS.approve,
         title: 'Approve payment',
@@ -362,7 +388,7 @@ export const useRegistrationTransactions = ({
     connection.address,
     savedParams,
     resumed,
-    needsApproval,
+    showApprovalStep,
     commitment,
     resolverAddress,
     registerWaitUntil,
@@ -379,6 +405,11 @@ export const useRegistrationTransactions = ({
       tokenPrice,
       tokenDecimals: tokenInfo.decimals,
     })
+    // A new token re-keys the read on its own. The same token keeps the key, so
+    // ask again: an earlier run on this page may have approved meanwhile.
+    if (savedParams?.tokenAddress === selectedTokenAddress) {
+      void refetchAllowance()
+    }
   }
 
   /**
@@ -387,7 +418,13 @@ export const useRegistrationTransactions = ({
    * RESUME from idle, and the page state belongs to the live run.
    */
   const resumeFlow = useCallback(
-    ({ record, token, signer, commitmentOnChain }: ResumableRun): boolean => {
+    ({
+      record,
+      token,
+      signer,
+      commitmentOnChain,
+      approvalNeeded,
+    }: ResumableRun): boolean => {
       if (!publicClient || actor.getSnapshot().value !== 'idle') return false
 
       setSavedParams({
@@ -399,6 +436,7 @@ export const useRegistrationTransactions = ({
         tokenDecimals: token.decimals,
       })
       setResumed({ commitmentOnChain })
+      setApprovalPlanned(approvalNeeded)
 
       actor.send({
         type: 'RESUME',
@@ -420,6 +458,7 @@ export const useRegistrationTransactions = ({
   const suspendFlow = useCallback(() => {
     actor.send({ type: 'SUSPEND' })
     setResumed(null)
+    setApprovalPlanned(null)
     closeModal()
     clearTransaction()
   }, [actor, closeModal, clearTransaction])
@@ -427,6 +466,7 @@ export const useRegistrationTransactions = ({
   const resetRegistration = useCallback(() => {
     actor.send({ type: 'CANCEL' })
     setResumed(null)
+    setApprovalPlanned(null)
     closeModal()
     clearTransaction()
   }, [actor, closeModal, clearTransaction])

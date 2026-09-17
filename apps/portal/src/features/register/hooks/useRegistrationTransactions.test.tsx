@@ -33,7 +33,10 @@ vi.mock('@/utils/blockExplorer/verifyProxyContract', () => ({
   verifyProxyContract: vi.fn(),
 }))
 
-const resumeAtCommitPrompt = (commitmentOnChain: boolean) => {
+const resumeAtCommitPrompt = (
+  commitmentOnChain: boolean,
+  approvalNeeded = true,
+) => {
   const { result } = renderHook(() =>
     useRegistrationTransactions({ name: 'leon.eth', duration: 31_536_000 }),
   )
@@ -66,6 +69,7 @@ const resumeAtCommitPrompt = (commitmentOnChain: boolean) => {
       token: PAYMENT_TOKENS[0],
       signer: { type: 'eoa', walletClient: {} } as never,
       commitmentOnChain,
+      approvalNeeded,
     })
   })
 
@@ -81,6 +85,17 @@ describe('useRegistrationTransactions after a resume', () => {
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
+      REGISTRATION_TX_IDS.register,
+    ])
+  })
+
+  it('drops an approve that landed, whatever the page last read', () => {
+    // The page's allowance read (mocked here as never loaded) can predate the
+    // approve. After a disconnect and return it listed the step again, and
+    // hid the register countdown behind it.
+    const result = resumeAtCommitPrompt(true, false)
+
+    expect(result.current.transactions.map(({ id }) => id)).toEqual([
       REGISTRATION_TX_IDS.register,
     ])
   })

@@ -80,6 +80,7 @@ const resumable: RegistrationResumeVerdict = {
   ),
   token: { symbol: 'USDC' } as never,
   commitmentOnChain: true,
+  approvalNeeded: false,
 }
 
 /** A run started on this page by OWNER; nothing was stored when it opened. */

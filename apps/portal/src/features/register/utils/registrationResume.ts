@@ -16,7 +16,7 @@ import {
   type PersistedRegistrationRecord,
 } from '@ens-apps/transaction-manager'
 import { ResultAsync } from 'neverthrow'
-import { type Address, type Client, type Hash, parseAbi } from 'viem'
+import { type Address, type Client, erc20Abi, type Hash, parseAbi } from 'viem'
 import { getBlock, readContract } from 'viem/actions'
 import { PAYMENT_TOKENS, type PaymentToken } from '../constants/paymentTokens'
 
@@ -53,6 +53,12 @@ export type RegistrationResumeVerdict =
        * prompt has one that was never sent; its commit step is still ahead.
        */
       readonly commitmentOnChain: boolean
+      /**
+       * Whether the registrar still lacks the allowance for this run, read from
+       * the chain now. The page's own allowance read can predate the approve,
+       * and listing a done approve step again reads as a step still ahead.
+       */
+      readonly approvalNeeded: boolean
     }
 
 const stale = (
@@ -103,6 +109,32 @@ const readCommitment = (
     }))
     .unwrapOr({ onChain: false, expired: false })
 
+/**
+ * Whether `owner` has yet to allow the registrar `price` of `token`. A failed read
+ * counts as needed: the step stays listed, and the machine reads the allowance
+ * itself before it prompts.
+ */
+const readApprovalNeeded = (
+  client: Client,
+  params: {
+    readonly token: Address
+    readonly owner: Address
+    readonly price: bigint
+  },
+): Promise<boolean> =>
+  ResultAsync.fromPromise(
+    readContract(client, {
+      address: params.token,
+      abi: erc20Abi,
+      functionName: 'allowance',
+      // The EOA path approves and registers on this registrar.
+      args: [params.owner, ENS_SEPOLIA_CONTRACTS.ETHRegistrar],
+    }),
+    (error) => error,
+  )
+    .map((allowance) => allowance < params.price)
+    .unwrapOr(true)
+
 export const assessRegistrationResume = async (params: {
   /** The name this page is for, as passed to START_REGISTRATION. */
   readonly name: string
@@ -137,13 +169,26 @@ export const assessRegistrationResume = async (params: {
     : { onChain: false, expired: false }
   if (chain.expired) return stale('commitment-expired')
 
+  // A register that went out was accepted against a landed commitment, and
+  // spent the allowance it needed.
+  const registerSent = getResumeTarget(record) === 'verifyingRegistration'
+  const owner = record.context.ownerAddress ?? record.context.accountAddress
+  const approvalNeeded =
+    !registerSent &&
+    (owner
+      ? await readApprovalNeeded(params.client, {
+          token: token.address,
+          owner,
+          price: record.context.tokenPrice,
+        })
+      : true)
+
   return {
     status: 'resumable',
     record,
     token,
-    // A register that went out was accepted against a landed commitment.
-    commitmentOnChain:
-      chain.onChain || getResumeTarget(record) === 'verifyingRegistration',
+    commitmentOnChain: chain.onChain || registerSent,
+    approvalNeeded,
   }
 }
 

@@ -22,48 +22,38 @@ const tx = (id: string, waitUntil?: number): Transaction => ({
 })
 
 describe('shouldShowWaitCountdown', () => {
-  it('hides countdown on a later step while an earlier step is in progress', () => {
-    const transactions = [
-      tx('commit'),
-      tx('approve'),
-      tx('register', Date.now() + 60_000),
-    ]
+  it('shows the countdown while an earlier step is still in progress', () => {
+    // The reveal window runs from the commit. Hiding it until the approve
+    // landed made the countdown appear partway through.
+    const register = tx('register', Date.now() + 60_000)
     const map = new Map<string, TransactionMachineActor>([
       ['commit', createMockActor('success')],
       ['approve', createMockActor('pending')],
     ])
 
-    expect(shouldShowWaitCountdown(transactions[2], 2, transactions, map)).toBe(
-      false,
-    )
+    expect(shouldShowWaitCountdown(register, map)).toBe(true)
   })
 
-  it('shows countdown when prior steps are done and this step is next', () => {
-    const waitUntil = Date.now() + 60_000
-    const transactions = [tx('commit'), tx('register', waitUntil)]
-    const map = new Map<string, TransactionMachineActor>([
-      ['commit', createMockActor('success')],
-    ])
+  it('shows the countdown when no earlier step ran in this session', () => {
+    // A resumed run's earlier steps happened before the reload.
+    const register = tx('register', Date.now() + 60_000)
 
-    expect(shouldShowWaitCountdown(transactions[1], 1, transactions, map)).toBe(
-      true,
-    )
+    expect(shouldShowWaitCountdown(register, new Map())).toBe(true)
   })
 
-  it('shows countdown after approve succeeds (approve step present)', () => {
-    const waitUntil = Date.now() + 60_000
-    const transactions = [
-      tx('commit'),
-      tx('approve'),
-      tx('register', waitUntil),
-    ]
+  it('hides the countdown once the step itself has started', () => {
+    const register = tx('register', Date.now() + 60_000)
     const map = new Map<string, TransactionMachineActor>([
-      ['commit', createMockActor('success')],
-      ['approve', createMockActor('success')],
+      ['register', createMockActor('pending')],
     ])
 
-    expect(shouldShowWaitCountdown(transactions[2], 2, transactions, map)).toBe(
-      true,
-    )
+    expect(shouldShowWaitCountdown(register, map)).toBe(false)
+  })
+
+  it('hides the countdown once the wait is over, or when there is none', () => {
+    expect(
+      shouldShowWaitCountdown(tx('register', Date.now() - 1), new Map()),
+    ).toBe(false)
+    expect(shouldShowWaitCountdown(tx('register'), new Map())).toBe(false)
   })
 })
