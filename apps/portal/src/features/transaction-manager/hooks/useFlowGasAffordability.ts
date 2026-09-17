@@ -6,7 +6,6 @@ import {
 } from '@ens-apps/utils/gasAffordability'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { fromThrowable } from 'neverthrow'
 import { useMemo } from 'react'
 import type { Address } from 'viem'
 import { getBalance } from 'viem/actions'
@@ -14,6 +13,12 @@ import { useEstimateFeesPerGas, usePublicClient, useWalletClient } from 'wagmi'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { WalletClientWithAccount } from '@/utils/types'
 import type { Transaction } from '../types'
+import {
+  parseUnpaidStepKey,
+  prepareUnpaidStepRequests,
+  priceStepGas,
+  unpaidStepKey,
+} from '../utils/flowGasSteps'
 import { getStatus } from '../utils/getStatus'
 import { estimateGasForCall } from './useTransactionGasEstimate'
 
@@ -62,46 +67,25 @@ export function useFlowGasAffordability(params: {
       ? (walletClient as WalletClientWithAccount)
       : undefined
 
-  // Steps already mined are paid for; re-counting them would over-state what
-  // the user still needs and warn a wallet that can finish the flow.
-  //
-  // Recomputed every render rather than memoized on the Map: an actor mutates
-  // its own snapshot in place without replacing the Map, so a memo keyed on the
-  // Map's identity keeps counting a step that has already settled and can flash
-  // a false shortfall. The component re-renders on those transitions anyway (see
-  // useActiveTransactionState), and filtering a handful of steps is cheap.
-  // Carried as a string so the memo below re-encodes when the pending SET
-  // changes, rather than on every render (the filtered array is a new identity
-  // each time) or never (the Map's identity is stable across transitions).
-  const pendingKey = transactions
-    .filter(
-      (transaction) =>
-        getStatus(transaction.id, activeTransactionsMap) !== 'success',
-    )
-    .map((transaction) => transaction.id)
-    .join('|')
+  // Recomputed every render: an actor mutates its own snapshot in place without
+  // replacing the Map, so anything memoized on the Map's identity would keep
+  // counting a step that has already settled. The component re-renders on those
+  // transitions anyway (see useActiveTransactionState).
+  const unpaidKey = unpaidStepKey(
+    transactions,
+    (id) => getStatus(id, activeTransactionsMap) === 'success',
+  )
 
-  // Same preparation contract as EstimatedGasCost: builders throw on states the
-  // UI reaches legitimately (nothing selected yet, an earlier step not run), and
-  // a step we cannot encode drops out of the sum and marks it incomplete.
-  const preparedRequests = useMemo(() => {
-    const pendingIds = new Set(pendingKey ? pendingKey.split('|') : [])
-    return transactions
-      .filter((transaction) => pendingIds.has(transaction.id))
-      .map((transaction) => {
-        const prepare = transaction.intent?.prepare
-        if (!readyWalletClient || !prepare) return undefined
-        const prepared = fromThrowable(
-          prepare,
-          () => undefined,
-        )({
-          walletClient: readyWalletClient,
-          chainId: sepoliaWithEns.id,
-        }).unwrapOr(undefined)
-        const request = prepared?.request
-        return request?.type === 'eoa' ? request : undefined
-      })
-  }, [transactions, pendingKey, readyWalletClient])
+  const preparedRequests = useMemo(
+    () =>
+      prepareUnpaidStepRequests({
+        transactions,
+        unpaidIds: parseUnpaidStepKey(unpaidKey),
+        walletClient: readyWalletClient,
+        chainId: sepoliaWithEns.id,
+      }),
+    [transactions, unpaidKey, readyWalletClient],
+  )
 
   const chainId = preparedRequests.find((r) => r)?.chainId
   const publicClient = usePublicClient({ chainId })
@@ -150,13 +134,12 @@ export function useFlowGasAffordability(params: {
   const maxFeePerGas = feeQuery.data?.maxFeePerGas
   const feeSum = useMemo(
     () =>
-      maxFeePerGas === undefined
-        ? { total: null, isComplete: false }
-        : sumStepFees(
-            gasQueries.map((query) =>
-              query.data === undefined ? null : query.data * maxFeePerGas,
-            ),
-          ),
+      sumStepFees(
+        priceStepGas(
+          gasQueries.map((query) => query.data),
+          maxFeePerGas,
+        ),
+      ),
     [gasQueries, maxFeePerGas],
   )
 
