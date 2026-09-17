@@ -3,13 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   ChevronRight,
+  CircleCheck,
+  CircleX,
   ClockIcon,
   GitBranch,
   ShieldIcon,
   TriangleAlert,
 } from 'lucide-react'
 import { match, P } from 'ts-pattern'
-import { type Address, isAddressEqual, zeroAddress } from 'viem'
+import type { Address } from 'viem'
 import { useChainId } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -19,8 +21,10 @@ import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
+import { getCanonicalRegistryQueryOptions } from '@/features/registry/hooks/useCanonicalRegistry'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { getRegistryDeploymentQueryOptions } from '@/features/registry/hooks/useRegistryDeployment'
+import type { CanonicalParent } from '@/features/registry/utils/canonicalRegistry'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
@@ -48,17 +52,16 @@ function RouteComponent() {
     isLoading,
     error,
   } = useQuery(getRegistryInfoQueryOptions({ address }))
+  // The parent is what the registry itself declares on-chain (`getParent()`),
+  // checked against the parent's own `getSubregistry(label)`. The indexer's
+  // "referenced by" list is a different relation: any name may point here.
   const {
-    data: parent,
-    isLoading: isLoadingParent,
-    error: parentError,
+    data: canonical,
+    isLoading: isLoadingCanonical,
+    error: canonicalError,
   } = useQuery({
-    ...getRegistryInfoQueryOptions({
-      address: registry?.parentRegistry ?? zeroAddress,
-    }),
-    enabled:
-      !!registry?.parentRegistry &&
-      !isAddressEqual(registry.parentRegistry, zeroAddress),
+    ...getCanonicalRegistryQueryOptions({ address }),
+    enabled: !!registry,
   })
   if (isLoading) return <LoadingSpinner title="Loading registry" />
   if (error)
@@ -141,27 +144,46 @@ function RouteComponent() {
           </dd>
 
           <dt className="text-ui text-muted-foreground flex items-center h-10">
-            Parent
+            Canonical parent
           </dt>
-          <dd className="flex items-center h-10">
-            {match({
-              isRoot: isAddressEqual(registry.parentRegistry, zeroAddress),
-              isLoadingParent,
-              parentError,
-              parent,
-            })
-              .with({ isRoot: true }, () => (
-                <span className="text-muted-foreground">—</span>
-              ))
-              .with({ isLoadingParent: true }, () => (
+          <dd className="flex flex-wrap items-center gap-2 min-h-10">
+            {match({ isLoadingCanonical, canonicalError, canonical })
+              .with({ isLoadingCanonical: true }, () => (
                 <Skeleton className="h-5 w-32" />
               ))
-              .with({ parentError: P.not(null) }, () => <FailedToLoad />)
-              .with({ parent: { name: P.string.minLength(1) } }, (m) => (
-                <EntityBadge variant="name" name={m.parent.name} showAvatar>
-                  {m.parent.name}
-                </EntityBadge>
+              .with({ canonicalError: P.not(null) }, () => <FailedToLoad />)
+              .with(
+                { canonical: { parent: P.nonNullable } },
+                ({ canonical }) => (
+                  <CanonicalParentBadge parent={canonical.parent} />
+                ),
+              )
+              .otherwise(() => (
+                <span className="text-muted-foreground">—</span>
+              ))}
+          </dd>
+
+          <dt className="text-ui text-muted-foreground flex items-center h-10">
+            Canonical name
+          </dt>
+          <dd className="flex items-center h-10">
+            {match({ isLoadingCanonical, canonicalError, canonical })
+              .with({ isLoadingCanonical: true }, () => (
+                <Skeleton className="h-5 w-32" />
               ))
+              .with({ canonicalError: P.not(null) }, () => <FailedToLoad />)
+              .with(
+                { canonical: { canonicalName: P.string.minLength(1) } },
+                ({ canonical }) => (
+                  <EntityBadge
+                    variant="name"
+                    name={canonical.canonicalName}
+                    showAvatar
+                  >
+                    {canonical.canonicalName}
+                  </EntityBadge>
+                ),
+              )
               .otherwise(() => (
                 <span className="text-muted-foreground">—</span>
               ))}
@@ -248,6 +270,44 @@ const RegistryNavCard = ({
       </div>
     </div>
   </Link>
+)
+
+/**
+ * "{label} of {parent registry}", plus whether the parent agrees: its
+ * `getSubregistry(label)` must point back at this registry for the pair to be
+ * canonical rather than a stale or one-sided claim.
+ */
+const CanonicalParentBadge = ({
+  parent,
+}: {
+  readonly parent: CanonicalParent
+}) => (
+  <>
+    <EntityBadge variant="default" className="font-normal">
+      {parent.label}
+    </EntityBadge>
+    <span className="text-muted-foreground">of</span>
+    <EntityBadge variant="contract" address={parent.registry} isRegistry>
+      {truncateAddress(parent.registry, 6, 4)}
+    </EntityBadge>
+    {parent.verified ? (
+      <span
+        className="inline-flex items-center gap-1 text-sm text-success-text"
+        title="The parent's getSubregistry(label) points back at this registry"
+      >
+        <CircleCheck className="size-3.5" />
+        verified
+      </span>
+    ) : (
+      <span
+        className="inline-flex items-center gap-1 text-sm text-destructive"
+        title="The parent's getSubregistry(label) does not point at this registry"
+      >
+        <CircleX className="size-3.5" />
+        not verified
+      </span>
+    )}
+  </>
 )
 
 const FailedToLoad = () => (
