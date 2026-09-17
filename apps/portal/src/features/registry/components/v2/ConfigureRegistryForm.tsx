@@ -1,3 +1,4 @@
+import { useIsFetching } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
@@ -7,6 +8,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useHasSetSubregistryRole } from '@/features/registry/hooks/useHasSetSubregistryRole'
+import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { useSubregistryWriteGuard } from '@/features/registry/hooks/useSubregistryWriteGuard'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
@@ -27,6 +29,10 @@ export const ConfigureRegistryForm = ({ name }: ConfigureRegistryFormProps) => {
     name,
     parentRegistry,
   })
+  const isRefetchingRegistries =
+    useIsFetching({
+      queryKey: getNameRegistriesQueryOptions({ name }).queryKey,
+    }) > 0
 
   const wrapperClassName = cn(
     'flex flex-col gap-4 max-w-xl',
@@ -58,8 +64,18 @@ export const ConfigureRegistryForm = ({ name }: ConfigureRegistryFormProps) => {
   }
 
   // The name gained a registry while this form was open, so there is nothing
-  // left to configure — only something to destroy. Hold the refusal until the
-  // refreshed discovery query swaps this form out for the configured view.
+  // left to configure — only something to destroy. The guard's toast carries
+  // the explanation; while the refreshed discovery query is on its way to swap
+  // this form for the configured view, show that transition instead of a
+  // refusal that would only flash.
+  if (writeBlock?.kind === 'conflict' && isRefetchingRegistries) {
+    return (
+      <LoadingSpinner title="Loading the registry configured for this name..." />
+    )
+  }
+
+  // The refetch settled and still reports no registry (a lagging RPC node), so
+  // the swap isn't coming: keep the refusal on screen.
   if (writeBlock?.kind === 'conflict') {
     return (
       <div className={wrapperClassName}>

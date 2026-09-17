@@ -1,9 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { type Address, zeroAddress } from 'viem'
 import { readSubregistry } from '@/features/registry/helpers/readSubregistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
+
+const CONFLICT_TOAST_DURATION_MS = 10_000
 
 /**
  * Why a write was refused, if it was. `conflict` means the name gained a
@@ -88,6 +92,14 @@ export const useSubregistryWriteGuard = ({
     closeTransactionModal()
     clearTransaction()
     if (block.kind === 'conflict') {
+      // The caller's inline notice unmounts as soon as the refetch below lands
+      // — usually well under a second, too fast to read — so the explanation
+      // travels in a toast that outlives the swap.
+      toast.warning('Registry already configured', {
+        id: `subregistry-conflict:${name}`,
+        description: `${name} was given a registry (${truncateAddress(block.subregistry, 6, 4)}) after this page loaded. It was left in place, and this page now shows it.`,
+        duration: CONFLICT_TOAST_DURATION_MS,
+      })
       // Re-render the tree against the registry that is actually configured, so
       // the caller gives way to the configured-registry view.
       void queryClient.invalidateQueries({

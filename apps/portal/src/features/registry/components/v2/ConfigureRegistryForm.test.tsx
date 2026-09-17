@@ -17,12 +17,21 @@ vi.mock('wagmi', async (importOriginal) => {
 })
 
 // The name renders as an unconfigured 3LD: its own registry slot is empty and
-// `1.sugh003.eth`-style ancestry sits behind it.
+// `1.sugh003.eth`-style ancestry sits behind it. Every fetch — including the
+// refetch a conflict triggers — keeps reporting that, so the tree never swaps
+// the form out and the tests can watch what the form shows meanwhile.
+const UNCONFIGURED = [zeroAddress, PARENT_REGISTRY, PARENT_REGISTRY] as const
+const discoverRegistries = vi.fn()
 vi.mock('@/features/registry/hooks/useNameRegistryDiscovery', () => ({
   getNameRegistriesQueryOptions: ({ name }: { name: string }) => ({
     queryKey: ['nameRegistries', name] as const,
-    queryFn: () => [zeroAddress, PARENT_REGISTRY, PARENT_REGISTRY],
+    queryFn: () => discoverRegistries(),
   }),
+}))
+
+const toastWarning = vi.fn()
+vi.mock('sonner', () => ({
+  toast: { warning: (...args: unknown[]) => toastWarning(...args) },
 }))
 
 vi.mock('@/features/registry/hooks/useHasRoles', () => ({
@@ -115,6 +124,8 @@ const submitForm = async (user: ReturnType<typeof userEvent.setup>) => {
 }
 
 beforeEach(() => {
+  discoverRegistries.mockReset().mockResolvedValue(UNCONFIGURED)
+  toastWarning.mockReset()
   readSubregistry.mockReset()
   setSubregistry.mockReset()
   deploySubregistryAsync.mockReset()
@@ -149,6 +160,54 @@ describe('ConfigureRegistryForm', () => {
     expect(openModal).not.toHaveBeenCalled()
     expect(deploySubregistryAsync).not.toHaveBeenCalled()
     expect(setSubregistry).not.toHaveBeenCalled()
+  })
+
+  it('explains the refusal in a toast that outlives the form', async () => {
+    readSubregistry.mockResolvedValue(ok(LIVE_REGISTRY))
+    const user = userEvent.setup()
+    renderForm()
+
+    await submitForm(user)
+
+    await waitFor(() =>
+      expect(toastWarning).toHaveBeenCalledWith(
+        'Registry already configured',
+        expect.objectContaining({
+          description: expect.stringContaining('0x0000…00bb'),
+        }),
+      ),
+    )
+  })
+
+  it('shows the swap in progress rather than flashing the refusal', async () => {
+    readSubregistry.mockResolvedValue(ok(LIVE_REGISTRY))
+    const user = userEvent.setup()
+    renderForm()
+    await user.click(
+      await screen.findByRole('button', { name: /configure registry/i }),
+    )
+
+    // Hold the conflict's refetch open.
+    let settleRefetch: (value: typeof UNCONFIGURED) => void = () => {}
+    discoverRegistries.mockReturnValueOnce(
+      new Promise((resolve) => {
+        settleRefetch = resolve
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Deploy' }))
+
+    expect(
+      await screen.findByText(/loading the registry configured/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/registry already configured/i),
+    ).not.toBeInTheDocument()
+
+    // It came back still empty (a lagging node), so no swap is coming.
+    settleRefetch(UNCONFIGURED)
+    expect(
+      await screen.findByText(/registry already configured/i),
+    ).toBeInTheDocument()
   })
 
   it('keeps the form and explains itself when the pointer cannot be read', async () => {
