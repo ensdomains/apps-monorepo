@@ -36,7 +36,7 @@ const contractDisplayNames: Record<SupportedL1Contract, string> = {
 }
 
 const contractPillLabels: Partial<Record<SupportedL1Contract, string>> = {
-  ensRegistry: 'root registry',
+  ensRegistry: 'eth registry',
   ensLegacyRegistry: 'legacy registry',
   ensUserRegistryImpl: 'permissioned registry',
   ensPublicResolver: 'public resolver',

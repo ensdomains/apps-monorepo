@@ -20,13 +20,16 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
 import {
-  getCanonicalNameQueryOptions,
-  getCanonicalParentQueryOptions,
-} from '@/features/registry/hooks/useCanonicalRegistry'
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
+import { getCanonicalRegistryQueryOptions } from '@/features/registry/hooks/useCanonicalRegistry'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { getRegistryDeploymentQueryOptions } from '@/features/registry/hooks/useRegistryDeployment'
+import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
@@ -239,13 +242,11 @@ const RegistryNavCard = ({
  * registry are listed under "Referenced by" instead.
  */
 const CanonicalParentCell = ({ address }: { readonly address: Address }) => {
-  const {
-    data: parent,
-    isLoading,
-    error,
-  } = useQuery(getCanonicalParentQueryOptions({ address }))
+  const { data, isLoading, error } = useQuery(
+    getCanonicalRegistryQueryOptions({ address }),
+  )
 
-  return match({ isLoading, error, parent })
+  return match({ isLoading, error, parent: data?.parent })
     .with({ isLoading: true }, () => <Skeleton className="h-5 w-32" />)
     .with({ error: P.not(null) }, () => <FailedToLoad />)
     .with({ parent: P.nonNullable }, ({ parent }) => (
@@ -257,42 +258,47 @@ const CanonicalParentCell = ({ address }: { readonly address: Address }) => {
         <EntityBadge variant="contract" address={parent.registry} isRegistry>
           {truncateAddress(parent.registry, 6, 4)}
         </EntityBadge>
-        {parent.verified ? (
-          <span
-            className="inline-flex items-center gap-1 text-sm text-success-text"
-            title="The parent's getSubregistry(label) points back at this registry"
-          >
-            <CircleCheck className="size-3.5" />
-            verified
-          </span>
-        ) : (
-          <span
-            className="inline-flex items-center gap-1 text-sm text-destructive"
-            title="The parent's getSubregistry(label) does not point at this registry"
-          >
-            <CircleX className="size-3.5" />
-            not verified
-          </span>
-        )}
+        <VerifiedMark verified={parent.verified} />
       </>
     ))
     .otherwise(() => <span className="text-muted-foreground">—</span>)
 }
 
+const VerifiedMark = ({ verified }: { readonly verified: boolean }) => {
+  const Icon = verified ? CircleCheck : CircleX
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        className={cn(
+          'inline-flex items-center gap-1 text-sm cursor-help',
+          verified ? 'text-success-text' : 'text-destructive',
+        )}
+      >
+        <Icon className="size-3.5" />
+        {verified ? 'verified' : 'not verified'}
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs font-sans normal-case">
+        {verified
+          ? "The parent's getSubregistry(label) points back at this registry."
+          : "The parent's getSubregistry(label) does not point at this registry."}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 /** The name the verified parent chain spells up to the root, when it does. */
 const CanonicalNameCell = ({ address }: { readonly address: Address }) => {
-  const {
-    data: name,
-    isLoading,
-    error,
-  } = useQuery(getCanonicalNameQueryOptions({ address }))
+  const { data, isLoading, error } = useQuery(
+    getCanonicalRegistryQueryOptions({ address }),
+  )
 
-  return match({ isLoading, error, name })
+  return match({ isLoading, error, name: data?.name })
     .with({ isLoading: true }, () => <Skeleton className="h-5 w-32" />)
     .with({ error: P.not(null) }, () => <FailedToLoad />)
-    .with({ name: P.string.minLength(1) }, ({ name }) => (
-      <EntityBadge variant="name" name={name} showAvatar>
-        {name}
+    .with({ name: { status: 'unavailable' } }, () => <FailedToLoad />)
+    .with({ name: { status: 'resolved' } }, ({ name }) => (
+      <EntityBadge variant="name" name={name.value} showAvatar>
+        {name.value}
       </EntityBadge>
     ))
     .otherwise(() => <span className="text-muted-foreground">—</span>)
