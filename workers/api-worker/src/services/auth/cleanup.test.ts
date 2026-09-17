@@ -4,10 +4,7 @@ import { cleanupExpiredAuthAttempts } from './cleanup.js'
 
 describe('cleanupExpiredAuthAttempts', () => {
   it('deletes expired auth attempts and reports the count', async () => {
-    const returning = vi
-      .fn()
-      .mockResolvedValue([{ nonce: 'expired-a' }, { nonce: 'expired-b' }])
-    const where = vi.fn(() => ({ returning }))
+    const where = vi.fn(() => Promise.resolve({ rowCount: 2 }))
     const db = {
       delete: vi.fn(() => ({ where })),
     } as unknown as Database
@@ -18,6 +15,5 @@ describe('cleanupExpiredAuthAttempts', () => {
     expect(result._unsafeUnwrap()).toBe(2)
     expect(db.delete).toHaveBeenCalledTimes(1)
     expect(where).toHaveBeenCalledTimes(1)
-    expect(returning).toHaveBeenCalledTimes(1)
   })
 })

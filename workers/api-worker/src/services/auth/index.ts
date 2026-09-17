@@ -30,8 +30,7 @@ class InvalidUriError extends TaggedError('INVALID_URI')<{
 }> {}
 
 class RedemptionTokenError extends TaggedError('REDEMPTION_TOKEN_ERROR')<{
-  message: string
-  cause?: unknown
+  cause: unknown
 }> {}
 
 const AUTH_ATTEMPT_TTL_MS = 30 * 60 * 1000
@@ -48,7 +47,6 @@ const createRedemptionToken = () =>
     }),
     (cause) =>
       new RedemptionTokenError({
-        message: 'Failed to create redemption token',
         cause,
       }),
   )
@@ -62,7 +60,6 @@ export const hashRedemptionToken = (redemptionToken: string) =>
     })(),
     (cause) =>
       new RedemptionTokenError({
-        message: 'Failed to hash redemption token',
         cause,
       }),
   )

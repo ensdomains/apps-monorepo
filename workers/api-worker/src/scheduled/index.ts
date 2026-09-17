@@ -3,7 +3,7 @@ import { cleanupExpiredAuthAttempts } from '#services/auth/cleanup.js'
 import { runExpiryDiscoveryCron } from '#services/expiry-discovery/index.js'
 import { logger } from '#utils/logger.js'
 
-export const AUTH_CLEANUP_CRON = '17 3 * * *'
+export const AUTH_CLEANUP_CRON = '17 */3 * * *'
 
 export const handleScheduled: ExportedHandlerScheduledHandler<
   CloudflareBindings
