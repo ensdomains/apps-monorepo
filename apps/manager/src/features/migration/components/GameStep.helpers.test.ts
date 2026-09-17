@@ -1,102 +1,66 @@
 import { describe, expect, it } from 'vitest'
 import type { MigrationStepDescriptor } from '@/features/migration/service/migrationService'
 import {
-  bridgeStepsOf,
   computeBridgeLayout,
   describeNextStep,
   displayStepOf,
   giantAnimateFor,
   giantModeOf,
   giantTransitionFor,
-  PLANK_PARTY_PADDING,
 } from './GameStep.helpers'
-
-describe('bridgeStepsOf', () => {
-  it('occupies the active step before wallet confirmation and advances with the next step', () => {
-    expect(bridgeStepsOf(0, 2, false)).toBe(0)
-    expect(bridgeStepsOf(0, 2, true)).toBe(1)
-    expect(bridgeStepsOf(1, 2, true)).toBe(2)
-    expect(bridgeStepsOf(2, 2, true)).toBe(2)
-  })
-
-  it('keeps recovery progress on the last completed plank', () => {
-    expect(bridgeStepsOf(1, 2, false)).toBe(1)
-  })
-
-  it('never advances beyond the final plank', () => {
-    expect(bridgeStepsOf(2, 2, true)).toBe(2)
-  })
-})
 
 describe('computeBridgeLayout', () => {
   it.each([
     0, 1, 4, 10, 100,
-  ])('keeps the party on shore before any of %i steps completes', (totalSteps) => {
+  ])('keeps the party outside before any of %i transactions succeeds', (totalSteps) => {
     const layout = computeBridgeLayout({
       totalSteps,
       completedSteps: 0,
       trackWidth: 600,
     })
     expect(layout.frensX).toBe(0)
-    expect(layout.scrollOffset).toBe(0)
+    expect(layout.partyScale).toBe(1)
     expect(Number.isFinite(layout.plankWidth)).toBe(true)
   })
 
-  it('returns a finite zero layout while the bridge has not been measured', () => {
+  it('returns a finite layout before the bridge is measured', () => {
     expect(
       computeBridgeLayout({ totalSteps: 3, completedSteps: 0, trackWidth: 0 }),
     ).toEqual({
       plankWidth: 0,
       partyScale: 1,
       frensX: 0,
-      scrollOffset: 0,
-      totalBridgeWidth: 0,
-      needsScroll: false,
+      bridgeWidth: 0,
+      scrollX: 0,
     })
   })
 
-  it('centers the party on the last completed plank', () => {
+  it.each([
+    1, 4, 6, 10, 100,
+  ])('provides exactly %i equal transaction planks with the expected bridge width', (totalSteps) => {
     const layout = computeBridgeLayout({
-      totalSteps: 4,
-      completedSteps: 2,
-      trackWidth: 400,
+      totalSteps,
+      completedSteps: 0,
+      trackWidth: 600,
     })
-    expect(layout.plankWidth).toBe(200)
-    expect(layout.frensX).toBe(282)
-    expect(layout.scrollOffset).toBe(100)
-    expect(layout.needsScroll).toBe(true)
+    expect(layout.bridgeWidth).toBeCloseTo(layout.plankWidth * totalSteps)
+    if (totalSteps <= 5) expect(layout.bridgeWidth).toBe(600)
+    else expect(layout.plankWidth).toBeGreaterThanOrEqual(188)
   })
 
-  it('starts scrolling only after the occupied plank center reaches the middle', () => {
-    const first = computeBridgeLayout({
-      totalSteps: 10,
-      completedSteps: 1,
-      trackWidth: 600,
-    })
-    expect(first.frensX).toBe(182)
-    expect(first.scrollOffset).toBe(0)
-    const middle = computeBridgeLayout({
-      totalSteps: 10,
-      completedSteps: 4,
-      trackWidth: 600,
-    })
-    expect(middle.frensX).toBe(382)
-    expect(middle.scrollOffset).toBe(400)
-  })
-
-  it('stops scrolling at the end with the party centered on the final plank', () => {
-    const layout = computeBridgeLayout({
-      totalSteps: 10,
-      completedSteps: 10,
-      trackWidth: 600,
-    })
-    expect(layout.frensX).toBe(582)
-    expect(layout.scrollOffset).toBe(1400)
+  it('moves one plank for each successful transaction', () => {
+    const positions = [0, 1, 2, 3, 4].map((completedSteps) =>
+      computeBridgeLayout({ totalSteps: 4, completedSteps, trackWidth: 400 }),
+    )
+    expect(positions.map(({ frensX }) => frensX)).toEqual([
+      0, 132, 232, 332, 432,
+    ])
+    expect(positions.every(({ plankWidth }) => plankWidth === 100)).toBe(true)
   })
 
   it.each([
     64, 137, 400, 600,
-  ])('keeps the entire party inside one visible plank at a %ipx bridge width', (trackWidth) => {
+  ])('keeps the entire party inside its completed plank at %ipx', (trackWidth) => {
     for (const partyWidth of [112, 164]) {
       for (const totalSteps of [1, 4, 6, 10, 100]) {
         for (
@@ -112,23 +76,66 @@ describe('computeBridgeLayout', () => {
           })
           const center = layout.frensX - partyWidth / 2
           const halfParty = (partyWidth * layout.partyScale) / 2
-          const plankStart =
-            (completedSteps - 1) * layout.plankWidth - layout.scrollOffset
-          const plankEnd = plankStart + layout.plankWidth
           expect(center - halfParty).toBeGreaterThanOrEqual(
-            plankStart + PLANK_PARTY_PADDING / 2 - 0.000001,
+            (completedSteps - 1) * layout.plankWidth - 0.000001,
           )
           expect(center + halfParty).toBeLessThanOrEqual(
-            plankEnd - PLANK_PARTY_PADDING / 2 + 0.000001,
+            completedSteps * layout.plankWidth + 0.000001,
           )
-          expect(plankStart).toBeGreaterThanOrEqual(-0.000001)
-          expect(plankEnd).toBeLessThanOrEqual(trackWidth + 0.000001)
+          expect(layout.partyScale).toBeGreaterThan(0)
+          expect(layout.partyScale).toBeLessThanOrEqual(1)
         }
       }
     }
   })
 
-  it('clamps stale out-of-range progress to the bridge boundaries', () => {
+  it('scrolls long bridges while keeping the occupied plank visible', () => {
+    const layouts = Array.from({ length: 11 }, (_, completedSteps) =>
+      computeBridgeLayout({ totalSteps: 10, completedSteps, trackWidth: 600 }),
+    )
+    expect(layouts[0]?.scrollX).toBe(0)
+    expect(layouts[10]?.scrollX).toBe(1400)
+    for (const [index, layout] of layouts.entries()) {
+      expect(layout.partyScale).toBe(1)
+      if (index === 0) continue
+      const left = (index - 1) * layout.plankWidth - layout.scrollX
+      expect(left).toBeGreaterThanOrEqual(0)
+      expect(left + layout.plankWidth).toBeLessThanOrEqual(600)
+      expect(layout.scrollX).toBeGreaterThanOrEqual(
+        layouts[index - 1]?.scrollX ?? 0,
+      )
+    }
+  })
+
+  it.each([
+    1, 2, 3, 4, 5,
+  ])('keeps all %i planks stationary through completion', (totalSteps) => {
+    for (
+      let completedSteps = 0;
+      completedSteps <= totalSteps;
+      completedSteps += 1
+    ) {
+      const layout = computeBridgeLayout({
+        totalSteps,
+        completedSteps,
+        trackWidth: 600,
+      })
+      expect(layout.scrollX).toBe(0)
+      expect(layout.bridgeWidth).toBe(600)
+    }
+  })
+
+  it('starts the treadmill above five transactions', () => {
+    const layout = computeBridgeLayout({
+      totalSteps: 6,
+      completedSteps: 3,
+      trackWidth: 600,
+    })
+    expect(layout.scrollX).toBeGreaterThan(0)
+    expect(layout.bridgeWidth).toBeGreaterThan(600)
+  })
+
+  it('clamps stale progress to the first and last positions', () => {
     expect(
       computeBridgeLayout({
         totalSteps: 4,
@@ -139,7 +146,7 @@ describe('computeBridgeLayout', () => {
     expect(
       computeBridgeLayout({ totalSteps: 4, completedSteps: 8, trackWidth: 400 })
         .frensX,
-    ).toBe(382)
+    ).toBe(432)
   })
 })
 

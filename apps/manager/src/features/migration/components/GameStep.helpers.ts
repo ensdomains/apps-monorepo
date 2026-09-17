@@ -2,22 +2,15 @@ import { match, P } from 'ts-pattern'
 import type { MigrationApprovalId } from '@/features/migration/service/migrationApprovals'
 import type { MigrationStepDescriptor } from '@/features/migration/service/migrationService'
 
-export const VISIBLE_PLANKS = 6
 export const PLANK_PARTY_PADDING = 24
-
-export const bridgeStepsOf = (
-  completedSteps: number,
-  totalSteps: number,
-  hasActiveStep: boolean,
-): number => Math.min(completedSteps + (hasActiveStep ? 1 : 0), totalSteps)
+export const TREADMILL_THRESHOLD = 5
 
 export type BridgeLayout = {
   readonly plankWidth: number
   readonly partyScale: number
   readonly frensX: number
-  readonly scrollOffset: number
-  readonly totalBridgeWidth: number
-  readonly needsScroll: boolean
+  readonly bridgeWidth: number
+  readonly scrollX: number
 }
 
 export const computeBridgeLayout = (params: {
@@ -25,7 +18,6 @@ export const computeBridgeLayout = (params: {
   readonly completedSteps: number
   readonly trackWidth: number
   readonly partyWidth?: number
-  readonly visiblePlanks?: number
 }): BridgeLayout => {
   const totalSteps = Math.max(0, Math.floor(params.totalSteps))
   const completedSteps = Math.min(
@@ -34,40 +26,43 @@ export const computeBridgeLayout = (params: {
   )
   const trackWidth = Math.max(0, params.trackWidth)
   const partyWidth = Math.max(1, params.partyWidth ?? 164)
-  const minimumPlankWidth = partyWidth + PLANK_PARTY_PADDING
-  const visiblePlanks = Math.max(
-    1,
-    Math.min(
-      params.visiblePlanks ?? VISIBLE_PLANKS,
-      Math.floor(trackWidth / minimumPlankWidth),
-    ),
-  )
-  const needsScroll = trackWidth > 0 && totalSteps > visiblePlanks
+  const isTreadmill = totalSteps > TREADMILL_THRESHOLD
   const plankWidth =
-    totalSteps > 0 ? trackWidth / Math.min(totalSteps, visiblePlanks) : 0
-  const totalBridgeWidth = plankWidth * totalSteps
-  // Each active step gives the whole party one plank. On narrow screens,
-  // scale the party to fit inside the plank, leaving room around its edges.
+    totalSteps > 0
+      ? isTreadmill
+        ? Math.min(
+            trackWidth,
+            Math.max(
+              trackWidth / Math.min(totalSteps, 3),
+              partyWidth + PLANK_PARTY_PADDING,
+            ),
+          )
+        : trackWidth / totalSteps
+      : 0
+  const bridgeWidth = plankWidth * totalSteps
+  const scrollX = isTreadmill
+    ? Math.min(
+        Math.max(0, (completedSteps - 0.5) * plankWidth - trackWidth / 2),
+        Math.max(0, bridgeWidth - trackWidth),
+      )
+    : 0
+  const padding = Math.min(PLANK_PARTY_PADDING, plankWidth / 4)
   const partyScale =
     completedSteps > 0 && plankWidth > 0
-      ? Math.min(1, Math.max(0, plankWidth - PLANK_PARTY_PADDING) / partyWidth)
+      ? Math.min(1, (plankWidth - padding) / partyWidth)
       : 1
-  const plankCenter = Math.max(0, completedSteps - 0.5) * plankWidth
-  const scrollOffset = Math.min(
-    Math.max(0, plankCenter - trackWidth / 2),
-    Math.max(0, totalBridgeWidth - trackWidth),
-  )
+
   return {
     plankWidth,
     partyScale,
-    // The starting shore and party wrapper have the same width.
+    bridgeWidth,
+    scrollX,
+    // The party begins outside the bridge, then occupies one completed
+    // plank at a time. Wallet requests and submissions do not advance it.
     frensX:
       completedSteps > 0 && plankWidth > 0
-        ? partyWidth / 2 + plankCenter - scrollOffset
+        ? partyWidth / 2 + (completedSteps - 0.5) * plankWidth
         : 0,
-    scrollOffset,
-    totalBridgeWidth,
-    needsScroll,
   }
 }
 
