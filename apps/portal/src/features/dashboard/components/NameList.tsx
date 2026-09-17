@@ -136,8 +136,18 @@ export const NameList = ({ address, limit }: NameListProps) => {
     mergeNamesData(v1NamesQuery.data, v2NamesQuery.data),
   )
   const data = limit ? allData.slice(0, limit) : allData
+  // The assigned section is hidden in the limited (preview) view, so it only
+  // counts as something to show when the full list is rendered.
+  const showAssigned = !limit && assigned.length > 0
 
-  if (data.length === 0 && !v1Failed && !v2Failed && !v1Pending && !v2Pending)
+  if (
+    data.length === 0 &&
+    !showAssigned &&
+    !v1Failed &&
+    !v2Failed &&
+    !v1Pending &&
+    !v2Pending
+  )
     return (
       <NoResultsMessage
         title="No names yet"
@@ -188,7 +198,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
         </div>
       )}
 
-      {!limit && assigned.length > 0 && (
+      {showAssigned && (
         <section className="flex flex-col gap-2 border-t border-border pt-6 mt-6">
           <h3 className="text-sm font-medium">
             {`Names assigned to this address (${assigned.length})`}
