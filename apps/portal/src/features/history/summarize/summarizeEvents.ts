@@ -1,3 +1,4 @@
+import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import type { TimelineIndexerEvent } from '../timelineEvent'
 import { DESCRIPTORS, humanizeType } from './descriptors'
 import type { Action, ActionSlot, Descriptor } from './summarize.types'
@@ -56,7 +57,10 @@ const RECORD_TYPES = new Set([
 
 const recordLabel = (event: TimelineIndexerEvent): string => {
   if (event.type === 'TextChanged')
-    return event.asTextChanged?.key ?? event.key ?? 'text'
+    // The key is attacker-authored; sanitize before it reaches a text slot.
+    return (
+      sanitizeOnChainText(event.asTextChanged?.key ?? event.key ?? '') || 'text'
+    )
   if (event.type === 'ContenthashChanged') return 'content hash'
   return 'address'
 }

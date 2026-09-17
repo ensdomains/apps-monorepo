@@ -1,5 +1,6 @@
 import { isAddress, zeroAddress } from 'viem'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
+import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { V1_PROTOCOL } from '../timelineEvent'
 import {
@@ -88,8 +89,12 @@ export const DESCRIPTORS = {
   TextChanged: {
     icon: 'text',
     build: (primary) => {
-      const key = primary.asTextChanged?.key ?? primary.key ?? '—'
-      const value = primary.asTextChanged?.value ?? primary.value ?? ''
+      const key =
+        sanitizeOnChainText(primary.asTextChanged?.key ?? primary.key ?? '') ||
+        '—'
+      const value = sanitizeOnChainText(
+        primary.asTextChanged?.value ?? primary.value ?? '',
+      )
       const slots: ActionSlot[] = [{ kind: 'text', value: key }]
       if (value) {
         slots.push({ kind: 'glyph', value: '→' }, { kind: 'text', value })

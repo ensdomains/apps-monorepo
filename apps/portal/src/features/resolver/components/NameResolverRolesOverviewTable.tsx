@@ -98,7 +98,7 @@ const ResolverRolesOverview = ({
       ) : (
         <ResolverRolesTable
           roles={roles}
-          nodes={overview?.nodes ?? []}
+          namedResources={overview?.namedResources ?? []}
           resolverAddress={resolverAddress}
           canManageRoles={false}
           disableEdit

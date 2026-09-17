@@ -1,26 +1,30 @@
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
-import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import type { IntentContext } from '@/features/transaction-manager/types'
-import type { ResolverRoleKey } from '@/lib/roles/resolverRoles'
+import type { ResolverRole } from '@/lib/roles/resolverRoles'
 import { prepareGrantResolverRolesTransaction } from './grantResolverRoles'
 import { prepareRevokeResolverRolesTransaction } from './revokeResolverRoles'
 
-/** A pending resolver-roles edit awaiting confirmation in the sidebar. */
+/**
+ * A pending resolver-roles edit awaiting confirmation in the sidebar. Both
+ * carry the EAC resource the row's roles live on; grants are only possible on
+ * the root resource (argument-scoped grants need the setter calldata, which the
+ * sidebar does not reconstruct from a resource hash).
+ */
 export type ResolverRolesAction =
   | {
       readonly type: 'save'
-      readonly name: string
+      readonly resource: bigint
       readonly account: Address
       readonly rolesToGrant: ResolverRole[]
-      readonly rolesToRevoke: ResolverRoleKey[]
+      readonly rolesToRevoke: ResolverRole[]
     }
   | {
       readonly type: 'remove'
-      readonly name: string
+      readonly resource: bigint
       readonly account: Address
-      readonly roles: readonly ResolverRoleKey[]
+      readonly roles: readonly ResolverRole[]
     }
 
 /**
@@ -35,10 +39,10 @@ export const prepareResolverRolesIntent = (
   { walletClient, chainId }: IntentContext,
 ): CustomTransactionIntent | undefined =>
   match(action)
-    .with({ type: 'remove' }, ({ name, account, roles }) =>
+    .with({ type: 'remove' }, ({ resource, account, roles }) =>
       prepareRevokeResolverRolesTransaction({
         resolverAddress,
-        name,
+        resource,
         account,
         roles,
         walletClient,
@@ -47,15 +51,14 @@ export const prepareResolverRolesIntent = (
     )
     .with(
       { type: 'save' },
-      ({ name, account, rolesToGrant, rolesToRevoke }) => {
+      ({ resource, account, rolesToGrant, rolesToRevoke }) => {
         if (rolesToGrant.length > 0 && rolesToRevoke.length > 0)
           return undefined
         if (rolesToGrant.length > 0) {
           return prepareGrantResolverRolesTransaction({
             resolverAddress,
-            name,
             account,
-            roles: rolesToGrant,
+            scope: { type: 'root', roles: rolesToGrant },
             walletClient,
             chainId,
           })
@@ -63,7 +66,7 @@ export const prepareResolverRolesIntent = (
         if (rolesToRevoke.length > 0) {
           return prepareRevokeResolverRolesTransaction({
             resolverAddress,
-            name,
+            resource,
             account,
             roles: rolesToRevoke,
             walletClient,

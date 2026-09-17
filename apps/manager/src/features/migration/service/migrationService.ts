@@ -1382,6 +1382,10 @@ const prepareExecutionPlan = async (params: {
     const completedNames = executionPlan.classified
       .filter(({ domain }) => !incompleteNames.has(domain.name))
       .map(({ domain }) => domain.name)
+    const completedGroups = reconciliation.completedNameGroups.map((names) => ({
+      names,
+      operations: operationsForNames(executionPlan, names),
+    }))
     executionPlan = adjustPlanForRetry(executionPlan, completedNames)
 
     commitReconciliationJournal({
@@ -1392,8 +1396,7 @@ const prepareExecutionPlan = async (params: {
       submissions: journalReconciliation.unresolvedSubmissions,
     })
 
-    for (const names of reconciliation.completedNameGroups) {
-      const operations = operationsForNames(executionPlan, names)
+    for (const { names, operations } of completedGroups) {
       params.onBatchComplete?.(operations)
       params.ctx.tracker.next()
       params.ctx.tracker.emit(

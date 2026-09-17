@@ -118,13 +118,13 @@ export const SelectNamesStep = ({
                 <p>
                   <Trans>
                     Something about your names changed since you last tried, so
-                    we can’t safely pick up where you left off.
+                    we can&apos;t safely pick up where you left off.
                   </Trans>
                 </p>
                 <p className="text-ens-garnet-500">
                   <Trans>
-                    Your saved progress is unchanged. Contact ENS support before
-                    trying again.
+                    Nothing has been lost. Contact ENS support before trying
+                    again.
                   </Trans>
                 </p>
               </div>

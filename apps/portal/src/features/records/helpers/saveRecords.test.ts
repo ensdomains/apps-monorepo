@@ -1,6 +1,7 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: Need to mock the transaction manager */
-import { publicResolverSetTextSnippet } from '@ensdomains/ensjs/contracts'
-import { encodeFunctionData, namehash } from 'viem'
+import { permissionedResolverSetTextSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import { encodeFunctionData, namehash, toHex } from 'viem'
+import { packetToBytes } from 'viem/ens'
 import { describe, expect, it, vi } from 'vitest'
 
 // Mock the transaction manager
@@ -14,49 +15,17 @@ vi.mock('@ens-apps/transaction-manager', () => ({
   }),
 }))
 
-// Helper to encode setText for test expectations
+// ensjs' v2 `setRecordsWriteParameters` is deliberately NOT mocked — it is a
+// pure encoder, and the whole point of these tests is that the bytes we send
+// match the deployed PermissionedResolver. Mocking it is what let the v1
+// encoding (`setText(bytes32,…)`, which the contract does not expose) pass here
+// while reverting on chain.
 const encodeSetText = (name: string, key: string, value: string) =>
   encodeFunctionData({
-    abi: publicResolverSetTextSnippet,
+    abi: permissionedResolverSetTextSnippet,
     functionName: 'setText',
-    args: [namehash(name), key, value],
+    args: [toHex(packetToBytes(name)), key, value],
   })
-
-// Mock setRecordsWriteParameters to return realistic data
-vi.mock('@ensdomains/ensjs/wallet/v1', () => ({
-  setRecordsWriteParameters: vi
-    .fn()
-    .mockImplementation(async (_client, params) => {
-      // Build mock calls based on the input params
-      const calls: string[] = []
-
-      if (params.texts) {
-        for (const { key, value } of params.texts) {
-          calls.push(encodeSetText(params.name, key, value))
-        }
-      }
-
-      const node = namehash(params.name)
-
-      // Return mock write parameters for multicallWithNodeCheck
-      return {
-        abi: [
-          {
-            inputs: [
-              { name: '', type: 'bytes32' },
-              { name: 'calls', type: 'bytes[]' },
-            ],
-            name: 'multicallWithNodeCheck',
-            outputs: [{ name: '', type: 'bytes[]' }],
-            stateMutability: 'nonpayable',
-            type: 'function',
-          },
-        ],
-        functionName: 'multicallWithNodeCheck',
-        args: [node, calls],
-      }
-    }),
-}))
 
 // Import after mocking
 import { type SaveRecordsParameters, saveRecords } from './saveRecords'
@@ -136,20 +105,19 @@ describe('saveRecords', () => {
     )
   })
 
-  it('calls setRecordsWriteParameters with correct params', async () => {
-    const { setRecordsWriteParameters } = await import(
-      '@ensdomains/ensjs/wallet/v1'
-    )
+  it('targets the resolver with a V2 setter selector', async () => {
+    const { transactionManager } = await import('@ens-apps/transaction-manager')
+    vi.mocked(transactionManager.startTransaction).mockClear()
 
     await saveRecords(mockParams)
 
-    expect(setRecordsWriteParameters).toHaveBeenCalledWith(
-      mockWalletClient,
-      expect.objectContaining({
-        name: mockParams.name,
-        resolverAddress: mockParams.resolverAddress,
-      }),
-    )
+    const call = vi.mocked(transactionManager.startTransaction).mock.calls[0]
+    const request = (call[0] as any).request
+
+    expect(request.to).toBe(mockParams.resolverAddress)
+    // setText(bytes,string,string) — NOT the v1 setText(bytes32,…) 0x10f13a8c,
+    // which the deployed PermissionedResolver does not expose.
+    expect(request.data.slice(0, 10)).toBe('0xc7279f88')
   })
 
   it('throws error when wallet client has no account', async () => {
@@ -275,7 +243,7 @@ describe('saveRecords encoding (integration)', () => {
     expect(requestData).toContain(expectedSetTextCall.slice(2))
   })
 
-  it('uses correct namehash for multicallWithNodeCheck', async () => {
+  it('addresses records by DNS-encoded name, never by namehash', async () => {
     const { transactionManager } = await import('@ens-apps/transaction-manager')
     vi.mocked(transactionManager.startTransaction).mockClear()
 
@@ -300,8 +268,13 @@ describe('saveRecords encoding (integration)', () => {
     const call = vi.mocked(transactionManager.startTransaction).mock.calls[0]
     const requestData = (call[0] as any).request.data as string
 
-    // The namehash of 'myname.eth' should be in the data
-    const expectedNode = namehash('myname.eth').slice(2) // remove 0x
-    expect(requestData.toLowerCase()).toContain(expectedNode.toLowerCase())
+    // V2 setters take the DNS-encoded name...
+    const dnsName = toHex(packetToBytes('myname.eth')).slice(2)
+    expect(requestData.toLowerCase()).toContain(dnsName.toLowerCase())
+
+    // ...and never the namehash. This is the regression that made every record
+    // write revert with empty data against the deployed resolver.
+    const node = namehash('myname.eth').slice(2)
+    expect(requestData.toLowerCase()).not.toContain(node.toLowerCase())
   })
 })
