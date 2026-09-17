@@ -39,6 +39,15 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/orchestrator/, ''),
       },
+      // The local V1 subgraph stand-in (packages/v1-subgraph-shim). Same
+      // same-origin trick as /indexer: the public subgraph sends no CORS
+      // headers for a localhost origin, and proxying also keeps the app's CSP
+      // out of it.
+      '/v1-subgraph': {
+        target: 'http://127.0.0.1:5656',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/v1-subgraph/, '/subgraph'),
+      },
       '/indexer': {
         target: 'http://127.0.0.1:5655',
         changeOrigin: true,

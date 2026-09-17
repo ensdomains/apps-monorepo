@@ -215,6 +215,31 @@ services:
       start_period: 60s
     restart: on-failure
 
+  # A local stand-in for the ENS V1 subgraph, indexing the fork's own logs.
+  #
+  # The public v1-graphql.ens.dev cannot see anything this suite creates — every
+  # seeded name lives on a fork that diverged from Sepolia minutes ago — so
+  # without this the Subnames tab, text-record key discovery and name history
+  # all render confident negatives locally. See packages/v1-subgraph-shim.
+  v1-subgraph:
+    build:
+      context: ../../packages/v1-subgraph-shim
+    networks:
+      e2e:
+        aliases:
+          - v1-subgraph
+    ports:
+      - "5656:5656"
+    environment:
+      - PORT=5656
+      # Inside the compose network Anvil is reachable by service name; the apps
+      # reach this service from the host on 127.0.0.1:5656.
+      - RPC_URL=http://anvil:8545
+    depends_on:
+      anvil:
+        condition: service_healthy
+    restart: on-failure
+
   panoptes-api:
     image: ghcr.io/mdtanrikulu/panoptes:latest
     networks:

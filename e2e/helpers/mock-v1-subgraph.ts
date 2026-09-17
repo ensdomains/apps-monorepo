@@ -48,7 +48,22 @@ import {
 // is exactly how the same registry ended up with three different addresses
 // across three files.
 
-const V1_SUBGRAPH_URL = 'v1-graphql.ens.dev/subgraph'
+/**
+ * Every V1 subgraph endpoint this mock must intercept.
+ *
+ * A list, not a string, because the apps can now be pointed at the local
+ * stand-in (`packages/v1-subgraph-shim`) via `VITE_V1_SUBGRAPH_URL`, and a
+ * `page.route()` pattern that matches neither silently no-ops — which is how
+ * every migration spec once "passed" its own timeout as a plain hang instead of
+ * failing on the mismatch. Matching both means this file cannot drift out of
+ * step with whichever endpoint the app under test happens to be using.
+ */
+const V1_SUBGRAPH_PATTERNS = [
+  'v1-graphql.ens.dev/subgraph',
+  '/v1-subgraph',
+  '127.0.0.1:5656',
+  'localhost:5656',
+]
 
 /**
  * Fuse values matching the NameWrapper contract.
@@ -430,7 +445,10 @@ export async function mockV1Subgraph(
   for (const entry of flat)
     nodesByNode.set(namehash(entry.fullName), entry.node)
 
-  await page.route(`**/${V1_SUBGRAPH_URL}`, async (route, request) => {
+  const handler = async (
+    route: Parameters<Parameters<Page['route']>[1]>[0],
+    request: Parameters<Parameters<Page['route']>[1]>[1],
+  ) => {
     const postData = request.postData()
 
     // ── Handle getProfilesForDomains queries ────────────────────────
@@ -526,5 +544,13 @@ export async function mockV1Subgraph(
         data: { domains: allDomains },
       }),
     })
-  })
+  }
+
+  // One handler, registered for every endpoint the app might be pointed at.
+  for (const pattern of V1_SUBGRAPH_PATTERNS) {
+    await page.route(
+      `**${pattern.startsWith('/') ? '' : '/'}${pattern}**`,
+      handler,
+    )
+  }
 }

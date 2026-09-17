@@ -57,6 +57,10 @@ const OVERRIDE_CONNECT_ORIGINS = [
   originFromEnvUrl(import.meta.env?.VITE_SEPOLIA_RPC_URL),
   originFromEnvUrl(import.meta.env?.VITE_INDEXER_GRAPHQL_URL),
   originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
+  // The local V1 subgraph stand-in. Same-origin via the Vite proxy in dev, but
+  // a built/preview run reads the env directly and would be blocked without
+  // this — the kind of miss that reads as "the Subnames tab is broken again".
+  originFromEnvUrl(import.meta.env?.VITE_V1_SUBGRAPH_URL),
   DQA_ORIGIN,
   DQA_ORIGIN?.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:'),
 ].filter((origin): origin is string => origin != null)
@@ -64,6 +68,7 @@ const OVERRIDE_CONNECT_ORIGINS = [
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
 // Per-deployment overrides via VITE_SEPOLIA_RPC_URL / VITE_INDEXER_GRAPHQL_URL
+// / VITE_V1_SUBGRAPH_URL
 // are appended automatically (see OVERRIDE_CONNECT_ORIGINS / CONNECT_HOSTS).
 const DEFAULT_CONNECT_HOSTS = [
   // default Sepolia RPC — packages/indexer/chain.ts

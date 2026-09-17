@@ -19,6 +19,41 @@ export const typeDefs = /* GraphQL */ `
   scalar Bytes
   scalar BigDecimal
 
+  # The apps declare variables against these by name, so they must exist with
+  # these exact spellings even though this shim sorts on a subset of them.
+  enum OrderDirection {
+    asc
+    desc
+  }
+
+  enum Domain_orderBy {
+    id
+    name
+    labelName
+    labelhash
+    parent
+    subdomainCount
+    resolvedAddress
+    resolver
+    ttl
+    isMigrated
+    createdAt
+    owner
+    registrant
+    wrappedOwner
+    expiryDate
+    registration
+    wrappedDomain
+  }
+
+  # Every event collection is ordered on blockNumber, passed as an inline enum
+  # value rather than as a variable.
+  enum Event_orderBy {
+    id
+    blockNumber
+    transactionID
+  }
+
   type Account {
     id: ID!
   }
@@ -217,13 +252,13 @@ export const typeDefs = /* GraphQL */ `
     contentHash: Bytes
     texts: [String!]
     coinTypes: [BigInt!]
-    events(first: Int, skip: Int, orderBy: String, orderDirection: String): [ResolverEvent!]!
-    addrChangeds(first: Int, skip: Int, orderBy: String, orderDirection: String): [AddrChanged!]!
-    multicoinAddrChangeds(first: Int, skip: Int, orderBy: String, orderDirection: String): [MulticoinAddrChanged!]!
-    nameChangeds(first: Int, skip: Int, orderBy: String, orderDirection: String): [NameChanged!]!
-    textChangeds(first: Int, skip: Int, orderBy: String, orderDirection: String): [TextChanged!]!
-    abiChangeds(first: Int, skip: Int, orderBy: String, orderDirection: String): [AbiChanged!]!
-    contenthashChangeds(first: Int, skip: Int, orderBy: String, orderDirection: String): [ContenthashChanged!]!
+    events(first: Int, skip: Int, orderBy: Event_orderBy, orderDirection: OrderDirection): [ResolverEvent!]!
+    addrChangeds(first: Int, skip: Int, orderBy: Event_orderBy, orderDirection: OrderDirection): [AddrChanged!]!
+    multicoinAddrChangeds(first: Int, skip: Int, orderBy: Event_orderBy, orderDirection: OrderDirection): [MulticoinAddrChanged!]!
+    nameChangeds(first: Int, skip: Int, orderBy: Event_orderBy, orderDirection: OrderDirection): [NameChanged!]!
+    textChangeds(first: Int, skip: Int, orderBy: Event_orderBy, orderDirection: OrderDirection): [TextChanged!]!
+    abiChangeds(first: Int, skip: Int, orderBy: Event_orderBy, orderDirection: OrderDirection): [AbiChanged!]!
+    contenthashChangeds(first: Int, skip: Int, orderBy: Event_orderBy, orderDirection: OrderDirection): [ContenthashChanged!]!
   }
 
   type Registration {
@@ -234,7 +269,7 @@ export const typeDefs = /* GraphQL */ `
     cost: BigInt
     registrant: Account!
     labelName: String
-    events(first: Int, skip: Int, orderBy: String, orderDirection: String): [RegistrationEvent!]!
+    events(first: Int, skip: Int, orderBy: Event_orderBy, orderDirection: OrderDirection): [RegistrationEvent!]!
   }
 
   type WrappedDomain {
@@ -252,7 +287,7 @@ export const typeDefs = /* GraphQL */ `
     labelName: String
     labelhash: Bytes
     parent: Domain
-    subdomains(first: Int, skip: Int, orderBy: String, orderDirection: String, where: Domain_filter): [Domain!]!
+    subdomains(first: Int, skip: Int, orderBy: Domain_orderBy, orderDirection: OrderDirection, where: Domain_filter): [Domain!]!
     subdomainCount: Int!
     resolvedAddress: Account
     resolver: Resolver
@@ -265,7 +300,7 @@ export const typeDefs = /* GraphQL */ `
     expiryDate: BigInt
     registration: Registration
     wrappedDomain: WrappedDomain
-    events(first: Int, skip: Int, orderBy: String, orderDirection: String): [DomainEvent!]!
+    events(first: Int, skip: Int, orderBy: Event_orderBy, orderDirection: OrderDirection): [DomainEvent!]!
   }
 
   input Domain_filter {
@@ -307,25 +342,25 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type Query {
-    domain(id: ID!): Domain
+    domain(id: String!): Domain
     domains(
       first: Int
       skip: Int
-      orderBy: String
-      orderDirection: String
+      orderBy: Domain_orderBy
+      orderDirection: OrderDirection
       where: Domain_filter
     ): [Domain!]!
-    resolver(id: ID!): Resolver
+    resolver(id: String!): Resolver
     resolvers(
       first: Int
       skip: Int
       orderBy: String
-      orderDirection: String
+      orderDirection: OrderDirection
       where: Resolver_filter
     ): [Resolver!]!
-    registration(id: ID!): Registration
-    registrations(first: Int, skip: Int, orderBy: String, orderDirection: String): [Registration!]!
-    wrappedDomain(id: ID!): WrappedDomain
+    registration(id: String!): Registration
+    registrations(first: Int, skip: Int, orderBy: Event_orderBy, orderDirection: OrderDirection): [Registration!]!
+    wrappedDomain(id: String!): WrappedDomain
     _meta: _Meta_
   }
 
