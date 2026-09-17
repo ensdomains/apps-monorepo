@@ -7,7 +7,7 @@ import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
-import { err, fromPromise, ok, type ResultAsync } from 'neverthrow'
+import { err, fromPromise, ok, okAsync, type ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -17,6 +17,10 @@ import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryN
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { getEnsTokenId } from '@/features/profile/hooks/useTokenId'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import {
+  type getIsPermissionedResolver,
+  getIsPermissionedResolverQueryOptions,
+} from '@/features/resolver/hooks/useIsPermissionedResolver'
 import {
   estimateGasForCall,
   isRevertError,
@@ -52,11 +56,19 @@ export type StartTransferParams = {
   readonly options: TransferOptions
 }
 
-type SavedParams = StartTransferParams & {
+type NameReads = StartTransferParams & {
   /** V2 only — the versioned ERC-1155 id. Null for V1 subjects. */
   readonly tokenId: bigint | null
   /** The name's own resolver, or null if it has none. */
   readonly resolverAddress: Address | null
+}
+
+type SavedParams = NameReads & {
+  /**
+   * Whether the name's own resolver is a V2 `PermissionedResolver`. Null when
+   * it has none, or when the plan never writes to it.
+   */
+  readonly isPermissionedResolver: boolean | null
 }
 
 export type TransferControls = {
@@ -69,6 +81,8 @@ export type TransferControls = {
 const chainId = sepoliaWithEns.id
 
 type ErrorOf<R> = R extends ResultAsync<unknown, infer E> ? E : never
+
+type ResolverKindError = ErrorOf<ReturnType<typeof getIsPermissionedResolver>>
 
 /** The V1 gate refused at submit time: the name changed under the open form. */
 export class V1TransferRefusedError extends TaggedError(
@@ -224,7 +238,7 @@ export const useTransferName = ({
       // wallet that has since become the parent instead of the holder (or the
       // reverse) needs a fresh form, not this plan under a different contract.
       if (gate.actor !== actor) return refuse('actor-changed')
-      return ok<SavedParams>({
+      return ok<NameReads>({
         ...params,
         tokenId: null,
         resolverAddress: state.resolverAddress,
@@ -242,9 +256,32 @@ export const useTransferName = ({
       (e) => e as GetOwnResolverError,
     ).andThen((resolverAddress) =>
       getEnsTokenId({ label: getLabel(name), registryAddress }).map(
-        (tokenId): SavedParams => ({ ...params, tokenId, resolverAddress }),
+        (tokenId): NameReads => ({ ...params, tokenId, resolverAddress }),
       ),
     )
+
+  // `set-eth-addr` writes through the name's own resolver, and the two kinds
+  // take different setters: a V2 PermissionedResolver's `setAddress` takes the
+  // DNS-encoded name, a legacy resolver's `setAddr` the node. Read which one it
+  // is up front, so the step's intent can still be built synchronously.
+  const readResolverKind = (
+    reads: NameReads,
+  ): ResultAsync<SavedParams, ResolverKindError> => {
+    const { resolverAddress } = reads
+    const writesResolver = buildTransferPlan(
+      reads.options,
+      subject.kind,
+      actor,
+    ).includes('set-eth-addr')
+    if (!resolverAddress || !writesResolver)
+      return okAsync({ ...reads, isPermissionedResolver: null })
+    return fromPromise(
+      queryClient.fetchQuery(
+        getIsPermissionedResolverQueryOptions({ resolverAddress }),
+      ),
+      (e) => e as ResolverKindError,
+    ).map((isPermissionedResolver) => ({ ...reads, isPermissionedResolver }))
+  }
 
   // Simulates the step that moves the name before anything is sent. The config
   // steps run first and can't be undone by the sender once the move has
@@ -286,6 +323,7 @@ export const useTransferName = ({
   type PrepareError =
     | ErrorOf<ReturnType<typeof readV1>>
     | ErrorOf<ReturnType<typeof readV2>>
+    | ErrorOf<ReturnType<typeof readResolverKind>>
     | TransferPreflightError
 
   // Prepares the flow: re-reads the name's state (V1) or its own resolver and
@@ -299,8 +337,10 @@ export const useTransferName = ({
         params: StartTransferParams,
       ): ResultAsync<SavedParams, PrepareError> =>
         subject.kind === 'v2'
-          ? readV2(params, subject.registryAddress).andThen(preflightMove)
-          : readV1(params).andThen(preflightMove),
+          ? readV2(params, subject.registryAddress)
+              .andThen(readResolverKind)
+              .andThen(preflightMove)
+          : readV1(params).andThen(readResolverKind).andThen(preflightMove),
       onSuccess: (params) => {
         startedStepsRef.current = new Set()
         setSavedParams(params)

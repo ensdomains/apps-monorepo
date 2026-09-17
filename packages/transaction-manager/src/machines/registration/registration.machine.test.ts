@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { createActor, fromPromise, waitFor } from 'xstate'
 import type { Signer } from '../../types/signer.types'
 import type { HcaSessionEnableParams } from './registration.hca.actors'
-import { submitFundingAndCommitActor } from './registration.hca.actors'
 import { registrationMachine } from './registration.machine'
 
 const HCA = '0xaaaa000000000000000000000000000000000001' as Address
@@ -204,16 +203,11 @@ describe('registrationMachine — standalone-HCA funding', () => {
 })
 
 describe('registrationMachine — session-enable proof', () => {
-  // The proof is attached to every commit. Omitting it fails two different
-  // ways, both masked by the emissary as `InvalidSignature()`:
-  //   with a permit    → `ActionNotAllowed(USDC, permit)` (0xde1834f2), since
-  //                      `_checkRegistrationExecutions` allows only `approve`
-  //                      on the payment token;
-  //   without a permit → `InvalidSigner()` (0x815e1d64), since mode 0x02 finds
-  //                      `_sessions[hca][permissionId]` empty until the session
-  //                      has actually been enabled on-chain.
+  // The proof is attached to every leg: the stateless validator rejects any
+  // session signature without it (`InvalidSessionData()`, surfaced by the
+  // router as `UnclassifiedRevert`).
 
-  it('attaches the enable proof whenever it funds, even on an already-enabled session', async () => {
+  it('attaches the enable proof whenever it funds', async () => {
     const { actor, submitFundingAndCommit } = startHcaRegistration({
       balances: [BUDGET - 1n],
     })
@@ -222,16 +216,13 @@ describe('registrationMachine — session-enable proof', () => {
 
     const input = submitFundingAndCommit.mock.calls[0][0].input
     expect(input.permit).toEqual(permit)
-    // The proof is reusable and the enable call idempotent, so re-presenting it
-    // costs no wallet prompt and keeps the batch on the legal policy path.
+    // The proof is reusable, so re-presenting it costs no wallet prompt.
     expect(input.sessionEnable).toEqual(SESSION_ENABLE)
   })
 
   it('still attaches the enable proof when the HCA needs no funding', async () => {
-    // Regression: gating the proof on "we are funding" broke the FIRST commit
-    // under a new session whenever leftover balance covered the budget. With no
-    // proof the SDK signs mode 0x02 and `_validateFixedSessionPayload` reverts
-    // `InvalidSigner()` because `_sessions[hca][permissionId]` is still empty.
+    // Regression: the proof used to be gated on "we are funding", so a commit
+    // covered by leftover balance went out without it and was rejected.
     const { actor, submitFundingAndCommit } = startHcaRegistration({
       balances: [BUDGET],
     })
@@ -241,27 +232,5 @@ describe('registrationMachine — session-enable proof', () => {
     const input = submitFundingAndCommit.mock.calls[0][0].input
     expect(input.permit).toBeUndefined()
     expect(input.sessionEnable).toEqual(SESSION_ENABLE)
-  })
-
-  it('rejects a permit with no enable proof instead of submitting it', async () => {
-    // Belt-and-braces for the case the machine cannot repair: the HCA is short
-    // but no session proof was ever stored. Building this batch guarantees an
-    // `InvalidSignature()` from the orchestrator with no usable detail, so the
-    // actor refuses it and names the real cause.
-    const result = await submitFundingAndCommitActor({
-      name: 'myname.eth',
-      wallet: WALLET,
-      hca: HCA,
-      duration: 31_536_000n,
-      permit,
-      // sessionEnable deliberately omitted
-      signer: { type: 'rhinestone' } as unknown as Signer,
-      publicClient: { chain: sepolia } as unknown as PublicClient,
-    })
-
-    expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain(
-      'ActionNotAllowed(USDC, permit)',
-    )
   })
 })

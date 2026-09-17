@@ -10,26 +10,26 @@
  *   3. ETHRegistrar.register(..., wallet as owner, ...)
  *   4. resolver setters                        — only selected records
  *   5. DefaultReverseRegistrarAdapter.setNameWithHCA(wallet, name) — primary only
- *   6. PermissionedResolver.authorizeNameRoles(hex"00", ROLES.ALL, wallet, true)
  *
  * Price MUST be read immediately before the reveal (never cached from commit
  * time) via `readRegisterPrice`, and `approve` must approve exactly that price.
  */
 
 import {
-  publicResolverSetAddrSnippet,
-  publicResolverSetTextSnippet,
-} from '@ensdomains/ensjs-abi/v1/publicResolver'
-import { permissionedResolverAuthorizeNameRolesSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+  permissionedResolverInitializeSnippet,
+  permissionedResolverSetAddressSnippet,
+  permissionedResolverSetTextSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import {
   type Address,
   encodeFunctionData,
   type Hex,
-  namehash,
   type PublicClient,
   parseAbi,
+  toHex,
 } from 'viem'
+import { packetToBytes } from 'viem/ens'
 import { computeVerifiableProxyAddress } from '../../verifiable-factory'
 import {
   COIN_TYPE_ETH,
@@ -53,14 +53,6 @@ const ethRegistrarAbi = parseAbi([
   'function register(string label, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, address paymentToken, bytes32 referrer)',
   'function MIN_COMMITMENT_AGE() view returns (uint64)',
   'function MAX_COMMITMENT_AGE() view returns (uint64)',
-])
-/**
- * `PermissionedResolver.initialize(admin, roleBitmap, setters)` — the third
- * `setters` arg is not modelled by ensjs-abi's 2-arg `proxyInitializeSnippet`,
- * so this one stays local. Every other ABI here comes from `@ensdomains/ensjs-abi`.
- */
-const permissionedResolverInitializeAbi = parseAbi([
-  'function initialize(address owner, uint256 roles, bytes[] data)',
 ])
 const reverseAdapterAbi = parseAbi([
   'function setNameWithHCA(address addr, string name)',
@@ -211,40 +203,57 @@ export interface RevealBatchParams {
 export function buildRevealBatch(params: RevealBatchParams): Call[] {
   const c = getDestinationContracts(params.chainId)
   const name = `${params.label}.eth`
-  const node = namehash(name)
   const calls: Call[] = []
 
   // The record writes for this name: the default `addr` (the wallet) plus any
   // selected text records. Always issued as standalone calls (step 4).
+  //
+  // These are the V2 `PermissionedResolver` setters, which take the DNS-encoded
+  // name rather than `bytes32 node` — `setAddress` 0xb4436dde and `setText`
+  // 0xc7279f88, both on the validator's record-setter list
+  // (`HCAResolverPolicyLib._isRecordSelector`). The v1 `PublicResolver` shapes
+  // are rejected twice over: the policy does not accept their selectors, and
+  // the resolver does not implement them.
+  const dnsName = toHex(packetToBytes(name))
   const recordSetters: Hex[] = [
     encodeFunctionData({
-      abi: publicResolverSetAddrSnippet,
-      functionName: 'setAddr',
-      args: [node, COIN_TYPE_ETH, params.wallet],
+      abi: permissionedResolverSetAddressSnippet,
+      functionName: 'setAddress',
+      args: [dnsName, COIN_TYPE_ETH, params.wallet],
     }),
     ...(params.records ?? [])
       .filter((record) => record.type === 'text' && record.key)
       .map((record) =>
         encodeFunctionData({
-          abi: publicResolverSetTextSnippet,
+          abi: permissionedResolverSetTextSnippet,
           functionName: 'setText',
           // biome-ignore lint/style/noNonNullAssertion: filtered on `key` above
-          args: [node, record.key!, record.value],
+          args: [dnsName, record.key!, record.value],
         }),
       ),
   ]
 
   // 1. deployProxy (omit when resolver exists).
   //
-  //    `setters` MUST be empty. `HCAOwnerAndSessionValidator._checkResolverDeployment`
-  //    reconstructs the expected calldata as
-  //      deployProxy(PERMITTED_RESOLVER_IMPL, salt, initialize(account, ALL_ROLES, []))
-  //    and compares `keccak256(callData)` against it, so folding the record
-  //    writes into `setters` — even though the resolver would happily execute
-  //    them during initialization — makes the hashes differ and reverts with
-  //    `PolicyRuleFailed()` (0xe50c42ea), which the emissary re-wraps as
-  //    `InvalidSignature()`. Records go out as standalone calls in step 4;
-  //    their selectors are individually whitelisted by the same policy.
+  //    `HCAResolverPolicyLib.checkDeployment` decodes our initializer, checks
+  //    it, then re-encodes it as
+  //      deployProxy(PERMITTED_RESOLVER_IMPL, salt, initialize(grants, calls))
+  //    and compares `keccak256(callData)` against that, so the encoding must be
+  //    canonical. A mismatch reverts `PolicyRuleFailed()` (0xe50c42ea), which
+  //    the emissary re-wraps as `InvalidSignature()`.
+  //
+  //    The grants array must be EXACTLY two entries in this order:
+  //      grants.length == 2
+  //      grants[0] == (hca,    ALL_ROLES)
+  //      grants[1] == (owner,  ALL_ROLES)
+  //    This is what replaced the old standalone `authorizeNameRoles` call: the
+  //    wallet's roles are granted at init rather than afterwards, which is why
+  //    the initializer takes a list.
+  //
+  //    `calls` is left empty. The deployed policy would accept record setters
+  //    there (it runs each through `checkCall`), but the existing-resolver path
+  //    has no initializer, so the records go out as standalone calls in step 4
+  //    on both paths.
   if (!params.resolverDeployed) {
     const salt = computeResolverSalt(params.hca)
     calls.push({
@@ -257,9 +266,15 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
           c.permissionedResolverImpl,
           salt,
           encodeFunctionData({
-            abi: permissionedResolverInitializeAbi,
+            abi: permissionedResolverInitializeSnippet,
             functionName: 'initialize',
-            args: [params.hca, ROLES_ALL, []],
+            args: [
+              [
+                { account: params.hca, roleBitmap: ROLES_ALL },
+                { account: params.wallet, roleBitmap: ROLES_ALL },
+              ],
+              [],
+            ],
           }),
         ],
       }),
@@ -298,9 +313,9 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
   })
 
   // 4. resolver setters — ALWAYS standalone, on both the fresh-deploy and the
-  //    existing-resolver path (see step 1: the policy forbids folding them into
-  //    `initialize`). These are ordinary permissioned writes, authorized because
-  //    the HCA holds the root roles granted by `initialize`.
+  //    existing-resolver path (see step 1). These are ordinary permissioned
+  //    writes, authorized because the HCA holds the root roles granted by
+  //    `initialize`.
   for (const data of recordSetters) {
     calls.push({ to: params.resolver, value: 0n, data })
   }
@@ -318,16 +333,11 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
     })
   }
 
-  // 6. authorizeNameRoles(hex"00", ROLES.ALL, wallet, true) — every session registration
-  calls.push({
-    to: params.resolver,
-    value: 0n,
-    data: encodeFunctionData({
-      abi: permissionedResolverAuthorizeNameRolesSnippet,
-      functionName: 'authorizeNameRoles',
-      args: ['0x00', ROLES_ALL, params.wallet, true],
-    }),
-  })
+  // NOTE: there is no trailing `authorizeNameRoles` call. It used to grant the
+  // wallet its roles after the fact, but the function no longer exists on
+  // `PermissionedResolver` and the policy does not whitelist its selector — the
+  // wallet is granted at deploy time via `initialize`'s second grant (step 1).
+  // On the existing-resolver path it already holds them from that deploy.
 
   return calls
 }

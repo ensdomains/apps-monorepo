@@ -1,4 +1,5 @@
 import type { Address, Hex, PublicClient } from 'viem'
+import { decodeFunctionData, encodeFunctionResult, parseAbi } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { AtomicMigrationVerificationExpectation } from './buildAtomicMigrationBatches'
@@ -274,6 +275,37 @@ const readSubregistryFixture = (request: ReadRequest): Address => {
   return subregistry
 }
 
+const profileGetterAbi = parseAbi([
+  'function text(bytes32 node, string key) view returns (string)',
+  'function addr(bytes32 node, uint256 coinType) view returns (bytes)',
+  'function contenthash(bytes32 node) view returns (bytes)',
+  'function ABI(bytes32 node, uint256 contentTypes) view returns (uint256, bytes)',
+])
+
+/**
+ * Records are read through ENSIP-10 `resolve(name, data)`; the V2 resolver has
+ * no direct getters. Decode the inner call and answer with the fixture,
+ * re-encoded the way the resolver would return it.
+ */
+const readProfileThroughResolve = (request: ReadRequest): Hex => {
+  const inner = request.args?.[1] as Hex
+  const { functionName } = decodeFunctionData({
+    abi: profileGetterAbi,
+    data: inner,
+  })
+  const resultByGetter = {
+    text: 'expected text',
+    addr: RECORD_VALUE,
+    contenthash: CONTENT_HASH,
+    ABI: [1n, ABI_VALUE],
+  } as const
+  return encodeFunctionResult({
+    abi: profileGetterAbi,
+    functionName,
+    result: resultByGetter[functionName],
+  } as Parameters<typeof encodeFunctionResult>[0])
+}
+
 describe('verifyAtomicMigrationBatch', () => {
   it('checks every expected state and traverses parent subregistries root-to-leaf', async () => {
     const readContract = vi.fn(async (request: ReadRequest) => {
@@ -285,16 +317,15 @@ describe('verifyAtomicMigrationBatch', () => {
       if (request.functionName === 'getSubregistry') {
         return readSubregistryFixture(request)
       }
+      if (request.functionName === 'resolve') {
+        return readProfileThroughResolve(request)
+      }
       const resultByFunction: Readonly<Record<string, unknown>> = {
         hasRootRoles: true,
         getOwner: WALLET,
         getResolver: RESOLVER,
         hasRoles: true,
         getWrappedNode: NODE,
-        text: 'expected text',
-        addr: RECORD_VALUE,
-        contenthash: CONTENT_HASH,
-        ABI: [1n, ABI_VALUE],
       }
       if (request.functionName in resultByFunction) {
         return resultByFunction[request.functionName]
@@ -384,10 +415,20 @@ describe('verifyAtomicMigrationBatch', () => {
             : MID_REGISTRY
         case 'getOwner':
           return WALLET
-        case 'text':
-          return 'different text'
-        case 'addr':
-          throw readFailure
+        // Records come back through `resolve`: a mismatching text, and an
+        // address read that fails outright.
+        case 'resolve': {
+          const { functionName } = decodeFunctionData({
+            abi: profileGetterAbi,
+            data: request.args?.[1] as Hex,
+          })
+          if (functionName === 'addr') throw readFailure
+          return encodeFunctionResult({
+            abi: profileGetterAbi,
+            functionName: 'text',
+            result: 'different text',
+          })
+        }
         default:
           throw new Error(`unexpected read: ${request.functionName}`)
       }
@@ -423,11 +464,20 @@ describe('verifyAtomicMigrationBatch', () => {
       expect.objectContaining({ functionName: 'getOwner' }),
     )
     expect(readContract).toHaveBeenCalledWith(
-      expect.objectContaining({ functionName: 'text' }),
+      expect.objectContaining({ functionName: 'resolve' }),
     )
-    expect(readContract).toHaveBeenCalledWith(
-      expect.objectContaining({ functionName: 'addr' }),
-    )
+    // Both record reads were attempted, each as its own `resolve`.
+    const resolvedGetters = readContract.mock.calls
+      .map(([request]) => request)
+      .filter((request) => request.functionName === 'resolve')
+      .map(
+        ({ args }) =>
+          decodeFunctionData({
+            abi: profileGetterAbi,
+            data: args?.[1] as Hex,
+          }).functionName,
+      )
+    expect(resolvedGetters).toEqual(['text', 'addr'])
   })
 
   it('rejects a bound subregistry that is not the certified WrapperRegistry implementation', async () => {
