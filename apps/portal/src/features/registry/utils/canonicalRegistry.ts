@@ -20,61 +20,69 @@ export type CanonicalParent = {
   readonly verified: boolean
 }
 
-export type CanonicalRegistry = {
-  /** Null when `getParent()` is unset: the root registry, or a registry nobody claimed. */
-  readonly parent: CanonicalParent | null
-  /**
-   * The name spelled by following verified parent pointers up to the root,
-   * e.g. "raffy.eth". Null when there is no parent, a hop fails verification,
-   * or the chain does not reach the root within `MAX_DEPTH`.
-   */
-  readonly canonicalName: string | null
-}
-
-/** Deeper than any real name; also the cycle guard. */
-export const MAX_DEPTH = 16
+/** A DNS name is at most 255 bytes, so no real chain has this many labels. */
+export const MAX_LABELS = 128
 
 const isUnset = (parent: { registry: Address; label: string }) =>
   isAddressEqual(parent.registry, zeroAddress) || parent.label === ''
 
+const pointsBack = async (
+  reads: CanonicalRegistryReads,
+  parent: { registry: Address; label: string },
+  child: Address,
+) =>
+  isAddressEqual(
+    await reads.readSubregistry(parent.registry, parent.label),
+    child,
+  )
+
 /**
- * Resolve a registry's canonical parent and, when every hop checks out, its
- * canonical name.
- *
- * The parent is a (registry, label) pair the registry itself declares via
- * `getParent()`. It is canonical only if the parent agrees: its
- * `getSubregistry(label)` must return this registry. Names that merely point
- * at a registry ("referenced by") are not parents.
+ * The parent a registry declares through `getParent()`, or null when unset
+ * (the root registry, or a registry nobody claimed). The pair is canonical
+ * only if the parent agrees, so `verified` reports whether its
+ * `getSubregistry(label)` points back here. Names that merely point at a
+ * registry ("referenced by") are not parents.
  */
-export async function resolveCanonicalRegistry(
+export async function resolveCanonicalParent(
   address: Address,
   reads: CanonicalRegistryReads,
-): Promise<CanonicalRegistry> {
-  const first = await reads.readParent(address)
-  if (isUnset(first)) return { parent: null, canonicalName: null }
+): Promise<CanonicalParent | null> {
+  const parent = await reads.readParent(address)
+  if (isUnset(parent)) return null
+  return { ...parent, verified: await pointsBack(reads, parent, address) }
+}
 
-  const verified = isAddressEqual(
-    await reads.readSubregistry(first.registry, first.label),
-    address,
-  )
-  const parent: CanonicalParent = { ...first, verified }
-  if (!verified) return { parent, canonicalName: null }
+/**
+ * The name a registry's parent chain spells, e.g. "raffy.eth", or null.
+ *
+ * Null unless every hop verifies and the chain ends at `root`, the
+ * deployment's root registry. Ending anywhere else means the chain is
+ * disconnected from the tree and the labels do not add up to a real name,
+ * even though each hop may look consistent on its own.
+ */
+export async function resolveCanonicalName(
+  address: Address,
+  reads: CanonicalRegistryReads,
+  root: Address,
+): Promise<string | null> {
+  const labels: string[] = []
+  const visited = new Set<string>()
+  let child = address
 
-  const labels = [first.label]
-  let child = first.registry
-  for (let depth = 1; depth < MAX_DEPTH; depth++) {
-    const next = await reads.readParent(child)
-    if (isUnset(next)) return { parent, canonicalName: labels.join('.') }
+  while (labels.length < MAX_LABELS) {
+    if (isAddressEqual(child, root)) {
+      return labels.length > 0 ? labels.join('.') : null
+    }
+    visited.add(child.toLowerCase())
 
-    const ok = isAddressEqual(
-      await reads.readSubregistry(next.registry, next.label),
-      child,
-    )
-    if (!ok) return { parent, canonicalName: null }
+    const parent = await reads.readParent(child)
+    if (isUnset(parent)) return null
+    if (visited.has(parent.registry.toLowerCase())) return null
+    if (!(await pointsBack(reads, parent, child))) return null
 
-    labels.push(next.label)
-    child = next.registry
+    labels.push(parent.label)
+    child = parent.registry
   }
 
-  return { parent, canonicalName: null }
+  return null
 }

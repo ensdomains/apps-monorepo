@@ -21,10 +21,12 @@ import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
-import { getCanonicalRegistryQueryOptions } from '@/features/registry/hooks/useCanonicalRegistry'
+import {
+  getCanonicalNameQueryOptions,
+  getCanonicalParentQueryOptions,
+} from '@/features/registry/hooks/useCanonicalRegistry'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { getRegistryDeploymentQueryOptions } from '@/features/registry/hooks/useRegistryDeployment'
-import type { CanonicalParent } from '@/features/registry/utils/canonicalRegistry'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
@@ -52,17 +54,6 @@ function RouteComponent() {
     isLoading,
     error,
   } = useQuery(getRegistryInfoQueryOptions({ address }))
-  // The parent is what the registry itself declares on-chain (`getParent()`),
-  // checked against the parent's own `getSubregistry(label)`. The indexer's
-  // "referenced by" list is a different relation: any name may point here.
-  const {
-    data: canonical,
-    isLoading: isLoadingCanonical,
-    error: canonicalError,
-  } = useQuery({
-    ...getCanonicalRegistryQueryOptions({ address }),
-    enabled: !!registry,
-  })
   if (isLoading) return <LoadingSpinner title="Loading registry" />
   if (error)
     return (
@@ -147,46 +138,14 @@ function RouteComponent() {
             Canonical parent
           </dt>
           <dd className="flex flex-wrap items-center gap-2 min-h-10">
-            {match({ isLoadingCanonical, canonicalError, canonical })
-              .with({ isLoadingCanonical: true }, () => (
-                <Skeleton className="h-5 w-32" />
-              ))
-              .with({ canonicalError: P.not(null) }, () => <FailedToLoad />)
-              .with(
-                { canonical: { parent: P.nonNullable } },
-                ({ canonical }) => (
-                  <CanonicalParentBadge parent={canonical.parent} />
-                ),
-              )
-              .otherwise(() => (
-                <span className="text-muted-foreground">—</span>
-              ))}
+            <CanonicalParentCell address={address} />
           </dd>
 
           <dt className="text-ui text-muted-foreground flex items-center h-10">
             Canonical name
           </dt>
           <dd className="flex items-center h-10">
-            {match({ isLoadingCanonical, canonicalError, canonical })
-              .with({ isLoadingCanonical: true }, () => (
-                <Skeleton className="h-5 w-32" />
-              ))
-              .with({ canonicalError: P.not(null) }, () => <FailedToLoad />)
-              .with(
-                { canonical: { canonicalName: P.string.minLength(1) } },
-                ({ canonical }) => (
-                  <EntityBadge
-                    variant="name"
-                    name={canonical.canonicalName}
-                    showAvatar
-                  >
-                    {canonical.canonicalName}
-                  </EntityBadge>
-                ),
-              )
-              .otherwise(() => (
-                <span className="text-muted-foreground">—</span>
-              ))}
+            <CanonicalNameCell address={address} />
           </dd>
 
           <dt className="text-ui text-muted-foreground flex items-center h-10 self-start">
@@ -273,42 +232,71 @@ const RegistryNavCard = ({
 )
 
 /**
- * "{label} of {parent registry}", plus whether the parent agrees: its
- * `getSubregistry(label)` must point back at this registry for the pair to be
- * canonical rather than a stale or one-sided claim.
+ * What the registry declares as its parent through `getParent()`, an optional
+ * (registry, label) pair, with whether the parent agrees: its
+ * `getSubregistry(label)` must point back here for the pair to be canonical
+ * rather than a stale or one-sided claim. Names that merely reference this
+ * registry are listed under "Referenced by" instead.
  */
-const CanonicalParentBadge = ({
-  parent,
-}: {
-  readonly parent: CanonicalParent
-}) => (
-  <>
-    <EntityBadge variant="default" className="font-normal">
-      {parent.label}
-    </EntityBadge>
-    <span className="text-muted-foreground">of</span>
-    <EntityBadge variant="contract" address={parent.registry} isRegistry>
-      {truncateAddress(parent.registry, 6, 4)}
-    </EntityBadge>
-    {parent.verified ? (
-      <span
-        className="inline-flex items-center gap-1 text-sm text-success-text"
-        title="The parent's getSubregistry(label) points back at this registry"
-      >
-        <CircleCheck className="size-3.5" />
-        verified
-      </span>
-    ) : (
-      <span
-        className="inline-flex items-center gap-1 text-sm text-destructive"
-        title="The parent's getSubregistry(label) does not point at this registry"
-      >
-        <CircleX className="size-3.5" />
-        not verified
-      </span>
-    )}
-  </>
-)
+const CanonicalParentCell = ({ address }: { readonly address: Address }) => {
+  const {
+    data: parent,
+    isLoading,
+    error,
+  } = useQuery(getCanonicalParentQueryOptions({ address }))
+
+  return match({ isLoading, error, parent })
+    .with({ isLoading: true }, () => <Skeleton className="h-5 w-32" />)
+    .with({ error: P.not(null) }, () => <FailedToLoad />)
+    .with({ parent: P.nonNullable }, ({ parent }) => (
+      <>
+        <EntityBadge variant="default" className="font-normal">
+          {parent.label}
+        </EntityBadge>
+        <span className="text-muted-foreground">of</span>
+        <EntityBadge variant="contract" address={parent.registry} isRegistry>
+          {truncateAddress(parent.registry, 6, 4)}
+        </EntityBadge>
+        {parent.verified ? (
+          <span
+            className="inline-flex items-center gap-1 text-sm text-success-text"
+            title="The parent's getSubregistry(label) points back at this registry"
+          >
+            <CircleCheck className="size-3.5" />
+            verified
+          </span>
+        ) : (
+          <span
+            className="inline-flex items-center gap-1 text-sm text-destructive"
+            title="The parent's getSubregistry(label) does not point at this registry"
+          >
+            <CircleX className="size-3.5" />
+            not verified
+          </span>
+        )}
+      </>
+    ))
+    .otherwise(() => <span className="text-muted-foreground">—</span>)
+}
+
+/** The name the verified parent chain spells up to the root, when it does. */
+const CanonicalNameCell = ({ address }: { readonly address: Address }) => {
+  const {
+    data: name,
+    isLoading,
+    error,
+  } = useQuery(getCanonicalNameQueryOptions({ address }))
+
+  return match({ isLoading, error, name })
+    .with({ isLoading: true }, () => <Skeleton className="h-5 w-32" />)
+    .with({ error: P.not(null) }, () => <FailedToLoad />)
+    .with({ name: P.string.minLength(1) }, ({ name }) => (
+      <EntityBadge variant="name" name={name} showAvatar>
+        {name}
+      </EntityBadge>
+    ))
+    .otherwise(() => <span className="text-muted-foreground">—</span>)
+}
 
 const FailedToLoad = () => (
   <span className="inline-flex items-center gap-1 text-destructive">
