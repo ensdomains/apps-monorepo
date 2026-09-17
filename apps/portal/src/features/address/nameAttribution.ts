@@ -34,6 +34,36 @@ type AttributableName = {
   readonly transactionIDs?: readonly string[]
 }
 
+/**
+ * The registrar-issued name a subname hangs off, or the name itself when it is one.
+ *
+ * `a.b.victim.eth` → `victim.eth`. Only the 2LD matters: every label between it and
+ * the leaf is a registry subname, and whoever holds the 2LD controls the whole
+ * subtree beneath it.
+ */
+const registrarAncestor = (name: string) => name.split('.').slice(-2).join('.')
+
+const isRegistrarIssued = (name: string) => getNameType(name) === 'eth-2ld'
+
+/**
+ * The registrar-issued names, out of those the registry says the address owns, that
+ * it actually holds — the roots of every subtree the address controls.
+ */
+const heldRegistrarNames = (
+  names: readonly Pick<AttributableName, 'name' | 'registrarHolder'>[],
+  address: Address,
+) =>
+  new Set(
+    names
+      .filter(
+        ({ name, registrarHolder }) =>
+          name &&
+          isRegistrarIssued(name) &&
+          isSameAddress(registrarHolder, address),
+      )
+      .map(({ name }) => name as string),
+  )
+
 const isSameAddress = (
   a: string | null | undefined,
   b: Address | null | undefined,
@@ -65,13 +95,19 @@ const attributeName = (
   { name, registrarHolder, transactionIDs = [] }: AttributableName,
   address: Address,
   senders: ReadonlyMap<string, Address> | undefined,
+  heldNames: ReadonlySet<string> = new Set(),
 ): NameAttribution => {
   if (
     name &&
-    getNameType(name) === 'eth-2ld' &&
+    isRegistrarIssued(name) &&
     isSameAddress(registrarHolder, address)
   )
     return 'acquired'
+
+  // A subname of a name the address holds is one the address minted itself: only the
+  // holder of the parent can create it. `victim.evil.eth` fails here — its registrar
+  // ancestor is `evil.eth`, which the address does not hold.
+  if (name && heldNames.has(registrarAncestor(name))) return 'acquired'
 
   const interacted = transactionIDs.some((transactionID) =>
     isSameAddress(senders?.get(transactionID), address),
@@ -84,11 +120,13 @@ const isAcquired = (
   group: NameHistoryGroup,
   address: Address,
   senders: ReadonlyMap<string, Address> | undefined,
+  heldNames: ReadonlySet<string>,
 ) =>
   attributeName(
     { ...group, transactionIDs: group.events.map((e) => e.transactionID) },
     address,
     senders,
+    heldNames,
   ) === 'acquired'
 
 /**
@@ -100,7 +138,12 @@ export const selectAcquiredNames = (
   groups: readonly NameHistoryGroup[],
   address: Address,
   senders: ReadonlyMap<string, Address> | undefined,
-) => groups.filter((group) => isAcquired(group, address, senders))
+) => {
+  const heldNames = heldRegistrarNames(groups, address)
+  return groups.filter((group) =>
+    isAcquired(group, address, senders, heldNames),
+  )
+}
 
 /**
  * Splits the history of every name the registry associates with an address into the
@@ -120,10 +163,11 @@ export const partitionAddressHistory = (
 ) => {
   const acquired: NameHistoryGroup['events'][number][] = []
   const assigned: NameHistoryGroup['events'][number][] = []
+  const heldNames = heldRegistrarNames(groups, address)
   let assignedNameCount = 0
 
   for (const group of groups) {
-    if (isAcquired(group, address, senders)) {
+    if (isAcquired(group, address, senders, heldNames)) {
       acquired.push(...group.events)
     } else {
       assigned.push(...group.events)
@@ -135,5 +179,33 @@ export const partitionAddressHistory = (
     acquired: groupEventsByTransactionId(acquired, 'domain'),
     assigned: groupEventsByTransactionId(assigned, 'domain'),
     assignedNameCount,
+  }
+}
+
+/**
+ * Splits names the registry says an address owns into the ones it holds or minted
+ * itself, and the ones a stranger's parent name granted it.
+ *
+ * Takes the names as the query returned them — already filtered to registry
+ * ownership — so the registrar-issued names among them are, by construction, ones
+ * the address holds.
+ */
+export const partitionOwnedNames = <T extends { readonly name: string | null }>(
+  names: readonly T[],
+) => {
+  const heldNames = new Set(
+    names
+      .filter(({ name }) => name && isRegistrarIssued(name))
+      .map(({ name }) => name as string),
+  )
+
+  const isOwn = ({ name }: T) =>
+    Boolean(
+      name && (heldNames.has(name) || heldNames.has(registrarAncestor(name))),
+    )
+
+  return {
+    acquired: names.filter(isOwn),
+    assigned: names.filter((entry) => !isOwn(entry)),
   }
 }

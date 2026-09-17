@@ -4,7 +4,11 @@ import {
   groupAddressHistoryByName,
   type V1NameHistory,
 } from '@/utils/history/transformAddressHistory'
-import { partitionAddressHistory, selectAcquiredNames } from './nameAttribution'
+import {
+  partitionAddressHistory,
+  partitionOwnedNames,
+  selectAcquiredNames,
+} from './nameAttribution'
 
 const VICTIM = '0x1111111111111111111111111111111111111111' as Address
 const ATTACKER = '0x2222222222222222222222222222222222222222' as Address
@@ -252,5 +256,88 @@ describe('partitionAddressHistory', () => {
     )
 
     expect(acquired.map((tx) => tx.blockNumber)).toEqual([300, 100])
+  })
+})
+
+describe('registrar ancestry', () => {
+  it('keeps a subname of a name the address holds, with no sender data', () => {
+    expect(
+      selectAcquiredNames(
+        groupAddressHistoryByName([
+          ownedName,
+          { ...plantedSubname, name: 'mine.victim.eth' },
+        ]),
+        VICTIM,
+        undefined,
+      ).map((group) => group.name),
+    ).toEqual(['victim.eth', 'mine.victim.eth'])
+  })
+
+  it('keeps a deep subname of a name the address holds', () => {
+    expect(
+      selectAcquiredNames(
+        groupAddressHistoryByName([
+          ownedName,
+          { ...plantedSubname, name: 'a.b.victim.eth' },
+        ]),
+        VICTIM,
+        undefined,
+      ).map((group) => group.name),
+    ).toEqual(['victim.eth', 'a.b.victim.eth'])
+  })
+
+  it('still rejects a subname whose registrar ancestor the address does not hold', () => {
+    expect(
+      selectAcquiredNames(
+        groupAddressHistoryByName([ownedName, plantedSubname]),
+        VICTIM,
+        undefined,
+      ).map((group) => group.name),
+    ).toEqual(['victim.eth'])
+  })
+
+  it('does not treat an assigned 2LD as a root the address controls', () => {
+    expect(
+      selectAcquiredNames(
+        groupAddressHistoryByName([
+          { ...ownedName, name: 'evil.eth', registrarHolder: ATTACKER },
+          plantedSubname,
+        ]),
+        VICTIM,
+        undefined,
+      ),
+    ).toEqual([])
+  })
+})
+
+describe('partitionOwnedNames', () => {
+  it('separates names the address holds or minted from names granted to it', () => {
+    const { acquired, assigned } = partitionOwnedNames([
+      { name: 'victim.eth' },
+      { name: 'mine.victim.eth' },
+      { name: 'a.b.victim.eth' },
+      { name: 'victim.evil.eth' },
+      { name: null },
+    ])
+
+    expect(acquired.map((entry) => entry.name)).toEqual([
+      'victim.eth',
+      'mine.victim.eth',
+      'a.b.victim.eth',
+    ])
+    expect(assigned.map((entry) => entry.name)).toEqual([
+      'victim.evil.eth',
+      null,
+    ])
+  })
+
+  it('does not treat a 2LD under another TLD as a root', () => {
+    const { acquired, assigned } = partitionOwnedNames([
+      { name: 'victim.foo' },
+      { name: 'sub.victim.foo' },
+    ])
+
+    expect(acquired).toEqual([])
+    expect(assigned).toHaveLength(2)
   })
 })
