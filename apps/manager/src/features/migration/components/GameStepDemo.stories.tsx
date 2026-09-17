@@ -93,9 +93,9 @@ const demoPhase = (
 ): string => {
   if (complete) return 'All transactions confirmed'
   if (!started) return 'Ready to play'
-  if (confirmed) return 'Transaction succeeded · fill and hop'
+  if (confirmed) return 'Transaction succeeded · plank filled'
   return submitted
-    ? 'Transaction submitted · waiting for confirmation'
+    ? 'Wallet confirmed · hop and wait for transaction'
     : 'Wallet request open · waiting for approval'
 }
 
@@ -218,7 +218,7 @@ const BridgeDemo = () => {
                 <p className="mt-1 font-semi-mono text-[10px] text-ens-garnet-900/50 uppercase tracking-wide">
                   {started
                     ? `Step ${Math.min(currentStep + 1, totalSteps)} of ${totalSteps}`
-                    : 'Starts outside · hops after transaction success'}
+                    : 'Starts outside · hops after wallet confirmation'}
                 </p>
               </div>
               <label className="flex items-center gap-2 text-xs">

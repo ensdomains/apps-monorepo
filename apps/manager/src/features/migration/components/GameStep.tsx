@@ -28,21 +28,24 @@ import {
   giantAnimateFor,
   giantModeOf,
   giantTransitionFor,
+  occupiedPlanksOf,
 } from './GameStep.helpers'
 import { MigrationReunion } from './MigrationReunion'
 
 const BridgePlank = ({
   completed,
+  occupied,
   width,
 }: {
   readonly completed: boolean
+  readonly occupied: boolean
   readonly width: number
 }) => {
   const reduceMotion = useReducedMotion()
 
   return (
     <motion.div
-      animate={{ opacity: completed ? 1 : 0 }}
+      animate={{ opacity: occupied ? 1 : 0 }}
       className="relative flex shrink-0 items-stretch"
       initial={false}
       style={{ width, paddingInline: Math.min(1, width / 16) }}
@@ -139,14 +142,14 @@ const FrenParty = ({
     transition={
       hasCollapsed
         ? { duration: 1, ease: [0.36, 0, 0.66, -0.56] }
-        : { duration: 0.45, delay: 0.15, ease: [0.22, 1, 0.36, 1] }
+        : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }
     }
   >
     <motion.div
       animate={{ y: occupiedPlanks > 0 ? [0, -32, 0] : 0 }}
       initial={{ y: 0 }}
       key={occupiedPlanks}
-      transition={{ duration: 0.45, delay: 0.15, ease: 'easeInOut' }}
+      transition={{ duration: 0.45, ease: 'easeInOut' }}
     >
       <div
         className="flex origin-bottom items-end gap-1"
@@ -160,6 +163,7 @@ const FrenParty = ({
               : { y: 0, rotate: 0 }
           }
           className="h-9 shrink-0 sm:h-[54px]"
+          initial={{ y: 0, rotate: 0 }}
           src="/frens/peanut.svg"
           transition={
             isExcited
@@ -180,6 +184,7 @@ const FrenParty = ({
               : { y: 0, rotate: 0 }
           }
           className="h-12 shrink-0 sm:h-[72px]"
+          initial={{ y: 0, rotate: 0 }}
           src="/frens/lili.svg"
           transition={
             isExcited
@@ -201,6 +206,7 @@ const FrenParty = ({
                 : { y: [0, -6, -3, 0] }
             }
             className="absolute -top-6 left-1/2 h-5 -translate-x-1/2 sm:-top-9 sm:h-[30px]"
+            initial={{ x: 0, y: 0 }}
             src="/frens/bittu.svg"
             transition={
               isExcited
@@ -225,6 +231,7 @@ const FrenParty = ({
                 : { y: 0, rotate: 0 }
             }
             className="h-10 shrink-0 sm:h-[60px]"
+            initial={{ y: 0, rotate: 0 }}
             src="/frens/kuzco.svg"
             transition={
               isExcited
@@ -283,11 +290,15 @@ export const GameStepView = ({
     totalSteps,
   )
   const displayStep = displayStepOf(completedSteps, totalSteps)
-  const occupiedPlanks = completedSteps
+  const occupiedPlanks = occupiedPlanksOf(
+    completedSteps,
+    totalSteps,
+    progress?.isAwaitingConfirmation === true,
+  )
   const { plankWidth, partyScale, frensX, bridgeWidth, scrollX } =
     computeBridgeLayout({
       totalSteps,
-      completedSteps,
+      completedSteps: occupiedPlanks,
       trackWidth,
       partyWidth,
     })
@@ -313,7 +324,7 @@ export const GameStepView = ({
     <LayoutGroup id={layoutId}>
       <MotionConfig reducedMotion="user">
         <link as="image" href="/frens/together.svg" rel="preload" />
-        <AnimatePresence initial={false}>
+        <AnimatePresence>
           {isReuniting ? (
             <MigrationReunion key="reunion" />
           ) : (
@@ -425,7 +436,6 @@ export const GameStepView = ({
                         style={{ width: bridgeWidth }}
                         transition={{
                           duration: 0.45,
-                          delay: 0.15,
                           ease: [0.22, 1, 0.36, 1],
                         }}
                       >
@@ -434,6 +444,7 @@ export const GameStepView = ({
                             <BridgePlank
                               completed={index < completedSteps}
                               key={id}
+                              occupied={index < occupiedPlanks}
                               width={plankWidth}
                             />
                           ))}

@@ -7,7 +7,26 @@ import {
   giantAnimateFor,
   giantModeOf,
   giantTransitionFor,
+  occupiedPlanksOf,
 } from './GameStep.helpers'
+
+describe('wallet-confirmed plank progression', () => {
+  it('hops on wallet submission, before the receipt confirms', () => {
+    expect(occupiedPlanksOf(0, 4, false)).toBe(0)
+    expect(occupiedPlanksOf(0, 4, true)).toBe(1)
+  })
+
+  it('stays on the same plank when the receipt confirms, then hops on the next submission', () => {
+    expect(occupiedPlanksOf(0, 4, true)).toBe(occupiedPlanksOf(1, 4, false))
+    expect(occupiedPlanksOf(1, 4, true)).toBe(2)
+  })
+
+  it('never jumps past the final plank', () => {
+    expect(occupiedPlanksOf(3, 4, true)).toBe(4)
+    expect(occupiedPlanksOf(4, 4, false)).toBe(4)
+    expect(occupiedPlanksOf(4, 4, true)).toBe(4)
+  })
+})
 
 describe('computeBridgeLayout', () => {
   it.each([

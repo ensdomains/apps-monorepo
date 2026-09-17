@@ -5,6 +5,16 @@ import type { MigrationStepDescriptor } from '@/features/migration/service/migra
 export const PLANK_PARTY_PADDING = 24
 export const TREADMILL_THRESHOLD = 5
 
+export const occupiedPlanksOf = (
+  completedSteps: number,
+  totalSteps: number,
+  isAwaitingConfirmation: boolean,
+): number =>
+  Math.min(
+    totalSteps,
+    Math.max(0, completedSteps) + (isAwaitingConfirmation ? 1 : 0),
+  )
+
 export type BridgeLayout = {
   readonly plankWidth: number
   readonly partyScale: number
@@ -57,8 +67,7 @@ export const computeBridgeLayout = (params: {
     partyScale,
     bridgeWidth,
     scrollX,
-    // The party begins outside the bridge, then occupies one completed
-    // plank at a time. Wallet requests and submissions do not advance it.
+    // The caller supplies visual progress, including the submitted transaction.
     frensX:
       completedSteps > 0 && plankWidth > 0
         ? partyWidth / 2 + (completedSteps - 0.5) * plankWidth
