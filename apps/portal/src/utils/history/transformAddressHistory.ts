@@ -16,14 +16,30 @@ export type V1EventBase = {
   type: string
 }
 
-export type V1Events = {
+/**
+ * Provenance signals shared by both protocol versions, carried alongside a
+ * single name's events so that attribution can be decided per name.
+ */
+type NameProvenance = {
+  name: string | null
+  /**
+   * Who holds the name at the registrar level — the NameWrapper owner or registrar
+   * token holder on V1, the registry owner on V2.
+   */
+  registrarHolder: string | null
+}
+
+/**
+ * One V1 name's history, as returned by the address history subgraph query
+ */
+export type V1NameHistory = NameProvenance & {
   domainEvents: V1EventBase[]
   registrationEvents: V1EventBase[]
   resolverEvents: V1EventBase[]
 }
 
 /**
- * V2 event type from subgraph
+ * V2 event type from the indexer
  */
 export type V2Event = {
   transactionHash: string
@@ -34,44 +50,56 @@ export type V2Event = {
 }
 
 /**
- * Transforms V1 events (domain, registration, resolver) into common format
- * Groups events by transaction ID
+ * One V2 name's history, as returned by the address history indexer query
  */
-export const transformV1EventsToCommon = (
-  v1Events?: V1Events,
-): EventsTableData<ENSEvent>[] => {
-  if (!v1Events) return []
+export type V2NameHistory = NameProvenance & {
+  events: V2Event[]
+}
 
-  // Flatten all V1 events into a single array
+/**
+ * A single name's events, already in table form, with the provenance signals
+ * still attached so the caller can decide whether to show them.
+ */
+export type NameHistoryGroup = NameProvenance & {
+  rows: EventsTableData<ENSEvent>[]
+}
+
+/**
+ * Transforms one V1 name's events (domain, registration, resolver) into
+ * table rows, grouped by transaction ID
+ */
+const transformV1NameHistory = (
+  nameHistory: V1NameHistory,
+): NameHistoryGroup => {
   const allEvents: Array<V1EventBase & { category: string }> = [
-    ...(v1Events.domainEvents || []).map((e) => ({
+    ...(nameHistory.domainEvents || []).map((e) => ({
       ...e,
       category: 'domain' as const,
     })),
-    ...(v1Events.registrationEvents || []).map((e) => ({
+    ...(nameHistory.registrationEvents || []).map((e) => ({
       ...e,
       category: 'registration' as const,
     })),
-    ...(v1Events.resolverEvents || []).map((e) => ({
+    ...(nameHistory.resolverEvents || []).map((e) => ({
       ...e,
       category: 'resolver' as const,
     })),
   ]
 
-  // Group all events by transaction ID (not individually)
-  return groupEventsByTransactionId(allEvents, 'domain')
+  return {
+    name: nameHistory.name,
+    registrarHolder: nameHistory.registrarHolder,
+    rows: groupEventsByTransactionId(allEvents, 'domain'),
+  }
 }
 
 /**
- * Transforms V2 events into common format
- * Groups events by transaction ID and includes timestamp
+ * Transforms one V2 name's events into table rows, grouped by transaction ID
  */
-export const transformV2EventsToCommon = (
-  v2Events?: V2Event[],
-): EventsTableData<ENSEvent>[] => {
-  if (!v2Events) return []
-
-  const v2SubgraphFormat = v2Events.map((event) => ({
+const transformV2NameHistory = (
+  nameHistory: V2NameHistory,
+): NameHistoryGroup => {
+  const subgraphFormat = (nameHistory.events || []).map((event) => ({
     transactionID: event.transactionHash,
     blockNumber: event.blockNumber,
     id: event.name,
@@ -79,35 +107,28 @@ export const transformV2EventsToCommon = (
     timestamp: BigInt(event.timestamp),
   }))
 
-  return groupEventsByTransactionId(v2SubgraphFormat, 'domain')
+  return {
+    name: nameHistory.name,
+    registrarHolder: nameHistory.registrarHolder,
+    rows: groupEventsByTransactionId(subgraphFormat, 'domain'),
+  }
 }
 
 /**
- * Transforms and merges V1 and V2 events into a single sorted array
- * This is a convenience function that combines transformation and merging
+ * Transforms the V1 and V2 history of every name the registry associates with an
+ * address, keeping one group per name.
+ *
+ * Deliberately does *not* merge the groups: registry ownership alone does not make
+ * a name's history the address's own, and that judgement needs each name's
+ * provenance, which a flattened list no longer carries.
  */
-export const transformAndMergeAddressHistory = (
-  v1Events?: V1Events,
-  v2Events?: V2Event[],
-): EventsTableData<ENSEvent>[] => {
-  const v1Transformed = transformV1EventsToCommon(v1Events)
-  const v2Transformed = transformV2EventsToCommon(v2Events)
-
-  const merged = [...v1Transformed, ...v2Transformed]
-  return merged.sort((a, b) => b.blockNumber - a.blockNumber)
-}
-
-/**
- * @deprecated Use transformAndMergeAddressHistory instead
- * Merges V1 and V2 events and sorts by block number descending
- */
-export const mergeAndSortEvents = <TEvent extends BaseEvent = ENSEvent>(
-  v1Events: EventsTableData<TEvent>[],
-  v2Events: EventsTableData<TEvent>[],
-): EventsTableData<TEvent>[] => {
-  const merged = [...v1Events, ...v2Events]
-  return merged.sort((a, b) => b.blockNumber - a.blockNumber)
-}
+export const groupAddressHistoryByName = (
+  v1Names?: V1NameHistory[],
+  v2Names?: V2NameHistory[],
+): NameHistoryGroup[] => [
+  ...(v1Names || []).map(transformV1NameHistory),
+  ...(v2Names || []).map(transformV2NameHistory),
+]
 
 /**
  * Extracts block numbers that need timestamp lookups

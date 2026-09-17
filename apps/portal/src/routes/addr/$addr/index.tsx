@@ -11,6 +11,7 @@ import { addressHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import { Button } from '@/components/ui/button'
 import { getV2HistoryForAddressQueryOptions } from '@/features/address/components/hooks/useV2HistoryForAddress'
+import { attributeName } from '@/features/address/nameAttribution'
 import { NameList } from '@/features/dashboard/components/NameList'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { cn } from '@/lib/utils'
@@ -64,13 +65,21 @@ interface AddressHistoryProps {
 const RECENT_EVENT_LIMIT = 5
 
 const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
-  const { data: v2Events } = useQuery(
+  const { data: v2Names } = useQuery(
     getV2HistoryForAddressQueryOptions({ address }),
   )
 
-  const recentEvents = v2Events
+  // This preview has no transaction senders to work from, so only the structural
+  // signal is available: a name the address was merely assigned stays out of it.
+  // Such a name is still reachable, clearly separated, on the full history page.
+  const recentEvents = v2Names
     ? transformV2EventsToSubgraphFormat(
-        v2Events
+        v2Names
+          .filter(
+            (nameHistory) =>
+              attributeName(nameHistory, address, undefined) === 'acquired',
+          )
+          .flatMap((nameHistory) => nameHistory.events)
           .toSorted((a, b) => b.timestamp - a.timestamp)
           .slice(0, RECENT_EVENT_LIMIT),
       )

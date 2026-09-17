@@ -6,7 +6,10 @@ import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import type { V1EventBase } from '@/utils/history/transformAddressHistory'
+import type {
+  V1EventBase,
+  V1NameHistory,
+} from '@/utils/history/transformAddressHistory'
 import { gql } from '@/utils/subgraph/gql'
 
 class GetV1HistoryForAddressError extends TaggedError(
@@ -23,13 +26,16 @@ type GetV1HistoryForAddressParameters = {
 
 type V1HistoryResponse = {
   domains: Array<{
+    name: string | null
+    registrant?: { id: string } | null
+    wrappedOwner?: { id: string } | null
     events: V1EventBase[]
     registration?: {
       events: V1EventBase[]
-    }
+    } | null
     resolver?: {
       events: V1EventBase[]
-    }
+    } | null
   }>
 }
 
@@ -54,6 +60,13 @@ const getV1HistoryForAddress = ResultFn(async function* ({
         }
         first: 100
       ) {
+        name
+        registrant {
+          id
+        }
+        wrappedOwner {
+          id
+        }
         events(first: $first, orderDirection: $orderDirection) {
           id
           blockNumber
@@ -190,20 +203,20 @@ const getV1HistoryForAddress = ResultFn(async function* ({
       }),
   )
 
-  // Flatten all events from all domains
-  const domainEvents = result.domains.flatMap((domain) => domain.events || [])
-  const registrationEvents = result.domains.flatMap(
-    (domain) => domain.registration?.events || [],
-  )
-  const resolverEvents = result.domains.flatMap(
-    (domain) => domain.resolver?.events || [],
-  )
+  // Keep the events grouped per name: whether a name's history belongs to this
+  // address is decided per name, and flattening here would lose the provenance
+  // signals needed to decide it.
+  const names: V1NameHistory[] = result.domains.map((domain) => ({
+    name: domain.name,
+    // A wrapped name's registrar token sits in the NameWrapper, so the wrapper's
+    // owner is the registrar-level holder; otherwise it is the registrant.
+    registrarHolder: domain.wrappedOwner?.id ?? domain.registrant?.id ?? null,
+    domainEvents: domain.events || [],
+    registrationEvents: domain.registration?.events || [],
+    resolverEvents: domain.resolver?.events || [],
+  }))
 
-  return ok({
-    domainEvents,
-    registrationEvents,
-    resolverEvents,
-  })
+  return ok(names)
 })
 
 const getV1HistoryForAddressQueryKey = createQueryKey<
