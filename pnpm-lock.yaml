@@ -1056,6 +1056,31 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
 
+  packages/v1-subgraph-shim:
+    dependencies:
+      '@ensdomains/ensjs':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@029b5f9(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))
+      '@hono/node-server':
+        specifier: ^2.1.0
+        version: 2.1.0(hono@4.12.18)
+      graphql:
+        specifier: ^17.0.2
+        version: 17.0.2
+      hono:
+        specifier: ^4.12.18
+        version: 4.12.18
+      viem:
+        specifier: 'catalog:'
+        version: 2.52.2(typescript@7.0.2)(zod@4.4.3)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.2
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   packages/weave-loader:
     dependencies:
       '@ens-apps/utils':
