@@ -1,8 +1,10 @@
+import { useLingui } from '@lingui/react'
 import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { match } from 'ts-pattern'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
+import { migrationPreparationMessage } from '@/features/migration/service/migrationPreparationError'
 import { GrainOverlay } from './GrainOverlay'
 import { MigrationUpgradeButton } from './MigrationUpgradeButton'
 import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
@@ -18,6 +20,7 @@ const GasEstimateMessage = ({
   isWaitingForGasFunding,
   totalSelected,
 }: GasEstimateMessageProps) => {
+  const { _ } = useLingui()
   if (totalSelected === 0) return null
 
   // The gas drip request only resolves once any sepETH top-up is confirmed
@@ -56,10 +59,7 @@ const GasEstimateMessage = ({
       </p>
     ))
     .with({ status: 'error' }, (estimate) => (
-      <p>
-        <Trans>Couldn&apos;t estimate the network fee</Trans>
-        {estimate.message ? `: ${estimate.message}` : null}
-      </p>
+      <p>{_(migrationPreparationMessage(estimate))}</p>
     ))
     .otherwise(() => null)
 }

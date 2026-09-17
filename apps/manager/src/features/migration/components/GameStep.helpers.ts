@@ -3,9 +3,17 @@ import type { MigrationApprovalId } from '@/features/migration/service/migration
 import type { MigrationStepDescriptor } from '@/features/migration/service/migrationService'
 
 export const VISIBLE_PLANKS = 6
+export const PLANK_PARTY_PADDING = 24
+
+export const bridgeStepsOf = (
+  completedSteps: number,
+  totalSteps: number,
+  hasActiveStep: boolean,
+): number => Math.min(completedSteps + (hasActiveStep ? 1 : 0), totalSteps)
 
 export type BridgeLayout = {
   readonly plankWidth: number
+  readonly partyScale: number
   readonly frensX: number
   readonly scrollOffset: number
   readonly totalBridgeWidth: number
@@ -16,6 +24,7 @@ export const computeBridgeLayout = (params: {
   readonly totalSteps: number
   readonly completedSteps: number
   readonly trackWidth: number
+  readonly partyWidth?: number
   readonly visiblePlanks?: number
 }): BridgeLayout => {
   const totalSteps = Math.max(0, Math.floor(params.totalSteps))
@@ -24,27 +33,38 @@ export const computeBridgeLayout = (params: {
     totalSteps,
   )
   const trackWidth = Math.max(0, params.trackWidth)
+  const partyWidth = Math.max(1, params.partyWidth ?? 164)
+  const minimumPlankWidth = partyWidth + PLANK_PARTY_PADDING
   const visiblePlanks = Math.max(
     1,
-    params.visiblePlanks ??
-      (trackWidth > 0
-        ? Math.min(VISIBLE_PLANKS, Math.floor(trackWidth / 40))
-        : VISIBLE_PLANKS),
+    Math.min(
+      params.visiblePlanks ?? VISIBLE_PLANKS,
+      Math.floor(trackWidth / minimumPlankWidth),
+    ),
   )
-  const needsScroll = totalSteps > visiblePlanks
+  const needsScroll = trackWidth > 0 && totalSteps > visiblePlanks
   const plankWidth =
     totalSteps > 0 ? trackWidth / Math.min(totalSteps, visiblePlanks) : 0
   const totalBridgeWidth = plankWidth * totalSteps
-  // The party's right edge stops at the end of the last completed plank.
-  // At zero completed transactions it stays entirely on the starting shore.
-  const completedWidth = completedSteps * plankWidth
+  // Each active step gives the whole party one plank. On narrow screens,
+  // scale the party to fit inside the plank, leaving room around its edges.
+  const partyScale =
+    completedSteps > 0 && plankWidth > 0
+      ? Math.min(1, Math.max(0, plankWidth - PLANK_PARTY_PADDING) / partyWidth)
+      : 1
+  const plankCenter = Math.max(0, completedSteps - 0.5) * plankWidth
   const scrollOffset = Math.min(
-    Math.max(0, completedWidth - trackWidth / 2),
+    Math.max(0, plankCenter - trackWidth / 2),
     Math.max(0, totalBridgeWidth - trackWidth),
   )
   return {
     plankWidth,
-    frensX: completedWidth - scrollOffset,
+    partyScale,
+    // The starting shore and party wrapper have the same width.
+    frensX:
+      completedSteps > 0 && plankWidth > 0
+        ? partyWidth / 2 + plankCenter - scrollOffset
+        : 0,
     scrollOffset,
     totalBridgeWidth,
     needsScroll,

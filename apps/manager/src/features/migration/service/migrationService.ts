@@ -24,7 +24,7 @@ import {
 
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
-import { EXECUTION_TARGET_GAS, TARGET_GAS } from './batchMigrate.constants'
+import { TARGET_GAS } from './batchMigrate.constants'
 import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
 import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
 import type {
@@ -79,7 +79,6 @@ import {
 
 export type { MigrationPlan } from './buildMigrationPlan'
 export type { MigrationStepDescriptor } from './buildStepDescriptors'
-export type { MigrationPreflight } from './computeMigrationPreflight'
 
 class MigrationError extends TaggedError('MigrationError')<{
   cause: unknown
@@ -92,7 +91,7 @@ class MigrationUserRejectedError extends TaggedError(
   step: string
 }> {}
 
-export class MigrationPlanChangedError extends TaggedError(
+class MigrationPlanChangedError extends TaggedError(
   'MigrationPlanChangedError',
 )<{
   readonly message: string
@@ -100,7 +99,7 @@ export class MigrationPlanChangedError extends TaggedError(
   readonly currentApprovalKeys: readonly string[]
 }> {}
 
-export class SubmittedAtomicMigrationIndeterminateError extends TaggedError(
+class SubmittedAtomicMigrationIndeterminateError extends TaggedError(
   'SubmittedAtomicMigrationIndeterminateError',
 )<{
   readonly message: string
@@ -109,7 +108,7 @@ export class SubmittedAtomicMigrationIndeterminateError extends TaggedError(
   readonly cause?: unknown
 }> {}
 
-export class AtomicMigrationIntentIndeterminateError extends TaggedError(
+class AtomicMigrationIntentIndeterminateError extends TaggedError(
   'AtomicMigrationIntentIndeterminateError',
 )<{
   readonly message: string
@@ -117,7 +116,7 @@ export class AtomicMigrationIntentIndeterminateError extends TaggedError(
   readonly names: readonly string[]
 }> {}
 
-export class SubmittedAtomicMigrationVerificationError extends TaggedError(
+class SubmittedAtomicMigrationVerificationError extends TaggedError(
   'SubmittedAtomicMigrationVerificationError',
 )<{
   readonly message: string
@@ -126,7 +125,7 @@ export class SubmittedAtomicMigrationVerificationError extends TaggedError(
   readonly cause: unknown
 }> {}
 
-export class MigrationSourceOwnershipError extends TaggedError(
+class MigrationSourceOwnershipError extends TaggedError(
   'MigrationSourceOwnershipError',
 )<{
   readonly message: string
@@ -134,9 +133,7 @@ export class MigrationSourceOwnershipError extends TaggedError(
   readonly cause?: unknown
 }> {}
 
-export class MigrationCleanupError extends TaggedError(
-  'MigrationCleanupError',
-)<{
+class MigrationCleanupError extends TaggedError('MigrationCleanupError')<{
   readonly message: string
   readonly cause: unknown
 }> {}
@@ -156,6 +153,7 @@ export type MigrationProgress = {
   readonly totalSteps: number
   readonly description: string
   readonly txHash?: Hex
+  readonly isAwaitingConfirmation?: boolean
   readonly operations?: readonly MigrationJournalOperation[]
   readonly migratedCount?: number
   readonly copiedCount?: number
@@ -172,6 +170,7 @@ export type MigrationResult = {
 }
 
 type Tracker = {
+  submitted: (description: string, txHash: Hex) => void
   emit: (
     description: string,
     txHash?: Hex,
@@ -193,6 +192,7 @@ const createTracker = (
     txHash?: Hex,
     operations?: readonly MigrationJournalOperation[],
     isRecovering?: boolean,
+    isAwaitingConfirmation = false,
   ) => {
     const migratedCount = operations?.filter(
       ({ action }) => action === 'migrate',
@@ -202,6 +202,7 @@ const createTracker = (
       totalSteps: normalizedTotal,
       description,
       txHash,
+      ...(isAwaitingConfirmation ? { isAwaitingConfirmation } : {}),
       ...(isRecovering ? { isRecovering } : {}),
       ...(operations
         ? {
@@ -214,6 +215,9 @@ const createTracker = (
   }
   return {
     emit,
+    submitted(description, txHash) {
+      emit(description, txHash, undefined, false, true)
+    },
     next() {
       currentStep = Math.min(currentStep + 1, normalizedTotal)
     },
@@ -334,7 +338,6 @@ const clearCompletedRecoveryPlanJournal = (
   }
 }
 
-const PENDING_TX_HASH = '0x0' as Hex
 const RECEIPT_TIMEOUT_MS = 300_000
 const APPROVAL_HEAD_LAG_RETRY_DELAYS_MS = [
   250, 500, 1_000, 2_000, 4_000,
@@ -346,6 +349,7 @@ const delay = (ms: number): Promise<void> =>
 const buildEOARequest = (
   ctx: Pick<MigrationCtx, 'publicClient' | 'walletAddress'>,
   call: Call,
+  gas?: bigint,
 ): TransactionRequest => {
   const chainId = ctx.publicClient.chain?.id
   if (!chainId) {
@@ -359,6 +363,7 @@ const buildEOARequest = (
     data: call.data,
     value: call.value,
     chainId,
+    ...(gas === undefined ? {} : { gas }),
   }
 }
 
@@ -375,18 +380,21 @@ const submitCall = async (
   call: Call,
   description: string,
   onSubmitted?: (hash: Hex) => void,
+  gas?: bigint,
 ): Promise<{ readonly hash: Hex; readonly receipt: TransactionReceipt }> => {
   const txId = transactionManager.startTransaction(
-    { type: 'custom', request: buildEOARequest(ctx, call) },
+    { type: 'custom', request: buildEOARequest(ctx, call, gas) },
     ctx.signer,
     {
       description,
       publicClient: ctx.publicClient,
+      retryCount: 0,
     },
   )
-  ctx.tracker.emit(description, PENDING_TX_HASH)
+  ctx.tracker.emit(description)
   const submittedHash = (await waitForTransactionHash(txId)) as Hex
   onSubmitted?.(submittedHash)
+  ctx.tracker.submitted(description, submittedHash)
   const result = await waitForTransaction(txId)
   const hash = result.hash as Hex
   if (hash.toLowerCase() !== submittedHash.toLowerCase()) onSubmitted?.(hash)
@@ -1162,7 +1170,7 @@ const MASKED_ERC1155_RECEIVER_ERROR =
 
 /**
  * dRPC can mask an estimate-only receiver out-of-gas as a generic ERC1155
- * failure. Explicit calls at the execution and preview limits distinguish that
+ * failure. Calls at the execution and a larger diagnostic limit distinguish that
  * provider ceiling from a real contract failure before the batch is reduced.
  */
 const recoverMaskedRpcEstimate = async (params: {
@@ -1183,9 +1191,9 @@ const recoverMaskedRpcEstimate = async (params: {
       to: params.call.to,
       data: params.call.data,
       value: params.call.value,
-      gas: EXECUTION_TARGET_GAS,
+      gas: TARGET_GAS,
     })
-    return EXECUTION_TARGET_GAS
+    return TARGET_GAS
   } catch {
     try {
       await params.ctx.publicClient.call({
@@ -1193,9 +1201,9 @@ const recoverMaskedRpcEstimate = async (params: {
         to: params.call.to,
         data: params.call.data,
         value: params.call.value,
-        gas: TARGET_GAS,
+        gas: 20_000_000n,
       })
-      return EXECUTION_TARGET_GAS + 1n
+      return TARGET_GAS + 1n
     } catch {
       return null
     }
@@ -1251,7 +1259,7 @@ const buildNextAtomicBatch = async (params: {
     walletCoAdminGranted:
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
-    maxOuterGas: EXECUTION_TARGET_GAS,
+    maxOuterGas: TARGET_GAS,
     firstBatchOnly: true,
     initialBatchSize,
     estimateOuterGas: async ({ call }) => {
@@ -1290,6 +1298,9 @@ const buildNextAtomicBatch = async (params: {
   })
   const batch = atomicPlan.batches[0]
   if (!batch) throw new Error('Atomic migration did not produce a batch')
+  if (batch.estimatedGas <= 0n || batch.estimatedGas > TARGET_GAS) {
+    throw new Error('Migration batch exceeds the supported gas budget')
+  }
   return batch
 }
 
@@ -1490,6 +1501,7 @@ const executeRemainingAtomicBatches = async (params: {
           }
           removePendingAtomicMigrationIntent(journalScope, intent.id)
         },
+        (batch.estimatedGas * 110n + 99n) / 100n,
       )
       await verifyAtomicMigrationBatch({
         publicClient: params.publicClient,

@@ -20,7 +20,7 @@ export type MigrationApprovalNeeds = {
   readonly requiresManagerRestoration: boolean
 }
 
-export type MigrationTokenApprovalStatus = {
+type MigrationTokenApprovalStatus = {
   readonly tokenId: bigint
   readonly approved: boolean
 }
@@ -48,7 +48,7 @@ export type MigrationOperatorApproval = {
   readonly operatorAddress: Address
 }
 
-export type MigrationTokenApproval = {
+type MigrationTokenApproval = {
   readonly kind: 'erc721-token'
   readonly id: 'base-registrar:hca-token'
   readonly contractAddress: Address

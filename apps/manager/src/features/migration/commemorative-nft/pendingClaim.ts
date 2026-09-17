@@ -33,7 +33,7 @@ const validAddress = (value: unknown): value is Address =>
   isAddress(value, { strict: false }) &&
   value.toLowerCase() !== zeroAddress
 
-export const isPendingNftClaimScope = (scope: PendingNftClaimScope): boolean =>
+const isPendingNftClaimScope = (scope: PendingNftClaimScope): boolean =>
   validAddress(scope.ownerAddress) &&
   validAddress(scope.contractAddress) &&
   Number.isSafeInteger(scope.chainId) &&

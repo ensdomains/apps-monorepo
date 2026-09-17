@@ -119,7 +119,7 @@ export type MigrationRecoverySnapshot = {
   readonly plannedApprovals: readonly MigrationRecoveryApproval[]
 }
 
-export type MigrationRecoveryApproval = {
+type MigrationRecoveryApproval = {
   readonly id: MigrationApprovalId
   readonly tokenId?: bigint
 }
@@ -161,7 +161,7 @@ type StoredJournal = {
   readonly entries: readonly StoredEntry[]
 }
 
-export class MigrationBatchJournalCorruptError extends Error {
+class MigrationBatchJournalCorruptError extends Error {
   constructor(cause?: unknown) {
     super(
       'The submitted migration transaction journal is unreadable. Refusing to continue without retry state.',
@@ -171,7 +171,7 @@ export class MigrationBatchJournalCorruptError extends Error {
   }
 }
 
-export class MigrationBatchJournalUnavailableError extends Error {
+class MigrationBatchJournalUnavailableError extends Error {
   constructor() {
     super(
       'Submitted migration transaction storage is unavailable. Refusing to continue without retry protection.',

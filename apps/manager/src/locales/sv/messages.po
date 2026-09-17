@@ -190,6 +190,10 @@ msgstr ""
 msgid "A permission is missing. Try again."
 msgstr ""
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "A required upgrade contract is unavailable. Please try again later."
+msgstr ""
+
 #: src/routes/index.tsx
 msgid "A simple, portable identity that you control"
 msgstr "En enkel, portabel identitet som du kontrollerar"
@@ -715,7 +719,7 @@ msgstr ""
 msgid "Couldn’t check this name’s resolver. Please try again in a moment."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStepFooter.tsx
+#: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't estimate the network fee"
 msgstr ""
 
@@ -723,8 +727,28 @@ msgstr ""
 msgid "Couldn’t load this name’s records. Please try again in a moment."
 msgstr ""
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't prepare your account. Reconnect your wallet and try again."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't prepare your upgrade. Please try again."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't reach the network to prepare your upgrade. Please try again."
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t read the wallet address for {name}"
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't restore your upgrade progress. Reload to check the latest state."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't verify your name records. Please try again."
 msgstr ""
 
 #: src/features/payment/components/add.tsx
@@ -2301,6 +2325,10 @@ msgstr ""
 msgid "Social"
 msgstr ""
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Some locked names have records that this upgrade cannot preserve. Deselect those names to continue."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
 msgstr ""
@@ -2505,6 +2533,10 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "The replacement resolver could not be verified. Please try again."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
@@ -3077,6 +3109,10 @@ msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your expired name is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Your migration account doesn't match this wallet. Reconnect the owner wallet."
 msgstr ""
 
 #: src/features/migration/commemorative-nft/claimMessages.ts

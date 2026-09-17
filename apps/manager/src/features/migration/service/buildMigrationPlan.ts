@@ -64,6 +64,7 @@ import {
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
+  getRequiredMigrationContracts,
 } from './migrationInvariants'
 import {
   getV1ProfileKeys,
@@ -191,7 +192,7 @@ const previewAtomicBatchGas = (params: {
   return PER_BATCH_OVERHEAD + nameGas + executionGas
 }
 
-export class LockedResolverRecordSafetyError extends TaggedError(
+class LockedResolverRecordSafetyError extends TaggedError(
   'LockedResolverRecordSafetyError',
 )<{
   readonly ensName: string
@@ -652,11 +653,9 @@ export const buildMigrationRecoveryPlan = async (params: {
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )
-  await assertRequiredMigrationContractCode({ publicClient })
-  signal?.throwIfAborted()
   await assertLockedPublicResolverSetMembership({
     publicClient,
-    names: registryContext,
+    names: classified,
   })
   signal?.throwIfAborted()
   const [directRoutes, hcaReadiness, resolverReadiness] = await Promise.all([
@@ -666,12 +665,27 @@ export const buildMigrationRecoveryPlan = async (params: {
       hca: hcaAddress,
       expectedOwner: migrationOwner,
     }),
-    checkDeterministicMigrationResolverReadiness({
-      publicClient,
-      hca: hcaAddress,
-      wallet: migrationOwner,
-    }),
+    needsOwnedPermRes
+      ? checkDeterministicMigrationResolverReadiness({
+          publicClient,
+          hca: hcaAddress,
+          wallet: migrationOwner,
+        })
+      : Promise.resolve({ status: 'not-required' } as const),
   ])
+  signal?.throwIfAborted()
+
+  await assertRequiredMigrationContractCode({
+    publicClient,
+    contracts: getRequiredMigrationContracts({
+      remaining: classified,
+      registryContext,
+      directRoutes,
+      hcaReadiness,
+      resolverReadiness,
+      ownedResolver: expectedOwnedPermRes,
+    }),
+  })
   signal?.throwIfAborted()
 
   const scope: MigrationBatchJournalScope = {

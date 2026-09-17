@@ -185,6 +185,10 @@ msgstr "A mint is already being prepared in another tab. Continue there or try a
 msgid "A permission is missing. Try again."
 msgstr "A permission is missing. Try again."
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "A required upgrade contract is unavailable. Please try again later."
+msgstr "A required upgrade contract is unavailable. Please try again later."
+
 #: src/routes/index.tsx
 msgid "A simple, portable identity that you control"
 msgstr "A simple, portable identity that you control"
@@ -710,7 +714,7 @@ msgstr "Couldn't check this name"
 msgid "Couldn’t check this name’s resolver. Please try again in a moment."
 msgstr "Couldn’t check this name’s resolver. Please try again in a moment."
 
-#: src/features/migration/components/SelectNamesStepFooter.tsx
+#: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't estimate the network fee"
 msgstr "Couldn't estimate the network fee"
 
@@ -718,9 +722,29 @@ msgstr "Couldn't estimate the network fee"
 msgid "Couldn’t load this name’s records. Please try again in a moment."
 msgstr "Couldn’t load this name’s records. Please try again in a moment."
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't prepare your account. Reconnect your wallet and try again."
+msgstr "Couldn't prepare your account. Reconnect your wallet and try again."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't prepare your upgrade. Please try again."
+msgstr "Couldn't prepare your upgrade. Please try again."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't reach the network to prepare your upgrade. Please try again."
+msgstr "Couldn't reach the network to prepare your upgrade. Please try again."
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t read the wallet address for {name}"
 msgstr "Couldn’t read the wallet address for {name}"
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't restore your upgrade progress. Reload to check the latest state."
+msgstr "Couldn't restore your upgrade progress. Reload to check the latest state."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't verify your name records. Please try again."
+msgstr "Couldn't verify your name records. Please try again."
 
 #: src/features/payment/components/add.tsx
 msgid "Country"
@@ -2296,6 +2320,10 @@ msgstr "Smart sessions are required to use this app."
 msgid "Social"
 msgstr "Social"
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Some locked names have records that this upgrade cannot preserve. Deselect those names to continue."
+msgstr "Some locked names have records that this upgrade cannot preserve. Deselect those names to continue."
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
 msgstr "Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
@@ -2501,6 +2529,10 @@ msgstr "The renewal for {label}.eth could not be completed. You can retry or go 
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "The replacement resolver could not be verified. Please try again."
 msgstr "The replacement resolver could not be verified. Please try again."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "The upgrade contracts don't match this account. Please contact support."
+msgstr "The upgrade contracts don't match this account. Please contact support."
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "There was a problem verifying your email address."
@@ -3073,6 +3105,10 @@ msgstr "Your ENSv2 moment is waiting"
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your expired name is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
 msgstr "Your expired name is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Your migration account doesn't match this wallet. Reconnect the owner wallet."
+msgstr "Your migration account doesn't match this wallet. Reconnect the owner wallet."
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "Your mint was submitted. Check its status before trying another mint."

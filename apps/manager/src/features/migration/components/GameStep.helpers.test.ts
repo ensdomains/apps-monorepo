@@ -1,13 +1,32 @@
 import { describe, expect, it } from 'vitest'
 import type { MigrationStepDescriptor } from '@/features/migration/service/migrationService'
 import {
+  bridgeStepsOf,
   computeBridgeLayout,
   describeNextStep,
   displayStepOf,
   giantAnimateFor,
   giantModeOf,
   giantTransitionFor,
+  PLANK_PARTY_PADDING,
 } from './GameStep.helpers'
+
+describe('bridgeStepsOf', () => {
+  it('occupies the active step before wallet confirmation and advances with the next step', () => {
+    expect(bridgeStepsOf(0, 2, false)).toBe(0)
+    expect(bridgeStepsOf(0, 2, true)).toBe(1)
+    expect(bridgeStepsOf(1, 2, true)).toBe(2)
+    expect(bridgeStepsOf(2, 2, true)).toBe(2)
+  })
+
+  it('keeps recovery progress on the last completed plank', () => {
+    expect(bridgeStepsOf(1, 2, false)).toBe(1)
+  })
+
+  it('never advances beyond the final plank', () => {
+    expect(bridgeStepsOf(2, 2, true)).toBe(2)
+  })
+})
 
 describe('computeBridgeLayout', () => {
   it.each([
@@ -28,6 +47,7 @@ describe('computeBridgeLayout', () => {
       computeBridgeLayout({ totalSteps: 3, completedSteps: 0, trackWidth: 0 }),
     ).toEqual({
       plankWidth: 0,
+      partyScale: 1,
       frensX: 0,
       scrollOffset: 0,
       totalBridgeWidth: 0,
@@ -35,63 +55,75 @@ describe('computeBridgeLayout', () => {
     })
   })
 
-  it('advances only to the completed edge, never onto the next empty plank', () => {
+  it('centers the party on the last completed plank', () => {
     const layout = computeBridgeLayout({
       totalSteps: 4,
       completedSteps: 2,
       trackWidth: 400,
     })
-    expect(layout.frensX).toBe(200)
-    expect(layout.scrollOffset).toBe(0)
-    expect(layout.needsScroll).toBe(false)
+    expect(layout.plankWidth).toBe(200)
+    expect(layout.frensX).toBe(282)
+    expect(layout.scrollOffset).toBe(100)
+    expect(layout.needsScroll).toBe(true)
   })
 
-  it('starts scrolling only after the completed edge reaches the middle', () => {
+  it('starts scrolling only after the occupied plank center reaches the middle', () => {
     const first = computeBridgeLayout({
       totalSteps: 10,
       completedSteps: 1,
       trackWidth: 600,
     })
-    expect(first.frensX).toBe(100)
+    expect(first.frensX).toBe(182)
     expect(first.scrollOffset).toBe(0)
     const middle = computeBridgeLayout({
       totalSteps: 10,
       completedSteps: 4,
       trackWidth: 600,
     })
-    expect(middle.frensX).toBe(300)
-    expect(middle.scrollOffset).toBe(100)
+    expect(middle.frensX).toBe(382)
+    expect(middle.scrollOffset).toBe(400)
   })
 
-  it('stops scrolling at the end and lets the party reach the far shore', () => {
+  it('stops scrolling at the end with the party centered on the final plank', () => {
     const layout = computeBridgeLayout({
       totalSteps: 10,
       completedSteps: 10,
       trackWidth: 600,
     })
-    expect(layout.frensX).toBe(600)
-    expect(layout.scrollOffset).toBe(400)
+    expect(layout.frensX).toBe(582)
+    expect(layout.scrollOffset).toBe(1400)
   })
 
   it.each([
     64, 137, 400, 600,
-  ])('keeps the party supported for every step at a %ipx bridge width', (trackWidth) => {
-    for (const totalSteps of [1, 4, 6, 10, 100]) {
-      for (
-        let completedSteps = 0;
-        completedSteps <= totalSteps;
-        completedSteps += 1
-      ) {
-        const layout = computeBridgeLayout({
-          totalSteps,
-          completedSteps,
-          trackWidth,
-        })
-        expect(layout.frensX).toBeGreaterThanOrEqual(0)
-        expect(layout.frensX).toBeLessThanOrEqual(trackWidth + 0.000001)
-        expect(layout.frensX + layout.scrollOffset).toBeCloseTo(
-          completedSteps * layout.plankWidth,
-        )
+  ])('keeps the entire party inside one visible plank at a %ipx bridge width', (trackWidth) => {
+    for (const partyWidth of [112, 164]) {
+      for (const totalSteps of [1, 4, 6, 10, 100]) {
+        for (
+          let completedSteps = 1;
+          completedSteps <= totalSteps;
+          completedSteps += 1
+        ) {
+          const layout = computeBridgeLayout({
+            totalSteps,
+            completedSteps,
+            trackWidth,
+            partyWidth,
+          })
+          const center = layout.frensX - partyWidth / 2
+          const halfParty = (partyWidth * layout.partyScale) / 2
+          const plankStart =
+            (completedSteps - 1) * layout.plankWidth - layout.scrollOffset
+          const plankEnd = plankStart + layout.plankWidth
+          expect(center - halfParty).toBeGreaterThanOrEqual(
+            plankStart + PLANK_PARTY_PADDING / 2 - 0.000001,
+          )
+          expect(center + halfParty).toBeLessThanOrEqual(
+            plankEnd - PLANK_PARTY_PADDING / 2 + 0.000001,
+          )
+          expect(plankStart).toBeGreaterThanOrEqual(-0.000001)
+          expect(plankEnd).toBeLessThanOrEqual(trackWidth + 0.000001)
+        }
       }
     }
   })
@@ -107,7 +139,7 @@ describe('computeBridgeLayout', () => {
     expect(
       computeBridgeLayout({ totalSteps: 4, completedSteps: 8, trackWidth: 400 })
         .frensX,
-    ).toBe(400)
+    ).toBe(382)
   })
 })
 

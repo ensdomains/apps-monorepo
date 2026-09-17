@@ -21,6 +21,7 @@ import {
 } from '@/features/migration/state/migrationUi.selectors'
 import { cn } from '@/lib/utils'
 import {
+  bridgeStepsOf,
   computeBridgeLayout,
   describeNextStep,
   displayStepOf,
@@ -65,7 +66,7 @@ const BridgePlank = ({
             }
           : { y: 0, rotate: 0, opacity: 1 }
       }
-      className="flex shrink-0 items-stretch"
+      className="relative flex shrink-0 items-stretch px-2"
       key={id}
       style={{ width }}
       transition={
@@ -99,7 +100,7 @@ const BridgePlank = ({
             : { y: 0, rotate: 0, opacity: 1 }
         }
         className={cn(
-          'ml-1.5 w-1 shrink-0 rounded-sm',
+          'absolute inset-y-0 right-0 w-1 rounded-sm',
           completed ? 'bg-ens-garnet-900/40' : 'bg-ens-garnet-900/10',
         )}
         transition={
@@ -163,10 +164,14 @@ const useStepDescriptionText = (
 
 const FrenParty = ({
   frensX,
+  partyScale,
+  occupiedPlanks,
   hasCollapsed,
   isExcited,
 }: {
   readonly frensX: number
+  readonly partyScale: number
+  readonly occupiedPlanks: number
   readonly hasCollapsed: boolean
   readonly isExcited: boolean
 }) => (
@@ -181,95 +186,107 @@ const FrenParty = ({
     transition={
       hasCollapsed
         ? { duration: 1, ease: [0.36, 0, 0.66, -0.56] }
-        : { duration: 0.45, delay: 0.3, ease: [0.22, 1, 0.36, 1] }
+        : { duration: 0.45, delay: 0.15, ease: [0.22, 1, 0.36, 1] }
     }
   >
-    <div className="flex items-end gap-1">
-      <motion.img
-        alt=""
-        animate={
-          isExcited
-            ? { y: [0, -12, 0], rotate: [0, -5, 5, 0] }
-            : { y: 0, rotate: 0 }
-        }
-        className="h-9 shrink-0 sm:h-[54px]"
-        src="/frens/peanut.svg"
-        transition={
-          isExcited
-            ? {
-                duration: 0.5,
-                repeat: Number.POSITIVE_INFINITY,
-                repeatDelay: 0.1,
-              }
-            : { duration: 0.3 }
-        }
-      />
-      <motion.img
-        alt=""
-        animate={
-          isExcited
-            ? { y: [0, -16, 0], rotate: [0, 4, -4, 0] }
-            : { y: 0, rotate: 0 }
-        }
-        className="h-12 shrink-0 sm:h-[72px]"
-        src="/frens/lili.svg"
-        transition={
-          isExcited
-            ? {
-                duration: 0.6,
-                repeat: Number.POSITIVE_INFINITY,
-                repeatDelay: 0.05,
-                delay: 0.1,
-              }
-            : { duration: 0.3 }
-        }
-      />
-      <div className="relative shrink-0">
+    <motion.div
+      animate={{ y: occupiedPlanks > 0 ? [0, -32, 0] : 0 }}
+      initial={{ y: 0 }}
+      key={occupiedPlanks}
+      transition={{ duration: 0.45, delay: 0.15, ease: 'easeInOut' }}
+    >
+      <div
+        className="flex origin-bottom items-end gap-1"
+        style={{ transform: `scale(${partyScale})` }}
+      >
         <motion.img
           alt=""
           animate={
             isExcited
-              ? { y: [0, -20, -10, 0], x: [0, 5, -5, 0] }
-              : { y: [0, -6, -3, 0] }
-          }
-          className="absolute -top-6 left-1/2 h-5 -translate-x-1/2 sm:-top-9 sm:h-[30px]"
-          src="/frens/bittu.svg"
-          transition={
-            isExcited
-              ? {
-                  duration: 0.8,
-                  ease: 'easeInOut',
-                  repeat: Number.POSITIVE_INFINITY,
-                }
-              : {
-                  duration: 4,
-                  ease: 'easeInOut',
-                  repeat: Number.POSITIVE_INFINITY,
-                }
-          }
-        />
-        <motion.img
-          alt=""
-          animate={
-            isExcited
-              ? { y: [0, -10, 0], rotate: [0, -3, 3, 0] }
+              ? { y: [0, -12, 0], rotate: [0, -5, 5, 0] }
               : { y: 0, rotate: 0 }
           }
-          className="h-10 shrink-0 sm:h-[60px]"
-          src="/frens/kuzco.svg"
+          className="h-9 shrink-0 sm:h-[54px]"
+          src="/frens/peanut.svg"
           transition={
             isExcited
               ? {
-                  duration: 0.55,
+                  duration: 0.5,
+                  delay: 0.6,
                   repeat: Number.POSITIVE_INFINITY,
-                  repeatDelay: 0.15,
-                  delay: 0.2,
+                  repeatDelay: 0.1,
                 }
               : { duration: 0.3 }
           }
         />
+        <motion.img
+          alt=""
+          animate={
+            isExcited
+              ? { y: [0, -16, 0], rotate: [0, 4, -4, 0] }
+              : { y: 0, rotate: 0 }
+          }
+          className="h-12 shrink-0 sm:h-[72px]"
+          src="/frens/lili.svg"
+          transition={
+            isExcited
+              ? {
+                  duration: 0.6,
+                  repeat: Number.POSITIVE_INFINITY,
+                  repeatDelay: 0.05,
+                  delay: 0.7,
+                }
+              : { duration: 0.3 }
+          }
+        />
+        <div className="relative shrink-0">
+          <motion.img
+            alt=""
+            animate={
+              isExcited
+                ? { y: [0, -20, -10, 0], x: [0, 5, -5, 0] }
+                : { y: [0, -6, -3, 0] }
+            }
+            className="absolute -top-6 left-1/2 h-5 -translate-x-1/2 sm:-top-9 sm:h-[30px]"
+            src="/frens/bittu.svg"
+            transition={
+              isExcited
+                ? {
+                    duration: 0.8,
+                    delay: 0.6,
+                    ease: 'easeInOut',
+                    repeat: Number.POSITIVE_INFINITY,
+                  }
+                : {
+                    duration: 4,
+                    ease: 'easeInOut',
+                    repeat: Number.POSITIVE_INFINITY,
+                  }
+            }
+          />
+          <motion.img
+            alt=""
+            animate={
+              isExcited
+                ? { y: [0, -10, 0], rotate: [0, -3, 3, 0] }
+                : { y: 0, rotate: 0 }
+            }
+            className="h-10 shrink-0 sm:h-[60px]"
+            src="/frens/kuzco.svg"
+            transition={
+              isExcited
+                ? {
+                    duration: 0.55,
+                    repeat: Number.POSITIVE_INFINITY,
+                    repeatDelay: 0.15,
+                    delay: 0.8,
+                  }
+                : { duration: 0.3 }
+            }
+          />
+        </div>
       </div>
-    </div>
+    </motion.div>
   </motion.div>
 )
 
@@ -302,16 +319,29 @@ export const GameStepView = ({
 }) => {
   const { t } = useLingui()
   const { ref: trackRef, width: trackWidth } = useElementWidth()
+  const { ref: shoreRef, width: partyWidth } = useElementWidth()
   const totalSteps = Math.max(progress?.totalSteps ?? stepDescriptors.length, 1)
   const completedSteps = Math.min(
     Math.max(progress?.currentStep ?? 0, 0),
     totalSteps,
   )
   const displayStep = displayStepOf(completedSteps, totalSteps)
-  const { plankWidth, frensX, scrollOffset, totalBridgeWidth } =
-    computeBridgeLayout({ totalSteps, completedSteps, trackWidth })
+  const occupiedPlanks = bridgeStepsOf(
+    completedSteps,
+    totalSteps,
+    // Enter the active step's plank while its wallet request is still open.
+    // Recovery reports describe already-completed work, not a new wallet step.
+    progress !== undefined && !progress.isRecovering,
+  )
+  const { plankWidth, partyScale, frensX, scrollOffset, totalBridgeWidth } =
+    computeBridgeLayout({
+      totalSteps,
+      completedSteps: occupiedPlanks,
+      trackWidth,
+      partyWidth,
+    })
 
-  const isExcited = !!progress?.txHash && !hasCollapsed
+  const isExcited = occupiedPlanks > 0 && !hasCollapsed
 
   const nextDescriptor = stepDescriptors[completedSteps] as
     | MigrationStepDescriptor
@@ -398,6 +428,8 @@ export const GameStepView = ({
                   frensX={frensX}
                   hasCollapsed={hasCollapsed}
                   isExcited={isExcited}
+                  occupiedPlanks={occupiedPlanks}
+                  partyScale={partyScale}
                 />
               </div>
 
@@ -412,6 +444,7 @@ export const GameStepView = ({
               <div
                 aria-hidden
                 className="absolute bottom-6 left-0 h-8 w-28 rounded-l border-ens-garnet-900/30 border-y-2 bg-ens-garnet-900/30 sm:w-41"
+                ref={shoreRef}
               />
               <motion.div
                 animate={
@@ -428,35 +461,22 @@ export const GameStepView = ({
                 <div className="overflow-hidden">
                   <motion.div
                     animate={{ x: -scrollOffset }}
-                    className="flex items-stretch gap-1.5"
+                    className="flex items-stretch"
                     style={{ width: totalBridgeWidth || '100%' }}
                     transition={{
                       duration: 0.45,
-                      delay: 0.3,
+                      delay: 0.15,
                       ease: [0.22, 1, 0.36, 1],
                     }}
                   >
-                    <motion.div
-                      animate={
-                        hasCollapsed
-                          ? { y: 20, rotate: -8, opacity: 0 }
-                          : { y: 0, rotate: 0, opacity: 1 }
-                      }
-                      className="w-1 shrink-0 rounded-sm bg-ens-garnet-900/40"
-                      transition={
-                        hasCollapsed
-                          ? { ...collapseTransition, delay: 0 }
-                          : { duration: 0 }
-                      }
-                    />
                     {stepIds.map((id, index) => (
                       <BridgePlank
-                        completed={index < completedSteps}
+                        completed={index < occupiedPlanks}
                         hasCollapsed={hasCollapsed}
                         id={id}
                         index={index}
                         key={id}
-                        width={Math.max(plankWidth - 6, 0)}
+                        width={plankWidth}
                       />
                     ))}
                   </motion.div>

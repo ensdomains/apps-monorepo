@@ -1,0 +1,230 @@
+import type { Meta, StoryObj } from '@storybook/tanstack-react'
+import { useEffect, useState } from 'react'
+import type {
+  MigrationProgress,
+  MigrationStepDescriptor,
+} from '../service/migrationService'
+import { GameStepView } from './GameStep'
+import { GrainOverlay } from './GrainOverlay'
+
+const DEMO_HASH = `0x${'1'.repeat(64)}` as const
+
+const useBridgeDemo = (totalSteps: number) => {
+  const [frame, setFrame] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const [hidden, setHidden] = useState(false)
+  const finalFrame = totalSteps * 2 + 1
+  const complete = frame === finalFrame
+
+  useEffect(() => {
+    if (!playing || complete) return
+    const delay = frame === 0 ? 3000 : frame % 2 === 1 ? 3500 : 2500
+    const timer = window.setTimeout(() => setFrame((value) => value + 1), delay)
+    return () => window.clearTimeout(timer)
+  }, [playing, complete, frame])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest('button, input, select, textarea')
+      )
+        return
+      if (event.code === 'Space') {
+        event.preventDefault()
+        if (complete) setFrame(0)
+        setPlaying((value) => complete || !value)
+      }
+      if (event.key.toLowerCase() === 'n') {
+        setPlaying(false)
+        setFrame((value) => Math.min(value + 1, finalFrame))
+      }
+      if (event.key.toLowerCase() === 'r') setFrame(0)
+      if (event.key.toLowerCase() === 'h') setHidden((value) => !value)
+      if (event.key === 'Escape') setHidden(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [complete, finalFrame])
+
+  return {
+    frame,
+    setFrame,
+    playing: playing && !complete,
+    setPlaying,
+    hidden,
+    setHidden,
+    finalFrame,
+    complete,
+  }
+}
+
+const demoButtonClass =
+  'min-h-11 rounded-full px-4 text-sm transition-colors hover:bg-ens-garnet-900/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ens-garnet-900 disabled:opacity-35 motion-reduce:transition-none'
+
+const BridgeDemo = () => {
+  const [totalSteps, setTotalSteps] = useState(4)
+  const demo = useBridgeDemo(totalSteps)
+  const started = demo.frame > 0
+  const submitted = started && !demo.complete && demo.frame % 2 === 0
+  const currentStep = demo.complete
+    ? totalSteps
+    : Math.max(0, Math.floor((demo.frame - 1) / 2))
+  const descriptors: readonly MigrationStepDescriptor[] = Array.from(
+    { length: totalSteps },
+    (_, index) => ({
+      type: 'atomic-batch',
+      index,
+      total: totalSteps,
+      count: 47,
+      migrateCount: 47,
+      copyCount: 0,
+    }),
+  )
+  const progress: MigrationProgress | undefined = started
+    ? {
+        currentStep,
+        totalSteps,
+        description: demo.complete ? 'Upgrade complete' : 'Upgrading 47 names',
+        ...(submitted
+          ? { txHash: DEMO_HASH, isAwaitingConfirmation: true }
+          : {}),
+      }
+    : undefined
+  const phase = demo.complete
+    ? 'All transactions confirmed'
+    : started
+      ? submitted
+        ? 'Transaction submitted · waiting for confirmation'
+        : 'Wallet request open · waiting for approval'
+      : 'Ready to play'
+
+  const reset = () => {
+    demo.setPlaying(false)
+    demo.setFrame(0)
+  }
+
+  return (
+    <main className="relative h-dvh min-h-[700px] overflow-hidden bg-ens-garnet-100 text-ens-garnet-900">
+      <GrainOverlay className="opacity-70" />
+      <GameStepView
+        hasCollapsed={false}
+        progress={progress}
+        selectedNameCount={47}
+        stepDescriptors={descriptors}
+      />
+      {!demo.hidden && (
+        <>
+          <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-4 px-6 py-5">
+            <div>
+              <p className="font-semi-mono text-xs uppercase tracking-widest">
+                Bridge demo
+              </p>
+              <p className="mt-1 text-ens-garnet-900/60 text-sm">
+                Real animation. Simulated transactions.
+              </p>
+            </div>
+            <button
+              className={demoButtonClass}
+              onClick={() => demo.setHidden(true)}
+              type="button"
+            >
+              Hide controls <span className="opacity-50">H</span>
+            </button>
+          </header>
+          <section
+            aria-label="Demo playback controls"
+            className="absolute inset-x-4 bottom-5 z-20 mx-auto max-w-3xl rounded-2xl border border-ens-garnet-900/10 bg-ens-garnet-50/90 p-4 shadow-sm backdrop-blur-md"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p aria-live="polite" className="text-sm">
+                  {phase}
+                </p>
+                <p className="mt-1 font-semi-mono text-[10px] text-ens-garnet-900/50 uppercase tracking-wide">
+                  {started
+                    ? `Step ${Math.min(currentStep + 1, totalSteps)} of ${totalSteps}`
+                    : 'Starts on shore · first hop after 3 seconds'}
+                </p>
+              </div>
+              <label className="flex items-center gap-2 text-xs">
+                Transactions
+                <select
+                  className="min-h-11 rounded-lg border border-ens-garnet-900/15 bg-transparent px-2"
+                  onChange={(event) => {
+                    reset()
+                    setTotalSteps(Number(event.target.value))
+                  }}
+                  value={totalSteps}
+                >
+                  {[2, 4, 6, 10].map((count) => (
+                    <option key={count} value={count}>
+                      {count}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-1 border-ens-garnet-900/10 border-t pt-3">
+              <button
+                className={`${demoButtonClass} bg-ens-garnet-900 text-ens-garnet-50 hover:bg-ens-garnet-800`}
+                onClick={() => {
+                  if (demo.complete) demo.setFrame(0)
+                  demo.setPlaying(!demo.playing)
+                }}
+                type="button"
+              >
+                {demo.playing
+                  ? 'Pause'
+                  : demo.complete
+                    ? 'Replay'
+                    : 'Play demo'}
+              </button>
+              <button
+                className={demoButtonClass}
+                disabled={demo.complete}
+                onClick={() => {
+                  demo.setPlaying(false)
+                  demo.setFrame((value) => Math.min(value + 1, demo.finalFrame))
+                }}
+                type="button"
+              >
+                Next phase
+              </button>
+              <button className={demoButtonClass} onClick={reset} type="button">
+                Reset
+              </button>
+              <button
+                className={`${demoButtonClass} ml-auto`}
+                onClick={(event) => {
+                  demo.setFrame(0)
+                  demo.setPlaying(true)
+                  demo.setHidden(true)
+                  event.currentTarget.blur()
+                }}
+                type="button"
+              >
+                Play & hide controls
+              </button>
+            </div>
+            <p className="mt-3 text-center text-ens-garnet-900/50 text-xs">
+              Space: play / pause · N: next phase · R: restart · H / Esc: show
+              controls
+            </p>
+          </section>
+        </>
+      )}
+    </main>
+  )
+}
+
+const meta = {
+  title: 'Migration/Bridge Demo',
+  component: BridgeDemo,
+  parameters: { layout: 'fullscreen', controls: { disable: true } },
+} satisfies Meta<typeof BridgeDemo>
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const Recording: Story = {}

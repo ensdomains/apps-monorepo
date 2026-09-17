@@ -338,6 +338,7 @@ const runExecute = async (
     refreshAccount?: () => Promise<void>
     onBatchComplete?: OnBatchComplete
     reconcileBeforeSubmit?: boolean
+    onProgress?: (progress: MigrationProgress) => void
   } = {},
 ) => {
   const progressEvents: MigrationProgress[] = []
@@ -349,7 +350,10 @@ const runExecute = async (
     signer: SIGNER,
     hcaClient: HCA_CLIENT,
     refreshAccount,
-    onProgress: (progress) => progressEvents.push(progress),
+    onProgress: (progress) => {
+      progressEvents.push(progress)
+      overrides.onProgress?.(progress)
+    },
     onBatchComplete: overrides.onBatchComplete,
     reconcileBeforeSubmit: overrides.reconcileBeforeSubmit,
   })
@@ -704,6 +708,33 @@ describe('executeMigration HCA orchestration', () => {
     })
   })
 
+  it('reports wallet submission before mining without completing the step early', async () => {
+    const onProgress = vi.fn()
+    mocks.waitForTransactionHash.mockImplementationOnce(async () => {
+      expect(onProgress).toHaveBeenLastCalledWith(
+        expect.objectContaining({ currentStep: 0, txHash: undefined }),
+      )
+      expect(
+        onProgress.mock.lastCall?.[0].isAwaitingConfirmation,
+      ).toBeUndefined()
+      return hashFor(1)
+    })
+    mocks.waitForTransaction.mockImplementationOnce(async () => {
+      expect(onProgress).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          currentStep: 0,
+          txHash: hashFor(1),
+          isAwaitingConfirmation: true,
+        }),
+      )
+      return { hash: hashFor(1) }
+    })
+
+    const { progressEvents } = await runExecute({ onProgress })
+    expect(progressEvents.at(-1)).toMatchObject({ currentStep: 1 })
+    expect(progressEvents.at(-1)?.isAwaitingConfirmation).toBeUndefined()
+  })
+
   it('submits executeByOwner as a wallet-paid EOA transaction targeting the HCA', async () => {
     await runExecute()
 
@@ -718,11 +749,59 @@ describe('executeMigration HCA orchestration', () => {
           data: OUTER_DATA,
           value: 0n,
           chainId: 11155111,
+          gas: 550_000n,
         },
       },
       SIGNER,
-      expect.objectContaining({ publicClient: PUBLIC_CLIENT }),
+      expect.objectContaining({ publicClient: PUBLIC_CLIENT, retryCount: 0 }),
     )
+  })
+
+  it.each([
+    [500_001n, 550_002n],
+    [15_000_000n, 16_500_000n],
+  ])('submits the live estimate %s with bounded gas headroom', async (estimate, gas) => {
+    estimateGasMock.mockResolvedValueOnce(estimate)
+    await runExecute()
+    expect(mocks.startTransaction.mock.calls[0]?.[0].request.gas).toBe(gas)
+    expect(gas).toBeLessThan(16_777_216n)
+    expect(mocks.buildAtomicMigrationBatches).toHaveBeenCalledWith(
+      expect.objectContaining({ maxOuterGas: 15_000_000n }),
+    )
+  })
+
+  it.each([
+    0n,
+    15_000_001n,
+    21_354_459n,
+  ])('blocks an invalid batch gas estimate %s before opening the wallet', async (estimate) => {
+    estimateGasMock.mockResolvedValueOnce(estimate)
+    await expect(runExecute()).rejects.toThrow('supported gas budget')
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('surfaces a submission gas-cap rejection without automatic wallet retries', async () => {
+    mocks.waitForTransactionHash.mockRejectedValueOnce(
+      new Error('transaction gas limit too high (cap: 16777216, tx: 21354459)'),
+    )
+    await expect(runExecute()).rejects.toMatchObject({
+      name: 'MigrationError',
+      cause: expect.objectContaining({
+        message: expect.stringContaining('transaction gas limit too high'),
+      }),
+    })
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(mocks.startTransaction.mock.calls[0]?.[2]).toMatchObject({
+      retryCount: 0,
+    })
+    expect(mocks.verifyAtomicMigrationBatch).not.toHaveBeenCalled()
+    expect(
+      loadPendingAtomicMigrationIntents({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      }),
+    ).toHaveLength(1)
   })
 
   it('updates retry protection when the wallet replaces the submitted transaction', async () => {
