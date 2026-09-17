@@ -775,7 +775,7 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 | --- | --- | --- | --- | --- |
 | `VV32` | R2 | [overview](/<name>) | _no expectation written_ | open |
 | `VO32` | R2 | [ownership](/<name>/ownership) | names the subname holder while the 2LD above is in grace | asserted |
-| `VT32` | R0 | [transfer](/<name>/ownership/transfer) | tells the 2LD owner why the wrapper refuses, and offers a renewal | **E2E-014** — says "Not authorized" to the wallet that owns the 2LD, because in grace ensjs reports the wrapped parent at registrar level with the NameWrapper as owner |
+| `VT32` | R0 | [transfer](/<name>/ownership/transfer) | tells the 2LD owner why the wrapper refuses, and offers a renewal | asserted |
 | `VF32` | R0 | [fuses](/<name>/fuses) | _no expectation written_ | open |
 | `VE32` | R2 | [resolver](/<name>/resolver) | _no expectation written_ | open |
 | `VD32` | R3 | [records](/<name>/records) | _no expectation written_ | open |

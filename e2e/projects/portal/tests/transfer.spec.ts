@@ -3261,13 +3261,9 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
   // refusal is only useful if that instruction can be followed, so these
   // follow it — and neither destination exists for a V1 name.
 
-  test('the "Reclaim the parent first" card points at a control the Ownership page does not have (E2E-012)', {
+  test('the "Reclaim the parent first" card names a control the Ownership page actually offers', {
     tag: ['@scenario:F37'],
   }, async ({ portalPage: page, wallet, accounts }) => {
-    test.fail(
-      true,
-      'E2E-012: the card says to reclaim the manager role "from its Ownership page", which has no reclaim control',
-    )
     test.setTimeout(300_000)
     await connectWithHeadlessWallet(page, wallet)
 
@@ -3289,12 +3285,19 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
     await expect(page.getByText(/Reclaim the parent first/)).toBeVisible({
       timeout: 60_000,
     })
+    // The card names the control and the page it lives on. Asserted as the
+    // pair, because either half alone is satisfiable by a card that sends the
+    // user somewhere useless — which is what E2E-012 was.
     await expect(
-      page.getByText(/from its\s+Ownership page/),
-      'precondition: the card sends the user to the parent Ownership page',
+      page.getByText(/Reclaim manager/),
+      'precondition: the card names the control to use',
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(
+      page.getByText(/Ownership page/),
+      'precondition: the card says where that control lives',
     ).toBeVisible()
 
-    // Follow the instruction.
+    // Follow the instruction to the letter and prove it lands somewhere real.
     await page.goto(`${PORTAL_APP_URL}/${parent}/ownership`)
     await expect(
       page.getByRole('heading', { name: 'Ownership' }).first(),
@@ -3307,13 +3310,9 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
     ).toBeVisible({ timeout: 30_000 })
   })
 
-  test('the emancipated card says to re-issue from the Subnames page, which cannot create V1 subnames (E2E-013)', {
+  test('the emancipated card sends the parent to the ENS Manager, not to a page that cannot create V1 subnames', {
     tag: ['@scenario:F35'],
   }, async ({ portalPage: page, wallet, accounts }) => {
-    test.fail(
-      true,
-      'E2E-013: "issue it again from the Subnames page" — the portal only creates subnames under ENSv2 names',
-    )
     test.setTimeout(300_000)
     await connectWithHeadlessWallet(page, wallet)
 
@@ -3330,19 +3329,23 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
 
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
     await expect(
-      page.getByText(/issue it again from the Subnames page/),
-      'precondition: the card sends the parent to the Subnames page',
+      page.getByText(/only its own owner can move it/),
+      'precondition: the emancipated-subname card is the one being shown',
     ).toBeVisible({ timeout: 60_000 })
 
-    // Follow the instruction: the parent's Subnames page, and the route its
-    // Create button would lead to.
-    await page.goto(`${PORTAL_APP_URL}/${parent}/subnames`)
+    // The portal's own Subnames page is read-only for a V1 parent, so naming it
+    // here is an instruction that dead-ends. That was E2E-013.
     await expect(
-      page
-        .getByRole('link', { name: 'Create subname' })
-        .or(page.getByRole('button', { name: 'Create subname' })),
-      'the page the card names must let the parent issue a subname',
-    ).toBeVisible({ timeout: 60_000 })
+      page.getByText(/Subnames page/),
+      'the card must not send a V1 parent to a page that cannot create V1 subnames',
+    ).toHaveCount(0)
+
+    // Where it does point has to be somewhere the label can actually be
+    // re-issued, which for a V1 parent is ens-app-v3, not this app.
+    await expect(
+      page.getByRole('link', { name: 'Open in ENS Manager' }),
+      'the card must offer the route that can re-issue the label',
+    ).toBeVisible({ timeout: 30_000 })
   })
 
   test('says which subname does not exist, rather than calling it unregistered', {
@@ -3454,10 +3457,6 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
   test('tells the owner of a wrapped 2LD in grace why it cannot reassign a subname (E2E-014)', {
     tag: ['@scenario:F39'],
   }, async ({ portalPage: page, wallet, accounts }) => {
-    test.fail(
-      true,
-      "E2E-014: in grace, ensjs getOwner reports a wrapped 2LD at ownershipLevel 'registrar' with the NameWrapper as owner, so deriveParent reads it as unwrapped and the real owner is told 'Not authorized'",
-    )
     test.setTimeout(420_000)
     await connectWithHeadlessWallet(page, wallet)
     const parentAccount = privateKeyToAccount(accounts.getPrivateKey('user'))

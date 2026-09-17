@@ -115,11 +115,6 @@ test.describe('V1 shape · 3ld-wrapped+emancipated-2ld:grace:parent', () => {
   test('transfer · tells the 2LD owner why the wrapper refuses, and offers a renewal', {
     tag: ['@scenario:VT32', '@v1matrix'],
   }, async ({ portalPage: page, wallet, time }) => {
-    test.fail(
-      true,
-      'E2E-014: says "Not authorized" to the wallet that owns the 2LD, because in grace ensjs reports the wrapped parent at registrar level with the NameWrapper as owner',
-    )
-
     await runCell(page, wallet, seeded, 'transfer', time)
   })
 })

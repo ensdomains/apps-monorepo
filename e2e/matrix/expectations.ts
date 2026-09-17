@@ -885,11 +885,6 @@ export const EXPECTATIONS: Partial<
       // Substring: the card names the 2LD, whose label is generated per run.
       refusal: 'is in its grace period',
       form: 'absent',
-      defect: {
-        id: 'E2E-014',
-        actual:
-          'says "Not authorized" to the wallet that owns the 2LD, because in grace ensjs reports the wrapped parent at registrar level with the NameWrapper as owner',
-      },
     },
   },
 
