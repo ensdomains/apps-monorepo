@@ -30,18 +30,26 @@ const useBridgeDemo = (totalSteps: number) => {
         event.target.closest('button, input, select, textarea')
       )
         return
-      if (event.code === 'Space') {
-        event.preventDefault()
-        if (complete) setFrame(0)
-        setPlaying((value) => complete || !value)
+      switch (event.key.toLowerCase()) {
+        case ' ':
+          event.preventDefault()
+          if (complete) setFrame(0)
+          setPlaying((value) => complete || !value)
+          break
+        case 'n':
+          setPlaying(false)
+          setFrame((value) => Math.min(value + 1, finalFrame))
+          break
+        case 'r':
+          setFrame(0)
+          break
+        case 'h':
+          setHidden((value) => !value)
+          break
+        case 'escape':
+          setHidden(false)
+          break
       }
-      if (event.key.toLowerCase() === 'n') {
-        setPlaying(false)
-        setFrame((value) => Math.min(value + 1, finalFrame))
-      }
-      if (event.key.toLowerCase() === 'r') setFrame(0)
-      if (event.key.toLowerCase() === 'h') setHidden((value) => !value)
-      if (event.key === 'Escape') setHidden(false)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -61,6 +69,18 @@ const useBridgeDemo = (totalSteps: number) => {
 
 const demoButtonClass =
   'min-h-11 rounded-full px-4 text-sm transition-colors hover:bg-ens-garnet-900/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ens-garnet-900 disabled:opacity-35 motion-reduce:transition-none'
+
+const demoPhase = (
+  complete: boolean,
+  started: boolean,
+  submitted: boolean,
+): string => {
+  if (complete) return 'All transactions confirmed'
+  if (!started) return 'Ready to play'
+  return submitted
+    ? 'Transaction submitted · waiting for confirmation'
+    : 'Wallet request open · waiting for approval'
+}
 
 const BridgeDemo = () => {
   const [totalSteps, setTotalSteps] = useState(4)
@@ -91,13 +111,7 @@ const BridgeDemo = () => {
           : {}),
       }
     : undefined
-  const phase = demo.complete
-    ? 'All transactions confirmed'
-    : started
-      ? submitted
-        ? 'Transaction submitted · waiting for confirmation'
-        : 'Wallet request open · waiting for approval'
-      : 'Ready to play'
+  const phase = demoPhase(demo.complete, started, submitted)
 
   const reset = () => {
     demo.setPlaying(false)
@@ -107,12 +121,14 @@ const BridgeDemo = () => {
   return (
     <main className="relative h-dvh min-h-[700px] overflow-hidden bg-ens-garnet-100 text-ens-garnet-900">
       <GrainOverlay className="opacity-70" />
-      <GameStepView
-        hasCollapsed={false}
-        progress={progress}
-        selectedNameCount={47}
-        stepDescriptors={descriptors}
-      />
+      <div className="absolute inset-0 -translate-y-10">
+        <GameStepView
+          hasCollapsed={false}
+          progress={progress}
+          selectedNameCount={47}
+          stepDescriptors={descriptors}
+        />
+      </div>
       {!demo.hidden && (
         <>
           <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-4 px-6 py-5">
@@ -207,10 +223,6 @@ const BridgeDemo = () => {
                 Play & hide controls
               </button>
             </div>
-            <p className="mt-3 text-center text-ens-garnet-900/50 text-xs">
-              Space: play / pause · N: next phase · R: restart · H / Esc: show
-              controls
-            </p>
           </section>
         </>
       )}
