@@ -1,6 +1,9 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const CONTROLLER = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+const REGISTRY = '0x1111111111111111111111111111111111111111'
+
 let routeName = 'jobintime.xyz'
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
@@ -19,15 +22,25 @@ vi.mock('wagmi', async (importOriginal) => {
   return { ...actual, useConnection: () => ({ address: undefined }) }
 })
 
+// What `resolveEnsOwner` reports: `null` (no registry entry) unless the test
+// names an owner.
+let ownerQuery: { data: unknown; isLoading: boolean; error: unknown } = {
+  data: null,
+  isLoading: false,
+  error: null,
+}
+
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
     '@tanstack/react-query',
   )
   return {
     ...actual,
-    // No registry entry: the owner lookup settles on null, and availability
-    // (a .eth-only query) has nothing to add.
-    useQuery: () => ({ data: null, error: null, isLoading: false }),
+    useQuery: (options: { queryKey: readonly unknown[] }) =>
+      options.queryKey[0] === 'get-ens-owner'
+        ? ownerQuery
+        : // Availability (a .eth-only query) has nothing to add.
+          { data: null, isLoading: false, error: null },
   }
 })
 vi.mock('@/features/profile/hooks/useGraceStatus', () => ({
@@ -45,9 +58,35 @@ vi.mock('@/features/renew/hooks/useCanExtend', () => ({
 vi.mock('@/features/transfer/hooks/useCanTransferName', () => ({
   useCanTransferName: () => ({ canTransfer: false }),
 }))
+vi.mock('@/features/transfer/hooks/useCanTransfer', () => ({
+  useCanTransfer: () => false,
+}))
 vi.mock('@/features/dns-import/components/DnsClaimableMessage', () => ({
   DnsClaimableMessage: ({ name }: { name: string }) => (
     <div data-testid="dns-claimable" data-name={name} />
+  ),
+}))
+vi.mock('@/features/history/components/HistoryTimeline', () => ({
+  HistoryTimeline: () => null,
+}))
+vi.mock('@/features/profile/components/ExpiryWithRegistrationData', () => ({
+  ExpiryWithRegistrationData: () => null,
+}))
+vi.mock('@/features/profile/components/ParentName', () => ({
+  ParentName: () => null,
+}))
+vi.mock('@/features/ownership/components/ReclaimManagerButton', () => ({
+  ReclaimManagerButton: () => null,
+}))
+vi.mock('@/features/ownership/components/V1NameManagerRecord', () => ({
+  V1NameManagerRecord: () => <div data-testid="manager-row" />,
+}))
+
+// The row's own V1-vs-V2 behaviour is covered in NameOwnerRow.test.tsx; this
+// route only has to hand it the name and the protocol it resolved.
+vi.mock('@/features/ownership/components/NameOwnerRow', () => ({
+  NameOwnerRow: (props: Record<string, unknown>) => (
+    <div data-testid="owner-row">{JSON.stringify(props)}</div>
   ),
 }))
 
@@ -59,6 +98,7 @@ const OwnershipRoute = (
 
 beforeEach(() => {
   routeName = 'jobintime.xyz'
+  ownerQuery = { data: null, isLoading: false, error: null }
 })
 
 describe('ownership route', () => {
@@ -80,5 +120,49 @@ describe('ownership route', () => {
 
     expect(screen.getByText('Name not registered')).toBeInTheDocument()
     expect(screen.queryByTestId('dns-claimable')).not.toBeInTheDocument()
+  })
+})
+
+describe('ownership route — Owner row', () => {
+  const resolveAs = (protocolVersion: 'ENSv1' | 'ENSv2') => {
+    routeName = 'alice.eth'
+    ownerQuery = {
+      // `resolveEnsOwner` reports the controller for an unwrapped 2LD.
+      data: { owner: CONTROLLER, registryAddress: REGISTRY, protocolVersion },
+      isLoading: false,
+      error: null,
+    }
+  }
+
+  it('delegates the V1 owner row to the shared component', () => {
+    resolveAs('ENSv1')
+
+    render(<OwnershipRoute />)
+
+    expect(screen.getByTestId('owner-row')).toHaveTextContent(
+      JSON.stringify({
+        name: 'alice.eth',
+        label: 'Owner',
+        owner: CONTROLLER,
+        protocolVersion: 'ENSv1',
+      }),
+    )
+    expect(screen.getByTestId('manager-row')).toBeInTheDocument()
+  })
+
+  it('passes the resolved owner through for a V2 name', () => {
+    resolveAs('ENSv2')
+
+    render(<OwnershipRoute />)
+
+    expect(screen.getByTestId('owner-row')).toHaveTextContent(
+      JSON.stringify({
+        name: 'alice.eth',
+        label: 'Owner',
+        owner: CONTROLLER,
+        protocolVersion: 'ENSv2',
+      }),
+    )
+    expect(screen.queryByTestId('manager-row')).not.toBeInTheDocument()
   })
 })

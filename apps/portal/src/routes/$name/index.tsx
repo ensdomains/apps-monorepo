@@ -13,10 +13,10 @@ import { DnsClaimableMessage } from '@/features/dns-import/components/DnsClaimab
 import { RecentHistoryTimeline } from '@/features/history/components/RecentHistoryTimeline'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
+import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
-import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
 import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
 import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
@@ -392,9 +392,10 @@ const Profile = ({
             name={name}
             protocolVersion={resolvedProtocolVersion}
           />
-          <Owner
+          <NameOwnerRow
+            name={name}
             owner={ownerQuery.data.owner}
-            asRow
+            protocolVersion={resolvedProtocolVersion}
             label={grace.isInGrace ? 'Previous owner' : 'Owner'}
           />
           <ParentName name={name} asRow />

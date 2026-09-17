@@ -43,6 +43,11 @@ msgstr "{0, plural, one {Upgrade your name to unlock your new ENS profile and cl
 msgid "{0, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
 msgstr "{0, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
 
+#. placeholder {0}: selectedNames.length
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
+msgstr "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
+
 #. placeholder {0}: steps.length
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
@@ -74,6 +79,10 @@ msgstr "{0} years"
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "{0}% discount"
 msgstr "{0}% discount"
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "{completedNameCount, plural, one {Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed.} other {Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed.}}"
+msgstr "{completedNameCount, plural, one {Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed.} other {Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed.}}"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Approve # name} other {Approve # names}}"
@@ -861,8 +870,8 @@ msgid "Downloading artwork…"
 msgstr "Downloading artwork…"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Each batch of names is upgraded in a single transaction. If any part of that transaction fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
-msgstr "Each batch of names is upgraded in a single transaction. If any part of that transaction fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
+msgid "Each batch of your names is upgraded in a single transaction. If any part of a batch fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
+msgstr "Each batch of your names is upgraded in a single transaction. If any part of a batch fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/view/ProfileEditAction.tsx
@@ -1555,6 +1564,10 @@ msgstr "Not enough USDC. This registration needs {0} USDC but your wallet holds 
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Not supported"
 msgstr "Not supported"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Nothing has been lost. Contact ENS support before trying again."
+msgstr "Nothing has been lost. Contact ENS support before trying again."
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx
 #: src/features/notifications/inbox/list.tsx
@@ -2341,8 +2354,8 @@ msgid "Some names could not be loaded"
 msgstr "Some names could not be loaded"
 
 #: src/features/migration/components/SelectNamesStep.tsx
-msgid "Something about your names changed since you last tried, so we can’t safely pick up where you left off."
-msgstr "Something about your names changed since you last tried, so we can’t safely pick up where you left off."
+msgid "Something about your names changed since you last tried, so we can't safely pick up where you left off."
+msgstr "Something about your names changed since you last tried, so we can't safely pick up where you left off."
 
 #: src/features/bulk-renew/components/FailureStep.tsx
 msgid "Something went wrong"
@@ -2942,8 +2955,8 @@ msgid "We couldn't read your current records."
 msgstr "We couldn't read your current records."
 
 #: src/features/migration/pages/MigrationPage.tsx
-msgid "We couldn't safely retry. Contact ENS support before trying again."
-msgstr "We couldn't safely retry. Contact ENS support before trying again."
+msgid "We couldn't safely retry. Nothing was submitted and nothing changed."
+msgstr "We couldn't safely retry. Nothing was submitted and nothing changed."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "We couldn't upgrade one of your names. Try again."
@@ -3139,14 +3152,6 @@ msgstr "Your name was registered, but we couldn't set it as your primary name. Y
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
 
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Your names are safe."
-msgstr "Your names are safe."
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed."
-msgstr "Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed."
-
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "Your names, text records, and addresses will be carried over during the upgrade"
 msgstr "Your names, text records, and addresses will be carried over during the upgrade"
@@ -3178,10 +3183,6 @@ msgstr "Your registration is in progress. Leaving may interrupt it. Are you sure
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
-
-#: src/features/migration/components/SelectNamesStep.tsx
-msgid "Your saved progress is unchanged. Contact ENS support before trying again."
-msgstr "Your saved progress is unchanged. Contact ENS support before trying again."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your saved upgrade needs attention"

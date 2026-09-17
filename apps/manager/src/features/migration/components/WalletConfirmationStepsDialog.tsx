@@ -183,8 +183,8 @@ export const WalletConfirmationStepsDialog = ({
 
         <p className="text-pretty px-5 pt-2 pb-5 text-ens-garnet-800/70 text-xs leading-normal sm:px-6 sm:pb-6">
           <Trans>
-            Each batch of names is upgraded in a single transaction. If any part
-            of that transaction fails, no changes from that batch are applied.
+            Each batch of your names is upgraded in a single transaction. If any
+            part of a batch fails, no changes from that batch are applied.
             Earlier completed batches and permissions stay in place. Nothing is
             signed automatically, so review every request in your wallet.
           </Trans>
