@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock } from 'lucide-react'
 import { useMemo } from 'react'
-import { type Address, type Hash, isAddress, isAddressEqual } from 'viem'
+import { type Address, isAddress, isAddressEqual } from 'viem'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { HistorySectionHeader } from '@/components/HistorySectionHeader'
@@ -15,7 +15,6 @@ import { getV2HistoryForAddressQueryOptions } from '@/features/address/component
 import { selectAcquiredNames } from '@/features/address/nameAttribution'
 import { NameList } from '@/features/dashboard/components/NameList'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
-import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { cn } from '@/lib/utils'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { groupAddressHistoryByName } from '@/utils/history/transformAddressHistory'
@@ -76,25 +75,18 @@ const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
     [v2Names],
   )
 
-  const transactionHashes = useMemo(
-    () =>
-      groups.flatMap((group) =>
-        group.events.map((event) => event.transactionID as Hash),
-      ),
-    [groups],
-  )
-
-  // The same attribution, off the same sender data, as the full history page — so a
-  // name counted as the address's own there is not missing here.
-  const { data: senders } = useTransactionSenders({ transactionHashes })
-
+  // Structural attribution only: judging a name by who sent its transactions costs
+  // one `getTransaction` per event, and an attacker controls how many events a
+  // planted name has — an unbounded RPC burst on a page anyone can load for any
+  // address. The cost is that a subname the address really uses is missing from this
+  // teaser; it is one click away, correctly attributed, under "Full history".
   const recentEvents = useMemo(
     () =>
-      selectAcquiredNames(groups, address, senders)
+      selectAcquiredNames(groups, address, undefined)
         .flatMap((group) => group.events)
         .toSorted((a, b) => b.blockNumber - a.blockNumber)
         .slice(0, RECENT_EVENT_LIMIT),
-    [groups, address, senders],
+    [groups, address],
   )
 
   return (

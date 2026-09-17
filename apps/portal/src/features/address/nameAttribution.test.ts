@@ -9,7 +9,7 @@ import { partitionAddressHistory, selectAcquiredNames } from './nameAttribution'
 const VICTIM = '0x1111111111111111111111111111111111111111' as Address
 const ATTACKER = '0x2222222222222222222222222222222222222222' as Address
 
-const senders = (entries: Array<[string, Address]>) =>
+const senders = (entries: readonly (readonly [string, Address])[]) =>
   new Map<string, Address>(entries)
 
 /**
