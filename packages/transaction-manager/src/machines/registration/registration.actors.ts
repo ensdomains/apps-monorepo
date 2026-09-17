@@ -34,10 +34,10 @@ import {
   zeroAddress,
 } from 'viem'
 import { getBlock, multicall, readContract } from 'viem/actions'
-import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
+import { requireChainId } from '../../helpers/requireChainId'
 
 // `MIN_COMMITMENT_AGE` is an immutable on ETHRegistrar; ensjs-abi does not (yet)
 // expose a dedicated snippet for it.
@@ -350,7 +350,7 @@ export function submitResolverDeploymentActor(input: {
   publicClient: PublicClient
   id?: string
 }): ResultAsync<{ txId: string; salt: bigint }, Error> {
-  return ResultAsync.fromSafePromise(
+  return ResultAsync.fromPromise(
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
       const salt = generateResolverSalt(input.name)
@@ -358,7 +358,7 @@ export function submitResolverDeploymentActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        chainId: requireChainId(input.publicClient, 'registration'),
         calls: [
           encodeDeployDedicatedResolverCall({ owner: input.owner, salt }),
         ],
@@ -380,7 +380,6 @@ export function submitResolverDeploymentActor(input: {
 
       return { txId, salt }
     }),
-  ).mapErr(
     (error) => new Error(`Failed to submit resolver deployment: ${error}`),
   )
 }
@@ -495,7 +494,7 @@ export function submitCommitmentActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        chainId: requireChainId(input.publicClient, 'registration'),
         calls: [
           {
             to: registrarAddress,
@@ -834,7 +833,7 @@ export function submitApprovalActor(input: {
   const registrarAddress =
     input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
-  return ResultAsync.fromSafePromise(
+  return ResultAsync.fromPromise(
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
 
@@ -855,7 +854,7 @@ export function submitApprovalActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        chainId: requireChainId(input.publicClient, 'registration'),
         calls: [
           {
             to: normalizedTokenAddress,
@@ -881,7 +880,8 @@ export function submitApprovalActor(input: {
 
       return txId
     }),
-  ).mapErr((error) => new Error(`Failed to submit approval: ${error}`))
+    (error) => new Error(`Failed to submit approval: ${error}`),
+  )
 }
 
 /**
@@ -933,7 +933,7 @@ export function submitRegistrationActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        chainId: requireChainId(input.publicClient, 'registration'),
         calls: [registerCall],
       })
 
@@ -1053,12 +1053,11 @@ export function submitRenewActor(input: {
   // Renewal is NOT an HCA flow — it is a plain wallet transaction against the
   // selected canonical renewer. V2 callers keep the ETHRegistrar default;
   // unmigrated V1 names explicitly target ETHRenewerV1.
-  const chainId = input.publicClient.chain?.id ?? sepolia.id
-  const renewerAddress =
-    input.renewerAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-
   return fromPromise(
     (async () => {
+      const chainId = requireChainId(input.publicClient, 'registration')
+      const renewerAddress =
+        input.renewerAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
       const accountAddress = getSignerAddress(input.signer)
 
       // The registrar only accepts its own PAYMENT_TOKEN /

@@ -3,12 +3,13 @@ import type {
   OwnedNamesCountQueryVariables,
 } from '@ens-apps/indexer'
 import { OwnedNamesCountDocument } from '@ens-apps/indexer'
-import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
+import { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { ok, ResultAsync } from 'neverthrow'
+import { indexerClient } from '@/lib/indexer-client'
 
 export class GetOwnedNamesCountError extends TaggedError(
   'GetOwnedNamesCountError',

@@ -123,6 +123,9 @@ importers:
 
   apps/manager:
     dependencies:
+      '@ens-apps/config':
+        specifier: workspace:^
+        version: link:../../packages/config
       '@ens-apps/dev-dqa-overlay':
         specifier: workspace:*
         version: link:../../packages/dev-dqa-overlay
@@ -433,6 +436,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.1.0
         version: 1.1.0(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@ens-apps/config':
+        specifier: workspace:^
+        version: link:../../packages/config
       '@ens-apps/dev-dqa-overlay':
         specifier: workspace:*
         version: link:../../packages/dev-dqa-overlay
@@ -717,6 +723,28 @@ importers:
       tsx:
         specifier: ^4.20.6
         version: 4.21.0
+
+  packages/config:
+    dependencies:
+      '@ensdomains/ensjs':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@029b5f9(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))
+      valibot:
+        specifier: ^1.2.0
+        version: 1.2.0(typescript@7.0.2)
+      viem:
+        specifier: 'catalog:'
+        version: 2.52.2(typescript@7.0.2)(zod@4.4.3)
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.2
+        version: 24.10.2
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(happy-dom@20.13.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
 
   packages/dev-dqa-overlay:
     devDependencies:

@@ -1,40 +1,25 @@
-import {
-  orderedSepoliaRpcUrls,
-  WALLETCONNECT_PROJECT_ID,
-} from '@ens-apps/indexer/chain'
-import { extendChainWithEns } from '@ensdomains/ensjs/chain'
+import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/config'
 import { walletConnect } from '@wagmi/connectors'
 import { createClient, fallback, http } from 'viem'
-import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
+import { config } from '@/config'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
+/**
+ * wagmi wiring. The network, chain and RPC endpoints are resolved in
+ * `@/config`; this module only turns them into clients.
+ *
+ * Browser-only (`ssr: false`). The SSR/OG worker reads its own Cloudflare
+ * secret and builds a separate client; see `worker/clients.ts`.
+ */
+
 export { WALLETCONNECT_PROJECT_ID }
 
-// Portal owns its Sepolia RPC URL — it must NOT reuse the RPC URL exported by
-// `@ens-apps/indexer/chain`, so each app's DRPC key is attributed separately.
-// This key is shipped in the browser bundle and is therefore not secret; it
-// only scopes quota/usage to the portal app. An optional build-time override
-// (`VITE_SEPOLIA_RPC_URL`) takes precedence when provided.
-//
-// This config is browser-only (`wagmiConfig` is `ssr: false`); the SSR/OG
-// worker does not use it and reads its own Cloudflare secret instead (see
-// `worker/clients.ts`), so no server-side RPC resolution is needed here.
-const PORTAL_SEPOLIA_RPC_URL =
-  'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j'
-
-export const SEPOLIA_RPC_URL: string =
-  import.meta.env?.VITE_SEPOLIA_RPC_URL || PORTAL_SEPOLIA_RPC_URL
-
-// Failover to the shared public endpoints (see SEPOLIA_FALLBACK_RPC_URLS in
-// @ens-apps/indexer/chain for the rationale and provider choice). The portal's
-// own RPC URL stays the preferred (primary) endpoint so quota/usage is still
-// attributed to the portal app.
-const SEPOLIA_RPC_URLS = orderedSepoliaRpcUrls(SEPOLIA_RPC_URL)
-
+// Failover across the app's attributed primary and the network's shared
+// public endpoints.
 export const sepoliaFallbackTransport = fallback(
-  SEPOLIA_RPC_URLS.map((url) =>
+  config.rpcUrls.map((url) =>
     http(url, {
       retryCount: 2,
       batch: {
@@ -47,15 +32,7 @@ export const sepoliaFallbackTransport = fallback(
   { rank: false, retryCount: 2 },
 )
 
-export const customSepolia = {
-  ...sepolia,
-  rpcUrls: {
-    default: { http: [...SEPOLIA_RPC_URLS] },
-    public: { http: [...SEPOLIA_RPC_URLS] },
-  },
-}
-
-export const sepoliaWithEns = extendChainWithEns(customSepolia)
+export const sepoliaWithEns = config.chain
 
 // Injected wallets (MetaMask, Coinbase extension, Rabby, …) are discovered via
 // EIP-6963, so WalletConnect is the only explicit connector. We skip the

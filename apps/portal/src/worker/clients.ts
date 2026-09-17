@@ -1,19 +1,15 @@
-import { orderedSepoliaRpcUrls, sepoliaWithEns } from '@ens-apps/indexer/chain'
+import { orderedRpcUrls } from '@ens-apps/config'
 import { createPublicClient, fallback, http } from 'viem'
-
-// Public, keyless Sepolia endpoint used as the default primary when the
-// SEPOLIA_RPC_URL secret is not configured (e.g. `wrangler dev` without a
-// `.dev.vars`). Production sets SEPOLIA_RPC_URL as a Worker secret.
-const DEFAULT_SEPOLIA_RPC_URL = 'https://sepolia.drpc.org'
+import { config } from '@/config'
 
 export function createClient(env: Env) {
-  // Failover to the shared public endpoints (SEPOLIA_FALLBACK_RPC_URLS in
-  // @ens-apps/indexer/chain) — a failed OG/SSR read means a broken preview card.
-  const urls = orderedSepoliaRpcUrls(
-    env.SEPOLIA_RPC_URL || DEFAULT_SEPOLIA_RPC_URL,
-  )
+  // Unlike the browser bundle, the worker resolves its primary at request time
+  // from a Cloudflare secret. The network's shared public fallbacks sit behind
+  // it, and are used alone when the secret is unset (e.g. `wrangler dev`
+  // without a `.dev.vars`) — a failed OG/SSR read means a broken preview card.
+  const urls = orderedRpcUrls(env.SEPOLIA_RPC_URL, config.rpcFallbacks)
   return createPublicClient({
-    chain: sepoliaWithEns,
+    chain: config.chain,
     // rank: false keeps the declared order (secret-configured primary first).
     transport: fallback(
       urls.map((url) => http(url, { retryCount: 2 })),

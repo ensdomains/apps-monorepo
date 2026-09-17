@@ -31,6 +31,9 @@ jobs:
 
       - name: Build Portal app
         run: pnpm build:portal
+        env:
+          VITE_ENS_NETWORK: ${{ vars.VITE_ENS_NETWORK || 'sepolia' }}
+          VITE_INDEXER_GRAPHQL_URL: ${{ vars.VITE_INDEXER_GRAPHQL_URL }}
 
       - name: Verify build output
         run: |

@@ -63,6 +63,7 @@ jobs:
         if: steps.changed.outputs.has_apps == 'true'
         env:
           VITE_RHINESTONE_API_KEY: ${{ vars.VITE_RHINESTONE_API_KEY }}
+          VITE_ENS_NETWORK: ${{ vars.VITE_ENS_NETWORK || 'sepolia' }}
         run: |
           echo "🏗️ Building changed apps and dependents..."
           pnpm --filter="...[${{ steps.base.outputs.ref }}]" --if-present build
@@ -71,6 +72,7 @@ jobs:
         if: steps.changed.outputs.has_apps == 'false'
         env:
           VITE_RHINESTONE_API_KEY: ${{ vars.VITE_RHINESTONE_API_KEY }}
+          VITE_ENS_NETWORK: ${{ vars.VITE_ENS_NETWORK || 'sepolia' }}
         run: |
           echo "🏗️ No apps changed, building all apps..."
           pnpm --filter=portal --filter=manager --if-present build

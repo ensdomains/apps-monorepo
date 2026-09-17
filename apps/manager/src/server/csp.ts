@@ -9,8 +9,8 @@
  * PostHog via `report-to` / `report-uri` + `Reporting-Endpoints`.
  */
 
-import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
 import { ensL1Subgraphs } from '@ensdomains/ensjs/chain'
+import { config } from '@/config'
 import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
 
 /**
@@ -63,11 +63,13 @@ const SUBGRAPH_ORIGINS = Object.values(ensL1Subgraphs).map(
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
 const DEFAULT_CONNECT_HOSTS = [
-  // Manager Sepolia RPC primary — src/lib/wagmi.ts
-  'https://lb.drpc.live',
-  // Public RPC failover endpoints — same source as viem transports
-  // (@ens-apps/indexer/chain SEPOLIA_FALLBACK_RPC_URLS).
-  ...SEPOLIA_FALLBACK_RPC_URLS.map((url) => new URL(url).origin),
+  // Every RPC endpoint the viem transports may use: the app's attributed
+  // primary plus the network's shared fallbacks. Derived from the same config
+  // the transports read, so an endpoint change can never be silently blocked.
+  // Relative primaries (`/rpc` in e2e) yield null and are covered by 'self'.
+  ...config.rpcUrls
+    .map(originFromEnvUrl)
+    .filter((origin): origin is string => origin !== null),
   // ENS-owned hosts: indexer GraphQL, backend API (VITE_API_URL /
   // app-api.ens.dev), v1 subgraph (v1-graphql.ens.dev). Wildcarded so
   // per-deployment / per-env *.ens.dev hosts don't silently break a flow.

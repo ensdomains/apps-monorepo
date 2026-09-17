@@ -183,7 +183,8 @@ export type TransactionIntent =
  * Config interface for the Rhinestone smart-account signer.
  */
 export type SmartAccountConfig = {
-  chain?: Chain
+  /** Required: a missing chain must fail loudly, never fall back to a default network. */
+  chain: Chain
   accountAddress?: Address
   rhinestoneApiKey: string
 }

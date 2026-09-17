@@ -1,8 +1,9 @@
 import type { EacRoleAssignment } from '@ens-apps/indexer'
-import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
+import { graphqlRequest } from '@ens-apps/indexer/urql'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { queryOptions, skipToken } from '@tanstack/react-query'
+import { indexerClient } from '@/lib/indexer-client'
 import type { V2RoleAssignment } from '../../v2NameRoles'
 
 type DashboardRoleAssignmentsQuery = {

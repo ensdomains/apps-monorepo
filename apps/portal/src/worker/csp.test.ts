@@ -1,5 +1,5 @@
-import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
 import { describe, expect, it } from 'vitest'
+import { config } from '@/config'
 import {
   cspMetaTag,
   cspWithFrameAncestors,
@@ -64,10 +64,10 @@ describe('csp', () => {
 
     it('allowlists every shared RPC failover origin', () => {
       // The viem transports (lib/wagmi.ts, worker/clients.ts) fail over to
-      // SEPOLIA_FALLBACK_RPC_URLS; a fallback origin missing here means the
+      // config.rpcFallbacks; a fallback origin missing here means the
       // browser blocks the request and the failover silently does nothing in
       // production. Derived from the same export so the two can't drift.
-      for (const url of SEPOLIA_FALLBACK_RPC_URLS) {
+      for (const url of config.rpcFallbacks) {
         expect(connectSrc).toContain(new URL(url).origin)
       }
       // The keyed dRPC primary stays allowlisted alongside the fallbacks.

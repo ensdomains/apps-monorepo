@@ -50,7 +50,7 @@ import {
   stringToHex,
 } from 'viem'
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
-import { sepolia } from 'viem/chains'
+import { requireChainId } from '../../helpers/requireChainId'
 import { transactionManager } from '../../providers/transactionManager'
 import type { RhinestoneSigner, Signer } from '../../types/signer.types'
 import type {
@@ -725,7 +725,7 @@ export function submitFundingAndCommitActor(input: {
 > {
   return fromPromise(
     (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
+      const chainId = requireChainId(input.publicClient, 'HCA registration')
       const contracts = getDestinationContracts(chainId)
       const label = cleanLabel(input.name)
 
@@ -838,7 +838,7 @@ export function verifyHcaRegistrationActor(input: {
 }): ResultAsync<{ verified: boolean }, Error> {
   return fromPromise(
     (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
+      const chainId = requireChainId(input.publicClient, 'HCA registration')
       const contracts = getDestinationContracts(chainId)
       const label = cleanLabel(input.name)
       const expectedResolver = computeResolverAddress({
@@ -891,7 +891,7 @@ export function submitRevealBatchActor(input: {
 }): ResultAsync<string, Error> {
   return fromPromise(
     (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
+      const chainId = requireChainId(input.publicClient, 'HCA registration')
       const label = cleanLabel(input.name)
 
       const resolverAddress = computeResolverAddress({
