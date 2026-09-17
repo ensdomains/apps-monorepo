@@ -23,7 +23,7 @@ export const CommemorativeNftDashboardCard = ({
       active={active}
       interactive={false}
       state={{ status: 'minted', card }}
-      variant="dialog"
+      variant="dashboard"
     />
   </section>
 )

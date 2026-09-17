@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as config from './config'
 import {
   buildCommemorativeNftMarketplaceUrl,
-  buildCommemorativeNftProfileUrl,
+  buildCommemorativeNftPublicUrl,
   buildCommemorativeNftShareUrls,
   isCommemorativeNftCanonicalProfile,
 } from './sharing'
@@ -60,28 +60,16 @@ describe('commemorative NFT sharing', () => {
     }
   })
 
-  it('builds a Manager profile fallback on the active environment', () => {
-    expect(buildCommemorativeNftProfileUrl('Yoginth.eth.')).toBe(
-      new URL('/p/yoginth.eth', window.location.origin).toString(),
+  it.each([
+    'https://nft.ens.dev',
+    'https://renderer.example/',
+    'http://localhost:4000',
+  ])('builds the standalone NFT URL on %s', (rendererOrigin) => {
+    expect(
+      buildCommemorativeNftPublicUrl({ ownerAddress, rendererOrigin }),
+    ).toBe(
+      `${new URL(rendererOrigin).origin}/nft/?tokenId=46455108410614081663945406319915307572171076188378075311311703967581922008221`,
     )
-    expect(
-      buildCommemorativeNftProfileUrl(
-        'Yoginth.eth.',
-        'https://staging.example/',
-      ),
-    ).toBe('https://staging.example/p/yoginth.eth')
-    expect(
-      buildCommemorativeNftProfileUrl(
-        'Yoginth.eth.',
-        'https://app.ens.domains',
-      ),
-    ).toBe('https://app.ens.domains/p/yoginth.eth')
-    expect(
-      buildCommemorativeNftProfileUrl(
-        'hello world.eth',
-        'https://app.ens.domains',
-      ),
-    ).toBe('https://app.ens.domains/p/hello%20world.eth')
   })
 
   it('does not expose OpenSea before minting', () => {

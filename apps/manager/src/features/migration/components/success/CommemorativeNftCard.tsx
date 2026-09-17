@@ -1,9 +1,4 @@
-import {
-  type IconType,
-  SiOpensea,
-  SiTelegram,
-  SiX,
-} from '@icons-pack/react-simple-icons'
+import { SiOpensea, SiTelegram, SiX } from '@icons-pack/react-simple-icons'
 import { Trans } from '@lingui/react/macro'
 import { useReducedMotion } from 'motion/react'
 import {
@@ -23,6 +18,7 @@ import {
 import { trackNftEvent } from '../../commemorative-nft/diagnostics'
 import { CommemorativeNftRendererSurface } from './CommemorativeNftRendererSurface'
 import { CommemorativeNftSurpriseCard } from './CommemorativeNftSurpriseCard'
+import { CommemorativeNftTraitsTooltip } from './CommemorativeNftTraitsTooltip'
 import type {
   CommemorativeNftCardData,
   MigrationSuccessDialogState,
@@ -33,8 +29,9 @@ import { useNftAssetDownload } from './useNftAssetDownload'
 import { useNftReveal } from './useNftReveal'
 
 type SocialControlProps = {
+  readonly disabled: boolean
   readonly href?: string
-  readonly icon: IconType
+  readonly icon: ReactNode
   readonly onClick?: () => void
   readonly children: ReactNode
 }
@@ -51,12 +48,13 @@ const hasCardData = (
 ): state is CardDialogState => 'card' in state && !!state.card
 
 const SocialControl = ({
+  disabled,
   href,
-  icon: Icon,
+  icon,
   onClick,
   children,
 }: SocialControlProps) => {
-  if (href) {
+  if (href && !disabled) {
     return (
       <a
         className={socialControlClassName}
@@ -64,7 +62,7 @@ const SocialControl = ({
         rel="noreferrer"
         target="_blank"
       >
-        <Icon aria-hidden className="size-4.5" />
+        {icon}
         <span className="sr-only">{children}</span>
       </a>
     )
@@ -73,17 +71,23 @@ const SocialControl = ({
   return (
     <button
       className={socialControlClassName}
-      disabled={!onClick}
+      disabled={disabled || !onClick}
       onClick={onClick}
       type="button"
     >
-      <Icon aria-hidden className="size-4.5" />
+      {icon}
       <span className="sr-only">{children}</span>
     </button>
   )
 }
 
-const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
+const SharingRail = ({
+  disabled,
+  state,
+}: {
+  readonly disabled: boolean
+  readonly state: CardDialogState
+}) => {
   const { copy } = useCopyFeedback()
   const externalUrl = state.card.shareUrls.external
   const hasDownload = state.status === 'minted' && !!state.card.assets.imageUrl
@@ -94,20 +98,45 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
       <legend className="sr-only">
         <Trans>NFT actions</Trans>
       </legend>
-      <SocialControl href={state.card.shareUrls.x} icon={SiX}>
+      <SocialControl
+        disabled={disabled}
+        href={state.card.shareUrls.x}
+        icon={<SiX aria-hidden className="size-4.5" />}
+      >
         <Trans>Share on X</Trans>
       </SocialControl>
-      <SocialControl href={state.card.shareUrls.telegram} icon={SiTelegram}>
+      <SocialControl
+        disabled={disabled}
+        href={state.card.shareUrls.telegram}
+        icon={<SiTelegram aria-hidden className="size-4.5" />}
+      >
         <Trans>Share on Telegram</Trans>
       </SocialControl>
       {state.card.marketplaceUrl ? (
-        <SocialControl href={state.card.marketplaceUrl} icon={SiOpensea}>
+        <SocialControl
+          disabled={disabled}
+          href={state.card.marketplaceUrl}
+          icon={<SiOpensea aria-hidden className="size-4.5" />}
+        >
           <Trans>View on OpenSea</Trans>
         </SocialControl>
       ) : null}
+      <SocialControl
+        disabled={disabled}
+        href={externalUrl}
+        icon={
+          <MSymbol
+            aria-hidden
+            className="ms-wght-500 text-[20px]"
+            symbol="arrow_outward"
+          />
+        }
+      >
+        <Trans>Open NFT in a new tab</Trans>
+      </SocialControl>
       <button
         className={socialControlClassName}
-        disabled={!externalUrl}
+        disabled={disabled || !externalUrl}
         onClick={() => externalUrl && void copy(externalUrl)}
         type="button"
       >
@@ -123,7 +152,7 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
       <button
         aria-busy={pending}
         className={socialControlClassName}
-        disabled={!hasDownload || pending}
+        disabled={disabled || !hasDownload || pending}
         onClick={download}
         type="button"
       >
@@ -144,10 +173,53 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
   )
 }
 
-type CardVariant = 'dialog' | 'profile'
+type CardVariant = 'dialog' | 'profile' | 'dashboard'
 export type CommemorativeNftArtworkStatus = 'loading' | 'ready' | 'error'
 
 type ArtworkStatusCallback = (status: CommemorativeNftArtworkStatus) => void
+
+const ArtworkActions = ({
+  disabled,
+  state,
+  variant,
+}: {
+  readonly disabled: boolean
+  readonly state: CardDialogState
+  readonly variant: CardVariant
+}) => {
+  if (state.status !== 'minted') return null
+
+  return (
+    <div
+      className={cn(
+        'absolute left-full ml-3 flex flex-col',
+        variant === 'profile'
+          ? 'top-1/2 -translate-y-1/2'
+          : 'bottom-0 min-h-full justify-between gap-3',
+      )}
+    >
+      <SharingRail disabled={disabled} state={state} />
+      {variant === 'profile' ? null : (
+        <CommemorativeNftTraitsTooltip traits={state.card.eligibility.traits} />
+      )}
+    </div>
+  )
+}
+
+const cardFrameStyles = {
+  dialog: {
+    frame: 'h-[310px]',
+    artwork: 'aspect-[193/273] w-[min(193px,calc(100%-7rem))]',
+  },
+  profile: {
+    frame: 'h-[308px]',
+    artwork: 'aspect-[200/282] w-[min(200px,calc(100%-7rem))]',
+  },
+  dashboard: {
+    frame: 'h-92',
+    artwork: 'aspect-[193/273] w-[min(224px,calc(100%-7rem))]',
+  },
+} as const
 
 const CardFrame = ({
   children,
@@ -161,7 +233,7 @@ const CardFrame = ({
   <div
     className={cn(
       'flex w-full items-center justify-center',
-      variant === 'dialog' ? 'h-[310px]' : 'h-[308px]',
+      cardFrameStyles[variant].frame,
     )}
     ref={frameRef}
   >
@@ -169,10 +241,8 @@ const CardFrame = ({
       className={cn(
         // Equal space on both sides keeps the artwork centered. The sharing
         // rail sits outside this frame instead of shifting the card left.
-        'relative',
-        variant === 'dialog'
-          ? 'aspect-[193/273] w-[min(193px,calc(100%-7rem))]'
-          : 'aspect-[200/282] w-[min(200px,calc(100%-7rem))]',
+        'group/nft-card relative',
+        cardFrameStyles[variant].artwork,
       )}
     >
       {children}
@@ -278,9 +348,10 @@ const ArtworkCard = ({
       >
         <ArtworkLoading />
       </div>
+      {/* Let outside taps dismiss traits before interacting with the iframe. */}
       <div
         className={cn(
-          'absolute inset-0 transition-opacity duration-600 ease-out data-[revealing=true]:overflow-hidden data-[revealing=true]:rounded-lg motion-reduce:transition-none',
+          'absolute inset-0 transition-opacity duration-600 ease-out group-has-[[data-nft-traits-trigger][data-state=open]]/nft-card:pointer-events-none data-[revealing=true]:overflow-hidden data-[revealing=true]:rounded-lg motion-reduce:transition-none',
           showArtwork ? 'opacity-100' : 'opacity-0',
         )}
         data-revealing={reveal.running}
@@ -341,9 +412,11 @@ const ArtworkCard = ({
         </div>
       ) : null}
       {presentationReady ? (
-        <div className="absolute top-1/2 left-full ml-3 -translate-y-1/2">
-          <SharingRail state={state} />
-        </div>
+        <ArtworkActions
+          disabled={artwork.animationPending}
+          state={state}
+          variant={variant}
+        />
       ) : null}
     </CardFrame>
   )

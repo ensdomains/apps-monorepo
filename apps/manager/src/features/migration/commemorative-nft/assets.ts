@@ -40,6 +40,9 @@ export const downloadCommemorativeNftImage = async (params: {
     const blob = await withRequestDeadline(
       async (signal) => {
         const response = await (params.fetcher ?? fetch)(params.assetUrl, {
+          // The displayed image may have cached a response without CORS
+          // headers. Fetch a fresh CORS response for the downloadable blob.
+          cache: 'reload',
           signal,
         })
         if (!response.ok) {
