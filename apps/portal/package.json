@@ -109,6 +109,7 @@
     "@vitest/coverage-v8": "catalog:",
     "happy-dom": "catalog:",
     "tailwindcss": "^4.2.4",
+    "tsx": "^4.21.0",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",
