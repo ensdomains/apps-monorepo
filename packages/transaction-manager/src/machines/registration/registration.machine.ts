@@ -5,6 +5,7 @@ import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import type { TOKEN_SYMBOL } from '../../contracts/ens-sepolia'
 import type { Signer } from '../../types/signer.types'
+import { isRetryableSubmissionError } from '../retry-policy'
 import {
   generateCommitmentActor,
   type PermitSignature,
@@ -990,15 +991,27 @@ export const registrationMachine = setup({
         // in `error`). Instead verify on-chain via `validatingCommitment`: if
         // `commitmentAt` is set we continue, otherwise that state's retry
         // resubmits the correct (signer-aware) commit path.
-        onError: {
-          target: 'validatingCommitment',
-          actions: ({ event }) => {
-            console.warn(
-              '⚠️ [REGISTRATION] Commitment receipt polling failed; verifying on-chain before retrying:',
-              event.error,
-            )
+        onError: [
+          // A declined commit never reached the chain: there is nothing to
+          // verify, and the retry below would just re-prompt the wallet.
+          {
+            guard: ({ event }) => !isRetryableSubmissionError(event.error),
+            target: 'error',
+            actions: assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'committingTransaction' as const,
+            }),
           },
-        },
+          {
+            target: 'validatingCommitment',
+            actions: ({ event }) => {
+              console.warn(
+                '⚠️ [REGISTRATION] Commitment receipt polling failed; verifying on-chain before retrying:',
+                event.error,
+              )
+            },
+          },
+        ],
       },
       on: {
         CANCEL: 'idle',
