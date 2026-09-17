@@ -607,6 +607,10 @@ msgstr ""
 msgid "Confirming the name is now owned by your account"
 msgstr ""
 
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Congratulations, you're among the first on ENSv2. This personalized NFT marks the moment."
+msgstr ""
+
 #: src/features/navigation/Header/desktop/DisconnectedRightBlock.tsx
 #: src/features/navigation/Header/mobile/MobileConnectButton.tsx
 msgid "Connect"
@@ -3134,10 +3138,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/PrimaryNameSetupNotice.tsx
 msgid "Your name was registered, but we couldn't set it as your primary name. You can set it anytime from your profile."
-msgstr ""
-
-#: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Your name(s) have been upgraded!"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx

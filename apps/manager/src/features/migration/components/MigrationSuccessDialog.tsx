@@ -36,21 +36,36 @@ type MigrationSuccessDialogProps = {
 
 const DialogHeading = ({
   context,
+  migratedNameCount,
+  state,
 }: {
   readonly context: MigrationSuccessDialogProps['context']
+  readonly migratedNameCount: number
+  readonly state: MigrationSuccessDialogState
 }) => (
   <div className="flex w-full max-w-[486px] shrink-0 flex-col items-center gap-2 text-center md:gap-4">
     <DialogTitle className="w-full text-balance font-normal font-serif text-[20px] text-ens-garnet-900 leading-[1.1] tracking-[-0.02em] md:text-[32px]">
       {context === 'migration' ? (
-        <Trans>Your name(s) have been upgraded!</Trans>
+        <Plural
+          one="Your name has been upgraded!"
+          other="Your names have been upgraded!"
+          value={migratedNameCount}
+        />
       ) : (
         <Trans>Your ENSv2 moment is waiting</Trans>
       )}
     </DialogTitle>
     <DialogDescription className="min-h-[3.6em] max-w-[400px] font-normal font-sans text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.01em] md:min-h-[2.4em]">
-      <Trans>
-        Here&apos;s a gift to celebrate your upgrade to the next era of ENS
-      </Trans>
+      {state.status === 'loadingEligibility' ? (
+        <Trans>
+          Here&apos;s a gift to celebrate your upgrade to the next era of ENS
+        </Trans>
+      ) : (
+        <Trans>
+          Congratulations, you&apos;re among the first on ENSv2. This
+          personalized NFT marks the moment.
+        </Trans>
+      )}
     </DialogDescription>
   </div>
 )
@@ -359,7 +374,11 @@ export const MigrationSuccessDialog = ({
             />
           ) : (
             <>
-              <DialogHeading context={context} />
+              <DialogHeading
+                context={context}
+                migratedNameCount={migratedNameCount}
+                state={state}
+              />
               <StatusContent
                 canMint={canMint}
                 canRetry={canRetry}
