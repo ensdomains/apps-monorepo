@@ -4,6 +4,7 @@ import {
   type GasAffordability,
   sumStepFees,
 } from '@ens-apps/utils/gasAffordability'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { fromThrowable } from 'neverthrow'
 import { useMemo } from 'react'
@@ -15,6 +16,25 @@ import type { WalletClientWithAccount } from '@/utils/types'
 import type { Transaction } from '../types'
 import { getStatus } from '../utils/getStatus'
 import { estimateGasForCall } from './useTransactionGasEstimate'
+
+type FlowGasEstimateParams = {
+  readonly chainId: number | undefined
+  readonly from: Address | undefined
+  readonly to: Address | undefined
+  readonly data: string | undefined
+  readonly value: string | undefined
+  readonly gas: string | undefined
+}
+
+const flowGasEstimateQueryKey = createQueryKey<
+  'flow-gas-estimate',
+  FlowGasEstimateParams
+>('flow-gas-estimate')
+
+const nativeBalanceQueryKey = createQueryKey<
+  'native-balance',
+  { readonly address: Address | undefined }
+>('native-balance')
 
 /**
  * Whether the connected wallet can pay for every step of a flow that has not
@@ -95,15 +115,14 @@ export function useFlowGasAffordability(params: {
 
   const gasQueries = useQueries({
     queries: preparedRequests.map((request) => ({
-      queryKey: [
-        'flow-gas-estimate',
-        request?.chainId,
-        request?.from,
-        request?.to,
-        request?.data,
-        request?.value?.toString(),
-        request?.gas?.toString(),
-      ] as const,
+      queryKey: flowGasEstimateQueryKey({
+        chainId: request?.chainId,
+        from: request?.from,
+        to: request?.to,
+        data: request?.data,
+        value: request?.value?.toString(),
+        gas: request?.gas?.toString(),
+      }),
       enabled: Boolean(request?.to && request?.data && publicClient),
       queryFn: (): Promise<bigint> => {
         if (!request || !publicClient) throw new Error('No call to estimate')
@@ -116,7 +135,9 @@ export function useFlowGasAffordability(params: {
   })
 
   const { data: balanceWei } = useQuery({
-    queryKey: ['native-balance', readyWalletClient?.account.address] as const,
+    queryKey: nativeBalanceQueryKey({
+      address: readyWalletClient?.account.address,
+    }),
     queryFn: () => {
       const address = readyWalletClient?.account.address as Address | undefined
       if (!address || !publicClient) return null
