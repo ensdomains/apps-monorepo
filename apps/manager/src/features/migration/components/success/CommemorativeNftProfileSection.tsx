@@ -31,11 +31,13 @@ const ProfileOffer = ({
   readonly canOpen: boolean
   readonly onOpen: () => void
 }) => (
+  // Match the surrounding profile sections' quarter-pixel border to keep content aligned.
   <section className="border-[0.25px] border-transparent bg-transparent px-5 py-6 lg:landscape:px-8 lg:landscape:pt-8 lg:landscape:pb-6">
     <div className="flex items-center justify-between gap-3">
       <h2 className="font-sans text-base text-ens-quartz-900 leading-normal">
         <Trans>ENSv2 commemorative NFT</Trans>
       </h2>
+      {/* The 10px label and 0.12em tracking keep the uppercase status compact beside the title; no matching typography token exists. */}
       <span className="rounded-full bg-ens-pink/10 px-2.5 py-1 font-semi-mono text-[10px] text-ens-garnet-500 uppercase tracking-[0.12em]">
         {status === 'minted' ? (
           <Trans>Minted</Trans>
@@ -48,6 +50,7 @@ const ProfileOffer = ({
     </div>
 
     {card ? (
+      // These pale pink stops keep the artwork backdrop subtle; the garnet scale has no exact equivalents.
       <div className="mt-4 overflow-hidden rounded-xl border border-ens-pink/15 bg-[linear-gradient(180deg,#fff5f8,#ffe6f0)] px-2 py-5">
         <CommemorativeNftCard
           active={active}
@@ -55,11 +58,13 @@ const ProfileOffer = ({
         />
       </div>
     ) : (
+      // The 110-degree wash follows the horizontal offer layout; these pale pink stops have no matching theme tokens.
       <div className="relative mt-4 overflow-hidden rounded-xl border border-ens-pink/20 bg-[linear-gradient(110deg,#fff5f8,#ffe0ec)] p-5">
         <div className="absolute -top-10 -right-8 size-28 rounded-full bg-white/50 blur-2xl" />
         <div className="relative flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/75 text-ens-garnet-500">
+              {/* Keep the sparkle at 22px within the 40px disc; the standard 20px/24px steps change its visual balance. */}
               <MSymbol className="text-[22px]" symbol="auto_awesome" />
             </div>
             <p className="max-w-md font-sans text-ens-garnet-700 text-sm leading-relaxed">
@@ -91,6 +96,7 @@ const ProfileOffer = ({
             ) : (
               <Trans>Check status</Trans>
             )}
+            {/* Keep the 18px glyph without a font-size token's added line height, preserving the button height. */}
             <MSymbol className="text-[18px]" symbol="arrow_forward" />
           </MigrationPrimaryButton>
         </div>
