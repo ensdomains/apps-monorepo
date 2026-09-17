@@ -1,11 +1,11 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { ok, safeTry } from 'neverthrow'
+import { and, eq, gt } from 'drizzle-orm'
+import { fromPromise, ok, safeTry } from 'neverthrow'
 import type { Address, Hash } from 'viem'
 import { generateSiweNonce } from 'viem/siwe'
 import { signJWT } from '#core/auth/jwt.js'
-import type { Database } from '#core/database/index.js'
+import { type Database, intoDbResult, TABLE } from '#core/database/index.js'
 import type { ViemClient } from '#core/eth/client.js'
-import { intoKVResult, KV_KEY } from '#core/kv/index.js'
 import { logger } from '#utils/logger.js'
 import { addUserIfNotExists } from '../users'
 import { safeParseSiweMessage, safeVerifySiweMessage } from './helpers'
@@ -29,30 +29,104 @@ class InvalidUriError extends TaggedError('INVALID_URI')<{
   message: string
 }> {}
 
-export const createNonce = (env: CloudflareBindings) => {
-  const nonce = generateSiweNonce()
+class RedemptionTokenError extends TaggedError('REDEMPTION_TOKEN_ERROR')<{
+  message: string
+  cause?: unknown
+}> {}
 
-  return intoKVResult(
-    env.KV.put(KV_KEY.AUTH.NONCE(nonce), nonce, {
-      expirationTtl: 60 * 30, // 30 minutes
+const AUTH_ATTEMPT_TTL_MS = 30 * 60 * 1000
+
+const bytesToHex = (bytes: Uint8Array): string =>
+  Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+
+const createRedemptionToken = () =>
+  fromPromise(
+    Promise.resolve().then(() => {
+      const bytes = new Uint8Array(32)
+      crypto.getRandomValues(bytes)
+      return bytesToHex(bytes)
     }),
-  ).map((_) => nonce)
+    (cause) =>
+      new RedemptionTokenError({
+        message: 'Failed to create redemption token',
+        cause,
+      }),
+  )
+
+export const hashRedemptionToken = (redemptionToken: string) =>
+  fromPromise(
+    (async () => {
+      const bytes = new TextEncoder().encode(redemptionToken)
+      const digest = await crypto.subtle.digest('SHA-256', bytes)
+      return bytesToHex(new Uint8Array(digest))
+    })(),
+    (cause) =>
+      new RedemptionTokenError({
+        message: 'Failed to hash redemption token',
+        cause,
+      }),
+  )
+
+export const createNonce = (db: Database) =>
+  safeTry(async function* () {
+    const nonce = generateSiweNonce()
+    const redemptionToken = yield* createRedemptionToken()
+    const redemptionTokenHash = yield* hashRedemptionToken(redemptionToken)
+
+    yield* intoDbResult(
+      db.insert(TABLE.authAttempts).values({
+        nonce,
+        redemption_token_hash: redemptionTokenHash,
+        expires_at: new Date(Date.now() + AUTH_ATTEMPT_TTL_MS),
+      }),
+    )
+
+    return ok({ nonce, redemptionToken })
+  })
+
+const hasPendingAuthAttempt = ({
+  db,
+  nonce,
+  redemptionTokenHash,
+}: {
+  db: Database
+  nonce: string
+  redemptionTokenHash: string
+}) => {
+  const attempt = intoDbResult(
+    db.query.authAttempts.findFirst({
+      where: and(
+        eq(TABLE.authAttempts.nonce, nonce),
+        eq(TABLE.authAttempts.redemption_token_hash, redemptionTokenHash),
+        gt(TABLE.authAttempts.expires_at, new Date()),
+      ),
+    }),
+  )
+
+  return attempt.map((value) => value !== undefined)
 }
 
-export const verifyAndConsumeNonce = (env: CloudflareBindings, nonce: string) =>
-  safeTry(async function* () {
-    const value = yield* intoKVResult(env.KV.get(KV_KEY.AUTH.NONCE(nonce)))
-
-    if (!value) {
-      yield* new InvalidNonceError({
-        message: 'Invalid nonce',
-      })
-    }
-
-    yield* intoKVResult(env.KV.delete(KV_KEY.AUTH.NONCE(nonce)))
-
-    return ok(value)
-  })
+const consumeAuthAttempt = ({
+  db,
+  nonce,
+  redemptionTokenHash,
+}: {
+  db: Database
+  nonce: string
+  redemptionTokenHash: string
+}) =>
+  intoDbResult(
+    db
+      .delete(TABLE.authAttempts)
+      .where(
+        and(
+          eq(TABLE.authAttempts.nonce, nonce),
+          eq(TABLE.authAttempts.redemption_token_hash, redemptionTokenHash),
+          gt(TABLE.authAttempts.expires_at, new Date()),
+        ),
+      )
+      .returning({ nonce: TABLE.authAttempts.nonce }),
+  )
 
 export const createJWT = ({
   env,
@@ -62,6 +136,7 @@ export const createJWT = ({
   message,
   signature,
   nonce,
+  redemptionToken,
 }: {
   env: CloudflareBindings
   client: ViemClient
@@ -70,9 +145,21 @@ export const createJWT = ({
   message: string
   signature: Hash
   nonce: string
+  redemptionToken: string
 }) =>
   safeTry(async function* () {
-    yield* verifyAndConsumeNonce(env, nonce)
+    const redemptionTokenHash = yield* hashRedemptionToken(redemptionToken)
+    const pendingAttempt = yield* hasPendingAuthAttempt({
+      db,
+      nonce,
+      redemptionTokenHash,
+    })
+
+    if (!pendingAttempt) {
+      yield* new InvalidNonceError({
+        message: 'Invalid nonce',
+      })
+    }
 
     const parsed = yield* safeParseSiweMessage(message)
 
@@ -119,6 +206,18 @@ export const createJWT = ({
       },
       env,
     )
+
+    const consumedAttempts = yield* consumeAuthAttempt({
+      db,
+      nonce,
+      redemptionTokenHash,
+    })
+
+    if (consumedAttempts.length === 0) {
+      yield* new InvalidNonceError({
+        message: 'Invalid nonce',
+      })
+    }
 
     return ok(jwt)
   })

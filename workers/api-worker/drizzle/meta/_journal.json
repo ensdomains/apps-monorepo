@@ -36,6 +36,13 @@
       "when": 1790000596877,
       "tag": "0004_tough_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789583803278,
+      "tag": "0005_tan_johnny_storm",
+      "breakpoints": true
     }
   ]
 }
