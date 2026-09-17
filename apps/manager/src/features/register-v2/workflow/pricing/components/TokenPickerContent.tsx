@@ -556,7 +556,9 @@ export const TokenPickerContentBase = ({
             .otherwise(() => undefined)}
 
           {errorMessage && (
-            <p className="text-center text-ens-error text-sm">{errorMessage}</p>
+            <p className="wrap-anywhere text-center text-ens-error text-sm">
+              {errorMessage}
+            </p>
           )}
 
           <div className="flex flex-col items-center gap-1.5">

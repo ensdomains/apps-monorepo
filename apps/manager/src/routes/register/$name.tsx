@@ -78,7 +78,9 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   return (
     <div className="mx-auto max-w-md space-y-4">
       <div className="flex items-center justify-center py-8">
-        <div className="text-red-600">Error loading name: {error.message}</div>
+        <div className="wrap-anywhere text-red-600">
+          Error loading name: {error.message}
+        </div>
       </div>
       <button onClick={reset} type="button">
         Try again
