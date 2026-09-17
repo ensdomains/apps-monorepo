@@ -49,7 +49,7 @@ describe('commemorative NFT config', () => {
     'http://assets.example',
   ])('disables malformed or unsafe origins without throwing: %s', (origin) => {
     vi.stubEnv('VITE_COMMEMORATIVE_NFT_ASSET_ORIGIN', origin)
-    expect(getCommemorativeNftConfig()).toMatchObject({ valid: false })
+    expect(getCommemorativeNftConfig()).toMatchObject({ isValid: false })
     expect(() => new URL(getCommemorativeNftConfig().assetOrigin)).not.toThrow()
   })
 
@@ -59,10 +59,10 @@ describe('commemorative NFT config', () => {
       'http://localhost:4000',
     )
     vi.stubEnv('DEV', false)
-    expect(getCommemorativeNftConfig().valid).toBe(false)
+    expect(getCommemorativeNftConfig().isValid).toBe(false)
     vi.stubEnv('DEV', true)
     expect(getCommemorativeNftConfig()).toMatchObject({
-      valid: true,
+      isValid: true,
       rendererOrigin: 'http://localhost:4000',
     })
   })

@@ -122,6 +122,7 @@ const createContext = () => {
 describe('shared commemorative NFT offers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubGlobal('navigator', { locks: { request: vi.fn() } })
     mocks.owner.mockReturnValue(ownerAddress)
     mocks.chain.mockReturnValue(11155111)
     mocks.metadata.mockResolvedValue(published)
@@ -137,6 +138,68 @@ describe('shared commemorative NFT offers', () => {
   afterEach(() => {
     cleanup()
     for (const client of clients.splice(0)) client.clear()
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    undefined,
+    {},
+    { locks: {} },
+  ])('hides fresh mint offers when browser coordination is unavailable: %j', async (browserNavigator) => {
+    vi.stubGlobal('navigator', browserNavigator)
+    const { wrapper } = createContext()
+    const { result } = renderHook(
+      () => useCommemorativeNftOffer({ ownerAddress, enabled: true }),
+      { wrapper },
+    )
+    await waitFor(() =>
+      expect(result.current.availability.hasFreshEligibilityResult).toBe(true),
+    )
+    await waitFor(() =>
+      expect(result.current.availability.isConfirmedUnclaimed).toBe(true),
+    )
+
+    expect(result.current.visibleEligibility).toBeUndefined()
+    expect(result.current.canOpenMint).toBe(false)
+    expect(result.current.canSubmitMint).toBe(false)
+    expect(
+      mocks.completion.mock.calls.every(([params]) => !params.enabled),
+    ).toBe(true)
+  })
+
+  it('keeps minted NFTs visible without browser coordination', async () => {
+    vi.stubGlobal('navigator', {})
+    mocks.claimed.mockResolvedValue(true)
+    const { wrapper } = createContext()
+    const { result } = renderHook(
+      () => useCommemorativeNftOffer({ ownerAddress, enabled: true }),
+      { wrapper },
+    )
+    await waitFor(() => expect(result.current.minted).toBe(true))
+    await waitFor(() =>
+      expect(result.current.visibleEligibility).toEqual(published.eligibility),
+    )
+    expect(result.current.canOpenMint).toBe(false)
+    expect(result.current.canSubmitMint).toBe(false)
+  })
+
+  it('keeps claim recovery available without browser coordination', async () => {
+    vi.stubGlobal('navigator', {})
+    mocks.pending.mockReturnValue({ status: 'unavailable' })
+    const { wrapper } = createContext()
+    const { result } = renderHook(
+      () => useCommemorativeNftOffer({ ownerAddress, enabled: true }),
+      { wrapper },
+    )
+    await waitFor(() =>
+      expect(result.current.visibleEligibility).toEqual(published.eligibility),
+    )
+    expect(result.current.canRecoverClaim).toBe(true)
+    expect(result.current.canOpenMint).toBe(true)
+    expect(result.current.canSubmitMint).toBe(false)
+    expect(
+      mocks.completion.mock.calls.every(([params]) => !params.enabled),
+    ).toBe(true)
   })
 
   it.each([

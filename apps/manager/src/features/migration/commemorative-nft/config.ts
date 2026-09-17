@@ -16,16 +16,16 @@ const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 
 const parseOrigin = (
   value: string,
-  allowLocalHttp: boolean,
+  canUseLocalHttp: boolean,
 ): string | undefined => {
   if (!URL.canParse(value)) return undefined
   const url = new URL(value)
-  const localHttp =
-    allowLocalHttp &&
+  const isLocalHttp =
+    canUseLocalHttp &&
     url.protocol === 'http:' &&
     ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
   if (
-    (url.protocol !== 'https:' && !localHttp) ||
+    (url.protocol !== 'https:' && !isLocalHttp) ||
     url.username ||
     url.password ||
     url.search ||
@@ -39,7 +39,7 @@ const parseOrigin = (
 type NftConfig = {
   readonly assetOrigin: string
   readonly rendererOrigin: string
-  readonly valid: boolean
+  readonly isValid: boolean
 }
 let cachedConfig:
   | { readonly key: string; readonly value: NftConfig }
@@ -62,7 +62,7 @@ export const getCommemorativeNftConfig = (): NftConfig => {
   const value = {
     assetOrigin: assetOrigin ?? DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN,
     rendererOrigin: rendererOrigin ?? DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
-    valid: !!assetOrigin && !!rendererOrigin,
+    isValid: !!assetOrigin && !!rendererOrigin,
   }
   cachedConfig = { key, value }
   return value

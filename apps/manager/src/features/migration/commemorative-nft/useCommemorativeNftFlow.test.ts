@@ -247,6 +247,21 @@ describe('commemorative NFT flow session', () => {
     expect(readClaimed).toHaveBeenCalledTimes(1)
   })
 
+  it('falls back before admitting a fresh mint without browser coordination', async () => {
+    vi.stubGlobal('navigator', {})
+    const client = createClient()
+    const { result } = mountFlow(client)
+
+    expect(result.current.admission.status).toBe('fallback')
+    await waitFor(() => expect(fetchEligibility).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(client.getQueryData(claimQueryKey)).toBe(false))
+    expect(result.current.canMint).toBe(false)
+    expect(result.current.state.status).not.toBe('readyToMint')
+    expect(fetchCompletion).not.toHaveBeenCalled()
+    act(() => result.current.mint())
+    expect(claim).not.toHaveBeenCalled()
+  })
+
   it('requires every eligible name to be migrated even with a published NFT proof', async () => {
     fetchCompletion.mockResolvedValue(partialMigration)
     const { result } = mountFlow(createClient())
@@ -831,7 +846,11 @@ describe('commemorative NFT flow session', () => {
     expect(waitForReceipt).toHaveBeenCalledTimes(2)
   })
 
-  it('restores a submitted claim with a fresh query cache when migration indexing is unavailable', async () => {
+  it.each([
+    true,
+    false,
+  ])('restores a submitted claim with a fresh query cache when migration indexing is unavailable and browser coordination is %s', async (canCoordinateClaim) => {
+    if (!canCoordinateClaim) vi.stubGlobal('navigator', {})
     const contractAddress = getCommemorativeNftContractAddress(11155111)
     if (!contractAddress) throw new Error('Missing test contract')
     const saved = {

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useChainId, useConfig } from 'wagmi'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
+import { canCoordinateNftClaim } from './claimSubmissionLock'
 import {
   getCommemorativeNftConfig,
   getCommemorativeNftContractAddress,
@@ -21,7 +22,7 @@ export const useCommemorativeNftAvailability = (params: {
   const chainId = useChainId()
   const wagmiConfig = useConfig()
   const supported =
-    getCommemorativeNftConfig().valid &&
+    getCommemorativeNftConfig().isValid &&
     !!getCommemorativeNftContractAddress(chainId)
   const ownerAddress = params.ownerAddress
   const enabled =
@@ -63,6 +64,7 @@ export const useCommemorativeNftAvailability = (params: {
     featureEnabled,
     chainId,
     supported,
+    canCoordinateClaim: canCoordinateNftClaim(),
     eligibility,
     claimed,
     hasFreshEligibilityResult,

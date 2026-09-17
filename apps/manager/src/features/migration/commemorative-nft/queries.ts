@@ -32,7 +32,7 @@ export const commemorativeNftEligibilityQueryOptions = (params: {
       validationVersion: 3,
     }),
     queryFn: ({ signal }) =>
-      config.valid
+      config.isValid
         ? fetchCommemorativeNftEligibility({
             ownerAddress: params.ownerAddress,
             assetOrigin: config.assetOrigin,

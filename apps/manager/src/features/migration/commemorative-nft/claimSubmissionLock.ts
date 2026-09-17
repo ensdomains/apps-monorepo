@@ -1,13 +1,16 @@
 import { CommemorativeNftClaimError } from './contract'
 import type { PendingNftClaimScope } from './pendingClaim'
 
+export const canCoordinateNftClaim = (): boolean =>
+  typeof globalThis.navigator?.locks?.request === 'function'
+
 /** Hold one browser-wide lease through preflight, wallet submission and saving. */
 export const withNftClaimSubmissionLock = async <T>(
   scope: PendingNftClaimScope,
   submit: () => Promise<T>,
 ): Promise<T> => {
   const locks = globalThis.navigator?.locks
-  if (!locks)
+  if (!locks || !canCoordinateNftClaim())
     throw new CommemorativeNftClaimError(
       'browser-unsupported',
       'Cross-tab claim coordination is unavailable',

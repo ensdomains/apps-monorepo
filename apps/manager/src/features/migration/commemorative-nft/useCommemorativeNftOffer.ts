@@ -26,13 +26,17 @@ export const useCommemorativeNftOffer = (params: {
   const visibleEligibility = getVisibleCommemorativeNftEligibility({
     featureEnabled: availability.featureEnabled,
     ownerAddress: params.enabled ? params.ownerAddress : undefined,
-    supported: availability.supported,
+    // Only fresh offers need coordination; viewing and recovery do not submit.
+    supported:
+      availability.supported &&
+      (availability.canCoordinateClaim || minted || canRecoverClaim),
     result: availability.eligibility.data,
     hasFreshEligibilityResult: availability.hasResolvedEligibility,
     minted,
   })
   // A metadata 404 or an already claimed NFT must not enumerate V1 names.
   const isCandidate =
+    availability.canCoordinateClaim &&
     !!visibleEligibility &&
     availability.claimed.isFetchedAfterMount &&
     availability.claimed.data === false

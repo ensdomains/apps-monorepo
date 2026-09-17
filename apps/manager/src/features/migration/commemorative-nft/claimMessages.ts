@@ -29,10 +29,10 @@ export const getCommemorativeNftClaimMessage = (error: unknown): string =>
   i18n._(claimMessages[decodeCommemorativeNftClaimError(error).reason])
 
 export const getCommemorativeNftEligibilityMessage = (
-  reconciling = false,
+  isReconciling = false,
 ): string =>
   i18n._(
-    reconciling
+    isReconciling
       ? msg`Your upgrades are still being verified. Check again in a moment.`
       : msg`Eligibility could not be loaded. Please try again.`,
   )

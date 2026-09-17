@@ -31,10 +31,11 @@ const params: Parameters<typeof submitPendingNftClaim>[0] = {
   recheckMigration: async () => true,
 }
 const deferred = <T>() => {
-  let resolve!: (value: T) => void
+  let resolve: ((value: T) => void) | undefined
   const promise = new Promise<T>((done) => {
     resolve = done
   })
+  if (!resolve) throw new Error('Deferred resolver was not initialized')
   return { promise, resolve }
 }
 beforeEach(() => {
@@ -85,8 +86,12 @@ describe('commemorative NFT claim submission coordination', () => {
     })
     expect(claimCommemorativeNft).toHaveBeenCalledTimes(1)
   })
-  it('fails closed if cross-tab coordination is unavailable', async () => {
-    vi.stubGlobal('navigator', {})
+  it.each([
+    undefined,
+    {},
+    { locks: {} },
+  ])('fails closed if cross-tab coordination is unavailable: %j', async (browserNavigator) => {
+    vi.stubGlobal('navigator', browserNavigator)
     await expect(submitPendingNftClaim(params)).rejects.toMatchObject({
       reason: 'browser-unsupported',
     })
