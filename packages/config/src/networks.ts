@@ -20,12 +20,12 @@ export type EnsNetwork = (typeof ENS_NETWORKS)[number]
  */
 export type NetworkEndpoints = {
   /** ENSv2 indexer (Ponder) GraphQL endpoint. */
-  indexerGraphql: string | null
+  readonly indexerGraphql: string | null
 }
 
 export type NetworkProfile = {
-  chainId: SupportedL1ChainId
-  isTestnet: boolean
+  readonly chainId: SupportedL1ChainId
+  readonly isTestnet: boolean
   /**
    * Public failover RPC endpoints. Each app supplies its own attributed
    * primary; these are the shared, uncorrelated backups behind it.
@@ -34,8 +34,8 @@ export type NetworkProfile = {
    * endpoint added here without a CSP entry is silently blocked by the
    * browser.
    */
-  rpcFallbacks: readonly string[]
-  endpoints: NetworkEndpoints
+  readonly rpcFallbacks: readonly string[]
+  readonly endpoints: NetworkEndpoints
 }
 
 /**

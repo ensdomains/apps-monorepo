@@ -99,20 +99,22 @@ export type BuildConfigInput = {
    * Network name, typically from an env var. There is no default: an absent
    * or unrecognised value throws.
    */
-  network: string | undefined
+  readonly network: string | undefined
   /**
    * Preferred RPC URL. Each app owns this so provider quota stays attributed
    * per app, and the network's shared public fallbacks are appended behind
    * it. Optional: an app with no attributed endpoint for the selected network
    * uses the public fallbacks alone.
    */
-  rpcUrl?: string | undefined
+  readonly rpcUrl?: string | undefined
   /**
    * Per-endpoint overrides, typically from env. An `undefined` entry falls
    * back to the network profile; overrides are how e2e and PR previews point
    * at ephemeral infrastructure.
    */
-  overrides?: Partial<Record<keyof NetworkEndpoints, string | undefined>>
+  readonly overrides?: Partial<
+    Record<keyof NetworkEndpoints, string | undefined>
+  >
 }
 
 export type EnsAppConfig = Readonly<{
