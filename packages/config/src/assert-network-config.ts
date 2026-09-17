@@ -14,7 +14,7 @@ import { buildConfig, NetworkConfigError } from './build-config'
  * see at build time.
  */
 export const assertNetworkConfig = (
-  env: Record<string, string | undefined>,
+  env: Readonly<Record<string, string | undefined>>,
 ) => {
   try {
     const config = buildConfig({
