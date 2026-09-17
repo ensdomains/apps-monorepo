@@ -6,7 +6,10 @@ import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address, Hex } from 'viem'
 import { getStorageAt } from 'viem/actions'
-import { decodeImplementationAddress } from '@/features/resolver/utils/permissionedResolver'
+import {
+  decodeImplementationAddress,
+  getVerifiedProxyImplementation,
+} from '@/features/resolver/utils/permissionedResolver'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -21,6 +24,11 @@ const knownPermissionedResolverImplementations = [
 ]
   .filter(Boolean)
   .map((address) => address.toLowerCase())
+
+const verifiableFactoryAddress = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensVerifiableFactory',
+})
 
 class IsPermissionedResolverError extends TaggedError(
   'IsPermissionedResolverError',
@@ -58,11 +66,27 @@ export const getIsPermissionedResolver = ResultFn(async function* (
     implementationSlotValue,
   )
   if (!implementationAddress) return ok(false)
+  if (
+    !knownPermissionedResolverImplementations.includes(
+      implementationAddress.toLowerCase(),
+    )
+  )
+    return ok(false)
+
+  // The slot is metadata the contract writes itself, so it only narrows the
+  // candidates. The factory reports the implementation of a proxy it can vouch
+  // for, which is what makes the answer trustworthy.
+  const verifiedImplementation = await getVerifiedProxyImplementation({
+    client,
+    factoryAddress: verifiableFactoryAddress,
+    proxyAddress: params.resolverAddress,
+  })
 
   return ok(
-    knownPermissionedResolverImplementations.includes(
-      implementationAddress.toLowerCase(),
-    ),
+    !!verifiedImplementation &&
+      knownPermissionedResolverImplementations.includes(
+        verifiedImplementation.toLowerCase(),
+      ),
   )
 })
 

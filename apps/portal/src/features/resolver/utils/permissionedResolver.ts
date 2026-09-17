@@ -2,14 +2,18 @@ import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/
 import {
   type Address,
   bytesToHex,
+  type Client,
   decodeEventLog,
   encodeFunctionData,
   getAddress,
   type Hex,
+  isAddressEqual,
   keccak256,
   parseAbi,
   stringToBytes,
+  zeroAddress,
 } from 'viem'
+import { readContract } from 'viem/actions'
 
 const permissionedResolverRoleBitmap = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
@@ -17,6 +21,7 @@ const permissionedResolverRoleBitmap = BigInt(
 
 const verifiableFactoryAbi = parseAbi([
   'function deployProxy(address implementation, uint256 salt, bytes data)',
+  'function verifyContract(address proxy) view returns (address implementation)',
   'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
 ])
 
@@ -115,4 +120,32 @@ export const filterPermissionedResolverAddresses = (
   }
 
   return addresses
+}
+
+export interface GetVerifiedProxyImplementationParams {
+  readonly client: Client
+  readonly factoryAddress: Address | undefined
+  readonly proxyAddress: Address
+}
+
+/**
+ * The implementation a factory-deployed proxy currently delegates to, or null
+ * when the factory will not vouch for `proxyAddress`. It recomputes the CREATE2
+ * address from the salt in the proxy's own bytecode, so only a proxy it
+ * deployed can pass, and it reverts rather than answering for anything else.
+ */
+export const getVerifiedProxyImplementation = async ({
+  client,
+  factoryAddress,
+  proxyAddress,
+}: GetVerifiedProxyImplementationParams): Promise<Address | null> => {
+  if (!factoryAddress || isAddressEqual(factoryAddress, zeroAddress))
+    return null
+
+  return readContract(client, {
+    address: factoryAddress,
+    abi: verifiableFactoryAbi,
+    functionName: 'verifyContract',
+    args: [proxyAddress],
+  }).catch(() => null)
 }

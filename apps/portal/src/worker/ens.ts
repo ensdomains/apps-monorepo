@@ -3,7 +3,10 @@ import { getRecords } from '@ensdomains/ensjs/public'
 import type { Address, Hex } from 'viem'
 import { getStorageAt } from 'viem/actions'
 
-import { decodeImplementationAddress } from '@/features/resolver/utils/permissionedResolver'
+import {
+  decodeImplementationAddress,
+  getVerifiedProxyImplementation,
+} from '@/features/resolver/utils/permissionedResolver'
 import { resolveEnsOwner } from '@/utils/ens/resolveEnsOwner'
 import { resolveAvatarRecord } from './avatar'
 import { type AvatarBitmap, downscaleAvatar } from './avatar-image'
@@ -144,10 +147,10 @@ const EIP1967_IMPLEMENTATION_SLOT: Hex =
  * Determine whether a resolver is an ENS Permissioned Resolver, so the OG card
  * can render the "Permissioned Resolver" subtitle.
  *
- * Worker-side mirror of {@link useIsPermissionedResolver}: read the EIP-1967
- * implementation slot and compare against the known permissioned-resolver
- * implementation for the chain. Any failure resolves to `false` so the card
- * still renders (just as a plain "Resolver").
+ * Worker-side mirror of {@link useIsPermissionedResolver}: the EIP-1967 slot
+ * must name the known implementation and the VerifiableFactory must vouch for
+ * the proxy. Any failure resolves to `false` so the card still renders (just as
+ * a plain "Resolver").
  */
 export async function fetchIsPermissionedResolver(
   env: Env,
@@ -172,8 +175,18 @@ export async function fetchIsPermissionedResolver(
 
     const implementation = decodeImplementationAddress(slotValue)
     if (!implementation) return false
+    if (implementation.toLowerCase() !== knownImpl) return false
 
-    return implementation.toLowerCase() === knownImpl
+    const verifiedImplementation = await getVerifiedProxyImplementation({
+      client,
+      factoryAddress: getChainContractAddress({
+        chain: client.chain,
+        contract: 'ensVerifiableFactory',
+      }),
+      proxyAddress: address as Address,
+    })
+
+    return verifiedImplementation?.toLowerCase() === knownImpl
   } catch {
     return false
   }
