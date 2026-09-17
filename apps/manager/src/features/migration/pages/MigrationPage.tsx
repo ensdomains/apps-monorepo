@@ -344,15 +344,17 @@ export const MigrationPage = () => {
             <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
               <Trans>Upgrade didn&apos;t finish</Trans>
             </p>
-            {lastError && lastError.type !== 'cleanup-failed' && (
-              <p className="text-center text-ens-garnet-900/75 text-sm">
-                <Plural
-                  one="Your name is safe."
-                  other="Your names are safe."
-                  value={selectedNames.length}
-                />
-              </p>
-            )}
+            {lastError &&
+              lastError.type !== 'cleanup-failed' &&
+              lastError.type !== 'retry-blocked' && (
+                <p className="text-center text-ens-garnet-900/75 text-sm">
+                  <Plural
+                    one="Your name is safe."
+                    other="Your names are safe."
+                    value={selectedNames.length}
+                  />
+                </p>
+              )}
             <motion.div
               animate={{ opacity: 1, y: 0 }}
               className="max-h-50 w-full max-w-md overflow-y-auto rounded-sm bg-ens-garnet-900/5 p-3"
