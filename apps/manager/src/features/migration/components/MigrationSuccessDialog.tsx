@@ -30,15 +30,21 @@ type MigrationSuccessDialogProps = {
 
 const DialogHeading = ({
   context,
+  migratedNameCount,
   state,
 }: {
   readonly context: MigrationSuccessDialogProps['context']
+  readonly migratedNameCount: number
   readonly state: MigrationSuccessDialogState
 }) => (
   <div className="flex w-full max-w-[486px] shrink-0 flex-col items-center gap-2 text-center md:gap-4">
     <DialogTitle className="w-full text-balance font-normal font-serif text-[20px] text-ens-garnet-900 leading-[1.1] tracking-[-0.02em] md:text-[32px]">
       {context === 'migration' ? (
-        <Trans>Your name(s) have been upgraded!</Trans>
+        <Plural
+          one="Your name has been upgraded!"
+          other="Your names have been upgraded!"
+          value={migratedNameCount}
+        />
       ) : (
         <Trans>Your ENSv2 moment is waiting</Trans>
       )}
@@ -301,7 +307,11 @@ export const MigrationSuccessDialog = ({
             />
           ) : (
             <>
-              <DialogHeading context={context} state={state} />
+              <DialogHeading
+                context={context}
+                migratedNameCount={migratedNameCount}
+                state={state}
+              />
               <StatusContent
                 canMint={canMint}
                 onClose={onClose}

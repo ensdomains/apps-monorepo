@@ -53,6 +53,11 @@ msgstr ""
 msgid "{0, plural, one {Upgrading your name...} other {Upgrading your names...}}"
 msgstr ""
 
+#. placeholder {0}: selectedNames.length
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
+msgstr ""
+
 #. placeholder {0}: steps.length
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
@@ -83,6 +88,10 @@ msgstr ""
 #. placeholder {0}: summary?.discountPercentage ?? 0
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "{0}% discount"
+msgstr ""
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "{completedNameCount, plural, one {Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed.} other {Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed.}}"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -825,7 +834,7 @@ msgid "Download WebP"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Each batch of names is upgraded in a single transaction. If any part of that transaction fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
+msgid "Each batch of your names is upgraded in a single transaction. If any part of a batch fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
 msgstr ""
 
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
@@ -1522,6 +1531,10 @@ msgstr ""
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Not supported"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Nothing has been lost. Contact ENS support before trying again."
 msgstr ""
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx
@@ -2317,7 +2330,7 @@ msgid "Some names could not be loaded"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
-msgid "Something about your names changed since you last tried, so we can’t safely pick up where you left off."
+msgid "Something about your names changed since you last tried, so we can't safely pick up where you left off."
 msgstr ""
 
 #: src/features/bulk-renew/components/FailureStep.tsx
@@ -2875,7 +2888,7 @@ msgid "We couldn't read your current records."
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
-msgid "We couldn't safely retry. Contact ENS support before trying again."
+msgid "We couldn't safely retry. Nothing was submitted and nothing changed."
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
@@ -3059,20 +3072,8 @@ msgstr ""
 msgid "Your name was registered, but we couldn't set it as your primary name. You can set it anytime from your profile."
 msgstr ""
 
-#: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Your name(s) have been upgraded!"
-msgstr ""
-
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names are ready to upgrade"
-msgstr ""
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Your names are safe."
-msgstr ""
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
@@ -3105,10 +3106,6 @@ msgstr ""
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStep.tsx
-msgid "Your saved progress is unchanged. Contact ENS support before trying again."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
