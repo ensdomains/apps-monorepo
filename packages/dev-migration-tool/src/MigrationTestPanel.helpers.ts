@@ -2136,12 +2136,26 @@ async function finishReassignPreset(
  * subname opens the SUBNAME — the 2LD is only there to be its parent, and
  * making the tester edit the URL invites testing the wrong name.
  */
+/**
+ * Where "Open" should land for a preset.
+ *
+ * Any preset that builds a subname opens the subname, not the 2LD — not just
+ * the `transfer` family, which is all this used to do. The child is the reason
+ * those presets exist, and its label is generated (`sub-<root>`), so it is not
+ * discoverable from the page you land on: someone who clicks "Subname+Rec" and
+ * then "Open" gets the parent and no way to reach the child except by guessing
+ * how the label is composed. Reported from manual QA, where exactly that
+ * happened.
+ *
+ * The parent stays one click away via the name's own Parent row, so preferring
+ * the child loses nothing.
+ */
 export const ownershipTargetFor = (name: {
   label: string
   type: PresetType
 }): string => {
   const [root, firstChild] = walkPreset(name.label, name.type)
-  return PRESET_FAMILY[name.type] === 'transfer' && firstChild
+  return firstChild
     ? firstChild.fullName
     : (root?.fullName ?? `${name.label}.eth`)
 }

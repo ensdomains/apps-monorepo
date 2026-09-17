@@ -223,4 +223,18 @@ describe('reassign presets (#1144)', () => {
   it('still opens the 2LD for a transfer preset with no subname', () => {
     expect(ownershipTargetFor(activeName('manager-only'))).toBe(`${ROOT}.eth`)
   })
+
+  // The child's label is generated, so landing on the parent leaves no way to
+  // reach it but guessing how the label is composed. Found in manual QA on
+  // "Subname+Rec": Open went to the 2LD and the subname looked unregistered.
+  it.each([
+    'subname',
+    'subname-records',
+    'detached-child',
+  ] as const)('%s opens the subname even though it is not a transfer preset', (type) => {
+    expect(PRESET_FAMILY[type]).not.toBe('transfer')
+    const child = walkPreset(ROOT, type)[1]?.fullName
+    expect(child).toBeTruthy()
+    expect(ownershipTargetFor(activeName(type))).toBe(child)
+  })
 })
