@@ -448,22 +448,6 @@ const useAddressRecordEditor = (
     switchToRequiredNetwork,
   } = useSaveRecords()
 
-  // "Set primary name" sets the reverse record that actually controls the
-  // selected row via `setName(string)` (which sets `msg.sender`'s own record):
-  //   - Default row (0x80000000) → ENSv1 `DefaultReverseRegistrar` (default.reverse)
-  //   - Mainnet row (coin 60)    → ENSv1 `ReverseRegistrar` (addr.reverse)
-  //   - L2 rows                  → that chain's L2 reverse registrar
-  // Per-row routing matters because a chain-specific record shadows
-  // `default.reverse` (ENSIP-19) — a default write could succeed on-chain
-  // while leaving the selected row unresolved.
-  // Offered only when the connected wallet *is* this address (setName is
-  // msg.sender-scoped).
-  const canSetPrimaryName =
-    !!connectedAddress &&
-    !!data?.address &&
-    isAddress(data.address, { strict: false }) &&
-    isAddressEqual(connectedAddress, data.address)
-
   const { setReverseResolution } = useSetReverseResolution({
     chainId: sepoliaWithEns.id,
     id: SET_PRIMARY_TX_ID,
@@ -490,13 +474,39 @@ const useAddressRecordEditor = (
   }
 
   // Root `ROLE_SET_ADDRESS`, or the role scoped to this row's coin type.
-  const { canEdit } = useCanEditRecords({
+  const { canEdit, isOwner } = useCanEditRecords({
     name,
     roles: ['ROLE_SET_ADDRESS'],
     scope: data
       ? { kind: 'address', coinType: BigInt(data.coinType) }
       : undefined,
   })
+
+  // "Set primary name" sets the reverse record that actually controls the
+  // selected row via `setName(string)` (which sets `msg.sender`'s own record):
+  //   - Default row (0x80000000) → ENSv1 `DefaultReverseRegistrar` (default.reverse)
+  //   - Mainnet row (coin 60)    → ENSv1 `ReverseRegistrar` (addr.reverse)
+  //   - L2 rows                  → that chain's L2 reverse registrar
+  // Per-row routing matters because a chain-specific record shadows
+  // `default.reverse` (ENSIP-19) — a default write could succeed on-chain
+  // while leaving the selected row unresolved.
+  //
+  // Two conditions, and both are load-bearing:
+  //   - the connected wallet owns this name — the address in the row is the
+  //     name's own `addr(coinType)` record, which its owner points wherever
+  //     they like, so to a visitor it is attacker-controlled. Without this
+  //     check any visitor the record points at sees a red mismatch banner
+  //     whose only action hands their primary name to someone else's name.
+  //   - the connected wallet *is* this address — `setName` is msg.sender-scoped,
+  //     so nobody else's reverse record can be written from here anyway.
+  // Non-owners still see the banner; it is information about the name, with no
+  // action attached.
+  const canSetPrimaryName =
+    isOwner &&
+    !!connectedAddress &&
+    !!data?.address &&
+    isAddress(data.address, { strict: false }) &&
+    isAddressEqual(connectedAddress, data.address)
 
   const txId = data ? `tx-set-addr-${data.coinType}` : 'tx-set-addr'
   const onTransactionDone = () => {
