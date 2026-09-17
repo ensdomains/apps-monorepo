@@ -1,3 +1,4 @@
+import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -74,10 +75,12 @@ const readyGasEstimate: MigrationGasEstimateState = {
 
 const renderStep = ({
   gasEstimate = { status: 'idle' } as MigrationGasEstimateState,
+  gasAffordability = { status: 'unknown' } as GasAffordability,
   gasFundingStatus = 'settled',
   onNext = vi.fn(),
 }: {
   gasEstimate?: MigrationGasEstimateState
+  gasAffordability?: GasAffordability
   gasFundingStatus?: MigrationGasFundingStatus
   onNext?: () => boolean | Promise<boolean>
 } = {}) => {
@@ -85,6 +88,7 @@ const renderStep = ({
   const utils = render(
     <SmartAccountContextProvider>
       <SelectNamesStep
+        gasAffordability={gasAffordability}
         gasEstimate={gasEstimate}
         gasFundingStatus={gasFundingStatus}
         onNamesChange={onNamesChange}
@@ -185,5 +189,46 @@ describe('SelectNamesStep', () => {
         getByRole('button', { name: 'Upgrade 9 names' }),
       ).not.toBeDisabled()
     })
+  })
+
+  it('warns instead of quoting a fee when the wallet is short of gas', () => {
+    const { getByText, queryByText } = renderStep({
+      gasEstimate: {
+        status: 'ready',
+        formattedEth: '0.004',
+        gasUnits: 400_000n,
+        feeWei: 4_000_000_000_000_000n,
+        transactionCount: 3,
+        plan: { stepDescriptors: [] },
+      } as unknown as MigrationGasEstimateState,
+      gasAffordability: {
+        status: 'short',
+        requiredWei: 5_000_000_000_000_000n,
+        balanceWei: 1_000_000_000_000_000n,
+        shortfallWei: 4_000_000_000_000_000n,
+      },
+    })
+
+    expect(getByText(/Not enough ETH for gas/i)).toBeInTheDocument()
+    // The fee quote would read as "you can proceed", so it must not also show.
+    expect(queryByText(/Estimated network fee/i)).not.toBeInTheDocument()
+  })
+
+  it('quotes the fee as usual when the balance cannot be read', () => {
+    // An unreadable balance is not evidence the user cannot pay.
+    const { getByText, queryByText } = renderStep({
+      gasEstimate: {
+        status: 'ready',
+        formattedEth: '0.004',
+        gasUnits: 400_000n,
+        feeWei: 4_000_000_000_000_000n,
+        transactionCount: 3,
+        plan: { stepDescriptors: [] },
+      } as unknown as MigrationGasEstimateState,
+      gasAffordability: { status: 'unknown' },
+    })
+
+    expect(queryByText(/Not enough ETH for gas/i)).not.toBeInTheDocument()
+    expect(getByText(/Estimated network fee/i)).toBeInTheDocument()
   })
 })

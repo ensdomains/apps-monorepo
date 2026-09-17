@@ -1,5 +1,6 @@
 import type { TransactionMachineActor } from '@ens-apps/transaction-manager'
 import {
+  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   ExternalLink,
@@ -12,11 +13,14 @@ import { useChainId } from 'wagmi'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DialogTitle } from '@/components/ui/dialog'
+import { MessageCard } from '@/components/ui/message-card'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxUrl'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
+import { useFlowGasAffordability } from '../hooks/useFlowGasAffordability'
 import type { Transaction, TransactionModalContentState } from '../types'
+import { formatGasShort } from '../utils/formatGasShort'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
 import { shouldShowWaitCountdown } from '../utils/shouldShowWaitCountdown'
@@ -40,6 +44,14 @@ export const TransactionsOverviewContent = ({
 }: TransactionsOverviewContentProps) => {
   const chainId = useChainId()
 
+  // Every step here is EOA-paid, so a wallet that covers the first one but not
+  // the rest strands the user mid-flow. Checked across the remaining steps
+  // rather than per step, and before the wallet is ever asked.
+  const gasAffordability = useFlowGasAffordability({
+    transactions,
+    activeTransactionsMap,
+  })
+
   const activeTransaction = getActiveTransaction(transactions, txState)
   const activeIndex = transactions.findIndex(
     (t) => t.id === activeTransaction.id,
@@ -55,6 +67,17 @@ export const TransactionsOverviewContent = ({
   return (
     <>
       <DialogTitle className="sr-only">Transaction overview</DialogTitle>
+      {match(gasAffordability)
+        .with({ status: 'short' }, (shortfall) => (
+          <MessageCard
+            variant="warning"
+            icon={<AlertTriangle className="size-6" />}
+            title="Not enough ETH for gas"
+            className="mb-2"
+            description={`These steps need about ${formatGasShort(shortfall.requiredWei)} ETH in gas and your wallet holds ${formatGasShort(shortfall.balanceWei)} ETH. Top up before you start, or the flow will stop partway.`}
+          />
+        ))
+        .otherwise(() => null)}
       <div className="space-y-2 min-w-0">
         {transactions.map((transaction, index) => {
           const activeTxSnapshot = activeTransactionsMap

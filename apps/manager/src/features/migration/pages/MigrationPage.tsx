@@ -30,6 +30,7 @@ import {
   useMigrationSelectedNames,
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
+import { useGasAffordability } from '@/hooks/useGasAffordability'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient as migrationExecutionClient } from '@/lib/wagmi'
@@ -220,6 +221,13 @@ export const MigrationPage = () => {
     enabled: step === 'select',
   })
 
+  // Migration is entirely EOA-paid, so a wallet short of sepETH stalls the run
+  // partway. Checked against the same estimate the footer quotes.
+  const gasAffordability = useGasAffordability({
+    address: ownerAddress as Address | undefined,
+    estimatedFeeWei: gasEstimate.status === 'ready' ? gasEstimate.feeWei : null,
+  })
+
   // Top up the owner's sepETH on page entry — migration txs are all EOA-paid.
   // The worker only drips when the address owns v1 names and is low on ETH,
   // so this is idempotent and a no-op for everyone else. The request doesn't
@@ -329,6 +337,7 @@ export const MigrationPage = () => {
       {match(step)
         .with('select', () => (
           <SelectNamesStep
+            gasAffordability={gasAffordability}
             gasEstimate={gasEstimate}
             gasFundingStatus={gasFundingStatus}
             onNamesChange={handleNamesChange}

@@ -1,3 +1,4 @@
+import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
@@ -18,6 +19,7 @@ import {
 
 type SelectNamesStepProps = {
   readonly gasEstimate: MigrationGasEstimateState
+  readonly gasAffordability: GasAffordability
   readonly gasFundingStatus: MigrationGasFundingStatus
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
@@ -25,6 +27,7 @@ type SelectNamesStepProps = {
 
 export const SelectNamesStep = ({
   gasEstimate,
+  gasAffordability,
   gasFundingStatus,
   onNamesChange,
   onNext,
@@ -152,6 +155,7 @@ export const SelectNamesStep = ({
       </div>
 
       <SelectNamesStepFooter
+        gasAffordability={gasAffordability}
         gasEstimate={gasEstimate}
         isEstimatingGas={isEstimatingGas}
         isStarting={isStarting}
