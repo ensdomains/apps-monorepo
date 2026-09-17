@@ -6,7 +6,7 @@ import type {
 } from './types'
 
 const COMMEMORATIVE_NFT_SEPOLIA_ADDRESS = getAddress(
-  '0x67D88B4d34ef7f81352a932De11ADb96f87a6727',
+  '0x0CE64d03F17Cd7a248c171826c7bB79F9b51D0DA',
 )
 
 const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN = 'https://nft.ens.dev'
