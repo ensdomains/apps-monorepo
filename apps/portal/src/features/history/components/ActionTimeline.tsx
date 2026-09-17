@@ -9,6 +9,8 @@ interface ActionTimelineProps {
   readonly actions: readonly Action[]
   readonly openIds: ReadonlySet<Hex>
   readonly onToggle: (txHash: Hex) => void
+  /** Lead each row with the transaction sender — see `ActionSummaryRow`. */
+  readonly showActor?: boolean
   /**
    * Continue the rail past the edge of this group. Set when the group is one of
    * several inside a frame (e.g. the Overview splits recent rows from the
@@ -21,20 +23,20 @@ interface ActionTimelineProps {
 
 /**
  * A run of tier-1 action rows joined by the timeline rail, with the date column
- * shown only on the first row of each day.
- *
- * Every row leads with its transaction's sender, so the senders are looked up
- * here as one batched request for the run rather than one RPC per row.
+ * shown only on the first row of each day. Senders are one batched lookup for
+ * the run, deferred until a row needs them.
  */
 export const ActionTimeline = ({
   actions,
   openIds,
   onToggle,
+  showActor = false,
   connectAbove = false,
   connectBelow = false,
 }: ActionTimelineProps) => {
   const senders = useTransactionSenders({
     transactionHashes: actions.map((action) => action.txHash),
+    enabled: showActor || actions.some((action) => openIds.has(action.txHash)),
   })
 
   return (
@@ -44,6 +46,7 @@ export const ActionTimeline = ({
           key={action.txHash}
           action={action}
           senders={senders}
+          showActor={showActor}
           isOpen={openIds.has(action.txHash)}
           onToggle={() => onToggle(action.txHash)}
           connectRailAbove={index > 0 || connectAbove}

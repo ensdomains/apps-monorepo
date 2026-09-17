@@ -89,10 +89,10 @@ function RouteComponent() {
           </CounterCardRow>
         </CounterCard>
 
-        <CounterCard to="/resolver/$address/aliases" params={{ address }}>
+        <CounterCard to="/resolver/$address/links" params={{ address }}>
           <CounterCardRow icon={SplitIcon}>
-            <span className="font-medium">{resolver?.aliasCount ?? 0}</span>{' '}
-            aliases
+            <span className="font-medium">{resolver?.linkCount ?? 0}</span>{' '}
+            links
           </CounterCardRow>
         </CounterCard>
       </div>

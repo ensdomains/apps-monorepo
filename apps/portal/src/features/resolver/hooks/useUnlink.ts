@@ -1,41 +1,38 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { setAlias } from '@/features/resolver/helpers/setAlias'
+import { unlink } from '@/features/resolver/helpers/linkRecords'
+import {
+  getResolverOverviewQueryOptions,
+  pruneLinksAfterUnlink,
+  type ResolverOverview,
+} from '@/features/resolver/hooks/useResolverOverview'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
-interface UseSetAliasOptions {
+interface UseUnlinkOptions {
   readonly resolverAddress: Address
   readonly walletClient: WalletClient | undefined
   readonly publicClient: PublicClient | undefined
   readonly chainId: number
   readonly id: string
-  readonly onSuccess?: () => void
 }
 
-interface SetAliasMutationParams {
-  readonly fromName: string
-  readonly toName: string
-}
-
-export const useSetAlias = ({
+export const useUnlink = ({
   resolverAddress,
   walletClient,
   publicClient,
   chainId,
   id,
-  onSuccess,
-}: UseSetAliasOptions) => {
+}: UseUnlinkOptions) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ fromName, toName }: SetAliasMutationParams) => {
+    mutationFn: (sourceName: string) => {
       if (!walletClient || !publicClient) {
         throw new Error('Wallet not connected')
       }
-      return setAlias({
-        fromName,
-        toName,
+      return unlink({
+        sourceName,
         resolverAddress,
         walletClient,
         publicClient,
@@ -44,7 +41,20 @@ export const useSetAlias = ({
         id,
       })
     },
-    onSuccess: async () => {
+    onSuccess: async (_result, sourceName) => {
+      const resolverOverviewQueryKey = getResolverOverviewQueryOptions({
+        address: resolverAddress,
+      }).queryKey
+
+      queryClient.setQueryData<ResolverOverview | null>(
+        resolverOverviewQueryKey,
+        (current) => {
+          if (!current) return current
+          const links = pruneLinksAfterUnlink(current.links, sourceName)
+          return { ...current, links, linkCount: links.length }
+        },
+      )
+
       await pollForIndexerSync({
         invalidateQueries: () =>
           queryClient.invalidateQueries({
@@ -52,7 +62,6 @@ export const useSetAlias = ({
             refetchType: 'all',
           }),
       })
-      onSuccess?.()
     },
   })
 }

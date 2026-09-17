@@ -89,9 +89,8 @@ export interface HcaBudgetQueryParams {
    */
   readonly primaryName: string | undefined
   /**
-   * Resolves the session-enable payload. The commit leg's cost depends on
-   * whether the batch carries `enableSessionWithRefund`, so the quote must be
-   * taken against the same shape the machine will submit.
+   * Resolves the session-enable payload. Both legs are signed with it, so the
+   * quote must be taken against the same envelope the machine will submit.
    */
   readonly getSessionEnablePayload: () => Promise<
     HcaSessionEnableParams | undefined

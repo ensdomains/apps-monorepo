@@ -13,9 +13,11 @@
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import {
   registrySetOwnerSnippet,
   registrySetResolverSnippet,
+  registrySetSubnodeOwnerSnippet,
 } from '@ensdomains/ensjs-abi/registry'
 import {
   baseRegistrarReclaimSnippet,
@@ -24,6 +26,7 @@ import {
 import {
   nameWrapperSafeTransferFromSnippet,
   nameWrapperSetResolverSnippet,
+  nameWrapperSetSubnodeOwnerSnippet,
 } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import { match } from 'ts-pattern'
 import {
@@ -149,3 +152,42 @@ export const prepareDetachV1ResolverTransaction = ({
     }),
     chainId,
   })
+
+/**
+ * Reassign a subname from its parent: `NameWrapper.setSubnodeOwner` when the
+ * subname is wrapped, `ENSRegistry.setSubnodeOwner` when it isn't. Same call
+ * shape the legacy app sends (`transferName` with `asParent`).
+ *
+ * The wrapper call takes `fuses` and `expiry` too. Zero for both keeps what the
+ * subname has: `_updateName` ORs the fuses onto the existing ones and
+ * `_normaliseExpiry` never lowers the expiry. `name` must be normalised.
+ */
+export const prepareReassignV1SubnameTransaction = ({
+  name,
+  recipient,
+  isWrapped,
+  walletClient,
+  chainId,
+}: IntentContext & {
+  readonly name: string
+  readonly recipient: Address
+  readonly isWrapped: boolean
+}): CustomTransactionIntent => {
+  const { label, labelhash, parentNode } = makeLabelNodeAndParent(name)
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: isWrapped ? NAME_WRAPPER : LEGACY_REGISTRY,
+    data: isWrapped
+      ? encodeFunctionData({
+          abi: nameWrapperSetSubnodeOwnerSnippet,
+          functionName: 'setSubnodeOwner',
+          args: [parentNode, label, recipient, 0, 0n],
+        })
+      : encodeFunctionData({
+          abi: registrySetSubnodeOwnerSnippet,
+          functionName: 'setSubnodeOwner',
+          args: [parentNode, labelhash, recipient],
+        }),
+    chainId,
+  })
+}

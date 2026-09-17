@@ -27,18 +27,19 @@ const facts = [
     title: <Trans>One NFT per address</Trans>,
     body: (
       <Trans>
-        The token is tied to your eligible EOA. Migrating more names later does
-        not create another commemorative NFT.
+        Each eligible wallet address can claim one personalized NFT. Upgrading
+        more names later does not create another NFT.
       </Trans>
     ),
   },
   {
     icon: 'auto_awesome',
-    title: <Trans>Offered after your first migration</Trans>,
+    title: <Trans>Offered after your first upgrade</Trans>,
     body: (
       <Trans>
-        You can preview the card after migrating one name, mint immediately, or
-        return from your Dashboard or canonical profile later.
+        You can preview your personalized NFT after upgrading your first name,
+        claim it immediately, or return from your Dashboard or ENS profile
+        later.
       </Trans>
     ),
   },
@@ -209,7 +210,7 @@ const MigrationNftInfoContent = () => {
           </div>
           <MigrationPrimaryButton asChild className="shrink-0">
             <Link to="/dashboard">
-              <Trans>Open Dashboard</Trans>
+              <Trans>Go to dashboard</Trans>
               <MSymbol className="text-[19px]" symbol="arrow_forward" />
             </Link>
           </MigrationPrimaryButton>

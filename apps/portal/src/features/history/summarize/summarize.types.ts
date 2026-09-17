@@ -22,9 +22,8 @@ export type ActionIcon =
   | 'default'
 
 /**
- * An inline piece of an action label. `name`/`address`/`contract` render as
- * `EntityBadge` chips; `text` is monospace; `glyph`/`connective` are muted joiners;
- * `placeholder` marks data we don't have yet.
+ * An inline piece of an action label. `name`/`address`/`contract`/`text` render
+ * as `EntityBadge` pills; `glyph`/`connective` are muted joiners.
  */
 export type ActionSlot =
   | { readonly kind: 'name'; readonly value: string }
@@ -47,13 +46,14 @@ export type ActionSlot =
 
 /**
  * A tier-1 semantic action, produced by the summarize engine from raw events.
- * Actions are one-per-transaction, so `txHash` doubles as the stable identity,
- * and its sender leads the row: "{sender} {label} {slots}".
+ * Actions are one-per-transaction, so `txHash` doubles as the stable identity.
+ * A row reads "{label} {slots}", led by the transaction sender on feeds whose
+ * subject is not the actor (see `ActionSummaryRow.showActor`).
  */
 export type Action = {
   readonly txHash: Hex
   readonly icon: ActionIcon
-  /** The past-tense verb phrase that follows the sender, e.g. "set address to". */
+  /** The past-tense verb phrase, e.g. "set address to". */
   readonly label: string
   /** Entities/joiners rendered inline after the label. */
   readonly slots: readonly ActionSlot[]

@@ -3,9 +3,10 @@
  *
  * A "session" here is a scoped ERC-7579 SmartSession on the standalone
  * `HCAOwnerAndSessionValidator` — NOT the old ephemeral-owner model. The wallet
- * signs ONE multi-chain authorization up front (before route selection); the
- * session is then enabled lazily inside the first HCA action via
- * `enableSessionWithRefund(...)`. No separate ENABLE transaction.
+ * signs ONE multi-chain authorization up front (before route selection). The
+ * validator is stateless: nothing is enabled on-chain, and EVERY session-signed
+ * intent carries that authorization plus the session config as its
+ * `enableData` (envelope mode 0x05). No ENABLE transaction or call.
  *
  * First pass is SAME-CHAIN ONLY: we build just the destination (Sepolia) HCA
  * session and its enable-data. The source-session salt encoder is included as a
@@ -30,7 +31,6 @@ import {
   type Address,
   type Chain,
   encodeAbiParameters,
-  encodeFunctionData,
   type Hex,
   keccak256,
   type PublicClient,
@@ -49,19 +49,26 @@ const standaloneHcaAbi = parseAbi([
   'function ownerAndSessionNonce() view returns (address owner, uint96 sessionNonce)',
 ])
 
+type SdkSessionEnableData = NonNullable<ChainSessionConfig['enableData']>
+
+/** The session limits the validator re-derives the permission salt from. */
+export type HcaSessionConfig = NonNullable<
+  SdkSessionEnableData['hcaSessionConfig']
+>
+
 /**
  * Per-session enable-data (the value passed to the Rhinestone signer). NOTE:
  * this is NOT the raw authorization bytes — each entry references the session
  * by index into the signed session set. Only the destination entry carries
  * the HCA nonce.
  *
- * Extends the SDK shape with the standalone-HCA nonce added by the ENS patch.
- * The published SDK 1.8 declarations do not include this runtime field yet.
+ * `hcaSessionNonce` and `hcaSessionConfig` are the ENS SDK patch's
+ * standalone-HCA fields, required here: the patch packs them into the proof
+ * the validator checks on every session-signed intent.
  */
-export type SessionEnableData = NonNullable<
-  ChainSessionConfig['enableData']
-> & {
+export type SessionEnableData = SdkSessionEnableData & {
   readonly hcaSessionNonce: bigint
+  readonly hcaSessionConfig: HcaSessionConfig
 }
 
 /** Standalone sessions bind the permission to one HCA address. */
@@ -205,9 +212,9 @@ async function readSessionNonce(params: {
 /**
  * Build + sign the destination HCA session authorization (same-chain route).
  *
- * This is the FIRST wallet prompt. The returned `enableData` is passed to the
- * Rhinestone signer for the first HCA action; the session is enabled lazily
- * there (no separate ENABLE tx).
+ * This is the FIRST wallet prompt. The returned `enableData` goes to the
+ * Rhinestone signer with every session-signed intent; nothing is enabled
+ * on-chain.
  */
 export function createDestinationSession(
   params: DestinationSessionParams,
@@ -248,6 +255,12 @@ export function createDestinationSession(
         hashesAndChainIds: details.hashesAndChainIds,
         sessionToEnableIndex: 0,
         hcaSessionNonce,
+        hcaSessionConfig: buildHcaSessionConfig({
+          chainId: params.chain.id,
+          sessionKey: params.sessionAccount.address,
+          validUntil: params.validUntil,
+          resolver: params.resolver,
+        }),
       }
 
       return {
@@ -267,39 +280,25 @@ export function createDestinationSession(
 }
 
 /**
- * Build the `enableSessionWithRefund(...)` validator call for the first HCA
- * action. Arg order is EXACT: permissionId, sessionKey, validUntil, resolver,
- * refundToken, maxRefundExchangeRate, maxRefundGasOverhead, maxRefundAmount.
+ * The session config the SDK packs into the enable proof. The validator hashes
+ * these (with the HCA nonce) back into the permission salt, so they must be the
+ * exact values `computeDestinationSessionSalt` used.
  */
-const enableSessionWithRefundAbi = parseAbi([
-  'function enableSessionWithRefund(bytes32 permissionId, address sessionKey, uint48 validUntil, address resolver, address refundToken, uint96 maxRefundExchangeRate, uint48 maxRefundGasOverhead, uint96 maxRefundAmount)',
-])
-
-export function buildEnableSessionWithRefundCall(params: {
+export function buildHcaSessionConfig(params: {
   readonly chainId: number
-  readonly permissionId: Hex
   readonly sessionKey: Address
   readonly validUntil: bigint
   readonly resolver: Address
-}): { to: Address; value: bigint; data: Hex } {
+}): HcaSessionConfig {
   const c = getDestinationContracts(params.chainId)
   return {
-    to: c.hcaOwnerAndSessionValidator,
-    value: 0n,
-    data: encodeFunctionData({
-      abi: enableSessionWithRefundAbi,
-      functionName: 'enableSessionWithRefund',
-      args: [
-        params.permissionId,
-        params.sessionKey,
-        Number(params.validUntil),
-        params.resolver,
-        c.usdc,
-        MAX_REFUND_EXCHANGE_RATE,
-        Number(MAX_REFUND_GAS_OVERHEAD),
-        MAX_REFUND_AMOUNT,
-      ],
-    }),
+    sessionKey: params.sessionKey,
+    validUntil: Number(params.validUntil),
+    resolver: params.resolver,
+    refundToken: c.usdc,
+    maxRefundExchangeRate: MAX_REFUND_EXCHANGE_RATE,
+    maxRefundGasOverhead: Number(MAX_REFUND_GAS_OVERHEAD),
+    maxRefundAmount: MAX_REFUND_AMOUNT,
   }
 }
 

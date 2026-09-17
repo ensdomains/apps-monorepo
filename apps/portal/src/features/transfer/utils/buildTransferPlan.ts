@@ -5,7 +5,7 @@
  * and its shape depends on what is being moved (see `TransferSubject`).
  */
 
-import type { TransferSubject } from '../types'
+import type { TransferSubject, V1TransferActor } from '../types'
 
 export type TransferOptions = {
   /** Point the name's ETH address record at the recipient. */
@@ -30,6 +30,11 @@ export type TransferStepKind =
   | 'transfer-erc1155'
   /** V1 registry-only: `ENSRegistry.setOwner`. */
   | 'set-registry-owner'
+  /**
+   * V1 subname moved by its parent: `NameWrapper.setSubnodeOwner` (wrapped) or
+   * `ENSRegistry.setSubnodeOwner` (unwrapped), overriding the current holder.
+   */
+  | 'set-subnode-owner'
 
 /** The step(s) that actually move the name, per subject kind. */
 const MOVE_STEPS: Record<TransferSubject['kind'], readonly TransferStepKind[]> =
@@ -45,7 +50,13 @@ const MOVE_STEPS: Record<TransferSubject['kind'], readonly TransferStepKind[]> =
 export const buildTransferPlan = (
   options: TransferOptions,
   kind: TransferSubject['kind'],
+  actor: V1TransferActor = 'owner',
 ): TransferStepKind[] => {
+  // A parent holds neither the subname's registry slot nor its wrapper token,
+  // so it can't write the subname's records; the form never offers the config
+  // steps, but the plan is the last line of defence.
+  if (actor === 'parent') return ['set-subnode-owner']
+
   // Redundant once the resolver is detached, so only when the resolver is kept.
   const addressSteps: readonly TransferStepKind[] =
     options.setEthAddress && !options.detachResolver ? ['set-eth-addr'] : []
@@ -76,4 +87,5 @@ export const STEP_LABELS: Record<TransferStepKind, string> = {
   'transfer-erc721': 'Transfer name',
   'transfer-erc1155': 'Transfer name',
   'set-registry-owner': 'Transfer name',
+  'set-subnode-owner': 'Reassign subname',
 }

@@ -11,12 +11,14 @@
  */
 
 import { setAddrParameters } from '@ensdomains/ensjs/utils'
+import { setAddressParameters } from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 
-export type SetForwardResolutionRequest = ReturnType<
-  typeof createSetForwardResolutionRequest
->
+export type SetForwardResolutionRequest = { address: Address } & (
+  | ReturnType<typeof setAddrParameters>
+  | ReturnType<typeof setAddressParameters>
+)
 
 /**
  * Creates contract call parameters for setting forward resolution.
@@ -24,18 +26,23 @@ export type SetForwardResolutionRequest = ReturnType<
  * @param coinType ENSIP-9/11 coin type the address record is keyed on: `60`
  * for Ethereum, `0x80000000 | chainId` for EVM L2s (environment-derived, e.g.
  * Scroll Sepolia → `0x8008274f`), `0x80000000` for the default record.
+ * @param permissioned Target a V2 `PermissionedResolver`, whose setter is
+ * `setAddress(bytes name, ...)` rather than `setAddr(bytes32 node, ...)`. The
+ * v1 encoding hits the V2 resolver's fallback and reverts with empty data.
  */
 export function createSetForwardResolutionRequest({
   name,
   coinType,
   resolverAddress,
   targetAddress,
+  permissioned = false,
 }: {
   name: string | undefined
   coinType: number
   resolverAddress: Address | null | undefined
   targetAddress: Address
-}) {
+  permissioned?: boolean
+}): SetForwardResolutionRequest {
   if (!name) {
     throw new Error('No name provided')
   }
@@ -52,11 +59,9 @@ export function createSetForwardResolutionRequest({
     )
   }
 
-  const setAddr = setAddrParameters({
-    name,
-    coin: coinType,
-    value: targetAddress,
-  })
+  const setAddr = permissioned
+    ? setAddressParameters({ name, coin: coinType, value: targetAddress })
+    : setAddrParameters({ name, coin: coinType, value: targetAddress })
 
   return {
     address: resolverAddress,

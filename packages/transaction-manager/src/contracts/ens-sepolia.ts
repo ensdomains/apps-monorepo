@@ -27,14 +27,15 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // Default reverse registrar (ENSIP-19 `default.reverse`, sets the
   // primary/default ENS name per coin type). This is the registrar the
   // canonical deployment's DefaultReverseRegistrarAdapter wraps (its public
-  // immutable `DEFAULT_REVERSE_REGISTRAR`, read off `0x7a84e241…` on Sepolia)
+  // immutable `DEFAULT_REVERSE_REGISTRAR`, read off `0x4F32A1c6…` on Sepolia)
   // — NOT the superseded `0xeb8269fb…` standalone deployment, whose records
   // nothing in the canonical resolution path reads.
   DefaultReverseRegistrar: '0x4F382928805ba0e23B30cFB75fC9E848e82DFD47',
-  // HCA forwarders for the two v1 reverse registrars (canonical deployment,
-  // contracts-v2 docs/addresses/sepolia.md @ 97a5729).
-  DefaultReverseRegistrarAdapter: '0x7a84e241f862D73960D73c26d68c3C8F89F0B18F',
-  ReverseRegistrarAdapter: '0x035ae6188ac22ab79b5018039dFbda4FFe7990e9',
+  // HCA forwarders for the two v1 reverse registrars (contracts-v2
+  // `deployments/sepolia` @ 71a3b733). Each resolves the calling HCA's owner
+  // through its STANDALONE_HCA_FACTORY, so they must match `HCAFactory` above.
+  DefaultReverseRegistrarAdapter: '0x4F32A1c62E202922d4d6307126F43218DB9dA6f5',
+  ReverseRegistrarAdapter: '0x39993148CAA6a20aE1F08E1b2427966E97f85aaB',
 } as const
 
 // Payment tokens the V2 registrar actually accepts (its PAYMENT_TOKEN /

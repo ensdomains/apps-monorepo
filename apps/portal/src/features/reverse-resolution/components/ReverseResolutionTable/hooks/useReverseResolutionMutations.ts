@@ -16,6 +16,7 @@ import { normalize } from 'viem/ens'
 import { useConnection, useWalletClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
+import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 
 type UseReverseResolutionMutationsParams = {
@@ -72,6 +73,26 @@ export function useReverseResolutionMutations({
     enabled: Boolean(displayName),
   })
 
+  // Post-audit-2 `PermissionedResolver` setters take the DNS-encoded name;
+  // legacy resolvers take the node. Decide by the resolver's implementation —
+  // never by a default, since the wrong encoding hits the other resolver's
+  // fallback and reverts with empty data.
+  const {
+    data: isPermissionedResolver,
+    isPending: isResolverKindPending,
+    isError: isResolverKindError,
+  } = useQuery({
+    ...getIsPermissionedResolverQueryOptions({
+      resolverAddress: (resolverAddress ??
+        '0x0000000000000000000000000000000000000000') as Address,
+    }),
+    enabled: Boolean(resolverAddress),
+  })
+
+  /** True until we know which setter shape this resolver takes. */
+  const isResolverKindLoading =
+    Boolean(resolverAddress) && isResolverKindPending
+
   const invalidateReverseResolutionQuery = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['get-reverse-resolution'] })
   }, [queryClient])
@@ -114,20 +135,38 @@ export function useReverseResolutionMutations({
     [chain, isL1, l1WalletClient, reverseRegistrarChainId],
   )
 
-  // Builds the forward `setAddr(node, coinType, address)` request against the
-  // name's L1 resolver. Valid for L1 and L2 rows alike — the coin type keys
-  // which chain's address record is written (ENSIP-19), the tx itself is
-  // always an L1 transaction.
+  // Builds the forward address-record request against the name's L1 resolver
+  // (`setAddr(node, ...)` on legacy resolvers, `setAddress(name, ...)` on a
+  // post-audit-2 PermissionedResolver). Valid for L1 and L2 rows alike — the
+  // coin type keys which chain's address record is written (ENSIP-19), the tx
+  // itself is always an L1 transaction.
   const getForwardResolutionRequest = useCallback(
     (address: Address): SetForwardResolutionRequest => {
+      if (isResolverKindError) {
+        throw new Error(
+          'Could not determine the resolver type. Refresh and try again.',
+        )
+      }
+      if (isResolverKindLoading) {
+        throw new Error('Still checking the resolver type. Try again shortly.')
+      }
+
       return createSetForwardResolutionRequest({
         name: displayName,
         coinType,
         resolverAddress,
         targetAddress: address,
+        permissioned: isPermissionedResolver === true,
       })
     },
-    [displayName, coinType, resolverAddress],
+    [
+      displayName,
+      coinType,
+      resolverAddress,
+      isPermissionedResolver,
+      isResolverKindLoading,
+      isResolverKindError,
+    ],
   )
 
   return {
@@ -135,5 +174,6 @@ export function useReverseResolutionMutations({
     getForwardResolutionRequest,
     invalidateReverseResolutionQuery,
     isEnsOwnerLoading,
+    isResolverKindLoading,
   }
 }

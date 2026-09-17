@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeEth2LdName, normalizeEthName } from './profileName'
+import {
+  normalizeEth2LdName,
+  normalizeEthName,
+  normalizeProfileName,
+} from './profileName'
+
+describe('normalizeProfileName', () => {
+  it('normalizes valid dotted names', () => {
+    expect(normalizeProfileName('Sub.FOO.ETH')).toBe('sub.foo.eth')
+    expect(normalizeProfileName('ＡＬＩＣＥ.eth')).toBe('alice.eth')
+  })
+
+  it('rejects names that cannot be normalized', () => {
+    expect(normalizeProfileName('foo..eth')).toBeNull()
+    expect(normalizeProfileName('xn--raffy.eth')).toBeNull()
+    expect(normalizeProfileName('foo')).toBeNull()
+  })
+})
 
 describe('normalizeEthName', () => {
   it('normalizes ENS names before splitting labels', () => {

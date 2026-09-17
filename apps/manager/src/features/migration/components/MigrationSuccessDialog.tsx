@@ -30,15 +30,21 @@ type MigrationSuccessDialogProps = {
 
 const DialogHeading = ({
   context,
+  migratedNameCount,
   state,
 }: {
   readonly context: MigrationSuccessDialogProps['context']
+  readonly migratedNameCount: number
   readonly state: MigrationSuccessDialogState
 }) => (
   <div className="flex w-full max-w-[486px] shrink-0 flex-col items-center gap-2 text-center md:gap-4">
     <DialogTitle className="w-full text-balance font-normal font-serif text-[20px] text-ens-garnet-900 leading-[1.1] tracking-[-0.02em] md:text-[32px]">
       {context === 'migration' ? (
-        <Trans>Your name(s) have been upgraded!</Trans>
+        <Plural
+          one="Your name has been upgraded!"
+          other="Your names have been upgraded!"
+          value={migratedNameCount}
+        />
       ) : (
         <Trans>Your ENSv2 moment is waiting</Trans>
       )}
@@ -46,7 +52,7 @@ const DialogHeading = ({
     <DialogDescription className="max-w-[400px] font-normal font-sans text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.01em]">
       {state.status === 'loadingEligibility' ? (
         <Trans>
-          Here&apos;s a gift to celebrate your migration to the next era of ENS
+          Here&apos;s a gift to celebrate your upgrade to the next era of ENS
         </Trans>
       ) : (
         <Trans>
@@ -74,13 +80,13 @@ const PlainMigrationSuccessContent = ({
       />
     </DialogTitle>
     <DialogDescription className="mt-3 max-w-80 text-pretty font-normal text-[15px] text-ens-garnet-800/75 leading-[1.45]">
-      <Trans>You can manage your upgraded names from the dashboard.</Trans>
+      <Trans>Manage your newly upgraded names from the dashboard.</Trans>
     </DialogDescription>
 
     <div className="mt-8 flex w-full justify-center">
       <MigrationPrimaryButton onClick={onOpenDashboard}>
         <span className="flex items-center gap-2">
-          <Trans>Open Dashboard</Trans>
+          <Trans>Go to dashboard</Trans>
           <MSymbol
             aria-hidden
             className="text-[20px] transition-transform duration-150 ease-out group-hover/button:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none"
@@ -301,7 +307,11 @@ export const MigrationSuccessDialog = ({
             />
           ) : (
             <>
-              <DialogHeading context={context} state={state} />
+              <DialogHeading
+                context={context}
+                migratedNameCount={migratedNameCount}
+                state={state}
+              />
               <StatusContent
                 canMint={canMint}
                 onClose={onClose}

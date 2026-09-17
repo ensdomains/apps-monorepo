@@ -95,7 +95,7 @@ const ClaimAdmissionStatus = ({
           type="button"
         >
           {context === 'migration' ? (
-            <Trans>Continue to dashboard</Trans>
+            <Trans>Go to dashboard</Trans>
           ) : (
             <Trans>Close</Trans>
           )}

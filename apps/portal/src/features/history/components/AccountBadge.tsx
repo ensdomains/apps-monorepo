@@ -24,11 +24,8 @@ export const FullOnDesktop = ({ value }: { value: string }) => (
 )
 
 /**
- * Renders an account as its **primary ENS name** (no avatar) when one resolves,
- * otherwise the truncated address. Either way the pill is the wallet — it links
- * to the address page, where its registry roles show — and a resolved name is
- * reachable through the Name chip. Kept here (not in EntityBadge) so the shared
- * badge stays presentational.
+ * An account as its primary ENS name when one resolves, else the truncated
+ * address. Kept out of `EntityBadge` so the shared badge stays presentational.
  */
 export const AccountBadge = ({
   address,
@@ -43,16 +40,28 @@ export const AccountBadge = ({
 
   if (!address) return <span className="text-muted-foreground text-p">—</span>
 
+  if (name) {
+    return (
+      <EntityBadge
+        variant="name"
+        name={name}
+        address={address}
+        etherscanHref={explorerUrl}
+        compact
+      >
+        {name}
+      </EntityBadge>
+    )
+  }
+
   return (
     <EntityBadge
       variant="address"
       address={address}
-      name={name ?? undefined}
       etherscanHref={explorerUrl}
       compact
     >
-      {name ??
-        (full ? <FullOnDesktop value={address} /> : truncateAddress(address))}
+      {full ? <FullOnDesktop value={address} /> : truncateAddress(address)}
     </EntityBadge>
   )
 }

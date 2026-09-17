@@ -22,6 +22,7 @@ export const STATIC_PATH_PREFIXES = [
  */
 export const RESERVED_ROUTE_SEGMENTS = new Set([
   'addr',
+  'import',
   'register',
   'registry',
   'resolver',

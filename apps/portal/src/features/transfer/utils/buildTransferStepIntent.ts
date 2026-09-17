@@ -13,6 +13,7 @@ import { getLabel } from '@/utils/token/getLabel'
 import type { TransferSubject } from '../types'
 import {
   prepareDetachV1ResolverTransaction,
+  prepareReassignV1SubnameTransaction,
   prepareSetV1RegistryOwnerTransaction,
   prepareTransferV1NameTransaction,
 } from '../v1/writes'
@@ -31,6 +32,12 @@ export type TransferStepContext = IntentContext & {
    * control.
    */
   readonly resolverAddress: Address | null
+  /**
+   * Whether `resolverAddress` is a V2 `PermissionedResolver`, whose setters take
+   * the DNS-encoded name rather than the node. Null when it was never read: the
+   * name has no resolver, or the plan never writes to it.
+   */
+  readonly isPermissionedResolver: boolean | null
 }
 
 /**
@@ -46,6 +53,7 @@ export const buildTransferStepIntent = (
     recipient,
     tokenId,
     resolverAddress,
+    isPermissionedResolver,
     walletClient,
     chainId,
   }: TransferStepContext,
@@ -61,12 +69,17 @@ export const buildTransferStepIntent = (
         // a null here means the state changed underneath us.
         if (!resolverAddress)
           throw new Error(`${name} has no resolver of its own to update`)
+        // Never default the kind: the wrong setter shape hits the other
+        // resolver's fallback and reverts with empty data.
+        if (isPermissionedResolver === null)
+          throw new Error(`Could not tell what kind of resolver ${name} uses`)
         return prepareSetForwardResolutionTransaction({
           request: createSetForwardResolutionRequest({
             name,
             coinType: MAINNET_COIN_TYPE,
             resolverAddress,
             targetAddress: recipient,
+            permissioned: isPermissionedResolver,
           }),
           from: walletClient.account.address,
           chainId,
@@ -130,6 +143,15 @@ export const buildTransferStepIntent = (
       )
       .with(['set-registry-owner', { kind: 'v1-registry' }], () =>
         prepareSetV1RegistryOwnerTransaction(ctx),
+      )
+      // Which contract depends on how the *subname* is held.
+      .with(
+        ['set-subnode-owner', { kind: P.union('v1-wrapped', 'v1-registry') }],
+        ([, { kind }]) =>
+          prepareReassignV1SubnameTransaction({
+            ...ctx,
+            isWrapped: kind === 'v1-wrapped',
+          }),
       )
       .otherwise(() => {
         throw new Error(

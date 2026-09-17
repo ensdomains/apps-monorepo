@@ -6,7 +6,7 @@ import {
   HomeSearchInput,
   InfoBlockCard,
   LinkBlockCard,
-  RecentActivityTimeline,
+  RecentActivityTable,
 } from '@/features/dashboard/components'
 
 export const Route = createFileRoute('/')({
@@ -50,7 +50,7 @@ function RouteComponent() {
           />
         </div>
         <div className="w-full max-w-3xl">
-          <RecentActivityTimeline />
+          <RecentActivityTable />
         </div>
       </section>
     </main>
