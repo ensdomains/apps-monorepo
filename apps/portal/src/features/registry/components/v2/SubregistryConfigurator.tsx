@@ -10,7 +10,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { prepareDeploySubregistryTransaction } from '@/features/registry/helpers/deploySubregistry'
+import {
+  generateSubregistrySalt,
+  prepareDeploySubregistryTransaction,
+} from '@/features/registry/helpers/deploySubregistry'
 import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/setSubregistry'
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
@@ -98,6 +101,10 @@ export const SubregistryConfigurator = ({
   const [registryOption, setRegistryOption] = useState<RegistryOption>('deploy')
   const [contractAddress, setContractAddress] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
+  // Drawn again at every submit, so a retry after a deploy that landed (but
+  // whose set never did) targets a fresh address instead of reverting on the
+  // one it already occupies.
+  const [deploySalt, setDeploySalt] = useState(generateSubregistrySalt)
   const deployedSubregistryAddressRef = useRef<Address | null>(null)
 
   const useCustomRegistry = registryOption === 'use-existing'
@@ -148,7 +155,10 @@ export const SubregistryConfigurator = ({
 
   const handleDeploySubregistryStart = async () => {
     await ResultAsync.fromPromise(
-      deploySubregistryAsync({ id: DEPLOY_SUBREGISTRY_TX_ID }),
+      deploySubregistryAsync({
+        id: DEPLOY_SUBREGISTRY_TX_ID,
+        salt: deploySalt,
+      }),
       () => undefined,
     ).match(
       (result) => {
@@ -200,6 +210,7 @@ export const SubregistryConfigurator = ({
     // Gates the deploy too, not just the set: there is no reason to pay for a
     // registry that may not legally be pointed at anything.
     if (assertWritable && !(await assertWritable())) return
+    setDeploySalt(generateSubregistrySalt())
     openTransactionModal()
   }
 
@@ -309,6 +320,7 @@ export const SubregistryConfigurator = ({
                       prepareDeploySubregistryTransaction({
                         factoryAddress,
                         implAddress,
+                        salt: deploySalt,
                         walletClient,
                         chainId,
                       }),

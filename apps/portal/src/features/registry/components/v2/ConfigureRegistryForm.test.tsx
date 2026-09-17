@@ -195,6 +195,34 @@ describe('ConfigureRegistryForm', () => {
     expect(setSubregistry).not.toHaveBeenCalled()
   })
 
+  it('deploys under a fresh salt on every submit', async () => {
+    // A wallet's second deploy under the same salt reverts: the factory binds
+    // the proxy address to (sender, salt).
+    readSubregistry.mockResolvedValue(ok(zeroAddress))
+    deploySubregistryAsync.mockResolvedValue({
+      deployedAddress: CUSTOM_REGISTRY,
+    })
+    const user = userEvent.setup()
+    renderForm()
+
+    await submitForm(user)
+    await waitFor(() => expect(openModal).toHaveBeenCalledTimes(1))
+    await user.click(
+      screen.getByRole('button', { name: 'start:tx-deploy-subregistry' }),
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Deploy' }))
+    await waitFor(() => expect(openModal).toHaveBeenCalledTimes(2))
+    await user.click(
+      screen.getByRole('button', { name: 'start:tx-deploy-subregistry' }),
+    )
+
+    await waitFor(() => expect(deploySubregistryAsync).toHaveBeenCalledTimes(2))
+    const [[first], [second]] = deploySubregistryAsync.mock.calls
+    expect(typeof first.salt).toBe('bigint')
+    expect(second.salt).not.toBe(first.salt)
+  })
+
   it('refuses the pre-existing-registry path too', async () => {
     readSubregistry.mockResolvedValue(ok(LIVE_REGISTRY))
     const user = userEvent.setup()
