@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Address } from 'viem'
+import type { Address, Hash } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -9,8 +9,6 @@ import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
 import {
-  extractBlocksNeedingTimestamps,
-  extractTransactionHashes,
   groupAddressHistoryByName,
   type V1NameHistory,
   type V2NameHistory,
@@ -19,8 +17,8 @@ import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 import { partitionAddressHistory } from '../nameAttribution'
 
 type AddressHistoryData = {
-  v1Events?: V1NameHistory[]
-  v2Events?: V2NameHistory[]
+  readonly v1Events?: readonly V1NameHistory[]
+  readonly v2Events?: readonly V2NameHistory[]
 }
 
 const defaultNetwork = {
@@ -32,8 +30,8 @@ export const AddressHistoryDataTable = ({
   address,
   history,
 }: {
-  address: Address
-  history: AddressHistoryData
+  readonly address: Address
+  readonly history: AddressHistoryData
 }) => {
   // One group per name, so each name's provenance survives until it is judged
   const groups = useMemo(
@@ -43,16 +41,22 @@ export const AddressHistoryDataTable = ({
 
   // Metadata is fetched for every name, acquired or not: the transaction senders
   // are themselves one of the signals the attribution depends on.
-  const allRows = useMemo(() => groups.flatMap((group) => group.rows), [groups])
+  const allEvents = useMemo(
+    () => groups.flatMap((group) => group.events),
+    [groups],
+  )
 
   const blocksNeedingTimestamps = useMemo(
-    () => extractBlocksNeedingTimestamps(allRows),
-    [allRows],
+    () =>
+      allEvents
+        .filter((event) => !event.timestamp)
+        .map((event) => BigInt(event.blockNumber)),
+    [allEvents],
   )
 
   const transactionHashes = useMemo(
-    () => extractTransactionHashes(allRows),
-    [allRows],
+    () => allEvents.map((event) => event.transactionID as Hash),
+    [allEvents],
   )
 
   const {
@@ -72,7 +76,7 @@ export const AddressHistoryDataTable = ({
     transactionHashes,
   })
 
-  const { acquired, assigned } = useMemo(
+  const { acquired, assigned, assignedNameCount } = useMemo(
     () => partitionAddressHistory(groups, address, sendersData),
     [groups, address, sendersData],
   )
@@ -142,7 +146,7 @@ export const AddressHistoryDataTable = ({
         <section className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <h2 className="text-h2">
-              {`Names assigned to this address (${assignedEvents.length})`}
+              {`Names assigned to this address (${assignedNameCount})`}
             </h2>
             <p className="text-sm text-muted-foreground">
               Anyone who owns a name can point a subname at any address without

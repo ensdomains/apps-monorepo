@@ -1,8 +1,7 @@
 import { getNameType } from '@ensdomains/ensjs/utils'
 import { type Address, isAddress, isAddressEqual } from 'viem'
-import type { EventsTableData } from '@/components/table/EventsDataTable/types'
+import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import type { NameHistoryGroup } from '@/utils/history/transformAddressHistory'
-import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 
 /**
  * How a name came to be associated with an address.
@@ -23,16 +22,16 @@ type NameAttribution = 'acquired' | 'assigned'
  */
 type AttributableName = {
   /** Full name, used only to tell a registrar-issued .eth 2LD from a registry subname. */
-  name: string | null | undefined
+  readonly name: string | null | undefined
   /**
    * Who holds the name at the registrar level: the NameWrapper owner or the
    * registrar token holder on V1, the registry owner on V2. Only consulted for
    * registrar-issued names — for a subname this is exactly the value an attacker
    * sets, so it proves nothing.
    */
-  registrarHolder: string | null | undefined
+  readonly registrarHolder: string | null | undefined
   /** Transaction ids of every event in this name's history, where they are known. */
-  transactionIDs?: readonly string[]
+  readonly transactionIDs?: readonly string[]
 }
 
 const isSameAddress = (
@@ -49,12 +48,20 @@ const isSameAddress = (
  * anything deeper is a subname its parent mints for free, at will, to anyone, and a
  * 2LD under any other TLD may sit under a registry a stranger controls.
  *
+ * Note that "the address is named as the recipient of a transfer" is *not* a usable
+ * signal, tempting as it looks. `setSubnodeRecord` emits `NewOwner` naming the
+ * victim, and a parent owner can equally emit `Transfer` or `WrappedTransfer`
+ * naming them, so every recipient field on a subname is attacker-chosen. The cost
+ * is that a subname genuinely transferred in by its previous owner reads as
+ * `assigned` until the recipient touches it — it is still shown, in the separately
+ * labelled section, just not vouched for.
+ *
  * @param name - the name's provenance signals
  * @param address - the address whose history page is being rendered
  * @param senders - transaction hash to the EOA that sent it, as far as it is known.
  *   Transactions missing from the map simply do not contribute a signal.
  */
-export const attributeName = (
+const attributeName = (
   { name, registrarHolder, transactionIDs = [] }: AttributableName,
   address: Address,
   senders: ReadonlyMap<string, Address> | undefined,
@@ -73,10 +80,36 @@ export const attributeName = (
   return interacted ? 'acquired' : 'assigned'
 }
 
+const isAcquired = (
+  group: NameHistoryGroup,
+  address: Address,
+  senders: ReadonlyMap<string, Address> | undefined,
+) =>
+  attributeName(
+    { ...group, transactionIDs: group.events.map((e) => e.transactionID) },
+    address,
+    senders,
+  ) === 'acquired'
+
+/**
+ * The names whose history is the address's own.
+ *
+ * @see attributeName for the rule, and why registry ownership is not one of the signals.
+ */
+export const selectAcquiredNames = (
+  groups: readonly NameHistoryGroup[],
+  address: Address,
+  senders: ReadonlyMap<string, Address> | undefined,
+) => groups.filter((group) => isAcquired(group, address, senders))
+
 /**
  * Splits the history of every name the registry associates with an address into the
  * names the address acquired — its own history — and the names it was merely
  * assigned, whose content is authored by whoever assigned them.
+ *
+ * Events are grouped into transaction rows per bucket rather than globally, so a
+ * transaction touching several names still renders as one row, without ever putting
+ * an assigned name's events in a row about a name the address owns.
  *
  * @see attributeName for the rule, and why registry ownership is not one of the signals.
  */
@@ -85,31 +118,22 @@ export const partitionAddressHistory = (
   address: Address,
   senders: ReadonlyMap<string, Address> | undefined,
 ) => {
-  const acquired: EventsTableData<ENSEvent>[] = []
-  const assigned: EventsTableData<ENSEvent>[] = []
+  const acquired: NameHistoryGroup['events'][number][] = []
+  const assigned: NameHistoryGroup['events'][number][] = []
+  let assignedNameCount = 0
 
   for (const group of groups) {
-    const bucket =
-      attributeName(
-        {
-          ...group,
-          transactionIDs: group.rows.map((row) => row.transactionID),
-        },
-        address,
-        senders,
-      ) === 'acquired'
-        ? acquired
-        : assigned
-    bucket.push(...group.rows)
+    if (isAcquired(group, address, senders)) {
+      acquired.push(...group.events)
+    } else {
+      assigned.push(...group.events)
+      assignedNameCount += 1
+    }
   }
 
-  const newestFirst = (
-    a: EventsTableData<ENSEvent>,
-    b: EventsTableData<ENSEvent>,
-  ) => b.blockNumber - a.blockNumber
-
   return {
-    acquired: acquired.sort(newestFirst),
-    assigned: assigned.sort(newestFirst),
+    acquired: groupEventsByTransactionId(acquired, 'domain'),
+    assigned: groupEventsByTransactionId(assigned, 'domain'),
+    assignedNameCount,
   }
 }

@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock } from 'lucide-react'
-import { type Address, isAddress, isAddressEqual } from 'viem'
+import { useMemo } from 'react'
+import { type Address, type Hash, isAddress, isAddressEqual } from 'viem'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { HistorySectionHeader } from '@/components/HistorySectionHeader'
@@ -11,12 +12,13 @@ import { addressHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import { Button } from '@/components/ui/button'
 import { getV2HistoryForAddressQueryOptions } from '@/features/address/components/hooks/useV2HistoryForAddress'
-import { attributeName } from '@/features/address/nameAttribution'
+import { selectAcquiredNames } from '@/features/address/nameAttribution'
 import { NameList } from '@/features/dashboard/components/NameList'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
+import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { cn } from '@/lib/utils'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
-import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
+import { groupAddressHistoryByName } from '@/utils/history/transformAddressHistory'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/addr/$addr/')({
@@ -69,21 +71,31 @@ const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
     getV2HistoryForAddressQueryOptions({ address }),
   )
 
-  // This preview has no transaction senders to work from, so only the structural
-  // signal is available: a name the address was merely assigned stays out of it.
-  // Such a name is still reachable, clearly separated, on the full history page.
-  const recentEvents = v2Names
-    ? transformV2EventsToSubgraphFormat(
-        v2Names
-          .filter(
-            (nameHistory) =>
-              attributeName(nameHistory, address, undefined) === 'acquired',
-          )
-          .flatMap((nameHistory) => nameHistory.events)
-          .toSorted((a, b) => b.timestamp - a.timestamp)
-          .slice(0, RECENT_EVENT_LIMIT),
-      )
-    : undefined
+  const groups = useMemo(
+    () => groupAddressHistoryByName(undefined, v2Names),
+    [v2Names],
+  )
+
+  const transactionHashes = useMemo(
+    () =>
+      groups.flatMap((group) =>
+        group.events.map((event) => event.transactionID as Hash),
+      ),
+    [groups],
+  )
+
+  // The same attribution, off the same sender data, as the full history page — so a
+  // name counted as the address's own there is not missing here.
+  const { data: senders } = useTransactionSenders({ transactionHashes })
+
+  const recentEvents = useMemo(
+    () =>
+      selectAcquiredNames(groups, address, senders)
+        .flatMap((group) => group.events)
+        .toSorted((a, b) => b.blockNumber - a.blockNumber)
+        .slice(0, RECENT_EVENT_LIMIT),
+    [groups, address, senders],
+  )
 
   return (
     <div className="flex flex-col gap-4 w-full">

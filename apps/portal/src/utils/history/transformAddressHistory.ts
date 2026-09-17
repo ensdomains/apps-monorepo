@@ -1,19 +1,14 @@
-import type { Hash } from 'viem'
-import type {
-  BaseEvent,
-  EventsTableData,
-} from '@/components/table/EventsDataTable/types'
-import { groupEventsByTransactionId } from './groupEventsByTransactionId'
-import type { ENSEvent } from './transformHistoryToEvents'
+import type { BaseEventCategory } from '@/components/table/EventsDataTable/types'
+import type { SubgraphEvent } from './groupEventsByTransactionId'
 
 /**
  * V1 event types from subgraph
  */
 export type V1EventBase = {
-  id: string
-  transactionID: string
-  blockNumber: number
-  type: string
+  readonly id: string
+  readonly transactionID: string
+  readonly blockNumber: number
+  readonly type: string
 }
 
 /**
@@ -21,97 +16,52 @@ export type V1EventBase = {
  * single name's events so that attribution can be decided per name.
  */
 type NameProvenance = {
-  name: string | null
+  readonly name: string | null
   /**
    * Who holds the name at the registrar level — the NameWrapper owner or registrar
    * token holder on V1, the registry owner on V2.
    */
-  registrarHolder: string | null
+  readonly registrarHolder: string | null
 }
 
 /**
  * One V1 name's history, as returned by the address history subgraph query
  */
 export type V1NameHistory = NameProvenance & {
-  domainEvents: V1EventBase[]
-  registrationEvents: V1EventBase[]
-  resolverEvents: V1EventBase[]
+  readonly domainEvents: readonly V1EventBase[]
+  readonly registrationEvents: readonly V1EventBase[]
+  readonly resolverEvents: readonly V1EventBase[]
 }
 
 /**
  * V2 event type from the indexer
  */
 export type V2Event = {
-  transactionHash: string
-  blockNumber: number
-  name: string
-  type: string
-  timestamp: number
+  readonly transactionHash: string
+  readonly blockNumber: number
+  readonly name: string
+  readonly type: string
+  readonly timestamp: number
 }
 
 /**
  * One V2 name's history, as returned by the address history indexer query
  */
 export type V2NameHistory = NameProvenance & {
-  events: V2Event[]
+  readonly events: readonly V2Event[]
 }
 
 /**
- * A single name's events, already in table form, with the provenance signals
- * still attached so the caller can decide whether to show them.
+ * One name's events in the shape the events table consumes, still ungrouped.
+ *
+ * Grouping by transaction is deliberately left until after attribution: a single
+ * transaction can touch several names, and merging its events before the names are
+ * judged would carry a stranger's events into a row about the address's own name.
  */
 export type NameHistoryGroup = NameProvenance & {
-  rows: EventsTableData<ENSEvent>[]
-}
-
-/**
- * Transforms one V1 name's events (domain, registration, resolver) into
- * table rows, grouped by transaction ID
- */
-const transformV1NameHistory = (
-  nameHistory: V1NameHistory,
-): NameHistoryGroup => {
-  const allEvents: Array<V1EventBase & { category: string }> = [
-    ...(nameHistory.domainEvents || []).map((e) => ({
-      ...e,
-      category: 'domain' as const,
-    })),
-    ...(nameHistory.registrationEvents || []).map((e) => ({
-      ...e,
-      category: 'registration' as const,
-    })),
-    ...(nameHistory.resolverEvents || []).map((e) => ({
-      ...e,
-      category: 'resolver' as const,
-    })),
-  ]
-
-  return {
-    name: nameHistory.name,
-    registrarHolder: nameHistory.registrarHolder,
-    rows: groupEventsByTransactionId(allEvents, 'domain'),
-  }
-}
-
-/**
- * Transforms one V2 name's events into table rows, grouped by transaction ID
- */
-const transformV2NameHistory = (
-  nameHistory: V2NameHistory,
-): NameHistoryGroup => {
-  const subgraphFormat = (nameHistory.events || []).map((event) => ({
-    transactionID: event.transactionHash,
-    blockNumber: event.blockNumber,
-    id: event.name,
-    type: event.type,
-    timestamp: BigInt(event.timestamp),
-  }))
-
-  return {
-    name: nameHistory.name,
-    registrarHolder: nameHistory.registrarHolder,
-    rows: groupEventsByTransactionId(subgraphFormat, 'domain'),
-  }
+  readonly events: readonly (SubgraphEvent & {
+    readonly category?: BaseEventCategory
+  })[]
 }
 
 /**
@@ -123,30 +73,34 @@ const transformV2NameHistory = (
  * provenance, which a flattened list no longer carries.
  */
 export const groupAddressHistoryByName = (
-  v1Names?: V1NameHistory[],
-  v2Names?: V2NameHistory[],
+  v1Names?: readonly V1NameHistory[],
+  v2Names?: readonly V2NameHistory[],
 ): NameHistoryGroup[] => [
-  ...(v1Names || []).map(transformV1NameHistory),
-  ...(v2Names || []).map(transformV2NameHistory),
+  ...(v1Names || []).map(
+    ({ name, registrarHolder, ...events }): NameHistoryGroup => ({
+      name,
+      registrarHolder,
+      events: [
+        ...events.domainEvents.map((e) => ({ ...e, category: 'domain' })),
+        ...events.registrationEvents.map((e) => ({
+          ...e,
+          category: 'registration',
+        })),
+        ...events.resolverEvents.map((e) => ({ ...e, category: 'resolver' })),
+      ],
+    }),
+  ),
+  ...(v2Names || []).map(
+    ({ name, registrarHolder, events }): NameHistoryGroup => ({
+      name,
+      registrarHolder,
+      events: events.map((event) => ({
+        transactionID: event.transactionHash,
+        blockNumber: event.blockNumber,
+        id: event.name,
+        type: event.type,
+        timestamp: BigInt(event.timestamp),
+      })),
+    }),
+  ),
 ]
-
-/**
- * Extracts block numbers that need timestamp lookups
- * Filters out events that already have timestamps
- */
-export const extractBlocksNeedingTimestamps = <TEvent extends BaseEvent>(
-  events: EventsTableData<TEvent>[],
-): bigint[] => {
-  return events
-    .filter((tx) => !tx.timestamp)
-    .map((tx) => BigInt(tx.blockNumber))
-}
-
-/**
- * Extracts transaction hashes for sender lookups
- */
-export const extractTransactionHashes = <TEvent extends BaseEvent>(
-  events: EventsTableData<TEvent>[],
-): Hash[] => {
-  return events.map((tx) => tx.transactionID as Hash)
-}

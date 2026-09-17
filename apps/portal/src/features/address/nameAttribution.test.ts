@@ -4,7 +4,7 @@ import {
   groupAddressHistoryByName,
   type V1NameHistory,
 } from '@/utils/history/transformAddressHistory'
-import { attributeName, partitionAddressHistory } from './nameAttribution'
+import { partitionAddressHistory, selectAcquiredNames } from './nameAttribution'
 
 const VICTIM = '0x1111111111111111111111111111111111111111' as Address
 const ATTACKER = '0x2222222222222222222222222222222222222222' as Address
@@ -12,176 +12,125 @@ const ATTACKER = '0x2222222222222222222222222222222222222222' as Address
 const senders = (entries: Array<[string, Address]>) =>
   new Map<string, Address>(entries)
 
-describe('attributeName', () => {
-  it('treats a .eth 2LD held by the address as acquired', () => {
+/**
+ * The #93033 scenario: an attacker who owns any name calls
+ * `setSubnodeRecord(parentNode, label, victim, attackerResolver, 0)`, then emits
+ * resolver events from their own contract. The subgraph then reports the subname
+ * as owned by the victim, and its resolver events as the subname's history.
+ */
+const plantedSubname: V1NameHistory = {
+  name: 'victim.evil.eth',
+  registrarHolder: VICTIM,
+  domainEvents: [
+    {
+      id: 'planted-newowner',
+      transactionID: '0xattack1',
+      blockNumber: 200,
+      type: 'NewOwner',
+    },
+  ],
+  registrationEvents: [],
+  resolverEvents: [
+    {
+      id: 'planted-text',
+      transactionID: '0xattack2',
+      blockNumber: 201,
+      type: 'TextChanged',
+    },
+  ],
+}
+
+const ownedName: V1NameHistory = {
+  name: 'victim.eth',
+  registrarHolder: VICTIM,
+  domainEvents: [
+    {
+      id: 'real-transfer',
+      transactionID: '0xreal1',
+      blockNumber: 100,
+      type: 'Transfer',
+    },
+  ],
+  registrationEvents: [],
+  resolverEvents: [],
+}
+
+const attackerSenders = senders([
+  ['0xattack1' as Hash, ATTACKER],
+  ['0xattack2' as Hash, ATTACKER],
+  ['0xreal1' as Hash, VICTIM],
+])
+
+describe('selectAcquiredNames', () => {
+  it('keeps a .eth 2LD held by the address', () => {
     expect(
-      attributeName(
-        {
-          name: 'victim.eth',
-          registrarHolder: VICTIM,
-          transactionIDs: ['0xaaa'],
-        },
+      selectAcquiredNames(
+        groupAddressHistoryByName([ownedName]),
+        VICTIM,
+        undefined,
+      ).map((group) => group.name),
+    ).toEqual(['victim.eth'])
+  })
+
+  it('drops a .eth 2LD held by someone else the address never transacted on', () => {
+    expect(
+      selectAcquiredNames(
+        groupAddressHistoryByName([
+          { ...ownedName, registrarHolder: ATTACKER },
+        ]),
+        VICTIM,
+        senders([['0xreal1' as Hash, ATTACKER]]),
+      ),
+    ).toEqual([])
+  })
+
+  it('drops a subname on registry ownership alone', () => {
+    expect(
+      selectAcquiredNames(
+        groupAddressHistoryByName([plantedSubname]),
         VICTIM,
         undefined,
       ),
-    ).toBe('acquired')
+    ).toEqual([])
   })
 
-  it('treats a .eth 2LD held by someone else as assigned', () => {
+  it('drops a 2LD under a TLD a stranger may control', () => {
     expect(
-      attributeName(
-        {
-          name: 'victim.eth',
-          registrarHolder: ATTACKER,
-          transactionIDs: ['0xaaa'],
-        },
+      selectAcquiredNames(
+        groupAddressHistoryByName([{ ...ownedName, name: 'victim.evil' }]),
         VICTIM,
         undefined,
       ),
-    ).toBe('assigned')
+    ).toEqual([])
   })
 
-  it('does not treat a subname as acquired on registry ownership alone', () => {
+  it('keeps a subname the address transacted on', () => {
     expect(
-      attributeName(
-        {
-          name: 'victim.evil.eth',
-          registrarHolder: VICTIM,
-          transactionIDs: ['0xaaa'],
-        },
+      selectAcquiredNames(
+        groupAddressHistoryByName([plantedSubname]),
+        VICTIM,
+        senders([['0xattack1' as Hash, VICTIM]]),
+      ).map((group) => group.name),
+    ).toEqual(['victim.evil.eth'])
+  })
+
+  it('tolerates a missing name and a malformed holder', () => {
+    expect(
+      selectAcquiredNames(
+        groupAddressHistoryByName([
+          { ...ownedName, name: null },
+          { ...ownedName, registrarHolder: 'not-an-address' },
+        ]),
         VICTIM,
         undefined,
       ),
-    ).toBe('assigned')
-  })
-
-  it('does not treat a 2LD under an attacker-controlled TLD as acquired', () => {
-    expect(
-      attributeName(
-        { name: 'victim.evil', registrarHolder: VICTIM, transactionIDs: [] },
-        VICTIM,
-        undefined,
-      ),
-    ).toBe('assigned')
-  })
-
-  it('treats a subname the address transacted on as acquired', () => {
-    expect(
-      attributeName(
-        {
-          name: 'mine.victim.eth',
-          registrarHolder: VICTIM,
-          transactionIDs: ['0xbbb'],
-        },
-        VICTIM,
-        senders([['0xbbb', VICTIM]]),
-      ),
-    ).toBe('acquired')
-  })
-
-  it('treats a subname only the attacker transacted on as assigned', () => {
-    expect(
-      attributeName(
-        {
-          name: 'victim.evil.eth',
-          registrarHolder: VICTIM,
-          transactionIDs: ['0xccc'],
-        },
-        VICTIM,
-        senders([['0xccc', ATTACKER]]),
-      ),
-    ).toBe('assigned')
-  })
-
-  it('falls back to assigned when the senders are unknown', () => {
-    expect(
-      attributeName(
-        {
-          name: 'victim.evil.eth',
-          registrarHolder: VICTIM,
-          transactionIDs: ['0xddd'],
-        },
-        VICTIM,
-        undefined,
-      ),
-    ).toBe('assigned')
-  })
-
-  it('ignores a missing or malformed name rather than throwing', () => {
-    expect(
-      attributeName(
-        { name: null, registrarHolder: VICTIM, transactionIDs: [] },
-        VICTIM,
-        undefined,
-      ),
-    ).toBe('assigned')
-
-    expect(
-      attributeName(
-        {
-          name: 'victim.eth',
-          registrarHolder: 'not-an-address',
-          transactionIDs: [],
-        },
-        VICTIM,
-        undefined,
-      ),
-    ).toBe('assigned')
+    ).toEqual([])
   })
 })
 
 describe('partitionAddressHistory', () => {
-  /**
-   * The #93033 scenario: an attacker who owns any name calls
-   * `setSubnodeRecord(parentNode, label, victim, attackerResolver, 0)`, then emits
-   * resolver events from their own contract. The subgraph then reports the subname
-   * as owned by the victim, and its resolver events as the subname's history.
-   */
-  const plantedSubname: V1NameHistory = {
-    name: 'victim.evil.eth',
-    registrarHolder: VICTIM,
-    domainEvents: [
-      {
-        id: 'planted-newowner',
-        transactionID: '0xattack1',
-        blockNumber: 200,
-        type: 'NewOwner',
-      },
-    ],
-    registrationEvents: [],
-    resolverEvents: [
-      {
-        id: 'planted-text',
-        transactionID: '0xattack2',
-        blockNumber: 201,
-        type: 'TextChanged',
-      },
-    ],
-  }
-
-  const ownedName: V1NameHistory = {
-    name: 'victim.eth',
-    registrarHolder: VICTIM,
-    domainEvents: [
-      {
-        id: 'real-transfer',
-        transactionID: '0xreal1',
-        blockNumber: 100,
-        type: 'Transfer',
-      },
-    ],
-    registrationEvents: [],
-    resolverEvents: [],
-  }
-
-  const attackerSenders = senders([
-    ['0xattack1' as Hash, ATTACKER],
-    ['0xattack2' as Hash, ATTACKER],
-    ['0xreal1' as Hash, VICTIM],
-  ])
-
   it('keeps a planted subname out of the address history', () => {
-    const { acquired, assigned } = partitionAddressHistory(
+    const { acquired, assigned, assignedNameCount } = partitionAddressHistory(
       groupAddressHistoryByName([plantedSubname]),
       VICTIM,
       attackerSenders,
@@ -192,6 +141,7 @@ describe('partitionAddressHistory', () => {
       '0xattack2',
       '0xattack1',
     ])
+    expect(assignedNameCount).toBe(1)
   })
 
   it('separates a planted subname from a name the address really owns', () => {
@@ -208,58 +158,76 @@ describe('partitionAddressHistory', () => {
     ])
   })
 
-  it('keeps a subname the address itself transacted on in its own history', () => {
-    const { acquired, assigned } = partitionAddressHistory(
-      groupAddressHistoryByName([
-        { ...plantedSubname, name: 'mine.victim.eth' },
-      ]),
+  it('counts assigned names, not their transactions', () => {
+    const { assigned, assignedNameCount } = partitionAddressHistory(
+      groupAddressHistoryByName([plantedSubname]),
       VICTIM,
-      senders([
-        ['0xattack1' as Hash, VICTIM],
-        ['0xattack2' as Hash, VICTIM],
-      ]),
+      attackerSenders,
     )
 
-    expect(acquired).toHaveLength(2)
-    expect(assigned).toEqual([])
+    expect(assigned).toHaveLength(2)
+    expect(assignedNameCount).toBe(1)
   })
 
-  it('keeps a V2 name the address holds, and drops a V2 subname it does not', () => {
-    const { acquired, assigned } = partitionAddressHistory(
-      groupAddressHistoryByName(undefined, [
+  it('renders one row for a transaction that touched two acquired names', () => {
+    const sharedTransaction = {
+      id: 'shared',
+      transactionID: '0xshared',
+      blockNumber: 500,
+      type: 'Transfer',
+    }
+
+    const { acquired } = partitionAddressHistory(
+      groupAddressHistoryByName([
+        { ...ownedName, name: 'one.eth', domainEvents: [sharedTransaction] },
         {
-          name: 'victim.eth',
-          registrarHolder: VICTIM,
-          events: [
-            {
-              transactionHash: '0xv2real',
-              blockNumber: 400,
-              name: 'Transfer',
-              type: 'Transfer',
-              timestamp: 1700000000,
-            },
-          ],
-        },
-        {
-          name: 'victim.evil.eth',
-          registrarHolder: VICTIM,
-          events: [
-            {
-              transactionHash: '0xv2planted',
-              blockNumber: 401,
-              name: 'TextChanged',
-              type: 'TextChanged',
-              timestamp: 1700000001,
-            },
-          ],
+          ...ownedName,
+          name: 'two.eth',
+          domainEvents: [{ ...sharedTransaction, id: 'shared-2' }],
         },
       ]),
       VICTIM,
       undefined,
     )
 
-    expect(acquired.map((tx) => tx.transactionID)).toEqual(['0xv2real'])
-    expect(assigned.map((tx) => tx.transactionID)).toEqual(['0xv2planted'])
+    expect(acquired).toHaveLength(1)
+    expect(acquired[0].events).toHaveLength(2)
+  })
+
+  it('never merges an assigned name into a row about an acquired one', () => {
+    const { acquired, assigned } = partitionAddressHistory(
+      groupAddressHistoryByName([
+        {
+          ...ownedName,
+          domainEvents: [
+            {
+              id: 'real',
+              transactionID: '0xshared',
+              blockNumber: 500,
+              type: 'Transfer',
+            },
+          ],
+        },
+        {
+          ...plantedSubname,
+          domainEvents: [
+            {
+              id: 'planted',
+              transactionID: '0xshared',
+              blockNumber: 500,
+              type: 'NewOwner',
+            },
+          ],
+          resolverEvents: [],
+        },
+      ]),
+      VICTIM,
+      senders([['0xshared' as Hash, ATTACKER]]),
+    )
+
+    expect(acquired).toHaveLength(1)
+    expect(acquired[0].events.map((event) => event.id)).toEqual(['real'])
+    expect(assigned[0].events.map((event) => event.id)).toEqual(['planted'])
   })
 
   it('sorts each bucket newest first', () => {
