@@ -34,8 +34,7 @@ const parseHttpUrl = (rawUrl) => {
  * @param {URL} url
  * @returns {boolean}
  */
-const isSameOriginUrl = (url) =>
-  url.origin === sw.location.origin && url.protocol === sw.location.protocol;
+const isSameOriginUrl = (url) => url.origin === sw.location.origin;
 
 /**
  * @param {unknown} rawUrl
