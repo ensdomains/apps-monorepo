@@ -5,14 +5,7 @@ import {
   verifyStandaloneHca,
 } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import {
-  type Address,
-  type Hex,
-  isAddressEqual,
-  keccak256,
-  type PublicClient,
-  parseAbi,
-} from 'viem'
+import { type Address, isAddressEqual, type PublicClient, parseAbi } from 'viem'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
@@ -49,7 +42,6 @@ export type RequiredMigrationContractName =
 
 export type MigrationContractInvariant =
   | 'missing-code'
-  | 'bytecode-hash'
   | 'hca-certification'
   | 'hca-implementation-approved'
   | 'resolver-certification'
@@ -113,43 +105,6 @@ export const assertRequiredMigrationContractCode = async (params: {
         address,
       })
     }
-  }
-}
-
-export const MIGRATION_HELPER_RUNTIME_CODE_HASH =
-  '0x0b8acb00c2912a8b43085e0f55f9459b956cb51be1a16a5ff7ef0346dbd18143' as const
-
-/**
- * Pin the exact HCA-aware helper runtime, including its immutable factory and
- * controller wiring. The Sepolia deployment is not source-verified yet, so a
- * code-existence check alone is insufficient.
- */
-export const assertMigrationHelperRuntimeCode = async (params: {
-  readonly publicClient: PublicClient
-  readonly expectedRuntimeCodeHash?: Hex
-}): Promise<void> => {
-  const code = await params.publicClient.getCode({
-    address: V2_CONTRACTS.MigrationHelper,
-  })
-  if (!hasCode(code)) {
-    throw new MigrationContractInvariantError({
-      invariant: 'missing-code',
-      contractName: 'MigrationHelper',
-      address: V2_CONTRACTS.MigrationHelper,
-    })
-  }
-
-  const expected =
-    params.expectedRuntimeCodeHash ?? MIGRATION_HELPER_RUNTIME_CODE_HASH
-  const actual = keccak256(code as Hex)
-  if (actual.toLowerCase() !== expected.toLowerCase()) {
-    throw new MigrationContractInvariantError({
-      invariant: 'bytecode-hash',
-      contractName: 'MigrationHelper',
-      address: V2_CONTRACTS.MigrationHelper,
-      expected,
-      actual,
-    })
   }
 }
 

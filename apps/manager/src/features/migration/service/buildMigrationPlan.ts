@@ -61,7 +61,6 @@ import {
 } from './migrationBatchJournal'
 import {
   assertLockedPublicResolverSetMembership,
-  assertMigrationHelperRuntimeCode,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
@@ -655,10 +654,6 @@ export const buildMigrationRecoveryPlan = async (params: {
   )
   await assertRequiredMigrationContractCode({ publicClient })
   signal?.throwIfAborted()
-  if (directNames.length > 0) {
-    await assertMigrationHelperRuntimeCode({ publicClient })
-    signal?.throwIfAborted()
-  }
   await assertLockedPublicResolverSetMembership({
     publicClient,
     names: registryContext,

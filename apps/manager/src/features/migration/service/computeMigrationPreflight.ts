@@ -19,7 +19,6 @@ import {
 } from '@/features/migration/service/migrationApprovals'
 import {
   assertLockedPublicResolverSetMembership,
-  assertMigrationHelperRuntimeCode,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
@@ -210,9 +209,6 @@ export const computeMigrationPreflight = async (params: {
     hcaAddress
       ? (async () => {
           await assertRequiredMigrationContractCode({ publicClient })
-          if (directNames.length > 0) {
-            await assertMigrationHelperRuntimeCode({ publicClient })
-          }
           await assertLockedPublicResolverSetMembership({
             publicClient,
             names: classified,

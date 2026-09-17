@@ -66,13 +66,18 @@ export const useNftArtworkLoading = (params: {
   readonly imageUrl?: string
   readonly animate: boolean
   readonly waitingForVisibility?: boolean
+  readonly deferAnimation?: boolean
 }) => {
   const image = useDecodedNftImage(params.imageUrl)
+  // Reveal the decoded, motionless card first. If that image fails, preserve
+  // the renderer recovery path instead of leaving the modal unable to load.
+  const animate =
+    params.animate && (!params.deferAnimation || image === 'failed')
   const [renderer, setRenderer] = useState<RendererStatus>('loading')
   const [revealed, setRevealed] = useState(false)
   const initialStatus = params.waitingForVisibility
     ? 'loading'
-    : resolveNftArtworkStatus({ animate: params.animate, renderer, image })
+    : resolveNftArtworkStatus({ animate, renderer, image })
   const status =
     initialStatus === 'loading' && revealed && image === 'ready'
       ? 'ready'
@@ -85,9 +90,9 @@ export const useNftArtworkLoading = (params: {
   useEffect(() => {
     // A suspended iframe is recreated on return. A failure stays latched until
     // the user explicitly retries; scrolling must not start another attempt.
-    if (!params.animate)
+    if (!animate)
       setRenderer((current) => (current === 'failed' ? current : 'loading'))
-  }, [params.animate])
+  }, [animate])
 
   const onRendererReady = useCallback(
     () => setRenderer((current) => (current === 'failed' ? current : 'ready')),
@@ -96,9 +101,10 @@ export const useNftArtworkLoading = (params: {
   const onRendererError = useCallback(() => setRenderer('failed'), [])
 
   return {
+    imageFailed: image === 'failed',
     imageReady: image === 'ready',
-    animationReady: params.animate && renderer === 'ready',
-    renderAnimation: params.animate && renderer !== 'failed',
+    animationReady: animate && renderer === 'ready',
+    renderAnimation: animate && renderer !== 'failed',
     status,
     onRendererReady,
     onRendererError,

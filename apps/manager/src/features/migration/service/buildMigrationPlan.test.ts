@@ -33,7 +33,6 @@ vi.mock('./copyMigrationReadiness', () => ({
 vi.mock('./migrationInvariants', async (importActual) => ({
   ...(await importActual<typeof import('./migrationInvariants')>()),
   assertRequiredMigrationContractCode: vi.fn(() => Promise.resolve()),
-  assertMigrationHelperRuntimeCode: vi.fn(() => Promise.resolve()),
   assertLockedPublicResolverSetMembership: vi.fn(() => Promise.resolve()),
   checkMigrationHcaReadiness: vi.fn(({ hca }) =>
     Promise.resolve({ status: 'verified', hca, implementation: HCA }),

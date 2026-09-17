@@ -6,7 +6,13 @@ import {
 } from '@icons-pack/react-simple-icons'
 import { Trans } from '@lingui/react/macro'
 import { useReducedMotion } from 'motion/react'
-import { type ReactNode, type Ref, useEffect, useState } from 'react'
+import {
+  type ReactNode,
+  type Ref,
+  useEffect,
+  useReducer,
+  useState,
+} from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn } from '@/lib/utils'
@@ -24,6 +30,7 @@ import type {
 import { useNftArtworkLoading } from './useNftArtworkLoading'
 import { useNftArtworkVisibility } from './useNftArtworkVisibility'
 import { useNftAssetDownload } from './useNftAssetDownload'
+import { useNftReveal } from './useNftReveal'
 
 type SocialControlProps = {
   readonly href?: string
@@ -182,6 +189,32 @@ const ArtworkLoading = () => (
   </div>
 )
 
+const shouldAnimateReveal = (
+  variant: CardVariant,
+  status: MigrationSuccessDialogState['status'],
+  reducedMotion: boolean | null,
+) => variant === 'dialog' && status !== 'minted' && !reducedMotion
+
+const useRevealedArtwork = (
+  params: Parameters<typeof useNftArtworkLoading>[0] & {
+    readonly revealEnabled: boolean
+    readonly visible: boolean
+  },
+) => {
+  const [revealFinished, finishReveal] = useReducer(() => true, false)
+  const artwork = useNftArtworkLoading({
+    ...params,
+    deferAnimation: params.revealEnabled && !revealFinished,
+  })
+  const reveal = useNftReveal({
+    enabled: params.revealEnabled && !artwork.imageFailed,
+    onComplete: finishReveal,
+    status: artwork.status,
+    visible: params.visible,
+  })
+  return { artwork, reveal }
+}
+
 const ArtworkCard = ({
   active,
   interactive,
@@ -204,18 +237,30 @@ const ArtworkCard = ({
   const [playArtwork, setPlayArtwork] = useState(false)
   const reducedMotionStill = !!shouldReduceMotion && !playArtwork
   const imageUrl = state.card.assets.imageUrl
-  const artwork = useNftArtworkLoading({
+  const revealEnabled = shouldAnimateReveal(
+    variant,
+    state.status,
+    shouldReduceMotion,
+  )
+  const { artwork, reveal } = useRevealedArtwork({
     imageUrl,
+    revealEnabled,
+    visible: visibility.visible,
     animate: visibility.visible && !reducedMotionStill,
     waitingForVisibility: active && !reducedMotionStill && !visibility.resolved,
   })
   const { status } = artwork
   const artworkReady = status === 'ready'
   const artworkFailed = status === 'error'
+  const {
+    ready: presentationReady,
+    showArtwork,
+    status: presentationStatus,
+  } = reveal
 
   useEffect(() => {
-    onStatusChange?.(status)
-  }, [onStatusChange, status])
+    onStatusChange?.(presentationStatus)
+  }, [onStatusChange, presentationStatus])
 
   useEffect(() => {
     if (shouldReduceMotion)
@@ -225,26 +270,27 @@ const ArtworkCard = ({
   return (
     <CardFrame frameRef={visibility.ref} variant={variant}>
       <div
-        aria-hidden={artworkReady || artworkFailed}
+        aria-hidden={showArtwork || artworkFailed}
         className={cn(
           'pointer-events-none absolute inset-0 z-10 transition-opacity duration-600 ease-out motion-reduce:transition-none',
-          artworkReady ? 'opacity-0' : 'opacity-100',
+          showArtwork ? 'opacity-0' : 'opacity-100',
         )}
       >
         <ArtworkLoading />
       </div>
       <div
         className={cn(
-          'absolute inset-0 transition-opacity duration-600 ease-out motion-reduce:transition-none',
-          artworkReady ? 'opacity-100' : 'opacity-0',
+          'absolute inset-0 transition-opacity duration-600 ease-out data-[revealing=true]:overflow-hidden data-[revealing=true]:rounded-lg motion-reduce:transition-none',
+          showArtwork ? 'opacity-100' : 'opacity-0',
         )}
+        data-revealing={reveal.running}
       >
         {artwork.imageReady ? (
           <img
             alt={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
             aria-hidden={!artworkReady}
             className={cn(
-              'absolute inset-0 h-full w-full rounded-lg object-contain drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)]',
+              'absolute inset-0 h-full w-full rounded-lg object-contain drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)] transition-opacity duration-300 ease-out motion-reduce:transition-none',
               artworkReady && !artwork.animationReady
                 ? 'opacity-100'
                 : 'opacity-0',
@@ -264,6 +310,11 @@ const ArtworkCard = ({
           />
         ) : null}
       </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-lg"
+        ref={reveal.host}
+      />
       {reducedMotionStill && artworkReady ? (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <button
@@ -289,7 +340,7 @@ const ArtworkCard = ({
           </button>
         </div>
       ) : null}
-      {artworkReady ? (
+      {presentationReady ? (
         <div className="absolute top-1/2 left-full ml-3 -translate-y-1/2">
           <SharingRail state={state} />
         </div>

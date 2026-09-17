@@ -69,7 +69,7 @@ export const CommemorativeNftRendererSurface = (
         <iframe
           aria-hidden={!showRenderer}
           className={tw(
-            'absolute top-1/2 left-1/2 z-0 h-full w-[109%] -translate-x-1/2 -translate-y-1/2 scale-[1.15] border-0',
+            'absolute top-1/2 left-1/2 z-0 h-full w-[109%] -translate-x-1/2 -translate-y-1/2 scale-[1.15] border-0 transition-opacity duration-300 ease-out motion-reduce:transition-none',
             showRenderer ? 'opacity-100' : 'opacity-0',
             (!showRenderer || !interactive) && 'pointer-events-none',
           )}
