@@ -218,9 +218,22 @@ function scanSpec(file: string): TaggedTest[] {
   flush()
 
   // Normalise titles: keep the quoted title if we can find one.
+  //
+  // Quote-aware on purpose. This used to be `/['"`]([^'"`]+)['"`]/`, whose
+  // character class stops at the FIRST quote of any kind — so a title written
+  // in double quotes because it contains an apostrophe ("shows a V1 name's
+  // text record") was scanned as "shows a V1 name". That title then matched
+  // nothing in `playwright --list`, `runBy` came back empty, and nine cells
+  // that had just run and passed were reported as "covering test exists but no
+  // playwright config runs it".
+  //
+  // Which is the exact failure this reconciler exists to catch, produced by the
+  // reconciler itself: a real gap and a scanner bug are indistinguishable in
+  // that message. Match the opening quote and read to its own closing partner,
+  // letting the other two quote characters through.
   for (const t of found) {
-    const quoted = t.title.match(/['"`]([^'"`]+)['"`]/)
-    if (quoted) t.title = quoted[1]
+    const quoted = t.title.match(/(['"`])((?:\\.|(?!\1).)*)\1/)
+    if (quoted) t.title = quoted[2] as string
   }
   return found
 }
