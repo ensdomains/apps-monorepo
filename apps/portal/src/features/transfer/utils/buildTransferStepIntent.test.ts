@@ -6,8 +6,10 @@ import {
   labelhash,
   namehash,
   parseAbi,
+  toHex,
   zeroAddress,
 } from 'viem'
+import { packetToBytes } from 'viem/ens'
 import { describe, expect, it } from 'vitest'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { WalletClientWithAccount } from '@/utils/types'
@@ -46,6 +48,7 @@ const ctx = {
   recipient: RECIPIENT,
   tokenId: null,
   resolverAddress: RESOLVER,
+  isPermissionedResolver: false,
   walletClient: { account: { address: ME } } as WalletClientWithAccount,
   chainId: sepoliaWithEns.id,
 }
@@ -63,6 +66,7 @@ const call = (intent: CustomTransactionIntent) => {
         'function setOwner(bytes32 node, address owner)',
         'function setResolver(bytes32 node, address resolver)',
         'function setAddr(bytes32 node, uint256 coinType, bytes a)',
+        'function setAddress(bytes name, uint256 coinType, bytes addressBytes)',
         'function setSubnodeOwner(bytes32 parentNode, string label, address owner, uint32 fuses, uint64 expiry)',
         'function setSubnodeOwner(bytes32 node, bytes32 label, address owner)',
       ]),
@@ -169,6 +173,23 @@ describe('buildTransferStepIntent (v1)', () => {
     })
   })
 
+  // The V2 setter takes the DNS-encoded name; `setAddr(node, ...)` hits the
+  // PermissionedResolver's fallback and reverts with empty data.
+  it('writes the ETH record by name on a V2 PermissionedResolver', () => {
+    expect(
+      call(
+        buildTransferStepIntent('set-eth-addr', {
+          ...ctx,
+          isPermissionedResolver: true,
+        }),
+      ),
+    ).toEqual({
+      to: RESOLVER,
+      functionName: 'setAddress',
+      args: [toHex(packetToBytes('alice.eth')), 60n, RECIPIENT.toLowerCase()],
+    })
+  })
+
   it('refuses the ETH step when the name has no resolver of its own', () => {
     expect(() =>
       buildTransferStepIntent('set-eth-addr', {
@@ -176,6 +197,15 @@ describe('buildTransferStepIntent (v1)', () => {
         resolverAddress: null,
       }),
     ).toThrow(/no resolver/)
+  })
+
+  it('refuses the ETH step when the resolver kind was never read', () => {
+    expect(() =>
+      buildTransferStepIntent('set-eth-addr', {
+        ...ctx,
+        isPermissionedResolver: null,
+      }),
+    ).toThrow(/what kind of resolver/)
   })
 
   it('refuses a step the plan should never produce for the subject', () => {

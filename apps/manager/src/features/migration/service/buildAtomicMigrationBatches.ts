@@ -7,7 +7,7 @@ import {
 } from '@ens-apps/smart-account'
 import type { Call } from '@ens-apps/transaction-manager'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
-import { permissionedResolverAuthorizeNameRolesSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import { permissionedResolverGrantRootRolesSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import {
   type Address,
@@ -529,7 +529,7 @@ const buildResolverDeploymentCall = (params: {
   const initializeData = encodeFunctionData({
     abi: PERMISSIONED_RESOLVER_ABI,
     functionName: 'initialize',
-    args: [params.hca, ROLES_ALL, []],
+    args: [[{ account: params.hca, roleBitmap: ROLES_ALL }], []],
   })
 
   return {
@@ -547,15 +547,20 @@ const buildResolverDeploymentCall = (params: {
   }
 }
 
+/**
+ * Grants the wallet every role on the resolver's root resource, alongside the
+ * HCA. `authorizeNameRoles(ROOT_NAME, ...)` did this before; the V2 resolver
+ * scopes roles to the root resource or to a setter argument, never to a name.
+ */
 const buildWalletCoAdminCall = (params: {
   readonly resolver: Address
   readonly wallet: Address
 }): Call => ({
   to: params.resolver,
   data: encodeFunctionData({
-    abi: permissionedResolverAuthorizeNameRolesSnippet,
-    functionName: 'authorizeNameRoles',
-    args: [ROOT_NAME, ROLES_ALL, params.wallet, true],
+    abi: permissionedResolverGrantRootRolesSnippet,
+    functionName: 'grantRootRoles',
+    args: [ROLES_ALL, params.wallet],
   }),
   value: 0n,
 })
@@ -954,8 +959,9 @@ const buildProfileReplayFragment = (params: {
   if (!profileEntry) return EMPTY_NAME_EXECUTION_FRAGMENT
 
   const name = params.classified.domain.name
+  // Keyed by name: the V2 setters take the DNS-encoded name, not the node.
   const profileCalls = flattenProfileInnerCalls(
-    new Map([[profileEntry.node, profileEntry.profile]]),
+    new Map([[name, profileEntry.profile]]),
   )
   return {
     innerExecutions: [

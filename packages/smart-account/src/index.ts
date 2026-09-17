@@ -8,9 +8,9 @@
  * The standalone HCA (`type: 'hca', version: 'ens-standalone-1.1.0'`) is a
  * single-ECDSA-owner account with a scoped-SmartSession validator
  * (`HCAOwnerAndSessionValidator`). Prompt-free registration works by signing
- * ONE multi-chain session authorization up front (before route selection), then
- * enabling the session lazily inside the first HCA action via
- * `enableSessionWithRefund(...)` — no separate ENABLE transaction. This replaces
+ * ONE multi-chain session authorization up front (before route selection) and
+ * presenting it with every session-signed intent — the validator is stateless,
+ * so there is no ENABLE transaction or call. This replaces
  * the old ephemeral-owner (`updateConfig` add-owner) model entirely.
  *
  * App-specific concerns (wallet wrapping, wagmi config, i18n, env vars) stay in
@@ -29,9 +29,9 @@ export {
   type BuildHcaDeploymentCallParams,
   type BuildHcaOwnerExecutionCallParams,
   buildCommitCall,
-  buildEnableSessionWithRefundCall,
   buildHcaDeploymentCall,
   buildHcaOwnerExecutionCall,
+  buildHcaSessionConfig,
   buildHcaSessionEnablePayload,
   buildRevealBatch,
   buildStandaloneAccountConfig,
@@ -71,6 +71,7 @@ export {
   HcaDeploymentCallValidationError,
   type HcaDirectExecutionReadiness,
   type HcaLeg,
+  type HcaSessionConfig,
   type HcaSessionEnablePayload,
   hasRegistrationHeadroom,
   type InitializeRhinestoneAccountParams,

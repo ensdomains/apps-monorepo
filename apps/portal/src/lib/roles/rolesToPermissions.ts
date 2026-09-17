@@ -1,11 +1,10 @@
-import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
-import type { ResolverRoleKey } from './resolverRoles'
+import type { ResolverRole } from './resolverRoles'
 
 export type Permission = { readonly admin: boolean; readonly manager: boolean }
 
 export type RoleChanges = {
   rolesToGrant: ResolverRole[]
-  rolesToRevoke: ResolverRoleKey[]
+  rolesToRevoke: ResolverRole[]
 }
 
 export const roleToPermissions = (
@@ -69,7 +68,7 @@ export const computeRoleChanges = (
 ): RoleChanges => {
   const originalPermissions = roleToPermissions(originalRoles)
   const rolesToGrant: ResolverRole[] = []
-  const rolesToRevoke: ResolverRoleKey[] = []
+  const rolesToRevoke: ResolverRole[] = []
 
   // Check all permissions
   const allKeys = new Set([
@@ -91,14 +90,14 @@ export const computeRoleChanges = (
     if (edited.admin && !original.admin) {
       rolesToGrant.push(`${key}_ADMIN` as ResolverRole)
     } else if (!edited.admin && original.admin) {
-      rolesToRevoke.push(`${key}_ADMIN` as ResolverRoleKey)
+      rolesToRevoke.push(`${key}_ADMIN` as ResolverRole)
     }
 
     // Check for manager changes
     if (edited.manager && !original.manager) {
       rolesToGrant.push(key as ResolverRole)
     } else if (!edited.manager && original.manager) {
-      rolesToRevoke.push(key as ResolverRoleKey)
+      rolesToRevoke.push(key as ResolverRole)
     }
   }
 

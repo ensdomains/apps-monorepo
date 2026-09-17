@@ -46,32 +46,32 @@ describe('remediated Sepolia destination manifest', () => {
     const contracts = getDestinationContracts(sepolia.id)
 
     expect(contracts).toEqual({
-      standaloneHcaFactory: '0x900FF7cF617Ef9D802178B4ef480491e3A782672',
-      standaloneHcaImplementation: '0xAA761541620fC1a42bb701a26a9f107A9DF1E904',
-      hcaOwnerAndSessionValidator: '0x5f249FCa8bB4949105651146858c347E8BFb0F7E',
-      verifiableFactory: '0x10dC6333CDFe1FCEf624c6e0a8221b91804Cd7ef',
-      verifiableFactoryProxyLogic: '0xA136BeE4E37B44586242e516a39893EfD54315e9',
-      verifiableFactoryDeployBlock: 11_383_823n,
-      permissionedResolverImpl: '0x9EAe5C2730a7dD16BDD1DeE6421a1B91e3B0365e',
-      ethRegistrar: '0xa88553F454b77203B0D036A05c894d555EAAa2Cc',
-      ethRegistry: '0xBDC85dD5b15D7ecb354cd7cb6f2c50b4f2c4F0E2',
-      rootRegistry: '0x8115186E8f2E0B0281e86ab91f0f48Ba90364354',
-      migrationHelper: '0xddC597d937618849348E18Db5D631Ce747bCDeEF',
-      unlockedMigrationController: '0x2FCf83232b93bD29C59dB18AaA1D4b62e9f9FC73',
-      lockedMigrationController: '0x5c39E36a69A9897F08954c71aCB1F36E0Bd4f409',
-      publicResolverSet: '0xf2794eBD70C1fa74094A9eC653DA1c2dF9f5a5A9',
-      userRegistryImpl: '0x624a25d67B59D587752EbEc8DdeD8827dAe52050',
-      wrapperRegistryImpl: '0x433F81a3E8921Fc868ae1A04576f135d9A75B0f2',
-      publicResolverV2: '0xe7B9A25607E02da8145E4eB1836CA539e53F11f7',
+      standaloneHcaFactory: '0xB7CFeCEeD32DBa66c507b3c002dAD510b8399928',
+      standaloneHcaImplementation: '0xdF4a24c42921810fed9363b07292E9152578D706',
+      hcaOwnerAndSessionValidator: '0x6A62Af42D4241a02547b096C7DB43ca6411AF813',
+      verifiableFactory: '0x9e726Eb570beb6BCEb495AB8cdA7df517d4e841C',
+      verifiableFactoryProxyLogic: '0xC6dbA04e7c6264e85A459Dd592a6CBC2D2a6Ad8E',
+      verifiableFactoryDeployBlock: 11_708_995n,
+      permissionedResolverImpl: '0x14F09Fd05d4585759e54844DC9B00147131Cf243',
+      ethRegistrar: '0xAbe76F6C8DFcEd81AA5A2bB8034202A7136b94ca',
+      ethRegistry: '0x657eA849311d3D5823348ddEd7C2AaAFb3EDE09E',
+      rootRegistry: '0x9703DBD26dAB89504490994138cF2c575251a9cE',
+      migrationHelper: '0x58d12d60471b98F191856e4C2d56886e9c3eA573',
+      unlockedMigrationController: '0x7ed171bb143a905F56105e4eA146543Ecb122F55',
+      lockedMigrationController: '0xab1B57C6eE5E91e6090595c0AF14CB9B8bc7773f',
+      publicResolverSet: '0xd12aF6aC82648056Fe7D6B2a9dB97235Aa509021',
+      userRegistryImpl: '0xA80338aAA8D23831cEa25E858D1774534aBb0263',
+      wrapperRegistryImpl: '0x2741543c3B14640b97bC70a233318032f7E35bAC',
+      publicResolverV2: '0xd7e590Ad0E92A6aC1d81f4483A9B951D3585a50F',
       defaultReverseRegistrarHcaAdapter:
-        '0x7a84e241f862D73960D73c26d68c3C8F89F0B18F',
-      usdc: '0x768F42455A2D082E23ceeF7d51e5787C82d67a39',
+        '0x4F32A1c62E202922d4d6307126F43218DB9dA6f5',
+      usdc: '0x16f95D91DBa7dA3Aca778Ec053dF0FF6C6A8aA8e',
     })
   })
 
   it('contains only checksummed addresses alongside the bigint deploy block', () => {
     const contracts = getDestinationContracts(sepolia.id)
-    expect(contracts.verifiableFactoryDeployBlock).toBe(11_383_823n)
+    expect(contracts.verifiableFactoryDeployBlock).toBe(11_708_995n)
 
     for (const [label, address] of addressEntriesOf(DESTINATION_CONTRACTS)) {
       expectChecksummed(label, address)

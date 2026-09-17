@@ -1,7 +1,7 @@
 import type { RhinestoneAccount, Session } from '@rhinestone/sdk'
 import type { Address, WalletClient } from 'viem'
 
-import type { SmartAccountConfig } from './transaction.types'
+import type { SessionEnableData, SmartAccountConfig } from './transaction.types'
 
 /**
  * Transaction infrastructure options
@@ -38,13 +38,20 @@ export interface EOASigner {
  * The wallet signed ONE multi-chain session authorization; the ephemeral
  * session key inside `session.owners` then signs Intents prompt-free. The
  * transport passes `signers: { type: 'experimental_session', session,
- * enableData?, verifyExecutions: true }` — `enableData` travels PER-REQUEST in
- * `rhinestoneParams.sessionEnableData` (only until the on-chain
- * `enableSessionWithRefund` call in the first HCA action lands; omit after).
+ * enableData, verifyExecutions: true }`.
+ *
+ * `HCAOwnerAndSessionValidator` keeps no session state: it only accepts
+ * session signatures that carry the owner's authorization (envelope mode
+ * 0x05), so `enableData` goes out with EVERY session-signed intent.
  */
 export interface RhinestoneSessionContext {
   /** The SDK scoped-session object (embeds the ephemeral session-key account). */
   readonly session: Session
+  /**
+   * The owner's authorization for `session`, attached to every intent it
+   * signs. A request's own `rhinestoneParams.sessionEnableData` wins.
+   */
+  readonly enableData?: SessionEnableData
 }
 
 /**
@@ -54,8 +61,8 @@ export interface RhinestoneSessionContext {
  * USDC (`feeAsset: 'USDC'`) — there is NO gas sponsorship, and no way to ask
  * for any: the transport always sends the user-paid shape. The HCA is funded from
  * the wallet via an EIP-2612 permit + `transferFrom` pair carried inside the
- * first (commit) request; execution costs are refunded from the HCA's USDC
- * via `enableSessionWithRefund`.
+ * first (commit) request; execution costs are refunded from the HCA's USDC,
+ * within the caps the session authorization fixes.
  *
  * Authorization is either:
  *   - owner-signed (no `session`): the connected wallet signs each Intent;

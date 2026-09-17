@@ -36,9 +36,9 @@ import { Route as NameRolesIndexRouteImport } from './routes/$name/roles/index'
 import { Route as NameOwnershipIndexRouteImport } from './routes/$name/ownership/index'
 import { Route as NameFusesIndexRouteImport } from './routes/$name/fuses/index'
 import { Route as ResolverAddressNodesRouteImport } from './routes/resolver/$address/nodes'
+import { Route as ResolverAddressLinksRouteImport } from './routes/resolver/$address/links'
 import { Route as ResolverAddressHistoryRouteImport } from './routes/resolver/$address/history'
-import { Route as ResolverAddressCreateAliasRouteImport } from './routes/resolver/$address/create-alias'
-import { Route as ResolverAddressAliasesRouteImport } from './routes/resolver/$address/aliases'
+import { Route as ResolverAddressCreateLinkRouteImport } from './routes/resolver/$address/create-link'
 import { Route as RegistryAddressRolesRouteImport } from './routes/registry/$address/roles'
 import { Route as RegistryAddressLabelsRouteImport } from './routes/registry/$address/labels'
 import { Route as RegistryAddressHistoryRouteImport } from './routes/registry/$address/history'
@@ -185,22 +185,22 @@ const ResolverAddressNodesRoute = ResolverAddressNodesRouteImport.update({
   path: '/nodes',
   getParentRoute: () => ResolverAddressRoute,
 } as any)
+const ResolverAddressLinksRoute = ResolverAddressLinksRouteImport.update({
+  id: '/links',
+  path: '/links',
+  getParentRoute: () => ResolverAddressRoute,
+} as any)
 const ResolverAddressHistoryRoute = ResolverAddressHistoryRouteImport.update({
   id: '/history',
   path: '/history',
   getParentRoute: () => ResolverAddressRoute,
 } as any)
-const ResolverAddressCreateAliasRoute =
-  ResolverAddressCreateAliasRouteImport.update({
-    id: '/create-alias',
-    path: '/create-alias',
+const ResolverAddressCreateLinkRoute =
+  ResolverAddressCreateLinkRouteImport.update({
+    id: '/create-link',
+    path: '/create-link',
     getParentRoute: () => ResolverAddressRoute,
   } as any)
-const ResolverAddressAliasesRoute = ResolverAddressAliasesRouteImport.update({
-  id: '/aliases',
-  path: '/aliases',
-  getParentRoute: () => ResolverAddressRoute,
-} as any)
 const RegistryAddressRolesRoute = RegistryAddressRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
@@ -283,9 +283,9 @@ export interface FileRoutesByFullPath {
   '/registry/$address/history': typeof RegistryAddressHistoryRoute
   '/registry/$address/labels': typeof RegistryAddressLabelsRoute
   '/registry/$address/roles': typeof RegistryAddressRolesRoute
-  '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
-  '/resolver/$address/create-alias': typeof ResolverAddressCreateAliasRoute
+  '/resolver/$address/create-link': typeof ResolverAddressCreateLinkRoute
   '/resolver/$address/history': typeof ResolverAddressHistoryRoute
+  '/resolver/$address/links': typeof ResolverAddressLinksRoute
   '/resolver/$address/nodes': typeof ResolverAddressNodesRoute
   '/$name/fuses/': typeof NameFusesIndexRoute
   '/$name/ownership/': typeof NameOwnershipIndexRoute
@@ -320,9 +320,9 @@ export interface FileRoutesByTo {
   '/registry/$address/history': typeof RegistryAddressHistoryRoute
   '/registry/$address/labels': typeof RegistryAddressLabelsRoute
   '/registry/$address/roles': typeof RegistryAddressRolesRoute
-  '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
-  '/resolver/$address/create-alias': typeof ResolverAddressCreateAliasRoute
+  '/resolver/$address/create-link': typeof ResolverAddressCreateLinkRoute
   '/resolver/$address/history': typeof ResolverAddressHistoryRoute
+  '/resolver/$address/links': typeof ResolverAddressLinksRoute
   '/resolver/$address/nodes': typeof ResolverAddressNodesRoute
   '/$name/fuses': typeof NameFusesIndexRoute
   '/$name/ownership': typeof NameOwnershipIndexRoute
@@ -363,9 +363,9 @@ export interface FileRoutesById {
   '/registry/$address/history': typeof RegistryAddressHistoryRoute
   '/registry/$address/labels': typeof RegistryAddressLabelsRoute
   '/registry/$address/roles': typeof RegistryAddressRolesRoute
-  '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
-  '/resolver/$address/create-alias': typeof ResolverAddressCreateAliasRoute
+  '/resolver/$address/create-link': typeof ResolverAddressCreateLinkRoute
   '/resolver/$address/history': typeof ResolverAddressHistoryRoute
+  '/resolver/$address/links': typeof ResolverAddressLinksRoute
   '/resolver/$address/nodes': typeof ResolverAddressNodesRoute
   '/$name/fuses/': typeof NameFusesIndexRoute
   '/$name/ownership/': typeof NameOwnershipIndexRoute
@@ -407,9 +407,9 @@ export interface FileRouteTypes {
     | '/registry/$address/history'
     | '/registry/$address/labels'
     | '/registry/$address/roles'
-    | '/resolver/$address/aliases'
-    | '/resolver/$address/create-alias'
+    | '/resolver/$address/create-link'
     | '/resolver/$address/history'
+    | '/resolver/$address/links'
     | '/resolver/$address/nodes'
     | '/$name/fuses/'
     | '/$name/ownership/'
@@ -444,9 +444,9 @@ export interface FileRouteTypes {
     | '/registry/$address/history'
     | '/registry/$address/labels'
     | '/registry/$address/roles'
-    | '/resolver/$address/aliases'
-    | '/resolver/$address/create-alias'
+    | '/resolver/$address/create-link'
     | '/resolver/$address/history'
+    | '/resolver/$address/links'
     | '/resolver/$address/nodes'
     | '/$name/fuses'
     | '/$name/ownership'
@@ -486,9 +486,9 @@ export interface FileRouteTypes {
     | '/registry/$address/history'
     | '/registry/$address/labels'
     | '/registry/$address/roles'
-    | '/resolver/$address/aliases'
-    | '/resolver/$address/create-alias'
+    | '/resolver/$address/create-link'
     | '/resolver/$address/history'
+    | '/resolver/$address/links'
     | '/resolver/$address/nodes'
     | '/$name/fuses/'
     | '/$name/ownership/'
@@ -702,6 +702,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResolverAddressNodesRouteImport
       parentRoute: typeof ResolverAddressRoute
     }
+    '/resolver/$address/links': {
+      id: '/resolver/$address/links'
+      path: '/links'
+      fullPath: '/resolver/$address/links'
+      preLoaderRoute: typeof ResolverAddressLinksRouteImport
+      parentRoute: typeof ResolverAddressRoute
+    }
     '/resolver/$address/history': {
       id: '/resolver/$address/history'
       path: '/history'
@@ -709,18 +716,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResolverAddressHistoryRouteImport
       parentRoute: typeof ResolverAddressRoute
     }
-    '/resolver/$address/create-alias': {
-      id: '/resolver/$address/create-alias'
-      path: '/create-alias'
-      fullPath: '/resolver/$address/create-alias'
-      preLoaderRoute: typeof ResolverAddressCreateAliasRouteImport
-      parentRoute: typeof ResolverAddressRoute
-    }
-    '/resolver/$address/aliases': {
-      id: '/resolver/$address/aliases'
-      path: '/aliases'
-      fullPath: '/resolver/$address/aliases'
-      preLoaderRoute: typeof ResolverAddressAliasesRouteImport
+    '/resolver/$address/create-link': {
+      id: '/resolver/$address/create-link'
+      path: '/create-link'
+      fullPath: '/resolver/$address/create-link'
+      preLoaderRoute: typeof ResolverAddressCreateLinkRouteImport
       parentRoute: typeof ResolverAddressRoute
     }
     '/registry/$address/roles': {
@@ -875,18 +875,18 @@ const RegistryAddressRouteWithChildren = RegistryAddressRoute._addFileChildren(
 )
 
 interface ResolverAddressRouteChildren {
-  ResolverAddressAliasesRoute: typeof ResolverAddressAliasesRoute
-  ResolverAddressCreateAliasRoute: typeof ResolverAddressCreateAliasRoute
+  ResolverAddressCreateLinkRoute: typeof ResolverAddressCreateLinkRoute
   ResolverAddressHistoryRoute: typeof ResolverAddressHistoryRoute
+  ResolverAddressLinksRoute: typeof ResolverAddressLinksRoute
   ResolverAddressNodesRoute: typeof ResolverAddressNodesRoute
   ResolverAddressIndexRoute: typeof ResolverAddressIndexRoute
   ResolverAddressRolesIndexRoute: typeof ResolverAddressRolesIndexRoute
 }
 
 const ResolverAddressRouteChildren: ResolverAddressRouteChildren = {
-  ResolverAddressAliasesRoute: ResolverAddressAliasesRoute,
-  ResolverAddressCreateAliasRoute: ResolverAddressCreateAliasRoute,
+  ResolverAddressCreateLinkRoute: ResolverAddressCreateLinkRoute,
   ResolverAddressHistoryRoute: ResolverAddressHistoryRoute,
+  ResolverAddressLinksRoute: ResolverAddressLinksRoute,
   ResolverAddressNodesRoute: ResolverAddressNodesRoute,
   ResolverAddressIndexRoute: ResolverAddressIndexRoute,
   ResolverAddressRolesIndexRoute: ResolverAddressRolesIndexRoute,

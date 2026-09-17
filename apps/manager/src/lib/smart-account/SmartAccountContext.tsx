@@ -86,10 +86,9 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
    * read — it replays the single authorization signature captured at the
    * session gate.
    *
-   * Returned for ANY active session, including one already enabled on-chain:
-   * the registration machine, not this getter, decides whether to attach it
-   * (only alongside a funding permit, which the validator's policy requires).
-   * Returns `undefined` only when there is no active session.
+   * Returned for ANY active session: the stateless validator needs it on every
+   * session-signed intent. Returns `undefined` only when there is no active
+   * session.
    */
   readonly getSessionEnablePayload: () => Promise<
     HcaSessionEnablePayload | undefined
@@ -625,23 +624,11 @@ export const SmartAccountContextProvider = ({
 
   // Resolve the START_REGISTRATION session-enable payload.
   //
-  // Returns the payload for ANY active session — including one already enabled
-  // on-chain. It used to short-circuit to `undefined` once
-  // `experimental_isSessionEnabled` was true, which broke every registration
-  // after the first: dropping the proof forces the validator's steady-state
-  // path, where the funding `permit` is rejected with
-  // `ActionNotAllowed(USDC, permit)` (masked as `InvalidSignature()`).
-  //
-  // Re-presenting the proof is safe and costs no extra wallet prompt. The
-  // owner's session authorization is signed ONCE and stored; the proof is
-  // reusable (`_validateSessionEnableProof` checks only `validUntil` and the
-  // account's session nonce, which nothing increments outside revocation), and
-  // `enableSessionWithRefund` is idempotent (`_enableSessionFor` rewrites the
-  // same slot with identical values).
-  //
-  // The machine decides whether to ATTACH it: `submittingSetupBundle` sends it
-  // only alongside a funding permit, so a fully-funded HCA still gets the cheap
-  // commit-only batch.
+  // Returns the payload for ANY active session. The validator keeps no session
+  // state, so every session-signed intent must present this proof; it costs no
+  // extra wallet prompt, since the owner's authorization is signed ONCE and
+  // stored, and the proof stays valid until `validUntil` or a session-nonce
+  // bump.
   const getSessionEnablePayload = useCallback(async (): Promise<
     HcaSessionEnablePayload | undefined
   > => {

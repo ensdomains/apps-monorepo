@@ -94,8 +94,8 @@ export const ConfirmPurchase = () => {
         return
       }
 
-      // Resolve the session-enable payload up front (checks on-chain
-      // enablement so an already-enabled session skips the enable call).
+      // Resolve the session-enable payload up front; both legs are signed
+      // with it.
       const hcaSessionEnable = await account.getSessionEnablePayload()
 
       uiActor.send({

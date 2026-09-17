@@ -1,5 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import { Trans } from '@lingui/react/macro'
+import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
@@ -71,7 +71,10 @@ const PlainMigrationSuccessDialog = ({
   />
 )
 
-const formatMigrationError = (error: MigrationError): ReactNode => {
+const formatMigrationError = (
+  error: MigrationError,
+  completedNameCount: number,
+): ReactNode => {
   switch (error.type) {
     case 'generic':
       return <Trans>Upgrade details: {error.message}</Trans>
@@ -89,18 +92,19 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
       return (
         <div>
           <Trans>
-            We couldn&apos;t safely retry. Contact ENS support before trying
-            again.
+            We couldn&apos;t safely retry. Nothing was submitted and nothing
+            changed.
           </Trans>
         </div>
       )
     case 'cleanup-failed':
       return (
         <div>
-          <Trans>
-            Your names were upgraded. One thing left: a temporary permission on
-            your names still needs to be removed.
-          </Trans>
+          <Plural
+            one="Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed."
+            other="Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed."
+            value={completedNameCount}
+          />
         </div>
       )
     case 'profile-fetch-failed':
@@ -344,7 +348,11 @@ export const MigrationPage = () => {
               lastError.type !== 'cleanup-failed' &&
               lastError.type !== 'retry-blocked' && (
                 <p className="text-center text-ens-garnet-900/75 text-sm">
-                  <Trans>Your names are safe.</Trans>
+                  <Plural
+                    one="Your name is safe."
+                    other="Your names are safe."
+                    value={selectedNames.length}
+                  />
                 </p>
               )}
             <motion.div
@@ -354,7 +362,8 @@ export const MigrationPage = () => {
               transition={{ duration: 0.4, delay: 0.15 }}
             >
               <div className="whitespace-pre-wrap break-words text-ens-garnet-900/70 text-sm leading-normal">
-                {lastError && formatMigrationError(lastError)}
+                {lastError &&
+                  formatMigrationError(lastError, completedOperations.length)}
               </div>
             </motion.div>
 
