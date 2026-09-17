@@ -255,7 +255,8 @@ export const getV1ParentPowers = (
     .with({ kind: 'v1-registrar' }, () => [])
     .exhaustive()
 
-/** Who a transfer takes the name from. */
+/** Who a transfer takes the name from. For an unwrapped `.eth` 2LD that is the
+ * ERC-721 registrant, not the controller `resolveEnsOwner` reports. */
 export const getV1Holder = (subject: V1TransferSubject): Address =>
   match(subject)
     .with({ kind: 'v1-registrar' }, ({ registrant }) => registrant)
