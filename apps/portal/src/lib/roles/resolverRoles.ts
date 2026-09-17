@@ -218,7 +218,7 @@ export type AccountRoleGroup<T extends RoleInput = RoleInput> = {
   readonly isRoot: boolean
   readonly resourceLabel: string
   readonly roles: readonly T[]
-  readonly decodedRoles: readonly string[]
+  readonly decodedRoles: readonly ResolverRole[]
 }
 
 /**
@@ -245,7 +245,12 @@ export const groupRolesByAccount = <T extends RoleInput>(
 ): AccountRoleGroup<T>[] => {
   const grouped = new Map<
     string,
-    { account: string; resource: bigint; roles: T[]; decodedRoles: string[] }
+    {
+      account: string
+      resource: bigint
+      roles: T[]
+      decodedRoles: ResolverRole[]
+    }
   >()
 
   for (const role of roles) {
@@ -277,4 +282,62 @@ export const groupRolesByAccount = <T extends RoleInput>(
     roles: g.roles,
     decodedRoles: g.decodedRoles,
   }))
+}
+
+/**
+ * Stable identity of a grouped row: one account on one resource. Table rows,
+ * the open editor and its draft all key on this, never on a row's position.
+ */
+export const resolverRoleGroupId = ({
+  account,
+  resource,
+}: Pick<AccountRoleGroup, 'account' | 'resource'>): string =>
+  `${account.toLowerCase()}:${resource}`
+
+/** One revoke call: every role `account` holds on one resource. */
+export type ResolverRevocation = {
+  readonly resource: bigint
+  readonly resourceLabel: string
+  readonly roles: readonly ResolverRole[]
+}
+
+/**
+ * What "Remove user" has to send to take every role away from `account`: one
+ * revocation per resource it holds, root included. `unreadable` when one of
+ * its grants has a resource we can't parse, since no revoke could name it and
+ * the removal would leave that grant behind.
+ */
+export type AccountRemovalPlan =
+  | {
+      readonly type: 'complete'
+      readonly revocations: readonly ResolverRevocation[]
+    }
+  | { readonly type: 'unreadable' }
+
+export const planAccountRemoval = <T extends RoleInput>(
+  roles: readonly T[],
+  account: string,
+  revealed?: ReadonlyMap<bigint, string>,
+): AccountRemovalPlan => {
+  const target = account.toLowerCase()
+  const held = roles.filter((role) => role.account.toLowerCase() === target)
+
+  if (held.some((role) => normalizeResource(role.resource) === null))
+    return { type: 'unreadable' }
+
+  const revocations = groupRolesByAccount(held, revealed)
+    .filter((group) => group.decodedRoles.length > 0)
+    .map((group) => ({
+      resource: BigInt(group.resource),
+      resourceLabel: group.resourceLabel,
+      roles: group.decodedRoles,
+    }))
+    // Root first, so the widest grant is the first one taken away.
+    .toSorted(
+      (a, b) =>
+        Number(b.resource === ROOT_RESOURCE) -
+        Number(a.resource === ROOT_RESOURCE),
+    )
+
+  return { type: 'complete', revocations }
 }
