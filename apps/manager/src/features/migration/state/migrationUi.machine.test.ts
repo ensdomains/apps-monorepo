@@ -205,7 +205,7 @@ describe('migrationUiMachine', () => {
   })
 
   describe('migrate.running → success', () => {
-    it('transitions directly to success when migration resolves', async () => {
+    it('finishes the hop, slides to center and holds the reunion for two seconds, then shows success', async () => {
       executeMigrationMock.mockImplementation(async (params) => {
         params.onBatchComplete?.(
           [{ name: 'alice.eth', action: 'migrate' }],
@@ -216,6 +216,14 @@ describe('migrationUiMachine', () => {
       const actor = start()
       await vi.advanceTimersByTimeAsync(0)
 
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'landing' })
+      await vi.advanceTimersByTimeAsync(600)
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'reuniting' })
+      await vi.advanceTimersByTimeAsync(700)
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'reuniting' })
+      await vi.advanceTimersByTimeAsync(1999)
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'reuniting' })
+      await vi.advanceTimersByTimeAsync(1)
       expect(actor.getSnapshot().value).toBe('success')
       expect(actor.getSnapshot().context.txHashes).toEqual(['0xabc'])
       expect(actor.getSnapshot().context.completedOperations).toEqual([
@@ -268,7 +276,7 @@ describe('migrationUiMachine', () => {
         return migrationResult({ txHashes: [] })
       })
       const actor = start()
-      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(3300)
 
       expect(actor.getSnapshot().value).toBe('success')
       expect(actor.getSnapshot().context.completedOperations).toEqual([
@@ -286,7 +294,7 @@ describe('migrationUiMachine', () => {
         return migrationResult()
       })
       const actor = start()
-      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(3300)
 
       actor.send({ type: 'done' })
       expect(actor.getSnapshot().value).toBe('select')

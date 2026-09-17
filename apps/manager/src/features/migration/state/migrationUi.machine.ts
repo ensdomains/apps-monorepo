@@ -19,6 +19,11 @@ import {
   type MigrationStepDescriptor,
 } from '@/features/migration/service/migrationService'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
+import {
+  FINAL_HOP_MS,
+  REUNION_HOLD_MS,
+  REUNION_SLIDE_MS,
+} from './migrationAnimationTiming'
 
 const FAILURE_HOLD_MS = 1500
 
@@ -82,6 +87,8 @@ export const migrationUiMachine = setup({
   },
   delays: {
     failureHold: FAILURE_HOLD_MS,
+    finalHop: FINAL_HOP_MS,
+    reunionHold: REUNION_SLIDE_MS + REUNION_HOLD_MS,
   },
   actors: {
     runMigration: fromCallback<
@@ -319,7 +326,7 @@ export const migrationUiMachine = setup({
                 guard: 'isOnlyFailures',
               },
               {
-                target: '#migrationUi.success',
+                target: 'landing',
                 actions: 'recordCompletion',
               },
             ],
@@ -328,6 +335,14 @@ export const migrationUiMachine = setup({
               actions: 'setError',
             },
           },
+        },
+        landing: {
+          tags: 'running',
+          after: { finalHop: { target: 'reuniting' } },
+        },
+        reuniting: {
+          tags: 'running',
+          after: { reunionHold: { target: '#migrationUi.success' } },
         },
         failing: {
           tags: 'running',

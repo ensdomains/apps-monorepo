@@ -13,10 +13,11 @@ import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Name
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { useVisibleCommemorativeNftEligibility } from '../commemorative-nft/useVisibleCommemorativeNftEligibility'
+import { useVisibleCommemorativeNftStatus } from '../commemorative-nft/useVisibleCommemorativeNftEligibility'
 
 export const MigrationModal = () => {
-  const nftEligibility = useVisibleCommemorativeNftEligibility()
+  const { eligibility: nftEligibility, isConfirmedUnclaimed } =
+    useVisibleCommemorativeNftStatus()
   const nftCopyEnabled = !!nftEligibility
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isEligibleV1NamesPending } =
@@ -86,7 +87,10 @@ export const MigrationModal = () => {
             className="flex w-full max-w-[313px] flex-col items-start gap-2"
             onClick={dismiss}
           >
-            <UpgradeNamesButton className="w-full" />
+            <UpgradeNamesButton
+              className="w-full"
+              showNftPlaceholder={nftCopyEnabled && isConfirmedUnclaimed}
+            />
             {eligibleNameCount > 0 && (
               <p className="w-full font-semi-mono text-[10px] text-ens-garnet-900 uppercase leading-[1.2] tracking-[0.1px]">
                 <Trans>

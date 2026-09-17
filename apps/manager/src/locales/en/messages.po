@@ -44,11 +44,6 @@ msgid "{0, plural, one {Upgrade your name to unlock your new ENS profile.} other
 msgstr "{0, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
 
 #. placeholder {0}: selectedNames.length
-#: src/features/migration/components/GameStep.tsx
-msgid "{0, plural, one {Upgrading your name...} other {Upgrading your names...}}"
-msgstr "{0, plural, one {Upgrading your name...} other {Upgrading your names...}}"
-
-#. placeholder {0}: selectedNames.length
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
 msgstr "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
@@ -137,6 +132,10 @@ msgstr "{migratedNameCount, plural, one {Your name has been upgraded!} other {Yo
 msgid "{selectedCount} selected"
 msgstr "{selectedCount} selected"
 
+#: src/features/migration/components/GameStep.tsx
+msgid "{selectedNameCount, plural, one {Upgrading your name...} other {Upgrading your names...}}"
+msgstr "{selectedNameCount, plural, one {Upgrading your name...} other {Upgrading your names...}}"
+
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
 msgstr "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
@@ -187,13 +186,17 @@ msgstr "3 character premium name"
 msgid "4 character premium name"
 msgstr "4 character premium name"
 
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "A marker for the move to a new era of ENS."
-msgstr "A marker for the move to a new era of ENS."
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "A mint is already being prepared in another tab. Continue there or try again after it finishes."
+msgstr "A mint is already being prepared in another tab. Continue there or try again after it finishes."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "A permission is missing. Try again."
 msgstr "A permission is missing. Try again."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "A required upgrade contract is unavailable. Please try again later."
+msgstr "A required upgrade contract is unavailable. Please try again later."
 
 #: src/routes/index.tsx
 msgid "A simple, portable identity that you control"
@@ -338,6 +341,10 @@ msgstr "Approving payment token"
 msgid "Approving the payment token"
 msgstr "Approving the payment token"
 
+#: src/features/migration/components/success/useNftAssetDownload.ts
+msgid "Artwork could not be downloaded. Please try again."
+msgstr "Artwork could not be downloaded. Please try again."
+
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 #: src/features/migration/components/success/CommemorativeNftRendererSurface.tsx
 msgid "Artwork could not be loaded."
@@ -373,10 +380,6 @@ msgstr "Available Wallets"
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Back"
 msgstr "Back"
-
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "Back to Dashboard"
-msgstr "Back to Dashboard"
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Back to Home"
@@ -487,6 +490,16 @@ msgstr "Carving your name into the blockchain"
 msgid "Chain-specific addresses"
 msgstr "Chain-specific addresses"
 
+#: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
+msgid "Check mint status"
+msgstr "Check mint status"
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+#: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
+#: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
+msgid "Check status"
+msgstr "Check status"
+
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Check Your Email"
 msgstr "Check Your Email"
@@ -495,9 +508,17 @@ msgstr "Check Your Email"
 msgid "Check your email for the verification code. You can also click the link in the email to verify automatically."
 msgstr "Check your email for the verification code. You can also click the link in the email to verify automatically."
 
+#: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
+msgid "Checking"
+msgstr "Checking"
+
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Checking allowance"
 msgstr "Checking allowance"
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Checking status…"
+msgstr "Checking status…"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking token allowance"
@@ -656,10 +677,6 @@ msgstr "Contact methods"
 msgid "Continue to Home"
 msgstr "Continue to Home"
 
-#: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Continue to profile"
-msgstr "Continue to profile"
-
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Continue to Settings"
 msgstr "Continue to Settings"
@@ -710,7 +727,7 @@ msgstr "Couldn't check this name"
 msgid "Couldn’t check this name’s resolver. Please try again in a moment."
 msgstr "Couldn’t check this name’s resolver. Please try again in a moment."
 
-#: src/features/migration/components/SelectNamesStepFooter.tsx
+#: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't estimate the network fee"
 msgstr "Couldn't estimate the network fee"
 
@@ -718,9 +735,29 @@ msgstr "Couldn't estimate the network fee"
 msgid "Couldn’t load this name’s records. Please try again in a moment."
 msgstr "Couldn’t load this name’s records. Please try again in a moment."
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't prepare your account. Reconnect your wallet and try again."
+msgstr "Couldn't prepare your account. Reconnect your wallet and try again."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't prepare your upgrade. Please try again."
+msgstr "Couldn't prepare your upgrade. Please try again."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't reach the network to prepare your upgrade. Please try again."
+msgstr "Couldn't reach the network to prepare your upgrade. Please try again."
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t read the wallet address for {name}"
 msgstr "Couldn’t read the wallet address for {name}"
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't restore your upgrade progress. Reload to check the latest state."
+msgstr "Couldn't restore your upgrade progress. Reload to check the latest state."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't verify your name records. Please try again."
+msgstr "Couldn't verify your name records. Please try again."
 
 #: src/features/payment/components/add.tsx
 msgid "Country"
@@ -828,22 +865,22 @@ msgstr "Done"
 msgid "Download WebP"
 msgstr "Download WebP"
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Downloading artwork…"
+msgstr "Downloading artwork…"
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Each batch of your names is upgraded in a single transaction. If any part of a batch fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
 msgstr "Each batch of your names is upgraded in a single transaction. If any part of a batch fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
-
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "Each eligible wallet address can claim one personalized NFT. Upgrading more names later does not create another NFT."
-msgstr "Each eligible wallet address can claim one personalized NFT. Upgrading more names later does not create another NFT."
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/view/ProfileEditAction.tsx
 msgid "Edit Profile"
 msgstr "Edit Profile"
 
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "Eligibility comes from a fixed snapshot of ENS holders. Names acquired after the snapshot do not change eligibility."
-msgstr "Eligibility comes from a fixed snapshot of ENS holders. Names acquired after the snapshot do not change eligibility."
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "Eligibility could not be loaded. Please try again."
+msgstr "Eligibility could not be loaded. Please try again."
 
 #: src/features/dashboard/components/DashboardPills.tsx
 msgid "Eligible for upgrade"
@@ -915,7 +952,6 @@ msgid "ENSv1 only"
 msgstr "ENSv1 only"
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "ENSv2 commemorative NFT"
 msgstr "ENSv2 commemorative NFT"
 
@@ -1082,10 +1118,6 @@ msgstr "for"
 msgid "Frequently Asked Questions"
 msgstr "Frequently Asked Questions"
 
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "Frozen June 1 snapshot"
-msgstr "Frozen June 1 snapshot"
-
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Funding wallet"
 msgstr "Funding wallet"
@@ -1123,12 +1155,7 @@ msgid "Go back home"
 msgstr "Go back home"
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Go make it yours"
-msgstr "Go make it yours"
-
-#: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "Go to dashboard"
 msgstr "Go to dashboard"
 
@@ -1162,6 +1189,7 @@ msgid "hasn't been imported to ENS yet"
 msgstr "hasn't been imported to ENS yet"
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
+#: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 msgid "Here's a gift to celebrate your upgrade to the next era of ENS"
 msgstr "Here's a gift to celebrate your upgrade to the next era of ENS"
 
@@ -1271,10 +1299,6 @@ msgstr "Loading balances…"
 msgid "Loading NFT artwork…"
 msgstr "Loading NFT artwork…"
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Loading NFT details…"
-msgstr "Loading NFT details…"
-
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Loading pricing..."
 msgstr "Loading pricing..."
@@ -1290,6 +1314,10 @@ msgstr "Loading your stablecoin balances..."
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Loading..."
 msgstr "Loading..."
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Loading…"
+msgstr "Loading…"
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Long-term identity"
@@ -1356,8 +1384,13 @@ msgid "Migration value propositions"
 msgstr "Migration value propositions"
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
+#: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 msgid "Mint"
 msgstr "Mint"
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "Mint recovery could not be saved in this browser. Allow site storage and try again."
+msgstr "Mint recovery could not be saved in this browser. Allow site storage and try again."
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Minted"
@@ -1454,6 +1487,10 @@ msgstr "Next slide"
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "NFT actions"
 msgstr "NFT actions"
+
+#: src/features/migration/components/success/useNftAssetDownload.ts
+msgid "NFT artwork downloaded"
+msgstr "NFT artwork downloaded"
 
 #: src/features/payment/components/index.tsx
 msgid "No default payment method set."
@@ -1554,17 +1591,9 @@ msgstr "Notifications"
 msgid "Notifications blocked"
 msgstr "Notifications blocked"
 
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "Offered after your first upgrade"
-msgstr "Offered after your first upgrade"
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "One approval covers all the .eth names you selected."
 msgstr "One approval covers all the .eth names you selected."
-
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "One NFT per address"
-msgstr "One NFT per address"
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "One of your names can't be upgraded right now. Contact support if this keeps happening."
@@ -1664,7 +1693,7 @@ msgstr "Placing your new identity in your wallet"
 msgid "Planting your name in the infinite garden"
 msgstr "Planting your name in the infinite garden"
 
-#: src/features/migration/components/success/CommemorativeNftRendererSurface.tsx
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Play artwork"
 msgstr "Play artwork"
 
@@ -1716,10 +1745,6 @@ msgstr "Preparing your registration"
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Preview and mint"
 msgstr "Preview and mint"
-
-#: src/features/migration/components/success/CommemorativeNftDashboardPrompt.tsx
-msgid "Preview your one-of-a-kind card and mint it whenever you're ready."
-msgstr "Preview your one-of-a-kind card and mint it whenever you're ready."
 
 #: src/features/dashboard/components/EducationCarousel.tsx
 msgid "Previous card"
@@ -1788,6 +1813,10 @@ msgstr "Recently expired names have a temporary fee that decreases to $0 over {p
 #: src/features/notifications/settings/preference-card.tsx
 msgid "Recommended"
 msgstr "Recommended"
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "Reconnect the eligible owner wallet before minting."
+msgstr "Reconnect the eligible owner wallet before minting."
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Reconnect the wallet used for notifications, then sign in again."
@@ -2116,10 +2145,6 @@ msgstr "Search notifications"
 msgid "See all"
 msgstr "See all"
 
-#: src/features/migration/components/UpgradeBanner.tsx
-msgid "See what's new"
-msgstr "See what's new"
-
 #. placeholder {0}: name.label
 #. placeholder {0}: stablecoin.symbol
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
@@ -2312,6 +2337,10 @@ msgstr "Smart sessions are required to use this app."
 msgid "Social"
 msgstr "Social"
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Some locked names have records that this upgrade cannot preserve. Deselect those names to continue."
+msgstr "Some locked names have records that this upgrade cannot preserve. Deselect those names to continue."
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
 msgstr "Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
@@ -2360,6 +2389,10 @@ msgstr "Starter"
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Starting..."
 msgstr "Starting..."
+
+#: src/features/migration/components/GameStep.tsx
+msgid "Step {displayStep} of {totalSteps}"
+msgstr "Step {displayStep} of {totalSteps}"
 
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Still checking if you can edit this name. Try again in a moment."
@@ -2441,13 +2474,25 @@ msgstr "That's generous of you!"
 msgid "The backup payment method will be charged if the default payment method fails."
 msgstr "The backup payment method will be charged if the default payment method fails."
 
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "The commemorative NFT is optional, one-of-a-kind generative art for addresses included in the ENS holder snapshot."
-msgstr "The commemorative NFT is optional, one-of-a-kind generative art for addresses included in the ENS holder snapshot."
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "The commemorative NFT could not be minted. Please try again."
+msgstr "The commemorative NFT could not be minted. Please try again."
 
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "The contract checks membership in the June 1 address snapshot, not the names currently in your wallet. A later transfer or a different connected EOA does not alter that frozen list."
-msgstr "The contract checks membership in the June 1 address snapshot, not the names currently in your wallet. A later transfer or a different connected EOA does not alter that frozen list."
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "The commemorative NFT is not available on this network."
+msgstr "The commemorative NFT is not available on this network."
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "The commemorative NFT is not available right now."
+msgstr "The commemorative NFT is not available right now."
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "The commemorative NFT is not available yet."
+msgstr "The commemorative NFT is not available yet."
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "The eligibility proof could not be verified."
+msgstr "The eligibility proof could not be verified."
 
 #: src/features/renew/workflow/renewing/components/RenewalCompletionBanner.tsx
 msgid "The ENS domain has been successfully renewed."
@@ -2456,6 +2501,22 @@ msgstr "The ENS domain has been successfully renewed."
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "The fee hits $0 on"
 msgstr "The fee hits $0 on"
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "The mint request was cancelled."
+msgstr "The mint request was cancelled."
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "The mint transaction reverted. Please try again."
+msgstr "The mint transaction reverted. Please try again."
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "The mint transaction was cancelled. You can try minting again."
+msgstr "The mint transaction was cancelled. You can try minting again."
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "The mint transaction was replaced by another transaction. Check your wallet before trying again."
+msgstr "The mint transaction was replaced by another transaction. Check your wallet before trying again."
 
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "The page you're looking for doesn't exist or may have been moved."
@@ -2486,14 +2547,26 @@ msgstr "The renewal for {label}.eth could not be completed. You can retry or go 
 msgid "The replacement resolver could not be verified. Please try again."
 msgstr "The replacement resolver could not be verified. Please try again."
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "The upgrade contracts don't match this account. Please contact support."
+msgstr "The upgrade contracts don't match this account. Please contact support."
+
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "There was a problem verifying your email address."
 msgstr "There was a problem verifying your email address."
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "This browser cannot safely coordinate your mint. Try an up-to-date browser."
+msgstr "This browser cannot safely coordinate your mint. Try an up-to-date browser."
 
 #: src/features/payment/components/add.tsx
 #: src/features/payment/components/index.tsx
 msgid "This card will be charged for your subscription."
 msgstr "This card will be charged for your subscription."
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "This commemorative NFT has already been minted."
+msgstr "This commemorative NFT has already been minted."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "This is taking longer than expected."
@@ -2530,10 +2603,6 @@ msgstr "This name points to a different wallet. If you continue, we’ll update 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "This page can only verify your email when opened from the link in the verification email."
 msgstr "This page can only verify your email when opened from the link in the verification email."
-
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "This page could not be loaded. Please try again."
-msgstr "This page could not be loaded. Please try again."
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "This signature is free and doesn't cost any gas."
@@ -2592,7 +2661,6 @@ msgstr "Trademark Guidelines"
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
 #: src/features/migration/pages/MigrationPage.tsx
 #: src/features/renew/workflow/components/RenewalRouteError.tsx
 msgid "Try again"
@@ -2638,6 +2706,10 @@ msgstr "Updating profile..."
 msgid "Upgrade all names to receive NFT"
 msgstr "Upgrade all names to receive NFT"
 
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "Upgrade all your names before minting your NFT."
+msgstr "Upgrade all your names before minting your NFT."
+
 #. placeholder {0}: index + 1
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Upgrade batch {0} of {total}"
@@ -2655,6 +2727,10 @@ msgstr "Upgrade didn't finish"
 #: src/features/migration/components/UpgradeNamesButton.tsx
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
+
+#: src/features/migration/components/GameStep.tsx
+msgid "Upgrade progress"
+msgstr "Upgrade progress"
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Upgrade the parent name first, then its subnames."
@@ -2756,10 +2832,6 @@ msgstr "Verifying registration on-chain"
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Verifying..."
 msgstr "Verifying..."
-
-#: src/features/migration/components/success/CommemorativeNftDashboardPrompt.tsx
-msgid "View and mint"
-msgstr "View and mint"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "View on OpenSea"
@@ -2935,10 +3007,6 @@ msgstr "What you'll approve"
 msgid "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
 msgstr "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
 
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "Why might I be ineligible?"
-msgstr "Why might I be ineligible?"
-
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Wrong wallet connected"
 msgstr "Wrong wallet connected"
@@ -2958,10 +3026,6 @@ msgstr "You can buy this name at any point during the {periodDays}-day cooldown.
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "You can now receive notifications at this email address."
 msgstr "You can now receive notifications at this email address."
-
-#: src/features/migration/pages/MigrationNftInfoPage.tsx
-msgid "You can preview your personalized NFT after upgrading your first name, claim it immediately, or return from your Dashboard or ENS profile later."
-msgstr "You can preview your personalized NFT after upgrading your first name, claim it immediately, or return from your Dashboard or ENS profile later."
 
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "You can still use the manager, but these features won't be available:"
@@ -3007,6 +3071,10 @@ msgstr "You'll be notified 30, 7, and 1 day before expiry."
 msgid "You're almost there!"
 msgstr "You're almost there!"
 
+#: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
+msgid "You're on ENSv2!"
+msgstr "You're on ENSv2!"
+
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Your account"
 msgstr "Your account"
@@ -3018,6 +3086,10 @@ msgstr "Your account could not be checked. Please try again."
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Your card is ready to preview. Minting is optional and you pay the network gas."
 msgstr "Your card is ready to preview. Minting is optional and you pay the network gas."
+
+#: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
+msgid "Your commemorative NFT"
+msgstr "Your commemorative NFT"
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Your email has been verified successfully!"
@@ -3043,10 +3115,6 @@ msgstr "Your ENS name replaces your wallet addresses so friends and clients can 
 msgid "Your ENS name works across web3"
 msgstr "Your ENS name works across web3"
 
-#: src/features/migration/components/success/CommemorativeNftDashboardPrompt.tsx
-msgid "Your ENSv2 commemorative NFT is ready"
-msgstr "Your ENSv2 commemorative NFT is ready"
-
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Your ENSv2 moment is waiting"
 msgstr "Your ENSv2 moment is waiting"
@@ -3054,6 +3122,19 @@ msgstr "Your ENSv2 moment is waiting"
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your expired name is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
 msgstr "Your expired name is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Your migration account doesn't match this wallet. Reconnect the owner wallet."
+msgstr "Your migration account doesn't match this wallet. Reconnect the owner wallet."
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "Your mint was submitted. Check its status before trying another mint."
+msgstr "Your mint was submitted. Check its status before trying another mint."
+
+#: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
+#: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
+msgid "Your mint was submitted. Check its status to continue."
+msgstr "Your mint was submitted. Check its status to continue."
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your name is in grace period"
@@ -3106,6 +3187,15 @@ msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your saved upgrade needs attention"
 msgstr "Your saved upgrade needs attention"
+
+#: src/features/migration/commemorative-nft/claimMessages.ts
+msgid "Your upgrades are still being verified. Check again in a moment."
+msgstr "Your upgrades are still being verified. Check again in a moment."
+
+#: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
+#: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
+msgid "Your upgrades still need to be verified. Check again to continue."
+msgstr "Your upgrades still need to be verified. Check again to continue."
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."

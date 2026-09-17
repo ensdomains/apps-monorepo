@@ -6,7 +6,6 @@ import {
 } from './MigrationSuccessDialogPreview.helpers'
 
 const ownerAddress = '0x1111111111111111111111111111111111111111'
-const migratedAt = new Date('2026-09-07T09:00:00Z')
 const eligibility: CommemorativeNftEligibility = {
   ownerAddress,
   profileName: 'published-name.eth',
@@ -35,7 +34,7 @@ const publishedQuery: PublishedPreviewQuery = {
   fetchStatus: 'idle',
   isFetchedAfterMount: true,
 }
-const input = { ownerAddress, chainId: 11155111, migratedAt } as const
+const input = { ownerAddress, chainId: 11155111 } as const
 
 describe('published NFT preview state', () => {
   it('builds the preview directly from published names, traits and assets', () => {
@@ -45,7 +44,6 @@ describe('published NFT preview state', () => {
     if (state.status !== 'readyToMint') throw new Error('Expected artwork')
     expect(state.card.eligibility).toBe(eligibility)
     expect(state.card.assets).toBe(eligibility.assets)
-    expect(state.card.migratedAt).toBe(migratedAt)
     expect(state.card.shareUrls.external).toBe(eligibility.assets.externalUrl)
     expect(new URL(state.card.shareUrls.x ?? '').searchParams.get('text')).toBe(
       'I upgraded to ENSv2. Take a look at my commemorative NFT.',

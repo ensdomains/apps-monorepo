@@ -17,6 +17,7 @@ import {
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
 } from './migrationBatchJournal'
+import { assertRequiredMigrationContractCode } from './migrationInvariants'
 import { getV1ProfileKeys } from './v1SubgraphClient'
 
 vi.mock('./v1SubgraphClient', async (importActual) => ({
@@ -33,7 +34,6 @@ vi.mock('./copyMigrationReadiness', () => ({
 vi.mock('./migrationInvariants', async (importActual) => ({
   ...(await importActual<typeof import('./migrationInvariants')>()),
   assertRequiredMigrationContractCode: vi.fn(() => Promise.resolve()),
-  assertMigrationHelperRuntimeCode: vi.fn(() => Promise.resolve()),
   assertLockedPublicResolverSetMembership: vi.fn(() => Promise.resolve()),
   checkMigrationHcaReadiness: vi.fn(({ hca }) =>
     Promise.resolve({ status: 'verified', hca, implementation: HCA }),
@@ -292,6 +292,7 @@ describe('buildMigrationPlan resolver preservation', () => {
     expect(buildAtomicMigrationBatchesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         classified: [expect.objectContaining({ resolverStrategy: 'keep-v1' })],
+        maxOuterGas: 15_000_000n,
       }),
     )
   })
@@ -308,6 +309,13 @@ describe('buildMigrationRecoveryPlan', () => {
       publicClient: { chain: { id: 11155111 } } as PublicClient,
     })
 
+    const checkedContracts = vi.mocked(assertRequiredMigrationContractCode).mock
+      .lastCall?.[0].contracts
+    expect(checkedContracts).toContain('UserRegistryImpl')
+    expect(checkedContracts).toContain('ETHRegistry')
+    expect(checkedContracts).not.toContain('MigrationHelper')
+    expect(checkedContracts).not.toContain('UnlockedMigrationController')
+    expect(checkedContracts).not.toContain('VerifiableFactoryProxyLogic')
     expect(plan.classified).toEqual([
       expect.objectContaining({
         action: 'copy',
@@ -333,6 +341,7 @@ describe('buildMigrationRecoveryPlan', () => {
     expect(buildAtomicMigrationBatchesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         classified: [expect.objectContaining({ action: 'copy' })],
+        maxOuterGas: 15_000_000n,
         registryContext: [
           expect.objectContaining({ action: 'migrate' }),
           expect.objectContaining({ action: 'copy' }),
