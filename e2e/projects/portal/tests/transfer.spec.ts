@@ -2870,11 +2870,6 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
   }, async ({ portalPage: page, wallet, accounts }) => {
     test.setTimeout(300_000)
 
-    // Expected to fail until E2E-011 is fixed, marked the way E2E-007/008/010
-    // are, so the suite's failure count stays meaningful and Playwright errors
-    // the day the tab learns to read the registrar.
-    test.fail()
-
     await connectWithHeadlessWallet(page, wallet)
 
     const controller = accounts.getAddress('user')

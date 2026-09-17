@@ -344,11 +344,6 @@ export const EXPECTATIONS: Partial<
     overview: {
       title: 'names the registrant as owner, not the wallet that manages it',
       rows: [{ kind: 'address-row', label: 'Owner', shows: 'registrant' }],
-      defect: {
-        id: 'E2E-011',
-        actual:
-          'the overview Owner row shows the controller — the same flattening as the Ownership tab, on a second page',
-      },
     },
     ownership: {
       title: 'keeps the registrant and the manager apart',
@@ -356,11 +351,6 @@ export const EXPECTATIONS: Partial<
         { kind: 'address-row', label: 'Owner', shows: 'registrant' },
         { kind: 'address-row', label: 'Manager', shows: 'controller' },
       ],
-      defect: {
-        id: 'E2E-011',
-        actual:
-          'the Owner row shows the controller, so the same address appears as both Owner and Manager and the real owner is absent',
-      },
     },
     transfer: {
       title: 'refuses a wallet that manages the name but does not hold it',
@@ -374,11 +364,6 @@ export const EXPECTATIONS: Partial<
     overview: {
       title: 'names the registrant as owner, not the wallet that manages it',
       rows: [{ kind: 'address-row', label: 'Owner', shows: 'registrant' }],
-      defect: {
-        id: 'E2E-011',
-        actual:
-          'the overview Owner row shows the controller, so the wallet that actually holds the name is absent from its own page',
-      },
     },
     ownership: {
       title: 'names the holder of the ERC-721 as owner',
@@ -386,11 +371,6 @@ export const EXPECTATIONS: Partial<
         { kind: 'address-row', label: 'Owner', shows: 'registrant' },
         { kind: 'address-row', label: 'Manager', shows: 'controller' },
       ],
-      defect: {
-        id: 'E2E-011',
-        actual:
-          'both rows show the controller; the registrant — the only account the registrar will let transfer the name — appears nowhere',
-      },
     },
     transfer: {
       title: 'offers the form to the registrant, who alone can move the token',

@@ -135,22 +135,12 @@ test.describe('V1 shape · 2ld-unwrapped:manager', () => {
   test('overview · names the registrant as owner, not the wallet that manages it', {
     tag: ['@scenario:VV2', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
-    test.fail(
-      true,
-      'E2E-011: the overview Owner row shows the controller — the same flattening as the Ownership tab, on a second page',
-    )
-
     await runCell(page, wallet, seeded, 'overview')
   })
 
   test('ownership · keeps the registrant and the manager apart', {
     tag: ['@scenario:VO2', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
-    test.fail(
-      true,
-      'E2E-011: the Owner row shows the controller, so the same address appears as both Owner and Manager and the real owner is absent',
-    )
-
     await runCell(page, wallet, seeded, 'ownership')
   })
 
@@ -228,22 +218,12 @@ test.describe('V1 shape · 2ld-unwrapped:registrant', () => {
   test('overview · names the registrant as owner, not the wallet that manages it', {
     tag: ['@scenario:VV3', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
-    test.fail(
-      true,
-      'E2E-011: the overview Owner row shows the controller, so the wallet that actually holds the name is absent from its own page',
-    )
-
     await runCell(page, wallet, seeded, 'overview')
   })
 
   test('ownership · names the holder of the ERC-721 as owner', {
     tag: ['@scenario:VO3', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
-    test.fail(
-      true,
-      'E2E-011: both rows show the controller; the registrant — the only account the registrar will let transfer the name — appears nowhere',
-    )
-
     await runCell(page, wallet, seeded, 'ownership')
   })
 

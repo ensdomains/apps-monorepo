@@ -77,8 +77,8 @@ The only V1 shape whose ownership is split across two contracts: the BaseRegistr
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV2` | R2 | [overview](/<name>) | names the registrant as owner, not the wallet that manages it | **E2E-011** — the overview Owner row shows the controller — the same flattening as the Ownership tab, on a second page |
-| `VO2` | R2 | [ownership](/<name>/ownership) | keeps the registrant and the manager apart | **E2E-011** — the Owner row shows the controller, so the same address appears as both Owner and Manager and the real owner is absent |
+| `VV2` | R2 | [overview](/<name>) | names the registrant as owner, not the wallet that manages it | asserted |
+| `VO2` | R2 | [ownership](/<name>/ownership) | keeps the registrant and the manager apart | asserted |
 | `VT2` | R0 | [transfer](/<name>/ownership/transfer) | refuses a wallet that manages the name but does not hold it | asserted |
 | `VF2` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
 | `VE2` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit | asserted |
@@ -102,8 +102,8 @@ The only V1 shape whose ownership is split across two contracts: the BaseRegistr
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV3` | R2 | [overview](/<name>) | names the registrant as owner, not the wallet that manages it | **E2E-011** — the overview Owner row shows the controller, so the wallet that actually holds the name is absent from its own page |
-| `VO3` | R2 | [ownership](/<name>/ownership) | names the holder of the ERC-721 as owner | **E2E-011** — both rows show the controller; the registrant — the only account the registrar will let transfer the name — appears nowhere |
+| `VV3` | R2 | [overview](/<name>) | names the registrant as owner, not the wallet that manages it | asserted |
+| `VO3` | R2 | [ownership](/<name>/ownership) | names the holder of the ERC-721 as owner | asserted |
 | `VT3` | R0 | [transfer](/<name>/ownership/transfer) | offers the form to the registrant, who alone can move the token | asserted |
 | `VF3` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
 | `VE3` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit | asserted |
