@@ -30,6 +30,7 @@ import {
   scrollSepolia,
 } from 'viem/chains'
 import { createConfig } from 'wagmi'
+import { config } from '@/config'
 
 export const L2_CHAINS = [
   optimismSepolia,
@@ -40,6 +41,17 @@ export const L2_CHAINS = [
 ] as const
 
 export type L2ChainId = (typeof L2_CHAINS)[number]['id']
+
+// The list above is Sepolia-only. Reverse resolution derives its L2 coin types
+// from `config.network`, so a mainnet build would look up mainnet coin types
+// against testnet clients and silently report no L2 primary names. Fail loudly
+// instead; the mainnet tuple lands with the rest of the mainnet work.
+if (!config.isTestnet) {
+  throw new Error(
+    `wagmiL2: only Sepolia L2 chains are configured, but the build targets ${config.network}. ` +
+      `Add the mainnet L2 chains before enabling a mainnet build.`,
+  )
+}
 
 /**
  * No connectors are listed explicitly. Injected wallets (MetaMask, the Coinbase
