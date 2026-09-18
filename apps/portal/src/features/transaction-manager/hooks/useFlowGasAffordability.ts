@@ -4,63 +4,48 @@ import {
   type GasAffordability,
   sumStepFees,
 } from '@ens-apps/utils/gasAffordability'
-import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useQueries, useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
-import type { Address } from 'viem'
-import { getBalance } from 'viem/actions'
-import { useEstimateFeesPerGas, usePublicClient, useWalletClient } from 'wagmi'
+import { useQueries } from '@tanstack/react-query'
+import {
+  useBalance,
+  useEstimateFeesPerGas,
+  usePublicClient,
+  useWalletClient,
+} from 'wagmi'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { WalletClientWithAccount } from '@/utils/types'
 import type { Transaction } from '../types'
-import {
-  parseUnpaidStepKey,
-  prepareUnpaidStepRequests,
-  priceStepGas,
-  unpaidStepKey,
-} from '../utils/flowGasSteps'
+import { prepareUnpaidStepRequests } from '../utils/flowGasSteps'
 import { getStatus } from '../utils/getStatus'
-import { estimateGasForCall } from './useTransactionGasEstimate'
+import {
+  estimateGasForCall,
+  isRevertError,
+  MAX_TRANSIENT_RETRIES,
+  PREVIEW_STALE_TIME,
+  stepGasEstimateQueryKey,
+} from './useTransactionGasEstimate'
 
-type FlowGasEstimateParams = {
-  readonly chainId: number | undefined
-  readonly from: Address | undefined
-  readonly to: Address | undefined
-  readonly data: string | undefined
-  readonly value: string | undefined
-  readonly gas: string | undefined
-}
-
-const flowGasEstimateQueryKey = createQueryKey<
-  'flow-gas-estimate',
-  FlowGasEstimateParams
->('flow-gas-estimate')
-
-const nativeBalanceQueryKey = createQueryKey<
-  'native-balance',
-  { readonly address: Address | undefined }
->('native-balance')
+const BALANCE_REFETCH_MS = 30_000
 
 /**
  * Whether the connected wallet can pay for every step of a flow that has not
  * run yet.
  *
- * `EstimatedGasCost` answers this one step at a time and only in ETH-formatted
- * text, which is the wrong shape twice over: a user with enough for the approve
- * but not the register still clears every per-step figure, and the flow then
- * strands them between two transactions. This sums the remaining steps instead
- * and compares the total against the balance.
+ * `EstimatedGasCost` answers this one step at a time, so a wallet that covers
+ * the approve but not the register clears every per-step figure and is then
+ * stranded between two transactions. This sums the remaining steps instead.
  *
- * Only for EOA-paid flows. Steps that have already settled are excluded, so the
- * verdict tightens as the flow progresses rather than re-charging for work the
- * user has already paid for.
+ * Shares `stepGasEstimateQueryKey` with that hook, so each step is estimated
+ * once and the warning can never quote a different number than the row above it.
  */
-export function useFlowGasAffordability(params: {
+export function useFlowGasAffordability({
+  transactions,
+  activeTransactionsMap,
+}: {
   readonly transactions: readonly Transaction[]
   readonly activeTransactionsMap: Map<string, TransactionMachineActor>
 }): GasAffordability {
-  const { transactions, activeTransactionsMap } = params
-
+  const chainId = sepoliaWithEns.id
+  const publicClient = usePublicClient({ chainId })
   const { data: walletClient } = useWalletClient()
   const readyWalletClient =
     walletClient?.account && walletClient.chain
@@ -68,88 +53,60 @@ export function useFlowGasAffordability(params: {
       : undefined
 
   // Recomputed every render: an actor mutates its own snapshot in place without
-  // replacing the Map, so anything memoized on the Map's identity would keep
-  // counting a step that has already settled. The component re-renders on those
-  // transitions anyway (see useActiveTransactionState).
-  const unpaidKey = unpaidStepKey(
+  // replacing the Map, so anything memoized on the Map keeps counting a settled
+  // step. The component re-renders on those transitions anyway.
+  const preparedRequests = prepareUnpaidStepRequests({
     transactions,
-    (id) => getStatus(id, activeTransactionsMap) === 'success',
-  )
+    isSettled: (id) => getStatus(id, activeTransactionsMap) === 'success',
+    walletClient: readyWalletClient,
+    chainId,
+  })
 
-  const preparedRequests = useMemo(
-    () =>
-      prepareUnpaidStepRequests({
-        transactions,
-        unpaidIds: parseUnpaidStepKey(unpaidKey),
-        walletClient: readyWalletClient,
-        chainId: sepoliaWithEns.id,
-      }),
-    [transactions, unpaidKey, readyWalletClient],
-  )
-
-  const chainId = preparedRequests.find((r) => r)?.chainId
-  const publicClient = usePublicClient({ chainId })
-
-  // Priced on the same EIP-1559 ceiling the transaction manager submits under,
-  // matching how a single step's cost is quoted.
   const feeQuery = useEstimateFeesPerGas({
     chainId,
-    query: { enabled: Boolean(publicClient) && chainId !== undefined },
+    query: { staleTime: PREVIEW_STALE_TIME, retry: MAX_TRANSIENT_RETRIES },
   })
 
   const gasQueries = useQueries({
     queries: preparedRequests.map((request) => ({
-      queryKey: flowGasEstimateQueryKey({
+      queryKey: stepGasEstimateQueryKey({
         chainId: request?.chainId,
         from: request?.from,
         to: request?.to,
         data: request?.data,
         value: request?.value?.toString(),
         gas: request?.gas?.toString(),
+        started: false,
       }),
       enabled: Boolean(request?.to && request?.data && publicClient),
+      staleTime: PREVIEW_STALE_TIME,
+      // A revert is deterministic and leaves the step unpriced; a transport
+      // blip is worth retrying, or the flow quietly looks cheaper than it is.
+      retry: (failureCount: number, error: unknown) =>
+        !isRevertError(error) && failureCount < MAX_TRANSIENT_RETRIES,
       queryFn: (): Promise<bigint> => {
         if (!request || !publicClient) throw new Error('No call to estimate')
         return estimateGasForCall(publicClient, request)
       },
-      // A step that reverts under estimation contributes nothing rather than
-      // failing the whole verdict; the headroom absorbs the under-count.
-      retry: false,
     })),
   })
 
-  const { data: balanceWei } = useQuery({
-    queryKey: nativeBalanceQueryKey({
-      address: readyWalletClient?.account.address,
-    }),
-    queryFn: () => {
-      const address = readyWalletClient?.account.address as Address | undefined
-      if (!address || !publicClient) return null
-      return getBalance(publicClient, { address })
-    },
-    enabled: Boolean(readyWalletClient?.account.address && publicClient),
-    refetchInterval: 30_000,
+  const { data: balance } = useBalance({
+    address: readyWalletClient?.account.address,
+    chainId,
+    query: { refetchInterval: BALANCE_REFETCH_MS },
   })
 
-  const maxFeePerGas = feeQuery.data?.maxFeePerGas
-  const feeSum = useMemo(
-    () =>
-      sumStepFees(
-        priceStepGas(
-          gasQueries.map((query) => query.data),
-          maxFeePerGas,
-        ),
-      ),
-    [gasQueries, maxFeePerGas],
+  const { total, isComplete } = sumStepFees(
+    gasQueries.map((query) => query.data),
+    feeQuery.data?.maxFeePerGas,
   )
 
   return assessGasAffordability({
-    balanceWei: balanceWei ?? null,
-    estimatedFeeWei: feeSum.total,
+    balanceWei: balance?.value ?? null,
+    estimatedFeeWei: total,
     // A registration cannot encode `register` until the commitment exists, so
-    // early on the sum covers the cheap steps and omits the dearest one. Passing
-    // this through keeps that partial figure from clearing a wallet it should
-    // not, while still letting it prove a shortfall.
-    isEstimateComplete: feeSum.isComplete,
+    // early on the sum omits the dearest step.
+    isEstimateComplete: isComplete,
   })
 }

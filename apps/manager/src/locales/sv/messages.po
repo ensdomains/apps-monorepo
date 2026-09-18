@@ -1364,8 +1364,8 @@ msgstr ""
 msgid "No stablecoins available"
 msgstr ""
 
-#. placeholder {0}: formatEthShort(shortfall.requiredWei)
-#. placeholder {1}: formatEthShort(shortfall.balanceWei)
+#. placeholder {0}: formatGasEth(shortfall.requiredWei)
+#. placeholder {1}: formatGasEth(shortfall.balanceWei)
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
 msgstr ""

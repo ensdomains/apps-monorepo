@@ -193,14 +193,7 @@ describe('SelectNamesStep', () => {
 
   it('warns instead of quoting a fee when the wallet is short of gas', () => {
     const { getByText, queryByText } = renderStep({
-      gasEstimate: {
-        status: 'ready',
-        formattedEth: '0.004',
-        gasUnits: 400_000n,
-        feeWei: 4_000_000_000_000_000n,
-        transactionCount: 3,
-        plan: { stepDescriptors: [] },
-      } as unknown as MigrationGasEstimateState,
+      gasEstimate: readyGasEstimate,
       gasAffordability: {
         status: 'short',
         requiredWei: 5_000_000_000_000_000n,
@@ -217,14 +210,7 @@ describe('SelectNamesStep', () => {
   it('quotes the fee as usual when the balance cannot be read', () => {
     // An unreadable balance is not evidence the user cannot pay.
     const { getByText, queryByText } = renderStep({
-      gasEstimate: {
-        status: 'ready',
-        formattedEth: '0.004',
-        gasUnits: 400_000n,
-        feeWei: 4_000_000_000_000_000n,
-        transactionCount: 3,
-        plan: { stepDescriptors: [] },
-      } as unknown as MigrationGasEstimateState,
+      gasEstimate: readyGasEstimate,
       gasAffordability: { status: 'unknown' },
     })
 

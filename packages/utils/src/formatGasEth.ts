@@ -2,9 +2,9 @@ import { formatEther } from 'viem'
 
 /**
  * Wei as a short ETH string. Gas figures are tiny, so `formatEther` alone gives
- * an unreadable 18-decimal number; three significant digits is enough to act on.
+ * an unreadable 18-decimal number.
  */
-export const formatGasShort = (wei: bigint): string =>
+export const formatGasEth = (wei: bigint): string =>
   Number(formatEther(wei)).toLocaleString('en-US', {
-    maximumSignificantDigits: 3,
+    maximumSignificantDigits: 4,
   })

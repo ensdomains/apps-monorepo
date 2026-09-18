@@ -1,21 +1,15 @@
+import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { useLingui } from '@lingui/react'
 import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { match } from 'ts-pattern'
-import { formatEther } from 'viem'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { migrationPreparationMessage } from '@/features/migration/service/migrationPreparationError'
 import { GrainOverlay } from './GrainOverlay'
 import { MigrationUpgradeButton } from './MigrationUpgradeButton'
 import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
-
-/** Trim the wei shortfall to something a person can read off a faucet form. */
-const formatEthShort = (wei: bigint): string =>
-  Number(formatEther(wei)).toLocaleString('en-US', {
-    maximumSignificantDigits: 3,
-  })
 
 type GasEstimateMessageProps = {
   readonly gasEstimate: MigrationGasEstimateState
@@ -63,9 +57,9 @@ const GasEstimateMessage = ({
             <Trans>
               Not enough ETH for gas. This upgrade needs about{' '}
               <strong className="font-semibold">
-                {formatEthShort(shortfall.requiredWei)} ETH
+                {formatGasEth(shortfall.requiredWei)} ETH
               </strong>{' '}
-              and your wallet holds {formatEthShort(shortfall.balanceWei)} ETH.
+              and your wallet holds {formatGasEth(shortfall.balanceWei)} ETH.
               Top up before you start, or some names will be left mid-upgrade.
             </Trans>
           </p>

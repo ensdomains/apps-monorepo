@@ -100,36 +100,33 @@ export function assessGasAffordability(
 }
 
 export interface StepFeeSum {
-  /** Null when nothing resolved; otherwise the sum of the steps that did. */
+  /** Null when nothing resolved; otherwise the summed fee. */
   readonly total: bigint | null
-  /**
-   * False when a step contributed nothing, so `total` is a lower bound. Pass
-   * straight through to `isEstimateComplete` rather than discarding it: the
-   * distinction is what stops a partial sum reading as a cheap flow.
-   */
+  /** False when a step contributed nothing, so `total` is a lower bound. */
   readonly isComplete: boolean
 }
 
 /**
- * Sum per-step estimates into one figure for {@link assessGasAffordability}.
+ * Price resolved gas units at the fee ceiling and sum them.
  *
- * Reports completeness alongside the total because the two answer different
- * questions: the total says how much is known to be needed, completeness says
- * whether that is the whole cost. A step usually goes missing because it cannot
- * be encoded yet (it depends on state an earlier step has not created), and
- * those pending steps are often the expensive ones.
+ * Completeness travels with the total because the two answer different
+ * questions: how much is known to be needed, and whether that is the whole
+ * cost. A step usually goes missing because it cannot be encoded yet, and those
+ * are often the expensive ones. An unresolved fee makes every step unknown
+ * rather than free.
  */
 export function sumStepFees(
-  fees: readonly (bigint | null | undefined)[],
+  gasUnits: readonly (bigint | undefined)[],
+  maxFeePerGas: bigint | undefined,
 ): StepFeeSum {
   let total: bigint | null = null
   let isComplete = true
-  for (const fee of fees) {
-    if (fee === null || fee === undefined) {
+  for (const units of gasUnits) {
+    if (units === undefined || maxFeePerGas === undefined) {
       isComplete = false
       continue
     }
-    total = (total ?? 0n) + fee
+    total = (total ?? 0n) + units * maxFeePerGas
   }
   return { total, isComplete }
 }

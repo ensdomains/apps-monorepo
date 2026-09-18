@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  assessGasAffordability,
-  DEFAULT_GAS_HEADROOM_BPS,
-  sumStepFees,
-} from './gasAffordability'
+import { assessGasAffordability, sumStepFees } from './gasAffordability'
 
 describe('assessGasAffordability', () => {
   it('never reports short when the balance could not be read', () => {
@@ -69,37 +65,36 @@ describe('assessGasAffordability', () => {
     expect(result.status).toBe('sufficient')
     expect(result).toMatchObject({ requiredWei: 1_000n })
   })
-
-  it('uses a 25% default headroom', () => {
-    expect(DEFAULT_GAS_HEADROOM_BPS).toBe(2_500n)
-  })
 })
 
 describe('sumStepFees', () => {
   it('is null when nothing has resolved, so the verdict stays unknown', () => {
-    expect(sumStepFees([])).toEqual({ total: null, isComplete: true })
-    expect(sumStepFees([null, undefined])).toEqual({
+    expect(sumStepFees([], 2n)).toEqual({ total: null, isComplete: true })
+    expect(sumStepFees([undefined], 2n)).toEqual({
       total: null,
       isComplete: false,
     })
   })
 
-  it('sums the steps that did resolve and flags the sum as partial', () => {
-    expect(sumStepFees([100n, null, 250n, undefined])).toEqual({
-      total: 350n,
+  it('prices the steps that resolved and flags the sum as partial', () => {
+    expect(sumStepFees([21_000n, undefined, 50_000n], 2n)).toEqual({
+      total: 142_000n,
       isComplete: false,
     })
   })
 
   it('reports a complete sum when every step resolved', () => {
-    expect(sumStepFees([100n, 250n])).toEqual({
-      total: 350n,
+    expect(sumStepFees([21_000n, 50_000n], 2n)).toEqual({
+      total: 142_000n,
       isComplete: true,
     })
   })
 
-  it('keeps a resolved zero rather than falling back to null', () => {
-    expect(sumStepFees([0n])).toEqual({ total: 0n, isComplete: true })
+  it('treats an unresolved fee as unknown, not free', () => {
+    expect(sumStepFees([21_000n], undefined)).toEqual({
+      total: null,
+      isComplete: false,
+    })
   })
 })
 

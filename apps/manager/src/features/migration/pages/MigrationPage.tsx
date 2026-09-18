@@ -1,4 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
+import { assessGasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
@@ -7,7 +8,7 @@ import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
-import { useWalletClient } from 'wagmi'
+import { useBalance, useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
@@ -30,7 +31,6 @@ import {
   useMigrationSelectedNames,
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
-import { useGasAffordability } from '@/hooks/useGasAffordability'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient as migrationExecutionClient } from '@/lib/wagmi'
@@ -223,8 +223,12 @@ export const MigrationPage = () => {
 
   // Migration is entirely EOA-paid, so a wallet short of sepETH stalls the run
   // partway. Checked against the same estimate the footer quotes.
-  const gasAffordability = useGasAffordability({
+  const { data: ownerBalance } = useBalance({
     address: ownerAddress as Address | undefined,
+    query: { refetchInterval: 30_000 },
+  })
+  const gasAffordability = assessGasAffordability({
+    balanceWei: ownerBalance?.value ?? null,
     estimatedFeeWei: gasEstimate.status === 'ready' ? gasEstimate.feeWei : null,
   })
 

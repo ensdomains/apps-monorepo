@@ -1,4 +1,5 @@
 import type { TransactionMachineActor } from '@ens-apps/transaction-manager'
+import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import {
   AlertTriangle,
   ArrowRight,
@@ -20,7 +21,6 @@ import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxU
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import { useFlowGasAffordability } from '../hooks/useFlowGasAffordability'
 import type { Transaction, TransactionModalContentState } from '../types'
-import { formatGasShort } from '../utils/formatGasShort'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
 import { shouldShowWaitCountdown } from '../utils/shouldShowWaitCountdown'
@@ -74,7 +74,7 @@ export const TransactionsOverviewContent = ({
             icon={<AlertTriangle className="size-6" />}
             title="Not enough ETH for gas"
             className="mb-2"
-            description={`These steps need about ${formatGasShort(shortfall.requiredWei)} ETH in gas and your wallet holds ${formatGasShort(shortfall.balanceWei)} ETH. Top up before you start, or the flow will stop partway.`}
+            description={`These steps need about ${formatGasEth(shortfall.requiredWei)} ETH in gas and your wallet holds ${formatGasEth(shortfall.balanceWei)} ETH. Top up before you start, or the flow will stop partway.`}
           />
         ))
         .otherwise(() => null)}
