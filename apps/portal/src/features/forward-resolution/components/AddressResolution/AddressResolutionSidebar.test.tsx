@@ -20,9 +20,14 @@ vi.mock('@/features/records/hooks/useCanEditRecords', () => ({
   useCanEditRecords: () => ({
     canEdit: false,
     isLoading: false,
-    isOwner,
+    isOwner: false,
     resolverAddress: undefined,
   }),
+}))
+// Protocol-aware ownership: for an unwrapped V1 2LD it counts the registrant
+// as well as the controller. Covered directly in useIsNameOwner.test.ts.
+vi.mock('@/features/ownership/hooks/useIsNameOwner', () => ({
+  useIsNameOwner: () => ({ isOwner, isLoading: false }),
 }))
 vi.mock('@/features/records/hooks/useSaveRecords', () => ({
   useSaveRecords: () => ({

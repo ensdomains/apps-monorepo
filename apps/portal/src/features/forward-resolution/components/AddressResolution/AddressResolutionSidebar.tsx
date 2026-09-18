@@ -33,6 +33,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
+import { useIsNameOwner } from '@/features/ownership/hooks/useIsNameOwner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
@@ -474,13 +475,15 @@ const useAddressRecordEditor = (
   }
 
   // Root `ROLE_SET_ADDRESS`, or the role scoped to this row's coin type.
-  const { canEdit, isOwner } = useCanEditRecords({
+  const { canEdit } = useCanEditRecords({
     name,
     roles: ['ROLE_SET_ADDRESS'],
     scope: data
       ? { kind: 'address', coinType: BigInt(data.coinType) }
       : undefined,
   })
+
+  const { isOwner } = useIsNameOwner({ name })
 
   // "Set primary name" sets the reverse record that actually controls the
   // selected row via `setName(string)` (which sets `msg.sender`'s own record):
@@ -497,6 +500,9 @@ const useAddressRecordEditor = (
   //     they like, so to a visitor it is attacker-controlled. Without this
   //     check any visitor the record points at sees a red mismatch banner
   //     whose only action hands their primary name to someone else's name.
+  //     `useIsNameOwner` rather than `useCanEditRecords`'s `isOwner`: for an
+  //     unwrapped V1 `.eth` 2LD the latter is the registry controller, which
+  //     would hide the action from the registrant who actually holds the token.
   //   - the connected wallet *is* this address — `setName` is msg.sender-scoped,
   //     so nobody else's reverse record can be written from here anyway.
   // Non-owners still see the banner; it is information about the name, with no
