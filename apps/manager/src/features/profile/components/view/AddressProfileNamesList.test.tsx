@@ -50,7 +50,7 @@ describe('AddressProfileNamesList', () => {
     expect(screen.getByText('Names')).toBeVisible()
   })
 
-  it('filters someone else"s names as it filters your own', () => {
+  it("filters someone else's names as it filters your own", () => {
     renderList(false)
 
     expect(screen.getByText('alpha.eth')).toBeInTheDocument()
