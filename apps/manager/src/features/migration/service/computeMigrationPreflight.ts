@@ -19,11 +19,11 @@ import {
 } from '@/features/migration/service/migrationApprovals'
 import {
   assertLockedPublicResolverSetMembership,
-  assertMigrationHelperRuntimeCode,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
   getMigrationResolverAddress,
+  getRequiredMigrationContracts,
   type MigrationHcaReadiness,
   type MigrationResolverReadiness,
 } from '@/features/migration/service/migrationInvariants'
@@ -209,10 +209,6 @@ export const computeMigrationPreflight = async (params: {
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
     hcaAddress
       ? (async () => {
-          await assertRequiredMigrationContractCode({ publicClient })
-          if (directNames.length > 0) {
-            await assertMigrationHelperRuntimeCode({ publicClient })
-          }
           await assertLockedPublicResolverSetMembership({
             publicClient,
             names: classified,
@@ -226,6 +222,20 @@ export const computeMigrationPreflight = async (params: {
       : Promise.resolve(undefined),
   ])
   signal?.throwIfAborted()
+  if (hcaReadiness) {
+    await assertRequiredMigrationContractCode({
+      publicClient,
+      contracts: getRequiredMigrationContracts({
+        remaining: classified,
+        registryContext: classified,
+        directRoutes: directMigrationRoutes,
+        hcaReadiness,
+        resolverReadiness: resolverPreflight.hcaResolverReadiness,
+        ownedResolver: resolverPreflight.hcaResolverAddress ?? null,
+      }),
+    })
+    signal?.throwIfAborted()
+  }
 
   return {
     ...resolverPreflight,

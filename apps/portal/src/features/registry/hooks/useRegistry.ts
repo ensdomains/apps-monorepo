@@ -20,8 +20,6 @@ export type RegistryInfo = {
   /** This registry's own ENS name (e.g. "eth"); empty for the root. */
   name: string
   namehash: string
-  /** Address of the parent registry (zero address for the root). */
-  parentRegistry: Address
   createdBlock: number
   createdAt: number
   labelCount: number
@@ -41,7 +39,6 @@ const getRegistryInfo = ResultFn(async function* ({
             address
             name
             namehash
-            parentRegistry
             createdBlock
             createdAt
             labelCount

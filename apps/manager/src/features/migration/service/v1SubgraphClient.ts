@@ -1,6 +1,7 @@
 import type { V1Domain } from '@ens-apps/migration'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
+import { withRequestDeadline } from './requestDeadline'
 
 export type { V1Domain }
 
@@ -60,6 +61,7 @@ const fetchPage = async (
   addr: string,
   now: string,
   idCursor: string | undefined,
+  signal: AbortSignal,
 ): Promise<V1Domain[]> => {
   const baseFilters: Record<string, unknown>[] = [
     {
@@ -96,6 +98,7 @@ const fetchPage = async (
 
   const response = await fetch(V1_SUBGRAPH_URL, {
     method: 'POST',
+    signal,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       query: GET_NAMES_QUERY,
@@ -119,7 +122,10 @@ const fetchPage = async (
   return json.data.domains
 }
 
-export const getV1NamesForAddress = ResultFn(async function* (address: string) {
+export const getV1NamesForAddress = ResultFn(async function* (
+  address: string,
+  options: { readonly signal?: AbortSignal } = {},
+) {
   const now = Math.floor(Date.now() / 1000).toString()
   const addr = address.toLowerCase()
 
@@ -130,10 +136,20 @@ export const getV1NamesForAddress = ResultFn(async function* (address: string) {
 
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       while (true) {
-        const page = await fetchPage(addr, now, idCursor)
+        options.signal?.throwIfAborted()
+        const page = await withRequestDeadline(
+          (signal) => fetchPage(addr, now, idCursor, signal),
+          options,
+        )
+        if (!Array.isArray(page))
+          throw new Error('Invalid V1 subgraph response')
         allDomains.push(...page)
         if (page.length < PAGE_SIZE) break
-        idCursor = page[page.length - 1]?.id
+        const nextCursor = page[page.length - 1]?.id
+        if (!nextCursor || (idCursor !== undefined && nextCursor <= idCursor)) {
+          throw new Error('V1 subgraph pagination did not advance')
+        }
+        idCursor = nextCursor
       }
 
       return allDomains
@@ -245,7 +261,12 @@ export const getV1ProfileKeys = ResultFn(async function* (
         chunks.push(lowered.slice(i, i + PROFILE_KEYS_CHUNK))
       }
       const chunkResults = await Promise.all(
-        chunks.map((chunk) => fetchProfileKeysChunk(chunk, options.signal)),
+        chunks.map((chunk) =>
+          withRequestDeadline(
+            (signal) => fetchProfileKeysChunk(chunk, signal),
+            options,
+          ),
+        ),
       )
       return chunkResults.flat()
     })(),

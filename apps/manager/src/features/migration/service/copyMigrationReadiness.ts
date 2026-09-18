@@ -42,7 +42,7 @@ const registryReadAbi = parseAbi([
   'function hasRootRoles(uint256 roleBitmap, address account) view returns (bool)',
 ])
 
-export type CopyMigrationReadinessFailure =
+type CopyMigrationReadinessFailure =
   | 'invalid-route'
   | 'source-owner-changed'
   | 'source-expiry-changed'
@@ -58,7 +58,7 @@ export type CopyMigrationReadinessFailure =
   | 'v2-name-history'
   | 'read-failed'
 
-export class CopyMigrationReadinessError extends TaggedError(
+class CopyMigrationReadinessError extends TaggedError(
   'CopyMigrationReadinessError',
 )<{
   readonly message: string

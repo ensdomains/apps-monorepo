@@ -62,7 +62,7 @@ const ROLE_CAN_NAME = 1n << 120n
 const ROLE_UPGRADE = 1n << 124n
 const ROLE_CAN_TRANSFER_ADMIN = 1n << 156n
 
-export type AtomicMigrationExecutionPhase =
+type AtomicMigrationExecutionPhase =
   | 'resolver-deployment'
   | 'wallet-co-admin-grant'
   | 'user-registry-deployment'
@@ -328,13 +328,13 @@ export type AtomicMigrationBatchPlan = {
   readonly batches: readonly AtomicMigrationBatch[]
 }
 
-export type AtomicMigrationOuterGasEstimateRequest = {
+type AtomicMigrationOuterGasEstimateRequest = {
   readonly call: Call
   readonly names: readonly string[]
   readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
 }
 
-export type EstimateAtomicMigrationOuterGas = (
+type EstimateAtomicMigrationOuterGas = (
   request: AtomicMigrationOuterGasEstimateRequest,
 ) => bigint | Promise<bigint>
 

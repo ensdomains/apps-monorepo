@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { trackNftEvent } from '../../commemorative-nft/diagnostics'
 
 const RENDERER_TIMEOUT_MS = 10_000
 const RENDERER_MESSAGE_TYPE = 'ens-commemorative-nft-renderer'
@@ -23,6 +24,9 @@ export const useCommemorativeNftRenderer = (params: {
   )
   const callbacks = useRef(params)
   const reportedStatus = useRef<'ready' | 'failed' | undefined>(undefined)
+  const failureReason = useRef<'renderer_failed' | 'renderer_timeout'>(
+    'renderer_failed',
+  )
   const requestRendererStatus = useCallback(() => {
     if (!rendererOrigin || !tokenId) return
     rendererRef.current?.contentWindow?.postMessage(
@@ -77,6 +81,7 @@ export const useCommemorativeNftRenderer = (params: {
   useEffect(() => {
     if (rendererStatus !== 'loading') return
     const timer = window.setTimeout(() => {
+      failureReason.current = 'renderer_timeout'
       setRendererStatus('failed')
     }, RENDERER_TIMEOUT_MS)
     return () => window.clearTimeout(timer)
@@ -91,6 +96,7 @@ export const useCommemorativeNftRenderer = (params: {
       callbacks.current.onReady?.()
     } else if (failed && reportedStatus.current !== 'failed') {
       reportedStatus.current = 'failed'
+      trackNftEvent('nft:renderer_fallback', { reason: failureReason.current })
       callbacks.current.onError?.()
     }
   }, [failed, ready])

@@ -19,7 +19,7 @@ type UseEligibleV1NamesOptions = {
   readonly fallbackToClassified?: boolean
 }
 
-export type EligibleV1NamesRecoveryState =
+type EligibleV1NamesRecoveryState =
   | { readonly status: 'none' }
   | { readonly status: 'recovering' }
   | {

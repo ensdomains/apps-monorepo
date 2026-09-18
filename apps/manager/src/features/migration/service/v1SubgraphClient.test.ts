@@ -1,4 +1,4 @@
-import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import { jsonResponse, makeDomain, OWNER } from './_fixtures'
 import {
   getV1NamesForAddress,
@@ -225,4 +225,67 @@ describe('getV1ProfileKeys', () => {
     expect(readBody(0).variables.whereFilter.id_in).toHaveLength(500)
     expect(readBody(1).variables.whereFilter.id_in).toHaveLength(1)
   })
+})
+
+afterEach(() => vi.useRealTimers())
+
+describe('V1 pagination deadlines', () => {
+  it('rejects a repeated full page instead of looping indefinitely', async () => {
+    const full = page(
+      Array.from(
+        { length: 1000 },
+        (_, i) => `0x${i.toString(16).padStart(4, '0')}`,
+      ),
+    )
+    respondWith(full, full)
+    const result = await getV1NamesForAddress(OWNER)
+    assert(result.isErr())
+    expect(result.error.cause).toEqual(
+      new Error('V1 subgraph pagination did not advance'),
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('passes cancellation to the active page and starts no page after abort', async () => {
+    const controller = new AbortController()
+    const full = page(Array.from({ length: 1000 }, (_, i) => `${i}`))
+    fetchMock.mockImplementation(async () => {
+      controller.abort(new Error('Account changed'))
+      return jsonResponse({ data: { domains: full } })
+    })
+    const result = await getV1NamesForAddress(OWNER, {
+      signal: controller.signal,
+    })
+    assert(result.isErr())
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0]?.[1].signal.aborted).toBe(true)
+  })
+
+  it('bounds a hung page to 15 seconds', async () => {
+    vi.useFakeTimers()
+    fetchMock.mockReturnValue(new Promise(() => {}))
+    const pending = getV1NamesForAddress(OWNER)
+    await vi.advanceTimersByTimeAsync(15_000)
+    const result = await pending
+    assert(result.isErr())
+    expect(result.error.cause).toMatchObject({ name: 'TimeoutError' })
+    expect(fetchMock.mock.calls[0]?.[1].signal.aborted).toBe(true)
+  })
+})
+
+it.each([
+  0, 1, 1000, 2000,
+])('fetches %i names with exactly one request per cursor page', async (count) => {
+  const domains = page(
+    Array.from(
+      { length: count },
+      (_, i) => `0x${i.toString(16).padStart(8, '0')}`,
+    ),
+  )
+  for (let index = 0; index <= count; index += 1000)
+    respondWith(domains.slice(index, index + 1000))
+  const result = await getV1NamesForAddress(OWNER)
+  assert(result.isOk())
+  expect(result.value).toHaveLength(count)
+  expect(fetchMock).toHaveBeenCalledTimes(Math.floor(count / 1000) + 1)
 })
