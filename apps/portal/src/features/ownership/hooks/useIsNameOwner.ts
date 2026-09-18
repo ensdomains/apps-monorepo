@@ -6,14 +6,14 @@ import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameStat
 import { getV1Holder } from '@/features/transfer/v1/rules'
 
 type UseIsNameOwnerParams = {
-  name: string
-  enabled?: boolean
+  readonly name: string
+  readonly enabled?: boolean
 }
 
 type UseIsNameOwnerReturn = {
   /** True when the connected wallet holds the name at either V1 level. */
-  isOwner: boolean
-  isLoading: boolean
+  readonly isOwner: boolean
+  readonly isLoading: boolean
 }
 
 /**
@@ -51,11 +51,15 @@ export function useIsNameOwner({
     enabled: enabled && !!name && isV1,
   })
 
-  // Null while the V1 read is in flight, and for a lapsed name whose registrar
-  // `ownerOf` reverts — in both cases the flattened owner is all we have.
-  const v1Holder = v1Query.data?.subject
-    ? getV1Holder(v1Query.data.subject)
-    : null
+  // Gated on `isV1`, not just on the query: disabling a query stops it
+  // fetching but keeps whatever it already cached, so a name this browser once
+  // read as V1 and now resolves as V2 would still hand back its old V1 holder.
+  //
+  // Null too while the V1 read is in flight, and for a lapsed name whose
+  // registrar `ownerOf` reverts — in both cases the flattened owner is all we
+  // have.
+  const v1Holder =
+    isV1 && v1Query.data?.subject ? getV1Holder(v1Query.data.subject) : null
 
   const holders = [ownerQuery.data?.owner, v1Holder]
 

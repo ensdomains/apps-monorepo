@@ -9,7 +9,7 @@ const CONTROLLER = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
 const STRANGER = '0xcccccccccccccccccccccccccccccccccccccccc' as Address
 const REGISTRY = '0x1111111111111111111111111111111111111111' as Address
 
-type QueryStub = { data: unknown; isLoading: boolean }
+type QueryStub = { readonly data: unknown; readonly isLoading: boolean }
 
 const idle = (): QueryStub => ({ data: undefined, isLoading: false })
 
@@ -40,12 +40,17 @@ vi.mock('@tanstack/react-query', async () => {
       queryKey: readonly unknown[]
       enabled?: boolean
     }) => {
-      // A disabled query never reports loading — mirror that, or a V2 name
-      // would look permanently pending on the skipped V1 read.
-      if (enabled === false) return idle()
-      if (queryKey[0] === 'get-ens-owner') return ownerQuery
-      if (queryKey[0] === 'transfer-v1-name-state') return v1StateQuery
-      return idle()
+      const stub =
+        queryKey[0] === 'get-ens-owner'
+          ? ownerQuery
+          : queryKey[0] === 'transfer-v1-name-state'
+            ? v1StateQuery
+            : idle()
+
+      // Disabling a query stops it fetching; it keeps serving whatever it has
+      // already cached and reports `isLoading: false`. Returning empty data
+      // here instead would hide every stale-cache case from these tests.
+      return enabled === false ? { ...stub, isLoading: false } : stub
     },
   }
 })
@@ -115,6 +120,17 @@ describe('useIsNameOwner', () => {
     const result = render()
     expect(result.isOwner).toBe(true)
     expect(result.isLoading).toBe(false)
+  })
+
+  it('ignores a stale cached V1 holder once the name resolves as V2', () => {
+    // Disabling a query stops it fetching but keeps its cache, so the V1 read
+    // can still answer for a name now held in V2 — with the wallet that used
+    // to hold it, which must not read as the current owner.
+    connectedAddress = REGISTRANT
+    resolvedAs(STRANGER, 'ENSv2')
+    unwrappedEth2ld(REGISTRANT, CONTROLLER)
+
+    expect(render().isOwner).toBe(false)
   })
 
   it('reports loading while the V1 holder read is in flight', () => {
