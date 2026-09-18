@@ -202,4 +202,21 @@ describe('getVerifiedProxyImplementation', () => {
       }),
     ).resolves.toBeNull()
   })
+
+  // Guards the whole point of isRevert: a mutation making it always true would
+  // otherwise pass, putting back the behaviour where a blip costs a genuine
+  // proxy its badge.
+  it('surfaces a transport failure instead of answering', async () => {
+    const client = clientAnswering(async () => {
+      throw new Error('fetch failed')
+    })
+
+    await expect(
+      getVerifiedProxyImplementation({
+        client,
+        factoryAddress: FACTORY,
+        proxyAddress: PROXY,
+      }),
+    ).rejects.toThrow()
+  })
 })

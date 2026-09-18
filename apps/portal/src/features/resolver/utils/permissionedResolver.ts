@@ -129,18 +129,24 @@ const EIP1967_IMPLEMENTATION_SLOT: Hex =
 
 /**
  * Whether the call came back FROM the contract rather than failing to reach it.
- * Walked by hand and matched on name and EIP-1474 code as well as class: viem
- * wraps the revert at a depth it does not fix, and class identity does not
- * survive the production build.
+ *
+ * Matched on viem's revert error names as well as the class, since class
+ * identity does not survive the production build. Deliberately not on a numeric
+ * `code`: that would read any unrelated `code: 3` in the chain as a revert, and
+ * this fails closed, so a transport failure would cost a genuine proxy its
+ * badge.
  */
+const REVERT_ERROR_NAMES: ReadonlySet<string> = new Set([
+  'ContractFunctionRevertedError',
+  'ExecutionRevertedError',
+])
+
 const isRevert = (error: unknown): boolean => {
   let current: unknown = error
   for (let depth = 0; depth < 10 && current != null; depth += 1) {
     if (current instanceof ContractFunctionRevertedError) return true
-    const { name, code } = current as { name?: unknown; code?: unknown }
-    if (name === 'ContractFunctionRevertedError') return true
-    // -32000/3: the node executed the call and it reverted.
-    if (code === 3) return true
+    const { name } = current as { name?: unknown }
+    if (typeof name === 'string' && REVERT_ERROR_NAMES.has(name)) return true
     current = (current as { cause?: unknown }).cause
   }
   return false
