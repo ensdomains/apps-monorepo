@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { renderHook } from '@testing-library/react'
 import { ok } from 'neverthrow'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -39,12 +40,10 @@ vi.mock('@tanstack/react-query', async () => {
       queryKey: readonly unknown[]
       enabled?: boolean
     }) => {
-      const stub =
-        queryKey[0] === 'get-ens-owner'
-          ? ownerQuery
-          : queryKey[0] === 'transfer-v1-name-state'
-            ? v1StateQuery
-            : idle()
+      const stub = match(queryKey[0])
+        .with('get-ens-owner', () => ownerQuery)
+        .with('transfer-v1-name-state', () => v1StateQuery)
+        .otherwise(idle)
 
       // Disabling a query stops it fetching; it keeps serving whatever it has
       // already cached. Returning empty data here would hide the stale-cache
