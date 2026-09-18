@@ -16,7 +16,7 @@ vi.mock('@/hooks/useSupportsInterfaces', () => ({
   getSupportsInterfaces: (...args: unknown[]) => getSupportsInterfaces(...args),
 }))
 
-const { getRoleContractKind } = await import('./useRoleContractKind')
+const { getRoleContractKind } = await import('./getRoleContractKind')
 
 describe('getRoleContractKind', () => {
   beforeEach(() => {

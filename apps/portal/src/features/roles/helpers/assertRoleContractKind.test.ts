@@ -6,7 +6,7 @@ const target = '0x1111111111111111111111111111111111111111' as Address
 const grantee = '0x3333333333333333333333333333333333333333' as Address
 
 let kind: RoleContractKind = 'unsupported'
-vi.mock('@/features/roles/hooks/useRoleContractKind', () => ({
+vi.mock('@/features/roles/queries/getRoleContractKind', () => ({
   getRoleContractKindQueryOptions: (params: { address: Address }) => ({
     queryKey: ['role-contract-kind', params],
     queryFn: async () => kind,

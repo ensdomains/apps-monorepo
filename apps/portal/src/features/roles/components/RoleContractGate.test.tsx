@@ -11,9 +11,6 @@ const address = '0x1111111111111111111111111111111111111111' as Address
 const caller = '0x9999999999999999999999999999999999999999' as Address
 
 let kind: RoleContractKind = 'unsupported'
-vi.mock('@/features/roles/hooks/useRoleContractKind', () => ({
-  useRoleContractKind: () => ({ data: kind, isLoading: false, error: null }),
-}))
 
 const navigate = vi.fn()
 vi.mock('@tanstack/react-router', () => ({
@@ -43,6 +40,8 @@ vi.mock('@tanstack/react-query', async () => {
     ...actual,
     useQuery: (options: { queryKey: readonly unknown[] }) => {
       const key = options.queryKey[0]
+      if (key === 'role-contract-kind')
+        return { data: kind, isLoading: false, error: null }
       if (key === 'hasRoles')
         return { data: true, isLoading: false, error: null }
       if (key === 'get-registry-info')

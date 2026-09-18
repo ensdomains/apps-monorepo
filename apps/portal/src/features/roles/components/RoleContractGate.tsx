@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { ShieldAlert } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -8,7 +9,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { MessageCard } from '@/components/ui/message-card'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { useRoleContractKind } from '../hooks/useRoleContractKind'
+import { getRoleContractKindQueryOptions } from '../queries/getRoleContractKind'
 import type { RoleContractKind } from '../utils/roleContractKind'
 
 type ExpectedKind = Exclude<RoleContractKind, 'unsupported'>
@@ -63,7 +64,11 @@ export const RoleContractGate = ({
   variant = 'page',
   children,
 }: RoleContractGateProps) => {
-  const { data: kind, isLoading, error } = useRoleContractKind({ address })
+  const {
+    data: kind,
+    isLoading,
+    error,
+  } = useQuery(getRoleContractKindQueryOptions({ address }))
 
   if (isLoading) return <LoadingSpinner title="Checking contract..." />
 
@@ -116,7 +121,7 @@ const RoleContractMismatch = ({
     .with('unsupported', () => (
       <MessageCard
         variant="warning"
-        icon={<ShieldAlert size={24} strokeWidth={1.5} />}
+        icon={<ShieldAlert className="size-6" strokeWidth={1.5} />}
         title={LABELS[expected].title}
         description={`${shortAddress} isn't ${LABELS[expected].noun}, so its roles can't be shown or managed here.`}
       />
@@ -124,7 +129,7 @@ const RoleContractMismatch = ({
     .with('registry', 'permissioned-resolver', (other) => (
       <MessageCard
         variant="warning"
-        icon={<ShieldAlert size={24} strokeWidth={1.5} />}
+        icon={<ShieldAlert className="size-6" strokeWidth={1.5} />}
         title={LABELS[expected].title}
         description={`${shortAddress} is ${LABELS[other].noun}. Its roles use a different permission set, so they're managed on its own roles page.`}
         actionButton={{

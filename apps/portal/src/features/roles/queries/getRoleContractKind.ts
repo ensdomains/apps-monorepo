@@ -1,7 +1,6 @@
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useQuery } from '@tanstack/react-query'
 import { ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { getIsPermissionedResolver } from '@/features/resolver/hooks/useIsPermissionedResolver'
@@ -56,6 +55,3 @@ export const getRoleContractKindQueryOptions = (
     queryFn: ({ queryKey: [, queryParams] }) =>
       getRoleContractKind(queryParams),
   })
-
-export const useRoleContractKind = (params: GetRoleContractKindParams) =>
-  useQuery(getRoleContractKindQueryOptions(params))

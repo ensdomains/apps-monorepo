@@ -205,9 +205,12 @@ const RemoveUserDialog = ({
       </DialogHeader>
       <DialogFooter>
         <DialogClose asChild>
-          <Button variant="outline">Cancel</Button>
+          <Button type="button" variant="outline">
+            Cancel
+          </Button>
         </DialogClose>
         <Button
+          type="button"
           variant="danger"
           onClick={onConfirm}
           disabled={isPending || revocations.length === 0}

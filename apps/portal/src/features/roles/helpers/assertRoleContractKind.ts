@@ -2,7 +2,7 @@ import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { queryClient } from '@/utils/queryClient'
-import { getRoleContractKindQueryOptions } from '../hooks/useRoleContractKind'
+import { getRoleContractKindQueryOptions } from '../queries/getRoleContractKind'
 import type { RoleContractKind } from '../utils/roleContractKind'
 
 export class RoleContractMismatchError extends TaggedError(
