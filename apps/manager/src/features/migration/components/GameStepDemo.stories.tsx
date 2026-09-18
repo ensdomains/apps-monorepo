@@ -94,7 +94,8 @@ const demoPhase = (
 ): string => {
   if (complete) return 'All transactions confirmed'
   if (!started) return 'Ready to play'
-  if (confirmed) return 'Transaction succeeded · fill, walk, then stop'
+  if (confirmed)
+    return 'Transaction succeeded · fill, walk, then bounce in place'
   return submitted
     ? 'Wallet confirmed · waiting for transaction'
     : 'Wallet request open · waiting for approval'

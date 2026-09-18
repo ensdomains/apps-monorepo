@@ -27,6 +27,7 @@ import {
   describeNextStep,
   displayStepOf,
   occupiedPlanksOf,
+  waitingBounceFor,
 } from './GameStep.helpers'
 import { MigrationReunion } from './MigrationReunion'
 import { WalkingFren } from './WalkingFren'
@@ -122,11 +123,13 @@ const FrenParty = ({
   partyScale,
   hasCollapsed,
   isWalking,
+  isWaiting,
 }: {
   readonly frensX: number
   readonly partyScale: number
   readonly hasCollapsed: boolean
   readonly isWalking: boolean
+  readonly isWaiting: boolean
 }) => {
   return (
     <motion.div
@@ -147,28 +150,41 @@ const FrenParty = ({
         className="flex origin-bottom items-end gap-1"
         style={{ transform: `scale(${partyScale})` }}
       >
-        <WalkingFren
-          character="peanut"
-          className="h-9 w-6 shrink-0 sm:h-[54px] sm:w-9"
-          isWalking={isWalking}
-        />
+        <motion.div
+          {...waitingBounceFor('peanut', isWaiting)}
+          className="shrink-0"
+        >
+          <WalkingFren
+            character="peanut"
+            className="h-9 w-6 sm:h-[54px] sm:w-9"
+            isWalking={isWalking}
+          />
+        </motion.div>
         {/* The supplied export has no LiLi JSON; keep the vector artwork. */}
-        <img
+        <motion.img
+          {...waitingBounceFor('lili', isWaiting)}
           alt=""
           className="h-12 shrink-0 sm:h-[72px]"
           src="/frens/lili.svg"
         />
         <div className="relative shrink-0">
-          <WalkingFren
-            character="bittu"
-            className="absolute -top-6 left-1/2 h-5 w-8 -translate-x-1/2 sm:-top-9 sm:h-[30px] sm:w-12"
-            isWalking={isWalking}
-          />
-          <WalkingFren
-            character="kuzco"
-            className="h-10 w-10 shrink-0 sm:h-[60px] sm:w-[60px]"
-            isWalking={isWalking}
-          />
+          <motion.div
+            {...waitingBounceFor('bittu', isWaiting)}
+            className="absolute -top-6 left-1/2 -translate-x-1/2 sm:-top-9"
+          >
+            <WalkingFren
+              character="bittu"
+              className="h-5 w-8 sm:h-[30px] sm:w-12"
+              isWalking={isWalking}
+            />
+          </motion.div>
+          <motion.div {...waitingBounceFor('kuzco', isWaiting)}>
+            <WalkingFren
+              character="kuzco"
+              className="h-10 w-10 sm:h-[60px] sm:w-[60px]"
+              isWalking={isWalking}
+            />
+          </motion.div>
         </div>
       </div>
     </motion.div>
@@ -333,6 +349,12 @@ export const GameStepView = ({
                       <FrenParty
                         frensX={frensX - scrollX}
                         hasCollapsed={hasCollapsed}
+                        isWaiting={
+                          !isStageFilling &&
+                          completedSteps < totalSteps &&
+                          !hasCollapsed &&
+                          !reduceMotion
+                        }
                         isWalking={
                           isStageFilling && !hasCollapsed && !reduceMotion
                         }
