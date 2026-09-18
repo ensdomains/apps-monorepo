@@ -118,12 +118,18 @@ const readOnlyTabs = ({
     title: "shows a V1 name's text record with the value the resolver holds",
     heading: 'Records',
     // Only `com.twitter` is asserted, and that is a statement about key
-    // *discovery*, not about the resolver. For a V1 name the portal learns
-    // which keys exist from the public V1 subgraph (`v1-graphql.ens.dev`),
-    // which cannot know about a name seeded on a local fork — so the key set
-    // collapses to the six the app hardcodes, and `com.twitter` is the one of
-    // those the matrix seeds. The seeded `url` record is deliberately not
-    // asserted: its absence here is the fork's, not the app's.
+    // *discovery*, not about the resolver: the key set collapses to the six the
+    // app hardcodes unless the V1 subgraph knows the name, and `com.twitter` is
+    // the one of those the matrix seeds.
+    //
+    // **Caveat worth carrying (HW10).** This passes, but by a different route
+    // than production. On Sepolia a V1 name resolves through the ENSV1Resolver
+    // wildcard; on the fork `findResolver` lands on the plain V1 PublicResolver,
+    // which serves an offset-0 lookup for the name's own node perfectly well.
+    // So a 2LD looks identical either way and a subname does not — which is
+    // exactly how E2E-017 came to be filed and withdrawn. What this cell
+    // genuinely proves is that the page renders the resolver's value; that the
+    // resolution PATH matches production is not established until HW10 lands.
     records: { texts: ['com.twitter'] },
   },
   subnames: {
@@ -236,11 +242,15 @@ const subnameReadOnlyTabs = ({
     title: "shows a V1 subname's text record with the value the resolver holds",
     heading: 'Records',
     records: { texts: ['com.twitter'] },
-    defect: {
-      id: 'E2E-017',
-      actual:
-        'says "No records set" — the same record on a V1 2LD renders correctly',
-    },
+    // Blocked on HW10, not broken. On Sepolia a V1 name resolves through the
+    // ENSV1Resolver wildcard, which is ENSIP-10 capable, so a subname's records
+    // resolve — verified against a live V1 subname. The fork has never been put
+    // into that premigration state (HW10 is not-started, fixtures/premigration.ts
+    // does not exist), so `findResolver` lands on the plain V1 PublicResolver and
+    // the wildcard read returns nothing. Asserting this today would test a
+    // resolution path that does not exist in production, so the cell stays open
+    // with the reason recorded rather than passing, failing, or claiming a defect.
+    todo: 'blocked on HW10: the fork does not resolve V1 names through the ENSV1Resolver wildcard, so subname records cannot be asserted against production behaviour (see E2E-017, withdrawn)',
   },
   subnames: {
     title: 'renders the subnames tab for a V1 subname',
@@ -258,11 +268,8 @@ const subnameReadOnlyTabs = ({
     title: 'resolves a V1 subname to the ETH address its resolver holds',
     heading: 'Address Resolution',
     records: { ethAddress: 'shown' },
-    defect: {
-      id: 'E2E-017',
-      actual:
-        'the Mainnet row is empty for a subname whose resolver has addr(60)',
-    },
+    // Same blocker as the records cell above — see HW10.
+    todo: 'blocked on HW10: forward resolution for a V1 subname goes through the ENSV1Resolver wildcard on Sepolia, a state the fork is not in',
   },
   resolver: {
     title: 'renders the resolver tab for a V1 subname',
