@@ -1,0 +1,43 @@
+Copyright (c) 2025-2026 ENS Labs Limited
+
+This repository contains material under more than one license. The license
+that applies to a file depends on where it lives:
+
+  apps/, workers/    GNU Affero General Public License v3.0 only
+                     (AGPL-3.0-only), see LICENSES/AGPL-3.0-only.txt
+
+  everything else    MIT License (MIT), see LICENSES/MIT.txt
+
+docs/ and e2e/ are not covered by either license. Neither is the material
+excluded below, even where it sits inside a directory that one of them covers.
+
+
+EXCLUDED: FONTS
+
+No font file in this repository is licensed under AGPL-3.0-only or MIT,
+whatever directory it is in. This applies to every .woff, .woff2, .ttf, .otf
+and .eot file, including ones added after this notice was written. Each font
+remains under its owner's own license, listed below. This repository grants
+you no rights in them. To use one, get a license from its owner.
+
+  ABC Monument Grotesk, ABC Monument Grotesk Mono,
+  ABC Monument Grotesk Semi Mono, ABC Marist
+      Owner:    Dinamo Typefaces (https://abcdinamo.com)
+      License:  commercial, held by ENS Labs Limited for its own deployments
+      Files:    apps/manager/src/assets/fonts/
+                apps/manager/public/og/fonts/
+                apps/portal/src/assets/fonts/
+
+  Satoshi
+      Owner:    Indian Type Foundry (https://www.fontshare.com)
+      License:  the owner's own terms
+      Files:    apps/portal/public/fonts/sans/
+
+  iA Writer Mono S
+      Owner:    Information Architects Inc.
+      License:  SIL Open Font License 1.1,
+                see apps/portal/public/fonts/mono/LICENSE.md
+      Files:    apps/portal/public/fonts/mono/
+
+If you build or deploy anything from this repository, you are responsible for
+licensing any of these fonts you include, or for replacing them.

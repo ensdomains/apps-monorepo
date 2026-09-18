@@ -1,5 +1,6 @@
 {
   "name": "apps",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "check": "biome check",

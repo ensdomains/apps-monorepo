@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/indexer",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "Indexer for ENS apps",
   "type": "module",
   "private": true,
