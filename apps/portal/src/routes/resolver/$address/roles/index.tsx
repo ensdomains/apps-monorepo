@@ -14,6 +14,7 @@ import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { ResolverAddUserSheet } from '@/features/resolver/components/ResolverAddUserSheet'
 import { ResolverRolesTable } from '@/features/resolver/components/ResolverRolesTable'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
+import { RoleContractGate } from '@/features/roles/components/RoleContractGate'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/roles/')({
@@ -30,6 +31,21 @@ export const Route = createFileRoute('/resolver/$address/roles/')({
 
 function RouteComponent() {
   const { address } = Route.useParams()
+
+  // Only an allowlisted PermissionedResolver gets the resolver role schema: a
+  // registry shares EnhancedAccessControl, so these bits would mean something
+  // else there.
+  return (
+    <RoleContractGate
+      address={address as Address}
+      expected="permissioned-resolver"
+    >
+      <ResolverRoles address={address as Address} />
+    </RoleContractGate>
+  )
+}
+
+const ResolverRoles = ({ address }: { readonly address: Address }) => {
   const { address: accountAddress } = useConnection()
   const [addUserOpen, setAddUserOpen] = useState(false)
 
@@ -37,11 +53,11 @@ function RouteComponent() {
     data: resolver,
     isLoading,
     error,
-  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+  } = useQuery(getResolverOverviewQueryOptions({ address }))
 
   const { data: hasRootRole } = useQuery({
     ...getHasRolesQueryOptions({
-      resolverAddress: address as Address,
+      resolverAddress: address,
       roles: ['ROLE_SET_ADDRESS'],
       account: accountAddress as Address,
     }),
@@ -64,9 +80,7 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <PageHeading parent={{ type: 'resolver', address: address as Address }}>
-          Roles
-        </PageHeading>
+        <PageHeading parent={{ type: 'resolver', address }}>Roles</PageHeading>
         {accountAddress && canManageRoles && (
           <Button
             variant="default"
@@ -88,14 +102,14 @@ function RouteComponent() {
         <ResolverRolesTable
           roles={roles}
           namedResources={resolver?.namedResources ?? []}
-          resolverAddress={address as Address}
+          resolverAddress={address}
           canManageRoles={canManageRoles}
         />
       )}
       <ResolverAddUserSheet
         open={addUserOpen}
         onOpenChange={setAddUserOpen}
-        resolverAddress={address as Address}
+        resolverAddress={address}
       />
     </div>
   )

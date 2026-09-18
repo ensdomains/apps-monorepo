@@ -12,6 +12,7 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { assertRoleContractKind } from '@/features/roles/helpers/assertRoleContractKind'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import {
   formatSetterScope,
@@ -106,6 +107,8 @@ export const grantResolverRoles = async (
     chainId,
     id,
   } = params
+
+  await assertRoleContractKind(resolverAddress, 'permissioned-resolver')
 
   const txId = transactionManager.startTransaction(
     prepareGrantResolverRolesTransaction({
