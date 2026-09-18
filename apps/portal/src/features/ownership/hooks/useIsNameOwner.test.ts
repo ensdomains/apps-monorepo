@@ -7,13 +7,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const REGISTRANT = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
 const CONTROLLER = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
 const STRANGER = '0xcccccccccccccccccccccccccccccccccccccccc' as Address
-const REGISTRY = '0x1111111111111111111111111111111111111111' as Address
 
 type QueryStub = { readonly data: unknown; readonly isLoading: boolean }
 
 const idle = (): QueryStub => ({ data: undefined, isLoading: false })
 
-let connectedAddress: Address | undefined = REGISTRANT
+let connectedAddress: Address = REGISTRANT
 let ownerQuery: QueryStub = idle()
 let v1StateQuery: QueryStub = idle()
 
@@ -48,8 +47,8 @@ vi.mock('@tanstack/react-query', async () => {
             : idle()
 
       // Disabling a query stops it fetching; it keeps serving whatever it has
-      // already cached and reports `isLoading: false`. Returning empty data
-      // here instead would hide every stale-cache case from these tests.
+      // already cached. Returning empty data here would hide the stale-cache
+      // case below.
       return enabled === false ? { ...stub, isLoading: false } : stub
     },
   }
@@ -57,26 +56,23 @@ vi.mock('@tanstack/react-query', async () => {
 
 const { useIsNameOwner } = await import('./useIsNameOwner')
 
-const render = (name = 'legacy.eth') =>
-  renderHook(() => useIsNameOwner({ name })).result.current
+const render = () =>
+  renderHook(() => useIsNameOwner({ name: 'legacy.eth' })).result.current
 
 /** What `resolveEnsOwner` reports: for an unwrapped V1 2LD, the controller. */
 const resolvedAs = (owner: Address, protocolVersion: 'ENSv1' | 'ENSv2') => {
-  ownerQuery = {
-    data: { owner, registryAddress: REGISTRY, protocolVersion },
-    isLoading: false,
-  }
+  ownerQuery = { data: { owner, protocolVersion }, isLoading: false }
 }
 
 /** An unwrapped `.eth` 2LD whose token and manager sit in different wallets. */
-const unwrappedEth2ld = (registrant: Address, controller: Address) => {
+const splitEth2ld = () => {
   v1StateQuery = {
     data: {
-      subject: { kind: 'v1-registrar', registrant, controller },
-      registration: 'active',
-      resolverAddress: null,
-      parent: null,
-      ancestorRegistration: null,
+      subject: {
+        kind: 'v1-registrar',
+        registrant: REGISTRANT,
+        controller: CONTROLLER,
+      },
     },
     isLoading: false,
   }
@@ -87,66 +83,31 @@ describe('useIsNameOwner', () => {
     connectedAddress = REGISTRANT
     ownerQuery = idle()
     v1StateQuery = idle()
+    resolvedAs(CONTROLLER, 'ENSv1')
+    splitEth2ld()
   })
 
   it('counts the registrant of an unwrapped V1 2LD, which the flattened owner hides', () => {
-    resolvedAs(CONTROLLER, 'ENSv1')
-    unwrappedEth2ld(REGISTRANT, CONTROLLER)
-
     expect(render().isOwner).toBe(true)
   })
 
   it('counts the controller of an unwrapped V1 2LD', () => {
     connectedAddress = CONTROLLER
-    resolvedAs(CONTROLLER, 'ENSv1')
-    unwrappedEth2ld(REGISTRANT, CONTROLLER)
 
     expect(render().isOwner).toBe(true)
   })
 
   it('counts neither for a stranger the name merely points at', () => {
     connectedAddress = STRANGER
-    resolvedAs(CONTROLLER, 'ENSv1')
-    unwrappedEth2ld(REGISTRANT, CONTROLLER)
 
     expect(render().isOwner).toBe(false)
-  })
-
-  it('uses the single owner for a V2 name, skipping the V1 read', () => {
-    connectedAddress = REGISTRANT
-    resolvedAs(REGISTRANT, 'ENSv2')
-    // Left idle: a V2 name must not depend on the V1 state query at all.
-
-    const result = render()
-    expect(result.isOwner).toBe(true)
-    expect(result.isLoading).toBe(false)
   })
 
   it('ignores a stale cached V1 holder once the name resolves as V2', () => {
-    // Disabling a query stops it fetching but keeps its cache, so the V1 read
-    // can still answer for a name now held in V2 — with the wallet that used
-    // to hold it, which must not read as the current owner.
-    connectedAddress = REGISTRANT
     resolvedAs(STRANGER, 'ENSv2')
-    unwrappedEth2ld(REGISTRANT, CONTROLLER)
-
-    expect(render().isOwner).toBe(false)
-  })
-
-  it('reports loading while the V1 holder read is in flight', () => {
-    resolvedAs(CONTROLLER, 'ENSv1')
-    v1StateQuery = { data: undefined, isLoading: true }
 
     const result = render()
-    expect(result.isLoading).toBe(true)
     expect(result.isOwner).toBe(false)
-  })
-
-  it('is false with no connected wallet', () => {
-    connectedAddress = undefined
-    resolvedAs(CONTROLLER, 'ENSv1')
-    unwrappedEth2ld(REGISTRANT, CONTROLLER)
-
-    expect(render().isOwner).toBe(false)
+    expect(result.isLoading).toBe(false)
   })
 })

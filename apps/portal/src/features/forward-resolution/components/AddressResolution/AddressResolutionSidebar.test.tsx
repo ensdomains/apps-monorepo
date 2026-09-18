@@ -24,8 +24,7 @@ vi.mock('@/features/records/hooks/useCanEditRecords', () => ({
     resolverAddress: undefined,
   }),
 }))
-// Protocol-aware ownership: for an unwrapped V1 2LD it counts the registrant
-// as well as the controller. Covered directly in useIsNameOwner.test.ts.
+// The ownership rule itself is covered in useIsNameOwner.test.ts.
 vi.mock('@/features/ownership/hooks/useIsNameOwner', () => ({
   useIsNameOwner: () => ({ isOwner, isLoading: false }),
 }))
@@ -83,8 +82,8 @@ vi.mock('@ens-apps/l2-primary/v1', async (importOriginal) => ({
 
 const { AddressResolutionSidebar } = await import('./AddressResolutionSidebar')
 
-// The name's `addr(60)` record — a value its owner picks freely, so on a
-// visitor's screen it is attacker-controlled.
+// The name's `addr(60)` record — its owner points it wherever they like, so on
+// a visitor's screen it is attacker-controlled.
 const mainnetRow = (address: Address): Row<AddressResolutionRow> =>
   ({
     original: {

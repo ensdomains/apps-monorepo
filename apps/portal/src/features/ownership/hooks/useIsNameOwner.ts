@@ -7,70 +7,54 @@ import { getV1Holder } from '@/features/transfer/v1/rules'
 
 type UseIsNameOwnerParams = {
   readonly name: string
-  readonly enabled?: boolean
 }
 
 type UseIsNameOwnerReturn = {
-  /** True when the connected wallet holds the name at either V1 level. */
   readonly isOwner: boolean
   readonly isLoading: boolean
 }
 
 /**
- * Whether the connected wallet owns `name`, asking the protocol that actually
- * holds it.
+ * Whether the connected wallet owns `name`.
  *
  * `resolveEnsOwner` flattens V1 ownership to a single `owner`, which for an
- * unwrapped `.eth` 2LD is the *controller* (the registry manager) — not the
- * ERC-721 registrant who holds the token (see `getV1NameState`). Those can be
- * different wallets, so comparing against the flattened owner alone answers
- * "is the connected wallet the manager?", which is the wrong question wherever
- * the caller means "does this wallet belong to the name".
- *
- * Both count as owners here: the registrant holds the token, the controller
- * holds the records, and each is a party to the name rather than a stranger it
- * happens to point at. V2 and wrapped/registry-level V1 names have one owner,
- * and the V1 read is skipped entirely for V2.
+ * unwrapped `.eth` 2LD is the *controller*, not the ERC-721 registrant holding
+ * the token (see `getV1NameState`). Both count as owners — each is a party to
+ * the name rather than a stranger it happens to point at — so V1 needs the
+ * second read, and V2 doesn't.
  */
 export function useIsNameOwner({
   name,
-  enabled = true,
 }: UseIsNameOwnerParams): UseIsNameOwnerReturn {
   const { address: connectedAddress } = useConnection()
 
-  // Shared query key with `useCanEditRecords`, so this costs no extra read.
+  // Same query key as `useCanEditRecords`, so this costs no extra read.
   const ownerQuery = useQuery({
     ...getEnsOwnerQueryOptions({ name }),
-    enabled: enabled && !!name,
+    enabled: !!name,
   })
-
   const isV1 = ownerQuery.data?.protocolVersion === 'ENSv1'
-
   const v1Query = useQuery({
     ...getV1NameStateQueryOptions({ name }),
-    enabled: enabled && !!name && isV1,
+    enabled: !!name && isV1,
   })
 
-  // Gated on `isV1`, not just on the query: disabling a query stops it
-  // fetching but keeps whatever it already cached, so a name this browser once
-  // read as V1 and now resolves as V2 would still hand back its old V1 holder.
-  //
-  // Null too while the V1 read is in flight, and for a lapsed name whose
-  // registrar `ownerOf` reverts — in both cases the flattened owner is all we
-  // have.
+  // Gated on `isV1`, not just on the query: a disabled query stops fetching but
+  // keeps its cache, so a name once read as V1 would still report that old
+  // holder after resolving as V2. Null too for a lapsed name, whose registrar
+  // `ownerOf` reverts.
   const v1Holder =
     isV1 && v1Query.data?.subject ? getV1Holder(v1Query.data.subject) : null
 
-  const holders = [ownerQuery.data?.owner, v1Holder]
+  const isOwner = [ownerQuery.data?.owner, v1Holder].some(
+    (holder) =>
+      !!connectedAddress &&
+      !!holder &&
+      isAddressEqual(connectedAddress, holder),
+  )
 
-  const isOwner =
-    !!connectedAddress &&
-    holders.some(
-      (holder) => !!holder && isAddressEqual(connectedAddress, holder),
-    )
-
-  const isLoading =
-    (enabled && (ownerQuery.isLoading || (isV1 && v1Query.isLoading))) || false
-
-  return { isOwner, isLoading }
+  return {
+    isOwner,
+    isLoading: ownerQuery.isLoading || (isV1 && v1Query.isLoading),
+  }
 }
