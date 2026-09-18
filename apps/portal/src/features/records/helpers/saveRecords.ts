@@ -1,15 +1,10 @@
 /**
  * Pure async function to save ENS record changes.
  *
- * Uses ensjs's V2 `setRecordsWriteParameters`, which targets the
- * `PermissionedResolver` setters: one change goes out as the bare setter, and
- * several are batched through `multicall(bytes[])`.
- *
- * NOT the v1 (`PublicResolver`) equivalent. Every V2 setter takes the
- * DNS-encoded name rather than `bytes32 node`, and `setAddr` is renamed
- * `setAddress`, so all four setters have different selectors. Encoding the v1
- * shapes hits the resolver's fallback and reverts with empty data — which
- * surfaces as a failed `eth_estimateGas` rather than a decodable revert.
+ * Encodes against whichever resolver the name actually uses. Every V2 setter
+ * takes the DNS-encoded name rather than `bytes32 node`, and `setAddr` is
+ * renamed `setAddress`, so the two sets share no selectors: the wrong shape
+ * hits the resolver's fallback and reverts with empty data.
  */
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
@@ -18,7 +13,8 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import { setRecordsWriteParameters as setRecordsWriteParametersV1 } from '@ensdomains/ensjs/wallet/v1'
+import { setRecordsWriteParameters as setRecordsWriteParametersV2 } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
   encodeFunctionData,
@@ -27,6 +23,7 @@ import {
   type WalletClient,
 } from 'viem'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
+import { getIsPermissionedResolver } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import { transformPendingChangesToSetRecords } from './transformPendingChanges'
@@ -127,8 +124,20 @@ export async function prepareSaveRecordsTransaction({
     throw new Error('No record changes to save')
   }
 
+  // Refuse rather than guess: the wrong shape reverts with empty data, which
+  // surfaces as an unusable gas error rather than a decodable failure.
+  const kind = await getIsPermissionedResolver({ resolverAddress })
+  if (kind.isErr()) {
+    throw new Error(`Could not tell what kind of resolver ${name} uses`)
+  }
+
   // Type assertion is safe since we validated account and chain above.
-  const client = walletClient as Parameters<typeof setRecordsWriteParameters>[0]
+  const client = walletClient as Parameters<
+    typeof setRecordsWriteParametersV2
+  >[0]
+  const setRecordsWriteParameters = kind.value
+    ? setRecordsWriteParametersV2
+    : setRecordsWriteParametersV1
 
   const writeParams = await setRecordsWriteParameters(client, {
     name,
