@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { type ReactNode, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { buildCommemorativeNftCardData } from '../commemorative-nft/cardData'
@@ -24,14 +24,12 @@ export const PublishedNftStory = ({
   readonly minted?: boolean
   readonly ownerAddress: Address
 }) => {
-  const [migratedAt] = useState(() => new Date())
   const query = useQuery(
     commemorativeNftEligibilityQueryOptions({ ownerAddress }),
   )
   const previewState = getPublishedPreviewState({
     ownerAddress,
     chainId: sepolia.id,
-    migratedAt,
     query,
   })
   const state: MigrationSuccessDialogState =
@@ -41,8 +39,6 @@ export const PublishedNftStory = ({
           card: buildCommemorativeNftCardData({
             chainId: sepolia.id,
             eligibility: previewState.card.eligibility,
-            migratedAt,
-            migratedNameCount: 0,
             minted: true,
             ownerAddress,
           }),

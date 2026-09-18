@@ -2,12 +2,14 @@ import type { Signer } from '@ens-apps/transaction-manager'
 import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
+import { useSelector } from '@xstate/react'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
@@ -30,6 +32,7 @@ import {
 } from '@/features/migration/state/migrationUi.selectors'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { publicClient as migrationExecutionClient } from '@/lib/wagmi'
 import { isMigrationQueryKey } from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
@@ -64,8 +67,8 @@ const PlainMigrationSuccessDialog = ({
     migratedNameCount={migratedNameCount}
     onClose={onContinue}
     onMint={noop}
+    onOpenDashboard={onContinue}
     onRetry={noop}
-    onViewProfile={onContinue}
     open
     state={disabledNftSuccessState}
   />
@@ -198,6 +201,7 @@ export const MigrationPage = () => {
   const navigate = useNavigate()
   const canGoBack = useCanGoBack()
   const { uiActor } = useMigrationUiContext()
+  const migrationPlan = useSelector(uiActor, (state) => state.context.plan)
   const step = useMigrationStep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
   const completedOperations = useMigrationCompletedOperations(uiActor)
@@ -235,9 +239,20 @@ export const MigrationPage = () => {
 
   useEffect(() => {
     if (step === 'success') {
+      if (migrationPlan && completedOperations.length > 0) {
+        recordVerifiedNftMigration({
+          queryClient,
+          evidence: {
+            ownerAddress: migrationPlan.migrationOwner,
+            hcaAddress: migrationPlan.hcaAddress,
+            chainId: migrationExecutionClient.chain.id,
+            completedOperations,
+          },
+        })
+      }
       invalidateMigrationQueries(queryClient)
     }
-  }, [step, queryClient])
+  }, [step, queryClient, migrationPlan, completedOperations])
 
   const handleSuccessClose = useCallback(() => {
     if (isMigrationSuccess) {
@@ -245,24 +260,6 @@ export const MigrationPage = () => {
       navigate({ to: '/dashboard', replace: true })
     }
   }, [isMigrationSuccess, uiActor, navigate])
-
-  const handleViewProfile = useCallback(
-    (profileName?: string) => {
-      const name = profileName ?? dialogNames[0]
-
-      if (isMigrationSuccess) {
-        uiActor.send({ type: 'done' })
-      }
-
-      if (name) {
-        navigate({ to: '/$name', params: { name } })
-        return
-      }
-
-      navigate({ to: '/dashboard' })
-    },
-    [dialogNames, isMigrationSuccess, uiActor, navigate],
-  )
 
   const handleNamesChange = useCallback(
     (names: string[]) => uiActor.send({ type: 'selection.set', names }),
@@ -418,7 +415,7 @@ export const MigrationPage = () => {
           context="migration"
           migratedNameCount={dialogNames.length}
           onClose={handleSuccessClose}
-          onViewProfile={handleViewProfile}
+          onOpenDashboard={handleSuccessClose}
           open={dialogOpen}
           ownerAddress={ownerAddress as Address | undefined}
         />

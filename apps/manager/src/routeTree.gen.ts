@@ -25,7 +25,6 @@ import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
 import { Route as OgDefaultDotpngRouteImport } from './routes/og/default[.]png'
 import { Route as OgNameRouteImport } from './routes/og/$name'
-import { Route as MigrationNftRouteImport } from './routes/migration_.nft'
 import { Route as LegalTrademarkGuidelinesRouteImport } from './routes/legal/trademark-guidelines'
 import { Route as LegalTermsOfUseRouteImport } from './routes/legal/terms-of-use'
 import { Route as LegalPrivacyPolicyRouteImport } from './routes/legal/privacy-policy'
@@ -117,11 +116,6 @@ const OgNameRoute = OgNameRouteImport.update({
   path: '/og/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MigrationNftRoute = MigrationNftRouteImport.update({
-  id: '/migration_/nft',
-  path: '/migration/nft',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LegalTrademarkGuidelinesRoute =
   LegalTrademarkGuidelinesRouteImport.update({
     id: '/legal/trademark-guidelines',
@@ -189,7 +183,6 @@ export interface FileRoutesByFullPath {
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
-  '/migration/nft': typeof MigrationNftRoute
   '/og/$name': typeof OgNameRoute
   '/og/default.png': typeof OgDefaultDotpngRoute
   '/payment/add': typeof PaymentAddRoute
@@ -215,7 +208,6 @@ export interface FileRoutesByTo {
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
-  '/migration/nft': typeof MigrationNftRoute
   '/og/$name': typeof OgNameRoute
   '/og/default.png': typeof OgDefaultDotpngRoute
   '/payment/add': typeof PaymentAddRoute
@@ -245,7 +237,6 @@ export interface FileRoutesById {
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
-  '/migration_/nft': typeof MigrationNftRoute
   '/og/$name': typeof OgNameRoute
   '/og/default.png': typeof OgDefaultDotpngRoute
   '/payment/add': typeof PaymentAddRoute
@@ -276,7 +267,6 @@ export interface FileRouteTypes {
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
-    | '/migration/nft'
     | '/og/$name'
     | '/og/default.png'
     | '/payment/add'
@@ -302,7 +292,6 @@ export interface FileRouteTypes {
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
-    | '/migration/nft'
     | '/og/$name'
     | '/og/default.png'
     | '/payment/add'
@@ -331,7 +320,6 @@ export interface FileRouteTypes {
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
-    | '/migration_/nft'
     | '/og/$name'
     | '/og/default.png'
     | '/payment/add'
@@ -361,7 +349,6 @@ export interface RootRouteChildren {
   LegalPrivacyPolicyRoute: typeof LegalPrivacyPolicyRoute
   LegalTermsOfUseRoute: typeof LegalTermsOfUseRoute
   LegalTrademarkGuidelinesRoute: typeof LegalTrademarkGuidelinesRoute
-  MigrationNftRoute: typeof MigrationNftRoute
   OgNameRoute: typeof OgNameRoute
   OgDefaultDotpngRoute: typeof OgDefaultDotpngRoute
   PaymentAddRoute: typeof PaymentAddRoute
@@ -490,13 +477,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OgNameRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/migration_/nft': {
-      id: '/migration_/nft'
-      path: '/migration/nft'
-      fullPath: '/migration/nft'
-      preLoaderRoute: typeof MigrationNftRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/legal/trademark-guidelines': {
       id: '/legal/trademark-guidelines'
       path: '/legal/trademark-guidelines'
@@ -623,7 +603,6 @@ const rootRouteChildren: RootRouteChildren = {
   LegalPrivacyPolicyRoute: LegalPrivacyPolicyRoute,
   LegalTermsOfUseRoute: LegalTermsOfUseRoute,
   LegalTrademarkGuidelinesRoute: LegalTrademarkGuidelinesRoute,
-  MigrationNftRoute: MigrationNftRoute,
   OgNameRoute: OgNameRoute,
   OgDefaultDotpngRoute: OgDefaultDotpngRoute,
   PaymentAddRoute: PaymentAddRoute,

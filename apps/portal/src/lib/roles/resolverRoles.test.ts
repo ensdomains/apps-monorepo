@@ -4,9 +4,11 @@ import {
   describeResolverResource,
   formatSetterScope,
   groupRolesByAccount,
+  planAccountRemoval,
   ROOT_RESOURCE,
   ROOT_RESOURCE_LABEL,
   resolverPermissions,
+  resolverRoleGroupId,
 } from './resolverRoles'
 
 // The bit layout, resources and setter encodings are ensjs's and are covered
@@ -125,5 +127,92 @@ describe('groupRolesByAccount with a malformed resource', () => {
     expect(groups).toHaveLength(1)
     expect(groups[0]?.isRoot).toBe(true)
     expect(groups[0]?.decodedRoles).toEqual(['ROLE_SET_ADDRESS'])
+  })
+})
+
+describe('resolverRoleGroupId', () => {
+  it('identifies a row by account and resource, not by position', () => {
+    const avatar = computeResolverResource({ kind: 'text', key: 'avatar' })
+    const account = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+
+    expect(resolverRoleGroupId({ account, resource: '0' })).toBe(
+      `${account.toLowerCase()}:0`,
+    )
+    expect(
+      resolverRoleGroupId({ account, resource: avatar.toString() }),
+    ).not.toBe(resolverRoleGroupId({ account, resource: '0' }))
+  })
+})
+
+// Immunefi #92605 / #92820: "Remove user" issued one scoped revoke while the
+// dialog promised removal from every role, so a root grant survived.
+describe('planAccountRemoval', () => {
+  const alice = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+  const bob = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+  const avatar = computeResolverResource({ kind: 'text', key: 'avatar' })
+  const eth = computeResolverResource({ kind: 'address', coinType: 60n })
+
+  it('revokes every resource the account holds, root first', () => {
+    const plan = planAccountRemoval(
+      [
+        makeRole(alice, 1n << 4n, avatar),
+        makeRole(alice, 1n << 0n, eth),
+        makeRole(alice, 1n << 0n),
+        makeRole(bob, 1n << 0n),
+      ],
+      alice.toLowerCase(),
+    )
+
+    expect(plan).toEqual({
+      type: 'complete',
+      revocations: [
+        {
+          resource: ROOT_RESOURCE,
+          resourceLabel: ROOT_RESOURCE_LABEL,
+          roles: ['ROLE_SET_ADDRESS'],
+        },
+        {
+          resource: avatar,
+          resourceLabel: 'text "avatar"',
+          roles: ['ROLE_SET_TEXT'],
+        },
+        {
+          resource: eth,
+          resourceLabel: 'address (coin type 60)',
+          roles: ['ROLE_SET_ADDRESS'],
+        },
+      ],
+    })
+  })
+
+  it("leaves other accounts' grants alone", () => {
+    const plan = planAccountRemoval(
+      [makeRole(alice, 1n << 0n), makeRole(bob, 1n << 28n, avatar)],
+      alice,
+    )
+
+    expect(plan.type === 'complete' && plan.revocations).toEqual([
+      {
+        resource: ROOT_RESOURCE,
+        resourceLabel: ROOT_RESOURCE_LABEL,
+        roles: ['ROLE_SET_ADDRESS'],
+      },
+    ])
+  })
+
+  it('refuses a full removal when one of the grants cannot be read', () => {
+    const plan = planAccountRemoval(
+      [
+        makeRole(alice, 1n << 0n),
+        {
+          account: alice,
+          resource: 'not-a-number',
+          roleBitmap: (1n << 4n).toString(),
+        },
+      ],
+      alice,
+    )
+
+    expect(plan).toEqual({ type: 'unreadable' })
   })
 })

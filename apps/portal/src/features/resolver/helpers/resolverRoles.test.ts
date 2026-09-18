@@ -12,12 +12,17 @@ import {
 } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { type Address, decodeFunctionData, type WalletClient } from 'viem'
 import { describe, expect, it } from 'vitest'
+import type { IntentContext } from '@/features/transaction-manager/types'
 import {
   computeResolverResource,
   encodeResolverSetterScope,
   ROOT_RESOURCE,
 } from '@/lib/roles/resolverRoles'
 import { prepareGrantResolverRolesTransaction } from './grantResolverRoles'
+import {
+  prepareResolverRolesSaveIntent,
+  type ResolverRolesSaveAction,
+} from './prepareResolverRolesIntent'
 import { prepareRevokeResolverRolesTransaction } from './revokeResolverRoles'
 
 const rolesAbi = [
@@ -118,5 +123,72 @@ describe('prepareRevokeResolverRolesTransaction', () => {
       functionName: 'revokeRoles',
       args: [resource, RESOLVER_ROLE_SET_ADDRESS, account],
     })
+  })
+})
+
+// The modal estimates gas for this intent before the save starts, so it has to
+// be the call the save will send: the row's own resource, and no single
+// estimate when the save is really two transactions.
+describe('prepareResolverRolesSaveIntent', () => {
+  const ctx = { walletClient, chainId: 11155111 } as IntentContext
+  const avatar = computeResolverResource({ kind: 'text', key: 'avatar' })
+  const save = (
+    edit: Pick<
+      ResolverRolesSaveAction,
+      'resource' | 'rolesToGrant' | 'rolesToRevoke'
+    >,
+  ): ResolverRolesSaveAction => ({
+    type: 'save',
+    resourceLabel: 'label',
+    account,
+    ...edit,
+  })
+
+  it('estimates a root grant when the save only grants', () => {
+    const intent = prepareResolverRolesSaveIntent(
+      save({
+        resource: ROOT_RESOURCE,
+        rolesToGrant: ['ROLE_SET_TEXT'],
+        rolesToRevoke: [],
+      }),
+      resolverAddress,
+      ctx,
+    )
+
+    expect(intent && decode(intent)).toEqual({
+      functionName: 'grantRootRoles',
+      args: [RESOLVER_ROLE_SET_TEXT, account],
+    })
+  })
+
+  it("estimates the revoke on the row's own resource, not root", () => {
+    const intent = prepareResolverRolesSaveIntent(
+      save({
+        resource: avatar,
+        rolesToGrant: [],
+        rolesToRevoke: ['ROLE_SET_TEXT'],
+      }),
+      resolverAddress,
+      ctx,
+    )
+
+    expect(intent && decode(intent)).toEqual({
+      functionName: 'revokeRoles',
+      args: [avatar, RESOLVER_ROLE_SET_TEXT, account],
+    })
+  })
+
+  it('gives no single estimate when the save both grants and revokes', () => {
+    expect(
+      prepareResolverRolesSaveIntent(
+        save({
+          resource: ROOT_RESOURCE,
+          rolesToGrant: ['ROLE_SET_TEXT'],
+          rolesToRevoke: ['ROLE_SET_ADDRESS'],
+        }),
+        resolverAddress,
+        ctx,
+      ),
+    ).toBeUndefined()
   })
 })

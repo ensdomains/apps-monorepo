@@ -16,7 +16,6 @@ import {
 } from './migrationApprovals'
 import {
   assertLockedPublicResolverSetMembership,
-  assertMigrationHelperRuntimeCode,
   assertNoLiveSubregistryOverwrite,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
@@ -36,7 +35,6 @@ vi.mock('./migrationApprovals', async (importActual) => ({
 vi.mock('./migrationInvariants', async (importActual) => ({
   ...(await importActual<typeof import('./migrationInvariants')>()),
   assertLockedPublicResolverSetMembership: vi.fn(),
-  assertMigrationHelperRuntimeCode: vi.fn(),
   assertNoLiveSubregistryOverwrite: vi.fn(),
   assertRequiredMigrationContractCode: vi.fn(),
   checkMigrationHcaReadiness: vi.fn(),
@@ -53,9 +51,6 @@ const checkResolverReadinessMock = vi.mocked(
 )
 const assertRequiredMigrationContractCodeMock = vi.mocked(
   assertRequiredMigrationContractCode,
-)
-const assertMigrationHelperRuntimeCodeMock = vi.mocked(
-  assertMigrationHelperRuntimeCode,
 )
 const assertLockedPublicResolverSetMembershipMock = vi.mocked(
   assertLockedPublicResolverSetMembership,
@@ -91,7 +86,6 @@ const run = (
       opts.hcaApprovals ?? ALL_HCA_APPROVED,
     )
     assertRequiredMigrationContractCodeMock.mockResolvedValueOnce()
-    assertMigrationHelperRuntimeCodeMock.mockResolvedValueOnce()
     checkMigrationHcaReadinessMock.mockResolvedValueOnce({
       status: 'deployment-required',
       hca: opts.hcaAddress,
@@ -114,7 +108,6 @@ beforeEach(() => {
   checkMigrationApprovalsMock.mockReset()
   checkResolverReadinessMock.mockReset()
   assertRequiredMigrationContractCodeMock.mockReset()
-  assertMigrationHelperRuntimeCodeMock.mockReset()
   assertLockedPublicResolverSetMembershipMock.mockReset()
   checkMigrationHcaReadinessMock.mockReset()
   getMigrationResolverAddressMock.mockClear()
@@ -148,9 +141,6 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       }),
     )
     expect(assertRequiredMigrationContractCodeMock).toHaveBeenCalledOnce()
-    expect(assertMigrationHelperRuntimeCodeMock).toHaveBeenCalledWith({
-      publicClient: expect.anything(),
-    })
     expect(assertLockedPublicResolverSetMembershipMock).toHaveBeenCalledWith({
       publicClient: expect.anything(),
       names: expect.any(Array),
@@ -170,7 +160,6 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     const publicClient = {} as PublicClient
     checkMigrationApprovalsMock.mockResolvedValueOnce(ALL_HCA_APPROVED)
     assertRequiredMigrationContractCodeMock.mockResolvedValueOnce()
-    assertMigrationHelperRuntimeCodeMock.mockResolvedValueOnce()
     assertLockedPublicResolverSetMembershipMock.mockResolvedValueOnce()
     checkMigrationHcaReadinessMock.mockResolvedValueOnce({
       status: 'deployment-required',

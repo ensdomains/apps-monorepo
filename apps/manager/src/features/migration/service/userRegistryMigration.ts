@@ -57,7 +57,7 @@ export const computeUserRegistryAddress = (params: {
   })
 
 /** Deploy and initialize the parent name's deterministic UserRegistry proxy. */
-export const buildDeployUserRegistryCall = (params: {
+const buildDeployUserRegistryCall = (params: {
   readonly hca: Address
   readonly parentName: string
 }): Call => ({
@@ -79,7 +79,7 @@ export const buildDeployUserRegistryCall = (params: {
 })
 
 /** Give the wallet direct root control of a newly deployed UserRegistry. */
-export const buildGrantUserRegistryWalletRolesCall = (params: {
+const buildGrantUserRegistryWalletRolesCall = (params: {
   readonly registry: Address
   readonly wallet: Address
 }): Call => ({
@@ -93,7 +93,7 @@ export const buildGrantUserRegistryWalletRolesCall = (params: {
 })
 
 /** Connect a newly deployed UserRegistry to its canonical parent path. */
-export const buildSetUserRegistryParentCall = (params: {
+const buildSetUserRegistryParentCall = (params: {
   readonly registry: Address
   readonly parentRegistry: Address
   readonly parentLabel: string

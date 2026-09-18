@@ -1,7 +1,6 @@
 import { ROLES_ALL, verifyStandaloneHca } from '@ens-apps/smart-account'
 import {
   type Address,
-  keccak256,
   type PublicClient,
   zeroAddress as ZERO_ADDRESS,
 } from 'viem'
@@ -12,14 +11,12 @@ import { FUSES } from './classifyNames'
 import { computeExpectedWrapperRegistry } from './directMigrationRoutes'
 import {
   assertLockedPublicResolverSetMembership,
-  assertMigrationHelperRuntimeCode,
   assertNoLiveSubregistryOverwrite,
   assertRequiredMigrationContractCode,
   checkMigrationHcaReadiness,
   checkMigrationResolverReadiness,
   getMigrationResolverAddress,
   MigrationContractInvariantError,
-  REQUIRED_MIGRATION_CONTRACTS,
 } from './migrationInvariants'
 
 vi.mock('@ens-apps/smart-account', async (importActual) => ({
@@ -48,72 +45,46 @@ beforeEach(() => {
 })
 
 describe('assertRequiredMigrationContractCode', () => {
-  it('accepts the pinned namespace when every required address has code', async () => {
+  it('ignores unused contracts and deduplicates required addresses', async () => {
     const publicClient = makePublicClient()
-    vi.mocked(publicClient.getCode).mockResolvedValue('0x01')
-
+    vi.mocked(publicClient.getCode).mockImplementation(async ({ address }) =>
+      address === V2_CONTRACTS.MigrationHelper ? '0x01' : undefined,
+    )
     await expect(
-      assertRequiredMigrationContractCode({ publicClient }),
+      assertRequiredMigrationContractCode({
+        publicClient,
+        contracts: ['MigrationHelper', 'MigrationHelper'],
+      }),
     ).resolves.toBeUndefined()
-  })
-
-  it('requires MigrationHelper bytecode for the HCA helper route', async () => {
-    const publicClient = makePublicClient()
-    vi.mocked(publicClient.getCode).mockResolvedValue('0x01')
-
-    await expect(
-      assertRequiredMigrationContractCode({ publicClient }),
-    ).resolves.toBeUndefined()
-    expect(
-      REQUIRED_MIGRATION_CONTRACTS.map(([contractName]) => contractName),
-    ).toContain('MigrationHelper')
+    expect(publicClient.getCode).toHaveBeenCalledExactlyOnceWith({
+      address: V2_CONTRACTS.MigrationHelper,
+    })
   })
 
   it.each([
-    ['PublicResolverSet', V2_CONTRACTS.PublicResolverSet],
-    ['UserRegistryImpl', V2_CONTRACTS.UserRegistryImpl],
-    ['WrapperRegistryImpl', V2_CONTRACTS.WrapperRegistryImpl],
-  ] as const)('identifies %s when the configured contract is missing code', async (contractName, missingAddress) => {
+    'PublicResolverSet',
+    'UserRegistryImpl',
+    'WrapperRegistryImpl',
+    'MigrationHelper',
+  ] as const)('blocks when required %s code is missing', async (contractName) => {
     const publicClient = makePublicClient()
-    vi.mocked(publicClient.getCode).mockImplementation(async ({ address }) =>
-      address === missingAddress ? undefined : '0x01',
-    )
-
+    vi.mocked(publicClient.getCode).mockResolvedValue(undefined)
     await expect(
-      assertRequiredMigrationContractCode({ publicClient }),
+      assertRequiredMigrationContractCode({
+        publicClient,
+        contracts: [contractName],
+      }),
     ).rejects.toMatchObject({
       invariant: 'missing-code',
       contractName,
-      address: missingAddress,
+      address: V2_CONTRACTS[contractName],
     })
   })
-})
 
-describe('assertMigrationHelperRuntimeCode', () => {
-  it('accepts the pinned helper runtime hash', async () => {
+  it('does not read code for an empty dependency set', async () => {
     const publicClient = makePublicClient()
-    vi.mocked(publicClient.getCode).mockResolvedValue('0x01')
-
-    await expect(
-      assertMigrationHelperRuntimeCode({
-        publicClient,
-        expectedRuntimeCodeHash: keccak256('0x01'),
-      }),
-    ).resolves.toBeUndefined()
-  })
-
-  it('rejects helper bytecode from a different deployment', async () => {
-    const publicClient = makePublicClient()
-    vi.mocked(publicClient.getCode).mockResolvedValue('0x01')
-
-    await expect(
-      assertMigrationHelperRuntimeCode({ publicClient }),
-    ).rejects.toMatchObject({
-      invariant: 'bytecode-hash',
-      contractName: 'MigrationHelper',
-      address: V2_CONTRACTS.MigrationHelper,
-      actual: keccak256('0x01'),
-    })
+    await assertRequiredMigrationContractCode({ publicClient, contracts: [] })
+    expect(publicClient.getCode).not.toHaveBeenCalled()
   })
 })
 

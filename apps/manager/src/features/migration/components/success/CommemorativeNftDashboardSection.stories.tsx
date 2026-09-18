@@ -45,10 +45,14 @@ type Story = StoryObj<typeof meta>
 export const Desktop: Story = {}
 
 export const Mobile: Story = {
-  render: () => (
+  render: (args) => (
     <iframe
       className="mx-auto block h-[852px] w-[393px] max-w-full border-0"
-      src="./iframe.html?id=features-dashboard-commemorative-nft--desktop&viewMode=story"
+      src={`./iframe.html?${new URLSearchParams({
+        id: 'features-dashboard-commemorative-nft--desktop',
+        viewMode: 'story',
+        args: `ownerAddress:${args.ownerAddress}`,
+      })}`}
       title="Mobile commemorative NFT preview"
     />
   ),
