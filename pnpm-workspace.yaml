@@ -57,9 +57,11 @@ trustPolicyExclude:
 
 # blockExoticSubdeps (pnpm >=11, no allowlist) rejects the tarball edge
 # ensjs -> ensjs-abi, so drop that one edge; ensjs-abi still resolves via
-# hoisting as long as some workspace project declares it, and both catalog
-# entries must stay on the same pkg.pr.new build. Remove once ensjs-abi is
-# published to npm.
+# hoisting, but only when it is in the installed tree. Every package that
+# depends on ensjs must therefore declare ensjs-abi too, or a filtered install
+# (Workers Builds runs `pnpm install --filter api-worker...`) leaves it out and
+# the bundle fails to resolve it. Both catalog entries must stay on the same
+# pkg.pr.new build. Remove once ensjs-abi is published to npm.
 overrides:
   "@ensdomains/ensjs>@ensdomains/ensjs-abi": "-"
   available-typed-arrays: "npm:@socketregistry/available-typed-arrays@^1"
