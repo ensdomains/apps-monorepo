@@ -69,6 +69,14 @@ const isSameAddress = (
   b: Address | null | undefined,
 ) => Boolean(a && b && isAddress(a) && isAddressEqual(a, b))
 
+type OwnableName = {
+  readonly name: string | null
+  readonly v1Roles?: { readonly owner?: boolean } | null
+}
+
+const holdsRegistrarName = ({ name, v1Roles }: OwnableName) =>
+  Boolean(name && isRegistrarIssued(name) && (!v1Roles || v1Roles.owner))
+
 /**
  * Decides whether a name's history may be presented as the address's own.
  *
@@ -186,17 +194,13 @@ export const partitionAddressHistory = (
  * Splits names the registry says an address owns into the ones it holds or minted
  * itself, and the ones a stranger's parent name granted it.
  *
- * Takes the names as the query returned them — already filtered to registry
- * ownership — so the registrar-issued names among them are, by construction, ones
- * the address holds.
+ * @see attributeName for the rule, and why registry ownership is not one of the signals.
  */
-export const partitionOwnedNames = <T extends { readonly name: string | null }>(
+export const partitionOwnedNames = <T extends OwnableName>(
   names: readonly T[],
 ) => {
   const heldNames = new Set(
-    names
-      .filter(({ name }) => name && isRegistrarIssued(name))
-      .map(({ name }) => name as string),
+    names.filter(holdsRegistrarName).map(({ name }) => name as string),
   )
 
   const isOwn = ({ name }: T) =>

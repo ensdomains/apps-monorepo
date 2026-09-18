@@ -340,4 +340,50 @@ describe('partitionOwnedNames', () => {
     expect(acquired).toEqual([])
     expect(assigned).toHaveLength(2)
   })
+
+  it('does not treat a V1 name the address only manages as a root', () => {
+    const { acquired, assigned } = partitionOwnedNames([
+      { name: 'evil.eth', v1Roles: { owner: false, manager: true } },
+      { name: 'planted.evil.eth', v1Roles: { owner: false, manager: true } },
+    ])
+
+    expect(acquired).toEqual([])
+    expect(assigned.map((entry) => entry.name)).toEqual([
+      'evil.eth',
+      'planted.evil.eth',
+    ])
+  })
+
+  it('does not treat a V1 name that merely resolves to the address as a root', () => {
+    const { acquired, assigned } = partitionOwnedNames([
+      { name: 'evil.eth', v1Roles: { owner: false, manager: false } },
+      { name: 'planted.evil.eth', v1Roles: { owner: false, manager: false } },
+    ])
+
+    expect(acquired).toEqual([])
+    expect(assigned).toHaveLength(2)
+  })
+
+  it('treats a V1 name the address holds as a root for its subtree', () => {
+    const { acquired, assigned } = partitionOwnedNames([
+      { name: 'victim.eth', v1Roles: { owner: true, manager: true } },
+      { name: 'mine.victim.eth', v1Roles: { owner: false, manager: true } },
+      { name: 'evil.eth', v1Roles: { owner: false, manager: true } },
+    ])
+
+    expect(acquired.map((entry) => entry.name)).toEqual([
+      'victim.eth',
+      'mine.victim.eth',
+    ])
+    expect(assigned.map((entry) => entry.name)).toEqual(['evil.eth'])
+  })
+
+  it('treats a V2 name as held: its query already filters to registry ownership', () => {
+    const { acquired } = partitionOwnedNames([
+      { name: 'victim.eth', v1Roles: null },
+      { name: 'mine.victim.eth', v1Roles: null },
+    ])
+
+    expect(acquired).toHaveLength(2)
+  })
 })
