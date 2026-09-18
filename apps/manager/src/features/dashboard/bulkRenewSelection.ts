@@ -27,7 +27,7 @@ export const toSelectableDomain = (
 
 /** The canonical key a selection is stored under. */
 export const selectionKey = (domain: DomainLabels): string =>
-  resolveDomainLabel(domain).toLowerCase()
+  resolveDomainLabel(domain)
 
 /**
  * A domain's bulk-renew payload, or `null` if it can't be renewed here. One

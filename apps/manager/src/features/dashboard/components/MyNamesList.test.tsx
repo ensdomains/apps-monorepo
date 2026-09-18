@@ -269,7 +269,7 @@ describe('MyNamesList', () => {
     expect(screen.getByText('alaska.eth')).toBeInTheDocument()
   })
 
-  it('selects only the registration whose id is selected', () => {
+  it('selects only the name whose exact label is selected', () => {
     ownedDomainsMock.useOwnedDomains.mockReturnValue({
       v2Names: [
         makeV2Domain({ id: '0xalice', name: 'alice.eth' }),
@@ -294,7 +294,7 @@ describe('MyNamesList', () => {
         isAuthenticated
         migrationEnabled={false}
         onToggleFavorite={() => undefined}
-        selectedIds={new Set(['0xalice'])}
+        selectedLabels={new Set(['alice.eth'])}
         sort="name-asc"
       />,
     )

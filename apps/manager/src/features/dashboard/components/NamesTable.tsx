@@ -136,13 +136,12 @@ export const NamesTable = ({
   )
 
   const onToggleSelect = (label: string) => {
-    const key = label.toLowerCase()
     setSelectedLabels((prev) => {
       const next = new Set(prev)
-      if (next.has(key)) {
-        next.delete(key)
+      if (next.has(label)) {
+        next.delete(label)
       } else {
-        next.add(key)
+        next.add(label)
       }
       return next
     })
