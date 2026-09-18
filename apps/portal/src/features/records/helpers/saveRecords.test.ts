@@ -1,4 +1,6 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: Need to mock the transaction manager */
+
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { permissionedResolverSetTextSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { encodeFunctionData, namehash, toHex } from 'viem'
 import { packetToBytes } from 'viem/ens'
@@ -167,9 +169,10 @@ describe('saveRecords', () => {
     await saveRecords(mockParams)
 
     const call = vi.mocked(transactionManager.startTransaction).mock.calls[0]
-    const { request } = call[0] as any
+    const { request } = call[0] as CustomTransactionIntent
+    const data = request.type === 'eoa' ? request.data : undefined
     // setText(bytes32,string,string), not setText(bytes,string,string).
-    expect(request.data.slice(0, 10)).toBe('0x10f13a8c')
+    expect(data?.slice(0, 10)).toBe('0x10f13a8c')
   })
 
   it('refuses to guess when the resolver kind cannot be read', async () => {
