@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/smart-account",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "Smart-account helpers for ENS applications (standalone Rhinestone HCA + scoped sessions)",
   "type": "module",
   "private": true,

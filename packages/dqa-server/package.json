@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/dqa-server",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "DQA overlay service: comment persistence, image upload, live cursor relay, Linear OAuth + push. Serves the overlay bundle (client/overlay.js, built by Vite into dist/) for injection into QA/preview builds. Server TypeScript runs directly under Node's native type stripping.",
   "type": "module",
   "private": true,
