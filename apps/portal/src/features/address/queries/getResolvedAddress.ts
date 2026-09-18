@@ -12,8 +12,8 @@ interface GetResolvedAddressParams {
 
 /**
  * Resolve a name/address input (an ENS name or a 0x address) to an address.
- * Addresses pass through; names go through the universal resolver, falling
- * back to the ENS owner when the name has no address record.
+ * Addresses pass through; names resolve through their ETH address record, and
+ * a name without one resolves to `null`.
  */
 export const getResolvedAddress = ResultFn(async function* (
   params: GetResolvedAddressParams,
