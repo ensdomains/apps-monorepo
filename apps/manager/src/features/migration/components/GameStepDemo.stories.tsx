@@ -5,7 +5,8 @@ import type {
   MigrationStepDescriptor,
 } from '../service/migrationService'
 import {
-  FINAL_HOP_MS,
+  FINAL_STAGE_FILL_MS,
+  PARTY_WALK_MS,
   REUNION_HOLD_MS,
   REUNION_SLIDE_MS,
 } from '../state/migrationAnimationTiming'
@@ -29,10 +30,10 @@ const useBridgeDemo = (totalSteps: number) => {
     const delay = reuniting
       ? REUNION_SLIDE_MS + REUNION_HOLD_MS
       : frame === finalFrame - 2
-        ? FINAL_HOP_MS
+        ? FINAL_STAGE_FILL_MS
         : frame === 0
           ? 3000
-          : [3500, 2500, 1200][(frame - 1) % 3]
+          : [3500, 2500, PARTY_WALK_MS + 800][(frame - 1) % 3]
     const timer = window.setTimeout(() => setFrame((value) => value + 1), delay)
     return () => window.clearTimeout(timer)
   }, [playing, complete, reuniting, finalFrame, frame])
@@ -93,9 +94,9 @@ const demoPhase = (
 ): string => {
   if (complete) return 'All transactions confirmed'
   if (!started) return 'Ready to play'
-  if (confirmed) return 'Transaction succeeded · plank filled'
+  if (confirmed) return 'Transaction succeeded · fill, walk, then stop'
   return submitted
-    ? 'Wallet confirmed · hop and wait for transaction'
+    ? 'Wallet confirmed · waiting for transaction'
     : 'Wallet request open · waiting for approval'
 }
 
@@ -218,7 +219,7 @@ const BridgeDemo = () => {
                 <p className="mt-1 font-semi-mono text-[10px] text-ens-garnet-900/50 uppercase tracking-wide">
                   {started
                     ? `Step ${Math.min(currentStep + 1, totalSteps)} of ${totalSteps}`
-                    : 'Starts outside · hops after wallet confirmation'}
+                    : 'Walks as each confirmed stage fills'}
                 </p>
               </div>
               <label className="flex items-center gap-2 text-xs">

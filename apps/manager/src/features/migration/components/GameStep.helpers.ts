@@ -67,7 +67,7 @@ export const computeBridgeLayout = (params: {
     partyScale,
     bridgeWidth,
     scrollX,
-    // The caller supplies visual progress, including the submitted transaction.
+    // Party movement follows completed stages; submission only reveals a plank.
     frensX:
       completedSteps > 0 && plankWidth > 0
         ? partyWidth / 2 + (completedSteps - 0.5) * plankWidth
