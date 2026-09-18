@@ -34,7 +34,7 @@
     "e2e:infra:up": "pnpm --filter @ens-apps/e2e infra:up",
     "e2e:infra:down": "pnpm --filter @ens-apps/e2e infra:down"
   },
-  "packageManager": "pnpm@11.25.0",
+  "packageManager": "pnpm@12.4.2",
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
     "@vitest/coverage-v8": "catalog:",
