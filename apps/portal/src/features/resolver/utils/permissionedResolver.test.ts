@@ -8,7 +8,7 @@ import {
   type Hex,
   parseAbi,
   parseAbiParameters,
-  zeroAddress,
+  RpcRequestError,
 } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
@@ -149,30 +149,6 @@ describe('getVerifiedProxyImplementation', () => {
       }),
     })
 
-  it('does not look up a chain without a factory', async () => {
-    let calls = 0
-    const client = clientAnswering(async () => {
-      calls += 1
-      throw new Error('should not be called')
-    })
-
-    await expect(
-      getVerifiedProxyImplementation({
-        client,
-        factoryAddress: undefined,
-        proxyAddress: PROXY,
-      }),
-    ).resolves.toBeNull()
-    await expect(
-      getVerifiedProxyImplementation({
-        client,
-        factoryAddress: zeroAddress,
-        proxyAddress: PROXY,
-      }),
-    ).resolves.toBeNull()
-    expect(calls).toBe(0)
-  })
-
   // The deployed factory answers with the implementation the proxy currently
   // delegates to, not a boolean.
   it('returns the implementation the factory reports', async () => {
@@ -203,9 +179,19 @@ describe('getVerifiedProxyImplementation', () => {
     )
   })
 
-  it('treats a rejected verification as no implementation', async () => {
+  // The factory reverts for a proxy it did not deploy, which is an answer.
+  it('treats a reverted verification as no implementation', async () => {
     const client = clientAnswering(async () => {
-      throw new Error('execution reverted: VerificationFailed')
+      throw new RpcRequestError({
+        body: {},
+        error: {
+          code: 3,
+          message: 'execution reverted',
+          // ProxyNotFromFactory(address)
+          data: `0x4c87e2b6${'0'.repeat(64)}`,
+        },
+        url: 'http://localhost',
+      })
     })
 
     await expect(

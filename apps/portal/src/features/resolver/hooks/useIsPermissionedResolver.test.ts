@@ -7,6 +7,7 @@ import {
   encodeAbiParameters,
   type Hex,
   parseAbiParameters,
+  RpcRequestError,
 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -31,16 +32,31 @@ const asWord = (address: Address): Hex =>
 
 /** What the resolver claims in its own EIP-1967 slot. */
 let slotResponse: () => Hex = () => EMPTY_SLOT
-/** What the factory answers for `verifyContract`, or a revert. */
-let verifyResponse: () => Hex = () => {
-  throw new Error('execution reverted: VerificationFailed')
+/** The factory reverts for a proxy it did not deploy. */
+const factoryRefusal = () => {
+  throw new RpcRequestError({
+    body: {},
+    // ProxyNotFromFactory(address)
+    error: {
+      code: 3,
+      message: 'execution reverted',
+      data: `0x4c87e2b6${'0'.repeat(64)}`,
+    },
+    url: 'http://localhost',
+  })
 }
+
+/** What the factory answers for `verifyContract`, or a revert. */
+let verifyResponse: () => Hex = factoryRefusal
 let calls: string[] = []
 
 vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () =>
     ok(
       createClient({
+        // The predicate reads its contracts off the client's chain now, so the
+        // test has to supply one rather than leaning on a module-level pin.
+        chain: sepoliaWithEns,
         transport: custom({
           request: async ({ method, params }) => {
             calls.push(method)
@@ -70,9 +86,7 @@ const isPermissioned = async (resolverAddress: Address) => {
 describe('getIsPermissionedResolver', () => {
   beforeEach(() => {
     slotResponse = () => EMPTY_SLOT
-    verifyResponse = () => {
-      throw new Error('execution reverted: VerificationFailed')
-    }
+    verifyResponse = factoryRefusal
     calls = []
   })
 

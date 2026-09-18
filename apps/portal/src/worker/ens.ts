@@ -1,12 +1,7 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getRecords } from '@ensdomains/ensjs/public'
-import type { Address, Hex } from 'viem'
-import { getStorageAt } from 'viem/actions'
+import type { Address } from 'viem'
 
-import {
-  decodeImplementationAddress,
-  getVerifiedProxyImplementation,
-} from '@/features/resolver/utils/permissionedResolver'
+import { isVerifiedPermissionedResolver } from '@/features/resolver/utils/permissionedResolver'
 import { resolveEnsOwner } from '@/utils/ens/resolveEnsOwner'
 import { resolveAvatarRecord } from './avatar'
 import { type AvatarBitmap, downscaleAvatar } from './avatar-image'
@@ -140,9 +135,6 @@ export async function resolveOwner(
 }
 
 /** EIP-1967 implementation slot — mirrors `useIsPermissionedResolver`. */
-const EIP1967_IMPLEMENTATION_SLOT: Hex =
-  '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
-
 /**
  * Determine whether a resolver is an ENS Permissioned Resolver, so the OG card
  * can render the "Permissioned Resolver" subtitle.
@@ -157,36 +149,10 @@ export async function fetchIsPermissionedResolver(
   address: string,
 ): Promise<boolean> {
   try {
-    const client = createClient(env)
-
-    const knownImpl = getChainContractAddress({
-      chain: client.chain,
-      contract: 'ensPermissionedResolverImpl',
-    })?.toLowerCase()
-    if (!knownImpl) return false
-
-    const normalized = address.toLowerCase()
-    if (normalized === knownImpl) return true
-
-    const slotValue = await getStorageAt(client, {
+    return await isVerifiedPermissionedResolver({
+      client: createClient(env),
       address: address as Address,
-      slot: EIP1967_IMPLEMENTATION_SLOT,
     })
-
-    const implementation = decodeImplementationAddress(slotValue)
-    if (!implementation) return false
-    if (implementation.toLowerCase() !== knownImpl) return false
-
-    const verifiedImplementation = await getVerifiedProxyImplementation({
-      client,
-      factoryAddress: getChainContractAddress({
-        chain: client.chain,
-        contract: 'ensVerifiableFactory',
-      }),
-      proxyAddress: address as Address,
-    })
-
-    return verifiedImplementation?.toLowerCase() === knownImpl
   } catch {
     return false
   }
