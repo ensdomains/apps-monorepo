@@ -55,9 +55,14 @@ export function useFlowGasAffordability({
   // Recomputed every render: an actor mutates its own snapshot in place without
   // replacing the Map, so anything memoized on the Map keeps counting a settled
   // step. The component re-renders on those transitions anyway.
-  const preparedRequests = prepareUnpaidStepRequests({
+  const unpaidSteps = prepareUnpaidStepRequests({
     transactions,
     isSettled: (id) => getStatus(id, activeTransactionsMap) === 'success',
+    activeRequestFor: (id) => {
+      const request = activeTransactionsMap.get(id)?.getSnapshot()
+        ?.context.request
+      return request?.type === 'eoa' ? request : undefined
+    },
     walletClient: readyWalletClient,
     chainId,
   })
@@ -68,7 +73,7 @@ export function useFlowGasAffordability({
   })
 
   const gasQueries = useQueries({
-    queries: preparedRequests.map((request) => ({
+    queries: unpaidSteps.map(({ request, started }) => ({
       queryKey: stepGasEstimateQueryKey({
         chainId: request?.chainId,
         from: request?.from,
@@ -76,7 +81,7 @@ export function useFlowGasAffordability({
         data: request?.data,
         value: request?.value?.toString(),
         gas: request?.gas?.toString(),
-        started: false,
+        started,
       }),
       enabled: Boolean(request?.to && request?.data && publicClient),
       staleTime: PREVIEW_STALE_TIME,

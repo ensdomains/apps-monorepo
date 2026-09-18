@@ -40,8 +40,6 @@ export const MAX_TRANSIENT_RETRIES = 2
 
 // Gas costs are tiny ETH amounts; `formatEther` alone yields an 18-decimal
 // string. Round to a few significant digits for a readable "Est. cost".
-const formatGasCost = formatGasEth
-
 /**
  * Distinguishes an `eth_estimateGas` failure that is the call *actually
  * reverting on-chain* (a real "this would fail" signal worth surfacing) from a
@@ -202,7 +200,7 @@ export const useTransactionGasEstimate = (
   if (receipt != null) {
     return receipt.status === 'success'
       ? {
-          cost: formatGasCost(receipt.gasUsed * receipt.effectiveGasPrice),
+          cost: formatGasEth(receipt.gasUsed * receipt.effectiveGasPrice),
           status: 'success',
         }
       : { cost: null, status: 'error' }
@@ -212,7 +210,7 @@ export const useTransactionGasEstimate = (
   const maxFeePerGas = feeQuery.data?.maxFeePerGas
   const cost =
     gas != null && maxFeePerGas != null
-      ? formatGasCost(gas * maxFeePerGas)
+      ? formatGasEth(gas * maxFeePerGas)
       : null
 
   return {
