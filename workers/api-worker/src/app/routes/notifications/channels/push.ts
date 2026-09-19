@@ -1,6 +1,6 @@
 import type { ChannelData } from '@ens-apps/shared-schema/notifications'
 import { vValidator } from '@hono/valibot-validator'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import * as v from 'valibot'
 import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
@@ -15,6 +15,8 @@ const ALLOWED_PUSH_ENDPOINTS = [
   'https://push.services.mozilla.com/', // firefox (older)
   'https://web.push.apple.com/', // safari
 ] as const
+
+export const MAX_ACTIVE_PUSH_SUBSCRIPTIONS = 10
 
 const isAllowedPushEndpoint = (url: string): boolean => {
   // check common prefixes first
@@ -95,6 +97,27 @@ export default createApp()
         })
 
         return c.json({ id: existingChannel.id, updated: true })
+      }
+
+      const now = Date.now()
+      const activePushSubscriptionCount = await c.var.db.$count(
+        TABLE.userChannels,
+        and(
+          eq(TABLE.userChannels.user_id, userId),
+          eq(TABLE.userChannels.channel, 'push'),
+          eq(TABLE.userChannels.status, 'verified'),
+          sql`(
+            ${TABLE.userChannels.data}->>'expirationTime' is null
+            or (${TABLE.userChannels.data}->>'expirationTime')::double precision > ${now}
+          )`,
+        ),
+      )
+
+      if (activePushSubscriptionCount >= MAX_ACTIVE_PUSH_SUBSCRIPTIONS) {
+        return c.json(
+          { error: 'Maximum active push subscriptions reached' },
+          409,
+        )
       }
 
       // Create new push subscription
