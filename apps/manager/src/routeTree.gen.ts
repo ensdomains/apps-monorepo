@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as NameRouteRouteImport } from './routes/$name/route'
@@ -33,11 +32,6 @@ import { Route as DebugBackendSettingsRouteImport } from './routes/debug/backend
 import { Route as NotificationsAuthenticatedSettingsIndexRouteImport } from './routes/notifications/_authenticated/settings/index'
 import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/notifications/channels/email/verify'
 
-const WalletRoute = WalletRouteImport.update({
-  id: '/wallet',
-  path: '/wallet',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MigrationRoute = MigrationRouteImport.update({
   id: '/migration',
   path: '/migration',
@@ -160,7 +154,6 @@ export interface FileRoutesByFullPath {
   '/$name': typeof NameRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
-  '/wallet': typeof WalletRoute
   '/notifications': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
@@ -183,7 +176,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
-  '/wallet': typeof WalletRoute
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
@@ -208,7 +200,6 @@ export interface FileRoutesById {
   '/$name': typeof NameRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
-  '/wallet': typeof WalletRoute
   '/notifications/_authenticated': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
@@ -235,7 +226,6 @@ export interface FileRouteTypes {
     | '/$name'
     | '/dashboard'
     | '/migration'
-    | '/wallet'
     | '/notifications'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
@@ -258,7 +248,6 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/migration'
-    | '/wallet'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
@@ -282,7 +271,6 @@ export interface FileRouteTypes {
     | '/$name'
     | '/dashboard'
     | '/migration'
-    | '/wallet'
     | '/notifications/_authenticated'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
@@ -308,7 +296,6 @@ export interface RootRouteChildren {
   NameRouteRoute: typeof NameRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   MigrationRoute: typeof MigrationRoute
-  WalletRoute: typeof WalletRoute
   NotificationsAuthenticatedRouteRoute: typeof NotificationsAuthenticatedRouteRouteWithChildren
   LegalPrivacyPolicyRoute: typeof LegalPrivacyPolicyRoute
   LegalTermsOfUseRoute: typeof LegalTermsOfUseRoute
@@ -326,13 +313,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/wallet': {
-      id: '/wallet'
-      path: '/wallet'
-      fullPath: '/wallet'
-      preLoaderRoute: typeof WalletRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/migration': {
       id: '/migration'
       path: '/migration'
@@ -537,7 +517,6 @@ const rootRouteChildren: RootRouteChildren = {
   NameRouteRoute: NameRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
   MigrationRoute: MigrationRoute,
-  WalletRoute: WalletRoute,
   NotificationsAuthenticatedRouteRoute:
     NotificationsAuthenticatedRouteRouteWithChildren,
   LegalPrivacyPolicyRoute: LegalPrivacyPolicyRoute,

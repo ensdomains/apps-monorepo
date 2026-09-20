@@ -18,8 +18,6 @@ const globalBackButtonStaticRoutes: readonly string[] = [
   '/notifications/',
   '/notifications/settings',
   '/notifications/settings/',
-  '/wallet',
-  '/wallet/',
 ]
 
 export const getDefaultGlobalBackButtonConfig = (

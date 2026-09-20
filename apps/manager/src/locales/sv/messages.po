@@ -146,11 +146,6 @@ msgstr ""
 msgid "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 msgstr ""
 
-#. placeholder {0}: errorDisplay.message
-#: src/routes/wallet.tsx
-msgid "<0>Connection failed:</0> {0}"
-msgstr ""
-
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "1 year"
@@ -327,10 +322,6 @@ msgstr ""
 msgid "Available"
 msgstr ""
 
-#: src/routes/wallet.tsx
-msgid "Available Wallets"
-msgstr ""
-
 #: src/components/GlobalBackButton.tsx
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/pages/MigrationPage.tsx
@@ -469,10 +460,6 @@ msgstr ""
 msgid "Checking your account…"
 msgstr ""
 
-#: src/routes/wallet.tsx
-msgid "Choose a wallet to connect to the application"
-msgstr ""
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
@@ -547,10 +534,6 @@ msgstr ""
 msgid "Connect"
 msgstr ""
 
-#: src/routes/wallet.tsx
-msgid "Connect a Wallet"
-msgstr ""
-
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Connect a wallet to continue to notification settings and activity."
 msgstr ""
@@ -577,18 +560,6 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Connected"
-msgstr ""
-
-#: src/routes/wallet.tsx
-msgid "Connected via:"
-msgstr ""
-
-#: src/routes/wallet.tsx
-msgid "Connecting to {connectingConnector}... Please approve the connection in your wallet."
-msgstr ""
-
-#: src/routes/wallet.tsx
-msgid "Connection Details"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
@@ -742,10 +713,6 @@ msgstr "Visste du att?"
 #: src/features/navigation/Header/account/WalletSection.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Disconnect"
-msgstr ""
-
-#: src/routes/wallet.tsx
-msgid "Disconnect Wallet"
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -1410,10 +1377,6 @@ msgstr ""
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No stablecoins available"
-msgstr ""
-
-#: src/routes/wallet.tsx
-msgid "No wallet connected yet"
 msgstr ""
 
 #. placeholder {0}: f.total.toFixed(2)
@@ -2137,16 +2100,8 @@ msgstr ""
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
 
-#: src/routes/wallet.tsx
-msgid "Sign in"
-msgstr ""
-
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
-msgstr ""
-
-#: src/routes/wallet.tsx
-msgid "Sign in with a social account or wallet to get started"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
@@ -2286,10 +2241,6 @@ msgstr ""
 
 #: src/features/bulk-renew/components/NamesBreakdown.tsx
 msgid "Subtotal:"
-msgstr ""
-
-#: src/routes/wallet.tsx
-msgid "Successfully connected! You can now use the application."
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
@@ -2762,16 +2713,8 @@ msgstr ""
 msgid "Wallet account is not ready. Wait for your account to finish connecting, then try again."
 msgstr ""
 
-#: src/routes/wallet.tsx
-msgid "Wallet Address:"
-msgstr ""
-
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Wallet client missing, please reconnect your wallet and try again."
-msgstr ""
-
-#: src/routes/wallet.tsx
-msgid "Wallet Connected"
 msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
@@ -3045,8 +2988,4 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
-msgstr ""
-
-#: src/routes/wallet.tsx
-msgid "Your wallet is successfully connected to the application"
 msgstr ""

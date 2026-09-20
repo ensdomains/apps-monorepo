@@ -18,8 +18,6 @@ describe('getDefaultGlobalBackButtonConfig', () => {
       '/notifications/',
       '/notifications/settings',
       '/notifications/settings/',
-      '/wallet',
-      '/wallet/',
     ]
 
     for (const route of visibleRoutes) {
