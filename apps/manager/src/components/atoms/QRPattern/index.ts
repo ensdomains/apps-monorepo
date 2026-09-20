@@ -1,1 +1,0 @@
-export { QRPattern } from './QRPattern'
