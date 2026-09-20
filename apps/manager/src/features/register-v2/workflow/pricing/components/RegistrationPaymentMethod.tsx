@@ -21,12 +21,12 @@ export const RegistrationPaymentMethod = ({
   hasInsufficientBalance,
   onSelectCoin,
 }: {
-  stablecoin: StablecoinBalance
-  selectedCoin: SUPPORTED_TOKEN | undefined
-  networkFee: number | undefined
-  isNetworkFeeLoading: boolean
-  hasInsufficientBalance: boolean
-  onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  readonly stablecoin: StablecoinBalance
+  readonly selectedCoin: SUPPORTED_TOKEN | undefined
+  readonly networkFee: number | undefined
+  readonly isNetworkFeeLoading: boolean
+  readonly hasInsufficientBalance: boolean
+  readonly onSelectCoin: (coin: SUPPORTED_TOKEN) => void
 }) => {
   const { t } = useLingui()
   const isSelected = selectedCoin === stablecoin.symbol
@@ -60,7 +60,7 @@ export const RegistrationPaymentMethod = ({
         <div className="relative h-8 w-8 shrink-0">
           <IconComponent className="h-8 w-8" />
           <div className="absolute -right-0.5 -bottom-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ens-peridot-core">
-            <span className="text-[0.5rem] text-white leading-none">S</span>
+            <span className="text-white text-xs leading-none">S</span>
           </div>
         </div>
         <span className="truncate text-ens-gray-dark text-sm tracking-wide">
@@ -78,7 +78,7 @@ export const RegistrationPaymentMethod = ({
           >
             {formatUsd(coinBalanceUSD)}
           </span>
-          <span className="text-[#A0A4A6] text-sm">
+          <span className="text-ens-quartz-350 text-sm">
             <Trans>in your wallet</Trans>
           </span>
         </div>
