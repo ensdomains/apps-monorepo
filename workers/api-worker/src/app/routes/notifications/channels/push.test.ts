@@ -118,7 +118,11 @@ describe('POST /push', () => {
   })
 
   it('updates an existing endpoint even when the user is at the cap', async () => {
-    mocks.findFirst.mockResolvedValue({ id: 'channel-existing' })
+    mocks.findFirst.mockResolvedValue({
+      id: 'channel-existing',
+      status: 'verified',
+      data: { expirationTime: null },
+    })
     mocks.count.mockResolvedValue(MAX_ACTIVE_PUSH_SUBSCRIPTIONS)
 
     const response = await postSubscription()
@@ -130,6 +134,51 @@ describe('POST /push', () => {
     })
     expect(mocks.updateWhere).toHaveBeenCalledOnce()
     expect(mocks.count).not.toHaveBeenCalled()
+    expect(mocks.db.insert).not.toHaveBeenCalled()
+  })
+
+  it('rejects reactivating an expired endpoint when the user is at the cap', async () => {
+    mocks.findFirst.mockResolvedValue({
+      id: 'channel-expired',
+      status: 'verified',
+      data: { expirationTime: Date.now() - 60_000 },
+    })
+    mocks.count.mockResolvedValue(MAX_ACTIVE_PUSH_SUBSCRIPTIONS)
+
+    const response = await postSubscription({
+      ...requestBody,
+      expirationTime: Date.now() + 60_000,
+    })
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: 'Maximum active push subscriptions reached',
+    })
+    expect(mocks.count).toHaveBeenCalledOnce()
+    expect(mocks.updateWhere).not.toHaveBeenCalled()
+    expect(mocks.db.insert).not.toHaveBeenCalled()
+  })
+
+  it('reactivates an expired endpoint below the cap', async () => {
+    mocks.findFirst.mockResolvedValue({
+      id: 'channel-expired',
+      status: 'verified',
+      data: { expirationTime: Date.now() - 60_000 },
+    })
+    mocks.count.mockResolvedValue(MAX_ACTIVE_PUSH_SUBSCRIPTIONS - 1)
+
+    const response = await postSubscription({
+      ...requestBody,
+      expirationTime: null,
+    })
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      id: 'channel-expired',
+      updated: true,
+    })
+    expect(mocks.count).toHaveBeenCalledOnce()
+    expect(mocks.updateWhere).toHaveBeenCalledOnce()
     expect(mocks.db.insert).not.toHaveBeenCalled()
   })
 

@@ -1,4 +1,5 @@
 import {
+  type ChannelData,
   channelSupportsNotification,
   type PersonalNotificationKind,
 } from '@ens-apps/shared-schema/notifications'
@@ -84,6 +85,7 @@ type ReconciledDelivery = DesiredDelivery & {
 type VerifiedChannel = {
   readonly channel: 'email' | 'push' | 'telegram'
   readonly target: string | null
+  readonly data: unknown
 }
 
 type DeliveryFanout = {
@@ -164,6 +166,19 @@ const getNotificationWatchReason = (
 
 const deliveryIdentity = (delivery: DesiredDelivery): string =>
   JSON.stringify([delivery.notificationId, delivery.channel, delivery.target])
+
+const isActiveVerifiedChannel = (
+  channel: VerifiedChannel,
+  now: number,
+): boolean => {
+  if (channel.channel !== 'push') {
+    return true
+  }
+
+  const pushData = channel.data as ChannelData['push'] | null
+  const expirationTime = pushData?.expirationTime ?? null
+  return expirationTime === null || expirationTime > now
+}
 
 const getNotificationDeliveryFanout = ResultFn(function* (ctx: {
   readonly notification: ReconciledNotification
@@ -363,6 +378,7 @@ const deriveDesiredDeliveries = ResultFn(async function* (ctx: {
       user_id: true,
       channel: true,
       target: true,
+      data: true,
     },
   })
   const settingsQuery = ctx.db.query.userNotificationSettings.findMany({
@@ -376,7 +392,14 @@ const deriveDesiredDeliveries = ResultFn(async function* (ctx: {
   const [channels, settingsRows] = yield* intoDbResult(
     ctx.db.batch([channelsQuery, settingsQuery]),
   )
-  const channelsByUserId = Map.groupBy(channels, (channel) => channel.user_id)
+  const now = Date.now()
+  const activeChannels = channels.filter((channel) =>
+    isActiveVerifiedChannel(channel, now),
+  )
+  const channelsByUserId = Map.groupBy(
+    activeChannels,
+    (channel) => channel.user_id,
+  )
   const settingsByUserId = new Map(
     settingsRows.map((settings) => [settings.user_id, settings]),
   )
@@ -535,6 +558,9 @@ export const processRecipientPage = ResultFn(async function* (ctx: {
   const jobsByQueue = new Map<keyof CloudflareBindings, BaseDeliveryJob[]>()
 
   for (const delivery of deliveries) {
+    // A successful queue handoff does not change database status. Retrying a
+    // still-queued ID after a partial handoff is intentional at-least-once
+    // behavior; terminal delivery rows are never intentionally re-enqueued.
     if (delivery.status !== 'queued') {
       continue
     }

@@ -35,6 +35,7 @@ type ChannelRow = {
   readonly user_id: string
   readonly channel: 'email' | 'push' | 'telegram'
   readonly target: string | null
+  readonly data?: unknown
 }
 type SettingsRow = {
   readonly user_id: string
@@ -347,6 +348,44 @@ describe('handleEventIngestionQueue', () => {
     })
     expect(fixture.deliveryRows).toHaveLength(1)
     expect(emailQueue.sendBatch).toHaveBeenCalledOnce()
+  })
+
+  it('excludes expired push subscriptions from delivery fanout', async () => {
+    const fixture = makeEventDb({
+      users: [{ id: 'user-1', address: '0xabc' }],
+      channels: [
+        {
+          user_id: 'user-1',
+          channel: 'push',
+          target: 'https://push.example/expired',
+          data: { expirationTime: Date.now() - 60_000 },
+        },
+        {
+          user_id: 'user-1',
+          channel: 'push',
+          target: 'https://push.example/active',
+          data: { expirationTime: Date.now() + 60_000 },
+        },
+      ],
+      settings: [
+        {
+          user_id: 'user-1',
+          owned_name_expiry: true,
+          favourited_name_expiry: true,
+        },
+      ],
+    })
+    mockGetDatabase.mockReturnValue(fixture.db as never)
+    const pushQueue = makeEmailQueue()
+
+    await handleEventIngestionQueue(
+      makeQueueBatch('event-ingestion', [makeQueueMessage(expiryEvent())]),
+      makeMockEnv({ PUSH_QUEUE: pushQueue as unknown as Queue }),
+    )
+
+    expect(fixture.deliveryRows).toHaveLength(1)
+    expect(fixture.deliveryRows[0]?.target).toBe('https://push.example/active')
+    expect(pushQueue.sendBatch).toHaveBeenCalledOnce()
   })
 
   it('recovers an existing notification after delivery creation failed', async () => {
