@@ -297,13 +297,13 @@ The first real instance: `permit`/`transferFrom` for `20196054` against a wallet
 holding `20000000`. `transferFrom` reverts `ERC20: transfer amount exceeds
 balance`, and since the batch is atomic the whole intent fails.
 
-**Why it hits only some users.** The funding permit is signed for the whole HCA
-budget — `registrationPrice + commitCost + registerCost` — while the pricing UI
-gates on `registrationPrice` alone. On Sepolia the two legs have run to ~12 USDC
-against an 8 USDC name, so any wallet holding between the price and the budget
-clears checkout and then fails simulation. `signFundingPermitActor` now reads
-`balanceOf(wallet)` and refuses before the wallet is ever prompted; if this
-error resurfaces, check that gate first.
+**Why it hit only some users.** The funding permit is signed for the whole HCA
+budget — `registrationPrice + commitCost + registerCost`. The pricing UI now
+compares the raw wallet balance with the account-credit-adjusted wallet debit,
+shows the estimated network fee on the USDC payment method, and re-quotes the
+budget on click. `signFundingPermitActor` also reads `balanceOf(wallet)` and
+refuses before the wallet is ever prompted; if this error resurfaces, check the
+UI quote/balance gate and then that actor gate.
 
 Note that `checkingHcaFunding` reads the **HCA's** balance, not the wallet's —
 it decides whether a permit is needed at all, and never validated that the

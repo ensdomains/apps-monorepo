@@ -51,14 +51,15 @@ class InsufficientFundingError extends Error {
 }
 
 /**
- * What the wallet is actually debited, itemised — `rent + networkFee` on the
- * standalone-HCA route. See {@link computeRegistrationFunding}.
+ * The standalone-HCA funding budget and the wallet's account-credit-adjusted
+ * debit, itemised as `rent + networkFee`. See
+ * {@link computeRegistrationFunding}.
  */
 export type RegistrationFundingSummary = {
   /** The registrar's charge, shown as its own line once a credit applies. */
   readonly registration: number
   readonly networkFee: number
-  /** What the registration costs — the figure shown on the total row. */
+  /** What the registration costs before applying existing HCA credit. */
   readonly total: number
   /**
    * What the wallet must hold: `total` less anything the HCA already carries.
@@ -386,8 +387,8 @@ export const TokenPickerContentBase = ({
    * Itemises the funding budget when the wallet is debited more than the rent —
    * the standalone-HCA route funds both on-chain legs from the same transfer.
    * Absent until the quote lands, and for routes that have no budget to quote
-   * (a pure-EOA signer pays the registrar directly). When present, `total` —
-   * not `pricingData` — is what the wallet must cover.
+   * (a pure-EOA signer pays the registrar directly). When present,
+   * `walletDebit` is what the wallet must cover.
    */
   funding?: RegistrationFundingSummary
   /** A click-time re-quote proved that the selected USDC method is short. */
