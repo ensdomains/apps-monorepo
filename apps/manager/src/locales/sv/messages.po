@@ -325,7 +325,6 @@ msgstr ""
 #: src/components/GlobalBackButton.tsx
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/pages/MigrationPage.tsx
-#: src/features/notifications/settings/email-verify-step.tsx
 msgid "Back"
 msgstr ""
 
@@ -394,7 +393,6 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/notifications/settings/contact-methods/email.tsx
 #: src/features/notifications/settings/contact-methods/telegram.tsx
-#: src/features/notifications/settings/email-verify-step.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
@@ -426,10 +424,6 @@ msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Check Your Email"
-msgstr ""
-
-#: src/features/notifications/settings/email-verify-step.tsx
-msgid "Check your email for the verification code. You can also click the link in the email to verify automatically."
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
@@ -611,7 +605,6 @@ msgstr ""
 msgid "Copy Link"
 msgstr ""
 
-#: src/components/atoms/CopyToClipboard/CopyToClipboard.tsx
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
@@ -788,10 +781,6 @@ msgstr ""
 msgid "Email verified successfully"
 msgstr ""
 
-#: src/features/notifications/settings/email-verify-step.tsx
-msgid "Email verified successfully! You can now receive notifications."
-msgstr ""
-
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Email Verified!"
 msgstr ""
@@ -831,10 +820,6 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "ENSv2 commemorative NFT"
-msgstr ""
-
-#: src/features/notifications/settings/email-verify-step.tsx
-msgid "Enter 6-digit code"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
@@ -1781,7 +1766,6 @@ msgstr ""
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
-#: src/features/renew/components/RenewNameButton.tsx
 msgid "Renew"
 msgstr ""
 
@@ -2458,7 +2442,6 @@ msgstr ""
 msgid "Try again"
 msgstr ""
 
-#: src/features/notifications/settings/email-verify-step.tsx
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 #: src/features/renew/workflow/result/FailureStep.tsx
 #: src/features/wallet/components/EnableSessionModal.tsx
@@ -2548,10 +2531,6 @@ msgstr ""
 msgid "USD"
 msgstr ""
 
-#: src/features/notifications/settings/email-verify-step.tsx
-msgid "Use Different Email"
-msgstr ""
-
 #: src/features/landing/IntegrationsSection.tsx
 msgid "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
 msgstr ""
@@ -2568,10 +2547,6 @@ msgstr ""
 msgid "Validating the commitment"
 msgstr ""
 
-#: src/features/notifications/settings/email-verify-step.tsx
-msgid "Verification Code"
-msgstr ""
-
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Verification Failed"
 msgstr ""
@@ -2586,10 +2561,6 @@ msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Verify authenticity and stay safe."
-msgstr ""
-
-#: src/features/notifications/settings/email-verify-step.tsx
-msgid "Verify Code"
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
@@ -2619,10 +2590,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Verifying registration on-chain"
-msgstr ""
-
-#: src/features/notifications/settings/email-verify-step.tsx
-msgid "Verifying..."
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
@@ -2744,10 +2711,6 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "We couldn't upgrade one of your names. Try again."
-msgstr ""
-
-#: src/features/notifications/settings/email-verify-step.tsx
-msgid "We sent a verification code to your email address."
 msgstr ""
 
 #: src/routes/index.tsx
