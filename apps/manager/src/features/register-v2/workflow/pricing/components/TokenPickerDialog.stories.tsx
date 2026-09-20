@@ -35,13 +35,6 @@ const MOCK_BALANCES: StablecoinBalance[] = [
     decimals: 6,
     formattedBalance: '1000.00',
   },
-  {
-    address: '0x0000000000000000000000000000000000000002',
-    symbol: 'DAI',
-    balance: '500000000000000000000', // 500 DAI
-    decimals: 18,
-    formattedBalance: '500.00',
-  },
 ]
 
 const LOW_BALANCES: StablecoinBalance[] = [
@@ -51,13 +44,6 @@ const LOW_BALANCES: StablecoinBalance[] = [
     balance: '10000000', // 10 USDC
     decimals: 6,
     formattedBalance: '10.00',
-  },
-  {
-    address: '0x0000000000000000000000000000000000000002',
-    symbol: 'DAI',
-    balance: '5000000000000000000', // 5 DAI
-    decimals: 18,
-    formattedBalance: '5.00',
   },
 ]
 
@@ -148,7 +134,7 @@ const meta = {
     stablecoinBalances: { control: false },
     initialSelectedToken: {
       control: 'inline-radio',
-      options: [undefined, 'USDC', 'DAI'],
+      options: [undefined, 'USDC'],
     },
   },
 } satisfies Meta<typeof TokenPickerDialogShell>
@@ -162,11 +148,20 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {}
 
 /**
- * USDC preselected with sufficient balance → `Buy Name` is enabled.
+ * The live funded USDC method with its wallet balance and fee disclosure.
  */
-export const WithTokenSelected: Story = {
+export const FundedUSDC: Story = {
   args: {
     initialSelectedToken: 'USDC',
+    funding: {
+      registration: 160,
+      networkFee: 4.32,
+      total: 164.32,
+      walletDebit: 164.32,
+      hcaCredit: 0,
+      isUnderfunded: false,
+      isLoading: false,
+    },
   },
 }
 
@@ -302,14 +297,22 @@ export const NoStablecoins: Story = {
 }
 
 /**
- * Balances present but every coin is under the target price → button stays
- * disabled and each row shows the `Need $X` hint.
+ * The live USDC method cannot cover the account-credit-adjusted wallet debit.
  */
-export const InsufficientBalance: Story = {
+export const InvalidUSDC: Story = {
   args: {
     pricingData: 352,
     stablecoinBalances: LOW_BALANCES,
     initialSelectedToken: 'USDC',
+    funding: {
+      registration: 347.68,
+      networkFee: 4.32,
+      total: 352,
+      walletDebit: 352,
+      hcaCredit: 0,
+      isUnderfunded: true,
+      isLoading: false,
+    },
   },
 }
 
@@ -338,6 +341,7 @@ export const WithAccountCredit: Story = {
       total: 164.32,
       walletDebit: 162.5,
       hcaCredit: 1.82,
+      isUnderfunded: false,
       isLoading: false,
     },
   },

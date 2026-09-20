@@ -1,48 +1,33 @@
 import { Trans } from '@lingui/react/macro'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import { AccountCreditRow } from './AccountCreditRow'
-import { NetworkCostRow } from './NetworkCostRow'
 import { PaymentBreakdownRow } from './PaymentBreakdownRow'
 import type { RegistrationFundingSummary } from './TokenPickerContent'
 
 /**
- * The itemised cost above the token list. The rent only appears beside a
- * credit, where the subtraction has to be checkable; on its own it is implied
- * by the headline, which is how the sheet has always read.
+ * The account-credit explanation above the payment method. The network fee is
+ * disclosed on the method that pays it, while the name price and existing
+ * credit stay here when their subtraction needs to be checkable.
  */
 export const PaymentBreakdown = ({
   funding,
-  isQuoting,
 }: {
   readonly funding: RegistrationFundingSummary | undefined
-  /** The budget quote is still in flight; hold the network-cost row's space. */
-  readonly isQuoting: boolean
 }) => {
-  if (!funding) return isQuoting ? <NetworkCostRow isLoading /> : null
+  if (!funding) return null
 
   const figures = getPaymentBreakdownFigures(funding)
   // The rounded credit, not the raw balance: a sub-cent balance has no line.
-  const hasCredit = figures.credit > 0
+  if (figures.credit <= 0) return null
 
   return (
     <>
-      {hasCredit && (
-        <PaymentBreakdownRow
-          amount={figures.registration}
-          isLoading={funding.isLoading}
-          label={<Trans>Name price</Trans>}
-        />
-      )}
-      <NetworkCostRow
+      <PaymentBreakdownRow
+        amount={figures.registration}
         isLoading={funding.isLoading}
-        networkFee={figures.networkFee}
+        label={<Trans>Name price</Trans>}
       />
-      {hasCredit && (
-        <AccountCreditRow
-          credit={figures.credit}
-          isLoading={funding.isLoading}
-        />
-      )}
+      <AccountCreditRow credit={figures.credit} isLoading={funding.isLoading} />
     </>
   )
 }

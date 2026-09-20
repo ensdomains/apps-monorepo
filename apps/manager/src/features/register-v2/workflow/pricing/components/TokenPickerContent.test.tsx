@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { TokenPickerContentBase } from './TokenPickerContent'
@@ -90,6 +90,7 @@ describe('TokenPickerContentBase', () => {
         total: 330.196054,
         walletDebit: 0,
         hcaCredit: 330.196054,
+        isUnderfunded: false,
         isLoading: false,
       },
       selectedToken: 'USDC',
@@ -108,12 +109,49 @@ describe('TokenPickerContentBase', () => {
         total: 2_000,
         walletDebit: 2_000,
         hcaCredit: 0,
+        isUnderfunded: true,
         isLoading: false,
       },
       selectedToken: 'USDC',
     })
 
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeDisabled()
+    expect(
+      screen.getByText('not enough funds to pay network fees'),
+    ).toBeVisible()
+    expect(screen.queryByText(/^Not enough USDC/)).not.toBeInTheDocument()
+  })
+
+  it('shows the funded USDC balance, fee, and fee help on the method', async () => {
+    renderPicker({
+      funding: {
+        registration: 160,
+        networkFee: 4.32,
+        total: 164.32,
+        walletDebit: 164.32,
+        hcaCredit: 0,
+        isUnderfunded: false,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('$1,000.00')).toBeVisible()
+    expect(screen.getByText('in your wallet')).toBeVisible()
+    expect(screen.getByText('Mainnet est. fee:')).toBeVisible()
+    expect(screen.getByText('$4.32')).toBeVisible()
+    expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Load more/i)).not.toBeInTheDocument()
+
+    const feeHelp = screen.getByRole('button', {
+      name: 'What is the network fee?',
+    })
+    act(() => feeHelp.focus())
+    const tooltipCopy = await screen.findAllByText(
+      'An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval.',
+    )
+    expect(tooltipCopy[0]).toBeVisible()
   })
 
   // The sheet quotes a wallet balance too, so a second balance described in a
@@ -126,6 +164,7 @@ describe('TokenPickerContentBase', () => {
         total: 164.32,
         walletDebit: 162.5,
         hcaCredit: 1.82,
+        isUnderfunded: false,
         isLoading: false,
       },
       selectedToken: 'USDC',
@@ -149,6 +188,7 @@ describe('TokenPickerContentBase', () => {
         total: 164.32,
         walletDebit: 164.32,
         hcaCredit: 0,
+        isUnderfunded: false,
         isLoading: false,
       },
       selectedToken: 'USDC',
@@ -180,6 +220,7 @@ describe('TokenPickerContentBase', () => {
         total: 2.008,
         walletDebit: 1,
         hcaCredit: 1.008,
+        isUnderfunded: false,
         isLoading: false,
       },
       selectedToken: 'USDC',
@@ -200,6 +241,7 @@ describe('TokenPickerContentBase', () => {
         total: 9.988,
         walletDebit: 9.987,
         hcaCredit: 0.001,
+        isUnderfunded: false,
         isLoading: false,
       },
       selectedToken: 'USDC',
@@ -224,6 +266,7 @@ describe('TokenPickerContentBase', () => {
         total: 9.992,
         walletDebit: 9.992,
         hcaCredit: 0,
+        isUnderfunded: false,
         isLoading: false,
       },
       selectedToken: 'USDC',

@@ -3,7 +3,8 @@ import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { NetworkCostRow } from './NetworkCostRow'
+import type { StablecoinBalance } from '@/lib/smart-account'
+import { RegistrationPaymentMethod } from './RegistrationPaymentMethod'
 import { PaymentDialogBase } from './TokenPickerDialog'
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
@@ -15,7 +16,22 @@ describe('PaymentDialogBase', () => {
     render(
       <I18nProvider i18n={i18n}>
         <PaymentDialogBase onOpenChange={() => {}} open title="Select payment">
-          <NetworkCostRow isLoading={false} networkFee={4.32} />
+          <RegistrationPaymentMethod
+            hasInsufficientBalance={false}
+            isNetworkFeeLoading={false}
+            networkFee={4.32}
+            onSelectCoin={() => {}}
+            selectedCoin="USDC"
+            stablecoin={
+              {
+                address: '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238',
+                symbol: 'USDC',
+                decimals: 6,
+                balance: '1000000000',
+                formattedBalance: '1000.00',
+              } as StablecoinBalance
+            }
+          />
         </PaymentDialogBase>
       </I18nProvider>,
     )
