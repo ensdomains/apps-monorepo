@@ -433,11 +433,11 @@ export const TokenPickerContentBase = ({
   )
 
   const isPaymentMethodUnderfunded = (coin: StablecoinBalance): boolean => {
-    if (hasInsufficientFundingError) return true
     // The real HCA path derives this from raw bigint amounts. Keep that
     // authoritative result rather than re-deciding eligibility from formatted
     // display values.
     if (funding) return funding.isUnderfunded
+    if (hasInsufficientFundingError) return true
     if (requiredAmount === undefined || requiredAmount <= 0) return false
 
     return (

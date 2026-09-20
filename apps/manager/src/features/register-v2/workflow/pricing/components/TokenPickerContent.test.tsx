@@ -123,6 +123,28 @@ describe('TokenPickerContentBase', () => {
     expect(screen.queryByText(/^Not enough USDC/)).not.toBeInTheDocument()
   })
 
+  it('ignores a stale click-time funding error after funding recovers', () => {
+    renderPicker({
+      funding: {
+        registration: 160,
+        networkFee: 4.32,
+        total: 164.32,
+        walletDebit: 164.32,
+        hcaCredit: 0,
+        isUnderfunded: false,
+        isLoading: false,
+      },
+      hasInsufficientFundingError: true,
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeEnabled()
+    expect(
+      screen.queryByText('not enough funds to pay network fees'),
+    ).not.toBeInTheDocument()
+  })
+
   it('shows the funded USDC balance, fee, and fee help on the method', async () => {
     renderPicker({
       funding: {
