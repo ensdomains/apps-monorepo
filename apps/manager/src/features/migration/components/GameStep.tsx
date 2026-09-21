@@ -52,9 +52,10 @@ const BridgePlank = ({
       transition={{ duration: reduceMotion ? 0 : 0.2 }}
     >
       <div
-        className="relative h-6 min-w-0 flex-1 overflow-hidden rounded-[3px] border-ens-garnet-900/8 bg-ens-garnet-900/4"
+        className="relative h-6 min-w-0 flex-1 overflow-hidden rounded-sm border-ens-garnet-900/8 bg-ens-garnet-900/4"
         style={{ borderInlineWidth: Math.min(3, width / 32) }}
       >
+        {/* The 3px lower and 1px upper inset shadows recreate the raised plank artwork. */}
         <motion.div
           animate={{ scaleX: completed ? 1 : 0, opacity: completed ? 1 : 0 }}
           className="absolute inset-0 origin-left bg-ens-garnet-900/45 shadow-[inset_0_-3px_0_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)]"
@@ -156,7 +157,7 @@ const FrenParty = ({
         >
           <WalkingFren
             character="peanut"
-            className="h-9 w-6 sm:h-[54px] sm:w-9"
+            className="h-9 w-6 sm:h-13.5 sm:w-9"
             isWalking={isWalking}
           />
         </motion.div>
@@ -164,7 +165,7 @@ const FrenParty = ({
         <motion.img
           {...waitingBounceFor('lili', isWaiting)}
           alt=""
-          className="h-12 shrink-0 sm:h-[72px]"
+          className="h-12 shrink-0 sm:h-18"
           src="/frens/lili.svg"
         />
         <div className="relative shrink-0">
@@ -174,14 +175,14 @@ const FrenParty = ({
           >
             <WalkingFren
               character="bittu"
-              className="h-5 w-8 sm:h-[30px] sm:w-12"
+              className="h-5 w-8 sm:h-7.5 sm:w-12"
               isWalking={isWalking}
             />
           </motion.div>
           <motion.div {...waitingBounceFor('kuzco', isWaiting)}>
             <WalkingFren
               character="kuzco"
-              className="h-10 w-10 sm:h-[60px] sm:w-[60px]"
+              className="size-10 sm:size-15"
               isWalking={isWalking}
             />
           </motion.div>
@@ -277,7 +278,8 @@ export const GameStepView = ({
                   className="flex min-h-11 shrink-0 items-center"
                   transition={{ duration: 0.3 }}
                 >
-                  <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
+                  {/* The custom tracking matches the 32px migration headline artwork. */}
+                  <p className="text-center text-ens-garnet-900 text-temp-32px tracking-[-0.64px]">
                     <Plural
                       one="Upgrading your name..."
                       other="Upgrading your names..."
@@ -297,6 +299,7 @@ export const GameStepView = ({
                     </p>
                   )}
                   <AnimatePresence mode="popLayout">
+                    {/* Exact letter spacing matches the companion migration status labels. */}
                     <motion.span
                       animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                       className="max-w-full text-center font-semi-mono text-ens-garnet-500 text-xs uppercase tracking-[0.12px]"
@@ -311,6 +314,7 @@ export const GameStepView = ({
                 </motion.div>
 
                 <div className="mt-3 flex h-9 w-full max-w-64 shrink-0 flex-col items-center gap-2">
+                  {/* The 10px label and letter spacing match the compact progress typography. */}
                   <span className="font-semi-mono text-[10px] text-ens-garnet-500 uppercase tabular-nums tracking-[0.12px]">
                     <Trans>
                       Step {displayStep} of {totalSteps}
@@ -340,7 +344,7 @@ export const GameStepView = ({
                   </div>
                 </div>
 
-                <div className="relative mt-4 h-[360px] w-full max-w-[1040px] shrink-0">
+                <div className="relative mt-4 h-90 w-full max-w-260 shrink-0">
                   <div className="absolute inset-0">
                     <div
                       className="absolute bottom-14 left-0 z-10 w-28 sm:w-41"
@@ -381,10 +385,10 @@ export const GameStepView = ({
 
                     <div
                       aria-hidden
-                      className="absolute right-[104px] bottom-6 left-28 overflow-hidden sm:right-[120px] sm:left-41"
+                      className="absolute right-26 bottom-6 left-28 overflow-hidden sm:right-30 sm:left-41"
                       ref={trackRef}
                     >
-                      <div className="mb-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
+                      <div className="mb-0.5 h-0.5 rounded-full bg-ens-garnet-900/30" />
                       <motion.div
                         animate={{ x: -scrollX }}
                         initial={false}
@@ -405,7 +409,7 @@ export const GameStepView = ({
                           ))}
                         </div>
                       </motion.div>
-                      <div className="mt-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
+                      <div className="mt-0.5 h-0.5 rounded-full bg-ens-garnet-900/30" />
                     </div>
                   </div>
                 </div>
