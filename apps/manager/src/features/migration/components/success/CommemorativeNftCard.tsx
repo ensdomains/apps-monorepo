@@ -443,7 +443,7 @@ const ArtworkCard = ({
       ) : null}
       {presentationReady ? (
         <ArtworkActions
-          isDisabled={artwork.animationPending}
+          isDisabled={!artworkReady}
           state={state}
           variant={variant}
         />
