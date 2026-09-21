@@ -1,3 +1,4 @@
+import type { L2ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
 import {
   getChainIdForReverseRegistrarChainId,
   getRegistrarAddress,
@@ -23,7 +24,6 @@ import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import type { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { l2WagmiConfig } from '@/lib/wagmiL2'
-import type { L2ReverseRegistrarChainId } from '../AddressResolution/networks'
 
 type EnsV1Client = Client<Transport, typeof sepoliaWithEns>
 

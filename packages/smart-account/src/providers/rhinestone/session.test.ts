@@ -1,6 +1,5 @@
 import type { RhinestoneAccount } from '@rhinestone/sdk'
-import type { Account, Address, Chain, Hex } from 'viem'
-import { decodeFunctionData, parseAbi } from 'viem'
+import type { Account, Address, Chain } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -10,15 +9,13 @@ import {
   MAX_REFUND_GAS_OVERHEAD,
 } from './manifest'
 import {
-  buildEnableSessionWithRefundCall,
+  buildHcaSessionConfig,
   computeDestinationSessionSalt,
   computeSourceSessionSalt,
   createDestinationSession,
 } from './session'
 
-const VALIDATOR = getDestinationContracts(
-  sepolia.id,
-).hcaOwnerAndSessionValidator
+const USDC = getDestinationContracts(sepolia.id).usdc
 
 const HCA = '0xaaaa000000000000000000000000000000000001' as const
 const RESOLVER = '0x3333333333333333333333333333333333333333' as const
@@ -85,49 +82,54 @@ describe('computeSourceSessionSalt', () => {
   })
 })
 
-describe('buildEnableSessionWithRefundCall', () => {
-  const abi = parseAbi([
-    'function enableSessionWithRefund(bytes32 permissionId, address sessionKey, uint48 validUntil, address resolver, address refundToken, uint96 maxRefundExchangeRate, uint48 maxRefundGasOverhead, uint96 maxRefundAmount)',
-  ])
-
-  it('encodes exact arg order with value 0', () => {
-    const call = buildEnableSessionWithRefundCall({
-      chainId: sepolia.id,
-      permissionId: `0x${'2'.repeat(64)}` as Hex,
+describe('buildHcaSessionConfig', () => {
+  it('carries the session key, expiry, resolver, refund token and caps', () => {
+    expect(
+      buildHcaSessionConfig({
+        chainId: sepolia.id,
+        sessionKey: SESSION_KEY,
+        validUntil: 1_800_000_000n,
+        resolver: RESOLVER,
+      }),
+    ).toEqual({
       sessionKey: SESSION_KEY,
-      validUntil: 1_800_000_000n,
+      validUntil: 1_800_000_000,
       resolver: RESOLVER,
+      refundToken: USDC,
+      maxRefundExchangeRate: MAX_REFUND_EXCHANGE_RATE,
+      maxRefundGasOverhead: Number(MAX_REFUND_GAS_OVERHEAD),
+      maxRefundAmount: MAX_REFUND_AMOUNT,
     })
-    expect(call.value).toBe(0n)
-    const decoded = decodeFunctionData({ abi, data: call.data })
-    expect(decoded.functionName).toBe('enableSessionWithRefund')
-    const args = decoded.args as readonly [
-      Hex,
-      Address,
-      number,
-      Address,
-      Address,
-      bigint,
-      number,
-      bigint,
-    ]
-    expect(args[1].toLowerCase()).toBe(SESSION_KEY.toLowerCase())
-    expect(args[2]).toBe(1_800_000_000)
-    expect(args[3].toLowerCase()).toBe(RESOLVER.toLowerCase())
-    expect(args[5]).toBe(MAX_REFUND_EXCHANGE_RATE)
-    expect(args[6]).toBe(Number(MAX_REFUND_GAS_OVERHEAD))
-    expect(args[7]).toBe(MAX_REFUND_AMOUNT)
   })
 
-  it('targets the standalone validator', () => {
-    const call = buildEnableSessionWithRefundCall({
+  // The validator re-derives the permission salt from these fields plus the
+  // HCA nonce (`_sessionAuthorizationSalt`); any drift from the salt the
+  // session was built with fails as InvalidSessionData().
+  it('hashes back to the salt the session was built with', () => {
+    const config = buildHcaSessionConfig({
       chainId: sepolia.id,
-      permissionId: `0x${'2'.repeat(64)}` as Hex,
       sessionKey: SESSION_KEY,
       validUntil: 1_800_000_000n,
       resolver: RESOLVER,
     })
-    expect(call.to.toLowerCase()).toBe(VALIDATOR.toLowerCase())
+    expect(
+      computeDestinationSessionSalt({
+        hcaSessionNonce: 3n,
+        validUntil: BigInt(config.validUntil),
+        resolver: config.resolver,
+        refundToken: config.refundToken,
+        maxRefundExchangeRate: config.maxRefundExchangeRate,
+        maxRefundGasOverhead: BigInt(config.maxRefundGasOverhead),
+        maxRefundAmount: config.maxRefundAmount,
+      }),
+    ).toBe(
+      computeDestinationSessionSalt({
+        hcaSessionNonce: 3n,
+        validUntil: 1_800_000_000n,
+        resolver: RESOLVER,
+        refundToken: USDC,
+      }),
+    )
   })
 })
 
@@ -178,6 +180,39 @@ describe('createDestinationSession', () => {
     expect(value.enableData.hcaSessionNonce).toBe(0n)
     expect(value.enableData.userSignature).toMatch(/^0x[0-9a-f]+$/)
     expect(value.session.account?.toLowerCase()).toBe(HCA.toLowerCase())
+  })
+
+  it('carries the session config the salt was built from', async () => {
+    const { account } = mockAccount()
+    const value = (
+      await createDestinationSession({
+        rhinestoneAccount: account,
+        publicClient,
+        chain: sepolia as Chain,
+        hca: HCA,
+        resolver: RESOLVER,
+        sessionAccount,
+        validUntil: 1_800_000_000n,
+        alreadyDeployed: false,
+      })
+    )._unsafeUnwrap()
+    const config = value.enableData.hcaSessionConfig
+    expect(config).toEqual(
+      buildHcaSessionConfig({
+        chainId: sepolia.id,
+        sessionKey: SESSION_KEY,
+        validUntil: 1_800_000_000n,
+        resolver: RESOLVER,
+      }),
+    )
+    expect(value.session.salt).toBe(
+      computeDestinationSessionSalt({
+        hcaSessionNonce: value.enableData.hcaSessionNonce,
+        validUntil: BigInt(config.validUntil),
+        resolver: config.resolver,
+        refundToken: config.refundToken,
+      }),
+    )
   })
 
   it('surfaces a tagged SessionEnableError when signing fails', async () => {

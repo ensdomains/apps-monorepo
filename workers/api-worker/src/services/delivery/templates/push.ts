@@ -10,7 +10,6 @@ import {
   type NameExpiryDeliveryContext,
   type NameExpiryRenderOptions,
 } from './name-expiry.js'
-import { buildManagerAppPathUrl, encodeNamePathSegment } from './sanitize.js'
 
 export type PushNotificationData = {
   title: string
@@ -77,16 +76,12 @@ export const pushTemplates: {
     buildNameExpiryPushNotification(payload, {
       managerAppUrl: env.MANAGER_APP_URL,
     }),
-
   'name-transferred': (payload) => ({
     title: 'ENS Name Transferred',
     body: `${payload.name} was transferred to ${payload.to.slice(0, 6)}...${payload.to.slice(-4)}`,
     tag: `transfer-${payload.name}`,
     data: {
-      url: buildManagerAppPathUrl(
-        env.MANAGER_APP_URL,
-        `/${encodeNamePathSegment(payload.name)}`,
-      ),
+      url: `/${payload.name}`,
       name: payload.name,
       txHash: payload.txHash,
     },

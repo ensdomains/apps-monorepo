@@ -1,52 +1,31 @@
 /**
- * Resolver EAC role definitions.
- * Same nybble-packed bitmap format as registry roles, but with
- * resolver-specific meanings at each bit position.
+ * Portal-side presentation of the `PermissionedResolver` role model.
  *
- * Bit positions (manager):
- *   1 << 0   ROLE_SET_ADDR
- *   1 << 4   ROLE_SET_TEXT
- *   1 << 8   ROLE_SET_CONTENTHASH
- *   1 << 12  ROLE_SET_PUBKEY
- *   1 << 16  ROLE_SET_ABI
- *   1 << 20  ROLE_SET_INTERFACE
- *   1 << 24  ROLE_SET_NAME
- *   1 << 28  ROLE_SET_ALIAS
- *   1 << 32  ROLE_CLEAR
- *   1 << 124 ROLE_UPGRADE
- *
- * Admin bits are at position + 128.
+ * The bit layout, the setter-scope resources and the calldata `grantSetterRoles`
+ * takes all live in `@ensdomains/ensjs/utils/v2`; this module only adds what the
+ * UI needs on top: titles and descriptions for the permission list, a readable
+ * label for an EAC resource, and grouping role rows by account and scope.
  */
 
-import { encodePacked, keccak256 } from 'viem'
-import { namehash } from 'viem/ens'
+import {
+  computeResolverResource,
+  decodeResolverRoleBitmap,
+  type ResolverRole,
+  type ResolverSetterScope,
+} from '@ensdomains/ensjs/utils/v2'
+import { toHex } from 'viem'
 
-export const resolverRoles = {
-  ROLE_SET_ADDR: 1n << 0n,
-  ROLE_SET_ADDR_ADMIN: (1n << 0n) << 128n,
-  ROLE_SET_TEXT: 1n << 4n,
-  ROLE_SET_TEXT_ADMIN: (1n << 4n) << 128n,
-  ROLE_SET_CONTENTHASH: 1n << 8n,
-  ROLE_SET_CONTENTHASH_ADMIN: (1n << 8n) << 128n,
-  ROLE_SET_PUBKEY: 1n << 12n,
-  ROLE_SET_PUBKEY_ADMIN: (1n << 12n) << 128n,
-  ROLE_SET_ABI: 1n << 16n,
-  ROLE_SET_ABI_ADMIN: (1n << 16n) << 128n,
-  ROLE_SET_INTERFACE: 1n << 20n,
-  ROLE_SET_INTERFACE_ADMIN: (1n << 20n) << 128n,
-  ROLE_SET_NAME: 1n << 24n,
-  ROLE_SET_NAME_ADMIN: (1n << 24n) << 128n,
-  ROLE_SET_ALIAS: 1n << 28n,
-  ROLE_SET_ALIAS_ADMIN: (1n << 28n) << 128n,
-  ROLE_CLEAR: 1n << 32n,
-  ROLE_CLEAR_ADMIN: (1n << 32n) << 128n,
-  ROLE_UPGRADE: 1n << 124n,
-  ROLE_UPGRADE_ADMIN: (1n << 124n) << 128n,
-} as const
+export {
+  computeResolverResource,
+  decodeResolverRoleBitmap,
+  encodeResolverRoleBitmap,
+  encodeResolverSetterScope,
+  resolverSetterScopeRole,
+} from '@ensdomains/ensjs/utils/v2'
+export type { ResolverRole, ResolverSetterScope }
 
-export type ResolverRoleKey = keyof typeof resolverRoles
-
-type ResolverPermissionKey = Exclude<ResolverRoleKey, `${string}_ADMIN`>
+/** A role a user can be granted from the UI, admin variants excluded. */
+export type ResolverPermissionKey = Exclude<ResolverRole, `${string}_ADMIN`>
 
 type ResolverPermission = {
   key: ResolverPermissionKey
@@ -56,7 +35,7 @@ type ResolverPermission = {
 
 export const resolverPermissions: ResolverPermission[] = [
   {
-    key: 'ROLE_SET_ADDR',
+    key: 'ROLE_SET_ADDRESS',
     title: 'Set Address',
     description: 'Can set address records',
   },
@@ -69,11 +48,6 @@ export const resolverPermissions: ResolverPermission[] = [
     key: 'ROLE_SET_CONTENTHASH',
     title: 'Set Content Hash',
     description: 'Can set content hash records',
-  },
-  {
-    key: 'ROLE_SET_PUBKEY',
-    title: 'Set Pubkey',
-    description: 'Can set public key records',
   },
   {
     key: 'ROLE_SET_ABI',
@@ -91,14 +65,19 @@ export const resolverPermissions: ResolverPermission[] = [
     description: 'Can set reverse name records',
   },
   {
-    key: 'ROLE_SET_ALIAS',
-    title: 'Set Alias',
-    description: 'Can set alias mappings',
+    key: 'ROLE_SET_DATA',
+    title: 'Set Data',
+    description: 'Can set data records',
   },
   {
-    key: 'ROLE_CLEAR',
-    title: 'Clear',
-    description: 'Can clear all versioned records',
+    key: 'ROLE_LINK',
+    title: 'Link',
+    description: 'Can link names to shared records',
+  },
+  {
+    key: 'ROLE_CAN_NAME',
+    title: 'Name Contract',
+    description: 'Can set the contract name of this resolver',
   },
   {
     key: 'ROLE_UPGRADE',
@@ -107,56 +86,123 @@ export const resolverPermissions: ResolverPermission[] = [
   },
 ]
 
-/**
- * Decodes a resolver role bitmap into an array of role names.
- */
-export const decodeResolverRoleBitmap = (
-  bitmap: bigint | string,
-): ResolverRoleKey[] => {
-  const bitmapValue = typeof bitmap === 'string' ? BigInt(bitmap) : bitmap
+/** The EAC resource covering every name on the resolver. */
+export const ROOT_RESOURCE = 0n
+export const ROOT_RESOURCE_LABEL = 'All names'
 
-  const roles: ResolverRoleKey[] = []
-
-  for (const [roleName, roleValue] of Object.entries(resolverRoles)) {
-    if ((bitmapValue & roleValue) !== 0n) {
-      roles.push(roleName as ResolverRoleKey)
-    }
+/** Human label for a setter scope. */
+export const formatSetterScope = (scope: ResolverSetterScope): string => {
+  switch (scope.kind) {
+    case 'address':
+      return `address (coin type ${scope.coinType})`
+    case 'text':
+      return `text "${scope.key}"`
+    case 'data':
+      return `data "${scope.key}"`
+    case 'abi':
+      return `ABI (content type ${scope.contentType})`
+    case 'interface':
+      return `interface ${scope.interfaceId}`
   }
-
-  return roles
 }
 
-const ROOT_RESOURCE =
-  '0x0000000000000000000000000000000000000000000000000000000000000000'
-const ZERO_BYTES32 =
-  '0x0000000000000000000000000000000000000000000000000000000000000000' as const
+/**
+ * Setter arguments common enough to label without the `ResourceArgument` event.
+ * Anything else shows as a truncated resource hash.
+ */
+const KNOWN_TEXT_KEYS = [
+  'avatar',
+  'header',
+  'description',
+  'display',
+  'email',
+  'keywords',
+  'mail',
+  'name',
+  'notice',
+  'location',
+  'phone',
+  'url',
+  'com.github',
+  'com.twitter',
+  'com.discord',
+  'com.reddit',
+  'com.linkedin',
+  'org.telegram',
+  'io.keybase',
+  'eth.ens.delegate',
+] as const
+
+const KNOWN_COIN_TYPES = [0n, 2n, 3n, 60n, 118n, 144n, 145n, 501n, 0x80000000n]
+
+let knownResourceLabels: Map<bigint, string> | undefined
+
+const buildKnownResourceLabels = (): Map<bigint, string> => {
+  const map = new Map<bigint, string>()
+  for (const key of KNOWN_TEXT_KEYS) {
+    const scope: ResolverSetterScope = { kind: 'text', key }
+    map.set(computeResolverResource(scope), formatSetterScope(scope))
+  }
+  for (const coinType of KNOWN_COIN_TYPES) {
+    const scope: ResolverSetterScope = { kind: 'address', coinType }
+    map.set(computeResolverResource(scope), formatSetterScope(scope))
+  }
+  return map
+}
 
 /**
- * Compute the EAC resource ID for a name (with part = 0).
- * Mirrors `PermissionedResolverLib.resource(node, 0)` in Solidity.
+ * A resource preimage the resolver revealed through `ResourceArgument`, as the
+ * indexer decodes it. Labels any scoped grant, not just the well-known keys.
  */
-export const computeNameResource = (name: string): string =>
-  keccak256(
-    encodePacked(['bytes32', 'bytes32'], [namehash(name), ZERO_BYTES32]),
-  )
+export type ResourceArgumentLabel = {
+  readonly resource: string
+  readonly recordKind: string | null
+  readonly recordKey: string | null
+  readonly coinType: string | null
+}
 
-/**
- * Build a lookup map from resource hash → node name using the resolver's
- * node list. ROOT_RESOURCE maps to '(root)'.
- */
-export const buildResourceToNameMap = (
-  nodes: readonly { readonly name: string }[],
-): Map<string, string> => {
-  const map = new Map<string, string>()
-  map.set(ROOT_RESOURCE, '(root)')
+/** The label for one revealed preimage, or null when it carries no argument. */
+const labelForNamedResource = (entry: ResourceArgumentLabel): string | null => {
+  if (entry.recordKind === 'addr')
+    return entry.coinType ? `address (coin type ${entry.coinType})` : null
+  if (!entry.recordKey) return null
+  return `${entry.recordKind ?? 'record'} "${entry.recordKey}"`
+}
 
-  for (const node of nodes) {
-    if (node.name) {
-      map.set(computeNameResource(node.name).toLowerCase(), node.name)
+/** Build a resource -> label lookup from the indexer's revealed preimages. */
+export const buildResourceLabels = (
+  named: readonly ResourceArgumentLabel[],
+): Map<bigint, string> => {
+  const map = new Map<bigint, string>()
+  for (const entry of named) {
+    const label = labelForNamedResource(entry)
+    if (!label) continue
+    try {
+      map.set(BigInt(entry.resource), label)
+    } catch {
+      // A resource the indexer could not normalise; fall back to the hash.
     }
   }
-
   return map
+}
+
+/**
+ * Label for an EAC resource: root, a revealed setter argument, a well-known
+ * one, or its truncated hash.
+ */
+export const describeResolverResource = (
+  resource: bigint | string,
+  revealed?: ReadonlyMap<bigint, string>,
+): string => {
+  const value = typeof resource === 'string' ? BigInt(resource) : resource
+  if (value === ROOT_RESOURCE) return ROOT_RESOURCE_LABEL
+  const fromChain = revealed?.get(value)
+  if (fromChain) return fromChain
+  knownResourceLabels ??= buildKnownResourceLabels()
+  const known = knownResourceLabels.get(value)
+  if (known) return known
+  const hex = toHex(value, { size: 32 })
+  return `resource ${hex.slice(0, 10)}…${hex.slice(-4)}`
 }
 
 type RoleInput = {
@@ -167,47 +213,61 @@ type RoleInput = {
 
 export type AccountRoleGroup<T extends RoleInput = RoleInput> = {
   readonly account: string
-  readonly resolvedNames: readonly string[]
+  /** EAC resource the roles are held on, as a decimal string. */
+  readonly resource: string
+  readonly isRoot: boolean
+  readonly resourceLabel: string
   readonly roles: readonly T[]
-  readonly decodedRoles: readonly string[]
+  readonly decodedRoles: readonly ResolverRole[]
 }
 
 /**
- * Groups resolver roles by account, decodes bitmaps, and resolves
- * resource hashes to human-readable names when possible.
+ * Null when the indexer hands back a resource we cannot parse. Coercing it to
+ * `ROOT_RESOURCE` would merge the row into the account's root grant, and
+ * revoking from that row would then target root roles.
+ */
+const normalizeResource = (resource: string): bigint | null => {
+  try {
+    return BigInt(resource)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Groups resolver roles by account and resource. One row per grant scope,
+ * because a root grant and an argument grant on the same account are managed
+ * with different calls.
  */
 export const groupRolesByAccount = <T extends RoleInput>(
   roles: readonly T[],
-  resourceToName?: Map<string, string>,
+  revealed?: ReadonlyMap<bigint, string>,
 ): AccountRoleGroup<T>[] => {
   const grouped = new Map<
     string,
     {
       account: string
-      resolvedNames: Set<string>
+      resource: bigint
       roles: T[]
-      decodedRoles: string[]
+      decodedRoles: ResolverRole[]
     }
   >()
 
   for (const role of roles) {
     const account = role.account.toLowerCase()
-    const resource = role.resource.toLowerCase()
-    const decoded = decodeResolverRoleBitmap(role.roleBitmap)
-    const resolvedName = resourceToName?.get(resource) ?? null
+    const resource = normalizeResource(role.resource)
+    if (resource === null) continue
+    const decoded = decodeResolverRoleBitmap(BigInt(role.roleBitmap))
+    const groupKey = `${account}:${resource}`
 
-    const existing = grouped.get(account)
-
+    const existing = grouped.get(groupKey)
     if (existing) {
       existing.roles.push(role)
       existing.decodedRoles.push(...decoded)
-      if (resolvedName) existing.resolvedNames.add(resolvedName)
     } else {
-      const names = new Set<string>()
-      if (resolvedName) names.add(resolvedName)
-      grouped.set(account, {
+      grouped.set(groupKey, {
         account,
-        resolvedNames: names,
+        resource,
         roles: [role],
         decodedRoles: [...decoded],
       })
@@ -215,7 +275,69 @@ export const groupRolesByAccount = <T extends RoleInput>(
   }
 
   return Array.from(grouped.values()).map((g) => ({
-    ...g,
-    resolvedNames: Array.from(g.resolvedNames),
+    account: g.account,
+    resource: g.resource.toString(),
+    isRoot: g.resource === ROOT_RESOURCE,
+    resourceLabel: describeResolverResource(g.resource, revealed),
+    roles: g.roles,
+    decodedRoles: g.decodedRoles,
   }))
+}
+
+/**
+ * Stable identity of a grouped row: one account on one resource. Table rows,
+ * the open editor and its draft all key on this, never on a row's position.
+ */
+export const resolverRoleGroupId = ({
+  account,
+  resource,
+}: Pick<AccountRoleGroup, 'account' | 'resource'>): string =>
+  `${account.toLowerCase()}:${resource}`
+
+/** One revoke call: every role `account` holds on one resource. */
+export type ResolverRevocation = {
+  readonly resource: bigint
+  readonly resourceLabel: string
+  readonly roles: readonly ResolverRole[]
+}
+
+/**
+ * What "Remove user" has to send to take every role away from `account`: one
+ * revocation per resource it holds, root included. `unreadable` when one of
+ * its grants has a resource we can't parse, since no revoke could name it and
+ * the removal would leave that grant behind.
+ */
+export type AccountRemovalPlan =
+  | {
+      readonly type: 'complete'
+      readonly revocations: readonly ResolverRevocation[]
+    }
+  | { readonly type: 'unreadable' }
+
+export const planAccountRemoval = <T extends RoleInput>(
+  roles: readonly T[],
+  account: string,
+  revealed?: ReadonlyMap<bigint, string>,
+): AccountRemovalPlan => {
+  const target = account.toLowerCase()
+  const held = roles.filter((role) => role.account.toLowerCase() === target)
+
+  if (held.some((role) => normalizeResource(role.resource) === null))
+    return { type: 'unreadable' }
+
+  const revocations = groupRolesByAccount(held, revealed)
+    .filter((group) => group.decodedRoles.length > 0)
+    .map((group) => ({
+      resource: BigInt(group.resource),
+      resourceLabel: group.resourceLabel,
+      roles: group.decodedRoles,
+    }))
+    // Root first, so the widest grant is the first one taken away.
+    .toSorted(
+      (a, b) =>
+        Number(b.resource === ROOT_RESOURCE) -
+        Number(a.resource === ROOT_RESOURCE),
+    )
+
+  return { type: 'complete', revocations }
 }

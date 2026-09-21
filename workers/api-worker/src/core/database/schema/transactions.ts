@@ -15,9 +15,8 @@ import {
 import { users } from './core'
 
 /**
- * Stored payload shape. Structurally a `Record<string, unknown>` (matching the
- * shared `TransactionPayloadSchema` wire type) with the common display fields
- * named for convenience at the DB layer.
+ * Stored payload shape. Matches the shared `TransactionPayloadSchema` wire
+ * type (`to`, `value`, `error`). Extra keys may exist on historical rows.
  */
 export interface TransactionPayload {
   to?: string

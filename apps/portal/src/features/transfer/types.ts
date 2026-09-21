@@ -56,6 +56,26 @@ export type V1TransferSubject =
 
 export type TransferSubject = V2Subject | V1TransferSubject
 
+/**
+ * How a V1 subname's parent node is held: who can `setSubnodeOwner` the
+ * subname from above, and whether the wrapper would let them.
+ */
+export type V1ParentState = {
+  /** Wrapper owner when wrapped, else registry owner. Null once a lapsed emancipated parent is cleared. */
+  readonly owner: Address | null
+  /** Unwrapped `.eth` 2LD parent only: the 721 holder, who can `reclaim` and then act as `owner`. */
+  readonly registrant: Address | null
+  readonly isWrapped: boolean
+  /** Wrapped parent only. Burned, it can't re-issue a lapsed emancipated subname — until its own expiry clears the fuse. */
+  readonly cannotCreateSubdomain: boolean
+}
+
+/**
+ * Who is moving a V1 name: its holder, or its parent's holder via
+ * `setSubnodeOwner` (overriding the current holder, as the legacy app allows).
+ */
+export type V1TransferActor = 'owner' | 'parent'
+
 export type TransferOptionKey =
   | 'setEthAddress'
   | 'detachResolver'

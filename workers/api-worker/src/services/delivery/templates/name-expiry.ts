@@ -10,11 +10,7 @@ import {
   getNameLifecycleState,
   type NameLifecycleState,
 } from '@ens-apps/utils/gracePeriod'
-import {
-  buildManagerAppPathUrl,
-  encodeNamePathSegment,
-  normalizeNotificationName,
-} from './sanitize.js'
+import { encodeNamePathSegment, normalizeNotificationName } from './sanitize.js'
 
 export type NameExpiryPayload = PersonalNotificationPayloads['name-expiry']
 
@@ -74,14 +70,8 @@ export const buildNameExpiryDeliveryContext = (
     graceEndDate,
     daysUntilExpiry: daysUntilDate(expiryDate, now),
     daysUntilGraceEnd: daysUntilDate(graceEndDate, now),
-    renewUrl: buildManagerAppPathUrl(
-      options.managerAppUrl,
-      `/renew/${nameSegment}`,
-    ),
-    registerUrl: buildManagerAppPathUrl(
-      options.managerAppUrl,
-      `/register/${nameSegment}`,
-    ),
+    renewUrl: `/renew/${nameSegment}`,
+    registerUrl: `/register/${nameSegment}`,
   }
 }
 

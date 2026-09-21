@@ -22,6 +22,7 @@ import {
   proxyDeployedEventSnippet,
   verifiableFactoryDeployProxySnippet,
 } from '@ensdomains/ensjs-abi/v2'
+import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import {
   type Address,
   createWalletClient,
@@ -42,8 +43,6 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
-// ensjs-abi still ships the 2-arg initializer; see the local override.
-import { subregistryInitializeSnippet } from '../helpers/permissioned-resolver-abi.js'
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
@@ -377,9 +376,9 @@ async function deployResolverProxy(
     keccak256(stringToBytes(`${nameLabel}:${new Date().toISOString()}`)),
   )
   const initCalldata = encodeFunctionData({
-    abi: subregistryInitializeSnippet,
+    abi: permissionedResolverInitializeSnippet,
     functionName: 'initialize',
-    args: [owner, FULL_ROLE_BITMAP, []],
+    args: [[{ account: owner, roleBitmap: FULL_ROLE_BITMAP }], []],
   })
   const deployData = encodeFunctionData({
     abi: verifiableFactoryDeployProxySnippet,

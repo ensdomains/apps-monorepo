@@ -1,5 +1,5 @@
+import type { L2ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
 import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
-import type { L2ReverseRegistrarChainId } from './networks'
 
 export type AddressResolutionRow = {
   /** ENSIP-11 / SLIP-44 coin type the address record is keyed on. */
@@ -14,6 +14,11 @@ export type AddressResolutionRow = {
   l2ChainId?: L2ReverseRegistrarChainId
   /** Resolved address for this network (chain-specific record, else the default). */
   address: string | null
+  /**
+   * Where {@link address} came from: this network's own `addr(coinType)`
+   * record, the ENSIP-19 default (`0x80000000`), or nothing.
+   */
+  addressSource: 'record' | 'default' | null
   /**
    * Verification state of the reverse half for this network (see
    * {@link ReverseMatchStatus}). `null` when there's no address to check;

@@ -24,8 +24,3 @@ export const escapeHtml = (value: string): string =>
 
 export const encodeNamePathSegment = (name: string): string =>
   encodeURIComponent(normalizeNotificationName(name))
-
-export const buildManagerAppPathUrl = (
-  managerAppUrl: string,
-  pathname: string,
-): string => new URL(pathname, managerAppUrl).toString()

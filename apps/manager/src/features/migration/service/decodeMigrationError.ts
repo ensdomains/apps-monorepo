@@ -9,6 +9,7 @@ export type MigrationError =
   | { type: 'generic'; message: string }
   | { type: 'plan-changed' }
   | { type: 'retry-blocked' }
+  | { type: 'subregistry-conflict' }
   | { type: 'cleanup-failed' }
   | {
       type: 'profile-fetch-failed'
@@ -27,6 +28,7 @@ export type MigrationError =
   | { type: 'frozen-token-approval'; tokenId: bigint }
   | { type: 'invalid-data' }
   | { type: 'name-requires-migration' }
+  | { type: 'parent-not-upgraded' }
 
 export const extractErrorMessage = (err: unknown): string => {
   if (!(err instanceof Error)) return String(err)
@@ -43,7 +45,7 @@ export const extractErrorMessage = (err: unknown): string => {
   if (typeof short === 'string') return short
   if (deepest !== err && deepest.message) return deepest.message
 
-  return err.message || 'Migration failed'
+  return err.message || "Upgrade didn't finish"
 }
 
 const walkCauseChain = (err: unknown): Error[] => {
@@ -79,6 +81,9 @@ const findTimeoutError = (
 
 const hasNamedError = (err: unknown, name: string): boolean =>
   walkCauseChain(err).some((error) => error.name === name)
+
+const findNamedError = (err: unknown, name: string): Error | undefined =>
+  walkCauseChain(err).find((error) => error.name === name)
 
 const asHexData = (value: unknown): Hex | null =>
   typeof value === 'string' && value.startsWith('0x') ? (value as Hex) : null
@@ -136,8 +141,7 @@ const tryDecodeMigrationExecutionError = (data: Hex): MigrationError | null => {
         }
       case 'ParentNotMigrated':
         return {
-          type: 'generic',
-          message: 'A parent name must migrate before its child names.',
+          type: 'parent-not-upgraded',
         }
       case 'ERC721InsufficientApproval':
         return {
@@ -317,6 +321,16 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
     ].some((name) => hasNamedError(err, name))
   ) {
     return { type: 'retry-blocked' }
+  }
+
+  // Refused rather than failed: a selected name already points at a live child
+  // registry, so migrating it would detach that registry (WEB-1249).
+  const invariant = findNamedError(err, 'MigrationContractInvariantError')
+  if (
+    (invariant as { invariant?: string } | undefined)?.invariant ===
+    'live-subregistry-overwrite'
+  ) {
+    return { type: 'subregistry-conflict' }
   }
 
   const timeout = findTimeoutError(err)

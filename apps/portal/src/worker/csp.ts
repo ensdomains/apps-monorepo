@@ -85,7 +85,13 @@ const DEFAULT_CONNECT_HOSTS = [
   // NOTE: PostHog's script bundle is allowed separately via SCRIPT_HOSTS, which
   // stays an exact host — script-src must not use a wildcard.
   'https://*.ens.domains',
-  // DNS-over-HTTPS resolver — packages/utils/src/dnssec.ts
+  // DNS-over-HTTPS resolver. ensjs's `getDnsTxtRecords` (used by
+  // packages/utils/src/dnssec.ts and the DNS import flow's getDnsOwner /
+  // getDnsOffchainData) and dnsprovejs's proof queries all default to
+  // cloudflare-dns.com — 1.1.1.1 is the same service but CSP matches by
+  // host, so both must be listed or every DNS check fails closed (the name
+  // page then shows "Invalid TLD" for perfectly valid DNS names).
+  'https://cloudflare-dns.com',
   'https://1.1.1.1',
   // Etherscan API — proxy-contract verification fetch in
   // src/utils/blockExplorer/verifyProxyContract.ts (resolver/registry deploy).

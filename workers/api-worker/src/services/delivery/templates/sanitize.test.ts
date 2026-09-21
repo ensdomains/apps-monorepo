@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildManagerAppPathUrl,
   encodeNamePathSegment,
   escapeHtml,
   normalizeNotificationName,
@@ -21,14 +20,5 @@ describe('notification name sanitization', () => {
   it('encodes path traversal and reserved URL characters', () => {
     expect(encodeNamePathSegment('../alice.eth')).toBe('..%2Falice.eth')
     expect(encodeNamePathSegment('foo bar.eth')).toBe('foo%20bar.eth')
-  })
-
-  it('builds manager app URLs from the configured origin', () => {
-    expect(
-      buildManagerAppPathUrl(
-        'https://app.ens.dev',
-        `/renew/${encodeNamePathSegment('alice.eth')}`,
-      ),
-    ).toBe('https://app.ens.dev/renew/alice.eth')
   })
 })

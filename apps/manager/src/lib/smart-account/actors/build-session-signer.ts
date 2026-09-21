@@ -6,10 +6,12 @@
  * persisted scalar fields via `rebuildDestinationSession` — the salt is
  * recomputed so the on-chain `permissionId` matches, and the ephemeral session
  * key is re-derived from its private key. The warp transport then signs Intents
- * with `signers: { type: 'experimental_session', session, ... }`.
+ * with `signers: { type: 'experimental_session', session, enableData, ... }`;
+ * the stateless validator rejects any session signature without `enableData`.
  */
 
 import {
+  buildHcaSessionEnablePayload,
   type RhinestoneStoredSession,
   rebuildDestinationSession,
 } from '@ens-apps/smart-account'
@@ -29,5 +31,8 @@ export function buildSessionContext(params: {
     validUntil: BigInt(params.session.validUntil),
     sessionPrivateKey: params.session.sessionPrivateKey,
   })
-  return { session }
+  return {
+    session,
+    enableData: buildHcaSessionEnablePayload(params.session).enableData,
+  }
 }

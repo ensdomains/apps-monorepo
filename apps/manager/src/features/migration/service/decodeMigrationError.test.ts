@@ -35,7 +35,7 @@ describe('extractErrorMessage', () => {
     [null, 'null'],
     [undefined, 'undefined'],
     [new Error('boom'), 'boom'],
-    [new Error(''), 'Migration failed'],
+    [new Error(''), "Upgrade didn't finish"],
   ])('%s → %s', (input, expected) => {
     expect(extractErrorMessage(input)).toBe(expected)
   })
@@ -94,6 +94,30 @@ describe('decodeMigrationError — direct mappings', () => {
 
     expect(decodeMigrationError(uncertain)).toEqual({
       type: 'retry-blocked',
+    })
+  })
+
+  it('maps a live-subregistry refusal to its own state, not a generic failure', () => {
+    const invariant = Object.assign(new Error(''), {
+      name: 'MigrationContractInvariantError',
+      invariant: 'live-subregistry-overwrite',
+    })
+    const outer = new Error('migration failed', { cause: invariant })
+
+    expect(decodeMigrationError(outer)).toEqual({
+      type: 'subregistry-conflict',
+    })
+  })
+
+  it('leaves other contract invariants generic', () => {
+    const invariant = Object.assign(new Error('missing code'), {
+      name: 'MigrationContractInvariantError',
+      invariant: 'missing-code',
+    })
+
+    expect(decodeMigrationError(invariant)).toEqual({
+      type: 'generic',
+      message: 'missing code',
     })
   })
 
@@ -294,8 +318,7 @@ describe('decodeMigrationError — helper, HCA, and token reverts', () => {
       args: ['0x06706172656e740365746800'],
     })
     expect(decodeMigrationError(revertWith(data))).toEqual({
-      type: 'generic',
-      message: 'A parent name must migrate before its child names.',
+      type: 'parent-not-upgraded',
     })
   })
 

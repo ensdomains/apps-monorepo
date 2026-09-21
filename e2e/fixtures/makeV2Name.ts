@@ -19,14 +19,15 @@
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { setRecords } from '@ensdomains/ensjs/wallet/v1'
+import { setRecords } from '@ensdomains/ensjs/wallet/v2'
 
 import {
   permissionedRegistryGetExpirySnippet,
-  permissionedResolverAuthorizeNameRolesSnippet,
+  permissionedResolverGrantRootRolesSnippet,
   proxyDeployedEventSnippet,
   verifiableFactoryDeployProxySnippet,
 } from '@ensdomains/ensjs-abi/v2'
+import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import {
   type Address,
   createWalletClient,
@@ -48,8 +49,6 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
-// ensjs-abi still ships the 2-arg initializer; see the local override.
-import { subregistryInitializeSnippet } from '../helpers/permissioned-resolver-abi.js'
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
@@ -101,7 +100,8 @@ const FULL_ROLE_BITMAP = BigInt(
  * A VerifiableFactory CREATE2 proxy, so it is derived from the whole account
  * config — factory, implementation, verifiable factory, proxy logic and
  * userSalt(0). It therefore MOVES whenever any of those change in the manifest;
- * it last changed with the 2026-08-10 redeploy (contracts-v2 #409).
+ * it last changed with the 2026-09-15 redeploy, and matches what
+ * `StandaloneHCAFactory.deploy(owner, impl, 0)` returns on Sepolia.
  *
  * Hardcoded for the same reason as the addresses in
  * `infra/scripts/print-standalone-hca-addresses.mjs`: the derivation lives in
@@ -109,7 +109,7 @@ const FULL_ROLE_BITMAP = BigInt(
  * dependency. `infra/scripts/fund-rhinestone-account.sh` funds this very
  * address for mockestrator impersonation gas — keep the two in sync.
  */
-const STANDALONE_HCA = '0x48B9c6898baFc8A3D3a495BF7c44CF3351486628' as Address
+const STANDALONE_HCA = '0x44c793a91362ca416E5d18dECe728D82883e8696' as Address
 
 /** Anvil's first default account (has 10 000 ETH — used for minting & funding). */
 const ANVIL_FUNDER = privateKeyToAccount(
@@ -232,10 +232,10 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
     const resolverAddress = await deployResolverProxy(uniqueLabel, ownerAddress)
     console.log(`[makeV2Name] resolver proxy: ${resolverAddress}`)
 
-    // Mirror the grant the app's own registration performs. There, the resolver
-    // is initialized with the HCA as admin (`initialize(hca, ROLES_ALL, [])`)
-    // and the wallet is granted roles afterwards; here the EOA is admin, so we
-    // grant the HCA instead. Either way BOTH end up holding the root roles.
+    // Mirror the grants the app's own registration performs. There, the
+    // resolver is initialized with both the HCA and the wallet holding the
+    // root roles; here the EOA is admin, so we grant the HCA afterwards.
+    // Either way BOTH end up holding the root roles.
     //
     // Without it, record edits — which execute AS the HCA, since the manager
     // signs them with the smart account — revert:
@@ -432,17 +432,18 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
  * Grant the connected wallet's standalone HCA the root roles on `resolver`.
  *
  * Sent by `admin`, the account `initialize` made resolver admin, so it is the
- * one allowed to hand out roles. `toName` is `0x00` — the resolver's own root
- * resource — matching `authorizeNameRoles` in the app's registration batch.
+ * one allowed to hand out roles. The V2 resolver scopes roles to its root
+ * resource or to one setter argument, never to a name, so this is
+ * `grantRootRoles` — `authorizeNameRoles` is gone and reverts with empty data.
  */
 async function authorizeHcaOnResolver(
   resolver: Address,
   admin: LocalAccount,
 ): Promise<void> {
   const data = encodeFunctionData({
-    abi: permissionedResolverAuthorizeNameRolesSnippet,
-    functionName: 'authorizeNameRoles',
-    args: ['0x00', FULL_ROLE_BITMAP, STANDALONE_HCA, true],
+    abi: permissionedResolverGrantRootRolesSnippet,
+    functionName: 'grantRootRoles',
+    args: [FULL_ROLE_BITMAP, STANDALONE_HCA],
   })
 
   const tx = await walletClient.sendTransaction({
@@ -459,9 +460,9 @@ async function deployResolverProxy(
 ): Promise<Address> {
   const salt = generateResolverSalt(nameLabel)
   const initCalldata = encodeFunctionData({
-    abi: subregistryInitializeSnippet,
+    abi: permissionedResolverInitializeSnippet,
     functionName: 'initialize',
-    args: [owner, FULL_ROLE_BITMAP, []],
+    args: [[{ account: owner, roleBitmap: FULL_ROLE_BITMAP }], []],
   })
 
   const deployData = encodeFunctionData({

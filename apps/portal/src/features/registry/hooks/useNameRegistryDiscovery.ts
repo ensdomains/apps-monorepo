@@ -46,7 +46,7 @@ class NameRegistriesError extends TaggedError('NameRegistriesError')<{
 }> {}
 
 /**
- * Discovers which registries a name exists on using the UniversalResolver V2.
+ * Discovers which registries a name exists on using the UniversalHelper.
  *
  * Should only be called for V2 names. V1 names don't have subregistries and
  * `findRegistries` returns identical (and meaningless) results for them, so
@@ -77,4 +77,10 @@ export const getNameRegistriesQueryOptions = (
   resultQueryOptions({
     queryKey: nameRegistriesQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getNameRegistries(params),
+    // Opts out of the app-wide one-hour staleTime (see utils/queryClient).
+    // This result decides whether a name is shown as having no registry, which
+    // gates the deploy-and-point flow — an hour-old "no registry" answer offers
+    // to replace a registry that has since been configured, detaching it and
+    // its subnames (WEB-1249).
+    staleTime: 0,
   })

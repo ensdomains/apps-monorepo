@@ -1,11 +1,14 @@
 import { UpsertTransactionSchema } from '@ens-apps/shared-schema/transactions'
 import { vValidator } from '@hono/valibot-validator'
 import { desc, eq } from 'drizzle-orm'
+import { bodyLimit } from 'hono/body-limit'
 import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { logger } from '#utils/logger.js'
+
+const MAX_TRANSACTION_BODY_BYTES = 32 * 1024
 
 /**
  * Per-user transaction history routes.
@@ -27,6 +30,10 @@ export default createApp()
   })
   .post(
     '/',
+    bodyLimit({
+      maxSize: MAX_TRANSACTION_BODY_BYTES,
+      onError: (c) => c.json({ error: 'payload too large' }, 413),
+    }),
     ...requireAuth,
     injectDb,
     vValidator('json', UpsertTransactionSchema),

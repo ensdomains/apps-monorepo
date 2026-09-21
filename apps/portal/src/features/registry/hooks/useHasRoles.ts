@@ -26,23 +26,22 @@ type RegistryRootRolesParameters = {
   readonly account: Address
 }
 
-type ResolverRootRolesParameters = {
-  readonly resolverAddress: Address
-  readonly roles: ResolverRole[]
-  readonly account: Address
-}
-
+/**
+ * Resolver roles are held on the root resource (every name) or on one setter
+ * argument's resource; there is no per-name scope. Omit `resource` for root;
+ * pass `computeResolverResource(scope)` to check one argument, which the
+ * contract ORs with the caller's root roles.
+ */
 type ResolverRolesParameters = {
   readonly resolverAddress: Address
-  readonly resource: bigint
-  readonly roles: ResolverRole[]
+  readonly resource?: bigint
+  readonly roles: readonly ResolverRole[]
   readonly account: Address
 }
 
 type GetHasRolesParameters =
   | RegistryRolesParameters
   | RegistryRootRolesParameters
-  | ResolverRootRolesParameters
   | ResolverRolesParameters
 
 const getHasRoles = ResultFn(async function* (params: GetHasRolesParameters) {

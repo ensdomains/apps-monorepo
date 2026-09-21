@@ -1,4 +1,3 @@
-import { createIsomorphicFn } from '@tanstack/react-start'
 import {
   createStore,
   type EventObject,
@@ -8,9 +7,24 @@ import {
   type StoreExtension,
   type StoreSnapshot,
 } from '@xstate/store-react'
+import * as v from 'valibot'
 
-export type PersistedStoreOptions = {
-  key: string
+export type PersistedContextSchema<TContext> = v.GenericSchema<
+  unknown,
+  TContext
+>
+
+export type PersistedStoreOptions<TContext> = {
+  readonly key: string
+  readonly schema: PersistedContextSchema<NoInfer<TContext>>
+}
+
+const getDefaultStorage = (): Storage | undefined => {
+  try {
+    return typeof localStorage === 'undefined' ? undefined : localStorage
+  } catch {
+    return undefined
+  }
 }
 
 export const createPersistedStore = <
@@ -20,13 +34,23 @@ export const createPersistedStore = <
   TEmitted extends EventPayloadMap,
 >(
   { context, ...rest }: StoreConfig<TContext, TEventPayloadMap, TEmitted>,
-  { key }: PersistedStoreOptions,
+  { key, schema }: PersistedStoreOptions<TContext>,
 ) => {
-  const persistedContext =
-    typeof window === 'undefined' ? undefined : localStorage.getItem(key)
-  const initialContext = persistedContext
-    ? (JSON.parse(persistedContext) as TContext)
-    : context
+  const storage = getDefaultStorage()
+  const raw = storage?.getItem(key)
+  const hydratedContext = parsePersistedContext({
+    key,
+    raw,
+    schema,
+  })
+  const initialContext = hydratedContext ?? context
+
+  if (hydratedContext && storage) {
+    const next = JSON.stringify(hydratedContext)
+    if (next !== raw) {
+      storage.setItem(key, next)
+    }
+  }
 
   const store = createStore({
     context: initialContext,
@@ -34,69 +58,101 @@ export const createPersistedStore = <
   })
 
   store.subscribe((snapshot) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(key, JSON.stringify(snapshot.context))
-    }
+    storage?.setItem(key, JSON.stringify(snapshot.context))
   })
 
   return store
 }
 
-type PersistOptions = {
-  /** The local storage key to use for persisting the store. */
-  name: string
-  /** Custom serializer for storing/retrieving data from localStorage */
-  serde?: {
-    serialize: (value: unknown) => string
-    deserialize: (value: string) => unknown
+type PersistOptions<TContext extends StoreContext> = {
+  readonly name: string
+  readonly schema: PersistedContextSchema<NoInfer<TContext>>
+  readonly serde?: {
+    readonly serialize: (value: unknown) => string
+    readonly deserialize: (value: string) => unknown
   }
-  /** Custom storage */
-  storage?: Storage
+  readonly storage?: Storage
 }
 
-const getDefaultStorage = createIsomorphicFn()
-  .client(() => localStorage)
-  .server(() => undefined)
-
-// Default serializer using JSON
 const DEFAULT_SERDE = {
   serialize: JSON.stringify,
   deserialize: JSON.parse,
 }
 
-// Load persisted state from localStorage
-function loadPersistedState<TContext extends StoreContext>(
+const validatePersistedContext = <TContext>(
   key: string,
-  storage: Storage,
-  serde: PersistOptions['serde'],
-  fallbackContext: TContext,
-): TContext {
+  context: unknown,
+  schema: PersistedContextSchema<TContext>,
+): TContext | undefined => {
+  const result = v.safeParse(schema, context)
+  if (!result.success) {
+    console.warn(`Persisted state for key "${key}" failed schema validation`)
+    return undefined
+  }
+
+  return result.output
+}
+
+const parsePersistedContext = <TContext>({
+  key,
+  raw,
+  schema,
+}: {
+  readonly key: string
+  readonly raw: string | undefined | null
+  readonly schema: PersistedContextSchema<TContext>
+}): TContext | undefined => {
+  if (!raw) return undefined
+
   try {
-    const serialized = storage.getItem(key)
-    if (!serialized) {
-      return fallbackContext
-    }
-
-    const { deserialize } = serde || DEFAULT_SERDE
-    const persisted = deserialize(serialized)
-
-    // Validate that the persisted data has the expected structure
-    if (persisted && typeof persisted === 'object' && 'context' in persisted) {
-      return (persisted as { context: TContext }).context
-    }
-
-    return fallbackContext
+    return validatePersistedContext(key, DEFAULT_SERDE.deserialize(raw), schema)
   } catch (error) {
     console.warn(`Failed to load persisted state for key "${key}":`, error)
-    return fallbackContext
+    return undefined
   }
 }
 
-// Save state to localStorage
+const getSnapshotContext = (persisted: unknown): unknown => {
+  if (
+    !persisted ||
+    typeof persisted !== 'object' ||
+    !('context' in persisted)
+  ) {
+    return undefined
+  }
+
+  return persisted.context
+}
+
+function loadPersistedState<TContext extends StoreContext>(
+  key: string,
+  storage: Storage,
+  serde: PersistOptions<TContext>['serde'],
+  schema: PersistedContextSchema<TContext>,
+): TContext | undefined {
+  try {
+    const serialized = storage.getItem(key)
+    if (!serialized) {
+      return undefined
+    }
+
+    const { deserialize } = serde || DEFAULT_SERDE
+    const context = getSnapshotContext(deserialize(serialized))
+    if (context === undefined) {
+      return undefined
+    }
+
+    return validatePersistedContext(key, context, schema)
+  } catch (error) {
+    console.warn(`Failed to load persisted state for key "${key}":`, error)
+    return undefined
+  }
+}
+
 function savePersistedState<TContext extends StoreContext>(
   key: string,
   snapshot: StoreSnapshot<TContext>,
-  serde: PersistOptions['serde'],
+  serde: PersistOptions<TContext>['serde'],
   storage: Storage,
 ): void {
   try {
@@ -119,7 +175,7 @@ function savePersistedState<TContext extends StoreContext>(
  *   on: {
  *     inc: (ctx) => ({ count: ctx.count + 1 })
  *   }
- * }).with(persist({ name: 'my-store-key' }));
+ * }).with(persist({ name: 'my-store-key', schema: v.object({ count: v.number() }) }));
  * ```
  *
  * @example
@@ -128,7 +184,7 @@ function savePersistedState<TContext extends StoreContext>(
  * const store = createStore({
  *   context: { foo: 'bar' },
  *   on: { update: (ctx, e) => ({ foo: e.value }) }
- * }).with(persist({ name: 'example-session', storage: window.sessionStorage }));
+ * }).with(persist({ name: 'example-session', schema: v.object({ foo: v.string() }), storage: window.sessionStorage }));
  * ```
  *
  * @example
@@ -142,7 +198,7 @@ function savePersistedState<TContext extends StoreContext>(
  * const store = createStore({
  *   context: { foo: 'bar' },
  *   on: { update: (ctx, e) => ({ foo: e.value }) }
- * }).with(persist({ name: 'encoded-store', serde: customSerde }));
+ * }).with(persist({ name: 'encoded-store', schema: v.object({ foo: v.string() }), serde: customSerde }));
  * ```
  *
  * @param options PersistOptions for customizing storage, serialization, and key.
@@ -153,7 +209,7 @@ export const persist = <
   TEventPayloadMap extends EventPayloadMap,
   TEmitted extends EventObject,
 >(
-  options: PersistOptions,
+  options: PersistOptions<TContext>,
 ): StoreExtension<
   TContext,
   TEventPayloadMap,
@@ -168,16 +224,22 @@ export const persist = <
     return {
       getInitialSnapshot() {
         const initialSnapshot = logic.getInitialSnapshot()
-
-        return {
+        const hydratedContext = loadPersistedState(
+          options.name,
+          storage,
+          options.serde,
+          options.schema,
+        )
+        const nextSnapshot = {
           ...initialSnapshot,
-          context: loadPersistedState(
-            options.name,
-            storage,
-            options.serde,
-            initialSnapshot.context,
-          ),
+          context: hydratedContext ?? initialSnapshot.context,
         }
+
+        if (hydratedContext) {
+          savePersistedState(options.name, nextSnapshot, options.serde, storage)
+        }
+
+        return nextSnapshot
       },
       transition(snapshot, event) {
         const [nextState, effects] = logic.transition(snapshot, event)

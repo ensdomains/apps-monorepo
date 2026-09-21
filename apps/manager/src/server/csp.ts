@@ -11,10 +11,7 @@
 
 import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
 import { ensL1Subgraphs } from '@ensdomains/ensjs/chain'
-import {
-  DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN,
-  DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
-} from '@/features/migration/commemorative-nft/config'
+import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
 
 /**
  * Extract the `scheme://host[:port]` origin from a build-time env URL so it can
@@ -41,13 +38,8 @@ const DQA_ORIGIN =
       'http://localhost:4000')
     : null
 
-const COMMEMORATIVE_RENDERER_ORIGIN =
-  originFromEnvUrl(import.meta.env?.VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN) ??
-  DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN
-
-const COMMEMORATIVE_ASSET_ORIGIN =
-  originFromEnvUrl(import.meta.env?.VITE_COMMEMORATIVE_NFT_ASSET_ORIGIN) ??
-  DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN
+const COMMEMORATIVE_RENDERER_ORIGIN = getCommemorativeNftConfig().rendererOrigin
+const COMMEMORATIVE_ASSET_ORIGIN = getCommemorativeNftConfig().assetOrigin
 
 // Deployment-specific override origins, derived from the same build-time envs
 // the RPC / indexer / Rhinestone / NFT clients read.

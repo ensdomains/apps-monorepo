@@ -13,6 +13,7 @@ import { RegistryAddUserSheet } from '@/features/registry/components/v2/Registry
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
+import { RoleContractGate } from '@/features/roles/components/RoleContractGate'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Route = createFileRoute('/registry/$address/roles')({
@@ -21,8 +22,19 @@ export const Route = createFileRoute('/registry/$address/roles')({
 })
 
 function RouteComponent() {
-  const { address: addressParam } = Route.useParams()
-  const address = addressParam as Address
+  const { address } = Route.useParams()
+
+  // The indexer lists any address that appeared in `SubregistryUpdated` as a
+  // registry, so confirm on-chain that this is one before offering the
+  // registry role schema.
+  return (
+    <RoleContractGate address={address as Address} expected="registry">
+      <RegistryRoles address={address as Address} />
+    </RoleContractGate>
+  )
+}
+
+const RegistryRoles = ({ address }: { readonly address: Address }) => {
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
 
   const {

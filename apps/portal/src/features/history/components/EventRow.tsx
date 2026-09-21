@@ -1,6 +1,7 @@
 import { match } from 'ts-pattern'
 import { isAddress, zeroAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
+import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   decodeRoleChange,
@@ -109,16 +110,18 @@ const EventContent = ({ event }: { event: TimelineIndexerEvent }) =>
         </>
       )
     })
-    .with('TextChanged', () => (
-      <>
-        <span className={muted}>set</span>
-        {event.asTextChanged?.key && (
-          <ActionValue copyValue={event.asTextChanged.key}>
-            {event.asTextChanged.key}
-          </ActionValue>
-        )}
-      </>
-    ))
+    .with('TextChanged', () => {
+      const key = event.asTextChanged?.key ?? ''
+      // Copy hands over the real on-chain key — a sanitized one would no longer
+      // match the record it came from.
+      const label = sanitizeOnChainText(key)
+      return (
+        <>
+          <span className={muted}>set</span>
+          {label && <ActionValue copyValue={key}>{label}</ActionValue>}
+        </>
+      )
+    })
     .otherwise(() => null)
 
 interface EventRowProps {
