@@ -26,7 +26,7 @@ export const CommemorativeNftTraitsTooltip = ({
     <Popover onOpenChange={onOpenChange} open={open}>
       <PopoverTrigger asChild>
         <button
-          className="flex size-11 shrink-0 items-center justify-center rounded-full border-4 border-transparent bg-ens-garnet-500 bg-clip-padding text-ens-garnet-100 transition-colors hover:bg-ens-garnet-600 focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-1 motion-reduce:transition-none"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full border-4 border-transparent bg-ens-garnet-500 bg-clip-padding text-ens-garnet-100 transition-colors hover:bg-ens-garnet-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent motion-reduce:transition-none"
           data-nft-traits-trigger
           type="button"
           {...pointerHandlers}
@@ -64,7 +64,7 @@ export const CommemorativeNftTraitsTooltip = ({
         </ul>
         <div className="flex items-center justify-between gap-3 text-ens-garnet-500">
           <a
-            className="underline underline-offset-2 hover:text-ens-garnet-600 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="underline underline-offset-2 hover:text-ens-garnet-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2"
             href={learnMoreUrl ?? 'https://ens.domains/blog'}
             rel="noreferrer"
             target="_blank"
@@ -75,7 +75,7 @@ export const CommemorativeNftTraitsTooltip = ({
           </a>
           <a
             aria-disabled={!marketplaceUrl}
-            className="ml-auto underline underline-offset-2 hover:text-ens-garnet-600 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="ml-auto underline underline-offset-2 hover:text-ens-garnet-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2"
             href={marketplaceUrl}
             rel="noreferrer"
             role={marketplaceUrl ? undefined : 'link'}
