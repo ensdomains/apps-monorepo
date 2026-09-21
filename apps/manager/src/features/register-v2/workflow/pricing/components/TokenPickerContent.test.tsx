@@ -92,7 +92,7 @@ describe('TokenPickerContentBase', () => {
     ).toBeVisible()
     expect(screen.getAllByText('Mainnet est. fee:')).toHaveLength(1)
     expect(
-      screen.getAllByText('not enough funds to pay network fees'),
+      screen.getAllByText('not enough funds to pay network fees.'),
     ).toHaveLength(1)
 
     act(() => daiOption.click())
@@ -220,7 +220,7 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Select USDC' })).toBeDisabled()
     expect(
-      screen.getByText('not enough funds to pay network fees'),
+      screen.getByText('not enough funds to pay network fees.'),
     ).toBeVisible()
     expect(screen.queryByText(/^Not enough USDC/)).not.toBeInTheDocument()
   })
@@ -243,7 +243,7 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Select USDC' })).toBeEnabled()
     expect(
-      screen.queryByText('not enough funds to pay network fees'),
+      screen.queryByText('not enough funds to pay network fees.'),
     ).not.toBeInTheDocument()
   })
 

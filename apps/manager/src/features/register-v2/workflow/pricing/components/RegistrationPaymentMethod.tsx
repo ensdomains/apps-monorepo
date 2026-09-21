@@ -123,7 +123,7 @@ export const RegistrationPaymentMethod = ({
           className="col-span-2 justify-self-end text-right text-[10px] text-ens-error sm:text-xs"
           id={errorId}
         >
-          <Trans>not enough funds to pay network fees</Trans>
+          <Trans>not enough funds to pay network fees.</Trans>
         </p>
       )}
     </div>
