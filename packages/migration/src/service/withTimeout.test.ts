@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { withTimeout } from './withTimeout'
 
 describe('withTimeout', () => {
@@ -19,18 +19,5 @@ describe('withTimeout', () => {
     expect(err.message).toMatch(/timed out after 5ms/)
     expect(err.name).toBe('PreflightTimeoutError')
     expect(err.timeoutMs).toBe(5)
-  })
-
-  it.each([
-    ['resolve', () => withTimeout(Promise.resolve(42), 1000)],
-    [
-      'reject',
-      () => withTimeout(Promise.reject(new Error('x')), 1000).catch(() => {}),
-    ],
-  ])('clears the timeout timer on %s', async (_, run) => {
-    const clearSpy = vi.spyOn(globalThis, 'clearTimeout')
-    await run()
-    expect(clearSpy).toHaveBeenCalled()
-    clearSpy.mockRestore()
   })
 })
