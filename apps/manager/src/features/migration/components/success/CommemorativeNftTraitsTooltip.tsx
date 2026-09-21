@@ -19,11 +19,11 @@ export const CommemorativeNftTraitsTooltip = ({
   readonly traits: RendererTraits
 }) => {
   const { t } = useLingui()
-  const { open, onOpenChange, ...pointerHandlers } = useTraitsPopover()
+  const { open: isOpen, onOpenChange, ...pointerHandlers } = useTraitsPopover()
   const descriptionId = useId()
 
   return (
-    <Popover onOpenChange={onOpenChange} open={open}>
+    <Popover onOpenChange={onOpenChange} open={isOpen}>
       <PopoverTrigger asChild>
         <button
           className="flex size-11 shrink-0 items-center justify-center rounded-full border-4 border-transparent bg-ens-garnet-500 bg-clip-padding text-ens-garnet-100 transition-colors hover:bg-ens-garnet-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent motion-reduce:transition-none"
