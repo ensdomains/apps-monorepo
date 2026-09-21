@@ -538,11 +538,21 @@ export const registrationMachine = setup({
             duration: ({ event }) => event.duration,
             selectedToken: ({ event }) => event.token,
             tokenPrice: ({ event }) => event.price,
-            signer: ({ event }) => event.signer,
+            signer: ({ event }) =>
+              event.token === 'DAI' && event.signer.type === 'rhinestone'
+                ? (event.approvalSigner ?? event.signer)
+                : event.signer,
             approvalSigner: ({ event }) => event.approvalSigner,
-            accountAddress: ({ event }) => event.accountAddress,
+            accountAddress: ({ event }) =>
+              event.token === 'DAI' &&
+              event.signer.type === 'rhinestone' &&
+              event.approvalSigner?.type === 'eoa'
+                ? (event.ownerAddress ?? event.accountAddress)
+                : event.accountAddress,
             registrationStartedAt: ({ event }) =>
-              event.signer.type === 'rhinestone' ? Date.now() : undefined,
+              event.token === 'USDC' && event.signer.type === 'rhinestone'
+                ? Date.now()
+                : undefined,
             ownerAddress: ({ event }) =>
               event.ownerAddress ?? event.accountAddress, // ENS name owner. Default to accountAddress if not provided
             resolverOwnerAddress: ({ event }) =>

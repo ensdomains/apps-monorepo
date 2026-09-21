@@ -9,7 +9,10 @@ import { useSelector } from '@xstate/react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { isAddressEqual } from 'viem'
-import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
+import {
+  DAI as DAIIcon,
+  USDCIcon,
+} from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -594,8 +597,17 @@ export const TokenPickerContentBase = ({
             <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
               <Trans>Stables accepted</Trans>
             </p>
-            <div className="flex items-center gap-1">
-              <USDCIcon className="h-7 w-7" />
+            <div
+              aria-label={t`Stables accepted`}
+              className="flex items-center gap-1"
+              role="list"
+            >
+              <span aria-label="USDC" role="listitem">
+                <USDCIcon className="h-7 w-7" />
+              </span>
+              <span aria-label="DAI" role="listitem">
+                <DAIIcon className="h-7 w-7" />
+              </span>
             </div>
           </div>
 
@@ -605,7 +617,7 @@ export const TokenPickerContentBase = ({
 
       <PaymentTotalRow
         hasAccountCredit={hasAccountCredit}
-        isEstimate={!!funding}
+        isEstimate={usesHcaFunding && !!funding}
         total={headlineAmount}
       />
 

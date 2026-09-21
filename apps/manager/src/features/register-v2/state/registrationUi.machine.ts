@@ -484,16 +484,24 @@ const startRegistrationAction = machineSetup.createAction(
     const resolverOwnerAddress =
       event.account.ownerAddress ?? event.account.accountAddress
 
-    const approvalSigner: Signer | undefined = event.account.walletClient
-      ? { type: 'eoa', walletClient: event.account.walletClient }
-      : undefined
+    const approvalSigner: Signer | undefined =
+      event.account.signer.type === 'eoa'
+        ? event.account.signer
+        : event.account.walletClient?.account &&
+            isAddressEqual(
+              event.account.walletClient.account.address,
+              ownerAddress,
+            )
+          ? { type: 'eoa', walletClient: event.account.walletClient }
+          : undefined
 
     const isHcaRegistration =
       event.account.signer.type === 'rhinestone' &&
       event.token === 'USDC' &&
       ownerAddress.toLowerCase() !== event.account.accountAddress.toLowerCase()
+    const usesInheritedPaymentRoute = event.token === 'DAI'
 
-    if (isHcaRegistration && !approvalSigner) {
+    if ((isHcaRegistration || usesInheritedPaymentRoute) && !approvalSigner) {
       return enqueue.raise({
         type: '$error',
         error: new Error(
@@ -501,6 +509,13 @@ const startRegistrationAction = machineSetup.createAction(
         ),
       })
     }
+
+    const registrationSigner = usesInheritedPaymentRoute
+      ? (approvalSigner ?? event.account.signer)
+      : event.account.signer
+    const registrationAccountAddress = usesInheritedPaymentRoute
+      ? ownerAddress
+      : event.account.accountAddress
 
     // The HCA reveal batch sets the ETH addr record itself and, when opted
     // in, the primary name through the reverse-registrar adapter, so the EOA
@@ -525,9 +540,9 @@ const startRegistrationAction = machineSetup.createAction(
         : event.postRegistrationSetup,
       postRegistrationData: {
         label: event.label,
-        signer: event.account.signer,
+        signer: registrationSigner,
         walletClient: event.account.walletClient,
-        accountAddress: event.account.accountAddress,
+        accountAddress: registrationAccountAddress,
         ownerAddress,
         publicClient: defaultPublicClient,
         chainId: defaultPublicClient.chain.id,
@@ -548,10 +563,10 @@ const startRegistrationAction = machineSetup.createAction(
         duration: event.duration,
         token: event.token,
         price: event.totalPrice,
-        signer: event.account.signer,
+        signer: registrationSigner,
         // Funding permit signer (wallet → HCA budget) on the HCA path.
         approvalSigner,
-        accountAddress: event.account.accountAddress,
+        accountAddress: registrationAccountAddress,
         ownerAddress,
         resolverOwnerAddress,
         publicClient: defaultPublicClient,

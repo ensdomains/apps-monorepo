@@ -108,6 +108,16 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
     expect(screen.getAllByText('$330.00')).toHaveLength(2)
     expect(screen.queryByText('$500.00')).not.toBeInTheDocument()
+    expect(screen.queryByText('up to')).not.toBeInTheDocument()
+    const acceptedStables = screen.getByRole('list', {
+      name: 'Stables accepted',
+    })
+    expect(acceptedStables).toContainElement(
+      screen.getByRole('listitem', { name: 'USDC' }),
+    )
+    expect(acceptedStables).toContainElement(
+      screen.getByRole('listitem', { name: 'DAI' }),
+    )
   })
 
   it('does not override a token the user already picked', () => {

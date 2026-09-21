@@ -107,7 +107,7 @@ const startHcaRegistration = (overrides: {
 }
 
 describe('registrationMachine — standalone-HCA funding', () => {
-  it('keeps DAI on the inherited approval-and-register route', async () => {
+  it('uses the wallet signer for the inherited DAI route', async () => {
     const estimateHcaBudget = vi.fn()
     const deployResolver = vi.fn(() => new Promise(() => {}))
     const actor = createActor(
@@ -137,6 +137,8 @@ describe('registrationMachine — standalone-HCA funding', () => {
     await waitFor(actor, (state) => state.matches('deployingResolver'))
 
     expect(deployResolver).toHaveBeenCalledOnce()
+    expect(deployResolver.mock.calls[0][0].input.signer.type).toBe('eoa')
+    expect(actor.getSnapshot().context.accountAddress).toBe(WALLET)
     expect(estimateHcaBudget).not.toHaveBeenCalled()
   })
 

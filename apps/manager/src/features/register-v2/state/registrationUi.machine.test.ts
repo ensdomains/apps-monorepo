@@ -10,7 +10,12 @@ import { assign, createActor, createMachine } from 'xstate'
  * hoisted `vi.mock` factory below can still reference it.
  */
 type RegistrationStubEvent =
-  | { type: 'START_REGISTRATION'; primaryName?: string }
+  | {
+      type: 'START_REGISTRATION'
+      primaryName?: string
+      signer: { type: string }
+      accountAddress: Address
+    }
   | { type: 'FORCE_SUCCESS' }
   | { type: 'FORCE_ERROR'; error: Error }
   | { type: 'RETRY' }
@@ -29,6 +34,8 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       error: undefined as Error | undefined,
       retryCount: 0,
       primaryName: undefined as string | undefined,
+      signer: undefined as { type: string } | undefined,
+      accountAddress: undefined as Address | undefined,
     },
     initial: 'idle',
     states: {
@@ -40,6 +47,14 @@ vi.mock('@ens-apps/transaction-manager', () => ({
               primaryName: ({ event }) =>
                 event.type === 'START_REGISTRATION'
                   ? event.primaryName
+                  : undefined,
+              signer: ({ event }) =>
+                event.type === 'START_REGISTRATION'
+                  ? event.signer
+                  : undefined,
+              accountAddress: ({ event }) =>
+                event.type === 'START_REGISTRATION'
+                  ? event.accountAddress
                   : undefined,
             }),
           },
@@ -137,12 +152,13 @@ const startEvent = (
         enabled: boolean
         syncEthRecord?: boolean
       } = false,
+  token: 'USDC' | 'DAI' = 'USDC',
 ) =>
   ({
     type: 'registration.start' as const,
     label: 'example',
     duration: 31_536_000n,
-    token: 'USDC',
+    token,
     totalPrice: 1_000_000n,
     account,
     basePriceNumber: 1,
@@ -241,6 +257,27 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     )
 
     expect(actor.getSnapshot().matches('registering')).toBe(true)
+  })
+
+  it('uses the owner wallet for an inherited DAI registration', () => {
+    const actor = startActorInTokens()
+
+    actor.send(
+      startEvent(
+        {
+          signer: { type: 'rhinestone' } as any,
+          accountAddress: HCA_ADDRESS,
+          ownerAddress: EOA_ADDRESS,
+          walletClient: { account: { address: EOA_ADDRESS } } as any,
+        } as unknown as SmartAccountContextValue,
+        false,
+        'DAI',
+      ),
+    )
+
+    const childContext = getChild(actor).getSnapshot().context
+    expect(childContext.signer?.type).toBe('eoa')
+    expect(childContext.accountAddress).toBe(EOA_ADDRESS)
   })
 
   it('does not fail fast for a pure-EOA registration without a wallet client', () => {
