@@ -103,6 +103,8 @@ export const useNftArtworkLoading = (params: {
   return {
     imageFailed: image === 'failed',
     imageReady: image === 'ready',
+    // Include the deferred renderer while the still image is being revealed.
+    animationPending: params.animate && renderer === 'loading',
     animationReady: animate && renderer === 'ready',
     renderAnimation: animate && renderer !== 'failed',
     status,

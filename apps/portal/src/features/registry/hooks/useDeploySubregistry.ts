@@ -24,7 +24,7 @@ export const useDeploySubregistry = ({
   const publicClient = usePublicClient()
 
   const mutation = useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
+    mutationFn: async ({ id, salt }: { id: string; salt: bigint }) => {
       if (!walletClient?.account || !publicClient) {
         throw new Error('Wallet not connected')
       }
@@ -32,6 +32,7 @@ export const useDeploySubregistry = ({
       return deploySubregistry({
         factoryAddress,
         implAddress,
+        salt,
         walletClient,
         publicClient,
         signer,

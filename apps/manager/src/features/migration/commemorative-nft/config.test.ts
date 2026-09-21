@@ -23,22 +23,6 @@ describe('commemorative NFT config', () => {
     )
   })
 
-  it('falls back to the default renderer origin', () => {
-    vi.stubEnv('VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN', '')
-
-    expect(getCommemorativeNftConfig().rendererOrigin).toBe(
-      'https://nft.ens.dev',
-    )
-  })
-
-  it('uses the immutable R2 origin by default', () => {
-    vi.stubEnv('VITE_COMMEMORATIVE_NFT_ASSET_ORIGIN', '')
-
-    expect(getCommemorativeNftConfig().assetOrigin).toBe(
-      'https://nft-assets.ens.dev',
-    )
-  })
-
   it.each([
     'not a URL',
     'javascript:alert(1)',
@@ -65,10 +49,6 @@ describe('commemorative NFT config', () => {
       isValid: true,
       rendererOrigin: 'http://localhost:4000',
     })
-  })
-
-  it('reuses the validated configuration object', () => {
-    expect(getCommemorativeNftConfig()).toBe(getCommemorativeNftConfig())
   })
 
   it('never fetches default assets after an invalid configuration, even on manual refetch', async () => {

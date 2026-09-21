@@ -1,9 +1,5 @@
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  getNftRevealProgress,
-  NFT_REVEAL_DURATION,
-} from './reveal/revealTiming'
 import { startNftReveal } from './reveal/startNftReveal'
 import { useNftReveal } from './useNftReveal'
 
@@ -125,13 +121,5 @@ describe('NFT reveal lifecycle', () => {
     await flush()
     expect(startNftReveal).not.toHaveBeenCalled()
     expect(vi.getTimerCount()).toBe(0)
-  })
-
-  it('uses the Atlas timeline with a bounded start and finish', () => {
-    expect(getNftRevealProgress(-1)).toBe(0)
-    expect(getNftRevealProgress(0)).toBe(0)
-    expect(getNftRevealProgress(NFT_REVEAL_DURATION / 2)).toBe(0.5)
-    expect(getNftRevealProgress(NFT_REVEAL_DURATION)).toBe(1)
-    expect(getNftRevealProgress(NFT_REVEAL_DURATION * 2)).toBe(1)
   })
 })

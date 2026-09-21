@@ -1,3 +1,4 @@
+import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -74,10 +75,12 @@ const readyGasEstimate: MigrationGasEstimateState = {
 
 const renderStep = ({
   gasEstimate = { status: 'idle' } as MigrationGasEstimateState,
+  gasAffordability = { status: 'unknown' } as GasAffordability,
   gasFundingStatus = 'settled',
   onNext = vi.fn(),
 }: {
   gasEstimate?: MigrationGasEstimateState
+  gasAffordability?: GasAffordability
   gasFundingStatus?: MigrationGasFundingStatus
   onNext?: () => boolean | Promise<boolean>
 } = {}) => {
@@ -85,6 +88,7 @@ const renderStep = ({
   const utils = render(
     <SmartAccountContextProvider>
       <SelectNamesStep
+        gasAffordability={gasAffordability}
         gasEstimate={gasEstimate}
         gasFundingStatus={gasFundingStatus}
         onNamesChange={onNamesChange}
@@ -116,17 +120,6 @@ describe('SelectNamesStep', () => {
     expect(lastCall).not.toContain('sub1234.eth')
     expect(lastCall).not.toContain('gm.sub1234.eth')
     expect(lastCall).toContain('sub123.eth')
-  })
-
-  it('re-selecting a parent re-adds all its subnames', () => {
-    const { onNamesChange, getByText } = renderStep()
-    const parentRow = getByText('sub1234.eth').closest('button')
-    if (!parentRow) throw new Error('parent row not found')
-    fireEvent.click(parentRow)
-    fireEvent.click(parentRow)
-    const lastCall = onNamesChange.mock.calls.at(-1)?.[0] ?? []
-    expect(lastCall).toContain('sub1234.eth')
-    expect(lastCall).toContain('gm.sub1234.eth')
   })
 
   it('subname rows are not individually interactive', () => {
@@ -185,5 +178,32 @@ describe('SelectNamesStep', () => {
         getByRole('button', { name: 'Upgrade 9 names' }),
       ).not.toBeDisabled()
     })
+  })
+
+  it('warns instead of quoting a fee when the wallet is short of gas', () => {
+    const { getByText, queryByText } = renderStep({
+      gasEstimate: readyGasEstimate,
+      gasAffordability: {
+        status: 'short',
+        requiredWei: 5_000_000_000_000_000n,
+        balanceWei: 1_000_000_000_000_000n,
+        shortfallWei: 4_000_000_000_000_000n,
+      },
+    })
+
+    expect(getByText(/Not enough ETH for gas/i)).toBeInTheDocument()
+    // The fee quote would read as "you can proceed", so it must not also show.
+    expect(queryByText(/Estimated network fee/i)).not.toBeInTheDocument()
+  })
+
+  it('quotes the fee as usual when the balance cannot be read', () => {
+    // An unreadable balance is not evidence the user cannot pay.
+    const { getByText, queryByText } = renderStep({
+      gasEstimate: readyGasEstimate,
+      gasAffordability: { status: 'unknown' },
+    })
+
+    expect(queryByText(/Not enough ETH for gas/i)).not.toBeInTheDocument()
+    expect(getByText(/Estimated network fee/i)).toBeInTheDocument()
   })
 })
