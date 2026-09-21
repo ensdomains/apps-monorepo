@@ -127,30 +127,52 @@ export const prepareSetV1RegistryOwnerTransaction = ({
   })
 
 /**
- * Clear the name's resolver. A wrapped name's registry slot is owned by the
- * wrapper, so the write goes through `NameWrapper.setResolver`; otherwise
- * straight to the legacy registry. Same signature on both contracts.
+ * Point the name's registry slot at `resolver`. A wrapped name's slot is owned
+ * by the wrapper, so the write goes through `NameWrapper.setResolver`;
+ * otherwise straight to the legacy registry. Same signature on both contracts.
+ *
+ * V1 stores the pointer against the namehash, where V2 keys it by canonical
+ * label id on the parent's PermissionedRegistry — so the two cannot share a
+ * builder (see `prepareChangeResolverTransaction`).
  */
-export const prepareDetachV1ResolverTransaction = ({
+export const prepareSetV1ResolverTransaction = ({
   name,
   isWrapped,
-  walletClient,
+  resolver,
+  from,
   chainId,
-}: IntentContext & {
+}: {
   readonly name: string
   readonly isWrapped: boolean
+  readonly resolver: Address
+  readonly from: Address
+  readonly chainId: number
 }): CustomTransactionIntent =>
   toEoaCustomIntent({
-    from: walletClient.account.address,
+    from,
     to: isWrapped ? NAME_WRAPPER : LEGACY_REGISTRY,
     data: encodeFunctionData({
       abi: isWrapped
         ? nameWrapperSetResolverSnippet
         : registrySetResolverSnippet,
       functionName: 'setResolver',
-      args: [namehash(name), zeroAddress],
+      args: [namehash(name), resolver],
     }),
     chainId,
+  })
+
+/** Clear the name's resolver — {@link prepareSetV1ResolverTransaction} at zero. */
+export const prepareDetachV1ResolverTransaction = ({
+  walletClient,
+  ...params
+}: IntentContext & {
+  readonly name: string
+  readonly isWrapped: boolean
+}): CustomTransactionIntent =>
+  prepareSetV1ResolverTransaction({
+    ...params,
+    from: walletClient.account.address,
+    resolver: zeroAddress,
   })
 
 /**

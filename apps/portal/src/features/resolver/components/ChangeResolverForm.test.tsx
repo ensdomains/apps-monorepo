@@ -34,7 +34,10 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }))
 
-vi.mock('wagmi', () => ({
+// Partial: the setResolver intent builders reach `@/lib/wagmi`, whose module
+// scope calls `createConfig`, so the real exports have to stay available.
+vi.mock('wagmi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('wagmi')>()),
   useConnection: () => ({
     address: '0x1234567890123456789012345678901234567890',
   }),
@@ -104,7 +107,10 @@ vi.mock('@/features/resolver/hooks/useUserPermissionedResolvers', () => ({
 
 describe('ChangeResolverForm', () => {
   const name = 'myname.eth'
-  const registryAddress: Address = '0x1234567890123456789012345678901234567890'
+  const target = {
+    protocol: 'ENSv2',
+    registryAddress: '0x1234567890123456789012345678901234567890' as Address,
+  } as const
 
   beforeEach(() => {
     mockChangeResolver.mockReset()
@@ -115,7 +121,7 @@ describe('ChangeResolverForm', () => {
   })
 
   it('renders default custom resolver mode', () => {
-    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
+    render(<ChangeResolverForm name={name} target={target} />)
 
     expect(
       screen.getByRole('heading', { name: `${name} Change resolver` }),
@@ -130,7 +136,7 @@ describe('ChangeResolverForm', () => {
   it('opens transaction modal when valid custom resolver is submitted', async () => {
     const user = userEvent.setup()
 
-    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
+    render(<ChangeResolverForm name={name} target={target} />)
 
     await user.type(
       screen.getByPlaceholderText('0x...'),
@@ -144,7 +150,7 @@ describe('ChangeResolverForm', () => {
   it('opens transaction modal when non-custom + deploy is enabled', async () => {
     const user = userEvent.setup()
 
-    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
+    render(<ChangeResolverForm name={name} target={target} />)
 
     await user.click(
       screen.getByRole('switch', { name: /Use custom resolver/i }),
@@ -157,7 +163,7 @@ describe('ChangeResolverForm', () => {
   it('opens transaction modal when using existing resolver', async () => {
     const user = userEvent.setup()
 
-    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
+    render(<ChangeResolverForm name={name} target={target} />)
 
     await user.click(
       screen.getByRole('switch', { name: /Use custom resolver/i }),
@@ -177,7 +183,7 @@ describe('ChangeResolverForm', () => {
   it('shows pending button text when change resolver is pending', () => {
     changeResolverHookState.isPending = true
 
-    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
+    render(<ChangeResolverForm name={name} target={target} />)
 
     expect(
       screen.getByRole('button', { name: /Changing resolver.../i }),
