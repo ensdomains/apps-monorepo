@@ -211,8 +211,11 @@ export const TokenPickerContent = () => {
   // or enable prompt is needed at this step.
   const startRegistration = async (resolvedSetAsPrimary: boolean) => {
     if (!pricingQuery.data || !selectedToken) return
-    // Resolve the session-enable payload up front; both legs are signed with it.
-    const hcaSessionEnable = await account.getSessionEnablePayload()
+    // Resolve the session-enable payload up front (checks on-chain enablement).
+    const hcaSessionEnable =
+      selectedToken === TOKENS.USDC.symbol
+        ? await account.getSessionEnablePayload()
+        : undefined
     uiActor.send({
       type: 'registration.start',
       label,
@@ -235,11 +238,14 @@ export const TokenPickerContent = () => {
       // still have been in flight when the screen painted, and a stale budget
       // would let through exactly the registration this gate exists to stop.
       // `fetchQuery` reuses the in-flight/fresh result, so this is usually free.
-      const budget = await queryClient
-        .fetchQuery(budgetQueryOptions)
-        // A quote failure is not a funding failure. Fall through and let the
-        // machine (and its own pre-permit balance check) surface the problem.
-        .catch(() => null)
+      const budget =
+        selectedToken === TOKENS.USDC.symbol
+          ? await queryClient
+              .fetchQuery(budgetQueryOptions)
+              // A quote failure is not a funding failure. Fall through and let the
+              // machine (and its own pre-permit balance check) surface the problem.
+              .catch(() => null)
+          : null
 
       // Against the shortfall, not the budget: the permit tops the HCA up to
       // the budget, so an HCA still holding USDC from a prior registration
@@ -410,23 +416,25 @@ export const TokenPickerContentBase = ({
     stablecoinBalances,
   })
 
-  // Gate on the funded amount, never the rent alone: the permit is signed for
-  // `rent + networkFee`, so a wallet holding only the rent cannot pay. It is
-  // the wallet's DEBIT rather than the budget, since a part-funded HCA covers
-  // the remainder itself — gating on the budget would block a wallet that only
-  // owes the shortfall.
-  const requiredAmount = funding?.walletDebit ?? pricingData
+  const usesHcaFunding = selectedToken === TOKENS.USDC.symbol
+  const selectedRequiredAmount = usesHcaFunding
+    ? (funding?.walletDebit ?? pricingData)
+    : pricingData
 
-  // What the registration costs, shown on the total row. Diverges from
-  // `requiredAmount` only when the HCA is already carrying USDC.
-  const displayTotal = funding?.total ?? pricingData
+  // What the registration costs, shown on the total row.
+  const displayTotal = usesHcaFunding
+    ? (funding?.total ?? pricingData)
+    : pricingData
 
   // With USDC already in the HCA the total is not what the wallet pays, so the
   // headline switches to the debit and a credit line accounts for the gap.
   // Rounded together with the breakdown lines, so they add up on screen. The
   // headline is always the debit once a budget is quoted; the label only
   // changes when a credit line is there to explain the gap.
-  const figures = funding && getPaymentBreakdownFigures(funding)
+  const figures =
+    usesHcaFunding && funding
+      ? getPaymentBreakdownFigures(funding)
+      : undefined
   const hasAccountCredit = !!figures && figures.credit > 0
   const headlineAmount = figures ? figures.walletDebit : displayTotal
 
@@ -442,6 +450,10 @@ export const TokenPickerContentBase = ({
       if (funding) return funding.isUnderfunded
       if (hasInsufficientFundingError) return true
     }
+    const requiredAmount =
+      coin.symbol === TOKENS.USDC.symbol
+        ? (funding?.walletDebit ?? pricingData)
+        : pricingData
     if (requiredAmount === undefined || requiredAmount <= 0) return false
 
     return (
@@ -457,7 +469,7 @@ export const TokenPickerContentBase = ({
   // through.
   const hasSufficientBalanceForSelectedCoin =
     selectedCoinBalance !== undefined &&
-    requiredAmount !== undefined &&
+    selectedRequiredAmount !== undefined &&
     !isPaymentMethodUnderfunded(selectedCoinBalance)
 
   const canNext =
@@ -494,7 +506,7 @@ export const TokenPickerContentBase = ({
             {domainName}
           </span>
 
-          <PaymentBreakdown funding={funding} />
+          <PaymentBreakdown funding={usesHcaFunding ? funding : undefined} />
         </div>
 
         <div className="flex w-full flex-col gap-6">
@@ -562,7 +574,7 @@ export const TokenPickerContentBase = ({
                     <TokenListItem
                       key={stablecoin.address}
                       onSelectCoin={onSelectCoin}
-                      priceUSD={requiredAmount ?? 0}
+                      priceUSD={pricingData ?? 0}
                       selectedCoin={selectedToken}
                       stablecoin={stablecoin}
                     />

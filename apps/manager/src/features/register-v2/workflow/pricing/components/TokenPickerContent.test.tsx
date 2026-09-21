@@ -87,6 +87,29 @@ describe('TokenPickerContentBase', () => {
     expect(onSelectCoin).toHaveBeenCalledWith('DAI')
   })
 
+  it('gates DAI on its own price instead of the USDC funding budget', () => {
+    renderPicker({
+      funding: {
+        registration: 495.68,
+        networkFee: 4.32,
+        total: 500,
+        walletDebit: 500,
+        hcaCredit: 0,
+        isUnderfunded: true,
+        isLoading: false,
+      },
+      selectedToken: 'DAI',
+      stablecoinBalances: [
+        { ...usdc, balance: '100000000' } as StablecoinBalance,
+        { ...dai, balance: '330000000000000000000' } as StablecoinBalance,
+      ],
+    })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
+    expect(screen.getAllByText('$330.00')).toHaveLength(2)
+    expect(screen.queryByText('$500.00')).not.toBeInTheDocument()
+  })
+
   it('does not override a token the user already picked', () => {
     const onSelectCoin = renderPicker({ selectedToken: 'USDC' })
 

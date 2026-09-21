@@ -34,6 +34,9 @@ import {
 /** `Math.max` for bigints (no bigint overload on `Math.max`). */
 const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
 
+const isStandaloneHcaRegistration = (context: RegistrationContext): boolean =>
+  context.signer?.type === 'rhinestone' && context.selectedToken === 'USDC'
+
 /**
  * Registration Machine
  *
@@ -431,7 +434,8 @@ export const registrationMachine = setup({
   },
 
   guards: {
-    isRhinestoneSigner: ({ context }) => context.signer?.type === 'rhinestone',
+    isStandaloneHcaRegistration: ({ context }) =>
+      isStandaloneHcaRegistration(context),
   },
 
   actions: {
@@ -583,7 +587,7 @@ export const registrationMachine = setup({
           // permit), then fund+enable+commit in ONE session-signed request.
           // The session authorization was signed in the app before the machine
           // started.
-          guard: 'isRhinestoneSigner',
+          guard: 'isStandaloneHcaRegistration',
           target: 'computingHcaBudget',
         },
         // Pure-EOA: an EOA can't batch, so deploy the resolver, wait for it,
@@ -1028,7 +1032,7 @@ export const registrationMachine = setup({
           // The HCA path committed on the standalone registrar; read ITS
           // cooldown window, not the old deployment's.
           registrarAddress:
-            context.signer?.type === 'rhinestone'
+            isStandaloneHcaRegistration(context)
               ? hcaRegistrarAddress(context.chainId)
               : undefined,
         }),
@@ -1037,7 +1041,7 @@ export const registrationMachine = setup({
             // Standalone-HCA: the HCA was funded pre-commit and pays the
             // registrar from its own balance in the reveal batch — no
             // allowance/permit step after the cooldown.
-            guard: 'isRhinestoneSigner',
+            guard: 'isStandaloneHcaRegistration',
             target: 'commitmentCooldown',
             actions: assign({
               registerReadyTimestamp: ({ event }) => {
@@ -1060,7 +1064,7 @@ export const registrationMachine = setup({
           // Fall back to the default cooldown so registration can still
           // proceed even if the read fails.
           {
-            guard: 'isRhinestoneSigner',
+            guard: 'isStandaloneHcaRegistration',
             target: 'commitmentCooldown',
             actions: 'setFallbackRegisterReadyTimestamp',
           },
@@ -1085,13 +1089,16 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           registrarAddress:
-            context.signer?.type === 'rhinestone'
+            isStandaloneHcaRegistration(context)
               ? hcaRegistrarAddress(context.chainId)
               : undefined,
         }),
         onDone: [
           // The commitment is confirmed on-chain; HCA needs no allowance step.
-          { guard: 'isRhinestoneSigner', target: 'commitmentCooldown' },
+          {
+            guard: 'isStandaloneHcaRegistration',
+            target: 'commitmentCooldown',
+          },
           { target: 'checkingAllowance' },
         ],
         onError: {
@@ -1107,7 +1114,7 @@ export const registrationMachine = setup({
               // unconsumed, so it is safely reused). Pure-EOA commits
               // standalone, so it retries `committingTransaction`.
               retryTarget: ({ context }) =>
-                context.signer?.type === 'rhinestone'
+                isStandaloneHcaRegistration(context)
                   ? ('submittingSetupBundle' as const)
                   : ('committingTransaction' as const),
             }),
@@ -1141,7 +1148,7 @@ export const registrationMachine = setup({
           {
             // Standalone-HCA: cooldown elapsed → session-signed reveal batch
             // (price re-read inside the actor). No wallet prompt.
-            guard: 'isRhinestoneSigner',
+            guard: 'isStandaloneHcaRegistration',
             target: 'submittingRhinestoneBundle',
           },
           { target: 'registeringDomain' },
@@ -1151,7 +1158,7 @@ export const registrationMachine = setup({
           actions: assign({
             error: ({ event }) => event.error as Error,
             retryTarget: ({ context }) =>
-              context.signer?.type === 'rhinestone'
+              isStandaloneHcaRegistration(context)
                 ? ('submittingSetupBundle' as const)
                 : ('committingTransaction' as const),
           }),
@@ -1439,7 +1446,7 @@ export const registrationMachine = setup({
         src: 'verifyRegistration',
         input: ({ context }) => ({
           mode:
-            context.signer?.type === 'rhinestone'
+            isStandaloneHcaRegistration(context)
               ? ('hca' as const)
               : ('eoa' as const),
           name: context.name,
@@ -1465,7 +1472,7 @@ export const registrationMachine = setup({
             actions: [
               assign({
                 retryTarget: ({ context }) =>
-                  context.signer?.type === 'rhinestone'
+                  isStandaloneHcaRegistration(context)
                     ? ('submittingRhinestoneBundle' as const)
                     : ('registeringDomain' as const),
               }),
@@ -1483,7 +1490,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               retryTarget: ({ context }) =>
-                context.signer?.type === 'rhinestone'
+                isStandaloneHcaRegistration(context)
                   ? ('submittingRhinestoneBundle' as const)
                   : ('registeringDomain' as const),
             }),

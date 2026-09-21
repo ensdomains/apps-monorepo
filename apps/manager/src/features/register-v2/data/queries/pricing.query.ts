@@ -47,10 +47,8 @@ export class MissingTokenError extends TaggedError('MissingTokenError')<
   Record<string, never>
 > {}
 
-// Standalone-HCA `ETHRegistrar.getRegisterPrice` derives the temporary premium
-// from on-chain state (time since `expiry + GRACE_PERIOD`) and returns
-// `(base, premium)`. Priced in Circle USDC against the HCA registrar so the
-// displayed quote matches what the commit/reveal actually charges.
+// USDC uses the standalone-HCA registrar and funding token. Other accepted
+// tokens retain the canonical registrar route.
 export const getRegisterPrice = ResultFn(async function* (
   label: string,
   durationInSeconds: number,
@@ -60,12 +58,17 @@ export const getRegisterPrice = ResultFn(async function* (
     return err(new MissingTokenError({}))
   }
 
+  const isHcaPayment = token === TOKENS.USDC.symbol
   const [base, premium] = yield* fromPromise(
     publicClient.readContract({
-      address: HCA_CONTRACTS.ethRegistrar,
+      address: isHcaPayment ? HCA_CONTRACTS.ethRegistrar : ETH_REGISTRAR,
       abi: hcaRegistrarAbi,
       functionName: 'getRegisterPrice',
-      args: [label, BigInt(Math.ceil(durationInSeconds)), HCA_CONTRACTS.usdc],
+      args: [
+        label,
+        BigInt(Math.ceil(durationInSeconds)),
+        isHcaPayment ? HCA_CONTRACTS.usdc : TOKENS[token].address,
+      ],
     }),
     (e) => new GetRegisterPriceError({ cause: e }),
   )

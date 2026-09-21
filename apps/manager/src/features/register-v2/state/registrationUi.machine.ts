@@ -490,6 +490,7 @@ const startRegistrationAction = machineSetup.createAction(
 
     const isHcaRegistration =
       event.account.signer.type === 'rhinestone' &&
+      event.token === 'USDC' &&
       ownerAddress.toLowerCase() !== event.account.accountAddress.toLowerCase()
 
     if (isHcaRegistration && !approvalSigner) {

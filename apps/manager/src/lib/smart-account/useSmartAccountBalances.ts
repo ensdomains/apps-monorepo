@@ -1,6 +1,7 @@
 'use client'
 
 import { getDestinationContracts } from '@ens-apps/smart-account'
+import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
@@ -29,14 +30,12 @@ export const HCA_PAYMENT_TOKEN: Address = getDestinationContracts(
 /**
  * The stablecoins to read balances for, keyed by symbol → address.
  *
- * Standalone-HCA path: the only supported payment token is the manifest funding
- * token (the HCA validator's PAYMENT_TOKEN / SECONDARY_PAYMENT_TOKEN). The old
- * mock-token faucet set (`/wallet/tokens` → MockUSDC/MockDAI) is not used —
- * registrations pay in that one token, so it is the only balance the picker and
- * low-balance checks care about.
+ * USDC uses the standalone-HCA manifest token. DAI keeps the canonical V2 token
+ * used by the inherited approval-and-register path.
  */
 const HCA_BALANCE_TOKENS: Record<string, Address> = {
   USDC: HCA_PAYMENT_TOKEN,
+  DAI: TOKENS.DAI.address,
 }
 
 interface UseSmartAccountBalancesParams {

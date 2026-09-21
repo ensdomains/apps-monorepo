@@ -374,6 +374,7 @@ export const SmartAccountContextProvider = ({
     anvilSetupDoneRef.current.add(ownerAddress)
     anvilSetupOwner(ownerAddress, customSepolia, {
       USDC: SUPPORTED_TOKENS.USDC,
+      DAI: SUPPORTED_TOKENS.DAI,
     }).catch(() => {
       anvilSetupDoneRef.current.delete(ownerAddress)
     })

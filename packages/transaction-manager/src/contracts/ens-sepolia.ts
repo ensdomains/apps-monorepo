@@ -38,16 +38,12 @@ export const ENS_SEPOLIA_CONTRACTS = {
   ReverseRegistrarAdapter: '0x39993148CAA6a20aE1F08E1b2427966E97f85aaB',
 } as const
 
-// Payment tokens the V2 registrar actually accepts (its PAYMENT_TOKEN /
-// SECONDARY_PAYMENT_TOKEN slots). DAI is deliberately absent: offering it in a
-// picker produces quotes the registrar rejects at settlement.
+// Payment tokens accepted by the canonical V2 registrar.
 export const SUPPORTED_TOKENS = {
   USDC: ensjsSepolia.usdc.address,
-} as const satisfies Record<'USDC', Address>
+  DAI: ensjsSepolia.dai.address,
+} as const satisfies Record<'USDC' | 'DAI', Address>
 
-// Metadata for every token the apps can price/display. Broader than
-// `SUPPORTED_TOKENS` because apps/portal still offers DAI in its own picker.
-// Adding an entry here does NOT make it a valid payment token.
 export const TOKENS = {
   USDC: {
     address: SUPPORTED_TOKENS.USDC,
@@ -55,13 +51,13 @@ export const TOKENS = {
     symbol: 'USDC',
   },
   DAI: {
-    address: ensjsSepolia.dai.address,
+    address: SUPPORTED_TOKENS.DAI,
     decimals: 18,
     symbol: 'DAI',
   },
 } as const
 
-/** Any token the apps know how to price/display — includes portal's DAI. */
+/** Any token the apps know how to price/display. */
 export type TOKEN_SYMBOL = keyof typeof TOKENS
 
 /** Payment tokens the registrar accepts. Use this for pickers and pricing. */

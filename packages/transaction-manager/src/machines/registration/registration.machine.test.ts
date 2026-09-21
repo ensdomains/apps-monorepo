@@ -107,6 +107,39 @@ const startHcaRegistration = (overrides: {
 }
 
 describe('registrationMachine — standalone-HCA funding', () => {
+  it('keeps DAI on the inherited approval-and-register route', async () => {
+    const estimateHcaBudget = vi.fn()
+    const deployResolver = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          estimateHcaBudget: fromPromise(estimateHcaBudget) as never,
+          deployResolver: fromPromise(deployResolver) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'START_REGISTRATION',
+      name: 'myname.eth',
+      duration: 31_536_000n,
+      token: 'DAI',
+      price: 5_000_000_000_000_000_000n,
+      signer: { type: 'rhinestone' } as unknown as Signer,
+      approvalSigner: { type: 'eoa' } as unknown as Signer,
+      accountAddress: HCA,
+      ownerAddress: WALLET,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+    })
+
+    await waitFor(actor, (state) => state.matches('deployingResolver'))
+
+    expect(deployResolver).toHaveBeenCalledOnce()
+    expect(estimateHcaBudget).not.toHaveBeenCalled()
+  })
+
   it('skips the funding permit when the HCA already covers the budget', async () => {
     const { actor, signFundingPermit } = startHcaRegistration({
       balances: [BUDGET],
