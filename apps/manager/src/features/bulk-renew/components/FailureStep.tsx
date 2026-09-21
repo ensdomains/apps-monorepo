@@ -28,11 +28,11 @@ export const FailureStep = ({
         aria-hidden
         className="mt-0.5 size-4 shrink-0 text-ens-garnet-dense"
       />
-      <div className="flex flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-1">
         <p className="font-medium font-sans text-ens-garnet-dense text-sm">
           <Trans>Something went wrong</Trans>
         </p>
-        <p className="font-sans text-ens-garnet-dense/70 text-sm">
+        <p className="wrap-anywhere max-h-32 overflow-y-auto font-sans text-ens-garnet-dense/70 text-sm">
           {errorMessage ?? <Trans>The renewal could not be completed.</Trans>}
         </p>
       </div>
