@@ -58,6 +58,35 @@ describe('TokenPickerContentBase', () => {
     expect(onSelectCoin).not.toHaveBeenCalled()
   })
 
+  it('keeps DAI selectable while USDC owns the network-fee disclosure', () => {
+    const onSelectCoin = renderPicker({
+      funding: {
+        registration: 495.68,
+        networkFee: 4.32,
+        total: 500,
+        walletDebit: 500,
+        hcaCredit: 0,
+        isUnderfunded: true,
+        isLoading: false,
+      },
+      stablecoinBalances: [
+        { ...usdc, balance: '100000000' } as StablecoinBalance,
+        dai,
+      ],
+    })
+
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeDisabled()
+    const daiOption = screen.getByRole('button', { name: 'Select DAI' })
+    expect(daiOption).toBeEnabled()
+    expect(screen.getAllByText('Mainnet est. fee:')).toHaveLength(1)
+    expect(
+      screen.getAllByText('not enough funds to pay network fees'),
+    ).toHaveLength(1)
+
+    act(() => daiOption.click())
+    expect(onSelectCoin).toHaveBeenCalledWith('DAI')
+  })
+
   it('does not override a token the user already picked', () => {
     const onSelectCoin = renderPicker({ selectedToken: 'USDC' })
 

@@ -35,6 +35,13 @@ const MOCK_BALANCES: StablecoinBalance[] = [
     decimals: 6,
     formattedBalance: '1000.00',
   },
+  {
+    address: '0x0000000000000000000000000000000000000002',
+    symbol: 'DAI',
+    balance: '500000000000000000000', // 500 DAI
+    decimals: 18,
+    formattedBalance: '500.00',
+  },
 ]
 
 const LOW_BALANCES: StablecoinBalance[] = [
@@ -44,6 +51,13 @@ const LOW_BALANCES: StablecoinBalance[] = [
     balance: '10000000', // 10 USDC
     decimals: 6,
     formattedBalance: '10.00',
+  },
+  {
+    address: '0x0000000000000000000000000000000000000002',
+    symbol: 'DAI',
+    balance: '5000000000000000000', // 5 DAI
+    decimals: 18,
+    formattedBalance: '5.00',
   },
 ]
 
@@ -134,7 +148,7 @@ const meta = {
     stablecoinBalances: { control: false },
     initialSelectedToken: {
       control: 'inline-radio',
-      options: [undefined, 'USDC'],
+      options: [undefined, 'USDC', 'DAI'],
     },
   },
 } satisfies Meta<typeof TokenPickerDialogShell>

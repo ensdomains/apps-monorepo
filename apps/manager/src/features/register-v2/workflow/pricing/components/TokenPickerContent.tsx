@@ -33,6 +33,7 @@ import { PaymentBreakdown } from './PaymentBreakdown'
 import { PaymentTotalRow } from './PaymentTotalRow'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { RegistrationPaymentMethod } from './RegistrationPaymentMethod'
+import { TokenListItem } from './TokenListItem'
 
 const MEDIUM_NAME_CHAR_THRESHOLD = 10
 const LONG_NAME_CHAR_THRESHOLD = 43
@@ -434,11 +435,13 @@ export const TokenPickerContentBase = ({
   )
 
   const isPaymentMethodUnderfunded = (coin: StablecoinBalance): boolean => {
-    // The real HCA path derives this from raw bigint amounts. Keep that
-    // authoritative result rather than re-deciding eligibility from formatted
-    // display values.
-    if (funding) return funding.isUnderfunded
-    if (hasInsufficientFundingError) return true
+    if (coin.symbol === TOKENS.USDC.symbol) {
+      // The real HCA path derives USDC funding from raw bigint amounts. Keep
+      // that authoritative result rather than re-deciding eligibility from
+      // formatted display values.
+      if (funding) return funding.isUnderfunded
+      if (hasInsufficientFundingError) return true
+    }
     if (requiredAmount === undefined || requiredAmount <= 0) return false
 
     return (
@@ -540,21 +543,31 @@ export const TokenPickerContentBase = ({
             ))
             .with({ stablecoinsCount: P.number.gt(0) }, () => (
               <div className="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
-                {stablecoinBalances.map((stablecoin) => (
-                  <RegistrationPaymentMethod
-                    hasInsufficientBalance={isPaymentMethodUnderfunded(
-                      stablecoin,
-                    )}
-                    isNetworkFeeLoading={
-                      !!isQuotingFunding || !!funding?.isLoading
-                    }
-                    key={stablecoin.address}
-                    networkFee={funding?.networkFee}
-                    onSelectCoin={onSelectCoin}
-                    selectedCoin={selectedToken}
-                    stablecoin={stablecoin}
-                  />
-                ))}
+                {stablecoinBalances.map((stablecoin) =>
+                  stablecoin.symbol === TOKENS.USDC.symbol ? (
+                    <RegistrationPaymentMethod
+                      hasInsufficientBalance={isPaymentMethodUnderfunded(
+                        stablecoin,
+                      )}
+                      isNetworkFeeLoading={
+                        !!isQuotingFunding || !!funding?.isLoading
+                      }
+                      key={stablecoin.address}
+                      networkFee={funding?.networkFee}
+                      onSelectCoin={onSelectCoin}
+                      selectedCoin={selectedToken}
+                      stablecoin={stablecoin}
+                    />
+                  ) : (
+                    <TokenListItem
+                      key={stablecoin.address}
+                      onSelectCoin={onSelectCoin}
+                      priceUSD={requiredAmount ?? 0}
+                      selectedCoin={selectedToken}
+                      stablecoin={stablecoin}
+                    />
+                  ),
+                )}
               </div>
             ))
             .otherwise(() => undefined)}
