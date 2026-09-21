@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query'
 import { okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -90,6 +91,34 @@ describe('getHcaBudgetQueryOptions', () => {
     // Same label and duration — only the toggle differs. Sharing a key would
     // serve the other variant's budget and silently mis-size the gate.
     expect(withPrimary.queryKey).not.toEqual(withoutPrimary.queryKey)
+  })
+
+  it('re-quotes registration start with the current session payload', async () => {
+    const queryClient = new QueryClient()
+    let sessionEnable: Awaited<
+      ReturnType<typeof baseParams.getSessionEnablePayload>
+    >
+    const params = {
+      ...baseParams,
+      getSessionEnablePayload: () => Promise.resolve(sessionEnable),
+    }
+    mocks.estimateHcaBudgetActor.mockReturnValue(okAsync(BUDGET))
+    mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(0n))
+
+    await queryClient.fetchQuery(getHcaBudgetQueryOptions(params))
+
+    sessionEnable = { signature: '0x1234' } as never
+    await queryClient.fetchQuery(
+      getHcaBudgetQueryOptions({
+        ...params,
+        purpose: 'registration-start',
+      }),
+    )
+
+    expect(mocks.estimateHcaBudgetActor).toHaveBeenCalledTimes(2)
+    expect(mocks.estimateHcaBudgetActor).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sessionEnable }),
+    )
   })
 
   it('returns the quoted budget alongside the HCA balance', async () => {

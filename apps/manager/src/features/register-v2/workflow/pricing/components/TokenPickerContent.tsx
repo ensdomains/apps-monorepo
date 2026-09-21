@@ -385,14 +385,15 @@ export const TokenPickerContent = () => {
   // the figure on this screen is the one the permit is sized from. Quoting
   // without it under-funds and the permit preflight then rejects a wallet this
   // screen just told the user was sufficient.
-  const budgetQueryOptions = getHcaBudgetQueryOptions({
+  const budgetQueryParams = {
     label,
     durationInSeconds: duration,
     hca: account.accountAddress,
     signer: account.signer,
     primaryName: setAsPrimary ? domainName : undefined,
     getSessionEnablePayload: account.getSessionEnablePayload,
-  })
+  }
+  const budgetQueryOptions = getHcaBudgetQueryOptions(budgetQueryParams)
   const budgetQuery = useQuery(budgetQueryOptions)
 
   // Absent until the quote lands, and permanently absent if it fails — in which
@@ -458,14 +459,15 @@ export const TokenPickerContent = () => {
 
   const availabilityMutation = useMutation({
     mutationFn: async (attempt: RegistrationAttempt) => {
-      // Re-check funding on the click path, not just on render: the quote may
-      // still have been in flight when the screen painted, and a stale budget
-      // would let through exactly the registration this gate exists to stop.
-      // `fetchQuery` reuses the in-flight/fresh result, so this is usually free.
       const budget =
         attempt.token === TOKENS.USDC.symbol
           ? await queryClient
-              .fetchQuery(budgetQueryOptions)
+              .fetchQuery(
+                getHcaBudgetQueryOptions({
+                  ...budgetQueryParams,
+                  purpose: 'registration-start',
+                }),
+              )
               // A quote failure is not a funding failure. Fall through and let the
               // machine (and its own pre-permit balance check) surface the problem.
               .catch(() => null)
