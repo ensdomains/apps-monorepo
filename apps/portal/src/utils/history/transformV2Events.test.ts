@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { V2Event } from '@/features/address/components/hooks/useV2HistoryForAddress'
+import type { V2Event } from './transformAddressHistory'
 import { transformV2EventsToSubgraphFormat } from './transformV2Events'
 
 describe('transformV2EventsToSubgraphFormat', () => {

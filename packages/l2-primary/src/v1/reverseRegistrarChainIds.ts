@@ -26,6 +26,18 @@ export type ReverseRegistrarChainId =
   | 59144
   | 534352
 
+/**
+ * Reverse-registrar keys that are actual L2s (not the `1` / `60` L1 aliases).
+ * Every app offering a per-L2 address record derives its coin types from this
+ * list, so a record written in one app is read back on the same coin type.
+ */
+export const L2_REVERSE_REGISTRAR_CHAIN_IDS = [
+  10, 42161, 8453, 59144, 534352,
+] as const satisfies readonly ReverseRegistrarChainId[]
+
+export type L2ReverseRegistrarChainId =
+  (typeof L2_REVERSE_REGISTRAR_CHAIN_IDS)[number]
+
 export type NetworkKey = 'mainnet' | 'sepolia'
 
 export function resolveNetworkFromChain(chain?: Chain): NetworkKey {

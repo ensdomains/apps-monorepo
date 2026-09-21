@@ -1,11 +1,17 @@
 import { ROLES_ALL, verifyStandaloneHca } from '@ens-apps/smart-account'
-import type { Address, PublicClient } from 'viem'
+import {
+  type Address,
+  type PublicClient,
+  zeroAddress as ZERO_ADDRESS,
+} from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { makeClassified } from './_fixtures'
 import { FUSES } from './classifyNames'
+import { computeExpectedWrapperRegistry } from './directMigrationRoutes'
 import {
   assertLockedPublicResolverSetMembership,
+  assertNoLiveSubregistryOverwrite,
   assertRequiredMigrationContractCode,
   checkMigrationHcaReadiness,
   checkMigrationResolverReadiness,
@@ -187,6 +193,259 @@ describe('assertLockedPublicResolverSetMembership', () => {
       }),
     ).rejects.toMatchObject({
       invariant: 'public-resolver-set-membership',
+      actual: 'unverified',
+      cause,
+    })
+  })
+})
+
+describe('assertNoLiveSubregistryOverwrite', () => {
+  const LIVE_REGISTRY: Address = '0x00000000000000000000000000000000000000aa'
+
+  const makeRegistryClient = (params: {
+    readonly subregistry?: Address
+    readonly hasCode?: boolean
+  }) => {
+    const publicClient = makePublicClient()
+    vi.mocked(publicClient.getCode).mockResolvedValue(
+      params.hasCode === false ? '0x' : '0x01',
+    )
+    vi.mocked(publicClient.readContract).mockResolvedValue(
+      params.subregistry ?? ZERO_ADDRESS,
+    )
+    return publicClient
+  }
+
+  it('allows a 2LD whose destination entry has no subregistry yet', async () => {
+    const publicClient = makeRegistryClient({})
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [makeClassified({ tokenType: 'unwrapped', label: 'alice' })],
+      }),
+    ).resolves.toBeUndefined()
+
+    expect(publicClient.readContract).toHaveBeenCalledWith({
+      address: V2_CONTRACTS.ETHRegistry,
+      abi: expect.any(Array),
+      functionName: 'getSubregistry',
+      args: ['alice'],
+    })
+  })
+
+  it('fails closed when the entry already points at a live child registry', async () => {
+    const publicClient = makeRegistryClient({ subregistry: LIVE_REGISTRY })
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [makeClassified({ tokenType: 'unlocked', label: 'alice' })],
+      }),
+    ).rejects.toMatchObject({
+      invariant: 'live-subregistry-overwrite',
+      contractName: 'DestinationRegistry',
+      ensName: 'alice.eth',
+      expected: ZERO_ADDRESS,
+      actual: LIVE_REGISTRY,
+    })
+  })
+
+  it('allows a locked name already pointing at its deterministic wrapper', async () => {
+    const publicClient = makeRegistryClient({
+      subregistry: computeExpectedWrapperRegistry({ name: 'alice.eth' }),
+    })
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [
+          makeClassified({
+            tokenType: 'locked-2ld',
+            label: 'alice',
+            fuses: FUSES.CANNOT_UNWRAP,
+          }),
+        ],
+      }),
+    ).resolves.toBeUndefined()
+  })
+
+  it('still refuses a locked name whose entry points somewhere else', async () => {
+    const publicClient = makeRegistryClient({ subregistry: LIVE_REGISTRY })
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [
+          makeClassified({
+            tokenType: 'locked-2ld',
+            label: 'alice',
+            fuses: FUSES.CANNOT_UNWRAP,
+          }),
+        ],
+      }),
+    ).rejects.toMatchObject({
+      invariant: 'live-subregistry-overwrite',
+      expected: computeExpectedWrapperRegistry({ name: 'alice.eth' }),
+      actual: LIVE_REGISTRY,
+    })
+  })
+
+  it('reads a child entry from the parent WrapperRegistry', async () => {
+    const publicClient = makeRegistryClient({})
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [
+          makeClassified({
+            tokenType: 'detached-child',
+            label: 'sub',
+            name: 'sub.alice.eth',
+            parentName: 'alice.eth',
+          }),
+        ],
+      }),
+    ).resolves.toBeUndefined()
+
+    expect(publicClient.readContract).toHaveBeenCalledWith({
+      address: computeExpectedWrapperRegistry({ name: 'alice.eth' }),
+      abi: expect.any(Array),
+      functionName: 'getSubregistry',
+      args: ['sub'],
+    })
+  })
+
+  it('skips children whose parent wrapper is created by the same migration', async () => {
+    const publicClient = makeRegistryClient({ subregistry: LIVE_REGISTRY })
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [
+          makeClassified({
+            tokenType: 'locked-child',
+            label: 'sub',
+            name: 'sub.alice.eth',
+            parentName: 'alice.eth',
+            fuses: FUSES.CANNOT_UNWRAP,
+          }),
+        ],
+      }),
+    ).rejects.toMatchObject({ invariant: 'live-subregistry-overwrite' })
+
+    const parent = makeClassified({
+      tokenType: 'locked-2ld',
+      label: 'alice',
+      fuses: FUSES.CANNOT_UNWRAP,
+    })
+    const childClient = makeRegistryClient({ subregistry: LIVE_REGISTRY })
+    vi.mocked(childClient.readContract).mockImplementation(({ args }) =>
+      Promise.resolve(args?.[0] === 'alice' ? ZERO_ADDRESS : LIVE_REGISTRY),
+    )
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient: childClient,
+        names: [
+          parent,
+          makeClassified({
+            tokenType: 'locked-child',
+            label: 'sub',
+            name: 'sub.alice.eth',
+            parentName: 'alice.eth',
+            fuses: FUSES.CANNOT_UNWRAP,
+          }),
+        ],
+      }),
+    ).resolves.toBeUndefined()
+  })
+
+  it('never reads a copied name from ETHRegistry by its own label', async () => {
+    // `sub.eth` is an unrelated 2LD. Reading its pointer for `sub.alice.eth`
+    // would refuse — or pass — the copy on someone else's registry.
+    const publicClient = makeRegistryClient({ subregistry: LIVE_REGISTRY })
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [
+          makeClassified({
+            tokenType: 'registry-child',
+            label: 'sub',
+            name: 'sub.alice.eth',
+            parentName: 'alice.eth',
+          }),
+        ],
+      }),
+    ).resolves.toBeUndefined()
+    expect(publicClient.readContract).not.toHaveBeenCalled()
+  })
+
+  it('leaves the UserRegistry route to copy readiness and checks the rest', async () => {
+    const publicClient = makeRegistryClient({})
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [
+          // Parent of a copy: its entry receives a UserRegistry, not address(0).
+          makeClassified({ tokenType: 'unwrapped', label: 'alice' }),
+          makeClassified({
+            tokenType: 'unlocked-child',
+            label: 'sub',
+            name: 'sub.alice.eth',
+            parentName: 'alice.eth',
+          }),
+          makeClassified({
+            tokenType: 'unwrapped',
+            label: 'bob',
+            name: 'bob.eth',
+          }),
+        ],
+      }),
+    ).resolves.toBeUndefined()
+
+    expect(publicClient.readContract).toHaveBeenCalledOnce()
+    expect(publicClient.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: V2_CONTRACTS.ETHRegistry,
+        args: ['bob'],
+      }),
+    )
+  })
+
+  it('skips a destination registry that is not deployed', async () => {
+    const publicClient = makeRegistryClient({ hasCode: false })
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [
+          makeClassified({
+            tokenType: 'detached-child',
+            label: 'sub',
+            name: 'sub.alice.eth',
+            parentName: 'alice.eth',
+          }),
+        ],
+      }),
+    ).resolves.toBeUndefined()
+    expect(publicClient.readContract).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when the pointer cannot be read', async () => {
+    const publicClient = makeRegistryClient({})
+    const cause = new Error('rpc unavailable')
+    vi.mocked(publicClient.readContract).mockRejectedValue(cause)
+
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [makeClassified({ tokenType: 'unwrapped', label: 'alice' })],
+      }),
+    ).rejects.toMatchObject({
+      invariant: 'live-subregistry-overwrite',
       actual: 'unverified',
       cause,
     })

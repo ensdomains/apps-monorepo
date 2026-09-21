@@ -1,5 +1,6 @@
 import { computeVerifiableProxyAddress } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { permissionedRegistryGetSubregistrySnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   type Address,
   isAddressEqual,
@@ -14,10 +15,6 @@ import type { DirectClassifiedName } from './classifyNames'
 
 const verifiableFactoryAbi = parseAbi([
   'function verifyContract(address proxy) view returns (address implementation)',
-])
-
-const permissionedRegistryAbi = parseAbi([
-  'function getSubregistry(string label) view returns (address)',
 ])
 
 const wrapperRegistryAbi = parseAbi([
@@ -200,7 +197,7 @@ const assertVerifiedWrapper = async (params: {
 }): Promise<void> => {
   const actualWrapper = await params.publicClient.readContract({
     address: params.registry,
-    abi: permissionedRegistryAbi,
+    abi: permissionedRegistryGetSubregistrySnippet,
     functionName: 'getSubregistry',
     args: [params.label],
   })
