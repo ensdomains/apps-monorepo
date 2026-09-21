@@ -39,8 +39,7 @@ e2e/
 ├── helpers/
 │   ├── manager-auth.ts             # Manager wallet connect + SIWE modal helpers
 │   ├── portal-auth.ts              # Portal wallet connect helpers
-│   ├── console-monitor.ts          # Transaction state tracking via console logs
-│   └── wait-helpers.ts             # sleep() utility
+│   └── console-monitor.ts          # Transaction state tracking via console logs
 ├── infra/                          # Docker stack (Anvil + Alto + Paymaster)
 ├── .claude/agents/                 # Playwright Agents (planner/generator/healer)
 ├── specs/                          # Test plan directory for Playwright Agents

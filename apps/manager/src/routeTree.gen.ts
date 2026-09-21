@@ -9,20 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as NameRouteRouteImport } from './routes/$name/route'
 import { Route as AddressRouteRouteImport } from './routes/$address/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AutoRenewalIndexRouteImport } from './routes/auto-renewal/index'
 import { Route as NameIndexRouteImport } from './routes/$name/index'
 import { Route as AddressIndexRouteImport } from './routes/$address/index'
 import { Route as RenewNameRouteImport } from './routes/renew/$name'
 import { Route as RenewV1NameRouteImport } from './routes/renew-v1/$name'
 import { Route as RegisterNameRouteImport } from './routes/register/$name'
-import { Route as PaymentListRouteImport } from './routes/payment/list'
-import { Route as PaymentAddRouteImport } from './routes/payment/add'
 import { Route as OgDefaultDotpngRouteImport } from './routes/og/default[.]png'
 import { Route as OgNameRouteImport } from './routes/og/$name'
 import { Route as LegalTrademarkGuidelinesRouteImport } from './routes/legal/trademark-guidelines'
@@ -36,11 +32,6 @@ import { Route as DebugBackendSettingsRouteImport } from './routes/debug/backend
 import { Route as NotificationsAuthenticatedSettingsIndexRouteImport } from './routes/notifications/_authenticated/settings/index'
 import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/notifications/channels/email/verify'
 
-const WalletRoute = WalletRouteImport.update({
-  id: '/wallet',
-  path: '/wallet',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MigrationRoute = MigrationRouteImport.update({
   id: '/migration',
   path: '/migration',
@@ -66,11 +57,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AutoRenewalIndexRoute = AutoRenewalIndexRouteImport.update({
-  id: '/auto-renewal/',
-  path: '/auto-renewal/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const NameIndexRoute = NameIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -94,16 +80,6 @@ const RenewV1NameRoute = RenewV1NameRouteImport.update({
 const RegisterNameRoute = RegisterNameRouteImport.update({
   id: '/register/$name',
   path: '/register/$name',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PaymentListRoute = PaymentListRouteImport.update({
-  id: '/payment/list',
-  path: '/payment/list',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PaymentAddRoute = PaymentAddRouteImport.update({
-  id: '/payment/add',
-  path: '/payment/add',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OgDefaultDotpngRoute = OgDefaultDotpngRouteImport.update({
@@ -178,21 +154,17 @@ export interface FileRoutesByFullPath {
   '/$name': typeof NameRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
-  '/wallet': typeof WalletRoute
   '/notifications': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/og/$name': typeof OgNameRoute
   '/og/default.png': typeof OgDefaultDotpngRoute
-  '/payment/add': typeof PaymentAddRoute
-  '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
   '/renew-v1/$name': typeof RenewV1NameRoute
   '/renew/$name': typeof RenewNameRoute
   '/$address/': typeof AddressIndexRoute
   '/$name/': typeof NameIndexRoute
-  '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
   '/notifications/': typeof NotificationsAuthenticatedIndexRoute
@@ -204,20 +176,16 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
-  '/wallet': typeof WalletRoute
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/og/$name': typeof OgNameRoute
   '/og/default.png': typeof OgDefaultDotpngRoute
-  '/payment/add': typeof PaymentAddRoute
-  '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
   '/renew-v1/$name': typeof RenewV1NameRoute
   '/renew/$name': typeof RenewNameRoute
   '/$address': typeof AddressIndexRoute
   '/$name': typeof NameIndexRoute
-  '/auto-renewal': typeof AutoRenewalIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/debug/backend': typeof DebugBackendIndexRoute
   '/notifications': typeof NotificationsAuthenticatedIndexRoute
@@ -232,21 +200,17 @@ export interface FileRoutesById {
   '/$name': typeof NameRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
-  '/wallet': typeof WalletRoute
   '/notifications/_authenticated': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/og/$name': typeof OgNameRoute
   '/og/default.png': typeof OgDefaultDotpngRoute
-  '/payment/add': typeof PaymentAddRoute
-  '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
   '/renew-v1/$name': typeof RenewV1NameRoute
   '/renew/$name': typeof RenewNameRoute
   '/$address/': typeof AddressIndexRoute
   '/$name/': typeof NameIndexRoute
-  '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
   '/notifications/_authenticated/': typeof NotificationsAuthenticatedIndexRoute
@@ -262,21 +226,17 @@ export interface FileRouteTypes {
     | '/$name'
     | '/dashboard'
     | '/migration'
-    | '/wallet'
     | '/notifications'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
     | '/og/$name'
     | '/og/default.png'
-    | '/payment/add'
-    | '/payment/list'
     | '/register/$name'
     | '/renew-v1/$name'
     | '/renew/$name'
     | '/$address/'
     | '/$name/'
-    | '/auto-renewal/'
     | '/debug/backend/settings'
     | '/debug/backend/'
     | '/notifications/'
@@ -288,20 +248,16 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/migration'
-    | '/wallet'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
     | '/og/$name'
     | '/og/default.png'
-    | '/payment/add'
-    | '/payment/list'
     | '/register/$name'
     | '/renew-v1/$name'
     | '/renew/$name'
     | '/$address'
     | '/$name'
-    | '/auto-renewal'
     | '/debug/backend/settings'
     | '/debug/backend'
     | '/notifications'
@@ -315,21 +271,17 @@ export interface FileRouteTypes {
     | '/$name'
     | '/dashboard'
     | '/migration'
-    | '/wallet'
     | '/notifications/_authenticated'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
     | '/og/$name'
     | '/og/default.png'
-    | '/payment/add'
-    | '/payment/list'
     | '/register/$name'
     | '/renew-v1/$name'
     | '/renew/$name'
     | '/$address/'
     | '/$name/'
-    | '/auto-renewal/'
     | '/debug/backend/settings'
     | '/debug/backend/'
     | '/notifications/_authenticated/'
@@ -344,19 +296,15 @@ export interface RootRouteChildren {
   NameRouteRoute: typeof NameRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   MigrationRoute: typeof MigrationRoute
-  WalletRoute: typeof WalletRoute
   NotificationsAuthenticatedRouteRoute: typeof NotificationsAuthenticatedRouteRouteWithChildren
   LegalPrivacyPolicyRoute: typeof LegalPrivacyPolicyRoute
   LegalTermsOfUseRoute: typeof LegalTermsOfUseRoute
   LegalTrademarkGuidelinesRoute: typeof LegalTrademarkGuidelinesRoute
   OgNameRoute: typeof OgNameRoute
   OgDefaultDotpngRoute: typeof OgDefaultDotpngRoute
-  PaymentAddRoute: typeof PaymentAddRoute
-  PaymentListRoute: typeof PaymentListRoute
   RegisterNameRoute: typeof RegisterNameRoute
   RenewV1NameRoute: typeof RenewV1NameRoute
   RenewNameRoute: typeof RenewNameRoute
-  AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
   DebugBackendSettingsRoute: typeof DebugBackendSettingsRoute
   DebugBackendIndexRoute: typeof DebugBackendIndexRoute
   PNameIndexRoute: typeof PNameIndexRoute
@@ -365,13 +313,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/wallet': {
-      id: '/wallet'
-      path: '/wallet'
-      fullPath: '/wallet'
-      preLoaderRoute: typeof WalletRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/migration': {
       id: '/migration'
       path: '/migration'
@@ -407,13 +348,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auto-renewal/': {
-      id: '/auto-renewal/'
-      path: '/auto-renewal'
-      fullPath: '/auto-renewal/'
-      preLoaderRoute: typeof AutoRenewalIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/$name/': {
       id: '/$name/'
       path: '/'
@@ -447,20 +381,6 @@ declare module '@tanstack/react-router' {
       path: '/register/$name'
       fullPath: '/register/$name'
       preLoaderRoute: typeof RegisterNameRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/payment/list': {
-      id: '/payment/list'
-      path: '/payment/list'
-      fullPath: '/payment/list'
-      preLoaderRoute: typeof PaymentListRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/payment/add': {
-      id: '/payment/add'
-      path: '/payment/add'
-      fullPath: '/payment/add'
-      preLoaderRoute: typeof PaymentAddRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/og/default.png': {
@@ -597,7 +517,6 @@ const rootRouteChildren: RootRouteChildren = {
   NameRouteRoute: NameRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
   MigrationRoute: MigrationRoute,
-  WalletRoute: WalletRoute,
   NotificationsAuthenticatedRouteRoute:
     NotificationsAuthenticatedRouteRouteWithChildren,
   LegalPrivacyPolicyRoute: LegalPrivacyPolicyRoute,
@@ -605,12 +524,9 @@ const rootRouteChildren: RootRouteChildren = {
   LegalTrademarkGuidelinesRoute: LegalTrademarkGuidelinesRoute,
   OgNameRoute: OgNameRoute,
   OgDefaultDotpngRoute: OgDefaultDotpngRoute,
-  PaymentAddRoute: PaymentAddRoute,
-  PaymentListRoute: PaymentListRoute,
   RegisterNameRoute: RegisterNameRoute,
   RenewV1NameRoute: RenewV1NameRoute,
   RenewNameRoute: RenewNameRoute,
-  AutoRenewalIndexRoute: AutoRenewalIndexRoute,
   DebugBackendSettingsRoute: DebugBackendSettingsRoute,
   DebugBackendIndexRoute: DebugBackendIndexRoute,
   PNameIndexRoute: PNameIndexRoute,

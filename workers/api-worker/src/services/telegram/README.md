@@ -234,15 +234,6 @@ import type {
 } from './services/telegram/index.js'
 ```
 
-## Examples
-
-See `example.ts` for comprehensive usage examples including:
-- Basic message sending
-- Webhook handling
-- Keyboard creation
-- Error handling
-- Bot setup
-
 ## Migration from Legacy Code
 
 If you're migrating from the old `makeTelegramRequest` function, the wrapper maintains backward compatibility:
