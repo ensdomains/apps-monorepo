@@ -200,7 +200,11 @@ const ArtworkActions = ({
     >
       <SharingRail disabled={disabled} state={state} />
       {variant === 'profile' ? null : (
-        <CommemorativeNftTraitsTooltip traits={state.card.eligibility.traits} />
+        <CommemorativeNftTraitsTooltip
+          learnMoreUrl={state.card.learnMoreUrl}
+          marketplaceUrl={state.card.marketplaceUrl}
+          traits={state.card.eligibility.traits}
+        />
       )}
     </div>
   )

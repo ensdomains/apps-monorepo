@@ -10,8 +10,12 @@ import type { RendererTraits } from '../../commemorative-nft/types'
 import { useTraitsPopover } from './useTraitsPopover'
 
 export const CommemorativeNftTraitsTooltip = ({
+  learnMoreUrl,
+  marketplaceUrl,
   traits,
 }: {
+  readonly learnMoreUrl?: string
+  readonly marketplaceUrl?: string
   readonly traits: RendererTraits
 }) => {
   const { t } = useLingui()
@@ -37,7 +41,7 @@ export const CommemorativeNftTraitsTooltip = ({
         align="end"
         aria-describedby={descriptionId}
         aria-label={t`NFT traits`}
-        className="w-[181px] max-w-[calc(100vw-2rem)] rounded-[20px] border-0 bg-white px-3 py-3.5 text-center font-sans text-ens-garnet-900 text-xs leading-[1.2] tracking-[0.01em] motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none"
+        className="flex w-[181px] max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-[20px] border-0 bg-white px-3 py-3.5 text-center font-sans text-ens-garnet-900 text-xs leading-[1.2] tracking-[0.01em] shadow-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none"
         collisionPadding={16}
         onCloseAutoFocus={(event) => event.preventDefault()}
         onOpenAutoFocus={(event) => event.preventDefault()}
@@ -46,15 +50,40 @@ export const CommemorativeNftTraitsTooltip = ({
         {...pointerHandlers}
       >
         <p id={descriptionId}>
-          <Trans>Your journey with ENS has given you these traits</Trans>
+          <Trans>
+            Your journey with ENS has given you these{' '}
+            <span className="underline underline-offset-2">traits</span>
+          </Trans>
         </p>
-        <ul className="flex flex-col gap-1.5 p-1.5 font-bold text-ens-garnet-500">
+        <ul className="flex flex-wrap justify-center gap-x-1.5 gap-y-2 font-bold text-sm leading-4.5">
           <li>{traits.Era}</li>
           <li>{traits.Depth}</li>
           <li>{traits.Gasveteran}</li>
           <li>{traits.Archetype}</li>
           <li>{traits.Rarity}</li>
         </ul>
+        <div className="flex items-center justify-between gap-3 text-ens-garnet-500">
+          <a
+            className="underline underline-offset-2 hover:text-ens-garnet-600 focus-visible:outline-2 focus-visible:outline-offset-2"
+            href={learnMoreUrl ?? 'https://ens.domains/blog'}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <Trans>
+              Learn More<span className="sr-only"> about NFT traits</span>
+            </Trans>
+          </a>
+          <a
+            aria-disabled={!marketplaceUrl}
+            className="ml-auto underline underline-offset-2 hover:text-ens-garnet-600 focus-visible:outline-2 focus-visible:outline-offset-2"
+            href={marketplaceUrl}
+            rel="noreferrer"
+            role={marketplaceUrl ? undefined : 'link'}
+            target="_blank"
+          >
+            <Trans>OpenSea</Trans>
+          </a>
+        </div>
       </PopoverContent>
     </Popover>
   )
