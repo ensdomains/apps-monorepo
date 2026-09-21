@@ -1,29 +1,20 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import {
+  type EnsContracts,
+  getEnsContracts,
+  requireChainId,
+} from '@ens-apps/config'
 import { registryOwnerSnippet } from '@ensdomains/ensjs-abi/registry'
 import { permissionedRegistryGetStatusSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { type Address, namehash, type PublicClient, zeroAddress } from 'viem'
-import { sepoliaWithEns } from '../chain'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { batchedMulticall } from './batchedMulticall'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
 import { GRACE_PERIOD_SECONDS } from './constants'
 
-const BASE_REGISTRAR = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensBaseRegistrarImplementation',
-})
-const NAME_WRAPPER = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensNameWrapper',
-})
-const LEGACY_REGISTRY = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensLegacyRegistry',
-})
-const ETH_REGISTRY_V2 = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensRegistry',
-})
+// Resolved from the client each check is given rather than pinned at module
+// scope, so these follow whichever network the caller is actually on.
+const contractsFor = (publicClient: PublicClient) =>
+  getEnsContracts(requireChainId(publicClient, 'migration preflight'))
 const RESERVED_STATUS = 1
 
 // Whether a NameWrapper token can actually be transferred right now, matching
@@ -51,10 +42,13 @@ export type EligibilityResult = {
 type OwnershipResult = Address | readonly [Address, number, bigint]
 type OwnershipContract = Parameters<typeof batchedMulticall>[1][number]
 
-const buildOwnershipContract = (name: ClassifiedName): OwnershipContract => {
+const buildOwnershipContract = (
+  name: ClassifiedName,
+  contracts: EnsContracts,
+): OwnershipContract => {
   if (name.action === 'copy' && name.copySource === 'registry') {
     return {
-      address: LEGACY_REGISTRY,
+      address: contracts.LegacyRegistry,
       abi: registryOwnerSnippet,
       functionName: 'owner' as const,
       args: [namehash(name.domain.name)] as const,
@@ -62,14 +56,14 @@ const buildOwnershipContract = (name: ClassifiedName): OwnershipContract => {
   }
   if (name.action === 'migrate' && name.tokenType === 'unwrapped') {
     return {
-      address: BASE_REGISTRAR,
+      address: contracts.BaseRegistrar,
       abi: BASE_REGISTRAR_ABI,
       functionName: 'ownerOf' as const,
       args: [BigInt(name.domain.labelhash)] as const,
     }
   }
   return {
-    address: NAME_WRAPPER,
+    address: contracts.NameWrapper,
     abi: NAME_WRAPPER_ABI,
     functionName: 'getData' as const,
     args: [BigInt(name.domain.id)] as const,
@@ -94,7 +88,10 @@ export const checkOwnership = async (
   const ids = new Set<string>()
   if (names.length === 0) return ids
 
-  const contracts = names.map(buildOwnershipContract)
+  const ensContracts = contractsFor(publicClient)
+  const contracts = names.map((name) =>
+    buildOwnershipContract(name, ensContracts),
+  )
 
   const results = await batchedMulticall<OwnershipResult>(
     publicClient,
@@ -142,7 +139,7 @@ export const checkFrozenApproval = async (
   const results = await batchedMulticall<Address>(
     publicClient,
     directCandidates.map((name) => ({
-      address: NAME_WRAPPER,
+      address: contractsFor(publicClient).NameWrapper,
       abi: NAME_WRAPPER_ABI,
       functionName: 'getApproved' as const,
       args: [BigInt(name.domain.id)] as const,
@@ -191,7 +188,7 @@ export const checkPremigrationReservation = async (
   const results = await batchedMulticall<number>(
     publicClient,
     candidates.map((name) => ({
-      address: ETH_REGISTRY_V2,
+      address: contractsFor(publicClient).ETHRegistry,
       abi: permissionedRegistryGetStatusSnippet,
       functionName: 'getStatus' as const,
       args: [BigInt(name.domain.labelhash)] as const,

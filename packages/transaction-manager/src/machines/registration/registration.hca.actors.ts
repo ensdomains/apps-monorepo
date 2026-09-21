@@ -21,6 +21,7 @@
  *       setters → setNameWithHCA?).
  */
 
+import { requireChainId } from '@ens-apps/config'
 import {
   buildCommitCall,
   buildRevealBatch,
@@ -50,7 +51,6 @@ import {
   stringToHex,
 } from 'viem'
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
-import { requireChainId } from '../../helpers/requireChainId'
 import { transactionManager } from '../../providers/transactionManager'
 import type { RhinestoneSigner, Signer } from '../../types/signer.types'
 import type {

@@ -1,7 +1,7 @@
 import type { Client } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
-import { requireChainId } from './requireChainId'
+import { requireChainId } from './require-chain-id'
 
 const clientWith = (chain: Client['chain']) =>
   ({ chain }) as Pick<Client, 'chain'>

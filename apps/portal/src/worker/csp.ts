@@ -15,30 +15,10 @@
  * `report-to` / `report-uri` directives plus a `Reporting-Endpoints` header.
  */
 
+import { originFromEnvUrl } from '@ens-apps/config'
 import { config } from '@/config'
 
-/**
- * Extract the `scheme://host[:port]` origin from a build-time env URL so it can
- * be allowlisted in `connect-src`.
- *
- * `VITE_SEPOLIA_RPC_URL` and `VITE_INDEXER_GRAPHQL_URL` are inlined by Vite at
- * build time and can point a deployment's RPC / indexer at a host outside the
- * static list below. Without this, the browser would enforce the static
- * `connect-src` and block those configured requests even though the app
- * accepted the override.
- *
- * Returns `null` for unset, relative (`/rpc` — already covered by `'self'`), or
- * unparseable values, so only real absolute http(s) overrides are added.
- */
-export function originFromEnvUrl(value: string | undefined): string | null {
-  if (!value || value.startsWith('/')) return null
-  try {
-    const { protocol, origin } = new URL(value)
-    return protocol === 'https:' || protocol === 'http:' ? origin : null
-  } catch {
-    return null
-  }
-}
+export { originFromEnvUrl }
 
 // DQA overlay origin (QA/preview builds only): needed in script-src and
 // connect-src (https + wss). Statically null unless the build sets VITE_DQA=1.

@@ -1,13 +1,23 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { type Address, isAddressEqual } from 'viem'
-import { sepoliaWithEns } from '../chain'
 
+/**
+ * Resolvers the migration flow knows how to read records from.
+ *
+ * Deliberately a union across networks rather than a per-network lookup:
+ * addresses are globally unique, so a Sepolia name can never carry a mainnet
+ * resolver, and the union lets the pure classification helpers stay free of a
+ * chain parameter. Membership only widens what migration understands, so a
+ * stale entry cannot misclassify a name on another network.
+ *
+ * An unrecognised resolver is treated as non-standard, which routes the name
+ * down the conservative path. The failure direction is safe.
+ */
 const KNOWN_PUBLIC_RESOLVERS: readonly Address[] = [
-  getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensPublicResolver',
-  }),
-  // Legacy Sepolia V1 PublicResolver used by migration fixtures.
+  ...Object.values(supportedL1Chains).map(
+    (chainId) => ensL1Contracts[chainId].ensPublicResolver.address,
+  ),
+  // Legacy Sepolia V1 PublicResolvers used by migration fixtures.
   '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
   '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d',

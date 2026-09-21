@@ -9,26 +9,13 @@
  * PostHog via `report-to` / `report-uri` + `Reporting-Endpoints`.
  */
 
+import { originFromEnvUrl } from '@ens-apps/config'
 import { ensL1Subgraphs } from '@ensdomains/ensjs/chain'
 import { config } from '@/config'
-import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
 
-/**
- * Extract the `scheme://host[:port]` origin from a build-time env URL so it can
- * be allowlisted in `connect-src` / `frame-src`.
- *
- * Returns `null` for unset, relative (`/rpc` — already covered by `'self'`), or
- * unparseable values, so only real absolute http(s) overrides are added.
- */
-export function originFromEnvUrl(value: string | undefined): string | null {
-  if (!value || value.startsWith('/')) return null
-  try {
-    const { protocol, origin } = new URL(value)
-    return protocol === 'https:' || protocol === 'http:' ? origin : null
-  } catch {
-    return null
-  }
-}
+export { originFromEnvUrl }
+
+import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
 
 // DQA overlay origin (QA/preview builds only): needed in script-src and
 // connect-src (https + wss). Statically null unless the build sets VITE_DQA=1.
