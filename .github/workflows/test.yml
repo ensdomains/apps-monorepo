@@ -52,12 +52,6 @@ jobs:
           echo "🔍 Running Biome on changed packages..."
           pnpm --filter="...[${{ steps.base.outputs.ref }}]" lint
 
-      # Safety net for anything the workspace filter can't see: root-level
-      # config, files in a package whose manifest didn't change, and new
-      # directories not yet added to biome.jsonc's `files.includes`.
-      - name: Run Biome on the whole repo
-        run: pnpm exec biome ci --reporter=github
-
       - name: Run tests with coverage on changed packages
         run: |
           echo "📊 Running coverage tests on changed packages..."

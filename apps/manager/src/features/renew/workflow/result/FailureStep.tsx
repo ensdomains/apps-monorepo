@@ -21,11 +21,11 @@ export const RenewFailureStep = () => {
           aria-hidden="true"
           className="mt-0.5 h-4 w-4 shrink-0 text-ens-garnet-dense"
         />
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1">
           <p className="font-medium text-ens-garnet-dense text-sm leading-5">
             <Trans>Renewal Failed</Trans>
           </p>
-          <p className="text-ens-garnet-dense/70 text-sm leading-5">
+          <p className="wrap-anywhere max-h-32 overflow-y-auto text-ens-garnet-dense/70 text-sm leading-5">
             {message ??
               t`The renewal for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`}
           </p>

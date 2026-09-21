@@ -1,7 +1,12 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import { verifiableFactoryVerifyContractSnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import {
   type Address,
   bytesToHex,
+  type Chain,
+  type Client,
+  ContractFunctionRevertedError,
   decodeEventLog,
   encodeFunctionData,
   getAddress,
@@ -9,7 +14,9 @@ import {
   keccak256,
   parseAbi,
   stringToBytes,
+  type Transport,
 } from 'viem'
+import { getStorageAt, readContract } from 'viem/actions'
 
 const permissionedResolverRoleBitmap = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
@@ -115,4 +122,112 @@ export const filterPermissionedResolverAddresses = (
   }
 
   return addresses
+}
+
+const EIP1967_IMPLEMENTATION_SLOT: Hex =
+  '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
+
+/**
+ * Whether the call came back FROM the contract rather than failing to reach it.
+ *
+ * Matched on viem's revert error names as well as the class, since class
+ * identity does not survive the production build. Deliberately not on a numeric
+ * `code`: that would read any unrelated `code: 3` in the chain as a revert, and
+ * this fails closed, so a transport failure would cost a genuine proxy its
+ * badge.
+ */
+const REVERT_ERROR_NAMES: ReadonlySet<string> = new Set([
+  'ContractFunctionRevertedError',
+  'ExecutionRevertedError',
+])
+
+const isRevert = (error: unknown): boolean => {
+  let current: unknown = error
+  for (let depth = 0; depth < 10 && current != null; depth += 1) {
+    if (current instanceof ContractFunctionRevertedError) return true
+    const { name } = current as { name?: unknown }
+    if (typeof name === 'string' && REVERT_ERROR_NAMES.has(name)) return true
+    current = (current as { cause?: unknown }).cause
+  }
+  return false
+}
+
+export interface GetVerifiedProxyImplementationParams {
+  readonly client: Client
+  readonly factoryAddress: Address
+  readonly proxyAddress: Address
+}
+
+/**
+ * The implementation a factory-deployed proxy currently delegates to, or null
+ * when the factory will not vouch for `proxyAddress`. It recomputes the CREATE2
+ * address from the salt in the proxy's own bytecode, so only a proxy it
+ * deployed can pass, and it reverts rather than answering for anything else.
+ */
+export const getVerifiedProxyImplementation = async ({
+  client,
+  factoryAddress,
+  proxyAddress,
+}: GetVerifiedProxyImplementationParams): Promise<Address | null> =>
+  readContract(client, {
+    address: factoryAddress,
+    abi: verifiableFactoryVerifyContractSnippet,
+    functionName: 'verifyContract',
+    args: [proxyAddress],
+  }).catch((error: unknown) => {
+    // A revert IS the answer: the factory refuses to vouch for this proxy.
+    // A transport failure is not, and must not quietly cost a genuine proxy
+    // its badge, so it propagates to the caller's error handling.
+    if (isRevert(error)) return null
+    throw error
+  })
+
+/**
+ * Whether `address` is a PermissionedResolver this app will trust.
+ *
+ * Both conditions have to hold: the EIP-1967 slot names the implementation we
+ * expect, and the factory vouches for the proxy. The slot alone is metadata the
+ * contract writes about itself, so it only narrows the candidates.
+ *
+ * The chain comes off `client` so every caller answers for the chain it is
+ * actually reading, rather than one pinned at module scope.
+ */
+/** A chain carrying the two contracts this check reads. */
+export type PermissionedResolverChain = Chain & {
+  readonly contracts: {
+    readonly ensPermissionedResolverImpl: { readonly address: Address }
+    readonly ensVerifiableFactory: { readonly address: Address }
+  }
+}
+
+export const isVerifiedPermissionedResolver = async ({
+  client,
+  address,
+}: {
+  readonly client: Client<Transport, PermissionedResolverChain>
+  readonly address: Address
+}): Promise<boolean> => {
+  const knownImplementation = getChainContractAddress({
+    chain: client.chain,
+    contract: 'ensPermissionedResolverImpl',
+  }).toLowerCase()
+
+  if (address.toLowerCase() === knownImplementation) return true
+
+  const slotValue = await getStorageAt(client, {
+    address,
+    slot: EIP1967_IMPLEMENTATION_SLOT,
+  })
+  const implementation = decodeImplementationAddress(slotValue)
+  if (implementation?.toLowerCase() !== knownImplementation) return false
+
+  const verified = await getVerifiedProxyImplementation({
+    client,
+    factoryAddress: getChainContractAddress({
+      chain: client.chain,
+      contract: 'ensVerifiableFactory',
+    }),
+    proxyAddress: address,
+  })
+  return verified?.toLowerCase() === knownImplementation
 }

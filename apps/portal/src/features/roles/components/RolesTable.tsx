@@ -80,7 +80,11 @@ export const RolesTable = ({
       registryAddress={registryAddress}
     >
       <div className={rolesTableClassName(canManageRoles)}>
-        <DataTable columns={columns} data={data} />
+        <DataTable
+          columns={columns}
+          data={data}
+          getRowId={(row) => row.account.toLowerCase()}
+        />
       </div>
     </RolesSidebar>
   )

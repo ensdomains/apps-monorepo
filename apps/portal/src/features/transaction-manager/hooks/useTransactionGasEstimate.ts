@@ -3,13 +3,14 @@ import type {
   TransactionMachineActor,
   TransactionRequest,
 } from '@ens-apps/transaction-manager'
+import { formatGasEth } from '@ens-apps/utils/formatGasEth'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type UseQueryResult, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import {
   BaseError,
   ContractFunctionRevertedError,
   ExecutionRevertedError,
-  formatEther,
   type PublicClient,
 } from 'viem'
 import { useEstimateFeesPerGas, usePublicClient } from 'wagmi'
@@ -31,19 +32,14 @@ export type GasEstimateStatus = 'idle' | 'loading' | 'error' | 'success'
 // reads as glitchy. It's still re-estimated for real when the step starts (the
 // gas query key flips on `activeRequest`), and react-query drops the cache a few
 // minutes after the modal closes, so a later session recomputes fresh.
-const PREVIEW_STALE_TIME = Number.POSITIVE_INFINITY
+export const PREVIEW_STALE_TIME = Number.POSITIVE_INFINITY
 
 // Transient RPC failures (timeouts, rate-limits, transport blips) are worth a
 // couple of retries; a genuine on-chain revert is deterministic and never is.
-const MAX_TRANSIENT_RETRIES = 2
+export const MAX_TRANSIENT_RETRIES = 2
 
 // Gas costs are tiny ETH amounts; `formatEther` alone yields an 18-decimal
 // string. Round to a few significant digits for a readable "Est. cost".
-const formatGasCost = (wei: bigint): string =>
-  Number(formatEther(wei)).toLocaleString('en-US', {
-    maximumSignificantDigits: 4,
-  })
-
 /**
  * Distinguishes an `eth_estimateGas` failure that is the call *actually
  * reverting on-chain* (a real "this would fail" signal worth surfacing) from a
@@ -51,6 +47,21 @@ const formatGasCost = (wei: bigint): string =>
  * revert should be shown to the user as "Unavailable"; a transient blip must not
  * claim the transaction would fail.
  */
+export type StepGasEstimateParams = {
+  readonly chainId: number | undefined
+  readonly from: string | undefined
+  readonly to: string | undefined
+  readonly data: string | undefined
+  readonly value: string | undefined
+  readonly gas: string | undefined
+  readonly started: boolean
+}
+
+export const stepGasEstimateQueryKey = createQueryKey<
+  'step-gas-estimate',
+  StepGasEstimateParams
+>('step-gas-estimate')
+
 export const isRevertError = (error: unknown): boolean =>
   error instanceof BaseError &&
   error.walk(
@@ -155,19 +166,18 @@ export const useTransactionGasEstimate = (
   })
 
   const gasQuery = useQuery({
-    queryKey: [
-      'tx-gas-estimate',
-      eoa?.chainId,
-      eoa?.from,
-      eoa?.to,
-      eoa?.data,
-      eoa?.value?.toString(),
-      eoa?.gas?.toString(),
-      // Re-estimate once the step is actually started: a call that reverted
-      // at modal-open (e.g. a renew before its approval, or any precondition
-      // set by an earlier step) can succeed now that the prior step has run.
-      Boolean(activeRequest),
-    ],
+    // Shared with useFlowGasAffordability so a step is estimated once and both
+    // read the same number. `started` re-estimates once the step actually runs:
+    // a call that reverted at modal-open can succeed after the prior step.
+    queryKey: stepGasEstimateQueryKey({
+      chainId: eoa?.chainId,
+      from: eoa?.from,
+      to: eoa?.to,
+      data: eoa?.data,
+      value: eoa?.value?.toString(),
+      gas: eoa?.gas?.toString(),
+      started: Boolean(activeRequest),
+    }),
     enabled: Boolean(eoa?.to && eoa?.data && publicClient && !receipt),
     staleTime: PREVIEW_STALE_TIME,
     refetchOnWindowFocus: false,
@@ -190,7 +200,7 @@ export const useTransactionGasEstimate = (
   if (receipt != null) {
     return receipt.status === 'success'
       ? {
-          cost: formatGasCost(receipt.gasUsed * receipt.effectiveGasPrice),
+          cost: formatGasEth(receipt.gasUsed * receipt.effectiveGasPrice),
           status: 'success',
         }
       : { cost: null, status: 'error' }
@@ -200,7 +210,7 @@ export const useTransactionGasEstimate = (
   const maxFeePerGas = feeQuery.data?.maxFeePerGas
   const cost =
     gas != null && maxFeePerGas != null
-      ? formatGasCost(gas * maxFeePerGas)
+      ? formatGasEth(gas * maxFeePerGas)
       : null
 
   return {
