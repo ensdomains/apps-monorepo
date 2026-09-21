@@ -67,7 +67,7 @@ class IndexerRequestError extends TaggedError('INDEXER_REQUEST_ERROR')<{
 class IndexerValidationError extends TaggedError('INDEXER_VALIDATION_ERROR') {}
 
 class IndexerConfigError extends TaggedError('INDEXER_CONFIG_ERROR')<{
-  reason: string
+  cause: unknown
 }> {}
 
 /**
@@ -80,10 +80,7 @@ function getIndexerUrl(
 ): Result<string, IndexerConfigError> {
   return fromSync(
     () => getConfig(env).endpoints.indexerGraphql,
-    (error) =>
-      new IndexerConfigError({
-        reason: error instanceof Error ? error.message : String(error),
-      }),
+    (error) => new IndexerConfigError({ cause: error }),
   )
 }
 
