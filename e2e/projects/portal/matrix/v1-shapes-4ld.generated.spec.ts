@@ -55,6 +55,12 @@ test.describe('V1 shape · 4ld-locked+locked-3ld+locked-2ld:owner', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
+    tag: ['@scenario:VD40', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
   test('subnames · renders the subnames tab for a V1 subname', {
     tag: ['@scenario:VS40', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
@@ -77,6 +83,12 @@ test.describe('V1 shape · 4ld-locked+locked-3ld+locked-2ld:owner', () => {
     tag: ['@scenario:VH40', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
+    tag: ['@scenario:VA40', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
   })
 })
 
@@ -120,6 +132,12 @@ test.describe('V1 shape · 4ld-locked+locked-3ld:parent', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
+    tag: ['@scenario:VD41', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
   test('subnames · renders the subnames tab for a V1 subname', {
     tag: ['@scenario:VS41', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
@@ -142,6 +160,12 @@ test.describe('V1 shape · 4ld-locked+locked-3ld:parent', () => {
     tag: ['@scenario:VH41', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
+    tag: ['@scenario:VA41', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
   })
 })
 
@@ -185,6 +209,12 @@ test.describe('V1 shape · 4ld-registry+registry-3ld+unwrapped-2ld:owner', () =>
     await runCell(page, wallet, seeded, 'resolver')
   })
 
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
+    tag: ['@scenario:VD42', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
   test('subnames · renders the subnames tab for a V1 subname', {
     tag: ['@scenario:VS42', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
@@ -212,6 +242,12 @@ test.describe('V1 shape · 4ld-registry+registry-3ld+unwrapped-2ld:owner', () =>
     tag: ['@scenario:VH42', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
+    tag: ['@scenario:VA42', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
   })
 })
 
@@ -255,6 +291,12 @@ test.describe('V1 shape · 4ld-registry+registry-3ld:parent', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
+    tag: ['@scenario:VD43', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
   test('subnames · renders the subnames tab for a V1 subname', {
     tag: ['@scenario:VS43', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
@@ -282,6 +324,12 @@ test.describe('V1 shape · 4ld-registry+registry-3ld:parent', () => {
     tag: ['@scenario:VH43', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
+    tag: ['@scenario:VA43', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
   })
 })
 
@@ -325,6 +373,12 @@ test.describe('V1 shape · 4ld-registry+wrapped-3ld:parent', () => {
     await runCell(page, wallet, seeded, 'resolver')
   })
 
+  test("records · shows a V1 subname's text record with the value the resolver holds", {
+    tag: ['@scenario:VD45', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'records')
+  })
+
   test('subnames · renders the subnames tab for a V1 subname', {
     tag: ['@scenario:VS45', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
@@ -352,5 +406,11 @@ test.describe('V1 shape · 4ld-registry+wrapped-3ld:parent', () => {
     tag: ['@scenario:VH45', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'history')
+  })
+
+  test('address · resolves a V1 subname to the ETH address its resolver holds', {
+    tag: ['@scenario:VA45', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'address')
   })
 })

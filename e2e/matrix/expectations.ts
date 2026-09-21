@@ -122,14 +122,12 @@ const readOnlyTabs = ({
     // app hardcodes unless the V1 subgraph knows the name, and `com.twitter` is
     // the one of those the matrix seeds.
     //
-    // **Caveat worth carrying (HW10).** This passes, but by a different route
-    // than production. On Sepolia a V1 name resolves through the ENSV1Resolver
-    // wildcard; on the fork `findResolver` lands on the plain V1 PublicResolver,
-    // which serves an offset-0 lookup for the name's own node perfectly well.
-    // So a 2LD looks identical either way and a subname does not — which is
-    // exactly how E2E-017 came to be filed and withdrawn. What this cell
-    // genuinely proves is that the page renders the resolver's value; that the
-    // resolution PATH matches production is not established until HW10 lands.
+    // This used to pass by a different route than production — the fork
+    // reserved V1 names with the plain V1 PublicResolver, which serves an
+    // offset-0 lookup fine, so a 2LD looked identical to Sepolia while every
+    // subname silently did not. HW10 closed that: the fork now reserves with
+    // the ENSV1Resolver wildcard, so this cell and its subname counterpart
+    // exercise the same resolution path the apps use in production.
     records: { texts: ['com.twitter'] },
   },
   subnames: {
@@ -242,15 +240,11 @@ const subnameReadOnlyTabs = ({
     title: "shows a V1 subname's text record with the value the resolver holds",
     heading: 'Records',
     records: { texts: ['com.twitter'] },
-    // Blocked on HW10, not broken. On Sepolia a V1 name resolves through the
-    // ENSV1Resolver wildcard, which is ENSIP-10 capable, so a subname's records
-    // resolve — verified against a live V1 subname. The fork has never been put
-    // into that premigration state (HW10 is not-started, fixtures/premigration.ts
-    // does not exist), so `findResolver` lands on the plain V1 PublicResolver and
-    // the wildcard read returns nothing. Asserting this today would test a
-    // resolution path that does not exist in production, so the cell stays open
-    // with the reason recorded rather than passing, failing, or claiming a defect.
-    todo: 'blocked on HW10: the fork does not resolve V1 names through the ENSV1Resolver wildcard, so subname records cannot be asserted against production behaviour (see E2E-017, withdrawn)',
+    // Unblocked by HW10: the fork now reserves V1 names with the
+    // ENSV1Resolver, the wildcard resolver Sepolia uses, so a subname's
+    // records resolve exactly as a 2LD's do. Before that, this cell could only
+    // ever have asserted a resolution path that does not exist in production —
+    // and the attempt to assert it anyway produced E2E-017, withdrawn.
   },
   subnames: {
     title: 'renders the subnames tab for a V1 subname',
@@ -268,8 +262,7 @@ const subnameReadOnlyTabs = ({
     title: 'resolves a V1 subname to the ETH address its resolver holds',
     heading: 'Address Resolution',
     records: { ethAddress: 'shown' },
-    // Same blocker as the records cell above — see HW10.
-    todo: 'blocked on HW10: forward resolution for a V1 subname goes through the ENSV1Resolver wildcard on Sepolia, a state the fork is not in',
+    // Unblocked by HW10, as above.
   },
   resolver: {
     title: 'renders the resolver tab for a V1 subname',

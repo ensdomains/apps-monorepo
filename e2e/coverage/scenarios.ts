@@ -335,7 +335,8 @@ const harness: Scenario[] = [
     app: 'shared',
     title:
       'Premigration state builder — all V1 names RESERVED in V2, ENSV1Resolver wildcard',
-    oracle: 'fixtures/premigration.ts',
+    oracle:
+      'UniversalResolver.findResolver must return the ENSV1Resolver for a seeded V1 2LD AND for its subname — the subname is the half that matters, since the plain V1 PublicResolver serves an offset-0 lookup fine and only fails the wildcard. The address is discovered from reserved pre-fork labels, never pinned.',
     modules: ['fixtures/premigration.ts'],
   },
   {

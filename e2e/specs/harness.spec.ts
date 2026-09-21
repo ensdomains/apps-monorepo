@@ -32,7 +32,7 @@
 import { shapeById } from '@ens-apps/v1-name-shapes'
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
-import { namehash, parseAbi } from 'viem'
+import { getAddress, namehash, parseAbi, toHex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { revertTo, takeSnapshot } from '../fixtures/chain-snapshot.js'
 import { createMakeV1Name, V1_PUBLIC_RESOLVER } from '../fixtures/makeV1Name.js'
@@ -49,6 +49,7 @@ import {
   expect,
   test,
 } from '../fixtures/playwright.portal.fixture.js'
+import { discoverV1CompatResolver } from '../fixtures/premigration.js'
 import { publicClient, testClient } from '../helpers/anvil-client.js'
 import { ETH_REGISTRY, readNameRoles } from '../helpers/role-assertions.js'
 import { readChainTruth } from '../matrix/chain.js'
@@ -377,6 +378,59 @@ test.describe('Harness integrity', () => {
         truth.wrapperOwner,
         `${id}: the NameWrapper reports no owner, which is what an expired emancipated name looks like`,
       ).not.toBeNull()
+    }
+  })
+
+  /** `sub.parent.eth` -> the length-prefixed wire format findResolver takes. */
+  const dnsEncodeName = (name: string): `0x${string}` =>
+    `0x${name
+      .split('.')
+      .map((label) => {
+        const bytes = new TextEncoder().encode(label)
+        return `${bytes.length.toString(16).padStart(2, '0')}${toHex(bytes).slice(2)}`
+      })
+      .join('')}00` as `0x${string}`
+
+  test('premigration: a seeded V1 name resolves the way Sepolia resolves one', async ({
+    accounts,
+  }) => {
+    // HW10, as an assertion rather than a fixture nobody re-checks.
+    //
+    // On Sepolia an unmigrated V1 name is RESERVED in V2 with the
+    // ENSV1Resolver, a wildcard resolver that proxies back to V1. That is what
+    // lets a V1 SUBNAME resolve; the plain V1 PublicResolver answers only for a
+    // name's own node. Reserve with the wrong one and a 2LD still looks
+    // perfect while every subname silently returns nothing — which is precisely
+    // what happened, and got filed as an app defect (E2E-017, withdrawn).
+    //
+    // So the subname half is the half that matters. The 2LD assertion is here
+    // only to prove the subname failure is about wildcard resolution and not
+    // about the name being broken generally.
+    const compat = await discoverV1CompatResolver()
+    const seeded = await seedShape(
+      shapeById('3ld-wrapped+emancipated-2ld:owner'),
+      accounts,
+    )
+    const parent = seeded.levels[0] as string
+
+    for (const [name, what] of [
+      [parent, 'the 2LD'],
+      [seeded.name, 'the subname'],
+    ] as const) {
+      const [resolver] = await publicClient.readContract({
+        address: UNIVERSAL_RESOLVER,
+        abi: parseAbi([
+          'function findResolver(bytes name) view returns (address, bytes32, uint256)',
+        ]),
+        functionName: 'findResolver',
+        args: [dnsEncodeName(name)],
+      })
+      expect(
+        getAddress(resolver),
+        `${what} (${name}) resolves through ${resolver}, not the ENSV1Resolver ${compat}. ` +
+          'reserveInV2 has been pointed at the wrong resolver: V1 subnames will silently resolve to nothing ' +
+          'and it will look like an app bug.',
+      ).toBe(getAddress(compat))
     }
   })
 

@@ -28,12 +28,12 @@ import {
   zeroHash,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-
 import {
   publicClient,
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import { discoverV1CompatResolver } from './premigration.js'
 import {
   APP_V1_BASE_REGISTRAR,
   APP_V1_CONTROLLER,
@@ -261,7 +261,15 @@ export async function reserveInV2(
           label,
           zeroAddress, // owner = 0 → creates RESERVED (not REGISTERED)
           zeroAddress, // no subregistry yet
-          V1_PUBLIC_RESOLVER, // fallback resolver for resolution during unmigrated state
+          // The ENSV1Resolver, discovered from the fork rather than pinned.
+          //
+          // NOT `V1_PUBLIC_RESOLVER`, which is what this used to pass. That is
+          // the plain V1 resolver: it answers for a name's own node and cannot
+          // serve an ENSIP-10 wildcard, so a seeded V1 2LD resolved fine while
+          // every V1 SUBNAME silently returned nothing — reading exactly like
+          // an app bug in the subname path. Sepolia reserves V1 names with the
+          // wildcard-capable ENSV1Resolver, and matching that is HW10.
+          await discoverV1CompatResolver(),
           0n, // roleBitmap must be 0 when owner is zero
           v1Expiry, // sync V1 expiry into V2
         ],
