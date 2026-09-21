@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type Address, isAddressEqual } from 'viem'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { isClaimable } from '@/utils/ens/tldHelpers'
 import { getDnsOwnerQueryOptions } from '../queries/getDnsOwner'
 
@@ -34,6 +35,8 @@ export const useDnsSyncStatus = ({
   protocolVersion,
   connectedAddress,
 }: UseDnsSyncStatusParams) => {
+  const queryClient = useQueryClient()
+
   // DNS import writes to the v1 registry, so only v1-owned DNS 2LDs can be
   // out of sync. (v2 has no DNS registrar yet.)
   const isApplicable =
@@ -58,10 +61,25 @@ export const useDnsSyncStatus = ({
     return 'out-of-sync'
   })()
 
+  // The status compares two sides, so a refresh has to re-read both: the
+  // manager is just as likely to be the side that moved (someone re-ran
+  // `proveAndClaim`), and that leaves the TXT record untouched — refetching
+  // DNS alone would re-compare against a stale cached manager and keep the
+  // warning up.
+  const managerQueryKey = getEnsOwnerQueryOptions({ name }).queryKey
+  const isManagerRefetching = useIsFetching({ queryKey: managerQueryKey }) > 0
+
+  const refresh = () => {
+    void Promise.all([
+      dnsOwnerQuery.refetch(),
+      queryClient.invalidateQueries({ queryKey: managerQueryKey }),
+    ])
+  }
+
   return {
     status,
     dnsOwner,
-    refetch: () => void dnsOwnerQuery.refetch(),
-    isRefetching: dnsOwnerQuery.isRefetching,
+    refresh,
+    isRefreshing: dnsOwnerQuery.isRefetching || isManagerRefetching,
   }
 }

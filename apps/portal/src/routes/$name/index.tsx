@@ -389,8 +389,8 @@ const Profile = ({
       {dnsSync.status === 'out-of-sync' && (
         <DnsOutOfSyncBanner
           name={name}
-          onRefresh={dnsSync.refetch}
-          isRefreshing={dnsSync.isRefetching}
+          onRefresh={dnsSync.refresh}
+          isRefreshing={dnsSync.isRefreshing}
         />
       )}
 
