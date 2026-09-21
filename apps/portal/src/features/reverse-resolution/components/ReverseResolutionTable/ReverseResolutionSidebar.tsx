@@ -13,7 +13,7 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
-import type { Address, Hash } from 'viem'
+import { type Address, type Hash, isAddressEqual } from 'viem'
 import { useConnection } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -182,6 +182,8 @@ interface ReverseNameFieldProps {
   onNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
   isConnected: boolean
+  /** The viewed address is the connected account — see `isOwnAddress` below. */
+  isOwnAddress: boolean
   isReverseResolutionPending: boolean
   isL2ReverseNamePending: boolean
   isSwitchingChain: boolean
@@ -201,6 +203,7 @@ const ReverseNameField = ({
   onNameChange,
   onSubmit,
   isConnected,
+  isOwnAddress,
   isReverseResolutionPending,
   isL2ReverseNamePending,
   isSwitchingChain,
@@ -208,6 +211,10 @@ const ReverseNameField = ({
 }: ReverseNameFieldProps) => {
   const inputDisabled =
     !isConnected ||
+    // `setName` writes the signer's own reverse record, so it can never act on
+    // the address being viewed. Offering the field on someone else's page would
+    // silently repoint the visitor's own name.
+    !isOwnAddress ||
     isReverseResolutionPending ||
     isL2ReverseNamePending ||
     isSwitchingChain
@@ -239,8 +246,12 @@ const ReverseNameField = ({
             value={nameInput}
             onChange={onNameChange}
             disabled={inputDisabled}
-            placeholder={match(isConnected)
-              .with(false, () => 'Connect wallet to update')
+            placeholder={match({ isConnected, isOwnAddress })
+              .with({ isConnected: false }, () => 'Connect wallet to update')
+              .with(
+                { isOwnAddress: false },
+                () => 'Only this address can set its own reverse name',
+              )
               .otherwise(() => undefined)}
             // No name-format gating: `setName(string)` on both the L1 and L2
             // reverse registrars accepts any name — `.eth` names, subnames,
@@ -274,6 +285,29 @@ const ReverseNameField = ({
   )
 }
 
+/** Case-insensitive address comparison that tolerates a missing account. */
+const isSameAddress = (a: Address | undefined, b: Address) =>
+  !!a && isAddressEqual(a, b)
+
+/**
+ * Why the row isn't a primary name. An inherited `default.reverse` name gets
+ * its own wording: the record exists and is displayed, but anyone can point
+ * `default.reverse` at any name, so without a matching forward record it is a
+ * claim rather than a resolution that failed.
+ */
+const mismatchReason = ({
+  displayName,
+  label,
+  isUnverifiedDefault,
+}: {
+  displayName: string
+  label: string
+  isUnverifiedDefault: boolean
+}) =>
+  isUnverifiedDefault
+    ? `${displayName} is claimed as the default reverse name but does not resolve back to this address — it is unverified`
+    : `The set address does not resolve back to this name on ${label}`
+
 interface ReverseResolutionSidebarProps extends PropsWithChildren {
   row: Row<ReverseResolutionResult> | null
   address: Address
@@ -289,7 +323,15 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   setOpen,
 }) => {
   const isMobile = useIsMobile()
-  const { isConnected } = useConnection()
+  const { isConnected, address: connectedAddress } = useConnection()
+
+  // Every write reachable from this sidebar acts on the signer: `setName` is
+  // msg.sender-scoped, and `setAddr` must target the signer or it points a name
+  // at a third party. `address` is the route's address and is not the signer,
+  // so it only ever gets displayed. The table already hides the trigger for a
+  // foreign address, but that gate is presentational — this one, and the guard
+  // in `useReverseResolutionMutations`, are what actually hold.
+  const isOwnAddress = isSameAddress(connectedAddress, address)
 
   const {
     coinType,
@@ -299,6 +341,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     label = '',
     icon,
     forwardMatch = false,
+    defaultForwardMatch = false,
   } = useMemo(() => {
     const r = row?.original
     return {
@@ -313,6 +356,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       label: r?.label ?? '',
       icon: r?.icon,
       forwardMatch: r?.forwardMatch ?? false,
+      defaultForwardMatch: r?.defaultForwardMatch ?? false,
     }
   }, [row])
 
@@ -321,13 +365,19 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   // Address Resolution page.
   const isDefaultRow = coinType === DEFAULT_EVM_COIN_TYPE
 
-  const { displayName, isInheritingDefault, isPrimaryName, canSetAsPrimary } =
-    computeDisplayNameState({
-      name,
-      defaultName,
-      forwardMatch,
-      reverseRegistrarChainId,
-    })
+  const {
+    displayName,
+    isInheritingDefault,
+    isPrimaryName,
+    canSetAsPrimary,
+    isUnverifiedDefault,
+  } = computeDisplayNameState({
+    name,
+    defaultName,
+    forwardMatch,
+    defaultForwardMatch,
+    reverseRegistrarChainId,
+  })
 
   const [nameInput, setNameInput] = useState('')
 
@@ -511,6 +561,14 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     if (!input?.reportValidity()) return
     if (!nameInput) return
 
+    // The field is disabled for a foreign address; this is the non-presentational
+    // half of that rule. `setName` would otherwise write the visitor's own
+    // reverse record while the page reads as someone else's.
+    if (!isOwnAddress) {
+      toast.error('A reverse name can only be set for the connected wallet.')
+      return
+    }
+
     // Non-blocking: warn if the name isn't registered, but still let the
     // user proceed (WEB-382).
     void warnIfNameNotRegistered(nameInput)
@@ -585,9 +643,13 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   }
 
   const handleSetPrimaryNameStart = () => {
-    if (!displayName) return
+    // Both are guaranteed by the trigger's own conditions; bail rather than
+    // toast if a render ever gets here without them.
+    if (!displayName || !connectedAddress) return
     try {
-      const request = getForwardResolutionRequest(address)
+      // Target the signer, not the address in the route: `setAddr` writes the
+      // record that decides which address the name resolves to.
+      const request = getForwardResolutionRequest(connectedAddress)
       submitForwardResolution({ name: displayName, request })
     } catch (error) {
       toast.error(
@@ -617,7 +679,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                 <SheetTitle className="font-sans text-h2">
                   {label} resolution
                 </SheetTitle>
-                {canSetAsPrimary && !isDefaultRow && (
+                {canSetAsPrimary && !isDefaultRow && isOwnAddress && (
                   <Button
                     onClick={handleSetPrimaryName}
                     variant="default"
@@ -657,7 +719,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
               <div className="flex items-center gap-3 bg-danger-fill text-danger-text p-4 rounded-md">
                 <XCircle className="w-6 h-6 shrink-0" />
                 <span className="text-sm">
-                  The set address does not resolve back to this name on {label}
+                  {mismatchReason({ displayName, label, isUnverifiedDefault })}
                 </span>
               </div>
             )}
@@ -679,6 +741,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   onNameChange={handleNameChange}
                   onSubmit={handleUpdate}
                   isConnected={isConnected}
+                  isOwnAddress={isOwnAddress}
                   isReverseResolutionPending={isReverseResolutionPending}
                   isL2ReverseNamePending={isL2ReverseNamePending}
                   isSwitchingChain={isSwitchingChain}
@@ -757,7 +820,12 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     prepare:
                       isConnected && displayName
                         ? ({ walletClient, chainId }) => {
-                            const request = getForwardResolutionRequest(address)
+                            // `walletClient.account.address` is the account that
+                            // will actually sign — the only correct `setAddr`
+                            // target, and the same value used as `from` below.
+                            const request = getForwardResolutionRequest(
+                              walletClient.account.address,
+                            )
                             return prepareSetForwardResolutionTransaction({
                               request,
                               from: walletClient.account.address,

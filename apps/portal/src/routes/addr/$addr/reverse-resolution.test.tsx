@@ -34,6 +34,7 @@ const emptyRecord = (
   normalized: true,
   forwardMatch: false,
   defaultName: null,
+  defaultForwardMatch: false,
 })
 
 /**
