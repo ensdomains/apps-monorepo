@@ -1454,6 +1454,10 @@ msgstr "One of your names changed owners. Refresh and select it again."
 msgid "One of your names expired."
 msgstr "One of your names expired."
 
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "One of your names now has its own subname registry. Upgrading it would detach that registry and its subnames, so nothing was submitted. Refresh and select your names again."
+msgstr "One of your names now has its own subname registry. Upgrading it would detach that registry and its subnames, so nothing was submitted. Refresh and select your names again."
+
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "One username everywhere"
 msgstr "One username everywhere"

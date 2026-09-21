@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock } from 'lucide-react'
+import { useMemo } from 'react'
 import { type Address, isAddress, isAddressEqual } from 'viem'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -11,11 +12,12 @@ import { addressHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import { Button } from '@/components/ui/button'
 import { getV2HistoryForAddressQueryOptions } from '@/features/address/components/hooks/useV2HistoryForAddress'
+import { selectAcquiredNames } from '@/features/address/nameAttribution'
 import { NameList } from '@/features/dashboard/components/NameList'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { cn } from '@/lib/utils'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
-import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
+import { groupAddressHistoryByName } from '@/utils/history/transformAddressHistory'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/addr/$addr/')({
@@ -64,17 +66,28 @@ interface AddressHistoryProps {
 const RECENT_EVENT_LIMIT = 5
 
 const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
-  const { data: v2Events } = useQuery(
+  const { data: v2Names } = useQuery(
     getV2HistoryForAddressQueryOptions({ address }),
   )
 
-  const recentEvents = v2Events
-    ? transformV2EventsToSubgraphFormat(
-        v2Events
-          .toSorted((a, b) => b.timestamp - a.timestamp)
-          .slice(0, RECENT_EVENT_LIMIT),
-      )
-    : undefined
+  const groups = useMemo(
+    () => groupAddressHistoryByName(undefined, v2Names),
+    [v2Names],
+  )
+
+  // Structural attribution only: judging a name by who sent its transactions costs
+  // one `getTransaction` per event, and an attacker controls how many events a
+  // planted name has — an unbounded RPC burst on a page anyone can load for any
+  // address. The cost is that a subname the address really uses is missing from this
+  // teaser; it is one click away, correctly attributed, under "Full history".
+  const recentEvents = useMemo(
+    () =>
+      selectAcquiredNames(groups, address, undefined)
+        .flatMap((group) => group.events)
+        .toSorted((a, b) => b.blockNumber - a.blockNumber)
+        .slice(0, RECENT_EVENT_LIMIT),
+    [groups, address],
+  )
 
   return (
     <div className="flex flex-col gap-4 w-full">

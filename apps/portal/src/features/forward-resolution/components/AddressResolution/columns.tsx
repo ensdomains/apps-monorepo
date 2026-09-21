@@ -93,17 +93,32 @@ export const columns: ColumnDef<AddressResolutionRow>[] = [
       </SortButton>
     ),
     cell: ({ row }) => {
-      const address = row.original.address
+      const { address, addressSource } = row.original
       if (!address)
         return (
           <span className="font-mono text-sm text-muted-foreground/50">
             null
           </span>
         )
+      // A default-sourced address is not a record for this network — mark it,
+      // so it can't be read as one the owner set.
+      const isFallback = addressSource === 'default'
       return (
-        <span className="font-mono text-sm max-w-[400px] block truncate">
-          {address}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              'font-mono text-sm max-w-[400px] block truncate',
+              isFallback && 'text-muted-foreground',
+            )}
+          >
+            {address}
+          </span>
+          {isFallback && (
+            <Badge variant="outline" className="text-xs shrink-0">
+              Default fallback
+            </Badge>
+          )}
+        </div>
       )
     },
   },

@@ -1,5 +1,5 @@
-import type { V2Event } from '@/features/address/components/hooks/useV2HistoryForAddress'
 import type { SubgraphEvent } from './groupEventsByTransactionId'
+import type { V2Event } from './transformAddressHistory'
 
 /**
  * Transforms V2 events from the GraphQL indexer to the SubgraphEvent format
