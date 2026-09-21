@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as config from './config'
 import {
   buildCommemorativeNftMarketplaceUrl,
-  buildCommemorativeNftProfileUrl,
+  buildCommemorativeNftPublicUrl,
   buildCommemorativeNftShareUrls,
   isCommemorativeNftCanonicalProfile,
 } from './sharing'
@@ -38,11 +38,11 @@ describe('commemorative NFT sharing', () => {
   it.each([
     {
       minted: false,
-      text: 'I upgraded to ENSv2. Take a look at my commemorative NFT.',
+      text: 'Upgraded to ENSv2. Preview my card.',
     },
     {
       minted: true,
-      text: 'I upgraded to ENSv2 and minted my commemorative NFT.',
+      text: 'Upgraded to ENSv2 and minted my card.',
     },
   ])('shares accurate mint status when minted is $minted', ({
     minted,
@@ -52,6 +52,7 @@ describe('commemorative NFT sharing', () => {
     const urls = buildCommemorativeNftShareUrls(externalUrl, minted)
 
     expect(urls.external).toBe(externalUrl)
+    expect(urls.message).toBe(`${text}\n${externalUrl}`)
     for (const intent of [urls.x, urls.telegram]) {
       expect(intent).toBeDefined()
       const params = new URL(intent ?? '').searchParams
@@ -60,28 +61,16 @@ describe('commemorative NFT sharing', () => {
     }
   })
 
-  it('builds a Manager profile fallback on the active environment', () => {
-    expect(buildCommemorativeNftProfileUrl('Yoginth.eth.')).toBe(
-      new URL('/p/yoginth.eth', window.location.origin).toString(),
+  it.each([
+    'https://nft.ens.dev',
+    'https://renderer.example/',
+    'http://localhost:4000',
+  ])('builds the standalone NFT URL on %s', (rendererOrigin) => {
+    expect(
+      buildCommemorativeNftPublicUrl({ ownerAddress, rendererOrigin }),
+    ).toBe(
+      `${new URL(rendererOrigin).origin}/nft/?tokenId=46455108410614081663945406319915307572171076188378075311311703967581922008221`,
     )
-    expect(
-      buildCommemorativeNftProfileUrl(
-        'Yoginth.eth.',
-        'https://staging.example/',
-      ),
-    ).toBe('https://staging.example/p/yoginth.eth')
-    expect(
-      buildCommemorativeNftProfileUrl(
-        'Yoginth.eth.',
-        'https://app.ens.domains',
-      ),
-    ).toBe('https://app.ens.domains/p/yoginth.eth')
-    expect(
-      buildCommemorativeNftProfileUrl(
-        'hello world.eth',
-        'https://app.ens.domains',
-      ),
-    ).toBe('https://app.ens.domains/p/hello%20world.eth')
   })
 
   it('does not expose OpenSea before minting', () => {
@@ -98,14 +87,16 @@ describe('commemorative NFT sharing', () => {
     ).toBeUndefined()
   })
 
-  it('does not expose OpenSea for minted Sepolia NFTs after testnet support ended', () => {
+  it('links a minted Sepolia NFT using its contract and token ID', () => {
     expect(
       buildCommemorativeNftMarketplaceUrl({
         chainId: 11155111,
         ownerAddress,
         minted: true,
       }),
-    ).toBeUndefined()
+    ).toBe(
+      'https://testnets.opensea.io/assets/sepolia/0x0bc4FB733Ca8BAD5FaDeb1BEc4bE9C93A5aD55D1/46455108410614081663945406319915307572171076188378075311311703967581922008221',
+    )
   })
 
   it('links a minted NFT to Ethereum OpenSea when its mainnet contract is configured', () => {

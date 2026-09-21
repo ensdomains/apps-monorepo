@@ -59,12 +59,15 @@ describe('commemorative NFT flow state', () => {
     ).toBe(true)
   })
 
-  it('does not accept a result while its claim query is refetching', () => {
+  it.each([
+    'fetching',
+    'paused',
+  ] as const)('does not accept a result while its claim query is %s', (fetchStatus) => {
     expect(
       isCommemorativeNftClaimResultFresh({
         isFetchedAfterMount: true,
         isSuccess: true,
-        fetchStatus: 'fetching',
+        fetchStatus,
       }),
     ).toBe(false)
   })

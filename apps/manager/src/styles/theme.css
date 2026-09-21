@@ -15,6 +15,14 @@
   /* Font weights */
   --font-weight-ens-450: 450;
 
+  /* Commemorative NFT artwork and traits panel */
+  --aspect-nft-card: 193 / 273;
+  --aspect-nft-card-profile: 200 / 282;
+  --container-nft-card: 193px;
+  --container-nft-traits: 181px;
+  --radius-nft-traits: 20px;
+  --tracking-nft-traits: 0.01em;
+
   /* Experimental new brand colors */
   --color-ens-lapis-100: #dbf0f8;
   --color-ens-lapis-300: #80c4e0;

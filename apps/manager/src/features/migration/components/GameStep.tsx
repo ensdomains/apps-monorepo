@@ -7,13 +7,14 @@ import {
   motion,
   useReducedMotion,
 } from 'motion/react'
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useElementWidth } from '@/features/migration/hooks/useElementWidth'
 import type {
   MigrationProgress,
   MigrationStepDescriptor,
 } from '@/features/migration/service/migrationService'
+import { PARTY_WALK_MS } from '@/features/migration/state/migrationAnimationTiming'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
   useMigrateSubstep,
@@ -25,12 +26,11 @@ import {
   computeBridgeLayout,
   describeNextStep,
   displayStepOf,
-  giantAnimateFor,
-  giantModeOf,
-  giantTransitionFor,
   occupiedPlanksOf,
+  waitingBounceFor,
 } from './GameStep.helpers'
 import { MigrationReunion } from './MigrationReunion'
+import { WalkingFren } from './WalkingFren'
 
 const BridgePlank = ({
   completed,
@@ -52,16 +52,20 @@ const BridgePlank = ({
       transition={{ duration: reduceMotion ? 0 : 0.2 }}
     >
       <div
-        className="relative h-6 min-w-0 flex-1 overflow-hidden rounded-[3px] border-ens-garnet-900/8 bg-ens-garnet-900/4"
+        className="relative h-6 min-w-0 flex-1 overflow-hidden rounded-sm border-ens-garnet-900/8 bg-ens-garnet-900/4"
         style={{ borderInlineWidth: Math.min(3, width / 32) }}
       >
+        {/* The 3px lower and 1px upper inset shadows recreate the raised plank artwork. */}
         <motion.div
           animate={{ scaleX: completed ? 1 : 0, opacity: completed ? 1 : 0 }}
           className="absolute inset-0 origin-left bg-ens-garnet-900/45 shadow-[inset_0_-3px_0_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)]"
           initial={false}
           transition={{
-            duration: reduceMotion ? 0 : 0.3,
-            ease: [0.4, 0, 0.2, 1],
+            scaleX: {
+              duration: reduceMotion ? 0 : PARTY_WALK_MS / 1000,
+              ease: 'linear',
+            },
+            opacity: { duration: reduceMotion ? 0 : 0.15 },
           }}
         />
       </div>
@@ -118,137 +122,75 @@ const useStepDescriptionText = (
 const FrenParty = ({
   frensX,
   partyScale,
-  occupiedPlanks,
   hasCollapsed,
-  isExcited,
+  isWalking,
+  isWaiting,
 }: {
   readonly frensX: number
   readonly partyScale: number
-  readonly occupiedPlanks: number
   readonly hasCollapsed: boolean
-  readonly isExcited: boolean
-}) => (
-  <motion.div
-    animate={
-      hasCollapsed
-        ? { x: frensX, y: 300, rotate: 15, opacity: 0 }
-        : {
-            x: occupiedPlanks === 0 ? frensX - 16 : frensX,
-            y: occupiedPlanks === 0 ? 32 : 0,
-          }
-    }
-    className="absolute bottom-0 left-0 flex w-28 justify-center sm:w-41"
-    initial={false}
-    transition={
-      hasCollapsed
-        ? { duration: 1, ease: [0.36, 0, 0.66, -0.56] }
-        : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }
-    }
-  >
+  readonly isWalking: boolean
+  readonly isWaiting: boolean
+}) => {
+  return (
     <motion.div
-      animate={{ y: occupiedPlanks > 0 ? [0, -32, 0] : 0 }}
-      initial={{ y: 0 }}
-      key={occupiedPlanks}
-      transition={{ duration: 0.45, ease: 'easeInOut' }}
+      animate={
+        hasCollapsed
+          ? { x: frensX, y: 300, rotate: 15, opacity: 0 }
+          : { x: frensX, y: 0 }
+      }
+      className="absolute bottom-0 left-0 flex w-28 justify-center sm:w-41"
+      initial={false}
+      transition={
+        hasCollapsed
+          ? { duration: 1, ease: [0.36, 0, 0.66, -0.56] }
+          : { duration: PARTY_WALK_MS / 1000, ease: 'linear' }
+      }
     >
       <div
         className="flex origin-bottom items-end gap-1"
         style={{ transform: `scale(${partyScale})` }}
       >
+        <motion.div
+          {...waitingBounceFor('peanut', isWaiting)}
+          className="shrink-0"
+        >
+          <WalkingFren
+            character="peanut"
+            className="h-9 w-6 sm:h-13.5 sm:w-9"
+            isWalking={isWalking}
+          />
+        </motion.div>
+        {/* The supplied export has no LiLi JSON; keep the vector artwork. */}
         <motion.img
+          {...waitingBounceFor('lili', isWaiting)}
           alt=""
-          animate={
-            isExcited
-              ? { y: [0, -12, 0], rotate: [0, -5, 5, 0] }
-              : { y: 0, rotate: 0 }
-          }
-          className="h-9 shrink-0 sm:h-[54px]"
-          initial={{ y: 0, rotate: 0 }}
-          src="/frens/peanut.svg"
-          transition={
-            isExcited
-              ? {
-                  duration: 0.5,
-                  delay: 0.6,
-                  repeat: Number.POSITIVE_INFINITY,
-                  repeatDelay: 0.1,
-                }
-              : { duration: 0.3 }
-          }
-        />
-        <motion.img
-          alt=""
-          animate={
-            isExcited
-              ? { y: [0, -16, 0], rotate: [0, 4, -4, 0] }
-              : { y: 0, rotate: 0 }
-          }
-          className="h-12 shrink-0 sm:h-[72px]"
-          initial={{ y: 0, rotate: 0 }}
+          className="h-12 shrink-0 sm:h-18"
           src="/frens/lili.svg"
-          transition={
-            isExcited
-              ? {
-                  duration: 0.6,
-                  repeat: Number.POSITIVE_INFINITY,
-                  repeatDelay: 0.05,
-                  delay: 0.7,
-                }
-              : { duration: 0.3 }
-          }
         />
         <div className="relative shrink-0">
-          <motion.img
-            alt=""
-            animate={
-              isExcited
-                ? { y: [0, -20, -10, 0], x: [0, 5, -5, 0] }
-                : { y: [0, -6, -3, 0] }
-            }
-            className="absolute -top-6 left-1/2 h-5 -translate-x-1/2 sm:-top-9 sm:h-[30px]"
-            initial={{ x: 0, y: 0 }}
-            src="/frens/bittu.svg"
-            transition={
-              isExcited
-                ? {
-                    duration: 0.8,
-                    delay: 0.6,
-                    ease: 'easeInOut',
-                    repeat: Number.POSITIVE_INFINITY,
-                  }
-                : {
-                    duration: 4,
-                    ease: 'easeInOut',
-                    repeat: Number.POSITIVE_INFINITY,
-                  }
-            }
-          />
-          <motion.img
-            alt=""
-            animate={
-              isExcited
-                ? { y: [0, -10, 0], rotate: [0, -3, 3, 0] }
-                : { y: 0, rotate: 0 }
-            }
-            className="h-10 shrink-0 sm:h-[60px]"
-            initial={{ y: 0, rotate: 0 }}
-            src="/frens/kuzco.svg"
-            transition={
-              isExcited
-                ? {
-                    duration: 0.55,
-                    repeat: Number.POSITIVE_INFINITY,
-                    repeatDelay: 0.15,
-                    delay: 0.8,
-                  }
-                : { duration: 0.3 }
-            }
-          />
+          <motion.div
+            {...waitingBounceFor('bittu', isWaiting)}
+            className="absolute -top-6 left-1/2 -translate-x-1/2 sm:-top-9"
+          >
+            <WalkingFren
+              character="bittu"
+              className="h-5 w-8 sm:h-7.5 sm:w-12"
+              isWalking={isWalking}
+            />
+          </motion.div>
+          <motion.div {...waitingBounceFor('kuzco', isWaiting)}>
+            <WalkingFren
+              character="kuzco"
+              className="size-10 sm:size-15"
+              isWalking={isWalking}
+            />
+          </motion.div>
         </div>
       </div>
     </motion.div>
-  </motion.div>
-)
+  )
+}
 
 export const GameStep = () => {
   const { uiActor } = useMigrationUiContext()
@@ -282,6 +224,8 @@ export const GameStepView = ({
 }) => {
   const { t } = useLingui()
   const layoutId = useId()
+  const reduceMotion = useReducedMotion()
+  const [isStageFilling, setIsStageFilling] = useState(false)
   const { ref: trackRef, width: trackWidth } = useElementWidth()
   const { ref: partyRef, width: partyWidth } = useElementWidth()
   const totalSteps = Math.max(progress?.totalSteps ?? stepDescriptors.length, 1)
@@ -298,12 +242,10 @@ export const GameStepView = ({
   const { plankWidth, partyScale, frensX, bridgeWidth, scrollX } =
     computeBridgeLayout({
       totalSteps,
-      completedSteps: occupiedPlanks,
+      completedSteps,
       trackWidth,
       partyWidth,
     })
-
-  const isExcited = occupiedPlanks > 0 && !hasCollapsed
 
   const nextDescriptor = stepDescriptors[completedSteps] as
     | MigrationStepDescriptor
@@ -315,10 +257,6 @@ export const GameStepView = ({
   )
 
   const stepIds = Array.from({ length: totalSteps }, (_, i) => `step-${i}`)
-
-  const giantMode = giantModeOf({ hasCollapsed, isExcited })
-  const giantAnimate = giantAnimateFor(giantMode)
-  const giantTransition = giantTransitionFor(giantMode)
 
   return (
     <LayoutGroup id={layoutId}>
@@ -340,7 +278,8 @@ export const GameStepView = ({
                   className="flex min-h-11 shrink-0 items-center"
                   transition={{ duration: 0.3 }}
                 >
-                  <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
+                  {/* The custom tracking matches the 32px migration headline artwork. */}
+                  <p className="text-center text-ens-garnet-900 text-temp-32px tracking-[-0.64px]">
                     <Plural
                       one="Upgrading your name..."
                       other="Upgrading your names..."
@@ -360,6 +299,7 @@ export const GameStepView = ({
                     </p>
                   )}
                   <AnimatePresence mode="popLayout">
+                    {/* Exact letter spacing matches the companion migration status labels. */}
                     <motion.span
                       animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                       className="max-w-full text-center font-semi-mono text-ens-garnet-500 text-xs uppercase tracking-[0.12px]"
@@ -374,6 +314,7 @@ export const GameStepView = ({
                 </motion.div>
 
                 <div className="mt-3 flex h-9 w-full max-w-64 shrink-0 flex-col items-center gap-2">
+                  {/* The 10px label and letter spacing match the compact progress typography. */}
                   <span className="font-semi-mono text-[10px] text-ens-garnet-500 uppercase tabular-nums tracking-[0.12px]">
                     <Trans>
                       Step {displayStep} of {totalSteps}
@@ -387,16 +328,23 @@ export const GameStepView = ({
                     className="h-1.5 w-full overflow-hidden rounded-full bg-ens-garnet-900/10"
                     role="progressbar"
                   >
-                    <div
-                      className="h-full origin-left rounded-full bg-ens-garnet-500 transition-transform duration-300 ease-out motion-reduce:transition-none"
-                      style={{
-                        transform: `scaleX(${completedSteps / totalSteps})`,
+                    <motion.div
+                      animate={{ scaleX: completedSteps / totalSteps }}
+                      className="h-full origin-left rounded-full bg-ens-garnet-500"
+                      initial={false}
+                      onAnimationComplete={() => setIsStageFilling(false)}
+                      onAnimationStart={() =>
+                        setIsStageFilling(completedSteps > 0)
+                      }
+                      transition={{
+                        duration: reduceMotion ? 0 : PARTY_WALK_MS / 1000,
+                        ease: 'linear',
                       }}
                     />
                   </div>
                 </div>
 
-                <div className="relative mt-4 h-[360px] w-full max-w-[1040px] shrink-0">
+                <div className="relative mt-4 h-90 w-full max-w-260 shrink-0">
                   <div className="absolute inset-0">
                     <div
                       className="absolute bottom-14 left-0 z-10 w-28 sm:w-41"
@@ -405,16 +353,27 @@ export const GameStepView = ({
                       <FrenParty
                         frensX={frensX - scrollX}
                         hasCollapsed={hasCollapsed}
-                        isExcited={isExcited}
-                        occupiedPlanks={occupiedPlanks}
+                        isWaiting={
+                          !isStageFilling &&
+                          completedSteps < totalSteps &&
+                          !hasCollapsed &&
+                          !reduceMotion
+                        }
+                        isWalking={
+                          isStageFilling && !hasCollapsed && !reduceMotion
+                        }
                         partyScale={partyScale}
                       />
                     </div>
 
                     <motion.div
-                      animate={giantAnimate}
+                      animate={
+                        hasCollapsed
+                          ? { y: 300, opacity: 0 }
+                          : { y: 0, opacity: 1 }
+                      }
                       className="absolute right-0 bottom-6"
-                      transition={giantTransition}
+                      transition={{ duration: 0.9 }}
                     >
                       <motion.img
                         alt=""
@@ -426,17 +385,17 @@ export const GameStepView = ({
 
                     <div
                       aria-hidden
-                      className="absolute right-[104px] bottom-6 left-28 overflow-hidden sm:right-[120px] sm:left-41"
+                      className="absolute right-26 bottom-6 left-28 overflow-hidden sm:right-30 sm:left-41"
                       ref={trackRef}
                     >
-                      <div className="mb-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
+                      <div className="mb-0.5 h-0.5 rounded-full bg-ens-garnet-900/30" />
                       <motion.div
                         animate={{ x: -scrollX }}
                         initial={false}
                         style={{ width: bridgeWidth }}
                         transition={{
-                          duration: 0.45,
-                          ease: [0.22, 1, 0.36, 1],
+                          duration: PARTY_WALK_MS / 1000,
+                          ease: 'linear',
                         }}
                       >
                         <div className="flex items-stretch">
@@ -450,7 +409,7 @@ export const GameStepView = ({
                           ))}
                         </div>
                       </motion.div>
-                      <div className="mt-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
+                      <div className="mt-0.5 h-0.5 rounded-full bg-ens-garnet-900/30" />
                     </div>
                   </div>
                 </div>
