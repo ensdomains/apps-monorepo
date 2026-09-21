@@ -40,6 +40,7 @@ const renderPicker = (
         pricingData={330}
         pricingLoading={false}
         selectedToken={undefined}
+        showRegistrationFee
         stablecoinBalances={[usdc]}
         {...props}
       />
@@ -115,6 +116,15 @@ describe('TokenPickerContentBase', () => {
 
     act(() => daiOption.click())
     expect(onSelectCoin).toHaveBeenCalledWith('DAI')
+  })
+
+  it('uses the generic USDC row outside registration', () => {
+    renderPicker({ showRegistrationFee: false })
+
+    expect(screen.queryByText('Mainnet est. fee:')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'What is the network fee?' }),
+    ).not.toBeInTheDocument()
   })
 
   it('gates DAI on its own price instead of the USDC funding budget', () => {
@@ -414,23 +424,41 @@ describe('startRegistrationWithSession', () => {
   it('requires the session gate before starting with USDC', () => {
     const gate = vi.fn()
     const onStart = vi.fn()
+    const attempt = {
+      token: 'USDC' as const,
+      pricing: {
+        basePriceNumber: 329,
+        premiumPriceNumber: 1,
+        totalPriceNumber: 330,
+        rawPrice: 330_000_000n,
+      },
+    }
 
-    startRegistrationWithSession({ gate, onStart, token: 'USDC' })
+    startRegistrationWithSession({ attempt, gate, onStart })
 
     expect(onStart).not.toHaveBeenCalled()
     const onProceed = gate.mock.calls[0]?.[0]
     expect(onProceed).toBeTypeOf('function')
     onProceed?.()
-    expect(onStart).toHaveBeenCalledOnce()
+    expect(onStart).toHaveBeenCalledWith(attempt)
   })
 
   it('starts with DAI without requiring a session', () => {
     const gate = vi.fn()
     const onStart = vi.fn()
+    const attempt = {
+      token: 'DAI' as const,
+      pricing: {
+        basePriceNumber: 329,
+        premiumPriceNumber: 0,
+        totalPriceNumber: 329,
+        rawPrice: 329_000_000_000_000_000_000n,
+      },
+    }
 
-    startRegistrationWithSession({ gate, onStart, token: 'DAI' })
+    startRegistrationWithSession({ attempt, gate, onStart })
 
     expect(gate).not.toHaveBeenCalled()
-    expect(onStart).toHaveBeenCalledOnce()
+    expect(onStart).toHaveBeenCalledWith(attempt)
   })
 })

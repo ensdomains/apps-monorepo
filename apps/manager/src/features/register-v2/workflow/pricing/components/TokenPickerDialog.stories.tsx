@@ -133,6 +133,7 @@ const TokenPickerDialogShell = ({
         pricingData={pricingData}
         pricingLoading={pricingLoading}
         selectedToken={selectedToken}
+        showRegistrationFee
         stablecoinBalances={stablecoinBalances}
       />
     </PaymentDialogBase>

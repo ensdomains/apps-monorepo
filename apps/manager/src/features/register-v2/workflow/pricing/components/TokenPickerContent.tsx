@@ -119,6 +119,7 @@ const PaymentMethods = ({
   onSelectCoin,
   pricingData,
   selectedToken,
+  showRegistrationFee,
   stablecoinBalances,
 }: {
   funding?: RegistrationFundingSummary
@@ -127,11 +128,12 @@ const PaymentMethods = ({
   onSelectCoin: (coin: SUPPORTED_TOKEN) => void
   pricingData: number | undefined
   selectedToken: SUPPORTED_TOKEN | undefined
+  showRegistrationFee: boolean
   stablecoinBalances: StablecoinBalance[]
 }) => (
   <div className="flex max-h-56 flex-col gap-3 overflow-y-auto">
     {stablecoinBalances.map((stablecoin) => {
-      if (stablecoin.symbol !== TOKENS.USDC.symbol) {
+      if (stablecoin.symbol !== TOKENS.USDC.symbol || !showRegistrationFee) {
         return (
           <TokenListItem
             key={stablecoin.address}
@@ -176,6 +178,7 @@ const PaymentOptions = ({
   pricingData,
   pricingLoading,
   selectedToken,
+  showRegistrationFee,
   stablecoinBalances,
 }: {
   funding?: RegistrationFundingSummary
@@ -188,6 +191,7 @@ const PaymentOptions = ({
   pricingData: number | undefined
   pricingLoading: boolean
   selectedToken: SUPPORTED_TOKEN | undefined
+  showRegistrationFee: boolean
   stablecoinBalances: StablecoinBalance[]
 }) =>
   match({
@@ -238,6 +242,7 @@ const PaymentOptions = ({
         onSelectCoin={onSelectCoin}
         pricingData={pricingData}
         selectedToken={selectedToken}
+        showRegistrationFee={showRegistrationFee}
         stablecoinBalances={stablecoinBalances}
       />
     ))
@@ -271,20 +276,30 @@ const getPaymentSummary = ({
   }
 }
 
+type RegistrationAttempt = {
+  token: SUPPORTED_TOKEN
+  pricing: {
+    basePriceNumber: number
+    premiumPriceNumber: number
+    totalPriceNumber: number
+    rawPrice: bigint
+  }
+}
+
 export const startRegistrationWithSession = ({
+  attempt,
   gate,
   onStart,
-  token,
 }: {
+  attempt: RegistrationAttempt
   gate: (onProceed: () => void) => void
-  onStart: () => void
-  token: SUPPORTED_TOKEN
+  onStart: (attempt: RegistrationAttempt) => void
 }) => {
-  if (token === TOKENS.USDC.symbol) {
-    gate(onStart)
+  if (attempt.token === TOKENS.USDC.symbol) {
+    gate(() => onStart(attempt))
     return
   }
-  onStart()
+  onStart(attempt)
 }
 
 export const TokenPickerContent = () => {
@@ -416,23 +431,25 @@ export const TokenPickerContent = () => {
 
   // Dispatch `registration.start`. Only the USDC HCA route needs a session;
   // the inherited DAI route continues with the wallet approval signer.
-  const startRegistration = async (resolvedSetAsPrimary: boolean) => {
-    if (!pricingQuery.data || !selectedToken) return
+  const startRegistration = async (
+    attempt: RegistrationAttempt,
+    resolvedSetAsPrimary: boolean,
+  ) => {
     // Resolve the session-enable payload up front (checks on-chain enablement).
     const hcaSessionEnable =
-      selectedToken === TOKENS.USDC.symbol
+      attempt.token === TOKENS.USDC.symbol
         ? await account.getSessionEnablePayload()
         : undefined
     uiActor.send({
       type: 'registration.start',
       label,
       duration: BigInt(Math.ceil(duration)),
-      token: selectedToken,
-      totalPrice: pricingQuery.data.rawPrice,
+      token: attempt.token,
+      totalPrice: attempt.pricing.rawPrice,
       account,
       hcaSessionEnable,
-      basePriceNumber: pricingQuery.data.basePriceNumber,
-      premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
+      basePriceNumber: attempt.pricing.basePriceNumber,
+      premiumPriceNumber: attempt.pricing.premiumPriceNumber,
       postRegistrationSetup: resolvedSetAsPrimary
         ? { primaryName: { enabled: true, syncEthRecord: true } }
         : undefined,
@@ -440,13 +457,13 @@ export const TokenPickerContent = () => {
   }
 
   const availabilityMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (attempt: RegistrationAttempt) => {
       // Re-check funding on the click path, not just on render: the quote may
       // still have been in flight when the screen painted, and a stale budget
       // would let through exactly the registration this gate exists to stop.
       // `fetchQuery` reuses the in-flight/fresh result, so this is usually free.
       const budget =
-        selectedToken === TOKENS.USDC.symbol
+        attempt.token === TOKENS.USDC.symbol
           ? await queryClient
               .fetchQuery(budgetQueryOptions)
               // A quote failure is not a funding failure. Fall through and let the
@@ -483,9 +500,7 @@ export const TokenPickerContent = () => {
       ])
       return { availability, resolvedSetAsPrimary }
     },
-    onSuccess: async ({ availability, resolvedSetAsPrimary }) => {
-      if (!pricingQuery.data || !selectedToken) return
-
+    onSuccess: async ({ availability, resolvedSetAsPrimary }, attempt) => {
       if (!availability.isAvailable) {
         navigate({
           replace: true,
@@ -495,7 +510,7 @@ export const TokenPickerContent = () => {
         return
       }
 
-      await startRegistration(resolvedSetAsPrimary)
+      await startRegistration(attempt, resolvedSetAsPrimary)
     },
   })
 
@@ -556,18 +571,19 @@ export const TokenPickerContent = () => {
         isLoadingBalances={isLoadingBalances}
         isQuotingFunding={budgetQuery.isLoading}
         label={label}
-        onNext={() =>
-          selectedToken &&
+        onNext={() => {
+          if (!selectedToken || !pricingQuery.data) return
           startRegistrationWithSession({
+            attempt: { token: selectedToken, pricing: pricingQuery.data },
             gate,
             onStart: availabilityMutation.mutate,
-            token: selectedToken,
           })
-        }
+        }}
         onSelectCoin={onSelectCoin}
         pricingData={pricingQuery.data?.totalPriceNumber}
         pricingLoading={pricingQuery.isLoading}
         selectedToken={selectedToken}
+        showRegistrationFee
         stablecoinBalances={stablecoinBalances}
       />
       {sessionModal}
@@ -592,6 +608,7 @@ export const TokenPickerContentBase = ({
   funding,
   hasInsufficientFundingError = false,
   isQuotingFunding = false,
+  showRegistrationFee = false,
 }: {
   label: string
   pricingLoading: boolean
@@ -619,6 +636,7 @@ export const TokenPickerContentBase = ({
   hasInsufficientFundingError?: boolean
   /** The network-fee estimate shown on the method is still being quoted. */
   isQuotingFunding?: boolean
+  showRegistrationFee?: boolean
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -714,6 +732,7 @@ export const TokenPickerContentBase = ({
             pricingData={pricingData}
             pricingLoading={pricingLoading}
             selectedToken={selectedToken}
+            showRegistrationFee={showRegistrationFee}
             stablecoinBalances={stablecoinBalances}
           />
 
