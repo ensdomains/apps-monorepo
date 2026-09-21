@@ -36,11 +36,26 @@ describe('getEnsContracts', () => {
   })
 
   // The reverse-registrar adapters are not in ensjs, so a network without them
-  // must fail loudly rather than hand back a placeholder.
-  it('names the missing contract when a network has no deployment for it', () => {
-    expect(() => getEnsContracts(NETWORKS.mainnet.chainId)).toThrow(
+  // must fail loudly rather than hand back a placeholder. That failure is per
+  // property: it must not deny a caller the contracts that do exist.
+  it('names the missing contract only when it is actually read', () => {
+    const mainnet = getEnsContracts(NETWORKS.mainnet.chainId)
+
+    expect(() => mainnet.DefaultReverseRegistrar).toThrow(
       /DefaultReverseRegistrar has no deployment on mainnet/,
     )
+    expect(() => mainnet.ReverseRegistrarAdapter).toThrow(NetworkConfigError)
+  })
+
+  it('still resolves the canonical contracts on a network missing its reverse set', () => {
+    const mainnet = getEnsContracts(NETWORKS.mainnet.chainId)
+
+    expectChecksummed(
+      'mainnet.ETHRegistrarController',
+      mainnet.ETHRegistrarController,
+    )
+    expectChecksummed('mainnet.PublicResolver', mainnet.PublicResolver)
+    expectChecksummed('mainnet.LegacyRegistry', mainnet.LegacyRegistry)
   })
 })
 

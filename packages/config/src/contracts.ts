@@ -82,6 +82,11 @@ const requireExtra = (
  * Pure and chain-keyed, so callers resolve contracts from whatever chain they
  * already hold rather than from a module-level constant pinned to one network.
  * Throws for a chain with no ENS deployment instead of falling back.
+ *
+ * The three reverse-registrar addresses ensjs does not carry are lazy: a
+ * network that has not published them yet must not block a caller that only
+ * wants a canonical contract such as `ETHRegistrar`. Reading one of those
+ * properties on such a network is what throws.
  */
 export const getEnsContracts = (chainId: number): EnsContracts => {
   const network = NETWORK_BY_CHAIN_ID.get(chainId)
@@ -106,21 +111,27 @@ export const getEnsContracts = (chainId: number): EnsContracts => {
     VerifiableFactory: ens.ensVerifiableFactory.address,
     StandardRentPriceOracle: ens.ensStandardRentPriceOracle.address,
     HCAFactory: ens.ensHcaFactory.address,
-    DefaultReverseRegistrar: requireExtra(
-      extra.defaultReverseRegistrar,
-      'DefaultReverseRegistrar',
-      network,
-    ),
-    DefaultReverseRegistrarAdapter: requireExtra(
-      extra.defaultReverseRegistrarAdapter,
-      'DefaultReverseRegistrarAdapter',
-      network,
-    ),
-    ReverseRegistrarAdapter: requireExtra(
-      extra.reverseRegistrarAdapter,
-      'ReverseRegistrarAdapter',
-      network,
-    ),
+    get DefaultReverseRegistrar() {
+      return requireExtra(
+        extra.defaultReverseRegistrar,
+        'DefaultReverseRegistrar',
+        network,
+      )
+    },
+    get DefaultReverseRegistrarAdapter() {
+      return requireExtra(
+        extra.defaultReverseRegistrarAdapter,
+        'DefaultReverseRegistrarAdapter',
+        network,
+      )
+    },
+    get ReverseRegistrarAdapter() {
+      return requireExtra(
+        extra.reverseRegistrarAdapter,
+        'ReverseRegistrarAdapter',
+        network,
+      )
+    },
   }
 }
 
