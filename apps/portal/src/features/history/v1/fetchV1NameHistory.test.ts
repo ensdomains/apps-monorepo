@@ -1,11 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import { graphqlRequest } from '@ens-apps/indexer/urql'
+import { stringifyDocument } from '@urql/core'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { V1SubgraphEvent } from './adaptV1Events'
 import {
   assignedResolverFilter,
+  fetchV1NameHistory,
   flattenV1Response,
   scopedCollections,
   v1CollectionsSaturated,
 } from './fetchV1NameHistory'
+
+vi.mock('@ens-apps/indexer/urql', () => ({
+  createPlainClient: vi.fn(() => ({})),
+  graphqlRequest: vi.fn(),
+}))
 
 const event = (type: string, id = `${type}-1`): V1SubgraphEvent => ({
   id,
@@ -311,6 +319,24 @@ describe('v1CollectionsSaturated', () => {
     ).toBe(true)
   })
 
+  it('is true when the resolver-assignment window came back full', () => {
+    // Intervals past the window are dropped, and their resolver events with
+    // them — so the history must not read as complete.
+    expect(
+      v1CollectionsSaturated(
+        {
+          domain: null,
+          resolvers: [],
+          newResolvers: Array.from({ length: 1000 }, (_, i) =>
+            assignment(CURRENT, i + 1),
+          ),
+        },
+        null,
+        10,
+      ),
+    ).toBe(true)
+  })
+
   it('checks the scoped resolver collections, not just `events`', () => {
     expect(
       v1CollectionsSaturated(
@@ -319,5 +345,81 @@ describe('v1CollectionsSaturated', () => {
         1,
       ),
     ).toBe(true)
+  })
+})
+
+describe('fetchV1NameHistory', () => {
+  const request = vi.mocked(graphqlRequest)
+
+  beforeEach(() => {
+    request.mockReset()
+  })
+
+  const fetch = () =>
+    fetchV1NameHistory({
+      subgraphUrl: 'https://subgraph.test',
+      namehash: NODE,
+      first: 10,
+      orderDirection: 'desc',
+    })
+
+  it('reads resolver rows by assigned id, never by domain', async () => {
+    // #91441 follow-up: `resolvers(where: { domain })` also matches every
+    // contract that emitted for the node, so enough of them would crowd the
+    // assigned resolvers out of its window before the filter ran.
+    request
+      .mockResolvedValueOnce({
+        domain: null,
+        newResolvers: [
+          assignment(CURRENT, 3),
+          assignment(OLD, 1),
+          assignment(OLD, 5),
+          assignment(null, 7),
+        ],
+      })
+      .mockResolvedValueOnce({
+        resolvers: [
+          { events: [resolverEvent('TextChanged', CURRENT, 4)] },
+          { events: [resolverEvent('TextChanged', OLD, 2)] },
+        ],
+      })
+
+    const { events } = await fetch()
+
+    const [, resolverQuery, variables] = request.mock.calls[1] ?? []
+    const query = stringifyDocument(resolverQuery as never)
+    expect(query).toContain('id_in: $ids')
+    expect(query).not.toContain('domain: $id')
+    expect(variables).toMatchObject({
+      ids: [resolverId(CURRENT), resolverId(OLD)],
+    })
+    expect(events.map((e) => e.blockNumber)).toEqual([4, 2])
+  })
+
+  it('declares no unused variables on a scoped read', async () => {
+    // A scoped read skips the domain windows, and GraphQL rejects the whole
+    // operation if `$first` / `$orderDirection` are still declared.
+    request.mockResolvedValueOnce({ newResolvers: [] })
+
+    await fetchV1NameHistory({
+      subgraphUrl: 'https://subgraph.test',
+      namehash: NODE,
+      first: 10,
+      orderDirection: 'desc',
+      eventTypes: ['TextChanged'],
+    })
+
+    const [, query, variables] = request.mock.calls[0] ?? []
+    expect(stringifyDocument(query as never)).not.toMatch(
+      /\$first|\$orderDirection/,
+    )
+    expect(variables).not.toHaveProperty('first')
+  })
+
+  it('skips the resolver read when the name never had a resolver', async () => {
+    request.mockResolvedValueOnce({ domain: null, newResolvers: [] })
+
+    expect(await fetch()).toEqual({ events: [], saturated: false })
+    expect(request).toHaveBeenCalledTimes(1)
   })
 })

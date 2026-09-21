@@ -24,17 +24,10 @@ type V1SubgraphResult = {
 }
 
 /**
- * Bound on how many resolvers a single name's history is read from. The
- * subgraph writes one `Resolver` row per (resolver address, name) pair — for
- * the resolvers the name has used, plus any contract that emitted a resolver
- * event for its node (see `assignedResolverFilter`).
- */
-const RESOLVERS_PER_NAME = 100
-
-/**
  * Bound on how many registry `NewResolver` events are read. This is the
  * subgraph's page maximum; a name that has changed resolver more often than
- * this loses its oldest resolver events, never gains unverified ones.
+ * this loses its oldest resolver events — never gains unverified ones — and is
+ * reported as saturated.
  */
 const RESOLVER_ASSIGNMENTS_PER_NAME = 1000
 
@@ -206,12 +199,21 @@ export const flattenV1Response = (
  * selection *independently*, so the flattened total routinely exceeds it with
  * nothing truncated — comparing that total instead falsely reported fox.eth's
  * 172 complete v1 events as truncated.
+ *
+ * A full `newResolvers` window counts too: the intervals it drops take their
+ * resolver events with them.
  */
 export const v1CollectionsSaturated = (
-  { domain, resolvers }: Pick<V1SubgraphResult, 'domain' | 'resolvers'>,
+  {
+    domain,
+    resolvers,
+    newResolvers,
+  }: Pick<V1SubgraphResult, 'domain' | 'resolvers'> &
+    Partial<Pick<V1SubgraphResult, 'newResolvers'>>,
   collections: ReturnType<typeof scopedCollections>,
   first: number,
 ): boolean =>
+  (newResolvers?.length ?? 0) >= RESOLVER_ASSIGNMENTS_PER_NAME ||
   [
     domain?.events,
     domain?.registration?.events,
@@ -222,79 +224,8 @@ export const v1CollectionsSaturated = (
     ),
   ].some((list) => (list?.length ?? 0) >= first)
 
-/**
- * Fetch a name's v1 history as one flat event list. Returns `[]` (not an error)
- * when the subgraph has no record of the name — the common case for a v2-native
- * name.
- *
- * This deliberately does not go through ensjs's `getNameHistory`: that action
- * flattens `{ id }` references with `id.split('-')[0]`, which returns the chain
- * id for ENSNode's `"{chainId}-{address}-{node}"` resolver ids and so loses the
- * resolver address entirely. We keep the raw refs and flatten them in
- * `adaptV1Events`.
- *
- * `$first` is passed explicitly because the three sibling `events` selections
- * are each costed at their worst case when the variable is unsupplied, and the
- * query is then rejected for exceeding the complexity limit. `orderBy:
- * blockNumber` is what makes it mean "the newest N" — the connection otherwise
- * orders by `id`, and ids are `"{chainId}-{blockNumber}-{logIndex}"` strings,
- * so they sort lexicographically and put block 10000000 before block 9529458.
- *
- * Resolver events are read from every resolver the name has ever pointed at
- * (`resolvers(where: { domain })`), not just `domain.resolver`: that field is
- * only the *current* one, so records set on a resolver the name has since
- * moved off would silently drop out of what reads as a complete history. Each
- * event names its own resolver via `resolverId`, so the flat list stays
- * unambiguous. That query also matches contracts the name never pointed at, so
- * the registry's `NewResolver` events are read alongside — unwindowed by
- * `$first`, since every interval is needed — to filter them out.
- *
- * The response is shaped into that flat list by `flattenV1Response`.
- */
-export const fetchV1NameHistory = async ({
-  subgraphUrl,
-  namehash,
-  first,
-  orderDirection,
-  eventTypes,
-}: {
-  readonly subgraphUrl: string
-  readonly namehash: Hex
-  readonly first: number
-  readonly orderDirection: 'asc' | 'desc'
-  /** Restrict resolver events to these types — see `V1_SCOPED_RESOLVER_EVENTS`. */
-  readonly eventTypes?: readonly string[]
-}): Promise<{
-  readonly events: V1SubgraphEvent[]
-  readonly saturated: boolean
-}> => {
-  const collections = scopedCollections(eventTypes)
-  const response = await graphqlRequest<V1SubgraphResult>(
-    createPlainClient(subgraphUrl),
-    gql`
-      query getV1NameHistoryTimeline(
-        $id: String!
-        $first: Int
-        $resolvers: Int
-        $assignments: Int
-        $orderDirection: OrderDirection
-      ) {
-        newResolvers(
-          where: { domain: $id }
-          first: $assignments
-          orderBy: blockNumber
-          orderDirection: desc
-        ) {
-          id
-          resolverId
-        }
-        ${
-          // Every scoped type maps to a resolver collection, so no domain or
-          // registration event could match — skip both windows rather than
-          // fetch up to `first` of each and drop them client-side.
-          collections
-            ? ''
-            : `domain(id: $id) {
+/** Domain and registration events — the unscoped read's non-resolver windows. */
+const domainEvents = `domain(id: $id) {
           events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
             id
             blockNumber
@@ -323,40 +254,144 @@ export const fetchV1NameHistory = async ({
             }
           }
         }`
+
+/**
+ * Fetch a name's v1 history as one flat event list. Returns `[]` (not an error)
+ * when the subgraph has no record of the name — the common case for a v2-native
+ * name.
+ *
+ * This deliberately does not go through ensjs's `getNameHistory`: that action
+ * flattens `{ id }` references with `id.split('-')[0]`, which returns the chain
+ * id for ENSNode's `"{chainId}-{address}-{node}"` resolver ids and so loses the
+ * resolver address entirely. We keep the raw refs and flatten them in
+ * `adaptV1Events`.
+ *
+ * `$first` is passed explicitly because the three sibling `events` selections
+ * are each costed at their worst case when the variable is unsupplied, and the
+ * query is then rejected for exceeding the complexity limit. `orderBy:
+ * blockNumber` is what makes it mean "the newest N" — the connection otherwise
+ * orders by `id`, and ids are `"{chainId}-{blockNumber}-{logIndex}"` strings,
+ * so they sort lexicographically and put block 10000000 before block 9529458.
+ *
+ * Resolver events are read from every resolver the name has ever pointed at,
+ * not just `domain.resolver`: that field is only the *current* one, so records
+ * set on a resolver the name has since moved off would silently drop out of
+ * what reads as a complete history. Those resolvers come from the registry's
+ * `NewResolver` events, read first — not from `resolvers(where: { domain })`,
+ * which also matches every contract that ever emitted a resolver event for the
+ * node, so enough of them could push the real resolvers out of its window
+ * before `assignedResolverFilter` ever saw them.
+ *
+ * The response is shaped into that flat list by `flattenV1Response`.
+ */
+export const fetchV1NameHistory = async ({
+  subgraphUrl,
+  namehash,
+  first,
+  orderDirection,
+  eventTypes,
+}: {
+  readonly subgraphUrl: string
+  readonly namehash: Hex
+  readonly first: number
+  readonly orderDirection: 'asc' | 'desc'
+  /** Restrict resolver events to these types — see `V1_SCOPED_RESOLVER_EVENTS`. */
+  readonly eventTypes?: readonly string[]
+}): Promise<{
+  readonly events: V1SubgraphEvent[]
+  readonly saturated: boolean
+}> => {
+  const client = createPlainClient(subgraphUrl)
+  const collections = scopedCollections(eventTypes)
+  const { domain, newResolvers } = await graphqlRequest<
+    Pick<V1SubgraphResult, 'domain' | 'newResolvers'>
+  >(
+    client,
+    gql`
+      query getV1NameHistoryTimeline(
+        $id: String!
+        $assignments: Int
+        ${
+          // GraphQL rejects declared-but-unused variables, and only the
+          // domain windows below read these.
+          collections ? '' : '$first: Int, $orderDirection: OrderDirection'
         }
-        resolvers(where: { domain: $id }, first: $resolvers) {
-          ${
-            collections
-              ? collections
-                  .map(
-                    ({ collection, fields }) => `${collection}(
-            first: $first
-            orderBy: blockNumber
-            orderDirection: $orderDirection
-          ) {
-            id
-            blockNumber
-            transactionID
-            type: __typename
-            resolverId
-            ${fields}
-          }`,
-                  )
-                  .join('\n          ')
-              : allResolverEvents
-          }
+      ) {
+        newResolvers(
+          where: { domain: $id }
+          first: $assignments
+          orderBy: blockNumber
+          orderDirection: desc
+        ) {
+          id
+          resolverId
+        }
+        ${
+          // Every scoped type maps to a resolver collection, so no domain or
+          // registration event could match — skip both windows rather than
+          // fetch up to `first` of each and drop them client-side.
+          collections ? '' : domainEvents
         }
       }
     `,
     {
       id: namehash,
-      first,
-      resolvers: RESOLVERS_PER_NAME,
       assignments: RESOLVER_ASSIGNMENTS_PER_NAME,
-      orderDirection,
+      ...(collections ? {} : { first, orderDirection }),
     },
   )
 
+  const resolverIds = [
+    ...new Set(
+      newResolvers.flatMap(({ resolverId }) =>
+        resolverId ? [resolverId] : [],
+      ),
+    ),
+  ]
+  const { resolvers } = resolverIds.length
+    ? await graphqlRequest<Pick<V1SubgraphResult, 'resolvers'>>(
+        client,
+        gql`
+          query getV1NameHistoryResolverEvents(
+            $ids: [String!]!
+            $resolvers: Int
+            $first: Int
+            $orderDirection: OrderDirection
+          ) {
+            resolvers(where: { id_in: $ids }, first: $resolvers) {
+              ${
+                collections
+                  ? collections
+                      .map(
+                        ({ collection, fields }) => `${collection}(
+                first: $first
+                orderBy: blockNumber
+                orderDirection: $orderDirection
+              ) {
+                id
+                blockNumber
+                transactionID
+                type: __typename
+                resolverId
+                ${fields}
+              }`,
+                      )
+                      .join('\n              ')
+                  : allResolverEvents
+              }
+            }
+          }
+        `,
+        {
+          ids: resolverIds,
+          resolvers: resolverIds.length,
+          first,
+          orderDirection,
+        },
+      )
+    : { resolvers: [] }
+
+  const response = { domain: domain ?? null, resolvers, newResolvers }
   return {
     events: flattenV1Response(response, collections),
     saturated: v1CollectionsSaturated(response, collections, first),
