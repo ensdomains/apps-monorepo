@@ -1,8 +1,20 @@
-import type { Address, Hex } from 'viem'
+import {
+  type Address,
+  createClient,
+  custom,
+  encodeAbiParameters,
+  encodeFunctionData,
+  getAddress,
+  type Hex,
+  parseAbi,
+  parseAbiParameters,
+  RpcRequestError,
+} from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   decodeImplementationAddress,
   filterPermissionedResolverAddresses,
+  getVerifiedProxyImplementation,
   type ProxyDeployedLog,
   parseProxyDeployedAddress,
 } from './permissionedResolver'
@@ -114,5 +126,97 @@ describe('filterPermissionedResolverAddresses', () => {
     expect(result[1]?.toLowerCase()).toBe(
       '0x1111111111111111111111111111111111111111',
     )
+  })
+})
+
+describe('getVerifiedProxyImplementation', () => {
+  const FACTORY = '0x9e726eb570beb6bceb495ab8cda7df517d4e841c' as Address
+  const PROXY = '0x907ccb4f76ea54976c8a857ee7fbab2624058f56' as Address
+  const IMPLEMENTATION = '0x14f09fd05d4585759e54844dc9b00147131cf243' as Address
+
+  const clientAnswering = (
+    respond: (calldata: Hex) => Promise<Hex>,
+    onCall?: (request: { to: Address; data: Hex }) => void,
+  ) =>
+    createClient({
+      transport: custom({
+        request: async ({ method, params }) => {
+          if (method !== 'eth_call') throw new Error(`unexpected ${method}`)
+          const [request] = params as [{ to: Address; data: Hex }]
+          onCall?.(request)
+          return respond(request.data)
+        },
+      }),
+    })
+
+  // The deployed factory answers with the implementation the proxy currently
+  // delegates to, not a boolean.
+  it('returns the implementation the factory reports', async () => {
+    let seen: { to: Address; data: Hex } | undefined
+    const client = clientAnswering(
+      async () =>
+        encodeAbiParameters(parseAbiParameters('address'), [IMPLEMENTATION]),
+      (request) => {
+        seen = request
+      },
+    )
+
+    await expect(
+      getVerifiedProxyImplementation({
+        client,
+        factoryAddress: FACTORY,
+        proxyAddress: PROXY,
+      }),
+    ).resolves.toBe(getAddress(IMPLEMENTATION))
+    expect(seen?.to).toBe(FACTORY)
+    expect(seen?.data).toBe(
+      encodeFunctionData({
+        abi: parseAbi([
+          'function verifyContract(address proxy) view returns (address)',
+        ]),
+        args: [PROXY],
+      }),
+    )
+  })
+
+  // The factory reverts for a proxy it did not deploy, which is an answer.
+  it('treats a reverted verification as no implementation', async () => {
+    const client = clientAnswering(async () => {
+      throw new RpcRequestError({
+        body: {},
+        error: {
+          code: 3,
+          message: 'execution reverted',
+          // ProxyNotFromFactory(address)
+          data: `0x4c87e2b6${'0'.repeat(64)}`,
+        },
+        url: 'http://localhost',
+      })
+    })
+
+    await expect(
+      getVerifiedProxyImplementation({
+        client,
+        factoryAddress: FACTORY,
+        proxyAddress: PROXY,
+      }),
+    ).resolves.toBeNull()
+  })
+
+  // Guards the whole point of isRevert: a mutation making it always true would
+  // otherwise pass, putting back the behaviour where a blip costs a genuine
+  // proxy its badge.
+  it('surfaces a transport failure instead of answering', async () => {
+    const client = clientAnswering(async () => {
+      throw new Error('fetch failed')
+    })
+
+    await expect(
+      getVerifiedProxyImplementation({
+        client,
+        factoryAddress: FACTORY,
+        proxyAddress: PROXY,
+      }),
+    ).rejects.toThrow()
   })
 })
