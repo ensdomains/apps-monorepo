@@ -93,22 +93,27 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
 
-  // Check if connected account has ROLE_REGISTRAR on the subregistry ROOT resource
+  // ROLE_REGISTRAR on the subregistry's ROOT resource, which is what `register`
+  // checks and where a registry-wide grant lands. Omitting `label` is what
+  // selects that: a label of any kind — `''` included — asks about
+  // `labelhash(label)` instead, a resource nobody is ever granted roles on, so
+  // the answer was always false however the account was granted the role.
   const { data: hasRegistrarRole } = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: subregistryAddress as Address,
-      label: '',
       roles: ['ROLE_REGISTRAR'],
       account: connectedAccount as Address,
     }),
     enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
   })
 
-  // Check if connected account has ROLE_UNREGISTER on the subregistry ROOT resource
+  // `unregister` checks ROLE_UNREGISTER on the subname being deleted, but the
+  // registry ORs the caller's ROOT roles into every resource, so a registry-wide
+  // holder can delete any of them — which is the permission this one button
+  // stands for. Someone granted the role on a single subname isn't covered here.
   const { data: hasUnregisterRole } = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: subregistryAddress as Address,
-      label: '',
       roles: ['ROLE_UNREGISTER'],
       account: connectedAccount as Address,
     }),

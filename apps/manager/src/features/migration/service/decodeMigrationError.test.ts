@@ -97,6 +97,30 @@ describe('decodeMigrationError — direct mappings', () => {
     })
   })
 
+  it('maps a live-subregistry refusal to its own state, not a generic failure', () => {
+    const invariant = Object.assign(new Error(''), {
+      name: 'MigrationContractInvariantError',
+      invariant: 'live-subregistry-overwrite',
+    })
+    const outer = new Error('migration failed', { cause: invariant })
+
+    expect(decodeMigrationError(outer)).toEqual({
+      type: 'subregistry-conflict',
+    })
+  })
+
+  it('leaves other contract invariants generic', () => {
+    const invariant = Object.assign(new Error('missing code'), {
+      name: 'MigrationContractInvariantError',
+      invariant: 'missing-code',
+    })
+
+    expect(decodeMigrationError(invariant)).toEqual({
+      type: 'generic',
+      message: 'missing code',
+    })
+  })
+
   it('maps cleanup failure to its dedicated recovery state', () => {
     const cleanup = Object.assign(new Error('cleanup rejected'), {
       name: 'MigrationCleanupError',

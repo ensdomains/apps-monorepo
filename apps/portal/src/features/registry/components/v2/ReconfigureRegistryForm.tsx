@@ -32,6 +32,9 @@ export const ReconfigureRegistryForm = ({
         name={name}
         onCancel={onClose}
         onComplete={onClose}
+        // Replacing the current registry is what this form is for; the warning
+        // above is the confirmation.
+        assertWritable={null}
       />
     </div>
   )

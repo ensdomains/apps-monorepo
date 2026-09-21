@@ -19,9 +19,21 @@ import type {
   TransactionReceipt,
   WalletClient,
 } from 'viem'
-import { encodeFunctionData } from 'viem'
+import { bytesToBigInt, encodeFunctionData } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { WalletClientWithAccount } from '@/utils/types'
+
+/**
+ * A fresh CREATE2 salt for one deploy.
+ *
+ * Never lean on ensjs's default: it computes `DEFAULT_SALT` once, at module
+ * load, so every deploy in a page session reuses it. The factory derives the
+ * proxy address from `(msg.sender, salt)`, so a wallet's second deploy before a
+ * reload targets an address it already occupies and reverts with empty data —
+ * on every retry, until the page is reloaded.
+ */
+export const generateSubregistrySalt = (): bigint =>
+  bytesToBigInt(crypto.getRandomValues(new Uint8Array(32)))
 
 function extractDeployedAddress(
   receipt: TransactionReceipt | undefined,
@@ -35,6 +47,11 @@ function extractDeployedAddress(
 export interface DeploySubregistryTransactionParameters {
   readonly factoryAddress: Address
   readonly implAddress: Address
+  /**
+   * CREATE2 salt, from {@link generateSubregistrySalt}. Hold one per flow so the
+   * gas estimate and the deploy encode the same call.
+   */
+  readonly salt: bigint
   readonly walletClient: WalletClient
   readonly chainId: number
 }
@@ -56,6 +73,7 @@ export interface DeploySubregistryResult {
 export const prepareDeploySubregistryTransaction = ({
   factoryAddress,
   implAddress,
+  salt,
   walletClient,
   chainId,
 }: DeploySubregistryTransactionParameters): CustomTransactionIntent => {
@@ -68,6 +86,7 @@ export const prepareDeploySubregistryTransaction = ({
   const writeParams = deploySubregistryWriteParameters(walletWithAccount, {
     factoryAddress,
     implAddress,
+    salt,
   })
 
   const data = encodeFunctionData({
@@ -87,6 +106,7 @@ export const prepareDeploySubregistryTransaction = ({
 export const deploySubregistry = async ({
   factoryAddress,
   implAddress,
+  salt,
   walletClient,
   publicClient,
   signer,
@@ -96,6 +116,7 @@ export const deploySubregistry = async ({
   const intent = prepareDeploySubregistryTransaction({
     factoryAddress,
     implAddress,
+    salt,
     walletClient,
     chainId,
   })
