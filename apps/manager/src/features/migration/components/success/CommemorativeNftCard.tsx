@@ -154,7 +154,7 @@ const SharingRail = ({
         icon={
           <MSymbol
             aria-hidden
-            className="ms-wght-500 text-[20px]"
+            className="ms-wght-500 text-xl/none"
             symbol="arrow_outward"
           />
         }
@@ -170,7 +170,7 @@ const SharingRail = ({
       >
         <MSymbol
           aria-hidden
-          className="ms-wght-500 text-[20px]"
+          className="ms-wght-500 text-xl/none"
           symbol="content_copy"
         />
         <span className="sr-only">
@@ -186,7 +186,7 @@ const SharingRail = ({
       >
         <MSymbol
           aria-hidden
-          className="ms-wght-500 text-[20px]"
+          className="ms-wght-500 text-xl/none"
           symbol={pending ? 'hourglass' : 'download'}
         />
         <span className="sr-only">
@@ -238,16 +238,16 @@ const ArtworkActions = ({
 
 const cardFrameStyles = {
   dialog: {
-    frame: 'h-[310px]',
-    artwork: 'aspect-[193/273] w-[min(193px,calc(100%-7rem))]',
+    frame: 'h-77.5',
+    artwork: 'aspect-nft-card max-w-nft-card',
   },
   profile: {
-    frame: 'h-[308px]',
-    artwork: 'aspect-[200/282] w-[min(200px,calc(100%-7rem))]',
+    frame: 'h-77',
+    artwork: 'aspect-nft-card-profile max-w-50',
   },
   dashboard: {
     frame: 'h-92',
-    artwork: 'aspect-[193/273] w-[min(224px,calc(100%-7rem))]',
+    artwork: 'aspect-nft-card max-w-56',
   },
 } as const
 
@@ -269,9 +269,9 @@ const CardFrame = ({
   >
     <div
       className={cn(
-        // Equal space on both sides keeps the artwork centered. The sharing
-        // rail sits outside this frame instead of shifting the card left.
-        'group/nft-card relative',
+        // Reserve 3.5rem per side (size-11 sharing rail + ml-3 gap), keeping
+        // the artwork centered while the sharing rail sits outside the frame.
+        'group/nft-card relative w-[calc(100%-7rem)]',
         cardFrameStyles[variant].artwork,
       )}
     >

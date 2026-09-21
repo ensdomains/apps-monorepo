@@ -31,7 +31,7 @@ export const CommemorativeNftTraitsTooltip = ({
           type="button"
           {...pointerHandlers}
         >
-          <MSymbol aria-hidden className="text-[20px]" symbol="info" />
+          <MSymbol aria-hidden className="text-xl/none" symbol="info" />
           <span className="sr-only">
             <Trans>View NFT traits</Trans>
           </span>
@@ -41,7 +41,8 @@ export const CommemorativeNftTraitsTooltip = ({
         align="end"
         aria-describedby={descriptionId}
         aria-label={t`NFT traits`}
-        className="flex w-[181px] max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-[20px] border-0 bg-white px-3 py-3.5 text-center font-sans text-ens-garnet-900 text-xs leading-[1.2] tracking-[0.01em] shadow-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none"
+        // Keep a 1rem gutter on each viewport edge, matching collisionPadding.
+        className="flex w-(--container-nft-traits) max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-(--radius-nft-traits) border-0 bg-white px-3 py-3.5 text-center font-sans text-ens-garnet-900 text-xs leading-ens-normal tracking-(--tracking-nft-traits) shadow-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none"
         collisionPadding={16}
         onCloseAutoFocus={(event) => event.preventDefault()}
         onOpenAutoFocus={(event) => event.preventDefault()}
