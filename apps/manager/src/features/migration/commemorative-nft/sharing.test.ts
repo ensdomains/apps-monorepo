@@ -38,11 +38,11 @@ describe('commemorative NFT sharing', () => {
   it.each([
     {
       minted: false,
-      text: 'I upgraded to ENSv2. Take a look at my commemorative NFT.',
+      text: 'Upgraded to ENSv2. Preview my card.',
     },
     {
       minted: true,
-      text: 'I upgraded to ENSv2 and minted my commemorative NFT.',
+      text: 'Upgraded to ENSv2 and minted my card.',
     },
   ])('shares accurate mint status when minted is $minted', ({
     minted,
@@ -52,6 +52,7 @@ describe('commemorative NFT sharing', () => {
     const urls = buildCommemorativeNftShareUrls(externalUrl, minted)
 
     expect(urls.external).toBe(externalUrl)
+    expect(urls.message).toBe(`${text}\n${externalUrl}`)
     for (const intent of [urls.x, urls.telegram]) {
       expect(intent).toBeDefined()
       const params = new URL(intent ?? '').searchParams

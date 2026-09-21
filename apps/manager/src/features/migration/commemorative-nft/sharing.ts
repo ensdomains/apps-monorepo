@@ -34,10 +34,11 @@ export const buildCommemorativeNftShareUrls = (
   if (!externalUrl) return {}
 
   const text = minted
-    ? 'I upgraded to ENSv2 and minted my commemorative NFT.'
-    : 'I upgraded to ENSv2. Take a look at my commemorative NFT.'
+    ? 'Upgraded to ENSv2 and minted my card.'
+    : 'Upgraded to ENSv2. Preview my card.'
   return {
     external: externalUrl,
+    message: `${text}\n${externalUrl}`,
     x: `https://x.com/intent/post?${new URLSearchParams({ text, url: externalUrl })}`,
     telegram: `https://t.me/share/url?${new URLSearchParams({ text, url: externalUrl })}`,
   }

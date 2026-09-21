@@ -1,5 +1,10 @@
-import { SiOpensea, SiTelegram, SiX } from '@icons-pack/react-simple-icons'
-import { Trans } from '@lingui/react/macro'
+import {
+  SiDiscord,
+  SiOpensea,
+  SiTelegram,
+  SiX,
+} from '@icons-pack/react-simple-icons'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useReducedMotion } from 'motion/react'
 import {
   type ReactNode,
@@ -8,8 +13,10 @@ import {
   useReducer,
   useState,
 } from 'react'
+import { toast } from 'sonner'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
+import { copyToClipboard } from '@/lib/clipboard'
 import { cn } from '@/lib/utils'
 import {
   buildCommemorativeNftRendererUrl,
@@ -88,10 +95,24 @@ const SharingRail = ({
   readonly disabled: boolean
   readonly state: CardDialogState
 }) => {
+  const { t } = useLingui()
   const { copy } = useCopyFeedback()
   const externalUrl = state.card.shareUrls.external
-  const hasDownload = state.status === 'minted' && !!state.card.assets.imageUrl
+  const discordMessage = state.card.shareUrls.message
+  const hasDownload = !!state.card.assets.imageUrl
   const { download, pending } = useNftAssetDownload(state.card.assets.imageUrl)
+
+  const shareOnDiscord = () => {
+    if (!discordMessage) return
+    void copyToClipboard(discordMessage)
+      .then(() => toast.success(t`Message copied. Paste it into Discord.`))
+      .catch(() => toast.error(t`Could not copy the message.`))
+    window.open(
+      'https://discord.com/channels/@me',
+      '_blank',
+      'noopener,noreferrer',
+    )
+  }
 
   return (
     <fieldset className="relative z-10 flex shrink-0 flex-col border-0 p-0">
@@ -111,6 +132,13 @@ const SharingRail = ({
         icon={<SiTelegram aria-hidden className="size-4.5" />}
       >
         <Trans>Share on Telegram</Trans>
+      </SocialControl>
+      <SocialControl
+        disabled={disabled}
+        icon={<SiDiscord aria-hidden className="size-4.5" />}
+        onClick={discordMessage ? shareOnDiscord : undefined}
+      >
+        <Trans>Copy message and open Discord</Trans>
       </SocialControl>
       {state.card.marketplaceUrl ? (
         <SocialControl
@@ -152,7 +180,7 @@ const SharingRail = ({
       <button
         aria-busy={pending}
         className={socialControlClassName}
-        disabled={disabled || !hasDownload || pending}
+        disabled={!hasDownload || pending}
         onClick={download}
         type="button"
       >
@@ -187,8 +215,6 @@ const ArtworkActions = ({
   readonly state: CardDialogState
   readonly variant: CardVariant
 }) => {
-  if (state.status !== 'minted') return null
-
   return (
     <div
       className={cn(
