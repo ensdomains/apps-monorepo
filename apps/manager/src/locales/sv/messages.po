@@ -1125,6 +1125,10 @@ msgstr ""
 msgid "Learn More<0> about NFT traits</0>"
 msgstr ""
 
+#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
+msgid "Learn More<0> about NFT traits</0>"
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Let this temporary account move your wrapped names."
 msgstr ""
