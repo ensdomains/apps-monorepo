@@ -6,13 +6,14 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useCallback, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { isAddressEqual } from 'viem'
 import { DAI as DAIIcon, USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { useSmartSessionGate } from '@/features/wallet/hooks/useSmartSessionGate'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import type { StablecoinBalance } from '@/lib/smart-account'
@@ -268,6 +269,22 @@ const getPaymentSummary = ({
   }
 }
 
+export const selectRegistrationPaymentToken = ({
+  gate,
+  onSelect,
+  token,
+}: {
+  gate: (onProceed: () => void) => void
+  onSelect: (token: SUPPORTED_TOKEN) => void
+  token: SUPPORTED_TOKEN
+}) => {
+  if (token === TOKENS.USDC.symbol) {
+    gate(() => onSelect(token))
+    return
+  }
+  onSelect(token)
+}
+
 export const TokenPickerContent = () => {
   const { t } = useLingui()
   const { label, uiActor } = useRegistrationV2Context()
@@ -303,9 +320,17 @@ export const TokenPickerContent = () => {
     }),
   })
 
-  const onSelectCoin = (coin: SUPPORTED_TOKEN) => {
-    uiActor.send({ type: 'pricing.token.select', token: coin })
-  }
+  const { gate, sessionModal } = useSmartSessionGate()
+  const onSelectCoin = useCallback(
+    (token: SUPPORTED_TOKEN) =>
+      selectRegistrationPaymentToken({
+        gate,
+        onSelect: (selectedToken) =>
+          uiActor.send({ type: 'pricing.token.select', token: selectedToken }),
+        token,
+      }),
+    [gate, uiActor],
+  )
 
   // The wallet's USDC balance. This is the EOA owner's balance (see
   // `useSmartAccountBalances`), which is the account the funding permit debits.
@@ -490,56 +515,59 @@ export const TokenPickerContent = () => {
       : null
 
   return (
-    <TokenPickerContentBase
-      errorMessage={errorMessage}
-      footer={
-        <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
-          <div className="flex flex-col gap-0.5">
-            <span className="font-medium text-ens-gray text-sm">
-              <Trans>Set as primary name</Trans>
-            </span>
-            <span className="text-ens-gray text-xs">
-              <Trans>
-                Your wallet address can only have one primary name, which will
-                display instead of your wallet address across apps. You'll be
-                prompted to confirm this additional transaction after
-                registration.
-              </Trans>
-            </span>
+    <>
+      <TokenPickerContentBase
+        errorMessage={errorMessage}
+        footer={
+          <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium text-ens-gray text-sm">
+                <Trans>Set as primary name</Trans>
+              </span>
+              <span className="text-ens-gray text-xs">
+                <Trans>
+                  Your wallet address can only have one primary name, which will
+                  display instead of your wallet address across apps. You'll be
+                  prompted to confirm this additional transaction after
+                  registration.
+                </Trans>
+              </span>
+            </div>
+            <Switch
+              aria-label={t`Set ${domainName} as your primary name`}
+              checked={setAsPrimary}
+              onCheckedChange={setSetPrimaryChoice}
+            />
           </div>
-          <Switch
-            aria-label={t`Set ${domainName} as your primary name`}
-            checked={setAsPrimary}
-            onCheckedChange={setSetPrimaryChoice}
-          />
-        </div>
-      }
-      funding={
-        funding
-          ? {
-              registration: funding.registration,
-              networkFee: funding.networkFee,
-              total: funding.total,
-              walletDebit: funding.walletDebit,
-              hcaCredit: funding.hcaCredit,
-              isUnderfunded: funding.isUnderfunded,
-              isLoading: budgetQuery.isFetching,
-            }
-          : undefined
-      }
-      hasInsufficientFundingError={hasInsufficientFundingError}
-      isConnected={isConnected}
-      isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
-      isLoadingBalances={isLoadingBalances}
-      isQuotingFunding={budgetQuery.isLoading}
-      label={label}
-      onNext={() => availabilityMutation.mutate()}
-      onSelectCoin={onSelectCoin}
-      pricingData={pricingQuery.data?.totalPriceNumber}
-      pricingLoading={pricingQuery.isLoading}
-      selectedToken={selectedToken}
-      stablecoinBalances={stablecoinBalances}
-    />
+        }
+        funding={
+          funding
+            ? {
+                registration: funding.registration,
+                networkFee: funding.networkFee,
+                total: funding.total,
+                walletDebit: funding.walletDebit,
+                hcaCredit: funding.hcaCredit,
+                isUnderfunded: funding.isUnderfunded,
+                isLoading: budgetQuery.isFetching,
+              }
+            : undefined
+        }
+        hasInsufficientFundingError={hasInsufficientFundingError}
+        isConnected={isConnected}
+        isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
+        isLoadingBalances={isLoadingBalances}
+        isQuotingFunding={budgetQuery.isLoading}
+        label={label}
+        onNext={() => availabilityMutation.mutate()}
+        onSelectCoin={onSelectCoin}
+        pricingData={pricingQuery.data?.totalPriceNumber}
+        pricingLoading={pricingQuery.isLoading}
+        selectedToken={selectedToken}
+        stablecoinBalances={stablecoinBalances}
+      />
+      {sessionModal}
+    </>
   )
 }
 

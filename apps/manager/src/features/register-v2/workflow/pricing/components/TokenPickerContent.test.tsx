@@ -4,7 +4,10 @@ import { I18nProvider } from '@lingui/react'
 import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { StablecoinBalance } from '@/lib/smart-account'
-import { TokenPickerContentBase } from './TokenPickerContent'
+import {
+  selectRegistrationPaymentToken,
+  TokenPickerContentBase,
+} from './TokenPickerContent'
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
 
@@ -385,5 +388,30 @@ describe('TokenPickerContentBase', () => {
     ).not.toBeInTheDocument()
     expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
     expect(screen.getByText('Total')).toBeVisible()
+  })
+})
+
+describe('selectRegistrationPaymentToken', () => {
+  it('requires the session gate before selecting USDC', () => {
+    const gate = vi.fn()
+    const onSelect = vi.fn()
+
+    selectRegistrationPaymentToken({ gate, onSelect, token: 'USDC' })
+
+    expect(onSelect).not.toHaveBeenCalled()
+    const onProceed = gate.mock.calls[0]?.[0]
+    expect(onProceed).toBeTypeOf('function')
+    onProceed?.()
+    expect(onSelect).toHaveBeenCalledWith('USDC')
+  })
+
+  it('selects DAI without requiring a session', () => {
+    const gate = vi.fn()
+    const onSelect = vi.fn()
+
+    selectRegistrationPaymentToken({ gate, onSelect, token: 'DAI' })
+
+    expect(gate).not.toHaveBeenCalled()
+    expect(onSelect).toHaveBeenCalledWith('DAI')
   })
 })

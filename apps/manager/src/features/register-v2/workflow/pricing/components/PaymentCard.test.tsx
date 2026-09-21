@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PaymentCard } from './PaymentCard'
 
 const mocks = vi.hoisted(() => ({
-  gate: vi.fn(),
   send: vi.fn(),
 }))
 
@@ -31,16 +30,15 @@ vi.mock('@/features/register-v2/utils/discount', () => ({
   calculateDiscount: () => ({ discountAmount: 0 }),
 }))
 
-vi.mock('@/features/wallet/hooks/useSmartSessionGate', () => ({
-  useSmartSessionGate: () => ({ gate: mocks.gate, sessionModal: null }),
-}))
-
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
   useSmartAccountContext: () => ({ isConnected: true }),
 }))
 
 vi.mock('@/lib/wallet', () => ({
-  useConnectModal: () => ({ connectModalOpen: false, openConnectModal: vi.fn() }),
+  useConnectModal: () => ({
+    connectModalOpen: false,
+    openConnectModal: vi.fn(),
+  }),
 }))
 
 vi.mock('wagmi', async (importOriginal) => ({
@@ -59,7 +57,6 @@ i18n.loadAndActivate({ locale: 'en', messages: {} })
 
 describe('PaymentCard', () => {
   beforeEach(() => {
-    mocks.gate.mockClear()
     mocks.send.mockClear()
   })
 
@@ -75,7 +72,6 @@ describe('PaymentCard', () => {
     )
 
     expect(mocks.send).toHaveBeenCalledWith({ type: 'pricing.step.next' })
-    expect(mocks.gate).not.toHaveBeenCalled()
   })
 
   it('advertises both supported stablecoins', () => {
