@@ -7,8 +7,8 @@ import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import { match, P } from 'ts-pattern'
 import { namehash } from 'viem'
+import { normalize } from 'viem/ens'
 import { graphqlIndexerClient } from '@/lib/indexer'
-import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 
 class GetSubregistryHistoryError extends TaggedError(
   'GetSubregistryHistoryError',
@@ -20,9 +20,20 @@ type GetSubregistryHistoryParameters = {
   readonly name: string
 }
 
-const getSubregistryHistory = ResultFn(async function* ({
+export const getSubregistryHistory = ResultFn(async function* ({
   name,
 }: GetSubregistryHistoryParameters) {
+  // The `$name` route param is never normalized. A spelling that doesn't
+  // normalize has no canonical node to look up, and hashing a fallback spelling
+  // would miss the real node's events and read as `never-configured` — the one
+  // verdict that offers the write. Unknown instead, which the hook fails closed.
+  let normalizedName: string
+  try {
+    normalizedName = normalize(name)
+  } catch {
+    return ok(null)
+  }
+
   const { eventConnection } = yield* fromPromise(
     graphqlIndexerClient.request<{
       eventConnection: { totalCount: number | null }
@@ -37,7 +48,7 @@ const getSubregistryHistory = ResultFn(async function* ({
           }
         }
       `,
-      { namehash: namehash(normalizeOrLower(name)) },
+      { namehash: namehash(normalizedName) },
     ),
     (e) => new GetSubregistryHistoryError({ cause: e as GraphqlRequestError }),
   )
