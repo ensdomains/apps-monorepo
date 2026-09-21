@@ -61,6 +61,12 @@ const LOW_BALANCES: StablecoinBalance[] = [
   },
 ]
 
+const ZERO_BALANCES: StablecoinBalance[] = LOW_BALANCES.map((coin) => ({
+  ...coin,
+  balance: '0',
+  formattedBalance: '0.00',
+}))
+
 // ---------------------------------------------------------------------------
 // Shell component — stands in for TokenPickerDialog without providers
 // ---------------------------------------------------------------------------
@@ -302,11 +308,31 @@ export const WalletDisconnected: Story = {
 }
 
 /**
- * User has zero stablecoins in their smart account.
+ * The balance read settled without any payment methods.
  */
 export const NoStablecoins: Story = {
   args: {
     stablecoinBalances: [],
+  },
+}
+
+/**
+ * Payment-method reads succeeded and returned zero for both accepted stables.
+ */
+export const ZeroBalances: Story = {
+  args: {
+    pricingData: 352,
+    stablecoinBalances: ZERO_BALANCES,
+    initialSelectedToken: 'USDC',
+    funding: {
+      registration: 347.68,
+      networkFee: 4.32,
+      total: 352,
+      walletDebit: 352,
+      hcaCredit: 0,
+      isUnderfunded: true,
+      isLoading: false,
+    },
   },
 }
 
@@ -325,6 +351,26 @@ export const InvalidUSDC: Story = {
       walletDebit: 352,
       hcaCredit: 0,
       isUnderfunded: true,
+      isLoading: false,
+    },
+  },
+}
+
+/**
+ * DAI cannot cover the name price while USDC remains fully funded.
+ */
+export const InvalidDAI: Story = {
+  args: {
+    pricingData: 352,
+    stablecoinBalances: [MOCK_BALANCES[0]!, LOW_BALANCES[1]!],
+    initialSelectedToken: 'DAI',
+    funding: {
+      registration: 347.68,
+      networkFee: 4.32,
+      total: 352,
+      walletDebit: 352,
+      hcaCredit: 0,
+      isUnderfunded: false,
       isLoading: false,
     },
   },
