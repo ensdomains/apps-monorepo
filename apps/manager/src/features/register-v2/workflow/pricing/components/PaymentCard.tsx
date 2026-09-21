@@ -151,10 +151,7 @@ export const PaymentCardBase = ({
           <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
             <Trans>Stables accepted</Trans>
           </p>
-          <ul
-            aria-label="Stables accepted"
-            className="flex items-center gap-1"
-          >
+          <ul aria-label="Stables accepted" className="flex items-center gap-1">
             <li aria-label="USDC">
               <USDCIcon className="h-7 w-7" />
             </li>

@@ -129,9 +129,9 @@ For a **first USDC HCA registration** in a fresh session window:
 Everything else — `commit`, resolver deploy, `register` — is **session-signed,
 prompt-free**.
 
-For a **subsequent USDC HCA registration** within the 1-week window: the stored
-session is reused, so the user only sees the permit (the ENABLE step is skipped
-— see §6).
+For a **subsequent USDC HCA registration** with at least 10 minutes remaining in
+the 1-week window: the stored session is reused, so the user only sees the
+permit (the ENABLE step is skipped — see §6).
 
 DAI is intentionally separate: pricing and registration use the canonical
 registrar, and the connected EOA signs the inherited approval, commit, and
@@ -191,8 +191,9 @@ rows that count toward `MAX_OWNERS`. It does mean a longer-lived key on disk, so
 if you adopt it, pair it with an explicit REVOKE on logout/rotation.
 
 > 🔭 **Not yet wired.** The app always takes the **Fresh ENABLE** path (a stored
-> session is reused only while still valid — see §6 — and once expired a brand
-> new key+owner is minted). Switching reuse-on-expiry to `updateOwnerExpiration`
+> session is reused only while it has enough registration headroom — see §6 —
+> and otherwise a brand new key+owner is minted). Switching that renewal to
+> `updateOwnerExpiration`
 > would require: (1) a `buildExtendSessionOwnerCall({ sessionKeyAddress, validUntil })`
 > builder alongside `buildAddSessionOwnerCall`; (2) a session-storage path that
 > keeps the same `sessionPrivateKey` and only bumps `validUntil`; and (3) an
@@ -238,9 +239,9 @@ if you adopt it, pair it with an explicit REVOKE on logout/rotation.
 | File | Responsibility |
 |------|----------------|
 | `actors/build-session-signer.ts` | `buildSessionContext({ session })` → `{ sessionAccount: privateKeyToAccount(session.sessionPrivateKey) }`. |
-| `actors/session.actors.ts` | `resolveSessionActor(...)` — reuse a valid stored session for THIS HCA, else `createSessionActor(...)` (the ENABLE signature) + `saveSession`. Also `checkExistingSessionActor` / `restoreSessionActor`. |
+| `actors/session.actors.ts` | `resolveSessionActor(...)` — reuse a stored session for THIS HCA when it has enough registration headroom, else `createSessionActor(...)` (the ENABLE signature) + `saveSession`. Also `checkExistingSessionActor` / `restoreSessionActor`. |
 | `SmartAccountContext.tsx` | React provider. Holds `activeSession`, `isEnablingSession`, `sessionError`. Exposes `hasActiveSession` and `enableSession()`. Builds the `RhinestoneSigner` (with `session` attached when active). Hydrates `activeSession` from storage on owner change/mount. |
-| `sessionGate.ts` | `needsSessionBeforeRegistration(account) = account.signer?.type === 'rhinestone' && !account.hasActiveSession`. Shared by every entry point. (`sessionGate.test.ts` covers it.) |
+| `sessionGate.ts` | `needsSessionBeforeRegistration(account)` requires a session for a Rhinestone signer when none is active or the active session has less than 10 minutes of registration headroom. Shared by every entry point. (`sessionGate.test.ts` covers it.) |
 
 ### `apps/manager/src/features/wallet/`
 
@@ -254,13 +255,15 @@ if you adopt it, pair it with an explicit REVOKE on logout/rotation.
 ## 5. Gating the registration flows
 
 There are **two** registration entry points, both gated through the shared
-hook/decision so session-enablement behaviour is identical. In register-v2,
-only a later USDC selection uses the resulting HCA session for registration;
-DAI is handed to the inherited EOA route instead:
+session decision. In register-v2 the gate runs only when a user starts a USDC
+registration, after payment-method selection; DAI bypasses the session gate and
+uses the inherited EOA route instead:
 
-- **register-v2 (active flow):** `features/register-v2/workflow/pricing/components/PaymentCard.tsx`
-  uses `useSmartSessionGate()` and wires `onNext={() => gate(openTokenPicker)}`,
-  rendering `{sessionModal}`.
+- **register-v2 (active flow):**
+  `features/register-v2/workflow/pricing/components/TokenPickerContent.tsx`
+  uses `useSmartSessionGate()` and calls `gate(startRegistration)` from the
+  Register action only for the selected USDC attempt, rendering
+  `{sessionModal}` alongside the picker.
 - **register (v1):** `features/register/pages/RegistrationPage.tsx` renders
   `EnableSessionModal` and resumes via its session-gate hook.
 
@@ -277,21 +280,23 @@ DAI is handed to the inherited EOA route instead:
 ### Gate flow
 
 ```
-user clicks "Next"
+user starts a session-backed registration
   └─ gate(onProceed)
        ├─ needsSession?  no  → onProceed()  (EOA path, or session already active)
        └─ needsSession?  yes → open EnableSessionModal
                                   └─ onEnableSession → account.enableSession()
-                                       ├─ returns a session-attached Signer  → close modal, onProceed()
+                                       ├─ succeeds → publish the session-attached signer,
+                                       │              close modal, onProceed()
                                        └─ returns null (error) → modal stays open, shows sessionError
 ```
 
-### The stale-closure fix
+### Deferred-action resumption
 
-`enableSession()` **returns the session-attached `Signer` immediately** rather
-than relying on the next React render of `account.signer`. The caller starts the
-flow in the same tick with the fresh signer, avoiding the race where the
-flow would otherwise capture the stale, session-less signer.
+After `enableSession()` succeeds, the gate waits until the account context has
+published the new session-attached signer before it runs the deferred action.
+This prevents the registration callback from capturing the previous
+session-less signer. The pending action remains bound to the payment token and
+quote chosen when Register was clicked.
 
 ---
 
@@ -300,15 +305,16 @@ flow would otherwise capture the stale, session-less signer.
 - `SmartAccountContext` hydrates `activeSession` from `localStorage` whenever the
   owner OR the HCA address changes (incl. initial mount), via
   `getValidSessionForAccount({ accountAddress, ownerAddress, chainId })`. So a
-  **page reload with a valid stored session** sets `hasActiveSession = true` and
-  the ENABLE modal is **skipped** — the second USDC HCA registration within the
-  week needs no enable signature.
+  **page reload with a valid stored session** sets `hasActiveSession = true`.
+  The ENABLE modal is skipped when that session also has at least 10 minutes of
+  registration headroom.
 - Reuse is **scoped to the exact HCA** (account + owner + chain). An owner-keyed
   lookup alone could return a session whose ephemeral key is _not_ an owner of
   the current HCA; that row is evicted and a fresh session created instead.
-- `validUntil` (stored) mirrors the on-chain `expiration`. The client-side expiry
-  check is a UX preflight; the real boundary is enforced on-chain by the owner's
-  `uint48 expiration`.
+- `validUntil` (stored) mirrors the on-chain `expiration`. The client-side gate
+  requires 10 minutes of remaining lifetime before a registration starts so
+  the session cannot expire between commit and reveal; the real boundary is
+  still enforced on-chain by the owner's `uint48 expiration`.
 
 ### The hydration-key fix (reload re-prompt bug)
 
@@ -378,8 +384,9 @@ effect re-runs and performs the lookup once both are known. Covered by
 - [ ] `commit` / resolver-deploy / `register` are prompt-free (SDK params show
       `signers` present).
 - [ ] `register` calldata `owner` arg = the EOA (name owned by EOA, not HCA).
-- [ ] Second USDC HCA registration within the week shows **1** signature
-      (permit only); no ENABLE modal (session hydrated from storage).
+- [ ] Second USDC HCA registration with at least 10 minutes left in the session
+      shows **1** signature (permit only); no ENABLE modal (session hydrated
+      from storage).
 - [ ] DAI registration uses the connected EOA and the canonical registrar, not
       the HCA session signer or standalone-HCA registrar.
 
