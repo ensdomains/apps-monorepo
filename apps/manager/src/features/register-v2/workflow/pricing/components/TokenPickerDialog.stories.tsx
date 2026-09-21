@@ -61,6 +61,16 @@ const LOW_BALANCES: StablecoinBalance[] = [
   },
 ]
 
+const LOW_DAI_BALANCES: StablecoinBalance[] = MOCK_BALANCES.map((coin) =>
+  coin.symbol === 'DAI'
+    ? {
+        ...coin,
+        balance: '5000000000000000000',
+        formattedBalance: '5.00',
+      }
+    : coin,
+)
+
 const ZERO_BALANCES: StablecoinBalance[] = LOW_BALANCES.map((coin) => ({
   ...coin,
   balance: '0',
@@ -362,7 +372,7 @@ export const InvalidUSDC: Story = {
 export const InvalidDAI: Story = {
   args: {
     pricingData: 352,
-    stablecoinBalances: [MOCK_BALANCES[0]!, LOW_BALANCES[1]!],
+    stablecoinBalances: LOW_DAI_BALANCES,
     initialSelectedToken: 'DAI',
     funding: {
       registration: 347.68,
