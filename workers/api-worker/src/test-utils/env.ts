@@ -2,8 +2,13 @@ import { vi } from 'vitest'
 
 export function makeMockQueue<T = unknown>() {
   return {
-    send: vi.fn(async (_message: T) => undefined),
-    sendBatch: vi.fn(async (_messages: Array<{ body: T }>) => undefined),
+    metrics: vi.fn(async () => ({ backlogCount: 0, backlogBytes: 0 })),
+    send: vi.fn(async (_message: T) => ({
+      metadata: { metrics: { backlogCount: 0, backlogBytes: 0 } },
+    })),
+    sendBatch: vi.fn(async (_messages: Array<{ body: T }>) => ({
+      metadata: { metrics: { backlogCount: 0, backlogBytes: 0 } },
+    })),
   }
 }
 

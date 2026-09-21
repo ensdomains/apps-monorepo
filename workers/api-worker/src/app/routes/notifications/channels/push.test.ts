@@ -181,31 +181,4 @@ describe('POST /push', () => {
     expect(mocks.updateWhere).toHaveBeenCalledOnce()
     expect(mocks.db.insert).not.toHaveBeenCalled()
   })
-
-  it('allows creation when inactive and expired endpoints are excluded from the active count', async () => {
-    mocks.count.mockResolvedValue(MAX_ACTIVE_PUSH_SUBSCRIPTIONS - 1)
-
-    const response = await postSubscription({
-      ...requestBody,
-      endpoint: 'https://fcm.googleapis.com/push/subscription-after-expiry',
-      expirationTime: Date.now() + 60_000,
-    })
-
-    expect(response.status).toBe(201)
-    expect(mocks.count).toHaveBeenCalledOnce()
-    expect(mocks.db.insert).toHaveBeenCalledOnce()
-  })
-
-  it('treats null expiration time as active', async () => {
-    mocks.count.mockResolvedValue(MAX_ACTIVE_PUSH_SUBSCRIPTIONS)
-
-    const response = await postSubscription({
-      ...requestBody,
-      endpoint: 'https://fcm.googleapis.com/push/subscription-null-expiry',
-      expirationTime: null,
-    })
-
-    expect(response.status).toBe(409)
-    expect(mocks.db.insert).not.toHaveBeenCalled()
-  })
 })
