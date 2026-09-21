@@ -50,11 +50,11 @@ describe('runtime independence', () => {
   // The worker resolves the same config from Cloudflare bindings, so the
   // failure messages must not name a Vite-only variable.
   it('does not mention VITE_ vars when the network is missing', () => {
-    try {
-      buildConfig({ network: undefined })
-      expect.unreachable('should have thrown')
-    } catch (error) {
-      expect((error as Error).message).not.toMatch(/VITE_/)
-    }
+    // Asserted separately so the test still fails if buildConfig stops
+    // throwing: a single try/catch would pass on the assertion error instead.
+    expect(() => buildConfig({ network: undefined })).toThrow(
+      NetworkConfigError,
+    )
+    expect(() => buildConfig({ network: undefined })).not.toThrow(/VITE_/)
   })
 })

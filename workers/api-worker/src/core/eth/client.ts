@@ -1,4 +1,5 @@
 import { NetworkConfigError } from '@ens-apps/config'
+import { fromSync } from '@ens-apps/utils/neverthrow'
 import { ok, type Result } from 'neverthrow'
 import { createPublicClient, http } from 'viem'
 import { error } from '../../utils/result'
@@ -19,23 +20,22 @@ export const createEnsClient = (env: CloudflareBindings) => {
 
   // The chain comes from the shared network config, so an unknown or
   // undeployed CHAIN fails here for the same reason it fails an app build.
-  let chain: ReturnType<typeof getConfig>['chain']
-  try {
-    chain = getConfig(env).chain
-  } catch (cause) {
-    return error({
-      code: 'INVALID_CHAIN',
+  const chain = fromSync(
+    () => getConfig(env).chain,
+    (cause: unknown) => ({
+      code: 'INVALID_CHAIN' as const,
       message:
         cause instanceof NetworkConfigError
           ? cause.message
           : `Invalid chain: ${env.CHAIN}`,
-    })
-  }
+    }),
+  )
+  if (chain.isErr()) return error(chain.error)
 
-  const client = createPublicClient({
-    chain,
-    transport: http(env.SEPOLIA_RPC_URL),
-  })
-
-  return ok(client)
+  return ok(
+    createPublicClient({
+      chain: chain.value,
+      transport: http(env.SEPOLIA_RPC_URL),
+    }),
+  )
 }

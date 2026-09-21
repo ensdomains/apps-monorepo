@@ -3,9 +3,9 @@ import {
   EmptyGraphQLResponseError,
   graphqlRequest,
 } from '@ens-apps/indexer/urql/request'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { CombinedError, gql } from '@urql/core'
-import { fromPromise, ok } from 'neverthrow'
+import { fromPromise, ok, type Result } from 'neverthrow'
 import * as v from 'valibot'
 import { getConfig } from '#core/config.js'
 import { logger } from '#utils/logger.js'
@@ -66,8 +66,25 @@ class IndexerRequestError extends TaggedError('INDEXER_REQUEST_ERROR')<{
 
 class IndexerValidationError extends TaggedError('INDEXER_VALIDATION_ERROR') {}
 
-function getIndexerUrl(env: CloudflareBindings): string {
-  return getConfig(env).endpoints.indexerGraphql
+class IndexerConfigError extends TaggedError('INDEXER_CONFIG_ERROR')<{
+  reason: string
+}> {}
+
+/**
+ * Resolving the network can fail (an absent or unknown `CHAIN`). Returning a
+ * Result keeps that inside the caller's error channel instead of rejecting the
+ * generator, which would bypass the cron's failure handling.
+ */
+function getIndexerUrl(
+  env: CloudflareBindings,
+): Result<string, IndexerConfigError> {
+  return fromSync(
+    () => getConfig(env).endpoints.indexerGraphql,
+    (error) =>
+      new IndexerConfigError({
+        reason: error instanceof Error ? error.message : String(error),
+      }),
+  )
 }
 
 function toRetryDelayMs(attempt: number): number {
@@ -113,15 +130,13 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
   upperBound: number
   attempt: number
 }) {
+  const indexerUrl = yield* getIndexerUrl(ctx.env)
+
   const rawResponse = yield* fromPromise(
-    graphqlRequest(
-      createPlainClient(getIndexerUrl(ctx.env)),
-      expiringNamesQuery,
-      {
-        cursor: ctx.cursor,
-        upper_bound: ctx.upperBound,
-      } satisfies ExpiringNamesQueryVariables,
-    ),
+    graphqlRequest(createPlainClient(indexerUrl), expiringNamesQuery, {
+      cursor: ctx.cursor,
+      upper_bound: ctx.upperBound,
+    } satisfies ExpiringNamesQueryVariables),
     (error) => {
       const status = responseStatus(error)
 
