@@ -17,7 +17,7 @@
  * `onProceed` immediately.
  */
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { needsSessionBeforeRegistration } from '@/lib/smart-account/sessionGate'
 import { EnableSessionModal } from '../components/EnableSessionModal'
@@ -35,32 +35,34 @@ export interface SmartSessionGate {
 
 export function useSmartSessionGate(): SmartSessionGate {
   const account = useSmartAccountContext()
+  const needsSession = needsSessionBeforeRegistration(account)
   const [isOpen, setIsOpen] = useState(false)
   const pendingRef = useRef<(() => void) | null>(null)
 
   const gate = useCallback(
     (onProceed: () => void) => {
-      if (needsSessionBeforeRegistration(account)) {
+      if (needsSession) {
         pendingRef.current = onProceed
         setIsOpen(true)
         return
       }
       onProceed()
     },
-    [account],
+    [needsSession],
   )
 
   const onEnableSession = useCallback(async () => {
-    // The single ENABLE signature. On success, close the modal and run the
-    // deferred action — the session is now active, so the downstream flow runs
-    // prompt-free off `account.signer`.
     const signer = await account.enableSession()
     if (!signer) return // modal stays open, surfaces account.sessionError
     setIsOpen(false)
+  }, [account])
+
+  useEffect(() => {
+    if (isOpen || !pendingRef.current || needsSession) return
     const pending = pendingRef.current
     pendingRef.current = null
-    pending?.()
-  }, [account])
+    pending()
+  }, [isOpen, needsSession])
 
   const sessionModal = (
     <EnableSessionModal

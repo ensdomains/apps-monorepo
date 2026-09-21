@@ -269,20 +269,20 @@ const getPaymentSummary = ({
   }
 }
 
-export const selectRegistrationPaymentToken = ({
+export const startRegistrationWithSession = ({
   gate,
-  onSelect,
+  onStart,
   token,
 }: {
   gate: (onProceed: () => void) => void
-  onSelect: (token: SUPPORTED_TOKEN) => void
+  onStart: () => void
   token: SUPPORTED_TOKEN
 }) => {
   if (token === TOKENS.USDC.symbol) {
-    gate(() => onSelect(token))
+    gate(onStart)
     return
   }
-  onSelect(token)
+  onStart()
 }
 
 export const TokenPickerContent = () => {
@@ -323,13 +323,8 @@ export const TokenPickerContent = () => {
   const { gate, sessionModal } = useSmartSessionGate()
   const onSelectCoin = useCallback(
     (token: SUPPORTED_TOKEN) =>
-      selectRegistrationPaymentToken({
-        gate,
-        onSelect: (selectedToken) =>
-          uiActor.send({ type: 'pricing.token.select', token: selectedToken }),
-        token,
-      }),
-    [gate, uiActor],
+      uiActor.send({ type: 'pricing.token.select', token }),
+    [uiActor],
   )
 
   // The wallet's USDC balance. This is the EOA owner's balance (see
@@ -559,7 +554,14 @@ export const TokenPickerContent = () => {
         isLoadingBalances={isLoadingBalances}
         isQuotingFunding={budgetQuery.isLoading}
         label={label}
-        onNext={() => availabilityMutation.mutate()}
+        onNext={() =>
+          selectedToken &&
+          startRegistrationWithSession({
+            gate,
+            onStart: availabilityMutation.mutate,
+            token: selectedToken,
+          })
+        }
         onSelectCoin={onSelectCoin}
         pricingData={pricingQuery.data?.totalPriceNumber}
         pricingLoading={pricingQuery.isLoading}

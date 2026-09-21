@@ -5,7 +5,7 @@ import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import {
-  selectRegistrationPaymentToken,
+  startRegistrationWithSession,
   TokenPickerContentBase,
 } from './TokenPickerContent'
 
@@ -391,27 +391,27 @@ describe('TokenPickerContentBase', () => {
   })
 })
 
-describe('selectRegistrationPaymentToken', () => {
-  it('requires the session gate before selecting USDC', () => {
+describe('startRegistrationWithSession', () => {
+  it('requires the session gate before starting with USDC', () => {
     const gate = vi.fn()
-    const onSelect = vi.fn()
+    const onStart = vi.fn()
 
-    selectRegistrationPaymentToken({ gate, onSelect, token: 'USDC' })
+    startRegistrationWithSession({ gate, onStart, token: 'USDC' })
 
-    expect(onSelect).not.toHaveBeenCalled()
+    expect(onStart).not.toHaveBeenCalled()
     const onProceed = gate.mock.calls[0]?.[0]
     expect(onProceed).toBeTypeOf('function')
     onProceed?.()
-    expect(onSelect).toHaveBeenCalledWith('USDC')
+    expect(onStart).toHaveBeenCalledOnce()
   })
 
-  it('selects DAI without requiring a session', () => {
+  it('starts with DAI without requiring a session', () => {
     const gate = vi.fn()
-    const onSelect = vi.fn()
+    const onStart = vi.fn()
 
-    selectRegistrationPaymentToken({ gate, onSelect, token: 'DAI' })
+    startRegistrationWithSession({ gate, onStart, token: 'DAI' })
 
     expect(gate).not.toHaveBeenCalled()
-    expect(onSelect).toHaveBeenCalledWith('DAI')
+    expect(onStart).toHaveBeenCalledOnce()
   })
 })

@@ -8,7 +8,6 @@ import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { AlertCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -172,9 +171,9 @@ export const ConfirmPurchaseBase = ({
   const premiumLabel = getPremiumLabel(label.length)
   const domainName = `${label}.eth`
 
-  const selectedCoinConfig =
-    selectedToken === 'USDC' ? STABLECOINS.USDC : undefined
-  const SelectedCoinIcon = selectedCoinConfig?.icon || USDCIcon
+  const SelectedCoinIcon = selectedToken
+    ? STABLECOINS[selectedToken].icon
+    : STABLECOINS.USDC.icon
 
   return (
     <div className="flex h-full flex-1 flex-col justify-between gap-4 px-4">
