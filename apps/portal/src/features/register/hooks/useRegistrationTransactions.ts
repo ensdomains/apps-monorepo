@@ -321,7 +321,10 @@ export const useRegistrationTransactions = ({
   useEffect(
     () => () => {
       const { value } = actor.getSnapshot()
-      if (value !== 'idle' && value !== 'success') transactionManager.clear()
+      if (value === 'idle' || value === 'success') return
+      for (const id of Object.values(REGISTRATION_TX_IDS)) {
+        transactionManager.cancelTransaction(id)
+      }
     },
     [actor],
   )

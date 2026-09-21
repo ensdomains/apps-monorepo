@@ -96,7 +96,9 @@ vi.mock('@/features/register/components', async () => {
 // `createFileRoute` is mocked to hand back the options object, so `Route` is
 // really `{ component, useSearch, ... }`, hence the cast.
 const { Route } = await import('./index')
-const { transactionManager } = await import('@ens-apps/transaction-manager')
+const { REGISTRATION_TX_IDS, transactionManager } = await import(
+  '@ens-apps/transaction-manager'
+)
 const RegisterRoute = (Route as unknown as { component: () => React.ReactNode })
   .component
 
@@ -129,15 +131,21 @@ describe('/register', () => {
 
     act(() => flow.startFlow(SUPPORTED_TOKENS.USDC, 160_000_000n))
     await act(() => flow.transactions[0].onStart?.())
+    const cancel = vi.spyOn(transactionManager, 'cancelTransaction')
     const clear = vi.spyOn(transactionManager, 'clear')
 
     rerender(<RegisterRoute />)
-    expect(clear).not.toHaveBeenCalled()
+    expect(cancel).not.toHaveBeenCalled()
 
     search.name = 'cheap.eth'
     rerender(<RegisterRoute />)
-    expect(clear).toHaveBeenCalledOnce()
+    // Only this flow's transactions: others in the shared manager survive.
+    expect(cancel.mock.calls.map(([id]) => id).sort()).toEqual(
+      Object.values(REGISTRATION_TX_IDS).sort(),
+    )
+    expect(clear).not.toHaveBeenCalled()
 
+    cancel.mockRestore()
     clear.mockRestore()
   })
 })
