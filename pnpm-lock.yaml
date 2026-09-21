@@ -1111,6 +1111,9 @@ importers:
       '@block65/webcrypto-web-push':
         specifier: ^1.0.2
         version: 1.0.2
+      '@ens-apps/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@ens-apps/indexer':
         specifier: workspace:*
         version: link:../../packages/indexer

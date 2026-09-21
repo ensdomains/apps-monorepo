@@ -146,7 +146,7 @@ const parseOrThrow = (
 const resolveNetwork = (network: string | undefined): EnsNetwork => {
   if (!network) {
     throw new NetworkConfigError(
-      `Missing network. Set VITE_ENS_NETWORK to one of: ${ENS_NETWORKS.join(', ')}.`,
+      `Missing network. Expected one of: ${ENS_NETWORKS.join(', ')}.`,
     )
   }
   if (!isEnsNetwork(network)) {

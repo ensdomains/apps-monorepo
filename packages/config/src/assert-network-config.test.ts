@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { assertNetworkConfig } from './assert-network-config'
-import { NetworkConfigError } from './build-config'
+import { buildConfig, NetworkConfigError } from './build-config'
 
 describe('assertNetworkConfig', () => {
   it('returns the resolved config for a usable env', () => {
@@ -43,5 +43,18 @@ describe('assertNetworkConfig', () => {
         VITE_INDEXER_GRAPHQL_URL: 'https://indexer.example/',
       }),
     ).toThrow(NetworkConfigError)
+  })
+})
+
+describe('runtime independence', () => {
+  // The worker resolves the same config from Cloudflare bindings, so the
+  // failure messages must not name a Vite-only variable.
+  it('does not mention VITE_ vars when the network is missing', () => {
+    try {
+      buildConfig({ network: undefined })
+      expect.unreachable('should have thrown')
+    } catch (error) {
+      expect((error as Error).message).not.toMatch(/VITE_/)
+    }
   })
 })

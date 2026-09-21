@@ -1,4 +1,4 @@
-import { buildConfig } from '@ens-apps/config'
+import { buildConfig, type EnsNetwork } from '@ens-apps/config'
 import { createIsomorphicFn } from '@tanstack/react-start'
 
 /**
@@ -13,12 +13,19 @@ import { createIsomorphicFn } from '@tanstack/react-start'
  * the wrong contracts.
  */
 
-// Manager owns its Sepolia RPC URL so each app's dRPC key is attributed
-// separately. The key ships in the browser bundle and is not secret; it only
-// scopes quota to the manager app. There is no attributed mainnet endpoint
-// yet, so a mainnet build rides the network's shared public fallbacks.
-const MANAGER_SEPOLIA_RPC_URL =
-  'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j'
+/**
+ * The manager's own RPC endpoint per network.
+ *
+ * Not a secret: the path key ships in every browser bundle and identifies a
+ * quota bucket, nothing more. It is kept per app so usage is attributed to the
+ * manager rather than pooled with the portal, and per network so a mainnet
+ * build cannot inherit a Sepolia endpoint. A network with no entry falls back
+ * to the shared public endpoints in the network profile.
+ */
+const MANAGER_RPC_URLS: Partial<Record<EnsNetwork, string>> = {
+  sepolia:
+    'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j',
+}
 
 const network = import.meta.env?.VITE_ENS_NETWORK
 
@@ -39,9 +46,7 @@ export const config = buildConfig({
   // `createIsomorphicFn` is a no-op stub until the TanStack Start Vite plugin
   // transforms it, so it returns `undefined` where that transform does not run
   // (the vitest config, which omits the Start plugin).
-  rpcUrl:
-    resolveRpcOverride() ??
-    (network === 'sepolia' ? MANAGER_SEPOLIA_RPC_URL : undefined),
+  rpcUrl: resolveRpcOverride() ?? MANAGER_RPC_URLS[network as EnsNetwork],
   overrides: {
     indexerGraphql: import.meta.env?.VITE_INDEXER_GRAPHQL_URL,
   },

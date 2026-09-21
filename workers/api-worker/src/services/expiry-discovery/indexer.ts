@@ -7,10 +7,10 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { CombinedError, gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import * as v from 'valibot'
+import { getConfig } from '#core/config.js'
 import { logger } from '#utils/logger.js'
 import type { ExpiryStageConfig } from './stages.js'
 
-const DEFAULT_INDEXER_URL = 'https://graphql.ens.dev/'
 export const PAGE_SIZE = 1000
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 300
@@ -67,7 +67,7 @@ class IndexerRequestError extends TaggedError('INDEXER_REQUEST_ERROR')<{
 class IndexerValidationError extends TaggedError('INDEXER_VALIDATION_ERROR') {}
 
 function getIndexerUrl(env: CloudflareBindings): string {
-  return env.ENS_INDEXER_GRAPHQL_URL || DEFAULT_INDEXER_URL
+  return getConfig(env).endpoints.indexerGraphql
 }
 
 function toRetryDelayMs(attempt: number): number {
