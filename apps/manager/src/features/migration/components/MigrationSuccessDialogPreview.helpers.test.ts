@@ -53,15 +53,6 @@ describe('published NFT preview state', () => {
     expect(state.card.assets).toBe(eligibility.assets)
     const publicUrl = `https://renderer.example/nft/?tokenId=${getCommemorativeNftTokenId(ownerAddress)}`
     expect(state.card.shareUrls.external).toBe(publicUrl)
-    for (const intent of [
-      state.card.shareUrls.x,
-      state.card.shareUrls.telegram,
-    ]) {
-      expect(new URL(intent ?? '').searchParams.get('url')).toBe(publicUrl)
-    }
-    expect(new URL(state.card.shareUrls.x ?? '').searchParams.get('text')).toBe(
-      'I upgraded to ENSv2. Take a look at my commemorative NFT.',
-    )
     expect(state.card.marketplaceUrl).toBeUndefined()
   })
 

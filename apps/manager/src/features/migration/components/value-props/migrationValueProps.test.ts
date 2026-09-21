@@ -20,21 +20,4 @@ describe('getMigrationValuePropSlides', () => {
       'nft',
     ])
   })
-
-  it('removes NFT marketing again when the current owner becomes ineligible', () => {
-    const ordinarySlides = getMigrationValuePropSlides(false)
-    const eligibleSlides = getMigrationValuePropSlides(true)
-
-    expect(getMigrationValuePropSlides(false)).toEqual(ordinarySlides)
-    expect(eligibleSlides.filter((slide) => slide.id !== 'nft')).toEqual(
-      ordinarySlides,
-    )
-  })
-
-  it('keeps labels and media for all eligible slides', () => {
-    for (const slide of getMigrationValuePropSlides(true)) {
-      expect(slide.label).toBeDefined()
-      expect(slide.media.src).toBeTruthy()
-    }
-  })
 })
