@@ -23,6 +23,7 @@ describe('NFT asset downloads', () => {
       saveBlob,
     })
     expect(fetcher).toHaveBeenCalledWith(assetUrl, {
+      cache: 'reload',
       signal: expect.any(AbortSignal),
     })
     expect(await saveBlob.mock.calls[0]?.[0].text()).toBe('webp')

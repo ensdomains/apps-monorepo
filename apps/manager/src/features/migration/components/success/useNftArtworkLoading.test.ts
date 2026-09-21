@@ -58,14 +58,17 @@ describe('NFT artwork loading', () => {
     expect(result.current.status).toBe('ready')
     expect(result.current.imageReady).toBe(true)
     expect(result.current.animationReady).toBe(false)
+    expect(result.current.animationPending).toBe(true)
     expect(result.current.renderAnimation).toBe(false)
 
     rerender({ deferAnimation: false })
     expect(result.current.renderAnimation).toBe(true)
     expect(result.current.status).toBe('ready')
     expect(result.current.animationReady).toBe(false)
+    expect(result.current.animationPending).toBe(true)
     act(() => result.current.onRendererReady())
     expect(result.current.animationReady).toBe(true)
+    expect(result.current.animationPending).toBe(false)
     expect(result.current.status).toBe('ready')
   })
 
@@ -78,6 +81,7 @@ describe('NFT artwork loading', () => {
     await decodeImage()
     rerender({ deferAnimation: false })
     act(() => result.current.onRendererError())
+    expect(result.current.animationPending).toBe(false)
     expect(result.current.status).toBe('ready')
     expect(result.current.imageReady).toBe(true)
     expect(result.current.renderAnimation).toBe(false)
@@ -134,8 +138,10 @@ describe('NFT artwork loading', () => {
     await decodeImage()
     expect(result.current.status).toBe('ready')
     expect(result.current.renderAnimation).toBe(false)
+    expect(result.current.animationPending).toBe(false)
     rerender({ animate: true })
     expect(result.current.status).toBe('ready')
+    expect(result.current.animationPending).toBe(true)
   })
 
   it('does not reveal a cached still before initial visibility is known', async () => {

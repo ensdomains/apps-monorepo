@@ -25,6 +25,11 @@ import {
   type MigrationResult,
 } from '@/features/migration/service/migrationService'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import {
+  FINAL_STAGE_FILL_MS,
+  REUNION_HOLD_MS,
+  REUNION_SLIDE_MS,
+} from './migrationAnimationTiming'
 import { migrationUiMachine } from './migrationUi.machine'
 
 const executeMigrationMock = vi.mocked(executeMigration)
@@ -205,7 +210,7 @@ describe('migrationUiMachine', () => {
   })
 
   describe('migrate.running → success', () => {
-    it('finishes the hop, slides to center and holds the reunion for two seconds, then shows success', async () => {
+    it('finishes the stage fill, slides to center and holds the reunion for two seconds, then shows success', async () => {
       executeMigrationMock.mockImplementation(async (params) => {
         params.onBatchComplete?.(
           [{ name: 'alice.eth', action: 'migrate' }],
@@ -217,7 +222,9 @@ describe('migrationUiMachine', () => {
       await vi.advanceTimersByTimeAsync(0)
 
       expect(actor.getSnapshot().value).toEqual({ migrate: 'landing' })
-      await vi.advanceTimersByTimeAsync(600)
+      await vi.advanceTimersByTimeAsync(FINAL_STAGE_FILL_MS - 1)
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'landing' })
+      await vi.advanceTimersByTimeAsync(1)
       expect(actor.getSnapshot().value).toEqual({ migrate: 'reuniting' })
       await vi.advanceTimersByTimeAsync(700)
       expect(actor.getSnapshot().value).toEqual({ migrate: 'reuniting' })
@@ -276,7 +283,9 @@ describe('migrationUiMachine', () => {
         return migrationResult({ txHashes: [] })
       })
       const actor = start()
-      await vi.advanceTimersByTimeAsync(3300)
+      await vi.advanceTimersByTimeAsync(
+        FINAL_STAGE_FILL_MS + REUNION_SLIDE_MS + REUNION_HOLD_MS,
+      )
 
       expect(actor.getSnapshot().value).toBe('success')
       expect(actor.getSnapshot().context.completedOperations).toEqual([
@@ -294,7 +303,9 @@ describe('migrationUiMachine', () => {
         return migrationResult()
       })
       const actor = start()
-      await vi.advanceTimersByTimeAsync(3300)
+      await vi.advanceTimersByTimeAsync(
+        FINAL_STAGE_FILL_MS + REUNION_SLIDE_MS + REUNION_HOLD_MS,
+      )
 
       actor.send({ type: 'done' })
       expect(actor.getSnapshot().value).toBe('select')

@@ -47,4 +47,5 @@ export type CommemorativeNftShareUrls = {
   readonly x?: string
   readonly telegram?: string
   readonly external?: string
+  readonly message?: string
 }

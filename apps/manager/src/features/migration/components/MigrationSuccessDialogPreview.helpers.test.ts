@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { getCommemorativeNftTokenId } from '../commemorative-nft/config'
 import type { CommemorativeNftEligibility } from '../commemorative-nft/types'
 import {
   getPublishedPreviewState,
@@ -37,17 +38,21 @@ const publishedQuery: PublishedPreviewQuery = {
 const input = { ownerAddress, chainId: 11155111 } as const
 
 describe('published NFT preview state', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
   it('builds the preview directly from published names, traits and assets', () => {
+    vi.stubEnv(
+      'VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN',
+      'https://renderer.example',
+    )
     const state = getPublishedPreviewState({ ...input, query: publishedQuery })
 
     expect(state.status).toBe('readyToMint')
     if (state.status !== 'readyToMint') throw new Error('Expected artwork')
     expect(state.card.eligibility).toBe(eligibility)
     expect(state.card.assets).toBe(eligibility.assets)
-    expect(state.card.shareUrls.external).toBe(eligibility.assets.externalUrl)
-    expect(new URL(state.card.shareUrls.x ?? '').searchParams.get('text')).toBe(
-      'I upgraded to ENSv2. Take a look at my commemorative NFT.',
-    )
+    const publicUrl = `https://renderer.example/nft/?tokenId=${getCommemorativeNftTokenId(ownerAddress)}`
+    expect(state.card.shareUrls.external).toBe(publicUrl)
     expect(state.card.marketplaceUrl).toBeUndefined()
   })
 

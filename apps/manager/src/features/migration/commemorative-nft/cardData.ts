@@ -1,8 +1,9 @@
 import type { Address } from 'viem'
 import type { CommemorativeNftCardData } from '../components/success/MigrationSuccessDialog.types'
+import { getCommemorativeNftConfig } from './config'
 import {
   buildCommemorativeNftMarketplaceUrl,
-  buildCommemorativeNftProfileUrl,
+  buildCommemorativeNftPublicUrl,
   buildCommemorativeNftShareUrls,
 } from './sharing'
 import type { CommemorativeNftEligibility } from './types'
@@ -13,9 +14,10 @@ export const buildCommemorativeNftCardData = (params: {
   readonly minted: boolean
   readonly ownerAddress: Address
 }): CommemorativeNftCardData => {
-  const shareTarget =
-    params.eligibility.assets.externalUrl ??
-    buildCommemorativeNftProfileUrl(params.eligibility.profileName)
+  const shareTarget = buildCommemorativeNftPublicUrl({
+    ownerAddress: params.eligibility.ownerAddress,
+    rendererOrigin: getCommemorativeNftConfig().rendererOrigin,
+  })
 
   return {
     assets: params.eligibility.assets,

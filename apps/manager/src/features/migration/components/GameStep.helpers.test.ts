@@ -4,24 +4,21 @@ import {
   computeBridgeLayout,
   describeNextStep,
   displayStepOf,
-  giantAnimateFor,
-  giantModeOf,
-  giantTransitionFor,
   occupiedPlanksOf,
 } from './GameStep.helpers'
 
-describe('wallet-confirmed plank progression', () => {
-  it('hops on wallet submission, before the receipt confirms', () => {
+describe('visible plank progression', () => {
+  it('reveals a plank on wallet submission, before the receipt confirms', () => {
     expect(occupiedPlanksOf(0, 4, false)).toBe(0)
     expect(occupiedPlanksOf(0, 4, true)).toBe(1)
   })
 
-  it('stays on the same plank when the receipt confirms, then hops on the next submission', () => {
+  it('keeps the plank visible on receipt confirmation and reveals the next on submission', () => {
     expect(occupiedPlanksOf(0, 4, true)).toBe(occupiedPlanksOf(1, 4, false))
     expect(occupiedPlanksOf(1, 4, true)).toBe(2)
   })
 
-  it('never jumps past the final plank', () => {
+  it('never reveals a plank past the final stage', () => {
     expect(occupiedPlanksOf(3, 4, true)).toBe(4)
     expect(occupiedPlanksOf(4, 4, false)).toBe(4)
     expect(occupiedPlanksOf(4, 4, true)).toBe(4)
@@ -229,27 +226,6 @@ describe('describeNextStep', () => {
     ],
   ] as const)('%s', (_, params, expected) => {
     expect(describeNextStep(params)).toEqual(expected)
-  })
-})
-
-describe('giantModeOf / giantAnimateFor / giantTransitionFor', () => {
-  it.each([
-    [{ hasCollapsed: true, isExcited: false }, 'collapsed'],
-    [{ hasCollapsed: true, isExcited: true }, 'collapsed'],
-    [{ hasCollapsed: false, isExcited: true }, 'excited'],
-    [{ hasCollapsed: false, isExcited: false }, 'idle'],
-  ] as const)('giantModeOf(%j) → %s', (params, expected) => {
-    expect(giantModeOf(params)).toBe(expected)
-  })
-
-  it('variant builders return the expected shape per mode', () => {
-    expect(giantAnimateFor('collapsed')).toHaveProperty('opacity', 0)
-    expect(giantAnimateFor('excited')).toHaveProperty('scale')
-    expect(giantTransitionFor('excited')).toHaveProperty(
-      'repeat',
-      Number.POSITIVE_INFINITY,
-    )
-    expect(giantTransitionFor('collapsed')).toHaveProperty('delay', 0.1)
   })
 })
 
