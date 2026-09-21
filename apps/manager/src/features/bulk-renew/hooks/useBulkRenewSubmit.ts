@@ -1,5 +1,4 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import {
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
@@ -10,6 +9,7 @@ import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok, okAsync, type Result, type ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
 import type { Address, WalletClient } from 'viem'
+import type { SUPPORTED_TOKEN } from '@/lib/contracts'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'

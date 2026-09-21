@@ -1,13 +1,10 @@
+import { getEnsContracts, getTokens } from '@ens-apps/config'
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { decodeFunctionData, erc20Abi, toFunctionSelector } from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  ENS_SEPOLIA_CONTRACTS,
-  REFERER_ADDRESS,
-  TOKENS,
-} from '../../contracts/ens-sepolia'
+import { REFERER_ADDRESS } from '../../contracts/constants'
 import type { EOASigner } from '../../types/signer.types'
 import type { EoaTransactionRequest } from '../../types/transaction.types'
 import { submitApprovalActor, submitRenewActor } from './registration.actors'
@@ -28,7 +25,9 @@ vi.mock('../../providers/transactionManager', () => ({
 }))
 
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
-const V1_RENEWER = ENS_SEPOLIA_CONTRACTS.ETHRenewerV1
+const CONTRACTS = getEnsContracts(sepolia.id)
+const TOKENS = getTokens(sepolia.id)
+const V1_RENEWER = CONTRACTS.ETHRenewerV1
 const signer = {
   type: 'eoa',
   walletClient: { account: { address: WALLET } } as WalletClient,
@@ -110,6 +109,6 @@ describe('V1 renewal actors', () => {
       publicClient,
     })
 
-    expect(submittedRequest().to).toBe(ENS_SEPOLIA_CONTRACTS.ETHRegistrar)
+    expect(submittedRequest().to).toBe(CONTRACTS.ETHRegistrar)
   })
 })

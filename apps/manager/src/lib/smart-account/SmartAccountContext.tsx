@@ -10,7 +10,6 @@ import {
   removeSessionsByOwner,
 } from '@ens-apps/smart-account'
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
-import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useLingui } from '@lingui/react/macro'
@@ -36,6 +35,7 @@ import {
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { type EventFromLogic, waitFor } from 'xstate'
 import { chain as appChain } from '@/config'
+import { SUPPORTED_TOKENS } from '@/lib/contracts'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'

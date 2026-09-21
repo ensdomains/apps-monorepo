@@ -1,7 +1,3 @@
-import {
-  type SUPPORTED_TOKEN,
-  TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -15,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/contracts'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'

@@ -1,5 +1,4 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import {
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
@@ -16,6 +15,7 @@ import {
   getRenewerAddress,
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
+import type { SUPPORTED_TOKEN } from '@/lib/contracts'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 

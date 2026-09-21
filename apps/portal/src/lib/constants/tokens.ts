@@ -1,4 +1,4 @@
-import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { TOKENS } from '@/lib/contracts'
 
 export const USDC_DECIMALS = TOKENS.USDC.decimals
 export const DAI_DECIMALS = TOKENS.DAI.decimals

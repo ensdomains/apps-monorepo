@@ -32,6 +32,7 @@ import {
 } from '@/features/transaction-manager/helpers/intents'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
+import { ENS_CONTRACTS } from '@/lib/contracts'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 
@@ -210,6 +211,7 @@ export const useRegistrationTransactions = ({
                     salt: hexToBigInt(
                       keccak256(stringToBytes(`estimate:${name}`)),
                     ),
+                    chainId,
                   }),
                   chainId,
                 })
@@ -272,6 +274,7 @@ export const useRegistrationTransactions = ({
                     duration: BigInt(duration),
                     paymentToken: savedParams.tokenAddress,
                     resolverAddress,
+                    registrarAddress: ENS_CONTRACTS.ETHRegistrar,
                   }),
                   chainId,
                   gas: 500_000n,

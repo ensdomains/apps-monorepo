@@ -1,5 +1,5 @@
 // Contracts
-export { ENS_SEPOLIA_CONTRACTS } from './contracts/ens-sepolia'
+export { EMPTY_ADDRESS, REFERER_ADDRESS } from './contracts/constants'
 // Errors
 export {
   SignerAddressMismatchError,

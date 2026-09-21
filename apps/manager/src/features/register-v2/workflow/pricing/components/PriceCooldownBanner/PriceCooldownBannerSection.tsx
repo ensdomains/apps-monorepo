@@ -1,4 +1,3 @@
-import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useMemo, useRef } from 'react'
@@ -6,6 +5,7 @@ import { getNameStatsQueryOptions } from '@/features/register-v2/data/queries/na
 import { getOracleParamsQueryOptions } from '@/features/register-v2/data/queries/oracleParams.query'
 import { getRegisterPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { useRegistrationV2Context } from '@/features/register-v2/state/registrationUi.context'
+import { TOKENS } from '@/lib/contracts'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'

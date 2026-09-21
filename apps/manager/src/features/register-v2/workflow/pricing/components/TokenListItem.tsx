@@ -1,7 +1,7 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { STABLECOINS } from '@/features/shared/registration/nameUtils'
+import type { SUPPORTED_TOKEN } from '@/lib/contracts'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'

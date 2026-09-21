@@ -1,9 +1,9 @@
+import type { TOKEN_SYMBOL } from '@ens-apps/config'
 import type { HcaBudgetBreakdown } from '@ens-apps/smart-account'
 import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
-import type { TOKEN_SYMBOL } from '../../contracts/ens-sepolia'
 import type { Signer } from '../../types/signer.types'
 import { isRetryableSubmissionError } from '../retry-policy'
 import {

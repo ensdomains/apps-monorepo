@@ -997,6 +997,9 @@ importers:
 
   packages/transaction-manager:
     dependencies:
+      '@ens-apps/config':
+        specifier: workspace:*
+        version: link:../config
       '@ens-apps/smart-account':
         specifier: workspace:*
         version: link:../smart-account

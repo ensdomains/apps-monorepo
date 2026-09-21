@@ -2,6 +2,11 @@ import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import * as v from 'valibot'
 import { zeroAddress } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
+import { type EnsContracts, getEnsContracts } from './contracts'
+import { NetworkConfigError } from './errors'
+
+export { NetworkConfigError }
+
 import {
   ENS_NETWORKS,
   type EnsNetwork,
@@ -9,15 +14,6 @@ import {
   NETWORKS,
   type NetworkEndpoints,
 } from './networks'
-
-/**
- * Thrown whenever configuration cannot be resolved. Always fail here rather
- * than falling back to a network: a wrong-network fallback produces valid
- * calldata against the wrong contracts, which is far worse than not starting.
- */
-export class NetworkConfigError extends Error {
-  override readonly name = 'NetworkConfigError'
-}
 
 /**
  * ENSv2 contracts an app cannot function without. ensjs carries a key for
@@ -126,6 +122,8 @@ export type EnsAppConfig = Readonly<{
   rpcUrls: readonly string[]
   /** The network's shared public fallbacks, for consumers resolving their own primary. */
   rpcFallbacks: readonly string[]
+  /** ENS contract addresses for the selected network. */
+  contracts: EnsContracts
   endpoints: Readonly<Record<keyof NetworkEndpoints, string>>
 }>
 
@@ -234,6 +232,7 @@ export const buildConfig = ({
     network,
     isTestnet: profile.isTestnet,
     chain: chain as EnsChain,
+    contracts: Object.freeze(getEnsContracts(profile.chainId)),
     rpcUrls: Object.freeze(rpcUrls),
     rpcFallbacks: profile.rpcFallbacks,
     endpoints: Object.freeze(endpoints),

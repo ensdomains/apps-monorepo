@@ -1,8 +1,4 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
-import {
-  type SUPPORTED_TOKEN,
-  TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -14,6 +10,7 @@ import {
 import { err, fromPromise, ok } from 'neverthrow'
 import { parseAbi } from 'viem'
 import { sepolia } from 'viem/chains'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/contracts'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 
 const ETH_REGISTRAR = getChainContractAddress({

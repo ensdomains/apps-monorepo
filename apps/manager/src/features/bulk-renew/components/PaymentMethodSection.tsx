@@ -1,7 +1,7 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { TokenListItem } from '@/features/register-v2/workflow/pricing/components/TokenListItem'
+import type { SUPPORTED_TOKEN } from '@/lib/contracts'
 import type { StablecoinBalance } from '@/lib/smart-account'
 
 const Message = ({ children }: { readonly children: ReactNode }) => (

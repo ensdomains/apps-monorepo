@@ -1,5 +1,5 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useEffect } from 'react'
+import type { SUPPORTED_TOKEN } from '@/lib/contracts'
 import type { StablecoinBalance } from '@/lib/smart-account'
 
 /**

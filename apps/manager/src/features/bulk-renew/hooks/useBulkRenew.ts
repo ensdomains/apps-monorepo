@@ -1,7 +1,3 @@
-import {
-  type SUPPORTED_TOKEN,
-  TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { addSeconds } from 'date-fns'
 import { useMemo } from 'react'
@@ -13,6 +9,7 @@ import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/contracts'
 import {
   type StablecoinBalance,
   useSmartAccountContext,

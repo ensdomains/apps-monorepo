@@ -1,6 +1,6 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useState } from 'react'
+import type { SUPPORTED_TOKEN } from '@/lib/contracts'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { TokenPickerContentBase } from './TokenPickerContent'
 import { PaymentDialogBase } from './TokenPickerDialog'

@@ -1,9 +1,10 @@
+import { getEnsContracts } from '@ens-apps/config'
 import { logger } from '@ens-apps/utils/logger'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import { encodeFunctionData, type Hex, type PublicClient } from 'viem'
 import { readContract } from 'viem/actions'
 import { ETH_REGISTRAR_CONTROLLER_ABI } from '../contracts/abis/ETHRegistrarController.abi'
-import { ENS_SEPOLIA_CONTRACTS } from '../contracts/ens-sepolia'
+import { requireChainId } from './requireChainId'
 
 export class RhinestoneAccountError extends Error {
   constructor(message: string) {
@@ -31,7 +32,8 @@ export function getENSRenewalPrice(
   return fromPromise(
     (async () => {
       const price = await readContract(publicClient, {
-        address: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
+        address: getEnsContracts(requireChainId(publicClient, 'renewal price'))
+          .ETHRegistrarController,
         abi: ETH_REGISTRAR_CONTROLLER_ABI,
         functionName: 'rentPrice',
         args: [name, duration],
@@ -66,7 +68,8 @@ export function prepareENSRenewalTransaction(
       })
 
       const txData = {
-        to: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
+        to: getEnsContracts(requireChainId(publicClient, 'renewal'))
+          .ETHRegistrarController,
         data,
         value: renewalPrice,
       }

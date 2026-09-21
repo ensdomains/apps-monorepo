@@ -2,7 +2,7 @@
  * Standalone-HCA registration actors (user-paid USDC route).
  *
  * These target the STANDALONE-HCA deployment (via `@ens-apps/smart-account`'s
- * manifest) — a different contract set from `ENS_SEPOLIA_CONTRACTS`, which the
+ * manifest) — a different contract set from `getEnsContracts()`, which the
  * pure-EOA path (portal) keeps using untouched.
  *
  * Route shape (per the "HCA: New" handoff doc; NO gas sponsorship):

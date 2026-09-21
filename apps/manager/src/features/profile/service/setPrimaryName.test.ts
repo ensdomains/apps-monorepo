@@ -1,8 +1,8 @@
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@ens-apps/transaction-manager', () => ({
-  ENS_SEPOLIA_CONTRACTS: {
+vi.mock('@/lib/contracts', () => ({
+  ENS_CONTRACTS: {
     DefaultReverseRegistrar: '0x00000000000000000000000000000000000000d0',
     ReverseRegistrar: '0x00000000000000000000000000000000000000e0',
     LegacyRegistry: '0x00000000000000000000000000000000000000f0',
@@ -10,6 +10,9 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       '0x00000000000000000000000000000000000000d1',
     ReverseRegistrarAdapter: '0x00000000000000000000000000000000000000e1',
   },
+}))
+
+vi.mock('@ens-apps/transaction-manager', () => ({
   getSmartAccountAddress: vi.fn(
     () => '0x1111111111111111111111111111111111111111',
   ),
