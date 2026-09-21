@@ -69,7 +69,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     shouldBlockFn: () => {
       if (!isRegistering) return false
       const shouldLeave = confirm(
-        'Your registration is in progress. Leaving may interrupt it and you could lose your commitment. Are you sure you want to leave?',
+        'Your registration is in progress. Leaving will cancel it and you could lose your commitment. Are you sure you want to leave?',
       )
       return !shouldLeave
     },
