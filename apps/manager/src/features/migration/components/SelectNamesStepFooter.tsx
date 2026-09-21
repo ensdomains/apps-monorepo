@@ -1,3 +1,5 @@
+import { formatGasEth } from '@ens-apps/utils/formatGasEth'
+import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { useLingui } from '@lingui/react'
 import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
@@ -11,12 +13,14 @@ import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
 
 type GasEstimateMessageProps = {
   readonly gasEstimate: MigrationGasEstimateState
+  readonly gasAffordability: GasAffordability
   readonly isWaitingForGasFunding: boolean
   readonly totalSelected: number
 }
 
 const GasEstimateMessage = ({
   gasEstimate,
+  gasAffordability,
   isWaitingForGasFunding,
   totalSelected,
 }: GasEstimateMessageProps) => {
@@ -33,35 +37,64 @@ const GasEstimateMessage = ({
     )
   }
 
-  return match(gasEstimate)
-    .with({ status: 'loading' }, () => (
-      <p>
-        <Trans>Estimating the network fee...</Trans>
-      </p>
-    ))
-    .with({ status: 'ready' }, (estimate) => (
-      <p>
-        <Trans>
-          Estimated network fee:{' '}
-          <strong className="font-semibold">
-            ~{estimate.formattedEth} ETH
-          </strong>
-          . You&apos;ll approve{' '}
-          <span className="whitespace-nowrap">
-            <WalletConfirmationStepsDialog
-              steps={estimate.plan.stepDescriptors}
-            />
-            .
-          </span>
-          <br />
-          Your wallet shows the final fee before you approve.
-        </Trans>
-      </p>
-    ))
-    .with({ status: 'error' }, (estimate) => (
-      <p>{_(migrationPreparationMessage(estimate))}</p>
-    ))
-    .otherwise(() => null)
+  return (
+    match({ gasEstimate, gasAffordability })
+      .with({ gasEstimate: { status: 'loading' } }, () => (
+        <p>
+          <Trans>Estimating the network fee...</Trans>
+        </p>
+      ))
+      // Every migration transaction is EOA-paid, so a short wallet stalls the run
+      // partway rather than failing cleanly. Matched ahead of the plain fee quote
+      // so the two can never render together and contradict each other.
+      .with(
+        {
+          gasEstimate: { status: 'ready' },
+          gasAffordability: { status: 'short' },
+        },
+        ({ gasAffordability: shortfall }) => (
+          <p className="text-destructive">
+            <Trans>
+              Not enough ETH for gas. This upgrade needs about{' '}
+              <strong className="font-semibold">
+                {formatGasEth(shortfall.requiredWei)} ETH
+              </strong>{' '}
+              and your wallet holds {formatGasEth(shortfall.balanceWei)} ETH.
+              Top up before you start, or some names will be left mid-upgrade.
+            </Trans>
+          </p>
+        ),
+      )
+      .with(
+        { gasEstimate: { status: 'ready' } },
+        ({ gasEstimate: estimate }) => (
+          <p>
+            <Trans>
+              Estimated network fee:{' '}
+              <strong className="font-semibold">
+                ~{estimate.formattedEth} ETH
+              </strong>
+              . You&apos;ll approve{' '}
+              <span className="whitespace-nowrap">
+                <WalletConfirmationStepsDialog
+                  steps={estimate.plan.stepDescriptors}
+                />
+                .
+              </span>
+              <br />
+              Your wallet shows the final fee before you approve.
+            </Trans>
+          </p>
+        ),
+      )
+      .with(
+        { gasEstimate: { status: 'error' } },
+        ({ gasEstimate: estimate }) => (
+          <p>{_(migrationPreparationMessage(estimate))}</p>
+        ),
+      )
+      .otherwise(() => null)
+  )
 }
 
 type UpgradeButtonLabelProps = {
@@ -91,6 +124,7 @@ const UpgradeButtonLabel = ({
 
 type SelectNamesStepFooterProps = {
   readonly gasEstimate: MigrationGasEstimateState
+  readonly gasAffordability: GasAffordability
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
   readonly isUpgradeDisabled: boolean
@@ -102,6 +136,7 @@ type SelectNamesStepFooterProps = {
 
 export const SelectNamesStepFooter = ({
   gasEstimate,
+  gasAffordability,
   isEstimatingGas,
   isStarting,
   isUpgradeDisabled,
@@ -119,6 +154,7 @@ export const SelectNamesStepFooter = ({
       <GrainOverlay />
       <div className="relative flex max-w-107.5 flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
         <GasEstimateMessage
+          gasAffordability={gasAffordability}
           gasEstimate={gasEstimate}
           isWaitingForGasFunding={isWaitingForGasFunding}
           totalSelected={totalSelected}
