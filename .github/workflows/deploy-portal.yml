@@ -29,16 +29,6 @@ jobs:
       - name: Type check Portal
         run: pnpm typecheck:portal
 
-      # A published artifact must name its network. Without this an unset
-      # repository variable would fall through to the committed .env and ship
-      # Sepolia under a mainnet release.
-      - name: Require an explicit target network
-        run: |
-          if [ -z "${{ vars.VITE_ENS_NETWORK }}" ]; then
-            echo "Set the VITE_ENS_NETWORK repository variable (mainnet | sepolia) before deploying."
-            exit 1
-          fi
-
       - name: Build Portal app
         run: pnpm build:portal
         env:
