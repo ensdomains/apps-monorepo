@@ -157,6 +157,19 @@ const shouldSetPrimaryName = (context: Context) =>
 
 const asEthName = (label: string) => `${label}.eth`
 
+const getApprovalSigner = (
+  account: SmartAccountContextValue,
+  ownerAddress: Address,
+): Signer | undefined => {
+  if (account.signer?.type === 'eoa') return account.signer
+  if (!account.walletClient?.account) return undefined
+  if (!isAddressEqual(account.walletClient.account.address, ownerAddress)) {
+    return undefined
+  }
+
+  return { type: 'eoa', walletClient: account.walletClient }
+}
+
 // Require a bound account that matches the owner: an account-less client
 // (possible mid-reconnect) gives no way to verify the wallet controls the
 // owner address, so treat it as unavailable rather than submitting blind.
@@ -484,16 +497,7 @@ const startRegistrationAction = machineSetup.createAction(
     const resolverOwnerAddress =
       event.account.ownerAddress ?? event.account.accountAddress
 
-    const approvalSigner: Signer | undefined =
-      event.account.signer.type === 'eoa'
-        ? event.account.signer
-        : event.account.walletClient?.account &&
-            isAddressEqual(
-              event.account.walletClient.account.address,
-              ownerAddress,
-            )
-          ? { type: 'eoa', walletClient: event.account.walletClient }
-          : undefined
+    const approvalSigner = getApprovalSigner(event.account, ownerAddress)
 
     const isHcaRegistration =
       event.account.signer.type === 'rhinestone' &&

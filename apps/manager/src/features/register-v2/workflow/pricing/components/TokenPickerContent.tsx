@@ -81,6 +81,193 @@ const getDomainSizeClasses = (domainName: string): string => {
   return 'text-[40px]'
 }
 
+const isPaymentMethodUnderfunded = ({
+  coin,
+  funding,
+  hasInsufficientFundingError,
+  pricingData,
+}: {
+  coin: StablecoinBalance
+  funding?: RegistrationFundingSummary
+  hasInsufficientFundingError: boolean
+  pricingData: number | undefined
+}): boolean => {
+  if (coin.symbol === TOKENS.USDC.symbol) {
+    // The real HCA path derives USDC funding from raw bigint amounts. Keep
+    // that authoritative result rather than re-deciding eligibility from
+    // formatted display values.
+    if (funding) return funding.isUnderfunded
+    if (hasInsufficientFundingError) return true
+  }
+
+  const requiredAmount =
+    coin.symbol === TOKENS.USDC.symbol
+      ? (funding?.walletDebit ?? pricingData)
+      : pricingData
+  if (requiredAmount === undefined || requiredAmount <= 0) return false
+
+  return (
+    decimalBigintToNumber(BigInt(coin.balance), coin.decimals) < requiredAmount
+  )
+}
+
+const PaymentMethods = ({
+  funding,
+  hasInsufficientFundingError,
+  isQuotingFunding,
+  onSelectCoin,
+  pricingData,
+  selectedToken,
+  stablecoinBalances,
+}: {
+  funding?: RegistrationFundingSummary
+  hasInsufficientFundingError: boolean
+  isQuotingFunding: boolean
+  onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  pricingData: number | undefined
+  selectedToken: SUPPORTED_TOKEN | undefined
+  stablecoinBalances: StablecoinBalance[]
+}) => (
+  <div className="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
+    {stablecoinBalances.map((stablecoin) => {
+      if (stablecoin.symbol !== TOKENS.USDC.symbol) {
+        return (
+          <TokenListItem
+            key={stablecoin.address}
+            onSelectCoin={onSelectCoin}
+            priceUSD={pricingData ?? 0}
+            selectedCoin={selectedToken}
+            stablecoin={stablecoin}
+          />
+        )
+      }
+
+      return (
+        <RegistrationPaymentMethod
+          hasInsufficientBalance={isPaymentMethodUnderfunded({
+            coin: stablecoin,
+            funding,
+            hasInsufficientFundingError,
+            pricingData,
+          })}
+          isNetworkFeeLoading={!!isQuotingFunding || !!funding?.isLoading}
+          key={stablecoin.address}
+          networkFee={funding?.networkFee}
+          onSelectCoin={onSelectCoin}
+          selectedCoin={selectedToken}
+          stablecoin={stablecoin}
+        />
+      )
+    })}
+  </div>
+)
+
+const PaymentOptions = ({
+  funding,
+  hasBalances,
+  hasInsufficientFundingError,
+  isConnected,
+  isLoadingBalances,
+  isQuotingFunding,
+  onSelectCoin,
+  pricingData,
+  pricingLoading,
+  selectedToken,
+  stablecoinBalances,
+}: {
+  funding?: RegistrationFundingSummary
+  hasBalances: boolean
+  hasInsufficientFundingError: boolean
+  isConnected: boolean
+  isLoadingBalances: boolean
+  isQuotingFunding: boolean
+  onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  pricingData: number | undefined
+  pricingLoading: boolean
+  selectedToken: SUPPORTED_TOKEN | undefined
+  stablecoinBalances: StablecoinBalance[]
+}) =>
+  match({
+    isLoadingBalances,
+    hasBalances,
+    stablecoinsCount: stablecoinBalances.length,
+    isConnected,
+    pricingLoading,
+  })
+    .with({ isConnected: false }, () => (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <div className="mb-2 text-ens-gray text-sm">
+          <Trans>Please connect your wallet first</Trans>
+        </div>
+        <div className="text-ens-gray-three text-xs">
+          <Trans>
+            You need to connect a wallet to see your stablecoin balances
+          </Trans>
+        </div>
+      </div>
+    ))
+    .with({ isLoadingBalances: true }, () => (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-ens-gray-two text-sm">
+          <Trans>Loading your stablecoin balances...</Trans>
+        </div>
+      </div>
+    ))
+    .with({ pricingLoading: true }, () => (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-ens-gray-two text-sm">
+          <Trans>Loading pricing...</Trans>
+        </div>
+      </div>
+    ))
+    .with({ stablecoinsCount: 0 }, () => (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-ens-gray-two text-sm">
+          <Trans>No stablecoins available</Trans>
+        </div>
+      </div>
+    ))
+    .with({ stablecoinsCount: P.number.gt(0) }, () => (
+      <PaymentMethods
+        funding={funding}
+        hasInsufficientFundingError={hasInsufficientFundingError}
+        isQuotingFunding={isQuotingFunding}
+        onSelectCoin={onSelectCoin}
+        pricingData={pricingData}
+        selectedToken={selectedToken}
+        stablecoinBalances={stablecoinBalances}
+      />
+    ))
+    .otherwise(() => undefined)
+
+const getPaymentSummary = ({
+  funding,
+  pricingData,
+  selectedToken,
+}: {
+  funding?: RegistrationFundingSummary
+  pricingData: number | undefined
+  selectedToken: SUPPORTED_TOKEN | undefined
+}) => {
+  const usesHcaFunding = selectedToken === TOKENS.USDC.symbol
+  const selectedRequiredAmount = usesHcaFunding
+    ? (funding?.walletDebit ?? pricingData)
+    : pricingData
+  const displayTotal = usesHcaFunding
+    ? (funding?.total ?? pricingData)
+    : pricingData
+  const figures =
+    usesHcaFunding && funding ? getPaymentBreakdownFigures(funding) : undefined
+
+  return {
+    displayFunding: usesHcaFunding ? funding : undefined,
+    hasAccountCredit: !!figures && figures.credit > 0,
+    headlineAmount: figures ? figures.walletDebit : displayTotal,
+    isEstimate: usesHcaFunding && !!funding,
+    selectedRequiredAmount,
+  }
+}
+
 export const TokenPickerContent = () => {
   const { t } = useLingui()
   const { label, uiActor } = useRegistrationV2Context()
@@ -416,49 +603,19 @@ export const TokenPickerContentBase = ({
     stablecoinBalances,
   })
 
-  const usesHcaFunding = selectedToken === TOKENS.USDC.symbol
-  const selectedRequiredAmount = usesHcaFunding
-    ? (funding?.walletDebit ?? pricingData)
-    : pricingData
-
-  // What the registration costs, shown on the total row.
-  const displayTotal = usesHcaFunding
-    ? (funding?.total ?? pricingData)
-    : pricingData
-
   // With USDC already in the HCA the total is not what the wallet pays, so the
   // headline switches to the debit and a credit line accounts for the gap.
-  // Rounded together with the breakdown lines, so they add up on screen. The
-  // headline is always the debit once a budget is quoted; the label only
-  // changes when a credit line is there to explain the gap.
-  const figures =
-    usesHcaFunding && funding ? getPaymentBreakdownFigures(funding) : undefined
-  const hasAccountCredit = !!figures && figures.credit > 0
-  const headlineAmount = figures ? figures.walletDebit : displayTotal
+  const {
+    displayFunding,
+    hasAccountCredit,
+    headlineAmount,
+    isEstimate,
+    selectedRequiredAmount,
+  } = getPaymentSummary({ funding, pricingData, selectedToken })
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
   )
-
-  const isPaymentMethodUnderfunded = (coin: StablecoinBalance): boolean => {
-    if (coin.symbol === TOKENS.USDC.symbol) {
-      // The real HCA path derives USDC funding from raw bigint amounts. Keep
-      // that authoritative result rather than re-deciding eligibility from
-      // formatted display values.
-      if (funding) return funding.isUnderfunded
-      if (hasInsufficientFundingError) return true
-    }
-    const requiredAmount =
-      coin.symbol === TOKENS.USDC.symbol
-        ? (funding?.walletDebit ?? pricingData)
-        : pricingData
-    if (requiredAmount === undefined || requiredAmount <= 0) return false
-
-    return (
-      decimalBigintToNumber(BigInt(coin.balance), coin.decimals) <
-      requiredAmount
-    )
-  }
 
   // Tested for presence, never truthiness: a debit of 0 is a legitimate state,
   // not a missing quote. An HCA already holding the whole budget — an aborted
@@ -468,7 +625,12 @@ export const TokenPickerContentBase = ({
   const hasSufficientBalanceForSelectedCoin =
     selectedCoinBalance !== undefined &&
     selectedRequiredAmount !== undefined &&
-    !isPaymentMethodUnderfunded(selectedCoinBalance)
+    !isPaymentMethodUnderfunded({
+      coin: selectedCoinBalance,
+      funding,
+      hasInsufficientFundingError,
+      pricingData,
+    })
 
   const canNext =
     isConnected &&
@@ -504,83 +666,26 @@ export const TokenPickerContentBase = ({
             {domainName}
           </span>
 
-          <PaymentBreakdown funding={usesHcaFunding ? funding : undefined} />
+          <PaymentBreakdown funding={displayFunding} />
         </div>
 
         <div className="flex w-full flex-col gap-6">
           <h2 className="text-center font-medium text-[18px] leading-ens-none">
             <Trans>Select payment</Trans>
           </h2>
-          {match({
-            isLoadingBalances,
-            hasBalances,
-            stablecoinsCount: stablecoinBalances?.length ?? 0,
-            isConnected,
-            pricingLoading,
-          })
-            .with({ isConnected: false }, () => (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="mb-2 text-ens-gray text-sm">
-                  <Trans>Please connect your wallet first</Trans>
-                </div>
-                <div className="text-ens-gray-three text-xs">
-                  <Trans>
-                    You need to connect a wallet to see your stablecoin balances
-                  </Trans>
-                </div>
-              </div>
-            ))
-            .with({ isLoadingBalances: true }, () => (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-ens-gray-two text-sm">
-                  <Trans>Loading your stablecoin balances...</Trans>
-                </div>
-              </div>
-            ))
-            .with({ pricingLoading: true }, () => (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-ens-gray-two text-sm">
-                  <Trans>Loading pricing...</Trans>
-                </div>
-              </div>
-            ))
-            .with({ stablecoinsCount: 0 }, () => (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-ens-gray-two text-sm">
-                  <Trans>No stablecoins available</Trans>
-                </div>
-              </div>
-            ))
-            .with({ stablecoinsCount: P.number.gt(0) }, () => (
-              <div className="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
-                {stablecoinBalances.map((stablecoin) =>
-                  stablecoin.symbol === TOKENS.USDC.symbol ? (
-                    <RegistrationPaymentMethod
-                      hasInsufficientBalance={isPaymentMethodUnderfunded(
-                        stablecoin,
-                      )}
-                      isNetworkFeeLoading={
-                        !!isQuotingFunding || !!funding?.isLoading
-                      }
-                      key={stablecoin.address}
-                      networkFee={funding?.networkFee}
-                      onSelectCoin={onSelectCoin}
-                      selectedCoin={selectedToken}
-                      stablecoin={stablecoin}
-                    />
-                  ) : (
-                    <TokenListItem
-                      key={stablecoin.address}
-                      onSelectCoin={onSelectCoin}
-                      priceUSD={pricingData ?? 0}
-                      selectedCoin={selectedToken}
-                      stablecoin={stablecoin}
-                    />
-                  ),
-                )}
-              </div>
-            ))
-            .otherwise(() => undefined)}
+          <PaymentOptions
+            funding={funding}
+            hasBalances={hasBalances}
+            hasInsufficientFundingError={hasInsufficientFundingError}
+            isConnected={isConnected}
+            isLoadingBalances={isLoadingBalances}
+            isQuotingFunding={isQuotingFunding}
+            onSelectCoin={onSelectCoin}
+            pricingData={pricingData}
+            pricingLoading={pricingLoading}
+            selectedToken={selectedToken}
+            stablecoinBalances={stablecoinBalances}
+          />
 
           {errorMessage && (
             <p className="wrap-anywhere text-center text-ens-error text-sm">
@@ -611,7 +716,7 @@ export const TokenPickerContentBase = ({
 
       <PaymentTotalRow
         hasAccountCredit={hasAccountCredit}
-        isEstimate={usesHcaFunding && !!funding}
+        isEstimate={isEstimate}
         total={headlineAmount}
       />
 
