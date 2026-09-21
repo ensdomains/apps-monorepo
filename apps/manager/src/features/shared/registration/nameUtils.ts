@@ -142,9 +142,8 @@ export const validateENSName = (name: string): ValidationError => {
   return null
 }
 
-// Standalone-HCA payment tokens. The HCA validator only accepts the REAL
-// Circle Sepolia USDC (its PAYMENT_TOKEN / SECONDARY_PAYMENT_TOKEN are both
-// this address), so the picker offers USDC only — no mock USDC/DAI/USDT.
+// Standalone-HCA payment-token metadata. The HCA validator accepts only real
+// Circle Sepolia USDC; DAI uses the inherited EOA registration route instead.
 export const STABLECOINS = {
   USDC: {
     id: 'usdc',

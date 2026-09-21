@@ -49,9 +49,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
                   ? event.primaryName
                   : undefined,
               signer: ({ event }) =>
-                event.type === 'START_REGISTRATION'
-                  ? event.signer
-                  : undefined,
+                event.type === 'START_REGISTRATION' ? event.signer : undefined,
               accountAddress: ({ event }) =>
                 event.type === 'START_REGISTRATION'
                   ? event.accountAddress

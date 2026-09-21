@@ -1,7 +1,9 @@
 # HCA Time-Boxed Owner Sessions (NOT SmartSessions)
 
-How the ENS Manager app makes HCA (Hidden Contract Account) registration flows
-run **prompt-free after a single signature**.
+How the ENS Manager app makes the standalone-HCA (Hidden Contract Account) USDC
+registration route run **prompt-free after a single signature**. DAI retains the
+inherited EOA approval-and-register route and does not use this session for its
+registration transactions.
 
 > ⚠️ **The HCA does NOT use SmartSessions or Emissary.** Those modules are not
 > installed on the account (verified on-chain — see §1). What we call a "session"
@@ -11,10 +13,10 @@ run **prompt-free after a single signature**.
 > owner-key mechanism, never the SmartSessions module.
 
 > TL;DR — The user signs **once** to add an ephemeral key as a temporary HCA
-> owner (the ENABLE signature). The SDK then signs every subsequent registration
-> Intent with that ephemeral key — no further wallet prompts — until the owner
-> expires (1 week). No SmartSessions/Emissary, no per-action scoping: it is a
-> plain extra owner with a `uint48` expiration.
+> owner (the ENABLE signature). The SDK then signs every subsequent USDC HCA
+> registration Intent with that ephemeral key — no further wallet prompts —
+> until the owner expires (1 week). No SmartSessions/Emissary, no per-action
+> scoping: it is a plain extra owner with a `uint48` expiration.
 
 ---
 
@@ -117,7 +119,7 @@ Mitigating facts:
 
 ## 2. The two signatures a user sees
 
-For a **first** registration in a fresh session window:
+For a **first USDC HCA registration** in a fresh session window:
 
 1. **ENABLE** — owner-signed, sponsored Intent calling `updateConfig` to add the
    ephemeral key as a time-boxed co-owner. _This is the only session signature._
@@ -127,9 +129,13 @@ For a **first** registration in a fresh session window:
 Everything else — `commit`, resolver deploy, `register` — is **session-signed,
 prompt-free**.
 
-For a **subsequent** registration within the 1-week window: the stored session
-is reused, so the user only sees the permit (the ENABLE step is skipped — see
-§6).
+For a **subsequent USDC HCA registration** within the 1-week window: the stored
+session is reused, so the user only sees the permit (the ENABLE step is skipped
+— see §6).
+
+DAI is intentionally separate: pricing and registration use the canonical
+registrar, and the connected EOA signs the inherited approval, commit, and
+register transactions.
 
 ---
 
@@ -248,7 +254,9 @@ if you adopt it, pair it with an explicit REVOKE on logout/rotation.
 ## 5. Gating the registration flows
 
 There are **two** registration entry points, both gated through the shared
-hook/decision so behaviour is identical:
+hook/decision so session-enablement behaviour is identical. In register-v2,
+only a later USDC selection uses the resulting HCA session for registration;
+DAI is handed to the inherited EOA route instead:
 
 - **register-v2 (active flow):** `features/register-v2/workflow/pricing/components/PaymentCard.tsx`
   uses `useSmartSessionGate()` and wires `onNext={() => gate(openTokenPicker)}`,
@@ -293,8 +301,8 @@ flow would otherwise capture the stale, session-less signer.
   owner OR the HCA address changes (incl. initial mount), via
   `getValidSessionForAccount({ accountAddress, ownerAddress, chainId })`. So a
   **page reload with a valid stored session** sets `hasActiveSession = true` and
-  the ENABLE modal is **skipped** — the second registration within the week
-  needs no enable signature.
+  the ENABLE modal is **skipped** — the second USDC HCA registration within the
+  week needs no enable signature.
 - Reuse is **scoped to the exact HCA** (account + owner + chain). An owner-keyed
   lookup alone could return a session whose ephemeral key is _not_ an owner of
   the current HCA; that row is evicted and a fresh session created instead.
@@ -365,13 +373,15 @@ effect re-runs and performs the lookup once both are known. Covered by
 
 ## 8. Verification checklist
 
-- [ ] First registration shows exactly **2** wallet signatures: ENABLE
+- [ ] First USDC HCA registration shows exactly **2** wallet signatures: ENABLE
       (`updateConfig` add-owner) + EIP-2612 permit.
 - [ ] `commit` / resolver-deploy / `register` are prompt-free (SDK params show
       `signers` present).
 - [ ] `register` calldata `owner` arg = the EOA (name owned by EOA, not HCA).
-- [ ] Second registration within the week shows **1** signature (permit only);
-      no ENABLE modal (session hydrated from storage).
+- [ ] Second USDC HCA registration within the week shows **1** signature
+      (permit only); no ENABLE modal (session hydrated from storage).
+- [ ] DAI registration uses the connected EOA and the canonical registrar, not
+      the HCA session signer or standalone-HCA registrar.
 
 ### On-chain module-set checks (`cast`, Sepolia)
 

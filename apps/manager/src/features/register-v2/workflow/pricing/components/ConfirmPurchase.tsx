@@ -172,7 +172,8 @@ export const ConfirmPurchaseBase = ({
   const premiumLabel = getPremiumLabel(label.length)
   const domainName = `${label}.eth`
 
-  const selectedCoinConfig = selectedToken && STABLECOINS[selectedToken]
+  const selectedCoinConfig =
+    selectedToken === 'USDC' ? STABLECOINS.USDC : undefined
   const SelectedCoinIcon = selectedCoinConfig?.icon || USDCIcon
 
   return (

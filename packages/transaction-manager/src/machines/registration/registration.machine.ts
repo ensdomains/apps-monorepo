@@ -1054,10 +1054,9 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           // The HCA path committed on the standalone registrar; read ITS
           // cooldown window, not the old deployment's.
-          registrarAddress:
-            isStandaloneHcaRegistration(context)
-              ? hcaRegistrarAddress(context.chainId)
-              : undefined,
+          registrarAddress: isStandaloneHcaRegistration(context)
+            ? hcaRegistrarAddress(context.chainId)
+            : undefined,
         }),
         onDone: [
           {
@@ -1111,10 +1110,9 @@ export const registrationMachine = setup({
           commitment: context.commitment!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          registrarAddress:
-            isStandaloneHcaRegistration(context)
-              ? hcaRegistrarAddress(context.chainId)
-              : undefined,
+          registrarAddress: isStandaloneHcaRegistration(context)
+            ? hcaRegistrarAddress(context.chainId)
+            : undefined,
         }),
         onDone: [
           // The commitment is confirmed on-chain; HCA needs no allowance step.
@@ -1468,10 +1466,9 @@ export const registrationMachine = setup({
       invoke: {
         src: 'verifyRegistration',
         input: ({ context }) => ({
-          mode:
-            isStandaloneHcaRegistration(context)
-              ? ('hca' as const)
-              : ('eoa' as const),
+          mode: isStandaloneHcaRegistration(context)
+            ? ('hca' as const)
+            : ('eoa' as const),
           name: context.name,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,

@@ -9,10 +9,7 @@ import { useSelector } from '@xstate/react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { isAddressEqual } from 'viem'
-import {
-  DAI as DAIIcon,
-  USDCIcon,
-} from '@/components/atoms/StableCoinsIcons'
+import { DAI as DAIIcon, USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -435,9 +432,7 @@ export const TokenPickerContentBase = ({
   // headline is always the debit once a budget is quoted; the label only
   // changes when a credit line is there to explain the gap.
   const figures =
-    usesHcaFunding && funding
-      ? getPaymentBreakdownFigures(funding)
-      : undefined
+    usesHcaFunding && funding ? getPaymentBreakdownFigures(funding) : undefined
   const hasAccountCredit = !!figures && figures.credit > 0
   const headlineAmount = figures ? figures.walletDebit : displayTotal
 
@@ -597,18 +592,17 @@ export const TokenPickerContentBase = ({
             <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
               <Trans>Stables accepted</Trans>
             </p>
-            <div
+            <ul
               aria-label={t`Stables accepted`}
               className="flex items-center gap-1"
-              role="list"
             >
-              <span aria-label="USDC" role="listitem">
+              <li aria-label="USDC">
                 <USDCIcon className="h-7 w-7" />
-              </span>
-              <span aria-label="DAI" role="listitem">
+              </li>
+              <li aria-label="DAI">
                 <DAIIcon className="h-7 w-7" />
-              </span>
-            </div>
+              </li>
+            </ul>
           </div>
 
           {footer}
