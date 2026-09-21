@@ -19,11 +19,11 @@ const StepCopy = ({ step }: StepCopyProps) =>
     .with({ type: 'deploy-hca' }, () => (
       <>
         <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
-          <Trans>Create migration account</Trans>
+          <Trans>Set up temporary access</Trans>
         </h3>
         <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
           <Trans>
-            Create the secure account that performs the name upgrade.
+            Creates a temporary account to carry out the upgrade for you.
           </Trans>
         </p>
       </>
@@ -36,13 +36,11 @@ const StepCopy = ({ step }: StepCopyProps) =>
             {name ? (
               <Trans>Approve {name}</Trans>
             ) : (
-              <Trans>Approve registration</Trans>
+              <Trans>Approve this name</Trans>
             )}
           </h3>
           <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-            <Trans>
-              Allow the migration account to move this registration.
-            </Trans>
+            <Trans>Allow this temporary account to move this name.</Trans>
           </p>
         </>
       ),
@@ -54,16 +52,16 @@ const StepCopy = ({ step }: StepCopyProps) =>
           <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
             {count ? (
               <Plural
-                one="Approve # registration"
-                other="Approve # registrations"
+                one="Approve # name"
+                other="Approve # names"
                 value={count}
               />
             ) : (
-              <Trans>Approve registrations</Trans>
+              <Trans>Approve your names</Trans>
             )}
           </h3>
           <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-            <Trans>One approval covers the selected .eth registrations.</Trans>
+            <Trans>One approval covers all the .eth names you selected.</Trans>
           </p>
         </>
       ),
@@ -71,20 +69,20 @@ const StepCopy = ({ step }: StepCopyProps) =>
     .with({ type: 'approval', approvalId: 'name-wrapper:hca' }, () => (
       <>
         <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
-          <Trans>Approve wrapped names</Trans>
+          <Trans>Approve your wrapped names</Trans>
         </h3>
         <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-          <Trans>Allow the migration account to move your wrapped names.</Trans>
+          <Trans>Let this temporary account move your wrapped names.</Trans>
         </p>
       </>
     ))
     .with({ type: 'approval', approvalId: 'eth-registry:hca' }, () => (
       <>
         <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
-          <Trans>Approve manager restoration</Trans>
+          <Trans>Restore your managers</Trans>
         </h3>
         <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-          <Trans>Restore the existing managers for your names.</Trans>
+          <Trans>Keep the same managers on your names after the upgrade.</Trans>
         </p>
       </>
     ))
@@ -104,14 +102,14 @@ const StepCopy = ({ step }: StepCopyProps) =>
           )}
         </h3>
         <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-          <Trans>Migrate the selected names and restore their records.</Trans>
+          <Trans>Upgrade your names and bring their records across.</Trans>
         </p>
       </>
     ))
     .with({ type: 'cleanup' }, () => (
       <>
         <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
-          <Trans>Revoke temporary HCA access</Trans>
+          <Trans>Remove temporary access</Trans>
         </h3>
         <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
           <Trans>Remove the temporary permission after the upgrade.</Trans>
@@ -146,11 +144,7 @@ export const WalletConfirmationStepsDialog = ({
           className="cursor-pointer rounded-xs font-semibold underline decoration-ens-garnet-900/35 decoration-dotted underline-offset-2 transition-colors duration-150 hover:text-ens-garnet-900 hover:decoration-ens-garnet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900/50 focus-visible:ring-offset-2 focus-visible:ring-offset-ens-garnet-200 motion-reduce:duration-0"
           type="button"
         >
-          <Plural
-            one="# wallet confirmation"
-            other="# wallet confirmations"
-            value={steps.length}
-          />
+          <Plural one="# request" other="# requests" value={steps.length} />
         </button>
       </DialogTrigger>
 
@@ -160,7 +154,7 @@ export const WalletConfirmationStepsDialog = ({
       >
         <DialogHeader className="gap-1.5 px-5 pt-5 pr-12 pb-3 text-left sm:px-6 sm:pt-6 sm:pr-12">
           <DialogTitle className="text-balance font-normal text-ens-garnet-900 text-xl leading-tight tracking-tight">
-            <Trans>Wallet confirmations</Trans>
+            <Trans>What you&apos;ll approve</Trans>
           </DialogTitle>
           <DialogDescription className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
             <Plural
@@ -189,8 +183,10 @@ export const WalletConfirmationStepsDialog = ({
 
         <p className="text-pretty px-5 pt-2 pb-5 text-ens-garnet-800/70 text-xs leading-normal sm:px-6 sm:pb-6">
           <Trans>
-            Nothing is signed automatically. Review every request in your
-            wallet.
+            Each batch of your names is upgraded in a single transaction. If any
+            part of a batch fails, no changes from that batch are applied.
+            Earlier completed batches and permissions stay in place. Nothing is
+            signed automatically, so review every request in your wallet.
           </Trans>
         </p>
       </DialogContent>

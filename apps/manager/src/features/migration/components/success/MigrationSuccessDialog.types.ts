@@ -9,8 +9,6 @@ export type CommemorativeNftCardData = {
   readonly assets: CommemorativeNftAssets
   readonly eligibility: CommemorativeNftEligibility
   readonly marketplaceUrl?: string
-  readonly migratedAt: Date
-  readonly migratedNameCount: number
   readonly shareUrls: CommemorativeNftShareUrls
 }
 
@@ -24,6 +22,13 @@ export type MigrationSuccessDialogState =
       readonly txHash?: Hex
     }
   | { readonly status: 'minted'; readonly card: CommemorativeNftCardData }
+  | {
+      readonly status: 'claimPending'
+      readonly card?: CommemorativeNftCardData
+      readonly txHash: Hex
+      readonly checking: boolean
+      readonly message: string
+    }
   | {
       readonly status: 'error'
       readonly stage: 'configuration' | 'eligibility' | 'claim'

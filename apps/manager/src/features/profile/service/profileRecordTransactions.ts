@@ -1,9 +1,9 @@
 /**
  * Pure async function to save profile records
  *
- * Uses ensjs's setRecordsWriteParameters which encodes resolver calls
- * via `multicall(calls)`, compatible with both PublicResolver and
- * the V2 PermissionedResolver (which share the same setter ABI).
+ * The resolver call is encoded for the resolver's setter family (name-based
+ * PermissionedResolver, or node-based public/legacy resolvers) — see
+ * `resolverRecordCalls.ts`.
  */
 
 import {
@@ -17,14 +17,8 @@ import {
   type WaitForTransactionResult,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v1'
 import * as v from 'valibot'
-import {
-  type Address,
-  encodeFunctionData,
-  type Hex,
-  type PublicClient,
-} from 'viem'
+import type { Address, Hex, PublicClient } from 'viem'
 import {
   createSafeUrlSchema,
   isSafeHttpUrl,
@@ -33,6 +27,11 @@ import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
 import { validateAddressRecordValue } from '@/features/profile/utils/validateAddress'
 import { validateEmail } from '@/features/profile/utils/validateUrl'
 import { type RecordIssue, RecordsValidationError } from './profileRecordErrors'
+import {
+  encodeResolverRecordsCall,
+  getResolverSetterKind,
+  type ResolverRecords,
+} from './resolverRecordCalls'
 
 export { type RecordIssue, RecordsValidationError } from './profileRecordErrors'
 
@@ -363,10 +362,11 @@ function createTransactionRequest(
 }
 
 /**
- * Build the resolver `multicall` write for a record diff, without submitting it.
+ * Build the resolver write for a record diff, without submitting it.
  *
- * Returns the raw call(s) (today: a single multicall to the resolver) plus a
- * human description so callers can submit them through the appropriate signer.
+ * Returns the raw call(s) (today: one call to the resolver, encoded for its
+ * setter family) plus a human description so callers can submit them through
+ * the appropriate signer.
  *
  * @throws RecordsValidationError if the final records fail validation
  * @throws Error if the diff is empty
@@ -374,14 +374,8 @@ function createTransactionRequest(
 export async function buildRecordsUpdateCalls(
   params: BuildRecordsUpdateCallsParams,
 ): Promise<BuildRecordsUpdateCallsResult> {
-  const {
-    name,
-    before,
-    after,
-    shouldClearRecords,
-    publicClient,
-    resolverAddress,
-  } = params
+  const { name, before, after, shouldClearRecords, publicClient } = params
+  const { resolverAddress } = params
 
   const changes = computeRecordChanges(before, after)
 
@@ -406,11 +400,7 @@ export async function buildRecordsUpdateCalls(
   }
 
   // Transform changes to ensjs format
-  const ensParams: Parameters<typeof setRecordsWriteParameters>[1] = {
-    name,
-    resolverAddress,
-    clearRecords: shouldClearRecords,
-  }
+  const ensParams: ResolverRecords = { clearRecords: shouldClearRecords }
 
   if (changes.texts.length > 0) {
     ensParams.texts = changes.texts.map(({ key, value }) => ({
@@ -449,18 +439,11 @@ export async function buildRecordsUpdateCalls(
     }
   }
 
-  // Use ensjs to build the write parameters
-  // publicClient is used only for chain metadata — ensjs doesn't send transactions here
-  const client = publicClient as unknown as Parameters<
-    typeof setRecordsWriteParameters
-  >[0]
-  const writeParams = await setRecordsWriteParameters(client, ensParams)
-
-  const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
+  const data = await encodeResolverRecordsCall({
+    kind: await getResolverSetterKind(publicClient, resolverAddress),
+    name,
+    records: ensParams,
+  })
 
   return {
     calls: [{ to: resolverAddress, data, value: 0n }],
@@ -503,8 +486,8 @@ async function buildRecordsUpdateRequest(
 /**
  * Save profile records to the blockchain
  *
- * Uses ensjs's setRecordsWriteParameters to encode resolver calls,
- * compatible with both PublicResolver (V1) and PermissionedResolver (V2).
+ * Encodes the resolver call for the resolver's setter family, so it works on
+ * the V2 PermissionedResolver and on node-based public or legacy resolvers.
  *
  * @throws RecordsValidationError if record validation fails (invalid URLs, etc.)
  * @throws Error if no changes to apply, transaction not found, or transaction fails

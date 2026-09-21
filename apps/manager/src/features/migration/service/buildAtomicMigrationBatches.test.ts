@@ -20,6 +20,7 @@ import { MIGRATION_HELPER_ABI } from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { dnsEncodeName } from '../utils/dnsEncodeName'
 import { makeClassified } from './_fixtures'
+import { TARGET_GAS } from './batchMigrate.constants'
 import {
   AtomicMigrationNameGasLimitExceededError,
   buildAtomicMigrationBatches,
@@ -976,6 +977,41 @@ describe('buildAtomicMigrationBatches', () => {
     expect(
       estimateOuterGas.mock.calls.map(([{ names }]) => names.length),
     ).toEqual([2])
+  })
+
+  it('keeps an 85-name migration batched while splitting an oversized live estimate', async () => {
+    const classified = Array.from({ length: 85 }, (_, index) =>
+      makeName(`name-${index}.eth`, {
+        resolverStrategy: 'keep-v1',
+        v1ResolverAddress: V1_RESOLVER,
+      }),
+    )
+    const first = await buildPlan({
+      classified,
+      maxOuterGas: TARGET_GAS,
+      firstBatchOnly: true,
+      initialBatchSize: 85,
+      estimateOuterGas: ({ names }) => BigInt(names.length) * 300_000n,
+    })
+    const firstBatch = first.batches[0]
+    assert(firstBatch)
+    expect(firstBatch.names).toHaveLength(50)
+    expect(firstBatch.estimatedGas).toBe(15_000_000n)
+
+    const remaining = classified.filter(
+      ({ domain }) => !firstBatch.names.includes(domain.name),
+    )
+    const second = await buildPlan({
+      classified: remaining,
+      maxOuterGas: TARGET_GAS,
+      firstBatchOnly: true,
+      initialBatchSize: remaining.length,
+      estimateOuterGas: ({ names }) => BigInt(names.length) * 300_000n,
+    })
+    expect(second.batches[0]?.names).toHaveLength(35)
+    expect([...firstBatch.names, ...(second.batches[0]?.names ?? [])]).toEqual(
+      classified.map(({ domain }) => domain.name),
+    )
   })
 
   it('uses a bounded downward search when the preview exceeds the live limit', async () => {

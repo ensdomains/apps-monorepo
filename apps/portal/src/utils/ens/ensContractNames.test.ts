@@ -82,7 +82,7 @@ describe('getEnsContractName', () => {
 describe('getContractLabel', () => {
   it('prefers the short pill label over the display name', () => {
     expect(getContractLabel(sepoliaContracts.ensRegistry.address)).toBe(
-      'root registry',
+      'eth registry',
     )
     expect(getContractLabel(sepoliaContracts.ensLegacyRegistry.address)).toBe(
       'legacy registry',

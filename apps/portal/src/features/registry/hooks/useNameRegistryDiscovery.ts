@@ -46,7 +46,7 @@ class NameRegistriesError extends TaggedError('NameRegistriesError')<{
 }> {}
 
 /**
- * Discovers which registries a name exists on using the UniversalResolver V2.
+ * Discovers which registries a name exists on using the UniversalHelper.
  *
  * Should only be called for V2 names. V1 names don't have subregistries and
  * `findRegistries` returns identical (and meaningless) results for them, so

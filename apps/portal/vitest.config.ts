@@ -1,11 +1,41 @@
+import { availableParallelism } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'happy-dom',
     setupFiles: ['./src/test-utils/setup.ts'],
+    // Vitest defaults to `availableParallelism - 1` workers, which is a single
+    // worker on CI's 2-vCPU runners, so every file ran one after another. The
+    // main thread is mostly idle during a run, so use at least 2 workers.
+    // Threads start faster than forks, which adds up with a fresh worker per
+    // test file.
+    pool: 'threads',
+    maxWorkers: Math.max(availableParallelism() - 1, 2),
+    // Split by environment: building a happy-dom window for every file cost
+    // ~0.16s each, and most `.ts` tests never touch the DOM. Component tests
+    // (`.tsx`) get happy-dom; everything else runs in plain Node. A `.ts` test
+    // that needs a DOM (e.g. `renderHook`) opts in with a
+    // `// @vitest-environment happy-dom` docblock.
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'dom',
+          environment: 'happy-dom',
+          include: ['src/**/*.test.tsx'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['src/**/*.test.ts'],
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'clover', 'json'],

@@ -1,7 +1,12 @@
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { useLayoutEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { trackNftEvent } from '../../commemorative-nft/diagnostics'
 import { useCommemorativeNftRenderer } from './useCommemorativeNftRenderer'
+
+vi.mock('../../commemorative-nft/diagnostics', () => ({
+  trackNftEvent: vi.fn(),
+}))
 
 type RendererOptions = Parameters<typeof useCommemorativeNftRenderer>[0]
 
@@ -56,6 +61,7 @@ const advanceTime = (milliseconds: number) =>
 
 describe('commemorative NFT renderer readiness', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   })
 
@@ -83,6 +89,9 @@ describe('commemorative NFT renderer readiness', () => {
     advanceTime(1)
     expect(result.current.failed).toBe(true)
     expect(onError).toHaveBeenCalledOnce()
+    expect(trackNftEvent).toHaveBeenCalledWith('nft:renderer_fallback', {
+      reason: 'renderer_timeout',
+    })
 
     sendMessage(rendererWindow)
     expect(result.current.failed).toBe(true)
@@ -195,6 +204,9 @@ describe('commemorative NFT renderer readiness', () => {
     sendMessage(rendererWindow, { ...readyMessage, status: 'failed' })
     expect(result.current.failed).toBe(true)
     expect(onError).toHaveBeenCalledOnce()
+    expect(trackNftEvent).toHaveBeenCalledWith('nft:renderer_fallback', {
+      reason: 'renderer_failed',
+    })
     expect(vi.getTimerCount()).toBe(0)
 
     sendMessage(rendererWindow)

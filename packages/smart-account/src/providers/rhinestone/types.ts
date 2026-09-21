@@ -9,7 +9,11 @@
 
 import type { Address, Hex } from 'viem'
 import type { BaseStoredSession } from '../../types'
-import type { ChainDigest, SessionEnableData } from './session'
+import {
+  buildHcaSessionConfig,
+  type ChainDigest,
+  type SessionEnableData,
+} from './session'
 
 /**
  * Persisted standalone-HCA session. Captures everything needed to resume a
@@ -59,15 +63,11 @@ export function deserializeChainDigests(
 /**
  * The session-enable payload passed to the registration machine's
  * `START_REGISTRATION` (the machine's `HcaSessionEnableParams`). Reconstructs
- * the `SessionEnableData` + the `enableSessionWithRefund` call args from a
- * persisted session — without a wallet prompt.
+ * the `SessionEnableData` from a persisted session — without a wallet prompt.
  *
- * Safe to rebuild and present on EVERY use, not just the session's first: the
- * proof is reusable (`_validateSessionEnableProof` checks only `validUntil` and
- * the account's session nonce, which nothing increments outside revocation) and
- * `enableSessionWithRefund` is idempotent. Callers attach it whenever the batch
- * also carries the EIP-2612 funding pair, which the validator's policy only
- * accepts on the code path this proof unlocks.
+ * The validator is stateless, so this proof goes out with EVERY session-signed
+ * intent. It is reusable: the validator checks only `validUntil` and the
+ * account's session nonce, which nothing increments outside revocation.
  */
 export interface HcaSessionEnablePayload {
   readonly enableData: SessionEnableData
@@ -87,6 +87,12 @@ export function buildHcaSessionEnablePayload(
     })),
     sessionToEnableIndex: session.sessionToEnableIndex,
     hcaSessionNonce: BigInt(session.hcaSessionNonce),
+    hcaSessionConfig: buildHcaSessionConfig({
+      chainId: session.chainId,
+      sessionKey: session.sessionKeyAddress,
+      validUntil: BigInt(session.validUntil),
+      resolver: session.resolver,
+    }),
   }
   return {
     enableData,

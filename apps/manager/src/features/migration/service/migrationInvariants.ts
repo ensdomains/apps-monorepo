@@ -5,17 +5,12 @@ import {
   verifyStandaloneHca,
 } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import {
-  type Address,
-  type Hex,
-  isAddressEqual,
-  keccak256,
-  type PublicClient,
-  parseAbi,
-} from 'viem'
+import { type Address, isAddressEqual, type PublicClient, parseAbi } from 'viem'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
+import type { DirectMigrationRoute } from './directMigrationRoutes'
+import { resolverFor } from './encodeMigration'
 
 const verifiableFactoryAbi = parseAbi([
   'function verifyContract(address proxy) view returns (address implementation)',
@@ -49,7 +44,6 @@ export type RequiredMigrationContractName =
 
 export type MigrationContractInvariant =
   | 'missing-code'
-  | 'bytecode-hash'
   | 'hca-certification'
   | 'hca-implementation-approved'
   | 'resolver-certification'
@@ -68,88 +62,29 @@ export class MigrationContractInvariantError extends TaggedError(
   readonly cause?: unknown
 }> {}
 
-export const REQUIRED_MIGRATION_CONTRACTS = [
-  ['ETHRegistry', V2_CONTRACTS.ETHRegistry],
-  ['RootRegistry', V2_CONTRACTS.RootRegistry],
-  ['VerifiableFactory', V2_CONTRACTS.VerifiableFactory],
-  ['VerifiableFactoryProxyLogic', V2_CONTRACTS.VerifiableFactoryProxyLogic],
-  ['PermissionedResolverImpl', V2_CONTRACTS.PermissionedResolverImpl],
-  ['UserRegistryImpl', V2_CONTRACTS.UserRegistryImpl],
-  ['UnlockedMigrationController', V2_CONTRACTS.UnlockedMigrationController],
-  ['LockedMigrationController', V2_CONTRACTS.LockedMigrationController],
-  ['MigrationHelper', V2_CONTRACTS.MigrationHelper],
-  ['PublicResolverSet', V2_CONTRACTS.PublicResolverSet],
-  ['WrapperRegistryImpl', V2_CONTRACTS.WrapperRegistryImpl],
-  ['DefaultResolver', V2_CONTRACTS.DefaultResolver],
-  ['StandaloneHCAFactory', V2_CONTRACTS.StandaloneHCAFactory],
-  ['StandaloneHCAImplementation', V2_CONTRACTS.StandaloneHCAImplementation],
-  ['HCAOwnerAndSessionValidator', V2_CONTRACTS.HCAOwnerAndSessionValidator],
-] as const satisfies readonly (readonly [
-  RequiredMigrationContractName,
-  Address,
-])[]
-
 const hasCode = (code: string | undefined): boolean =>
   Boolean(code && code !== '0x')
 
-/** Fail closed when any configured migration contract is not deployed. */
+/** Check only the deployed contracts required by this migration. */
 export const assertRequiredMigrationContractCode = async (params: {
   readonly publicClient: PublicClient
+  readonly contracts: readonly RequiredMigrationContractName[]
 }): Promise<void> => {
+  const contracts = [...new Set(params.contracts)]
   const codes = await Promise.all(
-    REQUIRED_MIGRATION_CONTRACTS.map(([, address]) =>
-      params.publicClient.getCode({ address }),
+    contracts.map((name) =>
+      params.publicClient.getCode({ address: V2_CONTRACTS[name] }),
     ),
   )
 
-  for (const [
-    index,
-    [contractName, address],
-  ] of REQUIRED_MIGRATION_CONTRACTS.entries()) {
+  for (const [index, contractName] of contracts.entries()) {
     if (!hasCode(codes[index])) {
       throw new MigrationContractInvariantError({
         invariant: 'missing-code',
         contractName,
-        address,
+        address: V2_CONTRACTS[contractName],
       })
     }
-  }
-}
-
-export const MIGRATION_HELPER_RUNTIME_CODE_HASH =
-  '0x0b8acb00c2912a8b43085e0f55f9459b956cb51be1a16a5ff7ef0346dbd18143' as const
-
-/**
- * Pin the exact HCA-aware helper runtime, including its immutable factory and
- * controller wiring. The Sepolia deployment is not source-verified yet, so a
- * code-existence check alone is insufficient.
- */
-export const assertMigrationHelperRuntimeCode = async (params: {
-  readonly publicClient: PublicClient
-  readonly expectedRuntimeCodeHash?: Hex
-}): Promise<void> => {
-  const code = await params.publicClient.getCode({
-    address: V2_CONTRACTS.MigrationHelper,
-  })
-  if (!hasCode(code)) {
-    throw new MigrationContractInvariantError({
-      invariant: 'missing-code',
-      contractName: 'MigrationHelper',
-      address: V2_CONTRACTS.MigrationHelper,
-    })
-  }
-
-  const expected =
-    params.expectedRuntimeCodeHash ?? MIGRATION_HELPER_RUNTIME_CODE_HASH
-  const actual = keccak256(code as Hex)
-  if (actual.toLowerCase() !== expected.toLowerCase()) {
-    throw new MigrationContractInvariantError({
-      invariant: 'bytecode-hash',
-      contractName: 'MigrationHelper',
-      address: V2_CONTRACTS.MigrationHelper,
-      expected,
-      actual,
-    })
   }
 }
 
@@ -159,6 +94,97 @@ const requiresPinnedPublicResolverMembership = (
   (name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child') &&
   hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER) &&
   isKnownPublicResolver(name.v1ResolverAddress)
+
+type RequiredMigrationContractsParams = {
+  readonly remaining: readonly ClassifiedName[]
+  readonly registryContext: readonly ClassifiedName[]
+  readonly directRoutes: ReadonlyMap<string, DirectMigrationRoute>
+  readonly hcaReadiness: MigrationHcaReadiness
+  readonly resolverReadiness?: MigrationResolverReadiness
+  readonly ownedResolver: Address | null
+}
+
+const directRouteContracts = (
+  name: ClassifiedName,
+  route: DirectMigrationRoute | undefined,
+): RequiredMigrationContractName[] => {
+  if (name.action !== 'migrate') return []
+  const contracts: RequiredMigrationContractName[] = ['MigrationHelper']
+  if (route?.receiverReadiness === 'migration-controller') {
+    if (
+      isAddressEqual(route.receiver, V2_CONTRACTS.UnlockedMigrationController)
+    )
+      contracts.push('UnlockedMigrationController')
+    if (isAddressEqual(route.receiver, V2_CONTRACTS.LockedMigrationController))
+      contracts.push('LockedMigrationController')
+  }
+  if (name.tokenType === 'locked-child' || name.tokenType === 'detached-child')
+    contracts.push('RootRegistry', 'ETHRegistry', 'WrapperRegistryImpl')
+  if (route?.expectedWrapperRegistry)
+    contracts.push('WrapperRegistryImpl', 'VerifiableFactoryProxyLogic')
+  return contracts
+}
+
+const nameContracts = (
+  name: ClassifiedName,
+  params: RequiredMigrationContractsParams,
+  registryParents: ReadonlySet<string>,
+): RequiredMigrationContractName[] => {
+  const contracts = directRouteContracts(
+    name,
+    params.directRoutes.get(name.domain.name),
+  )
+  if (name.action === 'copy' || registryParents.has(name.domain.name))
+    contracts.push('UserRegistryImpl')
+  if (registryParents.has(name.domain.name))
+    contracts.push('VerifiableFactoryProxyLogic')
+  if (name.resolverStrategy === 'to-owned-permres') {
+    contracts.push('PermissionedResolverImpl')
+    if (params.resolverReadiness?.status === 'deployment-required')
+      contracts.push('VerifiableFactoryProxyLogic')
+  }
+  if (
+    isAddressEqual(
+      resolverFor(name, V2_CONTRACTS.DefaultResolver, params.ownedResolver),
+      V2_CONTRACTS.DefaultResolver,
+    )
+  )
+    contracts.push('DefaultResolver')
+  if (requiresPinnedPublicResolverMembership(name))
+    contracts.push('PublicResolverSet')
+  return contracts
+}
+
+export const getRequiredMigrationContracts = (
+  params: RequiredMigrationContractsParams,
+): readonly RequiredMigrationContractName[] => {
+  if (params.remaining.length === 0) return []
+  const contracts: RequiredMigrationContractName[] = [
+    'StandaloneHCAFactory',
+    'VerifiableFactory',
+  ]
+  if (params.registryContext.some((name) => name.parentName === 'eth'))
+    contracts.push('ETHRegistry')
+  if (params.hcaReadiness.status === 'deployment-required')
+    contracts.push(
+      'StandaloneHCAImplementation',
+      'HCAOwnerAndSessionValidator',
+      'VerifiableFactoryProxyLogic',
+    )
+  const registryParents = new Set(
+    params.registryContext.flatMap((name) =>
+      name.action === 'copy' && name.parentName ? [name.parentName] : [],
+    ),
+  )
+  return [
+    ...new Set([
+      ...contracts,
+      ...params.remaining.flatMap((name) =>
+        nameContracts(name, params, registryParents),
+      ),
+    ]),
+  ]
+}
 
 /**
  * Locked migration cannot apply the app's resolver choice when
@@ -283,9 +309,9 @@ export const getMigrationResolverAddress = (hca: Address): Address =>
 /**
  * Verify a reused HCA resolver; counterfactual resolvers remain deployable.
  *
- * `authorizeNameRoles(0x00, ROLES_ALL, wallet, true)` maps the empty DNS name
- * to the resolver root resource. We report that wallet grant separately from
- * the HCA's initializer grant even though both use `hasRootRoles` on-chain.
+ * The wallet's root roles come from the resolver's `initialize` (its second
+ * grant) or a later `grantRootRoles`. We report that wallet grant separately
+ * from the HCA's initializer grant even though both use `hasRootRoles` on-chain.
  */
 export const checkMigrationResolverReadiness = async (params: {
   readonly publicClient: PublicClient

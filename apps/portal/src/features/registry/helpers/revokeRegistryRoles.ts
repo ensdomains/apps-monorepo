@@ -20,6 +20,7 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { assertRoleContractKind } from '@/features/roles/helpers/assertRoleContractKind'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import { ROOT_RESOURCE } from '@/lib/roles/roleChangeLogs'
 
@@ -95,6 +96,8 @@ export async function revokeRegistryRoles(
     chainId,
     id,
   } = params
+
+  await assertRoleContractKind(registryAddress, 'registry')
 
   const txId = transactionManager.startTransaction(
     prepareRevokeRegistryRolesTransaction({

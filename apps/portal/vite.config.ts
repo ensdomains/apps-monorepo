@@ -34,6 +34,11 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/paymaster/, ''),
       },
+      '/orchestrator': {
+        target: 'http://127.0.0.1:3007',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/orchestrator/, ''),
+      },
       '/indexer': {
         target: 'http://127.0.0.1:5655',
         changeOrigin: true,

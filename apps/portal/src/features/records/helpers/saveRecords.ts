@@ -1,9 +1,10 @@
 /**
  * Pure async function to save ENS record changes.
  *
- * Uses ensjs's setRecordsWriteParameters which supports both:
- * - Public Resolver (V1): multicall(calls)
- * - Dedicated Resolver (V2): multicallWithNodeCheck(node, calls)
+ * Encodes against whichever resolver the name actually uses. Every V2 setter
+ * takes the DNS-encoded name rather than `bytes32 node`, and `setAddr` is
+ * renamed `setAddress`, so the two sets share no selectors: the wrong shape
+ * hits the resolver's fallback and reverts with empty data.
  */
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
@@ -12,7 +13,8 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v1'
+import { setRecordsWriteParameters as setRecordsWriteParametersV1 } from '@ensdomains/ensjs/wallet/v1'
+import { setRecordsWriteParameters as setRecordsWriteParametersV2 } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
   encodeFunctionData,
@@ -21,6 +23,7 @@ import {
   type WalletClient,
 } from 'viem'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
+import { getIsPermissionedResolver } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import { transformPendingChangesToSetRecords } from './transformPendingChanges'
@@ -87,10 +90,9 @@ export interface SaveRecordsResult {
  * ```
  */
 /**
- * Builds the encoded setRecords transaction. Async because ensjs'
- * `setRecordsWriteParameters` resolves the resolver pattern (Public vs Dedicated
- * resolver) on chain. Shared by {@link saveRecords} and the modal's pre-start
- * gas estimate, so the estimated call matches what's submitted.
+ * Builds the encoded setRecords transaction. Async because encoding an ABI
+ * record may fetch. Shared by {@link saveRecords} and the modal's pre-start gas
+ * estimate, so the estimated call matches what's submitted.
  *
  * @throws if the wallet isn't ready or there are no record changes.
  */
@@ -122,9 +124,20 @@ export async function prepareSaveRecordsTransaction({
     throw new Error('No record changes to save')
   }
 
-  // ensjs handles both Public Resolver and Dedicated Resolver patterns.
+  // Refuse rather than guess: the wrong shape reverts with empty data, which
+  // surfaces as an unusable gas error rather than a decodable failure.
+  const kind = await getIsPermissionedResolver({ resolverAddress })
+  if (kind.isErr()) {
+    throw new Error(`Could not tell what kind of resolver ${name} uses`)
+  }
+
   // Type assertion is safe since we validated account and chain above.
-  const client = walletClient as Parameters<typeof setRecordsWriteParameters>[0]
+  const client = walletClient as Parameters<
+    typeof setRecordsWriteParametersV2
+  >[0]
+  const setRecordsWriteParameters = kind.value
+    ? setRecordsWriteParametersV2
+    : setRecordsWriteParametersV1
 
   const writeParams = await setRecordsWriteParameters(client, {
     name,

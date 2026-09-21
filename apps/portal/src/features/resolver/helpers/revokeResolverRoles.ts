@@ -4,7 +4,6 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import type { ResolverRole } from '@ensdomains/ensjs/utils/v2'
 import { revokeResolverRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
@@ -13,22 +12,28 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { assertRoleContractKind } from '@/features/roles/helpers/assertRoleContractKind'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
-import type { ResolverRoleKey } from '@/lib/roles/resolverRoles'
+import {
+  describeResolverResource,
+  type ResolverRole,
+  ROOT_RESOURCE,
+} from '@/lib/roles/resolverRoles'
 
 export interface RevokeResolverRolesTransactionParameters {
   readonly resolverAddress: Address
-  readonly name: string
+  /** EAC resource the roles are held on: `ROOT_RESOURCE` or a setter resource. */
+  readonly resource: bigint
   readonly account: Address
-  readonly roles: readonly ResolverRoleKey[]
+  readonly roles: readonly ResolverRole[]
   readonly walletClient: WalletClient
   readonly chainId: number
 }
 
-/** The revokeRoles intent, shared by the gas estimate and `revokeResolverRoles`. */
+/** The revoke intent, shared by the gas estimate and `revokeResolverRoles`. */
 export const prepareRevokeResolverRolesTransaction = ({
   resolverAddress,
-  name,
+  resource,
   account,
   roles,
   walletClient,
@@ -44,19 +49,19 @@ export const prepareRevokeResolverRolesTransaction = ({
 
   const writeParams = revokeResolverRolesWriteParameters(
     walletClient as Parameters<typeof revokeResolverRolesWriteParameters>[0],
-    name === ''
+    resource === ROOT_RESOURCE
       ? {
           resolverAddress,
           targetAccount: account,
           scope: 'root',
-          roles: roles as ResolverRole[],
+          roles: [...roles],
         }
       : {
           resolverAddress,
           targetAccount: account,
-          scope: 'name',
-          name,
-          roles: roles as ResolverRole[],
+          scope: 'resource',
+          resource,
+          roles: [...roles],
         },
   )
 
@@ -86,7 +91,7 @@ export const revokeResolverRoles = async (
 ): Promise<Hash> => {
   const {
     resolverAddress,
-    name,
+    resource,
     account,
     roles,
     walletClient,
@@ -96,10 +101,12 @@ export const revokeResolverRoles = async (
     id,
   } = params
 
+  await assertRoleContractKind(resolverAddress, 'permissioned-resolver')
+
   const txId = transactionManager.startTransaction(
     prepareRevokeResolverRolesTransaction({
       resolverAddress,
-      name,
+      resource,
       account,
       roles,
       walletClient,
@@ -108,7 +115,7 @@ export const revokeResolverRoles = async (
     signer,
     {
       id,
-      description: `Revoke resolver roles for ${name || '(root)'}`,
+      description: `Revoke resolver roles for ${describeResolverResource(resource).toLowerCase()}`,
       publicClient,
       chainId,
     },

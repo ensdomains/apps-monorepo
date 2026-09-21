@@ -119,8 +119,7 @@ type Events =
       account: SmartAccountContextValue
       /**
        * Standalone-HCA session-enable payload, pre-resolved by the caller
-       * (`account.getSessionEnablePayload()`). Absent on the pure-EOA path and
-       * when the session is already enabled on-chain.
+       * (`account.getSessionEnablePayload()`). Absent on the pure-EOA path.
        */
       hcaSessionEnable?: HcaSessionEnablePayload
       basePriceNumber: number

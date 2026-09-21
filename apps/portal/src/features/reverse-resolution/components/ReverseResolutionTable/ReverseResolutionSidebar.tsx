@@ -371,6 +371,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     getReverseResolutionRequest,
     getForwardResolutionRequest,
     isEnsOwnerLoading,
+    isResolverKindLoading,
   } = useReverseResolutionMutations({
     reverseRegistrarChainId,
     coinType,
@@ -623,6 +624,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     disabled={
                       !isConnected ||
                       isEnsOwnerLoading ||
+                      isResolverKindLoading ||
                       isForwardResolutionPending ||
                       isSwitchingChainForForward
                     }

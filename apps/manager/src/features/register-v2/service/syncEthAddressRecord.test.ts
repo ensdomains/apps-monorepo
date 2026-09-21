@@ -1,20 +1,9 @@
 import type { Address, PublicClient } from 'viem'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@ensdomains/ensjs/wallet/v1', () => ({
-  setRecordsWriteParameters: vi.fn(async () => ({
-    abi: [
-      {
-        type: 'function',
-        name: 'setAddr',
-        stateMutability: 'nonpayable',
-        inputs: [{ name: 'addr', type: 'address' }],
-        outputs: [],
-      },
-    ],
-    functionName: 'setAddr',
-    args: ['0x4444444444444444444444444444444444444444'],
-  })),
+vi.mock('@/features/profile/service/resolverRecordCalls', () => ({
+  getResolverSetterKind: vi.fn(async () => 'name'),
+  encodeResolverRecordsCall: vi.fn(async () => '0xda7a'),
 }))
 
 vi.mock('@ens-apps/transaction-manager', () => ({
@@ -28,8 +17,11 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet/v1'
 import { checksumAddress } from 'viem'
+import {
+  encodeResolverRecordsCall,
+  getResolverSetterKind,
+} from '@/features/profile/service/resolverRecordCalls'
 import {
   startSyncEthAddressRecordTransaction,
   syncEthAddressRecord,
@@ -44,7 +36,8 @@ const publicClient = {} as PublicClient
 
 const start = vi.mocked(transactionManager.startTransaction)
 const wait = vi.mocked(waitForTransaction)
-const setRecords = vi.mocked(setRecordsWriteParameters)
+const encodeRecords = vi.mocked(encodeResolverRecordsCall)
+const setterKind = vi.mocked(getResolverSetterKind)
 
 afterEach(() => {
   vi.clearAllMocks()
@@ -66,7 +59,8 @@ describe('syncEthAddressRecord', () => {
         chainId: CHAIN_ID,
       }),
     ).rejects.toThrow(/canonical/)
-    expect(setRecords).not.toHaveBeenCalled()
+    expect(setterKind).not.toHaveBeenCalled()
+    expect(encodeRecords).not.toHaveBeenCalled()
     expect(start).not.toHaveBeenCalled()
   })
 
@@ -85,10 +79,12 @@ describe('syncEthAddressRecord', () => {
     })
 
     expect(txId).toBe('tx-record')
-    expect(setRecords).toHaveBeenCalledWith(publicClient, {
+    // Encoded for the setter family the resolver itself reports.
+    expect(setterKind).toHaveBeenCalledWith(publicClient, RESOLVER)
+    expect(encodeRecords).toHaveBeenCalledWith({
+      kind: 'name',
       name: 'leon.eth',
-      resolverAddress: RESOLVER,
-      coins: [{ coin: 60, value: checksumAddress(OWNER) }],
+      records: { coins: [{ coin: 60, value: checksumAddress(OWNER) }] },
     })
     expect(start).toHaveBeenCalledWith(
       {
@@ -97,6 +93,7 @@ describe('syncEthAddressRecord', () => {
           type: 'eoa',
           from: ACCOUNT,
           to: RESOLVER,
+          data: '0xda7a',
           value: 0n,
           chainId: CHAIN_ID,
         }),

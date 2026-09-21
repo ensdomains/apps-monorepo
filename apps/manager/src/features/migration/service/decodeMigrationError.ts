@@ -27,6 +27,7 @@ export type MigrationError =
   | { type: 'frozen-token-approval'; tokenId: bigint }
   | { type: 'invalid-data' }
   | { type: 'name-requires-migration' }
+  | { type: 'parent-not-upgraded' }
 
 export const extractErrorMessage = (err: unknown): string => {
   if (!(err instanceof Error)) return String(err)
@@ -43,7 +44,7 @@ export const extractErrorMessage = (err: unknown): string => {
   if (typeof short === 'string') return short
   if (deepest !== err && deepest.message) return deepest.message
 
-  return err.message || 'Migration failed'
+  return err.message || "Upgrade didn't finish"
 }
 
 const walkCauseChain = (err: unknown): Error[] => {
@@ -136,8 +137,7 @@ const tryDecodeMigrationExecutionError = (data: Hex): MigrationError | null => {
         }
       case 'ParentNotMigrated':
         return {
-          type: 'generic',
-          message: 'A parent name must migrate before its child names.',
+          type: 'parent-not-upgraded',
         }
       case 'ERC721InsufficientApproval':
         return {

@@ -14,18 +14,10 @@ const isProfileRoute = (pathname: string) =>
   /^\/0x[a-fA-F0-9]{40}\/?$/.test(pathname)
 
 const globalBackButtonStaticRoutes: readonly string[] = [
-  '/payment/add',
-  '/payment/add/',
-  '/payment/list',
-  '/payment/list/',
   '/notifications',
   '/notifications/',
   '/notifications/settings',
   '/notifications/settings/',
-  '/auto-renewal',
-  '/auto-renewal/',
-  '/wallet',
-  '/wallet/',
 ]
 
 export const getDefaultGlobalBackButtonConfig = (

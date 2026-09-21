@@ -1,9 +1,9 @@
 import type { NameTreeNode } from '../service/groupByParent'
 
-export const BULK_SELECTION_THRESHOLD = 15
-export const NAME_SEARCH_THRESHOLD = 9
-export const SMALL_SELECTION_LAYOUT_THRESHOLD = 6
-export const COMPACT_SELECTION_LAYOUT_THRESHOLD = 10
+const BULK_SELECTION_THRESHOLD = 15
+const NAME_SEARCH_THRESHOLD = 9
+const SMALL_SELECTION_LAYOUT_THRESHOLD = 6
+const COMPACT_SELECTION_LAYOUT_THRESHOLD = 10
 
 export const shouldShowBulkSelection = (eligibleCount: number): boolean =>
   eligibleCount >= BULK_SELECTION_THRESHOLD

@@ -1,5 +1,6 @@
 import {
   parseTransactionOperation,
+  type TransactionPayload,
   type UpsertTransaction,
 } from '@ens-apps/shared-schema/transactions'
 import {
@@ -25,7 +26,7 @@ export function buildTransactionReport(
 ): UpsertTransaction | null {
   if (archived.chainId === undefined) return null
 
-  const payload: Record<string, unknown> = {}
+  const payload: TransactionPayload = {}
   if (archived.error) payload.error = archived.error
   const primaryCall = archived.request
     ? getPrimaryCall(archived.request)

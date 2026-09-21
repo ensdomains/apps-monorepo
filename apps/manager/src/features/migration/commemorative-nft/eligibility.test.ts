@@ -137,7 +137,9 @@ describe('commemorative NFT eligibility', () => {
         fetcher,
       }),
     ).resolves.toEqual({ status: 'ineligible' })
-    expect(fetcher).toHaveBeenCalledWith(metadataUrl)
+    expect(fetcher).toHaveBeenCalledWith(metadataUrl, {
+      signal: expect.any(AbortSignal),
+    })
     expect(fetcher).toHaveBeenCalledTimes(1)
   })
 
@@ -168,7 +170,9 @@ describe('commemorative NFT eligibility', () => {
         source: 'static',
       },
     })
-    expect(fetcher).toHaveBeenCalledExactlyOnceWith(metadataUrl)
+    expect(fetcher).toHaveBeenCalledExactlyOnceWith(metadataUrl, {
+      signal: expect.any(AbortSignal),
+    })
   })
 
   it('returns unavailable when no published asset origin is configured', async () => {
@@ -178,6 +182,29 @@ describe('commemorative NFT eligibility', () => {
       fetchCommemorativeNftEligibility({ ownerAddress, fetcher }),
     ).resolves.toEqual({ status: 'unavailable' })
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('aborts a metadata request when its owner query is cancelled', async () => {
+    const controller = new AbortController()
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementation(
+        (_url, init) =>
+          new Promise((_resolve, reject) =>
+            init?.signal?.addEventListener('abort', () =>
+              reject(init.signal?.reason),
+            ),
+          ),
+      )
+    const result = fetchCommemorativeNftEligibility({
+      ownerAddress,
+      assetOrigin: 'https://assets.example',
+      fetcher,
+      signal: controller.signal,
+    })
+    controller.abort()
+    await expect(result).rejects.toMatchObject({ name: 'AbortError' })
+    expect(fetcher.mock.calls[0]?.[1]?.signal?.aborted).toBe(true)
   })
 
   it('keeps metadata fetch failures retryable without substituting artwork', async () => {
@@ -206,7 +233,9 @@ describe('commemorative NFT eligibility', () => {
         fetcher,
       }),
     ).rejects.toBe(error)
-    expect(fetcher).toHaveBeenCalledExactlyOnceWith(metadataUrl)
+    expect(fetcher).toHaveBeenCalledExactlyOnceWith(metadataUrl, {
+      signal: expect.any(AbortSignal),
+    })
   })
 
   it.each([

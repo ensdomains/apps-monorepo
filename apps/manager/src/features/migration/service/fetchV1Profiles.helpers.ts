@@ -1,5 +1,5 @@
 import type { Address, Hex } from 'viem'
-import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
+import { V1_RESOLVER_PROFILE_ABI } from '../contracts/abis'
 import type { Profile } from './fetchV1Profiles'
 
 export type NameForFetch = {
@@ -31,7 +31,7 @@ export type ResolverCall =
 
 export type MulticallContract = {
   readonly address: Address
-  readonly abi: typeof PERMISSIONED_RESOLVER_ABI
+  readonly abi: typeof V1_RESOLVER_PROFILE_ABI
   readonly functionName: 'text' | 'addr' | 'contenthash' | 'ABI'
   readonly args: readonly unknown[]
 }
@@ -66,7 +66,7 @@ export const buildProfileMulticallPlan = (
       calls.push({ name, kind: 'text', key })
       contracts.push({
         address: name.v1ResolverAddress,
-        abi: PERMISSIONED_RESOLVER_ABI,
+        abi: V1_RESOLVER_PROFILE_ABI,
         functionName: 'text',
         args: [name.nodeHex, key],
       })
@@ -76,7 +76,7 @@ export const buildProfileMulticallPlan = (
       calls.push({ name, kind: 'addr', coinType })
       contracts.push({
         address: name.v1ResolverAddress,
-        abi: PERMISSIONED_RESOLVER_ABI,
+        abi: V1_RESOLVER_PROFILE_ABI,
         functionName: 'addr',
         args: [name.nodeHex, coinType],
       })
@@ -85,7 +85,7 @@ export const buildProfileMulticallPlan = (
       calls.push({ name, kind: 'contenthash' })
       contracts.push({
         address: name.v1ResolverAddress,
-        abi: PERMISSIONED_RESOLVER_ABI,
+        abi: V1_RESOLVER_PROFILE_ABI,
         functionName: 'contenthash',
         args: [name.nodeHex],
       })
@@ -94,7 +94,7 @@ export const buildProfileMulticallPlan = (
       calls.push({ name, kind: 'abi', contentType })
       contracts.push({
         address: name.v1ResolverAddress,
-        abi: PERMISSIONED_RESOLVER_ABI,
+        abi: V1_RESOLVER_PROFILE_ABI,
         functionName: 'ABI',
         args: [name.nodeHex, contentType],
       })

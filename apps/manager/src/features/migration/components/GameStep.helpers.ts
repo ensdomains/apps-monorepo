@@ -2,73 +2,76 @@ import { match, P } from 'ts-pattern'
 import type { MigrationApprovalId } from '@/features/migration/service/migrationApprovals'
 import type { MigrationStepDescriptor } from '@/features/migration/service/migrationService'
 
-export const VISIBLE_PLANKS = 6
+export const PLANK_PARTY_PADDING = 24
+export const TREADMILL_THRESHOLD = 5
+
+export const occupiedPlanksOf = (
+  completedSteps: number,
+  totalSteps: number,
+  isAwaitingConfirmation: boolean,
+): number =>
+  Math.min(
+    totalSteps,
+    Math.max(0, completedSteps) + (isAwaitingConfirmation ? 1 : 0),
+  )
 
 export type BridgeLayout = {
   readonly plankWidth: number
+  readonly partyScale: number
   readonly frensX: number
-  readonly scrollOffset: number
-  readonly totalBridgeWidth: number
-  readonly needsScroll: boolean
+  readonly bridgeWidth: number
+  readonly scrollX: number
 }
 
 export const computeBridgeLayout = (params: {
   readonly totalSteps: number
   readonly completedSteps: number
   readonly trackWidth: number
-  readonly visiblePlanks?: number
+  readonly partyWidth?: number
 }): BridgeLayout => {
-  const { totalSteps, completedSteps, trackWidth } = params
-  const visiblePlanks = params.visiblePlanks ?? VISIBLE_PLANKS
-  const activeStep = Math.min(
-    Math.max(completedSteps, 0),
-    Math.max(totalSteps - 1, 0),
+  const totalSteps = Math.max(0, Math.floor(params.totalSteps))
+  const completedSteps = Math.min(
+    Math.max(0, Math.floor(params.completedSteps)),
+    totalSteps,
   )
-  const needsScroll = totalSteps > visiblePlanks
+  const trackWidth = Math.max(0, params.trackWidth)
+  const partyWidth = Math.max(1, params.partyWidth ?? 164)
+  const isTreadmill = totalSteps > TREADMILL_THRESHOLD
   const plankWidth =
-    trackWidth > 0 ? trackWidth / Math.min(totalSteps, visiblePlanks) : 0
-  const totalBridgeWidth = plankWidth * totalSteps
+    totalSteps > 0
+      ? isTreadmill
+        ? Math.min(
+            trackWidth,
+            Math.max(
+              trackWidth / Math.min(totalSteps, 3),
+              partyWidth + PLANK_PARTY_PADDING,
+            ),
+          )
+        : trackWidth / totalSteps
+      : 0
+  const bridgeWidth = plankWidth * totalSteps
+  const scrollX = isTreadmill
+    ? Math.min(
+        Math.max(0, (completedSteps - 0.5) * plankWidth - trackWidth / 2),
+        Math.max(0, bridgeWidth - trackWidth),
+      )
+    : 0
+  const padding = Math.min(PLANK_PARTY_PADDING, plankWidth / 4)
+  const partyScale =
+    completedSteps > 0 && plankWidth > 0
+      ? Math.min(1, (plankWidth - padding) / partyWidth)
+      : 1
 
-  if (!needsScroll || trackWidth === 0) {
-    const frensX = ((activeStep + 0.5) / totalSteps) * trackWidth
-    return {
-      plankWidth,
-      frensX,
-      scrollOffset: 0,
-      totalBridgeWidth,
-      needsScroll,
-    }
-  }
-
-  const midPlank = Math.floor(visiblePlanks / 2)
-  const scrollStart = midPlank
-  const scrollEnd = totalSteps - (visiblePlanks - midPlank)
-
-  if (activeStep < scrollStart) {
-    return {
-      plankWidth,
-      frensX: (activeStep + 0.5) * plankWidth,
-      scrollOffset: 0,
-      totalBridgeWidth,
-      needsScroll,
-    }
-  }
-  if (activeStep >= scrollEnd) {
-    const stepsFromEnd = totalSteps - activeStep
-    return {
-      plankWidth,
-      frensX: trackWidth - (stepsFromEnd - 0.5) * plankWidth,
-      scrollOffset: (scrollEnd - scrollStart) * plankWidth,
-      totalBridgeWidth,
-      needsScroll,
-    }
-  }
   return {
     plankWidth,
-    frensX: (midPlank + 0.5) * plankWidth,
-    scrollOffset: (activeStep - scrollStart) * plankWidth,
-    totalBridgeWidth,
-    needsScroll,
+    partyScale,
+    bridgeWidth,
+    scrollX,
+    // The caller supplies visual progress, including the submitted transaction.
+    frensX:
+      completedSteps > 0 && plankWidth > 0
+        ? partyWidth / 2 + (completedSteps - 0.5) * plankWidth
+        : 0,
   }
 }
 
