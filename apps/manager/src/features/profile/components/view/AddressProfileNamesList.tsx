@@ -367,67 +367,73 @@ export const AddressProfileNamesList = ({
     <div
       className="w-full rounded-none border-[#dededf] border-[0.25px] bg-white px-4 py-6 shadow-none md:rounded-xl md:px-6 md:py-8" // Figma-spec hairline width and border colour — no matching design tokens
     >
-      {isConnectedView ? (
-        <div className="mb-5 flex w-full flex-col items-start gap-5">
-          <div className="flex w-full flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <h2
-              className="font-sans text-[#232222] text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]" // Figma-spec heading colour/size/tracking — no matching design tokens
-            >
-              <Trans>Names</Trans>
-            </h2>
-            <div className="w-full md:w-88">
-              <Input
-                className="h-10 rounded-full border-none bg-ens-white pl-10 text-base text-foreground tracking-[-0.32px] shadow-none placeholder:text-ens-quartz-350"
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={t`Search names`}
-                startIcon={
-                  <Search className="-ml-1 size-4.5 text-ens-quartz-350" />
-                }
-                value={searchQuery}
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col items-start gap-5 md:flex-row md:items-center">
-            <SortMenu
-              direction={sortDir}
-              onChange={(field) => setSort(toSort(field, sortDir))}
-              onToggleDirection={() =>
-                setSort((current) => {
-                  const { field, dir } = parseSort(current)
-                  return toSort(field, reverseSortDir(dir))
-                })
+      <div className="mb-5 flex w-full flex-col items-start gap-5">
+        {/* Heading and search render for any address: the search filters the
+            list that is already on screen, which is as useful on someone
+            else's names as on your own. The controls below it act on roles
+            and selection, so they stay with the connected view. */}
+        <div className="flex w-full flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <h2
+            className="font-sans text-[#232222] text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]" // Figma-spec heading colour/size/tracking — no matching design tokens
+          >
+            <Trans>Names</Trans>
+          </h2>
+          <div className="w-full md:w-88">
+            <Input
+              className="h-10 rounded-full border-none bg-ens-white pl-10 text-base text-foreground tracking-[-0.32px] shadow-none placeholder:text-ens-quartz-350"
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={t`Search names`}
+              startIcon={
+                <Search className="-ml-1 size-4.5 text-ens-quartz-350" />
               }
-              options={sortOptions}
-              value={sortField}
-            />
-            <FilterChips
-              chips={chips}
-              onChange={setRoleFilter}
-              value={roleFilter}
+              value={searchQuery}
             />
           </div>
-
-          {showSelection ? (
-            <div
-              className="inline-flex h-8 items-center gap-0.5 rounded-full text-[#232222]" // Figma-spec text colour — no matching design token
-            >
-              <SelectionCheckbox
-                checked={allPageSelected}
-                label={t`Select all`}
-                onChange={toggleSelectAll}
-              />
-              <button
-                className="font-sans text-base tracking-[0.32px]"
-                onClick={toggleSelectAll}
-                type="button"
-              >
-                <Trans>Select all</Trans>
-              </button>
-            </div>
-          ) : null}
         </div>
-      ) : null}
+
+        {isConnectedView ? (
+          <>
+            <div className="flex flex-col items-start gap-5 md:flex-row md:items-center">
+              <SortMenu
+                direction={sortDir}
+                onChange={(field) => setSort(toSort(field, sortDir))}
+                onToggleDirection={() =>
+                  setSort((current) => {
+                    const { field, dir } = parseSort(current)
+                    return toSort(field, reverseSortDir(dir))
+                  })
+                }
+                options={sortOptions}
+                value={sortField}
+              />
+              <FilterChips
+                chips={chips}
+                onChange={setRoleFilter}
+                value={roleFilter}
+              />
+            </div>
+
+            {showSelection ? (
+              <div
+                className="inline-flex h-8 items-center gap-0.5 rounded-full text-[#232222]" // Figma-spec text colour — no matching design token
+              >
+                <SelectionCheckbox
+                  checked={allPageSelected}
+                  label={t`Select all`}
+                  onChange={toggleSelectAll}
+                />
+                <button
+                  className="font-sans text-base tracking-[0.32px]"
+                  onClick={toggleSelectAll}
+                  type="button"
+                >
+                  <Trans>Select all</Trans>
+                </button>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </div>
 
       <div
         className={tw(

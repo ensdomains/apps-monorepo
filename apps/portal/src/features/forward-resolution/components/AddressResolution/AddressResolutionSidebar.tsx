@@ -171,6 +171,7 @@ const CoinTypeRow = ({
 
 const AddressField = ({
   address,
+  addressSource,
   canEdit,
   addressInput,
   setAddressInput,
@@ -180,6 +181,7 @@ const AddressField = ({
   onSave,
 }: {
   address: string | null
+  addressSource: AddressResolutionRow['addressSource']
   canEdit: boolean
   addressInput: string
   setAddressInput: (v: string) => void
@@ -190,6 +192,12 @@ const AddressField = ({
 }) => (
   <InfoRow label="Address">
     <div className="flex-1 flex flex-col gap-2">
+      {addressSource === 'default' && (
+        <span className="text-sm text-muted-foreground">
+          No record is set for this network — showing the ENSIP-19 default (
+          <code className="font-mono">0x80000000</code>).
+        </span>
+      )}
       {address ? (
         isAddress(address) ? (
           <EntityBadge variant="address" address={address} format="wrap">
@@ -393,6 +401,7 @@ const ResolutionDetails = ({
         <CoinTypeRow coinType={coinType} icon={icon} label={label} />
         <AddressField
           address={address}
+          addressSource={row.addressSource}
           canEdit={canEdit}
           addressInput={addressInput}
           setAddressInput={setAddressInput}

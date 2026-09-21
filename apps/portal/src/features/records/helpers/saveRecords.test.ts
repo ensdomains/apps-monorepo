@@ -1,4 +1,6 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: Need to mock the transaction manager */
+
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { permissionedResolverSetTextSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { encodeFunctionData, namehash, toHex } from 'viem'
 import { packetToBytes } from 'viem/ens'
@@ -26,6 +28,16 @@ const encodeSetText = (name: string, key: string, value: string) =>
     functionName: 'setText',
     args: [toHex(packetToBytes(name)), key, value],
   })
+
+// Resolver kind decides which setter shape is encoded; V2 unless overridden.
+const isPermissionedResolver = vi.fn(async () => ({
+  isErr: () => false,
+  value: true,
+}))
+vi.mock('@/features/resolver/hooks/useIsPermissionedResolver', () => ({
+  getIsPermissionedResolver: (...args: unknown[]) =>
+    isPermissionedResolver(...(args as [])),
+}))
 
 // Import after mocking
 import { type SaveRecordsParameters, saveRecords } from './saveRecords'
@@ -140,6 +152,33 @@ describe('saveRecords', () => {
     await expect(saveRecords(paramsWithNoChain)).rejects.toThrow(
       'Wallet client must have account and chain configured',
     )
+  })
+
+  // WEB-1543: a V1 name was getting the V2 setter, which its resolver does not
+  // expose, so the call could not be estimated and went out with a gas limit
+  // the RPC refused.
+  it('encodes the v1 setter for a non-permissioned resolver', async () => {
+    isPermissionedResolver.mockResolvedValueOnce({
+      isErr: () => false,
+      value: false,
+    } as never)
+
+    const { transactionManager } = await import('@ens-apps/transaction-manager')
+    vi.mocked(transactionManager.startTransaction).mockClear()
+
+    await saveRecords(mockParams)
+
+    const call = vi.mocked(transactionManager.startTransaction).mock.calls[0]
+    const { request } = call[0] as CustomTransactionIntent
+    const data = request.type === 'eoa' ? request.data : undefined
+    // setText(bytes32,string,string), not setText(bytes,string,string).
+    expect(data?.slice(0, 10)).toBe('0x10f13a8c')
+  })
+
+  it('refuses to guess when the resolver kind cannot be read', async () => {
+    isPermissionedResolver.mockResolvedValueOnce({ isErr: () => true } as never)
+
+    await expect(saveRecords(mockParams)).rejects.toThrow(/kind of resolver/i)
   })
 })
 

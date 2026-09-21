@@ -17,8 +17,7 @@ import { isValidEnsName } from './isNormalized'
  *
  * The name must have at least two labels (i.e. contain a `.`). A bare
  * single label like `fox` is a valid ENS name string but not a resolvable
- * account — only TLDs are single-label — and would otherwise "resolve" via the
- * owner fallback in `resolveAddressOrName`.
+ * account: only TLDs are single-label.
  */
 export const isNameOrAddress = (input: string) =>
   isAddress(input, { strict: false }) ||

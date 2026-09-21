@@ -1,12 +1,11 @@
 import {
   getCoinTypeForReverseRegistrarChainId,
-  type ReverseRegistrarChainId,
+  L2_REVERSE_REGISTRAR_CHAIN_IDS,
+  type L2ReverseRegistrarChainId,
 } from '@ens-apps/l2-primary/v1'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { icons, names } from '@/lib/reverseRegistrarChainId'
-
-/** Reverse-registrar chain ids that are actual L2s (not the L1 aliases). */
-export type L2ReverseRegistrarChainId = Exclude<ReverseRegistrarChainId, 1 | 60>
+import type { AddressResolutionRow } from './types'
 
 export type ForwardResolutionNetwork = {
   /**
@@ -26,8 +25,6 @@ export type ForwardResolutionNetwork = {
   l2ChainId?: L2ReverseRegistrarChainId
 }
 
-const L2_CHAIN_IDS = [10, 42161, 8453, 59144, 534352] as const
-
 /**
  * The networks shown on the name-view forward-resolution page.
  *
@@ -41,7 +38,7 @@ export const FORWARD_RESOLUTION_NETWORKS: ForwardResolutionNetwork[] = [
     icon: '/icons/Link.svg',
   },
   { coinType: MAINNET_COIN_TYPE, label: 'Mainnet', icon: icons[60] },
-  ...L2_CHAIN_IDS.map((chainId) => ({
+  ...L2_REVERSE_REGISTRAR_CHAIN_IDS.map((chainId) => ({
     coinType: getCoinTypeForReverseRegistrarChainId(chainId, 'sepolia'),
     label: names[chainId],
     icon: icons[chainId],
@@ -63,4 +60,24 @@ export const L1_VERIFICATION_LAG_ESTIMATES: Record<
   42161: 'about 7.6 hours',
   59144: 'about 4 hours',
   534352: 'about 1–2 hours',
+}
+
+/**
+ * Resolved forward address for a network, and where it came from: the network's
+ * own record, or — for L2s without one — the ENSIP-19 default (`0x80000000`).
+ * The default is this app's client-side fallback, not a record the owner set,
+ * so callers must render the two differently.
+ */
+export function forwardAddress(
+  { coinType, l2ChainId }: ForwardResolutionNetwork,
+  addressByCoinType: Map<number, string>,
+): Pick<AddressResolutionRow, 'address' | 'addressSource'> {
+  const own = addressByCoinType.get(coinType) ?? null
+  if (own) return { address: own, addressSource: 'record' }
+
+  const fallback =
+    l2ChainId != null
+      ? (addressByCoinType.get(DEFAULT_EVM_COIN_TYPE) ?? null)
+      : null
+  return { address: fallback, addressSource: fallback ? 'default' : null }
 }

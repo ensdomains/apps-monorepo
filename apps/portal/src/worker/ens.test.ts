@@ -1,3 +1,6 @@
+import { sepoliaWithEns } from '@ens-apps/indexer/chain'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import type { Address, Hex } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockResolveEnsOwner = vi.fn()
@@ -10,7 +13,21 @@ vi.mock('@/utils/ens/resolveEnsOwner', () => ({
   resolveEnsOwner: (...args: unknown[]) => mockResolveEnsOwner(...args),
 }))
 
-const { resolveOwner, resolveAvatarDataUri } = await import('./ens')
+const mockGetStorageAt = vi.fn()
+const mockReadContract = vi.fn()
+
+vi.mock('viem/actions', async () => ({
+  ...(await vi.importActual<typeof import('viem/actions')>('viem/actions')),
+  getStorageAt: (...args: unknown[]) => mockGetStorageAt(...args),
+  readContract: (...args: unknown[]) => mockReadContract(...args),
+}))
+
+vi.mock('./clients', () => ({
+  createClient: () => ({ chain: sepoliaWithEns }),
+}))
+
+const { resolveOwner, resolveAvatarDataUri, fetchIsPermissionedResolver } =
+  await import('./ens')
 
 const OWNER = '0x1111111111111111111111111111111111111111'
 const client = {} as never
@@ -686,5 +703,44 @@ describe('resolveAvatarDataUri (worker)', () => {
 
       expect(result).toBeNull()
     })
+  })
+})
+
+describe('fetchIsPermissionedResolver (worker)', () => {
+  const env = {} as Env
+  const implementation = getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensPermissionedResolverImpl',
+  })
+  const proxy = '0x907ccb4f76ea54976c8a857ee7fbab2624058f56' as Address
+  const slotFor = (address: Address): Hex =>
+    `0x000000000000000000000000${address.slice(2)}`
+
+  beforeEach(() => {
+    mockGetStorageAt.mockReset()
+    mockReadContract.mockReset()
+  })
+
+  it('reports a factory-deployed proxy on the official implementation', async () => {
+    mockGetStorageAt.mockResolvedValue(slotFor(implementation))
+    mockReadContract.mockResolvedValue(implementation)
+
+    await expect(fetchIsPermissionedResolver(env, proxy)).resolves.toBe(true)
+  })
+
+  it('does not vouch for a proxy the factory reports on a different implementation', async () => {
+    mockGetStorageAt.mockResolvedValue(slotFor(implementation))
+    mockReadContract.mockResolvedValue(
+      '0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead',
+    )
+
+    await expect(fetchIsPermissionedResolver(env, proxy)).resolves.toBe(false)
+  })
+
+  it('does not vouch for a contract that only wrote the implementation into its slot', async () => {
+    mockGetStorageAt.mockResolvedValue(slotFor(implementation))
+    mockReadContract.mockRejectedValue(new Error('execution reverted'))
+
+    await expect(fetchIsPermissionedResolver(env, proxy)).resolves.toBe(false)
   })
 })

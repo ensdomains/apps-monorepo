@@ -96,7 +96,11 @@ export const RegistryRolesTable = ({
 
   return (
     <div className={rolesTableClassName(showActions)}>
-      <DataTable columns={columns} data={rows} />
+      <DataTable
+        columns={columns}
+        data={rows}
+        getRowId={(row) => row.account.toLowerCase()}
+      />
       {showActions && (
         <RegistryEditUserSheet
           open={!!editingRow}

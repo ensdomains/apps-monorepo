@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { renderHook } from '@testing-library/react'
 import { ok } from 'neverthrow'
 import type { Address } from 'viem'

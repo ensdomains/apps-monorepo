@@ -66,8 +66,10 @@ function AlertDescription({
   return (
     <div
       className={cn(
-        'col-start-2 grid justify-items-start gap-1',
-        'text-muted-foreground text-sm',
+        'col-start-2 grid min-w-0 justify-items-start gap-1',
+        // A chain error carries unbroken hex; without this it widens the alert
+        // past the page instead of wrapping.
+        'wrap-anywhere text-muted-foreground text-sm',
         '[&_p]:leading-relaxed',
         className,
       )}

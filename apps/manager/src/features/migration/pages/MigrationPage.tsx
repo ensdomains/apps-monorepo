@@ -1,4 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
+import { assessGasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
@@ -7,7 +8,7 @@ import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
-import { useWalletClient } from 'wagmi'
+import { useBalance, useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
@@ -97,6 +98,16 @@ const formatMigrationError = (
           <Trans>
             We couldn&apos;t safely retry. Nothing was submitted and nothing
             changed.
+          </Trans>
+        </div>
+      )
+    case 'subregistry-conflict':
+      return (
+        <div>
+          <Trans>
+            One of your names now has its own subname registry. Upgrading it
+            would detach that registry and its subnames, so nothing was
+            submitted. Refresh and select your names again.
           </Trans>
         </div>
       )
@@ -220,6 +231,17 @@ export const MigrationPage = () => {
     enabled: step === 'select',
   })
 
+  // Migration is entirely EOA-paid, so a wallet short of sepETH stalls the run
+  // partway. Checked against the same estimate the footer quotes.
+  const { data: ownerBalance } = useBalance({
+    address: ownerAddress as Address | undefined,
+    query: { refetchInterval: 30_000 },
+  })
+  const gasAffordability = assessGasAffordability({
+    balanceWei: ownerBalance?.value ?? null,
+    estimatedFeeWei: gasEstimate.status === 'ready' ? gasEstimate.feeWei : null,
+  })
+
   // Top up the owner's sepETH on page entry — migration txs are all EOA-paid.
   // The worker only drips when the address owns v1 names and is low on ETH,
   // so this is idempotent and a no-op for everyone else. The request doesn't
@@ -329,6 +351,7 @@ export const MigrationPage = () => {
       {match(step)
         .with('select', () => (
           <SelectNamesStep
+            gasAffordability={gasAffordability}
             gasEstimate={gasEstimate}
             gasFundingStatus={gasFundingStatus}
             onNamesChange={handleNamesChange}
