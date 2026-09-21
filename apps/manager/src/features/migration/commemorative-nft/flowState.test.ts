@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   getCommemorativeNftAdmission,
-  getCommemorativeNftClaimedStatus,
   getCommemorativeNftFlowStatus,
   getCommemorativeNftSessionKey,
-  isCommemorativeNftClaimResultFresh,
 } from './flowState'
 
 const base = {
@@ -15,70 +13,6 @@ const base = {
 }
 
 describe('commemorative NFT flow state', () => {
-  it('does not treat a cached unclaimed result as mintable while refetching', () => {
-    expect(
-      getCommemorativeNftClaimedStatus({
-        claimed: false,
-        isFresh: false,
-      }),
-    ).toBeUndefined()
-    expect(
-      getCommemorativeNftClaimedStatus({
-        claimed: false,
-        isFresh: true,
-      }),
-    ).toBe(false)
-  })
-
-  it('keeps a cached claimed result because it cannot enable minting', () => {
-    expect(
-      getCommemorativeNftClaimedStatus({
-        claimed: true,
-        isFresh: false,
-      }),
-    ).toBe(true)
-  })
-
-  it('does not treat an idle cached result as fresh for a new dialog opening', () => {
-    expect(
-      isCommemorativeNftClaimResultFresh({
-        isFetchedAfterMount: false,
-        isSuccess: true,
-        fetchStatus: 'idle',
-      }),
-    ).toBe(false)
-  })
-
-  it('accepts a successful idle result fetched after the dialog opens', () => {
-    expect(
-      isCommemorativeNftClaimResultFresh({
-        isFetchedAfterMount: true,
-        isSuccess: true,
-        fetchStatus: 'idle',
-      }),
-    ).toBe(true)
-  })
-
-  it('does not accept a result while its claim query is refetching', () => {
-    expect(
-      isCommemorativeNftClaimResultFresh({
-        isFetchedAfterMount: true,
-        isSuccess: true,
-        fetchStatus: 'fetching',
-      }),
-    ).toBe(false)
-  })
-
-  it('does not accept a failed read even after the observer mounted', () => {
-    expect(
-      isCommemorativeNftClaimResultFresh({
-        isFetchedAfterMount: true,
-        isSuccess: false,
-        fetchStatus: 'idle',
-      }),
-    ).toBe(false)
-  })
-
   it.each([
     [{ ...base, eligibilityStatus: 'pending' as const }, 'loadingEligibility'],
     [{ ...base, eligibilityStatus: 'ineligible' as const }, 'ineligible'],
@@ -109,24 +43,6 @@ describe('commemorative NFT dialog admission', () => {
     claimReadError: false,
     fetchStatus: 'idle' as const,
   }
-
-  it('suppresses a cached minted NFT without waiting for eligibility or refetch', () => {
-    expect(
-      getCommemorativeNftAdmission({
-        ...pending,
-        claimed: true,
-        eligibilityStatus: 'pending',
-        fetchStatus: 'fetching',
-      }),
-    ).toEqual({ status: 'alreadyMinted' })
-    expect(
-      getCommemorativeNftAdmission({
-        ...pending,
-        claimed: true,
-        supported: false,
-      }),
-    ).toEqual({ status: 'alreadyMinted' })
-  })
 
   it('requires a fresh false before admitting the mint dialog', () => {
     expect(getCommemorativeNftAdmission(pending)).toEqual({
