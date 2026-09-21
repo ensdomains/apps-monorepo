@@ -96,6 +96,7 @@ vi.mock('@/features/register/components', async () => {
 // `createFileRoute` is mocked to hand back the options object, so `Route` is
 // really `{ component, useSearch, ... }`, hence the cast.
 const { Route } = await import('./index')
+const { transactionManager } = await import('@ens-apps/transaction-manager')
 const RegisterRoute = (Route as unknown as { component: () => React.ReactNode })
   .component
 
@@ -120,5 +121,23 @@ describe('/register', () => {
     // for it while the page shows the new one.
     await act(async () => deploy.finish())
     expect(waitForResolverDeployment).not.toHaveBeenCalled()
+  })
+
+  it("stops the old name's transactions, which outlive the registration actor", async () => {
+    search.name = 'expensive.eth'
+    const { rerender } = render(<RegisterRoute />)
+
+    act(() => flow.startFlow(SUPPORTED_TOKENS.USDC, 160_000_000n))
+    await act(() => flow.transactions[0].onStart?.())
+    const clear = vi.spyOn(transactionManager, 'clear')
+
+    rerender(<RegisterRoute />)
+    expect(clear).not.toHaveBeenCalled()
+
+    search.name = 'cheap.eth'
+    rerender(<RegisterRoute />)
+    expect(clear).toHaveBeenCalledOnce()
+
+    clear.mockRestore()
   })
 })

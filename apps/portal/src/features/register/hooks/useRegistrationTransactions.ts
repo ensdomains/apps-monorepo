@@ -318,6 +318,14 @@ export const useRegistrationTransactions = ({
     clearTransaction()
   }, [actor, closeModal, clearTransaction])
 
+  useEffect(
+    () => () => {
+      const { value } = actor.getSnapshot()
+      if (value !== 'idle' && value !== 'success') transactionManager.clear()
+    },
+    [actor],
+  )
+
   return {
     transactions,
     actor,
