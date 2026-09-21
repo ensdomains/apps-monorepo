@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getCommemorativeNftTokenId } from '../commemorative-nft/config'
 import type { CommemorativeNftEligibility } from '../commemorative-nft/types'
 import {
   getPublishedPreviewState,
@@ -44,9 +45,11 @@ describe('published NFT preview state', () => {
     if (state.status !== 'readyToMint') throw new Error('Expected artwork')
     expect(state.card.eligibility).toBe(eligibility)
     expect(state.card.assets).toBe(eligibility.assets)
-    expect(state.card.shareUrls.external).toBe(eligibility.assets.externalUrl)
+    expect(state.card.shareUrls.external).toBe(
+      `https://nft.ens.dev/nft/?tokenId=${getCommemorativeNftTokenId(ownerAddress)}`,
+    )
     expect(new URL(state.card.shareUrls.x ?? '').searchParams.get('text')).toBe(
-      'I upgraded to ENSv2. Take a look at my commemorative NFT.',
+      'Upgraded to ENSv2. Preview my card.',
     )
     expect(state.card.marketplaceUrl).toBeUndefined()
   })

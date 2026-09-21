@@ -6,22 +6,20 @@ import {
 } from './config'
 import type { CommemorativeNftShareUrls } from './types'
 
+export const buildCommemorativeNftPublicUrl = (params: {
+  readonly ownerAddress: Address
+  readonly rendererOrigin: string
+}): string => {
+  const url = new URL('/nft/', params.rendererOrigin)
+  url.searchParams.set(
+    'tokenId',
+    getCommemorativeNftTokenId(params.ownerAddress).toString(),
+  )
+  return url.toString()
+}
+
 const normalizedProfileName = (name: string) =>
   name.trim().replace(/\.$/, '').toLowerCase()
-
-const getManagerOrigin = (): string =>
-  typeof window === 'undefined'
-    ? 'https://app.ens.domains'
-    : window.location.origin
-
-export const buildCommemorativeNftProfileUrl = (
-  profileName: string,
-  origin = getManagerOrigin(),
-): string =>
-  new URL(
-    `/p/${encodeURIComponent(normalizedProfileName(profileName))}`,
-    origin,
-  ).toString()
 
 export const isCommemorativeNftCanonicalProfile = (
   routeName: string,
@@ -36,10 +34,11 @@ export const buildCommemorativeNftShareUrls = (
   if (!externalUrl) return {}
 
   const text = minted
-    ? 'I upgraded to ENSv2 and minted my commemorative NFT.'
-    : 'I upgraded to ENSv2. Take a look at my commemorative NFT.'
+    ? 'Upgraded to ENSv2 and minted my card.'
+    : 'Upgraded to ENSv2. Preview my card.'
   return {
     external: externalUrl,
+    message: `${text}\n${externalUrl}`,
     x: `https://x.com/intent/post?${new URLSearchParams({ text, url: externalUrl })}`,
     telegram: `https://t.me/share/url?${new URLSearchParams({ text, url: externalUrl })}`,
   }

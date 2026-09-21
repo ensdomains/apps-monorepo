@@ -600,10 +600,18 @@ msgstr "Copy link"
 msgid "Copy Link"
 msgstr "Copy Link"
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Copy message and open Discord"
+msgstr "Copy message and open Discord"
+
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Could not copy the message."
+msgstr "Could not copy the message."
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Couldn't check this name"
@@ -1219,6 +1227,10 @@ msgstr "Mark all as read"
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Marking..."
 msgstr "Marking..."
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Message copied. Paste it into Discord."
+msgstr "Message copied. Paste it into Discord."
 
 #: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
 msgid "Migration value propositions"
