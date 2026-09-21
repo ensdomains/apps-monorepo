@@ -3,13 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   ChevronRight,
+  CircleCheck,
+  CircleX,
   ClockIcon,
   GitBranch,
   ShieldIcon,
   TriangleAlert,
 } from 'lucide-react'
 import { match, P } from 'ts-pattern'
-import { type Address, isAddressEqual, zeroAddress } from 'viem'
+import type { Address } from 'viem'
 import { useChainId } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -18,9 +20,16 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
+import { getCanonicalRegistryQueryOptions } from '@/features/registry/hooks/useCanonicalRegistry'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { getRegistryDeploymentQueryOptions } from '@/features/registry/hooks/useRegistryDeployment'
+import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
@@ -48,18 +57,6 @@ function RouteComponent() {
     isLoading,
     error,
   } = useQuery(getRegistryInfoQueryOptions({ address }))
-  const {
-    data: parent,
-    isLoading: isLoadingParent,
-    error: parentError,
-  } = useQuery({
-    ...getRegistryInfoQueryOptions({
-      address: registry?.parentRegistry ?? zeroAddress,
-    }),
-    enabled:
-      !!registry?.parentRegistry &&
-      !isAddressEqual(registry.parentRegistry, zeroAddress),
-  })
   if (isLoading) return <LoadingSpinner title="Loading registry" />
   if (error)
     return (
@@ -141,30 +138,17 @@ function RouteComponent() {
           </dd>
 
           <dt className="text-ui text-muted-foreground flex items-center h-10">
-            Parent
+            Canonical parent
+          </dt>
+          <dd className="flex flex-wrap items-center gap-2 min-h-10">
+            <CanonicalParentCell address={address} />
+          </dd>
+
+          <dt className="text-ui text-muted-foreground flex items-center h-10">
+            Canonical name
           </dt>
           <dd className="flex items-center h-10">
-            {match({
-              isRoot: isAddressEqual(registry.parentRegistry, zeroAddress),
-              isLoadingParent,
-              parentError,
-              parent,
-            })
-              .with({ isRoot: true }, () => (
-                <span className="text-muted-foreground">—</span>
-              ))
-              .with({ isLoadingParent: true }, () => (
-                <Skeleton className="h-5 w-32" />
-              ))
-              .with({ parentError: P.not(null) }, () => <FailedToLoad />)
-              .with({ parent: { name: P.string.minLength(1) } }, (m) => (
-                <EntityBadge variant="name" name={m.parent.name} showAvatar>
-                  {m.parent.name}
-                </EntityBadge>
-              ))
-              .otherwise(() => (
-                <span className="text-muted-foreground">—</span>
-              ))}
+            <CanonicalNameCell address={address} />
           </dd>
 
           <dt className="text-ui text-muted-foreground flex items-center h-10 self-start">
@@ -249,6 +233,76 @@ const RegistryNavCard = ({
     </div>
   </Link>
 )
+
+/**
+ * What the registry declares as its parent through `getParent()`, an optional
+ * (registry, label) pair, with whether the parent agrees: its
+ * `getSubregistry(label)` must point back here for the pair to be canonical
+ * rather than a stale or one-sided claim. Names that merely reference this
+ * registry are listed under "Referenced by" instead.
+ */
+const CanonicalParentCell = ({ address }: { readonly address: Address }) => {
+  const { data, isLoading, error } = useQuery(
+    getCanonicalRegistryQueryOptions({ address }),
+  )
+
+  return match({ isLoading, error, parent: data?.parent })
+    .with({ isLoading: true }, () => <Skeleton className="h-5 w-32" />)
+    .with({ error: P.not(null) }, () => <FailedToLoad />)
+    .with({ parent: P.nonNullable }, ({ parent }) => (
+      <>
+        <EntityBadge variant="default" className="font-normal">
+          {parent.label}
+        </EntityBadge>
+        <span className="text-muted-foreground">of</span>
+        <EntityBadge variant="contract" address={parent.registry} isRegistry>
+          {truncateAddress(parent.registry, 6, 4)}
+        </EntityBadge>
+        <VerifiedMark verified={parent.verified} />
+      </>
+    ))
+    .otherwise(() => <span className="text-muted-foreground">—</span>)
+}
+
+const VerifiedMark = ({ verified }: { readonly verified: boolean }) => {
+  const Icon = verified ? CircleCheck : CircleX
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        className={cn(
+          'inline-flex items-center gap-1 text-sm cursor-help',
+          verified ? 'text-success-text' : 'text-destructive',
+        )}
+      >
+        <Icon className="size-3.5" />
+        {verified ? 'verified' : 'not verified'}
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs font-sans normal-case">
+        {verified
+          ? "The parent's getSubregistry(label) points back at this registry."
+          : "The parent's getSubregistry(label) does not point at this registry."}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+/** The name the verified parent chain spells up to the root, when it does. */
+const CanonicalNameCell = ({ address }: { readonly address: Address }) => {
+  const { data, isLoading, error } = useQuery(
+    getCanonicalRegistryQueryOptions({ address }),
+  )
+
+  return match({ isLoading, error, name: data?.name })
+    .with({ isLoading: true }, () => <Skeleton className="h-5 w-32" />)
+    .with({ error: P.not(null) }, () => <FailedToLoad />)
+    .with({ name: { status: 'unavailable' } }, () => <FailedToLoad />)
+    .with({ name: { status: 'resolved' } }, ({ name }) => (
+      <EntityBadge variant="name" name={name.value} showAvatar>
+        {name.value}
+      </EntityBadge>
+    ))
+    .otherwise(() => <span className="text-muted-foreground">—</span>)
+}
 
 const FailedToLoad = () => (
   <span className="inline-flex items-center gap-1 text-destructive">

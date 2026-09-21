@@ -1,14 +1,12 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { universalResolverFindRegistriesSnippet } from '@ensdomains/ensjs-abi/universalResolver'
+import { getNameRegistries } from '@ensdomains/ensjs/public/v2'
 import { permissionedRegistryGetStateSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, labelhash, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
-import { packetToBytes } from 'viem/ens'
-import { getAction, toHex } from 'viem/utils'
-import { universalResolverAddress } from '@/lib/constants/universalResolver'
+import { getAction } from 'viem/utils'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export class GetTldDataError extends TaggedError('GetTldDataError')<{
@@ -31,13 +29,10 @@ export const getTldData = ResultFn(async function* ({ tld }) {
 
   const readContractAction = getAction(client, readContract, 'readContract')
 
+  // `findRegistries` on the UniversalHelper (ensjs resolves the address from
+  // the chain's `ensUniversalHelper` contract).
   const registries = yield* fromPromise(
-    readContractAction({
-      address: universalResolverAddress,
-      abi: universalResolverFindRegistriesSnippet,
-      functionName: 'findRegistries',
-      args: [toHex(packetToBytes(tld))],
-    }),
+    getNameRegistries(client, { name: tld }),
     (e) => new GetTldDataError({ cause: e as Error }),
   )
 

@@ -9,11 +9,11 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
+import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
 import { ReclaimManagerButton } from '@/features/ownership/components/ReclaimManagerButton'
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
-import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
@@ -111,6 +111,8 @@ function RouteComponent() {
       />
     )
 
+  const ownerLabel = grace.isInGrace ? 'Previous owner' : 'Owner'
+
   return (
     <div className="flex flex-col gap-8">
       {grace.isInGrace && grace.graceEndDate && (
@@ -142,10 +144,11 @@ function RouteComponent() {
           name={name}
           protocolVersion={data.protocolVersion}
         />
-        <Owner
-          asRow
-          label={grace.isInGrace ? 'Previous owner' : 'Owner'}
+        <NameOwnerRow
+          name={name}
+          label={ownerLabel}
           owner={data.owner}
+          protocolVersion={data.protocolVersion}
         />
         {data.protocolVersion === 'ENSv1' && (
           <V1NameManagerRecord asRow name={name} />

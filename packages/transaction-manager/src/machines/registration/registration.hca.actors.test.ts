@@ -17,6 +17,7 @@ import {
   readUsdcSpend,
   signFundingPermitActor,
   submitFundingAndCommitActor,
+  submitRevealBatchActor,
   verifyHcaRegistrationActor,
 } from './registration.hca.actors'
 
@@ -100,7 +101,7 @@ describe('submitFundingAndCommitActor', () => {
     publicClient: commitClient,
   }
 
-  it('bundles funding, session enablement and the commit into one user-paid request', async () => {
+  it('bundles funding and the commit into one user-paid request', async () => {
     const result = await submitFundingAndCommitActor({
       ...input,
       permit,
@@ -111,13 +112,16 @@ describe('submitFundingAndCommitActor', () => {
     const request = submittedRequest()
     const calls = request.rhinestoneParams.calls
 
-    // permit → transferFrom → enableSessionWithRefund → commit, in this order.
+    // permit → transferFrom → commit. No call to the validator: it is
+    // stateless, and its policy rejects any execution that targets it.
     expect(calls.map((c) => c.to.toLowerCase())).toEqual([
       C.usdc.toLowerCase(),
       C.usdc.toLowerCase(),
-      C.hcaOwnerAndSessionValidator.toLowerCase(),
       C.ethRegistrar.toLowerCase(),
     ])
+    expect(
+      calls.some((c) => isAddressEqual(c.to, C.hcaOwnerAndSessionValidator)),
+    ).toBe(false)
 
     // The permit pulls exactly the permitted budget into the HCA.
     const transfer = decodeFunctionData({ abi: erc20Abi, data: calls[1].data })
@@ -130,34 +134,10 @@ describe('submitFundingAndCommitActor', () => {
     // all any more — the transport always sends the user-paid shape.
     expect(request.from.toLowerCase()).toBe(HCA.toLowerCase())
     expect(request.rhinestoneParams.feeAsset).toBe('USDC')
-    // First-use mode: enableData rides along with the intent.
+    // The session authorization rides along with the intent.
     expect(request.rhinestoneParams.sessionEnableData).toBe(
       sessionEnable.enableData,
     )
-  })
-
-  it('rejects a funding batch whose sessionEnable carries no enableData', async () => {
-    // The enable CALL is built from permissionId/sessionKey/validUntil while the
-    // PROOF is `enableData`, so a payload with the first three and not the
-    // fourth produced a batch containing `enableSessionWithRefund` that was
-    // nonetheless signed WITHOUT the proof. The SDK derives the mode solely
-    // from `signers.enableData` being truthy, so it silently signed mode 0x02
-    // and the validator rejected the permit with ActionNotAllowed(USDC, permit)
-    // -- surfaced as InvalidSignature(). The old guard tested the wrapper and
-    // let this straight through.
-    const { enableData: _dropped, ...hollow } = sessionEnable
-
-    const result = await submitFundingAndCommitActor({
-      ...input,
-      permit,
-      sessionEnable: hollow as typeof sessionEnable,
-    })
-
-    expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toMatch(/enableData=MISSING/)
-    // Nothing must reach the orchestrator: an intent signed without the proof
-    // burns a real commitment and a real fee before reverting.
-    expect(startTransaction).not.toHaveBeenCalled()
   })
 
   it('declares the permit inflow as auxiliary funds so the intent can be planned', async () => {
@@ -177,7 +157,7 @@ describe('submitFundingAndCommitActor', () => {
     })
   })
 
-  it('submits the commit alone once the HCA is funded and the session is enabled', async () => {
+  it('submits the commit alone once the HCA is funded', async () => {
     const result = await submitFundingAndCommitActor(input)
 
     expect(result.isOk()).toBe(true)
@@ -198,6 +178,35 @@ describe('submitFundingAndCommitActor', () => {
     expect(result._unsafeUnwrap().commitment.commitment).toBe(COMMITMENT)
     // A fresh 32-byte secret per attempt.
     expect(result._unsafeUnwrap().commitment.secret).toMatch(/^0x[0-9a-f]{64}$/)
+  })
+})
+
+describe('submitRevealBatchActor', () => {
+  // The validator keeps no session state, so the reveal is rejected
+  // (InvalidSessionData, surfaced as UnclassifiedRevert) unless it carries the
+  // same authorization as the commit.
+  it('signs the reveal with the session authorization', async () => {
+    const revealClient = {
+      chain: sepolia,
+      readContract: vi.fn().mockResolvedValue([5_000_000n, 0n]),
+      getCode: vi.fn().mockResolvedValue('0x'),
+    } as unknown as PublicClient
+
+    const result = await submitRevealBatchActor({
+      name: 'myname.eth',
+      wallet: WALLET,
+      hca: HCA,
+      duration: 31_536_000n,
+      secret: `0x${'dd'.repeat(32)}` as Hex,
+      sessionEnable,
+      signer: rhinestoneSigner,
+      publicClient: revealClient,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(submittedRequest().rhinestoneParams.sessionEnableData).toBe(
+      sessionEnable.enableData,
+    )
   })
 })
 
@@ -353,12 +362,13 @@ describe('readUsdcSpend', () => {
   const usdc = C.usdc
 
   it('reads the cost from tokensSpent, which is where it actually lives', () => {
-    // Captured verbatim from the live orchestrator for a commit-only
-    // same-chain intent (gasCost.totalUSD was 0.9065, matching 905736 6dp).
+    // Shaped after a live orchestrator response for a commit-only same-chain
+    // intent (gasCost.totalUSD was 0.9065, matching 905736 6dp). The token key
+    // tracks `C.usdc` — the orchestrator echoes it lowercased.
     const cost = {
       tokensSpent: {
         '11155111': {
-          '0x768f42455a2d082e23ceef7d51e5787c82d67a39': {
+          [usdc.toLowerCase()]: {
             locked: '0',
             unlocked: '905736',
           },

@@ -31,7 +31,7 @@ export const pushTemplates: {
       body: `${payload.name} expires in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? '' : 's'}`,
       tag: `expiry-${payload.name}`,
       data: {
-        url: `https://app.ens.domains/${payload.name}`,
+        url: `/${payload.name}`,
         name: payload.name,
         expiryDate: payload.expiryDate,
       },
@@ -43,7 +43,7 @@ export const pushTemplates: {
     body: `${payload.name} was transferred to ${payload.to.slice(0, 6)}...${payload.to.slice(-4)}`,
     tag: `transfer-${payload.name}`,
     data: {
-      url: `https://app.ens.domains/${payload.name}`,
+      url: `/${payload.name}`,
       name: payload.name,
       txHash: payload.txHash,
     },

@@ -1,28 +1,43 @@
 import {
+  getPublicClient,
+  getTransaction,
   readContract,
   type Config as WagmiConfig,
-  waitForTransactionReceipt,
   writeContract,
 } from '@wagmi/core'
-import { type Address, getAddress, type Hex, parseAbi } from 'viem'
+import {
+  type Address,
+  encodeFunctionData,
+  getAddress,
+  type Hex,
+  parseAbi,
+} from 'viem'
+import { waitForTransactionReceipt } from 'viem/actions'
+import { withRequestDeadline } from '../service/requestDeadline'
 import { getCommemorativeNftContractAddress } from './config'
+import type { PendingNftClaim } from './pendingClaim'
 
-export const COMMEMORATIVE_NFT_ABI = parseAbi([
+const COMMEMORATIVE_NFT_ABI = parseAbi([
   'function claim(bytes32[] proof)',
   'function hasClaimed(address account) view returns (bool)',
-  'function tokenIdOf(address account) pure returns (uint256)',
-  'function tokenURI(uint256 tokenId) view returns (string)',
   'error AlreadyClaimed(uint256 tokenId)',
   'error InvalidProof()',
 ])
 
-export type CommemorativeNftClaimErrorReason =
+type CommemorativeNftClaimErrorReason =
   | 'user-rejected'
   | 'already-claimed'
   | 'invalid-proof'
   | 'reverted'
   | 'wallet-mismatch'
   | 'unsupported-network'
+  | 'cancelled'
+  | 'replaced'
+  | 'storage-unavailable'
+  | 'migration-incomplete'
+  | 'feature-disabled'
+  | 'claim-in-progress'
+  | 'browser-unsupported'
   | 'generic'
 
 export class CommemorativeNftClaimError extends Error {
@@ -94,6 +109,8 @@ export const readCommemorativeNftClaimed = async (params: {
   readonly wagmiConfig: WagmiConfig
   readonly chainId: number
   readonly ownerAddress: Address
+  readonly blockNumber?: bigint
+  readonly signal?: AbortSignal
 }): Promise<boolean> => {
   const contractAddress = getCommemorativeNftContractAddress(params.chainId)
   if (!contractAddress) {
@@ -103,14 +120,26 @@ export const readCommemorativeNftClaimed = async (params: {
     )
   }
 
-  return readContract(params.wagmiConfig, {
-    abi: COMMEMORATIVE_NFT_ABI,
-    address: contractAddress,
-    functionName: 'hasClaimed',
-    args: [params.ownerAddress],
-    chainId: params.chainId,
-  })
+  return withRequestDeadline(
+    () =>
+      readContract(params.wagmiConfig, {
+        abi: COMMEMORATIVE_NFT_ABI,
+        address: contractAddress,
+        functionName: 'hasClaimed',
+        args: [params.ownerAddress],
+        chainId: params.chainId,
+        blockNumber: params.blockNumber,
+      }),
+    { signal: params.signal },
+  )
 }
+
+export const encodeCommemorativeNftClaim = (proof: readonly Hex[]): Hex =>
+  encodeFunctionData({
+    abi: COMMEMORATIVE_NFT_ABI,
+    functionName: 'claim',
+    args: [proof],
+  })
 
 export const claimCommemorativeNft = async (params: {
   readonly wagmiConfig: WagmiConfig
@@ -151,21 +180,97 @@ export const claimCommemorativeNft = async (params: {
   }
 }
 
+export type CommemorativeNftClaimReceiptResult = {
+  readonly status:
+    | 'confirmed'
+    | 'cancelled'
+    | 'replaced'
+    | 'reverted'
+    | 'pending'
+  readonly hash: Hex
+}
+
 export const waitForCommemorativeNftClaimReceipt = async (params: {
   readonly wagmiConfig: WagmiConfig
-  readonly chainId: number
-  readonly hash: Hex
-}): Promise<void> => {
-  const receipt = await waitForTransactionReceipt(params.wagmiConfig, {
-    chainId: params.chainId,
-    hash: params.hash,
-    timeout: 5 * 60 * 1_000,
-  })
-
-  if (receipt.status !== 'success') {
+  readonly pendingClaim: PendingNftClaim
+  readonly onReplaced?: (hash: Hex) => void
+  readonly signal?: AbortSignal
+}): Promise<CommemorativeNftClaimReceiptResult> => {
+  const { pendingClaim } = params
+  const contractAddress = getCommemorativeNftContractAddress(
+    pendingClaim.chainId,
+  )
+  if (
+    contractAddress?.toLowerCase() !==
+    pendingClaim.contractAddress.toLowerCase()
+  ) {
     throw new CommemorativeNftClaimError(
-      'reverted',
-      'The mint transaction reverted. Please try again.',
+      'unsupported-network',
+      'The commemorative NFT is not available on this network.',
     )
+  }
+  const publicClient = getPublicClient(params.wagmiConfig, {
+    chainId: pendingClaim.chainId,
+  })
+  if (!publicClient)
+    throw new CommemorativeNftClaimError(
+      'unsupported-network',
+      'NFT public client is unavailable',
+    )
+  let hash = pendingClaim.hash
+  let replacementReason: 'cancelled' | 'replaced' | 'repriced' | undefined
+  try {
+    const receipt = await withRequestDeadline(
+      () =>
+        waitForTransactionReceipt(publicClient, {
+          hash,
+          pollingInterval: 2_000,
+          timeout: 5 * 60 * 1_000,
+          onReplaced: (replacement) => {
+            hash = replacement.transactionReceipt.transactionHash
+            replacementReason = replacement.reason
+            params.onReplaced?.(hash)
+          },
+        }),
+      { signal: params.signal, timeoutMs: 5 * 60 * 1_000 },
+    )
+    hash = receipt.transactionHash
+    if (replacementReason === 'cancelled') return { status: 'cancelled', hash }
+    if (replacementReason === 'replaced') return { status: 'replaced', hash }
+    if (receipt.status !== 'success') return { status: 'reverted', hash }
+
+    // A successful same-nonce replacement can be an unrelated transfer. Check
+    // the transaction itself as persisted data and replacement events are not
+    // proof that this owner called the configured NFT claim.
+    const transaction = await withRequestDeadline(
+      () =>
+        getTransaction(params.wagmiConfig, {
+          chainId: pendingClaim.chainId,
+          hash,
+        }),
+      { signal: params.signal },
+    )
+    if (
+      transaction.from.toLowerCase() !==
+        pendingClaim.ownerAddress.toLowerCase() ||
+      transaction.to?.toLowerCase() !== contractAddress.toLowerCase() ||
+      transaction.value !== 0n ||
+      transaction.input.toLowerCase() !==
+        pendingClaim.expectedClaimData.toLowerCase()
+    ) {
+      return { status: 'replaced', hash }
+    }
+    const claimed = await readCommemorativeNftClaimed({
+      wagmiConfig: params.wagmiConfig,
+      chainId: pendingClaim.chainId,
+      ownerAddress: pendingClaim.ownerAddress,
+      blockNumber: receipt.blockNumber,
+      signal: params.signal,
+    })
+    return { status: claimed ? 'confirmed' : 'pending', hash }
+  } catch {
+    // Neither an RPC error nor the foreground deadline proves a transaction
+    // failed. Preserve its hash and prevent resubmission until reconciled.
+    return { status: 'pending', hash }
   }
 }

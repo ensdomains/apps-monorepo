@@ -2,11 +2,6 @@ import {
   publicResolverAbiSnippet,
   publicResolverContenthashSnippet,
   publicResolverMultiAddrSnippet,
-  publicResolverMulticallSnippet,
-  publicResolverSetAbiSnippet,
-  publicResolverSetAddrSnippet,
-  publicResolverSetContenthashSnippet,
-  publicResolverSetTextSnippet,
   publicResolverTextSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
 import { eacGrantRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
@@ -15,6 +10,15 @@ import {
   permissionedRegistryGetResolverSnippet,
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
+import {
+  permissionedResolverInitializeSnippet,
+  permissionedResolverLinkToRecordSnippet,
+  permissionedResolverMulticallSnippet,
+  permissionedResolverSetAbiSnippet,
+  permissionedResolverSetAddressSnippet,
+  permissionedResolverSetContenthashSnippet,
+  permissionedResolverSetTextSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import { parseAbi } from 'viem'
 
@@ -33,18 +37,6 @@ export const OPERATOR_APPROVAL_ABI = parseAbi([
   'function setApprovalForAll(address operator, bool approved)',
 ])
 
-// TODO(ensjs): `subregistryInitializeSnippet` in
-// @ensdomains/ensjs-abi/v2/verifiableFactory still declares the 2-arg
-// `initialize(address, uint256)`. The deployed PermissionedResolver takes a
-// third `setters` argument (a multicall batch run at init time), so encoding
-// the old form yields selector 0xcd6dc687 — which the implementation no longer
-// exposes, making the initializer delegatecall revert with empty data.
-// Drop this once ensjs-abi carries the 3-arg form.
-// See contracts-v2 `src/resolver/PermissionedResolver.sol`.
-const subregistryInitializeSnippet = parseAbi([
-  'function initialize(address admin, uint256 roleBitmap, bytes[] setters)',
-])
-
 export const ETH_REGISTRY_V2_ABI = [
   ...permissionedRegistryGetSubregistrySnippet,
   ...permissionedRegistryGetResolverSnippet,
@@ -55,17 +47,35 @@ export const ETH_REGISTRY_V2_ABI = [
 
 export const VERIFIABLE_FACTORY_ABI = verifiableFactoryDeployProxySnippet
 
-export const PERMISSIONED_RESOLVER_ABI = [
-  ...subregistryInitializeSnippet,
-  ...publicResolverMulticallSnippet,
-  ...publicResolverSetTextSnippet,
-  ...publicResolverSetAddrSnippet,
-  ...publicResolverSetContenthashSnippet,
-  ...publicResolverSetAbiSnippet,
+/**
+ * Profile getters on a **V1** resolver, for reading the records a name has
+ * before migration. Keyed by `bytes32 node`, which is correct here: these are
+ * only ever called against `v1ResolverAddress`.
+ */
+export const V1_RESOLVER_PROFILE_ABI = [
   ...publicResolverTextSnippet,
   ...publicResolverMultiAddrSnippet,
   ...publicResolverContenthashSnippet,
   ...publicResolverAbiSnippet,
+] as const
+
+/**
+ * The **V2** `PermissionedResolver` write surface: deploy-time initializer plus
+ * the record setters the migration replays into.
+ *
+ * The setters take the DNS-encoded name, not `bytes32 node`, and `setAddr` is
+ * renamed `setAddress`, so the v1 encodings hit the resolver's fallback and
+ * revert with empty data. `linkToRecord(name, 0)` unlinks a name, which is what
+ * replaced `clearRecords`.
+ */
+export const PERMISSIONED_RESOLVER_ABI = [
+  ...permissionedResolverInitializeSnippet,
+  ...permissionedResolverMulticallSnippet,
+  ...permissionedResolverSetTextSnippet,
+  ...permissionedResolverSetAddressSnippet,
+  ...permissionedResolverSetContenthashSnippet,
+  ...permissionedResolverSetAbiSnippet,
+  ...permissionedResolverLinkToRecordSnippet,
 ] as const
 
 export const MIGRATION_HELPER_ABI = migrationHelperMigrateSnippet

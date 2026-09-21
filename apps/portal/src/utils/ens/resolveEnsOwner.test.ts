@@ -9,7 +9,7 @@ const V1_ETH_REGISTRY = '0x00000000000000000000000000000000000e1000'
 
 vi.mock('@ensdomains/ensjs/chain', () => ({
   // resolveEnsOwner only resolves a chain contract for the V1 fallback now;
-  // the V2 path reads everything by name via the UniversalResolver.
+  // the V2 path reads everything by name via the UniversalHelper.
   getChainContractAddress: () => V1_ETH_REGISTRY,
 }))
 

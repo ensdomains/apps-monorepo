@@ -29,13 +29,14 @@ type EnsResolveClient = Client<Transport, typeof sepoliaWithEns>
 /**
  * Resolve the owner of an `.eth` name (or subname) from the V2 registry.
  *
- * The UniversalResolver V2 walks the registry tree on-chain, so both the owner
- * and the name's ancestry of registries are read directly by name at any depth,
- * with no manual per-label `getSubregistry` walk. `getOwner` calls `findOwner`;
- * `getNameRegistries` calls `findRegistries`, which returns the registries
- * leaf-first: `[registryOf(leaf), registryContaining(leaf), ..., root]`. The
- * registry the leaf label actually lives in (what callers like roles, resolver
- * and token key off) is therefore index 1.
+ * The UniversalHelper walks the registry tree on-chain, so both the owner and
+ * the name's ancestry of registries are read directly by name at any depth,
+ * with no manual per-label `getSubregistry` walk. `getOwner` calls
+ * `findExactOwner`; `getNameRegistries` calls `findRegistries`, which returns
+ * the registries leaf-first:
+ * `[registryOf(leaf), registryContaining(leaf), ..., root]`. The registry the
+ * leaf label actually lives in (what callers like roles, resolver and token key
+ * off) is therefore index 1.
  *
  * Both reads are independent and fired together so the client's batching
  * coalesces them into a single request. Returns `null` if the name is unowned

@@ -5,6 +5,7 @@ import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import type { TOKEN_SYMBOL } from '../../contracts/ens-sepolia'
 import type { Signer } from '../../types/signer.types'
+import { isRetryableSubmissionError } from '../retry-policy'
 import {
   generateCommitmentActor,
   type PermitSignature,
@@ -49,12 +50,11 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  *    and last wallet prompt (the 1st was the session authorization, signed in
  *    the app BEFORE the machine starts)
  * 3. `submittingSetupBundle` — ONE session-signed request: permit +
- *    transferFrom + enableSessionWithRefund (until enabled) + commit; deploys
- *    the HCA lazily
+ *    transferFrom + commit; deploys the HCA lazily
  * 4. Shared cooldown spine (against the standalone registrar)
  * 5. `submittingRhinestoneBundle` — price re-read + exact-ordered reveal batch
- *    (deployProxy? → approve → register(wallet) → setters → setNameWithHCA? →
- *    authorizeNameRoles); session-signed, no wallet prompt
+ *    (deployProxy? → approve → register(wallet) → setters → setNameWithHCA?);
+ *    session-signed, no wallet prompt
  * 6. Verify against the standalone registry
  *
  * Persistence is handled automatically via inspect option (see export at bottom)
@@ -123,25 +123,15 @@ export type RegistrationContext = {
    */
   hcaUsdcBalance?: bigint
   /**
-   * Standalone-HCA: session-enable payload (enable-data + enable-call args).
+   * Standalone-HCA: the session authorization (`enableData`).
    *
-   * Present whenever a session exists — the `SessionEnableProof` is REUSABLE
-   * (`_validateSessionEnableProof` only checks `validUntil` and the account's
-   * session nonce, which nothing increments outside revocation) and
-   * `enableSessionWithRefund` is idempotent (`_enableSessionFor` overwrites the
-   * same slot with identical values).
-   *
-   * Attached to EVERY standalone-HCA commit, not just the session's first
-   * on-chain use. Two separate failures follow from omitting it:
-   *
-   *  - with a funding permit, the pair falls through to
-   *    `_checkRegistrationExecutions`, whose payment-token branch allows ONLY
-   *    `approve` → `ActionNotAllowed(USDC, permit)`;
-   *  - without it the SDK signs mode 0x02, and `_validateFixedSessionPayload`
-   *    reverts `InvalidSigner()` while `_sessions[hca][permissionId]` is empty
-   *    — i.e. on the first commit under a new session, funded or not.
-   *
-   * Both surface as `InvalidSignature()` from the emissary.
+   * Present whenever a session exists, and attached to BOTH legs.
+   * `HCAOwnerAndSessionValidator` keeps no session state and only accepts
+   * session signatures that carry this proof (envelope mode 0x05); anything
+   * else reverts `InvalidSessionData()`, which the router surfaces as an
+   * opaque `UnclassifiedRevert`. The proof is reusable: the validator checks
+   * only `validUntil` and the HCA's session nonce, which nothing increments
+   * outside revocation.
    */
   hcaSessionEnable?: HcaSessionEnableParams
   /** Standalone-HCA: when set, the reveal batch also sets the primary name. */
@@ -277,6 +267,7 @@ export const registrationMachine = setup({
         hca: Address
         duration: bigint
         secret: Hex
+        sessionEnable?: HcaSessionEnableParams
         signer: Signer
         publicClient: PublicClient
         primaryName?: string
@@ -770,25 +761,9 @@ export const registrationMachine = setup({
           hca: context.accountAddress!,
           duration: context.duration,
           permit: context.permit,
-          // Always attach the proof when we have one. Two independent things
-          // require it, and gating on either alone has now broken production
-          // once each:
-          //
-          //  - Funding. The validator only tolerates the `permit` +
-          //    `transferFrom` pair on the path the proof unlocks
-          //    (`_checkInitialRegistrationPolicy`, which strips enable + permit
-          //    + transfer before applying the policy). Omitting it there
-          //    reverts `ActionNotAllowed(USDC, permit)`.
-          //  - On-chain enablement. Without the proof the SDK signs mode 0x02
-          //    (`FIXED_SESSION_REFUND_MODE`), and `_validateFixedSessionPayload`
-          //    reverts `InvalidSigner()` when `_sessions[hca][permissionId]` is
-          //    still empty — which is the case for the FIRST commit under a new
-          //    session, including a fully-funded one that needs no permit.
-          //
-          // Attaching it unconditionally satisfies both. It costs one extra
-          // idempotent `enableSessionWithRefund` (a struct rewrite over mostly
-          // warm slots) and no wallet prompt, since the proof is rebuilt from
-          // the stored authorization signature.
+          // Always attach the proof: the validator rejects any session
+          // signature without it (see `hcaSessionEnable`). It costs no wallet
+          // prompt, since it is rebuilt from the stored authorization.
           sessionEnable: context.hcaSessionEnable,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
@@ -1016,15 +991,27 @@ export const registrationMachine = setup({
         // in `error`). Instead verify on-chain via `validatingCommitment`: if
         // `commitmentAt` is set we continue, otherwise that state's retry
         // resubmits the correct (signer-aware) commit path.
-        onError: {
-          target: 'validatingCommitment',
-          actions: ({ event }) => {
-            console.warn(
-              '⚠️ [REGISTRATION] Commitment receipt polling failed; verifying on-chain before retrying:',
-              event.error,
-            )
+        onError: [
+          // A declined commit never reached the chain: there is nothing to
+          // verify, and the retry below would just re-prompt the wallet.
+          {
+            guard: ({ event }) => !isRetryableSubmissionError(event.error),
+            target: 'error',
+            actions: assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'committingTransaction' as const,
+            }),
           },
-        },
+          {
+            target: 'validatingCommitment',
+            actions: ({ event }) => {
+              console.warn(
+                '⚠️ [REGISTRATION] Commitment receipt polling failed; verifying on-chain before retrying:',
+                event.error,
+              )
+            },
+          },
+        ],
       },
       on: {
         CANCEL: 'idle',
@@ -1188,6 +1175,7 @@ export const registrationMachine = setup({
           duration: context.duration,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           secret: context.commitment!.secret,
+          sessionEnable: context.hcaSessionEnable,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state

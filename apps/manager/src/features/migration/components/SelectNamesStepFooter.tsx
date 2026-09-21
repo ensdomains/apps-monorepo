@@ -1,22 +1,30 @@
+import { formatGasEth } from '@ens-apps/utils/formatGasEth'
+import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
+import { useLingui } from '@lingui/react'
 import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { match } from 'ts-pattern'
-import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
+import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
-import { MigrationPrimaryButton } from './MigrationPrimaryButton'
+import { migrationPreparationMessage } from '@/features/migration/service/migrationPreparationError'
+import { GrainOverlay } from './GrainOverlay'
+import { MigrationUpgradeButton } from './MigrationUpgradeButton'
 import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
 
 type GasEstimateMessageProps = {
   readonly gasEstimate: MigrationGasEstimateState
+  readonly gasAffordability: GasAffordability
   readonly isWaitingForGasFunding: boolean
   readonly totalSelected: number
 }
 
 const GasEstimateMessage = ({
   gasEstimate,
+  gasAffordability,
   isWaitingForGasFunding,
   totalSelected,
 }: GasEstimateMessageProps) => {
+  const { _ } = useLingui()
   if (totalSelected === 0) return null
 
   // The gas drip request only resolves once any sepETH top-up is confirmed
@@ -29,38 +37,64 @@ const GasEstimateMessage = ({
     )
   }
 
-  return match(gasEstimate)
-    .with({ status: 'loading' }, () => (
-      <p>
-        <Trans>Estimating the network fee...</Trans>
-      </p>
-    ))
-    .with({ status: 'ready' }, (estimate) => (
-      <p>
-        <Trans>
-          Estimated network fee:{' '}
-          <strong className="font-semibold">
-            ~{estimate.formattedEth} ETH
-          </strong>
-          . You&apos;ll approve{' '}
-          <span className="whitespace-nowrap">
-            <WalletConfirmationStepsDialog
-              steps={estimate.plan.stepDescriptors}
-            />
-            .
-          </span>
-          <br />
-          Your wallet shows the final fee before you approve.
-        </Trans>
-      </p>
-    ))
-    .with({ status: 'error' }, (estimate) => (
-      <p>
-        <Trans>Couldn&apos;t estimate the network fee</Trans>
-        {estimate.message ? `: ${estimate.message}` : null}
-      </p>
-    ))
-    .otherwise(() => null)
+  return (
+    match({ gasEstimate, gasAffordability })
+      .with({ gasEstimate: { status: 'loading' } }, () => (
+        <p>
+          <Trans>Estimating the network fee...</Trans>
+        </p>
+      ))
+      // Every migration transaction is EOA-paid, so a short wallet stalls the run
+      // partway rather than failing cleanly. Matched ahead of the plain fee quote
+      // so the two can never render together and contradict each other.
+      .with(
+        {
+          gasEstimate: { status: 'ready' },
+          gasAffordability: { status: 'short' },
+        },
+        ({ gasAffordability: shortfall }) => (
+          <p className="text-destructive">
+            <Trans>
+              Not enough ETH for gas. This upgrade needs about{' '}
+              <strong className="font-semibold">
+                {formatGasEth(shortfall.requiredWei)} ETH
+              </strong>{' '}
+              and your wallet holds {formatGasEth(shortfall.balanceWei)} ETH.
+              Top up before you start, or some names will be left mid-upgrade.
+            </Trans>
+          </p>
+        ),
+      )
+      .with(
+        { gasEstimate: { status: 'ready' } },
+        ({ gasEstimate: estimate }) => (
+          <p>
+            <Trans>
+              Estimated network fee:{' '}
+              <strong className="font-semibold">
+                ~{estimate.formattedEth} ETH
+              </strong>
+              . You&apos;ll approve{' '}
+              <span className="whitespace-nowrap">
+                <WalletConfirmationStepsDialog
+                  steps={estimate.plan.stepDescriptors}
+                />
+                .
+              </span>
+              <br />
+              Your wallet shows the final fee before you approve.
+            </Trans>
+          </p>
+        ),
+      )
+      .with(
+        { gasEstimate: { status: 'error' } },
+        ({ gasEstimate: estimate }) => (
+          <p>{_(migrationPreparationMessage(estimate))}</p>
+        ),
+      )
+      .otherwise(() => null)
+  )
 }
 
 type UpgradeButtonLabelProps = {
@@ -90,6 +124,7 @@ const UpgradeButtonLabel = ({
 
 type SelectNamesStepFooterProps = {
   readonly gasEstimate: MigrationGasEstimateState
+  readonly gasAffordability: GasAffordability
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
   readonly isUpgradeDisabled: boolean
@@ -101,6 +136,7 @@ type SelectNamesStepFooterProps = {
 
 export const SelectNamesStepFooter = ({
   gasEstimate,
+  gasAffordability,
   isEstimatingGas,
   isStarting,
   isUpgradeDisabled,
@@ -109,22 +145,29 @@ export const SelectNamesStepFooter = ({
   totalSelected,
   visibleCount,
 }: SelectNamesStepFooterProps) => {
-  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility()
+  const { eligibility: nftEligibility, isConfirmedUnclaimed } =
+    useVisibleCommemorativeNftStatus()
+  const nftCopyEnabled = !!nftEligibility
 
   return (
-    <div className="sticky inset-x-0 bottom-0 z-20 flex min-h-36 w-full shrink-0 flex-col items-stretch justify-start gap-4 bg-ens-garnet-200 px-5 pt-4 pb-14 sm:min-h-28.75 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8 lg:px-37.5">
-      <div className="flex max-w-107.5 flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
+    <div className="sticky inset-x-0 bottom-0 z-20 flex min-h-36 w-full shrink-0 flex-col items-stretch justify-start gap-4 bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 px-5 pt-4 pb-14 sm:min-h-28.75 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8 lg:px-37.5">
+      <GrainOverlay />
+      <div className="relative flex max-w-107.5 flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
         <GasEstimateMessage
+          gasAffordability={gasAffordability}
           gasEstimate={gasEstimate}
           isWaitingForGasFunding={isWaitingForGasFunding}
           totalSelected={totalSelected}
         />
       </div>
-      <div className="flex w-full flex-col gap-1 sm:w-auto">
-        <MigrationPrimaryButton
+      <div className="relative flex w-full flex-col gap-1 sm:w-auto">
+        <MigrationUpgradeButton
           className="w-full sm:w-[320px]"
           disabled={isUpgradeDisabled}
           onClick={onUpgrade}
+          showNftPlaceholder={
+            nftCopyEnabled && isConfirmedUnclaimed && visibleCount > 0
+          }
           type="button"
         >
           <UpgradeButtonLabel
@@ -133,7 +176,7 @@ export const SelectNamesStepFooter = ({
             isWaitingForGasFunding={isWaitingForGasFunding}
             totalSelected={totalSelected}
           />
-        </MigrationPrimaryButton>
+        </MigrationUpgradeButton>
         {nftCopyEnabled &&
           totalSelected > 0 &&
           totalSelected < visibleCount && (

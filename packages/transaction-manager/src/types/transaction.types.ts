@@ -80,10 +80,9 @@ export interface RhinestoneIntentParams {
   /** Fee asset the HCA pays from. Defaults to USDC in the transport. */
   readonly feeAsset?: 'USDC'
   /**
-   * Per-request session enable payload. Present ONLY on the request that
-   * carries the on-chain `enableSessionWithRefund` call (the first HCA
-   * action); omitted once the session is enabled. Requires a signer with a
-   * `session` — the transport rejects it otherwise.
+   * Per-request session enable payload, overriding the signer session's own
+   * `enableData`. The validator needs one on every session-signed intent.
+   * Requires a signer with a `session` — the transport rejects it otherwise.
    */
   readonly sessionEnableData?: SessionEnableData
   /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */

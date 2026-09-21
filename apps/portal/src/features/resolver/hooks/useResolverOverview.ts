@@ -7,9 +7,30 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
-export type ResolverAlias = {
-  readonly fromName: string
-  readonly toName: string
+/**
+ * A name that shares its record with at least one other name on this resolver.
+ *
+ * Records are internal inodes: a setter creates one and links the name to it,
+ * and `linkToNode` points a second name at the same `recordId`. So a link is
+ * not a stored `from -> to` pair, it is two names resolving to one record.
+ *
+ * The indexer's legacy `aliases { fromName toName }` field is never populated
+ * for a V2 resolver; the live mapping is `Resolver.linkedNames`.
+ */
+export type ResolverLink = {
+  readonly name: string
+  readonly namehash: string
+  readonly recordId: string
+  /** The other names on the same record. */
+  readonly sharedWith: readonly string[]
+}
+
+/** A resource preimage revealed by `ResourceArgument`, for labelling scopes. */
+export type ResolverNamedResource = {
+  readonly resource: string
+  readonly recordKind: string | null
+  readonly recordKey: string | null
+  readonly coinType: string | null
 }
 
 export type ResolverRole = {
@@ -42,10 +63,11 @@ export type ResolverOverview = {
   readonly id: string
   readonly address: string
   readonly nodeCount: number
-  readonly aliasCount: number
+  readonly linkCount: number
   readonly roleHolderCount: number
   readonly nodes: readonly ResolverNode[]
-  readonly aliases: readonly ResolverAlias[]
+  readonly links: readonly ResolverLink[]
+  readonly namedResources: readonly ResolverNamedResource[]
   readonly roles: readonly ResolverRole[]
   readonly events: readonly ResolverEvent[]
 }
@@ -58,20 +80,81 @@ type GetResolverOverviewParameters = {
   address: Address
 }
 
+export type IndexerLinkedName = {
+  readonly name: string
+  readonly namehash: string
+  readonly recordId: string
+}
+
+type IndexerResponse = {
+  readonly resolver:
+    | (Omit<ResolverOverview, 'links' | 'linkCount'> & {
+        readonly namedResources: readonly ResolverNamedResource[] | null
+      })
+    | null
+  readonly resolvers:
+    | readonly { readonly linkedNames: readonly IndexerLinkedName[] | null }[]
+    | null
+}
+
+/** Names sharing a `recordId` are linked; a record with one name is not. */
+export const toLinks = (
+  entries: IndexerResponse['resolvers'],
+): readonly ResolverLink[] => {
+  const byRecord = new Map<string, IndexerLinkedName[]>()
+  for (const entry of entries ?? []) {
+    for (const linked of entry.linkedNames ?? []) {
+      const existing = byRecord.get(linked.recordId)
+      if (existing) existing.push(linked)
+      else byRecord.set(linked.recordId, [linked])
+    }
+  }
+
+  const links: ResolverLink[] = []
+  for (const group of byRecord.values()) {
+    if (group.length < 2) continue
+    for (const linked of group) {
+      links.push({
+        name: linked.name,
+        namehash: linked.namehash,
+        recordId: linked.recordId,
+        sharedWith: group
+          .filter((other) => other.name !== linked.name)
+          .map((other) => other.name),
+      })
+    }
+  }
+  return links
+}
+
+/**
+ * The links remaining after `sourceName` is unlinked. A link is a view over a
+ * shared-record group, so the unlinked name leaves every group it appeared in,
+ * and any row left sharing with nobody is no longer a link at all.
+ */
+export const pruneLinksAfterUnlink = (
+  links: readonly ResolverLink[],
+  sourceName: string,
+): ResolverLink[] =>
+  links
+    .filter((link) => link.name !== sourceName)
+    .map((link) => ({
+      ...link,
+      sharedWith: link.sharedWith.filter((other) => other !== sourceName),
+    }))
+    .filter((link) => link.sharedWith.length > 0)
+
 const getResolverOverview = ResultFn(async function* ({
   address,
 }: GetResolverOverviewParameters) {
-  const { resolver } = yield* fromPromise(
-    graphqlIndexerClient.request<{
-      resolver: ResolverOverview | null
-    }>(
+  const { resolver, resolvers } = yield* fromPromise(
+    graphqlIndexerClient.request<IndexerResponse>(
       gql`
         query getResolverOverview($id: String!) {
           resolver(id: $id) {
             id
             address
             nodeCount
-            aliasCount
             roleHolderCount
             nodes {
               id
@@ -84,9 +167,11 @@ const getResolverOverview = ResultFn(async function* ({
                 address
               }
             }
-            aliases {
-              fromName
-              toName
+            namedResources {
+              resource
+              recordKind
+              recordKey
+              coinType
             }
             roles {
               account
@@ -106,6 +191,13 @@ const getResolverOverview = ResultFn(async function* ({
               data
             }
           }
+          resolvers(first: 1000, where: { address: $id }) {
+            linkedNames {
+              name
+              namehash
+              recordId
+            }
+          }
         }
       `,
       { id: address.toLowerCase() },
@@ -116,7 +208,15 @@ const getResolverOverview = ResultFn(async function* ({
       }),
   )
 
-  return ok(resolver)
+  if (!resolver) return ok(null)
+
+  const links = toLinks(resolvers)
+  return ok({
+    ...resolver,
+    namedResources: resolver.namedResources ?? [],
+    links,
+    linkCount: links.length,
+  })
 })
 
 const resolverOverviewQueryKey = createQueryKey<

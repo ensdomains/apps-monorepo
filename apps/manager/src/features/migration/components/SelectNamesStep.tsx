@@ -1,3 +1,4 @@
+import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
@@ -18,6 +19,7 @@ import {
 
 type SelectNamesStepProps = {
   readonly gasEstimate: MigrationGasEstimateState
+  readonly gasAffordability: GasAffordability
   readonly gasFundingStatus: MigrationGasFundingStatus
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
@@ -25,6 +27,7 @@ type SelectNamesStepProps = {
 
 export const SelectNamesStep = ({
   gasEstimate,
+  gasAffordability,
   gasFundingStatus,
   onNamesChange,
   onNext,
@@ -118,13 +121,13 @@ export const SelectNamesStep = ({
                 <p>
                   <Trans>
                     Something about your names changed since you last tried, so
-                    we can’t safely pick up where you left off.
+                    we can&apos;t safely pick up where you left off.
                   </Trans>
                 </p>
                 <p className="text-ens-garnet-500">
                   <Trans>
-                    Your saved progress is unchanged. Contact ENS support before
-                    trying again.
+                    Nothing has been lost. Contact ENS support before trying
+                    again.
                   </Trans>
                 </p>
               </div>
@@ -152,6 +155,7 @@ export const SelectNamesStep = ({
       </div>
 
       <SelectNamesStepFooter
+        gasAffordability={gasAffordability}
         gasEstimate={gasEstimate}
         isEstimatingGas={isEstimatingGas}
         isStarting={isStarting}

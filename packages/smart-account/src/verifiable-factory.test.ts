@@ -19,7 +19,7 @@ describe('computeVerifiableProxyAddress', () => {
         deployer: HCA,
         salt: computeResolverSalt(HCA),
       }),
-    ).toBe('0xcd8d0FAeecC39fbB036c708b697FE4C20c7D41Fd')
+    ).toBe('0x5eAfCf4a3Dcd46E477fFB7CDe15B32AC14c7a436')
   })
 
   it('namespaces the same salt by deployer', () => {

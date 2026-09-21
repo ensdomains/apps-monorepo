@@ -6,8 +6,8 @@ const destination = getDestinationContracts(sepoliaWithEns.id)
 
 export const V2_DEPLOY_BLOCK = destination.verifiableFactoryDeployBlock
 
-// V1 contracts remain the canonical Sepolia ENS deployment. The PR #388
-// namespace rotation only applies to the V2/HCA contracts below.
+// V1 contracts remain the canonical Sepolia ENS deployment. V2 redeploys only
+// move the V2/HCA contracts below.
 export const V1_CONTRACTS = {
   BaseRegistrar: getChainContractAddress({
     chain: sepoliaWithEns,
@@ -23,10 +23,10 @@ export const V1_CONTRACTS = {
   }),
 } as const
 
-// V2/HCA contracts are the pinned contracts-v2 PR #388 namespace. Do not source
-// these from ensjs until it publishes this exact coordinated deployment.
+// V2/HCA contracts come from the smart-account manifest, so the migration and
+// the HCA registration flow always target the same deployment.
 //
-// `DefaultResolver` is the V2 PublicResolver (`ensPublicResolver`), written into
+// `DefaultResolver` is the V2 PublicResolver (`publicResolverV2`), written into
 // each migrated name's registry slot as a fallback (used by the migration plan
 // when a name's existing v1 resolver is unknown, or when the owner doesn't yet
 // have a dedicated PermissionedResolver instance).

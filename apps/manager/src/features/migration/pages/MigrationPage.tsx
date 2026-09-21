@@ -1,13 +1,16 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import { Trans } from '@lingui/react/macro'
+import { assessGasAffordability } from '@ens-apps/utils/gasAffordability'
+import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
+import { useSelector } from '@xstate/react'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
-import { useWalletClient } from 'wagmi'
+import { useBalance, useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
@@ -30,6 +33,7 @@ import {
 } from '@/features/migration/state/migrationUi.selectors'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { publicClient as migrationExecutionClient } from '@/lib/wagmi'
 import { isMigrationQueryKey } from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
@@ -64,14 +68,17 @@ const PlainMigrationSuccessDialog = ({
     migratedNameCount={migratedNameCount}
     onClose={onContinue}
     onMint={noop}
+    onOpenDashboard={onContinue}
     onRetry={noop}
-    onViewProfile={onContinue}
     open
     state={disabledNftSuccessState}
   />
 )
 
-const formatMigrationError = (error: MigrationError): ReactNode => {
+const formatMigrationError = (
+  error: MigrationError,
+  completedNameCount: number,
+): ReactNode => {
   switch (error.type) {
     case 'generic':
       return <Trans>Upgrade details: {error.message}</Trans>
@@ -89,18 +96,19 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
       return (
         <div>
           <Trans>
-            We couldn&apos;t safely retry. Contact ENS support before trying
-            again.
+            We couldn&apos;t safely retry. Nothing was submitted and nothing
+            changed.
           </Trans>
         </div>
       )
     case 'cleanup-failed':
       return (
         <div>
-          <Trans>
-            Your names were upgraded. One thing left: a temporary permission on
-            your names still needs to be removed.
-          </Trans>
+          <Plural
+            one="Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed."
+            other="Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed."
+            value={completedNameCount}
+          />
         </div>
       )
     case 'profile-fetch-failed':
@@ -184,6 +192,7 @@ export const MigrationPage = () => {
   const navigate = useNavigate()
   const canGoBack = useCanGoBack()
   const { uiActor } = useMigrationUiContext()
+  const migrationPlan = useSelector(uiActor, (state) => state.context.plan)
   const step = useMigrationStep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
   const completedOperations = useMigrationCompletedOperations(uiActor)
@@ -212,6 +221,17 @@ export const MigrationPage = () => {
     enabled: step === 'select',
   })
 
+  // Migration is entirely EOA-paid, so a wallet short of sepETH stalls the run
+  // partway. Checked against the same estimate the footer quotes.
+  const { data: ownerBalance } = useBalance({
+    address: ownerAddress as Address | undefined,
+    query: { refetchInterval: 30_000 },
+  })
+  const gasAffordability = assessGasAffordability({
+    balanceWei: ownerBalance?.value ?? null,
+    estimatedFeeWei: gasEstimate.status === 'ready' ? gasEstimate.feeWei : null,
+  })
+
   // Top up the owner's sepETH on page entry — migration txs are all EOA-paid.
   // The worker only drips when the address owns v1 names and is low on ETH,
   // so this is idempotent and a no-op for everyone else. The request doesn't
@@ -221,9 +241,20 @@ export const MigrationPage = () => {
 
   useEffect(() => {
     if (step === 'success') {
+      if (migrationPlan && completedOperations.length > 0) {
+        recordVerifiedNftMigration({
+          queryClient,
+          evidence: {
+            ownerAddress: migrationPlan.migrationOwner,
+            hcaAddress: migrationPlan.hcaAddress,
+            chainId: migrationExecutionClient.chain.id,
+            completedOperations,
+          },
+        })
+      }
       invalidateMigrationQueries(queryClient)
     }
-  }, [step, queryClient])
+  }, [step, queryClient, migrationPlan, completedOperations])
 
   const handleSuccessClose = useCallback(() => {
     if (isMigrationSuccess) {
@@ -231,24 +262,6 @@ export const MigrationPage = () => {
       navigate({ to: '/dashboard', replace: true })
     }
   }, [isMigrationSuccess, uiActor, navigate])
-
-  const handleViewProfile = useCallback(
-    (profileName?: string) => {
-      const name = profileName ?? dialogNames[0]
-
-      if (isMigrationSuccess) {
-        uiActor.send({ type: 'done' })
-      }
-
-      if (name) {
-        navigate({ to: '/$name', params: { name } })
-        return
-      }
-
-      navigate({ to: '/dashboard' })
-    },
-    [dialogNames, isMigrationSuccess, uiActor, navigate],
-  )
 
   const handleNamesChange = useCallback(
     (names: string[]) => uiActor.send({ type: 'selection.set', names }),
@@ -328,6 +341,7 @@ export const MigrationPage = () => {
       {match(step)
         .with('select', () => (
           <SelectNamesStep
+            gasAffordability={gasAffordability}
             gasEstimate={gasEstimate}
             gasFundingStatus={gasFundingStatus}
             onNamesChange={handleNamesChange}
@@ -344,7 +358,11 @@ export const MigrationPage = () => {
               lastError.type !== 'cleanup-failed' &&
               lastError.type !== 'retry-blocked' && (
                 <p className="text-center text-ens-garnet-900/75 text-sm">
-                  <Trans>Your names are safe.</Trans>
+                  <Plural
+                    one="Your name is safe."
+                    other="Your names are safe."
+                    value={selectedNames.length}
+                  />
                 </p>
               )}
             <motion.div
@@ -354,7 +372,8 @@ export const MigrationPage = () => {
               transition={{ duration: 0.4, delay: 0.15 }}
             >
               <div className="whitespace-pre-wrap break-words text-ens-garnet-900/70 text-sm leading-normal">
-                {lastError && formatMigrationError(lastError)}
+                {lastError &&
+                  formatMigrationError(lastError, completedOperations.length)}
               </div>
             </motion.div>
 
@@ -399,7 +418,7 @@ export const MigrationPage = () => {
           context="migration"
           migratedNameCount={dialogNames.length}
           onClose={handleSuccessClose}
-          onViewProfile={handleViewProfile}
+          onOpenDashboard={handleSuccessClose}
           open={dialogOpen}
           ownerAddress={ownerAddress as Address | undefined}
         />

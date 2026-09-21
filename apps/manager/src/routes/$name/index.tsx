@@ -209,7 +209,7 @@ function ProfileRouteError({ error }: ErrorComponentProps) {
   return (
     <div className="mx-auto max-w-md space-y-4">
       <div className="flex items-center justify-center py-8">
-        <div className="text-red-600">
+        <div className="wrap-anywhere text-destructive">
           Error loading profile: {error.message}
         </div>
       </div>

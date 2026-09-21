@@ -1,5 +1,6 @@
 import * as v from 'valibot'
 import { type Address, getAddress, type Hex, isAddress, isHex } from 'viem'
+import { withRequestDeadline } from '../service/requestDeadline'
 import {
   buildCommemorativeNftAssets,
   getCommemorativeNftTokenId,
@@ -200,6 +201,7 @@ export const fetchCommemorativeNftEligibility = async (params: {
   readonly ownerAddress: Address
   readonly assetOrigin?: string
   readonly fetcher?: typeof fetch
+  readonly signal?: AbortSignal
 }): Promise<CommemorativeNftEligibilityResult> => {
   if (!params.assetOrigin) return { status: 'unavailable' }
 
@@ -207,23 +209,28 @@ export const fetchCommemorativeNftEligibility = async (params: {
     params.assetOrigin,
     params.ownerAddress,
   )
-  if (!assets.metadataUrl) return { status: 'unavailable' }
+  const metadataUrl = assets.metadataUrl
+  if (!metadataUrl) return { status: 'unavailable' }
 
-  const response = await (params.fetcher ?? fetch)(assets.metadataUrl)
-
-  if (response.status === 404 || response.status === 410)
-    return { status: 'ineligible' }
-  if (!response.ok) {
-    throw new CommemorativeNftEligibilityError(
-      `Eligibility request failed with HTTP ${response.status}`,
-    )
-  }
-
-  const payload: unknown = await response.json()
-  const eligibility = parseCommemorativeNftEligibility({
-    ownerAddress: params.ownerAddress,
-    payload,
-    assetOrigin: params.assetOrigin,
-  })
-  return { status: 'eligible', eligibility }
+  return withRequestDeadline(
+    async (signal) => {
+      const response = await (params.fetcher ?? fetch)(metadataUrl, { signal })
+      if (response.status === 404 || response.status === 410)
+        return { status: 'ineligible' as const }
+      if (!response.ok) {
+        throw new CommemorativeNftEligibilityError(
+          `Eligibility request failed with HTTP ${response.status}`,
+        )
+      }
+      const payload: unknown = await response.json()
+      signal.throwIfAborted()
+      const eligibility = parseCommemorativeNftEligibility({
+        ownerAddress: params.ownerAddress,
+        payload,
+        assetOrigin: params.assetOrigin,
+      })
+      return { status: 'eligible' as const, eligibility }
+    },
+    { signal: params.signal },
+  )
 }
