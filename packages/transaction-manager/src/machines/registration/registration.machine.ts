@@ -531,53 +531,66 @@ export const registrationMachine = setup({
   states: {
     idle: {
       on: {
-        START_REGISTRATION: {
-          target: 'settingUpRegistration',
-          actions: assign({
-            name: ({ event }) => event.name,
-            duration: ({ event }) => event.duration,
-            selectedToken: ({ event }) => event.token,
-            tokenPrice: ({ event }) => event.price,
-            signer: ({ event }) =>
-              event.token === 'DAI' && event.signer.type === 'rhinestone'
-                ? (event.approvalSigner ?? event.signer)
-                : event.signer,
-            approvalSigner: ({ event }) => event.approvalSigner,
-            accountAddress: ({ event }) =>
+        START_REGISTRATION: [
+          {
+            guard: ({ event }) =>
               event.token === 'DAI' &&
               event.signer.type === 'rhinestone' &&
-              event.approvalSigner?.type === 'eoa'
-                ? (event.ownerAddress ?? event.accountAddress)
-                : event.accountAddress,
-            registrationStartedAt: ({ event }) =>
-              event.token === 'USDC' && event.signer.type === 'rhinestone'
-                ? Date.now()
-                : undefined,
-            ownerAddress: ({ event }) =>
-              event.ownerAddress ?? event.accountAddress, // ENS name owner. Default to accountAddress if not provided
-            resolverOwnerAddress: ({ event }) =>
-              event.resolverOwnerAddress ??
-              event.ownerAddress ??
-              event.accountAddress, // EACL grantee for the dedicated resolver. Should be the EOA.
-            publicClient: ({ event }) => event.publicClient,
-            registerReadyTimestamp: () => undefined,
-            hcaBudget: ({ event }) => event.hcaBudget,
-            hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
-            primaryName: ({ event }) => event.primaryName,
-            resolverAddress: () => undefined,
-            resolverTxId: () => undefined,
-            resolverSalt: () => undefined,
-            commitment: () => undefined,
-            commitmentTxId: () => undefined,
-            permit: () => undefined,
-            // Balance is re-read by `checkingHcaFunding` on every run, but
-            // clear it so a stale value can never size a permit if some future
-            // path reaches `signingFundingPermit` without the read.
-            hcaUsdcBalance: () => undefined,
-            approvalTxId: () => undefined,
-            registrationTxId: () => undefined,
-          }),
-        },
+              event.approvalSigner?.type !== 'eoa',
+            target: 'error',
+            actions: assign({
+              error: () =>
+                new Error('DAI registration requires an EOA wallet signer'),
+            }),
+          },
+          {
+            target: 'settingUpRegistration',
+            actions: assign({
+              name: ({ event }) => event.name,
+              duration: ({ event }) => event.duration,
+              selectedToken: ({ event }) => event.token,
+              tokenPrice: ({ event }) => event.price,
+              signer: ({ event }) =>
+                event.token === 'DAI' && event.signer.type === 'rhinestone'
+                  ? (event.approvalSigner ?? event.signer)
+                  : event.signer,
+              approvalSigner: ({ event }) => event.approvalSigner,
+              accountAddress: ({ event }) =>
+                event.token === 'DAI' &&
+                event.signer.type === 'rhinestone' &&
+                event.approvalSigner?.type === 'eoa'
+                  ? (event.ownerAddress ?? event.accountAddress)
+                  : event.accountAddress,
+              registrationStartedAt: ({ event }) =>
+                event.token === 'USDC' && event.signer.type === 'rhinestone'
+                  ? Date.now()
+                  : undefined,
+              ownerAddress: ({ event }) =>
+                event.ownerAddress ?? event.accountAddress, // ENS name owner. Default to accountAddress if not provided
+              resolverOwnerAddress: ({ event }) =>
+                event.resolverOwnerAddress ??
+                event.ownerAddress ??
+                event.accountAddress, // EACL grantee for the dedicated resolver. Should be the EOA.
+              publicClient: ({ event }) => event.publicClient,
+              registerReadyTimestamp: () => undefined,
+              hcaBudget: ({ event }) => event.hcaBudget,
+              hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
+              primaryName: ({ event }) => event.primaryName,
+              resolverAddress: () => undefined,
+              resolverTxId: () => undefined,
+              resolverSalt: () => undefined,
+              commitment: () => undefined,
+              commitmentTxId: () => undefined,
+              permit: () => undefined,
+              // Balance is re-read by `checkingHcaFunding` on every run, but
+              // clear it so a stale value can never size a permit if some future
+              // path reaches `signingFundingPermit` without the read.
+              hcaUsdcBalance: () => undefined,
+              approvalTxId: () => undefined,
+              registrationTxId: () => undefined,
+            }),
+          },
+        ],
       },
     },
 

@@ -107,6 +107,41 @@ const startHcaRegistration = (overrides: {
 }
 
 describe('registrationMachine — standalone-HCA funding', () => {
+  it('rejects DAI with a restricted signer and no owner wallet', () => {
+    const estimateHcaBudget = vi.fn()
+    const deployResolver = vi.fn()
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          estimateHcaBudget: fromPromise(estimateHcaBudget) as never,
+          deployResolver: fromPromise(deployResolver) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'START_REGISTRATION',
+      name: 'myname.eth',
+      duration: 31_536_000n,
+      token: 'DAI',
+      price: 5_000_000_000_000_000_000n,
+      signer: { type: 'rhinestone' } as unknown as Signer,
+      accountAddress: HCA,
+      ownerAddress: WALLET,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+    })
+
+    const snapshot = actor.getSnapshot()
+    expect(snapshot.matches('error')).toBe(true)
+    expect(snapshot.context.error?.message).toBe(
+      'DAI registration requires an EOA wallet signer',
+    )
+    expect(deployResolver).not.toHaveBeenCalled()
+    expect(estimateHcaBudget).not.toHaveBeenCalled()
+  })
+
   it('uses the wallet signer for the inherited DAI route', async () => {
     const estimateHcaBudget = vi.fn()
     const deployResolver = vi.fn(() => new Promise(() => {}))
