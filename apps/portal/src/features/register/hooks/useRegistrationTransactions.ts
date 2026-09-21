@@ -318,13 +318,6 @@ export const useRegistrationTransactions = ({
     clearTransaction()
   }, [actor, closeModal, clearTransaction])
 
-  const registeringName = useSelector(actor, (state) => state.context.name)
-  useEffect(() => {
-    if (machineState === 'idle' || machineState === 'success') return
-    if (registeringName === name) return
-    resetRegistration()
-  }, [machineState, registeringName, name, resetRegistration])
-
   return {
     transactions,
     actor,
