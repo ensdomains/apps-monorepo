@@ -392,10 +392,8 @@ export const TokenPickerContent = () => {
     }
   }
 
-  // Dispatch `registration.start`. The smart-session gate runs UP FRONT (in
-  // PaymentCard, before this chooser opens), so on the HCA path a session is
-  // already active here and `account.signer` carries it — no signer override
-  // or enable prompt is needed at this step.
+  // Dispatch `registration.start`. Only the USDC HCA route needs a session;
+  // the inherited DAI route continues with the wallet approval signer.
   const startRegistration = async (resolvedSetAsPrimary: boolean) => {
     if (!pricingQuery.data || !selectedToken) return
     // Resolve the session-enable payload up front (checks on-chain enablement).

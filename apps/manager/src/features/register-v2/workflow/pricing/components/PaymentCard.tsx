@@ -3,11 +3,10 @@ import { Trans } from '@lingui/react/macro'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useConnection } from 'wagmi'
-import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
+import { DAI as DAIIcon, USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
-import { useSmartSessionGate } from '@/features/wallet/hooks/useSmartSessionGate'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { useConnectModal } from '@/lib/wallet'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -26,11 +25,6 @@ export const PaymentCard = () => {
     state.context.duration,
     state.can({ type: 'pricing.step.next' }),
   ])
-
-  // Gate the smart session at the FRONT of the flow: enabling a session is a
-  // prerequisite for the whole HCA registration, so prompt for it BEFORE the
-  // stablecoin chooser opens — not after the user has already picked a token.
-  const { gate, sessionModal } = useSmartSessionGate()
 
   const baseRate = useBaseRate(label)
 
@@ -56,19 +50,16 @@ export const PaymentCard = () => {
   const openTokenPicker = () => uiActor.send({ type: 'pricing.step.next' })
 
   return (
-    <>
-      <PaymentCardBase
-        amount={pricingQuery.data?.totalPrice}
-        basePrice={pricingQuery.data?.basePrice}
-        canNext={canNext}
-        discountAmount={discountAmount}
-        isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
-        onNext={() => gate(openTokenPicker)}
-        premiumAmount={pricingQuery.data?.premiumPrice}
-        type="register"
-      />
-      {sessionModal}
-    </>
+    <PaymentCardBase
+      amount={pricingQuery.data?.totalPrice}
+      basePrice={pricingQuery.data?.basePrice}
+      canNext={canNext}
+      discountAmount={discountAmount}
+      isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
+      onNext={openTokenPicker}
+      premiumAmount={pricingQuery.data?.premiumPrice}
+      type="register"
+    />
   )
 }
 
@@ -160,10 +151,17 @@ export const PaymentCardBase = ({
           <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
             <Trans>Stables accepted</Trans>
           </p>
-          {/* Stablecoin icons */}
-          <div className="flex items-center gap-1">
-            <USDCIcon className="h-7 w-7" />
-          </div>
+          <ul
+            aria-label="Stables accepted"
+            className="flex items-center gap-1"
+          >
+            <li aria-label="USDC">
+              <USDCIcon className="h-7 w-7" />
+            </li>
+            <li aria-label="DAI">
+              <DAIIcon className="h-7 w-7" />
+            </li>
+          </ul>
         </div>
 
         {isConnected ? (
