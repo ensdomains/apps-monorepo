@@ -36,7 +36,7 @@ import { useNftAssetDownload } from './useNftAssetDownload'
 import { useNftReveal } from './useNftReveal'
 
 type SocialControlProps = {
-  readonly disabled: boolean
+  readonly isDisabled: boolean
   readonly href?: string
   readonly icon: ReactNode
   readonly onClick?: () => void
@@ -55,13 +55,13 @@ const hasCardData = (
 ): state is CardDialogState => 'card' in state && !!state.card
 
 const SocialControl = ({
-  disabled,
+  isDisabled,
   href,
   icon,
   onClick,
   children,
 }: SocialControlProps) => {
-  if (href && !disabled) {
+  if (href && !isDisabled) {
     return (
       <a
         className={socialControlClassName}
@@ -78,7 +78,7 @@ const SocialControl = ({
   return (
     <button
       className={socialControlClassName}
-      disabled={disabled || !onClick}
+      disabled={isDisabled || !onClick}
       onClick={onClick}
       type="button"
     >
@@ -89,10 +89,10 @@ const SocialControl = ({
 }
 
 const SharingRail = ({
-  disabled,
+  isDisabled,
   state,
 }: {
-  readonly disabled: boolean
+  readonly isDisabled: boolean
   readonly state: CardDialogState
 }) => {
   const { t } = useLingui()
@@ -120,37 +120,36 @@ const SharingRail = ({
         <Trans>NFT actions</Trans>
       </legend>
       <SocialControl
-        disabled={disabled}
         href={state.card.shareUrls.x}
         icon={<SiX aria-hidden className="size-4.5" />}
+        isDisabled={isDisabled}
       >
         <Trans>Share on X</Trans>
       </SocialControl>
       <SocialControl
-        disabled={disabled}
         href={state.card.shareUrls.telegram}
         icon={<SiTelegram aria-hidden className="size-4.5" />}
+        isDisabled={isDisabled}
       >
         <Trans>Share on Telegram</Trans>
       </SocialControl>
       <SocialControl
-        disabled={disabled}
         icon={<SiDiscord aria-hidden className="size-4.5" />}
+        isDisabled={isDisabled}
         onClick={discordMessage ? shareOnDiscord : undefined}
       >
         <Trans>Copy message and open Discord</Trans>
       </SocialControl>
       {state.card.marketplaceUrl ? (
         <SocialControl
-          disabled={disabled}
           href={state.card.marketplaceUrl}
           icon={<SiOpensea aria-hidden className="size-4.5" />}
+          isDisabled={isDisabled}
         >
           <Trans>View on OpenSea</Trans>
         </SocialControl>
       ) : null}
       <SocialControl
-        disabled={disabled}
         href={externalUrl}
         icon={
           <MSymbol
@@ -159,12 +158,13 @@ const SharingRail = ({
             symbol="arrow_outward"
           />
         }
+        isDisabled={isDisabled}
       >
         <Trans>Open NFT in a new tab</Trans>
       </SocialControl>
       <button
         className={socialControlClassName}
-        disabled={disabled || !externalUrl}
+        disabled={isDisabled || !externalUrl}
         onClick={() => externalUrl && void copy(externalUrl)}
         type="button"
       >
@@ -207,11 +207,11 @@ export type CommemorativeNftArtworkStatus = 'loading' | 'ready' | 'error'
 type ArtworkStatusCallback = (status: CommemorativeNftArtworkStatus) => void
 
 const ArtworkActions = ({
-  disabled,
+  isDisabled,
   state,
   variant,
 }: {
-  readonly disabled: boolean
+  readonly isDisabled: boolean
   readonly state: CardDialogState
   readonly variant: CardVariant
 }) => {
@@ -224,7 +224,7 @@ const ArtworkActions = ({
           : 'bottom-0 min-h-full justify-between gap-3',
       )}
     >
-      <SharingRail disabled={disabled} state={state} />
+      <SharingRail isDisabled={isDisabled} state={state} />
       {variant === 'profile' ? null : (
         <CommemorativeNftTraitsTooltip
           learnMoreUrl={state.card.learnMoreUrl}
@@ -443,7 +443,7 @@ const ArtworkCard = ({
       ) : null}
       {presentationReady ? (
         <ArtworkActions
-          disabled={artwork.animationPending}
+          isDisabled={artwork.animationPending}
           state={state}
           variant={variant}
         />
