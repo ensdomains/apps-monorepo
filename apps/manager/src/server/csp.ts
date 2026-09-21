@@ -13,8 +13,6 @@ import { originFromEnvUrl } from '@ens-apps/config'
 import { ensL1Subgraphs } from '@ensdomains/ensjs/chain'
 import { config } from '@/config'
 
-export { originFromEnvUrl }
-
 import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
 
 // DQA overlay origin (QA/preview builds only): needed in script-src and

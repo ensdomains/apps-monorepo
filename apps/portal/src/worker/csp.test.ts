@@ -1,10 +1,10 @@
+import { originFromEnvUrl } from '@ens-apps/config'
 import { describe, expect, it } from 'vitest'
 import { config } from '@/config'
 import {
   cspMetaTag,
   cspWithFrameAncestors,
   cspWithoutFrameAncestors,
-  originFromEnvUrl,
   withSecurityHeaders,
 } from './csp'
 

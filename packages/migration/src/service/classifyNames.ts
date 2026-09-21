@@ -87,8 +87,9 @@ const resolverStrategyFor = (params: {
   tokenType: MigrationTokenType
   fuses: bigint
   v1ResolverAddress: string | null
+  chainId: number
 }): ResolverStrategy => {
-  const { tokenType, fuses, v1ResolverAddress } = params
+  const { tokenType, fuses, v1ResolverAddress, chainId } = params
 
   const cannotSetResolverLocked =
     (tokenType === 'locked-2ld' || tokenType === 'locked-child') &&
@@ -102,7 +103,7 @@ const resolverStrategyFor = (params: {
     return 'keep-v1'
   }
 
-  if (v1ResolverAddress && !isKnownPublicResolver(v1ResolverAddress)) {
+  if (v1ResolverAddress && !isKnownPublicResolver(v1ResolverAddress, chainId)) {
     return 'keep-v1'
   }
 
@@ -137,8 +138,11 @@ const isDotEthSubname = (
   parentName !== 'eth' &&
   domain.name.toLowerCase().endsWith('.eth')
 
-const hasSupportedCopyResolver = (resolverAddress: string | null): boolean =>
-  resolverAddress === null || isKnownPublicResolver(resolverAddress)
+const hasSupportedCopyResolver = (
+  resolverAddress: string | null,
+  chainId: number,
+): boolean =>
+  resolverAddress === null || isKnownPublicResolver(resolverAddress, chainId)
 
 const hasExpiredDotEthRegistration = (
   domain: V1Domain,
@@ -162,6 +166,7 @@ const hasExpiredDotEthRegistration = (
 }
 
 type ClassificationContext = {
+  chainId: number
   readonly domain: V1Domain
   readonly label: string
   readonly ownerAddressLower: string
@@ -179,6 +184,7 @@ const classifyWithoutActiveWrapper = (
   context: ClassificationContext,
 ): ClassifyResult => {
   const {
+    chainId,
     domain,
     label,
     ownerAddressLower,
@@ -192,7 +198,7 @@ const classifyWithoutActiveWrapper = (
     if (!registryOwner || registryOwner.toLowerCase() !== ownerAddressLower) {
       return null
     }
-    if (!hasSupportedCopyResolver(v1ResolverAddress)) {
+    if (!hasSupportedCopyResolver(v1ResolverAddress, chainId)) {
       return ineligible(domain, 'unsupported-resolver')
     }
     return {
@@ -245,6 +251,7 @@ const classifyWithoutActiveWrapper = (
         tokenType: 'unwrapped',
         fuses: 0n,
         v1ResolverAddress,
+        chainId,
       }),
       managerAddress,
     },
@@ -257,7 +264,8 @@ const classifyUnlockedWrapper = (
   wrappedHolder: Address,
   fuses: bigint,
 ): ClassifyResult => {
-  const { domain, label, parentName, v1ResolverAddress, nowSeconds } = context
+  const { chainId, domain, label, parentName, v1ResolverAddress, nowSeconds } =
+    context
   if (parentName === 'eth') {
     return {
       type: 'classified',
@@ -274,6 +282,7 @@ const classifyUnlockedWrapper = (
           tokenType: 'unlocked',
           fuses,
           v1ResolverAddress,
+          chainId,
         }),
         managerAddress: null,
       },
@@ -302,6 +311,7 @@ const classifyUnlockedWrapper = (
           tokenType: 'detached-child',
           fuses,
           v1ResolverAddress,
+          chainId,
         }),
         managerAddress: null,
       },
@@ -317,7 +327,7 @@ const classifyUnlockedWrapper = (
   if (!hasNoIndependentExpiry && sourceExpiry <= nowSeconds) {
     return ineligible(domain, 'expired-registration')
   }
-  if (!hasSupportedCopyResolver(v1ResolverAddress)) {
+  if (!hasSupportedCopyResolver(v1ResolverAddress, chainId)) {
     return ineligible(domain, 'unsupported-resolver')
   }
   return {
@@ -344,7 +354,7 @@ const classifyLockedWrapper = (
   wrappedHolder: Address,
   fuses: bigint,
 ): ClassifyResult => {
-  const { domain, label, parentName, v1ResolverAddress } = context
+  const { chainId, domain, label, parentName, v1ResolverAddress } = context
   if (hasFuse(fuses, FUSES.CANNOT_TRANSFER)) {
     return ineligible(domain, 'not-transferable')
   }
@@ -367,6 +377,7 @@ const classifyLockedWrapper = (
         tokenType,
         fuses,
         v1ResolverAddress,
+        chainId,
       }),
       managerAddress: null,
     },
@@ -397,6 +408,7 @@ const classifyActiveWrapper = (
 export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
+  chainId: number,
 ): ClassifyResult => {
   if (hasUnknownLabel(domain)) return ineligible(domain, 'unknown-label')
   const label = domain.labelName
@@ -408,6 +420,7 @@ export const classifyName = (
   const ownerAddressLower = ownerAddress.toLowerCase()
   const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
   const context: ClassificationContext = {
+    chainId,
     domain,
     label,
     ownerAddressLower,
@@ -437,8 +450,11 @@ export type ClassifyNamesResult = {
 export const classifyNames = (
   domains: V1Domain[],
   ownerAddress: Address,
+  chainId: number,
 ): ClassifyNamesResult => {
-  const results = domains.map((domain) => classifyName(domain, ownerAddress))
+  const results = domains.map((domain) =>
+    classifyName(domain, ownerAddress, chainId),
+  )
   const classifiedByName = new Map<string, ClassifiedName>()
 
   for (const result of results) {

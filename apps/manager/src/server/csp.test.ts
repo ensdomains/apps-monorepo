@@ -1,10 +1,10 @@
+import { originFromEnvUrl } from '@ens-apps/config'
 import { describe, expect, it } from 'vitest'
 import { config } from '@/config'
 import {
   buildCsp,
   CSP_HEADER_NAME,
   CSP_REPORT_ONLY,
-  originFromEnvUrl,
   SECURITY_HEADER_VALUES,
 } from './csp'
 

@@ -1,5 +1,8 @@
+import { supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { describe, expect, it } from 'vitest'
 import { isKnownPublicResolver } from './knownResolvers'
+
+const SEPOLIA = supportedL1Chains.sepolia
 
 describe('isKnownPublicResolver', () => {
   it.each([
@@ -32,6 +35,23 @@ describe('isKnownPublicResolver', () => {
     ],
     ['unknown resolver', '0x0000000000000000000000000000000000000001', false],
   ])('returns %s → %s', (_, input, expected) => {
-    expect(isKnownPublicResolver(input)).toBe(expected)
+    expect(isKnownPublicResolver(input, SEPOLIA)).toBe(expected)
+  })
+
+  // A name can point its resolver at any address, including one that only has
+  // code on another chain, so the lists must not be shared across networks.
+  it("does not accept another network's resolver", () => {
+    const sepoliaOnly = '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5'
+
+    expect(isKnownPublicResolver(sepoliaOnly, SEPOLIA)).toBe(true)
+    expect(isKnownPublicResolver(sepoliaOnly, supportedL1Chains.mainnet)).toBe(
+      false,
+    )
+  })
+
+  it('treats an unknown chain as having no known resolvers', () => {
+    expect(
+      isKnownPublicResolver('0x640294a2b2d87e7f522db3e3e3e876764bce170d', 1234),
+    ).toBe(false)
   })
 })

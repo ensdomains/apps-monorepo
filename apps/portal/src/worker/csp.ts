@@ -18,8 +18,6 @@
 import { originFromEnvUrl } from '@ens-apps/config'
 import { config } from '@/config'
 
-export { originFromEnvUrl }
-
 // DQA overlay origin (QA/preview builds only): needed in script-src and
 // connect-src (https + wss). Statically null unless the build sets VITE_DQA=1.
 // The localhost fallback mirrors the overlay loader's own default
