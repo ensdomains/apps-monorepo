@@ -41,6 +41,18 @@ const runLoader = async (name: string, expiryData: ExpiryResult) => {
   return { outcome, fetchQuery, ensureQueryData }
 }
 
+const runBeforeLoad = (name: string) => {
+  const beforeLoad = Route.options.beforeLoad as (args: {
+    params: { name: string }
+  }) => void
+
+  try {
+    return beforeLoad({ params: { name } })
+  } catch (error) {
+    return error
+  }
+}
+
 describe('/renew/$name loader', () => {
   it('reads the expiry fresh rather than through the query cache', async () => {
     // A name registered moments ago has a cached entry from before it existed,
@@ -58,22 +70,31 @@ describe('/renew/$name loader', () => {
     })
   })
 
-  it('redirects a look-alike label to the name it would actually renew', async () => {
+  it('redirects a look-alike label to the name it would actually renew', () => {
     // `ALICE.eth` renews `alice.eth`, a registration someone else may own, so
     // the user lands on — and pays on — a page titled with the real name.
-    const { outcome, fetchQuery } = await runLoader('ALICE.eth', {
-      expiry: EXPIRY_2030,
-      isNonExpiring: false,
-      protocol: 'v2',
-    })
-
-    expect(outcome).toEqual({
+    expect(runBeforeLoad('ALICE.eth')).toEqual({
       redirect: {
         params: { name: 'alice.eth' },
         to: '/renew/$name',
         replace: true,
       },
     })
+  })
+
+  it('redirects before the loader runs, never from it', async () => {
+    // A loader redirect during SSR abandons the route chunk load the router
+    // already started, hanging every later render of this route on the worker.
+    expect(runBeforeLoad('alice.eth')).toBeUndefined()
+
+    const { outcome, fetchQuery } = await runLoader('ALICE.eth', {
+      expiry: EXPIRY_2030,
+      isNonExpiring: false,
+      protocol: 'v2',
+    })
+
+    expect(outcome).toBeInstanceOf(Error)
+    expect(outcome).not.toHaveProperty('redirect')
     expect(fetchQuery).not.toHaveBeenCalled()
   })
 
