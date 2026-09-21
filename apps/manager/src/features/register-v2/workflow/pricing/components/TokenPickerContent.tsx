@@ -136,7 +136,9 @@ const PaymentMethods = ({
           <TokenListItem
             key={stablecoin.address}
             onSelectCoin={onSelectCoin}
-            priceUSD={pricingData ?? 0}
+            priceUSD={
+              selectedToken === stablecoin.symbol ? (pricingData ?? 0) : 0
+            }
             selectedCoin={selectedToken}
             stablecoin={stablecoin}
           />

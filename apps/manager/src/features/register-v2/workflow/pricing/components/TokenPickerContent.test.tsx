@@ -98,6 +98,25 @@ describe('TokenPickerContentBase', () => {
     expect(onSelectCoin).toHaveBeenCalledWith('DAI')
   })
 
+  it('does not gate unselected DAI with the USDC quote', () => {
+    const onSelectCoin = renderPicker({
+      selectedToken: 'USDC',
+      stablecoinBalances: [
+        usdc,
+        {
+          ...dai,
+          balance: '329500000000000000000',
+        } as StablecoinBalance,
+      ],
+    })
+
+    const daiOption = screen.getByRole('button', { name: 'Select DAI' })
+    expect(daiOption).toBeEnabled()
+
+    act(() => daiOption.click())
+    expect(onSelectCoin).toHaveBeenCalledWith('DAI')
+  })
+
   it('gates DAI on its own price instead of the USDC funding budget', () => {
     renderPicker({
       funding: {
