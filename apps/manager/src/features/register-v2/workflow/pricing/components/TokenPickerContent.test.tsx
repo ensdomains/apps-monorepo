@@ -78,6 +78,14 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByRole('button', { name: 'Select USDC' })).toBeDisabled()
     const daiOption = screen.getByRole('button', { name: 'Select DAI' })
     expect(daiOption).toBeEnabled()
+    expect(
+      daiOption.querySelector(
+        '[data-slot="payment-method-token-icon"] path[fill="#F5AC37"]',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      daiOption.querySelector('[data-slot="payment-method-network-icon"]'),
+    ).toBeVisible()
     expect(screen.getAllByText('Mainnet est. fee:')).toHaveLength(1)
     expect(
       screen.getAllByText('not enough funds to pay network fees'),
@@ -221,10 +229,26 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByText('$1,000.00')).toBeVisible()
-    expect(screen.getByText('in your wallet')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee:')).toBeVisible()
-    expect(screen.getByText('$4.32')).toBeVisible()
+    const method = screen
+      .getByRole('button', { name: 'Select USDC' })
+      .closest('[data-slot="payment-method-row"]')
+    const details = method?.querySelector(
+      '[data-slot="payment-method-details"]',
+    )
+    const balance = method?.querySelector(
+      '[data-slot="payment-method-balance"]',
+    )
+    const networkIcon = method?.querySelector(
+      '[data-slot="payment-method-network-icon"]',
+    )
+
+    expect(method).toBeVisible()
+    expect(details).toContainElement(screen.getByText('Mainnet est. fee:'))
+    expect(details).toContainElement(screen.getByText('$4.32'))
+    expect(balance).toContainElement(screen.getByText('$1,000.00'))
+    expect(balance).toContainElement(screen.getByText('in your wallet'))
+    expect(networkIcon).toBeVisible()
+    expect(networkIcon?.tagName).toBe('IMG')
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
     expect(screen.queryByText(/Load more/i)).not.toBeInTheDocument()
 

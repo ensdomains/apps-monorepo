@@ -1,7 +1,8 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
+import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { sepolia } from 'viem/chains'
-import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
+import { DAI as DAIIcon, USDCIcon } from '@/components/atoms/StableCoinsIcons'
 
 export class NameAvailabilityError extends TaggedError(
   'NameAvailabilityError',
@@ -142,8 +143,8 @@ export const validateENSName = (name: string): ValidationError => {
   return null
 }
 
-// Standalone-HCA payment-token metadata. The HCA validator accepts only real
-// Circle Sepolia USDC; DAI uses the inherited EOA registration route instead.
+// Accepted registration-token metadata. USDC uses the standalone HCA route;
+// DAI keeps the inherited direct-wallet approval-and-register route.
 export const STABLECOINS = {
   USDC: {
     id: 'usdc',
@@ -152,5 +153,13 @@ export const STABLECOINS = {
     decimals: 6,
     address: getDestinationContracts(sepolia.id).usdc,
     icon: USDCIcon,
+  },
+  DAI: {
+    id: 'dai',
+    name: 'Dai',
+    symbol: 'DAI',
+    decimals: 18,
+    address: TOKENS.DAI.address,
+    icon: DAIIcon,
   },
 } as const

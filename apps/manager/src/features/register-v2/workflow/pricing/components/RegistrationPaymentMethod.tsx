@@ -1,17 +1,16 @@
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import { PaymentMethodIcon } from './PaymentMethodIcon'
 
 export const RegistrationPaymentMethod = ({
   stablecoin,
@@ -30,8 +29,6 @@ export const RegistrationPaymentMethod = ({
 }) => {
   const { t } = useLingui()
   const isSelected = selectedCoin === stablecoin.symbol
-  const coinConfig = STABLECOINS[stablecoin.symbol as keyof typeof STABLECOINS]
-  const IconComponent = coinConfig?.icon || USDCIcon
   const errorId = `payment-method-${stablecoin.address}-error`
 
   const coinBalanceUSD = decimalBigintToNumber(
@@ -42,83 +39,93 @@ export const RegistrationPaymentMethod = ({
   return (
     <div
       className={cn(
-        'flex min-h-20 w-full items-center justify-between gap-3 rounded px-3 py-3 transition-colors',
+        'grid min-h-17 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 rounded px-3 py-2 transition-colors',
         isSelected ? 'bg-ens-quartz-75' : 'hover:bg-ens-quartz-50',
       )}
+      data-slot="payment-method-row"
     >
-      <button
-        aria-describedby={hasInsufficientBalance ? errorId : undefined}
-        aria-label={t`Select ${stablecoin.symbol}`}
-        className={cn(
-          'flex min-w-0 items-center gap-2 text-left',
-          hasInsufficientBalance && 'cursor-not-allowed opacity-50',
-        )}
-        disabled={hasInsufficientBalance}
-        onClick={() => onSelectCoin(stablecoin.symbol as SUPPORTED_TOKEN)}
-        type="button"
-      >
-        <div className="relative h-8 w-8 shrink-0">
-          <IconComponent className="h-8 w-8" />
-          <div className="absolute -right-0.5 -bottom-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ens-peridot-core">
-            <span className="text-white text-xs leading-none">S</span>
-          </div>
-        </div>
-        <span className="truncate text-ens-gray-dark text-sm tracking-wide">
-          {stablecoin.symbol}
-        </span>
-      </button>
-
-      <div className="flex min-w-0 flex-col items-end gap-1 text-right">
-        <div className="flex flex-wrap items-baseline justify-end gap-x-1.5">
-          <span
-            className={cn(
-              'text-base tracking-wide',
-              hasInsufficientBalance ? 'text-ens-error' : 'text-ens-gray-dark',
-            )}
-          >
-            {formatUsd(coinBalanceUSD)}
-          </span>
-          <span className="text-ens-quartz-350 text-sm">
-            <Trans>in your wallet</Trans>
-          </span>
-        </div>
-
-        <div
+      <div className="flex min-w-0 flex-1 items-center">
+        <button
+          aria-describedby={hasInsufficientBalance ? errorId : undefined}
+          aria-label={t`Select ${stablecoin.symbol}`}
           className={cn(
-            'flex flex-wrap items-center justify-end gap-x-1 text-ens-quartz-500 text-xs',
-            isNetworkFeeLoading && 'animate-pulse',
+            'flex min-w-0 items-center gap-2 text-left sm:gap-3',
+            hasInsufficientBalance && 'cursor-not-allowed opacity-50',
+          )}
+          disabled={hasInsufficientBalance}
+          onClick={() => onSelectCoin(stablecoin.symbol as SUPPORTED_TOKEN)}
+          type="button"
+        >
+          <PaymentMethodIcon symbol={stablecoin.symbol} />
+          <span
+            className="flex min-w-0 flex-col items-start gap-0.5"
+            data-slot="payment-method-details"
+          >
+            <span className="truncate font-medium text-ens-gray-dark text-sm tracking-wide sm:text-base">
+              {stablecoin.symbol}
+            </span>
+            <span
+              className={cn(
+                'flex items-center gap-1 whitespace-nowrap text-[10px] text-ens-quartz-500 sm:text-sm',
+                isNetworkFeeLoading && 'animate-pulse',
+              )}
+            >
+              <span>
+                <Trans>Mainnet est. fee:</Trans>
+              </span>
+              <span className="tabular-nums">
+                {networkFee === undefined ? '—' : formatUsd(networkFee)}
+              </span>
+            </span>
+          </span>
+        </button>
+
+        <Tooltip>
+          <TooltipTrigger
+            aria-label={t`What is the network fee?`}
+            className="ml-0.5 flex size-4 shrink-0 items-end justify-center self-end sm:mb-0.5 sm:ml-1 sm:size-5"
+            type="button"
+          >
+            <MSymbol
+              className="ms-opsz-14 ms-wght-400 sm:ms-opsz-16"
+              symbol="info"
+            />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-64 text-center">
+            <Trans>
+              An estimate of what the two on-chain transactions that register
+              your name will cost. It is collected together with the name price,
+              in the same approval.
+            </Trans>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+
+      <div
+        className="flex shrink-0 flex-col items-end gap-0.5 text-right"
+        data-slot="payment-method-balance"
+      >
+        <span
+          className={cn(
+            'font-medium text-sm tracking-wide sm:text-base',
+            hasInsufficientBalance ? 'text-ens-error' : 'text-ens-gray-dark',
           )}
         >
-          <span>
-            <Trans>Mainnet est. fee:</Trans>
-          </span>
-          <span className="tabular-nums">
-            {networkFee === undefined ? '—' : formatUsd(networkFee)}
-          </span>
-          <Tooltip>
-            <TooltipTrigger
-              aria-label={t`What is the network fee?`}
-              className="flex items-center"
-              type="button"
-            >
-              <MSymbol className="ms-opsz-20 ms-wght-400" symbol="info" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-64 text-center">
-              <Trans>
-                An estimate of what the two on-chain transactions that register
-                your name will cost. It is collected together with the name
-                price, in the same approval.
-              </Trans>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-
-        {hasInsufficientBalance && (
-          <p className="text-ens-error text-xs" id={errorId}>
-            <Trans>not enough funds to pay network fees</Trans>
-          </p>
-        )}
+          {formatUsd(coinBalanceUSD)}
+        </span>
+        <span className="text-[10px] text-ens-quartz-350 sm:text-sm">
+          <Trans>in your wallet</Trans>
+        </span>
       </div>
+
+      {hasInsufficientBalance && (
+        <p
+          className="col-span-2 justify-self-end text-right text-[10px] text-ens-error sm:text-xs"
+          id={errorId}
+        >
+          <Trans>not enough funds to pay network fees</Trans>
+        </p>
+      )}
     </div>
   )
 }

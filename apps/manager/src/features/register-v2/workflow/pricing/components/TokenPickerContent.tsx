@@ -128,7 +128,7 @@ const PaymentMethods = ({
   selectedToken: SUPPORTED_TOKEN | undefined
   stablecoinBalances: StablecoinBalance[]
 }) => (
-  <div className="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
+  <div className="flex max-h-56 flex-col gap-3 overflow-y-auto">
     {stablecoinBalances.map((stablecoin) => {
       if (stablecoin.symbol !== TOKENS.USDC.symbol) {
         return (
@@ -640,7 +640,7 @@ export const TokenPickerContentBase = ({
     hasSufficientBalanceForSelectedCoin
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 px-4 pt-2 pb-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-6 px-0 pt-2 pb-6 sm:px-7">
       <div className="flex flex-1 flex-col items-center gap-8 overflow-y-auto">
         <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
           {(premiumLabel || isInPriceCooldown) && (

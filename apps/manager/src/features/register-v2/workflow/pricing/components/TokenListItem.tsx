@@ -1,12 +1,11 @@
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
-import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { hasInsufficientBalance } from '@/utils/payment'
+import { PaymentMethodIcon } from './PaymentMethodIcon'
 
 export const TokenListItem = ({
   stablecoin,
@@ -21,9 +20,6 @@ export const TokenListItem = ({
 }) => {
   const { t } = useLingui()
   const isSelected = selectedCoin === stablecoin.symbol
-  const coinConfig = STABLECOINS[stablecoin.symbol as keyof typeof STABLECOINS]
-  const IconComponent = coinConfig?.icon || USDCIcon
-
   const coinBalanceUSD = decimalBigintToNumber(
     BigInt(stablecoin.balance),
     stablecoin.decimals,
@@ -35,47 +31,47 @@ export const TokenListItem = ({
     <button
       aria-label={t`Select ${stablecoin.symbol}`}
       className={cn(
-        'flex h-11 items-center justify-between rounded px-3 py-4 transition-colors',
+        'flex min-h-17 w-full items-center justify-between gap-3 rounded px-3 py-2 text-left transition-colors',
         isSelected ? 'bg-ens-quartz-75' : 'hover:bg-ens-quartz-50',
         hasInsufficientBalanceForCoin && 'cursor-not-allowed opacity-50',
       )}
+      data-slot="payment-method-row"
       disabled={hasInsufficientBalanceForCoin}
       onClick={() => onSelectCoin(stablecoin.symbol as SUPPORTED_TOKEN)}
       type="button"
     >
-      <div className="flex items-center gap-2">
-        <div className="relative h-8 w-8">
-          <IconComponent className="h-8 w-8" />
-          <div className="absolute -right-0.5 -bottom-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ens-peridot-core">
-            <span className="text-[0.5rem] text-white leading-none">S</span>
-          </div>
-        </div>
-        <p className="text-ens-gray-dark text-sm tracking-wide">
+      <span className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <PaymentMethodIcon symbol={stablecoin.symbol} />
+        <span
+          className="truncate font-medium text-ens-gray-dark text-sm tracking-wide sm:text-base"
+          data-slot="payment-method-details"
+        >
           {stablecoin.symbol}
-        </p>
-      </div>
-      <div className="flex flex-col items-end">
-        <div className="flex items-baseline gap-1.5">
-          <p
-            className={cn(
-              'text-right text-base tracking-wide',
-              hasInsufficientBalanceForCoin
-                ? 'text-ens-error'
-                : 'text-ens-gray-dark',
-            )}
-          >
-            {formatUsd(coinBalanceUSD)}
-          </p>
-          <span className="text-[#A0A4A6] text-sm">
-            <Trans>in your wallet</Trans>
-          </span>
-        </div>
+        </span>
+      </span>
+      <span
+        className="flex shrink-0 flex-col items-end gap-0.5 text-right"
+        data-slot="payment-method-balance"
+      >
+        <span
+          className={cn(
+            'font-medium text-sm tracking-wide sm:text-base',
+            hasInsufficientBalanceForCoin
+              ? 'text-ens-error'
+              : 'text-ens-gray-dark',
+          )}
+        >
+          {formatUsd(coinBalanceUSD)}
+        </span>
+        <span className="text-[10px] text-ens-quartz-350 sm:text-sm">
+          <Trans>in your wallet</Trans>
+        </span>
         {hasInsufficientBalanceForCoin && priceUSD > 0 && (
-          <p className="text-ens-error text-xs">
+          <span className="text-[10px] text-ens-error sm:text-xs">
             <Trans>Need {formatUsd(priceUSD)}</Trans>
-          </p>
+          </span>
         )}
-      </div>
+      </span>
     </button>
   )
 }
