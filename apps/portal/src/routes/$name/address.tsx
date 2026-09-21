@@ -25,6 +25,7 @@ import { columns } from '@/features/forward-resolution/components/AddressResolut
 import {
   FORWARD_RESOLUTION_NETWORKS,
   type ForwardResolutionNetwork,
+  forwardAddress,
 } from '@/features/forward-resolution/components/AddressResolution/networks'
 import type { AddressResolutionRow } from '@/features/forward-resolution/components/AddressResolution/types'
 import {
@@ -34,7 +35,6 @@ import {
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
-import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 export const Route = createFileRoute('/$name/address')({
@@ -54,28 +54,13 @@ function resolveField<T>(
   return value ?? null
 }
 
-/**
- * Resolved forward address for a network: its own coin-type record, or — for
- * L2s without a chain-specific record — the ENSIP-19 default (`0x80000000`).
- */
-function forwardAddress(
-  network: ForwardResolutionNetwork,
-  addressByCoinType: Map<number, string>,
-): string | null {
-  const own = addressByCoinType.get(network.coinType) ?? null
-  if (own) return own
-  return network.l2ChainId != null
-    ? (addressByCoinType.get(DEFAULT_EVM_COIN_TYPE) ?? null)
-    : null
-}
-
 function buildRow(
   network: ForwardResolutionNetwork,
   addressByCoinType: Map<number, string>,
   resultByCoinType: Map<number, ReverseMatchResult>,
   isError: boolean,
 ): AddressResolutionRow {
-  const address = forwardAddress(network, addressByCoinType)
+  const { address, addressSource } = forwardAddress(network, addressByCoinType)
   const result = resultByCoinType.get(network.coinType)
   const pending = address != null && result === undefined && !isError
   return {
@@ -84,6 +69,7 @@ function buildRow(
     icon: network.icon,
     l2ChainId: network.l2ChainId,
     address,
+    addressSource,
     reverseMatch: resolveField(address, pending, result?.status),
     reverseName: resolveField(address, pending, result?.reverseName),
     reverseError: resolveField(address, pending, result?.error),
@@ -118,7 +104,7 @@ function RouteComponent() {
     getReverseMatchesQueryOptions({
       name,
       networks: FORWARD_RESOLUTION_NETWORKS.flatMap((network) => {
-        const address = forwardAddress(network, addressByCoinType)
+        const { address } = forwardAddress(network, addressByCoinType)
         return address
           ? [
               {

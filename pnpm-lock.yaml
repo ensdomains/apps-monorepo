@@ -138,6 +138,9 @@ importers:
       '@ens-apps/indexer':
         specifier: workspace:*
         version: link:../../packages/indexer
+      '@ens-apps/l2-primary':
+        specifier: workspace:*
+        version: link:../../packages/l2-primary
       '@ens-apps/migration':
         specifier: workspace:*
         version: link:../../packages/migration
