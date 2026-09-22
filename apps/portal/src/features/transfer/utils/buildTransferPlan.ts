@@ -102,19 +102,30 @@ export const STEP_LABELS: Record<TransferStepKind, string> = {
  * owning a name that resolves to someone else. The move is always the plan's
  * last step.
  *
- * `isRecordRepointedOnChain` covers a `set-eth-addr` whose receipt never came
- * back (polling timed out after the send): the live record is the only proof
- * it landed.
+ * A step whose receipt never came back (polling timed out after the send) may
+ * still have landed, so the chain decides instead:
+ * - `isRecordRepointedOnChain`: the live ETH record points at the recipient.
+ * - `mayHaveMoved`: the move's receipt was lost and the live holder doesn't
+ *   prove it failed — the recipient holds it, or the read hasn't settled.
+ *   Claiming the sender still owns it would offer a restore they can no longer
+ *   authorize.
  */
 export const isRecordAheadOfMove = (
   plan: readonly TransferStepKind[],
   confirmedSteps: ReadonlySet<TransferStepKind>,
-  isRecordRepointedOnChain = false,
+  {
+    isRecordRepointedOnChain = false,
+    mayHaveMoved = false,
+  }: {
+    readonly isRecordRepointedOnChain?: boolean
+    readonly mayHaveMoved?: boolean
+  } = {},
 ): boolean => {
   const move = plan.at(-1)
   return (
     (confirmedSteps.has('set-eth-addr') || isRecordRepointedOnChain) &&
     move !== undefined &&
-    !confirmedSteps.has(move)
+    !confirmedSteps.has(move) &&
+    !mayHaveMoved
   )
 }
