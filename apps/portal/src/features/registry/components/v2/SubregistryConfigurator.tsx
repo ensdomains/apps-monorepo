@@ -20,6 +20,7 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { type ResourceId, resourceIdForName } from '@/lib/resource/resourceId'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 
@@ -92,12 +93,17 @@ type SubregistryConfiguratorProps = {
   assertWritable: (() => Promise<boolean>) | null
 }
 
-export const SubregistryConfigurator = ({
+/**
+ * The form proper, which only exists once the name has a usable on-chain id.
+ * Splitting the guard out keeps that id non-null everywhere below.
+ */
+const SubregistryConfiguratorForm = ({
   name,
+  resourceId,
   onCancel,
   onComplete,
   assertWritable,
-}: SubregistryConfiguratorProps) => {
+}: SubregistryConfiguratorProps & { resourceId: ResourceId }) => {
   const [registryOption, setRegistryOption] = useState<RegistryOption>('deploy')
   const [contractAddress, setContractAddress] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
@@ -121,7 +127,6 @@ export const SubregistryConfigurator = ({
     error,
   } = useQuery(getNameRegistriesQueryOptions({ name }))
 
-  const label = name.split('.')[0]
   const parentRegistry = registries?.at(1) ?? null
 
   const customSubregistryAddress =
@@ -146,7 +151,7 @@ export const SubregistryConfigurator = ({
     hasWallet: hasSetWallet,
   } = useSetSubregistry({
     name,
-    label,
+    resourceId,
     parentRegistry: parentRegistry ?? zeroAddress,
     id: SET_SUBREGISTRY_TX_ID,
   })
@@ -345,7 +350,7 @@ export const SubregistryConfigurator = ({
                     prepare: customSubregistryAddress
                       ? ({ walletClient, chainId }) =>
                           prepareSetSubregistryTransaction({
-                            label,
+                            resourceId,
                             parentRegistry,
                             subregistryAddress: customSubregistryAddress,
                             walletClient,
@@ -361,4 +366,26 @@ export const SubregistryConfigurator = ({
       />
     </>
   )
+}
+
+/**
+ * The id `setSubregistry` will be addressed with, resolved before the form is
+ * built. Derived fail-closed: `labelhash` leaves an encoded (`[<64 hex>]`)
+ * label unhashed, so a label split off the displayed name can point the write
+ * at a different name (WEB-1458). No id means no form, not a guess.
+ */
+export const SubregistryConfigurator = (
+  props: SubregistryConfiguratorProps,
+) => {
+  const resourceId = resourceIdForName(props.name).unwrapOr(null)
+
+  if (!resourceId)
+    return (
+      <ErrorMessage
+        compact
+        description={`The on-chain identity of ${props.name} cannot be established from the name itself, so no registry can be set for it here.`}
+      />
+    )
+
+  return <SubregistryConfiguratorForm {...props} resourceId={resourceId} />
 }

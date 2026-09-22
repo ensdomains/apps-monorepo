@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ChangeResolverForm } from '@/features/resolver/components/ChangeResolverForm'
 import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
+import { resourceIdForName } from '@/lib/resource/resourceId'
 
 export const Route = createFileRoute('/$name/change-resolver')({
   component: RouteComponent,
@@ -78,6 +79,26 @@ function RouteComponent() {
         <ErrorMessage
           title="Wallet Not Connected"
           description="Please connect your wallet to change the resolver."
+        />
+      </PageLayout>
+    )
+  }
+
+  // A V2 target also needs the name's own id, and `labelhash` cannot produce
+  // one for an encoded (`[<64 hex>]`) label — say that rather than blame the
+  // registry, and refuse rather than address the write at a guess (WEB-1458).
+  if (!target && resourceIdForName(name).isErr()) {
+    return (
+      <PageLayout name={name}>
+        <ErrorMessage
+          title="Unsupported name"
+          description={
+            <>
+              The on-chain identity of <strong>{name}</strong> cannot be
+              established from the name itself, so nothing can be written for it
+              here.
+            </>
+          }
         />
       </PageLayout>
     )

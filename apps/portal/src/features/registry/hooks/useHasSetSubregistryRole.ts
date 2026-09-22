@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
+import { resourceIdForName } from '@/lib/resource/resourceId'
 import { getHasRolesQueryOptions } from './useHasRoles'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
 
@@ -28,7 +29,10 @@ export const useHasSetSubregistryRole = (
     enabled,
   })
 
-  const label = name.split('.')[0]
+  // The name's id rather than its label: `labelhash` leaves an encoded
+  // (`[<64 hex>]`) label unhashed, so a label-keyed gate can answer about a
+  // different name (WEB-1458). No id means no permission.
+  const resource = resourceIdForName(name).unwrapOr(null)
   const parentRegistry = registries?.at(1) ?? null
 
   const {
@@ -38,7 +42,7 @@ export const useHasSetSubregistryRole = (
   } = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: parentRegistry ?? zeroAddress,
-      label,
+      resource,
       roles: ['ROLE_SET_SUBREGISTRY'],
       account: connectedAddress ?? zeroAddress,
     }),

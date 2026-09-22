@@ -25,27 +25,38 @@ import type { ResolverWriteTarget } from '@/features/resolver/helpers/changeReso
 import type { V1TransferSubject } from '@/features/transfer/types'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import { canSetV1Resolver } from '@/features/transfer/v1/rules'
+import { type ResourceId, resourceIdForName } from '@/lib/resource/resourceId'
 
 type UseCanSetResolverReturn = {
   readonly canSet: boolean
   readonly isLoading: boolean
-  /** Null while unknown, or when no registry holds the name. */
+  /**
+   * Null while unknown, when no registry holds the name, or when a V2 name's
+   * id cannot be established.
+   */
   readonly target: ResolverWriteTarget | null
 }
 
 type Derivation = {
   readonly isV2: boolean
   readonly registryAddress: Address | undefined
+  readonly resourceId: ResourceId | null
   readonly v1Subject: V1TransferSubject | null
 }
 
+// A V2 target needs the name's id as well as its registry: the write is
+// addressed by id, and a name that cannot yield one has no target rather than
+// a guessed-at one (WEB-1458). V1 addresses by namehash and needs neither.
 const deriveTarget = ({
   isV2,
   registryAddress,
+  resourceId,
   v1Subject,
 }: Derivation): ResolverWriteTarget | null => {
   if (isV2) {
-    return registryAddress ? { protocol: 'ENSv2', registryAddress } : null
+    return registryAddress && resourceId
+      ? { protocol: 'ENSv2', registryAddress, resourceId }
+      : null
   }
   if (!v1Subject) return null
   return { protocol: 'ENSv1', isWrapped: v1Subject.kind === 'v1-wrapped' }
@@ -90,10 +101,15 @@ export function useCanSetResolver({
     ? (registryQuery.data?.[1] ?? undefined)
     : undefined
 
+  // Asked with the name's id, not its label: `labelhash` leaves an encoded
+  // (`[<64 hex>]`) label unhashed, so a label-keyed gate can answer about a
+  // different name than this one (WEB-1458). No id means no permission.
+  const resourceId = resourceIdForName(name).unwrapOr(null)
+
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: registryAddress ?? zeroAddress,
-      label: name.split('.')[0],
+      resource: resourceId,
       roles: ['ROLE_SET_RESOLVER'],
       account: account ?? zeroAddress,
     }),
@@ -118,6 +134,6 @@ export function useCanSetResolver({
       ownerQuery.isLoading ||
       (isV2 && v2Loading) ||
       (isV1 && v1Query.isLoading),
-    target: deriveTarget({ isV2, registryAddress, v1Subject }),
+    target: deriveTarget({ isV2, registryAddress, resourceId, v1Subject }),
   }
 }

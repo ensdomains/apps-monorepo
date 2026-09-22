@@ -4,8 +4,9 @@ import { ok } from 'neverthrow'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { requireResourceIdForName } from '@/lib/resource/resourceId'
 
-const OWNER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
+const OWNER ='0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
 const REGISTRANT = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
 const STRANGER = '0xcccccccccccccccccccccccccccccccccccccccc' as Address
 const V2_REGISTRY = '0xdddddddddddddddddddddddddddddddddddddddd' as Address
@@ -142,7 +143,20 @@ describe('useCanSetResolver', () => {
     expect(result.target).toEqual({
       protocol: 'ENSv2',
       registryAddress: V2_REGISTRY,
+      resourceId: requireResourceIdForName('modern.eth'),
     })
+  })
+
+  it('has no V2 target for a name whose id cannot be established', () => {
+    ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
+    registriesQuery = settled([undefined, V2_REGISTRY])
+    roleQuery = settled(true)
+
+    // An encoded label: `labelhash` returns the digits verbatim rather than
+    // hashing them, so no id can be trusted and the write has nowhere to go.
+    const result = render(`[${'0'.repeat(64)}].eth`)
+
+    expect(result.target).toBeNull()
   })
 
   it('refuses a V2 name without the role, whoever is asking', () => {

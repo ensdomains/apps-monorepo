@@ -9,7 +9,7 @@ import { prepareSetForwardResolutionTransaction } from '@/features/reverse-resol
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { IntentContext } from '@/features/transaction-manager/types'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
-import { getLabel } from '@/utils/token/getLabel'
+import { requireResourceIdForName } from '@/lib/resource/resourceId'
 import type { TransferSubject } from '../types'
 import {
   prepareDetachV1ResolverTransaction,
@@ -90,6 +90,7 @@ export const buildTransferStepIntent = (
       .with(['detach-resolver', { kind: 'v2' }], ([, { registryAddress }]) =>
         prepareChangeResolverTransaction({
           name,
+          resourceId: requireResourceIdForName(name),
           registryAddress,
           resolverAddress: zeroAddress,
           from: walletClient.account.address,
@@ -104,7 +105,7 @@ export const buildTransferStepIntent = (
       )
       .with(['detach-registry', { kind: 'v2' }], ([, { registryAddress }]) =>
         prepareSetSubregistryTransaction({
-          label: getLabel(name),
+          resourceId: requireResourceIdForName(name),
           parentRegistry: registryAddress,
           subregistryAddress: zeroAddress,
           walletClient,
