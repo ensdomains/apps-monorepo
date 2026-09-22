@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildTransferPlan, type TransferOptions } from './buildTransferPlan'
+import {
+  buildTransferPlan,
+  isRecordAheadOfMove,
+  type TransferOptions,
+} from './buildTransferPlan'
 
 const NO_OPTIONS: TransferOptions = {
   setEthAddress: false,
@@ -119,5 +123,37 @@ describe('buildTransferPlan (v1)', () => {
         'parent',
       ),
     ).toEqual(['set-subnode-owner'])
+  })
+})
+
+// Immunefi #93008: the record update and the move are separate transactions,
+// so a recipient that refuses the token after `set-eth-addr` confirmed leaves
+// the sender owning a name that resolves to the recipient.
+describe('isRecordAheadOfMove', () => {
+  const plan = buildTransferPlan({ ...NO_OPTIONS, setEthAddress: true }, 'v2')
+
+  it('flags a repointed record whose move never confirmed', () => {
+    expect(isRecordAheadOfMove(plan, new Set(['set-eth-addr']))).toBe(true)
+  })
+
+  it('is clear once the move confirms', () => {
+    expect(
+      isRecordAheadOfMove(plan, new Set(['set-eth-addr', 'transfer-token'])),
+    ).toBe(false)
+  })
+
+  it('is clear when the record was never written', () => {
+    expect(isRecordAheadOfMove(plan, new Set())).toBe(false)
+  })
+
+  it('keys off the last step of a two-step V1 move', () => {
+    const v1 = buildTransferPlan(
+      { ...NO_OPTIONS, setEthAddress: true },
+      'v1-registrar',
+    )
+    // `reclaim` alone doesn't hand over the registrant.
+    expect(isRecordAheadOfMove(v1, new Set(['set-eth-addr', 'reclaim']))).toBe(
+      true,
+    )
   })
 })

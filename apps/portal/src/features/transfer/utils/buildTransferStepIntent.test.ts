@@ -49,6 +49,7 @@ const ctx = {
   tokenId: null,
   resolverAddress: RESOLVER,
   isPermissionedResolver: false,
+  previousEthAddress: null,
   walletClient: { account: { address: ME } } as WalletClientWithAccount,
   chainId: sepoliaWithEns.id,
 }
@@ -206,6 +207,29 @@ describe('buildTransferStepIntent (v1)', () => {
         isPermissionedResolver: null,
       }),
     ).toThrow(/what kind of resolver/)
+  })
+
+  // Recovery after a move that failed once the record had already landed.
+  it('puts the ETH record back to what it was before the flow', () => {
+    expect(
+      call(
+        buildTransferStepIntent('restore-eth-addr', {
+          ...ctx,
+          isPermissionedResolver: true,
+          previousEthAddress: ME,
+        }),
+      ),
+    ).toEqual({
+      to: RESOLVER,
+      functionName: 'setAddress',
+      args: [toHex(packetToBytes('alice.eth')), 60n, ME.toLowerCase()],
+    })
+  })
+
+  it('refuses to restore when there was no ETH record to restore', () => {
+    expect(() => buildTransferStepIntent('restore-eth-addr', ctx)).toThrow(
+      /no ETH address to restore/,
+    )
   })
 
   it('refuses a step the plan should never produce for the subject', () => {
