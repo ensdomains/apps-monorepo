@@ -97,6 +97,7 @@ const makeClassified = (d: V1Domain): ClassifiedName => ({
   tokenHolder: OWNER,
   v1ResolverAddress: null,
   resolverStrategy: 'to-owned-permres',
+  registryController: null,
   managerAddress: null,
 })
 

@@ -211,6 +211,7 @@ const classifiedFor = (label: string): ClassifiedName => ({
   tokenHolder: OWNER,
   v1ResolverAddress: V1_RESOLVER,
   resolverStrategy: 'to-owned-permres',
+  registryController: null,
   managerAddress: null,
 })
 
@@ -239,6 +240,7 @@ const copyClassifiedFor = (params?: {
     tokenHolder: OWNER,
     v1ResolverAddress: V1_RESOLVER,
     resolverStrategy: 'to-owned-permres',
+    registryController: null,
     managerAddress: null,
   }
 }
@@ -711,6 +713,7 @@ describe('executeMigration HCA orchestration', () => {
           count: 1,
           migrateCount: 1,
           copyCount: 0,
+          roleGrants: [],
         },
       ],
     }
@@ -912,6 +915,7 @@ describe('executeMigration HCA orchestration', () => {
           count: 1,
           migrateCount: 1,
           copyCount: 0,
+          roleGrants: [],
         },
         { type: 'cleanup' as const, approvalId: MANAGER_APPROVAL.id },
       ],
@@ -1030,6 +1034,7 @@ describe('executeMigration HCA orchestration', () => {
           count: 1,
           migrateCount: 1,
           copyCount: 0,
+          roleGrants: [],
         },
       ],
     }
@@ -1745,6 +1750,7 @@ describe('executeMigration HCA orchestration', () => {
           count: 1,
           migrateCount: 1,
           copyCount: 0,
+          roleGrants: [],
         },
         { type: 'cleanup' as const, approvalId: MANAGER_APPROVAL.id },
       ],

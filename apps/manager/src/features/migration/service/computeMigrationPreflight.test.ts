@@ -79,6 +79,7 @@ const run = (
     profileKeys?: Result<unknown, unknown>
     hcaAddress?: Address
     hcaApprovals?: MigrationApprovalStatus
+    managerRestorationNames?: readonly string[]
   } = {},
 ) => {
   if (opts.hcaAddress) {
@@ -98,6 +99,7 @@ const run = (
     eoa: EOA,
     hcaAddress: opts.hcaAddress,
     domains: [makeDomain({ resolverAddress: RESOLVER, ...opts.domain })],
+    managerRestorationNames: opts.managerRestorationNames,
     wagmiConfig: {} as WagmiConfig,
     publicClient: {} as PublicClient,
   })
@@ -114,13 +116,14 @@ beforeEach(() => {
 })
 
 describe('computeMigrationPreflight — HCA approvals', () => {
-  it('plans a token approval and manager approval when missing', async () => {
+  it('plans a token approval and manager approval when the owner opted a name in', async () => {
     const result = await run({
       domain: {
         isWrapped: false,
         ownerId: '0x00000000000000000000000000000000000000aa',
       },
       hcaAddress: HCA,
+      managerRestorationNames: ['alice.eth'],
       hcaApprovals: {
         ...ALL_HCA_APPROVED,
         baseRegistrarHcaApproved: false,
@@ -166,6 +169,31 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     expect(result.migrationCleanupApprovals?.map(({ id }) => id)).toEqual([
       'eth-registry:hca',
     ])
+  })
+
+  it('plans no manager approval for a divergent v1 controller that was not opted in (WEB-1528)', async () => {
+    const result = await run({
+      domain: {
+        isWrapped: false,
+        ownerId: '0x00000000000000000000000000000000000000aa',
+      },
+      hcaAddress: HCA,
+      hcaApprovals: {
+        ...ALL_HCA_APPROVED,
+        baseRegistrarHcaApproved: false,
+        unwrappedTokenApprovals: [],
+        ethRegistryHcaApproved: false,
+      },
+    })
+
+    expect(result.migrationApprovals?.map((approval) => approval.id)).toEqual([
+      'base-registrar:hca-token',
+    ])
+    expect(checkMigrationApprovalsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        needs: expect.objectContaining({ requiresManagerRestoration: false }),
+      }),
+    )
   })
 
   it('checks locked known resolvers against the pinned PublicResolverSet', async () => {

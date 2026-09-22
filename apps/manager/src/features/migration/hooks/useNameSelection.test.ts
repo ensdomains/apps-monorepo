@@ -210,6 +210,7 @@ describe('useNameSelection', () => {
 
   it('prunes selected names when eligibility changes', async () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()
+    const onManagerRestorationChange = vi.fn<(names: string[]) => void>()
     const first = [makeName('one.eth'), makeName('two.eth')]
     const next = [makeName('one.eth')]
 
@@ -219,6 +220,7 @@ describe('useNameSelection', () => {
           eligible,
           isPending: false,
           onNamesChange,
+          onManagerRestorationChange,
         }),
       { initialProps: { eligible: first } },
     )

@@ -28,7 +28,11 @@ import {
   flattenProfileInnerCalls,
   wrapInnerCallsAsMulticall,
 } from './buildProfileReplayCalls'
-import { buildRoleGrantCall } from './buildRoleGrantCalls'
+import {
+  buildRoleAdminGrantCall,
+  buildRoleGrantCall,
+  ROLE_SET_RESOLVER_ADMIN,
+} from './buildRoleGrantCalls'
 import {
   type ClassifiedName,
   type DirectClassifiedName,
@@ -918,14 +922,23 @@ const buildNameStateExpectations = (params: {
   ]
 }
 
-const buildManagerRoleFragment = (
-  classified: ClassifiedName,
-): NameExecutionFragment => {
+/**
+ * A manager role is only ever restored for a name the owner opted in for, which
+ * is the only thing that sets `managerAddress` — see `classifyNames`. The grant
+ * is paired with its admin counterpart for the migrating owner so the restored
+ * manager can always be removed again.
+ */
+const buildManagerRoleFragment = (params: {
+  readonly classified: ClassifiedName
+  readonly wallet: Address
+}): NameExecutionFragment => {
+  const { classified, wallet } = params
   if (classified.action !== 'migrate' || !classified.managerAddress) {
     return EMPTY_NAME_EXECUTION_FRAGMENT
   }
 
   const name = classified.domain.name
+  const resource = labelToCanonicalId(classified.label)
   return {
     innerExecutions: [
       {
@@ -933,6 +946,15 @@ const buildManagerRoleFragment = (
         name,
         names: [name],
         call: buildRoleGrantCall(classified),
+      },
+      {
+        phase: 'manager-role-grant',
+        name,
+        names: [name],
+        call: buildRoleAdminGrantCall({
+          name: classified,
+          migrationOwner: wallet,
+        }),
       },
     ],
     verificationExpectations: [
@@ -942,9 +964,19 @@ const buildManagerRoleFragment = (
         name,
         label: classified.label,
         registry: V2_CONTRACTS.ETHRegistry,
-        resource: labelToCanonicalId(classified.label),
+        resource,
         account: classified.managerAddress,
         roleBitmap: ROLE_SET_RESOLVER,
+      },
+      {
+        id: expectationId(name, 'manager-role', 'admin'),
+        type: 'manager-role',
+        name,
+        label: classified.label,
+        registry: V2_CONTRACTS.ETHRegistry,
+        resource,
+        account: wallet,
+        roleBitmap: ROLE_SET_RESOLVER_ADMIN,
       },
     ],
   }
@@ -1063,7 +1095,10 @@ const buildNameExecution = (
       expectedResolver,
     }),
   }
-  const managerRole = buildManagerRoleFragment(params.classified)
+  const managerRole = buildManagerRoleFragment({
+    classified: params.classified,
+    wallet: params.wallet,
+  })
   const profileReplay = buildProfileReplayFragment(params)
   const fragments = [
     resolverSetup,

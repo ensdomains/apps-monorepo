@@ -267,6 +267,7 @@ describe('describeNextStep', () => {
           count: 5,
           migrateCount: 3,
           copyCount: 2,
+          roleGrants: [],
         }),
       },
       { kind: 'atomic-batch', index: 0, total: 1, count: 5 },

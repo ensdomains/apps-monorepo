@@ -98,6 +98,7 @@ export type ClassifiedOverrides = {
   fuses?: bigint
   label?: string
   managerAddress?: Address | null
+  registryController?: Address | null
   tokenHolder?: Address
 }
 
@@ -149,6 +150,7 @@ export function makeClassified(o: ClassifiedOverrides = {}): ClassifiedName {
         (tokenType === 'registry-child' ? 'registry' : 'name-wrapper'),
       sourceExpiry: o.sourceExpiry ?? 4_102_444_800n,
       resolverStrategy: 'to-owned-permres',
+      registryController: null,
       managerAddress: null,
     }
   }
@@ -163,6 +165,7 @@ export function makeClassified(o: ClassifiedOverrides = {}): ClassifiedName {
         ? o.tokenType
         : 'unwrapped',
     resolverStrategy: o.resolverStrategy ?? 'to-owned-permres',
+    registryController: o.registryController ?? null,
     managerAddress: o.managerAddress ?? null,
   }
 }

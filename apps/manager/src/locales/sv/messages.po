@@ -156,6 +156,11 @@ msgstr ""
 msgid "{years} years"
 msgstr ""
 
+#. placeholder {0}: truncateAddress(account)
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "<0>{0}</0> will be able to change the resolver for <1>{name}</1>"
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> names selected</3>"
 msgstr ""
@@ -1213,16 +1218,17 @@ msgstr ""
 msgid "Join the community"
 msgstr ""
 
+#. placeholder {0}: truncateAddress(manager)
+#: src/features/migration/components/NameRow.tsx
+msgid "Keep <0>{0}</0> as a manager. It can change this name's resolver after the upgrade."
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje dag). Använd sedan en varm plånbok (din dagliga plånbok) för att hantera poster och använda namnet."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Keep renewal"
-msgstr ""
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Keep the same managers on your names after the upgrade."
 msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
@@ -1255,6 +1261,10 @@ msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Lets the upgrade contract move any wrapped name you own."
+msgstr ""
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Lets the upgrade grant the managers you picked for your names."
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
@@ -2074,7 +2084,7 @@ msgid "Reserving your name"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Restore your managers"
+msgid "Restore the managers you chose"
 msgstr ""
 
 #: src/features/register-v2/state/useRegistrationResume.ts

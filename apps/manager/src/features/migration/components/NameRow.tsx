@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { memo, useId, useState } from 'react'
+import type { Address } from 'viem'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
@@ -7,7 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
+import { cn, truncateAddress } from '@/lib/utils'
 import type { ClassifiedName } from '../service/classifyNames'
 import { getMigrationAvatarUrl } from './nameAvatar.helpers'
 
@@ -18,7 +19,53 @@ type NameRowProps = {
   readonly isInGrace?: boolean
   readonly depth: number
   readonly onToggle?: (name: string) => void
+  /** The v1 registry controller, when it differs from the registrant. */
+  readonly managerCandidate?: Address
+  readonly isManagerRestored?: boolean
+  readonly onToggleManagerRestoration?: (name: string) => void
 }
+
+/**
+ * The opt-in that carries a v1 registry controller across as a v2 manager.
+ *
+ * It always shows the address, because the account is neither the owner nor
+ * anything the rest of the flow names: for a name bought on a marketplace it is
+ * the seller, and granting it `ROLE_SET_RESOLVER` would let it keep changing
+ * the name's resolver after the upgrade.
+ */
+const ManagerRestorationOptIn = ({
+  name,
+  manager,
+  isRestored,
+  onToggle,
+}: {
+  readonly name: string
+  readonly manager: Address
+  readonly isRestored: boolean
+  readonly onToggle: (name: string) => void
+}) => (
+  <label
+    className="mt-2 flex max-w-full cursor-pointer items-start gap-2 pl-10 text-ens-garnet-900/70 text-xs leading-normal"
+    title={manager}
+  >
+    <input
+      aria-describedby={`manager-restoration-${name}`}
+      checked={isRestored}
+      className="mt-0.5 size-3.5 shrink-0 accent-ens-garnet-900"
+      onChange={() => onToggle(name)}
+      type="checkbox"
+    />
+    <span id={`manager-restoration-${name}`}>
+      <Trans>
+        Keep{' '}
+        <span className="font-semi-mono text-ens-garnet-900">
+          {truncateAddress(manager)}
+        </span>{' '}
+        as a manager. It can change this name&apos;s resolver after the upgrade.
+      </Trans>
+    </span>
+  </label>
+)
 
 const NameRowComponent = ({
   item,
@@ -27,6 +74,9 @@ const NameRowComponent = ({
   isInGrace = false,
   depth,
   onToggle,
+  managerCandidate,
+  isManagerRestored = false,
+  onToggleManagerRestoration,
 }: NameRowProps) => {
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
   const avatarUrl = getMigrationAvatarUrl(item.domain.name)
@@ -159,18 +209,31 @@ const NameRowComponent = ({
     )
   }
 
+  const showManagerOptIn =
+    isSelected && !!managerCandidate && !!onToggleManagerRestoration
+
   return (
-    <label className={rowClass} title={item.domain.name}>
-      <input
-        aria-describedby={descriptions}
-        aria-label={item.domain.name}
-        checked={isSelected}
-        className="peer sr-only"
-        onChange={() => onToggle?.(item.domain.name)}
-        type="checkbox"
-      />
-      {content}
-    </label>
+    <div className="flex min-w-0 flex-col">
+      <label className={rowClass} title={item.domain.name}>
+        <input
+          aria-describedby={descriptions}
+          aria-label={item.domain.name}
+          checked={isSelected}
+          className="peer sr-only"
+          onChange={() => onToggle?.(item.domain.name)}
+          type="checkbox"
+        />
+        {content}
+      </label>
+      {showManagerOptIn && (
+        <ManagerRestorationOptIn
+          isRestored={isManagerRestored}
+          manager={managerCandidate}
+          name={item.domain.name}
+          onToggle={onToggleManagerRestoration}
+        />
+      )}
+    </div>
   )
 }
 
