@@ -4,7 +4,7 @@ import {
 } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
 import {
@@ -17,7 +17,7 @@ import {
 } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
-import { type Address, getAddress, isAddress } from 'viem'
+import { type Address, getAddress, isAddress, isAddressEqual } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
@@ -186,6 +186,12 @@ const describeRefusal = (reason: V1TransferRefusedError['reason']): string =>
     )
     .exhaustive()
 
+const recordPointsAt = (
+  record: string | null | undefined,
+  address: Address | undefined,
+): boolean =>
+  !!record && !!address && isAddress(record) && isAddressEqual(record, address)
+
 /**
  * Runs a transfer plan through the transaction modal, one step per transaction.
  * Every step's calldata comes from `buildTransferStepIntent`, shared between the
@@ -221,6 +227,10 @@ export const useTransferName = ({
   const [confirmedSteps, setConfirmedSteps] = useState<
     ReadonlySet<TransferStepKind>
   >(new Set())
+  // `set-eth-addr` was broadcast but its receipt never came back (polling
+  // timed out, or the wait otherwise gave up after the send). It may still
+  // have landed, so the live record decides — see `isRecordRepointedOnChain`.
+  const [isEthAddrUnsettled, setIsEthAddrUnsettled] = useState(false)
   const [isRestoring, setIsRestoring] = useState(false)
 
   // `startedSteps` makes each step's `onStart` idempotent — both the modal UI and
@@ -273,6 +283,7 @@ export const useTransferName = ({
     setIsRestoring(false)
     setSavedParams(null)
     setConfirmedSteps(new Set())
+    setIsEthAddrUnsettled(false)
     attempt.end()
     void queryClient.invalidateQueries({
       queryKey: getEthAddressQueryOptions({ name }).queryKey,
@@ -445,6 +456,7 @@ export const useTransferName = ({
       onSuccess: (params) => {
         startedStepsRef.current = new Set()
         setConfirmedSteps(new Set())
+        setIsEthAddrUnsettled(false)
         setIsRestoring(false)
         // A retry after a stranded attempt re-reads the record *we* repointed;
         // what to restore is still the value from before the first attempt.
@@ -460,6 +472,21 @@ export const useTransferName = ({
       },
     }),
   )
+
+  // A `set-eth-addr` that failed after it was sent may still have been mined.
+  // Re-read the record rather than trust the cached pre-flow value.
+  const flagIfEthAddrSent = (
+    step: TransferStepKind,
+    txId: string | undefined,
+  ) => {
+    if (step !== 'set-eth-addr' || !txId) return
+    if (!transactionManager.getTransaction(txId)?.getSnapshot().context.hash)
+      return
+    setIsEthAddrUnsettled(true)
+    void queryClient.invalidateQueries({
+      queryKey: getEthAddressQueryOptions({ name }).queryKey,
+    })
+  }
 
   // Built fresh each render (like useRenewalTransactions) — the modal holds the
   // array in a ref for auto-advance, so referential stability isn't required.
@@ -484,11 +511,12 @@ export const useTransferName = ({
       )
         return
       startedStepsRef.current.add(id)
+      let txId: string | undefined
       try {
         const walletClient = await getWalletClient(config, { account })
         if (!walletClient?.account || !publicClient)
           throw new Error('No connected wallet')
-        const txId = transactionManager.startTransaction(
+        txId = transactionManager.startTransaction(
           buildTransferStepIntent(step, {
             ...stepContext,
             walletClient: walletClient as WalletClientWithAccount,
@@ -513,6 +541,7 @@ export const useTransferName = ({
         // guarded, or a stray `onStart` would send it a second time.
         console.error(`Transfer step "${step}" failed:`, err)
         startedStepsRef.current.delete(id)
+        flagIfEthAddrSent(step, txId)
       }
     })
 
@@ -536,6 +565,18 @@ export const useTransferName = ({
     }))
   }
 
+  const recipient = savedParams?.recipient
+  const liveEthAddressQuery = useQuery({
+    ...getEthAddressQueryOptions({ name }),
+    enabled: isEthAddrUnsettled && !!recipient,
+    refetchInterval: (query) =>
+      recordPointsAt(query.state.data, recipient) ? false : 15_000,
+  })
+  const isRecordRepointedOnChain =
+    isEthAddrUnsettled &&
+    recordPointsAt(liveEthAddressQuery.data, recipient) &&
+    !recordPointsAt(savedParams?.previousEthAddress, recipient)
+
   // Only once the modal is closed: mid-flow, the gap between the record landing
   // and the move landing is expected, not a stranded state. A restore dismissed
   // before it landed leaves the record stranded, so it shows again.
@@ -545,6 +586,7 @@ export const useTransferName = ({
     isRecordAheadOfMove(
       buildTransferPlan(savedParams.options, subject.kind, actor),
       confirmedSteps,
+      isRecordRepointedOnChain,
     )
       ? {
           recipient: savedParams.recipient,

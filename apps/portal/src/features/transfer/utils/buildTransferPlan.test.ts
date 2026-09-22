@@ -146,6 +146,16 @@ describe('isRecordAheadOfMove', () => {
     expect(isRecordAheadOfMove(plan, new Set())).toBe(false)
   })
 
+  it('flags a record that landed on-chain without a confirmed receipt', () => {
+    expect(isRecordAheadOfMove(plan, new Set(), true)).toBe(true)
+  })
+
+  it('is clear once the move confirms, even if the record’s receipt was lost', () => {
+    expect(isRecordAheadOfMove(plan, new Set(['transfer-token']), true)).toBe(
+      false,
+    )
+  })
+
   it('keys off the last step of a two-step V1 move', () => {
     const v1 = buildTransferPlan(
       { ...NO_OPTIONS, setEthAddress: true },
