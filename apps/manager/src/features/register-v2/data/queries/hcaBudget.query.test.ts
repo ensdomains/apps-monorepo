@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
-import { okAsync } from 'neverthrow'
+import { okAsync, ResultAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -96,9 +96,13 @@ describe('getHcaBudgetQueryOptions', () => {
     expect(withPrimary.queryKey).not.toEqual(withoutPrimary.queryKey)
   })
 
-  it('re-quotes registration start with the current session payload', async () => {
+  it('replaces an in-flight display quote with the start quote', async () => {
     const queryClient = new QueryClient()
     const refreshedBudget = { ...BUDGET, total: BUDGET.total + 1_000_000n }
+    let resolveDisplay!: (budget: typeof BUDGET) => void
+    const displayBudget = new Promise<typeof BUDGET>((resolve) => {
+      resolveDisplay = resolve
+    })
     let sessionEnable: Awaited<
       ReturnType<typeof baseParams.getSessionEnablePayload>
     >
@@ -107,14 +111,21 @@ describe('getHcaBudgetQueryOptions', () => {
       getSessionEnablePayload: () => Promise.resolve(sessionEnable),
     }
     mocks.estimateHcaBudgetActor
-      .mockReturnValueOnce(okAsync(BUDGET))
+      .mockReturnValueOnce(ResultAsync.fromSafePromise(displayBudget))
       .mockReturnValueOnce(okAsync(refreshedBudget))
     mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(0n))
 
-    await queryClient.fetchQuery(getHcaBudgetQueryOptions(params))
+    const displayRequest = queryClient
+      .fetchQuery(getHcaBudgetQueryOptions(params))
+      .catch(() => undefined)
+    await vi.waitFor(() =>
+      expect(mocks.estimateHcaBudgetActor).toHaveBeenCalledOnce(),
+    )
 
     sessionEnable = { signature: '0x1234' } as never
     await refreshHcaBudgetQuery(queryClient, params)
+    resolveDisplay(BUDGET)
+    await displayRequest
 
     expect(mocks.estimateHcaBudgetActor).toHaveBeenCalledTimes(2)
     expect(mocks.estimateHcaBudgetActor).toHaveBeenLastCalledWith(

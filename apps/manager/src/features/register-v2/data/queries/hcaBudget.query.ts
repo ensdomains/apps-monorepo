@@ -96,7 +96,6 @@ export interface HcaBudgetQueryParams {
   readonly getSessionEnablePayload: () => Promise<
     HcaSessionEnableParams | undefined
   >
-  readonly purpose?: 'display' | 'registration-start'
 }
 
 const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
@@ -140,7 +139,6 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
       label: params.label,
       durationInSeconds: params.durationInSeconds,
       hca: params.hca,
-      purpose: params.purpose ?? 'display',
       // Keyed, not just passed: toggling the primary-name switch changes the
       // quote, so it has to refetch rather than serve the other variant.
       primaryName: params.primaryName ?? null,
@@ -153,8 +151,7 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
       params.signer?.type === 'rhinestone' &&
       params.label.length > 0 &&
       params.durationInSeconds > 0,
-    staleTime:
-      params.purpose === 'registration-start' ? 0 : HCA_BUDGET_STALE_TIME_MS,
+    staleTime: HCA_BUDGET_STALE_TIME_MS,
     // A flaky orchestrator must not strand the user on the confirm screen:
     // callers treat "no budget" as "show the price alone and let the machine
     // surface any failure", never as a hard block.
@@ -163,15 +160,12 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
 
 export const refreshHcaBudgetQuery = async (
   queryClient: QueryClient,
-  params: Omit<HcaBudgetQueryParams, 'purpose'>,
+  params: HcaBudgetQueryParams,
 ) => {
   const displayOptions = getHcaBudgetQueryOptions(params)
-  const quote = await queryClient.fetchQuery(
-    getHcaBudgetQueryOptions({
-      ...params,
-      purpose: 'registration-start',
-    }),
-  )
-  queryClient.setQueryData(displayOptions.queryKey, quote)
-  return quote
+  await queryClient.cancelQueries({
+    exact: true,
+    queryKey: displayOptions.queryKey,
+  })
+  return queryClient.fetchQuery({ ...displayOptions, staleTime: 0 })
 }
