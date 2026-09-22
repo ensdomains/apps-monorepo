@@ -1,3 +1,4 @@
+import { namehash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -5,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getBlock: vi.fn(),
   getNameHistory: vi.fn(),
   getRegistrationDate: vi.fn(),
+  indexerQuery: vi.fn(),
 }))
 
 vi.mock('@ensdomains/ensjs/public/v2', () => ({
@@ -17,6 +19,14 @@ vi.mock('@ensdomains/ensjs/subgraph', () => ({
 
 vi.mock('viem/actions', () => ({
   getBlock: mocks.getBlock,
+}))
+
+vi.mock('@ens-apps/indexer/urql', () => ({
+  default: {
+    query: (...args: unknown[]) => ({
+      toPromise: () => Promise.resolve(mocks.indexerQuery(...args)),
+    }),
+  },
 }))
 
 vi.mock('@/lib/wagmi/helpers', async () => {
@@ -47,74 +57,47 @@ describe('profileRegistrationQuery', () => {
 describe('getRegistration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.indexerQuery.mockResolvedValue({ data: { domain: null } })
   })
 
-  it('falls back to the V1 registration event block timestamp when V2 has no registration date', async () => {
-    mocks.getRegistrationDate.mockResolvedValue(null)
-    mocks.getNameHistory.mockResolvedValue({
-      domainEvents: [],
-      registrationEvents: [
-        {
-          blockNumber: 9529458,
-          type: 'NameRegistered',
-        },
-      ],
-      resolverEvents: [],
+  it('reads a V2 registration date from the indexer', async () => {
+    mocks.indexerQuery.mockResolvedValue({
+      data: { domain: { registrationDate: 1_789_640_616 } },
     })
-    mocks.getBlock.mockResolvedValue({ timestamp: 1_761_906_936n })
 
-    const result = await getRegistration('fgeorgescu.eth', 'v1')
+    const result = await getRegistration('rabbit.eth', 'v2')
 
-    expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_761_906_936 })
-    expect(mocks.getNameHistory).toHaveBeenCalledWith(mocks.client, {
-      name: 'fgeorgescu.eth',
-      orderDirection: 'desc',
-      first: 25,
+    expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_789_640_616 })
+    expect(mocks.indexerQuery).toHaveBeenCalledWith(expect.anything(), {
+      id: namehash('rabbit.eth'),
     })
-    expect(mocks.getBlock).toHaveBeenCalledWith(mocks.client, {
-      blockNumber: 9529458n,
-    })
+    expect(mocks.getRegistrationDate).not.toHaveBeenCalled()
   })
 
-  it('uses the latest V1 registration event when history contains older registrations', async () => {
-    mocks.getRegistrationDate.mockResolvedValue(null)
+  it('falls back on chain for a V2 name the indexer has not seen yet', async () => {
+    mocks.getRegistrationDate.mockResolvedValue(1_800_000_000n)
+
+    const result = await getRegistration('figma.eth', 'v2')
+
+    expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
+  })
+
+  it('reads a V1 registration date from the registration event block', async () => {
     mocks.getNameHistory.mockResolvedValue({
-      domainEvents: [],
       registrationEvents: [
-        {
-          blockNumber: 20,
-          type: 'NameRenewed',
-        },
-        {
-          blockNumber: 15,
-          type: 'NameRegistered',
-        },
-        {
-          blockNumber: 5,
-          type: 'NameRegistered',
-        },
+        { blockNumber: 20, type: 'NameRenewed' },
+        { blockNumber: 15, type: 'NameRegistered' },
+        { blockNumber: 5, type: 'NameRegistered' },
       ],
-      resolverEvents: [],
     })
     mocks.getBlock.mockResolvedValue({ timestamp: 1_800_000_000n })
 
     const result = await getRegistration('fgeorgescu.eth', 'v1')
 
-    expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
     expect(mocks.getBlock).toHaveBeenCalledWith(mocks.client, {
       blockNumber: 15n,
     })
-  })
-
-  it('uses V2 registration data directly for a V2 name', async () => {
-    mocks.getRegistrationDate.mockResolvedValue(1_800_000_000n)
-
-    const result = await getRegistration('figma.eth', 'v2')
-
-    expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
-    expect(mocks.getNameHistory).not.toHaveBeenCalled()
+    expect(mocks.indexerQuery).not.toHaveBeenCalled()
   })
 })
