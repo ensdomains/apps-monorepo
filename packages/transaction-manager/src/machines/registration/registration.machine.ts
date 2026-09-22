@@ -3,7 +3,10 @@ import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
-import { TransactionSubmissionError } from '../../errors/transaction.errors'
+import {
+  isUserRejectionError,
+  TransactionSubmissionError,
+} from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
 import { isRetryableSubmissionError } from '../retry-policy'
 import type { TOKEN_SYMBOL } from './registration.actors'
@@ -1220,14 +1223,19 @@ export const registrationMachine = setup({
         // `commitmentAt` is set we continue, otherwise that state's retry
         // resubmits the correct (signer-aware) commit path.
         onError: [
-          // A commit that never reached the chain — a user rejection, or any
-          // other non-retryable submission failure — has nothing to verify.
+          // A commit that never reached the chain has nothing to verify.
           // Validating anyway would keep the user waiting out its retries and
           // then replace the real error with a "not found" one, hiding from
           // persistence that the run stopped here. Warp can fill after a
           // reported failure, so only HCA verifies a retryable send error.
+          //
+          // `isUserRejectionError` is checked on its own because
+          // `isRetryableSubmissionError` only tests `TransactionUserRejectedError`
+          // at the top level and walks at most ten causes, so a rejection nested
+          // deeper reads as retryable there.
           {
             guard: ({ context, event }) =>
+              isUserRejectionError(event.error) ||
               !isRetryableSubmissionError(event.error) ||
               (context.signer?.type !== 'rhinestone' &&
                 event.error instanceof TransactionSubmissionError),
