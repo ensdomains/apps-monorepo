@@ -101,14 +101,19 @@ export const STEP_LABELS: Record<TransferStepKind, string> = {
  * moves the name never confirmed — a failed or abandoned move leaves the sender
  * owning a name that resolves to someone else. The move is always the plan's
  * last step.
+ *
+ * `isRecordRepointedOnChain` covers a `set-eth-addr` whose receipt never came
+ * back (polling timed out after the send): the live record is the only proof
+ * it landed.
  */
 export const isRecordAheadOfMove = (
   plan: readonly TransferStepKind[],
   confirmedSteps: ReadonlySet<TransferStepKind>,
+  isRecordRepointedOnChain = false,
 ): boolean => {
   const move = plan.at(-1)
   return (
-    confirmedSteps.has('set-eth-addr') &&
+    (confirmedSteps.has('set-eth-addr') || isRecordRepointedOnChain) &&
     move !== undefined &&
     !confirmedSteps.has(move)
   )
