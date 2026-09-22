@@ -113,6 +113,24 @@ describe('commemorative NFT dialog admission', () => {
     fetchStatus: 'idle' as const,
   }
 
+  it('suppresses a cached minted NFT without waiting for eligibility or refetch', () => {
+    expect(
+      getCommemorativeNftAdmission({
+        ...pending,
+        claimed: true,
+        eligibilityStatus: 'pending',
+        fetchStatus: 'fetching',
+      }),
+    ).toEqual({ status: 'alreadyMinted' })
+    expect(
+      getCommemorativeNftAdmission({
+        ...pending,
+        claimed: true,
+        supported: false,
+      }),
+    ).toEqual({ status: 'alreadyMinted' })
+  })
+
   it('requires a fresh false before admitting the mint dialog', () => {
     expect(getCommemorativeNftAdmission(pending)).toEqual({
       status: 'checking',
