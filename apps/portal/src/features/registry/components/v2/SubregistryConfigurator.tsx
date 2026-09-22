@@ -19,12 +19,13 @@ import {
 import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/setSubregistry'
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
-import { useNameResourceId } from '@/features/registry/hooks/useNameResourceId'
+import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { ResourceId } from '@/lib/resource/resourceId'
+import { resourceIdForName } from '@/lib/resource/resourceId'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 
@@ -393,16 +394,47 @@ export const SubregistryConfigurator = (
   props: SubregistryConfiguratorProps,
 ) => {
   // The same discovery query the form runs, so this costs no extra read.
-  const { data: registries, isLoading: isRegistriesLoading } = useQuery(
-    getNameRegistriesQueryOptions({ name: props.name }),
-  )
-  const { resourceId, isLoading } = useNameResourceId({
-    name: props.name,
-    registryAddress: registries?.at(1) ?? undefined,
-  })
+  const {
+    data: registries,
+    isLoading: isRegistriesLoading,
+    error: registriesError,
+  } = useQuery(getNameRegistriesQueryOptions({ name: props.name }))
+  const parentRegistry = registries?.at(1) ?? undefined
 
-  if (isRegistriesLoading || isLoading)
+  const idFromName = resourceIdForName(props.name).unwrapOr(null)
+  const {
+    data: readId,
+    isLoading: isReadingId,
+    error: readIdError,
+  } = useQuery({
+    ...getNameResourceIdQueryOptions({
+      name: props.name,
+      registryAddress: parentRegistry,
+    }),
+    enabled: idFromName === null && Boolean(parentRegistry),
+  })
+  const resourceId = idFromName ?? readId ?? null
+
+  if (isRegistriesLoading || isReadingId)
     return <LoadingSpinner title="Identifying this name" />
+
+  if (registriesError)
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching registry data. Please refresh the page."
+      />
+    )
+
+  // A failed read is not an answer, and must not be reported as "this name has
+  // no identity".
+  if (readIdError)
+    return (
+      <ErrorMessage
+        compact
+        description={`The registry could not be asked which name ${props.name} is, so nothing was loaded: ${readIdError.message}`}
+      />
+    )
 
   if (!resourceId)
     return (

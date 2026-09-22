@@ -20,6 +20,7 @@
 
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { encodeRoleBitmap, type Role } from '@ensdomains/ensjs/utils/v2'
 import { eacHasRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { fromPromise, ok } from 'neverthrow'
@@ -85,8 +86,10 @@ export const getResourceRoles = ResultFn(async function* ({
   )
 })
 
-const getResourceRolesQueryKey = (params: GetResourceRolesParameters) =>
-  ['registry-resource-roles', params] as const
+const getResourceRolesQueryKey = createQueryKey<
+  'registry-resource-roles',
+  GetResourceRolesParameters
+>('registry-resource-roles')
 
 export const getResourceRolesQueryOptions = (
   params: GetResourceRolesParameters,

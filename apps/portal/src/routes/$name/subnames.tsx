@@ -24,7 +24,7 @@ import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
-import { useNameResourceId } from '@/features/registry/hooks/useNameResourceId'
+import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import {
   getResourceRolesQueryOptions,
   holdsRolesOn,
@@ -37,7 +37,10 @@ import type {
   IntentContext,
   Transaction,
 } from '@/features/transaction-manager/types'
-import { resourceIdFromChainValue } from '@/lib/resource/resourceId'
+import {
+  resourceIdForName,
+  resourceIdFromChainValue,
+} from '@/lib/resource/resourceId'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
@@ -123,10 +126,15 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   // The name's own id, not its displayed label: a label rendered `[<64 hex>]`
   // does not say which name it is, so the id is resolved once and the gate
   // asks about that (WEB-1458). No id means no permission, never root.
-  const { resourceId: nameResourceId } = useNameResourceId({
-    name,
-    registryAddress: parentRegistryAddress ?? undefined,
+  const idFromName = resourceIdForName(name).unwrapOr(null)
+  const { data: readNameResourceId } = useQuery({
+    ...getNameResourceIdQueryOptions({
+      name,
+      registryAddress: parentRegistryAddress ?? undefined,
+    }),
+    enabled: idFromName === null && Boolean(parentRegistryAddress),
   })
+  const nameResourceId = idFromName ?? readNameResourceId ?? null
   const { data: hasSetSubregistryRole } = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: parentRegistryAddress as Address,

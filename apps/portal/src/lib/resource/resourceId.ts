@@ -26,7 +26,14 @@
 
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, ok, type Result } from 'neverthrow'
-import { type Abi, decodeFunctionData, type Hex, labelhash } from 'viem'
+import {
+  type Abi,
+  decodeFunctionData,
+  type Hex,
+  keccak256,
+  labelhash,
+  toBytes,
+} from 'viem'
 
 declare const resourceIdBrand: unique symbol
 
@@ -175,6 +182,24 @@ export const requireResourceIdForName = (name: string): ResourceId =>
       throw error
     },
   )
+
+/**
+ * Whether `label` is the string a registry would hash to reach `id`.
+ *
+ * The string-taking registry reads (`getSubregistry(label)`,
+ * `getResolver(label)`) hash what they are given — `LibLabel.id` is
+ * `keccak256(bytes(label))` — so they can only ever address the *literal*
+ * reading of a label. For an ordinary label that is the same id the write uses.
+ * For a label rendered `[<64 hex>]` whose id turned out to be the digits
+ * themselves, it is a different entry, and no string reaches it: those reads
+ * cannot be used to say anything about the name being written.
+ */
+export const labelAddressesResourceId = (
+  label: string,
+  id: ResourceId,
+): boolean =>
+  canonicalResourceId(unchecked(BigInt(keccak256(toBytes(label))))) ===
+  canonicalResourceId(id)
 
 /**
  * The same name, with the token version bits cleared — what the registry's

@@ -22,9 +22,7 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { permissionedRegistryGetStateSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
-import { useQuery } from '@tanstack/react-query'
 import { err, fromPromise } from 'neverthrow'
-import { useMemo } from 'react'
 import {
   type Address,
   keccak256,
@@ -35,7 +33,6 @@ import {
 import { multicall } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import {
-  type ResourceId,
   ResourceIdError,
   ROOT_RESOURCE_ID,
   resourceIdForName,
@@ -49,8 +46,12 @@ class GetNameResourceIdError extends TaggedError('GetNameResourceIdError')<{
 
 type GetNameResourceIdParameters = {
   readonly name: string
-  /** The registry holding the name's entry — its parent's registry. */
-  readonly registryAddress: Address
+  /**
+   * The registry holding the name's entry — its parent's registry.
+   * `undefined` while discovery is still running: the read is not startable
+   * then, and the key says so rather than carrying a placeholder address.
+   */
+  readonly registryAddress: Address | undefined
 }
 
 /** The `[<64 hex>]` form, with the digits captured. */
@@ -118,6 +119,16 @@ export const getNameResourceId = ResultFn(async function* ({
   name,
   registryAddress,
 }: GetNameResourceIdParameters) {
+  if (registryAddress === undefined)
+    return err(
+      new GetNameResourceIdError({
+        cause: new ResourceIdError({
+          reason: 'encoded-label',
+          message: `The registry holding "${name}" is not known yet, so its id could not be read.`,
+        }),
+      }),
+    )
+
   const candidates = encodedLabelCandidates(name)
 
   if (candidates === null)
@@ -187,66 +198,12 @@ export const getNameResourceIdQueryOptions = (
     queryFn: ({ queryKey: [, params] }) => getNameResourceId(params),
   })
 
-export type UseNameResourceIdParameters = {
-  readonly name: string
-  /**
-   * The registry holding the name's entry. `undefined` while it is still being
-   * discovered, which reads as loading rather than as a refusal.
-   */
-  readonly registryAddress: Address | undefined
-  readonly enabled?: boolean
-}
-
-export type UseNameResourceIdResult = {
-  /** The id every write and role check for this name is addressed with. */
-  readonly resourceId: ResourceId | null
-  readonly isLoading: boolean
-  /** True once it is settled that this name has no id we can establish. */
-  readonly isUnsupported: boolean
-}
-
-const PENDING: UseNameResourceIdResult = {
-  resourceId: null,
-  isLoading: true,
-  isUnsupported: false,
-}
-
-const IDLE: UseNameResourceIdResult = {
-  resourceId: null,
-  isLoading: false,
-  isUnsupported: false,
-}
-
 /**
- * `resourceId` is `null` while loading *and* when the name has no id we can
- * establish, so callers must read `isLoading` before treating it as a refusal.
- * It is never a stand-in value.
+ * Whether a name's id has to be read from the registry at all.
+ *
+ * Pure, and the thing a call site puts in `enabled`: an ordinary first label is
+ * hashed locally by {@link resourceIdForName}, so only the ambiguous
+ * `[<64 hex>]` form costs a read.
  */
-export const useNameResourceId = ({
-  name,
-  registryAddress,
-  enabled = true,
-}: UseNameResourceIdParameters): UseNameResourceIdResult => {
-  // No read for the overwhelming majority: the name itself is the authority.
-  const fromName = useMemo(() => resourceIdForName(name).unwrapOr(null), [name])
-
-  const query = useQuery({
-    ...getNameResourceIdQueryOptions({
-      name,
-      registryAddress: registryAddress ?? zeroAddress,
-    }),
-    enabled: enabled && fromName === null && Boolean(registryAddress),
-  })
-
-  if (fromName !== null)
-    return { resourceId: fromName, isLoading: false, isUnsupported: false }
-
-  if (!enabled) return IDLE
-  if (!registryAddress) return PENDING
-
-  return {
-    resourceId: query.data ?? null,
-    isLoading: query.isPending,
-    isUnsupported: !query.isPending && !query.data,
-  }
-}
+export const needsRegistryLookupForId = (name: string): boolean =>
+  resourceIdForName(name).isErr()
