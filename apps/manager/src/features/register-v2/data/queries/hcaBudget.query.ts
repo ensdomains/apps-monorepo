@@ -130,6 +130,30 @@ const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
   return ok({ ...budget, hcaBalance } satisfies HcaBudgetQuote)
 })
 
+/**
+ * Does this registration have a funding budget to quote at all?
+ *
+ * Only the standalone-HCA route does: a pure-EOA signer pays the registrar
+ * directly, so there is no permit to size and the estimator has nothing to
+ * quote against.
+ *
+ * Exported because it is BOTH the query's `enabled` gate and the caller's "is a
+ * failed quote fatal?" test, and those two must not drift. `fetchQuery` ignores
+ * `enabled` and runs the query function regardless, so a caller that refuses to
+ * proceed without a budget has to ask this first — otherwise it would block the
+ * EOA route on a quote that route never needed.
+ */
+export const hcaBudgetQuoteRequired = (
+  params: Pick<
+    HcaBudgetQueryParams,
+    'hca' | 'signer' | 'label' | 'durationInSeconds'
+  >,
+): boolean =>
+  Boolean(params.hca) &&
+  params.signer?.type === 'rhinestone' &&
+  params.label.length > 0 &&
+  params.durationInSeconds > 0
+
 export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
   resultQueryOptions({
     queryKey: $qk({
@@ -143,16 +167,12 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
       primaryName: params.primaryName ?? null,
     }),
     queryFn: () => getHcaBudget(params),
-    // Only the HCA route has a funding budget; a pure-EOA signer pays the
-    // registrar directly and the estimator has nothing to quote against.
-    enabled:
-      Boolean(params.hca) &&
-      params.signer?.type === 'rhinestone' &&
-      params.label.length > 0 &&
-      params.durationInSeconds > 0,
+    enabled: hcaBudgetQuoteRequired(params),
     staleTime: HCA_BUDGET_STALE_TIME_MS,
-    // A flaky orchestrator must not strand the user on the confirm screen:
-    // callers treat "no budget" as "show the price alone and let the machine
-    // surface any failure", never as a hard block.
+    // One retry, because a flaky orchestrator should not fail the screen on a
+    // single blip. If it still cannot be quoted the caller must SURFACE that
+    // and refuse to proceed — on this route "no budget" is not "show the rent
+    // alone", it is "the permit cannot be sized". See
+    // {@link hcaBudgetQuoteRequired}.
     retry: 1,
   })

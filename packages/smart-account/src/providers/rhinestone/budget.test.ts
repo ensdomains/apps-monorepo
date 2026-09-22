@@ -3,11 +3,15 @@ import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import {
   estimateHcaBudget,
+  HCA_LEG_GAS_LIMITS,
   HCA_MAX_LEG_FEES_USDC,
+  HCA_RESOLVER_DEPLOY_GAS,
   HcaBudgetExceedsMaximumError,
   hcaBudgetMaximum,
+  primaryNameGas,
   type QuoteLegResult,
   type QuoteMarketData,
+  registerLegGasLimit,
   withBudgetDrift,
 } from './budget'
 
@@ -24,6 +28,10 @@ const baseParams = (price: bigint) => ({
   chainId: sepolia.id,
   label: 'myname',
   duration: 31_536_000n,
+  // Most cases here exercise the quote path, where the resolver deploy only
+  // moves the gas LIMIT the quote is taken at. The deploy-specific cases below
+  // override this.
+  resolverDeployed: true,
 })
 
 /** ETH at $3000, USDC at $1, 2 gwei — the shape `signedMetadata` carries. */
@@ -255,5 +263,62 @@ describe('estimateHcaBudget', () => {
     expect(breakdown.fallbackReasons).toContain(
       'commit: quote threw — orchestrator 500',
     )
+  })
+
+  it('prices the resolver deploy into the register leg on a first registration', async () => {
+    // Immunefi #89462: the register leg was priced on a flat 450k limit, so the
+    // conditional `deployProxy` a first registration carries was never funded.
+    const budgetFor = (resolverDeployed: boolean) =>
+      estimateHcaBudget({
+        ...baseParams(USDC(5)),
+        resolverDeployed,
+        quoteLegCostUsdc: async () => ({
+          spendUsdc: null,
+          market: market(2_000_000_000n),
+        }),
+      })
+
+    const fresh = await budgetFor(false)
+    const existing = await budgetFor(true)
+
+    // 210k gas × 2 gwei × $3000/ETH ÷ $1/USDC = 1.26 USDC of previously
+    // unfunded cost.
+    expect(fresh.registerCost - existing.registerCost).toBe(1_260_000n)
+    expect(fresh.total).toBeGreaterThan(existing.total)
+  })
+})
+
+describe('registerLegGasLimit', () => {
+  it('funds the resolver deploy only when the resolver does not exist yet', () => {
+    // The rail prices the intent purely on `destinationGasUnits`, so this
+    // number — not the batch handed to the quoter — is what funds the leg.
+    expect(registerLegGasLimit({ resolverDeployed: true })).toBe(
+      HCA_LEG_GAS_LIMITS.register,
+    )
+    expect(registerLegGasLimit({ resolverDeployed: false })).toBe(
+      HCA_LEG_GAS_LIMITS.register + HCA_RESOLVER_DEPLOY_GAS,
+    )
+  })
+
+  it('covers the deploy and a primary name together', () => {
+    // A first registration WITH the primary-name opt-in carries both extra
+    // calls; funding one but not the other still strands the commitment.
+    expect(
+      registerLegGasLimit({
+        resolverDeployed: false,
+        primaryName: 'myname.eth',
+      }),
+    ).toBe(
+      HCA_LEG_GAS_LIMITS.register +
+        HCA_RESOLVER_DEPLOY_GAS +
+        primaryNameGas('myname.eth'),
+    )
+  })
+
+  it('stays at or above the measured on-chain cost of the deploy', () => {
+    // `eth_estimateGas` against the deployed Sepolia VerifiableFactory put the
+    // execution cost of the exact `deployProxy` calldata at ~185_900 gas, flat
+    // across accounts. The constant must not drift below that.
+    expect(HCA_RESOLVER_DEPLOY_GAS).toBeGreaterThanOrEqual(185_904n)
   })
 })

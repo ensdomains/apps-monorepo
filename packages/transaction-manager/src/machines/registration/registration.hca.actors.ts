@@ -304,6 +304,28 @@ function sessionSigners(
   }
 }
 
+/**
+ * Does the HCA's `PermissionedResolver` proxy already have code?
+ *
+ * Decides whether `buildRevealBatch` prepends `VerifiableFactory.deployProxy`,
+ * and therefore whether `registerLegGasLimit` has to fund it. The budget and
+ * the submitted batch MUST agree on this, so both derive it here rather than
+ * each rolling its own `getCode` check.
+ */
+async function isResolverDeployed(params: {
+  publicClient: PublicClient
+  chainId: number
+  hca: Address
+}): Promise<boolean> {
+  const code = await params.publicClient.getCode({
+    address: computeResolverAddress({
+      chainId: params.chainId,
+      hca: params.hca,
+    }),
+  })
+  return Boolean(code && code !== '0x')
+}
+
 export function estimateHcaBudgetActor(input: {
   name: string
   duration: bigint
@@ -335,7 +357,14 @@ export function estimateHcaBudgetActor(input: {
   const chain = input.publicClient.chain
   const activeSession = rhinestone?.session
 
-  const quoteLegCostUsdc =
+  /**
+   * Build the per-leg quoter. Takes `resolverDeployed` rather than reading it
+   * per call so the flag that decides whether `buildRevealBatch` emits the
+   * `deployProxy` is the SAME one `registerLegGasLimit` funds. Reading it twice
+   * is how they could silently disagree, and the gas limit is the only thing
+   * the rail actually prices.
+   */
+  const makeQuoter = (resolverDeployed: boolean) =>
     rhinestone && chain
       ? async (leg: HcaLeg, incomingUsdc?: bigint): Promise<QuoteLegResult> => {
           const hca = rhinestone.account.getAddress() as Address
@@ -376,14 +405,11 @@ export function estimateHcaBudgetActor(input: {
             label,
             duration: input.duration,
           })
-          const resolverCode = await input.publicClient.getCode({
-            address: resolver,
-          })
           const revealCalls = buildRevealBatch({
             chainId,
             hca,
             resolver,
-            resolverDeployed: Boolean(resolverCode && resolverCode !== '0x'),
+            resolverDeployed,
             label,
             // The name recipient (wallet). A placeholder is fine for a gas/cost
             // quote — the orchestrator prices the intent by size, not by owner.
@@ -397,15 +423,19 @@ export function estimateHcaBudgetActor(input: {
             // orchestrator: an identical request differing only in this call
             // prices to the same USDC unit (450k gas limit, 5 vs 6 executions
             // → 3277666 both times). The rail prices `/intents/route` purely
-            // on `destinationGasUnits`, so what actually funds this call is
-            // `registerLegGasLimit` below.
+            // on `destinationGasUnits`, so what actually funds these calls is
+            // `registerLegGasLimit` below — which is why it gets the same
+            // `resolverDeployed` and `primaryName` the batch was built from.
             ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
           })
           return quoteIntentSpendUsdc(
             rhinestone.account,
             chain,
             toCalls(revealCalls),
-            registerLegGasLimit(input.primaryName),
+            registerLegGasLimit({
+              resolverDeployed,
+              ...(input.primaryName ? { primaryName: input.primaryName } : {}),
+            }),
             signers,
             incomingUsdc,
           )
@@ -414,16 +444,38 @@ export function estimateHcaBudgetActor(input: {
 
   return fromPromise(
     (async () => {
+      const hca = rhinestone
+        ? (rhinestone.account.getAddress() as Address)
+        : undefined
+
       // Read the HCA balance here rather than relying on `checkingHcaFunding`,
       // which runs AFTER this state — the auxiliary-funds declaration must not
       // include funds the HCA already holds.
-      const hcaBalanceUsdc = rhinestone
+      const hcaBalanceUsdc = hca
         ? await readHcaUsdcBalanceActor({
-            hca: rhinestone.account.getAddress() as Address,
+            hca,
             publicClient: input.publicClient,
             chainId,
           }).unwrapOr(0n)
         : 0n
+
+      // Does the reveal batch have to deploy the account's PermissionedResolver?
+      // On a first registration it does, and that call costs ~210k gas that the
+      // quote cannot see — so this single read feeds BOTH the batch the quoter
+      // builds and the gas limit that funds it.
+      //
+      // Deliberately not caught: a failed read means the leg cannot be sized,
+      // and the whole point of this change is that an unsized leg must fail
+      // loudly rather than quietly fund the permit short.
+      const resolverDeployed = hca
+        ? await isResolverDeployed({
+            publicClient: input.publicClient,
+            chainId,
+            hca,
+          })
+        : false
+
+      const quoteLegCostUsdc = makeQuoter(resolverDeployed)
 
       const breakdown = await estimateHcaBudget({
         publicClient: input.publicClient,
@@ -431,6 +483,7 @@ export function estimateHcaBudgetActor(input: {
         label,
         duration: input.duration,
         hcaBalanceUsdc,
+        resolverDeployed,
         ...(input.primaryName ? { primaryName: input.primaryName } : {}),
         ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
       })
@@ -981,10 +1034,11 @@ export function submitRevealBatchActor(input: {
         duration: input.duration,
       })
 
-      const resolverCode = await input.publicClient.getCode({
-        address: resolverAddress,
+      const resolverDeployed = await isResolverDeployed({
+        publicClient: input.publicClient,
+        chainId,
+        hca: input.hca,
       })
-      const resolverDeployed = Boolean(resolverCode && resolverCode !== '0x')
 
       const revealCalls = buildRevealBatch({
         chainId,
