@@ -87,7 +87,10 @@ export const getOwner = ResultFn(async function* (params: { name: string }) {
       (e) => new GetOwnerError({ cause: e }),
     )
 
-    if (v2Domain) {
+    // A zero owner means the label was never held in v2, so the row alone
+    // doesn't make it a v2 name. An expired v2 name keeps its last owner here.
+    const v2DomainOwner = v2Domain?.owner?.id
+    if (v2DomainOwner && v2DomainOwner !== zeroAddress) {
       return ok({
         owner: undefined,
         protocol: 'v2',

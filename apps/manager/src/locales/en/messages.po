@@ -1601,6 +1601,10 @@ msgstr "Price Cooldown"
 msgid "Price cooldown fee"
 msgstr "Price cooldown fee"
 
+#: src/features/migration/components/NameRow.tsx
+msgid "Primary name"
+msgstr "Primary name"
+
 #: src/features/dashboard/components/PrimaryBadge.tsx
 msgid "Primary Name"
 msgstr "Primary Name"

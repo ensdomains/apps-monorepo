@@ -61,7 +61,12 @@ describe('getOwner', () => {
     const domainId = namehash('gloomy.eth')
 
     mocks.getV2Domain.mockResolvedValue({
-      data: { domain: { id: domainId } },
+      data: {
+        domain: {
+          id: domainId,
+          owner: { id: '0x0000000000000000000000000000000000000003' },
+        },
+      },
     })
 
     const result = await getOwner({ name: 'gloomy.eth' })
@@ -75,6 +80,32 @@ describe('getOwner', () => {
       id: domainId,
     })
     expect(mocks.getV1Owner).not.toHaveBeenCalled()
+  })
+
+  // A label registered in v1 also has an indexer row, with a zero owner. The
+  // row alone must not claim it for v2, or the profile reads v2 dates for a
+  // name whose only registration is v1.
+  it('stays on V1 when the indexed V2 row has no owner', async () => {
+    mocks.getV2Domain.mockResolvedValue({
+      data: {
+        domain: {
+          id: namehash('dappwright-test.eth'),
+          owner: { id: '0x0000000000000000000000000000000000000000' },
+        },
+      },
+    })
+    mocks.getV1Owner.mockResolvedValue({
+      owner: '0x0000000000000000000000000000000000000001',
+      registrant: null,
+      ownershipLevel: 'registrar',
+    })
+
+    const result = await getOwner({ name: 'dappwright-test.eth' })
+
+    expect(result._unsafeUnwrap()).toEqual({
+      owner: '0x0000000000000000000000000000000000000001',
+      protocol: 'v1',
+    })
   })
 
   it('falls back to V1 ownership when V2 has no owner', async () => {
