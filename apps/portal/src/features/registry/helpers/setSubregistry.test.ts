@@ -56,7 +56,7 @@ describe('prepareSetSubregistryTransaction', () => {
   // WEB-1458: the label used to be split off the displayed name and hashed, so
   // configuring a registry for `[<labelhash("vault")>].eth` pointed `vault.eth`
   // at the new registry instead.
-  it('has no id to build calldata with for an encoded-label 2LD', () => {
+  it('will not take an id derived from an encoded-label 2LD', () => {
     const name = `${ENCODED_LABEL}.eth`
 
     expect(resourceIdForName(name).isErr()).toBe(true)

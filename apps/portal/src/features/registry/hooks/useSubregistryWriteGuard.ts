@@ -5,8 +5,8 @@ import { type Address, zeroAddress } from 'viem'
 import { readSubregistry } from '@/features/registry/helpers/readSubregistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { resourceIdForName } from '@/lib/resource/resourceId'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { getLabel } from '@/utils/token/getLabel'
 
 const CONFLICT_TOAST_DURATION_MS = 10_000
 
@@ -81,16 +81,16 @@ export const useSubregistryWriteGuard = ({
     setWriteBlock(null)
     if (!parentRegistry) return false
 
-    // The same normalised label the write derives its id from, so the slot
-    // this proves empty is the slot the write fills. A name that will not
-    // normalise has no slot we can name, which is a refusal, not a pass.
-    let label: string
-    try {
-      label = getLabel(name)
-    } catch {
+    // `getSubregistry` takes the label and hashes it on chain, so the slot this
+    // reads is only the slot the write fills when the same characters hash to
+    // the same id. That holds for the label exactly as written — but not for a
+    // label rendered `[<64 hex>]`, whose id the write takes from the indexer
+    // instead. Unable to name the slot is a refusal, not a pass.
+    const label = name.split('.')[0] ?? ''
+    if (resourceIdForName(name).isErr()) {
       setWriteBlock({
         kind: 'unverified',
-        message: `${name} is not a normalisable ENS name, so its registry slot could not be read.`,
+        message: `The registry slot for ${name} could not be read, so nothing was submitted.`,
       })
       return false
     }

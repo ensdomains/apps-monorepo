@@ -9,6 +9,7 @@ import {
   type AccountRoleGroup,
   ROOT_RESOURCE,
   ROOT_RESOURCE_LABEL,
+  UNREADABLE_RESOURCE_LABEL,
 } from '@/lib/roles/resolverRoles'
 import { ResolverRolesSidebar } from './ResolverRolesSidebar'
 
@@ -113,15 +114,17 @@ describe('ResolverRolesSidebar scope handling', () => {
   // string, which the save path read back as ROOT — so an operator scoping a
   // change to one grant silently changed it for every name on the resolver.
   it('refuses to save a row whose scope cannot be read, rather than saving at root', async () => {
-    // A row that reached the sidebar without a usable resource. The type
-    // forbids this now, which is the fix; the cast reproduces the shape the
-    // bug turned into ROOT.
-    const unreadable = {
-      ...group({ isRoot: false, resourceLabel: 'resource 0x1234…abcd' }),
-      resourceId: undefined,
-    } as unknown as AccountRoleGroup
-
-    renderSidebar(unreadable)
+    // A grant whose indexer resource does not parse. It is listed rather than
+    // hidden, so the operator can see it exists — and it carries no resource,
+    // so nothing can be written against it.
+    renderSidebar(
+      group({
+        isRoot: false,
+        resource: 'raw:not-a-number',
+        resourceId: null,
+        resourceLabel: UNREADABLE_RESOURCE_LABEL,
+      }),
+    )
 
     expect(
       screen.getByText(/scope of this grant can't be read/i),

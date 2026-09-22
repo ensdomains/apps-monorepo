@@ -24,7 +24,7 @@ import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intent
 import {
   assertCalldataResourceId,
   canonicalResourceId,
-  requireResourceIdForName,
+  type ResourceId,
 } from '@/lib/resource/resourceId'
 
 // ============================================================================
@@ -33,6 +33,12 @@ import {
 
 export type RevokeRolesTransactionParameters = {
   readonly name: string
+  /**
+   * The name's on-chain id, resolved by the caller. Not derived here: a label
+   * rendered `[<64 hex>]` does not say which name it is, so the id has to come
+   * from a typed source (WEB-1458).
+   */
+  readonly resourceId: ResourceId
   readonly account: Address
   readonly roles: readonly Role[]
   readonly walletClient: WalletClient
@@ -61,6 +67,7 @@ export interface RevokeRolesResult {
  */
 export function prepareRevokeRolesTransaction({
   name,
+  resourceId,
   account,
   roles,
   walletClient,
@@ -71,11 +78,7 @@ export function prepareRevokeRolesTransaction({
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  // The name's id, derived fail-closed. `labelhash` leaves an encoded
-  // (`[<64 hex>]`) label unhashed, so splitting a label off the displayed name
-  // could scope this grant to a different name (WEB-1458); a name that cannot
-  // yield a trusted id is refused instead.
-  const resource = canonicalResourceId(requireResourceIdForName(name))
+  const resource = canonicalResourceId(resourceId)
 
   const writeParams = revokeRolesWriteParameters(
     walletClient as Parameters<typeof revokeRolesWriteParameters>[0],

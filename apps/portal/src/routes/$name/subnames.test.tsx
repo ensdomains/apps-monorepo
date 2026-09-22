@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { type Address, keccak256, labelhash, toHex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestQueryClient } from '@/test-utils/providers'
@@ -18,6 +19,14 @@ vi.mock('@tanstack/react-router', () => ({
     ...options,
     useParams: () => ({ name: NAME }),
   }),
+}))
+
+// Rows render an avatar that reaches for wagmi config; this file provides only
+// a QueryClient, and an unmounting tree would cancel the reads under test.
+vi.mock('@/components/EntityBadge', () => ({
+  EntityBadge: ({ children }: { children: React.ReactNode }) => (
+    <span>{children}</span>
+  ),
 }))
 
 vi.mock('wagmi', async (importOriginal) => {
@@ -66,11 +75,16 @@ vi.mock('@/features/registry/hooks/useNameRegistryDiscovery', () => ({
 /**
  * Stands in for the registry's own answer: roles granted registry-wide live on
  * the ROOT resource, which `hasRoles` reads only when no `label` is passed.
+ * `hasRootUnregister` lets a test choose whether the caller holds
+ * ROLE_UNREGISTER registry-wide, which decides whether the per-row question is
+ * worth asking at all.
  */
+let hasRootUnregister = false
 const hasRolesParams = vi.fn()
 vi.mock('@/features/registry/hooks/useHasRoles', () => ({
   getHasRolesQueryOptions: (params: Record<string, unknown>) => {
     hasRolesParams(params)
+    const roles = params.roles as string[] | undefined
     return {
       queryKey: [
         'hasRoles',
@@ -78,14 +92,21 @@ vi.mock('@/features/registry/hooks/useHasRoles', () => ({
           typeof v === 'bigint' ? v.toString() : v,
         ),
       ],
-      queryFn: () => !('label' in params),
+      queryFn: () =>
+        roles?.[0] === 'ROLE_UNREGISTER'
+          ? hasRootUnregister
+          : !('label' in params),
     }
   },
 }))
 
-// Per-row ROLE_UNREGISTER. Records the resources it was asked about and grants
-// the role on every one of them.
+// Per-row ROLE_UNREGISTER. `resourceRolesParams` records what the options were
+// built for; `resourceRolesFetched` records the reads that actually ran, which
+// is what the root fast path is supposed to avoid.
 const resourceRolesParams = vi.fn()
+const resourceRolesFetched = vi.fn()
+/** Resources the connected account may unregister; `null` means all of them. */
+let allowedResources: Set<string> | null = null
 vi.mock(
   '@/features/registry/hooks/useResourceRoles',
   async (importOriginal) => {
@@ -103,8 +124,15 @@ vi.mock(
         resourceRolesParams(params)
         return {
           queryKey: ['resourceRoles', params],
-          queryFn: () =>
-            new Map(params.resources.map((resource) => [resource, true])),
+          queryFn: () => {
+            resourceRolesFetched(params)
+            return new Map(
+              params.resources.map((resource) => [
+                resource,
+                allowedResources === null || allowedResources.has(resource),
+              ]),
+            )
+          },
         }
       },
     }
@@ -147,7 +175,10 @@ const renderRoute = () => {
 beforeEach(() => {
   hasRolesParams.mockReset()
   resourceRolesParams.mockReset()
+  resourceRolesFetched.mockReset()
   subnames = []
+  hasRootUnregister = false
+  allowedResources = null
 })
 
 describe('subnames route role checks', () => {
@@ -190,7 +221,7 @@ describe('subnames route role checks', () => {
     renderRoute()
 
     const asked = () =>
-      resourceRolesParams.mock.calls
+      resourceRolesFetched.mock.calls
         .map(([params]) => params)
         .filter((params) => params.resources.length > 0)
 
@@ -205,12 +236,41 @@ describe('subnames route role checks', () => {
       expect(params.resources).not.toContain(BigInt(VAULT_LABELHASH).toString())
     }
 
-    // Nobody asked the registry-wide question in the row's place.
-    expect(
-      hasRolesParams.mock.calls
-        .map(([params]) => params)
-        .filter((params) => params.roles?.[0] === 'ROLE_UNREGISTER'),
-    ).toEqual([])
+    // The registry-wide question is still asked, but as the ROOT question it
+    // is — never keyed on a label or on one row's resource.
+    for (const params of hasRolesParams.mock.calls
+      .map(([params]) => params)
+      .filter((params) => params.roles?.[0] === 'ROLE_UNREGISTER')) {
+      expect(params).not.toHaveProperty('label')
+      expect(params).not.toHaveProperty('resource')
+    }
+  })
+
+  // The registry ORs root roles into every resource, so a registry-wide holder
+  // needs no per-row reads at all.
+  it('skips the per-row reads when the account holds the role registry-wide', async () => {
+    hasRootUnregister = true
+    subnames = [
+      {
+        name: ENCODED_SUBNAME,
+        labelhash: ENCODED_SUBNAME_LABELHASH,
+        owner: CONNECTED,
+      },
+    ]
+
+    renderRoute()
+
+    // Wait until the row's resource is known, which is the point the per-row
+    // read would have fired had the root answer not settled it.
+    await waitFor(() =>
+      expect(
+        resourceRolesParams.mock.calls
+          .map(([params]) => params)
+          .filter((params) => params.resources.length > 0).length,
+      ).toBeGreaterThan(0),
+    )
+
+    expect(resourceRolesFetched).not.toHaveBeenCalled()
   })
 
   it('offers subname creation to a registry-wide role holder', async () => {
@@ -219,5 +279,50 @@ describe('subnames route role checks', () => {
     expect(
       await screen.findByRole('link', { name: /create subname/i }),
     ).toBeInTheDocument()
+  })
+
+  // WEB-1458 follow-up: with the delete gate now per row, selection has to
+  // follow it. A table-wide checkbox over per-row permissions would let an
+  // operator tick ten names and silently delete two.
+  it('offers selection only for the rows the account can delete', async () => {
+    const otherLabelhash = labelhash('cold')
+    subnames = [
+      {
+        name: ENCODED_SUBNAME,
+        labelhash: ENCODED_SUBNAME_LABELHASH,
+        owner: CONNECTED,
+      },
+      { name: `cold.${NAME}`, labelhash: otherLabelhash, owner: CONNECTED },
+    ]
+    allowedResources = new Set([BigInt(otherLabelhash).toString()])
+
+    renderRoute()
+
+    // Scoped to the desktop table: the mobile card layout renders the same
+    // controls again, and both are present in a test DOM.
+    const table = await screen.findByRole('table')
+
+    // The permitted row gets a Delete button; the other one does not.
+    await waitFor(() =>
+      expect(
+        within(table).getByRole('button', { name: `Delete cold.${NAME}` }),
+      ).toBeInTheDocument(),
+    )
+    expect(
+      within(table).queryByRole('button', {
+        name: `Delete ${ENCODED_SUBNAME}`,
+      }),
+    ).not.toBeInTheDocument()
+
+    // And only the permitted row can be ticked, so "N selected" is always N
+    // names Clear can really act on.
+    expect(
+      within(table).getAllByRole('checkbox', { name: 'Select row' }),
+    ).toHaveLength(1)
+
+    await userEvent.click(
+      within(table).getByRole('checkbox', { name: 'Select all' }),
+    )
+    expect(await screen.findByText('1 selected')).toBeInTheDocument()
   })
 })
