@@ -134,7 +134,10 @@ const PaymentMethods = ({
   showRegistrationFee: boolean
   stablecoinBalances: StablecoinBalance[]
 }) => (
-  <div className="flex max-h-56 flex-col gap-3 overflow-y-auto">
+  <div
+    className="flex max-h-56 w-full flex-col gap-3 self-center overflow-y-auto sm:w-[454px] sm:gap-0"
+    data-slot="payment-method-list"
+  >
     {stablecoinBalances.map((stablecoin) => {
       if (stablecoin.symbol !== TOKENS.USDC.symbol || !showRegistrationFee) {
         return (

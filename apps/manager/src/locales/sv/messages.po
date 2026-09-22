@@ -1422,7 +1422,7 @@ msgid "Not enough USDC. This registration needs {0} USDC but your wallet holds {
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
-msgid "not enough funds to pay network fees."
+msgid "not enough funds to pay network fees"
 msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx

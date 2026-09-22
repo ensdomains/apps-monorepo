@@ -16,14 +16,14 @@ export const PaymentMethodIcon = ({ symbol }: PaymentMethodIconProps) => {
 
   return (
     <span
-      className="relative size-7 shrink-0 sm:size-10"
+      className="relative size-7 shrink-0 sm:size-8.5"
       data-slot="payment-method-token-icon"
     >
-      <IconComponent className="size-7 sm:size-10" />
+      <IconComponent className="size-7 sm:size-8.5" />
       <img
         alt=""
         aria-hidden="true"
-        className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-white sm:size-4"
+        className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-white sm:-right-1 sm:-bottom-1 sm:size-4"
         data-slot="payment-method-network-icon"
         src={ethIcon}
       />

@@ -39,17 +39,20 @@ export const RegistrationPaymentMethod = ({
   return (
     <div
       className={cn(
-        'grid min-h-17 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 rounded px-3 py-2 transition-colors',
-        isSelected ? 'bg-ens-quartz-75' : 'hover:bg-ens-quartz-50',
+        'grid min-h-17 w-full grid-cols-[minmax(0,1fr)_auto] content-center items-center gap-x-3 rounded px-3 py-2 transition-colors sm:content-start sm:pt-3 sm:pb-0',
+        hasInsufficientBalance ? 'sm:min-h-[78px]' : 'sm:min-h-[63px]',
+        isSelected
+          ? 'bg-ens-quartz-75 sm:bg-ens-quartz-70'
+          : 'hover:bg-ens-quartz-50',
       )}
       data-slot="payment-method-row"
     >
-      <div className="flex min-w-0 flex-1 items-center">
+      <div className="flex min-w-0 flex-1 items-center sm:items-start">
         <button
           aria-describedby={hasInsufficientBalance ? errorId : undefined}
           aria-label={t`Select ${stablecoin.symbol}`}
           className={cn(
-            'flex min-w-0 items-center gap-2 text-left sm:gap-3',
+            'flex min-w-0 items-center gap-2 text-left sm:items-start sm:gap-3',
             hasInsufficientBalance && 'cursor-not-allowed opacity-50',
           )}
           disabled={hasInsufficientBalance}
@@ -58,15 +61,15 @@ export const RegistrationPaymentMethod = ({
         >
           <PaymentMethodIcon symbol={stablecoin.symbol} />
           <span
-            className="flex min-w-0 flex-col items-start gap-0.5"
+            className="flex min-w-0 flex-col items-start gap-0.5 sm:gap-0"
             data-slot="payment-method-details"
           >
-            <span className="truncate font-medium text-ens-gray-dark text-sm tracking-wide sm:text-base">
+            <span className="truncate font-medium text-ens-gray-dark text-sm tracking-wide sm:text-base sm:leading-5 sm:tracking-normal">
               {stablecoin.symbol}
             </span>
             <span
               className={cn(
-                'flex items-center gap-1 whitespace-nowrap text-[10px] text-ens-quartz-500 sm:text-sm',
+                'flex items-center gap-1 whitespace-nowrap text-[10px] text-ens-quartz-500 sm:text-xs sm:leading-4',
                 isNetworkFeeLoading && 'animate-pulse',
               )}
             >
@@ -83,11 +86,11 @@ export const RegistrationPaymentMethod = ({
         <Tooltip>
           <TooltipTrigger
             aria-label={t`What is the network fee?`}
-            className="ml-0.5 flex size-4 shrink-0 items-end justify-center self-end sm:mb-0.5 sm:ml-1 sm:size-5"
+            className="ml-0.5 flex size-4 shrink-0 items-end justify-center self-end text-ens-quartz-350 sm:mb-0.5 sm:ml-1"
             type="button"
           >
             <MSymbol
-              className="ms-opsz-14 ms-wght-400 sm:ms-opsz-16"
+              className="ms-opsz-14 ms-wght-400 sm:ms-opsz-12"
               symbol="info"
             />
           </TooltipTrigger>
@@ -102,28 +105,40 @@ export const RegistrationPaymentMethod = ({
       </div>
 
       <div
-        className="flex shrink-0 flex-col items-end gap-0.5 text-right"
+        className="flex shrink-0 flex-col items-end gap-0.5 text-right sm:gap-0"
         data-slot="payment-method-balance"
       >
         <span
           className={cn(
-            'font-medium text-sm tracking-wide sm:text-base',
-            hasInsufficientBalance ? 'text-ens-error' : 'text-ens-gray-dark',
+            'font-medium text-sm tracking-wide sm:text-base sm:leading-5 sm:tracking-normal',
+            hasInsufficientBalance
+              ? 'text-ens-quartz-350'
+              : 'text-ens-gray-dark',
           )}
         >
           {formatUsd(coinBalanceUSD)}
         </span>
-        <span className="text-[10px] text-ens-quartz-350 sm:text-sm">
-          <Trans>in your wallet</Trans>
+        <span
+          className={cn(
+            'text-[10px] text-ens-quartz-350 sm:text-xs sm:leading-4',
+            !hasInsufficientBalance && 'sm:text-ens-quartz-400',
+          )}
+        >
+          <Trans>balance</Trans>
         </span>
       </div>
 
       {hasInsufficientBalance && (
         <p
-          className="col-span-2 justify-self-end text-right text-[10px] text-ens-error sm:text-xs"
+          className="col-span-2 flex items-center gap-1 justify-self-end text-right text-[10px] text-ens-error sm:col-span-1 sm:col-start-1 sm:justify-self-start sm:pl-[46px] sm:text-left sm:text-xs sm:leading-4"
           id={errorId}
         >
-          <Trans>not enough funds to pay network fees.</Trans>
+          <MSymbol
+            aria-hidden="true"
+            className="ms-opsz-12 ms-wght-400 hidden sm:inline-block"
+            symbol="flash_off"
+          />
+          <Trans>not enough funds to pay network fees</Trans>
         </p>
       )}
     </div>

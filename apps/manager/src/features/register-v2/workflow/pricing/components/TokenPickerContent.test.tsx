@@ -93,11 +93,57 @@ describe('TokenPickerContentBase', () => {
     ).toBeVisible()
     expect(screen.getAllByText('Mainnet est. fee:')).toHaveLength(1)
     expect(
-      screen.getAllByText('not enough funds to pay network fees.'),
+      screen.getAllByText('not enough funds to pay network fees'),
     ).toHaveLength(1)
 
     act(() => daiOption.click())
     expect(onSelectCoin).toHaveBeenCalledWith('DAI')
+  })
+
+  it('keeps an unavailable USDC row unselected beside a funded selection', () => {
+    renderPicker({
+      funding: {
+        registration: 495.68,
+        networkFee: 4.32,
+        total: 500,
+        walletDebit: 500,
+        hcaCredit: 0,
+        isUnderfunded: true,
+        isLoading: false,
+      },
+      selectedToken: 'DAI',
+      stablecoinBalances: [
+        { ...usdc, balance: '100000000' } as StablecoinBalance,
+        dai,
+      ],
+    })
+
+    const usdcRow = screen
+      .getByRole('button', { name: 'Select USDC' })
+      .closest('[data-slot="payment-method-row"]')
+    const daiRow = screen
+      .getByRole('button', { name: 'Select DAI' })
+      .closest('[data-slot="payment-method-row"]')
+    const error = screen.getByText('not enough funds to pay network fees')
+    const unavailableBalance = usdcRow?.querySelector(
+      '[data-slot="payment-method-balance"]',
+    )
+
+    expect(usdcRow).toHaveClass('sm:min-h-[78px]')
+    expect(usdcRow).not.toHaveClass('sm:bg-ens-quartz-70')
+    expect(daiRow).toHaveClass('sm:min-h-[63px]', 'sm:bg-ens-quartz-70')
+    expect(unavailableBalance?.firstElementChild).toHaveClass(
+      'text-ens-quartz-350',
+    )
+    expect(error).toHaveClass(
+      'sm:col-start-1',
+      'sm:justify-self-start',
+      'sm:pl-[46px]',
+      'sm:text-left',
+    )
+    expect(error.querySelector('.material-symbol')).toHaveTextContent(
+      'flash_off',
+    )
   })
 
   it('does not gate unselected DAI with the USDC quote', () => {
@@ -227,7 +273,7 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Select USDC' })).toBeDisabled()
     expect(
-      screen.getByText('not enough funds to pay network fees.'),
+      screen.getByText('not enough funds to pay network fees'),
     ).toBeVisible()
     expect(screen.queryByText(/^Not enough USDC/)).not.toBeInTheDocument()
   })
@@ -250,7 +296,7 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Select USDC' })).toBeEnabled()
     expect(
-      screen.queryByText('not enough funds to pay network fees.'),
+      screen.queryByText('not enough funds to pay network fees'),
     ).not.toBeInTheDocument()
   })
 
@@ -277,15 +323,28 @@ describe('TokenPickerContentBase', () => {
     const balance = method?.querySelector(
       '[data-slot="payment-method-balance"]',
     )
+    const paymentList = method?.closest('[data-slot="payment-method-list"]')
+    const tokenIcon = method?.querySelector(
+      '[data-slot="payment-method-token-icon"]',
+    )
     const networkIcon = method?.querySelector(
       '[data-slot="payment-method-network-icon"]',
     )
 
+    expect(paymentList).toHaveClass(
+      'w-full',
+      'gap-3',
+      'sm:w-[454px]',
+      'sm:gap-0',
+    )
     expect(method).toBeVisible()
+    expect(method).toHaveClass('sm:min-h-[63px]', 'sm:bg-ens-quartz-70')
+    expect(tokenIcon).toHaveClass('sm:size-8.5')
+    expect(networkIcon).toHaveClass('sm:size-4', 'sm:-right-1', 'sm:-bottom-1')
     expect(details).toContainElement(screen.getByText('Mainnet est. fee:'))
     expect(details).toContainElement(screen.getByText('$4.32'))
     expect(balance).toContainElement(screen.getByText('$1,000.00'))
-    expect(balance).toContainElement(screen.getByText('in your wallet'))
+    expect(balance).toContainElement(screen.getByText('balance'))
     expect(networkIcon).toBeVisible()
     expect(networkIcon?.tagName).toBe('IMG')
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
@@ -350,11 +409,11 @@ describe('TokenPickerContentBase', () => {
     expect(screen.queryByText('Name price')).not.toBeInTheDocument()
   })
 
-  it('says whose balance the token row is showing', () => {
+  it('uses the approved balance label', () => {
     renderPicker({ selectedToken: 'USDC' })
 
-    expect(screen.getByText('in your wallet')).toBeVisible()
-    expect(screen.queryByText('available')).not.toBeInTheDocument()
+    expect(screen.getByText('balance')).toBeVisible()
+    expect(screen.queryByText('in your wallet')).not.toBeInTheDocument()
   })
 
   // Six-decimal USDC: rounding each figure on its own would print

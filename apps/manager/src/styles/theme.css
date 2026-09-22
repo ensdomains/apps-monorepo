@@ -81,6 +81,8 @@
 
   --color-ens-quartz-0: #ffffff;
   --color-ens-quartz-50: #faf9f7;
+  /* Exact selected-payment surface in the approved WEB-1234 design. */
+  --color-ens-quartz-70: #f5f5f5;
   --color-ens-quartz-75: #f4f4f4;
   --color-ens-quartz-100: #eeeded;
   --color-ens-quartz-150: #eae8e8;

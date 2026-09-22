@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import meta from './TokenPickerDialog.stories'
+import meta, { FundedWithUnavailableUSDC } from './TokenPickerDialog.stories'
 
 describe('TokenPickerDialog stories', () => {
   it('keeps the inherited USDC and DAI payment options', () => {
@@ -12,5 +12,15 @@ describe('TokenPickerDialog stories', () => {
       'USDC',
       'DAI',
     ])
+  })
+
+  it('covers a funded selection beside an unavailable network-fee row', () => {
+    expect(FundedWithUnavailableUSDC.args?.initialSelectedToken).toBe('DAI')
+    expect(
+      FundedWithUnavailableUSDC.args?.stablecoinBalances?.map(
+        ({ symbol }) => symbol,
+      ),
+    ).toEqual(['DAI', 'USDC'])
+    expect(FundedWithUnavailableUSDC.args?.funding?.isUnderfunded).toBe(true)
   })
 })

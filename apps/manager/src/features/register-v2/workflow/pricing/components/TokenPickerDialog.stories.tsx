@@ -71,6 +71,24 @@ const LOW_DAI_BALANCES: StablecoinBalance[] = MOCK_BALANCES.map((coin) =>
     : coin,
 )
 
+/** A funded selection followed by an unselected network-fee error row. */
+const FUNDED_DAI_WITH_UNAVAILABLE_USDC: StablecoinBalance[] = [
+  {
+    address: '0x0000000000000000000000000000000000000002',
+    symbol: 'DAI',
+    balance: '500000000000000000000',
+    decimals: 18,
+    formattedBalance: '500.00',
+  },
+  {
+    address: '0x0000000000000000000000000000000000000001',
+    symbol: 'USDC',
+    balance: '10000000',
+    decimals: 6,
+    formattedBalance: '10.00',
+  },
+]
+
 const ZERO_BALANCES: StablecoinBalance[] = LOW_BALANCES.map((coin) => ({
   ...coin,
   balance: '0',
@@ -355,6 +373,27 @@ export const InvalidUSDC: Story = {
     pricingData: 352,
     stablecoinBalances: LOW_BALANCES,
     initialSelectedToken: 'USDC',
+    funding: {
+      registration: 347.68,
+      networkFee: 4.32,
+      total: 352,
+      walletDebit: 352,
+      hcaCredit: 0,
+      isUnderfunded: true,
+      isLoading: false,
+    },
+  },
+}
+
+/**
+ * A funded selected row and a separate unavailable network-fee row, matching
+ * the authoritative error-state structure without changing auto-selection.
+ */
+export const FundedWithUnavailableUSDC: Story = {
+  args: {
+    pricingData: 352,
+    stablecoinBalances: FUNDED_DAI_WITH_UNAVAILABLE_USDC,
+    initialSelectedToken: 'DAI',
     funding: {
       registration: 347.68,
       networkFee: 4.32,
