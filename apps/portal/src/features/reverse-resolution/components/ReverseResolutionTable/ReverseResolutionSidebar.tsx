@@ -13,7 +13,7 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
-import { type Address, type Hash, isAddressEqual } from 'viem'
+import type { Address, Hash } from 'viem'
 import { useConnection } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -37,6 +37,7 @@ import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecord
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useIsConnectedAddress } from '@/hooks/useIsConnectedAddress'
 import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -285,10 +286,6 @@ const ReverseNameField = ({
   )
 }
 
-/** Case-insensitive address comparison that tolerates a missing account. */
-const isSameAddress = (a: Address | undefined, b: Address) =>
-  !!a && isAddressEqual(a, b)
-
 /**
  * Why the row isn't a primary name. An inherited `default.reverse` name gets
  * its own wording: the record exists and is displayed, but anyone can point
@@ -331,7 +328,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   // so it only ever gets displayed. The table already hides the trigger for a
   // foreign address, but that gate is presentational — this one, and the guard
   // in `useReverseResolutionMutations`, are what actually hold.
-  const isOwnAddress = isSameAddress(connectedAddress, address)
+  const isOwnAddress = useIsConnectedAddress(address)
 
   const {
     coinType,

@@ -1,6 +1,7 @@
-import { screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import type { Address } from 'viem'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReverseResolutionResult } from '@/features/reverse-resolution/hooks/useReverseResolution'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import {
@@ -9,7 +10,8 @@ import {
   renderWithCommitCounter,
 } from '@/test-utils'
 
-const ADDRESS = '0x55e55c649895940826a852820d9e1a076ec47b09'
+const ADDRESS = '0x55e55c649895940826a852820d9e1a076ec47b09' as Address
+const OTHER_ADDRESS = '0x225f137127d9067788314bc7fcc1f36746a3c3b5' as Address
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to }: { children: ReactNode; to: string }) => (
@@ -52,15 +54,39 @@ const REVERSE_RECORDS: ReverseResolutionResult[] = [
   emptyRecord(MAINNET_COIN_TYPE, 'Mainnet'),
 ]
 
+/** What the hook returns for an address with nothing set anywhere. */
+const NO_RECORDS: ReverseResolutionResult[] = [
+  emptyRecord(DEFAULT_EVM_COIN_TYPE, 'Default'),
+  emptyRecord(MAINNET_COIN_TYPE, 'Mainnet'),
+]
+
 const LOADED = { data: REVERSE_RECORDS, error: null, isLoading: false }
+const LOADED_EMPTY = { data: NO_RECORDS, error: null, isLoading: false }
+
+let queryResult: typeof LOADED = LOADED
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
   return {
     ...actual,
-    useQuery: () => LOADED,
+    useQuery: () => queryResult,
   }
 })
+
+/**
+ * Defaults to disconnected, which is what the real `useConnection` reports
+ * under the test wrapper — the stability test below relies on that.
+ */
+let connectedAddress: Address | undefined
+
+vi.mock('wagmi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('wagmi')>()),
+  useConnection: () => ({
+    address: connectedAddress,
+    isConnected: !!connectedAddress,
+    chain: undefined,
+  }),
+}))
 
 // `createFileRoute` is mocked to hand back the options object, so `Route` is
 // that object and `Route.component` is the page.
@@ -77,7 +103,18 @@ const ReverseResolutionRoute = (
  */
 const MAX_SETTLED_COMMITS = 10
 
+const renderRoute = () =>
+  render(<ReverseResolutionRoute />, { wrapper: createTestWrapper() })
+
+const EMPTY_STATE_TITLE = 'No reverse records yet'
+const MORE_BUTTON = { name: 'More' }
+
 describe('addr reverse-resolution route', () => {
+  beforeEach(() => {
+    queryResult = LOADED
+    connectedAddress = undefined
+  })
+
   /**
    * Only the loaded state is worth measuring. As on the forward-resolution
    * route, the loading / error / no-records branches return before the table is
@@ -96,5 +133,64 @@ describe('addr reverse-resolution route', () => {
     counter.rerenderSubject()
 
     await expectSettled(counter, MAX_SETTLED_COMMITS)
+  })
+
+  /**
+   * The page used to swap the table for "No reverse records yet" whenever no
+   * row carried a name. The table is the only route into the set-a-name flow,
+   * so an address with nothing set — the one most likely to want it — had
+   * nowhere to go. The rows themselves always exist: the hook emits one per
+   * configured network regardless.
+   */
+  describe('with no reverse records anywhere', () => {
+    beforeEach(() => {
+      queryResult = LOADED_EMPTY
+    })
+
+    it('offers the row action on your own address', () => {
+      connectedAddress = ADDRESS
+
+      renderRoute()
+
+      expect(screen.queryByText(EMPTY_STATE_TITLE)).not.toBeInTheDocument()
+      // The networks a reverse name can be set on, each with its own trigger.
+      expect(screen.getByText('Default')).toBeInTheDocument()
+      expect(screen.getByText('Mainnet')).toBeInTheDocument()
+      expect(screen.getAllByRole('button', MORE_BUTTON)).toHaveLength(
+        NO_RECORDS.length,
+      )
+      // Otherwise the table reads as a column of "null"s with no explanation.
+      expect(screen.getByText(/No reverse records set yet/)).toBeInTheDocument()
+    })
+
+    it('offers a visitor nothing on someone else’s address', () => {
+      connectedAddress = OTHER_ADDRESS
+
+      renderRoute()
+
+      expect(screen.getByText(EMPTY_STATE_TITLE)).toBeInTheDocument()
+      expect(screen.queryByRole('button', MORE_BUTTON)).not.toBeInTheDocument()
+    })
+
+    it('offers a disconnected visitor nothing', () => {
+      renderRoute()
+
+      expect(screen.getByText(EMPTY_STATE_TITLE)).toBeInTheDocument()
+      expect(screen.queryByRole('button', MORE_BUTTON)).not.toBeInTheDocument()
+    })
+  })
+
+  /**
+   * The row actions were already withheld from a visitor; this pins that the
+   * table rendering for everyone (because a record exists) doesn't hand them
+   * over.
+   */
+  it('withholds the row action from a visitor when records do exist', () => {
+    connectedAddress = OTHER_ADDRESS
+
+    renderRoute()
+
+    expect(screen.getByText('sugh004.eth')).toBeInTheDocument()
+    expect(screen.queryByRole('button', MORE_BUTTON)).not.toBeInTheDocument()
   })
 })
