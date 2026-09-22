@@ -65,7 +65,11 @@ import {
   getV1NameStateQueryOptions,
   type NameNotNormalizableError,
 } from '../v1/getV1NameState'
-import { getV1TransferGate, type V1TransferGate } from '../v1/rules'
+import {
+  getV1Holder,
+  getV1TransferGate,
+  type V1TransferGate,
+} from '../v1/rules'
 
 export type StartTransferParams = {
   readonly recipient: Address
@@ -227,10 +231,13 @@ export const useTransferName = ({
   const [confirmedSteps, setConfirmedSteps] = useState<
     ReadonlySet<TransferStepKind>
   >(new Set())
-  // `set-eth-addr` was broadcast but its receipt never came back (polling
-  // timed out, or the wait otherwise gave up after the send). It may still
-  // have landed, so the live record decides — see `isRecordRepointedOnChain`.
-  const [isEthAddrUnsettled, setIsEthAddrUnsettled] = useState(false)
+  // Steps that were broadcast but whose receipt never came back (polling timed
+  // out, or the wait otherwise gave up after the send). They may still have
+  // landed, so the chain decides — see `isRecordRepointedOnChain` and
+  // `mayHaveMoved`.
+  const [unsettledSteps, setUnsettledSteps] = useState<
+    ReadonlySet<TransferStepKind>
+  >(new Set())
   const [isRestoring, setIsRestoring] = useState(false)
 
   // `startedSteps` makes each step's `onStart` idempotent — both the modal UI and
@@ -283,7 +290,7 @@ export const useTransferName = ({
     setIsRestoring(false)
     setSavedParams(null)
     setConfirmedSteps(new Set())
-    setIsEthAddrUnsettled(false)
+    setUnsettledSteps(new Set())
     attempt.end()
     void queryClient.invalidateQueries({
       queryKey: getEthAddressQueryOptions({ name }).queryKey,
@@ -456,7 +463,7 @@ export const useTransferName = ({
       onSuccess: (params) => {
         startedStepsRef.current = new Set()
         setConfirmedSteps(new Set())
-        setIsEthAddrUnsettled(false)
+        setUnsettledSteps(new Set())
         setIsRestoring(false)
         // A retry after a stranded attempt re-reads the record *we* repointed;
         // what to restore is still the value from before the first attempt.
@@ -473,19 +480,24 @@ export const useTransferName = ({
     }),
   )
 
-  // A `set-eth-addr` that failed after it was sent may still have been mined.
-  // Re-read the record rather than trust the cached pre-flow value.
-  const flagIfEthAddrSent = (
-    step: TransferStepKind,
-    txId: string | undefined,
-  ) => {
-    if (step !== 'set-eth-addr' || !txId) return
+  // A step that failed after it was sent may still have been mined. Re-read
+  // what it writes rather than trust the cached pre-flow values.
+  const flagIfSent = (step: TransferStepKind, txId: string | undefined) => {
+    if (!txId) return
     if (!transactionManager.getTransaction(txId)?.getSnapshot().context.hash)
       return
-    setIsEthAddrUnsettled(true)
-    void queryClient.invalidateQueries({
-      queryKey: getEthAddressQueryOptions({ name }).queryKey,
-    })
+    setUnsettledSteps((prev) => new Set(prev).add(step))
+    void Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: getEthAddressQueryOptions({ name }).queryKey,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: getV1NameStateQueryOptions({ name }).queryKey,
+      }),
+    ])
   }
 
   // Built fresh each render (like useRenewalTransactions) — the modal holds the
@@ -541,7 +553,7 @@ export const useTransferName = ({
         // guarded, or a stray `onStart` would send it a second time.
         console.error(`Transfer step "${step}" failed:`, err)
         startedStepsRef.current.delete(id)
-        flagIfEthAddrSent(step, txId)
+        flagIfSent(step, txId)
       }
     })
 
@@ -566,6 +578,12 @@ export const useTransferName = ({
   }
 
   const recipient = savedParams?.recipient
+  const plan = savedParams
+    ? buildTransferPlan(savedParams.options, subject.kind, actor)
+    : []
+  const move = plan.at(-1)
+
+  const isEthAddrUnsettled = unsettledSteps.has('set-eth-addr')
   const liveEthAddressQuery = useQuery({
     ...getEthAddressQueryOptions({ name }),
     enabled: isEthAddrUnsettled && !!recipient,
@@ -577,17 +595,53 @@ export const useTransferName = ({
     recordPointsAt(liveEthAddressQuery.data, recipient) &&
     !recordPointsAt(savedParams?.previousEthAddress, recipient)
 
+  // Who holds the name now, read the way each protocol version defines it:
+  // the V2 token owner, or the V1 holder (registrant for an unwrapped 2LD).
+  const isMoveUnsettled = !!move && unsettledSteps.has(move)
+  const keepPollingUntil = (holder: Address | null | undefined) =>
+    recordPointsAt(holder, recipient) ? false : 15_000
+  const liveV2OwnerQuery = useQuery({
+    ...getEnsOwnerQueryOptions({ name }),
+    enabled: isMoveUnsettled && subject.kind === 'v2',
+    refetchInterval: (query) => keepPollingUntil(query.state.data?.owner),
+  })
+  const liveV1StateQuery = useQuery({
+    ...getV1NameStateQueryOptions({ name }),
+    enabled: isMoveUnsettled && subject.kind !== 'v2',
+    refetchInterval: (query) => {
+      const live = query.state.data?.subject
+      return keepPollingUntil(live ? getV1Holder(live) : null)
+    },
+  })
+  const liveHolder =
+    subject.kind === 'v2'
+      ? {
+          isSuccess: liveV2OwnerQuery.isSuccess,
+          holder: liveV2OwnerQuery.data?.owner ?? null,
+        }
+      : {
+          isSuccess: liveV1StateQuery.isSuccess,
+          holder: liveV1StateQuery.data?.subject
+            ? getV1Holder(liveV1StateQuery.data.subject)
+            : null,
+        }
+  // Unknown until the read lands: better no alert than a restore the sender
+  // may no longer be able to authorize.
+  const mayHaveMoved =
+    isMoveUnsettled &&
+    (!liveHolder.isSuccess ||
+      recordPointsAt(liveHolder.holder, recipient))
+
   // Only once the modal is closed: mid-flow, the gap between the record landing
   // and the move landing is expected, not a stranded state. A restore dismissed
   // before it landed leaves the record stranded, so it shows again.
   const recordAheadOfMove: RecordAheadOfMove | null =
     savedParams &&
     !isOpen &&
-    isRecordAheadOfMove(
-      buildTransferPlan(savedParams.options, subject.kind, actor),
-      confirmedSteps,
+    isRecordAheadOfMove(plan, confirmedSteps, {
       isRecordRepointedOnChain,
-    )
+      mayHaveMoved,
+    })
       ? {
           recipient: savedParams.recipient,
           previousEthAddress: savedParams.previousEthAddress,

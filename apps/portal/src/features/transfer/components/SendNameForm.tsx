@@ -463,7 +463,12 @@ const RecordAheadOfMoveAlert = ({
               <span className="font-mono break-all">{previousEthAddress}</span>,
               or try the transfer again.
             </p>
-            <Button variant="outline" onClick={onRestore} className="w-fit">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onRestore}
+              className="w-fit"
+            >
               Restore ETH address
             </Button>
           </>
