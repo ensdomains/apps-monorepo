@@ -54,14 +54,14 @@ describe('profile transformRecords utils', () => {
       expect(transformLinks(`${value} `).links).toHaveLength(0)
     })
 
-    it('keeps only the first bounded set of links in order', () => {
-      const links = Array.from({ length: MAX_PROFILE_LINKS + 1 }, (_, i) => ({
+    it('keeps only the first three links in order', () => {
+      const links = Array.from({ length: 4 }, (_, i) => ({
         name: `Link ${i}`,
         url: `https://example.com/${i}`,
       }))
 
       expect(transformLinks(JSON.stringify(links)).links).toEqual(
-        links.slice(0, MAX_PROFILE_LINKS),
+        links.slice(0, 3),
       )
     })
 
@@ -183,15 +183,17 @@ describe('profile transformRecords utils', () => {
       expect(result.unknown).toEqual([])
     })
 
-    it('should safely parse links JSON and drop unsafe entries from the chain', () => {
+    it.each([
+      'ipfs://QmBad',
+      'javascript:alert(1)',
+    ])('should safely parse links JSON and drop an unsafe %s entry from the chain', (unsafeUrl) => {
       const result = transformProfileRecords({
         texts: [
           {
             key: 'links',
             value: JSON.stringify([
               { name: 'ok', url: 'https://good.com' },
-              { name: 'ipfs', url: 'ipfs://QmBad' },
-              { name: 'js', url: 'javascript:alert(1)' },
+              { name: 'unsafe', url: unsafeUrl },
               { name: 'also ok', url: 'https://also.good.com' },
             ]),
           },
