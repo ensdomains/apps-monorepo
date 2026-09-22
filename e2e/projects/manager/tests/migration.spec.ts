@@ -3,8 +3,6 @@
  *
  * Tests the migration flow for V1 .eth names of different types:
  * - Unwrapped: ERC-721 on BaseRegistrar (no NameWrapper)
- * - Wrapped (unlocked): NameWrapper ERC-1155 without CANNOT_UNWRAP fuse
- * - Locked: NameWrapper ERC-1155 with CANNOT_UNWRAP fuse
  * - Batch: multiple names migrated in a single flow
  * - V1 records preservation: records set on V1 survive migration
  * - Post-migration profile editing
@@ -15,7 +13,7 @@
  * 3. Mocks the V1 subgraph to inject the test names
  * 4. Triggers the migration flow through the UI
  * 5. Verifies the migration completes successfully
- * 6. Verifies the migrated name is accessible on the profile page
+ * 6. Checks the behavior specific to each scenario
  *
  * Prerequisites:
  *   - Anvil fork running with V1 + V2 contracts
@@ -29,6 +27,10 @@ import {
   expect,
   test,
 } from '../../../fixtures/playwright.manager.fixture.js'
+import {
+  assertLockedMigration,
+  assertUnlockedMigration,
+} from '../../../helpers/migration-assertions.js'
 import {
   type MockV1Name,
   mockV1Subgraph,
@@ -187,44 +189,6 @@ test.describe('ENS V1 → V2 Migration', () => {
     )
   })
 
-  test('migrate a wrapped (unlocked) V1 name to V2', async ({
-    migrationConnectedPage: page,
-    wallet,
-    accounts,
-  }) => {
-    const makeV1Name = createMakeV1Name({
-      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
-    })
-    const v1Name = await makeV1Name({ label: 'migwrap', type: 'wrapped' })
-    console.log(`[migration] wrapped V1 name created: ${v1Name}`)
-
-    await mockV1Subgraph(page, [
-      { name: v1Name, ownerAddress: HEADLESS_USER_ADDRESS, type: 'wrapped' },
-    ])
-
-    await runMigrationFlow(page, wallet)
-    console.log(`[migration] ✅ Wrapped migration completed for ${v1Name}`)
-  })
-
-  test('migrate a locked V1 name to V2', async ({
-    migrationConnectedPage: page,
-    wallet,
-    accounts,
-  }) => {
-    const makeV1Name = createMakeV1Name({
-      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
-    })
-    const v1Name = await makeV1Name({ label: 'miglock', type: 'locked' })
-    console.log(`[migration] locked V1 name created: ${v1Name}`)
-
-    await mockV1Subgraph(page, [
-      { name: v1Name, ownerAddress: HEADLESS_USER_ADDRESS, type: 'locked' },
-    ])
-
-    await runMigrationFlow(page, wallet)
-    console.log(`[migration] ✅ Locked migration completed for ${v1Name}`)
-  })
-
   test('batch migrate multiple V1 names to V2', async ({
     migrationConnectedPage: page,
     wallet,
@@ -256,6 +220,9 @@ test.describe('ENS V1 → V2 Migration', () => {
     await mockV1Subgraph(page, mockNames)
 
     await runMigrationFlow(page, wallet)
+    await assertUnlockedMigration(unwrappedName.replace('.eth', ''))
+    await assertUnlockedMigration(wrappedName.replace('.eth', ''))
+    await assertLockedMigration(lockedName.replace('.eth', ''))
     console.log(
       `[migration] ✅ Batch migration completed for ${mockNames.length} names`,
     )
