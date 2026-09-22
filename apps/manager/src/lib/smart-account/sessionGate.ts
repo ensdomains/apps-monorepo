@@ -1,18 +1,17 @@
 /**
  * Shared decision for the registration session gate.
  *
- * NOTE: "session" here is NOT ERC-7579 SmartSessions (the HCA does not install
- * that module). It is a time-boxed extra OWNER added to the HCA's
- * OwnableValidator — an ephemeral key that can sign Intents prompt-free until it
- * expires.
+ * A "session" here is a scoped ERC-7579 SmartSession authorized against the
+ * standalone HCA's `HCAOwnerAndSessionValidator`. It replaces the retired
+ * time-boxed extra-owner model.
  *
  * Both registration entry points (register-v2 via `useSmartSessionGate` and the
  * v1 `RegistrationPage`) use this to decide whether to prompt the user to enable
  * a session before starting registration.
  *
- * Rule: only the HCA (rhinestone) path uses sessions. If a session is already
- * active, proceed; otherwise the user must enable one (the single ENABLE
- * signature). The EOA-only path (no rhinestone signer) never needs a session.
+ * Rule: only the HCA (rhinestone) path uses sessions. If a session with enough
+ * registration headroom is active, proceed; otherwise the user must authorize
+ * one. The EOA-only path (no rhinestone signer) never needs a session.
  */
 
 import { hasRegistrationHeadroom } from '@ens-apps/smart-account'
@@ -43,13 +42,13 @@ export function needsSessionBeforeRegistration(
  *
  * The HCA owner address has two independent sources: the smart-account state
  * machine's context (`snapshot.context.ownerAddress`, set at HCA init / enable
- * time) and wagmi's connected wallet (`eoaAddress`). A time-boxed session enables
- * an ephemeral key as an owner of the HCA for a SPECIFIC owner EOA; reusing it
- * against a different connected EOA (shared device, cross-EOA reconnect, or a
+ * time) and wagmi's connected wallet (`eoaAddress`). A scoped session is
+ * authorized by a SPECIFIC owner EOA; reusing it against a different connected
+ * EOA (shared device, cross-EOA reconnect, or a
  * transitional state-machine snapshot where the machine has reset to
  * `disconnected` — `ownerAddress=null` — while wagmi already reports a new
  * address) would either register a name to the wrong owner or attach a session
- * the on-chain OwnableValidator rejects.
+ * the on-chain validator rejects.
  *
  * This returns the verified owner ONLY when both sources are present and agree
  * (checksum-insensitive, via viem's `isAddressEqual`). It returns `null` —

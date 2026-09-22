@@ -5,8 +5,8 @@ import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import {
-  startSingleRegistrationAttempt,
   startRegistrationWithSession,
+  startSingleRegistrationAttempt,
   TokenPickerContentBase,
 } from './TokenPickerContent'
 
