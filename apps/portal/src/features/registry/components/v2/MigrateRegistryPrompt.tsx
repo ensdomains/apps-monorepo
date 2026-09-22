@@ -2,9 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { MANAGER_MIGRATE_URL } from '@/lib/constants/domain'
-import { cn } from '@/lib/utils'
+import { RegistryPanel } from './RegistryPanel'
 
 /**
  * The V1 twin of ConfigureRegistryForm's empty state (WEB-693 / WEB-696): a V1
@@ -19,18 +18,12 @@ import { cn } from '@/lib/utils'
  * at the name row.
  */
 export const MigrateRegistryPrompt = ({ name }: { readonly name: string }) => {
-  const isMobile = useIsMobile()
   const { data: migration } = useQuery(getMigrationStatusQueryOptions({ name }))
 
   if (migration?.migratable !== true) return null
 
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-4 max-w-xl',
-        isMobile ? 'pl-0 pt-3' : 'pl-14',
-      )}
-    >
+    <RegistryPanel>
       <div className="flex flex-col gap-2 bg-muted p-5 rounded-lg">
         <h3 className="text-3xl font-medium font-serif">
           No registry configured
@@ -46,6 +39,6 @@ export const MigrateRegistryPrompt = ({ name }: { readonly name: string }) => {
           Migrate name to ENSv2
         </a>
       </Button>
-    </div>
+    </RegistryPanel>
   )
 }
