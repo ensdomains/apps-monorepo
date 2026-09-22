@@ -568,12 +568,10 @@ export const useTransferName = ({
           buildTransferStepIntent(step, { ...stepContext, ...ctx }),
       },
       onStart: runners[i],
-      onDone:
-        i < runners.length - 1
-          ? runners[i + 1]
-          : isRestoring
-            ? finishRestore
-            : finishFlow,
+      onDone: match({ hasNext: i < runners.length - 1, isRestoring })
+        .with({ hasNext: true }, () => runners[i + 1])
+        .with({ isRestoring: true }, () => finishRestore)
+        .otherwise(() => finishFlow),
     }))
   }
 
@@ -613,18 +611,18 @@ export const useTransferName = ({
       return keepPollingUntil(live ? getV1Holder(live) : null)
     },
   })
-  const liveHolder =
-    subject.kind === 'v2'
-      ? {
-          isSuccess: liveV2OwnerQuery.isSuccess,
-          holder: liveV2OwnerQuery.data?.owner ?? null,
-        }
-      : {
-          isSuccess: liveV1StateQuery.isSuccess,
-          holder: liveV1StateQuery.data?.subject
-            ? getV1Holder(liveV1StateQuery.data.subject)
-            : null,
-        }
+  const liveHolder = match(subject.kind)
+    .with('v2', () => ({
+      isSuccess: liveV2OwnerQuery.isSuccess,
+      holder: liveV2OwnerQuery.data?.owner ?? null,
+    }))
+    .otherwise(() => {
+      const live = liveV1StateQuery.data?.subject
+      return {
+        isSuccess: liveV1StateQuery.isSuccess,
+        holder: live ? getV1Holder(live) : null,
+      }
+    })
   // Unknown until the read lands: better no alert than a restore the sender
   // may no longer be able to authorize.
   const mayHaveMoved =
