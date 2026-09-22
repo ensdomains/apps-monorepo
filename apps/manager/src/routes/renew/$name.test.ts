@@ -105,10 +105,7 @@ describe('/renew/$name loader', () => {
       protocol: 'v2',
     })
 
-    expect(outcome).toBeInstanceOf(Error)
-    expect((outcome as Error).message).toBe(
-      'This name is not in its normalized form, so it cannot be renewed here',
-    )
+    expect(outcome).toMatchObject({ reason: 'NOT_NORMALIZED' })
     expect(fetchQuery).not.toHaveBeenCalled()
   })
 
@@ -159,14 +156,24 @@ describe('/renew/$name loader', () => {
   })
 
   it('renews the normalised label for an upper-case name', async () => {
-    const { outcome, fetchQuery } = await runLoader('ALICE.ETH', {
+    // Upper case never reaches the loader: it is redirected to the normalised
+    // name first, and the expiry is then read for exactly that name.
+    expect(runBeforeLoad('ALICE.ETH')).toEqual({
+      redirect: {
+        params: { name: 'alice.eth' },
+        to: '/renew/$name',
+        replace: true,
+      },
+    })
+
+    const { outcome, fetchQuery } = await runLoader('alice.eth', {
       expiry: EXPIRY_2030,
       isNonExpiring: false,
       protocol: 'v2',
     })
 
-    // Asserted by name, not just call count: reading the expiry for the raw
-    // `ALICE.ETH` would price a different registration than the one renewed.
+    // Asserted by name, not just call count: reading the expiry for another
+    // spelling would price a different registration than the one renewed.
     expect(fetchQuery).toHaveBeenCalledOnce()
     expect(fetchQuery).toHaveBeenCalledWith(
       expect.objectContaining({
