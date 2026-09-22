@@ -53,11 +53,12 @@ export const ExtendNameSettings = ({
       />
       <div className="flex gap-2">
         {onBack ? (
-          <Button variant="outline" size="icon" onClick={onBack}>
+          <Button type="button" variant="outline" size="icon" onClick={onBack}>
             <ArrowLeft className="size-4" />
           </Button>
         ) : null}
         <Button
+          type="button"
           className="flex-1"
           variant="default"
           disabled={!canContinue}
