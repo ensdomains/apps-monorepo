@@ -42,6 +42,7 @@ const makeDomain = (overrides: Partial<DomainFragment> = {}): DomainFragment =>
     normalizedName: overrides.normalizedName ?? overrides.name ?? 'alaska.eth',
     tokenId: overrides.tokenId ?? null,
     createdAt: overrides.createdAt ?? 0,
+    registrationDate: null,
     expiryDate: overrides.expiryDate ?? null,
     owner: overrides.owner ?? {
       __typename: 'Account',
