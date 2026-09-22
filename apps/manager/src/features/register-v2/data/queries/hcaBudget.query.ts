@@ -8,6 +8,7 @@ import {
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import type { QueryClient } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -159,3 +160,18 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
     // surface any failure", never as a hard block.
     retry: 1,
   })
+
+export const refreshHcaBudgetQuery = async (
+  queryClient: QueryClient,
+  params: Omit<HcaBudgetQueryParams, 'purpose'>,
+) => {
+  const displayOptions = getHcaBudgetQueryOptions(params)
+  const quote = await queryClient.fetchQuery(
+    getHcaBudgetQueryOptions({
+      ...params,
+      purpose: 'registration-start',
+    }),
+  )
+  queryClient.setQueryData(displayOptions.queryKey, quote)
+  return quote
+}

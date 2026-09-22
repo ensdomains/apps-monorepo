@@ -22,7 +22,10 @@ import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
-import { getHcaBudgetQueryOptions } from '../../../data/queries/hcaBudget.query'
+import {
+  getHcaBudgetQueryOptions,
+  refreshHcaBudgetQuery,
+} from '../../../data/queries/hcaBudget.query'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
@@ -461,13 +464,7 @@ export const TokenPickerContent = () => {
     mutationFn: async (attempt: RegistrationAttempt) => {
       const budget =
         attempt.token === TOKENS.USDC.symbol
-          ? await queryClient
-              .fetchQuery(
-                getHcaBudgetQueryOptions({
-                  ...budgetQueryParams,
-                  purpose: 'registration-start',
-                }),
-              )
+          ? await refreshHcaBudgetQuery(queryClient, budgetQueryParams)
               // A quote failure is not a funding failure. Fall through and let the
               // machine (and its own pre-permit balance check) surface the problem.
               .catch(() => null)

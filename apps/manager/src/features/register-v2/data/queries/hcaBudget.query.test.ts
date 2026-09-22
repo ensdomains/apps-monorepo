@@ -16,7 +16,10 @@ vi.mock(
   }),
 )
 
-import { getHcaBudgetQueryOptions } from './hcaBudget.query'
+import {
+  getHcaBudgetQueryOptions,
+  refreshHcaBudgetQuery,
+} from './hcaBudget.query'
 
 const BUDGET = {
   total: 20_196_054n,
@@ -95,6 +98,7 @@ describe('getHcaBudgetQueryOptions', () => {
 
   it('re-quotes registration start with the current session payload', async () => {
     const queryClient = new QueryClient()
+    const refreshedBudget = { ...BUDGET, total: BUDGET.total + 1_000_000n }
     let sessionEnable: Awaited<
       ReturnType<typeof baseParams.getSessionEnablePayload>
     >
@@ -102,23 +106,23 @@ describe('getHcaBudgetQueryOptions', () => {
       ...baseParams,
       getSessionEnablePayload: () => Promise.resolve(sessionEnable),
     }
-    mocks.estimateHcaBudgetActor.mockReturnValue(okAsync(BUDGET))
+    mocks.estimateHcaBudgetActor
+      .mockReturnValueOnce(okAsync(BUDGET))
+      .mockReturnValueOnce(okAsync(refreshedBudget))
     mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(0n))
 
     await queryClient.fetchQuery(getHcaBudgetQueryOptions(params))
 
     sessionEnable = { signature: '0x1234' } as never
-    await queryClient.fetchQuery(
-      getHcaBudgetQueryOptions({
-        ...params,
-        purpose: 'registration-start',
-      }),
-    )
+    await refreshHcaBudgetQuery(queryClient, params)
 
     expect(mocks.estimateHcaBudgetActor).toHaveBeenCalledTimes(2)
     expect(mocks.estimateHcaBudgetActor).toHaveBeenLastCalledWith(
       expect.objectContaining({ sessionEnable }),
     )
+    expect(
+      queryClient.getQueryData(getHcaBudgetQueryOptions(params).queryKey),
+    ).toEqual({ ...refreshedBudget, hcaBalance: 0n })
   })
 
   it('returns the quoted budget alongside the HCA balance', async () => {
