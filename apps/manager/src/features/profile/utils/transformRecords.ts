@@ -16,7 +16,7 @@ import {
   isAgentRegistrationKey,
   transformAgentRegistrationRecord,
 } from './agentRegistration'
-import { MAX_PROFILE_LINKS, MAX_PROFILE_LINKS_RECORD_BYTES } from './linkLimits'
+import { MAX_PROFILE_LINKS_RECORD_BYTES } from './linkLimits'
 import { createSafeUrlSchema, isSafeHttpUrl } from './safeUrl'
 
 const emptyProfileRecords = (): ProfileRecords => ({
@@ -44,10 +44,9 @@ const LinkItemSchema = v.object({
   name: v.string(),
   url: createSafeUrlSchema('Only http(s) URLs are allowed'),
 })
-const parseLinksJson = (rawValue: string, limit: number): LinkItem[] => {
+const parseLinksJson = (rawValue: string): LinkItem[] => {
   // Check code units first so measuring UTF-8 cannot allocate an unbounded buffer.
   if (
-    limit <= 0 ||
     rawValue.length > MAX_PROFILE_LINKS_RECORD_BYTES ||
     new TextEncoder().encode(rawValue).byteLength >
       MAX_PROFILE_LINKS_RECORD_BYTES
@@ -63,8 +62,9 @@ const parseLinksJson = (rawValue: string, limit: number): LinkItem[] => {
   }
   if (!Array.isArray(raw)) return []
   const out: LinkItem[] = []
-  // Bound validation attempts too, including when every entry is invalid.
-  for (const item of raw.slice(0, limit)) {
+  // The byte limit bounds validation work. Keep every valid link for editing
+  // and saving; only the view should limit how many preview cards are shown.
+  for (const item of raw) {
     const parsed = v.safeParse(LinkItemSchema, item)
     if (parsed.success) out.push(parsed.output)
   }
@@ -161,7 +161,7 @@ export const transformProfileRecords = (
     }
 
     if (key === 'links') {
-      const links = parseLinksJson(value, MAX_PROFILE_LINKS - acc.links.length)
+      const links = parseLinksJson(value)
       return {
         ...acc,
         links: [...acc.links, ...links],

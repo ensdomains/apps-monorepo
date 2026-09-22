@@ -15,10 +15,10 @@ export const useLinkPreviewPattern = (href: string) => {
     const element = ref.current
     if (!element) return
 
-    let active = true
+    let isActive = true
     const generate = () => {
-      if (!active) return
-      active = false
+      if (!isActive) return
+      isActive = false
       setGenerated({ href, pattern: getGeneratedLinkPattern(href) })
     }
 
@@ -26,14 +26,14 @@ export const useLinkPreviewPattern = (href: string) => {
     if (typeof IntersectionObserver === 'undefined') {
       const timeout = setTimeout(generate, 0)
       return () => {
-        active = false
+        isActive = false
         clearTimeout(timeout)
       }
     }
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!active || !entries.some((entry) => entry.isIntersecting)) return
+        if (!isActive || !entries.some((entry) => entry.isIntersecting)) return
         observer.disconnect()
         generate()
       },
@@ -41,7 +41,7 @@ export const useLinkPreviewPattern = (href: string) => {
     )
     observer.observe(element)
     return () => {
-      active = false
+      isActive = false
       observer.disconnect()
     }
   }, [href])

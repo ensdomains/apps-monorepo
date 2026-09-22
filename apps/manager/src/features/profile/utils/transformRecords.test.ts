@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_PROFILE_LINKS, MAX_PROFILE_LINKS_RECORD_BYTES } from './linkLimits'
+import { MAX_PROFILE_LINKS_RECORD_BYTES } from './linkLimits'
 import {
   newEmptyProfileRecords,
   normalizeProfileRecords,
@@ -54,33 +54,60 @@ describe('profile transformRecords utils', () => {
       expect(transformLinks(`${value} `).links).toHaveLength(0)
     })
 
-    it('keeps only the first three links in order', () => {
-      const links = Array.from({ length: 4 }, (_, i) => ({
+    it.each([
+      4, 51, 75,
+    ])('preserves all %i links when editing a visible link', (count) => {
+      const links = Array.from({ length: count }, (_, i) => ({
         name: `Link ${i}`,
         url: `https://example.com/${i}`,
       }))
+      const records = transformLinks(JSON.stringify(links))
+      const updatedLink = {
+        name: 'Updated website',
+        url: 'https://updated.example.com',
+      }
 
-      expect(transformLinks(JSON.stringify(links)).links).toEqual(
-        links.slice(0, 3),
+      expect(records.links).toEqual(links)
+
+      const editedRecords = normalizeProfileRecords({
+        ...records,
+        links: records.links.map((item, index) =>
+          index === 0 ? updatedLink : item,
+        ),
+      })
+      const savedLinks = transformToServiceFormat(editedRecords).texts.find(
+        ({ key }) => key === 'links',
       )
+
+      expect(savedLinks?.value).toBe(
+        JSON.stringify([updatedLink, ...links.slice(1)]),
+      )
+      expect(records.links).toEqual(links)
     })
 
-    it('does not scan past the item limit to replace invalid entries', () => {
+    it('preserves valid links after invalid entries beyond the preview limit', () => {
+      const lastLink = {
+        name: 'Beyond preview limit',
+        url: 'https://other.example',
+      }
       const links = [
         link,
-        ...Array(MAX_PROFILE_LINKS - 1).fill({ name: 'Bad', url: 'data:bad' }),
-        { name: 'Beyond limit', url: 'https://other.example' },
+        ...Array(50).fill({ name: 'Bad', url: 'data:bad' }),
+        lastLink,
       ]
 
-      expect(transformLinks(JSON.stringify(links)).links).toEqual([link])
+      expect(transformLinks(JSON.stringify(links)).links).toEqual([
+        link,
+        lastLink,
+      ])
     })
 
-    it('keeps the total bounded across repeated links records', () => {
+    it('preserves links across repeated links records', () => {
       const result = transformProfileRecords({
         texts: [
           {
             key: 'links',
-            value: JSON.stringify(Array(MAX_PROFILE_LINKS - 1).fill(link)),
+            value: JSON.stringify(Array(50).fill(link)),
           },
           { key: 'links', value: JSON.stringify([link, link]) },
           { key: 'links', value: JSON.stringify([link]) },
@@ -88,7 +115,7 @@ describe('profile transformRecords utils', () => {
         coins: [],
       })
 
-      expect(result.links).toHaveLength(MAX_PROFILE_LINKS)
+      expect(result.links).toEqual(Array(53).fill(link))
     })
   })
 
