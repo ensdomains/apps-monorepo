@@ -20,6 +20,10 @@ export function createClient(env: Env) {
       { rank: false, retryCount: 2 },
     ),
     batch: { multicall: true },
+    // Any resolver can revert with OffchainLookup, and viem follows it with an
+    // unguarded fetch and then an eth_call that may revert with another lookup,
+    // unbounded. An offchain name just renders its card without records.
+    ccipRead: false,
   })
 }
 
