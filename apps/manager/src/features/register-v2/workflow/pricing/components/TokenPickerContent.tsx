@@ -53,14 +53,9 @@ class InsufficientFundingError extends Error {
 }
 
 /**
- * Raised when the funding budget could not be quoted at all.
- *
- * NOT a funding failure — but it is a hard stop. Without a budget the only
- * figure on hand is the rent, which is strictly less than what the registration
- * needs: the single permit also has to cover both on-chain legs. Proceeding on
- * the rent alone signs an under-sized permit, the reveal cannot be paid out of
- * the HCA, and the commitment is paid for and left to expire (Immunefi #93021).
- * Refuse instead, and let the user retry.
+ * The funding budget could not be quoted. Not a funding failure, but still a
+ * hard stop: the only figure left is the rent, which is less than the permit
+ * must cover, so proceeding strands a paid-for commitment (Immunefi #93021).
  */
 class BudgetQuoteUnavailableError extends Error {
   constructor(readonly cause: unknown) {
@@ -183,20 +178,13 @@ export const TokenPickerContent = () => {
   const budgetQueryOptions = getHcaBudgetQueryOptions(budgetQueryParams)
   const budgetQuery = useQuery(budgetQueryOptions)
 
-  // Whether this route needs a budget at all — the EOA route does not, and must
-  // not be gated on a quote it never takes.
+  // The EOA route needs no budget and must not be gated on a quote it never
+  // takes; on the HCA route a missing quote blocks rather than falling back to
+  // the rent, which is not what the wallet pays.
   const requiresBudget = hcaBudgetQuoteRequired(budgetQueryParams)
-
-  // The quote is required here and could not be produced. The screen must not
-  // fall back to the rent: it is not what the wallet pays, and rendering it as
-  // an exact figure next to an enabled button is what let a user commit and pay
-  // for a registration whose reveal could never be funded.
   const budgetQuoteFailed = requiresBudget && budgetQuery.isError
 
-  // Absent until the quote lands, and permanently absent if it fails. On the
-  // HCA route that second case is now a blocked checkout (`budgetQuoteFailed`)
-  // rather than a silent fall-back to the rent; on the EOA route there is no
-  // budget to begin with and the rent IS the price.
+  // Absent until the quote lands, and permanently absent if it fails.
   const funding = computeRegistrationFunding({
     budget: budgetQuery.data,
     walletBalanceRaw: usdcBalanceRaw,
@@ -265,14 +253,9 @@ export const TokenPickerContent = () => {
       // still have been in flight when the screen painted, and a stale budget
       // would let through exactly the registration this gate exists to stop.
       // `fetchQuery` reuses the in-flight/fresh result, so this is usually free.
-      // A quote failure used to be swallowed to `null` here, which fell through
-      // to the rent-only figure and skipped the check below entirely. The rent
-      // cannot fund the batch, so there is nothing to fall through TO — surface
-      // it and stop.
-      //
-      // Gated on `requiresBudget` because `fetchQuery` ignores `enabled`: the
-      // EOA route would otherwise run a quote it has no signer for, fail, and
-      // be blocked by a budget it never needed.
+      // Surfaced, not swallowed: the rent cannot fund the batch, so there is
+      // nothing to fall through to. Gated because `fetchQuery` ignores
+      // `enabled` and the EOA route has no signer to quote with.
       const budget = requiresBudget
         ? await queryClient.fetchQuery(budgetQueryOptions).catch((cause) => {
             throw new BudgetQuoteUnavailableError(cause)
@@ -343,9 +326,8 @@ export const TokenPickerContent = () => {
     mutationError: availabilityMutation.error,
     isAvailabilityError: availabilityMutation.isError,
   })
-    // Ahead of the funding arms: with no budget there is no `funding` to
-    // itemise, and the rent alone is not a figure the user can act on. Matches
-    // whether the quote failed on render or on the click path.
+    // Ahead of the funding arms: with no budget there is nothing to itemise.
+    // Covers a failure on render and on the click path.
     .with(
       P.union(
         { budgetQuoteFailed: true },
@@ -474,14 +456,9 @@ export const TokenPickerContentBase = ({
    */
   isQuotingFunding?: boolean
   /**
-   * The budget quote was required for this route and failed.
-   *
-   * Blocks checkout. Only `funding` carries what the wallet actually pays, so
-   * without it the screen has nothing but the rent — which is strictly less
-   * than the registration costs, since the same permit funds both on-chain
-   * legs. Letting the user through on that figure signs an under-sized permit
-   * and strands the commitment it just paid for. Routes with no budget to quote
-   * (a pure-EOA signer) never set this.
+   * The budget quote was required for this route and failed, so the screen has
+   * only the rent — less than the registration costs. Blocks checkout. Routes
+   * with no budget to quote (a pure-EOA signer) never set this.
    */
   budgetQuoteFailed?: boolean
 }) => {
@@ -649,10 +626,9 @@ export const TokenPickerContentBase = ({
       </div>
 
       {/*
-        Hedged whenever the figure is not the exact, quoted total: with a budget
-        because the fee half is an estimate, and with a FAILED quote because all
-        that is left is the rent, which the registration is guaranteed to exceed.
-        Dropping the hedge there printed the rent as if it were the final price.
+        Hedged whenever the figure is not the exact quoted total: with a budget
+        the fee half is an estimate, and with a failed quote only the rent is
+        left, which the registration is guaranteed to exceed.
       */}
       <PaymentTotalRow
         isEstimate={!!funding || budgetQuoteFailed}

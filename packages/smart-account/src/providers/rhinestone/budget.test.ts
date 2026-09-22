@@ -28,9 +28,7 @@ const baseParams = (price: bigint) => ({
   chainId: sepolia.id,
   label: 'myname',
   duration: 31_536_000n,
-  // Most cases here exercise the quote path, where the resolver deploy only
-  // moves the gas LIMIT the quote is taken at. The deploy-specific cases below
-  // override this.
+  // The deploy-specific cases below override this.
   resolverDeployed: true,
 })
 
@@ -266,8 +264,8 @@ describe('estimateHcaBudget', () => {
   })
 
   it('prices the resolver deploy into the register leg on a first registration', async () => {
-    // Immunefi #89462: the register leg was priced on a flat 450k limit, so the
-    // conditional `deployProxy` a first registration carries was never funded.
+    // Immunefi #89462: a flat 450k limit never funded the conditional
+    // `deployProxy` a first registration carries.
     const budgetFor = (resolverDeployed: boolean) =>
       estimateHcaBudget({
         ...baseParams(USDC(5)),
@@ -281,8 +279,7 @@ describe('estimateHcaBudget', () => {
     const fresh = await budgetFor(false)
     const existing = await budgetFor(true)
 
-    // 210k gas × 2 gwei × $3000/ETH ÷ $1/USDC = 1.26 USDC of previously
-    // unfunded cost.
+    // 210k gas × 2 gwei × $3000/ETH ÷ $1/USDC = 1.26 USDC, previously unfunded.
     expect(fresh.registerCost - existing.registerCost).toBe(1_260_000n)
     expect(fresh.total).toBeGreaterThan(existing.total)
   })
@@ -290,8 +287,7 @@ describe('estimateHcaBudget', () => {
 
 describe('registerLegGasLimit', () => {
   it('funds the resolver deploy only when the resolver does not exist yet', () => {
-    // The rail prices the intent purely on `destinationGasUnits`, so this
-    // number — not the batch handed to the quoter — is what funds the leg.
+    // This number, not the batch handed to the quoter, is what funds the leg.
     expect(registerLegGasLimit({ resolverDeployed: true })).toBe(
       HCA_LEG_GAS_LIMITS.register,
     )
@@ -301,8 +297,7 @@ describe('registerLegGasLimit', () => {
   })
 
   it('covers the deploy and a primary name together', () => {
-    // A first registration WITH the primary-name opt-in carries both extra
-    // calls; funding one but not the other still strands the commitment.
+    // A first registration with the opt-in carries both extra calls.
     expect(
       registerLegGasLimit({
         resolverDeployed: false,
@@ -316,9 +311,7 @@ describe('registerLegGasLimit', () => {
   })
 
   it('stays at or above the measured on-chain cost of the deploy', () => {
-    // `eth_estimateGas` against the deployed Sepolia VerifiableFactory put the
-    // execution cost of the exact `deployProxy` calldata at ~185_900 gas, flat
-    // across accounts. The constant must not drift below that.
+    // Measured on Sepolia; the constant must not drift below it.
     expect(HCA_RESOLVER_DEPLOY_GAS).toBeGreaterThanOrEqual(185_904n)
   })
 })

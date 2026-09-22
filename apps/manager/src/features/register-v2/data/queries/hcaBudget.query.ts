@@ -131,17 +131,11 @@ const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
 })
 
 /**
- * Does this registration have a funding budget to quote at all?
+ * Does this registration have a funding budget to quote at all? Only the
+ * standalone-HCA route does; a pure-EOA signer pays the registrar directly.
  *
- * Only the standalone-HCA route does: a pure-EOA signer pays the registrar
- * directly, so there is no permit to size and the estimator has nothing to
- * quote against.
- *
- * Exported because it is BOTH the query's `enabled` gate and the caller's "is a
- * failed quote fatal?" test, and those two must not drift. `fetchQuery` ignores
- * `enabled` and runs the query function regardless, so a caller that refuses to
- * proceed without a budget has to ask this first — otherwise it would block the
- * EOA route on a quote that route never needed.
+ * Exported because `fetchQuery` ignores `enabled`, so a caller that refuses to
+ * proceed without a budget must ask this first or it blocks the EOA route too.
  */
 export const hcaBudgetQuoteRequired = (
   params: Pick<
@@ -169,10 +163,8 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
     queryFn: () => getHcaBudget(params),
     enabled: hcaBudgetQuoteRequired(params),
     staleTime: HCA_BUDGET_STALE_TIME_MS,
-    // One retry, because a flaky orchestrator should not fail the screen on a
-    // single blip. If it still cannot be quoted the caller must SURFACE that
-    // and refuse to proceed — on this route "no budget" is not "show the rent
-    // alone", it is "the permit cannot be sized". See
-    // {@link hcaBudgetQuoteRequired}.
+    // One retry for a flaky orchestrator. If it still fails the caller must
+    // surface that: here "no budget" means "the permit cannot be sized", not
+    // "show the rent alone".
     retry: 1,
   })

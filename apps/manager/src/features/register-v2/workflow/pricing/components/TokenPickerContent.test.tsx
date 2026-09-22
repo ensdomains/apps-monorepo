@@ -113,28 +113,21 @@ describe('TokenPickerContentBase', () => {
   })
 
   it('blocks checkout when the budget quote failed', () => {
-    // Immunefi #93021: the failure used to be swallowed, leaving the rent as
-    // the only figure on screen. The wallet can afford the 330 rent, but the
-    // rent is not what the registration costs — the same permit funds both
-    // on-chain legs — so proceeding signs an under-sized permit and strands the
-    // commitment it just paid for.
+    // Immunefi #93021: the wallet affords the 330 rent, but the rent is not
+    // what the registration costs, so proceeding strands the commitment.
     renderPicker({ budgetQuoteFailed: true, selectedToken: 'USDC' })
 
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 
   it('keeps the "up to" hedge when the budget quote failed', () => {
-    // Without a budget the total falls back to the rent. Dropping the hedge
-    // there printed a lower bound as if it were the exact, final price.
+    // The total falls back to the rent — a lower bound, not an exact price.
     renderPicker({ budgetQuoteFailed: true, selectedToken: 'USDC' })
 
     expect(screen.getByText('up to')).toBeInTheDocument()
   })
 
   it('leaves the EOA route alone, which has no budget to quote', () => {
-    // `budgetQuoteFailed` is only ever set for the standalone-HCA route. A
-    // registration that pays the registrar directly must still check out on the
-    // rent alone.
     renderPicker({ selectedToken: 'USDC' })
 
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()

@@ -20,11 +20,9 @@
  * gas-price reads (Sepolia `getGasPrice()` spikes to ~20 gwei even when the
  * tx settles at ~1-2 gwei, which massively over-sizes a gas×price model).
  *
- * The quote is only ever as good as the gas LIMIT it is taken at: the rail
- * prices `/intents/route` purely on `destinationGasUnits` and never inspects
- * the calls. So the limits — {@link HCA_LEG_GAS_LIMITS} and
- * {@link registerLegGasLimit} — are the real budget, and every conditional call
- * in the batch has to be represented in them.
+ * A quote is only as good as the gas LIMIT it is taken at, since the rail never
+ * inspects the calls — so {@link HCA_LEG_GAS_LIMITS} and
+ * {@link registerLegGasLimit} are the real budget.
  *
  * FALLBACK sizing (no quoter, or the quote throws): price the leg from its gas
  * LIMIT × gas price × ETH/USDC — a rough upper bound, used only when the
@@ -57,42 +55,19 @@ export const HCA_LEG_GAS_LIMITS = {
   // rail prices the quote on this LIMIT, so it must cover the full bundle or a
   // successful quote could underfund the HCA and revert the first commit.
   commit: 450_000n,
-  // The register leg WITHOUT the conditional resolver deploy — approve +
-  // register + the record setters. The deploy is added on top by
-  // `registerLegGasLimit`; see {@link HCA_RESOLVER_DEPLOY_GAS}.
+  // Approve + register + record setters, WITHOUT the conditional resolver
+  // deploy — `registerLegGasLimit` adds that on top.
   register: 450_000n,
 } as const
 
 /**
- * Gas for the conditional `VerifiableFactory.deployProxy(...)` that
- * `buildRevealBatch` prepends when the HCA has no `PermissionedResolver` yet —
- * i.e. on every FIRST registration for an account.
+ * Gas for the conditional `deployProxy` that `buildRevealBatch` prepends when
+ * the HCA has no `PermissionedResolver` — i.e. on every FIRST registration.
  *
- * This has to be priced explicitly. The rail prices `/intents/route` purely on
- * `destinationGasUnits` (see {@link registerLegGasLimit}), so handing the quoter
- * a batch with one more execution in it changes nothing: the deploy was
- * invisible to the budget, the single funding permit was sized ~186k gas short,
- * and the reveal — which carries no funding pair of its own — could not be paid
- * out of the HCA's balance. The commitment was then made, paid for, and left to
- * expire. That is Immunefi #89462 (and #93021 by a different route).
- *
- * Measured against the deployed Sepolia `VerifiableFactory`
- * (`0x9e726Eb5…`, contracts-v2 @ 71a3b733) with `eth_estimateGas` on the exact
- * calldata `buildRevealBatch` emits — `deployProxy(PermissionedResolverImpl,
- * computeResolverSalt(hca), initialize([(hca, ALL), (owner, ALL)], []))` — from
- * three different, never-deployed accounts:
- *
- *   from                 | total gas | intrinsic | execution
- *   ---------------------|-----------|-----------|----------
- *   0x1111…1111          |  210_612  |  24_708   |  185_904
- *   0x0000…deadbeef      |  210_234  |  24_336   |  185_898
- *   0xab00…cdef          |  210_186  |  24_288   |  185_898
- *
- * Execution is flat at ~185_900 (only the calldata's zero-byte count moves the
- * intrinsic half, which does not apply inside a 4337 batch). Rounded up to
- * 210_000 for ~13% headroom, which also absorbs the executor's per-call
- * overhead. Over-sizing only leaves spare USDC in the HCA for the next
- * registration; under-sizing strands a commitment.
+ * Measured at ~185_900 execution gas, flat, via `eth_estimateGas` against the
+ * deployed Sepolia `VerifiableFactory` (`0x9e726Eb5…`); rounded up for headroom.
+ * Leaving it unpriced under-sized the permit by ~41% of the leg (Immunefi
+ * #89462) — see {@link registerLegGasLimit} for why the quote cannot see it.
  */
 export const HCA_RESOLVER_DEPLOY_GAS = 210_000n
 
@@ -152,12 +127,9 @@ export function primaryNameGas(name: string): bigint {
 /** What varies in the reveal batch, and therefore in what the leg costs. */
 export interface RegisterLegShape {
   /**
-   * Whether the HCA's `PermissionedResolver` already has code.
-   *
-   * REQUIRED, deliberately — there is no safe default. `false` is the common
-   * case (a first registration) and the expensive one, and defaulting either
-   * way is what let the resolver deploy go unpriced in the first place. A
-   * caller that does not know must go and read `getCode`.
+   * Whether the HCA's `PermissionedResolver` already has code. Required, not
+   * defaulted: `false` is both the common case and the expensive one, and
+   * defaulting either way is what let the deploy go unpriced.
    */
   readonly resolverDeployed: boolean
   /** The primary name the batch will set, or `undefined` when opted out. */
@@ -165,23 +137,13 @@ export interface RegisterLegShape {
 }
 
 /**
- * The `register` leg's gas limit, sized from the batch that will actually be
- * submitted rather than from a flat constant.
+ * The `register` leg's gas limit — the ONLY thing that funds the leg, since
+ * `/intents/route` prices purely on `destinationGasUnits` and never inspects
+ * the calls (verified live: 450k costs the same at 5 or 6 executions). So every
+ * conditional call in `buildRevealBatch` must be added here or it is unfunded.
  *
- * This number is the ONLY thing that funds the leg. Verified against the live
- * orchestrator: `/intents/route` prices purely on `destinationGasUnits` — the
- * same request at 450k costs an identical 3277666 (6dp) whether the batch
- * carries 5 executions or 6, while 450k → 510k moves it to ~3539296. So the
- * quote never sees the calls; it only ever sees this number. Every conditional
- * call in `buildRevealBatch` must therefore be added here explicitly, or it is
- * silently unfunded:
- *
- *   - `deployProxy` (step 1) when the resolver does not exist yet
- *   - `setNameWithHCA` (step 5) when the user opted into a primary name
- *
- * An under-sized limit under-funds the permit and the fill then fails for
- * insufficient USDC, stranding the paid-for commitment. Over-sizing only leaves
- * spare USDC in the HCA, which the next registration reuses.
+ * Under-sizing strands a paid-for commitment; over-sizing only leaves spare
+ * USDC in the HCA for the next registration.
  */
 export function registerLegGasLimit(shape: RegisterLegShape): bigint {
   return (
@@ -381,13 +343,8 @@ export interface HcaBudgetParams {
    */
   readonly primaryName?: string
   /**
-   * Whether the HCA's `PermissionedResolver` already has code — i.e. whether
-   * the reveal batch will carry the conditional `deployProxy`. REQUIRED for the
-   * same reason it is required on {@link RegisterLegShape}: it is worth ~210k
-   * gas on a first registration and there is no safe default.
-   *
-   * The CALLER must pass the same value it hands `buildRevealBatch`, so the
-   * budget and the batch cannot disagree.
+   * See {@link RegisterLegShape}. Must be the same value the caller hands
+   * `buildRevealBatch`, so the budget and the batch cannot disagree.
    */
   readonly resolverDeployed: boolean
 }
@@ -448,8 +405,7 @@ export async function estimateHcaBudget(
     0n,
   )
 
-  // What the reveal batch will actually contain, and therefore what the leg has
-  // to be funded for.
+  // What the reveal batch will contain, and so what the leg must be funded for.
   const registerGasLimit = registerLegGasLimit({
     resolverDeployed: params.resolverDeployed,
     ...(params.primaryName ? { primaryName: params.primaryName } : {}),
@@ -503,18 +459,10 @@ export async function estimateHcaBudget(
   const commitCost = quotedCommit.value ?? (fallbackCommit as bigint)
   const registerCost = quotedRegister.value ?? (fallbackRegister as bigint)
 
-  // No percentage buffer. Each leg is priced from the gas LIMIT it was quoted
-  // at, and those limits are derived from the batch that will actually be
-  // submitted — `HCA_LEG_GAS_LIMITS.commit` for the commit, and
-  // `registerLegGasLimit` for the reveal, which adds the conditional
-  // `deployProxy` and the optional `setNameWithHCA` explicitly.
-  //
-  // The batch handed to the quoter is for FIDELITY, not for pricing: the rail
-  // prices purely on `destinationGasUnits`, so a percentage buffer here would
-  // be a guess layered on a number that is already derived. Anything the limits
-  // miss is unfunded no matter what multiplier sits on top; the fix is to add
-  // it to the limit. A buffer also only ever papered over quotes that failed,
-  // which is surfaced instead (see `source`).
+  // No percentage buffer: each leg is priced from a gas limit already derived
+  // from the batch that will be submitted. A multiplier on a limit that misses
+  // a call still misses the call — the fix is to add it to the limit. It also
+  // only ever papered over failed quotes, which `source` surfaces instead.
   const total = commitCost + registerCost + registrationPrice
 
   // Bound the figures that came from the orchestrator against one we derived

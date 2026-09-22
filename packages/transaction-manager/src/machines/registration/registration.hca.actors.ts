@@ -305,12 +305,9 @@ function sessionSigners(
 }
 
 /**
- * Does the HCA's `PermissionedResolver` proxy already have code?
- *
- * Decides whether `buildRevealBatch` prepends `VerifiableFactory.deployProxy`,
- * and therefore whether `registerLegGasLimit` has to fund it. The budget and
- * the submitted batch MUST agree on this, so both derive it here rather than
- * each rolling its own `getCode` check.
+ * Decides whether `buildRevealBatch` prepends `deployProxy`, and therefore
+ * whether `registerLegGasLimit` funds it. Shared so the budget and the
+ * submitted batch cannot disagree.
  */
 async function isResolverDeployed(params: {
   publicClient: PublicClient
@@ -357,13 +354,8 @@ export function estimateHcaBudgetActor(input: {
   const chain = input.publicClient.chain
   const activeSession = rhinestone?.session
 
-  /**
-   * Build the per-leg quoter. Takes `resolverDeployed` rather than reading it
-   * per call so the flag that decides whether `buildRevealBatch` emits the
-   * `deployProxy` is the SAME one `registerLegGasLimit` funds. Reading it twice
-   * is how they could silently disagree, and the gas limit is the only thing
-   * the rail actually prices.
-   */
+  // Takes `resolverDeployed` rather than reading it per call, so the batch and
+  // the gas limit that funds it are built from one value.
   const makeQuoter = (resolverDeployed: boolean) =>
     rhinestone && chain
       ? async (leg: HcaLeg, incomingUsdc?: bigint): Promise<QuoteLegResult> => {
@@ -424,8 +416,7 @@ export function estimateHcaBudgetActor(input: {
             // prices to the same USDC unit (450k gas limit, 5 vs 6 executions
             // → 3277666 both times). The rail prices `/intents/route` purely
             // on `destinationGasUnits`, so what actually funds these calls is
-            // `registerLegGasLimit` below — which is why it gets the same
-            // `resolverDeployed` and `primaryName` the batch was built from.
+            // `registerLegGasLimit` below, built from the same inputs.
             ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
           })
           return quoteIntentSpendUsdc(
@@ -459,14 +450,8 @@ export function estimateHcaBudgetActor(input: {
           }).unwrapOr(0n)
         : 0n
 
-      // Does the reveal batch have to deploy the account's PermissionedResolver?
-      // On a first registration it does, and that call costs ~210k gas that the
-      // quote cannot see — so this single read feeds BOTH the batch the quoter
-      // builds and the gas limit that funds it.
-      //
-      // Deliberately not caught: a failed read means the leg cannot be sized,
-      // and the whole point of this change is that an unsized leg must fail
-      // loudly rather than quietly fund the permit short.
+      // One read, feeding both the batch and the limit that funds it. Not
+      // caught: an unsized leg must fail loudly, not fund the permit short.
       const resolverDeployed = hca
         ? await isResolverDeployed({
             publicClient: input.publicClient,
