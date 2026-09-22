@@ -16,6 +16,8 @@ type NameRowProps = {
   /** The v1 registry controller, when it differs from the registrant. */
   readonly managerCandidate?: Address
   readonly isManagerRestored?: boolean
+  /** A resumed run replays its recorded opt-in, so the choice is read-only. */
+  readonly isManagerRestorationLocked?: boolean
   readonly onToggleManagerRestoration?: (name: string) => void
 }
 
@@ -31,25 +33,36 @@ const ManagerRestorationOptIn = ({
   name,
   manager,
   isRestored,
+  isLocked,
   onToggle,
 }: {
   readonly name: string
   readonly manager: Address
   readonly isRestored: boolean
+  readonly isLocked: boolean
   readonly onToggle: (name: string) => void
 }) => (
   <label
-    className="mt-2 flex max-w-full cursor-pointer items-start gap-2 pl-10 text-ens-garnet-900/70 text-xs leading-normal"
+    className={cn(
+      'mt-2 flex max-w-full items-start gap-2 pl-10 text-ens-garnet-900/70 text-xs leading-normal',
+      isLocked ? 'cursor-default' : 'cursor-pointer',
+    )}
     title={manager}
   >
+    {/*
+      The span below is the checkbox's accessible name because the label wraps
+      both; pointing `aria-describedby` at it as well would read the sentence
+      twice on the one control in this flow that hands a third party authority
+      over a name.
+    */}
     <input
-      aria-describedby={`manager-restoration-${name}`}
       checked={isRestored}
-      className="mt-0.5 size-3.5 shrink-0 accent-ens-garnet-900"
+      className="mt-0.5 size-3.5 shrink-0 accent-ens-garnet-900 disabled:opacity-60"
+      disabled={isLocked}
       onChange={() => onToggle(name)}
       type="checkbox"
     />
-    <span id={`manager-restoration-${name}`}>
+    <span>
       <Trans>
         Keep{' '}
         <span className="font-semi-mono text-ens-garnet-900">
@@ -57,6 +70,11 @@ const ManagerRestorationOptIn = ({
         </span>{' '}
         as a manager. It can change this name&apos;s resolver after the upgrade.
       </Trans>
+      {isLocked && (
+        <span className="block text-ens-garnet-900/50">
+          <Trans>Carried over from your earlier attempt.</Trans>
+        </span>
+      )}
     </span>
   </label>
 )
@@ -69,6 +87,7 @@ const NameRowComponent = ({
   onToggle,
   managerCandidate,
   isManagerRestored = false,
+  isManagerRestorationLocked = false,
   onToggleManagerRestoration,
 }: NameRowProps) => {
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
@@ -165,8 +184,12 @@ const NameRowComponent = ({
     )
   }
 
+  // A locked row with nothing recorded has no choice left to show.
   const showManagerOptIn =
-    isSelected && !!managerCandidate && !!onToggleManagerRestoration
+    isSelected &&
+    !!managerCandidate &&
+    !!onToggleManagerRestoration &&
+    (!isManagerRestorationLocked || isManagerRestored)
 
   return (
     <div className="flex min-w-0 flex-col">
@@ -183,6 +206,7 @@ const NameRowComponent = ({
       </label>
       {showManagerOptIn && (
         <ManagerRestorationOptIn
+          isLocked={isManagerRestorationLocked}
           isRestored={isManagerRestored}
           manager={managerCandidate}
           name={item.domain.name}

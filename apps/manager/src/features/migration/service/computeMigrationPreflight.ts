@@ -5,7 +5,6 @@ import {
   classifyNames,
   type DirectClassifiedName,
   groupClassifiedNames,
-  withManagerRestorationOptIn,
 } from '@/features/migration/service/classifyNames'
 import {
   type DirectMigrationRoute,
@@ -177,8 +176,13 @@ export const computeMigrationPreflight = async (params: {
   eoa: Address
   hcaAddress?: Address
   domains: readonly V1Domain[]
-  /** Names whose ENSv1 registry controller the owner chose to keep as manager. */
-  managerRestorationNames?: readonly string[]
+  /**
+   * Whether the owner opted at least one name in to manager restoration. Only
+   * the boolean matters here — it decides whether the ETHRegistry operator
+   * approval is needed — so which names were picked is deliberately not part
+   * of this (cached) computation.
+   */
+  requiresManagerRestoration?: boolean
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
   signal?: AbortSignal
@@ -187,26 +191,20 @@ export const computeMigrationPreflight = async (params: {
     eoa,
     hcaAddress,
     domains,
-    managerRestorationNames = [],
+    requiresManagerRestoration = false,
     wagmiConfig,
     publicClient,
     signal,
   } = params
   signal?.throwIfAborted()
 
-  const classified = withManagerRestorationOptIn(
-    classifyNames([...domains], eoa).classified,
-    managerRestorationNames,
-  )
+  const classified = classifyNames([...domains], eoa).classified
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )
   const groups = groupClassifiedNames(classified)
 
   const needs = approvalNeedsFor(groups)
-  const requiresManagerRestoration = classified.some(
-    (name) => name.managerAddress !== null,
-  )
   const namesToOwnedPermRes = classified.filter(
     (n) => n.resolverStrategy === 'to-owned-permres',
   )

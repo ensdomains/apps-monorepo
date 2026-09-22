@@ -1,5 +1,5 @@
 import { ChildFuses, FullParentFuses } from '@ensdomains/ensjs/utils'
-import { type Address, isAddress } from 'viem'
+import { type Address, isAddress, zeroAddress } from 'viem'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
 import { GRACE_PERIOD_SECONDS } from './constants'
 import type { V1Domain } from './v1SubgraphClient'
@@ -280,8 +280,13 @@ const classifyWithoutActiveWrapper = (
   // someone else may be a manager the registrant appointed, or the seller a
   // marketplace `transferFrom` left behind. Only the owner can tell the two
   // apart, so the decision is deferred to an explicit per-name opt-in.
+  //
+  // A cleared v1 registry record reads back as the zero address, which is not a
+  // manager and must never be offered as one — granting a role to it would put
+  // a meaningless call into an all-or-nothing batch.
   const registryController =
     registryOwnerAddress &&
+    registryOwnerAddress !== zeroAddress &&
     registryOwnerAddress.toLowerCase() !== registrant.id.toLowerCase()
       ? registryOwnerAddress
       : null

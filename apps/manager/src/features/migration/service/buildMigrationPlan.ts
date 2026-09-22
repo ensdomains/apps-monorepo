@@ -589,9 +589,15 @@ export const classifyMigrationRecoverySnapshot = (params: {
   readonly registryContext: readonly ClassifiedName[]
   readonly classified: readonly ClassifiedName[]
 } => {
+  // The opt-in is replayed from the durable snapshot, never re-derived: the
+  // resumed run must grant exactly what the first attempt planned.
   const result = classifyNames(
     [...params.snapshot.registryDomains],
     params.migrationOwner,
+  )
+  const withOptIn = withManagerRestorationOptIn(
+    result.classified,
+    params.snapshot.managerRestorationNames,
   )
   if (
     result.ineligible.length > 0 ||
@@ -603,7 +609,7 @@ export const classifyMigrationRecoverySnapshot = (params: {
       reason: 'classification-changed',
     })
   }
-  const registryContext = result.classified
+  const registryContext = withOptIn
   assertRecoveryOperationsMatch({
     classified: registryContext,
     snapshot: params.snapshot,

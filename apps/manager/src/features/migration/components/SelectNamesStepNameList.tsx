@@ -14,6 +14,7 @@ type SelectNamesStepNameListProps = Pick<
   NameSelectionState,
   | 'filteredGroups'
   | 'filteredOrphans'
+  | 'isManagerRestorationLocked'
   | 'managerCandidates'
   | 'restoredManagers'
   | 'search'
@@ -26,6 +27,7 @@ type SelectNamesStepNameListProps = Pick<
 
 type NameTreeRowsProps = {
   readonly depth: number
+  readonly isManagerRestorationLocked: boolean
   readonly managerCandidates: NameSelectionState['managerCandidates']
   readonly nodes: readonly NameTreeNode[]
   readonly primaryName: string | null | undefined
@@ -67,6 +69,7 @@ const NameTreeConnector = ({ isFirst, isLast }: NameTreeConnectorProps) => (
 
 const NameTreeRows = ({
   depth,
+  isManagerRestorationLocked,
   managerCandidates,
   nodes,
   primaryName,
@@ -103,6 +106,7 @@ const NameTreeRows = ({
           {depth > 0 && <NameTreeConnector isFirst={isFirst} isLast={isLast} />}
           <NameRow
             depth={depth}
+            isManagerRestorationLocked={isManagerRestorationLocked}
             isManagerRestored={restoredManagers.has(name)}
             isPrimary={name === primaryName}
             isSelected={selected.has(name)}
@@ -116,6 +120,7 @@ const NameTreeRows = ({
           {node.children.length > 0 && (
             <NameTreeRows
               depth={depth + 1}
+              isManagerRestorationLocked={isManagerRestorationLocked}
               managerCandidates={managerCandidates}
               nodes={node.children}
               primaryName={primaryName}
@@ -134,6 +139,7 @@ const NameTreeRows = ({
 const SelectNamesStepNameListComponent = ({
   filteredGroups,
   filteredOrphans,
+  isManagerRestorationLocked,
   isPending,
   managerCandidates,
   restoredManagers,
@@ -166,6 +172,7 @@ const SelectNamesStepNameListComponent = ({
     .otherwise(() => (
       <NameTreeRows
         depth={0}
+        isManagerRestorationLocked={isManagerRestorationLocked}
         managerCandidates={managerCandidates}
         nodes={[...filteredGroups, ...filteredOrphans]}
         primaryName={primaryName}

@@ -124,6 +124,7 @@ const makeRecoveryTree = () => {
       hca: HCA,
     }),
     plannedApprovals: [{ id: 'eth-registry:hca' }],
+    managerRestorationNames: [],
   } satisfies MigrationRecoverySnapshot
   return { root, copy, snapshot }
 }
@@ -433,5 +434,72 @@ describe('buildMigrationRecoveryPlan', () => {
       reason: 'operation-mismatch',
     })
     expect(assertCopyMigrationReadinessMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('buildMigrationRecoveryPlan manager restoration (WEB-1528)', () => {
+  const CONTROLLER: Address = '0x00000000000000000000000000000000000000c1'
+
+  const makeResumedRoot = (managerRestorationNames: readonly string[]) => {
+    const root = makeDomain({
+      id: namehash('alice.eth'),
+      name: 'alice.eth',
+      labelName: 'alice',
+      resolverAddress: null,
+      ownerId: CONTROLLER,
+    })
+    const snapshot = {
+      registryDomains: [root],
+      registryOperations: [{ name: root.name, action: 'migrate' as const }],
+      remainingOperations: [{ name: root.name, action: 'migrate' as const }],
+      completedOperations: [],
+      profiles: new Map([
+        [
+          namehash(root.name),
+          { texts: [], addresses: [], contentHash: null, abis: [] },
+        ],
+      ]),
+      ownedPermRes: computeResolverAddress({ chainId: 11155111, hca: HCA }),
+      plannedApprovals: [{ id: 'eth-registry:hca' as const }],
+      managerRestorationNames,
+    } satisfies MigrationRecoverySnapshot
+    return { root, snapshot }
+  }
+
+  const resume = (snapshot: MigrationRecoverySnapshot) =>
+    buildMigrationRecoveryPlan({
+      snapshot,
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: { chain: { id: 11155111 } } as PublicClient,
+    })
+
+  it('replays the opt-in recorded on the durable snapshot', async () => {
+    const { root, snapshot } = makeResumedRoot(['alice.eth'])
+    const plan = await resume(snapshot)
+
+    expect(plan.classified).toEqual([
+      expect.objectContaining({
+        domain: expect.objectContaining({ name: root.name }),
+        managerAddress: CONTROLLER,
+      }),
+    ])
+  })
+
+  it('restores nobody when the snapshot recorded no opt-in', async () => {
+    const { snapshot } = makeResumedRoot([])
+    const plan = await resume(snapshot)
+
+    expect(plan.classified[0]?.managerAddress).toBeNull()
+  })
+
+  it('does not re-derive an opt-in from the live v1 controller', async () => {
+    // The controller still differs from the registrant on resume, so a plan
+    // that re-derived the grant would silently reinstate it.
+    const { snapshot } = makeResumedRoot([])
+    const plan = await resume(snapshot)
+
+    expect(plan.classified[0]?.registryController).toBe(CONTROLLER)
+    expect(plan.classified[0]?.managerAddress).toBeNull()
   })
 })

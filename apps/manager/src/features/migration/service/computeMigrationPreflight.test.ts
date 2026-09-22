@@ -79,7 +79,7 @@ const run = (
     profileKeys?: Result<unknown, unknown>
     hcaAddress?: Address
     hcaApprovals?: MigrationApprovalStatus
-    managerRestorationNames?: readonly string[]
+    requiresManagerRestoration?: boolean
   } = {},
 ) => {
   if (opts.hcaAddress) {
@@ -99,7 +99,7 @@ const run = (
     eoa: EOA,
     hcaAddress: opts.hcaAddress,
     domains: [makeDomain({ resolverAddress: RESOLVER, ...opts.domain })],
-    managerRestorationNames: opts.managerRestorationNames,
+    requiresManagerRestoration: opts.requiresManagerRestoration,
     wagmiConfig: {} as WagmiConfig,
     publicClient: {} as PublicClient,
   })
@@ -123,7 +123,7 @@ describe('computeMigrationPreflight — HCA approvals', () => {
         ownerId: '0x00000000000000000000000000000000000000aa',
       },
       hcaAddress: HCA,
-      managerRestorationNames: ['alice.eth'],
+      requiresManagerRestoration: true,
       hcaApprovals: {
         ...ALL_HCA_APPROVED,
         baseRegistrarHcaApproved: false,

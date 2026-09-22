@@ -3,15 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { ETH_REGISTRY_V2_ABI } from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { makeClassified } from './_fixtures'
-import {
-  buildRoleAdminGrantCall,
-  buildRoleGrantCall,
-  ROLE_SET_RESOLVER,
-  ROLE_SET_RESOLVER_ADMIN,
-} from './buildRoleGrantCalls'
+import { buildRoleGrantCall, ROLE_SET_RESOLVER } from './buildRoleGrantCalls'
 
 const MANAGER: Address = '0x0000000000000000000000000000000000000099'
-const OWNER: Address = '0x0000000000000000000000000000000000000001'
 
 const decodeGrant = (data: `0x${string}`) => {
   const { functionName, args } = decodeFunctionData({
@@ -45,38 +39,17 @@ describe('buildRoleGrantCall', () => {
       /No manager address/i,
     )
   })
-})
 
-describe('buildRoleAdminGrantCall', () => {
-  it('grants the admin counterpart to the migrating owner on the same resource', () => {
-    const name = makeClassified({
-      managerAddress: MANAGER,
-      label: 'bob',
-      name: 'bob.eth',
-    })
-    const grant = decodeGrant(buildRoleGrantCall(name).data)
-    const adminCall = buildRoleAdminGrantCall({ name, migrationOwner: OWNER })
-
-    expect(adminCall.to).toBe(V2_CONTRACTS.ETHRegistry)
-    expect(adminCall.value).toBe(0n)
-
-    const admin = decodeGrant(adminCall.data)
-    expect(admin.functionName).toBe('grantRoles')
-    expect(admin.resource).toBe(grant.resource)
-    expect(admin.roles).toBe(ROLE_SET_RESOLVER_ADMIN)
-    expect(admin.account.toLowerCase()).toBe(OWNER.toLowerCase())
-  })
-
-  it('never hands the admin role to the restored manager', () => {
-    const name = makeClassified({ managerAddress: MANAGER })
-    const { account } = decodeGrant(
-      buildRoleAdminGrantCall({ name, migrationOwner: OWNER }).data,
+  it('grants only the manager role, never an admin bit (WEB-1528)', () => {
+    // An `_ADMIN` role administers itself, so granting one requires already
+    // holding it: an admin grant here could only ever succeed where it was
+    // already a no-op, and would revert the whole atomic batch otherwise.
+    const { roles } = decodeGrant(
+      buildRoleGrantCall(makeClassified({ managerAddress: MANAGER })).data,
     )
 
-    expect(account.toLowerCase()).not.toBe(MANAGER.toLowerCase())
-  })
-
-  it('places the admin role 128 bits above the role it administers', () => {
-    expect(ROLE_SET_RESOLVER_ADMIN).toBe(ROLE_SET_RESOLVER << 128n)
+    const ADMIN_BITS = ((1n << 128n) - 1n) << 128n
+    expect(roles & ADMIN_BITS).toBe(0n)
+    expect(roles).toBe(ROLE_SET_RESOLVER)
   })
 })

@@ -37,6 +37,7 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   | 'allSelected'
   | 'filteredGroups'
   | 'filteredOrphans'
+  | 'isManagerRestorationLocked'
   | 'managerCandidates'
   | 'restoredManagers'
   | 'search'
@@ -61,6 +62,7 @@ export const SelectNamesStepSelectionOptions = ({
   filteredOrphans,
   isCompactLayout,
   isContentHeightCard,
+  isManagerRestorationLocked,
   isPending,
   managerCandidates,
   restoredManagers,
@@ -167,6 +169,7 @@ export const SelectNamesStepSelectionOptions = ({
             <SelectNamesStepNameList
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
+              isManagerRestorationLocked={isManagerRestorationLocked}
               isPending={isPending}
               managerCandidates={managerCandidates}
               restoredManagers={restoredManagers}

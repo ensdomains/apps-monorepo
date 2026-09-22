@@ -50,6 +50,7 @@ export const SelectNamesStep = ({
     allSelected,
     filteredGroups,
     filteredOrphans,
+    isManagerRestorationLocked,
     managerCandidates,
     restoredManagers,
     toggleManagerRestoration,
@@ -59,6 +60,9 @@ export const SelectNamesStep = ({
     eligible,
     isPending,
     isRecovery: recoveryState.status === 'recovering',
+    // A resumed run rebuilds its batch from the durable snapshot, which already
+    // records what was opted in, so the choice cannot be changed mid-run.
+    isManagerRestorationLocked: recoveryState.status === 'recovering',
     onNamesChange,
     onManagerRestorationChange,
   })
@@ -163,6 +167,7 @@ export const SelectNamesStep = ({
               filteredOrphans={filteredOrphans}
               isCompactLayout={isCompactLayout}
               isContentHeightCard={isContentHeightCard}
+              isManagerRestorationLocked={isManagerRestorationLocked}
               isPending={isPending}
               managerCandidates={managerCandidates}
               restoredManagers={restoredManagers}

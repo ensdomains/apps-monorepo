@@ -1,11 +1,4 @@
 import type { Address } from 'viem'
-import type {
-  ClassifiedName,
-  CopyClassifiedName,
-  CopyTokenType,
-  DirectClassifiedName,
-  MigrationTokenType,
-} from '../classifyNames'
 import type { V1Domain } from '../v1SubgraphClient'
 
 export const OWNER: Address = '0x0000000000000000000000000000000000000001'
@@ -84,91 +77,15 @@ export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
   }
 }
 
-export type ClassifiedOverrides = {
-  action?: ClassifiedName['action']
-  tokenType?: ClassifiedName['tokenType']
-  copySource?: 'name-wrapper' | 'registry'
-  sourceExpiry?: bigint
-  resolverStrategy?: ClassifiedName['resolverStrategy']
-  v1ResolverAddress?: string | null
-  parentName?: string | null
-  name?: string
-  labelhash?: string
-  id?: string
-  fuses?: bigint
-  label?: string
-  managerAddress?: Address | null
-  registryController?: Address | null
-  tokenHolder?: Address
-}
-
-const makeClassifiedDomain = (o: ClassifiedOverrides): V1Domain =>
-  ({
-    id: o.id ?? '0x01',
-    labelhash: o.labelhash ?? '0x02',
-    name: o.name ?? 'alice.eth',
-  }) as unknown as V1Domain
-
-const makeClassifiedBase = (o: ClassifiedOverrides) => ({
-  label: o.label ?? 'alice',
-  parentName: o.parentName === undefined ? 'eth' : o.parentName,
-  fuses: o.fuses ?? 0n,
-  tokenHolder: o.tokenHolder ?? OWNER,
-  v1ResolverAddress:
-    o.v1ResolverAddress === undefined ? null : o.v1ResolverAddress,
-  domain: makeClassifiedDomain(o),
-})
-
-const isCopyOverride = (o: ClassifiedOverrides): boolean =>
-  o.action === 'copy' ||
-  o.tokenType === 'unlocked-child' ||
-  o.tokenType === 'registry-child'
-
-const copyTokenTypeFor = (o: ClassifiedOverrides): CopyTokenType =>
-  o.tokenType === 'registry-child' ? 'registry-child' : 'unlocked-child'
-
-export function makeClassified(
-  o?: ClassifiedOverrides & {
-    action?: 'migrate'
-    tokenType?: MigrationTokenType
-  },
-): DirectClassifiedName
-export function makeClassified(
-  o: ClassifiedOverrides & ({ action: 'copy' } | { tokenType: CopyTokenType }),
-): CopyClassifiedName
-export function makeClassified(o?: ClassifiedOverrides): ClassifiedName
-export function makeClassified(o: ClassifiedOverrides = {}): ClassifiedName {
-  const base = makeClassifiedBase(o)
-  if (isCopyOverride(o)) {
-    const tokenType = copyTokenTypeFor(o)
-    return {
-      ...base,
-      action: 'copy',
-      tokenType,
-      copySource:
-        o.copySource ??
-        (tokenType === 'registry-child' ? 'registry' : 'name-wrapper'),
-      sourceExpiry: o.sourceExpiry ?? 4_102_444_800n,
-      resolverStrategy: 'to-owned-permres',
-      registryController: null,
-      managerAddress: null,
-    }
-  }
-
-  return {
-    ...base,
-    action: 'migrate',
-    tokenType:
-      o.tokenType &&
-      o.tokenType !== 'unlocked-child' &&
-      o.tokenType !== 'registry-child'
-        ? o.tokenType
-        : 'unwrapped',
-    resolverStrategy: o.resolverStrategy ?? 'to-owned-permres',
-    registryController: o.registryController ?? null,
-    managerAddress: o.managerAddress ?? null,
-  }
-}
+/**
+ * The classified-name factory lives with the classifier it builds for, so a new
+ * `ClassifiedName` field cannot compile in one package and fail in the other.
+ * Mirrors `service/classifyNames.ts`, which is likewise a re-export barrel.
+ */
+export {
+  type ClassifiedOverrides,
+  makeClassified,
+} from '@ens-apps/migration/test-fixtures'
 
 export const jsonResponse = <T>(body: T, status = 200): Response =>
   ({

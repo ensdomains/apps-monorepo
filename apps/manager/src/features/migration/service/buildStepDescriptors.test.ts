@@ -148,7 +148,7 @@ describe('buildStepDescriptors', () => {
         type: 'approval',
         approvalId: 'eth-registry:hca',
         count: undefined,
-        roleGrants: [],
+        roleGrants: undefined,
       },
       {
         type: 'atomic-batch',
@@ -305,7 +305,7 @@ describe('buildStepDescriptors role grants (WEB-1528)', () => {
     })
   })
 
-  it('repeats the grantees on the approval that exists to enable them', () => {
+  it('tells the enabling approval what it will be spent on', () => {
     const descriptors = buildStepDescriptors({
       hcaDeploymentRequired: false,
       approvals: [operatorApproval('eth-registry:hca')],
@@ -317,6 +317,23 @@ describe('buildStepDescriptors role grants (WEB-1528)', () => {
       type: 'approval',
       approvalId: 'eth-registry:hca',
       roleGrants: [{ name: 'alice.eth', account: MANAGER }],
+    })
+  })
+
+  it('never advertises grants on an approval whose plan carries none', () => {
+    // A resumed run with no recorded opt-in still plans the approval; it must
+    // not then claim to restore managers it will not restore.
+    const descriptors = buildStepDescriptors({
+      hcaDeploymentRequired: false,
+      approvals: [operatorApproval('eth-registry:hca')],
+      atomicBatches: [batchWithManagers({ 'alice.eth': null })],
+      registrationApprovalTargets: [],
+    })
+
+    expect(descriptors[0]).toMatchObject({
+      type: 'approval',
+      approvalId: 'eth-registry:hca',
+      roleGrants: undefined,
     })
   })
 
