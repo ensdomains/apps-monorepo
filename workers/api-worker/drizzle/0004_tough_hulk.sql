@@ -1,0 +1,2 @@
+CREATE INDEX "favorites_name_user_id_idx" ON "favorites" USING btree ("name","user_id");--> statement-breakpoint
+ALTER TABLE "notification_deliveries" ADD CONSTRAINT "notification_delivery_unique" UNIQUE("notification_id","channel","target");

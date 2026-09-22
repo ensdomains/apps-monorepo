@@ -1,9 +1,56 @@
 {
-  "id": "a1cb63e8-a8e2-4f72-9065-3604d96999ff",
-  "prevId": "c3f5fdf8-ead4-47b2-9430-7c271fe11561",
+  "id": "7481a1ec-74ad-4496-bf24-dee5a0689056",
+  "prevId": "a1cb63e8-a8e2-4f72-9065-3604d96999ff",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.auth_attempts": {
+      "name": "auth_attempts",
+      "schema": "",
+      "columns": {
+        "nonce": {
+          "name": "nonce",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "redemption_token_hash": {
+          "name": "redemption_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "auth_attempts_expires_at_index": {
+          "name": "auth_attempts_expires_at_index",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.users": {
       "name": "users",
       "schema": "",

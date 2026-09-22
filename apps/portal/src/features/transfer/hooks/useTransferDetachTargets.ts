@@ -47,7 +47,10 @@ export const useTransferDetachTargets = ({
   name,
   registryAddress,
   owner,
-}: UseTransferDetachTargetsParams): TransferDetachTargets => {
+}: UseTransferDetachTargetsParams): TransferDetachTargets & {
+  /** The name's own subregistry, for sizing what detaching it would break. */
+  readonly subregistryAddress: Address | null
+} => {
   // getLabel normalises and can throw on a malformed name; a name we can't parse
   // is one whose roles we can't check, so fall back to "no permission".
   let label: string | null = null
@@ -65,7 +68,13 @@ export const useTransferDetachTargets = ({
           }),
           enabled: label !== null,
         },
-        getNameRegistriesQueryOptions({ name }),
+        {
+          ...getNameRegistriesQueryOptions({ name }),
+          // Opted out of the app-wide one-hour staleTime: this read decides
+          // whether to offer `detachRegistry` — an irreversible write — and an
+          // hour-old pointer would gate it on a registry that has since moved.
+          staleTime: 0,
+        },
         getEthAddressQueryOptions({ name }),
         {
           ...getNameRolesForAccountQueryOptions({
@@ -86,6 +95,7 @@ export const useTransferDetachTargets = ({
   const heldRoles = rolesQuery.data?.decoded ?? []
 
   return {
+    subregistryAddress: hasSubregistry ? subregistryAddress : null,
     isOptionVisible: {
       // An ETH address read through an inherited resolver isn't ours to
       // repoint — the record lives on an ancestor's resolver, not this name's.
