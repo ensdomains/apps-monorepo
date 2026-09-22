@@ -16,11 +16,11 @@ import {
 } from '@/features/names/components/SubnamesTable'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { useNameResourceId } from '@/features/profile/hooks/useNameResourceId'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { useNameResourceId } from '@/features/registry/hooks/useNameResourceId'
 import {
   getResourceRolesQueryOptions,
   holdsRolesOn,
@@ -118,7 +118,10 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   // The name's own id, not its displayed label: a label rendered `[<64 hex>]`
   // does not say which name it is, so the id is resolved once and the gate
   // asks about that (WEB-1458). No id means no permission, never root.
-  const { resourceId: nameResourceId } = useNameResourceId(name)
+  const { resourceId: nameResourceId } = useNameResourceId({
+    name,
+    registryAddress: parentRegistryAddress ?? undefined,
+  })
   const { data: hasSetSubregistryRole } = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: parentRegistryAddress as Address,
