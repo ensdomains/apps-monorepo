@@ -1,5 +1,6 @@
 import { useLingui } from '@lingui/react/macro'
 import type { Address } from 'viem'
+import { normalizeEthName } from '@/features/profile/service/profileName'
 import type { ProfileRecords } from '@/features/profile/types'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import {
@@ -69,6 +70,8 @@ export const ProfileActions = ({
   url,
 }: ProfileActionsProps) => {
   const { t } = useLingui()
+  const canEditProfile =
+    isOwner && (renewalProtocol !== 'v1' || normalizeEthName(name) === null)
 
   return (
     <>
@@ -102,7 +105,7 @@ export const ProfileActions = ({
         />
       </div>
 
-      {(isOwner || isUpgradeRequired) && !isInGrace ? (
+      {(canEditProfile || isUpgradeRequired) && !isInGrace ? (
         <nav aria-label={t`Profile actions`} className={editBottomNavClassName}>
           <div className={editBottomNavContentClassName}>
             <ProfileEditAction
