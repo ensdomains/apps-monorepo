@@ -28,6 +28,11 @@ msgstr ""
 msgid "{0, plural, one {# year} other {# years}}"
 msgstr ""
 
+#. placeholder {0}: roleGrants.length
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{0, plural, one {Lets the upgrade give # manager the access you picked, listed with the upgrade below.} other {Lets the upgrade give # managers the access you picked, listed with the upgrade below.}}"
+msgstr ""
+
 #. placeholder {0}: selectedNames.length
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
@@ -206,6 +211,10 @@ msgstr "En enkel, portabel identitet som du kontrollerar"
 msgid "A simpler way to get paid."
 msgstr ""
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
+msgstr ""
+
 #: src/features/profile/components/view/ProfileAbout.tsx
 msgid "About"
 msgstr ""
@@ -270,6 +279,10 @@ msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "All Notifications"
+msgstr ""
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Allow manager changes"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -459,6 +472,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Cannot save profile"
+msgstr ""
+
+#: src/features/migration/components/NameRow.tsx
+msgid "Carried over from your earlier attempt."
 msgstr ""
 
 #: src/features/weave-registration/lib/weaveSteps.ts
@@ -1261,10 +1278,6 @@ msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Lets the upgrade contract move any wrapped name you own."
-msgstr ""
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Lets the upgrade grant the managers you picked for your names."
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx

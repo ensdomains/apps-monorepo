@@ -23,6 +23,11 @@ msgstr "{0, plural, one {# step} other {# steps}}"
 msgid "{0, plural, one {# year} other {# years}}"
 msgstr "{0, plural, one {# year} other {# years}}"
 
+#. placeholder {0}: roleGrants.length
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{0, plural, one {Lets the upgrade give # manager the access you picked, listed with the upgrade below.} other {Lets the upgrade give # managers the access you picked, listed with the upgrade below.}}"
+msgstr "{0, plural, one {Lets the upgrade give # manager the access you picked, listed with the upgrade below.} other {Lets the upgrade give # managers the access you picked, listed with the upgrade below.}}"
+
 #. placeholder {0}: selectedNames.length
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
@@ -201,6 +206,10 @@ msgstr "A simple, portable identity that you control"
 msgid "A simpler way to get paid."
 msgstr "A simpler way to get paid."
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
+msgstr "A temporary permission on the ENS registry. No managers are being added in this upgrade."
+
 #: src/features/profile/components/view/ProfileAbout.tsx
 msgid "About"
 msgstr "About"
@@ -266,6 +275,10 @@ msgstr "Agents"
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "All Notifications"
 msgstr "All Notifications"
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Allow manager changes"
+msgstr "Allow manager changes"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Allow the renewal contract to use USDC for your renewals."
@@ -455,6 +468,10 @@ msgstr "Cancel Verification"
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Cannot save profile"
 msgstr "Cannot save profile"
+
+#: src/features/migration/components/NameRow.tsx
+msgid "Carried over from your earlier attempt."
+msgstr "Carried over from your earlier attempt."
 
 #: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Carving your name into the blockchain"
@@ -1257,10 +1274,6 @@ msgstr "Lets the upgrade contract move any unwrapped .eth name you own."
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Lets the upgrade contract move any wrapped name you own."
 msgstr "Lets the upgrade contract move any wrapped name you own."
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Lets the upgrade grant the managers you picked for your names."
-msgstr "Lets the upgrade grant the managers you picked for your names."
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Lets your smart account manage every ENSv2 name you own. Used temporarily to restore managers during an upgrade."

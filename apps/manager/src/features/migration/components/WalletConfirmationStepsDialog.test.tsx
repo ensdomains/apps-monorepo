@@ -59,7 +59,7 @@ describe('WalletConfirmationStepsDialog role grants (WEB-1528)', () => {
     expect(screen.queryByTitle(MANAGER)).toBeNull()
   })
 
-  it('names the grantees on the approval that exists to enable them', async () => {
+  it('lists each grantee once, on the step that performs the grant', async () => {
     await openDialog([
       {
         type: 'approval',
@@ -68,8 +68,21 @@ describe('WalletConfirmationStepsDialog role grants (WEB-1528)', () => {
           { name: 'alice.eth', account: MANAGER, role: 'set-resolver' },
         ],
       },
+      batchStep([
+        { name: 'alice.eth', account: MANAGER, role: 'set-resolver' },
+      ]),
     ])
 
-    expect(screen.getByTitle(MANAGER)).toBeTruthy()
+    expect(screen.getAllByTitle(MANAGER)).toHaveLength(1)
+  })
+
+  it('does not promise a restoration on an approval that carries no grants', async () => {
+    await openDialog([
+      { type: 'approval', approvalId: 'eth-registry:hca' },
+      batchStep([]),
+    ])
+
+    expect(screen.queryByText(/Restore the managers you chose/)).toBeNull()
+    expect(screen.getByText(/No managers are being added/)).toBeTruthy()
   })
 })

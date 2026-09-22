@@ -92,7 +92,7 @@ const buildEstimate = async (params: {
     options: {
       readonly signal: AbortSignal
       readonly staleTime: number
-      readonly managerRestorationNames: readonly string[]
+      readonly requiresManagerRestoration: boolean
     },
   ) => Promise<MigrationPreflight>
 }) => {
@@ -137,7 +137,7 @@ const buildEstimate = async (params: {
     params.ensurePreflight(params.domains, {
       signal: params.signal,
       staleTime: 0,
-      managerRestorationNames: params.managerRestorationNames,
+      requiresManagerRestoration: params.managerRestorationNames.length > 0,
     }),
   )
   params.signal.throwIfAborted()

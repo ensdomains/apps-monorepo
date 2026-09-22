@@ -114,10 +114,16 @@ export const buildStepDescriptors = (
         approval.id === 'base-registrar:hca'
           ? params.registrationApprovalTargets.length
           : undefined,
-      // The permission this approval exists for is the manager restoration, so
-      // the accounts it will be spent on belong on the same step.
+      // What this approval will actually be spent on, so its copy can name the
+      // restoration instead of promising one. Left undefined when the plan
+      // grants nothing — a step must never advertise grants it does not carry,
+      // which is what a resumed run with no recorded opt-in produces. The
+      // addresses themselves are listed once, on the batch step that performs
+      // the grants.
       roleGrants:
-        approval.id === 'eth-registry:hca' ? allRoleGrants : undefined,
+        approval.id === 'eth-registry:hca' && allRoleGrants.length > 0
+          ? allRoleGrants
+          : undefined,
     })
   }
 

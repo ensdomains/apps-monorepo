@@ -38,6 +38,7 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   | 'filteredGroups'
   | 'filteredOrphans'
   | 'filteredGracePeriodNames'
+  | 'isManagerRestorationLocked'
   | 'managerCandidates'
   | 'restoredManagers'
   | 'search'
@@ -63,6 +64,7 @@ export const SelectNamesStepSelectionOptions = ({
   filteredGracePeriodNames,
   isCompactLayout,
   isContentHeightCard,
+  isManagerRestorationLocked,
   isPending,
   managerCandidates,
   restoredManagers,
@@ -170,6 +172,7 @@ export const SelectNamesStepSelectionOptions = ({
               filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
+              isManagerRestorationLocked={isManagerRestorationLocked}
               isPending={isPending}
               managerCandidates={managerCandidates}
               restoredManagers={restoredManagers}

@@ -140,19 +140,36 @@ const StepCopy = ({ step }: StepCopyProps) =>
     ))
     .with(
       { type: 'approval', approvalId: 'eth-registry:hca' },
-      ({ roleGrants }) => (
-        <>
-          <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
-            <Trans>Restore the managers you chose</Trans>
-          </h3>
-          <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-            <Trans>
-              Lets the upgrade grant the managers you picked for your names.
-            </Trans>
-          </p>
-          <RoleGrantList roleGrants={roleGrants ?? []} />
-        </>
-      ),
+      ({ roleGrants }) =>
+        // The addresses are listed once, under the batch step that performs
+        // the grants, so this step names the restoration without repeating
+        // them — and says nothing about managers when it carries none.
+        roleGrants && roleGrants.length > 0 ? (
+          <>
+            <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
+              <Trans>Restore the managers you chose</Trans>
+            </h3>
+            <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
+              <Plural
+                one="Lets the upgrade give # manager the access you picked, listed with the upgrade below."
+                other="Lets the upgrade give # managers the access you picked, listed with the upgrade below."
+                value={roleGrants.length}
+              />
+            </p>
+          </>
+        ) : (
+          <>
+            <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
+              <Trans>Allow manager changes</Trans>
+            </h3>
+            <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
+              <Trans>
+                A temporary permission on the ENS registry. No managers are
+                being added in this upgrade.
+              </Trans>
+            </p>
+          </>
+        ),
     )
     .with({ type: 'atomic-batch' }, ({ count, index, roleGrants, total }) => (
       <>
