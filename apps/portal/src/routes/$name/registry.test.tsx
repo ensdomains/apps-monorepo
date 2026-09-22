@@ -109,6 +109,25 @@ const nameRegistriesResult: {
   isLoading: false,
 }
 
+// Whether the name was ever pointed at a registry. An empty slot is only
+// "never configured" when this is false; true means the pointer was zeroed and
+// the name is damaged, not new. See `useSubregistrySlot`.
+type SubregistryHistoryResult = {
+  readonly data: number | null | undefined
+  readonly isError: boolean
+}
+
+// Replaced wholesale per test rather than mutated field-by-field, so no case
+// can leak a half-reset fixture into the next one.
+let subregistryHistoryResult: SubregistryHistoryResult = {
+  data: 0,
+  isError: false,
+}
+
+const setSubregistryHistory = (result: Partial<SubregistryHistoryResult>) => {
+  subregistryHistoryResult = { data: 0, isError: false, ...result }
+}
+
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
     '@tanstack/react-query',
@@ -119,6 +138,9 @@ vi.mock('@tanstack/react-query', async () => {
       const key = options.queryKey[0]
       if (key === 'nameRegistries') {
         return nameRegistriesResult
+      }
+      if (key === 'get-subregistry-history') {
+        return subregistryHistoryResult
       }
       return { data: undefined, error: undefined, isLoading: false }
     },
@@ -159,6 +181,7 @@ describe('V2RegistryInfo', () => {
     setRegistries(undefined)
     mockHasSetSubregistryRole.hasRole = false
     mockHasSetSubregistryRole.error = null
+    setSubregistryHistory({})
   })
 
   const configuredLeaf = (subregistry: string) =>
@@ -196,6 +219,91 @@ describe('V2RegistryInfo', () => {
     ).not.toBeInTheDocument()
     // The deployed subregistry renders as a row.
     expect(screen.getByText(truncated(subregistry))).toBeInTheDocument()
+  })
+
+  describe('a subregistry slot that was zeroed, not never set (immunefi #93026)', () => {
+    const detachedLeaf = () => {
+      setRegistries([
+        zeroAddress, // foo.eth's subregistry — detached, not virgin
+        '0x1111111111111111111111111111111111111111', // .eth registry
+        '0x0000000000000000000000000000000000000000', // root
+      ])
+      setSubregistryHistory({ data: 1 })
+    }
+
+    it('does not offer the configure form on a detached slot', () => {
+      detachedLeaf()
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      // Deploying a fresh registry here would let the holder re-mint a
+      // victim's label into it and strand the original token.
+      expect(
+        screen.queryByTestId('configure-registry-form'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('explains that the name is damaged and points at the repair', () => {
+      detachedLeaf()
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(screen.getByText(/registry detached/i)).toBeInTheDocument()
+      expect(
+        screen.getByText(/point this name back at that registry/i),
+      ).toBeInTheDocument()
+    })
+
+    it('withholds the configure form while the history lookup is in flight', () => {
+      setRegistries([
+        zeroAddress,
+        '0x1111111111111111111111111111111111111111',
+        '0x0000000000000000000000000000000000000000',
+      ])
+      setSubregistryHistory({ data: undefined })
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(
+        screen.queryByTestId('configure-registry-form'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('treats a missing history count as unknown, not as "never configured"', () => {
+      // The indexer declining to count is not a name with no history; reading
+      // it as zero would hand back the re-mint surface.
+      setRegistries([
+        zeroAddress,
+        '0x1111111111111111111111111111111111111111',
+        '0x0000000000000000000000000000000000000000',
+      ])
+      setSubregistryHistory({ data: null })
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(
+        screen.queryByTestId('configure-registry-form'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('withholds the configure form when the history lookup fails', () => {
+      // Fail closed: "we couldn't check" must never read as "never configured".
+      setRegistries([
+        zeroAddress,
+        '0x1111111111111111111111111111111111111111',
+        '0x0000000000000000000000000000000000000000',
+      ])
+      setSubregistryHistory({ data: undefined, isError: true })
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(
+        screen.queryByTestId('configure-registry-form'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByText(/couldn't check this name's registry history/i),
+      ).toBeInTheDocument()
+    })
   })
 
   it('shows the configure form for a 2LD without a deployed subregistry', () => {
