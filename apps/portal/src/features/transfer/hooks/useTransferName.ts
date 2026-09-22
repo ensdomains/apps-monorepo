@@ -1,4 +1,6 @@
 import {
+  createFlowScope,
+  type FlowScope,
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
@@ -52,6 +54,7 @@ import {
   type TransferOptions,
 } from '../utils/buildTransferPlan'
 import { buildTransferStepIntent } from '../utils/buildTransferStepIntent'
+import { transferStepId } from '../utils/transferStepId'
 import {
   type GetV1NameStateError,
   getV1NameStateQueryOptions,
@@ -185,6 +188,10 @@ export const useTransferName = ({
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
   const [savedParams, setSavedParams] = useState<SavedParams | null>(null)
+  // Names the attempt the modal is showing. Rebuilt every time the flow is
+  // prepared, so an attempt abandoned partway can't hand its finished step
+  // actors to the next one.
+  const [flowScope, setFlowScope] = useState<FlowScope | null>(null)
 
   // `startedSteps` makes each step's `onStart` idempotent — both the modal UI and
   // the previous step's auto-fired `onDone` route into it (see
@@ -195,6 +202,7 @@ export const useTransferName = ({
     closeModal()
     clearTransaction()
     setSavedParams(null)
+    setFlowScope(null)
     // The parent's subname table lists this name's owner, so it goes stale too.
     // Only relevant below the TLD — a 2LD's "parent" is `eth`, which has no
     // subname listing of its own in the app.
@@ -375,6 +383,11 @@ export const useTransferName = ({
           ),
       onSuccess: (params) => {
         startedStepsRef.current = new Set()
+        // Start against an empty manager under a fresh scope, the way the
+        // register and renew flows already do it: an abandoned attempt leaves
+        // finished step actors behind, and they must not satisfy this one.
+        clearTransaction()
+        setFlowScope(createFlowScope(account))
         setSavedParams(params)
         openModal()
       },
@@ -392,7 +405,7 @@ export const useTransferName = ({
     // the prior step's auto-advance `onDone`). Errors clear the guard so the
     // step can be retried; the tx error surfaces via the modal's machine state.
     const runners = steps.map((step) => async () => {
-      const id = `transfer-${name}-${step}`
+      const id = transferStepId(name, step, flowScope)
       if (startedStepsRef.current.has(id)) return
       startedStepsRef.current.add(id)
       try {
@@ -425,7 +438,7 @@ export const useTransferName = ({
     })
 
     return steps.map((step, i) => ({
-      id: `transfer-${name}-${step}`,
+      id: transferStepId(name, step, flowScope),
       title: STEP_LABELS[step],
       transactionName: `${STEP_LABELS[step]} - ${name}`,
       // Same builder as the submit path, so the modal's live gas estimate is

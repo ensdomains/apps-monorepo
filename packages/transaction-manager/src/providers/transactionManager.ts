@@ -1,6 +1,7 @@
 import { logger } from '@ens-apps/utils/logger'
-import type { Hash, PublicClient } from 'viem'
+import type { Address, Hash, PublicClient } from 'viem'
 import { type ActorRefFrom, createActor } from 'xstate'
+import { randomNonce } from '../helpers/flow-identity'
 import {
   archiveTransaction,
   clearAllTransactions,
@@ -103,16 +104,25 @@ function isCancelledState(value: unknown): boolean {
 }
 
 function generateTransactionId(): string {
-  if (
-    typeof crypto !== 'undefined' &&
-    typeof crypto.getRandomValues === 'function'
-  ) {
-    const bytes = crypto.getRandomValues(new Uint8Array(8))
-    return `tx-${Date.now()}-${Array.from(bytes)
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')}`
-  }
-  return `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+  return `tx-${Date.now()}-${randomNonce()}`
+}
+
+/**
+ * The wallet a transaction will be signed by, so an actor can be scoped to the
+ * account that started it. Every request and intent variant carries a `from`;
+ * an explicit `options.account` wins over it.
+ */
+export function resolveOwnerAccount(input: {
+  account?: Address
+  intent?: TransactionIntent
+  request?: TransactionRequest
+}): Address | undefined {
+  const { account, intent, request } = input
+  const from =
+    account ??
+    request?.from ??
+    (intent?.type === 'custom' ? intent.request.from : intent?.from)
+  return from ? (from.toLowerCase() as Address) : undefined
 }
 
 /**
@@ -138,6 +148,13 @@ class TransactionManager {
     string,
     ActorRefFrom<typeof transactionMachine>
   >()
+  /**
+   * txId -> the wallet that started it. Actor identity is scoped to the
+   * account so a receipt produced by a different wallet can never satisfy a
+   * step of the flow the current wallet is running.
+   */
+  private transactionAccounts = new Map<string, Address>()
+  private connectedAccount: Address | undefined
   private listeners = new Set<TransactionChangeListener>()
   private telemetryListeners = new Set<RunTelemetrySubscriber>()
   private telemetryEventListeners = new Set<RunTelemetryEventSubscriber>()
@@ -164,6 +181,56 @@ class TransactionManager {
   }
 
   /**
+   * Tell the manager which wallet is connected.
+   *
+   * Actor identity is scoped to the account that started the transaction: a
+   * receipt another wallet produced must never satisfy a step of the flow the
+   * current wallet is running. Switching (or disconnecting) therefore retires
+   * every actor a different account owns — in-flight or terminal — so no step
+   * can read as done across the switch. Actors whose owner could not be
+   * determined are left alone; there is nothing to attribute them to.
+   *
+   * Idempotent: re-stating the same account does nothing.
+   */
+  setConnectedAccount(account: Address | undefined): void {
+    const next = account ? (account.toLowerCase() as Address) : undefined
+    if (next === this.connectedAccount) return
+    this.connectedAccount = next
+
+    const foreign = [...this.transactionAccounts.entries()]
+      .filter(([, owner]) => owner !== next)
+      .map(([id]) => id)
+
+    if (foreign.length === 0) return
+
+    foreign.forEach((id) => {
+      this.retireTransaction(id)
+    })
+    this.notifyListeners()
+  }
+
+  /**
+   * Stop an actor and drop every trace of it from the in-memory maps.
+   *
+   * Terminal actors are otherwise kept after they are archived: the modal
+   * reads a finished step's status, hash and actual gas cost straight off its
+   * snapshot, so dropping one the moment it reaches a terminal state would
+   * make a completed step render as "Not Started" and stall the flow. They are
+   * retired at the flow's boundaries instead — a new attempt taking the same
+   * id, an account switch, or the {@link clear} a flow runs before its first
+   * step.
+   */
+  private retireTransaction(id: string): void {
+    const actor = this.transactions.get(id)
+    if (!actor) return
+
+    actor.stop()
+    this.transactions.delete(id)
+    this.transactionAccounts.delete(id)
+    this.completedTelemetry.delete(id)
+  }
+
+  /**
    * Start a new transaction
    *
    * publicClient can be:
@@ -180,12 +247,19 @@ class TransactionManager {
       publicClient?: PublicClient
       chainId?: number
       useSmartAccount?: boolean
+      /**
+       * The wallet this transaction belongs to. Optional — the manager falls
+       * back to the request's/intent's `from`; pass it only when neither
+       * states the signing account.
+       */
+      account?: Address
     },
   ): string {
     const {
       publicClient: optionsPublicClient,
       chainId,
       useSmartAccount,
+      account: optionsAccount,
       ...transactionOptions
     } = options
 
@@ -224,14 +298,11 @@ class TransactionManager {
 
     const txId = transactionOptions.id || generateTransactionId()
 
-    // Flows retry a step under its fixed id (the modal's "Try again"), and
-    // the terminal side effects below run once per id. Retire an attempt that
-    // already ended, or it would swallow this run's archive, report and
-    // telemetry.
-    if (this.completedTelemetry.has(txId)) {
-      this.transactions.get(txId)?.stop()
-      this.completedTelemetry.delete(txId)
-    }
+    // Ids are reused — by a flow that retries a step, and by any flow that
+    // names its steps with a fixed string. The previous occupant must not
+    // survive under the id: it would keep running, and its terminal snapshot
+    // would report this attempt's step as already done.
+    this.retireTransaction(txId)
 
     // Create and start the transaction actor
     const actor = createActor(transactionMachine, {
@@ -344,8 +415,15 @@ class TransactionManager {
       }
     })
 
-    // Add to active transactions
+    // Add to active transactions, remembering which wallet owns it so an
+    // account switch can retire it (see setConnectedAccount).
     this.transactions.set(txId, actor)
+    const owner = resolveOwnerAccount({
+      account: optionsAccount,
+      intent,
+      request,
+    })
+    if (owner) this.transactionAccounts.set(txId, owner)
     this.notifyListeners()
 
     return txId
@@ -362,6 +440,8 @@ class TransactionManager {
 
     // Remove from active transactions
     this.transactions.delete(id)
+    this.transactionAccounts.delete(id)
+    this.completedTelemetry.delete(id)
     this.notifyListeners()
 
     // Remove from persistence
@@ -484,13 +564,18 @@ class TransactionManager {
   }
 
   /**
-   * Clear all transactions (for testing)
+   * Stop and forget every actor.
+   *
+   * Every multi-step flow runs this before its first step, so an attempt
+   * always starts against an empty manager and can never match an actor an
+   * earlier attempt (or another flow) left behind.
    */
   clear(): void {
     this.transactions.forEach((actor) => {
       actor.stop()
     })
     this.transactions.clear()
+    this.transactionAccounts.clear()
     this.completedTelemetry.clear()
     this.runTelemetry.clear()
     this.notifyListeners()
@@ -506,6 +591,7 @@ class TransactionManager {
     })
 
     this.transactions.clear()
+    this.transactionAccounts.clear()
     this.completedTelemetry.clear()
     this.runTelemetry.clear()
     this.notifyListeners()

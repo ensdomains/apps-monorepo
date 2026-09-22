@@ -26,10 +26,17 @@ async function driveTransactionsToSuccess(
   await expect(transactionDialog).toBeVisible({ timeout: 30_000 })
 
   const succeeded = new Set<string>()
+  // Multi-step flows append an attempt scope to each step's id (see
+  // `scopeTransactionId`), so the logged id starts with the id named here
+  // rather than equalling it.
+  const succeededLine = (id: string) =>
+    new RegExp(
+      `Transaction ${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\S* state: success`,
+    )
   const onConsole = (msg: { text(): string }) => {
     const text = msg.text()
     for (const id of successTxIds) {
-      if (text.includes(`Transaction ${id} state: success`)) succeeded.add(id)
+      if (succeededLine(id).test(text)) succeeded.add(id)
     }
   }
   page.on('console', onConsole)

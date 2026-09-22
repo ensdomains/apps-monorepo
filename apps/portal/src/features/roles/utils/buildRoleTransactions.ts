@@ -6,6 +6,7 @@
  * When a transaction has a next one in the chain, onDone triggers the next.
  */
 
+import type { FlowScope } from '@ens-apps/transaction-manager'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
 import type { Transaction } from '@/features/transaction-manager/types'
@@ -42,6 +43,9 @@ export type RoleTransactionHandlers = {
  * Internally calls buildRoleTransactionDescriptors, then maps descriptors
  * to Transaction objects by attaching onStart/onDone from the handlers.
  * When a transaction has a next one in the chain, onDone triggers the next.
+ *
+ * `flowScope` is forwarded to the descriptors so every attempt names its
+ * steps uniquely — see buildRoleTransactionDescriptors.
  */
 export function buildRoleTransactions(
   pendingSave: PendingSave | null,
@@ -49,11 +53,13 @@ export function buildRoleTransactions(
   name: string,
   handlers: RoleTransactionHandlers,
   registryAddress: Address,
+  flowScope?: FlowScope | null,
 ): readonly Transaction[] {
   const descriptors = buildRoleTransactionDescriptors(
     pendingSave,
     pendingRemove,
     name,
+    flowScope,
   )
 
   const { grantRoles, revokeRoles, handleDone } = handlers

@@ -1,3 +1,4 @@
+import { createFlowScope, type FlowScope } from '@ens-apps/transaction-manager'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
@@ -73,6 +74,10 @@ export const RolesSidebar = <
 
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null)
   const [pendingRemove, setPendingRemove] = useState<PendingRemove | null>(null)
+  // Names the attempt currently in the modal. Rebuilt on every save/remove so
+  // a second change in the same session can't be served by the first one's
+  // finished actor (which would render as Done and skip the wallet entirely).
+  const [flowScope, setFlowScope] = useState<FlowScope | null>(null)
 
   const { data: walletClient } = useWalletClient()
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
@@ -105,11 +110,21 @@ export const RolesSidebar = <
     clearTransaction()
     setPendingSave(null)
     setPendingRemove(null)
+    setFlowScope(null)
     setOpen(false)
   }
 
+  // Every attempt starts against an empty manager and under a fresh scope,
+  // the way the register and renew flows already do it.
+  const startFlow = (signer: Address) => {
+    clearTransaction()
+    setFlowScope(createFlowScope(signer))
+    openModal()
+  }
+
   const handleSaveChanges = () => {
-    if (!selectedAccount || !hasChanges || !walletClient?.account) return
+    const signer = walletClient?.account?.address
+    if (!selectedAccount || !hasChanges || !signer) return
 
     setOpen(false)
     setPendingSave({
@@ -118,16 +133,12 @@ export const RolesSidebar = <
       rolesToRevoke: rolesToRevoke as Role[],
     })
     setPendingRemove(null)
-    openModal()
+    startFlow(signer)
   }
 
   const handleRemoveUser = () => {
-    if (
-      !selectedAccount ||
-      originalRoles.length === 0 ||
-      !walletClient?.account
-    )
-      return
+    const signer = walletClient?.account?.address
+    if (!selectedAccount || originalRoles.length === 0 || !signer) return
 
     setConfirmOpen(false)
     setOpen(false)
@@ -136,7 +147,7 @@ export const RolesSidebar = <
       roles: originalRoles,
     })
     setPendingSave(null)
-    openModal()
+    startFlow(signer)
   }
 
   const handlePermissionChange = (
@@ -174,6 +185,7 @@ export const RolesSidebar = <
           handleDone,
         },
         registryAddress,
+        flowScope,
       )
     : []
 

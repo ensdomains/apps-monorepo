@@ -1,3 +1,8 @@
+import {
+  createFlowScope,
+  type FlowScope,
+  scopeTransactionId,
+} from '@ens-apps/transaction-manager'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useEffect, useState } from 'react'
@@ -69,6 +74,10 @@ export const RolesAddUserSheet = ({
     readonly account: Address
     readonly roles: Role[]
   } | null>(null)
+  // Names this attempt, so a second grant in the same session can't be served
+  // by the finished actor the first one left behind.
+  const [flowScope, setFlowScope] = useState<FlowScope | null>(null)
+  const grantTxId = scopeTransactionId(GRANT_ROLES_TX_ID, flowScope)
 
   const resolution = useAddressResolution(userInput)
   const { address, isResolving } = resolution
@@ -84,6 +93,7 @@ export const RolesAddUserSheet = ({
     setUserInput('')
     setSelectedRoles(new Set())
     setPendingGrant(null)
+    setFlowScope(null)
     reset()
   }, [open, reset])
 
@@ -101,9 +111,14 @@ export const RolesAddUserSheet = ({
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!address || selectedRoles.size === 0) return
+    const signer = walletClient?.account?.address
+    if (!address || selectedRoles.size === 0 || !signer) return
     reset()
     setPendingGrant({ account: address, roles: Array.from(selectedRoles) })
+    // Start against an empty manager under a fresh scope, the way the
+    // register and renew flows already do it.
+    clearTransaction()
+    setFlowScope(createFlowScope(signer))
     openModal()
   }
 
@@ -113,7 +128,7 @@ export const RolesAddUserSheet = ({
       name,
       account: pendingGrant.account,
       roles: pendingGrant.roles,
-      id: GRANT_ROLES_TX_ID,
+      id: grantTxId,
       registryAddress,
     })
   }
@@ -122,6 +137,7 @@ export const RolesAddUserSheet = ({
     closeModal()
     clearTransaction()
     setPendingGrant(null)
+    setFlowScope(null)
     onOpenChange(false)
   }
 
@@ -239,7 +255,7 @@ export const RolesAddUserSheet = ({
             <TransactionModal
               transactions={[
                 {
-                  id: GRANT_ROLES_TX_ID,
+                  id: grantTxId,
                   title: 'Grant roles',
                   transactionName: address
                     ? `Grant roles for ${truncateAddress(address, 6, 4)}`
