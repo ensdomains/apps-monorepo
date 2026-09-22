@@ -17,9 +17,6 @@ type FeatureFlagConfig = {
 }
 
 const FEATURE_FLAGS_INTERNAL = {
-  LANGUAGE_SELECTOR: {
-    enabled: import.meta.env.VITE_FF_LANGUAGE_SELECTOR === 'true',
-  },
   /** Bulk name selection UI on the address profile names list (actions TBD). */
   PROFILE_ADDRESS_NAMES_SELECTION: {
     enabled: import.meta.env.VITE_FF_PROFILE_ADDRESS_NAMES_SELECTION === 'true',
