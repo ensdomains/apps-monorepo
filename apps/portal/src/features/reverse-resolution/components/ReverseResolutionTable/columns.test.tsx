@@ -35,9 +35,13 @@ const l2Row = (
  * Each `data` array is a module-scope constant, which keeps the row model
  * stable across the commits a render triggers.
  */
-const Harness = ({ data }: { data: ReverseResolutionResult[] }) => {
+const Harness = ({ data }: { data: readonly ReverseResolutionResult[] }) => {
   const table = useReactTable({
-    data,
+    // TanStack types `TableOptions.data` as mutable `TData[]` though it only
+    // reads it. Spreading into a fresh array instead would hand `useReactTable`
+    // a new reference on every render and churn the row model the constants
+    // above exist to keep stable.
+    data: data as ReverseResolutionResult[],
     columns,
     getCoreRowModel: getCoreRowModel(),
   })
