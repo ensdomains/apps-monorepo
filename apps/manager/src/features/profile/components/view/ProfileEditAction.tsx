@@ -36,9 +36,11 @@ export const ProfileEditAction = ({
 
   if (isInGrace || (!isOwner && !isUpgradeRequired)) return null
 
-  if (isUpgradeRequired || isUnmigratedEthName) {
+  if (isUpgradeRequired) {
     return <ProfileUpgradePopover className={className} />
   }
+
+  if (isUnmigratedEthName) return null
 
   const trigger = (
     <button className={className} type="button">

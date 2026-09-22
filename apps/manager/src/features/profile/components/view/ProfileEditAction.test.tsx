@@ -36,9 +36,9 @@ describe('ProfileEditAction', () => {
     expect(editButton()).not.toBeNull()
   })
 
-  it('shows editing as unavailable on an unmigrated v1 .eth name', () => {
-    renderAction({ protocol: 'v1' })
-    expect(editButton()).toHaveAttribute('aria-disabled', 'true')
+  it('hides editing for an unmigrated v1 .eth name without upgrade eligibility', () => {
+    renderAction({ protocol: 'v1', isUpgradeRequired: false })
+    expect(editButton()).toBeNull()
   })
 
   it('keeps editing for an imported DNS name, which the v1 registry also serves', () => {

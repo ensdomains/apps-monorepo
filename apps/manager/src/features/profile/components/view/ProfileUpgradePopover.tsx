@@ -37,7 +37,9 @@ export const ProfileUpgradePopover = ({
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-max max-w-[calc(100vw-2rem)] items-end gap-0 rounded-xl px-4 py-2 shadow-[0_4px_4px_0_#c8c8c840]! motion-reduce:data-closed:animate-none motion-reduce:data-open:animate-none"
+        // The portaled popup needs a viewport-relative cap with 2rem of total
+        // gutter space; fixed max-width tokens and max-w-full cannot express it.
+        className="w-max max-w-[calc(100vw-2rem)] items-end gap-0 rounded-xl px-4 py-2 motion-reduce:data-closed:animate-none motion-reduce:data-open:animate-none"
         side="top"
         sideOffset={8}
       >
@@ -53,7 +55,7 @@ export const ProfileUpgradePopover = ({
         </div>
         {isMigrationEnabled ? (
           <Link
-            className="flex h-8.5 items-center gap-1.5 rounded font-semi-mono text-ens-lapis-500 text-sm uppercase tracking-[-0.14px] hover:text-ens-lapis-900 focus-visible:outline-2 focus-visible:outline-ens-lapis-500 focus-visible:outline-offset-2 [@media(pointer:coarse)]:h-11"
+            className="flex h-8.5 pointer-coarse:h-11 items-center gap-1.5 rounded font-semi-mono text-ens-lapis-500 text-sm uppercase tracking-tight hover:text-ens-lapis-900 focus-visible:outline-2 focus-visible:outline-ens-lapis-500 focus-visible:outline-offset-2"
             to="/migration"
           >
             <Trans>Upgrade Name</Trans>
