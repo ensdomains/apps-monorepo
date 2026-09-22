@@ -1,9 +1,13 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { err, ok } from 'neverthrow'
+import { err, fromThrowable, ok } from 'neverthrow'
+import { normalize } from 'viem/ens'
 import { isRenewableV2EthName } from '@/features/grace/utils/gracePeriod'
 import { parseName } from '@/features/register-v2/utils/name-parser'
 
-type RenewableNameErrorReason = 'TLD_NOT_SUPPORTED' | 'SUBNAMES_NOT_SUPPORTED'
+type RenewableNameErrorReason =
+  | 'TLD_NOT_SUPPORTED'
+  | 'SUBNAMES_NOT_SUPPORTED'
+  | 'LABEL_NOT_NORMALIZED'
 
 export class RenewableNameError<
   TReason extends RenewableNameErrorReason,
@@ -14,6 +18,8 @@ export class RenewableNameError<
     return {
       TLD_NOT_SUPPORTED: 'Only .eth names are supported',
       SUBNAMES_NOT_SUPPORTED: 'Subnames are not supported',
+      LABEL_NOT_NORMALIZED:
+        'This name is not in its normalized form, so it cannot be renewed here',
     }[this.reason]
   }
 
@@ -37,26 +43,36 @@ export const parseRenewableName = (name: string) =>
 
 export const isRenewableName = (name: string) => parseRenewableName(name).isOk()
 
+/** `normalize` throws on unnormalizable names; those are never renewable. */
+const safeNormalize = fromThrowable(
+  normalize,
+  () => new RenewableNameError({ reason: 'LABEL_NOT_NORMALIZED' as const }),
+)
+
+/**
+ * The one label both the UI and the `renew` calldata use. `ALICE.eth` and its
+ * soft-hyphen look-alike normalize to `alice.eth`, a different registration
+ * someone else can own, so a name that isn't already normalized is refused.
+ */
+export const resolveRenewalLabel = (name: string) =>
+  parseRenewableName(name).andThen(({ label }) =>
+    safeNormalize(name).andThen((normalized) =>
+      normalized === name
+        ? ok(label)
+        : RenewableNameError.err('LABEL_NOT_NORMALIZED'),
+    ),
+  )
+
+/** The canonical `.eth` name a renewable name resolves to, or `null` if none. */
+export const toCanonicalRenewableName = (name: string): string | null =>
+  parseRenewableName(name)
+    .andThen(({ label }) => safeNormalize(`${label}.eth`))
+    .unwrapOr(null)
+
 export const canRenewV2Name = (
   name: string,
   expiryDate: Date | null | undefined,
-) => {
-  const parsed = parseRenewableName(name)
-  if (parsed.isErr()) return false
-  return isRenewableV2EthName(`${parsed.value.label}.eth`, expiryDate)
-}
-
-/**
- * Expiry-aware bulk-selection eligibility for a dashboard domain. Mirrors the
- * single-name route's `canRenewV2Name` check so a name can only be selected for
- * bulk renewal if it's still renewable (syntax + within the v2 grace window),
- * not merely a `.eth` 2LD. `expirySeconds` is the on-chain expiry in seconds.
- */
-export const isRenewableV2Domain = (
-  name: string,
-  expirySeconds: number | null | undefined,
-): boolean =>
-  canRenewV2Name(
-    name,
-    expirySeconds == null ? null : new Date(expirySeconds * 1000),
-  )
+) =>
+  resolveRenewalLabel(name)
+    .map((label) => isRenewableV2EthName(`${label}.eth`, expiryDate))
+    .unwrapOr(false)

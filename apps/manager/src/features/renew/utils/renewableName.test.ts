@@ -3,7 +3,11 @@ import {
   MS_PER_DAY,
   V2_GRACE_PERIOD_DAYS,
 } from '@/features/grace/utils/gracePeriod'
-import { canRenewV2Name } from './renewableName'
+import {
+  canRenewV2Name,
+  resolveRenewalLabel,
+  toCanonicalRenewableName,
+} from './renewableName'
 
 const base = new Date('2024-06-01T12:00:00Z')
 
@@ -20,14 +24,48 @@ describe('canRenewV2Name', () => {
     expect(canRenewV2Name('alice.eth', base)).toBe(true)
   })
 
-  it('allows mixed-case names during grace', () => {
+  // The normalized twin can belong to someone else; callers canonicalize first.
+  it('blocks non-normalized names during grace', () => {
     vi.setSystemTime(base.getTime() + MS_PER_DAY)
-    expect(canRenewV2Name('Alice.eth', base)).toBe(true)
-    expect(canRenewV2Name('Alice.ETH', base)).toBe(true)
+    expect(canRenewV2Name('Alice.eth', base)).toBe(false)
+    expect(canRenewV2Name('Alice.ETH', base)).toBe(false)
+    expect(canRenewV2Name('ali\u00ADce.eth', base)).toBe(false)
   })
 
   it('blocks renew after grace', () => {
     vi.setSystemTime(base.getTime() + V2_GRACE_PERIOD_DAYS * MS_PER_DAY)
     expect(canRenewV2Name('alice.eth', base)).toBe(false)
+  })
+})
+
+describe('resolveRenewalLabel', () => {
+  it('returns the label for an already-normalized name', () => {
+    expect(resolveRenewalLabel('alice.eth')._unsafeUnwrap()).toBe('alice')
+  })
+
+  it.each([
+    'ALICE.eth',
+    'Alice.ETH',
+    'ali\u00ADce.eth',
+  ])('refuses %s rather than resolving it to a twin label', (name) => {
+    const result = resolveRenewalLabel(name)
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().reason).toBe('LABEL_NOT_NORMALIZED')
+  })
+})
+
+describe('toCanonicalRenewableName', () => {
+  it.each([
+    ['alice.eth', 'alice.eth'],
+    ['ALICE.eth', 'alice.eth'],
+    ['alice', 'alice.eth'],
+    ['ali\u00ADce.eth', 'alice.eth'],
+  ])('canonicalizes %s to %s', (input, expected) => {
+    expect(toCanonicalRenewableName(input)).toBe(expected)
+  })
+
+  it('returns null for names that are not renewable at all', () => {
+    expect(toCanonicalRenewableName('sub.alice.eth')).toBeNull()
+    expect(toCanonicalRenewableName('alice.com')).toBeNull()
   })
 })

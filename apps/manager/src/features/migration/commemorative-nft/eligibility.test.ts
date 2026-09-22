@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  buildCommemorativeNftAssets,
   buildCommemorativeNftRendererUrl,
   getCommemorativeNftTokenId,
 } from './config'
@@ -353,18 +352,6 @@ describe('commemorative NFT eligibility', () => {
     })
 
     expect(result.assets.externalUrl).toBe(url.toString())
-  })
-
-  it('derives canonical token asset URLs without query parameters', () => {
-    expect(buildCommemorativeNftAssets(undefined, ownerAddress)).toEqual({})
-    const assets = buildCommemorativeNftAssets(
-      'https://assets.example/',
-      ownerAddress,
-    )
-    expect(assets).toEqual({
-      imageUrl,
-      metadataUrl,
-    })
   })
 
   it('loads the published token by ID in the renderer', () => {

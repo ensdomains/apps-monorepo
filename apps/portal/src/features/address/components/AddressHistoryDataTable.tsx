@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Address } from 'viem'
+import type { Address, Hash } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -9,41 +9,54 @@ import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
 import {
-  extractBlocksNeedingTimestamps,
-  extractTransactionHashes,
-  transformAndMergeAddressHistory,
-  type V1Events,
-  type V2Event,
+  groupAddressHistoryByName,
+  type V1NameHistory,
+  type V2NameHistory,
 } from '@/utils/history/transformAddressHistory'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
+import { partitionAddressHistory } from '../nameAttribution'
 
 type AddressHistoryData = {
-  v1Events?: V1Events
-  v2Events?: V2Event[]
+  readonly v1Events?: readonly V1NameHistory[]
+  readonly v2Events?: readonly V2NameHistory[]
+}
+
+const defaultNetwork = {
+  name: 'Sepolia',
+  icon: '/icons/eth.svg',
 }
 
 export const AddressHistoryDataTable = ({
   address,
   history,
 }: {
-  address: Address
-  history: AddressHistoryData
+  readonly address: Address
+  readonly history: AddressHistoryData
 }) => {
-  // Transform and merge V1 and V2 events into a single sorted array
-  const eventsData = useMemo(
-    () => transformAndMergeAddressHistory(history.v1Events, history.v2Events),
+  // One group per name, so each name's provenance survives until it is judged
+  const groups = useMemo(
+    () => groupAddressHistoryByName(history.v1Events, history.v2Events),
     [history.v1Events, history.v2Events],
   )
 
-  // Extract blocks and transactions for metadata lookups
+  // Metadata is fetched for every name, acquired or not: the transaction senders
+  // are themselves one of the signals the attribution depends on.
+  const allEvents = useMemo(
+    () => groups.flatMap((group) => group.events),
+    [groups],
+  )
+
   const blocksNeedingTimestamps = useMemo(
-    () => extractBlocksNeedingTimestamps(eventsData),
-    [eventsData],
+    () =>
+      allEvents
+        .filter((event) => !event.timestamp)
+        .map((event) => BigInt(event.blockNumber)),
+    [allEvents],
   )
 
   const transactionHashes = useMemo(
-    () => extractTransactionHashes(eventsData),
-    [eventsData],
+    () => allEvents.map((event) => event.transactionID as Hash),
+    [allEvents],
   )
 
   const {
@@ -63,10 +76,19 @@ export const AddressHistoryDataTable = ({
     transactionHashes,
   })
 
-  // Add timestamps and senders to the events data
-  const eventsDataWithTimestampsAndSenders = useMemo(
-    () => enrichEventsWithMetadata(eventsData, timestampsData, sendersData),
-    [eventsData, timestampsData, sendersData],
+  const { acquired, assigned, assignedNameCount } = useMemo(
+    () => partitionAddressHistory(groups, address, sendersData),
+    [groups, address, sendersData],
+  )
+
+  const acquiredEvents = useMemo(
+    () => enrichEventsWithMetadata(acquired, timestampsData, sendersData),
+    [acquired, timestampsData, sendersData],
+  )
+
+  const assignedEvents = useMemo(
+    () => enrichEventsWithMetadata(assigned, timestampsData, sendersData),
+    [assigned, timestampsData, sendersData],
   )
 
   if (isLoadingTimestamps && isLoadingSenders) {
@@ -96,41 +118,55 @@ export const AddressHistoryDataTable = ({
     )
   }
 
-  // Check if there's no history data
-  if (eventsDataWithTimestampsAndSenders.length === 0) {
-    return (
-      <div className="flex flex-col gap-8">
-        <PageHeading parent={{ type: 'addr', addr: address }}>
-          History
-        </PageHeading>
+  return (
+    <div className="flex flex-col gap-8">
+      <PageHeading parent={{ type: 'addr', addr: address }}>
+        {acquiredEvents.length === 0
+          ? 'History'
+          : `History (${acquiredEvents.length})`}
+      </PageHeading>
+      {acquiredEvents.length === 0 ? (
         <NoResultsMessage
           title="No history yet"
           description="This address doesn't have any recorded history. Activity will appear here once transactions are made."
           className="mx-0"
         />
-      </div>
-    )
-  }
-
-  const eventCount = eventsDataWithTimestampsAndSenders.length
-
-  return (
-    <div className="flex flex-col gap-8">
-      <PageHeading parent={{ type: 'addr', addr: address }}>
-        {`History (${eventCount})`}
-      </PageHeading>
-      <EventsDataTable<ENSEvent>
-        data={eventsDataWithTimestampsAndSenders}
-        name="" // Name will be extracted from individual transaction events in the sidebar
-        enableSidebar={true}
-        enableFilters={true}
-        enableSearch={true}
-        enableTransactionCount={false}
-        defaultNetwork={{
-          name: 'Sepolia',
-          icon: '/icons/eth.svg',
-        }}
-      />
+      ) : (
+        <EventsDataTable<ENSEvent>
+          data={acquiredEvents}
+          name="" // Name will be extracted from individual transaction events in the sidebar
+          enableSidebar={true}
+          enableFilters={true}
+          enableSearch={true}
+          enableTransactionCount={false}
+          defaultNetwork={defaultNetwork}
+        />
+      )}
+      {assignedEvents.length > 0 && (
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-h2">
+              {`Names assigned to this address (${assignedNameCount})`}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Anyone who owns a name can point a subname at any address without
+              that address's involvement, and choose the resolver that writes
+              its records. The activity below belongs to names assigned to this
+              address by someone else — it is not this address's own history,
+              and its contents are not vouched for.
+            </p>
+          </div>
+          <EventsDataTable<ENSEvent>
+            data={assignedEvents}
+            name=""
+            enableSidebar={true}
+            enableFilters={false}
+            enableSearch={false}
+            enableTransactionCount={false}
+            defaultNetwork={defaultNetwork}
+          />
+        </section>
+      )}
     </div>
   )
 }

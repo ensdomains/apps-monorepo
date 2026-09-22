@@ -10,6 +10,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Badge } from '@/components/ui/badge'
+import { partitionOwnedNames } from '@/features/address/nameAttribution'
 import { NameMobileCard } from '@/features/names/components/NameMobileCard'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
@@ -128,10 +129,25 @@ export const NameList = ({ address, limit }: NameListProps) => {
   const v1Failed = Boolean(v1NamesQuery.error)
   const v2Failed = Boolean(v2NamesQuery.error)
 
-  const allData = mergeNamesData(v1NamesQuery.data, v2NamesQuery.data)
+  // Registry ownership alone does not make a name the address's: any parent owner
+  // can point a subname at any address. Names granted that way are kept visible, but
+  // in their own group rather than among the names the address holds.
+  const { acquired: allData, assigned } = partitionOwnedNames(
+    mergeNamesData(v1NamesQuery.data, v2NamesQuery.data),
+  )
   const data = limit ? allData.slice(0, limit) : allData
+  // The assigned section is hidden in the limited (preview) view, so it only
+  // counts as something to show when the full list is rendered.
+  const showAssigned = !limit && assigned.length > 0
 
-  if (data.length === 0 && !v1Failed && !v2Failed && !v1Pending && !v2Pending)
+  if (
+    data.length === 0 &&
+    !showAssigned &&
+    !v1Failed &&
+    !v2Failed &&
+    !v1Pending &&
+    !v2Pending
+  )
     return (
       <NoResultsMessage
         title="No names yet"
@@ -180,6 +196,36 @@ export const NameList = ({ address, limit }: NameListProps) => {
         <div className="hidden md:block">
           <DataTable data={data} columns={columns} />
         </div>
+      )}
+
+      {showAssigned && (
+        <section className="flex flex-col gap-2 border-t border-border pt-6 mt-6">
+          <h3 className="text-sm font-medium">
+            {`Names assigned to this address (${assigned.length})`}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Anyone who owns a name can point a subname at any address. These
+            were granted by someone else's name, not acquired by this address.
+          </p>
+          <div className="md:hidden">
+            {assigned.map((name) => (
+              <NameMobileCard
+                key={name.name}
+                name={name.name}
+                expiryDate={name.expiryDate}
+                roleBitmap={name.roleBitmap}
+                v1Roles={name.v1Roles}
+                protocolVersion={name.protocolVersion}
+                recordCount={name.recordCount}
+                subdomainCount={name.subdomainCount}
+                showCheckbox={false}
+              />
+            ))}
+          </div>
+          <div className="hidden md:block">
+            <DataTable data={assigned} columns={columns} />
+          </div>
+        </section>
       )}
 
       {allData.length > 0 && (

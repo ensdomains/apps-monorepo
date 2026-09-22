@@ -21,21 +21,27 @@ vi.mock('./DashboardPagination', () => ({
 vi.mock('./NameRow', () => ({
   NameRow: ({
     cta,
+    isSelected,
     label,
     nameRole,
     nameRoles,
+    selectable,
     status,
   }: {
     readonly cta?: string | null
+    readonly isSelected?: boolean
     readonly label: string
     readonly nameRole?: string | null
     readonly nameRoles?: readonly string[] | null
+    readonly selectable?: boolean
     readonly status?: string | null
   }) => (
     <div
       data-cta={cta ?? ''}
       data-role={nameRole ?? ''}
       data-roles={nameRoles?.join(',') ?? ''}
+      data-selectable={String(selectable ?? false)}
+      data-selected={String(isSelected ?? false)}
       data-status={status ?? ''}
       data-testid="name-row"
     >
@@ -261,5 +267,43 @@ describe('MyNamesList', () => {
       screen.getByText('Some names could not be loaded'),
     ).toBeInTheDocument()
     expect(screen.getByText('alaska.eth')).toBeInTheDocument()
+  })
+
+  it('selects only the name whose exact label is selected', () => {
+    ownedDomainsMock.useOwnedDomains.mockReturnValue({
+      v2Names: [
+        makeV2Domain({ id: '0xalice', name: 'alice.eth' }),
+        makeV2Domain({
+          id: '0xalice-lookalike',
+          name: 'ALICE.eth',
+          normalizedName: 'alice.eth',
+        }),
+      ],
+      isPending: false,
+      isError: false,
+    })
+    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
+      v1Names: [],
+      isPending: false,
+      isError: false,
+    })
+
+    render(
+      <MyNamesList
+        favoriteLabels={new Set()}
+        isAuthenticated
+        migrationEnabled={false}
+        onToggleFavorite={() => undefined}
+        selectedLabels={new Set(['alice.eth'])}
+        sort="name-asc"
+      />,
+    )
+
+    const rows = screen.getAllByTestId('name-row')
+    const byLabel = new Map(rows.map((row) => [row.textContent, row] as const))
+
+    expect(byLabel.get('alice.eth')?.dataset.selected).toBe('true')
+    expect(byLabel.get('ALICE.eth')?.dataset.selected).toBe('false')
+    expect(byLabel.get('ALICE.eth')?.dataset.selectable).toBe('false')
   })
 })

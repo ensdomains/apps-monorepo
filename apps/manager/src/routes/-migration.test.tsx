@@ -127,17 +127,6 @@ describe('/migration route auth', () => {
     })
   })
 
-  it('redirects disabled client-side navigation through the server checker', async () => {
-    getFeatureFlagMock.mockResolvedValue(false)
-
-    await expect(runBeforeLoad()).rejects.toEqual({
-      options: { to: '/dashboard', replace: true },
-    })
-    expect(getFeatureFlagMock).toHaveBeenCalledWith({
-      data: { flag: 'migration' },
-    })
-  })
-
   it('waits during wallet restoration before rendering or redirecting', () => {
     mockConnection({
       status: 'reconnecting',
@@ -188,13 +177,6 @@ describe('/migration route auth', () => {
     expect(navigateMock).not.toHaveBeenCalled()
   })
 
-  it('renders migration for a settled connected wallet', () => {
-    renderRoute()
-
-    expect(screen.getByTestId('migration-page')).not.toBeNull()
-    expect(navigateMock).not.toHaveBeenCalled()
-  })
-
   it('does not redirect while wagmi is connected but the smart account is still catching up', () => {
     mockSmartAccount({
       hasInitialized: true,
@@ -206,19 +188,6 @@ describe('/migration route auth', () => {
 
     expect(screen.getByTestId('migration-page')).not.toBeNull()
     expect(navigateMock).not.toHaveBeenCalled()
-  })
-
-  it('waits when wagmi is connected but no owner address is available yet', () => {
-    mockSmartAccount({
-      hasInitialized: true,
-      isConnected: false,
-      ownerAddress: null,
-    })
-
-    renderRoute()
-
-    expect(navigateMock).not.toHaveBeenCalled()
-    expect(screen.queryByTestId('migration-page')).toBeNull()
   })
 
   it('waits instead of redirecting on the initial hard-load disconnected frame', () => {

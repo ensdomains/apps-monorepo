@@ -1,6 +1,5 @@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { cn } from '@/lib/utils'
+import { RegistryPanel } from './RegistryPanel'
 import { SubregistryConfigurator } from './SubregistryConfigurator'
 
 type ReconfigureRegistryFormProps = {
@@ -12,15 +11,8 @@ export const ReconfigureRegistryForm = ({
   name,
   onClose,
 }: ReconfigureRegistryFormProps) => {
-  const isMobile = useIsMobile()
-
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-4 max-w-xl',
-        isMobile ? 'pl-0 pt-3' : 'pl-14',
-      )}
-    >
+    <RegistryPanel>
       <Alert className="p-5 gap-2" variant="warning">
         <AlertTitle>Configure new registry</AlertTitle>
         <AlertDescription className="text-foreground">
@@ -32,7 +24,10 @@ export const ReconfigureRegistryForm = ({
         name={name}
         onCancel={onClose}
         onComplete={onClose}
+        // Replacing the current registry is what this form is for; the warning
+        // above is the confirmation.
+        assertWritable={null}
       />
-    </div>
+    </RegistryPanel>
   )
 }

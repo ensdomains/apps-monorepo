@@ -20,7 +20,7 @@ import {
 } from '@/features/migration/service/migrationService'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import {
-  FINAL_HOP_MS,
+  FINAL_STAGE_FILL_MS,
   REUNION_HOLD_MS,
   REUNION_SLIDE_MS,
 } from './migrationAnimationTiming'
@@ -87,7 +87,7 @@ export const migrationUiMachine = setup({
   },
   delays: {
     failureHold: FAILURE_HOLD_MS,
-    finalHop: FINAL_HOP_MS,
+    finalFill: FINAL_STAGE_FILL_MS,
     reunionHold: REUNION_SLIDE_MS + REUNION_HOLD_MS,
   },
   actors: {
@@ -338,7 +338,7 @@ export const migrationUiMachine = setup({
         },
         landing: {
           tags: 'running',
-          after: { finalHop: { target: 'reuniting' } },
+          after: { finalFill: { target: 'reuniting' } },
         },
         reuniting: {
           tags: 'running',

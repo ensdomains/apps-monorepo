@@ -7,10 +7,11 @@ import {
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
-import { namehash, normalize } from 'viem/ens'
+import { namehash } from 'viem/ens'
 import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import {
   TIMELINE_EVENT_FRAGMENT,
   type TimelineIndexerEvent,
@@ -68,15 +69,6 @@ export type NameHistoryScope = {
   /** Inclusive unix-second bounds from the Date range chip. */
   readonly from?: number
   readonly to?: number
-}
-
-/** Tolerates a name the UGC layer never normalized, as the page's other queries do. */
-const normalizeOrLower = (name: string): string => {
-  try {
-    return normalize(name)
-  } catch {
-    return name.toLowerCase()
-  }
 }
 
 const toEventFilter = ({

@@ -515,8 +515,8 @@ msgid "Confirming the name is now owned by your account"
 msgstr "Confirming the name is now owned by your account"
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Congratulations, you're among the first on ENSv2. This personalized NFT marks the moment."
-msgstr "Congratulations, you're among the first on ENSv2. This personalized NFT marks the moment."
+msgid "Congratulations, you're among the first on <0><1/>.</0> This personalized NFT marks the moment."
+msgstr "Congratulations, you're among the first on <0><1/>.</0> This personalized NFT marks the moment."
 
 #: src/features/navigation/Header/desktop/DisconnectedRightBlock.tsx
 #: src/features/navigation/Header/mobile/MobileConnectButton.tsx
@@ -600,10 +600,18 @@ msgstr "Copy link"
 msgid "Copy Link"
 msgstr "Copy Link"
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Copy message and open Discord"
+msgstr "Copy message and open Discord"
+
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Could not copy the message."
+msgstr "Could not copy the message."
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Couldn't check this name"
@@ -1115,6 +1123,10 @@ msgstr "Language"
 msgid "Later"
 msgstr "Later"
 
+#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
+msgid "Learn More<0> about NFT traits</0>"
+msgstr "Learn More<0> about NFT traits</0>"
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Let this temporary account move your wrapped names."
 msgstr "Let this temporary account move your wrapped names."
@@ -1220,6 +1232,10 @@ msgstr "Mark all as read"
 msgid "Marking..."
 msgstr "Marking..."
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Message copied. Paste it into Discord."
+msgstr "Message copied. Paste it into Discord."
+
 #: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
 msgid "Migration value propositions"
 msgstr "Migration value propositions"
@@ -1324,6 +1340,10 @@ msgstr "NFT actions"
 #: src/features/migration/components/success/useNftAssetDownload.ts
 msgid "NFT artwork downloaded"
 msgstr "NFT artwork downloaded"
+
+#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
+msgid "NFT traits"
+msgstr "NFT traits"
 
 #: src/features/migration/components/SelectNamesStepNameList.tsx
 msgid "No eligible names found for this wallet"
@@ -1434,6 +1454,10 @@ msgstr "One of your names changed owners. Refresh and select it again."
 msgid "One of your names expired."
 msgstr "One of your names expired."
 
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "One of your names now has its own subname registry. Upgrading it would detach that registry and its subnames, so nothing was submitted. Refresh and select your names again."
+msgstr "One of your names now has its own subname registry. Upgrading it would detach that registry and its subnames, so nothing was submitted. Refresh and select your names again."
+
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "One username everywhere"
 msgstr "One username everywhere"
@@ -1442,9 +1466,17 @@ msgstr "One username everywhere"
 msgid "Open navigation"
 msgstr "Open navigation"
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Open NFT in a new tab"
+msgstr "Open NFT in a new tab"
+
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Open the verification link from your email to finish setup."
 msgstr "Open the verification link from your email to finish setup."
+
+#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
+msgid "OpenSea"
+msgstr "OpenSea"
 
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
@@ -2593,6 +2625,10 @@ msgstr "Verifying Email..."
 msgid "Verifying registration on-chain"
 msgstr "Verifying registration on-chain"
 
+#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
+msgid "View NFT traits"
+msgstr "View NFT traits"
+
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "View on OpenSea"
 msgstr "View on OpenSea"
@@ -2870,6 +2906,10 @@ msgstr "Your ENSv2 moment is waiting"
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your expired name is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
 msgstr "Your expired name is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
+
+#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
+msgid "Your journey with ENS has given you these <0>traits</0>"
+msgstr "Your journey with ENS has given you these <0>traits</0>"
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Your migration account doesn't match this wallet. Reconnect the owner wallet."
