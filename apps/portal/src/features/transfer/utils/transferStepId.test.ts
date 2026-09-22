@@ -2,16 +2,16 @@ import {
   createFlowScope,
   transactionManager,
 } from '@ens-apps/transaction-manager'
+import {
+  createCountingWallet,
+  resetTransactionManager,
+  runStepToSuccess,
+} from '@ens-apps/transaction-manager/test-utils/transactionActor'
 import type { Address } from 'viem'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { getActiveTransaction } from '@/features/transaction-manager/utils/getActiveTransaction'
 import { getStatus } from '@/features/transaction-manager/utils/getStatus'
-import {
-  createCountingWallet,
-  resetTransactionManager,
-  runStepToSuccess,
-} from '@/test-utils/transactionActor'
 import type { TransferStepKind } from './buildTransferPlan'
 import { transferStepId } from './transferStepId'
 
@@ -87,10 +87,11 @@ describe('retrying an abandoned transfer', () => {
     expect(statusOf(abandoned[0])).toBe('success')
     expect(wallet.walletRequests()).toBe(1)
 
-    // The retry clears the manager and scopes a fresh attempt, the way the
-    // hook does when the flow is prepared again.
-    transactionManager.clear()
+    // The retry only scopes a fresh attempt — nothing is cleared, because
+    // clearing would also stop unrelated in-flight work. The abandoned
+    // attempt's finished actor is still in the manager.
     const retry = planIds(createFlowScope(SENDER))
+    expect(statusOf(abandoned[0])).toBe('success')
     expect(retry[0]).not.toBe(abandoned[0])
 
     // No step of the retry is reported done, so the modal opens on step 1...

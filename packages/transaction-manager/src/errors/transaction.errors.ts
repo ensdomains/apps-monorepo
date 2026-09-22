@@ -168,6 +168,27 @@ export class TransactionRevertedError
   readonly _tag = 'TransactionRevertedError'
 }
 
+/**
+ * The transaction's actor was stopped before it reached success or error, so
+ * nothing more will ever be learned about it here.
+ *
+ * Waiters have to be told: a stopped actor emits no further snapshots, so a
+ * caller awaiting one would otherwise hang forever — its mutation stuck
+ * pending, its invalidation and history reporting never running — while the
+ * transaction itself may well be on-chain.
+ */
+export class TransactionStoppedError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'TransactionStoppedError'
+  constructor(public readonly txId: string) {
+    super(
+      `Transaction ${txId} stopped before completing. It may still be on-chain.`,
+    )
+  }
+}
+
 export class EthCallFallbackError
   extends TransactionError
   implements ITaggedError

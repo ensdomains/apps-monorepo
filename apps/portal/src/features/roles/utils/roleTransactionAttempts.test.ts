@@ -11,16 +11,16 @@ import {
   createFlowScope,
   transactionManager,
 } from '@ens-apps/transaction-manager'
+import {
+  createCountingWallet,
+  resetTransactionManager,
+  runStepToSuccess,
+  type TestWallet,
+} from '@ens-apps/transaction-manager/test-utils/transactionActor'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
 import { afterEach, describe, expect, it } from 'vitest'
 import { getStatus } from '@/features/transaction-manager/utils/getStatus'
-import {
-  type CountingWallet,
-  createCountingWallet,
-  resetTransactionManager,
-  runStepToSuccess,
-} from '@/test-utils/transactionActor'
 import { buildRoleTransactionDescriptors } from './buildRoleTransactionDescriptors'
 
 const NAME = 'example.eth'
@@ -32,15 +32,15 @@ const PENDING_REMOVE = {
   roles: ['ROLE_SET_RESOLVER'] as readonly Role[],
 }
 
-const revokeDescriptor = (scope?: ReturnType<typeof createFlowScope>) =>
+const revokeDescriptor = (scope: ReturnType<typeof createFlowScope> | null) =>
   buildRoleTransactionDescriptors(null, PENDING_REMOVE, NAME, scope)[0]
 
 const statusOf = (id: string) =>
   getStatus(id, transactionManager.getTransactions())
 
 const runRevocation = async (
-  wallet: CountingWallet,
-  scope?: ReturnType<typeof createFlowScope>,
+  wallet: TestWallet,
+  scope: ReturnType<typeof createFlowScope> | null,
 ) => {
   const descriptor = revokeDescriptor(scope)
   await runStepToSuccess(descriptor.id, wallet)
@@ -61,7 +61,8 @@ describe('repeated role revocations in one session', () => {
     expect(statusOf(first.id)).toBe('success')
 
     // A second revocation builds a fresh scope, so its step is a different
-    // actor even though the manager still holds the first one.
+    // actor even though the manager still holds the first one — nothing is
+    // cleared, because the scope alone has to be enough.
     const second = revokeDescriptor(createFlowScope(SIGNER))
     expect(second.id).not.toBe(first.id)
     expect(statusOf(second.id)).toBeUndefined()
@@ -76,8 +77,8 @@ describe('repeated role revocations in one session', () => {
     // as already done, so no transaction is ever sent.
     const wallet = createCountingWallet(SIGNER)
 
-    const first = await runRevocation(wallet)
-    const second = revokeDescriptor()
+    const first = await runRevocation(wallet, null)
+    const second = revokeDescriptor(null)
 
     expect(second.id).toBe(first.id)
     expect(statusOf(second.id)).toBe('success')

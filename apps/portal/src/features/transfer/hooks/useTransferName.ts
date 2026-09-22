@@ -1,6 +1,4 @@
 import {
-  createFlowScope,
-  type FlowScope,
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
@@ -30,6 +28,7 @@ import {
   type getIsPermissionedResolver,
   getIsPermissionedResolverQueryOptions,
 } from '@/features/resolver/hooks/useIsPermissionedResolver'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import {
   estimateGasForCall,
   isRevertError,
@@ -54,6 +53,7 @@ import {
   type TransferOptions,
 } from '../utils/buildTransferPlan'
 import { buildTransferStepIntent } from '../utils/buildTransferStepIntent'
+import { canStartStep } from '../utils/canStartStep'
 import { transferStepId } from '../utils/transferStepId'
 import {
   type GetV1NameStateError,
@@ -185,13 +185,13 @@ export const useTransferName = ({
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
 
   const [savedParams, setSavedParams] = useState<SavedParams | null>(null)
   // Names the attempt the modal is showing. Rebuilt every time the flow is
   // prepared, so an attempt abandoned partway can't hand its finished step
   // actors to the next one.
-  const [flowScope, setFlowScope] = useState<FlowScope | null>(null)
+  const attempt = useFlowAttempt()
 
   // `startedSteps` makes each step's `onStart` idempotent — both the modal UI and
   // the previous step's auto-fired `onDone` route into it (see
@@ -202,7 +202,7 @@ export const useTransferName = ({
     closeModal()
     clearTransaction()
     setSavedParams(null)
-    setFlowScope(null)
+    attempt.end()
     // The parent's subname table lists this name's owner, so it goes stale too.
     // Only relevant below the TLD — a 2LD's "parent" is `eth`, which has no
     // subname listing of its own in the app.
@@ -383,13 +383,11 @@ export const useTransferName = ({
           ),
       onSuccess: (params) => {
         startedStepsRef.current = new Set()
-        // Start against an empty manager under a fresh scope, the way the
-        // register and renew flows already do it: an abandoned attempt leaves
-        // finished step actors behind, and they must not satisfy this one.
-        clearTransaction()
-        setFlowScope(createFlowScope(account))
         setSavedParams(params)
-        openModal()
+        // A fresh scope is what keeps an abandoned attempt's finished step
+        // actors from satisfying this one; the manager is deliberately not
+        // cleared, since that would also stop unrelated in-flight work.
+        attempt.start(account)
       },
     }),
   )
@@ -405,8 +403,15 @@ export const useTransferName = ({
     // the prior step's auto-advance `onDone`). Errors clear the guard so the
     // step can be retried; the tx error surfaces via the modal's machine state.
     const runners = steps.map((step) => async () => {
-      const id = transferStepId(name, step, flowScope)
-      if (startedStepsRef.current.has(id)) return
+      const id = transferStepId(name, step, attempt.scope)
+      if (
+        !canStartStep({
+          startedSteps: startedStepsRef.current,
+          id,
+          hasActor: Boolean(transactionManager.getTransaction(id)),
+        })
+      )
+        return
       startedStepsRef.current.add(id)
       try {
         const walletClient = await getWalletClient(config, { account })
@@ -429,16 +434,18 @@ export const useTransferName = ({
         await waitForTransaction(txId)
       } catch (err) {
         // Tx reverts surface via the modal's machine state. Non-tx failures
-        // (e.g. the wallet resolving without a connected account) aren't tracked
-        // there, so log them rather than swallow silently. Clearing the guard
-        // allows a retry from the modal.
+        // (e.g. the wallet resolving without a connected account, or the step's
+        // actor being stopped) aren't tracked there, so log them rather than
+        // swallow silently. Clearing the guard allows a retry from the modal.
+        // Deliberately not a `finally`: a step that succeeded must stay
+        // guarded, or a stray `onStart` would send it a second time.
         console.error(`Transfer step "${step}" failed:`, err)
         startedStepsRef.current.delete(id)
       }
     })
 
     return steps.map((step, i) => ({
-      id: transferStepId(name, step, flowScope),
+      id: transferStepId(name, step, attempt.scope),
       title: STEP_LABELS[step],
       transactionName: `${STEP_LABELS[step]} - ${name}`,
       // Same builder as the submit path, so the modal's live gas estimate is

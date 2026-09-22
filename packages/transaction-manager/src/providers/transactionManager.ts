@@ -109,20 +109,34 @@ function generateTransactionId(): string {
 
 /**
  * The wallet a transaction will be signed by, so an actor can be scoped to the
- * account that started it. Every request and intent variant carries a `from`;
- * an explicit `options.account` wins over it.
+ * account that started it. Every request variant requires a `from` and every
+ * intent variant carries one, so this is always derivable from the work
+ * itself.
  */
 export function resolveOwnerAccount(input: {
-  account?: Address
   intent?: TransactionIntent
   request?: TransactionRequest
 }): Address | undefined {
-  const { account, intent, request } = input
+  const { intent, request } = input
   const from =
-    account ??
     request?.from ??
     (intent?.type === 'custom' ? intent.request.from : intent?.from)
   return from ? (from.toLowerCase() as Address) : undefined
+}
+
+/**
+ * Whether an actor has finished: it reached success or error, or it has
+ * already been stopped. Anything else is still in flight — a wallet prompt may
+ * be open, or a receipt still being polled for — and stopping it would strand
+ * everything waiting on it.
+ */
+export function isTransactionSettled(
+  actor: ActorRefFrom<typeof transactionMachine>,
+): boolean {
+  const snapshot = actor.getSnapshot()
+  if (snapshot.status !== 'active') return true
+  const state = getRootState(snapshot.value)
+  return state === 'success' || state === 'error'
 }
 
 /**
@@ -155,6 +169,12 @@ class TransactionManager {
    */
   private transactionAccounts = new Map<string, Address>()
   private connectedAccount: Address | undefined
+  /**
+   * Ids belonging to a wallet that is no longer connected, which were still in
+   * flight when the switch happened. They are dropped once they settle, so
+   * their waiters and history reporting complete first.
+   */
+  private retireOnceSettled = new Set<string>()
   private listeners = new Set<TransactionChangeListener>()
   private telemetryListeners = new Set<RunTelemetrySubscriber>()
   private telemetryEventListeners = new Set<RunTelemetryEventSubscriber>()
@@ -185,10 +205,21 @@ class TransactionManager {
    *
    * Actor identity is scoped to the account that started the transaction: a
    * receipt another wallet produced must never satisfy a step of the flow the
-   * current wallet is running. Switching (or disconnecting) therefore retires
-   * every actor a different account owns — in-flight or terminal — so no step
-   * can read as done across the switch. Actors whose owner could not be
-   * determined are left alone; there is nothing to attribute them to.
+   * current wallet is running. Naming a different account therefore retires
+   * every actor another account owns.
+   *
+   * Two deliberate restrictions:
+   *
+   * - `undefined` means "no wallet is known right now", which is what a lock,
+   *   a reconnect or a disconnect reports. That is not evidence some *other*
+   *   wallet is in charge, so it records the state and retires nothing —
+   *   otherwise a wallet locking mid-flow would throw away the very actors the
+   *   modal is rendering. Tearing everything down on disconnect is
+   *   {@link clearAllAndPersistence}, which an app calls explicitly.
+   * - An in-flight actor is never stopped here. It may have a wallet prompt
+   *   open or a receipt in flight, and the transaction lands on-chain
+   *   regardless; it is marked instead and retired once it settles, so its
+   *   waiters, history entry and telemetry all complete first.
    *
    * Idempotent: re-stating the same account does nothing.
    */
@@ -196,38 +227,54 @@ class TransactionManager {
     const next = account ? (account.toLowerCase() as Address) : undefined
     if (next === this.connectedAccount) return
     this.connectedAccount = next
+    if (!next) return
 
     const foreign = [...this.transactionAccounts.entries()]
       .filter(([, owner]) => owner !== next)
       .map(([id]) => id)
 
-    if (foreign.length === 0) return
-
-    foreign.forEach((id) => {
-      this.retireTransaction(id)
+    const retired = foreign.filter((id) => {
+      if (this.retireTransaction(id)) return true
+      // Still in flight: let it finish, then drop it (see terminal handling
+      // in startTransaction's subscription).
+      this.retireOnceSettled.add(id)
+      return false
     })
-    this.notifyListeners()
+
+    if (retired.length > 0) this.notifyListeners()
   }
 
   /**
-   * Stop an actor and drop every trace of it from the in-memory maps.
+   * Stop a settled actor and drop every trace of it from the in-memory maps.
    *
-   * Terminal actors are otherwise kept after they are archived: the modal
-   * reads a finished step's status, hash and actual gas cost straight off its
-   * snapshot, so dropping one the moment it reaches a terminal state would
-   * make a completed step render as "Not Started" and stall the flow. They are
-   * retired at the flow's boundaries instead — a new attempt taking the same
-   * id, an account switch, or the {@link clear} a flow runs before its first
-   * step.
+   * Refuses to touch an actor that is still in flight, and reports whether it
+   * retired anything. Stopping a live actor would leave everything awaiting it
+   * hanging and lose its history entry, while the transaction still lands
+   * on-chain.
+   *
+   * Settled actors are otherwise kept after they are archived: the modal reads
+   * a finished step's status, hash and actual gas cost straight off its
+   * snapshot, so dropping one the moment it settles would make a completed
+   * step render as "Not Started" and stall the flow. They are retired at the
+   * flow's boundaries instead — a new attempt taking the same id, or an
+   * account switch.
    */
-  private retireTransaction(id: string): void {
+  private retireTransaction(id: string): boolean {
     const actor = this.transactions.get(id)
-    if (!actor) return
+    if (!actor) return false
+    if (!isTransactionSettled(actor)) return false
 
     actor.stop()
+    this.forgetTransaction(id)
+    return true
+  }
+
+  /** Drops an id from every in-memory index. */
+  private forgetTransaction(id: string): void {
     this.transactions.delete(id)
     this.transactionAccounts.delete(id)
     this.completedTelemetry.delete(id)
+    this.retireOnceSettled.delete(id)
   }
 
   /**
@@ -247,19 +294,12 @@ class TransactionManager {
       publicClient?: PublicClient
       chainId?: number
       useSmartAccount?: boolean
-      /**
-       * The wallet this transaction belongs to. Optional — the manager falls
-       * back to the request's/intent's `from`; pass it only when neither
-       * states the signing account.
-       */
-      account?: Address
     },
   ): string {
     const {
       publicClient: optionsPublicClient,
       chainId,
       useSmartAccount,
-      account: optionsAccount,
       ...transactionOptions
     } = options
 
@@ -298,11 +338,19 @@ class TransactionManager {
 
     const txId = transactionOptions.id || generateTransactionId()
 
-    // Ids are reused — by a flow that retries a step, and by any flow that
-    // names its steps with a fixed string. The previous occupant must not
-    // survive under the id: it would keep running, and its terminal snapshot
-    // would report this attempt's step as already done.
-    this.retireTransaction(txId)
+    // Ids are reused — by a flow retrying a step, and by any flow that names
+    // its steps with a fixed string. A settled occupant must not survive under
+    // the id: its snapshot would report this attempt's step as already done.
+    // An occupant that is still in flight is the same work already under way
+    // (a double-clicked start, say), so hand back the running transaction
+    // rather than opening a second wallet prompt and orphaning the first.
+    const existing = this.transactions.get(txId)
+    if (existing && !this.retireTransaction(txId)) {
+      logger.warn(
+        `Transaction ${txId} is already in flight; ignoring duplicate start`,
+      )
+      return txId
+    }
 
     // Create and start the transaction actor
     const actor = createActor(transactionMachine, {
@@ -377,56 +425,85 @@ class TransactionManager {
         return
       }
 
-      // Terminal — run the completion side effects exactly once.
-      if (this.completedTelemetry.has(txId)) return
-      this.completedTelemetry.add(txId)
-
-      const status: TransactionRunStatus =
-        state === 'success'
-          ? 'success'
-          : isCancelledState(snapshot.value)
-            ? 'cancelled'
-            : 'error'
-
-      // Move the record from the active store to the history store.
-      archiveTransaction(persisted).catch((err) =>
-        logger.error(`Failed to archive transaction ${txId}`, err),
-      )
-
-      // Report the terminal transaction (apps wire this to a backend).
-      this.notifyTransactionArchived(
-        buildArchivedTransaction({
-          txId,
-          chainId,
-          status,
-          hash: ctx.hash,
-          error: ctx.error?.message,
-          operation: transactionOptions.operation,
-          name: transactionOptions.name,
-          intent,
-          request: ctx.request ?? request,
-          timestamp: Date.now(),
-        }),
-      )
-
-      const payload = this.runTelemetry.completeRun(txId, status)
-      if (payload) {
-        this.notifyTelemetryListeners(payload)
-      }
+      this.completeTransaction({
+        txId,
+        chainId,
+        state,
+        snapshot,
+        persisted,
+        intent,
+        request: ctx.request ?? request,
+        options: transactionOptions,
+      })
     })
 
     // Add to active transactions, remembering which wallet owns it so an
     // account switch can retire it (see setConnectedAccount).
     this.transactions.set(txId, actor)
-    const owner = resolveOwnerAccount({
-      account: optionsAccount,
-      intent,
-      request,
-    })
+    const owner = resolveOwnerAccount({ intent, request })
     if (owner) this.transactionAccounts.set(txId, owner)
     this.notifyListeners()
 
     return txId
+  }
+
+  /**
+   * The completion side effects for a terminal actor, run exactly once:
+   * move its record to the history store, report it, and close its telemetry
+   * run. Extracted from the subscription so the per-snapshot path stays small.
+   */
+  private completeTransaction(input: {
+    txId: string
+    chainId?: number
+    state: string
+    snapshot: { value: unknown; context: { hash?: Hash; error?: Error } }
+    persisted: PersistedTransaction
+    intent?: TransactionIntent
+    request?: TransactionRequest
+    options: TransactionOptions
+  }): void {
+    const { txId, state, snapshot, persisted } = input
+
+    if (this.completedTelemetry.has(txId)) return
+    this.completedTelemetry.add(txId)
+
+    const status: TransactionRunStatus =
+      state === 'success'
+        ? 'success'
+        : isCancelledState(snapshot.value)
+          ? 'cancelled'
+          : 'error'
+
+    // Move the record from the active store to the history store.
+    archiveTransaction(persisted).catch((err) =>
+      logger.error(`Failed to archive transaction ${txId}`, err),
+    )
+
+    // Report the terminal transaction (apps wire this to a backend).
+    this.notifyTransactionArchived(
+      buildArchivedTransaction({
+        txId,
+        chainId: input.chainId,
+        status,
+        hash: snapshot.context.hash,
+        error: snapshot.context.error?.message,
+        operation: input.options.operation,
+        name: input.options.name,
+        intent: input.intent,
+        request: input.request,
+        timestamp: Date.now(),
+      }),
+    )
+
+    const payload = this.runTelemetry.completeRun(txId, status)
+    if (payload) this.notifyTelemetryListeners(payload)
+
+    // Belongs to a wallet that has since been swapped out. It has now archived
+    // and told its waiters, so it can go (see setConnectedAccount).
+    if (this.retireOnceSettled.has(txId)) {
+      this.retireTransaction(txId)
+      this.notifyListeners()
+    }
   }
 
   /**
@@ -439,9 +516,7 @@ class TransactionManager {
     }
 
     // Remove from active transactions
-    this.transactions.delete(id)
-    this.transactionAccounts.delete(id)
-    this.completedTelemetry.delete(id)
+    this.forgetTransaction(id)
     this.notifyListeners()
 
     // Remove from persistence
@@ -564,11 +639,13 @@ class TransactionManager {
   }
 
   /**
-   * Stop and forget every actor.
+   * Stop and forget every actor, in flight or not — a hard reset.
    *
-   * Every multi-step flow runs this before its first step, so an attempt
-   * always starts against an empty manager and can never match an actor an
-   * earlier attempt (or another flow) left behind.
+   * This is deliberately blunt and reaches outside any one flow, so it is not
+   * the way to keep a new attempt from matching an old actor: scope the
+   * attempt's ids instead ({@link createFlowScope}). Anything awaiting an
+   * actor stopped here is rejected with a `TransactionStoppedError`, and the
+   * transaction itself may still land on-chain.
    */
   clear(): void {
     this.transactions.forEach((actor) => {

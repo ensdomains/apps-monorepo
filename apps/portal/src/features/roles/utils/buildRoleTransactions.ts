@@ -53,7 +53,7 @@ export function buildRoleTransactions(
   name: string,
   handlers: RoleTransactionHandlers,
   registryAddress: Address,
-  flowScope?: FlowScope | null,
+  flowScope: FlowScope | null,
 ): readonly Transaction[] {
   const descriptors = buildRoleTransactionDescriptors(
     pendingSave,

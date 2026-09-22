@@ -1,107 +1,48 @@
 /**
  * Actor-lifetime cover for the manager's in-memory map.
  *
- * A terminal actor is kept after it is archived — the modal reads a finished
+ * A settled actor is kept after it is archived — the modal reads a finished
  * step's status, hash and actual cost straight off its snapshot — so the map
- * has to be pruned at the flow's boundaries instead: when an id is taken over
- * by a new attempt, and when the connected wallet changes.
+ * is pruned at the flow's boundaries instead: when an id is taken over by a
+ * new attempt, and when the connected wallet changes. Neither may ever stop an
+ * actor that is still in flight.
  */
 
-import {
-  type Address,
-  createWalletClient,
-  custom,
-  type EIP1193Provider,
-  type Hash,
-  type PublicClient,
-  type TransactionReceipt,
-} from 'viem'
+import type { Address } from 'viem'
 import { afterEach, describe, expect, it } from 'vitest'
+import { TransactionStoppedError } from '../errors/transaction.errors'
 import { waitForTransaction } from '../helpers/waitForTransaction'
-import type { EOASigner } from '../types/signer.types'
-import type { TransactionIntent } from '../types/transaction.types'
-import { resolveOwnerAccount, transactionManager } from './transactionManager'
+import {
+  createCountingWallet,
+  resetTransactionManager,
+  runStepToSuccess,
+  startStep,
+  testIntent,
+} from '../test-utils/transactionActor'
+import {
+  isTransactionSettled,
+  resolveOwnerAccount,
+  transactionManager,
+} from './transactionManager'
 
-const CHAIN_ID = 11155111
 const ACCOUNT_A = '0x1111111111111111111111111111111111111111' as Address
 const ACCOUNT_B = '0x2222222222222222222222222222222222222222' as Address
-const TARGET = '0x00000000000000000000000000000000000000ff' as Address
-const HASH = `0x${'ab'.repeat(32)}` as Hash
 
-const publicClient = {
-  waitForTransactionReceipt: async () =>
-    ({ status: 'success', transactionHash: HASH }) as TransactionReceipt,
-} as unknown as PublicClient
-
-function createWallet(address: Address) {
-  const methods: string[] = []
-
-  const walletClient = createWalletClient({
-    account: address,
-    transport: custom({
-      request: async ({ method }: { method: string }) => {
-        methods.push(method)
-        if (method === 'eth_sendTransaction') return HASH
-        throw new Error(`Unexpected RPC call in test: ${method}`)
-      },
-    } as unknown as EIP1193Provider),
-  })
-
-  const signer: EOASigner = { type: 'eoa', walletClient }
-
-  return {
-    signer,
-    sends: () => methods.filter((method) => method === 'eth_sendTransaction'),
-  }
-}
-
-const intentFrom = (from: Address): TransactionIntent => ({
-  type: 'custom',
-  request: {
-    type: 'eoa',
-    from,
-    to: TARGET,
-    data: '0x',
-    value: 0n,
-    chainId: CHAIN_ID,
-  },
-})
-
-const run = async (
-  id: string,
-  from: Address,
-  signer: EOASigner,
-): Promise<void> => {
-  const txId = transactionManager.startTransaction(intentFrom(from), signer, {
-    id,
-    publicClient,
-    chainId: CHAIN_ID,
-  })
-  await waitForTransaction(txId)
-}
+/** Lets queued microtasks (actor transitions, awaited transports) drain. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 afterEach(() => {
-  transactionManager.clear()
-  transactionManager.setConnectedAccount(undefined)
+  resetTransactionManager()
 })
 
 describe('resolveOwnerAccount', () => {
-  it('prefers the explicit account', () => {
-    expect(
-      resolveOwnerAccount({
-        account: ACCOUNT_B,
-        intent: intentFrom(ACCOUNT_A),
-      }),
-    ).toBe(ACCOUNT_B.toLowerCase())
-  })
-
-  it('falls back to a custom intent request', () => {
-    expect(resolveOwnerAccount({ intent: intentFrom(ACCOUNT_A) })).toBe(
+  it('reads the account off a custom intent request', () => {
+    expect(resolveOwnerAccount({ intent: testIntent(ACCOUNT_A) })).toBe(
       ACCOUNT_A.toLowerCase(),
     )
   })
 
-  it('falls back to a renewal intent from', () => {
+  it('reads it off a renewal intent', () => {
     expect(
       resolveOwnerAccount({
         intent: {
@@ -114,35 +55,58 @@ describe('resolveOwnerAccount', () => {
     ).toBe(ACCOUNT_A.toLowerCase())
   })
 
-  it('is undefined when nothing states the signing account', () => {
+  it('is undefined when there is no intent or request', () => {
     expect(resolveOwnerAccount({})).toBeUndefined()
   })
 })
 
 describe('reusing a transaction id', () => {
-  it('retires the actor the id already held', async () => {
-    const wallet = createWallet(ACCOUNT_A)
+  it('retires a settled actor so the step can run again', async () => {
+    const wallet = createCountingWallet(ACCOUNT_A)
 
-    await run('tx-step', ACCOUNT_A, wallet.signer)
+    await runStepToSuccess('tx-step', wallet)
     const first = transactionManager.getTransaction('tx-step')
     expect(first?.getSnapshot().value).toBe('success')
 
-    await run('tx-step', ACCOUNT_A, wallet.signer)
+    await runStepToSuccess('tx-step', wallet)
     const second = transactionManager.getTransaction('tx-step')
 
     expect(second).not.toBe(first)
     expect(first?.getSnapshot().status).toBe('stopped')
-    expect(wallet.sends()).toHaveLength(2)
+    expect(wallet.walletRequests()).toBe(2)
     expect(transactionManager.getTransactions().size).toBe(1)
+  })
+
+  it('hands back the running transaction instead of starting a second one', async () => {
+    // A double-clicked step must not open a second wallet prompt, and must
+    // never stop the actor whose prompt is already open.
+    const wallet = createCountingWallet(ACCOUNT_A)
+    const held = wallet.hold()
+
+    const firstId = startStep('tx-step', wallet)
+    const actor = transactionManager.getTransaction('tx-step')
+    await settle()
+
+    const secondId = startStep('tx-step', wallet)
+
+    expect(secondId).toBe(firstId)
+    expect(transactionManager.getTransaction('tx-step')).toBe(actor)
+    expect(actor?.getSnapshot().status).toBe('active')
+    expect(wallet.walletRequests()).toBe(1)
+
+    held.release()
+    await expect(waitForTransaction(firstId)).resolves.toMatchObject({
+      hash: expect.any(String),
+    })
   })
 })
 
 describe('setConnectedAccount', () => {
-  it('retires the actors another account owns', async () => {
-    const wallet = createWallet(ACCOUNT_A)
+  it('retires the settled actors another account owns', async () => {
+    const wallet = createCountingWallet(ACCOUNT_A)
     transactionManager.setConnectedAccount(ACCOUNT_A)
 
-    await run('tx-step', ACCOUNT_A, wallet.signer)
+    await runStepToSuccess('tx-step', wallet)
     expect(transactionManager.getTransaction('tx-step')).toBeDefined()
 
     transactionManager.setConnectedAccount(ACCOUNT_B)
@@ -151,20 +115,52 @@ describe('setConnectedAccount', () => {
     expect(transactionManager.getTransactions().size).toBe(0)
   })
 
-  it('drops them on disconnect too', async () => {
-    const wallet = createWallet(ACCOUNT_A)
+  it('lets an in-flight transaction of the previous account finish first', async () => {
+    // Stopping it would strand its waiter and lose its history entry, while
+    // the transaction still lands on-chain.
+    const wallet = createCountingWallet(ACCOUNT_A)
     transactionManager.setConnectedAccount(ACCOUNT_A)
-    await run('tx-step', ACCOUNT_A, wallet.signer)
 
-    transactionManager.setConnectedAccount(undefined)
+    const held = wallet.hold()
+    const txId = startStep('tx-step', wallet)
+    const waiting = waitForTransaction(txId)
+    await settle()
 
+    transactionManager.setConnectedAccount(ACCOUNT_B)
+
+    expect(transactionManager.getTransaction('tx-step')).toBeDefined()
+    expect(
+      isTransactionSettled(
+        // biome-ignore lint/style/noNonNullAssertion: asserted defined above
+        transactionManager.getTransaction('tx-step')!,
+      ),
+    ).toBe(false)
+
+    held.release()
+    await expect(waiting).resolves.toMatchObject({ hash: expect.any(String) })
+
+    // Settled now, so it is dropped rather than lingering as another
+    // account's finished step.
     expect(transactionManager.getTransaction('tx-step')).toBeUndefined()
   })
 
-  it('keeps the current account’s actors when the same account is re-stated', async () => {
-    const wallet = createWallet(ACCOUNT_A)
+  it('retires nothing when the connected wallet becomes unknown', async () => {
+    // A lock, a reload or a reconnect reports `undefined`. That is not another
+    // wallet taking over, and throwing away the actors the open modal renders
+    // would force the user to re-run steps that already succeeded on-chain.
+    const wallet = createCountingWallet(ACCOUNT_A)
     transactionManager.setConnectedAccount(ACCOUNT_A)
-    await run('tx-step', ACCOUNT_A, wallet.signer)
+    await runStepToSuccess('tx-step', wallet)
+
+    transactionManager.setConnectedAccount(undefined)
+
+    expect(transactionManager.getTransaction('tx-step')).toBeDefined()
+  })
+
+  it('keeps the current account’s actors when the same account is re-stated', async () => {
+    const wallet = createCountingWallet(ACCOUNT_A)
+    transactionManager.setConnectedAccount(ACCOUNT_A)
+    await runStepToSuccess('tx-step', wallet)
 
     transactionManager.setConnectedAccount(ACCOUNT_A)
 
@@ -172,9 +168,9 @@ describe('setConnectedAccount', () => {
   })
 
   it('notifies subscribers when it prunes', async () => {
-    const wallet = createWallet(ACCOUNT_A)
+    const wallet = createCountingWallet(ACCOUNT_A)
     transactionManager.setConnectedAccount(ACCOUNT_A)
-    await run('tx-step', ACCOUNT_A, wallet.signer)
+    await runStepToSuccess('tx-step', wallet)
 
     const sizes: number[] = []
     const unsubscribe = transactionManager.onTransactionsChange((txs) =>
@@ -185,5 +181,22 @@ describe('setConnectedAccount', () => {
     unsubscribe()
 
     expect(sizes).toEqual([0])
+  })
+})
+
+describe('clear', () => {
+  it('rejects anything waiting on an actor it stops', async () => {
+    // `clear()` is a hard reset that reaches outside any one flow, so a waiter
+    // must be told rather than left hanging for the rest of the session.
+    const wallet = createCountingWallet(ACCOUNT_A)
+    const held = wallet.hold()
+    const txId = startStep('tx-step', wallet)
+    const waiting = waitForTransaction(txId)
+    await settle()
+
+    transactionManager.clear()
+
+    await expect(waiting).rejects.toBeInstanceOf(TransactionStoppedError)
+    held.release()
   })
 })

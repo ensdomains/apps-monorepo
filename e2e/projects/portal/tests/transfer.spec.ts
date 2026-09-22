@@ -27,11 +27,12 @@ async function driveTransactionsToSuccess(
 
   const succeeded = new Set<string>()
   // Multi-step flows append an attempt scope to each step's id (see
-  // `scopeTransactionId`), so the logged id starts with the id named here
-  // rather than equalling it.
+  // `scopeTransactionId`), so the logged id is the id named here plus an
+  // optional `--<account>-<nonce>` suffix. Anchored on that exact shape so a
+  // step id that merely prefixes another still cannot mark it succeeded.
   const succeededLine = (id: string) =>
     new RegExp(
-      `Transaction ${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\S* state: success`,
+      `Transaction ${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(--\\S+)? state: success`,
     )
   const onConsole = (msg: { text(): string }) => {
     const text = msg.text()

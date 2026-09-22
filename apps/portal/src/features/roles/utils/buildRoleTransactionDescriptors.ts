@@ -46,17 +46,18 @@ export type RoleTransactionDescriptor = {
  * For pending remove:
  * - Adds single revoke descriptor
  *
- * `flowScope` names the attempt these descriptors belong to. Without one the
- * ids are fixed strings, so a second grant/revoke in the same session matches
- * the actor the first one left behind: the modal renders it as already done
- * and the wallet is never asked. Callers pass a scope built when they clear
- * the manager and open the modal.
+ * `flowScope` names the attempt these descriptors belong to, and is required
+ * rather than optional: left unscoped the ids are fixed strings, so a second
+ * grant/revoke in the same session matches the actor the first one left
+ * behind — the modal renders it as already done and the wallet is never
+ * asked. `null` is only for a flow that has not started an attempt yet and so
+ * has nothing to run.
  */
 export function buildRoleTransactionDescriptors(
   pendingSave: PendingSave | null,
   pendingRemove: PendingRemove | null,
   name: string,
-  flowScope?: FlowScope | null,
+  flowScope: FlowScope | null,
 ): readonly RoleTransactionDescriptor[] {
   const grantId = scopeTransactionId(GRANT_ROLES_TX_ID, flowScope)
   const revokeId = scopeTransactionId(REVOKE_ROLES_TX_ID, flowScope)

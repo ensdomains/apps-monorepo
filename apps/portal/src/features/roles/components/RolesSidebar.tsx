@@ -1,4 +1,3 @@
-import { createFlowScope, type FlowScope } from '@ens-apps/transaction-manager'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
@@ -37,6 +36,7 @@ import type {
 } from '@/features/roles/utils/buildRoleTransactionDescriptors'
 import { buildRoleTransactions } from '@/features/roles/utils/buildRoleTransactions'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
@@ -74,13 +74,12 @@ export const RolesSidebar = <
 
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null)
   const [pendingRemove, setPendingRemove] = useState<PendingRemove | null>(null)
-  // Names the attempt currently in the modal. Rebuilt on every save/remove so
-  // a second change in the same session can't be served by the first one's
-  // finished actor (which would render as Done and skip the wallet entirely).
-  const [flowScope, setFlowScope] = useState<FlowScope | null>(null)
 
   const { data: walletClient } = useWalletClient()
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
+  // Names the attempt currently in the modal, so a second change in the same
+  // session can't be served by the first one's finished actor.
+  const attempt = useFlowAttempt()
 
   const { grantRoles } = useGrantRoles()
   const { revokeRoles } = useRevokeRoles()
@@ -110,16 +109,8 @@ export const RolesSidebar = <
     clearTransaction()
     setPendingSave(null)
     setPendingRemove(null)
-    setFlowScope(null)
+    attempt.end()
     setOpen(false)
-  }
-
-  // Every attempt starts against an empty manager and under a fresh scope,
-  // the way the register and renew flows already do it.
-  const startFlow = (signer: Address) => {
-    clearTransaction()
-    setFlowScope(createFlowScope(signer))
-    openModal()
   }
 
   const handleSaveChanges = () => {
@@ -133,7 +124,7 @@ export const RolesSidebar = <
       rolesToRevoke: rolesToRevoke as Role[],
     })
     setPendingRemove(null)
-    startFlow(signer)
+    attempt.start(signer)
   }
 
   const handleRemoveUser = () => {
@@ -147,7 +138,7 @@ export const RolesSidebar = <
       roles: originalRoles,
     })
     setPendingSave(null)
-    startFlow(signer)
+    attempt.start(signer)
   }
 
   const handlePermissionChange = (
@@ -185,7 +176,7 @@ export const RolesSidebar = <
           handleDone,
         },
         registryAddress,
-        flowScope,
+        attempt.scope,
       )
     : []
 
