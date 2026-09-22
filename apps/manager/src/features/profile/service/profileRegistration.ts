@@ -53,19 +53,14 @@ const ENS_REGISTRY = getChainContractAddress({
 const blockNumberToBigInt = (blockNumber: number | bigint) =>
   typeof blockNumber === 'bigint' ? blockNumber : BigInt(blockNumber)
 
-// Not `graphqlRequest`: an unindexed name is a valid answer here, so this
-// returns null instead of throwing and lets the on-chain read settle it.
+// Every failure, an unindexed name and an indexer outage alike, answers null so
+// the on-chain read below settles it rather than the query ending without a date.
 const getIndexedRegistrationDate = (name: string) =>
-  fromPromise(
-    indexerClient
-      .query<DomainQuery>(DomainDocument, { id: namehash(name) })
-      .toPromise()
-      .then((result) => {
-        if (result.error) throw result.error
-        return result.data?.domain?.registrationDate ?? null
-      }),
-    (e) => new GetProfileRegistrationError({ cause: e }),
-  )
+  indexerClient
+    .query<DomainQuery>(DomainDocument, { id: namehash(name) })
+    .toPromise()
+    .then((result) => result.data?.domain?.registrationDate ?? null)
+    .catch(() => null)
 
 export const getRegistration = ResultFn(async function* (
   name: string,
@@ -112,7 +107,7 @@ export const getRegistration = ResultFn(async function* (
     })
   }
 
-  const indexedDate = yield* getIndexedRegistrationDate(ethName.name)
+  const indexedDate = await getIndexedRegistrationDate(ethName.name)
 
   if (indexedDate !== null) {
     return ok({ registrationDate: indexedDate })

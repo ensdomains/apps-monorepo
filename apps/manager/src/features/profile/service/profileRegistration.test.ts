@@ -82,6 +82,15 @@ describe('getRegistration', () => {
     expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
   })
 
+  it('falls back on chain when the indexer request fails', async () => {
+    mocks.indexerQuery.mockRejectedValue(new Error('indexer down'))
+    mocks.getRegistrationDate.mockResolvedValue(1_800_000_000n)
+
+    const result = await getRegistration('figma.eth', 'v2')
+
+    expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
+  })
+
   it('reads a V1 registration date from the registration event block', async () => {
     mocks.getNameHistory.mockResolvedValue({
       registrationEvents: [
