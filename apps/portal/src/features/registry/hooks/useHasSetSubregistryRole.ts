@@ -2,9 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
+import { resourceIdForName } from '@/lib/resource/resourceId'
 import { getHasRolesQueryOptions } from './useHasRoles'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
-import { useNameResourceId } from './useNameResourceId'
+import { getNameResourceIdQueryOptions } from './useNameResourceId'
 
 export type UseHasSetSubregistryRoleResult = {
   hasRole: boolean | undefined
@@ -32,13 +33,21 @@ export const useHasSetSubregistryRole = (
   const parentRegistry = registries?.at(1) ?? null
 
   // The name's id rather than its label: a label rendered `[<64 hex>]` does
-  // not say which name it is, so the id is resolved once and the gate asks
-  // about that (WEB-1458).
-  const { resourceId, isLoading: isResourceIdLoading } = useNameResourceId({
-    name,
-    registryAddress: parentRegistry ?? undefined,
-    enabled,
+  // not say which name it is, so the gate asks about the id (WEB-1458). An
+  // ordinary first label is hashed here; only the ambiguous form costs a read.
+  const idFromName = resourceIdForName(name).unwrapOr(null)
+  const {
+    data: readId,
+    isLoading: isReadingId,
+    error: readIdError,
+  } = useQuery({
+    ...getNameResourceIdQueryOptions({
+      name,
+      registryAddress: parentRegistry ?? undefined,
+    }),
+    enabled: enabled && idFromName === null && Boolean(parentRegistry),
   })
+  const resourceId = idFromName ?? readId ?? null
 
   const {
     data: hasRole,
@@ -59,12 +68,13 @@ export const useHasSetSubregistryRole = (
       !!resourceId,
   })
 
-  const error = registriesError ?? roleError
+  // The id read gets its own place in the error channel: a failed read must
+  // not reach callers as "no permission".
+  const error = registriesError ?? readIdError ?? roleError
 
   return {
     hasRole: error ? undefined : (hasRole ?? false),
-    isLoading:
-      enabled && (isRegistriesLoading || isResourceIdLoading || isRoleLoading),
+    isLoading: enabled && (isRegistriesLoading || isReadingId || isRoleLoading),
     error,
     parentRegistry,
     connectedAddress,

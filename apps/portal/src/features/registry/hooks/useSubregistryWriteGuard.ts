@@ -5,7 +5,10 @@ import { type Address, zeroAddress } from 'viem'
 import { readSubregistry } from '@/features/registry/helpers/readSubregistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { resourceIdForName } from '@/lib/resource/resourceId'
+import {
+  labelAddressesResourceId,
+  type ResourceId,
+} from '@/lib/resource/resourceId'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 const CONFLICT_TOAST_DURATION_MS = 10_000
@@ -46,6 +49,12 @@ export type UseSubregistryWriteGuardParameters = {
   readonly name: string
   /** The registry holding the name's entry, or `null` until discovery lands. */
   readonly parentRegistry: Address | null
+  /**
+   * The id the write will be addressed with, resolved by the caller. The guard
+   * proves the slot that id names is empty, so guard and write cannot end up
+   * talking about different names.
+   */
+  readonly resourceId: ResourceId | null
 }
 
 export type UseSubregistryWriteGuardResult = {
@@ -70,6 +79,7 @@ export type UseSubregistryWriteGuardResult = {
 export const useSubregistryWriteGuard = ({
   name,
   parentRegistry,
+  resourceId,
 }: UseSubregistryWriteGuardParameters): UseSubregistryWriteGuardResult => {
   const [writeBlock, setWriteBlock] = useState<SubregistryWriteBlock>(null)
 
@@ -81,16 +91,19 @@ export const useSubregistryWriteGuard = ({
     setWriteBlock(null)
     if (!parentRegistry) return false
 
-    // `getSubregistry` takes the label and hashes it on chain, so the slot this
-    // reads is only the slot the write fills when the same characters hash to
-    // the same id. That holds for the label exactly as written — but not for a
-    // label rendered `[<64 hex>]`, whose id the write takes from the indexer
-    // instead. Unable to name the slot is a refusal, not a pass.
+    // `getSubregistry` is the only read of this slot and it takes the *label*,
+    // which the registry hashes (`LibLabel.id` is `keccak256(bytes(label))`).
+    // So it can only ever address the literal reading of a label. For an
+    // ordinary name that is the same id the write uses; for a label rendered
+    // `[<64 hex>]` whose id turned out to be the digits themselves, no string
+    // reaches that entry at all. Reading a slot that is not the one being
+    // written would prove nothing, so that case is refused rather than guessed
+    // (WEB-1249 + WEB-1458).
     const label = name.split('.')[0] ?? ''
-    if (resourceIdForName(name).isErr()) {
+    if (!resourceId || !labelAddressesResourceId(label, resourceId)) {
       setWriteBlock({
         kind: 'unverified',
-        message: `The registry slot for ${name} could not be read, so nothing was submitted.`,
+        message: `The registry slot ${name} occupies cannot be read, so nothing was submitted.`,
       })
       return false
     }

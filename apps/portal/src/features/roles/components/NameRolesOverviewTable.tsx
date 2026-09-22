@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Button } from '@/components/ui/button'
+import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet'
 import { RolesTable } from '@/features/roles/components/RolesTable'
@@ -16,6 +17,7 @@ import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useName
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { rootNameAuthority } from '@/features/roles/utils/rootNameAuthority'
+import { resourceIdForName } from '@/lib/resource/resourceId'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { isAdminRole } from '@/lib/roles/permissions'
 
@@ -30,13 +32,44 @@ const V2NameRoles = ({
 }) => {
   const { labels } = getNameLabels(name)
 
+  // Rows are read against the same resource the sidebar's grants and revokes
+  // address, so the table and the writes cannot be about different names.
+  const idFromName = resourceIdForName(name).unwrapOr(null)
+  const {
+    data: readId,
+    isLoading: isReadingId,
+    error: readIdError,
+  } = useQuery({
+    ...getNameResourceIdQueryOptions({ name, registryAddress }),
+    enabled: idFromName === null,
+  })
+  const resourceId = idFromName ?? readId ?? null
+
   const nameRolesQuery = useQuery({
     ...getNameRolesAccountsQueryOptions({
-      name,
+      resource: resourceId,
       registryAddress,
     }),
-    enabled: labels.length >= 2,
+    enabled: labels.length >= 2 && Boolean(resourceId),
   })
+
+  if (isReadingId) return <LoadingSpinner title="Identifying this name" />
+
+  if (readIdError)
+    return (
+      <ErrorMessage
+        compact
+        description={`The registry could not be asked which name ${name} is, so its roles were not loaded.`}
+      />
+    )
+
+  if (!resourceId)
+    return (
+      <NoResultsMessage
+        title="This name has no on-chain identity to hold roles"
+        className="mx-0"
+      />
+    )
 
   if (nameRolesQuery.isLoading)
     return <LoadingSpinner title="Loading role accounts" />
@@ -152,15 +185,25 @@ export const NameRolesOverviewTable = ({
   const [addUserOpen, setAddUserOpen] = useState(false)
 
   const { address } = useConnection()
-  const label = name.split('.')[0]
+
+  // Asked about the id the grants and revokes below are addressed with, not
+  // the label: the two disagree for an encoded (`[<64 hex>]`) label, which
+  // would either lock an admin out or show controls for a transaction that
+  // reverts (WEB-1458).
+  const idFromName = resourceIdForName(name).unwrapOr(null)
+  const { data: readId } = useQuery({
+    ...getNameResourceIdQueryOptions({ name, registryAddress }),
+    enabled: idFromName === null,
+  })
+  const resourceId = idFromName ?? readId ?? null
 
   const { data: currentAccountRoles } = useQuery({
     ...getNameRolesForAccountQueryOptions({
       registryAddress,
-      label,
+      resource: resourceId,
       account: address ?? zeroAddress,
     }),
-    enabled: Boolean(address),
+    enabled: Boolean(address) && Boolean(resourceId),
   })
 
   const canManageRoles = Boolean(

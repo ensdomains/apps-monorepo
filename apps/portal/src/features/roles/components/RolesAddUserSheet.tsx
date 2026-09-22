@@ -16,12 +16,13 @@ import {
 } from '@/components/ui/sheet'
 import { AddressNameInput } from '@/features/address/components/AddressNameInput'
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
-import { useNameResourceId } from '@/features/registry/hooks/useNameResourceId'
+import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import { prepareGrantRolesTransaction } from '@/features/roles/helpers/grantRoles'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { resourceIdForName } from '@/lib/resource/resourceId'
 import {
   isAdminRole,
   isManagerRoleSettable,
@@ -52,18 +53,25 @@ export const RolesAddUserSheet = ({
   const is2LD = labels.length === 2
   // Resolved once, then carried into the grant (WEB-1458). Without it there is
   // no resource to scope the grant to, so the form refuses rather than guess.
-  const { resourceId, isLoading: isResourceIdLoading } = useNameResourceId({
-    name,
-    registryAddress,
+  const idFromName = resourceIdForName(name).unwrapOr(null)
+  const { data: readId, isLoading: isReadingId } = useQuery({
+    ...getNameResourceIdQueryOptions({ name, registryAddress }),
+    enabled: idFromName === null,
   })
+  const resourceId = idFromName ?? readId ?? null
+  const isResourceIdLoading = isReadingId
 
+  // Asked about the id the grant will be addressed with, not the label: the
+  // two disagree for an encoded (`[<64 hex>]`) label, which would either hide
+  // the form from an admin or offer it to someone whose authority is on
+  // another name (WEB-1458).
   const { data: callerRolesData } = useQuery({
     ...getNameRolesForAccountQueryOptions({
       registryAddress,
-      label: labels[0],
+      resource: resourceId,
       account: callerAddress ?? zeroAddress,
     }),
-    enabled: Boolean(callerAddress),
+    enabled: Boolean(callerAddress) && Boolean(resourceId),
   })
 
   const callerAdminRoles = new Set<Role>(

@@ -1,5 +1,6 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   type HasRolesParameters as EnsjsHasRolesParameters,
   hasRoles as ensjsHasRoles,
@@ -113,21 +114,19 @@ const getHasRoles = ResultFn(async function* (params: GetHasRolesParameters) {
   return ok(result)
 })
 
-// `resource` is a bigint, which the default key hash cannot serialise, so the
-// key carries its decimal form while the params keep the typed value.
-const hasRolesQueryKey = (params: GetHasRolesParameters) =>
-  [
-    'hasRoles',
-    {
+const hasRolesQueryKey = createQueryKey<'hasRoles', Record<string, unknown>>(
+  'hasRoles',
+)
+
+export const getHasRolesQueryOptions = (params: GetHasRolesParameters) =>
+  resultQueryOptions({
+    // `resource` is a bigint, which the default key hash cannot serialise, so
+    // the key carries its decimal form while the params keep the typed value.
+    queryKey: hasRolesQueryKey({
       ...params,
       ...('resource' in params
         ? { resource: params.resource?.toString() ?? null }
         : {}),
-    },
-  ] as const
-
-export const getHasRolesQueryOptions = (params: GetHasRolesParameters) =>
-  resultQueryOptions({
-    queryKey: hasRolesQueryKey(params),
+    }),
     queryFn: () => getHasRoles(params),
   })

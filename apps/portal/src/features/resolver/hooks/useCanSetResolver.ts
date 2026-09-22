@@ -21,12 +21,12 @@ import { useConnection } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import type { ResolverWriteTarget } from '@/features/resolver/helpers/changeResolver'
 import type { V1TransferSubject } from '@/features/transfer/types'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import { canSetV1Resolver } from '@/features/transfer/v1/rules'
-import { useNameResourceId } from '@/features/registry/hooks/useNameResourceId'
-import type { ResourceId } from '@/lib/resource/resourceId'
+import { type ResourceId, resourceIdForName } from '@/lib/resource/resourceId'
 
 type UseCanSetResolverReturn = {
   readonly canSet: boolean
@@ -107,15 +107,24 @@ export function useCanSetResolver({
     ? (registryQuery.data?.[1] ?? undefined)
     : undefined
 
-  // Asked with the name's id, not its label: a label rendered `[<64 hex>]`
-  // does not say which name it is, so the id is resolved once — from the name
-  // where it can be, from the indexer otherwise — and everything downstream is
-  // addressed with that (WEB-1458).
-  const {
-    resourceId,
-    isLoading: isResourceIdLoading,
-    isUnsupported,
-  } = useNameResourceId({ name, registryAddress, enabled: isV2 })
+  // The name's id rather than its label: a label rendered `[<64 hex>]` does
+  // not say which name it is, so the gate and the write are both addressed
+  // with the id (WEB-1458). An ordinary first label is hashed here; only the
+  // ambiguous form costs a read.
+  const idFromName = resourceIdForName(name).unwrapOr(null)
+  const readIdQuery = useQuery({
+    ...getNameResourceIdQueryOptions({ name, registryAddress }),
+    enabled: isV2 && idFromName === null && !!registryAddress,
+  })
+  const resourceId = idFromName ?? readIdQuery.data ?? null
+  // Only the read can be outstanding, and only once it has a registry to ask.
+  const isResourceIdLoading =
+    idFromName === null && (!registryAddress || readIdQuery.isPending)
+  const isUnsupported =
+    idFromName === null &&
+    !!registryAddress &&
+    !readIdQuery.isPending &&
+    !readIdQuery.data
 
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({

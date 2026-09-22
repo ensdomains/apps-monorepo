@@ -1,9 +1,10 @@
-import { keccak256, labelhash, toHex } from 'viem'
+import { keccak256, labelhash, toBytes, toHex } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   assertCalldataFunction,
   assertCalldataResourceId,
   canonicalResourceId,
+  labelAddressesResourceId,
   ResourceMismatchError,
   ROOT_RESOURCE_ID,
   requireResourceIdForName,
@@ -101,6 +102,42 @@ describe('resourceIdFromChainValue', () => {
   it('only returns root when root is what it was given', () => {
     expect(resourceIdFromChainValue('0')._unsafeUnwrap()).toBe(ROOT_RESOURCE_ID)
     expect(resourceIdFromChainValue('nope').unwrapOr(null)).toBeNull()
+  })
+})
+
+describe('labelAddressesResourceId', () => {
+  // The string-taking registry reads hash what they are given
+  // (`LibLabel.id` is `keccak256(bytes(label))`), so they can only ever
+  // address the literal reading of a label.
+  it('holds for an ordinary label', () => {
+    const id = requireResourceIdForName('vault.eth')
+
+    expect(labelAddressesResourceId('vault', id)).toBe(true)
+    expect(labelAddressesResourceId('other', id)).toBe(false)
+  })
+
+  it('holds for an encoded label registered as those characters', () => {
+    const literal = resourceIdFromChainValue(
+      keccak256(toBytes(ENCODED_LABEL)),
+    )._unsafeUnwrap()
+
+    expect(labelAddressesResourceId(ENCODED_LABEL, literal)).toBe(true)
+  })
+
+  // The other reading has no string preimage, so no string-taking read can
+  // say anything about it.
+  it('fails for an encoded label whose id is the digits themselves', () => {
+    const decoded = resourceIdFromChainValue(VAULT_LABELHASH)._unsafeUnwrap()
+
+    expect(labelAddressesResourceId(ENCODED_LABEL, decoded)).toBe(false)
+  })
+
+  it('ignores version bits, which the entry key does not carry', () => {
+    const id = resourceIdFromChainValue(
+      (BigInt(labelhash('vault')) | 0xffffffffn).toString(),
+    )._unsafeUnwrap()
+
+    expect(labelAddressesResourceId('vault', id)).toBe(true)
   })
 })
 
