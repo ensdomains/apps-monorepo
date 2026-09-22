@@ -7,7 +7,6 @@ declare namespace Cloudflare {
 		VITE_ALCHEMY_NFT_API_KEY: string;
 		VITE_API_URL: string;
 		VITE_TELEGRAM_BOT_ID: string;
-		VITE_FF_LANGUAGE_SELECTOR: string;
 		VITE_PUBLIC_POSTHOG_KEY: string;
 		VITE_PUBLIC_POSTHOG_HOST: string;
 		VITE_FF_USE_EOA: string;
@@ -18,7 +17,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "VITE_RHINESTONE_API_KEY" | "VITE_ALCHEMY_NFT_API_KEY" | "VITE_API_URL" | "VITE_TELEGRAM_BOT_ID" | "VITE_FF_LANGUAGE_SELECTOR" | "VITE_PUBLIC_POSTHOG_KEY" | "VITE_PUBLIC_POSTHOG_HOST" | "VITE_FF_USE_EOA">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "VITE_RHINESTONE_API_KEY" | "VITE_ALCHEMY_NFT_API_KEY" | "VITE_API_URL" | "VITE_TELEGRAM_BOT_ID" | "VITE_PUBLIC_POSTHOG_KEY" | "VITE_PUBLIC_POSTHOG_HOST" | "VITE_FF_USE_EOA">> {}
 }
 
 // Begin runtime types
