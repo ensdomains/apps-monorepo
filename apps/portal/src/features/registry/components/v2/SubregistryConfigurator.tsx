@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { useNameResourceId } from '@/features/profile/hooks/useNameResourceId'
 import {
   generateSubregistrySalt,
   prepareDeploySubregistryTransaction,
@@ -20,6 +19,7 @@ import {
 import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/setSubregistry'
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { useNameResourceId } from '@/features/registry/hooks/useNameResourceId'
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
@@ -392,9 +392,17 @@ const SubregistryConfiguratorForm = ({
 export const SubregistryConfigurator = (
   props: SubregistryConfiguratorProps,
 ) => {
-  const { resourceId, isLoading } = useNameResourceId(props.name)
+  // The same discovery query the form runs, so this costs no extra read.
+  const { data: registries, isLoading: isRegistriesLoading } = useQuery(
+    getNameRegistriesQueryOptions({ name: props.name }),
+  )
+  const { resourceId, isLoading } = useNameResourceId({
+    name: props.name,
+    registryAddress: registries?.at(1) ?? undefined,
+  })
 
-  if (isLoading) return <LoadingSpinner title="Identifying this name" />
+  if (isRegistriesLoading || isLoading)
+    return <LoadingSpinner title="Identifying this name" />
 
   if (!resourceId)
     return (

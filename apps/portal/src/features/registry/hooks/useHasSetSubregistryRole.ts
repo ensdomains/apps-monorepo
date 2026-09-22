@@ -2,9 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
-import { useNameResourceId } from '@/features/profile/hooks/useNameResourceId'
 import { getHasRolesQueryOptions } from './useHasRoles'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
+import { useNameResourceId } from './useNameResourceId'
 
 export type UseHasSetSubregistryRoleResult = {
   hasRole: boolean | undefined
@@ -29,14 +29,16 @@ export const useHasSetSubregistryRole = (
     enabled,
   })
 
+  const parentRegistry = registries?.at(1) ?? null
+
   // The name's id rather than its label: a label rendered `[<64 hex>]` does
   // not say which name it is, so the id is resolved once and the gate asks
   // about that (WEB-1458).
-  const { resourceId, isLoading: isResourceIdLoading } = useNameResourceId(
+  const { resourceId, isLoading: isResourceIdLoading } = useNameResourceId({
     name,
-    { enabled },
-  )
-  const parentRegistry = registries?.at(1) ?? null
+    registryAddress: parentRegistry ?? undefined,
+    enabled,
+  })
 
   const {
     data: hasRole,

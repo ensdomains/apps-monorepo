@@ -25,7 +25,7 @@ import type { ResolverWriteTarget } from '@/features/resolver/helpers/changeReso
 import type { V1TransferSubject } from '@/features/transfer/types'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import { canSetV1Resolver } from '@/features/transfer/v1/rules'
-import { useNameResourceId } from '@/features/profile/hooks/useNameResourceId'
+import { useNameResourceId } from '@/features/registry/hooks/useNameResourceId'
 import type { ResourceId } from '@/lib/resource/resourceId'
 
 type UseCanSetResolverReturn = {
@@ -115,7 +115,7 @@ export function useCanSetResolver({
     resourceId,
     isLoading: isResourceIdLoading,
     isUnsupported,
-  } = useNameResourceId(name, { enabled: isV2 })
+  } = useNameResourceId({ name, registryAddress, enabled: isV2 })
 
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({

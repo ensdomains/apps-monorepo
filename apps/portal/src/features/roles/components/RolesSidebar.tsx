@@ -26,7 +26,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { useNameResourceId } from '@/features/profile/hooks/useNameResourceId'
+import { useNameResourceId } from '@/features/registry/hooks/useNameResourceId'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
@@ -85,7 +85,10 @@ export const RolesSidebar = <
   const { grantRoles } = useGrantRoles()
   const { revokeRoles } = useRevokeRoles()
   // Resolved once, then carried into every call this sidebar builds (WEB-1458).
-  const { resourceId, isLoading: isResourceIdLoading } = useNameResourceId(name)
+  const { resourceId, isLoading: isResourceIdLoading } = useNameResourceId({
+    name,
+    registryAddress,
+  })
 
   const selectedAccount = row?.original.account
   const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
