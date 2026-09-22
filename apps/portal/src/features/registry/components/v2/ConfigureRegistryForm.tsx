@@ -10,9 +10,8 @@ import { Button } from '@/components/ui/button'
 import { useHasSetSubregistryRole } from '@/features/registry/hooks/useHasSetSubregistryRole'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { useSubregistryWriteGuard } from '@/features/registry/hooks/useSubregistryWriteGuard'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { RegistryPanel } from './RegistryPanel'
 import { SubregistryConfigurator } from './SubregistryConfigurator'
 
 type ConfigureRegistryFormProps = {
@@ -20,7 +19,6 @@ type ConfigureRegistryFormProps = {
 }
 
 export const ConfigureRegistryForm = ({ name }: ConfigureRegistryFormProps) => {
-  const isMobile = useIsMobile()
   const { hasRole, isLoading, error, parentRegistry, connectedAddress } =
     useHasSetSubregistryRole(name)
 
@@ -33,11 +31,6 @@ export const ConfigureRegistryForm = ({ name }: ConfigureRegistryFormProps) => {
     useIsFetching({
       queryKey: getNameRegistriesQueryOptions({ name }).queryKey,
     }) > 0
-
-  const wrapperClassName = cn(
-    'flex flex-col gap-4 max-w-xl',
-    isMobile ? 'pl-0 pt-3' : 'pl-14',
-  )
 
   if (isLoading) {
     return <LoadingSpinner title="Checking permissions..." />
@@ -78,7 +71,7 @@ export const ConfigureRegistryForm = ({ name }: ConfigureRegistryFormProps) => {
   // the swap isn't coming: keep the refusal on screen.
   if (writeBlock?.kind === 'conflict') {
     return (
-      <div className={wrapperClassName}>
+      <RegistryPanel>
         <ErrorMessage
           title="Registry already configured"
           description={
@@ -91,12 +84,12 @@ export const ConfigureRegistryForm = ({ name }: ConfigureRegistryFormProps) => {
             </>
           }
         />
-      </div>
+      </RegistryPanel>
     )
   }
 
   return (
-    <div className={wrapperClassName}>
+    <RegistryPanel>
       <Alert className="p-5 gap-2" variant="neutral">
         <AlertTitle>No registry configured</AlertTitle>
         <AlertDescription>
@@ -145,6 +138,6 @@ export const ConfigureRegistryForm = ({ name }: ConfigureRegistryFormProps) => {
           description={`Could not confirm this name has no registry yet, so nothing was submitted: ${writeBlock.message}`}
         />
       )}
-    </div>
+    </RegistryPanel>
   )
 }

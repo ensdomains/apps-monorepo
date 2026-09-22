@@ -6,6 +6,7 @@ import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { AddressNameInput } from '@/features/address/components/AddressNameInput'
@@ -16,6 +17,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import type { TransferControls } from '../hooks/useTransferName'
 import type {
   ParentWarning,
+  RegistryDetachImpact,
   TransferDetachTargets,
   TransferOptionKey,
 } from '../types'
@@ -34,6 +36,8 @@ type SendNameFormProps = {
   readonly detachTargets: TransferDetachTargets
   /** Null when the name has no parent worth warning about (a 2LD). */
   readonly parentWarning: ParentWarning | null
+  /** V2 only: what detaching the registry would break. Null when there's no such step. */
+  readonly registryDetachImpact?: RegistryDetachImpact | null
   readonly transfer: TransferControls
   /** Protocol-specific notices, rendered under the irreversibility warning. */
   readonly notices?: ReactNode
@@ -43,8 +47,11 @@ type OptionConfig = {
   readonly key: TransferOptionKey
   readonly label: string
   readonly description: string
-  /** Shown right below the toggle when it's turned off. */
-  readonly warning: string
+  /**
+   * Shown right below the toggle when it's turned off. Omitted for options
+   * whose off state is the safe one — there is nothing to warn about.
+   */
+  readonly warning?: string
 }
 
 const OPTIONS: readonly OptionConfig[] = [
@@ -68,9 +75,7 @@ const OPTIONS: readonly OptionConfig[] = [
     key: 'detachRegistry',
     label: 'Detach the registry',
     description:
-      'Detaches this name’s registry so its subnames stop resolving. The recipient starts clean.',
-    warning:
-      'You’ll keep control of this name’s subnames after transfer — the name will keep pointing at your registry.',
+      'Points this name away from its registry. Every subname under it — including any owned by other people — stops resolving, and they can’t undo it. Leave this off unless you know the registry is empty or yours.',
   },
 ]
 
@@ -138,10 +143,59 @@ const ParentWarningAlert = ({
   )
 }
 
+/**
+ * Identifies the exact claim the sender is asked to sign off: this registry,
+ * this many names, these owners. Used as the acknowledgement's key rather than
+ * a bare boolean, so a tick can never carry over to a different claim — if the
+ * pointer moves or the counts change under the form, consent is void and the
+ * sender is asked again.
+ */
+const getDetachConsentKey = (impact: RegistryDetachImpact | null) =>
+  impact?.status === 'ready' && impact.countedRegistry !== null
+    ? `${impact.countedRegistry}:${impact.subnameCount}:${impact.hasThirdPartySubnames}`
+    : null
+
+/**
+ * Whether the detach has to be signed off, and whether that sign-off is still
+ * outstanding. `impact` is null when the step isn't in the plan. Split out only
+ * to keep the form under the complexity limit.
+ */
+const getDetachConsentState = (
+  impact: RegistryDetachImpact | null,
+  acknowledgedFor: string | null,
+) =>
+  match(impact)
+    .with(null, () => ({ needsConsent: false, isBlocked: false }))
+    // Ordered ahead of the zero-count arm on purpose: a retained zero is a
+    // number like any other, and "empty" is exactly the cached answer that
+    // would wave the detach through after someone registered a subname.
+    // Mid-revalidation the visible numbers are the previous answer; signing off
+    // on them would approve a count the write may no longer match.
+    .with({ status: 'ready', isRevalidating: true }, () => ({
+      needsConsent: true,
+      isBlocked: true,
+    }))
+    // Nothing to lose, so nothing to sign off.
+    .with({ status: 'ready', subnameCount: 0 }, () => ({
+      needsConsent: false,
+      isBlocked: false,
+    }))
+    // An unsized radius needs consent like a sized one — and can't be given it,
+    // so the transfer stays blocked until the count lands.
+    .with({ status: P.union('pending', 'error') }, () => ({
+      needsConsent: true,
+      isBlocked: true,
+    }))
+    .otherwise((impact) => ({
+      needsConsent: true,
+      isBlocked: getDetachConsentKey(impact) !== acknowledgedFor,
+    }))
+
 export const SendNameForm = ({
   owner,
   detachTargets,
   parentWarning,
+  registryDetachImpact = null,
   transfer,
   notices,
 }: SendNameFormProps) => {
@@ -149,8 +203,14 @@ export const SendNameForm = ({
   const [options, setOptions] = useState<Record<TransferOptionKey, boolean>>({
     setEthAddress: true,
     detachResolver: true,
-    detachRegistry: true,
+    // Off by default: unlike the other two, this step's damage lands on people
+    // who aren't party to the transfer. Nobody's routine transfer should break
+    // a stranger's subname because a toggle shipped on.
+    detachRegistry: false,
   })
+  // What was acknowledged, not merely that something was — see
+  // `getDetachConsentKey`.
+  const [acknowledgedFor, setAcknowledgedFor] = useState<string | null>(null)
 
   const { isOptionVisible, isSettled, hasFailed } = detachTargets
 
@@ -172,15 +232,26 @@ export const SendNameForm = ({
 
   const visibleOptions = OPTIONS.filter((option) => isOptionVisible[option.key])
 
+  const { needsConsent: needsDetachConsent, isBlocked: isDetachBlocked } =
+    getDetachConsentState(
+      effectiveOptions.detachRegistry ? registryDetachImpact : null,
+      acknowledgedFor,
+    )
+
   const canStart =
     hasValidRecipient &&
     !isResolving &&
     !isPreparing &&
     isSettled &&
-    !parentWarning?.isLoading
+    !parentWarning?.isLoading &&
+    !isDetachBlocked
 
-  const toggleOption = (key: TransferOptionKey) =>
+  const toggleOption = (key: TransferOptionKey) => {
+    // Consent is given for one specific plan; turning the step off and on again
+    // must ask again rather than carry a stale tick forward.
+    if (key === 'detachRegistry') setAcknowledgedFor(null)
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
 
   const runTransfer = () => {
     if (!recipient || !canStart) return
@@ -226,6 +297,20 @@ export const SendNameForm = ({
         />
       )}
 
+      {needsDetachConsent && registryDetachImpact && (
+        <RegistryDetachConsent
+          impact={registryDetachImpact}
+          isAcknowledged={
+            getDetachConsentKey(registryDetachImpact) === acknowledgedFor
+          }
+          onAcknowledge={(checked) =>
+            setAcknowledgedFor(
+              checked ? getDetachConsentKey(registryDetachImpact) : null,
+            )
+          }
+        />
+      )}
+
       <Button
         variant="default"
         onClick={runTransfer}
@@ -250,6 +335,85 @@ export const SendNameForm = ({
     </div>
   )
 }
+
+/**
+ * The separate, explicit sign-off for detaching a registry that has something
+ * in it. Deliberately not a toggle description: the toggle says what the step
+ * does, this says who it happens to and how many of them there are, and the
+ * transfer button stays disabled until it is ticked.
+ *
+ * Only rendered when the step is on and there is something to lose — see
+ * `needsDetachConsent`.
+ */
+const RegistryDetachConsent = ({
+  impact,
+  isAcknowledged,
+  onAcknowledge,
+}: {
+  readonly impact: RegistryDetachImpact
+  readonly isAcknowledged: boolean
+  readonly onAcknowledge: (value: boolean) => void
+}) =>
+  match(impact)
+    // A re-check in flight reads the same as a first read: the counts on screen
+    // are provisional either way, so don't state them as fact.
+    .with(
+      { status: 'pending' },
+      { status: 'ready', isRevalidating: true },
+      () => (
+        <Alert variant="warning">
+          <AlertTriangle className="size-4" />
+          <AlertDescription>
+            Checking how many subnames detaching the registry would break…
+          </AlertDescription>
+        </Alert>
+      ),
+    )
+    .with({ status: 'error' }, () => (
+      <Alert variant="destructive">
+        <AlertTriangle className="size-4" />
+        <AlertDescription>
+          We couldn’t check how many subnames detaching the registry would
+          break, so we can’t let it run. Turn the option off to transfer, or
+          refresh and try again.
+        </AlertDescription>
+      </Alert>
+    ))
+    .with({ status: 'ready' }, ({ subnameCount, hasThirdPartySubnames }) => {
+      const countLabel = `${subnameCount} subname${subnameCount === 1 ? '' : 's'}`
+
+      return (
+        <Alert variant="destructive">
+          <AlertTriangle className="size-4" />
+          <AlertDescription className="flex flex-col gap-3">
+            <p>
+              Detaching the registry will stop{' '}
+              <span className="font-medium">{countLabel}</span> under this name
+              from resolving.{' '}
+              {hasThirdPartySubnames
+                ? 'Some of them belong to other people. They aren’t part of this transfer, won’t be told, and can’t repair it — only whoever ends up owning this name can.'
+                : 'The subnames stay in the old registry but nothing points at them any more.'}
+            </p>
+            <label
+              htmlFor="transfer-detach-registry-ack"
+              className="flex items-start gap-2 cursor-pointer"
+            >
+              <Checkbox
+                id="transfer-detach-registry-ack"
+                checked={isAcknowledged}
+                onCheckedChange={(checked) => onAcknowledge(checked === true)}
+                className="mt-0.5 shrink-0"
+              />
+              <span>
+                I understand this breaks {countLabel}
+                {hasThirdPartySubnames ? ', including ones I don’t own' : ''}.
+              </span>
+            </label>
+          </AlertDescription>
+        </Alert>
+      )
+    })
+    .exhaustive()
 
 const TransferDetachOptions = ({
   options,
@@ -295,7 +459,7 @@ const TransferDetachOptions = ({
               />
             </label>
 
-            {!disabled && !options[option.key] && (
+            {!disabled && !options[option.key] && option.warning && (
               <Alert variant="warning">
                 <AlertTriangle className="size-4" />
                 <AlertDescription>{option.warning}</AlertDescription>
