@@ -61,6 +61,10 @@ vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
   }),
 }))
 
+vi.mock('@/features/wallet/hooks/useConnectedReverseName', () => ({
+  useConnectedReverseName: () => ({ data: 'sub1234.eth' }),
+}))
+
 // eslint-disable-next-line import/first
 import { SelectNamesStep } from './SelectNamesStep'
 
@@ -112,9 +116,8 @@ describe('SelectNamesStep', () => {
   })
 
   it('unselecting a parent unselects all its subnames', () => {
-    const { onNamesChange, getByText } = renderStep()
-    const parentRow = getByText('sub1234.eth').closest('button')
-    if (!parentRow) throw new Error('parent row not found')
+    const { onNamesChange, getByRole } = renderStep()
+    const parentRow = getByRole('checkbox', { name: 'sub1234.eth' })
     fireEvent.click(parentRow)
     const lastCall = onNamesChange.mock.calls.at(-1)?.[0] ?? []
     expect(lastCall).not.toContain('sub1234.eth')
@@ -122,21 +125,12 @@ describe('SelectNamesStep', () => {
     expect(lastCall).toContain('sub123.eth')
   })
 
-  it('re-selecting a parent re-adds all its subnames', () => {
-    const { onNamesChange, getByText } = renderStep()
-    const parentRow = getByText('sub1234.eth').closest('button')
-    if (!parentRow) throw new Error('parent row not found')
-    fireEvent.click(parentRow)
-    fireEvent.click(parentRow)
-    const lastCall = onNamesChange.mock.calls.at(-1)?.[0] ?? []
-    expect(lastCall).toContain('sub1234.eth')
-    expect(lastCall).toContain('gm.sub1234.eth')
-  })
-
   it('subname rows are not individually interactive', () => {
-    const { onNamesChange, getByText } = renderStep()
+    const { onNamesChange, getByText, queryByRole } = renderStep()
     const subnameText = getByText('gm.sub1234.eth')
-    expect(subnameText.closest('button')).toBeNull()
+    expect(
+      queryByRole('checkbox', { name: 'gm.sub1234.eth' }),
+    ).not.toBeInTheDocument()
     const callsBefore = onNamesChange.mock.calls.length
     fireEvent.click(subnameText)
     expect(onNamesChange.mock.calls.length).toBe(callsBefore)

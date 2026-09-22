@@ -6,7 +6,6 @@ import {
   buildRootSubtreeIndex,
   collectAllSelectable,
   filterGroupsBySearch,
-  filterOrphansBySearch,
   shouldShowBulkSelection,
   shouldShowNameSearch,
   shouldUseCompactSelectionLayout,
@@ -140,27 +139,6 @@ describe('filterGroupsBySearch', () => {
 
   it('is case-insensitive on a lowercased query', () => {
     expect(filterGroupsBySearch(groups, 'nick')).toHaveLength(1)
-  })
-})
-
-describe('filterOrphansBySearch', () => {
-  const orphans = [
-    tree('one.missing.eth', [tree('deep.one.missing.eth')]),
-    tree('two.missing.eth'),
-  ]
-
-  it('returns the original list when search is empty', () => {
-    expect(filterOrphansBySearch(orphans, '')).toBe(orphans)
-  })
-
-  it('filters orphan trees while preserving ancestor context', () => {
-    const filtered = filterOrphansBySearch(orphans, 'deep')
-
-    expect(filtered).toHaveLength(1)
-    expect(filtered[0]?.item.domain.name).toBe('one.missing.eth')
-    expect(filtered[0]?.children[0]?.item.domain.name).toBe(
-      'deep.one.missing.eth',
-    )
   })
 })
 

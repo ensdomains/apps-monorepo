@@ -28,6 +28,7 @@ export const deliverTelegramNotification = ResultFn(async function* (
   const deliveryJob = await db.query.notificationDeliveries.findFirst({
     where: eq(TABLE.notificationDeliveries.id, job.id),
     columns: {
+      status: true,
       target: true,
     },
     with: {
@@ -44,6 +45,19 @@ export const deliverTelegramNotification = ResultFn(async function* (
       message: `Delivery job not found: ${job.id}`,
     })
   }
+
+  if (
+    deliveryJob.status === 'delivered' ||
+    deliveryJob.status === 'permanently_failed'
+  ) {
+    logger.debug('Skipping terminal Telegram delivery', {
+      jobId: job.id,
+      kind: job.kind,
+      status: deliveryJob.status,
+    })
+    return ok(undefined)
+  }
+
   // Get the template function
   const template = telegramTemplates[job.kind] as TelegramTemplate<
     typeof job.kind

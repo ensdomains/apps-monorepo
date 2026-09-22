@@ -520,7 +520,7 @@ msgid "Confirming the name is now owned by your account"
 msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Congratulations, you're among the first on ENSv2. This personalized NFT marks the moment."
+msgid "Congratulations, you're among the first on <0><1/>.</0> This personalized NFT marks the moment."
 msgstr ""
 
 #: src/features/navigation/Header/desktop/DisconnectedRightBlock.tsx
@@ -605,9 +605,17 @@ msgstr ""
 msgid "Copy Link"
 msgstr ""
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Copy message and open Discord"
+msgstr ""
+
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
+msgstr ""
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Could not copy the message."
 msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
@@ -1120,6 +1128,10 @@ msgstr "Språk"
 msgid "Later"
 msgstr ""
 
+#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
+msgid "Learn More<0> about NFT traits</0>"
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Let this temporary account move your wrapped names."
 msgstr ""
@@ -1225,6 +1237,10 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Message copied. Paste it into Discord."
+msgstr ""
+
 #: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
 msgid "Migration value propositions"
 msgstr ""
@@ -1328,6 +1344,10 @@ msgstr ""
 
 #: src/features/migration/components/success/useNftAssetDownload.ts
 msgid "NFT artwork downloaded"
+msgstr ""
+
+#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
+msgid "NFT traits"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepNameList.tsx
@@ -1451,8 +1471,16 @@ msgstr ""
 msgid "Open navigation"
 msgstr ""
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Open NFT in a new tab"
+msgstr ""
+
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Open the verification link from your email to finish setup."
+msgstr ""
+
+#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
+msgid "OpenSea"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
@@ -2607,6 +2635,10 @@ msgstr ""
 msgid "Verifying registration on-chain"
 msgstr ""
 
+#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
+msgid "View NFT traits"
+msgstr ""
+
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "View on OpenSea"
 msgstr ""
@@ -2883,6 +2915,10 @@ msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your expired name is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
+msgstr ""
+
+#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
+msgid "Your journey with ENS has given you these <0>traits</0>"
 msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts

@@ -128,4 +128,61 @@ describe('getRoleHistory', () => {
       `0x${RESOURCE.toString(16).padStart(64, '0')}`,
     )
   })
+
+  describe('scoping to the governing registry (#92825)', () => {
+    const UNRELATED: Address = '0x2222222222222222222222222222222222222222'
+    const FORGED: Address = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+
+    // Anyone can deploy a registry and emit `EACRolesChanged` with another
+    // name's resource. The node filters by emitter and topic the way a real
+    // RPC does, so the forged log surfaces only if the read stops pinning the
+    // registry.
+    const onChain = [
+      { ...log({ block: 10n }), address: REGISTRY },
+      {
+        ...log({ block: 20n }),
+        address: UNRELATED,
+        args: { ...log({ block: 20n }).args, account: FORGED },
+      },
+    ]
+
+    beforeEach(() => {
+      mockGetLogs.mockImplementation(
+        async ({
+          address,
+          args,
+        }: {
+          address?: Address
+          args: { resource: bigint }
+        }) =>
+          onChain.filter(
+            (entry) =>
+              (!address ||
+                entry.address.toLowerCase() === address.toLowerCase()) &&
+              entry.args.resource === args.resource,
+          ),
+      )
+      mockGetBlockTimestamps.mockReturnValue(
+        okAsync(
+          new Map([
+            [10n, 120n],
+            [20n, 240n],
+          ]),
+        ),
+      )
+    })
+
+    it("drops an unrelated registry's event carrying the name's resource", async () => {
+      const entries = (await run())._unsafeUnwrap()
+
+      expect(entries.map((entry) => entry.account)).not.toContain(FORGED)
+    })
+
+    it('shows only events emitted by the governing registry', async () => {
+      const entries = (await run())._unsafeUnwrap()
+
+      expect(entries.map((entry) => entry.blockNumber)).toEqual([10n])
+      expect(entries.map((entry) => entry.account)).toEqual([ACCOUNT])
+    })
+  })
 })

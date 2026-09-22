@@ -18,6 +18,7 @@ import {
   type CommemorativeNftArtworkStatus,
   CommemorativeNftCard,
 } from './success/CommemorativeNftCard'
+import { EnsV2InlineLogo } from './success/EnsV2InlineLogo'
 import type { MigrationSuccessDialogState } from './success/MigrationSuccessDialog.types'
 
 type MigrationSuccessDialogProps = {
@@ -62,8 +63,11 @@ const DialogHeading = ({
         </Trans>
       ) : (
         <Trans>
-          Congratulations, you&apos;re among the first on ENSv2. This
-          personalized NFT marks the moment.
+          Congratulations, you&apos;re among the first on{' '}
+          <span className="whitespace-nowrap">
+            <EnsV2InlineLogo />.
+          </span>{' '}
+          This personalized NFT marks the moment.
         </Trans>
       )}
     </DialogDescription>
