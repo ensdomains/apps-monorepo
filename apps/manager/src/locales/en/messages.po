@@ -741,6 +741,7 @@ msgstr "Each batch of your names is upgraded in a single transaction. If any par
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/view/ProfileEditAction.tsx
+#: src/features/profile/components/view/ProfileUpgradePopover.tsx
 msgid "Edit Profile"
 msgstr "Edit Profile"
 
@@ -2527,6 +2528,14 @@ msgstr "Upgrade details: {0}"
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Upgrade didn't finish"
 msgstr "Upgrade didn't finish"
+
+#: src/features/profile/components/view/ProfileUpgradePopover.tsx
+msgid "Upgrade Name"
+msgstr "Upgrade Name"
+
+#: src/features/profile/components/view/ProfileUpgradePopover.tsx
+msgid "Upgrade name to edit profile"
+msgstr "Upgrade name to edit profile"
 
 #: src/features/migration/components/UpgradeNamesButton.tsx
 msgid "Upgrade Names"

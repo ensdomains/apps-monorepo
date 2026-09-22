@@ -746,6 +746,7 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/view/ProfileEditAction.tsx
+#: src/features/profile/components/view/ProfileUpgradePopover.tsx
 msgid "Edit Profile"
 msgstr ""
 
@@ -2531,6 +2532,14 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Upgrade didn't finish"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileUpgradePopover.tsx
+msgid "Upgrade Name"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileUpgradePopover.tsx
+msgid "Upgrade name to edit profile"
 msgstr ""
 
 #: src/features/migration/components/UpgradeNamesButton.tsx

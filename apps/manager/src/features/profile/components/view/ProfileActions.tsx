@@ -1,6 +1,5 @@
 import { useLingui } from '@lingui/react/macro'
 import type { Address } from 'viem'
-import { normalizeEthName } from '@/features/profile/service/profileName'
 import type { ProfileRecords } from '@/features/profile/types'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import {
@@ -68,9 +67,6 @@ export const ProfileActions = ({
   url,
 }: ProfileActionsProps) => {
   const { t } = useLingui()
-  // Imported DNS names are served by the v1 registry too, but stay editable.
-  const isUnmigratedEthName =
-    renewalProtocol === 'v1' && normalizeEthName(name) !== null
 
   return (
     <>
@@ -104,7 +100,7 @@ export const ProfileActions = ({
         />
       </div>
 
-      {isOwner && !isInGrace && !isUnmigratedEthName ? (
+      {isOwner && !isInGrace ? (
         <nav aria-label={t`Profile actions`} className={editBottomNavClassName}>
           <div className={editBottomNavContentClassName}>
             <ProfileEditAction
