@@ -23,7 +23,8 @@ export const DnsOutOfSyncBanner = ({
       <p className="text-sm">
         The domain {name} currently designates a different Ethereum address than
         the one controlling this name. Verify carefully before sending funds or
-        trusting this identity.
+        trusting this identity. The DNS owner can take the manager role back at
+        any time.
       </p>
     </div>
     <Button

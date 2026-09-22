@@ -79,6 +79,16 @@ export const useDnsSyncStatus = ({
   return {
     status,
     dnsOwner,
+    /**
+     * Whether the name is an onchain-imported DNS 2LD at all — true even when
+     * the `_ens` record is unreadable, which `status` deliberately flattens
+     * into `not-applicable`. Callers that describe the *roles* (the owner row
+     * naming the DNS Owner and the Manager separately) need the distinction
+     * between "not a DNS name" and "a DNS name whose record we can't read".
+     */
+    isDnsManaged: isApplicable,
+    /** The first `_ens` read, so a row can wait instead of flashing "unknown". */
+    isLoading: isApplicable && dnsOwnerQuery.isLoading,
     refresh,
     isRefreshing: dnsOwnerQuery.isRefetching || isManagerRefetching,
   }

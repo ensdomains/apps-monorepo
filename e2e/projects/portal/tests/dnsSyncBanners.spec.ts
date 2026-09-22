@@ -154,6 +154,13 @@ test.describe('DNS manager sync banners', () => {
       timeout: 30_000,
     })
     await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
+
+    // The two roles are distinct and the page says so: the `_ens` address owns
+    // the name, the registry entry only manages it, and nothing on the page
+    // calls that manager the owner (WEB-125).
+    await expect(page.getByRole('button', { name: /DNS owner/ })).toBeVisible()
+    await expect(page.getByText('Manager', { exact: true })).toBeVisible()
+    await expect(page.getByText('Owner', { exact: true })).toBeHidden()
   })
 
   test('shows no sync banner when the record matches the manager', async ({

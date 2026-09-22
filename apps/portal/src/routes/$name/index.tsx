@@ -16,6 +16,7 @@ import { useDnsSyncStatus } from '@/features/dns-import/hooks/useDnsSyncStatus'
 import { RecentHistoryTimeline } from '@/features/history/components/RecentHistoryTimeline'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
+import { DnsManagerRow } from '@/features/ownership/components/DnsManagerRow'
 import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
@@ -421,6 +422,11 @@ const Profile = ({
             owner={ownerQuery.data.owner}
             protocolVersion={resolvedProtocolVersion}
             label={grace.isInGrace ? 'Previous owner' : 'Owner'}
+          />
+          <DnsManagerRow
+            name={name}
+            manager={ownerQuery.data.owner}
+            protocolVersion={resolvedProtocolVersion}
           />
           <ParentName name={name} asRow />
           {resolverAddress && (
