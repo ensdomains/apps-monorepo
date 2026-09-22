@@ -201,19 +201,22 @@ class TransactionManager {
       ? undefined
       : (intentOrRequest as TransactionRequest)
 
+    // The chain this transaction runs on. Callers routinely omit `chainId`
+    // from options even though the request they built carries one, so fall
+    // back to it — telemetry already does the same (run-telemetry:449), and
+    // an archived record without a chainId is dropped by history reporting.
+    const resolvedChainId =
+      chainId ||
+      request?.chainId ||
+      // biome-ignore lint/suspicious/noExplicitAny: runtime duck-typing to extract chainId from intent variants
+      (intent as any)?.chainId
+
     // Determine which publicClient to use (priority: options > stored > error)
     let publicClient = optionsPublicClient
 
-    if (!publicClient) {
+    if (!publicClient && resolvedChainId) {
       // Try to get from stored clients using chainId
-      const resolvedChainId =
-        chainId ||
-        request?.chainId ||
-        // biome-ignore lint/suspicious/noExplicitAny: runtime duck-typing to extract chainId from intent variants
-        (intent as any)?.chainId
-      if (resolvedChainId) {
-        publicClient = this.publicClients.get(resolvedChainId)
-      }
+      publicClient = this.publicClients.get(resolvedChainId)
     }
 
     if (!publicClient) {
@@ -223,6 +226,14 @@ class TransactionManager {
     }
 
     const txId = transactionOptions.id || generateTransactionId()
+
+    // This id is starting a fresh run. Registration and renewal ids are
+    // deterministic constants (`REGISTRATION_TX_IDS.register`,
+    // `RENEWAL_TX_IDS.renew(name)`), and RETRY re-invokes `startTransaction`
+    // with the same one — so a run that already completed must not keep the
+    // id marked as done, or the retry's terminal side effects (archive,
+    // history, telemetry) are all skipped.
+    this.completedTelemetry.delete(txId)
 
     // Create and start the transaction actor
     const actor = createActor(transactionMachine, {
@@ -239,7 +250,7 @@ class TransactionManager {
 
     this.runTelemetry.startRun({
       txId,
-      chainId,
+      chainId: resolvedChainId,
       intent,
       request:
         request || (intent?.type === 'custom' ? intent.request : undefined),
@@ -317,7 +328,7 @@ class TransactionManager {
       this.notifyTransactionArchived(
         buildArchivedTransaction({
           txId,
-          chainId,
+          chainId: resolvedChainId,
           status,
           hash: ctx.hash,
           error: ctx.error?.message,
