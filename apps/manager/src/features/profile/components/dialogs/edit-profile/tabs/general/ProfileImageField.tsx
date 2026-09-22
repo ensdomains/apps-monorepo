@@ -1,4 +1,5 @@
 import { UploadCropStep } from './ProfileImageCropper'
+import { IMAGE_UPLOAD_ACCEPT } from './ProfileImageField.helpers'
 import type { ProfileImageFieldProps } from './ProfileImageField.types'
 import {
   ActiveImageOptions,
@@ -152,7 +153,7 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
         />
       )}
       <input
-        accept="image/*"
+        accept={IMAGE_UPLOAD_ACCEPT}
         className="hidden"
         onChange={editor.handleFileChange}
         ref={editor.fileInputRef}
