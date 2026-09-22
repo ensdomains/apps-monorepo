@@ -359,7 +359,7 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
      for (const resolved of resolvedSet) {
          if (!isResolvedSessionSignerSet(resolved)) {
              return types_1.SIG_MODE_ERC1271;
-@@ -85,12 +92,21 @@ async function resolveSignatureMode(config, signers, sourceChains, targetChain)
+@@ -85,12 +92,24 @@ async function resolveSignatureMode(config, signers, sourceChains, targetChain)
          // all origin signatures — a single mode field can't describe divergence.
          if (resolved.verifyExecutions)
              anyVerifyExecutions = true;
@@ -369,6 +369,11 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
      // Mode 4 (pure emissary-execution) is unused: signIntentTypedData always
      // emits a dual sig for the intent's origin/destination signatures when
      // verifyExecutions=true, so mode 5 is the right hybrid.
++    // A session signer must never resolve to the plain ERC-1271 owner mode: the
++    // IntentExecutor reads the outer mode as the principal, and an owner-mode
++    // intent settles the gas refund through settleGasRefund() instead of
++    // settleGasRefund_requireCallback() (Immunefi #91014). Every branch below
++    // therefore keeps an emissary-execution component.
 +    const standaloneHcaRecipient = !!recipient &&
 +        typeof recipient !== 'string' &&
 +        (0, hca_1.isStandaloneHca)(recipient);
@@ -376,8 +381,6 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
 -        ? types_1.SIG_MODE_EMISSARY_EXECUTION_ERC1271
 +        ? hasHcaFundingSession && standaloneHcaRecipient
 +            ? types_1.SIG_MODE_ERC1271_EMISSARY_EXECUTION
-+            : standaloneHca
-+            ? types_1.SIG_MODE_ERC1271
 +            : types_1.SIG_MODE_EMISSARY_EXECUTION_ERC1271
          : types_1.SIG_MODE_ERC1271;
  }

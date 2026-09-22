@@ -250,7 +250,7 @@ overrides:
   vite@8.0.10>rolldown: 1.0.0-rc.18
 
 patchedDependencies:
-  '@rhinestone/sdk@1.8.0': 805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf
+  '@rhinestone/sdk@1.8.0': 941e85949f992626148f8761253fe7e562c07de656ce2497a6d7d96f0c831b25
   class-variance-authority: ebe86d2b48ded23f6f7fdaac2701d1f2732a1a01bd27776367d7420a325783fd
   xstate: cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5
 
@@ -377,7 +377,7 @@ importers:
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@3.25.76))
+        version: 1.8.0(patch_hash=941e85949f992626148f8761253fe7e562c07de656ce2497a6d7d96f0c831b25)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@3.25.76))
       '@tailwindcss/vite':
         specifier: ^4.2.4
         version: 4.2.4(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
@@ -1105,7 +1105,7 @@ importers:
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@44235af
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))
+        version: 1.8.0(patch_hash=941e85949f992626148f8761253fe7e562c07de656ce2497a6d7d96f0c831b25)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))
       neverthrow:
         specifier: ^8.1.1
         version: 8.2.0
@@ -1142,7 +1142,7 @@ importers:
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@44235af
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))
+        version: 1.8.0(patch_hash=941e85949f992626148f8761253fe7e562c07de656ce2497a6d7d96f0c831b25)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))
       idb:
         specifier: ^8.0.3
         version: 8.0.3
@@ -12161,7 +12161,7 @@ snapshots:
 
   '@resvg/resvg-wasm@2.4.0': {}
 
-  '@rhinestone/sdk@1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@3.25.76))':
+  '@rhinestone/sdk@1.8.0(patch_hash=941e85949f992626148f8761253fe7e562c07de656ce2497a6d7d96f0c831b25)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@3.25.76))':
     dependencies:
       '@rhinestone/shared-configs': 1.6.10(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@3.25.76))
       solady: 0.1.26
@@ -12169,7 +12169,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@rhinestone/sdk@1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))':
+  '@rhinestone/sdk@1.8.0(patch_hash=941e85949f992626148f8761253fe7e562c07de656ce2497a6d7d96f0c831b25)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))':
     dependencies:
       '@rhinestone/shared-configs': 1.6.10(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))
       solady: 0.1.26
