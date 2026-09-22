@@ -11,9 +11,9 @@ import {
   type SortDir,
   type SortField,
 } from '@/features/dashboard/mergedNames'
-import { isRenewableV2EthName } from '@/features/grace/utils/gracePeriod'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
+import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
@@ -132,11 +132,11 @@ const AnimatedNameRow = ({
     }))
     .exhaustive()
 
-  // V1 rows use the authoritative renewer read; V2 rows use their grace window.
-  // Only V2 names can expose the bulk-selection checkbox.
+  // V1 rows use the authoritative renewer read; V2 rows use the renewal
+  // routes' check, so a row only offers renewal for the label it displays.
   const isRenewable = isV1
     ? isV1Renewable
-    : isRenewableV2EthName(label, metadata.expiryDate)
+    : canRenewV2Name(label, metadata.expiryDate)
 
   return (
     <motion.div
@@ -163,7 +163,7 @@ const AnimatedNameRow = ({
         isAuthenticated={isAuthenticated}
         isFavorite={favoriteLabels.has(label.toLowerCase())}
         isInGrace={isInGrace}
-        isSelected={selectedLabels.has(label.toLowerCase())}
+        isSelected={selectedLabels.has(label)}
         label={label}
         nameRoles={nameRoles}
         nameVariant={isPrimary ? 'primary' : 'secondary'}
