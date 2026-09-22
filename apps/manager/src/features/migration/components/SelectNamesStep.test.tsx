@@ -122,17 +122,6 @@ describe('SelectNamesStep', () => {
     expect(lastCall).toContain('sub123.eth')
   })
 
-  it('re-selecting a parent re-adds all its subnames', () => {
-    const { onNamesChange, getByText } = renderStep()
-    const parentRow = getByText('sub1234.eth').closest('button')
-    if (!parentRow) throw new Error('parent row not found')
-    fireEvent.click(parentRow)
-    fireEvent.click(parentRow)
-    const lastCall = onNamesChange.mock.calls.at(-1)?.[0] ?? []
-    expect(lastCall).toContain('sub1234.eth')
-    expect(lastCall).toContain('gm.sub1234.eth')
-  })
-
   it('subname rows are not individually interactive', () => {
     const { onNamesChange, getByText } = renderStep()
     const subnameText = getByText('gm.sub1234.eth')

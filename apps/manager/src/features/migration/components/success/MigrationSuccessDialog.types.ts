@@ -8,6 +8,7 @@ import type {
 export type CommemorativeNftCardData = {
   readonly assets: CommemorativeNftAssets
   readonly eligibility: CommemorativeNftEligibility
+  readonly learnMoreUrl?: string
   readonly marketplaceUrl?: string
   readonly shareUrls: CommemorativeNftShareUrls
 }

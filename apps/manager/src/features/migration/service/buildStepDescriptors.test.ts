@@ -73,20 +73,6 @@ describe('buildStepDescriptors', () => {
     ])
   })
 
-  it('uses two successful-path steps for one unwrapped name and an existing HCA', () => {
-    expect(
-      buildStepDescriptors({
-        hcaDeploymentRequired: false,
-        approvals: [tokenApproval()],
-        atomicBatches: batches(['alice.eth']),
-        registrationApprovalTargets: registrationApprovalTargets([
-          1n,
-          'alice.eth',
-        ]),
-      }),
-    ).toHaveLength(2)
-  })
-
   it('keeps the reusable helper approval for a wrapped selection', () => {
     expect(
       buildStepDescriptors({

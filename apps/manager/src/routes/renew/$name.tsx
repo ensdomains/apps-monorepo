@@ -10,17 +10,36 @@ import {
 } from '@/features/profile/service/profileExpiry'
 import {
   canRenewV2Name,
-  parseRenewableName,
+  resolveRenewalLabel,
+  toCanonicalRenewableName,
 } from '@/features/renew/utils/renewableName'
 import { RenewalRouteError } from '@/features/renew/workflow/components/RenewalRouteError'
 import { RenewalPage } from '@/features/renew/workflow/RenewalPage'
 
 export const Route = createFileRoute('/renew/$name')({
-  loader: async ({ params: { name }, context: { queryClient } }) => {
-    const parsedName = parseRenewableName(name)
+  // `ALICE.eth` and its look-alikes renew `alice.eth`, so they don't resolve
+  // here — redirect rather than charge on a page titled with what was typed.
+  // In `beforeLoad`, not the loader: a loader redirect during SSR abandons the
+  // route chunk load the router has already started, and every later render
+  // of this route on that worker waits on it forever.
+  beforeLoad: ({ params: { name } }) => {
+    if (resolveRenewalLabel(name).isOk()) return
 
-    if (parsedName.isErr()) {
-      throw parsedName.error
+    const canonicalName = toCanonicalRenewableName(name)
+
+    if (canonicalName !== null) {
+      throw redirect({
+        params: { name: canonicalName },
+        to: '/renew/$name',
+        replace: true,
+      })
+    }
+  },
+  loader: async ({ params: { name }, context: { queryClient } }) => {
+    const renewalLabel = resolveRenewalLabel(name)
+
+    if (renewalLabel.isErr()) {
+      throw renewalLabel.error
     }
 
     // Fetched rather than read through the cache: a name registered moments ago
@@ -70,7 +89,7 @@ export const Route = createFileRoute('/renew/$name')({
     }
 
     return {
-      label: parsedName.value.label,
+      label: renewalLabel.value,
       currentExpiry: expiryData.expiry,
     }
   },

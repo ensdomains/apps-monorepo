@@ -5,6 +5,31 @@ import type { MigrationStepDescriptor } from '@/features/migration/service/migra
 export const PLANK_PARTY_PADDING = 24
 export const TREADMILL_THRESHOLD = 5
 
+const waitingBounces = {
+  peanut: { height: 12, duration: 0.5, delay: 0.1, repeatDelay: 0.17 },
+  lili: { height: 16, duration: 0.6, delay: 0.27, repeatDelay: 0.09 },
+  bittu: { height: 20, duration: 0.8, delay: 0.05, repeatDelay: 0.12 },
+  kuzco: { height: 10, duration: 0.55, delay: 0.43, repeatDelay: 0.23 },
+} as const
+
+export const waitingBounceFor = (
+  character: keyof typeof waitingBounces,
+  isWaiting: boolean,
+) => {
+  const { height, ...timing } = waitingBounces[character]
+  return {
+    animate: { y: isWaiting ? [0, -height, 0] : 0 },
+    initial: { y: 0 },
+    transition: isWaiting
+      ? {
+          ...timing,
+          ease: 'easeInOut' as const,
+          repeat: Number.POSITIVE_INFINITY,
+        }
+      : { duration: 0.15 },
+  }
+}
+
 export const occupiedPlanksOf = (
   completedSteps: number,
   totalSteps: number,
@@ -67,7 +92,7 @@ export const computeBridgeLayout = (params: {
     partyScale,
     bridgeWidth,
     scrollX,
-    // The caller supplies visual progress, including the submitted transaction.
+    // Party movement follows completed stages; submission only reveals a plank.
     frensX:
       completedSteps > 0 && plankWidth > 0
         ? partyWidth / 2 + (completedSteps - 0.5) * plankWidth
