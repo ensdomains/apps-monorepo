@@ -182,6 +182,28 @@ describe('setConnectedAccount', () => {
 
     expect(sizes).toEqual([0])
   })
+
+  it('keeps an in-flight transaction whose owner reconnects before it settles', async () => {
+    // A→B marks it for retirement; B→A makes its owner current again. Retiring
+    // it anyway would drop the snapshot the modal reads a finished step's
+    // status, hash and gas off, rendering a step that succeeded on-chain as
+    // "Not Started".
+    const wallet = createCountingWallet(ACCOUNT_A)
+    transactionManager.setConnectedAccount(ACCOUNT_A)
+
+    const held = wallet.hold()
+    const txId = startStep('tx-step', wallet)
+    const waiting = waitForTransaction(txId)
+    await settle()
+
+    transactionManager.setConnectedAccount(ACCOUNT_B)
+    transactionManager.setConnectedAccount(ACCOUNT_A)
+
+    held.release()
+    await expect(waiting).resolves.toMatchObject({ hash: expect.any(String) })
+
+    expect(transactionManager.getTransaction('tx-step')).toBeDefined()
+  })
 })
 
 describe('clear', () => {
@@ -198,5 +220,27 @@ describe('clear', () => {
 
     await expect(waiting).rejects.toBeInstanceOf(TransactionStoppedError)
     held.release()
+  })
+
+  it('does not leave a retirement marker for a later flow to inherit', async () => {
+    // The reset empties the actor maps while an id is marked, so nothing is
+    // left to clear the mark the ordinary way. A later flow taking the same
+    // fixed id would then be retired the moment it settled.
+    const wallet = createCountingWallet(ACCOUNT_A)
+    transactionManager.setConnectedAccount(ACCOUNT_A)
+
+    const held = wallet.hold()
+    startStep('tx-step', wallet)
+    await settle()
+
+    transactionManager.setConnectedAccount(ACCOUNT_B)
+    transactionManager.clear()
+    held.release()
+    await settle()
+
+    const walletB = createCountingWallet(ACCOUNT_B)
+    await runStepToSuccess('tx-step', walletB)
+
+    expect(transactionManager.getTransaction('tx-step')).toBeDefined()
   })
 })

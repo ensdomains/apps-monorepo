@@ -229,6 +229,15 @@ class TransactionManager {
     this.connectedAccount = next
     if (!next) return
 
+    // A marker only ever means "this id's owner is not the connected wallet".
+    // Naming that wallet again makes its ids current, so the markers have to
+    // go: one left behind would retire the actor the moment it settles, and a
+    // finished step's status, hash and gas are read straight off that
+    // snapshot.
+    for (const [id, owner] of this.transactionAccounts) {
+      if (owner === next) this.retireOnceSettled.delete(id)
+    }
+
     const foreign = [...this.transactionAccounts.entries()]
       .filter(([, owner]) => owner !== next)
       .map(([id]) => id)
@@ -351,6 +360,12 @@ class TransactionManager {
       )
       return txId
     }
+
+    // The id belongs to this attempt now, so it must not inherit a retirement
+    // marker. Retiring an occupant clears one, but a hard reset empties the
+    // actor maps without touching the markers, and an id marked before it
+    // would otherwise retire this actor as soon as it settled.
+    this.retireOnceSettled.delete(txId)
 
     // Create and start the transaction actor
     const actor = createActor(transactionMachine, {
@@ -654,6 +669,7 @@ class TransactionManager {
     this.transactions.clear()
     this.transactionAccounts.clear()
     this.completedTelemetry.clear()
+    this.retireOnceSettled.clear()
     this.runTelemetry.clear()
     this.notifyListeners()
   }
@@ -670,6 +686,7 @@ class TransactionManager {
     this.transactions.clear()
     this.transactionAccounts.clear()
     this.completedTelemetry.clear()
+    this.retireOnceSettled.clear()
     this.runTelemetry.clear()
     this.notifyListeners()
 
