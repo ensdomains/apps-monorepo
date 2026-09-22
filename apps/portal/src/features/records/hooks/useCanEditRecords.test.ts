@@ -28,6 +28,8 @@ let resolverQuery: QueryStub = idle()
 let ownResolverQuery: QueryStub = idle()
 let isPermissionedQuery: QueryStub = idle()
 let roleQueries: QueryStub[] = []
+/** What the own-resolver check was asked, captured off its query key. */
+let ownResolverParams: unknown
 
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
@@ -55,7 +57,10 @@ vi.mock('@tanstack/react-query', async () => {
       const stub = match(queryKey[0])
         .with('get-ens-owner', () => ownerQuery)
         .with('get-name-resolver-address', () => resolverQuery)
-        .with('name-has-own-resolver', () => ownResolverQuery)
+        .with('name-has-own-resolver', () => {
+          ownResolverParams = queryKey[1]
+          return ownResolverQuery
+        })
         .with('is-permissioned-resolver', () => isPermissionedQuery)
         .otherwise(idle)
 
@@ -79,14 +84,41 @@ describe('useCanEditRecords', () => {
     ownResolverQuery = settled(true)
     isPermissionedQuery = settled(false)
     roleQueries = []
+    ownResolverParams = undefined
   })
 
   it('lets the token owner edit on a non-permissioned resolver the name owns', () => {
     expect(render().canEdit).toBe(true)
   })
 
+  // WEB-125: an imported DNS name's registry entry is its *manager*, and the
+  // v1 PublicResolver authorises exactly that address — so the manager is the
+  // party record editing is for, and must reach the editor.
+  it('lets an imported DNS name’s manager edit its records', () => {
+    const manager = OWNER
+    connectedAddress = manager
+    ownerQuery = settled({ owner: manager, protocolVersion: 'ENSv1' })
+
+    const result = render()
+
+    expect(result.canEdit).toBe(true)
+    expect(result.isOwner).toBe(true)
+  })
+
+  // The own-resolver check has to ask the registry that actually holds the
+  // name: the v2 walk reports the TLD's composite mirror for every v1 DNS
+  // name, which would read as "inherited" and lock the manager out.
+  it('asks the own-resolver check which registry holds the name', () => {
+    render()
+
+    expect(ownResolverParams).toEqual({
+      name: 'jobintime.xyz',
+      protocolVersion: 'ENSv1',
+    })
+  })
+
   it('refuses a resolver inherited from an ancestor, even for the owner', () => {
-    // jobintime.xyz after its resolver was detached: reads still work through
+    // A DNS name imported with plain `proveAndClaim`: reads still work through
     // the TLD, so `getResolver` answers, but nothing accepts a write.
     resolverQuery = settled(INHERITED_RESOLVER)
     ownResolverQuery = settled(false)

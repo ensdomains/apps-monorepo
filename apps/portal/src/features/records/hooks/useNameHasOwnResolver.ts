@@ -15,19 +15,36 @@
  * a default-on option, and a DNS re-import with plain `proveAndClaim` sets an
  * owner without restoring one — so this state has to be recognised rather than
  * assumed away.
+ *
+ * The question is "does the registry holding this name name a resolver on the
+ * name's own slot", so it is asked of that registry, which differs by protocol
+ * version (WEB-125):
+ *
+ * - **ENSv1** — the legacy `ENSRegistry.resolver(node)`. The UniversalResolver
+ *   cannot answer for these: it walks the v2 registry, where a v1 name has no
+ *   slot, and reports the composite mirror resolver bound to the name's TLD
+ *   instead. For a DNS 2LD that mirror sits at the TLD, so every imported DNS
+ *   name looked like it inherited its resolver and no record edit was ever
+ *   offered — including to the manager, whom the resolver does authorise.
+ * - **ENSv2** — the UniversalResolver walk, whose stopping offset says whether
+ *   the resolver belongs to the name or to an ancestor.
  */
 
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { registryResolverSnippet } from '@ensdomains/ensjs-abi/registry'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
-import { parseAbi, zeroAddress } from 'viem'
+import { namehash, parseAbi, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
+import { normalize } from 'viem/ens'
 import { getAction } from 'viem/utils'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { dnsEncodeName } from '@/utils/token/dnsEncodeName'
+import type { ProtocolVersion } from '@/utils/types'
 
 /**
  * `findResolver` walks the registry leaf-first and returns the resolver it
@@ -46,19 +63,45 @@ class GetNameHasOwnResolverError extends TaggedError(
 
 export type GetNameHasOwnResolverParams = {
   name: string
+  readonly protocolVersion: ProtocolVersion
 }
 
 export const getNameHasOwnResolver = ResultFn(async function* ({
   name,
+  protocolVersion,
 }: GetNameHasOwnResolverParams) {
   const client = yield* safeGetClient()
 
+  const call = getAction(client, readContract, 'readContract')
+
+  if (protocolVersion === 'ENSv1') {
+    // Route-supplied, so normalise before hashing — an unnormalised spelling
+    // hashes to a different node than the one every other v1 read uses.
+    const node = yield* fromSync(
+      () => namehash(normalize(name)),
+      (e) => new GetNameHasOwnResolverError({ cause: e }),
+    )
+
+    const resolver = yield* fromPromise(
+      call({
+        address: getChainContractAddress({
+          chain: client.chain,
+          contract: 'ensLegacyRegistry',
+        }),
+        abi: registryResolverSnippet,
+        functionName: 'resolver',
+        args: [node],
+      }),
+      (e) => new GetNameHasOwnResolverError({ cause: e }),
+    )
+
+    // The legacy registry has no wildcards: a slot either names a resolver or
+    // the name inherits whatever answers for it, which takes no writes.
+    return ok(resolver !== zeroAddress)
+  }
+
   const [resolver, , offset] = yield* fromPromise(
-    getAction(
-      client,
-      readContract,
-      'readContract',
-    )({
+    call({
       address: universalResolverAddress,
       abi: findResolverAbi,
       functionName: 'findResolver',
@@ -68,9 +111,8 @@ export const getNameHasOwnResolver = ResultFn(async function* ({
   )
 
   // Going through the UniversalResolver rather than reading a registry directly
-  // keeps this agnostic to which registry version holds the name, and needs no
-  // list of known resolver deployments — a custom or per-name resolver answers
-  // here exactly as the public one does.
+  // needs no list of known resolver deployments — a custom or per-name resolver
+  // answers here exactly as the public one does.
   //
   // The null check carries its weight: a name with no resolver anywhere also
   // reports offset 0, because the walk runs off the root without ever finding
@@ -93,15 +135,23 @@ export const getNameHasOwnResolverQueryOptions = (
 
 export type UseNameHasOwnResolverParams = {
   name: string | undefined
+  /** Which registry to ask. Undefined keeps the query idle. */
+  protocolVersion: ProtocolVersion | undefined
 }
 
 /**
  * @returns `true` when the name's own registry entry names a resolver, `false`
  * when the resolver answering for it is inherited or absent.
  */
-export function useNameHasOwnResolver({ name }: UseNameHasOwnResolverParams) {
+export function useNameHasOwnResolver({
+  name,
+  protocolVersion,
+}: UseNameHasOwnResolverParams) {
   return useQuery({
-    ...getNameHasOwnResolverQueryOptions({ name: name ?? '' }),
-    enabled: !!name,
+    ...getNameHasOwnResolverQueryOptions({
+      name: name ?? '',
+      protocolVersion: protocolVersion ?? 'ENSv2',
+    }),
+    enabled: !!name && !!protocolVersion,
   })
 }

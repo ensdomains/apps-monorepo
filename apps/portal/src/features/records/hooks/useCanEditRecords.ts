@@ -81,8 +81,12 @@ export function useCanEditRecords({
   })
   const resolverAddress = resolverQuery.data
 
+  // Which registry holds the name decides where its own resolver pointer
+  // lives, so the check waits on the owner query for the protocol version
+  // rather than assuming the v2 walk can answer for a v1 name.
   const ownResolverQuery = useNameHasOwnResolver({
     name: enabled ? name : undefined,
+    protocolVersion: ownerQuery.data?.protocolVersion,
   })
   const hasOwnResolver = ownResolverQuery.data
 
