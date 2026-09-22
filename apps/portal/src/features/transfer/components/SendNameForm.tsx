@@ -14,7 +14,10 @@ import { useAddressResolution } from '@/features/address/hooks/useAddressResolut
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
-import type { TransferControls } from '../hooks/useTransferName'
+import type {
+  RecordAheadOfMove,
+  TransferControls,
+} from '../hooks/useTransferName'
 import type {
   ParentWarning,
   RegistryDetachImpact,
@@ -223,6 +226,8 @@ export const SendNameForm = ({
     transactions,
     isPreparing,
     prepError,
+    recordAheadOfMove,
+    restoreEthAddress,
   } = transfer
 
   const isSelf = !!recipient && isAddressEqual(recipient, owner)
@@ -307,10 +312,16 @@ export const SendNameForm = ({
         />
       </div>
 
+      <RecordAheadOfMoveAlert
+        state={recordAheadOfMove}
+        onRestore={restoreEthAddress}
+      />
+
       {hasValidRecipient && (
         <TransferDetachOptions
           options={options}
           visibleOptions={visibleOptions}
+          isResolverDetaching={effectiveOptions.detachResolver}
           onToggle={toggleOption}
           isLocked={isPreparing}
         />
@@ -434,25 +445,91 @@ const RegistryDetachConsent = ({
     })
     .exhaustive()
 
+/**
+ * Shown after a flow whose ETH address repoint landed but whose move didn't —
+ * a rejected wallet prompt, or a recipient that refused the token once the
+ * record was already written. States what is true on-chain now, and offers to
+ * put the record back.
+ */
+const RecordAheadOfMoveAlert = ({
+  state,
+  onRestore,
+}: {
+  readonly state: RecordAheadOfMove | null
+  readonly onRestore: () => void
+}) => {
+  if (!state) return null
+  const { recipient, previousEthAddress } = state
+
+  return (
+    <Alert variant="destructive">
+      <AlertTriangle className="size-4" />
+      <AlertDescription className="flex flex-col gap-3">
+        <p>
+          The transfer didn’t go through, so you still own this name — but its
+          ETH address was already changed and now points to{' '}
+          <span className="font-mono break-all">{recipient}</span>.
+        </p>
+        {previousEthAddress ? (
+          <>
+            <p>
+              Restore it to{' '}
+              <span className="font-mono break-all">{previousEthAddress}</span>,
+              or try the transfer again.
+            </p>
+            <Button variant="outline" onClick={onRestore} className="w-fit">
+              Restore ETH address
+            </Button>
+          </>
+        ) : (
+          <p>Update it from this name’s records, or try the transfer again.</p>
+        )}
+      </AlertDescription>
+    </Alert>
+  )
+}
+
 const TransferDetachOptions = ({
   options,
   visibleOptions,
+  isResolverDetaching,
   onToggle,
   isLocked,
 }: {
   readonly options: Record<TransferOptionKey, boolean>
   readonly visibleOptions: readonly OptionConfig[]
+  /** The detach is actually in the plan — not merely toggled on while hidden. */
+  readonly isResolverDetaching: boolean
   readonly onToggle: (key: TransferOptionKey) => void
   /** Locks every switch, e.g. while a plan is being prepared from them. */
   readonly isLocked: boolean
 }) => {
   if (visibleOptions.length === 0) return null
 
+  // The name has a resolver of its own with records we can write, yet the
+  // detach isn't on offer: the sender lacks the authority for it (V2
+  // ROLE_SET_RESOLVER, a burned CANNOT_SET_RESOLVER fuse).
+  const offered = new Set(visibleOptions.map(({ key }) => key))
+  const isResolverLocked =
+    offered.has('setEthAddress') && !offered.has('detachResolver')
+
   return (
     <div className="flex flex-col gap-4">
+      {isResolverLocked && (
+        <Alert variant="warning">
+          <AlertTriangle className="size-4" />
+          <AlertDescription>
+            Your wallet isn’t allowed to detach this name’s resolver, so it
+            stays attached and its other records keep resolving after the
+            transfer.
+          </AlertDescription>
+        </Alert>
+      )}
       {visibleOptions.map((option) => {
+        // Keyed off the plan, not the stored toggle: a hidden detach defaults to
+        // on, and claiming it covers the ETH address would hide a real write.
         const isRedundant =
-          option.key === 'setEthAddress' && options.detachResolver
+          option.key === 'setEthAddress' && isResolverDetaching
         const isDisabled = isRedundant || isLocked
 
         return (

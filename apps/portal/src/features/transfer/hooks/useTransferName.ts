@@ -17,7 +17,7 @@ import {
 } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
-import { type Address, isAddress, isAddressEqual } from 'viem'
+import { type Address, getAddress, isAddress, isAddressEqual } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getResolvedAddressQueryOptions } from '@/features/address/queries/getResolvedAddress'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
@@ -42,7 +42,10 @@ import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getLabel } from '@/utils/token/getLabel'
 import { isCanonicalName } from '@/utils/token/isNormalized'
 import type { WalletClientWithAccount } from '@/utils/types'
-import { getEthAddressQueryOptions } from '../queries/getEthAddress'
+import {
+  type GetEthAddressError,
+  getEthAddressQueryOptions,
+} from '../queries/getEthAddress'
 import {
   type GetOwnResolverError,
   getOwnResolverQueryOptions,
@@ -50,6 +53,7 @@ import {
 import type { TransferSubject, V1TransferActor } from '../types'
 import {
   buildTransferPlan,
+  isRecordAheadOfMove,
   STEP_LABELS,
   type TransferOptions,
   type TransferStepKind,
@@ -85,6 +89,21 @@ type SavedParams = NameReads & {
    * it has none, or when the plan never writes to it.
    */
   readonly isPermissionedResolver: boolean | null
+  /**
+   * The ETH address record before the flow, so a repoint the move never
+   * followed can be undone. Null when the plan doesn't repoint it.
+   */
+  readonly previousEthAddress: Address | null
+}
+
+/**
+ * The ETH address was repointed at the recipient, but the name never moved —
+ * the sender still owns a name that resolves to someone else.
+ */
+export type RecordAheadOfMove = {
+  readonly recipient: Address
+  /** What to restore. Null when there was nothing readable to restore to. */
+  readonly previousEthAddress: Address | null
 }
 
 export type TransferControls = {
@@ -98,6 +117,9 @@ export type TransferControls = {
   readonly transactions: Transaction[]
   readonly isPreparing: boolean
   readonly prepError: Error | null
+  /** Set only once the flow is over (modal closed) with the record stranded. */
+  readonly recordAheadOfMove: RecordAheadOfMove | null
+  readonly restoreEthAddress: () => void
 }
 
 const chainId = sepoliaWithEns.id
@@ -115,6 +137,7 @@ const CARRIES_RECIPIENT: Record<TransferStepKind, boolean> = {
   'transfer-erc1155': true,
   'set-registry-owner': true,
   'set-subnode-owner': true,
+  'restore-eth-addr': false,
 }
 
 type ErrorOf<R> = R extends ResultAsync<unknown, infer E> ? E : never
@@ -219,13 +242,20 @@ export const useTransferName = ({
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { closeModal, clearTransaction } = useTransactionModal()
+  const { isOpen, closeModal, clearTransaction } = useTransactionModal()
 
   const [savedParams, setSavedParams] = useState<SavedParams | null>(null)
   // Names the attempt the modal is showing. Rebuilt every time the flow is
   // prepared, so an attempt abandoned partway can't hand its finished step
   // actors to the next one.
   const attempt = useFlowAttempt()
+  // Which steps of the current flow actually landed. The steps are separate
+  // transactions, so a move that fails after `set-eth-addr` confirmed leaves
+  // the record ahead of the ownership — this is how that gets noticed.
+  const [confirmedSteps, setConfirmedSteps] = useState<
+    ReadonlySet<TransferStepKind>
+  >(new Set())
+  const [isRestoring, setIsRestoring] = useState(false)
 
   // Makes each step's `onStart` idempotent — both the modal UI and the prior
   // step's auto-fired `onDone` route into it (as in ConfigureRegistryForm).
@@ -271,6 +301,18 @@ export const useTransferName = ({
     void invalidate()
     pollForIndexerSync({ invalidateQueries: invalidate })
     void navigate({ to: '/$name/ownership', params: { name } })
+  }
+
+  const finishRestore = () => {
+    closeModal()
+    clearTransaction()
+    setIsRestoring(false)
+    setSavedParams(null)
+    setConfirmedSteps(new Set())
+    attempt.end()
+    void queryClient.invalidateQueries({
+      queryKey: getEthAddressQueryOptions({ name }).queryKey,
+    })
   }
 
   // The V1 read that gates the write. `staleTime: 0` bypasses the cache the
@@ -360,7 +402,7 @@ export const useTransferName = ({
   // is up front, so the step's intent can still be built synchronously.
   const readResolverKind = (
     reads: NameReads,
-  ): ResultAsync<SavedParams, ResolverKindError> => {
+  ): ResultAsync<SavedParams, ResolverKindError | GetEthAddressError> => {
     const { resolverAddress } = reads
     const writesResolver = buildTransferPlan(
       reads.options,
@@ -368,13 +410,32 @@ export const useTransferName = ({
       actor,
     ).includes('set-eth-addr')
     if (!resolverAddress || !writesResolver)
-      return okAsync({ ...reads, isPermissionedResolver: null })
+      return okAsync({
+        ...reads,
+        isPermissionedResolver: null,
+        previousEthAddress: null,
+      })
     return fromPromise(
       queryClient.fetchQuery(
         getIsPermissionedResolverQueryOptions({ resolverAddress }),
       ),
       (e) => e as ResolverKindError,
-    ).map((isPermissionedResolver) => ({ ...reads, isPermissionedResolver }))
+    ).andThen((isPermissionedResolver) =>
+      // Fresh, not the form's cached read: this is what a failed move would
+      // have to put back.
+      fromPromise(
+        queryClient.fetchQuery({
+          ...getEthAddressQueryOptions({ name }),
+          staleTime: 0,
+        }),
+        (e) => e as GetEthAddressError,
+      ).map((record) => ({
+        ...reads,
+        isPermissionedResolver,
+        previousEthAddress:
+          record && isAddress(record) ? getAddress(record) : null,
+      })),
+    )
   }
 
   // Simulates the move before anything is sent: the config steps run first
@@ -464,7 +525,15 @@ export const useTransferName = ({
         // the ones this plan was built from: it never reaches the modal.
         if (runId !== runIdRef.current) return
         startedStepsRef.current = new Set()
-        setSavedParams(saved)
+        setConfirmedSteps(new Set())
+        setIsRestoring(false)
+        // A retry after a stranded attempt re-reads the record *we* repointed;
+        // what to restore is still the value from before the first attempt.
+        setSavedParams({
+          ...saved,
+          previousEthAddress:
+            recordAheadOfMove?.previousEthAddress ?? saved.previousEthAddress,
+        })
         // A fresh scope is what keeps an abandoned attempt's finished step
         // actors from satisfying this one; the manager is deliberately not
         // cleared, since that would also stop unrelated in-flight work.
@@ -485,7 +554,9 @@ export const useTransferName = ({
   // array in a ref for auto-advance, so referential stability isn't needed.
   const buildTransactions = (): Transaction[] => {
     if (!savedParams) return []
-    const steps = buildTransferPlan(savedParams.options, subject.kind, actor)
+    const steps: readonly TransferStepKind[] = isRestoring
+      ? ['restore-eth-addr']
+      : buildTransferPlan(savedParams.options, subject.kind, actor)
     const stepContext = { ...savedParams, name, subject }
 
     // Idempotent per step: `onStart` may fire twice (modal UI + the prior
@@ -520,6 +591,7 @@ export const useTransferName = ({
           },
         )
         await waitForTransaction(txId)
+        setConfirmedSteps((prev) => new Set(prev).add(step))
       } catch (err) {
         // Tx reverts surface via the modal's machine state; non-tx failures
         // (e.g. a wallet with no connected account, or the step's actor being
@@ -547,8 +619,37 @@ export const useTransferName = ({
           buildTransferStepIntent(step, { ...stepContext, ...ctx }),
       },
       onStart: runners[i],
-      onDone: i < runners.length - 1 ? runners[i + 1] : finishFlow,
+      onDone:
+        i < runners.length - 1
+          ? runners[i + 1]
+          : isRestoring
+            ? finishRestore
+            : finishFlow,
     }))
+  }
+
+  // Only once the modal is closed: mid-flow, the gap between the record landing
+  // and the move landing is expected, not a stranded state. A restore dismissed
+  // before it landed leaves the record stranded, so it shows again.
+  const recordAheadOfMove: RecordAheadOfMove | null =
+    savedParams &&
+    !isOpen &&
+    isRecordAheadOfMove(
+      buildTransferPlan(savedParams.options, subject.kind, actor),
+      confirmedSteps,
+    )
+      ? {
+          recipient: savedParams.recipient,
+          previousEthAddress: savedParams.previousEthAddress,
+        }
+      : null
+
+  const restoreEthAddress = () => {
+    if (!recordAheadOfMove?.previousEthAddress) return
+    startedStepsRef.current = new Set()
+    clearTransaction()
+    setIsRestoring(true)
+    attempt.start(account)
   }
 
   return {
@@ -557,5 +658,7 @@ export const useTransferName = ({
     transactions: buildTransactions(),
     isPreparing: prepareMutation.isPending,
     prepError: prepareMutation.error,
+    recordAheadOfMove,
+    restoreEthAddress,
   }
 }

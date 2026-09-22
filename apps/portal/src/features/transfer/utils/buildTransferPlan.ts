@@ -35,6 +35,11 @@ export type TransferStepKind =
    * `ENSRegistry.setSubnodeOwner` (unwrapped), overriding the current holder.
    */
   | 'set-subnode-owner'
+  /**
+   * Recovery, never part of a plan: points the ETH address back at what it
+   * was, after `set-eth-addr` landed but the move didn't.
+   */
+  | 'restore-eth-addr'
 
 /** The step(s) that actually move the name, per subject kind. */
 const MOVE_STEPS: Record<TransferSubject['kind'], readonly TransferStepKind[]> =
@@ -88,4 +93,23 @@ export const STEP_LABELS: Record<TransferStepKind, string> = {
   'transfer-erc1155': 'Transfer name',
   'set-registry-owner': 'Transfer name',
   'set-subnode-owner': 'Reassign subname',
+  'restore-eth-addr': 'Restore ETH address',
+}
+
+/**
+ * The ETH address record already points at the recipient, but the step that
+ * moves the name never confirmed — a failed or abandoned move leaves the sender
+ * owning a name that resolves to someone else. The move is always the plan's
+ * last step.
+ */
+export const isRecordAheadOfMove = (
+  plan: readonly TransferStepKind[],
+  confirmedSteps: ReadonlySet<TransferStepKind>,
+): boolean => {
+  const move = plan.at(-1)
+  return (
+    confirmedSteps.has('set-eth-addr') &&
+    move !== undefined &&
+    !confirmedSteps.has(move)
+  )
 }
