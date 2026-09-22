@@ -10,6 +10,7 @@ type ProfileEditActionProps = {
   readonly className: string
   readonly isInGrace: boolean
   readonly isOwner?: boolean
+  readonly isUpgradeRequired?: boolean
   readonly name: string
   readonly onUpdated: () => undefined | Promise<unknown>
   readonly owner?: Address
@@ -20,6 +21,7 @@ type ProfileEditActionProps = {
 export const ProfileEditAction = ({
   isInGrace,
   isOwner,
+  isUpgradeRequired = false,
   name,
   onUpdated,
   owner,
@@ -32,9 +34,9 @@ export const ProfileEditAction = ({
   const isUnmigratedEthName =
     protocol === 'v1' && normalizeEthName(name) !== null
 
-  if (!isOwner || isInGrace) return null
+  if (isInGrace || (!isOwner && !isUpgradeRequired)) return null
 
-  if (isUnmigratedEthName) {
+  if (isUpgradeRequired || isUnmigratedEthName) {
     return <ProfileUpgradePopover className={className} />
   }
 

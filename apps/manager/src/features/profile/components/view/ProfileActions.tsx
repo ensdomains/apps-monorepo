@@ -20,6 +20,7 @@ type ProfileActionsProps = {
   readonly hasMobileStatusBanner: boolean
   readonly isInGrace: boolean
   readonly isOwner?: boolean
+  readonly isUpgradeRequired: boolean
   readonly name: string
   readonly onUpdated: () => undefined | Promise<unknown>
   readonly owner?: Address
@@ -59,6 +60,7 @@ export const ProfileActions = ({
   hasMobileStatusBanner,
   isInGrace,
   isOwner,
+  isUpgradeRequired,
   name,
   onUpdated,
   owner,
@@ -100,13 +102,14 @@ export const ProfileActions = ({
         />
       </div>
 
-      {isOwner && !isInGrace ? (
+      {(isOwner || isUpgradeRequired) && !isInGrace ? (
         <nav aria-label={t`Profile actions`} className={editBottomNavClassName}>
           <div className={editBottomNavContentClassName}>
             <ProfileEditAction
               className={editActionClassName}
               isInGrace={isInGrace}
               isOwner={isOwner}
+              isUpgradeRequired={isUpgradeRequired}
               name={name}
               onUpdated={onUpdated}
               owner={owner}

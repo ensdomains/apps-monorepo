@@ -4,6 +4,8 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { CommemorativeNftProfileSection } from '@/features/migration/components/success/CommemorativeNftProfileSection'
+import { isEligibleProfileName } from '@/features/migration/components/UpgradeBanner.helpers'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
 import {
   buildNameAvatarUrl,
@@ -81,6 +83,19 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     false,
   )
   const commemorativeNftEnabled = useMigrationNftEnabled()
+  const { isConnected } = useSmartAccountContext()
+  const { eligible: eligibleV1Names, isPending: isV1NamesPending } =
+    useEligibleV1Names({
+      enabled: migrationEnabled,
+      fallbackToClassified: false,
+    })
+  // Use the banner's verified eligibility even when indexed V2 data masks the
+  // current V1 owner. This only exposes the upgrade prompt, never the editor.
+  const isUpgradeRequired =
+    isConnected &&
+    migrationEnabled &&
+    !isV1NamesPending &&
+    isEligibleProfileName(eligibleV1Names, name)
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -219,6 +234,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           hasMobileStatusBanner={hasMobileStatusBanner}
           isInGrace={expiry.isInGrace}
           isOwner={resolvedIsOwner}
+          isUpgradeRequired={isUpgradeRequired}
           name={name}
           onUpdated={refetchRecords}
           owner={owner}
