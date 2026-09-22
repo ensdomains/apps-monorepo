@@ -16,7 +16,7 @@ describe('computeDisplayNameState', () => {
         displayName: 'vitalik.eth',
         isInheritingDefault: false,
         isPrimaryName: true,
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
         isUnverifiedDefault: false,
       })
     })
@@ -34,7 +34,7 @@ describe('computeDisplayNameState', () => {
         displayName: 'vitalik.eth',
         isInheritingDefault: false,
         isPrimaryName: false,
-        canSetAsPrimary: true,
+        isForwardRecordMissing: true,
         isUnverifiedDefault: false,
       })
     })
@@ -52,7 +52,7 @@ describe('computeDisplayNameState', () => {
         displayName: undefined,
         isInheritingDefault: false,
         isPrimaryName: false,
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
         isUnverifiedDefault: false,
       })
     })
@@ -70,7 +70,7 @@ describe('computeDisplayNameState', () => {
         displayName: undefined,
         isInheritingDefault: false,
         isPrimaryName: false,
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
         isUnverifiedDefault: false,
       })
     })
@@ -93,7 +93,7 @@ describe('computeDisplayNameState', () => {
         displayName: 'alice.eth',
         isInheritingDefault: false,
         isPrimaryName: false,
-        canSetAsPrimary: true,
+        isForwardRecordMissing: true,
         isUnverifiedDefault: false,
       })
     })
@@ -111,7 +111,7 @@ describe('computeDisplayNameState', () => {
         displayName: 'vitalik.eth',
         isInheritingDefault: true,
         isPrimaryName: true,
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
         isUnverifiedDefault: false,
       })
     })
@@ -129,7 +129,7 @@ describe('computeDisplayNameState', () => {
         displayName: undefined,
         isInheritingDefault: false,
         isPrimaryName: false,
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
         isUnverifiedDefault: false,
       })
     })
@@ -147,7 +147,7 @@ describe('computeDisplayNameState', () => {
         displayName: 'alice.eth',
         isInheritingDefault: false,
         isPrimaryName: true,
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
         isUnverifiedDefault: false,
       })
     })
@@ -173,7 +173,7 @@ describe('computeDisplayNameState', () => {
         isPrimaryName: false,
         // Nothing to complete from this row: the name has no record on this
         // chain's registrar, and its forward record is the owner's to set.
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
         isUnverifiedDefault: true,
       })
     })

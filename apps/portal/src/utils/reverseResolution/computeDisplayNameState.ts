@@ -31,8 +31,17 @@ export type DisplayNameState = {
   isInheritingDefault: boolean
   /** Whether this name is set as the primary name */
   isPrimaryName: boolean
-  /** Whether this name can be set as the primary name */
-  canSetAsPrimary: boolean
+  /**
+   * A reverse name is set on this chain's registrar but the forward
+   * `addr(node, coinType)` record that would complete the pair is missing.
+   *
+   * This is the row's *shape*, not a permission: it says a forward record is
+   * what's missing, never that the viewer may write it. Writing it is a
+   * `setAddr` on the name's resolver, which needs authority over the name —
+   * the caller has to check that separately. Named for the shape deliberately:
+   * the previous name read like a permission and got used as one.
+   */
+  isForwardRecordMissing: boolean
   /**
    * An inherited `default.reverse` name whose forward record does not point
    * back at this address — display it, but never as a verified primary name.
@@ -53,10 +62,11 @@ export type DisplayNameState = {
  *   `default.reverse` record is writable by anyone for any name, so an
  *   inherited name whose forward `addr` points elsewhere is an unverified
  *   claim and must not be presented as a primary name.
- * - Can set as primary: a name is set on this chain's reverse registrar but
- *   doesn't forward-match. Applies to L1 and L2 alike — the missing half is
- *   the forward `addr(node, coinType)` record, which is written on the name's
- *   L1 resolver for every chain (ENSIP-19).
+ * - Forward record missing: a name is set on this chain's reverse registrar
+ *   but doesn't forward-match. Applies to L1 and L2 alike — the missing half
+ *   is the forward `addr(node, coinType)` record, which is written on the
+ *   name's L1 resolver for every chain (ENSIP-19). This describes the row, not
+ *   who may act on it; every returned field here is row shape.
  *
  * @param params - Display name computation parameters
  * @returns Computed display state
@@ -70,7 +80,7 @@ export type DisplayNameState = {
  *   defaultForwardMatch: false,
  *   reverseRegistrarChainId: 60
  * })
- * // { displayName: 'vitalik.eth', isInheritingDefault: false, isPrimaryName: true, canSetAsPrimary: false, isUnverifiedDefault: false }
+ * // { displayName: 'vitalik.eth', isInheritingDefault: false, isPrimaryName: true, isForwardRecordMissing: false, isUnverifiedDefault: false }
  *
  * @example
  * // L2 inheriting a forward-verified default from L1
@@ -81,7 +91,7 @@ export type DisplayNameState = {
  *   defaultForwardMatch: true,
  *   reverseRegistrarChainId: 10
  * })
- * // { displayName: 'vitalik.eth', isInheritingDefault: true, isPrimaryName: true, canSetAsPrimary: false, isUnverifiedDefault: false }
+ * // { displayName: 'vitalik.eth', isInheritingDefault: true, isPrimaryName: true, isForwardRecordMissing: false, isUnverifiedDefault: false }
  */
 export const computeDisplayNameState = ({
   name,
@@ -106,16 +116,18 @@ export const computeDisplayNameState = ({
   const isPrimaryName =
     forwardMatch || (isInheritingDefault && defaultForwardMatch)
 
-  // Can set as primary: has displayName, not primary, and a name is actually
-  // set on this chain's registrar (not just inherited from the default). The
-  // forward record completing the pair is written on L1 for every chain.
-  const canSetAsPrimary = !!displayName && !isPrimaryName && name !== null
+  // The forward half is what's missing: a name is set on this chain's
+  // registrar (not just inherited from the default) and doesn't forward-match.
+  // The record completing the pair is written on L1 for every chain. Whether
+  // the viewer may write it is a question about the name, decided by callers.
+  const isForwardRecordMissing =
+    !!displayName && !isPrimaryName && name !== null
 
   return {
     displayName,
     isInheritingDefault,
     isPrimaryName,
-    canSetAsPrimary,
+    isForwardRecordMissing,
     isUnverifiedDefault,
   }
 }
