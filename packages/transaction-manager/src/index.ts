@@ -3,6 +3,7 @@ export { ENS_SEPOLIA_CONTRACTS } from './contracts/ens-sepolia'
 // Errors
 export {
   SignerAddressMismatchError,
+  TransactionAbandonedError,
   TransactionSubmissionError,
 } from './errors/transaction.errors'
 // Helpers

@@ -144,6 +144,21 @@ export class TransactionRevertedError
   readonly _tag = 'TransactionRevertedError'
 }
 
+/**
+ * The transaction actor was stopped (account switch, disconnect,
+ * `transactionManager.clear()`) before it reached success or error. Callers
+ * awaiting it get this instead of a promise that never settles.
+ */
+export class TransactionAbandonedError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'TransactionAbandonedError'
+  constructor(public readonly txId: string) {
+    super(`Transaction ${txId} was stopped before it completed`)
+  }
+}
+
 export class EthCallFallbackError
   extends TransactionError
   implements ITaggedError
