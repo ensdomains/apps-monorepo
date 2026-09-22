@@ -1,3 +1,4 @@
+import { isEvmCoinType } from '@ensdomains/address-encoder/utils'
 import {
   getAddressRecordDef,
   getRecordDef,
@@ -14,6 +15,7 @@ import { safeHttpHref } from '@/features/profile/utils/safeUrl'
 import { getPrimarySocialContactKeys } from '../dialogs/edit-profile/tabs/contact/records'
 
 const ETH_COIN_TYPE = 60
+const EVM_ADDRESS = /^0x[0-9a-f]{40}$/i
 const DOMAIN_LIKE_URL = /^[\w.-]+\.[a-z]{2,}(?:[/#?].*)?$/i
 const PROFILE_HEADER_ONLY_RECORD_KEYS: ReadonlySet<string> = new Set([
   'location',
@@ -253,10 +255,28 @@ export const getMainReceivingAddress = (
   return address ? omitSourceIndex(address) : undefined
 }
 
+const sharesReceivingAddress = (
+  address: ProfileAddressItem,
+  mainAddress: ProfileAddressItem,
+): boolean => {
+  const isEvmAddress = (item: ProfileAddressItem): boolean =>
+    (item.coinType === ETH_COIN_TYPE || isEvmCoinType(item.coinType)) &&
+    EVM_ADDRESS.test(item.value)
+
+  if (isEvmAddress(address) && isEvmAddress(mainAddress)) {
+    return address.value.toLowerCase() === mainAddress.value.toLowerCase()
+  }
+
+  // Other coin types have independent address formats, including case-sensitive
+  // Base58. Keep their icons and copy values attached to their own records.
+  return (
+    address.coinType === mainAddress.coinType &&
+    address.value === mainAddress.value
+  )
+}
+
 /**
- * Chain icons shown on the main receiving address card: every chain whose
- * address resolves to the same value as the main address (e.g. EVM chains that
- * share a single `0x…` address).
+ * Show the main record's icon and compatible EVM records sharing its address.
  */
 export const getReceivingAddressChains = (
   records: ProfileRecords,
@@ -264,24 +284,23 @@ export const getReceivingAddressChains = (
   const mainAddress = getMainAddressCandidate(records)
   if (!mainAddress) return []
 
-  const mainValue = mainAddress.value.toLowerCase()
   return getAddressItems(records)
-    .filter((address) => address.value.toLowerCase() === mainValue)
+    .filter((address) => sharesReceivingAddress(address, mainAddress))
     .map(omitSourceIndex)
 }
 
 /**
- * Chain-specific addresses are those that resolve to a different value than the
- * main receiving address, so EVM chains sharing the main `0x…` address are not
- * repeated here (they appear as icons on the main address card instead).
+ * Keep records outside the main address's compatible group on their own cards.
  */
 export const getChainSpecificAddresses = (
   records: ProfileRecords,
 ): ProfileAddressItem[] => {
   const mainAddress = getMainAddressCandidate(records)
-  const mainValue = mainAddress?.value.toLowerCase()
 
   return getAddressItems(records)
-    .filter((address) => address.value.toLowerCase() !== mainValue)
+    .filter(
+      (address) =>
+        !mainAddress || !sharesReceivingAddress(address, mainAddress),
+    )
     .map(omitSourceIndex)
 }
