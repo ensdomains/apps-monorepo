@@ -134,6 +134,38 @@ export async function waitForIndexedRoles(
 }
 
 /**
+ * Block until Panoptes knows about `address` as a registry — the existence
+ * probe `useRegistryDetachImpact` runs (`registry(address:) { labelCount }`
+ * in `getRegistryOccupants`) before it will report an impact count.
+ *
+ * A freshly deployed-and-attached subregistry has no subnames to wait on with
+ * {@link waitForIndexedName} — it needs this instead. Same underlying cause as
+ * that helper's own note: Panoptes only learns a subregistry exists once it
+ * sees the `setSubregistry` event, so a registry can be several blocks old,
+ * with the indexer at chain head, and still answer `null` (which the app
+ * treats as "can't size this", not "empty" — fail closed, so the transfer
+ * step stays blocked rather than proceeding on an unknown blast radius).
+ */
+export async function waitForIndexedRegistry(
+  address: Address,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const data = await query<{ registry: { labelCount: number } | null }>(
+      `{ registry(address: "${address.toLowerCase()}") { labelCount } }`,
+    )
+    if (data?.registry != null) return
+    await new Promise((r) => setTimeout(r, POLL_MS))
+  }
+  throw new Error(
+    `Panoptes has not discovered registry ${address} after ${timeoutMs}ms. ` +
+      `A freshly attached subregistry is only discovered once Panoptes sees ` +
+      `its setSubregistry event — see waitForIndexedName's header comment.`,
+  )
+}
+
+/**
  * Block until Panoptes lists `name` in its `domains` table — the source the
  * portal's subnames list reads through `useSubnames`.
  *

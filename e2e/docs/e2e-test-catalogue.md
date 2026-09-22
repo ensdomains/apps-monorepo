@@ -257,6 +257,13 @@ not in single cells — which is why the migration matrix is a matrix.
 | F38 | Wallet changes role between render and submit | the submit-time re-gate refuses with 'How this name is held changed since the page loaded' and sends nothing |
 | F39 | V1 subname under a .eth 2LD in grace, then expired | grace: the parent's move is refused with '<2LD> is in its grace period', the holder's goes through with a warning; past grace: '<2LD> has expired' for both |
 | F40 | Transfer route for a subname that does not exist | 'Transfer not available' naming the parent it doesn't exist under; no form |
+| F41 | Detaching a registry with third-party subnames requires an explicit, informed opt-in (immunefi #93026) | the toggle defaults off; turning it on with a real blast radius names the exact indexer-counted subname count and third-party wording, blocks the transfer until a keyed acknowledgement is ticked, voids that tick if the toggle is reset, and — once re-ticked — actually runs `setSubregistry(0)` |
+| F42 | A detached (not never-configured) registry slot warns instead of offering to configure a fresh one | after a real detach transfer, the registry route shows "Registry detached", not "Configure registry" — the `useSubregistrySlot` end-to-end path, distinct from its unit test |
+
+F41–F42 are WEB-1504/#1170 (immunefi #93026: `detachRegistry` defaulted ON, so a
+routine transfer could silently brick third parties' subnames). That PR also
+flipped F9's registry leg from default-on to default-off — see the updated F9
+tests' comments for exactly which assertions changed.
 
 F15–F21 are WEB-128/#1120. Plan:
 [`transfer-subname-web128-test-plan.md`](./transfer-subname-web128-test-plan.md);

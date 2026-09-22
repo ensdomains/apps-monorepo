@@ -47,6 +47,7 @@ import {
   testClient,
   walletClient,
 } from '../../../helpers/anvil-client.js'
+import { waitForIndexedRegistry } from '../../../helpers/indexer-sync.js'
 import { authorizeTransaction } from '../../../helpers/portal-auth.js'
 import {
   assertLacksRoles,
@@ -566,8 +567,12 @@ test.describe('Portal name transfer', () => {
 
     await page.getByPlaceholder('ENS name or address').fill(recipient)
 
-    // Both options default to on whenever they have a target — turn both
-    // off to exercise the "leave everything as-is" path.
+    // The resolver option still defaults on whenever it has a target — turn
+    // it off to exercise the "leave everything as-is" path. The registry
+    // option now defaults OFF (SendNameForm's OPTIONS/useState — #1170, fixes
+    // immunefi #93026: a routine transfer must not silently detach a
+    // subregistry other people's subnames depend on), so it's already in the
+    // state this test wants and needs no click — just confirm that.
     const detachResolverSwitch = page.getByRole('switch', {
       name: /Detach the resolver/,
     })
@@ -577,7 +582,7 @@ test.describe('Portal name transfer', () => {
     await expect(detachResolverSwitch).toBeVisible({ timeout: 15_000 })
     await detachResolverSwitch.click()
     await expect(detachRegistrySwitch).toBeVisible({ timeout: 15_000 })
-    await detachRegistrySwitch.click()
+    await expect(detachRegistrySwitch).not.toBeChecked()
 
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
     await expect(transferButton).toBeEnabled({ timeout: 15_000 })
@@ -769,134 +774,185 @@ test.describe('Portal name transfer', () => {
    * default-on with no registry target, and the T,F,F row via F12); these
    * three close the remaining rows — see coverage/handoff.md, iteration 15.
    */
-  test('detaches the registry alone when the resolver is explicitly kept', {
-    tag: ['@scenario:F9'],
-  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
-    test.setTimeout(180_000)
+  /**
+   * These two rows attach an empty subregistry purely to exercise the detach
+   * toggle — they don't care about real subname counts. Mock
+   * `getRegistryOccupants` instead of waiting on Panoptes to discover the
+   * freshly-deployed subregistry (see the `mockIndexer` fixture and
+   * `mock-indexer.ts` — Panoptes' CREATE2-discovery for new subregistries is
+   * currently stuck, so the real query hangs indefinitely on a fresh one).
+   */
+  test.describe('registry-detach toggle rows (mocked occupant count)', () => {
+    test.use({ mockIndexerEnabled: true })
 
-    await connectWithHeadlessWallet(page, wallet)
+    test('detaches the registry alone when the resolver is explicitly kept', {
+      tag: ['@scenario:F9'],
+    }, async ({
+      portalPage: page,
+      wallet,
+      accounts,
+      makeName,
+      mockIndexer,
+    }) => {
+      test.setTimeout(180_000)
 
-    const name = await makeName({
-      label: 'test-f9-registry-only',
-      owner: 'user',
+      await connectWithHeadlessWallet(page, wallet)
+
+      const name = await makeName({
+        label: 'test-f9-registry-only',
+        owner: 'user',
+      })
+      const label = name.replace(/\.eth$/, '')
+      const recipient = accounts.getAddress('user2')
+
+      const subregistryAddress = await deployAndAttachSubregistry(
+        { label },
+        privateKeyToAccount(accounts.getPrivateKey('user')),
+      )
+      const [originalResolver] = await readResolverAndSubregistry(label)
+      // Empty subregistry — no third parties, no consent tick required.
+      mockIndexer.setRegistryOccupants(subregistryAddress, {
+        count: 0,
+        thirdPartyCount: 0,
+      })
+
+      await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+      await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+      // The resolver still defaults on whenever it has a target — keep it by
+      // turning its switch off. The registry option now defaults OFF (#1170),
+      // so turn it on explicitly. The subregistry here was just deployed with
+      // no subnames in it, so flipping it on needs no consent tick — see
+      // getDetachConsentState's zero-count case in SendNameForm.tsx.
+      const detachResolverSwitch = page.getByRole('switch', {
+        name: /Detach the resolver/,
+      })
+      const detachRegistrySwitch = page.getByRole('switch', {
+        name: /Detach the registry/,
+      })
+      await expect(detachResolverSwitch).toBeVisible({ timeout: 15_000 })
+      await detachResolverSwitch.click()
+      await expect(detachRegistrySwitch).toBeVisible({ timeout: 15_000 })
+      await expect(detachRegistrySwitch).not.toBeChecked()
+      await detachRegistrySwitch.click()
+      await expect(detachRegistrySwitch).toBeChecked()
+
+      const transferButton = page.getByRole('button', {
+        name: 'Transfer name',
+      })
+      await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+      await transferButton.click()
+
+      await driveTransactionsToSuccess(page, wallet, [
+        transferTxId(name, 'detach-registry'),
+        transferTxId(name, 'transfer-token'),
+      ])
+      await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
+        timeout: 30_000,
+      })
+      await expectOwnerOnNamePages(page, name, recipient)
+
+      const [resolverAfter, subregistryAfter] =
+        await readResolverAndSubregistry(label)
+      expect(resolverAfter.toLowerCase()).toBe(originalResolver.toLowerCase())
+      expect(subregistryAfter).toBe(zeroAddress)
+      expect(subregistryAddress).not.toBe(zeroAddress)
     })
-    const label = name.replace(/\.eth$/, '')
-    const recipient = accounts.getAddress('user2')
 
-    const subregistryAddress = await deployAndAttachSubregistry(
-      { label },
-      privateKeyToAccount(accounts.getPrivateKey('user')),
-    )
-    const [originalResolver] = await readResolverAndSubregistry(label)
+    test('updates the ETH address and detaches the registry when the resolver is kept', {
+      tag: ['@scenario:F9'],
+    }, async ({
+      portalPage: page,
+      wallet,
+      accounts,
+      makeName,
+      mockIndexer,
+    }) => {
+      test.setTimeout(180_000)
 
-    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
-    await page.getByPlaceholder('ENS name or address').fill(recipient)
+      await connectWithHeadlessWallet(page, wallet)
 
-    // Both default on whenever they have a target — keep the resolver by
-    // turning its switch off, leave the registry switch on the default.
-    const detachResolverSwitch = page.getByRole('switch', {
-      name: /Detach the resolver/,
+      // Needs a dedicated resolver proxy (via `records`) for the same reason as
+      // F12: the shared V1_PUBLIC_RESOLVER doesn't grant this owner write access,
+      // and `set-eth-addr` writes through the resolver.
+      const name = await makeName({
+        label: 'test-f9-addr-and-registry',
+        owner: 'user',
+        records: [{ key: 'description', value: 'seed' }],
+      })
+      const label = name.replace(/\.eth$/, '')
+      const owner = accounts.getAddress('user')
+      const recipient = accounts.getAddress('user2')
+
+      const [resolverAddress] = await readResolverAndSubregistry(label)
+      await setEthAddressRecord(
+        name,
+        resolverAddress,
+        owner,
+        accounts.getPrivateKey('user'),
+      )
+      const subregistryAddress = await deployAndAttachSubregistry(
+        { label },
+        privateKeyToAccount(accounts.getPrivateKey('user')),
+      )
+      // Empty subregistry — no third parties, no consent tick required.
+      mockIndexer.setRegistryOccupants(subregistryAddress, {
+        count: 0,
+        thirdPartyCount: 0,
+      })
+
+      await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+      await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+      const detachResolverSwitch = page.getByRole('switch', {
+        name: /Detach the resolver/,
+      })
+      const setEthAddressSwitch = page.getByRole('switch', {
+        name: /Set the ETH address to the recipient/,
+      })
+      const detachRegistrySwitch = page.getByRole('switch', {
+        name: /Detach the registry/,
+      })
+      await expect(detachResolverSwitch).toBeVisible({ timeout: 15_000 })
+      await detachResolverSwitch.click()
+      // Freed by turning detachResolver off, and on by default once enabled.
+      await expect(setEthAddressSwitch).toBeChecked()
+      // The registry option now defaults OFF (#1170) — turn it on explicitly.
+      // Empty subregistry (0 subnames), so no consent tick is required.
+      await expect(detachRegistrySwitch).toBeVisible({ timeout: 15_000 })
+      await expect(detachRegistrySwitch).not.toBeChecked()
+      await detachRegistrySwitch.click()
+      await expect(detachRegistrySwitch).toBeChecked()
+
+      const transferButton = page.getByRole('button', {
+        name: 'Transfer name',
+      })
+      await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+      await transferButton.click()
+
+      await driveTransactionsToSuccess(page, wallet, [
+        `transfer-${name}-set-eth-addr`,
+        transferTxId(name, 'detach-registry'),
+        transferTxId(name, 'transfer-token'),
+      ])
+      await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
+        timeout: 30_000,
+      })
+      await expectOwnerOnNamePages(page, name, recipient)
+
+      const [resolverAfter, subregistryAfter] =
+        await readResolverAndSubregistry(label)
+      expect(resolverAfter.toLowerCase()).toBe(resolverAddress.toLowerCase())
+      expect(subregistryAfter).toBe(zeroAddress)
+      const ethAddress = await getAddressRecord(publicClient as never, {
+        name,
+        coin: 60,
+      })
+      expect(ethAddress?.value?.toLowerCase()).toBe(recipient.toLowerCase())
     })
-    await expect(detachResolverSwitch).toBeVisible({ timeout: 15_000 })
-    await detachResolverSwitch.click()
-    await expect(
-      page.getByRole('switch', { name: /Detach the registry/ }),
-    ).toBeChecked()
-
-    const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
-    await transferButton.click()
-
-    await driveTransactionsToSuccess(page, wallet, [
-      transferTxId(name, 'detach-registry'),
-      transferTxId(name, 'transfer-token'),
-    ])
-    await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
-      timeout: 30_000,
-    })
-    await expectOwnerOnNamePages(page, name, recipient)
-
-    const [resolverAfter, subregistryAfter] =
-      await readResolverAndSubregistry(label)
-    expect(resolverAfter.toLowerCase()).toBe(originalResolver.toLowerCase())
-    expect(subregistryAfter).toBe(zeroAddress)
-    expect(subregistryAddress).not.toBe(zeroAddress)
   })
 
-  test('updates the ETH address and detaches the registry when the resolver is kept', {
-    tag: ['@scenario:F9'],
-  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
-    test.setTimeout(180_000)
-
-    await connectWithHeadlessWallet(page, wallet)
-
-    // Needs a dedicated resolver proxy (via `records`) for the same reason as
-    // F12: the shared V1_PUBLIC_RESOLVER doesn't grant this owner write access,
-    // and `set-eth-addr` writes through the resolver.
-    const name = await makeName({
-      label: 'test-f9-addr-and-registry',
-      owner: 'user',
-      records: [{ key: 'description', value: 'seed' }],
-    })
-    const label = name.replace(/\.eth$/, '')
-    const owner = accounts.getAddress('user')
-    const recipient = accounts.getAddress('user2')
-
-    const [resolverAddress] = await readResolverAndSubregistry(label)
-    await setEthAddressRecord(
-      name,
-      resolverAddress,
-      owner,
-      accounts.getPrivateKey('user'),
-    )
-    await deployAndAttachSubregistry(
-      { label },
-      privateKeyToAccount(accounts.getPrivateKey('user')),
-    )
-
-    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
-    await page.getByPlaceholder('ENS name or address').fill(recipient)
-
-    const detachResolverSwitch = page.getByRole('switch', {
-      name: /Detach the resolver/,
-    })
-    const setEthAddressSwitch = page.getByRole('switch', {
-      name: /Set the ETH address to the recipient/,
-    })
-    await expect(detachResolverSwitch).toBeVisible({ timeout: 15_000 })
-    await detachResolverSwitch.click()
-    // Freed by turning detachResolver off, and on by default once enabled.
-    await expect(setEthAddressSwitch).toBeChecked()
-    await expect(
-      page.getByRole('switch', { name: /Detach the registry/ }),
-    ).toBeChecked()
-
-    const transferButton = page.getByRole('button', { name: 'Transfer name' })
-    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
-    await transferButton.click()
-
-    await driveTransactionsToSuccess(page, wallet, [
-      `transfer-${name}-set-eth-addr`,
-      transferTxId(name, 'detach-registry'),
-      transferTxId(name, 'transfer-token'),
-    ])
-    await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
-      timeout: 30_000,
-    })
-    await expectOwnerOnNamePages(page, name, recipient)
-
-    const [resolverAfter, subregistryAfter] =
-      await readResolverAndSubregistry(label)
-    expect(resolverAfter.toLowerCase()).toBe(resolverAddress.toLowerCase())
-    expect(subregistryAfter).toBe(zeroAddress)
-    const ethAddress = await getAddressRecord(publicClient as never, {
-      name,
-      coin: 60,
-    })
-    expect(ethAddress?.value?.toLowerCase()).toBe(recipient.toLowerCase())
-  })
-
-  test('detaches both the resolver and the registry on their defaults', {
+  test('detaches both the resolver and the registry when the registry detach is explicitly turned on', {
     tag: ['@scenario:F9'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
@@ -907,21 +963,31 @@ test.describe('Portal name transfer', () => {
     const label = name.replace(/\.eth$/, '')
     const recipient = accounts.getAddress('user2')
 
-    await deployAndAttachSubregistry(
+    const subregistryAddress = await deployAndAttachSubregistry(
       { label },
       privateKeyToAccount(accounts.getPrivateKey('user')),
     )
+    // See waitForIndexedRegistry's header comment: a freshly attached
+    // subregistry answers null (fail closed) until Panoptes discovers it.
+    await waitForIndexedRegistry(subregistryAddress)
 
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
     await page.getByPlaceholder('ENS name or address').fill(recipient)
 
-    // Both switches default on with a target present — leave them untouched.
+    // The resolver switch still defaults on with a target present — leave it
+    // untouched. The registry switch now defaults OFF (#1170), so it must be
+    // turned on explicitly to exercise this row. The subregistry here is
+    // freshly deployed with no subnames, so no consent tick is required.
     await expect(
       page.getByRole('switch', { name: /Detach the resolver/ }),
     ).toBeChecked()
-    await expect(
-      page.getByRole('switch', { name: /Detach the registry/ }),
-    ).toBeChecked()
+    const detachRegistrySwitch = page.getByRole('switch', {
+      name: /Detach the registry/,
+    })
+    await expect(detachRegistrySwitch).toBeVisible({ timeout: 15_000 })
+    await expect(detachRegistrySwitch).not.toBeChecked()
+    await detachRegistrySwitch.click()
+    await expect(detachRegistrySwitch).toBeChecked()
 
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
     await expect(transferButton).toBeEnabled({ timeout: 15_000 })
@@ -941,6 +1007,239 @@ test.describe('Portal name transfer', () => {
       await readResolverAndSubregistry(label)
     expect(resolverAfter).toBe(zeroAddress)
     expect(subregistryAfter).toBe(zeroAddress)
+  })
+
+  test.describe('registry-detach consent flow (mocked occupant / history counts)', () => {
+    test.use({ mockIndexerEnabled: true })
+
+    /**
+     * F41 — the security fix itself (immunefi #93026 / WEB-1504 / #1170).
+     *
+     * Before this PR `detachRegistry` defaulted ON, so a routine transfer
+     * could silently zero a name's subregistry pointer and stop every
+     * subname under it from resolving — including subnames held by people
+     * who are not party to the transfer, are never told, and hold no role
+     * that lets them repair it. The fix: the toggle now defaults OFF, and
+     * turning it on with something to lose requires an explicit, informed,
+     * non-stale opt-in (`useRegistryDetachImpact` / `RegistryDetachConsent`
+     * in `SendNameForm.tsx`).
+     *
+     * This one test covers both the consent gate and its "stale tick" guard.
+     * It only needs the indexer to *report* a third-party count, not for
+     * real subnames to exist — `getRegistryOccupants` is mocked directly
+     * (`mockIndexer.setRegistryOccupants`), so this needs no on-chain
+     * subname writes and no indexer backfill wait at all. The subregistry
+     * itself is still deployed and attached for real, and the transfer's
+     * `setSubregistry(0)` write at the end is still a real on-chain
+     * transaction.
+     */
+    test('blocks detaching a registry with third-party subnames until the exact blast radius is acknowledged, and voids that acknowledgement if the toggle is reset', {
+      tag: ['@scenario:F41'],
+    }, async ({
+      portalPage: page,
+      wallet,
+      accounts,
+      makeName,
+      mockIndexer,
+    }) => {
+      test.setTimeout(180_000)
+
+      await connectWithHeadlessWallet(page, wallet)
+
+      const recipient = accounts.getAddress('user2')
+      const ownerAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+
+      const name = await makeName({
+        label: 'test-f41-third-party',
+        owner: 'user',
+      })
+      const label = name.replace(/\.eth$/, '')
+
+      const subregistryAddress = await deployAndAttachSubregistry(
+        { label },
+        ownerAccount,
+      )
+      // 2 subnames total, 1 of them not owned by the sender — the exact
+      // blast radius the consent copy below asserts on. This mocks the
+      // *count query response*, not on-chain state: no `createSubname`
+      // writes or indexer backfill wait needed for this test's purpose.
+      mockIndexer.setRegistryOccupants(subregistryAddress, {
+        count: 2,
+        thirdPartyCount: 1,
+      })
+
+      await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+      await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+      const detachRegistrySwitch = page.getByRole('switch', {
+        name: /Detach the registry/,
+      })
+      await expect(detachRegistrySwitch).toBeVisible({ timeout: 15_000 })
+      await expect(detachRegistrySwitch).not.toBeChecked()
+
+      const transferButton = page.getByRole('button', {
+        name: 'Transfer name',
+      })
+      await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+
+      // ── Turning the option on surfaces the real blast radius ──────────
+      await detachRegistrySwitch.click()
+
+      const consentCheckbox = page.getByRole('checkbox', {
+        name: /I understand this breaks 2 subnames, including ones I don.t own/,
+      })
+      // `exact: true` — the checkbox label below also contains "2 subnames" as
+      // a substring of a longer sentence, and would otherwise ambiguously match.
+      await expect(
+        page.getByText('2 subnames', { exact: true }),
+        'the alert must name the real, indexer-counted subname count',
+      ).toBeVisible({ timeout: 30_000 })
+      await expect(
+        page.getByText(/Some of them belong to other people/),
+        'a registry with a third-party subname must get the third-party wording, not the generic one',
+      ).toBeVisible()
+      await expect(
+        transferButton,
+        'the transfer must stay blocked until the destructive detach is acknowledged',
+      ).toBeDisabled()
+
+      // ── Ticking the box unblocks it ────────────────────────────────────
+      await expect(consentCheckbox).toBeVisible()
+      await consentCheckbox.click()
+      await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+
+      // ── Resetting the toggle voids the tick (getDetachConsentKey) ──────
+      await detachRegistrySwitch.click() // off
+      await detachRegistrySwitch.click() // back on
+      await expect(
+        consentCheckbox,
+        'turning the step off and on again must not carry the old tick forward',
+      ).not.toBeChecked()
+      await expect(
+        transferButton,
+        'a stale acknowledgement must not still satisfy the gate',
+      ).toBeDisabled()
+
+      // ── Re-ticking lets the real, on-chain detach go through ───────────
+      await consentCheckbox.click()
+      await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+      await transferButton.click()
+
+      await driveTransactionsToSuccess(page, wallet, [
+        transferTxId(name, 'detach-resolver'),
+        transferTxId(name, 'detach-registry'),
+        transferTxId(name, 'transfer-token'),
+      ])
+      await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
+        timeout: 30_000,
+      })
+      await expectOwnerOnNamePages(page, name, recipient)
+
+      // The write actually ran: `setSubregistry(0)` landed on chain — a real
+      // detach, not just a UI-level one.
+      const [, subregistryAfter] = await readResolverAndSubregistry(label)
+      expect(subregistryAfter).toBe(zeroAddress)
+      expect(subregistryAddress).not.toBe(zeroAddress)
+    })
+
+    /**
+     * F42 — the `useSubregistrySlot` end-to-end path (companion PR #1170).
+     *
+     * A zeroed subregistry slot renders differently depending on whether it
+     * was ever configured. Before this PR both read as "Configure registry",
+     * which on a DETACHED name would let the current holder deploy a
+     * brand-new, empty registry and re-mint a victim's old label into it,
+     * stranding the original token. The unit tests already cover
+     * `useSubregistrySlot` in isolation; this proves the real thing end to
+     * end — a real detach transfer (the actual `setSubregistry(0)` write),
+     * then a real page load whose `getSubregistryUpdateCount` response is
+     * mocked instead of waiting for Panoptes to index the detach block.
+     */
+    test('shows "Registry detached" instead of "Configure registry" after a detach transfer', {
+      tag: ['@scenario:F42'],
+    }, async ({
+      portalPage: page,
+      wallet,
+      accounts,
+      makeName,
+      mockIndexer,
+    }) => {
+      test.setTimeout(180_000)
+
+      await connectWithHeadlessWallet(page, wallet)
+
+      const recipient = accounts.getAddress('user2')
+      const ownerAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+
+      const name = await makeName({
+        label: 'test-f42-detached-notice',
+        owner: 'user',
+      })
+      const label = name.replace(/\.eth$/, '')
+
+      const subregistryAddress = await deployAndAttachSubregistry(
+        { label },
+        ownerAccount,
+      )
+      // Empty subregistry — no third parties, no consent tick required.
+      mockIndexer.setRegistryOccupants(subregistryAddress, {
+        count: 0,
+        thirdPartyCount: 0,
+      })
+
+      await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+      await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+      const detachRegistrySwitch = page.getByRole('switch', {
+        name: /Detach the registry/,
+      })
+      await expect(detachRegistrySwitch).toBeVisible({ timeout: 15_000 })
+      await detachRegistrySwitch.click() // empty registry — no consent required
+
+      const transferButton = page.getByRole('button', {
+        name: 'Transfer name',
+      })
+      await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+      await transferButton.click()
+
+      await driveTransactionsToSuccess(page, wallet, [
+        transferTxId(name, 'detach-resolver'),
+        transferTxId(name, 'detach-registry'),
+        transferTxId(name, 'transfer-token'),
+      ])
+      await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
+        timeout: 30_000,
+      })
+
+      const [, subregistryAfter] = await readResolverAndSubregistry(label)
+      expect(subregistryAfter).toBe(zeroAddress)
+
+      // The detach transaction landed for real above; rather than waiting for
+      // Panoptes to index the `SubregistryUpdated` event it emitted, mock
+      // `getSubregistryUpdateCount`'s response directly so the next page load
+      // reads "detached" deterministically.
+      mockIndexer.setSubregistryHistory(namehash(name), 1)
+
+      // Reconnect as the recipient — the new owner is exactly who a re-mint
+      // attack would target, and exactly who must see the warning rather than
+      // an invitation to configure a fresh registry.
+      await wallet.changeAccounts([accounts.getPrivateKey('user2')])
+      await page.goto(`${PORTAL_APP_URL}/${name}/registry`)
+
+      await expect(
+        page.getByText('Registry detached'),
+        'a slot that was configured and now reads zero must show the detached notice',
+      ).toBeVisible({ timeout: 30_000 })
+      await expect(
+        page.getByText(
+          /its subnames have stopped resolving.*still exist in the old registry/s,
+        ),
+      ).toBeVisible()
+      await expect(
+        page.getByRole('button', { name: 'Configure registry' }),
+        'offering a fresh registry here would let the holder re-mint the old labels and strand the original token',
+      ).toBeHidden()
+    })
   })
 
   /**

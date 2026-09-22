@@ -2227,6 +2227,16 @@ const extraF: Scenario[] = suite('F', 'transfer', 'portal', 'P5', [
     'Subname whose owner lacks ROLE_CAN_TRANSFER_ADMIN',
     '"Transfer not available" and no form — asserted with an owner who is NOT the subregistry deployer, since root roles would otherwise grant it back',
   ],
+  [
+    'F41',
+    'Detaching a registry with third-party subnames requires an explicit, informed opt-in (immunefi #93026)',
+    'the toggle defaults off; turning it on with a real blast radius names the exact indexer-counted subname count and third-party wording, blocks the transfer until a keyed acknowledgement is ticked, voids that tick if the toggle is reset, and — once re-ticked — actually runs setSubregistry(0)',
+  ],
+  [
+    'F42',
+    'A detached (not never-configured) registry slot warns instead of offering to configure a fresh one',
+    'after a real detach transfer, the registry route shows "Registry detached", not "Configure registry" — the useSubregistrySlot end-to-end path, distinct from its unit test',
+  ],
 ])
 
 const extraI: Scenario[] = suite('I', 'fuses', 'portal', 'P5', [
