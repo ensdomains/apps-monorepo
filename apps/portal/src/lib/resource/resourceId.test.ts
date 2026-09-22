@@ -28,33 +28,47 @@ const VAULT_LABELHASH = labelhash('vault')
 const ENCODED_LABEL = `[${VAULT_LABELHASH.slice(2)}]`
 
 describe('resourceIdForName', () => {
-  it('hashes the normalised first label', () => {
+  it('hashes the first label exactly as it is written', () => {
     expect(resourceIdForName('vault.example.eth')._unsafeUnwrap()).toBe(
-      BigInt(labelhash('vault')),
-    )
-    // Normalised, so the id matches what registration wrote.
-    expect(resourceIdForName('VAULT.eth')._unsafeUnwrap()).toBe(
       BigInt(labelhash('vault')),
     )
   })
 
-  // WEB-1458: `labelhash('[<64 hex>]')` returns those digits unhashed, so a
-  // name displayed that way would resolve to some *other* name's id.
-  it('refuses an encoded label rather than returning the hash it spells out', () => {
+  // The registry hashed whatever characters were registered. Re-normalising
+  // here would address a resource the owner does not hold, locking them out of
+  // a name that exists — normalisation belongs on the registration path.
+  it('does not normalise, so a registered label stays addressable', () => {
+    for (const label of ['my_name', 'VAULT', 'a--b']) {
+      expect(resourceIdForName(`${label}.eth`)._unsafeUnwrap()).toBe(
+        BigInt(labelhash(label)),
+      )
+    }
+  })
+
+  // `labelhash('[<64 hex>]')` returns those digits unhashed. The string does
+  // not say whether it is a label registered as those 66 characters or ENS
+  // rendering a label nothing has decoded, so this declines to pick one.
+  it('refuses an encoded first label rather than guessing which name it is', () => {
     const result = resourceIdForName(`${ENCODED_LABEL}.eth`)
 
     expect(result.isErr()).toBe(true)
     expect(result._unsafeUnwrapErr().reason).toBe('encoded-label')
-    // The trap: this is what the old derivation produced.
+    // The trap: this is what a plain derivation produces.
     expect(BigInt(labelhash(ENCODED_LABEL))).toBe(BigInt(VAULT_LABELHASH))
   })
 
-  it('refuses a label ENSIP-15 rejects', () => {
-    expect(resourceIdForName('')._unsafeUnwrapErr().reason).toBe(
-      'unnormalizable-label',
+  // Only the first label decides this name's id, so an undecoded ancestor is
+  // none of its business.
+  it('addresses a subname under an encoded parent', () => {
+    expect(resourceIdForName(`sub.${ENCODED_LABEL}.eth`)._unsafeUnwrap()).toBe(
+      BigInt(labelhash('sub')),
     )
-    expect(resourceIdForName('   .eth')._unsafeUnwrapErr().reason).toBe(
-      'unnormalizable-label',
+  })
+
+  it('refuses a name with no first label', () => {
+    expect(resourceIdForName('')._unsafeUnwrapErr().reason).toBe('empty-label')
+    expect(resourceIdForName('.eth')._unsafeUnwrapErr().reason).toBe(
+      'empty-label',
     )
   })
 

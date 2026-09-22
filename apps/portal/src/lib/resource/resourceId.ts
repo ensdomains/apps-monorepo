@@ -8,10 +8,12 @@
  * this module exists to make impossible:
  *
  * - `labelhash()` does not hash a label written as `[<64 hex>]`. It reads it as
- *   an already-hashed label and returns the digits verbatim, so an id rebuilt
- *   from such a display name addresses a *different* name than the row the
- *   operator clicked. The registry, by contrast, hashed the literal characters
- *   when the name was registered.
+ *   an already-hashed label and returns the digits verbatim. That form is
+ *   ambiguous from the string alone: it is how ENS *renders* a label whose
+ *   preimage nothing has seen (and then the digits really are the id), and it
+ *   is also what a label literally registered as those 66 characters looks like
+ *   (and then the id is the hash of the characters). The two are different
+ *   names, so an id guessed from the string can address the wrong one.
  * - Coercing an id that could not be read into `0n` hands the caller the root
  *   resource: the broadest scope there is, reached by a failure rather than by
  *   a choice.
@@ -25,7 +27,6 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, ok, type Result } from 'neverthrow'
 import { type Abi, decodeFunctionData, type Hex, labelhash } from 'viem'
-import { getLabel } from '@/utils/token/getLabel'
 
 declare const resourceIdBrand: unique symbol
 
@@ -40,10 +41,14 @@ declare const resourceIdBrand: unique symbol
 export type ResourceId = bigint & { readonly [resourceIdBrand]: true }
 
 export type ResourceIdFailure =
-  /** The label is written in `[<64 hex>]` form, which `labelhash` does not hash. */
+  /**
+   * The first label is written in `[<64 hex>]` form. Which name that is cannot
+   * be told from the string, so the id has to come from a typed source
+   * (`useNameResourceId` asks the indexer) rather than be guessed here.
+   */
   | 'encoded-label'
-  /** The label is not a name ENSIP-15 accepts, so it cannot be hashed safely. */
-  | 'unnormalizable-label'
+  /** There is no first label to hash. */
+  | 'empty-label'
   /** The chain or indexer value is not a number we can read. */
   | 'malformed-resource'
 
@@ -77,7 +82,10 @@ const MAX_UINT256 = (1n << 256n) - 1n
  * so nothing has to be re-derived from a name.
  */
 export const resourceIdFromChainValue = (
-  value: string | bigint,
+  // `unknown`, not `string | bigint`: the indexer's shape is a TypeScript
+  // assertion, not a runtime guarantee, and a nulled GraphQL field reaching a
+  // `.trim()` would take a whole route down instead of degrading one row.
+  value: unknown,
 ): Result<ResourceId, ResourceIdError> => {
   if (typeof value === 'bigint') {
     return value >= 0n && value <= MAX_UINT256
@@ -89,6 +97,14 @@ export const resourceIdFromChainValue = (
           }),
         )
   }
+
+  if (typeof value !== 'string')
+    return err(
+      new ResourceIdError({
+        reason: 'malformed-resource',
+        message: `Could not read a resource id from a ${value === null ? 'null' : typeof value} value`,
+      }),
+    )
 
   const trimmed = value.trim()
   if (!HASH_32.test(trimmed) && !DECIMAL.test(trimmed))
@@ -103,43 +119,44 @@ export const resourceIdFromChainValue = (
 }
 
 /**
- * Last resort, for a name whose id nothing else can supply: hash its first
- * label.
+ * Exactly what `labelhash` would pass through unhashed: `[` + 64 hex + `]`.
+ * Mirrors viem's own `encodedLabelToLabelhash`, which is what decides whether
+ * a label is hashed or read as an id.
+ */
+const ENCODED_LABEL = /^\[[0-9a-fA-F]{64}\]$/
+
+/**
+ * The id of a name from the name alone: the hash of its first label, exactly as
+ * the registry hashed it at registration.
  *
- * Fails closed. The label has to normalise under ENSIP-15, which rules out the
- * `[<64 hex>]` form `labelhash` would pass through unhashed — the one case
- * where the id and the name on screen come apart.
+ * The label is taken verbatim. Normalisation is deliberately *not* applied:
+ * which resource an existing name occupies was decided when it was registered,
+ * and re-normalising here would address a different resource than the one the
+ * owner actually holds. Normalisation belongs on the registration path.
+ *
+ * The one refusal is the `[<64 hex>]` form, because that string does not say
+ * which name it is — see the note at the top of this file. Callers that need
+ * those names to stay manageable resolve the id from the indexer instead
+ * (`useNameResourceId`); this function only declines to guess.
  */
 export const resourceIdForName = (
   name: string,
 ): Result<ResourceId, ResourceIdError> => {
-  // Checked before normalisation as well as by it: this is the case the whole
-  // module is about, and it should not depend on a library's character table.
-  if (name.includes('[') || name.includes(']'))
-    return err(
-      new ResourceIdError({
-        reason: 'encoded-label',
-        message: `"${name}" is written as an encoded label. Its on-chain id cannot be derived from the name shown.`,
-      }),
-    )
-
-  let label: string
-  try {
-    label = getLabel(name)
-  } catch (cause) {
-    return err(
-      new ResourceIdError({
-        reason: 'unnormalizable-label',
-        message: `"${name}" is not a normalisable ENS name: ${cause instanceof Error ? cause.message : String(cause)}`,
-      }),
-    )
-  }
+  const label = name.split('.')[0] ?? ''
 
   if (label.length === 0)
     return err(
       new ResourceIdError({
-        reason: 'unnormalizable-label',
+        reason: 'empty-label',
         message: `"${name}" has no first label`,
+      }),
+    )
+
+  if (ENCODED_LABEL.test(label))
+    return err(
+      new ResourceIdError({
+        reason: 'encoded-label',
+        message: `The first label of "${name}" is written as an encoded labelhash, which does not say which name it is. Its id has to come from the indexer.`,
       }),
     )
 

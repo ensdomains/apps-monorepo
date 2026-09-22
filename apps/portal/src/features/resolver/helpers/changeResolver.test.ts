@@ -1,11 +1,19 @@
 import { permissionedRegistrySetResolverSnippet } from '@ensdomains/ensjs/contracts'
-import { type Address, decodeFunctionData, type Hex, labelhash } from 'viem'
+import {
+  type Address,
+  decodeFunctionData,
+  type Hex,
+  keccak256,
+  labelhash,
+  toHex,
+} from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
   canonicalResourceId,
   requireResourceIdForName,
   resourceIdForName,
+  resourceIdFromChainValue,
 } from '@/lib/resource/resourceId'
 import { prepareChangeResolverTransaction } from './changeResolver'
 
@@ -50,15 +58,39 @@ describe('prepareChangeResolverTransaction', () => {
   // WEB-1458: the label used to be split off the displayed name and hashed, and
   // `labelhash` returns an encoded label's digits unhashed — so Change Resolver
   // on `[<labelhash("vault")>].eth` built calldata for `vault.eth`.
-  it('has no id to build calldata with for an encoded-label 2LD', () => {
+  it('will not take an id derived from an encoded-label 2LD', () => {
     const name = `${ENCODED_LABEL}.eth`
 
     expect(resourceIdForName(name).isErr()).toBe(true)
     expect(() => requireResourceIdForName(name)).toThrow()
 
-    // What the old derivation handed `setResolver`: another name entirely.
+    // What a plain derivation would have handed `setResolver`: another name.
     expect(canonicalResourceId(requireResourceIdForName('vault.eth'))).toBe(
       BigInt(labelhash(ENCODED_LABEL)) & ~0xffffffffn,
+    )
+  })
+
+  // The route resolves such a name's id from the indexer instead, and whatever
+  // it says is what gets written — the point is that the id is never guessed.
+  it('writes the id it is handed for an encoded-label 2LD', () => {
+    const resourceId = resourceIdFromChainValue(
+      keccak256(toHex(ENCODED_LABEL)),
+    )._unsafeUnwrap()
+
+    const data = dataOf(
+      prepareChangeResolverTransaction({
+        name: `${ENCODED_LABEL}.eth`,
+        resourceId,
+        registryAddress: REGISTRY,
+        resolverAddress: RESOLVER,
+        from: FROM,
+        chainId: sepolia.id,
+      }),
+    )
+
+    expect(setResolverArgs(data)[0]).toBe(canonicalResourceId(resourceId))
+    expect(setResolverArgs(data)[0]).not.toBe(
+      canonicalResourceId(requireResourceIdForName('vault.eth')),
     )
   })
 

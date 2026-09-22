@@ -25,7 +25,8 @@ import type { ResolverWriteTarget } from '@/features/resolver/helpers/changeReso
 import type { V1TransferSubject } from '@/features/transfer/types'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import { canSetV1Resolver } from '@/features/transfer/v1/rules'
-import { type ResourceId, resourceIdForName } from '@/lib/resource/resourceId'
+import { useNameResourceId } from '@/features/profile/hooks/useNameResourceId'
+import type { ResourceId } from '@/lib/resource/resourceId'
 
 type UseCanSetResolverReturn = {
   readonly canSet: boolean
@@ -35,6 +36,11 @@ type UseCanSetResolverReturn = {
    * id cannot be established.
    */
   readonly target: ResolverWriteTarget | null
+  /**
+   * Settled, and this V2 name has no id we can establish. Not a permission
+   * problem — there is no resource to ask a role question about.
+   */
+  readonly isUnsupported: boolean
 }
 
 type Derivation = {
@@ -101,10 +107,15 @@ export function useCanSetResolver({
     ? (registryQuery.data?.[1] ?? undefined)
     : undefined
 
-  // Asked with the name's id, not its label: `labelhash` leaves an encoded
-  // (`[<64 hex>]`) label unhashed, so a label-keyed gate can answer about a
-  // different name than this one (WEB-1458). No id means no permission.
-  const resourceId = resourceIdForName(name).unwrapOr(null)
+  // Asked with the name's id, not its label: a label rendered `[<64 hex>]`
+  // does not say which name it is, so the id is resolved once — from the name
+  // where it can be, from the indexer otherwise — and everything downstream is
+  // addressed with that (WEB-1458).
+  const {
+    resourceId,
+    isLoading: isResourceIdLoading,
+    isUnsupported,
+  } = useNameResourceId(name, { enabled: isV2 })
 
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({
@@ -113,7 +124,9 @@ export function useCanSetResolver({
       roles: ['ROLE_SET_RESOLVER'],
       account: account ?? zeroAddress,
     }),
-    enabled: !!account && !!registryAddress,
+    // Asked only once the id is known: a null resource answers a flat `false`,
+    // which the route would otherwise report as a permission problem.
+    enabled: !!account && !!registryAddress && !!resourceId,
   })
 
   const v1Query = useQuery({
@@ -126,7 +139,9 @@ export function useCanSetResolver({
   const v1Subject = isV1 ? (v1Query.data?.subject ?? null) : null
 
   const v2Loading =
-    registryQuery.isLoading || (!!registryAddress && roleQuery.isLoading)
+    registryQuery.isLoading ||
+    isResourceIdLoading ||
+    (!!registryAddress && !!resourceId && roleQuery.isLoading)
 
   return {
     canSet: deriveCanSet({ account, isV2, hasRole: roleQuery.data, v1Subject }),
@@ -135,5 +150,6 @@ export function useCanSetResolver({
       (isV2 && v2Loading) ||
       (isV1 && v1Query.isLoading),
     target: deriveTarget({ isV2, registryAddress, resourceId, v1Subject }),
+    isUnsupported: isV2 && isUnsupported,
   }
 }

@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/sheet'
 import { AddressNameInput } from '@/features/address/components/AddressNameInput'
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
+import { useNameResourceId } from '@/features/profile/hooks/useNameResourceId'
 import { prepareGrantRolesTransaction } from '@/features/roles/helpers/grantRoles'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
@@ -49,6 +50,9 @@ export const RolesAddUserSheet = ({
 
   const labels = name.split('.')
   const is2LD = labels.length === 2
+  // Resolved once, then carried into the grant (WEB-1458). Without it there is
+  // no resource to scope the grant to, so the form refuses rather than guess.
+  const { resourceId, isLoading: isResourceIdLoading } = useNameResourceId(name)
 
   const { data: callerRolesData } = useQuery({
     ...getNameRolesForAccountQueryOptions({
@@ -97,7 +101,12 @@ export const RolesAddUserSheet = ({
   }
 
   const canSave =
-    !!address && !isResolving && selectedRoles.size > 0 && !isSuccess
+    !!address &&
+    !isResolving &&
+    selectedRoles.size > 0 &&
+    !isSuccess &&
+    !!resourceId &&
+    !isResourceIdLoading
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -108,9 +117,10 @@ export const RolesAddUserSheet = ({
   }
 
   const handleStartTransaction = () => {
-    if (!pendingGrant || !walletClient?.account) return
+    if (!pendingGrant || !walletClient?.account || !resourceId) return
     grantRoles({
       name,
+      resourceId,
       account: pendingGrant.account,
       roles: pendingGrant.roles,
       id: GRANT_ROLES_TX_ID,
@@ -245,17 +255,19 @@ export const RolesAddUserSheet = ({
                     ? `Grant roles for ${truncateAddress(address, 6, 4)}`
                     : 'Grant roles',
                   intent: {
-                    prepare: pendingGrant
-                      ? ({ walletClient, chainId }) =>
-                          prepareGrantRolesTransaction({
-                            name,
-                            account: pendingGrant.account,
-                            roles: pendingGrant.roles,
-                            walletClient,
-                            chainId,
-                            registryAddress,
-                          })
-                      : undefined,
+                    prepare:
+                      pendingGrant && resourceId
+                        ? ({ walletClient, chainId }) =>
+                            prepareGrantRolesTransaction({
+                              name,
+                              resourceId,
+                              account: pendingGrant.account,
+                              roles: pendingGrant.roles,
+                              walletClient,
+                              chainId,
+                              registryAddress,
+                            })
+                        : undefined,
                   },
                   onStart: handleStartTransaction,
                   onDone: handleDone,

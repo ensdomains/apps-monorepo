@@ -10,6 +10,12 @@
  * `EnhancedAccessControl.hasRoles` ORs the caller's root roles into every
  * resource, so one question per row still answers both "granted registry-wide"
  * and "granted on this name".
+ *
+ * This is the fallback, not the first question. Callers ask the single root
+ * question first and only come here when the answer is `false`: viem chunks a
+ * multicall at 1024 bytes and each check is 100 bytes, so a name with hundreds
+ * of subnames would otherwise issue tens of `aggregate3` calls on every load
+ * for an account the root answer already settled.
  */
 
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'

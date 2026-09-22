@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { useNameResourceId } from '@/features/profile/hooks/useNameResourceId'
 import {
   generateSubregistrySalt,
   prepareDeploySubregistryTransaction,
@@ -20,7 +21,7 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { type ResourceId, resourceIdForName } from '@/lib/resource/resourceId'
+import type { ResourceId } from '@/lib/resource/resourceId'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 
@@ -370,20 +371,21 @@ const SubregistryConfiguratorForm = ({
 
 /**
  * The id `setSubregistry` will be addressed with, resolved before the form is
- * built. Derived fail-closed: `labelhash` leaves an encoded (`[<64 hex>]`)
- * label unhashed, so a label split off the displayed name can point the write
- * at a different name (WEB-1458). No id means no form, not a guess.
+ * built so nothing below re-derives it from the displayed name (WEB-1458).
+ * No id means no form, not a guess.
  */
 export const SubregistryConfigurator = (
   props: SubregistryConfiguratorProps,
 ) => {
-  const resourceId = resourceIdForName(props.name).unwrapOr(null)
+  const { resourceId, isLoading } = useNameResourceId(props.name)
+
+  if (isLoading) return <LoadingSpinner title="Identifying this name" />
 
   if (!resourceId)
     return (
       <ErrorMessage
         compact
-        description={`The on-chain identity of ${props.name} cannot be established from the name itself, so no registry can be set for it here.`}
+        description={`The on-chain identity of ${props.name} could not be established, so no registry can be set for it here.`}
       />
     )
 

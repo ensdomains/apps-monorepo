@@ -8,7 +8,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ChangeResolverForm } from '@/features/resolver/components/ChangeResolverForm'
 import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
-import { resourceIdForName } from '@/lib/resource/resourceId'
 
 export const Route = createFileRoute('/$name/change-resolver')({
   component: RouteComponent,
@@ -67,7 +66,9 @@ const PermissionDenied = ({
 function RouteComponent() {
   const { name } = Route.useParams()
   const { address: connectedAddress } = useConnection()
-  const { canSet, isLoading, target } = useCanSetResolver({ name })
+  const { canSet, isLoading, isUnsupported, target } = useCanSetResolver({
+    name,
+  })
 
   if (isLoading) {
     return <LoadingSpinner title="Checking permissions..." />
@@ -84,19 +85,18 @@ function RouteComponent() {
     )
   }
 
-  // A V2 target also needs the name's own id, and `labelhash` cannot produce
-  // one for an encoded (`[<64 hex>]`) label — say that rather than blame the
-  // registry, and refuse rather than address the write at a guess (WEB-1458).
-  if (!target && resourceIdForName(name).isErr()) {
+  // Said before any permission check, because it is not one: with no id there
+  // is no resource to ask about, and the role query answers a flat `false`.
+  if (isUnsupported) {
     return (
       <PageLayout name={name}>
         <ErrorMessage
           title="Unsupported name"
           description={
             <>
-              The on-chain identity of <strong>{name}</strong> cannot be
-              established from the name itself, so nothing can be written for it
-              here.
+              The on-chain identity of <strong>{name}</strong> could not be
+              established, so nothing can be written for it here. This is not a
+              permissions problem.
             </>
           }
         />
