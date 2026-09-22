@@ -31,13 +31,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export interface SubnameRow {
   readonly name: string
   readonly owner: Address
-  /** Whether the connected user has ROLE_UNREGISTER for this subname. */
+  /**
+   * The subname's on-chain id, as the indexer reported it. Every write about
+   * this row is addressed with this, never with `name` (WEB-1458). Undefined
+   * when the indexer gave no usable id, which makes the row read-only.
+   */
+  readonly resourceId?: ResourceId
+  /** Whether the connected user has ROLE_UNREGISTER on this subname's resource. */
   readonly canDelete?: boolean
 }
 

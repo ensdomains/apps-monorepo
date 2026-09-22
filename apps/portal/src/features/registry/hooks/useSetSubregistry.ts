@@ -11,20 +11,25 @@ import type { Address, Hex } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { setSubregistry } from '@/features/registry/helpers/setSubregistry'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import type { ResourceId } from '@/lib/resource/resourceId'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
 
 interface UseSetSubregistryParams {
   readonly name: string
-  readonly label: string
+  /**
+   * The name's on-chain id, resolved by the caller. `null` when it could not
+   * be established, which refuses the write rather than guessing at one.
+   */
+  readonly resourceId: ResourceId | null
   readonly parentRegistry: Address
   readonly id: string
 }
 
 export const useSetSubregistry = ({
   name,
-  label,
+  resourceId,
   parentRegistry,
   id,
 }: UseSetSubregistryParams) => {
@@ -40,10 +45,15 @@ export const useSetSubregistry = ({
       if (!walletClient?.account || !publicClient) {
         throw new Error('Wallet not connected')
       }
+      if (!resourceId) {
+        throw new Error(
+          `The on-chain identity of ${name} could not be established, so no registry was set`,
+        )
+      }
       const signer = createEOASigner(walletClient)
       return setSubregistry({
         name,
-        label,
+        resourceId,
         parentRegistry,
         subregistryAddress,
         walletClient,

@@ -6,6 +6,7 @@ import { readSubregistry } from '@/features/registry/helpers/readSubregistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { getLabel } from '@/utils/token/getLabel'
 
 const CONFLICT_TOAST_DURATION_MS = 10_000
 
@@ -80,10 +81,24 @@ export const useSubregistryWriteGuard = ({
     setWriteBlock(null)
     if (!parentRegistry) return false
 
+    // The same normalised label the write derives its id from, so the slot
+    // this proves empty is the slot the write fills. A name that will not
+    // normalise has no slot we can name, which is a refusal, not a pass.
+    let label: string
+    try {
+      label = getLabel(name)
+    } catch {
+      setWriteBlock({
+        kind: 'unverified',
+        message: `${name} is not a normalisable ENS name, so its registry slot could not be read.`,
+      })
+      return false
+    }
+
     const block = subregistryWriteBlockFor(
       await readSubregistry({
         registryAddress: parentRegistry,
-        label: name.split('.')[0],
+        label,
       }),
     )
     setWriteBlock(block)

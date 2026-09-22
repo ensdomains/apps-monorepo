@@ -11,8 +11,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
-import { labelToCanonicalId, type Role } from '@ensdomains/ensjs/utils/v2'
+import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { revokeRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
@@ -22,6 +21,11 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import {
+  assertCalldataResourceId,
+  canonicalResourceId,
+  requireResourceIdForName,
+} from '@/lib/resource/resourceId'
 
 // ============================================================================
 // Types
@@ -67,8 +71,11 @@ export function prepareRevokeRolesTransaction({
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  const { label } = makeLabelNodeAndParent(name)
-  const resource = labelToCanonicalId(label)
+  // The name's id, derived fail-closed. `labelhash` leaves an encoded
+  // (`[<64 hex>]`) label unhashed, so splitting a label off the displayed name
+  // could scope this grant to a different name (WEB-1458); a name that cannot
+  // yield a trusted id is refused instead.
+  const resource = canonicalResourceId(requireResourceIdForName(name))
 
   const writeParams = revokeRolesWriteParameters(
     walletClient as Parameters<typeof revokeRolesWriteParameters>[0],
@@ -85,6 +92,13 @@ export function prepareRevokeRolesTransaction({
     functionName: writeParams.functionName,
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
+
+  assertCalldataResourceId({
+    abi: writeParams.abi,
+    data,
+    expected: resource,
+    action: `Revoking roles for ${name}`,
+  })
 
   return toEoaCustomIntent({
     from: walletClient.account.address,

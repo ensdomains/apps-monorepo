@@ -4,9 +4,17 @@ import {
   type HasRolesParameters as EnsjsHasRolesParameters,
   hasRoles as ensjsHasRoles,
 } from '@ensdomains/ensjs/public/v2'
-import type { ResolverRole, Role } from '@ensdomains/ensjs/utils/v2'
+import {
+  encodeRoleBitmap,
+  type ResolverRole,
+  type Role,
+} from '@ensdomains/ensjs/utils/v2'
+import { eacHasRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
+import { readContract } from 'viem/actions'
+import { getAction } from 'viem/utils'
+import type { ResourceId } from '@/lib/resource/resourceId'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class HasRolesError extends TaggedError('HasRolesError')<{
@@ -16,6 +24,28 @@ class HasRolesError extends TaggedError('HasRolesError')<{
 type RegistryRolesParameters = {
   readonly registryAddress: Address
   readonly label: string
+  readonly roles: Role[]
+  readonly account: Address
+}
+
+/**
+ * The same question as {@link RegistryRolesParameters}, asked with the name's
+ * id instead of its label.
+ *
+ * Preferred wherever the answer gates a write: a label is hashed by
+ * `labelhash`, which passes an encoded (`[<64 hex>]`) label straight through
+ * rather than hashing it, so a gate asked by label can answer about a different
+ * name than the one on screen (WEB-1458). A {@link ResourceId} can only come
+ * from a fail-closed conversion.
+ */
+type RegistryResourceRolesParameters = {
+  readonly registryAddress: Address
+  /**
+   * `null` when the name's id could not be established. The answer is then a
+   * flat `false`: an unresolvable resource must never widen into a check that
+   * passes, and it must never fall back to the root resource.
+   */
+  readonly resource: ResourceId | null
   readonly roles: Role[]
   readonly account: Address
 }
@@ -41,11 +71,39 @@ type ResolverRolesParameters = {
 
 type GetHasRolesParameters =
   | RegistryRolesParameters
+  | RegistryResourceRolesParameters
   | RegistryRootRolesParameters
   | ResolverRolesParameters
 
+const isRegistryResourceQuery = (
+  params: GetHasRolesParameters,
+): params is RegistryResourceRolesParameters =>
+  'registryAddress' in params && 'resource' in params
+
 const getHasRoles = ResultFn(async function* (params: GetHasRolesParameters) {
   const client = yield* safeGetClient()
+
+  // ensjs' registry mode only takes a label, so the id path reads the
+  // EnhancedAccessControl check directly. Same contract call ensjs would make,
+  // with the resource supplied rather than re-derived.
+  if (isRegistryResourceQuery(params)) {
+    const { registryAddress, resource, roles, account } = params
+    if (resource === null) return ok(false)
+
+    const readContractAction = getAction(client, readContract, 'readContract')
+
+    const result = yield* fromPromise(
+      readContractAction({
+        address: registryAddress,
+        abi: eacHasRolesSnippet,
+        functionName: 'hasRoles',
+        args: [resource, encodeRoleBitmap(roles), account],
+      }),
+      (e) => new HasRolesError({ cause: e }),
+    )
+
+    return ok(result as boolean)
+  }
 
   const result = yield* fromPromise(
     ensjsHasRoles(client, params as EnsjsHasRolesParameters),
@@ -55,8 +113,18 @@ const getHasRoles = ResultFn(async function* (params: GetHasRolesParameters) {
   return ok(result)
 })
 
+// `resource` is a bigint, which the default key hash cannot serialise, so the
+// key carries its decimal form while the params keep the typed value.
 const hasRolesQueryKey = (params: GetHasRolesParameters) =>
-  ['hasRoles', params] as const
+  [
+    'hasRoles',
+    {
+      ...params,
+      ...('resource' in params
+        ? { resource: params.resource?.toString() ?? null }
+        : {}),
+    },
+  ] as const
 
 export const getHasRolesQueryOptions = (params: GetHasRolesParameters) =>
   resultQueryOptions({

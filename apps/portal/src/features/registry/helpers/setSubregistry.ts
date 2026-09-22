@@ -11,14 +11,24 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setSubregistryWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import { userRegistrySetSubregistrySnippet } from '@ensdomains/ensjs-abi/v2/userRegistry'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import {
+  assertCalldataResourceId,
+  type ResourceId,
+} from '@/lib/resource/resourceId'
 import type { WalletClientWithAccount } from '@/utils/types'
 
 export interface SetSubregistryTransactionParameters {
-  readonly label: string
+  /**
+   * The name's on-chain id, resolved by the caller. `setSubregistry` is
+   * addressed with this rather than a label split off the displayed name:
+   * `labelhash` leaves an encoded (`[<64 hex>]`) label unhashed, which would
+   * point the call at a different name (WEB-1458).
+   */
+  readonly resourceId: ResourceId
   readonly parentRegistry: Address
   readonly subregistryAddress: Address
   readonly walletClient: WalletClient
@@ -44,7 +54,7 @@ export interface SetSubregistryResult {
  * deploy-then-set flow the target address is only known once the deploy mines.
  */
 export function prepareSetSubregistryTransaction({
-  label,
+  resourceId,
   parentRegistry,
   subregistryAddress,
   walletClient,
@@ -56,21 +66,24 @@ export function prepareSetSubregistryTransaction({
 
   const walletWithAccount = walletClient as WalletClientWithAccount
 
-  const writeParams = setSubregistryWriteParameters(walletWithAccount, {
-    registryAddress: parentRegistry,
-    label,
-    subregistryAddress,
+  // Encoded here rather than through ensjs' `setSubregistryWriteParameters`,
+  // which takes a label and hashes it: the id is the thing we trust.
+  const data = encodeFunctionData({
+    abi: userRegistrySetSubregistrySnippet,
+    functionName: 'setSubregistry',
+    args: [resourceId, subregistryAddress],
   })
 
-  const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
+  assertCalldataResourceId({
+    abi: userRegistrySetSubregistrySnippet,
+    data,
+    expected: resourceId,
+    action: 'Setting the registry for this name',
   })
 
   return toEoaCustomIntent({
     from: walletWithAccount.account.address,
-    to: writeParams.address,
+    to: parentRegistry,
     data,
     chainId,
     // Explicit cap: live estimation for this call is unreliable, so the intent
@@ -82,7 +95,7 @@ export function prepareSetSubregistryTransaction({
 
 export const setSubregistry = async ({
   name,
-  label,
+  resourceId,
   parentRegistry,
   subregistryAddress,
   walletClient,
@@ -93,7 +106,7 @@ export const setSubregistry = async ({
 }: SetSubregistryParameters): Promise<SetSubregistryResult> => {
   const txId = transactionManager.startTransaction(
     prepareSetSubregistryTransaction({
-      label,
+      resourceId,
       parentRegistry,
       subregistryAddress,
       walletClient,

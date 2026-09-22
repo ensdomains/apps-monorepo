@@ -15,6 +15,11 @@ import {
 import { assertRoleContractKind } from '@/features/roles/helpers/assertRoleContractKind'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import {
+  assertCalldataFunction,
+  assertCalldataResourceId,
+  type ResourceId,
+} from '@/lib/resource/resourceId'
+import {
   describeResolverResource,
   type ResolverRole,
   ROOT_RESOURCE,
@@ -22,8 +27,13 @@ import {
 
 export interface RevokeResolverRolesTransactionParameters {
   readonly resolverAddress: Address
-  /** EAC resource the roles are held on: `ROOT_RESOURCE` or a setter resource. */
-  readonly resource: bigint
+  /**
+   * EAC resource the roles are held on: `ROOT_RESOURCE` or a setter resource.
+   * Typed so it can only come from a fail-closed conversion — a resource that
+   * could not be read must never arrive here as `0n`, which would revoke at
+   * root scope instead (WEB-1513).
+   */
+  readonly resource: ResourceId
   readonly account: Address
   readonly roles: readonly ResolverRole[]
   readonly walletClient: WalletClient
@@ -70,6 +80,25 @@ export const prepareRevokeResolverRolesTransaction = ({
     functionName: writeParams.functionName,
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
+
+  // What is about to be signed, re-read: a root-scoped revoke must be the
+  // root-scoped function, and a scoped one must name its own resource.
+  const action = `Revoking roles on ${describeResolverResource(resource).toLowerCase()}`
+  if (resource === ROOT_RESOURCE) {
+    assertCalldataFunction({
+      abi: writeParams.abi,
+      data,
+      functionName: 'revokeRootRoles',
+      action,
+    })
+  } else {
+    assertCalldataResourceId({
+      abi: writeParams.abi,
+      data,
+      expected: resource,
+      action,
+    })
+  }
 
   return toEoaCustomIntent({
     from: walletClient.account.address,
