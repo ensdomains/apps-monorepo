@@ -16,6 +16,7 @@ import {
   isAgentRegistrationKey,
   transformAgentRegistrationRecord,
 } from './agentRegistration'
+import { MAX_PROFILE_LINKS, MAX_PROFILE_LINKS_RECORD_BYTES } from './linkLimits'
 import { createSafeUrlSchema, isSafeHttpUrl } from './safeUrl'
 
 const emptyProfileRecords = (): ProfileRecords => ({
@@ -43,12 +44,17 @@ const LinkItemSchema = v.object({
   name: v.string(),
   url: createSafeUrlSchema('Only http(s) URLs are allowed'),
 })
-// Canonical array schema kept for clarity and reuse.
-// We intentionally parse per-item below so one bad entry from the chain does not drop all links.
-const LinksSchema = v.array(LinkItemSchema)
-void LinksSchema
+const parseLinksJson = (rawValue: string, limit: number): LinkItem[] => {
+  // Check code units first so measuring UTF-8 cannot allocate an unbounded buffer.
+  if (
+    limit <= 0 ||
+    rawValue.length > MAX_PROFILE_LINKS_RECORD_BYTES ||
+    new TextEncoder().encode(rawValue).byteLength >
+      MAX_PROFILE_LINKS_RECORD_BYTES
+  ) {
+    return []
+  }
 
-const parseLinksJson = (rawValue: string): LinkItem[] => {
   let raw: unknown
   try {
     raw = JSON.parse(rawValue)
@@ -57,7 +63,8 @@ const parseLinksJson = (rawValue: string): LinkItem[] => {
   }
   if (!Array.isArray(raw)) return []
   const out: LinkItem[] = []
-  for (const item of raw) {
+  // Bound validation attempts too, including when every entry is invalid.
+  for (const item of raw.slice(0, limit)) {
     const parsed = v.safeParse(LinkItemSchema, item)
     if (parsed.success) out.push(parsed.output)
   }
@@ -154,7 +161,7 @@ export const transformProfileRecords = (
     }
 
     if (key === 'links') {
-      const links = parseLinksJson(value)
+      const links = parseLinksJson(value, MAX_PROFILE_LINKS - acc.links.length)
       return {
         ...acc,
         links: [...acc.links, ...links],

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MAX_PROFILE_LINKS, MAX_PROFILE_LINKS_RECORD_BYTES } from './linkLimits'
 import {
   newEmptyProfileRecords,
   normalizeProfileRecords,
@@ -7,6 +8,90 @@ import {
 } from './transformRecords'
 
 describe('profile transformRecords utils', () => {
+  describe('links record limits', () => {
+    const link = { name: 'Website', url: 'https://example.com' }
+    const transformLinks = (value: string) =>
+      transformProfileRecords({
+        texts: [
+          { key: 'links', value },
+          { key: 'description', value: 'Profile remains available' },
+        ],
+        coins: [],
+      })
+
+    it('drops a 60,000-link record without losing the rest of the profile', () => {
+      const result = transformLinks(JSON.stringify(Array(60_000).fill(link)))
+
+      expect(result.links).toHaveLength(0)
+      expect(result.base.description).toBe('Profile remains available')
+    })
+
+    it('accepts the byte limit and rejects one byte over it', () => {
+      const value = JSON.stringify([link]).padEnd(
+        MAX_PROFILE_LINKS_RECORD_BYTES,
+        ' ',
+      )
+
+      expect(transformLinks(value).links).toEqual([link])
+      expect(transformLinks(`${value} `).links).toHaveLength(0)
+    })
+
+    it('enforces the UTF-8 byte limit for multibyte text', () => {
+      const emptyLink = { name: '', url: link.url }
+      const overhead = JSON.stringify([emptyLink]).length
+      const name = 'é'.repeat(
+        Math.floor((MAX_PROFILE_LINKS_RECORD_BYTES - overhead) / 2),
+      )
+      const value = JSON.stringify([{ ...emptyLink, name }]).padEnd(
+        MAX_PROFILE_LINKS_RECORD_BYTES - name.length,
+        ' ',
+      )
+
+      expect(new TextEncoder().encode(value)).toHaveLength(
+        MAX_PROFILE_LINKS_RECORD_BYTES,
+      )
+      expect(transformLinks(value).links).toEqual([{ ...emptyLink, name }])
+      expect(transformLinks(`${value} `).links).toHaveLength(0)
+    })
+
+    it('keeps only the first bounded set of links in order', () => {
+      const links = Array.from({ length: MAX_PROFILE_LINKS + 1 }, (_, i) => ({
+        name: `Link ${i}`,
+        url: `https://example.com/${i}`,
+      }))
+
+      expect(transformLinks(JSON.stringify(links)).links).toEqual(
+        links.slice(0, MAX_PROFILE_LINKS),
+      )
+    })
+
+    it('does not scan past the item limit to replace invalid entries', () => {
+      const links = [
+        link,
+        ...Array(MAX_PROFILE_LINKS - 1).fill({ name: 'Bad', url: 'data:bad' }),
+        { name: 'Beyond limit', url: 'https://other.example' },
+      ]
+
+      expect(transformLinks(JSON.stringify(links)).links).toEqual([link])
+    })
+
+    it('keeps the total bounded across repeated links records', () => {
+      const result = transformProfileRecords({
+        texts: [
+          {
+            key: 'links',
+            value: JSON.stringify(Array(MAX_PROFILE_LINKS - 1).fill(link)),
+          },
+          { key: 'links', value: JSON.stringify([link, link]) },
+          { key: 'links', value: JSON.stringify([link]) },
+        ],
+        coins: [],
+      })
+
+      expect(result.links).toHaveLength(MAX_PROFILE_LINKS)
+    })
+  })
+
   describe('newEmptyProfileRecords', () => {
     it('should create empty profile records with all sections', () => {
       const records = newEmptyProfileRecords()

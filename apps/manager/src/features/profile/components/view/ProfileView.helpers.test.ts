@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ProfileRecords } from '@/features/profile/types'
+import { MAX_PROFILE_LINKS } from '@/features/profile/utils/linkLimits'
 import {
   formatChainSpecificAddress,
   formatProfileDetailDate,
@@ -204,6 +205,29 @@ describe('ProfileView helpers', () => {
     expect(getSecondarySocialRecords(records)).toEqual([
       { key: 'com.twitter', value: 'ernieth' },
     ])
+  })
+
+  it('bounds a 60,000-link array before preparing preview cards', () => {
+    const links = Array.from({ length: 60_000 }, (_, i) => ({
+      name: `Link ${i}`,
+      url: `https://example.com/${i}`,
+    }))
+
+    const result = getSafeProfileLinks(makeRecords({ links }))
+
+    expect(result).toHaveLength(MAX_PROFILE_LINKS)
+    expect(result.map(({ url }) => url)).toEqual(
+      links.slice(0, MAX_PROFILE_LINKS).map(({ url }) => url),
+    )
+  })
+
+  it('does not scan past invalid links to fill the preview limit', () => {
+    const links = [
+      ...Array(MAX_PROFILE_LINKS).fill({ name: 'Bad', url: 'data:bad' }),
+      { name: 'Beyond limit', url: 'https://example.com' },
+    ]
+
+    expect(getSafeProfileLinks(makeRecords({ links }))).toEqual([])
   })
 
   it('filters unsafe profile links', () => {
