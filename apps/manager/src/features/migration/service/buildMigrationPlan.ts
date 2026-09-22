@@ -42,6 +42,7 @@ import {
   groupClassifiedNames,
   hasFuse,
   type IneligibleName,
+  withManagerRestorationOptIn,
 } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
@@ -400,6 +401,8 @@ export const buildMigrationPlan = async (params: {
   domains: readonly V1Domain[]
   hcaAddress: Address
   migrationOwner: Address
+  /** Names whose ENSv1 registry controller the owner chose to keep as manager. */
+  managerRestorationNames?: readonly string[]
   publicClient: PublicClient
   preflight: MigrationPreflight
   signal?: AbortSignal
@@ -408,6 +411,7 @@ export const buildMigrationPlan = async (params: {
     domains,
     hcaAddress,
     migrationOwner,
+    managerRestorationNames = [],
     publicClient,
     preflight,
     signal,
@@ -415,7 +419,13 @@ export const buildMigrationPlan = async (params: {
   signal?.throwIfAborted()
 
   const classifiedNamesResult = classifyNames([...domains], migrationOwner)
-  const classified = classifiedNamesResult.classified
+  // Classification never appoints a manager on its own: a v1 registry
+  // controller that differs from the registrant is only carried across for the
+  // names the owner explicitly opted in for.
+  const classified = withManagerRestorationOptIn(
+    classifiedNamesResult.classified,
+    managerRestorationNames,
+  )
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )

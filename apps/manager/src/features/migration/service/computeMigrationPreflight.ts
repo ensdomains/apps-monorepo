@@ -5,6 +5,7 @@ import {
   classifyNames,
   type DirectClassifiedName,
   groupClassifiedNames,
+  withManagerRestorationOptIn,
 } from '@/features/migration/service/classifyNames'
 import {
   type DirectMigrationRoute,
@@ -176,14 +177,27 @@ export const computeMigrationPreflight = async (params: {
   eoa: Address
   hcaAddress?: Address
   domains: readonly V1Domain[]
+  /** Names whose ENSv1 registry controller the owner chose to keep as manager. */
+  managerRestorationNames?: readonly string[]
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
   signal?: AbortSignal
 }): Promise<MigrationPreflight> => {
-  const { eoa, hcaAddress, domains, wagmiConfig, publicClient, signal } = params
+  const {
+    eoa,
+    hcaAddress,
+    domains,
+    managerRestorationNames = [],
+    wagmiConfig,
+    publicClient,
+    signal,
+  } = params
   signal?.throwIfAborted()
 
-  const { classified } = classifyNames([...domains], eoa)
+  const classified = withManagerRestorationOptIn(
+    classifyNames([...domains], eoa).classified,
+    managerRestorationNames,
+  )
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )

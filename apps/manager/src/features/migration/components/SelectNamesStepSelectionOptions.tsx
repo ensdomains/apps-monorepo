@@ -37,10 +37,13 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   | 'allSelected'
   | 'filteredGroups'
   | 'filteredOrphans'
+  | 'managerCandidates'
+  | 'restoredManagers'
   | 'search'
   | 'selected'
   | 'setSearch'
   | 'toggleAll'
+  | 'toggleManagerRestoration'
   | 'toggleName'
   | 'totalSelected'
   | 'visibleCount'
@@ -59,12 +62,15 @@ export const SelectNamesStepSelectionOptions = ({
   isCompactLayout,
   isContentHeightCard,
   isPending,
+  managerCandidates,
+  restoredManagers,
   search,
   selected,
   setSearch,
   showBulkSelection,
   showNameSearch,
   toggleAll,
+  toggleManagerRestoration,
   toggleName,
   totalSelected,
   visibleCount,
@@ -162,8 +168,11 @@ export const SelectNamesStepSelectionOptions = ({
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
               isPending={isPending}
+              managerCandidates={managerCandidates}
+              restoredManagers={restoredManagers}
               search={search}
               selected={selected}
+              toggleManagerRestoration={toggleManagerRestoration}
               toggleName={toggleName}
             />
           </div>

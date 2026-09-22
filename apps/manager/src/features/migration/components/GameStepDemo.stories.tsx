@@ -124,6 +124,7 @@ const bridgeDemoPresentation = (
       count: 47,
       migrateCount: 47,
       copyCount: 0,
+      roleGrants: [],
     }),
   )
   const progress: MigrationProgress | undefined = started

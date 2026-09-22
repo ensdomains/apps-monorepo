@@ -1,3 +1,4 @@
+import type { Address } from 'viem'
 import type { AtomicMigrationBatch } from './buildAtomicMigrationBatches'
 import type {
   MigrationApproval,
@@ -11,6 +12,16 @@ type RegistrationApprovalTarget = {
   readonly tokenId: bigint
 }
 
+/**
+ * An account a step will grant a role to, so the review step can name every
+ * address that gains authority over a name before the batch is signed.
+ */
+export type MigrationRoleGrantDescriptor = {
+  readonly name: string
+  readonly account: Address
+  readonly role: 'set-resolver'
+}
+
 export type MigrationStepDescriptor =
   | { readonly type: 'deploy-hca' }
   | {
@@ -19,6 +30,7 @@ export type MigrationStepDescriptor =
       readonly count?: number
       readonly name?: string
       readonly tokenId?: bigint
+      readonly roleGrants?: readonly MigrationRoleGrantDescriptor[]
     }
   | {
       readonly type: 'atomic-batch'
@@ -27,11 +39,32 @@ export type MigrationStepDescriptor =
       readonly count: number
       readonly migrateCount: number
       readonly copyCount: number
+      readonly roleGrants: readonly MigrationRoleGrantDescriptor[]
     }
   | {
       readonly type: 'cleanup'
       readonly approvalId: MigrationApprovalId
     }
+
+/**
+ * Every third-party account the batch grants `ROLE_SET_RESOLVER` to. Read off
+ * the classified names rather than the encoded calls so the review step and the
+ * batch can never disagree about who is being granted what.
+ */
+const roleGrantsForBatch = (
+  batch: AtomicMigrationBatch,
+): readonly MigrationRoleGrantDescriptor[] =>
+  (batch.nameExecutions ?? []).flatMap(({ classified }) =>
+    classified.managerAddress
+      ? [
+          {
+            name: classified.domain.name,
+            account: classified.managerAddress,
+            role: 'set-resolver' as const,
+          },
+        ]
+      : [],
+  )
 
 export type BuildStepDescriptorsParams = {
   readonly hcaDeploymentRequired: boolean
@@ -56,6 +89,8 @@ export const buildStepDescriptors = (
     descriptors.push({ type: 'deploy-hca' })
   }
 
+  const allRoleGrants = params.atomicBatches.flatMap(roleGrantsForBatch)
+
   for (const approval of params.approvals) {
     if (approval.kind === 'erc721-token') {
       descriptors.push({
@@ -74,6 +109,10 @@ export const buildStepDescriptors = (
         approval.id === 'base-registrar:hca'
           ? params.registrationApprovalTargets.length
           : undefined,
+      // The permission this approval exists for is the manager restoration, so
+      // the accounts it will be spent on belong on the same step.
+      roleGrants:
+        approval.id === 'eth-registry:hca' ? allRoleGrants : undefined,
     })
   }
 
@@ -89,6 +128,7 @@ export const buildStepDescriptors = (
       count: batch.names.length,
       migrateCount,
       copyCount,
+      roleGrants: roleGrantsForBatch(batch),
     })
   }
 

@@ -138,6 +138,125 @@ const decodeOwnerExecutions = (data: Hex): readonly OwnerExecution[] => {
   return executions
 }
 
+const ROLE_SET_RESOLVER_ADMIN = ROLE_SET_RESOLVER << 128n
+
+const grantRolesAbi = parseAbi([
+  'function grantRoles(uint256 resource, uint256 roleBitmap, address account) returns (bool)',
+])
+
+const decodeGrants = (batch: {
+  readonly innerExecutions: readonly {
+    readonly phase: string
+    readonly call: { readonly data: Hex }
+  }[]
+}) =>
+  batch.innerExecutions
+    .filter((execution) => execution.phase === 'manager-role-grant')
+    .map((execution) => {
+      const [resource, roleBitmap, account] = decodeFunctionData({
+        abi: grantRolesAbi,
+        data: execution.call.data,
+      }).args as [bigint, bigint, Address]
+      return { resource, roleBitmap, account: account.toLowerCase() }
+    })
+
+describe('manager role restoration (WEB-1528)', () => {
+  it('emits no role grant for a name whose registrant and controller differ but was not opted in', async () => {
+    // What classification now produces on its own: the divergent controller is
+    // recorded, and `managerAddress` stays null until the owner opts in.
+    const plan = await buildPlan({
+      classified: [
+        makeName('alice.eth', {
+          registryController: MANAGER,
+          managerAddress: null,
+        }),
+      ],
+    })
+    const batch = plan.batches[0]
+    assert(batch)
+
+    expect(
+      batch.innerExecutions.map((execution) => execution.phase),
+    ).not.toContain('manager-role-grant')
+    expect(decodeGrants(batch)).toEqual([])
+  })
+
+  it('leaves a migrated name with no third-party ROLE_SET_RESOLVER holder when nothing is opted in', async () => {
+    const plan = await buildPlan({
+      classified: [makeName('alice.eth', { registryController: MANAGER })],
+    })
+    const batch = plan.batches[0]
+    assert(batch)
+
+    const roleHolders = batch.verificationExpectations
+      .filter((expectation) => 'account' in expectation)
+      .map((expectation) => (expectation as { account: Address }).account)
+      .map((account) => account.toLowerCase())
+
+    expect(roleHolders).not.toContain(MANAGER.toLowerCase())
+    expect(
+      batch.verificationExpectations.some(
+        (expectation) => expectation.type === 'manager-role',
+      ),
+    ).toBe(false)
+  })
+
+  it('grants the opted-in manager ROLE_SET_RESOLVER and the owner its admin counterpart', async () => {
+    const plan = await buildPlan({
+      classified: [
+        makeName('alice.eth', {
+          registryController: MANAGER,
+          managerAddress: MANAGER,
+        }),
+      ],
+    })
+    const batch = plan.batches[0]
+    assert(batch)
+
+    const grants = decodeGrants(batch)
+    expect(grants).toHaveLength(2)
+    const [managerGrant, adminGrant] = grants
+    assert(managerGrant)
+    assert(adminGrant)
+
+    expect(managerGrant.roleBitmap).toBe(ROLE_SET_RESOLVER)
+    expect(managerGrant.account).toBe(MANAGER.toLowerCase())
+    // The admin sits with the owner, on the same resource, so the restored
+    // manager can always be removed again.
+    expect(adminGrant.roleBitmap).toBe(ROLE_SET_RESOLVER_ADMIN)
+    expect(adminGrant.account).toBe(WALLET.toLowerCase())
+    expect(adminGrant.resource).toBe(managerGrant.resource)
+  })
+
+  it('verifies both the manager role and the owner admin role after the batch', async () => {
+    const plan = await buildPlan({
+      classified: [
+        makeName('alice.eth', {
+          registryController: MANAGER,
+          managerAddress: MANAGER,
+        }),
+      ],
+    })
+    const batch = plan.batches[0]
+    assert(batch)
+
+    const managerRoles = batch.verificationExpectations
+      .filter((expectation) => expectation.type === 'manager-role')
+      .map((expectation) => {
+        const { account, roleBitmap } = expectation as {
+          account: Address
+          roleBitmap: bigint
+        }
+        return { account: account.toLowerCase(), roleBitmap }
+      })
+
+    expect(managerRoles).toEqual([
+      { account: MANAGER.toLowerCase(), roleBitmap: ROLE_SET_RESOLVER },
+      { account: WALLET.toLowerCase(), roleBitmap: ROLE_SET_RESOLVER_ADMIN },
+    ])
+  })
+})
+
 describe('buildAtomicMigrationBatches', () => {
   it('keeps parent-before-child order and wraps complete per-name executions', async () => {
     const parent = makeName('parent.eth', {
@@ -174,9 +293,11 @@ describe('buildAtomicMigrationBatches', () => {
       'wallet-co-admin-grant',
       'migrate',
       'manager-role-grant',
+      'manager-role-grant',
       'profile-replay',
     ])
     expect(batch.innerExecutions.map((execution) => execution.name)).toEqual([
+      'parent.eth',
       'parent.eth',
       'parent.eth',
       'parent.eth',
@@ -241,6 +362,7 @@ describe('buildAtomicMigrationBatches', () => {
       'name-owner-roles',
       'wrapper-subregistry',
       'wrapper-root-roles',
+      'manager-role',
       'manager-role',
       'profile-text',
       'profile-address',

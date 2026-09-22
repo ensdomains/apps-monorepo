@@ -22,6 +22,7 @@ type SelectNamesStepProps = {
   readonly gasAffordability: GasAffordability
   readonly gasFundingStatus: MigrationGasFundingStatus
   readonly onNamesChange: (names: string[]) => void
+  readonly onManagerRestorationChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
 }
 
@@ -30,6 +31,7 @@ export const SelectNamesStep = ({
   gasAffordability,
   gasFundingStatus,
   onNamesChange,
+  onManagerRestorationChange,
   onNext,
 }: SelectNamesStepProps) => {
   const { eligible, isPending, recoveryState } = useEligibleV1Names()
@@ -48,6 +50,9 @@ export const SelectNamesStep = ({
     allSelected,
     filteredGroups,
     filteredOrphans,
+    managerCandidates,
+    restoredManagers,
+    toggleManagerRestoration,
     toggleName,
     toggleAll,
   } = useNameSelection({
@@ -55,6 +60,7 @@ export const SelectNamesStep = ({
     isPending,
     isRecovery: recoveryState.status === 'recovering',
     onNamesChange,
+    onManagerRestorationChange,
   })
 
   const isEstimatingGas = totalSelected > 0 && gasEstimate.status === 'loading'
@@ -158,12 +164,15 @@ export const SelectNamesStep = ({
               isCompactLayout={isCompactLayout}
               isContentHeightCard={isContentHeightCard}
               isPending={isPending}
+              managerCandidates={managerCandidates}
+              restoredManagers={restoredManagers}
               search={search}
               selected={selected}
               setSearch={setSearch}
               showBulkSelection={showBulkSelection}
               showNameSearch={showNameSearch}
               toggleAll={toggleAll}
+              toggleManagerRestoration={toggleManagerRestoration}
               toggleName={toggleName}
               totalSelected={totalSelected}
               visibleCount={visibleCount}
