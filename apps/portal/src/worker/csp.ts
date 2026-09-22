@@ -79,8 +79,10 @@ const DEFAULT_CONNECT_HOSTS = [
   // src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env
   // *.ens.dev hosts (and future ones) don't silently break a flow.
   'https://*.ens.dev',
-  // ENS subgraph (ensjs default Sepolia endpoint) — @ensdomains/ensjs/subgraph
-  'https://api.sepolia.ensnode.io',
+  // The v1 subgraph ensjs resolves for this network. Derived rather than
+  // listed, because mainnet's host is not under *.ens.dev and a stale entry
+  // here fails closed in the browser.
+  new URL(config.chain.subgraphs.ens.url).origin,
   // ENS-owned *.ens.domains hosts: the DNSSEC oracle/gateway (DNS import flow)
   // and the PostHog analytics host (jakob.ens.domains — .env
   // VITE_PUBLIC_POSTHOG_HOST). Wildcarded for the same reason as *.ens.dev.
