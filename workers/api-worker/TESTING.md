@@ -12,6 +12,21 @@ Our testing strategy is designed around those boundaries.
 
 The goal is not to maximize the number of tests or mock every dependency. The goal is to make tests independently trustworthy and easy to understand.
 
+## Incremental adoption
+
+This document describes the preferred direction for **new tests and meaningfully changed backend code**. It is not a requirement to stop feature work and migrate every existing test before making other changes.
+
+The API worker contains legacy tests that predate these patterns. Leave them alone when they are unrelated to the task at hand. When adding a new feature, adding new tests, or substantially changing an existing workflow:
+
+* prefer the patterns in this document for the new or changed surface;
+* improve an existing boundary when doing so is small and directly supports the change;
+* do not turn a focused feature PR into a broad testing-architecture migration;
+* do not copy a legacy testing pattern merely because nearby tests currently use it.
+
+Over time, touched areas should move toward these boundaries naturally. Larger migrations of existing tests should be done deliberately when there is enough value and time to justify them.
+
+Where this document describes a preferred pattern that the repository does not yet have infrastructure for, it should be treated as **direction for future work**, not as a claim that the tooling already exists.
+
 ## Core principle
 
 **Mock interfaces we own. Contract-test those interfaces against the dependency they wrap.**
@@ -252,48 +267,61 @@ The `test:db` package command sets the opt-in.
 
 DB test files/setup must also independently enforce the opt-in. Do not rely only on the package script.
 
-## Safe database only
+## Current database harness and safety
 
-Real DB tests may only use the dedicated local test database.
-
-They must never fall back to:
+The current real-DB harness uses the dedicated local database:
 
 ```text
-DATABASE_URL
-.dev.vars
-staging
-production
+postgres://postgres:postgres@db.localtest.me:5432/api_worker_test
 ```
 
-The configured URL must be validated before any destructive setup.
+The `postgresql:` scheme is also accepted.
 
-Unexpected:
+`REAL_DB_DATABASE_URL` may explicitly provide that same validated local target. The harness must never fall back to `DATABASE_URL`, `.dev.vars`, staging, or production.
 
-* hostname
-* port
-* username
-* password
-* database name
-* URL options
+The current validator in `src/test-utils/real-db-config.ts` rejects unexpected:
 
-must cause the suite to fail before modifying data.
+* hostname;
+* port;
+* username;
+* password;
+* database name;
+* query options or fragments.
 
-## Fresh schema
+Any destructive DB-test setup must pass this validation first.
 
-`pnpm test:db` should recreate the dedicated test database and run the checked-in migrations from scratch before the suite.
+Current DB tests use unique generated fixture identifiers and clean up only the fixtures they own (for example generated user UUIDs and rows removed through their cascading relationships). They must not truncate unrelated local data.
 
-This ensures the suite validates:
+Do not run concurrent migration or DB-test runs against the same dedicated test database.
 
-* the current migration set;
-* migration order;
-* edited undeployed migrations;
-* the actual schema produced by a fresh deployment.
+## Current database lifecycle
 
-Do not depend on schema left over from a previous test run.
+The current `test-db.setup.ts` behavior is:
 
-The resulting database may remain available after the run for debugging/inspection.
+```text
+api_worker_test does not exist
+→ create it
 
-Do not run multiple DB suites concurrently against the same dedicated database.
+api_worker_test already exists
+→ keep the existing database
+
+then
+→ apply pending checked-in Drizzle migrations
+→ run the selected DB tests
+```
+
+It **does not currently recreate the database before each `pnpm test:db` run**. Tests therefore must not depend on an otherwise empty database.
+
+This also means the current harness should not be treated as proof that an already-applied local migration can be edited and replayed from scratch.
+
+A useful future improvement is to recreate the dedicated test database and apply the complete checked-in migration set before a DB-test run. That would provide stronger validation of fresh-schema creation, migration ordering, and edited undeployed migrations. Implement that as an intentional harness change rather than assuming it already happens.
+
+## Current `test:db` scope
+
+The `*.db.test.ts` naming convention is the preferred convention for real database contract tests.
+
+At the moment, however, the package's `test:db` script explicitly selects the existing event-ingestion DB suite. Until the script is generalized to discover all `*.db.test.ts` files, adding another DB-test file also requires updating the package script so the new suite is actually run.
+
 
 ---
 
@@ -489,20 +517,26 @@ and test how the application reacts.
 
 ## Client contract tests
 
-Test the real client implementation against a controlled fake external service.
+When suitable fake-service infrastructure exists, test the real client implementation against that controlled external boundary.
 
-For example, the ENS indexer client can be tested against the local deterministic fake indexer.
-
-That contract test should exercise:
+A client contract test should exercise:
 
 ```text
 real request serialization
 real HTTP/GraphQL transport
 real response parsing
-fake remote service
+controlled fake remote service
 ```
 
 Use named fake-service scenarios when useful for pagination/error cases.
+
+### Current ENS indexer state
+
+Expiry-discovery orchestration already mocks the owned `fetchExpiringNamesPage()` boundary rather than mocking urql/GraphQL internals. That is the preferred orchestration-test shape.
+
+The API worker does **not currently have a runnable fake-indexer contract harness** that exercises `fetchExpiringNamesPage()` through the real HTTP/GraphQL transport. The fake-indexer example in this document is therefore a preferred future pattern, not an existing test command or service.
+
+If such a harness is added later, the real indexer client should be tested against it while expiry-discovery orchestration tests continue to mock the owned client boundary.
 
 Do not mock GraphQL/client internals in every application test.
 
@@ -776,19 +810,21 @@ getExpiringNamesPage()
 → assert emitted events
 ```
 
-Indexer contract test:
+Future indexer contract test, once a runnable fake-indexer harness exists:
 
 ```text
 real getExpiringNamesPage()
-→ fake ENS indexer
+→ controlled fake ENS indexer
 → assert parsed domain response
 ```
 
-Do not mock GraphQL internals inside every expiry-discovery test.
+Today, expiry-discovery tests should mock the owned indexer-client function rather than GraphQL internals. Do not invent a fake service inside an unrelated feature PR solely to satisfy this example.
 
 ---
 
 # Commands
+
+Run the following commands from `workers/api-worker`. The package scripts, Compose file, Wrangler configuration, and migration paths used by this testing setup are package-relative.
 
 Run normal tests:
 
