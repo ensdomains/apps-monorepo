@@ -33,6 +33,19 @@ const Skeleton = () => (
   </div>
 )
 
+// The parent holds the last selection (and its price) to submit with — drop it
+// once prices fail so a stale token can't be confirmed behind the error.
+const useClearSelectionOnPriceFailure = (
+  isPriceFailed: boolean,
+  setSelectedToken: (token: null) => void,
+  onSelectionChange: (token: null) => void,
+) =>
+  useEffect(() => {
+    if (!isPriceFailed) return
+    setSelectedToken(null)
+    onSelectionChange(null)
+  }, [isPriceFailed, setSelectedToken, onSelectionChange])
+
 type PriceErrorCardProps = {
   readonly mode: 'register' | 'renew'
   readonly isRetrying?: boolean
@@ -142,13 +155,11 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
     !isPriceLoading &&
     (!resolvedPrices || priceQueries.some((query) => query.isError))
 
-  // The parent holds the last selection (and its price) to submit with — drop
-  // it once prices fail so a stale token can't be confirmed behind the error.
-  useEffect(() => {
-    if (!isPriceFailed) return
-    setSelectedToken(null)
-    onSelectionChange(null)
-  }, [isPriceFailed, onSelectionChange])
+  useClearSelectionOnPriceFailure(
+    isPriceFailed,
+    setSelectedToken,
+    onSelectionChange,
+  )
 
   if (balancesQuery.isLoading || allowancesQuery.isLoading || isPriceLoading) {
     return <Skeleton />
