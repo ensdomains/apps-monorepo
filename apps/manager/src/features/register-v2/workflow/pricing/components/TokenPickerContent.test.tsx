@@ -5,6 +5,7 @@ import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import {
+  startSingleRegistrationAttempt,
   startRegistrationWithSession,
   TokenPickerContentBase,
 } from './TokenPickerContent'
@@ -164,6 +165,12 @@ describe('TokenPickerContentBase', () => {
     const onSelectCoin = renderPicker({ selectedToken: 'USDC' })
 
     expect(onSelectCoin).not.toHaveBeenCalled()
+  })
+
+  it('disables registration while an attempt is pending', () => {
+    renderPicker({ isSubmitting: true, selectedToken: 'USDC' })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 
   it('waits for balances to load before selecting', () => {
@@ -460,5 +467,29 @@ describe('startRegistrationWithSession', () => {
 
     expect(gate).not.toHaveBeenCalled()
     expect(onStart).toHaveBeenCalledWith(attempt)
+  })
+})
+
+describe('startSingleRegistrationAttempt', () => {
+  it('ignores concurrent attempts until the active attempt settles', () => {
+    const attempt = {
+      token: 'USDC' as const,
+      pricing: {
+        basePriceNumber: 329,
+        premiumPriceNumber: 1,
+        totalPriceNumber: 330,
+        rawPrice: 330_000_000n,
+      },
+    }
+    const inFlight = { current: false }
+    const onStart = vi.fn()
+
+    startSingleRegistrationAttempt({ attempt, inFlight, onStart })
+    startSingleRegistrationAttempt({ attempt, inFlight, onStart })
+
+    expect(onStart).toHaveBeenCalledOnce()
+    onStart.mock.calls[0]?.[1]()
+    startSingleRegistrationAttempt({ attempt, inFlight, onStart })
+    expect(onStart).toHaveBeenCalledTimes(2)
   })
 })

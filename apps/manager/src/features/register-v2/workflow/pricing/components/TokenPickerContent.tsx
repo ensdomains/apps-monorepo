@@ -6,7 +6,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
-import { type ReactNode, useCallback, useState } from 'react'
+import { type ReactNode, useCallback, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { isAddressEqual } from 'viem'
 import { DAI as DAIIcon, USDCIcon } from '@/components/atoms/StableCoinsIcons'
@@ -305,12 +305,29 @@ export const startRegistrationWithSession = ({
   onStart(attempt)
 }
 
+export const startSingleRegistrationAttempt = ({
+  attempt,
+  inFlight,
+  onStart,
+}: {
+  attempt: RegistrationAttempt
+  inFlight: { current: boolean }
+  onStart: (attempt: RegistrationAttempt, onSettled: () => void) => void
+}) => {
+  if (inFlight.current) return
+  inFlight.current = true
+  onStart(attempt, () => {
+    inFlight.current = false
+  })
+}
+
 export const TokenPickerContent = () => {
   const { t } = useLingui()
   const { label, uiActor } = useRegistrationV2Context()
   const account = useSmartAccountContext()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const registrationAttemptInFlight = useRef(false)
   const domainName = `${label}.eth`
   const [duration, selectedToken] = useSelector(
     uiActor,
@@ -569,13 +586,22 @@ export const TokenPickerContent = () => {
         isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
         isLoadingBalances={isLoadingBalances}
         isQuotingFunding={budgetQuery.isLoading}
+        isSubmitting={availabilityMutation.isPending}
         label={label}
         onNext={() => {
           if (!selectedToken || !pricingQuery.data) return
           startRegistrationWithSession({
             attempt: { token: selectedToken, pricing: pricingQuery.data },
             gate,
-            onStart: availabilityMutation.mutate,
+            onStart: (attempt) =>
+              startSingleRegistrationAttempt({
+                attempt,
+                inFlight: registrationAttemptInFlight,
+                onStart: (registrationAttempt, onSettled) =>
+                  availabilityMutation.mutate(registrationAttempt, {
+                    onSettled,
+                  }),
+              }),
           })
         }}
         onSelectCoin={onSelectCoin}
@@ -607,6 +633,7 @@ export const TokenPickerContentBase = ({
   funding,
   hasInsufficientFundingError = false,
   isQuotingFunding = false,
+  isSubmitting = false,
   showRegistrationFee = false,
 }: {
   label: string
@@ -635,6 +662,7 @@ export const TokenPickerContentBase = ({
   hasInsufficientFundingError?: boolean
   /** The network-fee estimate shown on the method is still being quoted. */
   isQuotingFunding?: boolean
+  isSubmitting?: boolean
   showRegistrationFee?: boolean
 }) => {
   const { t } = useLingui()
@@ -683,6 +711,7 @@ export const TokenPickerContentBase = ({
     isConnected &&
     !!selectedToken &&
     !pricingLoading &&
+    !isSubmitting &&
     hasBalances &&
     hasSufficientBalanceForSelectedCoin
 
