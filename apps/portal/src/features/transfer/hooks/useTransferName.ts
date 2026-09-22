@@ -629,8 +629,7 @@ export const useTransferName = ({
   // may no longer be able to authorize.
   const mayHaveMoved =
     isMoveUnsettled &&
-    (!liveHolder.isSuccess ||
-      recordPointsAt(liveHolder.holder, recipient))
+    (!liveHolder.isSuccess || recordPointsAt(liveHolder.holder, recipient))
 
   // Only once the modal is closed: mid-flow, the gap between the record landing
   // and the move landing is expected, not a stranded state. A restore dismissed
