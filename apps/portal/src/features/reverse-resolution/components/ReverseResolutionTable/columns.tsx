@@ -94,16 +94,36 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
       const defaultName = row.original.defaultName
 
       if (!name && defaultName && canInheritDefault(row.original.coinType)) {
+        // An inherited `default.reverse` name is only a primary name once its
+        // forward `addr` record points back at this address. The record on its
+        // own is writable by anyone for any name, so rendering the verified
+        // badges unconditionally certified a claim nobody had checked.
+        const defaultForwardMatch = row.original.defaultForwardMatch
+
         return (
           <div className="flex flex-row items-center gap-2">
-            <Badge variant="outline" className="text-xs">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>True</span>
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              <SquareUser className="w-4 h-4" />
-              <span>Primary name</span>
-            </Badge>
+            {defaultForwardMatch ? (
+              <>
+                <Badge variant="outline" className="text-xs">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>True</span>
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  <SquareUser className="w-4 h-4" />
+                  <span>Primary name</span>
+                </Badge>
+              </>
+            ) : (
+              <>
+                <Badge variant="outline" className="text-xs">
+                  <XCircle className="w-4 h-4" />
+                  <span>False</span>
+                </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  Unverified
+                </Badge>
+              </>
+            )}
             <Badge variant="outline" className="text-xs">
               Default
             </Badge>
