@@ -35,6 +35,7 @@
  */
 
 import type { PublicClient } from 'viem'
+import { formatUnits } from 'viem'
 import { getDestinationContracts } from './manifest'
 import { readRegisterPrice } from './registration-calls'
 
@@ -140,6 +141,99 @@ const FALLBACK_MAX_GAS_PRICE_WEI = 5_000_000_000n
 const FALLBACK_LEG_FEE_6DP = 5_000_000n // 5 USDC/leg
 
 /**
+ * Ceiling (USDC, 6dp) on the COMBINED execution cost of the commit + register
+ * legs — the margin the orchestrator's own figures are allowed to occupy on top
+ * of the registration price.
+ *
+ * WHY A CEILING AT ALL. `commitCost` and `registerCost` are parsed straight out
+ * of an HTTP response from the orchestrator and summed into the value of an
+ * EIP-2612 permit the user is then asked to sign. Without a bound, a defect or
+ * compromise on that side reaches the wallet unfiltered: the response names the
+ * number and we sign for it. The price half of the budget is read on-chain by
+ * us, so it needs no bounding — only the fee half does.
+ *
+ * WHY 25 USDC. Live Sepolia fills price the commit leg at ~0.9 USDC and the
+ * 450k-gas register leg at ~3.3 USDC, so a healthy route uses ~4.2 of this. The
+ * bound is set at roughly 6x that, which is also just above what the clamped
+ * fallback model can produce at its own 5 gwei cap (~950k gas × 5 gwei ≈ 0.0048
+ * ETH, ~19 USDC at $4000/ETH) — so a legitimate gas regime, even a spiky one,
+ * never trips it. It is a sanity bound on a fund-moving figure, not a budget
+ * target.
+ *
+ * REVISIT ON MAINNET. The manifest is testnet-only today (sepolia +
+ * baseSepolia). A mainnet deployment prices legs in real gas and must re-derive
+ * this from that chain's own fills rather than inherit the testnet number.
+ */
+export const HCA_MAX_LEG_FEES_USDC = 25_000_000n
+
+/**
+ * The largest funding budget (USDC, 6dp) this route will ever ask a wallet to
+ * permit for `registrationPrice`, computed WITHOUT reference to the
+ * orchestrator's figures: the price comes from our own `getRegisterPrice` read
+ * and the margin is {@link HCA_MAX_LEG_FEES_USDC}.
+ */
+export function hcaBudgetMaximum(registrationPrice: bigint): bigint {
+  return registrationPrice + HCA_MAX_LEG_FEES_USDC
+}
+
+/**
+ * Drift (basis points) allowed between a USDC figure shown to the user and the
+ * one a later re-quote produces for the same action.
+ *
+ * Checkout and the registration machine each take their own quote, up to
+ * `HCA_BUDGET_STALE_TIME_MS` apart, so the two legitimately disagree whenever
+ * the destination gas price moves in between. 25% of the TOTAL is a generous
+ * allowance on the fee component (the price dominates the total and is read
+ * on-chain), while still bounding how far above the displayed figure a permit
+ * may be signed. Divergence DOWNWARD is never checked: a user shown more than
+ * they are asked to approve has not been misled.
+ */
+const HCA_BUDGET_DRIFT_BPS = 2_500n
+
+/** `value` widened by {@link HCA_BUDGET_DRIFT_BPS}. */
+export function withBudgetDrift(value: bigint): bigint {
+  return value + (value * HCA_BUDGET_DRIFT_BPS) / 10_000n
+}
+
+/**
+ * The orchestrator quoted a budget above {@link hcaBudgetMaximum}.
+ *
+ * Thrown rather than clamped: a figure this far out means the quote is wrong or
+ * the response was tampered with, and either way the safe move is to stop
+ * before a signature is requested, not to sign for a capped amount.
+ */
+export class HcaBudgetExceedsMaximumError extends Error {
+  readonly total: bigint
+  readonly expectedMaximum: bigint
+  readonly registrationPrice: bigint
+
+  constructor(params: {
+    total: bigint
+    expectedMaximum: bigint
+    registrationPrice: bigint
+    commitCost: bigint
+    registerCost: bigint
+  }) {
+    super(
+      `Refusing to size a funding permit from this quote: the orchestrator ` +
+        `priced the registration at ${usdc(params.total)} USDC, above the ` +
+        `expected maximum of ${usdc(params.expectedMaximum)} USDC ` +
+        `(on-chain price ${usdc(params.registrationPrice)} USDC + ` +
+        `${usdc(HCA_MAX_LEG_FEES_USDC)} USDC of execution costs). ` +
+        `Quoted legs: commit ${usdc(params.commitCost)} USDC, register ` +
+        `${usdc(params.registerCost)} USDC.`,
+    )
+    this.name = 'HcaBudgetExceedsMaximumError'
+    this.total = params.total
+    this.expectedMaximum = params.expectedMaximum
+    this.registrationPrice = params.registrationPrice
+  }
+}
+
+/** Format a 6dp USDC amount for an error message. */
+const usdc = (amount: bigint): string => formatUnits(amount, 6)
+
+/**
  * Market data the orchestrator returns alongside a quote
  * (`intentOp.signedMetadata`). Prices are 1e8-scaled; `gasPriceWei` is the
  * destination chain's gas price.
@@ -228,6 +322,14 @@ export interface HcaBudgetBreakdown {
   readonly commitCost: bigint
   readonly registerCost: bigint
   readonly registrationPrice: bigint
+  /**
+   * The independent ceiling {@link total} was checked against — on-chain price
+   * plus {@link HCA_MAX_LEG_FEES_USDC}, derived without the orchestrator's
+   * figures. Carried on the breakdown so the permit can be bounded by the same
+   * number the estimate was accepted under, rather than re-deriving it from a
+   * price read a second time.
+   */
+  readonly expectedMaximum: bigint
   /** Which source produced the leg costs. */
   readonly source: 'quote' | 'fallback' | 'mixed'
   /**
@@ -329,6 +431,17 @@ export async function estimateHcaBudget(
   // quotes that failed, which is now surfaced instead (see `source`).
   const total = commitCost + registerCost + registrationPrice
 
+  // Bound the figures that came from the orchestrator against one we derived
+  // ourselves. `registrationPrice` is our own on-chain read, so the only
+  // externally-supplied part of `total` is the leg costs — and this is the last
+  // point before that sum becomes the value of a permit the user signs.
+  const expectedMaximum = assertBudgetWithinMaximum({
+    total,
+    registrationPrice,
+    commitCost,
+    registerCost,
+  })
+
   const source: HcaBudgetBreakdown['source'] =
     quotedCommit.value !== null && quotedRegister.value !== null
       ? 'quote'
@@ -341,9 +454,31 @@ export async function estimateHcaBudget(
     commitCost,
     registerCost,
     registrationPrice,
+    expectedMaximum,
     source,
     ...(fallbackReasons.length > 0 ? { fallbackReasons } : {}),
   }
+}
+
+/**
+ * Check a quoted budget against {@link hcaBudgetMaximum} and return the ceiling
+ * it passed, so callers can carry it forward to bound the permit itself.
+ *
+ * Throws rather than returning a flag: there is no sensible way to continue
+ * with a budget this code does not believe, and the whole point is that no
+ * signature is requested.
+ */
+function assertBudgetWithinMaximum(params: {
+  total: bigint
+  registrationPrice: bigint
+  commitCost: bigint
+  registerCost: bigint
+}): bigint {
+  const expectedMaximum = hcaBudgetMaximum(params.registrationPrice)
+  if (params.total > expectedMaximum) {
+    throw new HcaBudgetExceedsMaximumError({ ...params, expectedMaximum })
+  }
+  return expectedMaximum
 }
 
 /**

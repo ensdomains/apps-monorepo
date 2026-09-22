@@ -3,6 +3,7 @@ import {
   type DomainsQuery,
   OrderDirection,
 } from '@ens-apps/indexer'
+import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -25,6 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { HcaFundingConfirmDialog } from '@/features/profile/components/dialogs/HcaFundingConfirmDialog'
 import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
@@ -343,6 +345,9 @@ export const ChoosePrimaryNameDialog = ({
     isSubmitting,
     isError,
     error: primaryNameError,
+    fundingPrompt,
+    approveFunding,
+    declineFunding,
   } = useSetPrimaryName({
     onSuccess: () => {
       toast.success(t`Primary name set successfully`)
@@ -360,8 +365,13 @@ export const ChoosePrimaryNameDialog = ({
     },
   })
 
+  // Declining the funding amount is a choice, not a failure — the user pressed
+  // Cancel on a dialog they were shown. Surfacing it as an error message would
+  // read as something having gone wrong.
   const primaryNameErrorMessage =
-    (isError && (primaryNameError?.message || t`Failed to set primary name`)) ||
+    (isError &&
+      !(primaryNameError instanceof HcaFundingDeclinedError) &&
+      (primaryNameError?.message || t`Failed to set primary name`)) ||
     undefined
 
   // Fetch current primary name from reverse resolver
@@ -628,6 +638,12 @@ export const ChoosePrimaryNameDialog = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      <HcaFundingConfirmDialog
+        onApprove={approveFunding}
+        onDecline={declineFunding}
+        prompt={fundingPrompt}
+      />
 
       <ResolverSetupConfirmDialog
         intent="primary-name"

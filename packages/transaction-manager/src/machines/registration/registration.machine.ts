@@ -24,6 +24,7 @@ import {
   estimateHcaBudgetActor,
   type HcaSessionEnableParams,
   hcaRegistrarAddress,
+  type PermitValueBounds,
   readHcaUsdcBalanceActor,
   signFundingPermitActor,
   submitFundingAndCommitActor,
@@ -123,6 +124,18 @@ export type RegistrationContext = {
    */
   hcaUsdcBalance?: bigint
   /**
+   * Standalone-HCA: the USDC (6dp) debit the app showed the user at checkout,
+   * i.e. `budget - hcaBalance` as quoted on the confirm screen.
+   *
+   * The machine re-quotes for real rather than trusting that figure (gas moves,
+   * and the permit must fund the batch that actually fills), so this is a
+   * CONSENT bound, not an input to the amount: a re-quote that lands materially
+   * above what the user was shown refuses to prompt instead of quietly asking
+   * them to approve more. Absent when checkout had no quote to show — the
+   * independent ceiling still applies.
+   */
+  displayedWalletDebit?: bigint
+  /**
    * Standalone-HCA: the session authorization (`enableData`).
    *
    * Present whenever a session exists, and attached to BOTH legs.
@@ -186,6 +199,12 @@ export type RegistrationEvent =
       approvalSigner?: Signer
       /** Standalone-HCA: USDC funding budget override. */
       hcaBudget?: bigint
+      /**
+       * Standalone-HCA: the USDC (6dp) wallet debit shown at checkout. See
+       * `RegistrationContext.displayedWalletDebit` — the permit is refused
+       * rather than signed when the re-quote lands materially above it.
+       */
+      displayedWalletDebit?: bigint
       /** Standalone-HCA: session-enable payload (omit once enabled). */
       hcaSessionEnable?: HcaSessionEnableParams
       /** Standalone-HCA: set the primary name in the reveal batch. */
@@ -241,6 +260,7 @@ export const registrationMachine = setup({
         approvalSigner: Signer
         publicClient: PublicClient
         chainId: number
+        bounds?: PermitValueBounds
       }) => {
         return signFundingPermitActor(input)
       },
@@ -548,6 +568,7 @@ export const registrationMachine = setup({
             publicClient: ({ event }) => event.publicClient,
             registerReadyTimestamp: () => undefined,
             hcaBudget: ({ event }) => event.hcaBudget,
+            displayedWalletDebit: ({ event }) => event.displayedWalletDebit,
             hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
             primaryName: ({ event }) => event.primaryName,
             resolverAddress: () => undefined,
@@ -721,6 +742,27 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           chainId: context.chainId,
+          // Last gate before the wallet prompt. Both bounds are on the PERMIT
+          // value (the shortfall), not the budget, so the ceiling has the
+          // standing balance netted off it the same way the value does.
+          //
+          // `expectedMaximum` is absent only when the caller supplied
+          // `hcaBudget` directly: there is no estimate to bound, and the figure
+          // came from the app rather than from the orchestrator.
+          bounds: {
+            ...(context.hcaBudgetBreakdown
+              ? {
+                  expectedMaximum: bigintMax(
+                    context.hcaBudgetBreakdown.expectedMaximum -
+                      (context.hcaUsdcBalance ?? 0n),
+                    0n,
+                  ),
+                }
+              : {}),
+            ...(context.displayedWalletDebit !== undefined
+              ? { displayedValue: context.displayedWalletDebit }
+              : {}),
+          } satisfies PermitValueBounds,
         }),
         onDone: {
           target: 'submittingSetupBundle',
