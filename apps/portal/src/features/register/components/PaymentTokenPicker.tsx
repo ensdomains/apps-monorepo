@@ -1,7 +1,7 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { type Address, erc20Abi } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
@@ -10,6 +10,7 @@ import { PaymentTokenList } from '@/features/register/components/PaymentTokenLis
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
+import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { getRenewerAddress } from '@/features/renew/utils/renewer'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import {
@@ -30,6 +31,30 @@ const Skeleton = () => (
       <div className="h-16 w-full bg-muted animate-pulse rounded-sm" />
     </div>
   </div>
+)
+
+type PriceErrorCardProps = {
+  readonly mode: 'register' | 'renew'
+  readonly isRetrying?: boolean
+  readonly onRetry: () => void
+}
+
+export const PriceErrorCard = ({
+  mode,
+  isRetrying = false,
+  onRetry,
+}: PriceErrorCardProps) => (
+  <MessageCard
+    variant="warning"
+    icon={<AlertTriangle className="size-6" />}
+    title="Couldn't load price"
+    className="xl:min-w-none"
+    description={`We couldn't fetch the ${mode === 'renew' ? 'renewal' : 'registration'} price for this name. Please try again.`}
+    actionButton={{
+      label: isRetrying ? 'Retrying…' : 'Try again',
+      onClick: onRetry,
+    }}
+  />
 )
 
 type PaymentTokenPickerProps = {
@@ -106,11 +131,26 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
     ),
   })
 
-  if (
-    balancesQuery.isLoading ||
-    allowancesQuery.isLoading ||
-    priceQueries.some((query) => query.isLoading)
-  ) {
+  const prices = priceQueries.map((query) => query.data)
+  const resolvedPrices = prices.every(isPriceResult) ? prices : null
+  const isPriceLoading = priceQueries.some((query) => query.isLoading)
+  // A settled price read that errored (or returned a malformed result) must
+  // block checkout, as in MultiNamePaymentTokenPicker: pricing a token at zero
+  // shows $0.00, skips the approval step, and the registrar still pulls its
+  // live price.
+  const isPriceFailed =
+    !isPriceLoading &&
+    (!resolvedPrices || priceQueries.some((query) => query.isError))
+
+  // The parent holds the last selection (and its price) to submit with — drop
+  // it once prices fail so a stale token can't be confirmed behind the error.
+  useEffect(() => {
+    if (!isPriceFailed) return
+    setSelectedToken(null)
+    onSelectionChange(null)
+  }, [isPriceFailed, onSelectionChange])
+
+  if (balancesQuery.isLoading || allowancesQuery.isLoading || isPriceLoading) {
     return <Skeleton />
   }
 
@@ -121,6 +161,18 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
         title="Connect your wallet"
         className="xl:min-w-none"
         description="Connect your wallet to view available payment tokens for your ENS registration."
+      />
+    )
+  }
+
+  if (!resolvedPrices || isPriceFailed) {
+    return (
+      <PriceErrorCard
+        mode={props.mode ?? 'register'}
+        isRetrying={priceQueries.some((query) => query.isFetching)}
+        onRetry={() => {
+          for (const query of priceQueries) void query.refetch()
+        }}
       />
     )
   }
@@ -143,7 +195,7 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
 
   const tokenData = buildTokenData(
     PAYMENT_TOKENS,
-    priceQueries.map((query) => query.data),
+    resolvedPrices,
     balances,
     allowances,
   )

@@ -14,6 +14,8 @@ type ExtendNameSettingsProps = {
   readonly baseDate?: Temporal.PlainDate
   /** When omitted, the back button is hidden — used when there's no preceding disclaimer step */
   readonly onBack?: () => void
+  /** False until the extension price has resolved — never continue on no price. */
+  readonly canContinue: boolean
   readonly onNext: () => void
 }
 
@@ -23,6 +25,7 @@ export const ExtendNameSettings = ({
   setSpan,
   baseDate,
   onBack,
+  canContinue,
   onNext,
 }: ExtendNameSettingsProps) => {
   return (
@@ -54,7 +57,12 @@ export const ExtendNameSettings = ({
             <ArrowLeft className="size-4" />
           </Button>
         ) : null}
-        <Button className="flex-1" variant="default" onClick={onNext}>
+        <Button
+          className="flex-1"
+          variant="default"
+          disabled={!canContinue}
+          onClick={onNext}
+        >
           Next
         </Button>
       </div>
