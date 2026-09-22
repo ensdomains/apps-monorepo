@@ -33,7 +33,7 @@ const NameRowComponent = ({
         <div
           aria-hidden
           className={cn(
-            'flex size-4.5 shrink-0 items-center justify-center rounded-[5px] border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ens-garnet-900 peer-focus-visible:ring-offset-2',
+            'flex size-4.5 shrink-0 items-center justify-center rounded-sm border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ens-garnet-900 peer-focus-visible:ring-offset-2',
             isSelected
               ? 'border-ens-garnet-500 bg-ens-garnet-500'
               : 'border-ens-quartz-500 bg-transparent',
@@ -41,7 +41,7 @@ const NameRowComponent = ({
         >
           <MSymbol
             className={cn(
-              'size-3.25 text-[13px] transition-opacity',
+              'size-3.25 text-xs leading-none transition-opacity',
               isSelected
                 ? 'text-ens-garnet-100 opacity-100'
                 : 'text-transparent opacity-0',
