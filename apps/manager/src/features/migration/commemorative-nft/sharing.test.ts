@@ -11,9 +11,9 @@ import type { RendererTraits } from './types'
 const ownerAddress = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 const traits: RendererTraits = {
   Era: 'Surge',
-  Depth: 'Collector',
-  Gasveteran: 'Seasoned',
-  Archetype: 'Personal',
+  Depth: 'Namer',
+  Gasveteran: 'Fresh',
+  Archetype: 'Brand',
   Rarity: 'Common',
   Seed: 742_941_409,
 }
@@ -55,7 +55,8 @@ describe('commemorative NFT sharing', () => {
   it('shares the minted card and its public URL', () => {
     const externalUrl = 'https://example.com/nft/hello world'
     const urls = buildCommemorativeNftShareUrls(externalUrl, true, traits)
-    const text = 'Upgraded to ENSv2 and minted my card.'
+    const text =
+      "Upgraded to ENSv2 and minted my card.\nI'm a Surge Era holder."
 
     expect(urls.external).toBe(externalUrl)
     expect(urls.message).toBe(`${text}\n${externalUrl}`)

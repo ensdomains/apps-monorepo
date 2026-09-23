@@ -27,9 +27,7 @@ export const isCommemorativeNftCanonicalProfile = (
 ): boolean =>
   normalizedProfileName(routeName) === normalizedProfileName(profileName)
 
-const getStandoutTraitShareLine = (
-  traits: RendererTraits,
-): string | undefined => {
+const getShareTraitLine = (traits: RendererTraits): string => {
   if (traits.Gasveteran === 'Battle-Scarred')
     return "I'm a Battle-Scarred holder."
   if (traits.Rarity === 'Elemental') return "I'm an Elemental holder."
@@ -37,7 +35,13 @@ const getStandoutTraitShareLine = (
   if (traits.Era === 'Founding') return "I'm a Founding-Era holder."
   if (traits.Era === 'Pioneer') return "I'm a Pioneer Age holder."
   if (traits.Depth === 'Domainer') return "I'm a Domainer."
-  return undefined
+  const eraName = {
+    DeFi: 'DeFi Summer',
+    NFT: 'NFT Mania',
+    Merge: 'Merge Era',
+    Surge: 'Surge Era',
+  }[traits.Era]
+  return `I'm a ${eraName} holder.`
 }
 
 export const buildCommemorativeNftShareUrls = (
@@ -48,10 +52,7 @@ export const buildCommemorativeNftShareUrls = (
   if (!externalUrl || !minted) return {}
 
   const introduction = 'Upgraded to ENSv2 and minted my card.'
-  const standoutTrait = getStandoutTraitShareLine(traits)
-  const text = standoutTrait
-    ? `${introduction}\n${standoutTrait}`
-    : introduction
+  const text = `${introduction}\n${getShareTraitLine(traits)}`
   return {
     external: externalUrl,
     message: `${text}\n${externalUrl}`,
