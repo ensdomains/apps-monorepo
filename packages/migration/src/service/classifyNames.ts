@@ -166,7 +166,7 @@ const hasExpiredDotEthRegistration = (
 }
 
 type ClassificationContext = {
-  chainId: number
+  readonly chainId: number
   readonly domain: V1Domain
   readonly label: string
   readonly ownerAddressLower: string
