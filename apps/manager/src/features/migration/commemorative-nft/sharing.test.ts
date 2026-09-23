@@ -23,33 +23,28 @@ describe('commemorative NFT sharing', () => {
     ).toBe(false)
   })
 
-  it('builds encoded share intents only when an external URL exists', () => {
+  it('builds encoded share intents only for a minted NFT with an external URL', () => {
     expect(buildCommemorativeNftShareUrls(undefined, false)).toEqual({})
     expect(buildCommemorativeNftShareUrls(undefined, true)).toEqual({})
+    expect(
+      buildCommemorativeNftShareUrls(
+        'https://example.com/nft/hello world',
+        false,
+      ),
+    ).toEqual({})
     const urls = buildCommemorativeNftShareUrls(
       'https://example.com/nft/hello world',
-      false,
+      true,
     )
     expect(urls.x).toContain('x.com/intent/post')
     expect(urls.x).toContain('hello+world')
     expect(urls.telegram).toContain('t.me/share/url')
   })
 
-  it.each([
-    {
-      minted: false,
-      text: 'Upgraded to ENSv2. Preview my card.',
-    },
-    {
-      minted: true,
-      text: 'Upgraded to ENSv2 and minted my card.',
-    },
-  ])('shares accurate mint status when minted is $minted', ({
-    minted,
-    text,
-  }) => {
+  it('shares the minted card and its public URL', () => {
     const externalUrl = 'https://example.com/nft/hello world'
-    const urls = buildCommemorativeNftShareUrls(externalUrl, minted)
+    const urls = buildCommemorativeNftShareUrls(externalUrl, true)
+    const text = 'Upgraded to ENSv2 and minted my card.'
 
     expect(urls.external).toBe(externalUrl)
     expect(urls.message).toBe(`${text}\n${externalUrl}`)

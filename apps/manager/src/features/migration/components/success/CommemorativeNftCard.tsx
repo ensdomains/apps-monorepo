@@ -180,7 +180,7 @@ const SharingRail = ({
       <button
         aria-busy={pending}
         className={socialControlClassName}
-        disabled={!hasDownload || pending}
+        disabled={isDisabled || !hasDownload || pending}
         onClick={download}
         type="button"
       >
@@ -224,7 +224,9 @@ const ArtworkActions = ({
           : 'bottom-0 min-h-full justify-between gap-3',
       )}
     >
-      <SharingRail isDisabled={isDisabled} state={state} />
+      {state.status === 'minted' ? (
+        <SharingRail isDisabled={isDisabled} state={state} />
+      ) : null}
       {variant === 'profile' ? null : (
         <CommemorativeNftTraitsTooltip
           learnMoreUrl={state.card.learnMoreUrl}

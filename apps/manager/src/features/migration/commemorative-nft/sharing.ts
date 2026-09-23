@@ -31,11 +31,9 @@ export const buildCommemorativeNftShareUrls = (
   externalUrl: string | undefined,
   minted: boolean,
 ): CommemorativeNftShareUrls => {
-  if (!externalUrl) return {}
+  if (!externalUrl || !minted) return {}
 
-  const text = minted
-    ? 'Upgraded to ENSv2 and minted my card.'
-    : 'Upgraded to ENSv2. Preview my card.'
+  const text = 'Upgraded to ENSv2 and minted my card.'
   return {
     external: externalUrl,
     message: `${text}\n${externalUrl}`,
