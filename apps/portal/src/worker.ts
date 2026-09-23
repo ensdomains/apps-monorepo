@@ -1,4 +1,3 @@
-import { escapeHtml } from '@ens-apps/og/markup'
 import { getPageTitle, TITLE_SUFFIX } from './utils/pageTitle'
 import {
   extractAddrFromPath,
@@ -13,6 +12,7 @@ import {
 import { withSecurityHeaders } from './worker/csp'
 import { fetchEnsData, fetchIsPermissionedResolver } from './worker/ens'
 import { MetaTagInjector, TitleRewriter } from './worker/html-rewriter'
+import { buildMetaTags, type MetaTagOptions } from './worker/meta'
 import {
   renderAddressOgImage,
   renderDefaultOgImage,
@@ -26,39 +26,6 @@ import {
 function wantsHtml(request: Request): boolean {
   const accept = request.headers.get('Accept') ?? ''
   return accept.includes('text/html') || accept.includes('*/*')
-}
-
-interface MetaTagOptions {
-  title: string
-  description: string
-  imageUrl: string
-  type?: 'website' | 'profile'
-  imageAlt?: string | null
-}
-
-/** Build the shared OG / Twitter meta tag block. */
-function buildMetaTags({
-  title,
-  description,
-  imageUrl,
-  type = 'website',
-  imageAlt = null,
-}: MetaTagOptions): string {
-  return [
-    `<meta property="og:title" content="${escapeHtml(title)}" />`,
-    `<meta property="og:description" content="${escapeHtml(description)}" />`,
-    `<meta property="og:image" content="${escapeHtml(imageUrl)}" />`,
-    `<meta property="og:type" content="${type}" />`,
-    `<meta name="twitter:card" content="summary_large_image" />`,
-    `<meta name="twitter:title" content="${escapeHtml(title)}" />`,
-    `<meta name="twitter:description" content="${escapeHtml(description)}" />`,
-    `<meta name="twitter:image" content="${escapeHtml(imageUrl)}" />`,
-    imageAlt
-      ? `<meta property="og:image:alt" content="${escapeHtml(imageAlt)}" />`
-      : '',
-  ]
-    .filter(Boolean)
-    .join('\n')
 }
 
 /** Fetch the SPA shell and inject the given meta tags + (optional) title. */
@@ -278,6 +245,21 @@ function handleTldPage(
   })
 }
 
+/** The card every route falls back to: no name, no records, nothing to fail. */
+function injectDefaultMeta(
+  request: Request,
+  url: URL,
+  env: Env,
+): Promise<Response> {
+  return injectMeta(request, env, {
+    // Every matcher getPageTitle would run has already failed, so this branch
+    // is the bare app name by definition.
+    title: TITLE_SUFFIX,
+    description: 'Explore ENS names and addresses',
+    imageUrl: `https://${url.host}/og/default.png`,
+  })
+}
+
 /**
  * Inject OG / meta tags for the SPA page matching `pathname`.
  *
@@ -319,16 +301,23 @@ function handlePageMeta(
     )
   }
 
+  // A name's own records drive this page, so one bad name must not fail the
+  // request — fall back to the default card rather than erroring out.
+  const namePageOrDefault = (pageName: string) =>
+    handleNamePage(request, url, env, pageName).catch(() =>
+      injectDefaultMeta(request, url, env),
+    )
+
   const name = extractNameFromPath(pathname)
   if (name) {
-    return handleNamePage(request, url, env, name)
+    return namePageOrDefault(name)
   }
 
   // `/register?name=foo.eth` previews the registration target name, which lives
   // in the query string rather than the path (WEB-509 reserved `/register`).
   const registerName = extractRegisterName(pathname, url.searchParams)
   if (registerName) {
-    return handleNamePage(request, url, env, registerName)
+    return namePageOrDefault(registerName)
   }
 
   if (isTldRoute(pathname)) {
@@ -336,13 +325,7 @@ function handlePageMeta(
   }
 
   // All other routes: inject default OG meta tags.
-  return injectMeta(request, env, {
-    // Every matcher getPageTitle would run has already failed above, so this
-    // branch is the bare app name by definition.
-    title: TITLE_SUFFIX,
-    description: 'Explore ENS names and addresses',
-    imageUrl: `https://${url.host}/og/default.png`,
-  })
+  return injectDefaultMeta(request, url, env)
 }
 
 async function handle(request: Request, env: Env): Promise<Response> {

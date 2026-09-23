@@ -18,6 +18,17 @@ export interface EnsData {
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024
 
 /**
+ * Cap a text record at the source, for the same reason as the avatar.
+ *
+ * `description` is attacker-controlled for any name someone can register (or
+ * serve over CCIP-Read), and it reaches the HTML escaper in the meta block,
+ * which expands it up to sixfold. Bounding it here keeps an oversized record
+ * from ever propagating, whatever the consumer does with it (Immunefi #92466).
+ * Generous next to the ~200 characters OG readers show.
+ */
+const TEXT_RECORD_MAX_CHARS = 300
+
+/**
  * Base64-encode bytes via the runtime's native `btoa`.
  *
  * `btoa` takes a binary string, so we build one in chunks with
@@ -188,10 +199,12 @@ export async function fetchEnsData(
       ? await resolveAvatarDataUri(client, avatarRecord, selfHost, env.IMAGES)
       : null
 
+    const description =
+      records.texts.find((r) => r.key === 'description')?.value ?? null
+
     return {
       avatar,
-      description:
-        records.texts.find((r) => r.key === 'description')?.value ?? null,
+      description: description?.slice(0, TEXT_RECORD_MAX_CHARS) ?? null,
       owner,
     }
   } catch {
