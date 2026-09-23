@@ -157,24 +157,17 @@ describe('commemorative NFT availability observer', () => {
     expect(readClaimed).toHaveBeenCalledTimes(1)
   })
 
-  it('exposes cached minted status immediately and confirms it after refetch', async () => {
-    const pendingRead = deferred<boolean>()
-    readClaimed.mockReturnValueOnce(pendingRead.promise)
+  it('keeps receipt-confirmed mint state on navigation despite a lagging RPC', () => {
+    readClaimed.mockResolvedValue(false)
     const client = createClient()
     client.setQueryData(claimQueryKey(), true)
     const { result } = mountAvailability(client)
 
     expect(result.current.claimed.data).toBe(true)
-    expect(result.current.claimed.fetchStatus).toBe('fetching')
+    expect(result.current.claimed.fetchStatus).toBe('idle')
     expect(result.current.hasFreshClaimedResult).toBe(false)
     expect(result.current.isConfirmedUnclaimed).toBe(false)
-
-    await act(async () => pendingRead.resolve(true))
-    await waitFor(() => expect(result.current.hasFreshClaimedResult).toBe(true))
-
-    expect(result.current.claimed.data).toBe(true)
-    expect(result.current.isConfirmedUnclaimed).toBe(false)
-    expect(readClaimed).toHaveBeenCalledTimes(1)
+    expect(readClaimed).not.toHaveBeenCalled()
   })
 
   it('waits for this observer to successfully refetch cached unclaimed status', async () => {
