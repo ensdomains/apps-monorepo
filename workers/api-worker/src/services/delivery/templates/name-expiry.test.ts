@@ -1,0 +1,87 @@
+import type { PersonalNotificationPayloads } from '@ens-apps/shared-schema/notifications'
+import { getGraceEndDate, MS_PER_DAY } from '@ens-apps/utils/gracePeriod'
+import { describe, expect, it } from 'vitest'
+import {
+  buildNameExpiryEmailContent,
+  type NameExpiryRenderOptions,
+} from './name-expiry.js'
+import { buildNameExpiryPushNotification } from './push.js'
+import { buildNameExpiryTelegramMessage } from './telegram.js'
+
+const expiry = new Date('2026-03-13T12:00:00Z')
+const payload = (
+  overrides: Partial<PersonalNotificationPayloads['name-expiry']> = {},
+): PersonalNotificationPayloads['name-expiry'] => ({
+  name: 'alice.eth',
+  expiryDate: expiry.getTime(),
+  stage: 'expiry-7d',
+  isOwner: true,
+  watchReason: 'owned',
+  ...overrides,
+})
+const options = (now: Date): NameExpiryRenderOptions => ({
+  managerAppUrl: 'https://app.ens.dev',
+  now,
+})
+
+describe('name expiry lifecycle delivery rendering', () => {
+  it.each([
+    ['expiry-7d', 'Domain expiration alert', 'isPreExpiry'],
+    ['grace-start', 'Domain grace period started', 'isGraceStart'],
+    ['grace-1d', 'Domain grace period ending soon', 'isGraceEnding'],
+    ['premium-start', 'Domain grace period ended', 'isPremiumStart'],
+  ] as const)('maps %s to SendGrid lifecycle data', (stage, subject, flag) => {
+    const now =
+      stage === 'premium-start'
+        ? getGraceEndDate(expiry, 'v2')
+        : stage === 'grace-1d'
+          ? new Date(getGraceEndDate(expiry, 'v2').getTime() - MS_PER_DAY)
+          : expiry
+    const content = buildNameExpiryEmailContent(
+      payload({ stage }),
+      options(now),
+    )
+    expect(content.subject).toBe(subject)
+    expect(content.dynamicData[flag]).toBe(true)
+    expect(content.dynamicData).not.toHaveProperty('renewUrl')
+    expect(content.dynamicData).not.toHaveProperty('registerUrl')
+  })
+
+  it('passes normalized but unescaped names to escaped SendGrid Handlebars', () => {
+    const content = buildNameExpiryEmailContent(
+      payload({ name: ' <b>{{name}}</b>.eth\n' }),
+      options(expiry),
+    )
+    expect(content.dynamicData.name).toBe('<b>{{name}}</b>.eth')
+  })
+
+  it('uses stage-specific push copy and encoded navigation paths', () => {
+    const grace = buildNameExpiryPushNotification(
+      payload({ name: 'foo/bar.eth', stage: 'grace-7d' }),
+      options(
+        new Date(getGraceEndDate(expiry, 'v2').getTime() - 7 * MS_PER_DAY),
+      ),
+    )
+    const premium = buildNameExpiryPushNotification(
+      payload({ name: 'foo/bar.eth', stage: 'premium-start' }),
+      options(getGraceEndDate(expiry, 'v2')),
+    )
+    expect(grace.title).toBe('ENS grace period ending soon')
+    expect(grace.data?.url).toBe('/renew/foo%2Fbar.eth')
+    expect(premium.title).toBe('ENS grace period ended')
+    expect(premium.data?.url).toBe('/register/foo%2Fbar.eth')
+  })
+
+  it('renders hostile Telegram names literally and uses an absolute Manager URL', () => {
+    const message = buildNameExpiryTelegramMessage(
+      payload({ name: 'foo<script>\n&.eth', stage: 'grace-start' }),
+      options(expiry),
+    )
+    expect(message.parseMode).toBe('HTML')
+    expect(message.text).toContain('<code>foo&lt;script&gt;&amp;.eth</code>')
+    expect(message.text).not.toContain('<script>')
+    expect(message.buttons?.[0]?.[0]?.url).toBe(
+      'https://app.ens.dev/renew/foo%3Cscript%3E%26.eth',
+    )
+  })
+})

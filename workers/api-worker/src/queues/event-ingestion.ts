@@ -13,6 +13,7 @@ import {
   intoDbResult,
   TABLE,
 } from '#core/database/index.js'
+import { getExpiryStageRank } from '#services/expiry-discovery/stages.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
 import { type ExpiryEvent, expiryEventSchema } from '#types/events/index.js'
 import { chunk } from '#utils/chunk.js'
@@ -307,6 +308,7 @@ const reconcileNotifications = ResultFn(async function* (ctx: {
     payload: {
       name: ctx.event.name,
       expiryDate: ctx.event.expiryDate * 1000,
+      stage: ctx.event.stage,
       isOwner: recipient.watchReason === 'owned',
       watchReason: recipient.watchReason,
     },
@@ -726,6 +728,82 @@ type ValidExpiryMessage = {
   readonly event: ExpiryEvent
 }
 
+type ExpiryMessageGroup = {
+  readonly messages: readonly Message[]
+  readonly event: ExpiryEvent
+}
+
+const expiryEventGroupKey = (event: ExpiryEvent): string =>
+  JSON.stringify([event.name, event.expiryDate])
+
+const mergeExpiryEvents = (
+  current: ExpiryEvent,
+  candidate: ExpiryEvent,
+): ExpiryEvent => {
+  const selected =
+    getExpiryStageRank(candidate.stage) > getExpiryStageRank(current.stage)
+      ? candidate
+      : current
+  const other = selected === current ? candidate : current
+
+  return {
+    ...selected,
+    includeFavorites: current.includeFavorites || candidate.includeFavorites,
+    owner: selected.owner ?? other.owner,
+  }
+}
+
+/** Collapse overlapping lifecycle stages without any queue-message behavior. */
+export const collapseExpiryEvents = (
+  events: readonly ExpiryEvent[],
+): ExpiryEvent[] => {
+  const grouped = new Map<string, ExpiryEvent>()
+  for (const event of events) {
+    const key = expiryEventGroupKey(event)
+    const existing = grouped.get(key)
+    grouped.set(key, existing ? mergeExpiryEvents(existing, event) : event)
+  }
+  return [...grouped.values()]
+}
+
+const groupValidExpiryMessages = (
+  validMessages: readonly ValidExpiryMessage[],
+): ExpiryMessageGroup[] => {
+  const grouped = new Map<string, ExpiryMessageGroup>()
+  for (const { message, event } of validMessages) {
+    const key = expiryEventGroupKey(event)
+    const existing = grouped.get(key)
+    grouped.set(
+      key,
+      existing
+        ? {
+            messages: [...existing.messages, message],
+            event: mergeExpiryEvents(existing.event, event),
+          }
+        : { messages: [message], event },
+    )
+  }
+  return [...grouped.values()]
+}
+
+const logCollapsedExpiryGroups = (ctx: {
+  readonly queue: string
+  readonly originalEvents: readonly ExpiryEvent[]
+  readonly groupedEvents: readonly ExpiryEvent[]
+}): void => {
+  const collapsedCount = ctx.originalEvents.length - ctx.groupedEvents.length
+  if (collapsedCount === 0) return
+
+  logger.warn('Collapsed overlapping expiry lifecycle messages', {
+    queue: ctx.queue,
+    originalMessageCount: ctx.originalEvents.length,
+    groupedEventCount: ctx.groupedEvents.length,
+    collapsedCount,
+    originalStageCounts: countByStage(ctx.originalEvents),
+    selectedStageCounts: countByStage(ctx.groupedEvents),
+  })
+}
+
 type MessageValidationSummary = {
   readonly validMessages: readonly ValidExpiryMessage[]
   readonly invalidShapeCount: number
@@ -809,14 +887,26 @@ export const handleEventIngestionQueue = async (
     return
   }
 
-  const events = validMessages.map(({ event }) => event)
+  const originalEvents = validMessages.map(({ event }) => event)
+  const eventGroups = groupValidExpiryMessages(validMessages)
+  const events = eventGroups.map(({ event }) => event)
   const stageCounts = countByStage(events)
+  const collapsedCount = validMessages.length - eventGroups.length
   logger.info('Processing event-ingestion batch', {
     queue: batch.queue,
     messageCount: batch.messages.length,
     validMessageCount: validMessages.length,
     droppedCount,
+    groupedEventCount: eventGroups.length,
+    collapsedCount,
+    originalStageCounts: countByStage(originalEvents),
     stageCounts,
+  })
+
+  logCollapsedExpiryGroups({
+    queue: batch.queue,
+    originalEvents,
+    groupedEvents: events,
   })
 
   const ownerResult = await loadOwnerUserIds({ db, events })
@@ -833,7 +923,7 @@ export const handleEventIngestionQueue = async (
     return
   }
 
-  for (const { message, event } of validMessages) {
+  for (const { messages, event } of eventGroups) {
     const ownerUserId = event.owner
       ? ownerResult.value.get(event.owner.toLowerCase())
       : undefined
@@ -847,16 +937,16 @@ export const handleEventIngestionQueue = async (
     if (result.isErr()) {
       logger.error('Failed to process expiry event', {
         queue: batch.queue,
-        messageId: message.id,
+        messageIds: messages.map((message) => message.id),
         name: event.name,
         stage: event.stage,
         error: result.error,
       })
-      message.retry()
+      for (const message of messages) message.retry()
       continue
     }
 
-    message.ack()
+    for (const message of messages) message.ack()
   }
 
   logger.info('Event-ingestion batch completed', {
@@ -864,6 +954,8 @@ export const handleEventIngestionQueue = async (
     messageCount: batch.messages.length,
     validMessageCount: validMessages.length,
     droppedCount,
+    groupedEventCount: eventGroups.length,
+    collapsedCount,
     stageCounts,
   })
 }

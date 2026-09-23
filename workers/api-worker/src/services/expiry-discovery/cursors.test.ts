@@ -1,97 +1,85 @@
 import { describe, expect, it } from 'vitest'
 import { KV_KEY } from '#core/kv/index.js'
-import { loadNotificationCursors, storeNotificationCursors } from './cursors.js'
+import {
+  loadNotificationCursors,
+  type NotificationCursors,
+  storeNotificationCursors,
+} from './cursors.js'
+import { getDefaultCursorForStage, STAGES } from './stages.js'
 
 class MockKV {
   private store = new Map<string, string>()
-
   async get(key: string, type?: 'json') {
     const raw = this.store.get(key)
     if (!raw) return null
-    if (type === 'json') return JSON.parse(raw)
-    return raw
+    return type === 'json' ? JSON.parse(raw) : raw
   }
-
   async put(key: string, value: string) {
     this.store.set(key, value)
   }
-
   seed(key: string, value: unknown) {
     this.store.set(key, JSON.stringify(value))
   }
-
   readRaw(key: string) {
     return this.store.get(key)
   }
 }
 
+const defaultsAt = (now: number): NotificationCursors =>
+  Object.fromEntries(
+    STAGES.map((stage) => [
+      stage.id,
+      { expiry_timestamp: getDefaultCursorForStage(stage, now) },
+    ]),
+  ) as NotificationCursors
+
 describe('notification cursors', () => {
-  it('initializes defaults when KV value is missing', async () => {
-    const env = { KV: new MockKV() } as unknown as CloudflareBindings
-    const result = await loadNotificationCursors(env, 123)
+  it('uses lifecycle-safe defaults when KV is missing', async () => {
+    const now = 1_700_000_000
+    const result = await loadNotificationCursors(
+      { KV: new MockKV() } as unknown as CloudflareBindings,
+      now,
+    )
+    expect(result._unsafeUnwrap()).toEqual(defaultsAt(now))
+  })
 
-    expect(result.isOk()).toBe(true)
+  it('fills missing lifecycle keys without reading legacy keys', async () => {
+    const kv = new MockKV()
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
+      'expiry-30d': { expiry_timestamp: 10 },
+      '30d': { expiry_timestamp: 999 },
+    })
+    const result = await loadNotificationCursors(
+      { KV: kv } as unknown as CloudflareBindings,
+      100,
+    )
     expect(result._unsafeUnwrap()).toEqual({
-      '30d': { expiry_timestamp: 123 },
-      '7d': { expiry_timestamp: 123 },
-      '1d': { expiry_timestamp: 123 },
-      expired: { expiry_timestamp: 123 },
+      ...defaultsAt(100),
+      'expiry-30d': { expiry_timestamp: 10 },
     })
   })
 
-  it('fills missing stages from defaults when KV value is partial', async () => {
+  it('rejects invalid cursor values', async () => {
     const kv = new MockKV()
     kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
-      '30d': { expiry_timestamp: 10 },
-      expired: { expiry_timestamp: 5 },
+      'expiry-30d': { expiry_timestamp: 'oops' },
     })
-
-    const env = { KV: kv } as unknown as CloudflareBindings
-    const result = await loadNotificationCursors(env, 20)
-
-    expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({
-      '30d': { expiry_timestamp: 10 },
-      '7d': { expiry_timestamp: 20 },
-      '1d': { expiry_timestamp: 20 },
-      expired: { expiry_timestamp: 5 },
-    })
-  })
-
-  it('returns CURSOR_PARSE_ERROR when KV value is invalid', async () => {
-    const kv = new MockKV()
-    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
-      '30d': { expiry_timestamp: 'oops' },
-    })
-
-    const env = { KV: kv } as unknown as CloudflareBindings
-    const result = await loadNotificationCursors(env, 10)
-
-    expect(result.isErr()).toBe(true)
+    const result = await loadNotificationCursors(
+      { KV: kv } as unknown as CloudflareBindings,
+      100,
+    )
     expect(result._unsafeUnwrapErr()._tag).toBe('CURSOR_PARSE_ERROR')
   })
 
-  it('stores all stage cursors in one KV key', async () => {
+  it('stores the lifecycle cursor set', async () => {
     const kv = new MockKV()
-    const env = { KV: kv } as unknown as CloudflareBindings
-
-    const writeResult = await storeNotificationCursors(env, {
-      '30d': { expiry_timestamp: 1 },
-      '7d': { expiry_timestamp: 2 },
-      '1d': { expiry_timestamp: 3 },
-      expired: { expiry_timestamp: 4 },
-    })
-
-    expect(writeResult.isOk()).toBe(true)
-
+    const cursors = defaultsAt(100)
+    await storeNotificationCursors(
+      { KV: kv } as unknown as CloudflareBindings,
+      cursors,
+    )
     const stored = kv.readRaw(KV_KEY.EXPIRY_DISCOVERY.CURSORS)
-    expect(stored).toBeTruthy()
-    // biome-ignore lint/style/noNonNullAssertion: test assertion - stored verified truthy above
-    expect(JSON.parse(stored!)).toEqual({
-      '30d': { expiry_timestamp: 1 },
-      '7d': { expiry_timestamp: 2 },
-      '1d': { expiry_timestamp: 3 },
-      expired: { expiry_timestamp: 4 },
-    })
+    if (!stored) throw new Error('Expected stored cursor value')
+    expect(JSON.parse(stored)).toEqual(cursors)
   })
 })
