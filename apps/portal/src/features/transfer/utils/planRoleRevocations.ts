@@ -24,19 +24,21 @@ const revokerRoleFor = (role: string): string =>
  * and revoking their own roles mid-flow would strip the admin rights the
  * remaining steps run on.
  *
- * Registry-root roles sit outside this on both sides. A root holder never
- * appears in `accounts` — the read replays per-name grants, and a root grant is
- * not one — and a per-name revoke wouldn't remove their authority anyway; the
- * roles page reports them under their own heading. `ownerRoles` likewise counts
- * only the sender's grant on this resource, though `_effectiveRoles` would also
- * honour a root one. That errs towards listing a grant as unrevocable when it
- * isn't, which costs the sender a warning rather than a reverted transaction
- * halfway through an irreversible flow.
+ * The sender's authority is `_effectiveRoles`: their grant on this resource
+ * ORed with their grant at the registry root. Both are counted, or a name in a
+ * registry the sender owns — where the admin roles are typically held at the
+ * root — would report every delegate as permanently attached.
+ *
+ * Third-party root holders are a different matter and deliberately absent:
+ * `accounts` replays per-name grants and a root grant is not one, and a
+ * per-name revoke could not remove that authority anyway. The roles page
+ * reports them under its own heading.
  */
 export const planRoleRevocations = ({
   accounts,
   owner,
   ownerRoles,
+  ownerRootRoles,
 }: {
   /**
    * Current `account -> roles[]` on the name's registry resource. Typed as raw
@@ -45,9 +47,12 @@ export const planRoleRevocations = ({
    */
   readonly accounts: ReadonlyMap<Address, readonly string[]>
   readonly owner: Address
+  /** The sender's roles on this name's resource. */
   readonly ownerRoles: readonly string[]
+  /** The sender's roles at the registry root, which apply here too. */
+  readonly ownerRootRoles: readonly string[]
 }): Extract<TransferRoleRevocations, { status: 'ready' }> => {
-  const canRevoke = new Set<string>(ownerRoles)
+  const canRevoke = new Set<string>([...ownerRoles, ...ownerRootRoles])
 
   const holders: NameRoleGrant[] = []
   const revocable: NameRoleGrant[] = []

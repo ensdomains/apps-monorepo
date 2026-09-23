@@ -1,7 +1,8 @@
 import { useQueries } from '@tanstack/react-query'
-import type { Address } from 'viem'
+import { type Address, isAddressEqual } from 'viem'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
+import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { getLabel } from '@/utils/token/getLabel'
 import type { TransferRoleRevocations } from '../types'
 import { planRoleRevocations } from '../utils/planRoleRevocations'
@@ -19,6 +20,10 @@ import { planRoleRevocations } from '../utils/planRoleRevocations'
  * Opted out of the app-wide one-hour staleTime: an hour-old "nobody else holds
  * roles" is exactly the answer that would hand a name over with a live grant
  * still attached, and the read gates a step the sender can't take afterwards.
+ * The flip side is that a revisit refetches in the background while the cached
+ * answer is still `isSuccess`, so a refetch in flight reports as `pending` —
+ * the grants on screen are the previous answer and the plan must not be built
+ * from them.
  */
 export const useTransferRoleRevocations = ({
   name,
@@ -39,7 +44,7 @@ export const useTransferRoleRevocations = ({
     label = getLabel(name)
   } catch {}
 
-  const [accountsQuery, ownerRolesQuery] = useQueries({
+  const [accountsQuery, ownerRolesQuery, rootHoldersQuery] = useQueries({
     queries: [
       {
         ...getNameRolesAccountsQueryOptions({ name, registryAddress }),
@@ -55,20 +60,47 @@ export const useTransferRoleRevocations = ({
         enabled: label !== null,
         staleTime: 0,
       },
+      // `EnhancedAccessControl._effectiveRoles` ORs an account's root roles
+      // with its per-resource ones, so a sender holding the admin role at the
+      // registry root can revoke a grant its per-name bitmap says nothing
+      // about. Read here rather than inferred, or a name in the sender's own
+      // registry would report a revocable delegate as permanent.
+      {
+        ...getRegistryRootRoleHoldersQueryOptions({ registryAddress }),
+        staleTime: 0,
+      },
     ],
   })
 
-  if (label === null || accountsQuery.isError || ownerRolesQuery.isError)
+  if (
+    label === null ||
+    accountsQuery.isError ||
+    ownerRolesQuery.isError ||
+    rootHoldersQuery.isError
+  )
     return { status: 'error' }
 
-  // Keyed off `isSuccess`, not `!isLoading`: a query that hasn't run (or has
-  // failed) also has `data === undefined`, which must not read as "no grants".
-  if (!accountsQuery.isSuccess || !ownerRolesQuery.isSuccess)
+  // Keyed off the data being there, not off `!isLoading`: a query that hasn't
+  // run (or has failed) also has `data === undefined`, which must not read as
+  // "no grants". `isFetching` covers the revalidation case — see the note
+  // above.
+  if (
+    !accountsQuery.data ||
+    !ownerRolesQuery.data ||
+    !rootHoldersQuery.data ||
+    accountsQuery.isFetching ||
+    ownerRolesQuery.isFetching ||
+    rootHoldersQuery.isFetching
+  )
     return { status: 'pending' }
 
   return planRoleRevocations({
     accounts: accountsQuery.data,
     owner,
     ownerRoles: ownerRolesQuery.data.decoded ?? [],
+    ownerRootRoles:
+      rootHoldersQuery.data.find((holder) =>
+        isAddressEqual(holder.account, owner),
+      )?.roles ?? [],
   })
 }
