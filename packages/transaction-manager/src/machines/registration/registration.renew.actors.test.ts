@@ -1,4 +1,5 @@
 import { ensContractsFor, getTokens } from '@ens-apps/config'
+import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { decodeFunctionData, erc20Abi, toFunctionSelector } from 'viem'
@@ -32,7 +33,9 @@ const signer = {
   type: 'eoa',
   walletClient: { account: { address: WALLET } } as WalletClient,
 } satisfies EOASigner
-const publicClient = { chain: sepolia } as PublicClient
+// The ENS-extended chain, matching what the apps actually build their
+// clients with. A bare viem chain has no ENS contracts on it.
+const publicClient = { chain: extendChainWithEns(sepolia) } as PublicClient
 
 const submittedRequest = (): EoaTransactionRequest => {
   const [intent] = mocks.startTransaction.mock.calls.at(-1) as unknown as [

@@ -24,9 +24,11 @@ import type {
 } from 'viem'
 import {
   bytesToHex,
+  type Chain,
   decodeEventLog,
   encodeFunctionData,
   erc20Abi,
+  getChainContractAddress,
   isAddressEqual,
   keccak256,
   parseAbi,
@@ -37,7 +39,7 @@ import { getBlock, multicall, readContract } from 'viem/actions'
 import type { Signer } from '../..'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
-import { requireChainId } from '../../helpers/requireChainId'
+import { requireChainId, requireEnsChain } from '../../helpers/requireChainId'
 
 // `MIN_COMMITMENT_AGE` is an immutable on ETHRegistrar; ensjs-abi does not (yet)
 // expose a dedicated snippet for it.
@@ -45,7 +47,7 @@ const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
   'function MIN_COMMITMENT_AGE() view returns (uint64)',
 ])
 
-import { ensContractsFor, getTokens, type TOKEN_SYMBOL } from '@ens-apps/config'
+import { getTokens, type TOKEN_SYMBOL } from '@ens-apps/config'
 import { REFERER_ADDRESS } from '../../contracts/constants'
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
@@ -136,8 +138,10 @@ function generateCommitment(
 ): ResultAsync<CommitmentData, Error> {
   const registrar =
     registrarAddress ??
-    ensContractsFor(requireChainId(publicClient, 'registration'))
-      .ensEthRegistrar.address
+    getChainContractAddress({
+      chain: requireEnsChain(publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
   const cleanName = name.replace('.eth', '')
   if (
     typeof crypto === 'undefined' ||
@@ -365,7 +369,7 @@ export function submitResolverDeploymentActor(input: {
           encodeDeployDedicatedResolverCall({
             owner: input.owner,
             salt,
-            chainId: requireChainId(input.publicClient, 'registration'),
+            chain: requireEnsChain(input.publicClient, 'registration'),
           }),
         ],
       })
@@ -401,16 +405,21 @@ export function submitResolverDeploymentActor(input: {
 export function encodeDeployDedicatedResolverCall(input: {
   owner: Address
   salt: bigint
-  chainId: number
+  chain: Chain
 }): { to: Address; data: Hex; value: bigint } {
-  const contracts = ensContractsFor(input.chainId)
   return {
-    to: contracts.ensVerifiableFactory.address,
+    to: getChainContractAddress({
+      chain: input.chain,
+      contract: 'ensVerifiableFactory',
+    }),
     data: encodeFunctionData({
       abi: VERIFIABLE_FACTORY_ABI,
       functionName: 'deployProxy',
       args: [
-        contracts.ensPermissionedResolverImpl.address,
+        getChainContractAddress({
+          chain: input.chain,
+          contract: 'ensPermissionedResolverImpl',
+        }),
         input.salt,
         getResolverInitCalldata(input.owner),
       ],
@@ -453,9 +462,10 @@ export function generateCommitmentActor(input: {
   selectedToken: TOKEN_SYMBOL
   resolverAddress: Address
 }): ResultAsync<CommitmentData, Error> {
-  const registrarAddress = ensContractsFor(
-    requireChainId(input.publicClient, 'registration'),
-  ).ensEthRegistrar.address
+  const registrarAddress = getChainContractAddress({
+    chain: requireEnsChain(input.publicClient, 'registration'),
+    contract: 'ensEthRegistrar',
+  })
 
   return generateCommitment(
     input.publicClient,
@@ -478,9 +488,10 @@ export function submitCommitmentActor(input: {
   publicClient: PublicClient
   id?: string
 }): ResultAsync<string, Error> {
-  const registrarAddress = ensContractsFor(
-    requireChainId(input.publicClient, 'registration'),
-  ).ensEthRegistrar.address
+  const registrarAddress = getChainContractAddress({
+    chain: requireEnsChain(input.publicClient, 'registration'),
+    contract: 'ensEthRegistrar',
+  })
 
   return fromPromise(
     (async () => {
@@ -547,8 +558,10 @@ export function readMinCommitmentAgeActor(input: {
 }): ResultAsync<bigint, Error> {
   const registrarAddress =
     input.registrarAddress ??
-    ensContractsFor(requireChainId(input.publicClient, 'registration'))
-      .ensEthRegistrar.address
+    getChainContractAddress({
+      chain: requireEnsChain(input.publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
   return fromPromise(
     readContract(input.publicClient, {
       address: registrarAddress,
@@ -582,8 +595,10 @@ export function readPaymentTokenAllowanceActor(input: {
 }): ResultAsync<bigint, Error> {
   const registrarAddress =
     input.registrarAddress ??
-    ensContractsFor(requireChainId(input.publicClient, 'registration'))
-      .ensEthRegistrar.address
+    getChainContractAddress({
+      chain: requireEnsChain(input.publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
   const tokenAddress =
     input.paymentTokenAddress ??
     getPaymentTokenAddress(
@@ -621,8 +636,10 @@ export function readPaymentAuthorizationActor(input: {
 }): ResultAsync<{ allowance: bigint; livePrice: bigint }, MulticallErrorType> {
   const registrarAddress =
     input.registrarAddress ??
-    ensContractsFor(requireChainId(input.publicClient, 'registration'))
-      .ensEthRegistrar.address
+    getChainContractAddress({
+      chain: requireEnsChain(input.publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
   const tokenAddress =
     input.paymentTokenAddress ??
     getPaymentTokenAddress(
@@ -670,8 +687,10 @@ export function verifyRegistrationActor(input: {
 }): ResultAsync<{ verified: boolean }, Error> {
   const registrarAddress =
     input.registrarAddress ??
-    ensContractsFor(requireChainId(input.publicClient, 'registration'))
-      .ensEthRegistrar.address
+    getChainContractAddress({
+      chain: requireEnsChain(input.publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
   const cleanName = input.name.replace('.eth', '')
   return fromPromise(
     (async () => {
@@ -735,8 +754,10 @@ export function validateCommitmentActor(input: {
 }): ResultAsync<void, Error> {
   const registrarAddress =
     input.registrarAddress ??
-    ensContractsFor(requireChainId(input.publicClient, 'registration'))
-      .ensEthRegistrar.address
+    getChainContractAddress({
+      chain: requireEnsChain(input.publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
 
   return fromPromise(
     (async () => {
@@ -862,8 +883,10 @@ export function submitApprovalActor(input: {
 }): ResultAsync<string, Error> {
   const registrarAddress =
     input.registrarAddress ??
-    ensContractsFor(requireChainId(input.publicClient, 'registration'))
-      .ensEthRegistrar.address
+    getChainContractAddress({
+      chain: requireEnsChain(input.publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
 
   return ResultAsync.fromPromise(
     Promise.resolve().then(() => {
@@ -935,9 +958,10 @@ export function submitRegistrationActor(input: {
   resolverAddress: Address
   id?: string
 }): ResultAsync<string, Error> {
-  const registrarAddress = ensContractsFor(
-    requireChainId(input.publicClient, 'registration'),
-  ).ensEthRegistrar.address
+  const registrarAddress = getChainContractAddress({
+    chain: requireEnsChain(input.publicClient, 'registration'),
+    contract: 'ensEthRegistrar',
+  })
 
   return fromPromise(
     (async () => {
@@ -1099,7 +1123,11 @@ export function submitRenewActor(input: {
     (async () => {
       const chainId = requireChainId(input.publicClient, 'registration')
       const renewerAddress =
-        input.renewerAddress ?? ensContractsFor(chainId).ensEthRegistrar.address
+        input.renewerAddress ??
+        getChainContractAddress({
+          chain: requireEnsChain(input.publicClient, 'registration'),
+          contract: 'ensEthRegistrar',
+        })
       const accountAddress = getSignerAddress(input.signer)
 
       // The registrar only accepts its own PAYMENT_TOKEN /

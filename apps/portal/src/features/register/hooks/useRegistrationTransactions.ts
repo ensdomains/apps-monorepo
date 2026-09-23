@@ -23,6 +23,7 @@ import {
   usePublicClient,
   useReadContract,
 } from 'wagmi'
+import { config as appConfig } from '@/config'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
@@ -211,7 +212,7 @@ export const useRegistrationTransactions = ({
                     salt: hexToBigInt(
                       keccak256(stringToBytes(`estimate:${name}`)),
                     ),
-                    chainId,
+                    chain: appConfig.chain,
                   }),
                   chainId,
                 })
