@@ -38,6 +38,21 @@ const baseParams = {
   getSessionEnablePayload: () => Promise.resolve(undefined),
 }
 
+const deferred = <T>() => {
+  let resolvePromise: ((value: T) => void) | undefined
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve
+  })
+  return {
+    promise,
+    resolve: (value: T) => {
+      if (!resolvePromise)
+        throw new Error('deferred promise is not initialized')
+      resolvePromise(value)
+    },
+  }
+}
+
 /** Runs the queryFn and returns the input the estimator was actually called with. */
 const runQueryFn = async (
   params: Parameters<typeof getHcaBudgetQueryOptions>[0],
@@ -99,10 +114,7 @@ describe('getHcaBudgetQueryOptions', () => {
   it('replaces an in-flight display quote with the start quote', async () => {
     const queryClient = new QueryClient()
     const refreshedBudget = { ...BUDGET, total: BUDGET.total + 1_000_000n }
-    let resolveDisplay!: (budget: typeof BUDGET) => void
-    const displayBudget = new Promise<typeof BUDGET>((resolve) => {
-      resolveDisplay = resolve
-    })
+    const displayBudget = deferred<typeof BUDGET>()
     let sessionEnable: Awaited<
       ReturnType<typeof baseParams.getSessionEnablePayload>
     >
@@ -111,7 +123,7 @@ describe('getHcaBudgetQueryOptions', () => {
       getSessionEnablePayload: () => Promise.resolve(sessionEnable),
     }
     mocks.estimateHcaBudgetActor
-      .mockReturnValueOnce(ResultAsync.fromSafePromise(displayBudget))
+      .mockReturnValueOnce(ResultAsync.fromSafePromise(displayBudget.promise))
       .mockReturnValueOnce(okAsync(refreshedBudget))
     mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(0n))
 
@@ -124,7 +136,7 @@ describe('getHcaBudgetQueryOptions', () => {
 
     sessionEnable = { signature: '0x1234' } as never
     await refreshHcaBudgetQuery(queryClient, params)
-    resolveDisplay(BUDGET)
+    displayBudget.resolve(BUDGET)
     await displayRequest
 
     expect(mocks.estimateHcaBudgetActor).toHaveBeenCalledTimes(2)

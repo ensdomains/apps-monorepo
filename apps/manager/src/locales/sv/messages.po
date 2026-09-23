@@ -249,7 +249,7 @@ msgstr ""
 msgid "An error occurred during verification"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+#: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr ""
 
@@ -314,10 +314,6 @@ msgstr ""
 msgid "Authorizing payment and registering your name"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "available"
-msgstr ""
-
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Available"
 msgstr ""
@@ -344,6 +340,11 @@ msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Back to Settings"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "balance"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx
@@ -1125,16 +1126,12 @@ msgstr ""
 msgid "Learn More<0> about NFT traits</0>"
 msgstr ""
 
-#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
-msgid "Learn More<0> about NFT traits</0>"
+#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
+msgid "Left from your last attempt"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Let this temporary account move your wrapped names."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
-msgid "Left from your last attempt"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
@@ -1192,6 +1189,10 @@ msgstr ""
 
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Main receiving address"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
+msgid "Mainnet est. fee:"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
@@ -1319,10 +1320,6 @@ msgstr ""
 msgid "Need more help? Visit ENS Support Docs"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
-msgid "Network fee"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Never lose your name to expiry."
 msgstr ""
@@ -1397,28 +1394,6 @@ msgstr ""
 #. placeholder {1}: formatGasEth(shortfall.balanceWei)
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
-msgstr ""
-
-#. placeholder {0}: f.total.toFixed(2)
-#. placeholder {1}: f.hcaCredit.toFixed(2)
-#. placeholder {2}: f.walletDebit.toFixed(2)
-#. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This name costs {0} USDC, and {1} is left from your last attempt, so you pay {2} now. Your wallet holds {3} USDC."
-msgstr ""
-
-#. placeholder {0}: f.walletDebit.toFixed(2)
-#. placeholder {1}: f.registration.toFixed(2)
-#. placeholder {2}: f.networkFee.toFixed(2)
-#. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This name costs {0} USDC: {1} for the name plus {2} in network fees. Your wallet holds {3} USDC."
-msgstr ""
-
-#. placeholder {0}: e.required.toFixed(2)
-#. placeholder {1}: e.available.toFixed(2)
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
@@ -2000,6 +1975,7 @@ msgstr ""
 #. placeholder {0}: name.label
 #. placeholder {0}: stablecoin.symbol
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
+#: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Select {0}"
 msgstr ""
@@ -2804,7 +2780,7 @@ msgstr ""
 msgid "What is a primary name?"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+#: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
 msgid "What is the network fee?"
 msgstr ""
 

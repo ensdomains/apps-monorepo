@@ -41,14 +41,14 @@ export function useSmartSessionGate(): SmartSessionGate {
 
   const gate = useCallback(
     (onProceed: () => void) => {
-      if (needsSession) {
+      if (needsSessionBeforeRegistration(account)) {
         pendingRef.current = onProceed
         setIsOpen(true)
         return
       }
       onProceed()
     },
-    [needsSession],
+    [account],
   )
 
   const onEnableSession = useCallback(async () => {

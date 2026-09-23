@@ -244,7 +244,7 @@ msgstr "Allow this temporary account to move this name."
 msgid "An error occurred during verification"
 msgstr "An error occurred during verification"
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+#: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 
@@ -309,10 +309,6 @@ msgstr "Auth address:"
 msgid "Authorizing payment and registering your name"
 msgstr "Authorizing payment and registering your name"
 
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "available"
-msgstr "available"
-
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Available"
 msgstr "Available"
@@ -340,6 +336,11 @@ msgstr "Back to Quote"
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Back to Settings"
 msgstr "Back to Settings"
+
+#: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "balance"
+msgstr "balance"
 
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx
 msgid "base price"
@@ -1120,17 +1121,13 @@ msgstr "Later"
 msgid "Learn More<0> about NFT traits</0>"
 msgstr "Learn More<0> about NFT traits</0>"
 
-#: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
-msgid "Learn More<0> about NFT traits</0>"
-msgstr "Learn More<0> about NFT traits</0>"
+#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
+msgid "Left from your last attempt"
+msgstr "Left from your last attempt"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Let this temporary account move your wrapped names."
 msgstr "Let this temporary account move your wrapped names."
-
-#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
-msgid "Left from your last attempt"
-msgstr "Left from your last attempt"
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Link copied to clipboard"
@@ -1188,6 +1185,10 @@ msgstr "Lowest upfront cost"
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Main receiving address"
 msgstr "Main receiving address"
+
+#: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
+msgid "Mainnet est. fee:"
+msgstr "Mainnet est. fee:"
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Make it yours"
@@ -1314,10 +1315,6 @@ msgstr "Need help?"
 msgid "Need more help? Visit ENS Support Docs"
 msgstr "Need more help? Visit ENS Support Docs"
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
-msgid "Network fee"
-msgstr "Network fee"
-
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Never lose your name to expiry."
 msgstr "Never lose your name to expiry."
@@ -1394,27 +1391,9 @@ msgstr "No stablecoins available"
 msgid "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
 msgstr "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
 
-#. placeholder {0}: f.total.toFixed(2)
-#. placeholder {1}: f.hcaCredit.toFixed(2)
-#. placeholder {2}: f.walletDebit.toFixed(2)
-#. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This name costs {0} USDC, and {1} is left from your last attempt, so you pay {2} now. Your wallet holds {3} USDC."
-msgstr "Not enough USDC. This name costs {0} USDC, and {1} is left from your last attempt, so you pay {2} now. Your wallet holds {3} USDC."
-
-#. placeholder {0}: f.walletDebit.toFixed(2)
-#. placeholder {1}: f.registration.toFixed(2)
-#. placeholder {2}: f.networkFee.toFixed(2)
-#. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This name costs {0} USDC: {1} for the name plus {2} in network fees. Your wallet holds {3} USDC."
-msgstr "Not enough USDC. This name costs {0} USDC: {1} for the name plus {2} in network fees. Your wallet holds {3} USDC."
-
-#. placeholder {0}: e.required.toFixed(2)
-#. placeholder {1}: e.available.toFixed(2)
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
-msgstr "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
+#: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
+msgid "not enough funds to pay network fees"
+msgstr "not enough funds to pay network fees"
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
@@ -1991,6 +1970,7 @@ msgstr "See all"
 #. placeholder {0}: name.label
 #. placeholder {0}: stablecoin.symbol
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
+#: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Select {0}"
 msgstr "Select {0}"
@@ -2795,7 +2775,7 @@ msgstr "What additional fee are you willing to pay?"
 msgid "What is a primary name?"
 msgstr "What is a primary name?"
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+#: src/features/register-v2/workflow/pricing/components/RegistrationPaymentMethod.tsx
 msgid "What is the network fee?"
 msgstr "What is the network fee?"
 

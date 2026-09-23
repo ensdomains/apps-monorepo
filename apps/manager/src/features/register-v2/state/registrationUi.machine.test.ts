@@ -1,5 +1,5 @@
-// biome-ignore-all lint/suspicious/noExplicitAny: focused machine tests use compact fixtures
-import type { Address } from 'viem'
+import type { Signer } from '@ens-apps/transaction-manager'
+import { type Address, createWalletClient, custom } from 'viem'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { assign, createActor, createMachine } from 'xstate'
 
@@ -142,6 +142,38 @@ const startAddrReverseClear = vi.mocked(submitClearAddrReverse)
 const HCA_ADDRESS = '0x1111111111111111111111111111111111111111' as const
 const EOA_ADDRESS = '0x2222222222222222222222222222222222222222' as const
 
+const testWalletClient = (account?: Address) =>
+  createWalletClient({
+    account,
+    transport: custom({ request: vi.fn() }),
+  })
+
+const eoaSigner = (walletClient = testWalletClient(EOA_ADDRESS)): Signer => ({
+  type: 'eoa',
+  walletClient,
+})
+
+const rhinestoneSigner = (): Signer => ({
+  type: 'rhinestone',
+  account: {} as never,
+  config: { accountAddress: HCA_ADDRESS, rhinestoneApiKey: 'test' },
+})
+
+const accountContext = ({
+  signer,
+  accountAddress,
+  walletClient,
+}: Pick<
+  SmartAccountContextValue,
+  'signer' | 'accountAddress' | 'walletClient'
+>): SmartAccountContextValue =>
+  ({
+    signer,
+    accountAddress,
+    ownerAddress: EOA_ADDRESS,
+    walletClient,
+  }) as unknown as SmartAccountContextValue
+
 const startEvent = (
   account: SmartAccountContextValue,
   setup:
@@ -229,12 +261,13 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     const actor = startActorInTokens()
 
     actor.send(
-      startEvent({
-        signer: { type: 'rhinestone' } as any,
-        accountAddress: HCA_ADDRESS,
-        ownerAddress: EOA_ADDRESS,
-        walletClient: null,
-      } as unknown as SmartAccountContextValue),
+      startEvent(
+        accountContext({
+          signer: rhinestoneSigner(),
+          accountAddress: HCA_ADDRESS,
+          walletClient: null,
+        }),
+      ),
     )
 
     const snapshot = actor.getSnapshot()
@@ -246,12 +279,13 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     const actor = startActorInTokens()
 
     actor.send(
-      startEvent({
-        signer: { type: 'rhinestone' } as any,
-        accountAddress: HCA_ADDRESS,
-        ownerAddress: EOA_ADDRESS,
-        walletClient: { account: { address: EOA_ADDRESS } } as any,
-      } as unknown as SmartAccountContextValue),
+      startEvent(
+        accountContext({
+          signer: rhinestoneSigner(),
+          accountAddress: HCA_ADDRESS,
+          walletClient: testWalletClient(EOA_ADDRESS),
+        }),
+      ),
     )
 
     expect(actor.getSnapshot().matches('registering')).toBe(true)
@@ -262,12 +296,11 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
 
     actor.send(
       startEvent(
-        {
-          signer: { type: 'rhinestone' } as any,
+        accountContext({
+          signer: rhinestoneSigner(),
           accountAddress: HCA_ADDRESS,
-          ownerAddress: EOA_ADDRESS,
-          walletClient: { account: { address: EOA_ADDRESS } } as any,
-        } as unknown as SmartAccountContextValue,
+          walletClient: testWalletClient(EOA_ADDRESS),
+        }),
         false,
         'DAI',
       ),
@@ -282,12 +315,13 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     const actor = startActorInTokens()
 
     actor.send(
-      startEvent({
-        signer: { type: 'eoa' } as any,
-        accountAddress: EOA_ADDRESS,
-        ownerAddress: EOA_ADDRESS,
-        walletClient: null,
-      } as unknown as SmartAccountContextValue),
+      startEvent(
+        accountContext({
+          signer: eoaSigner(),
+          accountAddress: EOA_ADDRESS,
+          walletClient: null,
+        }),
+      ),
     )
 
     expect(actor.getSnapshot().matches('registering')).toBe(true)
@@ -295,24 +329,19 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
 })
 
 describe('registrationV2UiMachine — explicit post-registration states', () => {
-  const eoaAccount = {
-    signer: { type: 'eoa', walletClient: {} as never },
+  const ownerWalletClient = testWalletClient(EOA_ADDRESS)
+  const eoaAccount = accountContext({
+    signer: eoaSigner(ownerWalletClient),
     accountAddress: EOA_ADDRESS,
-    ownerAddress: EOA_ADDRESS,
     // Primary-name legs are sent by the owner wallet, so it must be present.
-    walletClient: { account: { address: EOA_ADDRESS } } as any,
-  } as unknown as SmartAccountContextValue
+    walletClient: ownerWalletClient,
+  })
 
-  const smartAccount = {
-    signer: {
-      type: 'rhinestone',
-      account: {} as never,
-      config: { accountAddress: HCA_ADDRESS, rhinestoneApiKey: 'k' },
-    },
+  const smartAccount = accountContext({
+    signer: rhinestoneSigner(),
     accountAddress: HCA_ADDRESS,
-    ownerAddress: EOA_ADDRESS,
-    walletClient: { account: { address: EOA_ADDRESS } } as any,
-  } as unknown as SmartAccountContextValue
+    walletClient: ownerWalletClient,
+  })
 
   it('keeps the existing no-setup success path immediate', async () => {
     const actor = startActorInTokens()
@@ -537,10 +566,11 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
   it('marks setup failed when the owner wallet client is missing', async () => {
     // Setup was requested but the primary-name legs can't be sent without the
     // owner wallet: registration still succeeds, with the failure notice.
-    const noWalletAccount = {
-      ...eoaAccount,
+    const noWalletAccount = accountContext({
+      signer: eoaSigner(ownerWalletClient),
+      accountAddress: EOA_ADDRESS,
       walletClient: null,
-    } as unknown as SmartAccountContextValue
+    })
 
     const actor = startActorInTokens()
     actor.send(startEvent(noWalletAccount, { enabled: true }))
@@ -558,12 +588,13 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     // The wallet client and owner address are captured together but can
     // diverge if the user switches accounts mid-registration: skip the legs
     // (they would fail at the transport) and surface the failure notice.
-    const divergedAccount = {
-      ...eoaAccount,
-      walletClient: {
-        account: { address: '0x9999999999999999999999999999999999999999' },
-      } as any,
-    } as unknown as SmartAccountContextValue
+    const divergedAccount = accountContext({
+      signer: eoaSigner(ownerWalletClient),
+      accountAddress: EOA_ADDRESS,
+      walletClient: testWalletClient(
+        '0x9999999999999999999999999999999999999999',
+      ),
+    })
 
     const actor = startActorInTokens()
     actor.send(startEvent(divergedAccount, { enabled: true }))
@@ -580,10 +611,11 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
   it('marks setup failed when the wallet client has no bound account', async () => {
     // Account-less client (mid-reconnect): we can't verify it controls the
     // owner address, so skip the legs and surface the failure notice.
-    const accountlessAccount = {
-      ...eoaAccount,
-      walletClient: {} as any,
-    } as unknown as SmartAccountContextValue
+    const accountlessAccount = accountContext({
+      signer: eoaSigner(ownerWalletClient),
+      accountAddress: EOA_ADDRESS,
+      walletClient: testWalletClient(),
+    })
 
     const actor = startActorInTokens()
     actor.send(startEvent(accountlessAccount, { enabled: true }))
