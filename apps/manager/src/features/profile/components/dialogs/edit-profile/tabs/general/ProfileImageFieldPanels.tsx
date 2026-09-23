@@ -230,7 +230,7 @@ const ImageActionPanel = ({
 }: ImageActionPanelProps) => (
   <div
     className={cn(
-      'flex h-42 w-full items-center justify-center p-4 md:min-w-0 md:flex-1',
+      'flex min-h-42 w-full items-center justify-center p-4 md:min-w-0 md:flex-1',
       'md:rounded-sm md:border md:border-ens-quartz-250 md:bg-white',
     )}
   >

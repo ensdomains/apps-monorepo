@@ -168,6 +168,45 @@ export const getV1TransferGate = (
     .exhaustive()
 
 /**
+ * Whether `account` can set the resolver on a V1 name.
+ *
+ * The resolver pointer lives on the name's registry slot, so the authority is
+ * whoever holds that slot: the controller of an unwrapped `.eth` 2LD (the
+ * registrant alone cannot), the wrapper owner of a wrapped name unless
+ * CANNOT_SET_RESOLVER is burned, and the registry owner of anything else —
+ * an unwrapped subname or an imported DNS name.
+ *
+ * Unlike {@link getV1DetachTargets}, which runs behind a page that has already
+ * established the caller is the holder, this checks `account` itself: the
+ * resolver page offers its button to anyone viewing the name.
+ *
+ * Operators (`setApprovalForAll`) are authorised on chain too but are not
+ * recognised here, so the button stays hidden for them.
+ */
+export const canSetV1Resolver = ({
+  subject,
+  account,
+}: {
+  readonly subject: V1TransferSubject
+  readonly account: Address
+}): boolean =>
+  match(subject)
+    .with(
+      { kind: 'v1-registrar' },
+      ({ controller }) =>
+        controller !== null && isAddressEqual(controller, account),
+    )
+    .with(
+      { kind: 'v1-wrapped' },
+      ({ owner, fuses }) =>
+        isAddressEqual(owner, account) && !fuses.cannotSetResolver,
+    )
+    .with({ kind: 'v1-registry' }, ({ owner }) =>
+      isAddressEqual(owner, account),
+    )
+    .exhaustive()
+
+/**
  * Which pre-move options to offer. An option is only shown when there is a
  * target *and* the sender holds the authority to act on it, since these steps
  * run before the irreversible move.
