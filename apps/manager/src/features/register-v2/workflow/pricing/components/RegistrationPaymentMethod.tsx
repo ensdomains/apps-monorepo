@@ -39,11 +39,11 @@ export const RegistrationPaymentMethod = ({
   return (
     <div
       className={cn(
-        'grid min-h-17 w-full grid-cols-[minmax(0,1fr)_auto] content-center items-center gap-x-3 rounded px-3 py-2 transition-colors sm:content-start sm:pt-3 sm:pb-0',
-        hasInsufficientBalance ? 'sm:min-h-[78px]' : 'sm:min-h-[63px]',
+        'grid min-h-17 w-full grid-cols-[minmax(0,1fr)_auto] content-center items-center gap-x-3 rounded px-3 py-2 transition-colors',
+        hasInsufficientBalance ? 'sm:min-h-[77px]' : 'sm:min-h-[63px]',
         isSelected
-          ? 'bg-ens-quartz-75 sm:bg-ens-quartz-70'
-          : 'hover:bg-ens-quartz-50',
+          ? 'bg-ens-quartz-75 sm:content-start sm:items-start sm:bg-ens-quartz-70 sm:p-3'
+          : 'hover:bg-ens-quartz-50 sm:content-center sm:items-center sm:px-4 sm:py-3',
       )}
       data-slot="payment-method-row"
     >
@@ -53,23 +53,26 @@ export const RegistrationPaymentMethod = ({
           aria-label={t`Select ${stablecoin.symbol}`}
           className={cn(
             'flex min-w-0 items-center gap-2 text-left sm:items-start sm:gap-3',
-            hasInsufficientBalance && 'cursor-not-allowed opacity-50',
+            hasInsufficientBalance && 'cursor-not-allowed',
           )}
           disabled={hasInsufficientBalance}
           onClick={() => onSelectCoin(stablecoin.symbol as SUPPORTED_TOKEN)}
           type="button"
         >
-          <PaymentMethodIcon symbol={stablecoin.symbol} />
+          <PaymentMethodIcon
+            className={hasInsufficientBalance ? 'opacity-30' : undefined}
+            symbol={stablecoin.symbol}
+          />
           <span
             className="flex min-w-0 flex-col items-start gap-0.5 sm:gap-0"
             data-slot="payment-method-details"
           >
-            <span className="truncate font-medium text-ens-gray-dark text-sm tracking-wide sm:text-base sm:leading-5 sm:tracking-normal">
+            <span className="truncate font-medium text-ens-gray-dark text-sm tracking-wide sm:text-black sm:leading-[normal] sm:tracking-normal">
               {stablecoin.symbol}
             </span>
             <span
               className={cn(
-                'flex items-center gap-1 whitespace-nowrap text-[10px] text-ens-quartz-500 sm:text-xs sm:leading-4',
+                'flex items-center gap-1 whitespace-nowrap text-[10px] text-ens-quartz-500 sm:font-[360] sm:text-xs sm:leading-[normal]',
                 isNetworkFeeLoading && 'animate-pulse',
               )}
             >
@@ -110,27 +113,22 @@ export const RegistrationPaymentMethod = ({
       >
         <span
           className={cn(
-            'font-medium text-sm tracking-wide sm:text-base sm:leading-5 sm:tracking-normal',
+            'font-medium text-sm tracking-wide sm:font-[450] sm:text-[15px] sm:leading-[22px] sm:tracking-normal',
             hasInsufficientBalance
-              ? 'text-ens-quartz-350'
-              : 'text-ens-gray-dark',
+              ? 'text-ens-quartz-350 sm:text-black/30'
+              : 'text-ens-gray-dark sm:text-black',
           )}
         >
           {formatUsd(coinBalanceUSD)}
         </span>
-        <span
-          className={cn(
-            'text-[10px] text-ens-quartz-350 sm:text-xs sm:leading-4',
-            !hasInsufficientBalance && 'sm:text-ens-quartz-400',
-          )}
-        >
+        <span className="text-[10px] text-ens-quartz-350 sm:font-[360] sm:text-ens-quartz-400 sm:text-xs sm:leading-[normal]">
           <Trans>balance</Trans>
         </span>
       </div>
 
       {hasInsufficientBalance && (
         <p
-          className="col-span-2 flex items-center gap-1 justify-self-end text-right text-[10px] text-ens-error sm:col-span-1 sm:col-start-1 sm:justify-self-start sm:pl-[46px] sm:text-left sm:text-xs sm:leading-4"
+          className="col-span-2 flex items-center gap-0.5 justify-self-end text-right text-[10px] text-ens-signal-danger-500 sm:col-span-1 sm:col-start-1 sm:h-[17px] sm:justify-self-start sm:pl-[46px] sm:text-left sm:text-xs sm:leading-[normal]"
           id={errorId}
         >
           <MSymbol

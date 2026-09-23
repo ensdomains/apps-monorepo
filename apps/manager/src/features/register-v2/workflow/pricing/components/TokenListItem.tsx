@@ -31,28 +31,26 @@ export const TokenListItem = ({
     <button
       aria-label={t`Select ${stablecoin.symbol}`}
       className={cn(
-        'flex min-h-17 w-full items-center justify-between gap-3 rounded px-3 py-2 text-left transition-colors sm:items-start sm:pt-3 sm:pb-0',
+        'flex min-h-17 w-full items-center justify-between gap-3 rounded px-3 py-2 text-left transition-colors',
         hasInsufficientBalanceForCoin
-          ? 'cursor-not-allowed sm:min-h-[78px]'
+          ? 'cursor-not-allowed sm:min-h-[77px]'
           : 'sm:min-h-[63px]',
         isSelected
-          ? 'bg-ens-quartz-75 sm:bg-ens-quartz-70'
-          : 'hover:bg-ens-quartz-50',
+          ? 'bg-ens-quartz-75 sm:items-start sm:bg-ens-quartz-70 sm:p-3'
+          : 'hover:bg-ens-quartz-50 sm:items-center sm:px-4 sm:py-3',
       )}
       data-slot="payment-method-row"
       disabled={hasInsufficientBalanceForCoin}
       onClick={() => onSelectCoin(stablecoin.symbol as SUPPORTED_TOKEN)}
       type="button"
     >
-      <span
-        className={cn(
-          'flex min-w-0 items-center gap-2 sm:gap-3',
-          hasInsufficientBalanceForCoin && 'opacity-50',
-        )}
-      >
-        <PaymentMethodIcon symbol={stablecoin.symbol} />
+      <span className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <PaymentMethodIcon
+          className={hasInsufficientBalanceForCoin ? 'opacity-30' : undefined}
+          symbol={stablecoin.symbol}
+        />
         <span
-          className="truncate font-medium text-ens-gray-dark text-sm tracking-wide sm:text-base sm:leading-5 sm:tracking-normal"
+          className="truncate font-medium text-ens-gray-dark text-sm tracking-wide sm:text-black sm:leading-[normal] sm:tracking-normal"
           data-slot="payment-method-details"
         >
           {stablecoin.symbol}
@@ -64,24 +62,19 @@ export const TokenListItem = ({
       >
         <span
           className={cn(
-            'font-medium text-sm tracking-wide sm:text-base sm:leading-5 sm:tracking-normal',
+            'font-medium text-sm tracking-wide sm:font-[450] sm:text-[15px] sm:leading-[22px] sm:tracking-normal',
             hasInsufficientBalanceForCoin
-              ? 'text-ens-quartz-350'
-              : 'text-ens-gray-dark',
+              ? 'text-ens-quartz-350 sm:text-black/30'
+              : 'text-ens-gray-dark sm:text-black',
           )}
         >
           {formatUsd(coinBalanceUSD)}
         </span>
-        <span
-          className={cn(
-            'text-[10px] text-ens-quartz-350 sm:text-xs sm:leading-4',
-            !hasInsufficientBalanceForCoin && 'sm:text-ens-quartz-400',
-          )}
-        >
+        <span className="text-[10px] text-ens-quartz-350 sm:font-[360] sm:text-ens-quartz-400 sm:text-xs sm:leading-[normal]">
           <Trans>balance</Trans>
         </span>
         {hasInsufficientBalanceForCoin && priceUSD > 0 && (
-          <span className="text-[10px] text-ens-error sm:text-xs sm:leading-4">
+          <span className="text-[10px] text-ens-signal-danger-500 sm:text-xs sm:leading-[normal]">
             <Trans>Need {formatUsd(priceUSD)}</Trans>
           </span>
         )}

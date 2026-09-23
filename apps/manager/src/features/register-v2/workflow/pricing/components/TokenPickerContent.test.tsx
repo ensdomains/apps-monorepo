@@ -128,18 +128,42 @@ describe('TokenPickerContentBase', () => {
     const unavailableBalance = usdcRow?.querySelector(
       '[data-slot="payment-method-balance"]',
     )
+    const unavailableIcon = usdcRow?.querySelector(
+      '[data-slot="payment-method-token-icon"]',
+    )
+    const unavailableDetails = usdcRow?.querySelector(
+      '[data-slot="payment-method-details"]',
+    )
 
-    expect(usdcRow).toHaveClass('sm:min-h-[78px]')
+    expect(usdcRow).toHaveClass('sm:min-h-[77px]', 'sm:px-4', 'sm:py-3')
     expect(usdcRow).not.toHaveClass('sm:bg-ens-quartz-70')
-    expect(daiRow).toHaveClass('sm:min-h-[63px]', 'sm:bg-ens-quartz-70')
+    expect(daiRow).toHaveClass(
+      'sm:min-h-[63px]',
+      'sm:bg-ens-quartz-70',
+      'sm:p-3',
+    )
+    expect(unavailableIcon).toHaveClass('opacity-30')
+    expect(unavailableDetails).not.toHaveClass('opacity-50')
     expect(unavailableBalance?.firstElementChild).toHaveClass(
-      'text-ens-quartz-350',
+      'sm:text-black/30',
+      'sm:text-[15px]',
+      'sm:font-[450]',
+      'sm:leading-[22px]',
+    )
+    expect(unavailableBalance?.lastElementChild).toHaveClass(
+      'sm:text-ens-quartz-400',
+      'sm:font-[360]',
+      'sm:leading-[normal]',
     )
     expect(error).toHaveClass(
+      'gap-0.5',
+      'text-ens-signal-danger-500',
       'sm:col-start-1',
+      'sm:h-[17px]',
       'sm:justify-self-start',
       'sm:pl-[46px]',
       'sm:text-left',
+      'sm:leading-[normal]',
     )
     expect(error.querySelector('.material-symbol')).toHaveTextContent(
       'flash_off',
@@ -338,12 +362,27 @@ describe('TokenPickerContentBase', () => {
       'sm:gap-0',
     )
     expect(method).toBeVisible()
-    expect(method).toHaveClass('sm:min-h-[63px]', 'sm:bg-ens-quartz-70')
+    expect(method).toHaveClass(
+      'sm:min-h-[63px]',
+      'sm:bg-ens-quartz-70',
+      'sm:p-3',
+    )
     expect(tokenIcon).toHaveClass('sm:size-8.5')
     expect(networkIcon).toHaveClass('sm:size-4', 'sm:-right-1', 'sm:-bottom-1')
     expect(details).toContainElement(screen.getByText('Mainnet est. fee:'))
     expect(details).toContainElement(screen.getByText('$4.32'))
+    expect(details?.firstElementChild).toHaveClass(
+      'text-sm',
+      'sm:text-black',
+      'sm:leading-[normal]',
+    )
     expect(balance).toContainElement(screen.getByText('$1,000.00'))
+    expect(balance?.firstElementChild).toHaveClass(
+      'sm:text-[15px]',
+      'sm:font-[450]',
+      'sm:leading-[22px]',
+      'sm:text-black',
+    )
     expect(balance).toContainElement(screen.getByText('balance'))
     expect(networkIcon).toBeVisible()
     expect(networkIcon?.tagName).toBe('IMG')

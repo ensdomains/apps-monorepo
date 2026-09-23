@@ -1,8 +1,10 @@
 import ethIcon from '@/assets/coins/eth-icon.svg'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { STABLECOINS } from '@/features/shared/registration/nameUtils'
+import { cn } from '@/lib/utils'
 
 type PaymentMethodIconProps = {
+  readonly className?: string
   readonly symbol: string
 }
 
@@ -10,13 +12,16 @@ type PaymentMethodIconProps = {
  * The payment asset with its Ethereum-network badge, matching the composite
  * icon used by the WEB-1234 payment-method rows in Figma.
  */
-export const PaymentMethodIcon = ({ symbol }: PaymentMethodIconProps) => {
+export const PaymentMethodIcon = ({
+  className,
+  symbol,
+}: PaymentMethodIconProps) => {
   const coinConfig = STABLECOINS[symbol as keyof typeof STABLECOINS]
   const IconComponent = coinConfig?.icon ?? USDCIcon
 
   return (
     <span
-      className="relative size-7 shrink-0 sm:size-8.5"
+      className={cn('relative size-7 shrink-0 sm:size-8.5', className)}
       data-slot="payment-method-token-icon"
     >
       <IconComponent className="size-7 sm:size-8.5" />
