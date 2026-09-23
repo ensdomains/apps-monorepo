@@ -35,12 +35,7 @@ export const AddressProfileView = ({
 
   return (
     <div className="mx-auto w-full max-w-[805px] space-y-6 px-4 pt-6 pb-12 md:space-y-[23px] md:pt-10">
-      <AddressProfileHeader
-        address={address}
-        addressNames={addressNames}
-        isNamesPending={isPending}
-        primaryName={primaryName}
-      />
+      <AddressProfileHeader address={address} primaryName={primaryName} />
       <AddressProfileNamesList
         addressNames={addressNames}
         isConnectedView={isConnectedView}

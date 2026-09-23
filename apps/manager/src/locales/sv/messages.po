@@ -692,10 +692,12 @@ msgid "Deselect {label}"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Deselect all"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Deselect all names"
 msgstr ""
 
@@ -1920,6 +1922,11 @@ msgstr ""
 msgid "Return to Dashboard"
 msgstr ""
 
+#. placeholder {0}: truncateAddress(address)
+#: src/features/profile/components/view/ReverseNameView.tsx
+msgid "Reverse record for {0}"
+msgstr ""
+
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Save {0}"
@@ -2003,6 +2010,7 @@ msgid "Select all"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Select all names"
 msgstr ""
 
@@ -2637,6 +2645,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Verifying registration on-chain"
+msgstr ""
+
+#: src/features/profile/components/view/ReverseNameView.tsx
+msgid "View address"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx

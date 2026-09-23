@@ -32,7 +32,8 @@ import {
   type ProfileAddressName,
 } from '@/features/profile/service/profileAddressNames'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
+import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { tw } from '@/utils/tailwind'
@@ -92,6 +93,9 @@ const formatExpiryLabel = (expiryDate: number | null): string | null => {
   return formatted === '—' ? null : formatted
 }
 
+const canSelectAll = (isConnectedView: boolean, count: number): boolean =>
+  isConnectedView && count > 0
+
 const SelectionCheckbox = ({
   checked,
   onChange,
@@ -117,6 +121,92 @@ const SelectionCheckbox = ({
   </label>
 )
 
+const AddressNameRow = ({
+  name,
+  index,
+  primaryName,
+  profilePreview,
+  isV1Renewable,
+  isAuthed,
+  isFavorite,
+  isSelected,
+  isConnectedView,
+  shouldReduceMotion,
+  onToggleFavorite,
+  onToggleSelected,
+}: {
+  readonly name: ProfileAddressName
+  readonly index: number
+  readonly primaryName?: string
+  readonly profilePreview: ReturnType<typeof getNameRowProfilePreview>
+  readonly isV1Renewable: boolean
+  readonly isAuthed: boolean
+  readonly isFavorite: boolean
+  readonly isSelected: boolean
+  readonly isConnectedView: boolean
+  readonly shouldReduceMotion: boolean | null
+  readonly onToggleFavorite: () => void
+  readonly onToggleSelected: () => void
+}) => {
+  const { t } = useLingui()
+  const isPrimary = primaryName?.toLowerCase() === name.label.toLowerCase()
+  const status: NameStatus | null = name.protocol === 'v1' ? 'ensv1Only' : null
+  const canRenew =
+    name.protocol === 'v1'
+      ? isV1Renewable
+      : canRenewV2Name(name.label, toDateFromSeconds(name.expiryDate))
+
+  return (
+    <motion.div
+      className="border-ens-quartz-250 border-b-[0.5px] py-8 last:border-none"
+      {...(shouldReduceMotion
+        ? {}
+        : {
+            initial: { opacity: 0, y: 6 },
+            animate: { opacity: 1, y: 0 },
+            transition: {
+              duration: 0.2,
+              ease: [0.25, 0.46, 0.45, 0.94] as const,
+              delay: index * 0.04,
+            },
+          })}
+    >
+      <div
+        className={cn('flex items-start gap-2', isConnectedView && 'md:gap-3')}
+      >
+        {isConnectedView ? (
+          <SelectionCheckbox
+            checked={isSelected}
+            label={t`Select ${name.label}`}
+            onChange={onToggleSelected}
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <NameRow
+            avatarPending={profilePreview.isAvatarPending}
+            avatarUrl={profilePreview.avatarUrl}
+            canRenew={canRenew}
+            cta={canRenew ? 'renew' : null}
+            expiryLabel={formatExpiryLabel(name.expiryDate)}
+            isAuthenticated={isAuthed}
+            isFavorite={isFavorite}
+            isSelected={isSelected}
+            label={name.label}
+            nameRoles={name.nameRoles}
+            onToggleFavorite={onToggleFavorite}
+            renewalProtocol={name.protocol}
+            showFavoriteButton={isConnectedView}
+            showNotificationsAction={false}
+            status={status}
+            themeColor={profilePreview.themeColor}
+            verified={isPrimary}
+          />
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 export const AddressProfileNamesList = ({
   addressNames,
   primaryName,
@@ -135,8 +225,7 @@ export const AddressProfileNamesList = ({
   const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
-  const selectionEnabled = useFeatureFlag('PROFILE_ADDRESS_NAMES_SELECTION')
-  const showSelection = isConnectedView && selectionEnabled
+  const showSelection = isConnectedView
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [sort, setSort] = useState<Sort>('created-desc')
@@ -216,20 +305,25 @@ export const AddressProfileNamesList = ({
         isLoading: result.isLoading,
       })),
   })
+  const { isRenewable: isV1Renewable } = useV1Renewable(
+    pageItems
+      .filter((name) => name.protocol === 'v1')
+      .map((name) => name.label),
+  )
 
-  const pageKeys = pageItems.map((item) => item.key)
-  const allPageSelected =
+  const filteredKeys = filteredSorted.map((item) => item.key)
+  const allFilteredSelected =
     showSelection &&
-    pageKeys.length > 0 &&
-    pageKeys.every((key) => selectedKeys.has(key))
+    filteredKeys.length > 0 &&
+    filteredKeys.every((key) => selectedKeys.has(key))
 
   const toggleSelectAll = () => {
     setSelectedKeys((current) => {
       const next = new Set(current)
-      if (allPageSelected) {
-        for (const key of pageKeys) next.delete(key)
+      if (allFilteredSelected) {
+        for (const key of filteredKeys) next.delete(key)
       } else {
-        for (const key of pageKeys) next.add(key)
+        for (const key of filteredKeys) next.add(key)
       }
       return next
     })
@@ -296,71 +390,28 @@ export const AddressProfileNamesList = ({
       </div>
     ))
     .otherwise(() =>
-      pageItems.map((name, index) => {
-        const isPrimary =
-          !!primaryName &&
-          name.label.toLowerCase() === primaryName.toLowerCase()
-        const status: NameStatus | null =
-          name.protocol === 'v1' ? 'ensv1Only' : null
-        const profilePreview = getNameRowProfilePreview({
-          label: name.label,
-          name: name.label,
-          records: pageProfileRecords[index]?.records,
-          isLoading: pageProfileRecords[index]?.isLoading,
-        })
-        const expiryLabel = formatExpiryLabel(name.expiryDate)
-
-        return (
-          <motion.div
-            className="border-ens-quartz-250 border-b-[0.5px] py-8 last:border-none" // sub-pixel hairline divider per Figma — no design token
-            key={name.key}
-            {...(shouldReduceMotion
-              ? {}
-              : {
-                  initial: { opacity: 0, y: 6 },
-                  animate: { opacity: 1, y: 0 },
-                  transition: {
-                    duration: 0.2,
-                    ease: [0.25, 0.46, 0.45, 0.94] as const,
-                    delay: index * 0.04,
-                  },
-                })}
-          >
-            <div
-              className={cn(
-                'flex items-start gap-2',
-                showSelection && 'md:gap-3',
-              )}
-            >
-              {showSelection ? (
-                <SelectionCheckbox
-                  checked={selectedKeys.has(name.key)}
-                  label={t`Select ${name.label}`}
-                  onChange={() => toggleSelected(name.key)}
-                />
-              ) : null}
-              <div className="min-w-0 flex-1">
-                <NameRow
-                  avatarPending={profilePreview.isAvatarPending}
-                  avatarUrl={profilePreview.avatarUrl}
-                  canRenew={false}
-                  expiryLabel={expiryLabel}
-                  isAuthenticated={isAuthed}
-                  isFavorite={favoriteLabels.has(name.label.toLowerCase())}
-                  label={name.label}
-                  nameRoles={name.nameRoles}
-                  nameVariant={isPrimary ? 'primary' : 'secondary'}
-                  onToggleFavorite={() => onToggleFavorite(name.label)}
-                  showFavoriteButton={isConnectedView}
-                  status={status}
-                  themeColor={profilePreview.themeColor}
-                  verified={isPrimary}
-                />
-              </div>
-            </div>
-          </motion.div>
-        )
-      }),
+      pageItems.map((name, index) => (
+        <AddressNameRow
+          index={index}
+          isAuthed={isAuthed}
+          isConnectedView={isConnectedView}
+          isFavorite={favoriteLabels.has(name.label.toLowerCase())}
+          isSelected={selectedKeys.has(name.key)}
+          isV1Renewable={isV1Renewable(name.label)}
+          key={name.key}
+          name={name}
+          onToggleFavorite={() => onToggleFavorite(name.label)}
+          onToggleSelected={() => toggleSelected(name.key)}
+          primaryName={primaryName}
+          profilePreview={getNameRowProfilePreview({
+            label: name.label,
+            name: name.label,
+            records: pageProfileRecords[index]?.records,
+            isLoading: pageProfileRecords[index]?.isLoading,
+          })}
+          shouldReduceMotion={shouldReduceMotion}
+        />
+      )),
     )
 
   return (
@@ -391,47 +442,53 @@ export const AddressProfileNamesList = ({
           </div>
         </div>
 
-        {isConnectedView ? (
-          <>
-            <div className="flex flex-col items-start gap-5 md:flex-row md:items-center">
-              <SortMenu
-                direction={sortDir}
-                onChange={(field) => setSort(toSort(field, sortDir))}
-                onToggleDirection={() =>
-                  setSort((current) => {
-                    const { field, dir } = parseSort(current)
-                    return toSort(field, reverseSortDir(dir))
-                  })
-                }
-                options={sortOptions}
-                value={sortField}
-              />
-              <FilterChips
-                chips={chips}
-                onChange={setRoleFilter}
-                value={roleFilter}
-              />
-            </div>
+        <div className="flex flex-col items-start gap-5 md:flex-row md:items-center">
+          <SortMenu
+            direction={sortDir}
+            onChange={(field) => setSort(toSort(field, sortDir))}
+            onToggleDirection={() =>
+              setSort((current) => {
+                const { field, dir } = parseSort(current)
+                return toSort(field, reverseSortDir(dir))
+              })
+            }
+            options={sortOptions}
+            value={sortField}
+          />
+          {isConnectedView ? (
+            <FilterChips
+              chips={chips}
+              onChange={setRoleFilter}
+              value={roleFilter}
+            />
+          ) : null}
+        </div>
 
-            {showSelection ? (
-              <div
-                className="inline-flex h-8 items-center gap-0.5 rounded-full text-[#232222]" // Figma-spec text colour — no matching design token
-              >
-                <SelectionCheckbox
-                  checked={allPageSelected}
-                  label={t`Select all`}
-                  onChange={toggleSelectAll}
-                />
-                <button
-                  className="font-sans text-base tracking-[0.32px]"
-                  onClick={toggleSelectAll}
-                  type="button"
-                >
-                  <Trans>Select all</Trans>
-                </button>
-              </div>
-            ) : null}
-          </>
+        {canSelectAll(showSelection, filteredKeys.length) ? (
+          <div
+            className="inline-flex h-8 items-center gap-0.5 rounded-full text-[#232222]" // Figma-spec text colour — no matching design token
+          >
+            <SelectionCheckbox
+              checked={allFilteredSelected}
+              label={
+                allFilteredSelected
+                  ? t`Deselect all names`
+                  : t`Select all names`
+              }
+              onChange={toggleSelectAll}
+            />
+            <button
+              className="font-sans text-base tracking-[0.32px]"
+              onClick={toggleSelectAll}
+              type="button"
+            >
+              {allFilteredSelected ? (
+                <Trans>Deselect all</Trans>
+              ) : (
+                <Trans>Select all</Trans>
+              )}
+            </button>
+          </div>
         ) : null}
       </div>
 

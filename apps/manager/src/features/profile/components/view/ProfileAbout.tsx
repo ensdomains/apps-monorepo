@@ -1,10 +1,11 @@
 import { Trans } from '@lingui/react/macro'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { NamePill } from '@/features/dashboard/components/NamePill'
 import type { ProfileRecords } from '@/features/profile/types'
 import { getDisplayHost, getSafeProfileHref } from './ProfileView.helpers'
 
-const getContactRecordValue = (records: ProfileRecords, key: string) =>
-  records.contact.find((record) => record.key === key)?.value?.trim()
+const getContactRecordValue = (records: ProfileRecords | null, key: string) =>
+  records?.contact.find((record) => record.key === key)?.value?.trim()
 
 const formatLanguage = (language: string | undefined) =>
   language
@@ -37,27 +38,33 @@ const AboutMetaItem = ({
 
 export const ProfileAbout = ({
   records,
+  primaryName,
 }: {
-  readonly records: ProfileRecords
+  readonly records: ProfileRecords | null
+  readonly primaryName?: string
 }) => {
-  const websiteHref = records.base.url
+  const websiteHref = records?.base.url
     ? getSafeProfileHref(records.base.url)
     : undefined
-  const fullName = records.base.name?.trim()
+  const fullName = records?.base.name?.trim()
   const timezone = getContactRecordValue(records, 'timezone')
-  const language = formatLanguage(records.base.language)
+  const language = formatLanguage(records?.base.language)
   const location = getContactRecordValue(records, 'location')?.toUpperCase()
 
   return (
     <section className="flex min-h-0 flex-1 rounded-none border-none bg-transparent p-0 shadow-none lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-[0_2px_6px_rgba(0,0,0,0.06)]">
       <div className="grid w-full gap-8 lg:landscape:grid-cols-[minmax(0,346.5px)_228px] lg:landscape:gap-3">
         <div className="min-w-0">
-          <h2 className="text-base text-ens-quartz-700 leading-normal">
-            <span className="block truncate">
-              {fullName || <Trans>About</Trans>}
-            </span>
-          </h2>
-          {records.base.description ? (
+          {primaryName ? (
+            <NamePill label={primaryName} />
+          ) : (
+            <h2 className="text-base text-ens-quartz-700 leading-normal">
+              <span className="block truncate">
+                {fullName || <Trans>About</Trans>}
+              </span>
+            </h2>
+          )}
+          {records?.base.description ? (
             <p className="mt-3 text-ens-quartz-500 text-sm leading-normal">
               {records.base.description}
             </p>
