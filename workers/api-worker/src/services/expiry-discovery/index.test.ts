@@ -8,7 +8,11 @@ vi.mock('./indexer.js', async (importOriginal) => ({
 
 import { KV_KEY } from '#core/kv/index.js'
 import { runExpiryDiscoveryCron } from './index.js'
-import { fetchExpiringNamesPage } from './indexer.js'
+import {
+  fetchExpiringNamesPage,
+  PROCESS_PAGE_SIZE,
+  QUERY_PAGE_SIZE,
+} from './indexer.js'
 import {
   getLowerBoundForStage,
   getUpperBoundForStage,
@@ -237,7 +241,7 @@ describe('runExpiryDiscoveryCron', () => {
     ])
   })
 
-  it('processes only 1000 rows before a unique lookahead and advances to the safe timestamp', async () => {
+  it('reserves one lookahead row and advances to the safe timestamp', async () => {
     const kv = new MockKV()
     const cursors = caughtUpCursors()
     cursors['expiry-30d'] = { expiry_timestamp: NOW + 10 * 86_400 }
@@ -245,7 +249,7 @@ describe('runExpiryDiscoveryCron', () => {
     const cursor = cursors['expiry-30d'].expiry_timestamp
     vi.mocked(fetchExpiringNamesPage).mockReturnValue(
       okAsync({
-        domains: Array.from({ length: 1001 }, (_, index) => ({
+        domains: Array.from({ length: QUERY_PAGE_SIZE }, (_, index) => ({
           name: `${index}.eth`,
           expiryDate: cursor + index + 1,
         })),
@@ -258,7 +262,9 @@ describe('runExpiryDiscoveryCron', () => {
       KV_KEY.EXPIRY_DISCOVERY.CURSORS,
       'json',
     )) as CursorState
-    expect(result._unsafeUnwrap().totalEnqueued).toBe(1000)
-    expect(stored['expiry-30d']?.expiry_timestamp).toBe(cursor + 1000)
+    expect(result._unsafeUnwrap().totalEnqueued).toBe(PROCESS_PAGE_SIZE)
+    expect(stored['expiry-30d']?.expiry_timestamp).toBe(
+      cursor + PROCESS_PAGE_SIZE,
+    )
   })
 })

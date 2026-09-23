@@ -11,7 +11,7 @@ import { logger } from '#utils/logger.js'
 import type { ExpiryStageConfig } from './stages.js'
 
 const DEFAULT_INDEXER_URL = 'https://staging-graphql.ens.dev/'
-export const PROCESS_PAGE_SIZE = 1000
+export const PROCESS_PAGE_SIZE = 999
 export const QUERY_PAGE_SIZE = PROCESS_PAGE_SIZE + 1
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 300

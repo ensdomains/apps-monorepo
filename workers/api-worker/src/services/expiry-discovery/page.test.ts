@@ -54,13 +54,16 @@ describe('expiry page planning', () => {
 
   it('detects a timestamp split at the process boundary', () => {
     const plan = planNormalExpiryPage(
-      [...uniqueDomains(999), ...domainsAt(2, 10_000)],
+      [
+        ...uniqueDomains(PROCESS_PAGE_SIZE - 1),
+        ...domainsAt(2, 10_000),
+      ],
       50,
     )
     expect(plan.type).toBe('split-timestamp')
     if (plan.type !== 'split-timestamp') return
     expect(plan.timestamp).toBe(10_000)
-    expect(plan.domainsBeforeTimestamp).toHaveLength(999)
+    expect(plan.domainsBeforeTimestamp).toHaveLength(PROCESS_PAGE_SIZE - 1)
   })
 
   it('processes a bounded exact timestamp bucket and reports overflow', () => {
@@ -72,7 +75,7 @@ describe('expiry page planning', () => {
       domainsAt(QUERY_PAGE_SIZE, 10_000),
       10_000,
     )
-    expect(overflow.domains).toHaveLength(PROCESS_PAGE_SIZE)
+    expect(overflow.domains).toHaveLength(QUERY_PAGE_SIZE)
     expect(overflow.overflow).toBe(true)
     expect(overflow.cursorEnd).toBe(10_000)
   })
@@ -85,7 +88,7 @@ describe('expiry page planning', () => {
     expectedOverflow,
   }) => {
     const timestamp = 10_000
-    const beforeTimestamp = uniqueDomains(999)
+    const beforeTimestamp = uniqueDomains(PROCESS_PAGE_SIZE - 1)
     const exactDomains = domainsAt(exactCount, timestamp)
     vi.mocked(fetchExpiringNamesPage)
       .mockReturnValueOnce(
@@ -124,12 +127,12 @@ describe('expiry page planning', () => {
     expect(result._unsafeUnwrap()).toEqual({
       domains: [
         ...beforeTimestamp,
-        ...exactDomains.slice(0, PROCESS_PAGE_SIZE),
+        ...exactDomains.slice(0, QUERY_PAGE_SIZE),
       ],
       cursorEnd: timestamp,
       hasMore: true,
       overflow: expectedOverflow
-        ? { expiryTimestamp: timestamp, processedCount: PROCESS_PAGE_SIZE }
+        ? { expiryTimestamp: timestamp, processedCount: QUERY_PAGE_SIZE }
         : undefined,
     })
   })

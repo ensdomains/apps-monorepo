@@ -9,7 +9,7 @@ vi.mock('#services/telegram/utils.js', () => ({
 }))
 
 describe('expiry timestamp overflow reporting', () => {
-  it('always logs structured dropped-name telemetry and ignores alert failure', async () => {
+  it('always logs structured saturation telemetry and ignores alert failure', async () => {
     vi.mocked(makeTelegramRequest).mockReturnValue(
       errAsync(new Error('telegram unavailable') as never),
     )
@@ -28,7 +28,7 @@ describe('expiry timestamp overflow reporting', () => {
     ).resolves.toBeUndefined()
 
     expect(errorLog).toHaveBeenCalledWith(
-      'Expiry discovery skipped names sharing one expiry timestamp',
+      'Expiry discovery exact-timestamp bucket saturated',
       expect.objectContaining({
         stage: 'grace-7d',
         expiryTimestamp: 1_700_000_000,
