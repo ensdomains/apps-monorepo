@@ -4,7 +4,7 @@ import {
   getCommemorativeNftContractAddress,
   getCommemorativeNftTokenId,
 } from './config'
-import type { CommemorativeNftShareUrls } from './types'
+import type { CommemorativeNftShareUrls, RendererTraits } from './types'
 
 const normalizedProfileName = (name: string) =>
   name.trim().replace(/\.$/, '').toLowerCase()
@@ -27,13 +27,31 @@ export const isCommemorativeNftCanonicalProfile = (
 ): boolean =>
   normalizedProfileName(routeName) === normalizedProfileName(profileName)
 
+const getStandoutTraitShareLine = (
+  traits: RendererTraits,
+): string | undefined => {
+  if (traits.Gasveteran === 'Battle-Scarred')
+    return "I'm a Battle-Scarred holder."
+  if (traits.Rarity === 'Elemental') return "I'm an Elemental holder."
+  if (traits.Rarity === 'Rare') return "I'm a Rare holder."
+  if (traits.Era === 'Founding') return "I'm a Founding-Era holder."
+  if (traits.Era === 'Pioneer') return "I'm a Pioneer Age holder."
+  if (traits.Depth === 'Domainer') return "I'm a Domainer."
+  return undefined
+}
+
 export const buildCommemorativeNftShareUrls = (
   externalUrl: string | undefined,
   minted: boolean,
+  traits: RendererTraits,
 ): CommemorativeNftShareUrls => {
   if (!externalUrl || !minted) return {}
 
-  const text = 'Upgraded to ENSv2 and minted my card.'
+  const introduction = 'Upgraded to ENSv2 and minted my card.'
+  const standoutTrait = getStandoutTraitShareLine(traits)
+  const text = standoutTrait
+    ? `${introduction}\n${standoutTrait}`
+    : introduction
   return {
     external: externalUrl,
     message: `${text}\n${externalUrl}`,

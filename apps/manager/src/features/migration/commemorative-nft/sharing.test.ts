@@ -6,8 +6,17 @@ import {
   buildCommemorativeNftShareUrls,
   isCommemorativeNftCanonicalProfile,
 } from './sharing'
+import type { RendererTraits } from './types'
 
 const ownerAddress = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
+const traits: RendererTraits = {
+  Era: 'Surge',
+  Depth: 'Collector',
+  Gasveteran: 'Seasoned',
+  Archetype: 'Personal',
+  Rarity: 'Common',
+  Seed: 742_941_409,
+}
 
 describe('commemorative NFT sharing', () => {
   afterEach(() => {
@@ -24,17 +33,19 @@ describe('commemorative NFT sharing', () => {
   })
 
   it('builds encoded share intents only for a minted NFT with an external URL', () => {
-    expect(buildCommemorativeNftShareUrls(undefined, false)).toEqual({})
-    expect(buildCommemorativeNftShareUrls(undefined, true)).toEqual({})
+    expect(buildCommemorativeNftShareUrls(undefined, false, traits)).toEqual({})
+    expect(buildCommemorativeNftShareUrls(undefined, true, traits)).toEqual({})
     expect(
       buildCommemorativeNftShareUrls(
         'https://example.com/nft/hello world',
         false,
+        traits,
       ),
     ).toEqual({})
     const urls = buildCommemorativeNftShareUrls(
       'https://example.com/nft/hello world',
       true,
+      traits,
     )
     expect(urls.x).toContain('x.com/intent/post')
     expect(urls.x).toContain('hello+world')
@@ -43,7 +54,7 @@ describe('commemorative NFT sharing', () => {
 
   it('shares the minted card and its public URL', () => {
     const externalUrl = 'https://example.com/nft/hello world'
-    const urls = buildCommemorativeNftShareUrls(externalUrl, true)
+    const urls = buildCommemorativeNftShareUrls(externalUrl, true, traits)
     const text = 'Upgraded to ENSv2 and minted my card.'
 
     expect(urls.external).toBe(externalUrl)
@@ -54,6 +65,43 @@ describe('commemorative NFT sharing', () => {
       expect(params.get('text')).toBe(text)
       expect(params.get('url')).toBe(externalUrl)
     }
+  })
+
+  it.each([
+    [{ Gasveteran: 'Battle-Scarred' }, "I'm a Battle-Scarred holder."],
+    [{ Rarity: 'Elemental' }, "I'm an Elemental holder."],
+    [{ Rarity: 'Rare' }, "I'm a Rare holder."],
+    [{ Era: 'Founding' }, "I'm a Founding-Era holder."],
+    [{ Era: 'Pioneer' }, "I'm a Pioneer Age holder."],
+    [{ Depth: 'Domainer' }, "I'm a Domainer."],
+  ] as const)('adds a standout trait to the share copy', (override, line) => {
+    const urls = buildCommemorativeNftShareUrls(
+      'https://example.com/nft/',
+      true,
+      { ...traits, ...override },
+    )
+
+    expect(new URL(urls.x ?? '').searchParams.get('text')).toBe(
+      `Upgraded to ENSv2 and minted my card.\n${line}`,
+    )
+  })
+
+  it('prefers the highest-priority notable trait', () => {
+    const urls = buildCommemorativeNftShareUrls(
+      'https://example.com/nft/',
+      true,
+      {
+        ...traits,
+        Gasveteran: 'Battle-Scarred',
+        Rarity: 'Elemental',
+        Era: 'Founding',
+        Depth: 'Domainer',
+      },
+    )
+
+    expect(new URL(urls.telegram ?? '').searchParams.get('text')).toBe(
+      "Upgraded to ENSv2 and minted my card.\nI'm a Battle-Scarred holder.",
+    )
   })
 
   it.each([
@@ -90,7 +138,7 @@ describe('commemorative NFT sharing', () => {
         minted: true,
       }),
     ).toBe(
-      'https://testnets.opensea.io/assets/sepolia/0x0bc4FB733Ca8BAD5FaDeb1BEc4bE9C93A5aD55D1/46455108410614081663945406319915307572171076188378075311311703967581922008221',
+      'https://testnets.opensea.io/assets/sepolia/0x034602dD1CAff3700CB5Cb42f7e1a8d76F84762b/46455108410614081663945406319915307572171076188378075311311703967581922008221',
     )
   })
 
