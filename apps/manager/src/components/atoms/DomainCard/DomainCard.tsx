@@ -4,9 +4,9 @@ import { cn } from '@/lib/utils'
 import { DomainCardPattern, type DomainCardVariant } from './DomainCardPattern'
 
 interface DomainCardProps {
-  domainName: string
-  variant?: DomainCardVariant | null
-  className?: string
+  readonly domainName: string
+  readonly variant?: DomainCardVariant | null
+  readonly className?: string
 }
 
 const cardColors = {
@@ -38,7 +38,7 @@ export const DomainCard = ({
   return (
     <div
       className={cn(
-        'mx-auto flex w-full max-w-[460px] flex-col gap-2.5 rounded p-2.5 shadow-[0_23px_16px_rgba(14,61,104,0.06)]',
+        'mx-auto flex w-full max-w-domain-card flex-col gap-2.5 rounded p-2.5 shadow-domain-card',
         colors.card,
         className,
       )}
@@ -52,7 +52,7 @@ export const DomainCard = ({
         >
           <p
             className={cn(
-              'break-words font-medium font-semi-mono text-[25px] leading-[0.96] tracking-[-0.02em] sm:text-[32px]',
+              'break-words font-medium font-semi-mono text-2xl leading-ens-none tracking-tight sm:text-temp-32px',
               colors.text,
             )}
           >

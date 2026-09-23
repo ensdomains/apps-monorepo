@@ -71,16 +71,16 @@ export const RegistrationDetails = () => {
 }
 
 interface RegistrationDetailsViewProps {
-  label: string
-  duration: number
-  referenceDate: Date
-  expirationDate: Date
-  basePriceWithoutDiscount: number
-  premiumPriceNumber: number
-  discountAmount: number
-  discountPercentage: number
-  totalPrice: number
-  showCompleteProfileCta: boolean
+  readonly label: string
+  readonly duration: number
+  readonly referenceDate: Date
+  readonly expirationDate: Date
+  readonly basePriceWithoutDiscount: number
+  readonly premiumPriceNumber: number
+  readonly discountAmount: number
+  readonly discountPercentage: number
+  readonly totalPrice: number
+  readonly showCompleteProfileCta: boolean
 }
 
 export const RegistrationDetailsView = ({

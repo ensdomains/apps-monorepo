@@ -21,10 +21,10 @@ export const FailureStep = () => {
 }
 
 interface FailureStepViewProps {
-  label: string
-  message?: string
-  onRetry: () => void
-  onCancel: () => void
+  readonly label: string
+  readonly message?: string
+  readonly onRetry: () => void
+  readonly onCancel: () => void
 }
 
 export const FailureStepView = ({
