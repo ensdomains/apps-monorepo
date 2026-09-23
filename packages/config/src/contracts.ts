@@ -6,6 +6,10 @@ import { type EnsNetwork, NETWORKS } from './networks'
 /**
  * Addresses the canonical deployment publishes but ensjs does not yet carry.
  *
+ * Temporary. ensdomains/ensjs#387 adds all three to the L1 chain config; once
+ * that lands and the catalog pin moves, this map and `requireExtra` go away
+ * and every address comes from ensjs.
+ *
  * `null` means no deployment exists for that network. Reading a null through
  * `getEnsContracts` throws rather than returning a placeholder, for the same
  * reason the ENSv2 guard exists: a zero or absent address produces calldata
