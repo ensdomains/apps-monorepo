@@ -416,7 +416,7 @@ export const AddressProfileNamesList = ({
 
   return (
     <div
-      className="w-full rounded-none border-[#dededf] border-[0.25px] bg-white px-4 py-6 shadow-none md:rounded-xl md:px-6 md:py-8" // Figma-spec hairline width and border colour — no matching design tokens
+      className="w-full rounded-none border-0 border-[#dededf] bg-transparent px-1 py-0 shadow-none md:rounded-xl md:border-[0.25px] md:bg-white md:px-6 md:py-8" // Figma-spec hairline width and border colour — no matching design tokens
     >
       <div className="mb-5 flex w-full flex-col items-start gap-5">
         {/* Heading and search render for any address: the search filters the

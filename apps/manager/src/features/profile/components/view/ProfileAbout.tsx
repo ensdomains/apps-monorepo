@@ -57,7 +57,7 @@ export const ProfileAbout = ({
       className={cn(
         'flex min-h-0 flex-1',
         primaryName
-          ? 'min-h-35 rounded-xl border-[0.25px] border-ens-quartz-300 bg-white p-5 shadow-[0_2px_6px_rgba(0,0,0,0.06)] lg:landscape:max-w-158.75 lg:landscape:p-6'
+          ? 'min-h-35 rounded-xl border-[0.25px] border-ens-quartz-300 bg-white p-6 shadow-[0_2px_6px_rgba(0,0,0,0.06)] lg:landscape:min-h-[147.09px] lg:landscape:max-w-158.75'
           : 'rounded-none border-none bg-transparent p-0 shadow-none lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-[0_2px_6px_rgba(0,0,0,0.06)]',
       )}
     >

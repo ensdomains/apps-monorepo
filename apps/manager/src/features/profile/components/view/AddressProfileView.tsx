@@ -68,7 +68,7 @@ export const AddressProfileView = ({
           headerUrl={headerUrl}
           name={primaryName ?? address}
         />
-        <div className="relative z-10 mx-auto -mt-21 w-full max-w-[805px] space-y-6 px-4 lg:landscape:-mt-11.25">
+        <div className="relative z-10 mx-auto -mt-21 w-[calc(100%-40px)] max-w-[809.257px] space-y-6 lg:landscape:-mt-11.25">
           <AddressProfileHeader
             address={address}
             primaryName={primaryName}

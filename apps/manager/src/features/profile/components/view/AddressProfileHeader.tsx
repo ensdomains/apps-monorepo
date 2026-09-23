@@ -51,7 +51,7 @@ export const AddressProfileHeader = ({
         <ProfileAvatar
           avatarLoading={false}
           avatarUrl={buildNameAvatarUrl(primaryName)}
-          className="mx-auto -mt-14 size-40 rounded-xl shadow-none lg:landscape:hidden"
+          className="mx-auto -mt-14 size-42.5 rounded-xl shadow-none lg:landscape:hidden"
           name={primaryName}
         />
       ) : null}
@@ -59,24 +59,30 @@ export const AddressProfileHeader = ({
         <AddressLabel address={address} />
         {primaryName ? (
           <Link
-            className="inline-flex h-11 w-44 items-center justify-center gap-2 rounded bg-ens-lapis-core px-4 font-medium font-mono text-sm text-white uppercase tracking-[1.12px] hover:bg-[#026B9C]"
+            className="inline-flex h-12.5 w-43 items-center justify-center gap-2.5 whitespace-nowrap rounded bg-ens-lapis-core px-4 font-medium font-mono text-[13px] text-white uppercase tracking-[1.56px] hover:bg-[#026B9C] lg:landscape:h-11"
             params={{ name: primaryName }}
             to="/$name"
           >
-            <MSymbol className="ms-opsz-20 text-lg" symbol="person_check" />
+            <MSymbol
+              className="ms-opsz-20 shrink-0 text-xs"
+              symbol="person_check"
+            />
             <Trans>View profile</Trans>
           </Link>
         ) : null}
       </div>
 
       {primaryName ? (
-        <div className="flex flex-col gap-5 lg:landscape:flex-row lg:landscape:items-stretch">
-          <ProfileAvatar
-            avatarLoading={false}
-            avatarUrl={buildNameAvatarUrl(primaryName)}
-            className="hidden rounded-xl shadow-none lg:landscape:block lg:landscape:size-auto lg:landscape:w-35 lg:landscape:self-stretch"
-            name={primaryName}
-          />
+        <div className="flex flex-col gap-5 lg:landscape:flex-row lg:landscape:items-stretch lg:landscape:gap-5.5">
+          {/* Keep the Figma avatar width while letting the bio set their shared height. */}
+          <div className="relative hidden w-[152.257px] shrink-0 lg:landscape:block">
+            <ProfileAvatar
+              avatarLoading={false}
+              avatarUrl={buildNameAvatarUrl(primaryName)}
+              className="absolute inset-0 size-full rounded-xl shadow-none"
+              name={primaryName}
+            />
+          </div>
           <ProfileAbout primaryName={primaryName} records={records} />
         </div>
       ) : null}
