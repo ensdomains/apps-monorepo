@@ -117,7 +117,7 @@ describe('submitWarpTransaction', () => {
     expect(error).toBeInstanceOf(ChainIdMismatchError)
     expect((error as ChainIdMismatchError).expected).toBe(sepolia.id)
     expect((error as ChainIdMismatchError).actual).toBe(mainnet.id)
-    expect(signer.account.sendTransaction).not.toHaveBeenCalled()
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalled()
   })
 
   it('returns ChainIdMismatchError instead of defaulting when the signer has no chain', async () => {
@@ -135,7 +135,7 @@ describe('submitWarpTransaction', () => {
     const error = result._unsafeUnwrapErr()
     expect(error).toBeInstanceOf(ChainIdMismatchError)
     expect((error as ChainIdMismatchError).actual).toBeUndefined()
-    expect(signer.account.sendTransaction).not.toHaveBeenCalled()
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalled()
   })
 
   it('returns error for empty calls array', async () => {
