@@ -7,12 +7,14 @@ import { ChangeResolverForm } from './ChangeResolverForm'
 // Captures the transaction descriptors so the tests can drive the lifecycle
 // callbacks (`onStart` / `onDone`) the real modal would fire.
 type CapturedTransaction = {
-  id: string
-  onStart?: () => void | Promise<void>
-  onDone?: () => void
+  readonly id: string
+  readonly onStart?: () => void | Promise<void>
+  readonly onDone?: () => void
 }
 
-const transactionsRef: { current: CapturedTransaction[] } = { current: [] }
+const transactionsRef: { current: readonly CapturedTransaction[] } = {
+  current: [],
+}
 
 const transactionById = (id: string) =>
   transactionsRef.current.find((transaction) => transaction.id === id)
@@ -21,7 +23,7 @@ vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
   TransactionModal: ({
     transactions,
   }: {
-    transactions: CapturedTransaction[]
+    transactions: readonly CapturedTransaction[]
   }) => {
     transactionsRef.current = transactions
     return null
