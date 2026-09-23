@@ -47,22 +47,26 @@ const Harness = ({ onProceed }: { onProceed: () => void }) => {
 }
 
 describe('useSmartSessionGate', () => {
-  it('waits for refreshed session context before proceeding', async () => {
+  it('passes the newly enabled session when proceeding', async () => {
     const onProceed = vi.fn()
+    const enabledSession = {
+      signer: { type: 'rhinestone' as const },
+      sessionEnable: {
+        enableData: {},
+        permissionId: '0x1234',
+        sessionKey: '0x1111111111111111111111111111111111111111',
+        validUntil: 1n,
+      },
+    }
     mocks.account.hasActiveSession = false
-    mocks.account.enableSession.mockResolvedValue({ type: 'rhinestone' })
-    const view = render(<Harness onProceed={onProceed} />)
+    mocks.account.enableSession.mockResolvedValue(enabledSession)
+    render(<Harness onProceed={onProceed} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Enable session' }))
     })
 
-    expect(onProceed).not.toHaveBeenCalled()
-
-    mocks.account.hasActiveSession = true
-    view.rerender(<Harness onProceed={onProceed} />)
-
-    expect(onProceed).toHaveBeenCalledOnce()
+    expect(onProceed).toHaveBeenCalledWith(enabledSession)
   })
 })

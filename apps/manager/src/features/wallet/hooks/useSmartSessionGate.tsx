@@ -13,12 +13,15 @@
  *   {sessionModal}
  *
  * `gate(onProceed)`: if a session is needed, opens the EnableSessionModal and
- * defers `onProceed` until the single ENABLE signature succeeds; otherwise runs
- * `onProceed` immediately.
+ * defers `onProceed` until the single ENABLE signature succeeds and supplies
+ * the new session; otherwise runs `onProceed` immediately.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { useCallback, useRef, useState } from 'react'
+import {
+  type EnabledSmartSession,
+  useSmartAccountContext,
+} from '@/lib/smart-account/SmartAccountContext'
 import { needsSessionBeforeRegistration } from '@/lib/smart-account/sessionGate'
 import { EnableSessionModal } from '../components/EnableSessionModal'
 
@@ -28,7 +31,7 @@ export interface SmartSessionGate {
    * active, the EnableSessionModal opens and `onProceed` runs only after the
    * ENABLE signature succeeds.
    */
-  readonly gate: (onProceed: () => void) => void
+  readonly gate: (onProceed: (session?: EnabledSmartSession) => void) => void
   /** The wired EnableSessionModal element — render it in your tree. */
   readonly sessionModal: React.ReactNode
 }
@@ -37,10 +40,12 @@ export function useSmartSessionGate(): SmartSessionGate {
   const account = useSmartAccountContext()
   const needsSession = needsSessionBeforeRegistration(account)
   const [isOpen, setIsOpen] = useState(false)
-  const pendingRef = useRef<(() => void) | null>(null)
+  const pendingRef = useRef<((session?: EnabledSmartSession) => void) | null>(
+    null,
+  )
 
   const gate = useCallback(
-    (onProceed: () => void) => {
+    (onProceed: (session?: EnabledSmartSession) => void) => {
       if (needsSession) {
         pendingRef.current = onProceed
         setIsOpen(true)
@@ -52,17 +57,13 @@ export function useSmartSessionGate(): SmartSessionGate {
   )
 
   const onEnableSession = useCallback(async () => {
-    const signer = await account.enableSession()
-    if (!signer) return // modal stays open, surfaces account.sessionError
+    const session = await account.enableSession()
+    if (!session) return // modal stays open, surfaces account.sessionError
     setIsOpen(false)
-  }, [account])
-
-  useEffect(() => {
-    if (isOpen || !pendingRef.current || needsSession) return
     const pending = pendingRef.current
     pendingRef.current = null
-    pending()
-  }, [isOpen, needsSession])
+    pending?.(session)
+  }, [account])
 
   const sessionModal = (
     <EnableSessionModal
