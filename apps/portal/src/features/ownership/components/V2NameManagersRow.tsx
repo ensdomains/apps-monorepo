@@ -7,6 +7,7 @@ import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDispla
 import { InfoRow } from '@/features/profile/components/InfoRow'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
+import { cn } from '@/lib/utils'
 
 /**
  * The V2 counterpart of the V1 "Manager" row: the accounts that can act on this
@@ -34,9 +35,13 @@ export const V2NameManagersRow = ({
   readonly owner: Address
   readonly className?: string
 }) => {
-  const { data, isLoading, isError } = useQuery(
-    getNameRolesAccountsQueryOptions({ name, registryAddress }),
-  )
+  const { data, isLoading, error } = useQuery({
+    ...getNameRolesAccountsQueryOptions({ name, registryAddress }),
+    // Opted out of the app-wide one-hour staleTime: this row exists to disclose
+    // a live write authority over the name, and an hour-old "nobody" is exactly
+    // the answer that would keep hiding a grant made since.
+    staleTime: 0,
+  })
 
   const row = (children: ReactNode) => (
     <InfoRow icon={ShieldPersonIcon} label="Managers" className={className}>
@@ -47,12 +52,19 @@ export const V2NameManagersRow = ({
   if (isLoading)
     return row(<span className="text-sm text-muted-foreground">Loading</span>)
 
-  // Unknown, not none. Silence here would reproduce exactly the gap this row
-  // exists to close, so say the check didn't land.
-  if (isError || !data)
+  // Unknown, not none — on both branches. Silence here would reproduce exactly
+  // the gap this row exists to close, so say the check didn't land.
+  if (error)
     return row(
       <span className="text-sm text-muted-foreground">
         Couldn’t check who else holds permissions on this name
+      </span>,
+    )
+
+  if (!data)
+    return row(
+      <span className="text-sm text-muted-foreground">
+        No permissions data for this name
       </span>,
     )
 
@@ -67,7 +79,7 @@ export const V2NameManagersRow = ({
     <InfoRow
       icon={ShieldPersonIcon}
       label="Managers"
-      className={`sm:h-auto sm:items-start sm:py-2 ${className ?? ''}`}
+      className={cn('sm:h-auto sm:items-start sm:py-2', className)}
     >
       <ul className="flex flex-col gap-2">
         {holders.map(([account, roles]) => (
