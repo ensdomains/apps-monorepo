@@ -185,21 +185,17 @@ describe('getExpiry', () => {
 })
 
 describe('subnames', () => {
-  // A subname cannot outlive its parent: re-registering an expired parent
-  // replaces the subregistry holding it, so the parent's date is the real one.
-  it('clamps the expiry to the earliest ancestor', async () => {
+  // Not clamped to the parent: a v2 label carries its own expiry in its
+  // registry, and a detached or custom subregistry can outlive its parent.
+  it('reads the expiry the indexer records for the subname itself', async () => {
     mocks.indexerQuery.mockResolvedValue({
-      domains: [
-        { name: 'mini.shiba.eth', expiryDate: 1_821_700_419 },
-        { name: 'shiba.eth', expiryDate: 1_792_583_508 },
-        { name: 'eth', expiryDate: null },
-      ],
+      domains: [{ expiryDate: 1_821_700_419 }],
     })
 
     const result = await getExpiry('mini.shiba.eth')
 
     expect(result._unsafeUnwrap()).toEqual({
-      expiry: 1_792_583_508n,
+      expiry: 1_821_700_419n,
       isNonExpiring: false,
       protocol: 'v2',
       isSubname: true,
@@ -208,9 +204,7 @@ describe('subnames', () => {
   })
 
   it('reports no expiry for a subname the indexer does not know', async () => {
-    mocks.indexerQuery.mockResolvedValue({
-      domains: [{ name: 'shiba.eth', expiryDate: 1_792_583_508 }],
-    })
+    mocks.indexerQuery.mockResolvedValue({ domains: [] })
 
     const result = await getExpiry('mini.shiba.eth')
 
@@ -219,7 +213,7 @@ describe('subnames', () => {
 
   it('reports no grace window after a subname expires', async () => {
     mocks.indexerQuery.mockResolvedValue({
-      domains: [{ name: 'mini.shiba.eth', expiryDate: 1_600_000_000 }],
+      domains: [{ expiryDate: 1_600_000_000 }],
     })
 
     const status = getProfileExpiryResultStatus(

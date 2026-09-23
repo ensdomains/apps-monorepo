@@ -77,54 +77,35 @@ const normalizeV1Expiry = (
 
 // Kept as a raw string: parsing with graphql 17 at module scope opens a
 // diagnostics-channel tracing span, which workerd disallows in global scope.
-// `includeUnreachable` keeps an already-expired ancestor in the result, which
-// is precisely the one that decides the answer.
-const AncestorExpiriesDocument = /* GraphQL */ `
-  query AncestorExpiries($names: [String!]!) {
-    domains(where: { name_in: $names, includeUnreachable: true }) {
-      name
+const SubnameExpiryDocument = /* GraphQL */ `
+  query SubnameExpiry($name: String!) {
+    domains(where: { name: $name, includeUnreachable: true }) {
       expiryDate
     }
   }
 `
 
-type AncestorExpiriesQuery = {
-  readonly domains: readonly {
-    readonly name: string | null
-    readonly expiryDate: number | null
-  }[]
-}
-
-/** Every name in the chain, leaf first: a.b.eth -> a.b.eth, b.eth, eth. */
-const nameChain = (name: string): string[] => {
-  const labels = name.split('.')
-  return labels.map((_, index) => labels.slice(index).join('.'))
+type SubnameExpiryQuery = {
+  readonly domains: readonly { readonly expiryDate: number | null }[]
 }
 
 /**
- * A subname's effective expiry, which is the earliest in its chain.
+ * A subname's own expiry, as its registry records it.
  *
- * It lives in its parent's subregistry, so the profile has no address to read
- * an expiry from on chain, and it cannot outlive an ancestor: re-registering an
- * expired parent replaces the subregistry that holds it. Any failure, and a
- * leaf the indexer doesn't know, answers null and renders as no expiry.
+ * It lives in its parent's subregistry, which the profile has no address for,
+ * so this reads the indexer. Deliberately not bounded by the ancestors: a v2
+ * label carries its own expiry, and a detached or custom subregistry can
+ * outlive its parent, so a computed minimum would report a date no registry
+ * holds. Any failure answers null and renders as no expiry.
  */
-const getIndexedEffectiveExpiry = async (
-  name: string,
-): Promise<number | null> => {
+const getIndexedExpiry = async (name: string): Promise<number | null> => {
   try {
     const { domains } = await graphqlRequest<
-      AncestorExpiriesQuery,
-      { names: string[] }
-    >(indexerClient, AncestorExpiriesDocument, { names: nameChain(name) })
+      SubnameExpiryQuery,
+      { name: string }
+    >(indexerClient, SubnameExpiryDocument, { name })
 
-    if (!domains.some((domain) => domain.name === name)) return null
-
-    const expiries = domains
-      .map((domain) => domain.expiryDate)
-      .filter((expiry): expiry is number => expiry != null)
-
-    return expiries.length > 0 ? Math.min(...expiries) : null
+    return domains[0]?.expiryDate ?? null
   } catch {
     return null
   }
@@ -137,7 +118,7 @@ export const getExpiry = ResultFn(async function* (
   const subname = normalizeEthName(name)
 
   if (subname && subname.parentLabelsRootFirst.length > 0) {
-    const expiry = await getIndexedEffectiveExpiry(subname.name)
+    const expiry = await getIndexedExpiry(subname.name)
 
     return ok({
       expiry: expiry === null ? null : BigInt(expiry),
