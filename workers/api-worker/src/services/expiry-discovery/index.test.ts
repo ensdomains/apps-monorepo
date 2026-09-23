@@ -178,6 +178,39 @@ describe('runExpiryDiscoveryCron', () => {
     expect(stored['expiry-1d']?.expiry_timestamp).toBe(NOW + 50)
   })
 
+  it('does not advance a stage cursor when queue publication fails', async () => {
+    const kv = new MockKV()
+    const cursors = caughtUpCursors()
+    cursors['expiry-7d'] = { expiry_timestamp: NOW + 2 * 86_400 }
+    cursors['expiry-1d'] = { expiry_timestamp: NOW }
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, cursors)
+    vi.mocked(fetchExpiringNamesPage).mockImplementation(({ cursor }) =>
+      okAsync({
+        domains: [{ name: 'alpha.eth', expiryDate: cursor + 50 }],
+        hasMore: false,
+      }),
+    )
+    const sendBatch = vi.fn(async (messages: Array<{ body: unknown }>) => {
+      const event = messages[0]?.body as { stage?: string } | undefined
+      if (event?.stage === 'expiry-7d') throw new Error('queue unavailable')
+      return undefined
+    })
+
+    const result = await runExpiryDiscoveryCron(makeEnv(kv, sendBatch))
+    const stored = (await kv.get(
+      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
+      'json',
+    )) as CursorState
+
+    expect(result._unsafeUnwrap()).toEqual({
+      totalEnqueued: 1,
+      failedStages: 1,
+    })
+    expect(sendBatch).toHaveBeenCalledTimes(2)
+    expect(stored['expiry-7d']).toEqual(cursors['expiry-7d'])
+    expect(stored['expiry-1d']?.expiry_timestamp).toBe(NOW + 50)
+  })
+
   it('keeps Cloudflare event queue batches at 100 messages', async () => {
     const kv = new MockKV()
     const cursors = caughtUpCursors()

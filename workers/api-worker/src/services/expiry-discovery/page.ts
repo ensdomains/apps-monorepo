@@ -90,6 +90,12 @@ export function planExactTimestampPage(
   domains: readonly ExpiringDomain[],
   timestamp: number,
 ) {
+  // The indexer cannot reliably continue a bucket with a composite
+  // (expiryDate, id) cursor. If more than PROCESS_PAGE_SIZE names share T,
+  // process the bounded first page and advance past T so discovery cannot
+  // stall forever. The remainder is knowingly skipped; the caller emits
+  // structured error telemetry and a best-effort Telegram alert. This rare
+  // failure mode is accepted until expiry discovery/indexer pagination changes.
   return {
     domains: [...domains.slice(0, PROCESS_PAGE_SIZE)],
     overflow: domains.length > PROCESS_PAGE_SIZE,
