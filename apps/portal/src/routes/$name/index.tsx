@@ -1,5 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, useParams } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  useParams,
+  useRouterState,
+} from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useConnection, useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
@@ -37,6 +41,7 @@ import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { RegistrationSuccessBanner } from '@/features/register/components/RegistrationSuccessBanner'
+import { readRegistrationSuccessState } from '@/features/register/types/registrationSuccessState'
 import { ExtendNameButton } from '@/features/renew/components/ExtendNameButton'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
@@ -52,26 +57,9 @@ import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
 import { validateNameLength } from '@/utils/token/nameValidation'
 
-type NameSearch = {
-  readonly registered?: boolean
-  readonly duration?: number
-  readonly paid?: string
-}
-
-const validateNameSearch = (search: Record<string, unknown>): NameSearch => {
-  if (search.registered !== true && search.registered !== 'true') return {}
-  const duration = Number(search.duration)
-  return {
-    registered: true,
-    duration: Number.isFinite(duration) ? duration : undefined,
-    paid: typeof search.paid === 'string' ? search.paid : undefined,
-  }
-}
-
 export const Route = createFileRoute('/$name/')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
-  validateSearch: validateNameSearch,
   loader: ({ params }) => {
     const tld = getTLD(params.name)
     return Promise.all([
@@ -90,11 +78,13 @@ const Profile = ({
   name: string
   resolverAddress?: Address
 }) => {
-  const { registered, duration, paid } = Route.useSearch()
-  const registrationBanner =
-    registered === true && duration !== undefined && paid !== undefined
-      ? { durationSeconds: duration, paid }
-      : null
+  // Read from history state, never the URL: a link is attacker-controlled, so
+  // search params here let anyone send a victim a page claiming they own a name
+  // they don't, with an arbitrary "Paid" figure. History state is only set by
+  // the in-app redirect that runs after a registration this session completed.
+  const registrationBanner = useRouterState({
+    select: (state) => readRegistrationSuccessState(state.location.state),
+  })
   const tld = getTLD(name)
   const isEthTld = tld === 'eth'
 
