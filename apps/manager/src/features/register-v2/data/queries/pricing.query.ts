@@ -10,7 +10,7 @@ import {
 import { err, fromPromise, ok } from 'neverthrow'
 import { parseAbi } from 'viem'
 import { sepolia } from 'viem/chains'
-import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/contracts'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 
 const ETH_REGISTRAR = getChainContractAddress({

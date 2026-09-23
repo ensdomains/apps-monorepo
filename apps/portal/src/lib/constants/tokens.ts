@@ -1,4 +1,4 @@
-import { TOKENS } from '@/lib/contracts'
+import { TOKENS } from '@/lib/tokens'
 
 export const USDC_DECIMALS = TOKENS.USDC.decimals
 export const DAI_DECIMALS = TOKENS.DAI.decimals

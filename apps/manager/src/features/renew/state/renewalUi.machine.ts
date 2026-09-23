@@ -15,7 +15,7 @@ import {
   getRenewerAddress,
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
-import type { SUPPORTED_TOKEN } from '@/lib/contracts'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 

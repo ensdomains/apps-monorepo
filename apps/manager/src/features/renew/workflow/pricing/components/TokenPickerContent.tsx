@@ -5,8 +5,8 @@ import { useConnection } from 'wagmi'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
-import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/contracts'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 export const TokenPickerContent = () => {

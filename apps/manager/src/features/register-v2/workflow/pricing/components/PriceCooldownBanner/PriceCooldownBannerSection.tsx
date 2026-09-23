@@ -5,7 +5,7 @@ import { getNameStatsQueryOptions } from '@/features/register-v2/data/queries/na
 import { getOracleParamsQueryOptions } from '@/features/register-v2/data/queries/oracleParams.query'
 import { getRegisterPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { useRegistrationV2Context } from '@/features/register-v2/state/registrationUi.context'
-import { TOKENS } from '@/lib/contracts'
+import { TOKENS } from '@/lib/tokens'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'

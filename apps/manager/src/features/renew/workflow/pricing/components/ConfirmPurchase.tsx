@@ -6,8 +6,8 @@ import type { WalletClient } from 'viem'
 import { ConfirmPurchaseBase } from '@/features/register-v2/workflow/pricing/components/ConfirmPurchase'
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
-import { TOKENS } from '@/lib/contracts'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 export const ConfirmPurchase = () => {

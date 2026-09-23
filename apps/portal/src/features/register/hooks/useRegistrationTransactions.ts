@@ -23,7 +23,6 @@ import {
   usePublicClient,
   useReadContract,
 } from 'wagmi'
-import { config as appConfig } from '@/config'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
@@ -33,7 +32,6 @@ import {
 } from '@/features/transaction-manager/helpers/intents'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
-import { ENS_CONTRACTS } from '@/lib/contracts'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 
@@ -212,7 +210,7 @@ export const useRegistrationTransactions = ({
                     salt: hexToBigInt(
                       keccak256(stringToBytes(`estimate:${name}`)),
                     ),
-                    chain: appConfig.chain,
+                    chain: sepoliaWithEns,
                   }),
                   chainId,
                 })
@@ -275,7 +273,7 @@ export const useRegistrationTransactions = ({
                     duration: BigInt(duration),
                     paymentToken: savedParams.tokenAddress,
                     resolverAddress,
-                    registrarAddress: ENS_CONTRACTS.ensEthRegistrar.address,
+                    registrarAddress: ethRegistrar,
                   }),
                   chainId,
                   gas: 500_000n,

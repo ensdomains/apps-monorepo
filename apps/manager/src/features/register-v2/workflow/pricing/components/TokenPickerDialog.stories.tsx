@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useState } from 'react'
-import type { SUPPORTED_TOKEN } from '@/lib/contracts'
 import type { StablecoinBalance } from '@/lib/smart-account'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { TokenPickerContentBase } from './TokenPickerContent'
 import { PaymentDialogBase } from './TokenPickerDialog'
 

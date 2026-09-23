@@ -11,7 +11,7 @@ import {
   getRenewerAddress,
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
-import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/contracts'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 
 export class GetRenewPriceError extends TaggedError('GetRenewPriceError')<{

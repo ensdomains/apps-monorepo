@@ -2,7 +2,7 @@ import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useCallback, useMemo } from 'react'
 import { getStartOfDay } from '@/features/register-v2/utils/time'
-import { TOKENS } from '@/lib/contracts'
+import { TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import {
   type GetRegisterPriceError,

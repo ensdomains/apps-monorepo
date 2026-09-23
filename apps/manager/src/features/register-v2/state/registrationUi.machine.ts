@@ -25,8 +25,8 @@ import {
 } from 'xstate'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
-import type { SUPPORTED_TOKEN } from '@/lib/contracts'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import {

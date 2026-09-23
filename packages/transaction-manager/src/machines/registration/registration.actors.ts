@@ -34,6 +34,7 @@ import {
   parseAbi,
   stringToBytes,
   zeroAddress,
+  zeroHash,
 } from 'viem'
 import { getBlock, multicall, readContract } from 'viem/actions'
 import type { Signer } from '../..'
@@ -48,7 +49,6 @@ const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
 ])
 
 import { getTokens, type TOKEN_SYMBOL } from '@ens-apps/config'
-import { REFERER_ADDRESS } from '../../contracts/constants'
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
 import { transactionManager } from '../../providers/transactionManager'
@@ -165,7 +165,7 @@ function generateCommitment(
           zeroAddress,
           resolverAddress,
           duration,
-          REFERER_ADDRESS,
+          zeroHash,
         ],
       })
       return { commitment, secret }
@@ -254,7 +254,7 @@ export function encodeRegisterCall({
         resolverAddress,
         duration,
         paymentToken,
-        REFERER_ADDRESS,
+        zeroHash,
       ],
     }),
     value: 0n,
@@ -1094,10 +1094,7 @@ function encodeRenewData(
   return encodeFunctionData({
     abi: ethRegistrarRenewSnippet,
     functionName: 'renew',
-    args: [
-      { label: cleanLabel, duration, referrer: REFERER_ADDRESS },
-      paymentToken,
-    ],
+    args: [{ label: cleanLabel, duration, referrer: zeroHash }, paymentToken],
   })
 }
 

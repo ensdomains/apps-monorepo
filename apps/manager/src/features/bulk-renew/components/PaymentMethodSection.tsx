@@ -1,8 +1,8 @@
 import { Trans } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { TokenListItem } from '@/features/register-v2/workflow/pricing/components/TokenListItem'
-import type { SUPPORTED_TOKEN } from '@/lib/contracts'
 import type { StablecoinBalance } from '@/lib/smart-account'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 
 const Message = ({ children }: { readonly children: ReactNode }) => (
   <p className="py-4 text-center font-sans text-ens-quartz-400 text-sm">

@@ -35,7 +35,7 @@ import {
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { type EventFromLogic, waitFor } from 'xstate'
 import { chain as appChain } from '@/config'
-import { SUPPORTED_TOKENS } from '@/lib/contracts'
+import { SUPPORTED_TOKENS } from '@/lib/tokens'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'

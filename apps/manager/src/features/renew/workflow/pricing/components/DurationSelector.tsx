@@ -10,7 +10,7 @@ import {
   type MissingTokenError,
 } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
-import { TOKENS } from '@/lib/contracts'
+import { TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 type PresetPricingQuery = {

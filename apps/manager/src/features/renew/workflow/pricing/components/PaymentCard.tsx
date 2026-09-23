@@ -7,7 +7,7 @@ import { PaymentCardBase } from '@/features/register-v2/workflow/pricing/compone
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { useSmartSessionGate } from '@/features/wallet/hooks/useSmartSessionGate'
-import { TOKENS } from '@/lib/contracts'
+import { TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 type RenewalPaymentCardProps = Omit<

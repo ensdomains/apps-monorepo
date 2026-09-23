@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { ENS_CONTRACTS } from '@/lib/contracts'
+import { config } from '@/config'
+
 import { getRenewalRoute, getRenewerAddress } from './renewalProtocol'
 
 describe('renewal protocol selection', () => {
   it('selects the V1 renewer and canonical route', () => {
-    expect(getRenewerAddress('v1')).toBe(ENS_CONTRACTS.ensEthRenewerV1.address)
+    expect(getRenewerAddress('v1')).toBe(
+      config.chain.contracts.ensEthRenewerV1.address,
+    )
     expect(getRenewalRoute('v1')).toBe('/renew-v1/$name')
   })
 
   it('selects the V2 registrar and canonical route', () => {
-    expect(getRenewerAddress('v2')).toBe(ENS_CONTRACTS.ensEthRegistrar.address)
+    expect(getRenewerAddress('v2')).toBe(
+      config.chain.contracts.ensEthRegistrar.address,
+    )
     expect(getRenewalRoute('v2')).toBe('/renew/$name')
   })
 })

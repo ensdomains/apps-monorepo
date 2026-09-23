@@ -9,11 +9,11 @@ import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
-import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/contracts'
 import {
   type StablecoinBalance,
   useSmartAccountContext,
 } from '@/lib/smart-account'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { hasInsufficientBalance } from '@/utils/payment'
 import type {

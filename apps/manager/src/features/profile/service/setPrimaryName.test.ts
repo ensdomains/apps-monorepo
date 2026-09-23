@@ -1,23 +1,28 @@
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Shaped like ensjs's contract map, which is what `@/lib/contracts` now binds.
-vi.mock('@/lib/contracts', () => ({
-  ENS_CONTRACTS: {
-    ensDefaultReverseRegistrar: {
-      address: '0x00000000000000000000000000000000000000d0',
-    },
-    ensReverseRegistrar: {
-      address: '0x00000000000000000000000000000000000000e0',
-    },
-    ensLegacyRegistry: {
-      address: '0x00000000000000000000000000000000000000f0',
-    },
-    ensDefaultReverseRegistrarAdapter: {
-      address: '0x00000000000000000000000000000000000000d1',
-    },
-    ensReverseRegistrarAdapter: {
-      address: '0x00000000000000000000000000000000000000e1',
+// The service reads contracts off the resolved chain, so the fixture shapes
+// them the way ensjs does.
+vi.mock('@/config', () => ({
+  config: {
+    chain: {
+      contracts: {
+        ensDefaultReverseRegistrar: {
+          address: '0x00000000000000000000000000000000000000d0',
+        },
+        ensReverseRegistrar: {
+          address: '0x00000000000000000000000000000000000000e0',
+        },
+        ensLegacyRegistry: {
+          address: '0x00000000000000000000000000000000000000f0',
+        },
+        ensDefaultReverseRegistrarAdapter: {
+          address: '0x00000000000000000000000000000000000000d1',
+        },
+        ensReverseRegistrarAdapter: {
+          address: '0x00000000000000000000000000000000000000e1',
+        },
+      },
     },
   },
 }))

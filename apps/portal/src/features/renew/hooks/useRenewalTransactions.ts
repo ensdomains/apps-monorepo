@@ -5,7 +5,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { type Address, encodeFunctionData, type PublicClient } from 'viem'
+import {
+  type Address,
+  encodeFunctionData,
+  type PublicClient,
+  zeroHash,
+} from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
@@ -17,7 +22,6 @@ import {
 } from '@/features/transaction-manager/helpers/intents'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
-import { REFERER_ADDRESS } from '@/lib/contracts'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { getLabel } from '@/utils/token/getLabel'
 import { getRenewerAddress } from '../utils/renewer'
@@ -197,7 +201,7 @@ function buildRenewIntent(params: RenewParams): CustomTransactionIntent {
       name: `${getLabel(params.name)}.eth`,
       duration: BigInt(params.duration),
       paymentToken: params.tokenAddress,
-      referrer: REFERER_ADDRESS,
+      referrer: zeroHash,
       contract: params.isV2 ? 'ensEthRegistrar' : 'ensEthRenewerV1',
     },
   )

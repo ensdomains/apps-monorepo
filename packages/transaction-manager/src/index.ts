@@ -1,5 +1,4 @@
 // Contracts
-export { EMPTY_ADDRESS, REFERER_ADDRESS } from './contracts/constants'
 // Errors
 export {
   SignerAddressMismatchError,

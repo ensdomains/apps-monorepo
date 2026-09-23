@@ -2,10 +2,14 @@ import { ensContractsFor, getTokens } from '@ens-apps/config'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import type { Address, PublicClient, WalletClient } from 'viem'
-import { decodeFunctionData, erc20Abi, toFunctionSelector } from 'viem'
+import {
+  decodeFunctionData,
+  erc20Abi,
+  toFunctionSelector,
+  zeroHash,
+} from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { REFERER_ADDRESS } from '../../contracts/constants'
 import type { EOASigner } from '../../types/signer.types'
 import type { EoaTransactionRequest } from '../../types/transaction.types'
 import { submitApprovalActor, submitRenewActor } from './registration.actors'
@@ -98,7 +102,7 @@ describe('V1 renewal actors', () => {
       toFunctionSelector('renew((string,uint64,bytes32),address)'),
     )
     expect(decoded.args).toEqual([
-      { label: 'alice', duration: 31_536_000n, referrer: REFERER_ADDRESS },
+      { label: 'alice', duration: 31_536_000n, referrer: zeroHash },
       TOKENS.USDC.address,
     ])
   })
