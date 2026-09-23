@@ -19,7 +19,7 @@ export const CommemorativeNftTraitsTooltip = ({
   readonly traits: RendererTraits
 }) => {
   const { t } = useLingui()
-  const { open: isOpen, onOpenChange, ...pointerHandlers } = useTraitsPopover()
+  const { isOpen, onOpenChange, ...pointerHandlers } = useTraitsPopover()
   const descriptionId = useId()
 
   return (
@@ -74,16 +74,16 @@ export const CommemorativeNftTraitsTooltip = ({
               Learn More<span className="sr-only"> about NFT traits</span>
             </Trans>
           </a>
-          <a
-            aria-disabled={!marketplaceUrl}
-            className="ml-auto underline underline-offset-2 hover:text-ens-garnet-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2"
-            href={marketplaceUrl}
-            rel="noreferrer"
-            role={marketplaceUrl ? undefined : 'link'}
-            target="_blank"
-          >
-            <Trans>OpenSea</Trans>
-          </a>
+          {marketplaceUrl ? (
+            <a
+              className="ml-auto underline underline-offset-2 hover:text-ens-garnet-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2"
+              href={marketplaceUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <Trans>OpenSea</Trans>
+            </a>
+          ) : null}
         </div>
       </PopoverContent>
     </Popover>

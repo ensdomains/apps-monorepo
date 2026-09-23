@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 export const useTraitsPopover = () => {
-  const [open, setOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   )
@@ -10,21 +10,21 @@ export const useTraitsPopover = () => {
   useEffect(() => () => clearTimeout(closeTimer.current), [])
 
   return {
-    open,
-    onOpenChange: (value: boolean) => {
+    isOpen,
+    onOpenChange: (shouldOpen: boolean) => {
       cancelClose()
-      setOpen(value)
+      setIsOpen(shouldOpen)
     },
     onPointerEnter: (event: React.PointerEvent) => {
       if (event.pointerType !== 'mouse') return
       cancelClose()
-      setOpen(true)
+      setIsOpen(true)
     },
     onPointerLeave: (event: React.PointerEvent) => {
       if (event.pointerType !== 'mouse') return
       cancelClose()
       // Allow the pointer to cross the gap into the traits panel.
-      closeTimer.current = setTimeout(() => setOpen(false), 150)
+      closeTimer.current = setTimeout(() => setIsOpen(false), 150)
     },
   }
 }

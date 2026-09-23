@@ -605,17 +605,9 @@ msgstr ""
 msgid "Copy Link"
 msgstr ""
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Copy message and open Discord"
-msgstr ""
-
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
-msgstr ""
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Could not copy the message."
 msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
@@ -1237,10 +1229,6 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Message copied. Paste it into Discord."
-msgstr ""
-
 #: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
 msgid "Migration value propositions"
 msgstr ""
@@ -1260,6 +1248,10 @@ msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Minting…"
+msgstr ""
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "More NFT actions"
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx
@@ -1604,6 +1596,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
 msgid "Price cooldown fee"
+msgstr ""
+
+#: src/features/migration/components/NameRow.tsx
+msgid "Primary name"
 msgstr ""
 
 #: src/features/dashboard/components/PrimaryBadge.tsx
