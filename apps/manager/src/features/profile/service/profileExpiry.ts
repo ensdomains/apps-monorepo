@@ -1,5 +1,4 @@
-import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
-import indexerClient from '@ens-apps/indexer/urql'
+import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -14,7 +13,6 @@ import {
   type GetExpiryErrorType as GetV2ExpiryErrorType,
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
-import { namehash } from 'viem'
 import {
   getNameExpiryStatus,
   getSubnameExpiryStatus,
@@ -77,15 +75,60 @@ const normalizeV1Expiry = (
   }
 }
 
-// A subname lives in its parent's subregistry, which the profile has no address
-// for, so its expiry comes from the indexer. Any failure answers null, which
-// renders the same as an unindexed name.
-const getIndexedExpiry = (name: string) =>
-  indexerClient
-    .query<DomainQuery>(DomainDocument, { id: namehash(name) })
-    .toPromise()
-    .then((result) => result.data?.domain?.expiryDate ?? null)
-    .catch(() => null)
+// Kept as a raw string: parsing with graphql 17 at module scope opens a
+// diagnostics-channel tracing span, which workerd disallows in global scope.
+// `includeUnreachable` keeps an already-expired ancestor in the result, which
+// is precisely the one that decides the answer.
+const AncestorExpiriesDocument = /* GraphQL */ `
+  query AncestorExpiries($names: [String!]!) {
+    domains(where: { name_in: $names, includeUnreachable: true }) {
+      name
+      expiryDate
+    }
+  }
+`
+
+type AncestorExpiriesQuery = {
+  readonly domains: readonly {
+    readonly name: string | null
+    readonly expiryDate: number | null
+  }[]
+}
+
+/** Every name in the chain, leaf first: a.b.eth -> a.b.eth, b.eth, eth. */
+const nameChain = (name: string): string[] => {
+  const labels = name.split('.')
+  return labels.map((_, index) => labels.slice(index).join('.'))
+}
+
+/**
+ * A subname's effective expiry, which is the earliest in its chain.
+ *
+ * It lives in its parent's subregistry, so the profile has no address to read
+ * an expiry from on chain, and it cannot outlive an ancestor: re-registering an
+ * expired parent replaces the subregistry that holds it. Any failure, and a
+ * leaf the indexer doesn't know, answers null and renders as no expiry.
+ */
+const getIndexedEffectiveExpiry = async (
+  name: string,
+): Promise<number | null> => {
+  try {
+    const { domains } = await graphqlRequest<
+      AncestorExpiriesQuery,
+      { names: string[] }
+    >(indexerClient, AncestorExpiriesDocument, { names: nameChain(name) })
+
+    if (!domains.some((domain) => domain.name === name)) return null
+
+    const expiries = domains
+      .map((domain) => domain.expiryDate)
+      .filter((expiry): expiry is number => expiry != null)
+
+    return expiries.length > 0 ? Math.min(...expiries) : null
+  } catch {
+    return null
+  }
+}
 
 export const getExpiry = ResultFn(async function* (
   name: string,
@@ -94,7 +137,7 @@ export const getExpiry = ResultFn(async function* (
   const subname = normalizeEthName(name)
 
   if (subname && subname.parentLabelsRootFirst.length > 0) {
-    const expiry = await getIndexedExpiry(subname.name)
+    const expiry = await getIndexedEffectiveExpiry(subname.name)
 
     return ok({
       expiry: expiry === null ? null : BigInt(expiry),
