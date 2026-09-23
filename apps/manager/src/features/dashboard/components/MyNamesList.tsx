@@ -11,10 +11,7 @@ import {
   type SortDir,
   type SortField,
 } from '@/features/dashboard/mergedNames'
-import {
-  type ProfileRecordsResult,
-  profileRecordsQuery,
-} from '@/features/profile/service/profileRecords'
+import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
@@ -24,6 +21,7 @@ import { DashboardPagination } from './DashboardPagination'
 import type { NameRole } from './DashboardPills'
 import { NameRow, type NameRowCta, type NameStatus } from './NameRow'
 import { getNameRowProfilePreview } from './nameRowProfileRecords'
+import { nameRowRecordsQuery } from './nameRowRecordsQuery'
 
 const PAGE_SIZE = 5
 const OWNER_NAME_ROLES = ['owner'] as const satisfies readonly NameRole[]
@@ -87,7 +85,7 @@ const AnimatedNameRow = ({
   readonly item: MergedItem
   readonly name: string
   readonly index: number
-  readonly profileRecords?: ProfileRecordsResult | null
+  readonly profileRecords?: Pick<ProfileRecordsResult, 'texts'> | null
   readonly isProfileRecordsLoading: boolean
   readonly shouldReduceMotion: boolean | null
   readonly favoriteLabels: ReadonlySet<string>
@@ -254,7 +252,7 @@ export const MyNamesList = ({
   }))
   const pageProfileRecords = useQueries({
     queries: pageRows.map(({ item, metadata, name }) => ({
-      ...profileRecordsQuery(name),
+      ...nameRowRecordsQuery(name),
       enabled: item.kind === 'v2' && !metadata.isInGrace,
     })),
     combine: (results) =>

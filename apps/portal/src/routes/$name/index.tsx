@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem'
-import { useEnsResolver } from 'wagmi'
+import { useConnection, useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
@@ -10,9 +10,13 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { nameHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { DnsClaimableMessage } from '@/features/dns-import/components/DnsClaimableMessage'
+import { DnsOutOfSyncBanner } from '@/features/dns-import/components/DnsOutOfSyncBanner'
+import { SyncManagerBanner } from '@/features/dns-import/components/SyncManagerBanner'
+import { useDnsSyncStatus } from '@/features/dns-import/hooks/useDnsSyncStatus'
 import { RecentHistoryTimeline } from '@/features/history/components/RecentHistoryTimeline'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
+import { DnsManagerRow } from '@/features/ownership/components/DnsManagerRow'
 import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
@@ -136,6 +140,17 @@ const Profile = ({
     protocolVersion: isEthTld
       ? (ownerQuery.data?.protocolVersion ?? 'ENSv2')
       : undefined,
+  })
+
+  const { address: connectedAddress } = useConnection()
+
+  // Sync state between an imported DNS name's `_ens` TXT record and its v1
+  // manager. Internally gated to onchain-imported DNS 2LDs.
+  const dnsSync = useDnsSyncStatus({
+    name,
+    manager: ownerQuery.data?.owner,
+    protocolVersion: ownerQuery.data?.protocolVersion,
+    connectedAddress,
   })
 
   const migrationQuery = useMigrationStatus(name, {
@@ -370,6 +385,16 @@ const Profile = ({
 
       {showUpgradeBanner && <UpgradeBanner name={name} />}
 
+      {dnsSync.status === 'syncable' && <SyncManagerBanner name={name} />}
+
+      {dnsSync.status === 'out-of-sync' && (
+        <DnsOutOfSyncBanner
+          name={name}
+          onRefresh={dnsSync.refresh}
+          isRefreshing={dnsSync.isRefreshing}
+        />
+      )}
+
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
         <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
@@ -397,6 +422,11 @@ const Profile = ({
             owner={ownerQuery.data.owner}
             protocolVersion={resolvedProtocolVersion}
             label={grace.isInGrace ? 'Previous owner' : 'Owner'}
+          />
+          <DnsManagerRow
+            name={name}
+            manager={ownerQuery.data.owner}
+            protocolVersion={resolvedProtocolVersion}
           />
           <ParentName name={name} asRow />
           {resolverAddress && (

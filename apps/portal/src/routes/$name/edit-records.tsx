@@ -74,7 +74,11 @@ function EditRecordsPage() {
   // Get resolver address from the correct registry (V1 or V2)
   const { data: resolverAddress, isLoading: isResolverLoading } =
     useNameResolverAddress({ name })
-  const { canEdit, isLoading: isCanEditLoading } = useCanEditRecords({ name })
+  const {
+    canEdit,
+    hasOwnResolver,
+    isLoading: isCanEditLoading,
+  } = useCanEditRecords({ name })
 
   const isLoading =
     profileQuery.isLoading ||
@@ -121,6 +125,49 @@ function EditRecordsPage() {
         title="Name not found"
         description="Could not determine the owner or resolver for this name."
       />
+    )
+  }
+
+  // A name that resolves through an ancestor — a DNS name served by its TLD’s
+  // offchain resolver, say — has no resolver of its own to write to, and the
+  // inherited one reverts on every setter. Stopping here keeps the save away
+  // from a wallet that would turn the failed estimate into a block-gas-limit
+  // guess and have the RPC reject it as "gas limit too high".
+  if (hasOwnResolver !== true) {
+    return (
+      <div className="container mx-auto max-w-4xl px-4 py-8">
+        <div className="flex items-center gap-2 mb-6">
+          <Link to="/$name" params={{ name }} className="hover:opacity-70">
+            <ArrowLeftIcon className="w-5 h-5" />
+          </Link>
+          <h1 className="text-h1">{name}</h1>
+        </div>
+        {hasOwnResolver === false ? (
+          <ErrorMessage
+            title="No resolver set"
+            description={
+              <>
+                <strong>{name}</strong> has no resolver of its own, so there is
+                nothing on chain to write records to. It still resolves through
+                a parent — for a DNS name, its TLD’s offchain resolver reading
+                the name’s <code>ENS1</code> TXT record — but that resolver is
+                read-only. Set a resolver on the name to edit its records here.
+              </>
+            }
+          />
+        ) : (
+          <ErrorMessage
+            title="Resolver unavailable"
+            description={
+              <>
+                We couldn’t confirm which resolver <strong>{name}</strong> uses,
+                so editing is disabled rather than risk a transaction that would
+                fail. Try again in a moment.
+              </>
+            }
+          />
+        )}
+      </div>
     )
   }
 

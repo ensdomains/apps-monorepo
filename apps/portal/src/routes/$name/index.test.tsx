@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { createTestWrapper } from '@/test-utils'
 
 const CONTROLLER = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
 const REGISTRY = '0x1111111111111111111111111111111111111111'
@@ -137,13 +138,19 @@ const { Route } = await import('./index')
 const NameRoute = (Route as unknown as { component: () => React.ReactElement })
   .component
 
+// `useQuery` is stubbed above, but the page still reaches the real client for
+// invalidation (the DNS sync refresh), so it needs a provider like it has in
+// the app.
+const renderRoute = () =>
+  render(<NameRoute />, { wrapper: createTestWrapper() })
+
 describe('name route — Owner row', () => {
   // WEB-1468: this page and the ownership page must not name different
   // addresses for the same V1 name, so both go through NameOwnerRow.
   it('delegates the V1 owner row to the shared component', () => {
     protocolVersion = 'ENSv1'
 
-    render(<NameRoute />)
+    renderRoute()
 
     expect(screen.getByTestId('owner-row')).toHaveTextContent(
       JSON.stringify({
@@ -158,7 +165,7 @@ describe('name route — Owner row', () => {
   it('passes the resolved owner through for a V2 name', () => {
     protocolVersion = 'ENSv2'
 
-    render(<NameRoute />)
+    renderRoute()
 
     expect(screen.getByTestId('owner-row')).toHaveTextContent(
       JSON.stringify({
@@ -174,7 +181,7 @@ describe('name route — Owner row', () => {
     protocolVersion = 'ENSv1'
     isInGrace = true
 
-    render(<NameRoute />)
+    renderRoute()
 
     expect(screen.getByTestId('owner-row')).toHaveTextContent(
       '"label":"Previous owner"',

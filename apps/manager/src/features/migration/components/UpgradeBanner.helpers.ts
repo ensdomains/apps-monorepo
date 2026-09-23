@@ -8,7 +8,7 @@ type ShouldShowUpgradeBannerParams = {
 
 const normalizeName = (name: string) => name.trim().toLowerCase()
 
-const isEligibleProfileName = (
+export const isEligibleProfileName = (
   eligibleV1Names: readonly ClassifiedName[],
   profileName: string,
 ) => {
