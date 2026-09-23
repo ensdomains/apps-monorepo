@@ -1049,6 +1049,54 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.buildMigrationApprovalCall).not.toHaveBeenCalled()
   })
 
+  it('requires a new preview when a grant becomes missing during recovery', async () => {
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
+      status: 'incomplete',
+      verification: { batchIndex: 0, status: 'confirmed', results: [] },
+      mismatches: [{ expectationId: 'alice.eth:name-owner' }],
+    })
+    mocks.planMigrationApprovals.mockReturnValue([APPROVAL])
+
+    const error = await runExecute({ reconcileBeforeSubmit: true }).catch(
+      (cause: unknown) => cause,
+    )
+
+    expect(error).toMatchObject({
+      name: 'MigrationPlanChangedError',
+      plannedApprovalKeys: [],
+      currentApprovalKeys: [
+        `${APPROVAL.contractAddress.toLowerCase()}:${APPROVAL.operatorAddress.toLowerCase()}`,
+      ],
+    })
+    expect(mocks.buildMigrationApprovalCall).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('skips a planned grant that became satisfied during recovery', async () => {
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
+      status: 'incomplete',
+      verification: { batchIndex: 0, status: 'confirmed', results: [] },
+      mismatches: [{ expectationId: 'alice.eth:name-owner' }],
+    })
+    const plan = {
+      ...planFor(),
+      preflight: {
+        ...planFor().preflight,
+        migrationApprovals: [APPROVAL],
+      },
+    }
+
+    const { progressEvents } = await runExecute({
+      plan,
+      reconcileBeforeSubmit: true,
+    })
+
+    expect(mocks.buildMigrationApprovalCall).not.toHaveBeenCalled()
+    expect(progressEvents).toContainEqual(
+      expect.objectContaining({ description: 'Permission already granted' }),
+    )
+  })
+
   it('requires a new preview when temporary HCA access appears before submission', async () => {
     setHcaApprovalActive()
     const plan = {

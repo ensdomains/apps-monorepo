@@ -1,17 +1,9 @@
 import { Trans } from '@lingui/react/macro'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2Icon } from 'lucide-react'
-import type { Address } from 'viem'
-import { useConfig, usePublicClient, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { migrationOperatorApprovalsQueryKey } from '@/features/migration/service/migrationApprovalQueryKeys'
-import {
-  type MigrationOperatorApproval,
-  readActiveMigrationOperatorApprovals,
-} from '@/features/migration/service/migrationApprovals'
-import { useSmartAccountContext } from '@/lib/smart-account'
-import { revokeMigrationApproval } from './revokeMigrationApproval'
+import type { MigrationOperatorApproval } from '@/features/migration/service/migrationApprovals'
+import { useMigrationApprovalSettings } from './useMigrationApprovalSettings'
 
 const approvalDescription = (id: MigrationOperatorApproval['id']) => {
   switch (id) {
@@ -47,51 +39,9 @@ const approvalDescription = (id: MigrationOperatorApproval['id']) => {
 }
 
 export const MigrationApprovalSettings = () => {
-  const { ownerAddress, accountAddress: hcaAddress } = useSmartAccountContext()
-  const { data: walletClient } = useWalletClient()
-  const wagmiConfig = useConfig()
-  const publicClient = usePublicClient()
-  const queryClient = useQueryClient()
-  const owner = ownerAddress as Address | undefined
-  const hca = hcaAddress as Address | undefined
-  const chainId = publicClient?.chain.id
-  const queryKey = migrationOperatorApprovalsQueryKey({ owner, hca, chainId })
-  const approvalsQuery = useQuery({
-    queryKey,
-    enabled: Boolean(owner && hca),
-    queryFn: () =>
-      readActiveMigrationOperatorApprovals({
-        eoa: owner as Address,
-        hcaAddress: hca as Address,
-        wagmiConfig,
-      }),
-    staleTime: 0,
-  })
-  const revoke = useMutation({
-    mutationFn: (approval: MigrationOperatorApproval) =>
-      revokeMigrationApproval({
-        approval,
-        owner,
-        hca,
-        walletAddress: walletClient?.account?.address,
-        chainId,
-        wagmiConfig,
-        queryClient,
-      }),
-  })
-
+  const { owner, hca, approvalsQuery, displayedApprovals, revoke } =
+    useMigrationApprovalSettings()
   const activeApprovals = approvalsQuery.data ?? []
-  const temporaryHcaApproval = activeApprovals.find(
-    (approval) => approval.id === 'eth-registry:hca',
-  )
-  const displayedApprovals = temporaryHcaApproval
-    ? [
-        temporaryHcaApproval,
-        ...activeApprovals.filter(
-          (approval) => approval !== temporaryHcaApproval,
-        ),
-      ]
-    : activeApprovals
 
   return (
     <section

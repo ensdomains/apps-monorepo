@@ -556,13 +556,19 @@ const assertMigrationApprovalPlanCurrent = async (params: {
     plannedApprovalKeys.every(
       (approvalKey, index) => approvalKey === currentApprovalKeys[index],
     )
+  const hasUnplannedGrants = currentApprovalKeys.some(
+    (approvalKey) => !plannedApprovalKeys.includes(approvalKey),
+  )
   const cleanupMatches =
     plannedCleanupApprovalKeys.length === currentCleanupApprovalKeys.length &&
     plannedCleanupApprovalKeys.every(
       (approvalKey, index) => approvalKey === currentCleanupApprovalKeys[index],
     )
 
-  if ((!params.allowGrantChanges && !grantsMatch) || !cleanupMatches) {
+  if (
+    (params.allowGrantChanges ? hasUnplannedGrants : !grantsMatch) ||
+    !cleanupMatches
+  ) {
     throw new MigrationPlanChangedError({
       message:
         'Migration permissions or cleanup changed after the preview. Return to selection to review the updated confirmation estimate.',
@@ -1677,8 +1683,8 @@ export const executeMigration = async (params: {
 
     // Permission state is mutable outside this flow. Check both grants and
     // cleanup before the first wallet prompt, including cleanup-only retries.
-    // Retries allow grant changes from a prior attempt, but still require the
-    // cleanup step to match the plan and its confirmation estimate.
+    // Retries may skip grants completed by a prior attempt, but new grants and
+    // cleanup must match the plan and its confirmation estimate.
     const currentMissing = await assertMigrationApprovalPlanCurrent({
       ctx,
       plan: executionPlan,
