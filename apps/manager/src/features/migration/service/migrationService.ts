@@ -48,6 +48,7 @@ import {
   type MigrationCleanupApproval,
   migrationApprovalKey,
   planMigrationApprovals,
+  requiresMigrationApprovalCleanup,
   temporaryMigrationHcaApproval,
 } from './migrationApprovals'
 import {
@@ -101,6 +102,8 @@ class MigrationPlanChangedError extends TaggedError(
   readonly message: string
   readonly plannedApprovalKeys: readonly string[]
   readonly currentApprovalKeys: readonly string[]
+  readonly plannedCleanupApprovalKeys: readonly string[]
+  readonly currentCleanupApprovalKeys: readonly string[]
 }> {}
 
 class SubmittedAtomicMigrationIndeterminateError extends TaggedError(
@@ -483,11 +486,27 @@ const approvalDescription = (approval: MigrationApproval): string => {
   }
 }
 
-const getMissingMigrationApprovals = async (params: {
+const getCurrentMigrationApprovals = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
-}): Promise<readonly MigrationApproval[]> => {
+}): Promise<{
+  readonly missing: readonly MigrationApproval[]
+  readonly cleanup: readonly MigrationCleanupApproval[]
+}> => {
   const { ctx, plan } = params
+  if (plan.classified.length === 0) {
+    // Reconciliation may finish every name before setup. No grant is needed,
+    // but a newly active HCA permission would still add a cleanup prompt.
+    const isActive = await hasTemporaryMigrationHcaApproval({
+      publicClient: ctx.publicClient,
+      eoa: ctx.walletAddress,
+      hcaAddress: ctx.hcaAddress,
+    })
+    return {
+      missing: [],
+      cleanup: isActive ? [temporaryMigrationHcaApproval(ctx.hcaAddress)] : [],
+    }
+  }
   const basicNeeds = approvalNeedsFor(plan.groups)
   const needs = {
     ...basicNeeds,
@@ -501,11 +520,17 @@ const getMissingMigrationApprovals = async (params: {
     needs,
     wagmiConfig: ctx.wagmiConfig,
   })
-  return planMigrationApprovals({
+  const missing = planMigrationApprovals({
     hcaAddress: ctx.hcaAddress,
     needs,
     status,
   })
+  const cleanup =
+    status.ethRegistryHcaApproved ||
+    missing.some(requiresMigrationApprovalCleanup)
+      ? [temporaryMigrationHcaApproval(ctx.hcaAddress)]
+      : []
+  return { missing, cleanup }
 }
 
 const sortedApprovalKeys = (
@@ -515,24 +540,36 @@ const sortedApprovalKeys = (
 const assertMigrationApprovalPlanCurrent = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
+  readonly allowGrantChanges: boolean
 }): Promise<readonly MigrationApproval[]> => {
-  const missing = await getMissingMigrationApprovals(params)
+  const { missing, cleanup } = await getCurrentMigrationApprovals(params)
   const plannedApprovalKeys = sortedApprovalKeys(
     params.plan.preflight.migrationApprovals ?? [],
   )
   const currentApprovalKeys = sortedApprovalKeys(missing)
-  const matches =
+  const plannedCleanupApprovalKeys = sortedApprovalKeys(
+    params.plan.preflight.migrationCleanupApprovals ?? [],
+  )
+  const currentCleanupApprovalKeys = sortedApprovalKeys(cleanup)
+  const grantsMatch =
     plannedApprovalKeys.length === currentApprovalKeys.length &&
     plannedApprovalKeys.every(
       (approvalKey, index) => approvalKey === currentApprovalKeys[index],
     )
+  const cleanupMatches =
+    plannedCleanupApprovalKeys.length === currentCleanupApprovalKeys.length &&
+    plannedCleanupApprovalKeys.every(
+      (approvalKey, index) => approvalKey === currentCleanupApprovalKeys[index],
+    )
 
-  if (!matches) {
+  if ((!params.allowGrantChanges && !grantsMatch) || !cleanupMatches) {
     throw new MigrationPlanChangedError({
       message:
-        'Migration permissions changed after the preview. Return to selection to review the updated confirmation estimate.',
+        'Migration permissions or cleanup changed after the preview. Return to selection to review the updated confirmation estimate.',
       plannedApprovalKeys,
       currentApprovalKeys,
+      plannedCleanupApprovalKeys,
+      currentCleanupApprovalKeys,
     })
   }
   return missing
@@ -545,7 +582,8 @@ const ensureMigrationApprovals = async (params: {
 }): Promise<readonly Hex[]> => {
   const { ctx, plan } = params
   const missing =
-    params.currentMissing ?? (await getMissingMigrationApprovals({ ctx, plan }))
+    params.currentMissing ??
+    (await getCurrentMigrationApprovals({ ctx, plan })).missing
 
   const hashes: Hex[] = []
   const missingById = new Map(
@@ -596,6 +634,7 @@ const cleanupDescription = (_approval: MigrationCleanupApproval): string =>
 
 const revokeTemporaryOperatorApprovals = async (params: {
   readonly ctx: MigrationCtx
+  readonly plannedCleanupApprovals: readonly MigrationCleanupApproval[]
 }): Promise<readonly Hex[]> => {
   const approval = temporaryMigrationHcaApproval(params.ctx.hcaAddress)
   try {
@@ -606,6 +645,23 @@ const revokeTemporaryOperatorApprovals = async (params: {
     })
     if (!isActive) return []
 
+    // This read also covers errors before the pre-submit check was reached.
+    // Never open a cleanup prompt that the preview did not budget.
+    const plannedCleanupApprovalKeys = sortedApprovalKeys(
+      params.plannedCleanupApprovals,
+    )
+    const currentCleanupApprovalKey = migrationApprovalKey(approval)
+    if (!plannedCleanupApprovalKeys.includes(currentCleanupApprovalKey)) {
+      throw new MigrationPlanChangedError({
+        message:
+          'Migration cleanup changed after the preview. Return to selection to review the updated confirmation estimate.',
+        plannedApprovalKeys: [],
+        currentApprovalKeys: [],
+        plannedCleanupApprovalKeys,
+        currentCleanupApprovalKeys: [currentCleanupApprovalKey],
+      })
+    }
+
     const { hash } = await submitCall(
       params.ctx,
       buildMigrationOperatorApprovalRevocationCall(approval),
@@ -615,6 +671,7 @@ const revokeTemporaryOperatorApprovals = async (params: {
     params.ctx.tracker.emit('Temporary access removed', hash)
     return [hash]
   } catch (cause) {
+    if (cause instanceof MigrationPlanChangedError) throw cause
     throw new MigrationCleanupError({
       message: 'Temporary migration access still needs to be revoked.',
       cause,
@@ -1616,18 +1673,19 @@ export const executeMigration = async (params: {
         publicClient,
         names: executionPlan.classified,
       })
+    }
 
-      // Permission state is mutable outside this flow. Check the preview against
-      // the latest chain state before opening the first wallet prompt, then use
-      // the same snapshot for approval submission. Retries intentionally retain
-      // their reconciliation behavior because a previous attempt may already
-      // have submitted one of the planned grants.
-      const currentMissing = reconcileBeforeSubmit
-        ? undefined
-        : await assertMigrationApprovalPlanCurrent({
-            ctx,
-            plan: executionPlan,
-          })
+    // Permission state is mutable outside this flow. Check both grants and
+    // cleanup before the first wallet prompt, including cleanup-only retries.
+    // Retries allow grant changes from a prior attempt, but still require the
+    // cleanup step to match the plan and its confirmation estimate.
+    const currentMissing = await assertMigrationApprovalPlanCurrent({
+      ctx,
+      plan: executionPlan,
+      allowGrantChanges: reconcileBeforeSubmit,
+    })
+
+    if (executionPlan.classified.length > 0) {
       const deploymentHash = await ensureHcaDeployment({
         ctx,
         hcaClient,
@@ -1659,13 +1717,24 @@ export const executeMigration = async (params: {
       )
     }
   } catch (error) {
+    // A changed preview must return for a new estimate without opening an
+    // unplanned revocation prompt. No transaction has been attempted yet.
+    if (error instanceof MigrationPlanChangedError) throw error
     // A grant can be confirmed even when a later wallet prompt or batch fails.
     // Keep the original failure if cleanup succeeds; surface cleanup failure
     // when the wallet declines the revocation.
-    await revokeTemporaryOperatorApprovals({ ctx })
+    await revokeTemporaryOperatorApprovals({
+      ctx,
+      plannedCleanupApprovals: plan.preflight.migrationCleanupApprovals ?? [],
+    })
     throw error
   }
-  txHashes.push(...(await revokeTemporaryOperatorApprovals({ ctx })))
+  txHashes.push(
+    ...(await revokeTemporaryOperatorApprovals({
+      ctx,
+      plannedCleanupApprovals: plan.preflight.migrationCleanupApprovals ?? [],
+    })),
+  )
   ctx.tracker.complete('Upgrade complete', txHashes.at(-1))
 
   if (usesDurableCopyRecovery(plan)) {

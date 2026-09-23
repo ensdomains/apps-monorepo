@@ -84,7 +84,10 @@ import type { MigrationPlan } from './buildMigrationPlan'
 import type { ClassifiedName, CopyClassifiedName } from './classifyNames'
 import { groupClassifiedNames } from './classifyNames'
 import { createMigrationData } from './encodeMigration'
-import type { MigrationApproval } from './migrationApprovals'
+import {
+  type MigrationApproval,
+  temporaryMigrationHcaApproval,
+} from './migrationApprovals'
 import {
   loadMigrationRecoverySnapshot,
   loadPendingAtomicMigrationIntents,
@@ -144,6 +147,9 @@ const PUBLIC_CLIENT = {
 } as unknown as PublicClient
 
 const setHcaApprovalActive = () => {
+  mocks.checkMigrationApprovals.mockResolvedValue({
+    ethRegistryHcaApproved: true,
+  })
   readContractMock.mockImplementation(
     ({ functionName }: { functionName: string }) => {
       if (functionName === 'ownerOf') return Promise.resolve(OWNER)
@@ -165,6 +171,7 @@ const MANAGER_APPROVAL: MigrationApproval = {
   contractAddress: APPROVAL_CONTRACT,
   operatorAddress: HCA,
 }
+const CLEANUP_APPROVAL = temporaryMigrationHcaApproval(HCA)
 
 const hashFor = (value: number): Hex =>
   `0x${value.toString(16).padStart(64, '0')}` as Hex
@@ -550,6 +557,7 @@ describe('executeMigration HCA orchestration', () => {
       preflight: {
         ...basePlan.preflight,
         migrationApprovals: [MANAGER_APPROVAL],
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
       },
     }
     mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
@@ -892,6 +900,7 @@ describe('executeMigration HCA orchestration', () => {
       preflight: {
         ...planFor().preflight,
         migrationApprovals: [APPROVAL, MANAGER_APPROVAL],
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
       },
       stepDescriptors: [
         { type: 'approval' as const, approvalId: APPROVAL.id },
@@ -1038,6 +1047,73 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.verifyStandaloneHca).not.toHaveBeenCalled()
     expect(mocks.startTransaction).not.toHaveBeenCalled()
     expect(mocks.buildMigrationApprovalCall).not.toHaveBeenCalled()
+  })
+
+  it('requires a new preview when temporary HCA access appears before submission', async () => {
+    setHcaApprovalActive()
+    const plan = {
+      ...planFor(),
+      hcaDeploymentRequired: true,
+      stepDescriptors: [{ type: 'deploy-hca' as const }],
+    }
+
+    const error = await runExecute({ plan }).catch((cause: unknown) => cause)
+
+    expect(error).toMatchObject({
+      name: 'MigrationPlanChangedError',
+      plannedApprovalKeys: [],
+      currentApprovalKeys: [],
+      plannedCleanupApprovalKeys: [],
+      currentCleanupApprovalKeys: [
+        `${V2_CONTRACTS.ETHRegistry.toLowerCase()}:${HCA.toLowerCase()}`,
+      ],
+    })
+    expect(mocks.buildHcaDeploymentCall).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('checks cleanup after retry reconciliation completes every name', async () => {
+    setHcaApprovalActive()
+    persistPendingAtomicMigrationIntent(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        id: 'completed-before-cleanup-check',
+        names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
+      },
+    )
+
+    const error = await runExecute({ reconcileBeforeSubmit: true }).catch(
+      (cause: unknown) => cause,
+    )
+
+    expect(error).toMatchObject({
+      name: 'MigrationPlanChangedError',
+      plannedCleanupApprovalKeys: [],
+      currentCleanupApprovalKeys: [
+        `${V2_CONTRACTS.ETHRegistry.toLowerCase()}:${HCA.toLowerCase()}`,
+      ],
+    })
+    expect(mocks.assertNoLiveSubregistryOverwrite).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('does not prompt for unplanned cleanup when an earlier read fails', async () => {
+    setHcaApprovalActive()
+    mocks.assertNoLiveSubregistryOverwrite.mockRejectedValueOnce(
+      new Error('pointer read failed'),
+    )
+
+    const error = await runExecute().catch((cause: unknown) => cause)
+
+    expect(error).toMatchObject({
+      name: 'MigrationPlanChangedError',
+      plannedCleanupApprovalKeys: [],
+      currentCleanupApprovalKeys: [
+        `${V2_CONTRACTS.ETHRegistry.toLowerCase()}:${HCA.toLowerCase()}`,
+      ],
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
   it('blocks a name that gained a live subregistry before the first wallet prompt', async () => {
@@ -1609,6 +1685,7 @@ describe('executeMigration HCA orchestration', () => {
       preflight: {
         ...planFor().preflight,
         migrationApprovals: [MANAGER_APPROVAL],
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
       },
       stepDescriptors: [
         { type: 'deploy-hca' as const },
@@ -1812,6 +1889,7 @@ describe('executeMigration HCA orchestration', () => {
       preflight: {
         ...planFor().preflight,
         migrationApprovals: [MANAGER_APPROVAL],
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
       },
     }
     const { result } = await runExecute({ plan })
@@ -1839,6 +1917,7 @@ describe('executeMigration HCA orchestration', () => {
       preflight: {
         ...planFor().preflight,
         migrationApprovals: [MANAGER_APPROVAL],
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
       },
     }
 
@@ -1852,6 +1931,9 @@ describe('executeMigration HCA orchestration', () => {
     let isApprovedForAll = false
     let rejectFirstCleanup = true
     let nextTransaction = 0
+    mocks.checkMigrationApprovals.mockImplementation(() =>
+      Promise.resolve({ ethRegistryHcaApproved: isApprovedForAll }),
+    )
     readContractMock.mockImplementation(
       ({ functionName }: { functionName: string }) => {
         if (functionName === 'isApprovedForAll') {
@@ -1884,6 +1966,7 @@ describe('executeMigration HCA orchestration', () => {
       preflight: {
         ...planFor().preflight,
         migrationApprovals: [MANAGER_APPROVAL],
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
       },
     }
     await expect(runExecute({ plan: firstPlan })).rejects.toMatchObject({
@@ -1898,6 +1981,7 @@ describe('executeMigration HCA orchestration', () => {
       preflight: {
         ...planFor().preflight,
         migrationApprovals: [],
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
       },
     }
     const { result } = await runExecute({ plan: restartedPlan })

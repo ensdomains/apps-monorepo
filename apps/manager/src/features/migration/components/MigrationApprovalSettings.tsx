@@ -1,17 +1,17 @@
 import { Trans } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { writeContract } from '@wagmi/core'
 import { Loader2Icon } from 'lucide-react'
-import { type Address, isAddressEqual } from 'viem'
+import type { Address } from 'viem'
 import { useConfig, usePublicClient, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { OPERATOR_APPROVAL_ABI } from '@/features/migration/contracts/abis'
+import { migrationOperatorApprovalsQueryKey } from '@/features/migration/service/migrationApprovalQueryKeys'
 import {
   type MigrationOperatorApproval,
   readActiveMigrationOperatorApprovals,
 } from '@/features/migration/service/migrationApprovals'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { revokeMigrationApproval } from './revokeMigrationApproval'
 
 const approvalDescription = (id: MigrationOperatorApproval['id']) => {
   switch (id) {
@@ -54,11 +54,8 @@ export const MigrationApprovalSettings = () => {
   const queryClient = useQueryClient()
   const owner = ownerAddress as Address | undefined
   const hca = hcaAddress as Address | undefined
-  const queryKey = [
-    'migration-operator-approvals',
-    owner?.toLowerCase(),
-    hca?.toLowerCase(),
-  ] as const
+  const chainId = publicClient?.chain.id
+  const queryKey = migrationOperatorApprovalsQueryKey({ owner, hca, chainId })
   const approvalsQuery = useQuery({
     queryKey,
     enabled: Boolean(owner && hca),
@@ -71,30 +68,16 @@ export const MigrationApprovalSettings = () => {
     staleTime: 0,
   })
   const revoke = useMutation({
-    mutationFn: async (approval: MigrationOperatorApproval) => {
-      if (!owner || !walletClient?.account || !publicClient?.chain) {
-        throw new Error('Connect the owner wallet to remove this permission.')
-      }
-      if (!isAddressEqual(owner, walletClient.account.address)) {
-        throw new Error('Connect the owner wallet to remove this permission.')
-      }
-      const hash = await writeContract(wagmiConfig, {
-        address: approval.contractAddress,
-        abi: OPERATOR_APPROVAL_ABI,
-        functionName: 'setApprovalForAll',
-        args: [approval.operatorAddress, false],
-        account: owner,
-        chainId: publicClient.chain.id,
-      })
-      const receipt = await publicClient.waitForTransactionReceipt({ hash })
-      if (receipt.status !== 'success') {
-        throw new Error('The revocation failed. Please try again.')
-      }
-      await queryClient.invalidateQueries({ queryKey })
-      await queryClient.invalidateQueries({
-        queryKey: ['migration-hca-approval'],
-      })
-    },
+    mutationFn: (approval: MigrationOperatorApproval) =>
+      revokeMigrationApproval({
+        approval,
+        owner,
+        hca,
+        walletAddress: walletClient?.account?.address,
+        chainId,
+        wagmiConfig,
+        queryClient,
+      }),
   })
 
   const activeApprovals = approvalsQuery.data ?? []
@@ -131,7 +114,7 @@ export const MigrationApprovalSettings = () => {
       </div>
 
       {approvalsQuery.isPending && owner && hca && (
-        <div className="flex items-center gap-3 rounded-lg bg-[#fafafb] p-4 text-slate-600 text-sm">
+        <div className="flex items-center gap-3 rounded-lg bg-ens-quartz-50 p-4 text-slate-600 text-sm">
           <Loader2Icon aria-hidden className="size-5 animate-spin" />
           <Trans>Checking migration access...</Trans>
         </div>
@@ -156,7 +139,7 @@ export const MigrationApprovalSettings = () => {
         </div>
       )}
       {approvalsQuery.isSuccess && activeApprovals.length === 0 && (
-        <div className="flex items-start gap-3 rounded-lg bg-[#fafafb] p-4">
+        <div className="flex items-start gap-3 rounded-lg bg-ens-quartz-50 p-4">
           <MSymbol
             aria-hidden
             className="ms-opsz-20 mt-0.5 text-ens-blue-dark"
@@ -179,7 +162,7 @@ export const MigrationApprovalSettings = () => {
           revoke.isPending && revoke.variables?.id === approval.id
         return (
           <div
-            className="flex flex-col gap-3 rounded-lg bg-[#fafafb] p-4 md:flex-row md:items-start md:justify-between md:gap-4"
+            className="flex flex-col gap-3 rounded-lg bg-ens-quartz-50 p-4 md:flex-row md:items-start md:justify-between md:gap-4"
             key={approval.id}
           >
             <div className="flex flex-1 items-start gap-2">
