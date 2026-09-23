@@ -10,12 +10,17 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
+import type { Config as WagmiConfig } from '@wagmi/core'
 import { createElement, type ReactNode, useEffect } from 'react'
 import type { Address } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { CommemorativeNftDashboard } from '../components/success/CommemorativeNftDashboard'
 import { CommemorativeNftProfileSection } from '../components/success/CommemorativeNftProfileSection'
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
-import { commemorativeNftEligibilityQueryOptions } from './queries'
+import {
+  commemorativeNftClaimedQueryOptions,
+  commemorativeNftEligibilityQueryOptions,
+} from './queries'
 import type { CommemorativeNftEligibilityResult } from './types'
 import { useCommemorativeNftOffer } from './useCommemorativeNftOffer'
 
@@ -181,6 +186,23 @@ describe('shared commemorative NFT offers', () => {
     )
     expect(result.current.canOpenMint).toBe(false)
     expect(result.current.canSubmitMint).toBe(false)
+  })
+
+  it('shows the revealed dashboard card after a verified mint without reopening mint', async () => {
+    const { client, wrapper } = createContext()
+    client.setQueryData(
+      commemorativeNftClaimedQueryOptions({
+        ownerAddress,
+        chainId: 11155111,
+        wagmiConfig: {} as WagmiConfig,
+      }).queryKey,
+      true,
+    )
+    render(createElement(CommemorativeNftDashboard), { wrapper })
+
+    expect(await screen.findByText('Welcome to ENSv2')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Mint' })).toBeNull()
+    expect(mocks.claimed).not.toHaveBeenCalled()
   })
 
   it('keeps claim recovery available without browser coordination', async () => {
