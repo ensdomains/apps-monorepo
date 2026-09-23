@@ -488,6 +488,9 @@ describe('useNameSelection manager restoration (WEB-1528)', () => {
       useNameSelection({
         eligible: [locked],
         isPending: false,
+        // A resumed run sets both: recovery seeds every name from the saved
+        // plan, and the opt-in it replays can no longer be changed.
+        isRecovery: true,
         isManagerRestorationLocked: true,
         onNamesChange,
         onManagerRestorationChange,
