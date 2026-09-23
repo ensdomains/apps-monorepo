@@ -29,3 +29,24 @@ export function buildSearchResultItems({
   }
   return items
 }
+
+/**
+ * Moves the suggestion for `exactMatchName` to the front, keeping the relative
+ * order of the rest. The exact match is what the user typed, so it must be the
+ * first item Enter selects — ahead of other TLDs or available-to-register names.
+ */
+export function sortExactMatchFirst(
+  suggestions: Suggestion[],
+  exactMatchName: string,
+): Suggestion[] {
+  const index = suggestions.findIndex(
+    (s) => s.inputValue.trim().toLowerCase() === exactMatchName,
+  )
+  const exactMatch = suggestions[index]
+  if (index <= 0 || !exactMatch) return suggestions
+  return [
+    exactMatch,
+    ...suggestions.slice(0, index),
+    ...suggestions.slice(index + 1),
+  ]
+}

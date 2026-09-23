@@ -43,11 +43,13 @@ export function is2LD(name: string): boolean {
 export type FilterAndSortOwnedNamesOptions = {
   /** Max number of names to return (default: no limit). */
   max?: number
+  /** Name to leave out, matched case-insensitively (default: none). */
+  exclude?: string
 }
 
 /**
- * Filters owned names by search query (includes, case-insensitive, trimmed)
- * and sorts: 2LD names first, then subnames (3+ labels), then alphabetically by name within each group.
+ * Filters owned names by search query (includes, case-insensitive, trimmed),
+ * drops `options.exclude` if given, and sorts: 2LD names first, then subnames (3+ labels), then alphabetically by name within each group.
  *
  * The TLD suffix (e.g. ".eth") is stripped from the query before matching so
  * that searching "dom.eth" still finds "dominico.eth".
@@ -70,11 +72,15 @@ export function filterAndSortOwnedNames(
   const matchQuery = shouldStripSuffix && lastDot >= 0 ? q.slice(0, lastDot) : q
   if (!matchQuery) return []
 
-  const matching = ownedNames.filter((d) =>
-    d.name.trim().toLowerCase().includes(matchQuery),
-  )
-
   const normalized = (name: string) => name.trim().toLowerCase()
+
+  const excluded = options.exclude ? normalized(options.exclude) : null
+
+  const matching = ownedNames.filter(
+    (d) =>
+      normalized(d.name).includes(matchQuery) &&
+      normalized(d.name) !== excluded,
+  )
 
   const sorted = [...matching].sort((a, b) => {
     const a2 = is2LD(a.name)

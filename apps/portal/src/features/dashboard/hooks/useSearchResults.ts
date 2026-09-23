@@ -7,6 +7,7 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import { useIsMobile } from '@/hooks/use-mobile'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
+import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import type { ProtocolVersion } from '@/utils/types'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
@@ -21,6 +22,7 @@ import {
 import {
   buildSearchResultItems,
   type SearchResultItem,
+  sortExactMatchFirst,
 } from '../utils/searchResultsUtils'
 import { useSuggestionTlds } from './useSuggestionTlds'
 import { getV1NamesForAddressQueryOptions } from './useV1NamesForAddress'
@@ -143,12 +145,31 @@ export const useSearchResults = ({
     [v1NamesQuery.data, v2NamesQuery.data],
   )
 
+  /** The name the input refers to exactly, e.g. "fox" and "fox.eth" both mean fox.eth. */
+  const exactMatchName = useMemo(() => {
+    const trimmed = searchValue.trim()
+    return searchedAddress || !trimmed ? '' : ensureEthSuffix(trimmed)
+  }, [searchValue, searchedAddress])
+
+  /**
+   * An owned name that the user typed exactly stays in "Suggestions" instead of
+   * moving to "Names you own", so it is the first item and Enter selects it.
+   */
+  const hasExactMatchSuggestion = useMemo(
+    () =>
+      suggestions.some(
+        (s) => s.inputValue.trim().toLowerCase() === exactMatchName,
+      ),
+    [suggestions, exactMatchName],
+  )
+
   const ownedNamesFiltered = useMemo(
     () =>
       filterAndSortOwnedNames(ownedNamesMerged, searchValue, {
         max: MAX_OWNED_NAMES,
+        exclude: hasExactMatchSuggestion ? exactMatchName : undefined,
       }),
-    [searchValue, ownedNamesMerged],
+    [searchValue, ownedNamesMerged, hasExactMatchSuggestion, exactMatchName],
   )
 
   /** Exclude suggestions for names the user already has in "Names you own" to avoid showing the same name twice. */
@@ -156,10 +177,13 @@ export const useSearchResults = ({
     const ownedSet = new Set(
       ownedNamesFiltered.map((d) => d.name.trim().toLowerCase()),
     )
-    return suggestions.filter(
-      (s) => !ownedSet.has(s.inputValue.trim().toLowerCase()),
+    return sortExactMatchFirst(
+      suggestions.filter(
+        (s) => !ownedSet.has(s.inputValue.trim().toLowerCase()),
+      ),
+      exactMatchName,
     )
-  }, [suggestions, ownedNamesFiltered])
+  }, [suggestions, ownedNamesFiltered, exactMatchName])
 
   const nameSuggestions = useMemo(
     () => suggestionsFiltered.filter((s) => s.id.startsWith('name:')),
