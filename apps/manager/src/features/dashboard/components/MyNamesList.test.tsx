@@ -76,6 +76,7 @@ const makeV2Domain = (
     normalizedName: overrides.normalizedName ?? overrides.name ?? 'alaska.eth',
     tokenId: overrides.tokenId ?? null,
     createdAt: overrides.createdAt ?? 0,
+    registrationDate: null,
     expiryDate: overrides.expiryDate ?? 1811808000,
     owner: overrides.owner ?? {
       __typename: 'Account',

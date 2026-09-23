@@ -2,9 +2,6 @@ import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 
 export const KV_KEY = {
-  AUTH: {
-    NONCE: (nonce: string) => `auth:nonce:${nonce}`,
-  },
   EXPIRY_DISCOVERY: {
     CURSORS: 'expiry_discovery:cursors',
   },

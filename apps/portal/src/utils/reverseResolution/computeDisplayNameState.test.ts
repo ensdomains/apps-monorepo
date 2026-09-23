@@ -8,6 +8,7 @@ describe('computeDisplayNameState', () => {
         name: 'vitalik.eth',
         defaultName: null,
         forwardMatch: true,
+        defaultForwardMatch: false,
         reverseRegistrarChainId: 60,
       })
 
@@ -15,7 +16,8 @@ describe('computeDisplayNameState', () => {
         displayName: 'vitalik.eth',
         isInheritingDefault: false,
         isPrimaryName: true,
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
+        isUnverifiedDefault: false,
       })
     })
 
@@ -24,6 +26,7 @@ describe('computeDisplayNameState', () => {
         name: 'vitalik.eth',
         defaultName: null,
         forwardMatch: false,
+        defaultForwardMatch: false,
         reverseRegistrarChainId: 60,
       })
 
@@ -31,7 +34,8 @@ describe('computeDisplayNameState', () => {
         displayName: 'vitalik.eth',
         isInheritingDefault: false,
         isPrimaryName: false,
-        canSetAsPrimary: true,
+        isForwardRecordMissing: true,
+        isUnverifiedDefault: false,
       })
     })
 
@@ -40,6 +44,7 @@ describe('computeDisplayNameState', () => {
         name: null,
         defaultName: 'default.eth',
         forwardMatch: false,
+        defaultForwardMatch: true,
         reverseRegistrarChainId: 60,
       })
 
@@ -47,7 +52,8 @@ describe('computeDisplayNameState', () => {
         displayName: undefined,
         isInheritingDefault: false,
         isPrimaryName: false,
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
+        isUnverifiedDefault: false,
       })
     })
 
@@ -56,6 +62,7 @@ describe('computeDisplayNameState', () => {
         name: null,
         defaultName: null,
         forwardMatch: false,
+        defaultForwardMatch: false,
         reverseRegistrarChainId: 60,
       })
 
@@ -63,7 +70,8 @@ describe('computeDisplayNameState', () => {
         displayName: undefined,
         isInheritingDefault: false,
         isPrimaryName: false,
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
+        isUnverifiedDefault: false,
       })
     })
   })
@@ -74,6 +82,7 @@ describe('computeDisplayNameState', () => {
         name: 'alice.eth',
         defaultName: 'default.eth',
         forwardMatch: false,
+        defaultForwardMatch: true,
         reverseRegistrarChainId: 10,
       })
 
@@ -84,7 +93,8 @@ describe('computeDisplayNameState', () => {
         displayName: 'alice.eth',
         isInheritingDefault: false,
         isPrimaryName: false,
-        canSetAsPrimary: true,
+        isForwardRecordMissing: true,
+        isUnverifiedDefault: false,
       })
     })
 
@@ -93,6 +103,7 @@ describe('computeDisplayNameState', () => {
         name: null,
         defaultName: 'vitalik.eth',
         forwardMatch: false,
+        defaultForwardMatch: true,
         reverseRegistrarChainId: 10,
       })
 
@@ -100,7 +111,8 @@ describe('computeDisplayNameState', () => {
         displayName: 'vitalik.eth',
         isInheritingDefault: true,
         isPrimaryName: true,
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
+        isUnverifiedDefault: false,
       })
     })
 
@@ -109,6 +121,7 @@ describe('computeDisplayNameState', () => {
         name: null,
         defaultName: null,
         forwardMatch: false,
+        defaultForwardMatch: false,
         reverseRegistrarChainId: 10,
       })
 
@@ -116,7 +129,8 @@ describe('computeDisplayNameState', () => {
         displayName: undefined,
         isInheritingDefault: false,
         isPrimaryName: false,
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
+        isUnverifiedDefault: false,
       })
     })
 
@@ -125,6 +139,7 @@ describe('computeDisplayNameState', () => {
         name: 'alice.eth',
         defaultName: null,
         forwardMatch: true,
+        defaultForwardMatch: false,
         reverseRegistrarChainId: 10,
       })
 
@@ -132,8 +147,48 @@ describe('computeDisplayNameState', () => {
         displayName: 'alice.eth',
         isInheritingDefault: false,
         isPrimaryName: true,
-        canSetAsPrimary: false,
+        isForwardRecordMissing: false,
+        isUnverifiedDefault: false,
       })
+    })
+  })
+
+  // WEB-1428. `default.reverse` is writable by anyone for any name, so an
+  // inherited name only counts once its forward `addr` record points back at
+  // the address. Before this, inheritance alone made the row report a verified
+  // primary name.
+  describe('unverified default (WEB-1428)', () => {
+    it('does not report an inherited default as primary when it does not forward-match', () => {
+      const result = computeDisplayNameState({
+        name: null,
+        defaultName: 'someone-elses.eth',
+        forwardMatch: false,
+        defaultForwardMatch: false,
+        reverseRegistrarChainId: 10,
+      })
+
+      expect(result).toEqual({
+        displayName: 'someone-elses.eth',
+        isInheritingDefault: true,
+        isPrimaryName: false,
+        // Nothing to complete from this row: the name has no record on this
+        // chain's registrar, and its forward record is the owner's to set.
+        isForwardRecordMissing: false,
+        isUnverifiedDefault: true,
+      })
+    })
+
+    it("keeps this chain's own verified record primary regardless of the default", () => {
+      const result = computeDisplayNameState({
+        name: 'alice.eth',
+        defaultName: 'someone-elses.eth',
+        forwardMatch: true,
+        defaultForwardMatch: false,
+        reverseRegistrarChainId: 10,
+      })
+
+      expect(result.isPrimaryName).toBe(true)
+      expect(result.isUnverifiedDefault).toBe(false)
     })
   })
 
@@ -143,6 +198,7 @@ describe('computeDisplayNameState', () => {
         name: 'custom.eth',
         defaultName: 'default.eth',
         forwardMatch: false,
+        defaultForwardMatch: true,
         reverseRegistrarChainId: 10,
       })
 

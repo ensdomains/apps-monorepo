@@ -157,7 +157,7 @@ export const SelectNamesStepSelectionOptions = ({
             isContentHeightCard && 'md:flex-none md:overflow-visible',
           )}
         >
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 pt-4">
             <SelectNamesStepNameList
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}

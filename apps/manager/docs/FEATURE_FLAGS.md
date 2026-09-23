@@ -4,7 +4,7 @@
 
 Control features via environment variables or user-specific lists. User identifiers (wallet address, email, phone) are automatically detected.
 
-Migration-related rollout flags use **PostHog** instead — see `src/lib/posthog/feature-flags.ts`.
+The language selector and migration-related rollout flags use **PostHog** instead — see `src/lib/posthog/feature-flags.ts`.
 
 ## Setup
 
@@ -12,7 +12,6 @@ Migration-related rollout flags use **PostHog** instead — see `src/lib/posthog
 
 ```bash
 # .env
-VITE_FF_LANGUAGE_SELECTOR=false
 VITE_FF_TEMP_PREMIUM_NAME_STATS=false
 VITE_FF_USE_EOA=false
 ```
@@ -24,8 +23,8 @@ In `utils/feature-flags.ts`:
 ```typescript
 export const FEATURE_FLAGS = {
   // Simple boolean (from env var)
-  LANGUAGE_SELECTOR: {
-    enabled: import.meta.env.VITE_FF_LANGUAGE_SELECTOR === 'true',
+  TEMP_PREMIUM_NAME_STATS: {
+    enabled: import.meta.env.VITE_FF_TEMP_PREMIUM_NAME_STATS === 'true',
   },
   
   // Enabled only for specific users
@@ -53,14 +52,14 @@ export const FEATURE_FLAGS = {
 ### Hook
 
 ```typescript
-const enabled = useFeatureFlag('LANGUAGE_SELECTOR')
+const enabled = useFeatureFlag('TEMP_PREMIUM_NAME_STATS')
 ```
 
 ### Component
 
 ```typescript
-<FeatureEnabled flag="LANGUAGE_SELECTOR">
-  <LanguageSection />
+<FeatureEnabled flag="TEMP_PREMIUM_NAME_STATS">
+  <PremiumNameStats />
 </FeatureEnabled>
 ```
 

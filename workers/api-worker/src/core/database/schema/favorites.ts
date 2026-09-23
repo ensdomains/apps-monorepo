@@ -1,5 +1,12 @@
 import { relations } from 'drizzle-orm'
-import { pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  index,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
 import { users } from './core'
 
 export const favorites = pgTable(
@@ -19,6 +26,7 @@ export const favorites = pgTable(
     primaryKey({
       columns: [table.user_id, table.name],
     }),
+    index('favorites_name_user_id_idx').on(table.name, table.user_id),
   ],
 )
 

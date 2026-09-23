@@ -3,6 +3,7 @@ import { type CSSProperties, memo } from 'react'
 import { match } from 'ts-pattern'
 import type { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import type { NameTreeNode } from '@/features/migration/service/groupByParent'
+import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
 import { cn } from '@/lib/utils'
 import { NameListSkeleton } from './NameListSkeleton'
 import { NameRow } from './NameRow'
@@ -19,6 +20,7 @@ type SelectNamesStepNameListProps = Pick<
 type NameTreeRowsProps = {
   readonly depth: number
   readonly nodes: readonly NameTreeNode[]
+  readonly primaryName: string | null | undefined
   readonly selected: ReadonlySet<string>
   readonly toggleName: (name: string) => void
 }
@@ -56,6 +58,7 @@ const NameTreeConnector = ({ isFirst, isLast }: NameTreeConnectorProps) => (
 const NameTreeRows = ({
   depth,
   nodes,
+  primaryName,
   selected,
   toggleName,
 }: NameTreeRowsProps) => (
@@ -64,7 +67,7 @@ const NameTreeRows = ({
       'flex min-w-0 flex-col',
       'gap-4',
       depth > 0 && 'mt-4',
-      depth === 1 && 'ml-14.5',
+      depth === 1 && 'ml-10',
       depth > 1 && 'ml-4.5',
     )}
   >
@@ -72,9 +75,11 @@ const NameTreeRows = ({
       const name = node.item.domain.name
       const isFirst = index === 0
       const isLast = index === nodes.length - 1
+      // Paint containment would clip the primary badge above the row.
       const shouldDeferOffscreenRow =
         depth === 0 &&
         nodes.length >= LARGE_LIST_THRESHOLD &&
+        name !== primaryName &&
         node.children.length === 0
       return (
         <li
@@ -85,6 +90,7 @@ const NameTreeRows = ({
           {depth > 0 && <NameTreeConnector isFirst={isFirst} isLast={isLast} />}
           <NameRow
             depth={depth}
+            isPrimary={name === primaryName}
             isSelected={selected.has(name)}
             item={node.item}
             onToggle={depth === 0 ? toggleName : undefined}
@@ -93,6 +99,7 @@ const NameTreeRows = ({
             <NameTreeRows
               depth={depth + 1}
               nodes={node.children}
+              primaryName={primaryName}
               selected={selected}
               toggleName={toggleName}
             />
@@ -110,8 +117,10 @@ const SelectNamesStepNameListComponent = ({
   search,
   selected,
   toggleName,
-}: SelectNamesStepNameListProps) =>
-  match({
+}: SelectNamesStepNameListProps) => {
+  const { data: primaryName } = useConnectedReverseName()
+
+  return match({
     isPending,
     hasResults: filteredGroups.length > 0 || filteredOrphans.length > 0,
   })
@@ -134,9 +143,11 @@ const SelectNamesStepNameListComponent = ({
       <NameTreeRows
         depth={0}
         nodes={[...filteredGroups, ...filteredOrphans]}
+        primaryName={primaryName}
         selected={selected}
         toggleName={toggleName}
       />
     ))
+}
 
 export const SelectNamesStepNameList = memo(SelectNamesStepNameListComponent)

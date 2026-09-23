@@ -41,7 +41,7 @@ const getNonce = async () => {
     throw new Error(`Failed to get nonce: ${response.statusText} ${error}`)
   }
 
-  return response.json().then((data) => data.nonce)
+  return response.json()
 }
 
 const MutationTester = <TData, TError, TVariables, TContext>({
@@ -201,7 +201,7 @@ const loginMutation = async () => {
     throw new Error('No account found')
   }
 
-  const nonce = await getNonce()
+  const { nonce, redemptionToken } = await getNonce()
 
   const domain = getSiweDomain()
   const uri = getSiweUri()
@@ -225,6 +225,7 @@ const loginMutation = async () => {
       message: siweMessage,
       signature: signedMessage,
       nonce,
+      redemptionToken,
     },
   })
 

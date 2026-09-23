@@ -206,28 +206,38 @@ export const notificationRelations = relations(
 type DeliveryChannel = 'email' | 'push' | 'telegram'
 type DeliveryStatus = 'queued' | 'delivered' | 'failed' | 'permanently_failed'
 
-export const notificationDeliveries = pgTable('notification_deliveries', {
-  id: uuid('id').primaryKey().default(randomUUIDv7),
-  notification_id: uuid('notification_id')
-    .notNull()
-    .references(() => notifications.id, {
-      onDelete: 'cascade',
-    }),
-  channel: text('channel').$type<DeliveryChannel>().notNull(),
-  target: text('target').notNull(),
-  status: text('status').$type<DeliveryStatus>().notNull(),
-  attempts: integer('attempts').default(0),
+export const notificationDeliveries = pgTable(
+  'notification_deliveries',
+  {
+    id: uuid('id').primaryKey().default(randomUUIDv7),
+    notification_id: uuid('notification_id')
+      .notNull()
+      .references(() => notifications.id, {
+        onDelete: 'cascade',
+      }),
+    channel: text('channel').$type<DeliveryChannel>().notNull(),
+    target: text('target').notNull(),
+    status: text('status').$type<DeliveryStatus>().notNull(),
+    attempts: integer('attempts').default(0),
 
-  provider_msg_id: text('provider_msg_id'),
+    provider_msg_id: text('provider_msg_id'),
 
-  error: text('error'),
+    error: text('error'),
 
-  failure_category: text('failure_category').$type<FailureCategory>(),
-  dlq_attempts: integer('dlq_attempts').default(0),
+    failure_category: text('failure_category').$type<FailureCategory>(),
+    dlq_attempts: integer('dlq_attempts').default(0),
 
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-})
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    unique('notification_delivery_unique').on(
+      table.notification_id,
+      table.channel,
+      table.target,
+    ),
+  ],
+)
 
 export const notificationDeliveryRelations = relations(
   notificationDeliveries,

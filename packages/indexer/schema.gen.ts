@@ -230,9 +230,18 @@ export type EacRoleAssignmentEdge = {
   node: EacRoleAssignment;
 };
 
+export type EacRolesChangedData = {
+  __typename?: 'EACRolesChangedData';
+  account: Scalars['String']['output'];
+  newRoleBitmap: Scalars['String']['output'];
+  oldRoleBitmap: Scalars['String']['output'];
+  resource: Scalars['String']['output'];
+};
+
 export type Event = {
   __typename?: 'Event';
   asAddressChanged?: Maybe<AddressChangedData>;
+  asEACRolesChanged?: Maybe<EacRolesChangedData>;
   asExpiryUpdated?: Maybe<ExpiryUpdatedData>;
   asFusesSet?: Maybe<FusesSetData>;
   asLabelRegistered?: Maybe<LabelRegisteredData>;
@@ -285,6 +294,7 @@ export type EventFilter = {
   namehash?: InputMaybe<Scalars['String']['input']>;
   or?: InputMaybe<Array<EventFilter>>;
   protocol?: InputMaybe<Scalars['String']['input']>;
+  resource?: InputMaybe<Scalars['String']['input']>;
   timestamp_gt?: InputMaybe<Scalars['Int']['input']>;
   timestamp_gte?: InputMaybe<Scalars['Int']['input']>;
   timestamp_lt?: InputMaybe<Scalars['Int']['input']>;
@@ -344,6 +354,13 @@ export type LabelRegisteredData = {
   registry?: Maybe<Scalars['String']['output']>;
   sender?: Maybe<Scalars['String']['output']>;
   tokenId?: Maybe<Scalars['String']['output']>;
+};
+
+export type LinkedName = {
+  __typename?: 'LinkedName';
+  name: Scalars['String']['output'];
+  namehash: Scalars['String']['output'];
+  recordId: Scalars['String']['output'];
 };
 
 export type NameRegisteredData = {
@@ -435,6 +452,7 @@ export type Query = {
   domain?: Maybe<Domain>;
   domainConnection: DomainConnection;
   domains: Array<Domain>;
+  eacRolesChangeds: Array<Event>;
   eventConnection: EventConnection;
   events: Array<Event>;
   expiryUpdateds: Array<Event>;
@@ -515,6 +533,15 @@ export type QueryDomainsArgs = {
   orderDirection?: InputMaybe<OrderDirection>;
   skip?: InputMaybe<Scalars['Int']['input']>;
   where?: InputMaybe<DomainFilter>;
+};
+
+
+export type QueryEacRolesChangedsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
 };
 
 
@@ -887,10 +914,15 @@ export type Resolver = {
   aliases?: Maybe<Array<Alias>>;
   coinTypes?: Maybe<Array<Scalars['String']['output']>>;
   contentHash?: Maybe<Scalars['String']['output']>;
+  data?: Maybe<Scalars['String']['output']>;
+  dataKeys?: Maybe<Array<Scalars['String']['output']>>;
   domain?: Maybe<Domain>;
   id: Scalars['String']['output'];
   interfaces?: Maybe<Array<InterfaceRecord>>;
+  linkedNames?: Maybe<Array<LinkedName>>;
   pubkey?: Maybe<Pubkey>;
+  recordId?: Maybe<Scalars['String']['output']>;
+  recordModel: Scalars['Boolean']['output'];
   reverseName?: Maybe<Scalars['String']['output']>;
   text?: Maybe<Scalars['String']['output']>;
   texts?: Maybe<Array<Scalars['String']['output']>>;
@@ -900,6 +932,11 @@ export type Resolver = {
 
 export type ResolverAddrArgs = {
   coinType?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type ResolverDataArgs = {
+  key: Scalars['String']['input'];
 };
 
 

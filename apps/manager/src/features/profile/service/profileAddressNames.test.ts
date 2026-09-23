@@ -52,6 +52,7 @@ beforeEach(() => {
           normalizedName: 'henlo.eth',
           tokenId: null,
           createdAt: 1_700_000_300,
+          registrationDate: null,
           expiryDate: 1_891_036_800,
           owner: {
             __typename: 'Account',
@@ -66,6 +67,7 @@ beforeEach(() => {
           normalizedName: 'claude.eth',
           tokenId: null,
           createdAt: 1_700_000_200,
+          registrationDate: null,
           expiryDate: 1_891_036_800,
           owner: {
             __typename: 'Account',
@@ -80,6 +82,7 @@ beforeEach(() => {
           normalizedName: 'alaska.eth',
           tokenId: null,
           createdAt: 1_700_000_100,
+          registrationDate: null,
           expiryDate: 1_891_036_800,
           owner: {
             __typename: 'Account',
@@ -144,6 +147,7 @@ describe('getProfileAddressNames', () => {
               normalizedName: 'henlo.eth',
               tokenId: null,
               createdAt: 1_700_000_300,
+              registrationDate: null,
               expiryDate: 1_891_036_800,
               owner: {
                 __typename: 'Account',
@@ -164,6 +168,7 @@ describe('getProfileAddressNames', () => {
               normalizedName: 'dom.eth',
               tokenId: null,
               createdAt: 1_700_000_050,
+              registrationDate: null,
               expiryDate: 1_891_036_800,
               owner: {
                 __typename: 'Account',

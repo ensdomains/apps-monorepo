@@ -33,6 +33,7 @@ export const deliverPushNotification = ResultFn(async function* (
   const deliveryJob = await db.query.notificationDeliveries.findFirst({
     where: eq(TABLE.notificationDeliveries.id, job.id),
     columns: {
+      status: true,
       target: true,
     },
     with: {
@@ -48,6 +49,18 @@ export const deliverPushNotification = ResultFn(async function* (
     return yield* new NotificationDeliveryNotFoundError({
       message: `Delivery job not found: ${job.id}`,
     })
+  }
+
+  if (
+    deliveryJob.status === 'delivered' ||
+    deliveryJob.status === 'permanently_failed'
+  ) {
+    logger.debug('Skipping terminal push delivery', {
+      jobId: job.id,
+      kind: job.kind,
+      status: deliveryJob.status,
+    })
+    return ok(undefined)
   }
 
   // 2. get channel data (which are encryption keys)
