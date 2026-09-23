@@ -775,7 +775,9 @@ describe('fetchEnsData (worker) — record size', () => {
 
     const { description } = await fetchEnsData(env, 'alice.eth')
 
-    expect(description).toHaveLength(300)
+    // 300 code points kept, plus the sanitizer's ellipsis.
+    expect(description).toHaveLength(301)
+    expect(description?.endsWith('…')).toBe(true)
   })
 
   it('leaves a normal description untouched', async () => {

@@ -6,6 +6,7 @@ import { resolveEnsOwner } from '@/utils/ens/resolveEnsOwner'
 import { resolveAvatarRecord } from './avatar'
 import { type AvatarBitmap, downscaleAvatar } from './avatar-image'
 import { createClient, type EnsClient } from './clients'
+import { capMetaText } from './meta'
 import { safeFetch } from './safe-fetch'
 
 export interface EnsData {
@@ -204,7 +205,10 @@ export async function fetchEnsData(
 
     return {
       avatar,
-      description: description?.slice(0, TEXT_RECORD_MAX_CHARS) ?? null,
+      description:
+        description === null
+          ? null
+          : capMetaText(description, TEXT_RECORD_MAX_CHARS),
       owner,
     }
   } catch {

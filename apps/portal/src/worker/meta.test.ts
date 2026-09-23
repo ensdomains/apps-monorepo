@@ -48,7 +48,6 @@ describe('buildMetaTags', () => {
   it.each([
     'title',
     'description',
-    'imageUrl',
   ] as const)('caps %s at the meta value limit', (field) => {
     const tags = buildMetaTags({
       ...baseOptions,
@@ -57,6 +56,36 @@ describe('buildMetaTags', () => {
 
     expect(tags).toContain('a'.repeat(META_VALUE_MAX_CHARS))
     expect(tags).not.toContain('a'.repeat(META_VALUE_MAX_CHARS + 1))
+  })
+
+  // The image URL is built by the worker from the name in the request path, so
+  // it's already bounded — and truncating it would cut off the `.png` (or a
+  // percent-encoded sequence) and break the card for every long name.
+  it('leaves a long generated image URL intact', () => {
+    const imageUrl = `https://explorer.ens.dev/og/${'a'.repeat(400)}.png`
+
+    const tags = buildMetaTags({ ...baseOptions, imageUrl })
+
+    expect(tags).toContain(`<meta property="og:image" content="${imageUrl}" />`)
+    expect(tags).toContain(
+      `<meta name="twitter:image" content="${imageUrl}" />`,
+    )
+  })
+
+  // Truncating by UTF-16 unit would split an emoji into a lone surrogate.
+  it('truncates on a code point boundary', () => {
+    const description = '😀'.repeat(400)
+
+    const tags = buildMetaTags({ ...baseOptions, description })
+
+    const content = tags.match(
+      /<meta property="og:description" content="([^"]*)" \/>/,
+    )?.[1]
+    expect(content).toBeDefined()
+    expect(
+      [...(content ?? '')].every((char) => char === '😀' || char === '…'),
+    ).toBe(true)
+    expect(content).not.toMatch(/[\uD800-\uDFFF]/u)
   })
 
   it('caps the image alt text', () => {
