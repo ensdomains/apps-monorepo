@@ -41,7 +41,7 @@ export type UseSearchResultsParams = {
 export type { SearchResultItem } from '../utils/searchResultsUtils'
 
 export type UseSearchResultsReturn = {
-  suggestions: Suggestion[]
+  suggestions: readonly Suggestion[]
   ownerBySuggestionId: Map<
     string,
     | {

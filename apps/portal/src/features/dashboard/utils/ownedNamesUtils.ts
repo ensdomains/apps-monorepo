@@ -42,9 +42,9 @@ export function is2LD(name: string): boolean {
 
 export type FilterAndSortOwnedNamesOptions = {
   /** Max number of names to return (default: no limit). */
-  max?: number
+  readonly max?: number
   /** Name to leave out, matched case-insensitively (default: none). */
-  exclude?: string
+  readonly exclude?: string
 }
 
 /**

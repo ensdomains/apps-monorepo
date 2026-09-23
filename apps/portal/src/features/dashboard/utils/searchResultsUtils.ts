@@ -8,8 +8,8 @@ export type SearchResultItem =
   | { type: 'owned'; value: string; name: string }
 
 export type BuildSearchResultItemsParams = {
-  suggestions: Suggestion[]
-  ownedNamesFiltered: Array<{ name: string }>
+  readonly suggestions: readonly Suggestion[]
+  readonly ownedNamesFiltered: ReadonlyArray<{ name: string }>
 }
 
 /**
@@ -36,9 +36,9 @@ export function buildSearchResultItems({
  * first item Enter selects — ahead of other TLDs or available-to-register names.
  */
 export function sortExactMatchFirst(
-  suggestions: Suggestion[],
+  suggestions: readonly Suggestion[],
   exactMatchName: string,
-): Suggestion[] {
+): readonly Suggestion[] {
   const index = suggestions.findIndex(
     (s) => s.inputValue.trim().toLowerCase() === exactMatchName,
   )
