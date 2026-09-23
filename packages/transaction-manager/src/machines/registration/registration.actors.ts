@@ -360,16 +360,17 @@ export function submitResolverDeploymentActor(input: {
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
       const salt = generateResolverSalt(input.name)
+      const chain = requireEnsChain(input.publicClient, 'registration')
 
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        chainId: requireChainId(input.publicClient, 'registration'),
+        chainId: chain.id,
         calls: [
           encodeDeployDedicatedResolverCall({
             owner: input.owner,
             salt,
-            chain: requireEnsChain(input.publicClient, 'registration'),
+            chain,
           }),
         ],
       })

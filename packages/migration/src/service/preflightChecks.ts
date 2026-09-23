@@ -130,12 +130,14 @@ export const checkFrozenApproval = async (
   )
   if (directCandidates.length === 0) return ids
 
+  const nameWrapper = ensContractsFor(
+    requireChainId(publicClient, 'migration preflight'),
+  ).ensNameWrapper.address
+
   const results = await batchedMulticall<Address>(
     publicClient,
     directCandidates.map((name) => ({
-      address: ensContractsFor(
-        requireChainId(publicClient, 'migration preflight'),
-      ).ensNameWrapper.address,
+      address: nameWrapper,
       abi: NAME_WRAPPER_ABI,
       functionName: 'getApproved' as const,
       args: [BigInt(name.domain.id)] as const,
@@ -181,12 +183,14 @@ export const checkPremigrationReservation = async (
   )
   if (candidates.length === 0) return ids
 
+  const ethRegistryV2 = ensContractsFor(
+    requireChainId(publicClient, 'migration preflight'),
+  ).ensRegistry.address
+
   const results = await batchedMulticall<number>(
     publicClient,
     candidates.map((name) => ({
-      address: ensContractsFor(
-        requireChainId(publicClient, 'migration preflight'),
-      ).ensRegistry.address,
+      address: ethRegistryV2,
       abi: permissionedRegistryGetStatusSnippet,
       functionName: 'getStatus' as const,
       args: [BigInt(name.domain.labelhash)] as const,
