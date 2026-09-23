@@ -32,10 +32,7 @@ export async function reportExpiryTimestampOverflow(
   ctx: ExpiryOverflowAlertContext,
 ): Promise<void> {
   const fields = buildOverflowFields(ctx)
-  logger.error(
-    'Expiry discovery exact-timestamp bucket saturated',
-    fields,
-  )
+  logger.error('Expiry discovery exact-timestamp bucket saturated', fields)
 
   const chatId = ctx.env.TELEGRAM?.ALERT_CHAT_ID?.trim()
   if (!chatId) return

@@ -54,10 +54,7 @@ describe('expiry page planning', () => {
 
   it('detects a timestamp split at the process boundary', () => {
     const plan = planNormalExpiryPage(
-      [
-        ...uniqueDomains(PROCESS_PAGE_SIZE - 1),
-        ...domainsAt(2, 10_000),
-      ],
+      [...uniqueDomains(PROCESS_PAGE_SIZE - 1), ...domainsAt(2, 10_000)],
       50,
     )
     expect(plan.type).toBe('split-timestamp')
@@ -125,10 +122,7 @@ describe('expiry page planning', () => {
       upperBound: timestamp,
     })
     expect(result._unsafeUnwrap()).toEqual({
-      domains: [
-        ...beforeTimestamp,
-        ...exactDomains.slice(0, QUERY_PAGE_SIZE),
-      ],
+      domains: [...beforeTimestamp, ...exactDomains.slice(0, QUERY_PAGE_SIZE)],
       cursorEnd: timestamp,
       hasMore: true,
       overflow: expectedOverflow
