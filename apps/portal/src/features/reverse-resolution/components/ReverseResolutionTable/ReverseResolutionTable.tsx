@@ -4,8 +4,7 @@ import {
   type Table as TableData,
 } from '@tanstack/react-table'
 import { useState } from 'react'
-import { type Address, isAddressEqual } from 'viem'
-import { useConnection } from 'wagmi'
+import type { Address } from 'viem'
 import { SidebarTriggerRow } from '@/components/SidebarTriggerRow'
 import {
   Table,
@@ -15,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useIsConnectedAddress } from '@/hooks/useIsConnectedAddress'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 import { columns } from './columns'
 import { ReverseResolutionSidebar } from './ReverseResolutionSidebar'
@@ -32,8 +32,6 @@ export const ReverseResolutionTable = ({
   const [selectedCoinType, setSelectedCoinType] = useState<number | null>(null)
 
   const [open, setOpen] = useState(false)
-
-  const { address: account } = useConnection()
 
   const clickedRow =
     selectedCoinType != null
@@ -59,9 +57,11 @@ export const ReverseResolutionTable = ({
     })
   }
 
-  // Only show "More" button if the displayed address matches the connected account
-  // Using isAddressEqual for case-insensitive comparison
-  const canModify = account ? isAddressEqual(account, address) : false
+  // Only show the "More" button if the displayed address is the connected
+  // account: every write behind it is signer-scoped. The route gates its empty
+  // state on the same hook, so a record-less table and its row actions always
+  // appear together.
+  const canModify = useIsConnectedAddress(address)
 
   return (
     <ReverseResolutionSidebar

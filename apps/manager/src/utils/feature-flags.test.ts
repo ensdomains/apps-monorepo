@@ -24,13 +24,13 @@ describe('feature-flags', () => {
     })
 
     it('should return feature enabled status without identifier', () => {
-      const flag = 'LANGUAGE_SELECTOR' as keyof typeof FEATURE_FLAGS
+      const flag = 'TEMP_PREMIUM_NAME_STATS' satisfies FeatureFlag
       const result = isFeatureEnabled(flag)
       expect(typeof result).toBe('boolean')
     })
 
     it('should return true when feature is enabled and no user restrictions', () => {
-      const flag = 'LANGUAGE_SELECTOR' as keyof typeof FEATURE_FLAGS
+      const flag = 'TEMP_PREMIUM_NAME_STATS' satisfies FeatureFlag
       const config = FEATURE_FLAGS[flag]
 
       if (typeof config === 'object' && config.enabled) {
