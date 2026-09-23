@@ -132,16 +132,14 @@ describe('commemorative NFT sharing', () => {
     ).toBeUndefined()
   })
 
-  it('links a minted Sepolia NFT using its contract and token ID', () => {
+  it('does not expose OpenSea for a minted Sepolia NFT', () => {
     expect(
       buildCommemorativeNftMarketplaceUrl({
         chainId: 11155111,
         ownerAddress,
         minted: true,
       }),
-    ).toBe(
-      'https://testnets.opensea.io/assets/sepolia/0x034602dD1CAff3700CB5Cb42f7e1a8d76F84762b/46455108410614081663945406319915307572171076188378075311311703967581922008221',
-    )
+    ).toBeUndefined()
   })
 
   it('links a minted NFT to Ethereum OpenSea when its mainnet contract is configured', () => {
