@@ -4,17 +4,24 @@ import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChangeResolverForm } from './ChangeResolverForm'
 
-// Captures the transaction descriptors so the tests can invoke the lifecycle
-// callbacks (notably `onDone`) the real modal would fire.
-const transactionsRef: { current: { id: string; onDone?: () => void }[] } = {
-  current: [],
+// Captures the transaction descriptors so the tests can drive the lifecycle
+// callbacks (`onStart` / `onDone`) the real modal would fire.
+type CapturedTransaction = {
+  id: string
+  onStart?: () => void | Promise<void>
+  onDone?: () => void
 }
+
+const transactionsRef: { current: CapturedTransaction[] } = { current: [] }
+
+const transactionById = (id: string) =>
+  transactionsRef.current.find((transaction) => transaction.id === id)
 
 vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
   TransactionModal: ({
     transactions,
   }: {
-    transactions: { id: string; onDone?: () => void }[]
+    transactions: CapturedTransaction[]
   }) => {
     transactionsRef.current = transactions
     return null
@@ -208,12 +215,23 @@ describe('ChangeResolverForm', () => {
   })
 
   // Staying on the form left no sign the change landed, so users saved twice.
-  it('navigates to the resolver page once the change transaction is done', () => {
+  it('navigates to the resolver page once the change transaction is done', async () => {
+    const user = userEvent.setup()
     render(<ChangeResolverForm name={name} target={target} />)
 
-    const changeTransaction = transactionsRef.current.find(
-      (transaction) => transaction.id === 'tx-change-resolver',
+    await user.type(
+      screen.getByPlaceholderText('0x...'),
+      '0xabcdef123456789012345678901234567890abcd',
     )
+
+    const changeTransaction = transactionById('tx-change-resolver')
+    expect(changeTransaction).toBeDefined()
+
+    changeTransaction?.onStart?.()
+    expect(mockChangeResolver).toHaveBeenCalledWith(
+      '0xabcdef123456789012345678901234567890abcd',
+    )
+
     changeTransaction?.onDone?.()
 
     expect(mockNavigate).toHaveBeenCalledWith({
@@ -222,7 +240,15 @@ describe('ChangeResolverForm', () => {
     })
   })
 
+  // The deploy path is two transactions: the resolver is deployed first, then
+  // the change runs against the address it returned. Drive both so a break in
+  // the hand-off can't pass.
   it('navigates to the resolver page after the deploy-then-change flow', async () => {
+    const deployedResolver = '0x9999999999999999999999999999999999999999'
+    mockDeployPermissionedResolverAsync.mockResolvedValue({
+      resolverAddress: deployedResolver,
+    })
+
     const user = userEvent.setup()
     render(<ChangeResolverForm name={name} target={target} />)
 
@@ -230,9 +256,19 @@ describe('ChangeResolverForm', () => {
       screen.getByRole('switch', { name: /Use custom resolver/i }),
     )
 
-    const changeTransaction = transactionsRef.current.find(
-      (transaction) => transaction.id === 'tx-change-resolver',
-    )
+    const deployTransaction = transactionById('tx-deploy-permissioned-resolver')
+    const changeTransaction = transactionById('tx-change-resolver')
+    expect(deployTransaction).toBeDefined()
+    expect(changeTransaction).toBeDefined()
+
+    await deployTransaction?.onStart?.()
+    expect(mockDeployPermissionedResolverAsync).toHaveBeenCalled()
+
+    // The deploy step's own `onDone` kicks off the change against the freshly
+    // deployed address.
+    deployTransaction?.onDone?.()
+    expect(mockChangeResolver).toHaveBeenCalledWith(deployedResolver)
+
     changeTransaction?.onDone?.()
 
     expect(mockNavigate).toHaveBeenCalledWith({
