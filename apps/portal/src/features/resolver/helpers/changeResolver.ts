@@ -23,10 +23,21 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { prepareSetV1ResolverTransaction } from '@/features/transfer/v1/writes'
 
 // ============================================================================
 // Types
 // ============================================================================
+
+/**
+ * Where a `setResolver` has to be sent, which differs by protocol version:
+ * V2 keys the pointer by canonical label id on the parent's
+ * PermissionedRegistry, V1 by namehash on the legacy registry (or the
+ * NameWrapper, which owns the registry slot of a wrapped name).
+ */
+export type ResolverWriteTarget =
+  | { readonly protocol: 'ENSv2'; readonly registryAddress: Address }
+  | { readonly protocol: 'ENSv1'; readonly isWrapped: boolean }
 
 export interface ChangeResolverTransactionParameters {
   /** The ENS name (e.g., 'sub.parent.eth') */
@@ -42,8 +53,11 @@ export interface ChangeResolverTransactionParameters {
 
 // Same call inputs as the transaction builder, but `from` is derived from the
 // wallet client at submit time rather than passed in.
-export interface ChangeResolverParameters
-  extends Omit<ChangeResolverTransactionParameters, 'from'> {
+export interface ChangeResolverParameters {
+  readonly name: string
+  readonly target: ResolverWriteTarget
+  readonly resolverAddress: Address
+  readonly chainId: number
   readonly walletClient: WalletClient
   readonly publicClient: PublicClient
   readonly signer: Signer
@@ -84,6 +98,39 @@ export const prepareChangeResolverTransaction = ({
   })
 }
 
+/**
+ * The `setResolver` intent for either protocol version, shared by the gas
+ * estimate and the submitted transaction.
+ */
+export const prepareSetResolverTransaction = ({
+  name,
+  target,
+  resolverAddress,
+  from,
+  chainId,
+}: {
+  readonly name: string
+  readonly target: ResolverWriteTarget
+  readonly resolverAddress: Address
+  readonly from: Address
+  readonly chainId: number
+}): CustomTransactionIntent =>
+  target.protocol === 'ENSv2'
+    ? prepareChangeResolverTransaction({
+        name,
+        registryAddress: target.registryAddress,
+        resolverAddress,
+        from,
+        chainId,
+      })
+    : prepareSetV1ResolverTransaction({
+        name,
+        isWrapped: target.isWrapped,
+        resolver: resolverAddress,
+        from,
+        chainId,
+      })
+
 // ============================================================================
 // Public API
 // ============================================================================
@@ -108,7 +155,7 @@ export const prepareChangeResolverTransaction = ({
  */
 export const changeResolver = async ({
   name,
-  registryAddress,
+  target,
   resolverAddress,
   walletClient,
   publicClient,
@@ -121,9 +168,9 @@ export const changeResolver = async ({
   }
 
   const txId = transactionManager.startTransaction(
-    prepareChangeResolverTransaction({
+    prepareSetResolverTransaction({
       name,
-      registryAddress,
+      target,
       resolverAddress,
       from: walletClient.account.address,
       chainId,

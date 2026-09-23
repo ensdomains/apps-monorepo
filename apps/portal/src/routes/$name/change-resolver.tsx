@@ -1,17 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { AlertCircle, ArrowLeftIcon } from 'lucide-react'
-import { zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { PageHeading } from '@/components/PageHeading'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
-import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { ChangeResolverForm } from '@/features/resolver/components/ChangeResolverForm'
+import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
 
 export const Route = createFileRoute('/$name/change-resolver')({
   component: RouteComponent,
@@ -36,61 +32,44 @@ const PageLayout = ({
   </div>
 )
 
+const PermissionDenied = ({
+  name,
+  protocol,
+}: {
+  name: string
+  protocol: 'ENSv1' | 'ENSv2'
+}) => (
+  <ErrorMessage
+    title="Permission Denied"
+    description={
+      protocol === 'ENSv2' ? (
+        <>
+          You don't have the required{' '}
+          <code className="font-mono text-sm bg-muted px-1 py-0.5 rounded">
+            ROLE_SET_RESOLVER
+          </code>{' '}
+          permission to change the resolver for <strong>{name}</strong>. Please
+          contact the registry administrator to request access.
+        </>
+      ) : (
+        <>
+          Only the account holding <strong>{name}</strong>'s registry entry can
+          change its resolver — for an unwrapped <code>.eth</code> name that is
+          the controller, not the registrant. A wrapped name also refuses once
+          its CANNOT_SET_RESOLVER fuse is burned.
+        </>
+      )
+    }
+  />
+)
+
 function RouteComponent() {
   const { name } = Route.useParams()
   const { address: connectedAddress } = useConnection()
+  const { canSet, isLoading, target } = useCanSetResolver({ name })
 
-  const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const registryQuery = useQuery({
-    ...getNameRegistriesQueryOptions({ name }),
-    enabled: ownerQuery.data?.protocolVersion === 'ENSv2',
-  })
-
-  const label = name.split('.')[0]
-  // Use registries[1] to get the parent registry that manages this name
-  const currentNameRegistry = registryQuery.data?.[1]
-
-  const roleQuery = useQuery({
-    ...getHasRolesQueryOptions({
-      registryAddress: currentNameRegistry ?? zeroAddress,
-      label,
-      roles: ['ROLE_SET_RESOLVER'],
-      account: connectedAddress ?? zeroAddress,
-    }),
-    enabled: !!connectedAddress && !!currentNameRegistry,
-  })
-
-  if (ownerQuery.isLoading || registryQuery.isLoading) {
-    return <LoadingSpinner title="Loading registry information" />
-  }
-
-  if (ownerQuery.data?.protocolVersion === 'ENSv1') {
-    return (
-      <PageLayout name={name}>
-        <Alert className="max-w-full">
-          <AlertCircle />
-          <AlertTitle>Not Available for V1 Names</AlertTitle>
-          <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
-            V1 names (like {name}) use a different resolver management system.
-            Please use the V1 ENS interface to change the resolver.
-          </AlertDescription>
-        </Alert>
-      </PageLayout>
-    )
-  }
-
-  if (registryQuery.error || !registryQuery.data || !currentNameRegistry) {
-    return (
-      <PageLayout name={name}>
-        <Alert variant="destructive" className="max-w-full">
-          <AlertCircle />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
-            Could not find registry for this name.
-          </AlertDescription>
-        </Alert>
-      </PageLayout>
-    )
+  if (isLoading) {
+    return <LoadingSpinner title="Checking permissions..." />
   }
 
   if (!connectedAddress) {
@@ -104,31 +83,29 @@ function RouteComponent() {
     )
   }
 
-  if (roleQuery.isLoading) {
-    return <LoadingSpinner title="Checking permissions..." />
-  }
-
-  if (!roleQuery.data) {
+  // No registry holds the name at either version — a gasless DNS name, say,
+  // which exists only in its own DNS zone.
+  if (!target) {
     return (
       <PageLayout name={name}>
-        <ErrorMessage
-          title="Permission Denied"
-          description={
-            <>
-              You don't have the required{' '}
-              <code className="font-mono text-sm bg-muted px-1 py-0.5 rounded">
-                ROLE_SET_RESOLVER
-              </code>{' '}
-              permission to change the resolver for <strong>{name}</strong>.
-              Please contact the registry administrator to request access.
-            </>
-          }
-        />
+        <Alert variant="destructive" className="max-w-full">
+          <AlertCircle />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            Could not find registry for this name.
+          </AlertDescription>
+        </Alert>
       </PageLayout>
     )
   }
 
-  return (
-    <ChangeResolverForm name={name} registryAddress={currentNameRegistry} />
-  )
+  if (!canSet) {
+    return (
+      <PageLayout name={name}>
+        <PermissionDenied name={name} protocol={target.protocol} />
+      </PageLayout>
+    )
+  }
+
+  return <ChangeResolverForm name={name} target={target} />
 }
