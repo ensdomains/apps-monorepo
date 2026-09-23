@@ -5,12 +5,15 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import {
-  buildMergedNamesList,
   type MergedItem,
   mergedRowMetadata,
   type SortDir,
   type SortField,
 } from '@/features/dashboard/mergedNames'
+import {
+  buildDashboardSearchResults,
+  type SmartNameFilters,
+} from '@/features/dashboard/smartNameSearch'
 import {
   type ProfileRecordsResult,
   profileRecordsQuery,
@@ -34,6 +37,7 @@ interface MyNamesListProps {
   readonly migrationEnabled?: boolean
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
+  readonly smartFilters?: SmartNameFilters | null
   readonly sort: Sort
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
@@ -186,6 +190,7 @@ export const MyNamesList = ({
   migrationEnabled = false,
   primaryLabel,
   searchQuery = '',
+  smartFilters = null,
   sort,
   favoriteLabels,
   onToggleFavorite,
@@ -197,7 +202,7 @@ export const MyNamesList = ({
   const [page, setPage] = useState(1)
   const { field: sortField, dir: sortDir } = parseSort(sort)
 
-  const filterKey = `${searchQuery}:${sort}`
+  const filterKey = `${searchQuery}:${sort}:${JSON.stringify(smartFilters)}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)
@@ -220,14 +225,26 @@ export const MyNamesList = ({
 
   const mergedSortedFiltered = useMemo(
     () =>
-      buildMergedNamesList({
+      buildDashboardSearchResults({
         v2Names,
         v1Classified: v1Names,
         searchQuery,
         sortField,
         sortDir,
+        smartFilters,
+        primaryLabel,
+        favoriteLabels,
       }),
-    [v2Names, v1Names, searchQuery, sortField, sortDir],
+    [
+      v2Names,
+      v1Names,
+      searchQuery,
+      sortField,
+      sortDir,
+      smartFilters,
+      primaryLabel,
+      favoriteLabels,
+    ],
   )
 
   const total = mergedSortedFiltered.length

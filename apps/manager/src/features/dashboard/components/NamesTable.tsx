@@ -1,9 +1,9 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
-import { Search } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useMemo, useState } from 'react'
+import { type KeyboardEvent, useMemo, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -15,14 +15,26 @@ import {
   toSelectableDomain,
 } from '../bulkRenewSelection'
 import {
-  buildMergedNamesList,
   getMergedNamesCount,
   type SortDir,
   type SortField,
 } from '../mergedNames'
+import {
+  type InterpretNameSearchResult,
+  interpretNameSearch,
+} from '../service/interpretNameSearch'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
+import {
+  buildDashboardSearchResults,
+  hasSmartFilters,
+  isSmartFilterAvailable,
+  removeSmartFilter,
+  SMART_FILTER_KEYS,
+  type SmartNameFilterKey,
+  type SmartNameFilters,
+} from '../smartNameSearch'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
 import {
@@ -36,6 +48,7 @@ import { SelectionCheckbox } from './SelectionCheckbox'
 import { SortMenu, type SortOption } from './SortMenu'
 
 type FilterKey = 'owned' | 'favorites'
+type SmartSearchMessage = 'unsupported' | 'unavailable' | 'missing-data'
 
 interface NamesTableProps {
   readonly primaryLabel?: string | null
@@ -59,6 +72,68 @@ const toDirectionalSort = <Field extends string>(
 const reverseSortDir = (dir: SortDir): SortDir =>
   dir === 'asc' ? 'desc' : 'asc'
 
+const looksLikeFilterRequest = (query: string): boolean =>
+  /\s/.test(query) ||
+  /\b(expir\w*|grace|owner|manager|upgrade\w*|eligible|ineligible|favou?rite\w*|primary|oldest|newest|alphabetic\w*|sort\w*|order\w*|(?:ens)?v[12])\b/i.test(
+    query,
+  )
+
+const shouldInterpretSearch = (
+  event: KeyboardEvent<HTMLInputElement>,
+  activeFilter: FilterKey,
+  query: string,
+): boolean =>
+  event.key === 'Enter' &&
+  import.meta.env.DEV &&
+  activeFilter === 'owned' &&
+  looksLikeFilterRequest(query.trim())
+
+const SmartSearchFeedback = ({
+  query,
+  active,
+  filters,
+  message,
+  pending,
+}: {
+  readonly query: string
+  readonly active: boolean
+  readonly filters: SmartNameFilters | null
+  readonly message: SmartSearchMessage | null
+  readonly pending: boolean
+}) => (
+  <>
+    {import.meta.env.DEV &&
+    active &&
+    looksLikeFilterRequest(query) &&
+    !filters &&
+    !message &&
+    !pending ? (
+      <p className="mt-1 pl-3 font-sans text-muted-foreground text-xs">
+        <Trans>Press Enter to search by status</Trans>
+      </p>
+    ) : null}
+    <div
+      aria-live="polite"
+      className="mt-1 pl-3 font-sans text-muted-foreground text-xs"
+    >
+      {pending ? <Trans>Interpreting search…</Trans> : null}
+      {!pending && message === 'unsupported' ? (
+        <Trans>
+          Could not interpret this request. Try a name or a supported status.
+        </Trans>
+      ) : null}
+      {!pending && message === 'unavailable' ? (
+        <Trans>Smart search is unavailable. Name search still works.</Trans>
+      ) : null}
+      {!pending && message === 'missing-data' ? (
+        <Trans>
+          This filter needs upgrade or favorites data that is unavailable here.
+        </Trans>
+      ) : null}
+    </div>
+  </>
+)
+
 export const NamesTable = ({
   migrationEnabled = false,
   primaryLabel,
@@ -66,9 +141,21 @@ export const NamesTable = ({
   const { t } = useLingui()
   const [filter, setFilter] = useState<FilterKey>('owned')
   const [searchQuery, setSearchQuery] = useState('')
+  const [smartFilters, setSmartFilters] = useState<SmartNameFilters | null>(
+    null,
+  )
+  const [smartMessage, setSmartMessage] = useState<SmartSearchMessage | null>(
+    null,
+  )
+  const [pendingQuery, setPendingQuery] = useState<string | null>(null)
+  const requestId = useRef(0)
+  const interpretMutation = useMutation({
+    mutationFn: (query: string) => interpretNameSearch({ data: { query } }),
+  })
   const [ownedSort, setOwnedSort] = useState<Sort>('name-asc')
   const [favoritesSort, setFavoritesSort] = useState<FavoritesSort>('name-asc')
-  const ownedSortState = parseDirectionalSort<SortField>(ownedSort)
+  const effectiveOwnedSort = smartFilters?.sort ?? ownedSort
+  const ownedSortState = parseDirectionalSort<SortField>(effectiveOwnedSort)
   const favoritesSortState =
     parseDirectionalSort<FavoritesSortField>(favoritesSort)
   const shouldReduceMotion = useReducedMotion()
@@ -95,6 +182,123 @@ export const NamesTable = ({
     [favorites],
   )
 
+  const clearSmartSearch = () => {
+    requestId.current += 1
+    setSmartFilters(null)
+    setSmartMessage(null)
+    setPendingQuery(null)
+  }
+
+  const onSearchChange = (value: string) => {
+    clearSmartSearch()
+    setSearchQuery(value)
+  }
+
+  const applyInterpretationResult = (result: InterpretNameSearchResult) => {
+    if (result.status !== 'ok') {
+      setSmartMessage(result.status)
+      return
+    }
+    if (
+      !isSmartFilterAvailable(result.filters, {
+        migrationEnabled,
+        isAuthenticated: isAuthed,
+      })
+    ) {
+      setSmartMessage('missing-data')
+      return
+    }
+    setSmartFilters(result.filters)
+  }
+
+  const onSearchKeyDown = async (event: KeyboardEvent<HTMLInputElement>) => {
+    if (!shouldInterpretSearch(event, activeFilter, searchQuery)) return
+    const query = searchQuery.trim()
+    event.preventDefault()
+    clearSmartSearch()
+    if (query.length < 2 || query.length > 160) {
+      setSmartMessage('unsupported')
+      return
+    }
+    const currentRequest = ++requestId.current
+    setPendingQuery(query)
+    try {
+      const result = await interpretMutation.mutateAsync(query)
+      if (currentRequest !== requestId.current) return
+      applyInterpretationResult(result)
+    } catch {
+      if (currentRequest === requestId.current) setSmartMessage('unavailable')
+    } finally {
+      if (currentRequest === requestId.current) setPendingQuery(null)
+    }
+  }
+
+  const removeChip = (key: SmartNameFilterKey) => {
+    if (!smartFilters) return
+    const next = removeSmartFilter(smartFilters, key)
+    if (hasSmartFilters(next)) {
+      setSmartFilters(next)
+    } else {
+      clearSmartSearch()
+      setSearchQuery('')
+    }
+  }
+
+  const expiryChipLabel = (): string => {
+    switch (smartFilters?.expiry) {
+      case 'expiring':
+        return t`Expires within ${smartFilters.withinDays ?? 30} days`
+      case 'active':
+        return t`Active`
+      case 'expired':
+        return t`Expired`
+      case 'in-grace':
+        return t`In grace period`
+      case 'past-grace':
+        return t`Past grace period`
+      case 'non-expiring':
+        return t`Does not expire`
+    }
+    return ''
+  }
+
+  const sortChipLabel = (): string => {
+    switch (smartFilters?.sort) {
+      case 'name-asc':
+        return t`Name A to Z`
+      case 'name-desc':
+        return t`Name Z to A`
+      case 'created-asc':
+        return t`Oldest first`
+      case 'created-desc':
+        return t`Newest first`
+      case 'expiry-asc':
+        return t`Soonest expiry first`
+      case 'expiry-desc':
+        return t`Latest expiry first`
+    }
+    return ''
+  }
+
+  const smartChipLabel = (key: SmartNameFilterKey): string => {
+    if (!smartFilters) return ''
+    const labels: Record<SmartNameFilterKey, string> = {
+      expiry: expiryChipLabel(),
+      role: smartFilters.role === 'owner' ? t`Owner` : t`Manager`,
+      version: smartFilters.version === 'v1' ? t`ENSv1` : t`ENSv2`,
+      upgrade:
+        smartFilters.upgrade === 'eligible'
+          ? t`Eligible for upgrade`
+          : t`Not eligible for upgrade`,
+      favorite:
+        smartFilters.favorite === 'yes' ? t`Favorites` : t`Not favorites`,
+      primary:
+        smartFilters.primary === 'yes' ? t`Primary name` : t`Not primary`,
+      sort: sortChipLabel(),
+    }
+    return labels[key]
+  }
+
   const [selectedLabels, setSelectedLabels] = useState<ReadonlySet<string>>(
     new Set(),
   )
@@ -103,19 +307,30 @@ export const NamesTable = ({
   // ignored for selection/renewal (subnames have no renewal price).
   const allOwnedLabels = useMemo(
     () =>
-      buildMergedNamesList({
+      buildDashboardSearchResults({
         v2Names,
         v1Classified: [],
         searchQuery,
         sortField: ownedSortState.field,
         sortDir: ownedSortState.dir,
+        smartFilters,
+        primaryLabel,
+        favoriteLabels,
       }).flatMap((item) =>
         item.kind === 'v2' &&
         toBulkRenewName(toSelectableDomain(item.domain)) !== null
           ? [selectionKey(item.domain)]
           : [],
       ),
-    [v2Names, searchQuery, ownedSortState.field, ownedSortState.dir],
+    [
+      v2Names,
+      searchQuery,
+      ownedSortState.field,
+      ownedSortState.dir,
+      smartFilters,
+      primaryLabel,
+      favoriteLabels,
+    ],
   )
 
   const [isRenewOpen, setIsRenewOpen] = useState(false)
@@ -214,12 +429,20 @@ export const NamesTable = ({
           <div className="w-full md:w-88">
             <Input
               className="h-10 rounded-full border-none bg-ens-white pl-10 text-base text-foreground tracking-[-0.32px] shadow-none placeholder:text-ens-quartz-350 focus-visible:ring-0"
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) => onSearchChange(event.target.value)}
+              onKeyDown={(event) => void onSearchKeyDown(event)}
               placeholder={t`Search my names`}
               startIcon={
                 <Search className="-ml-1 size-4.5 text-ens-quartz-350" />
               }
               value={searchQuery}
+            />
+            <SmartSearchFeedback
+              active={activeFilter === 'owned'}
+              filters={smartFilters}
+              message={smartMessage}
+              pending={pendingQuery !== null}
+              query={searchQuery}
             />
           </div>
         </div>
@@ -228,16 +451,19 @@ export const NamesTable = ({
           {activeFilter === 'owned' ? (
             <SortMenu
               direction={ownedSortState.dir}
-              onChange={(field) =>
+              onChange={(field) => {
+                if (smartFilters?.sort) removeChip('sort')
                 setOwnedSort(toDirectionalSort(field, ownedSortState.dir))
-              }
-              onToggleDirection={() =>
+              }}
+              onToggleDirection={() => {
+                if (smartFilters?.sort) removeChip('sort')
                 setOwnedSort((current) => {
-                  const { field, dir } =
-                    parseDirectionalSort<SortField>(current)
+                  const { field, dir } = parseDirectionalSort<SortField>(
+                    smartFilters?.sort ?? current,
+                  )
                   return toDirectionalSort(field, reverseSortDir(dir))
                 })
-              }
+              }}
               options={ownedSortOptions}
               value={ownedSortState.field}
             />
@@ -265,10 +491,36 @@ export const NamesTable = ({
             onChange={(next) => {
               setFilter(next)
               setSearchQuery('')
+              clearSmartSearch()
             }}
             value={activeFilter}
           />
         </div>
+
+        {smartFilters && activeFilter === 'owned' ? (
+          <fieldset
+            aria-label={t`Applied search filters`}
+            className="flex flex-wrap gap-2"
+          >
+            {SMART_FILTER_KEYS.filter(
+              (key) => smartFilters[key] !== undefined,
+            ).map((key) => {
+              const label = smartChipLabel(key)
+              return (
+                <button
+                  aria-label={t`Remove ${label} filter`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-ens-lapis-500/30 bg-ens-lapis-100 px-2.5 py-1 font-sans text-ens-lapis-900 text-xs transition-colors hover:bg-ens-lapis-100/60 focus-visible:outline-2 focus-visible:outline-ens-lapis-500"
+                  key={key}
+                  onClick={() => removeChip(key)}
+                  type="button"
+                >
+                  {label}
+                  <X aria-hidden="true" className="size-3" />
+                </button>
+              )
+            })}
+          </fieldset>
+        ) : null}
 
         {activeFilter === 'owned' && allOwnedLabels.length > 0 && (
           <div className="flex w-full items-center justify-between gap-3">
@@ -333,6 +585,7 @@ export const NamesTable = ({
                 primaryLabel={primaryLabel}
                 searchQuery={searchQuery}
                 selectedLabels={selectedLabels}
+                smartFilters={smartFilters}
                 sort={ownedSort}
               />
             </motion.div>
