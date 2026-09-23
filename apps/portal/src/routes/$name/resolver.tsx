@@ -5,7 +5,6 @@ import { ClockIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
-import { useConnection } from 'wagmi'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { EditNoteIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
@@ -22,7 +21,7 @@ import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { InfoRow } from '@/features/profile/components/InfoRow'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
@@ -51,29 +50,14 @@ const interfaceNamesById = Object.entries(RESOLVER_INTERFACE_IDS).map(
 )
 
 interface EditButtonsProps {
-  address: Address
   name: string
   resolverAddress?: Address
-  registryAddress: Address
 }
 
-const EditButtons = ({
-  address,
-  name,
-  resolverAddress,
-  registryAddress,
-}: EditButtonsProps) => {
-  const label = name.split('.')[0]
-  const { data: hasSetResolverRole } = useQuery({
-    ...getHasRolesQueryOptions({
-      registryAddress,
-      label,
-      roles: ['ROLE_SET_RESOLVER'],
-      account: address,
-    }),
-  })
+const EditButtons = ({ name, resolverAddress }: EditButtonsProps) => {
+  const { canSet } = useCanSetResolver({ name })
 
-  if (!hasSetResolverRole) return null
+  if (!canSet) return null
   if (!resolverAddress || resolverAddress === zeroAddress) return null
 
   return (
@@ -216,17 +200,10 @@ const RESOLVER_HISTORY_EVENT_TYPES = [
 
 interface ResolverViewProps {
   name: string
-  /** Undefined for a gasless DNS name: no registry entry, nothing to edit. */
-  registryAddress: Address | undefined
   resolverAddress: Address
 }
 
-const ResolverView = ({
-  name,
-  registryAddress,
-  resolverAddress,
-}: ResolverViewProps) => {
-  const { address } = useConnection()
+const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
   const permissionedResolverQuery = useQuery(
     getIsPermissionedResolverQueryOptions({ resolverAddress }),
   )
@@ -253,14 +230,7 @@ const ResolverView = ({
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <PageHeading parent={{ type: 'name', name }}>Resolver</PageHeading>
-        {address && registryAddress ? (
-          <EditButtons
-            address={address}
-            name={name}
-            resolverAddress={resolverAddress}
-            registryAddress={registryAddress}
-          />
-        ) : null}
+        <EditButtons name={name} resolverAddress={resolverAddress} />
       </div>
 
       {permissionedResolverQuery.data ? (
@@ -305,26 +275,10 @@ const ResolverView = ({
   )
 }
 
-const SetResolverButton = ({
-  account,
-  registryAddress,
-  name,
-}: {
-  account: Address
-  registryAddress: Address
-  name: string
-}) => {
-  const label = name.split('.')[0]
-  const { data: hasSetResolverRole } = useQuery(
-    getHasRolesQueryOptions({
-      registryAddress,
-      label,
-      roles: ['ROLE_SET_RESOLVER'],
-      account,
-    }),
-  )
+const SetResolverButton = ({ name }: { name: string }) => {
+  const { canSet } = useCanSetResolver({ name })
 
-  if (!hasSetResolverRole) return null
+  if (!canSet) return null
 
   return (
     <Button variant="default" className="flex items-center gap-2" asChild>
@@ -336,15 +290,7 @@ const SetResolverButton = ({
   )
 }
 
-const NoResolverSet = ({
-  name,
-  registryAddress,
-}: {
-  name: string
-  registryAddress: Address | undefined
-}) => {
-  const { address: account } = useConnection()
-
+const NoResolverSet = ({ name }: { name: string }) => {
   return (
     <div className="flex flex-col gap-8">
       <PageHeading parent={{ type: 'name', name }}>Resolver</PageHeading>
@@ -352,13 +298,7 @@ const NoResolverSet = ({
         <p className="flex-1 text-base text-muted-foreground">
           This name does not have a resolver set.
         </p>
-        {account && registryAddress && (
-          <SetResolverButton
-            name={name}
-            account={account}
-            registryAddress={registryAddress}
-          />
-        )}
+        <SetResolverButton name={name} />
       </div>
     </div>
   )
@@ -456,19 +396,12 @@ function RouteComponent() {
     )
 
   const resolverAddress = resolverQuery.data
-  const registryAddress = ownerQuery.data?.registryAddress
 
   if (resolverAddress) {
     if (resolverAddress === zeroAddress) {
-      return <NoResolverSet name={name} registryAddress={registryAddress} />
+      return <NoResolverSet name={name} />
     }
-    return (
-      <ResolverView
-        name={name}
-        registryAddress={registryAddress}
-        resolverAddress={resolverAddress}
-      />
-    )
+    return <ResolverView name={name} resolverAddress={resolverAddress} />
   }
 
   return (
