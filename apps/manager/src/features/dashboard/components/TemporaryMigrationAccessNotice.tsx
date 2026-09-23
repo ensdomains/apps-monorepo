@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { usePublicClient } from 'wagmi'
-import { migrationHcaApprovalQueryOptions } from '@/features/migration/service/migrationApprovalQueries'
+import { getMigrationHcaApprovalQueryOptions } from '@/features/migration/service/migrationApprovalQueries'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const TemporaryMigrationAccessNotice = () => {
@@ -12,7 +12,7 @@ export const TemporaryMigrationAccessNotice = () => {
   const owner = ownerAddress as Address | undefined
   const hca = accountAddress as Address | undefined
   const { data: isApproved } = useQuery(
-    migrationHcaApprovalQueryOptions({ owner, hca, publicClient }),
+    getMigrationHcaApprovalQueryOptions({ owner, hca, publicClient }),
   )
 
   if (!isApproved) return null

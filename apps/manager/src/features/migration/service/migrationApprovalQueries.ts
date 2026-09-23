@@ -1,4 +1,7 @@
-import { queryOptions, skipToken } from '@tanstack/react-query'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { skipToken } from '@tanstack/react-query'
+import { ok, ResultAsync } from 'neverthrow'
 import type { Address, PublicClient } from 'viem'
 import type { Config as WagmiConfig } from 'wagmi'
 import {
@@ -10,35 +13,76 @@ import {
   readActiveMigrationOperatorApprovals,
 } from '@/features/migration/service/migrationApprovals'
 
-export const migrationOperatorApprovalsQueryOptions = (params: {
+export class GetMigrationOperatorApprovalsError extends TaggedError(
+  'GetMigrationOperatorApprovalsError',
+)<{
+  cause: unknown
+}> {}
+
+export class GetMigrationHcaApprovalError extends TaggedError(
+  'GetMigrationHcaApprovalError',
+)<{
+  cause: unknown
+}> {}
+
+export const getMigrationOperatorApprovals = ResultFn(async function* (params: {
+  readonly owner: Address
+  readonly hca: Address
+  readonly wagmiConfig: WagmiConfig
+}) {
+  const approvals = yield* ResultAsync.fromPromise(
+    readActiveMigrationOperatorApprovals({
+      eoa: params.owner,
+      hcaAddress: params.hca,
+      wagmiConfig: params.wagmiConfig,
+    }),
+    (cause) => new GetMigrationOperatorApprovalsError({ cause }),
+  )
+
+  return ok(approvals)
+})
+
+export const getMigrationHcaApproval = ResultFn(async function* (params: {
+  readonly owner: Address
+  readonly hca: Address
+  readonly publicClient: PublicClient
+}) {
+  const approved = yield* ResultAsync.fromPromise(
+    hasTemporaryMigrationHcaApproval({
+      publicClient: params.publicClient,
+      eoa: params.owner,
+      hcaAddress: params.hca,
+    }),
+    (cause) => new GetMigrationHcaApprovalError({ cause }),
+  )
+
+  return ok(approved)
+})
+
+export const getMigrationOperatorApprovalsQueryOptions = (params: {
   readonly owner?: Address
   readonly hca?: Address
   readonly chainId?: number
   readonly wagmiConfig: WagmiConfig
 }) => {
   const { owner, hca, chainId, wagmiConfig } = params
-  return queryOptions({
+  return resultQueryOptions({
     queryKey: migrationOperatorApprovalsQueryKey({ owner, hca, chainId }),
     queryFn:
       owner && hca
-        ? () =>
-            readActiveMigrationOperatorApprovals({
-              eoa: owner,
-              hcaAddress: hca,
-              wagmiConfig,
-            })
+        ? () => getMigrationOperatorApprovals({ owner, hca, wagmiConfig })
         : skipToken,
     staleTime: 0,
   })
 }
 
-export const migrationHcaApprovalQueryOptions = (params: {
+export const getMigrationHcaApprovalQueryOptions = (params: {
   readonly owner?: Address
   readonly hca?: Address
   readonly publicClient?: PublicClient
 }) => {
   const { owner, hca, publicClient } = params
-  return queryOptions({
+  return resultQueryOptions({
     queryKey: migrationHcaApprovalQueryKey({
       owner,
       hca,
@@ -46,12 +90,7 @@ export const migrationHcaApprovalQueryOptions = (params: {
     }),
     queryFn:
       owner && hca && publicClient
-        ? () =>
-            hasTemporaryMigrationHcaApproval({
-              publicClient,
-              eoa: owner,
-              hcaAddress: hca,
-            })
+        ? () => getMigrationHcaApproval({ owner, hca, publicClient })
         : skipToken,
     staleTime: 0,
   })

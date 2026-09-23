@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConfig, usePublicClient, useWalletClient } from 'wagmi'
-import { migrationOperatorApprovalsQueryOptions } from '@/features/migration/service/migrationApprovalQueries'
+import { getMigrationOperatorApprovalsQueryOptions } from '@/features/migration/service/migrationApprovalQueries'
 import type { MigrationOperatorApproval } from '@/features/migration/service/migrationApprovals'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { revokeMigrationApproval } from './revokeMigrationApproval'
@@ -30,7 +30,7 @@ export const useMigrationApprovalSettings = () => {
   const hca = hcaAddress as Address | undefined
   const chainId = publicClient?.chain.id
   const approvalsQuery = useQuery(
-    migrationOperatorApprovalsQueryOptions({
+    getMigrationOperatorApprovalsQueryOptions({
       owner,
       hca,
       chainId,
