@@ -1342,6 +1342,10 @@ msgstr "NFT traits"
 msgid "No eligible names found for this wallet"
 msgstr "No eligible names found for this wallet"
 
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS."
+msgstr "No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS."
+
 #: src/features/dashboard/components/FavoritesList.tsx
 msgid "No favorites to display"
 msgstr "No favorites to display"
