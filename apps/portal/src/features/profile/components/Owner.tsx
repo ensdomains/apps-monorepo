@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
 import { ShieldPersonIcon } from '@/assets/icons'
@@ -15,7 +16,8 @@ export const Owner = ({
   asRow,
 }: {
   owner?: Address
-  label?: string
+  /** A node, not just a string: a role label can carry its own explanation. */
+  label?: ReactNode
   className?: string
   asRow?: boolean
 }) => {

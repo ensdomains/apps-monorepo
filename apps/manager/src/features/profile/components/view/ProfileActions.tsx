@@ -21,6 +21,7 @@ type ProfileActionsProps = {
   readonly hasMobileStatusBanner: boolean
   readonly isInGrace: boolean
   readonly isOwner?: boolean
+  readonly isUpgradeRequired: boolean
   readonly name: string
   readonly onUpdated: () => undefined | Promise<unknown>
   readonly owner?: Address
@@ -60,6 +61,7 @@ export const ProfileActions = ({
   hasMobileStatusBanner,
   isInGrace,
   isOwner,
+  isUpgradeRequired,
   name,
   onUpdated,
   owner,
@@ -68,9 +70,8 @@ export const ProfileActions = ({
   url,
 }: ProfileActionsProps) => {
   const { t } = useLingui()
-  // Imported DNS names are served by the v1 registry too, but stay editable.
-  const isUnmigratedEthName =
-    renewalProtocol === 'v1' && normalizeEthName(name) !== null
+  const canEditProfile =
+    isOwner && (renewalProtocol !== 'v1' || normalizeEthName(name) === null)
 
   return (
     <>
@@ -104,13 +105,14 @@ export const ProfileActions = ({
         />
       </div>
 
-      {isOwner && !isInGrace && !isUnmigratedEthName ? (
+      {(canEditProfile || isUpgradeRequired) && !isInGrace ? (
         <nav aria-label={t`Profile actions`} className={editBottomNavClassName}>
           <div className={editBottomNavContentClassName}>
             <ProfileEditAction
               className={editActionClassName}
               isInGrace={isInGrace}
               isOwner={isOwner}
+              isUpgradeRequired={isUpgradeRequired}
               name={name}
               onUpdated={onUpdated}
               owner={owner}

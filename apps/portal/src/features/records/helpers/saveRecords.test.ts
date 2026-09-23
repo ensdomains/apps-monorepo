@@ -1,8 +1,18 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: Need to mock the transaction manager */
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
-import { permissionedResolverSetTextSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
-import { encodeFunctionData, namehash, toHex } from 'viem'
+import {
+  permissionedResolverMulticallSnippet,
+  permissionedResolverSetAddressSnippet,
+  permissionedResolverSetTextSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import {
+  decodeFunctionData,
+  encodeFunctionData,
+  getAddress,
+  namehash,
+  toHex,
+} from 'viem'
 import { packetToBytes } from 'viem/ens'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -315,5 +325,70 @@ describe('saveRecords encoding (integration)', () => {
     // write revert with empty data against the deployed resolver.
     const node = namehash('myname.eth').slice(2)
     expect(requestData.toLowerCase()).not.toContain(node.toLowerCase())
+  })
+
+  it('replaces an existing Base record with exactly one setAddress of the new value', async () => {
+    const { transactionManager } = await import('@ens-apps/transaction-manager')
+    vi.mocked(transactionManager.startTransaction).mockClear()
+
+    const baseCoinType = 2147492101
+    const newAddress = getAddress('0xb8c2c29ee19d8307cb7255e1cd9cbde883a267d5')
+
+    await saveRecords({
+      id: 'mock-tx-id',
+      name: 'test.eth',
+      resolverAddress: '0x1234567890123456789012345678901234567890',
+      originalRecords: [
+        {
+          type: 'address',
+          id: baseCoinType,
+          key: 'base',
+          value: getAddress('0x225f137127d9067788314bc7fcc1f36746a3c3b5'),
+        },
+        // A second change so the writes go out as a multicall.
+        { type: 'text', key: 'description', value: 'old' },
+      ],
+      pendingChanges: {
+        newRecords: [
+          {
+            type: 'address',
+            id: baseCoinType,
+            key: 'base',
+            value: newAddress,
+            _uid: 'replacement',
+          },
+        ],
+        editedValues: new Map([['text-description', 'new']]),
+        deletedIds: new Set(['address-base']),
+      },
+      walletClient: mockWalletClient,
+      publicClient: {} as any,
+      signer: { type: 'eoa', walletClient: {} as any },
+      chainId: 11155111,
+    })
+
+    const call = vi.mocked(transactionManager.startTransaction).mock.calls[0]
+    const { args } = decodeFunctionData({
+      abi: permissionedResolverMulticallSnippet,
+      data: (call[0] as any).request.data,
+    })
+    const baseWrites = args[0]
+      .map((data) =>
+        decodeFunctionData({
+          abi: [
+            ...permissionedResolverSetAddressSnippet,
+            ...permissionedResolverSetTextSnippet,
+          ],
+          data,
+        }),
+      )
+      .filter(
+        (decoded) =>
+          decoded.functionName === 'setAddress' &&
+          decoded.args[1] === BigInt(baseCoinType),
+      )
+
+    expect(baseWrites).toHaveLength(1)
+    expect(baseWrites[0]?.args[2]).toBe(newAddress.toLowerCase())
   })
 })

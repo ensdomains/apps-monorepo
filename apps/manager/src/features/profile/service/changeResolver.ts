@@ -5,7 +5,7 @@ import { type Address, encodeFunctionData, labelhash, zeroAddress } from 'viem'
 import { normalize } from 'viem/ens'
 import { publicClient } from '@/lib/wagmi'
 
-class NameRegistryNotFoundError extends Error {
+export class NameRegistryNotFoundError extends Error {
   constructor(name: string) {
     super(`No V2 registry holds ${name}`)
     this.name = 'NameRegistryNotFoundError'

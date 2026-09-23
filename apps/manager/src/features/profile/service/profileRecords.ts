@@ -20,6 +20,7 @@ import {
   textRecords,
 } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
+import { getProfileCoinRecords } from './profileCoinRecords'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
@@ -114,21 +115,22 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     ...indexerRecords.coins,
   ]).filter(isSupportedCoinType)
 
-  const records = yield* fromPromise(
-    getRecords(client, {
-      name,
-      texts,
-      coins,
-      contentHash: true,
-      abi: true,
-      ignoreInvalidCoinTypes: true,
-    }),
+  const [records, coinRecords] = yield* fromPromise(
+    Promise.all([
+      getRecords(client, {
+        name,
+        texts,
+        contentHash: true,
+        abi: true,
+      }),
+      getProfileCoinRecords(client, name, coins),
+    ]),
     (error) => new GetProfileRecordsError({ cause: error }),
   )
 
   const result: ProfileRecordsResult = {
     texts: records.texts,
-    coins: records.coins,
+    coins: coinRecords,
     resolverAddress: normalizeResolverAddress(records.resolverAddress),
     _rawSubgraphRecords: indexerRecords,
   }

@@ -224,6 +224,15 @@ class TransactionManager {
 
     const txId = transactionOptions.id || generateTransactionId()
 
+    // Flows retry a step under its fixed id (the modal's "Try again"), and
+    // the terminal side effects below run once per id. Retire an attempt that
+    // already ended, or it would swallow this run's archive, report and
+    // telemetry.
+    if (this.completedTelemetry.has(txId)) {
+      this.transactions.get(txId)?.stop()
+      this.completedTelemetry.delete(txId)
+    }
+
     // Create and start the transaction actor
     const actor = createActor(transactionMachine, {
       input: {
