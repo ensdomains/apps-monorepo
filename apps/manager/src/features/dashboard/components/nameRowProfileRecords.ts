@@ -8,7 +8,7 @@ export type NameRowProfilePreview = {
 }
 
 const getTextRecordValue = (
-  records: ProfileRecordsResult | null | undefined,
+  records: Pick<ProfileRecordsResult, 'texts'> | null | undefined,
   key: string,
 ): string | undefined => {
   const value = records?.texts.find((text) => text.key === key)?.value.trim()
@@ -18,7 +18,7 @@ const getTextRecordValue = (
 export const getNameRowProfilePreview = (params: {
   readonly label: string
   readonly name?: string
-  readonly records?: ProfileRecordsResult | null
+  readonly records?: Pick<ProfileRecordsResult, 'texts'> | null
   readonly isLoading?: boolean
 }): NameRowProfilePreview => {
   const themeColor = getTextRecordValue(params.records, 'theme')

@@ -12,6 +12,7 @@ import { match, P } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import type { Actor } from 'xstate'
+import { NameRegistryNotFoundError } from '@/features/profile/service/changeResolver'
 import {
   getActiveSignedProfileImageUploads,
   refreshProfileImageCaches,
@@ -111,6 +112,11 @@ const ethCoinValue = (coins: readonly { coinType: number; value: string }[]) =>
 const toastSaveError = (error: unknown) => {
   toast.error(t`Cannot save profile`, {
     description: match(error)
+      .with(
+        P.instanceOf(NameRegistryNotFoundError),
+        () =>
+          t`No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS.`,
+      )
       .with(
         P.instanceOf(ResolverChangeNotAuthorizedError),
         () =>
