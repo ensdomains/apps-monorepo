@@ -133,6 +133,9 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       'base-registrar:hca-token',
       'eth-registry:hca',
     ])
+    expect(result.migrationCleanupApprovals?.map(({ id }) => id)).toEqual([
+      'eth-registry:hca',
+    ])
     expect(checkMigrationApprovalsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         eoa: EOA,
@@ -154,6 +157,15 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     expect(checkMigrationHcaReadinessMock).toHaveBeenCalledWith(
       expect.objectContaining({ hca: HCA, expectedOwner: EOA }),
     )
+  })
+
+  it('plans cleanup for an existing HCA approval without adding a new grant', async () => {
+    const result = await run({ hcaAddress: HCA })
+
+    expect(result.migrationApprovals).toEqual([])
+    expect(result.migrationCleanupApprovals?.map(({ id }) => id)).toEqual([
+      'eth-registry:hca',
+    ])
   })
 
   it('checks locked known resolvers against the pinned PublicResolverSet', async () => {
