@@ -221,19 +221,23 @@ describe('SelectNamesStep', () => {
 })
 
 describe('SelectNamesStep manager restoration (WEB-1528)', () => {
+  /** The opt-in sits inside the only label titled with the manager address. */
   const managerCheckbox = (utils: ReturnType<typeof renderStep>) =>
+    utils
+      .getByTitle(CONTROLLER)
+      .querySelector<HTMLInputElement>('input[type="checkbox"]')
+
+  /** Each row selects through a visually-hidden checkbox named after the name. */
+  const rowCheckbox = (utils: ReturnType<typeof renderStep>, name: string) =>
     utils.container.querySelector<HTMLInputElement>(
-      '#manager-restoration-managed\\.eth',
-    ) ??
-    utils.container.querySelector<HTMLInputElement>('input[type="checkbox"]')
+      `input[aria-label="${name}"]`,
+    )
 
   it('offers the opt-in only for a name whose v1 controller differs from its registrant', () => {
     const utils = renderStep()
-    const checkboxes = utils.container.querySelectorAll<HTMLInputElement>(
-      'input[type="checkbox"]',
-    )
 
-    expect(checkboxes).toHaveLength(1)
+    expect(utils.getAllByTitle(CONTROLLER)).toHaveLength(1)
+    expect(managerCheckbox(utils)).toBeInTheDocument()
   })
 
   it('shows the address that would gain control, truncated', () => {
@@ -265,7 +269,7 @@ describe('SelectNamesStep manager restoration (WEB-1528)', () => {
     if (!checkbox) throw new Error('manager opt-in not found')
     fireEvent.click(checkbox)
 
-    const row = utils.getByText('managed.eth').closest('button')
+    const row = rowCheckbox(utils, 'managed.eth')
     if (!row) throw new Error('name row not found')
     fireEvent.click(row)
 
