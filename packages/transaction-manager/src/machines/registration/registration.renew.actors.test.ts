@@ -1,5 +1,4 @@
-import { ensContractsFor, getTokens } from '@ens-apps/config'
-import { extendChainWithEns } from '@ensdomains/ensjs/chain'
+import { ensL1Contracts, extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import {
@@ -30,8 +29,8 @@ vi.mock('../../providers/transactionManager', () => ({
 }))
 
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
-const CONTRACTS = ensContractsFor(sepolia.id)
-const TOKENS = getTokens(sepolia.id)
+const CONTRACTS = ensL1Contracts[sepolia.id]
+const TOKENS = { USDC: CONTRACTS.usdc, DAI: CONTRACTS.dai }
 const V1_RENEWER = CONTRACTS.ensEthRenewerV1.address
 const signer = {
   type: 'eoa',

@@ -1,4 +1,8 @@
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import {
+  ensL1Contracts,
+  type SupportedL1ChainId,
+  supportedL1Chains,
+} from '@ensdomains/ensjs/chain'
 import { type Address, isAddressEqual } from 'viem'
 
 /**
@@ -9,7 +13,7 @@ import { type Address, isAddressEqual } from 'viem'
  * list would classify such a name as a standard PublicResolver and produce a
  * migration plan against an address that is not a resolver here.
  */
-const KNOWN_PUBLIC_RESOLVERS: Record<number, readonly Address[]> = {
+const KNOWN_PUBLIC_RESOLVERS: Record<SupportedL1ChainId, readonly Address[]> = {
   [supportedL1Chains.mainnet]: [
     ensL1Contracts[supportedL1Chains.mainnet].ensPublicResolver.address,
     // An earlier mainnet PublicResolver. Verified by code: this address has
@@ -29,16 +33,12 @@ const KNOWN_PUBLIC_RESOLVERS: Record<number, readonly Address[]> = {
   ],
 }
 
-/**
- * An unrecognised resolver routes the name down the conservative path, so an
- * unknown chain returning an empty list fails in the safe direction.
- */
 export const isKnownPublicResolver = (
   address: string | null,
-  chainId: number,
+  chainId: SupportedL1ChainId,
 ): boolean => {
   if (!address) return false
-  return (KNOWN_PUBLIC_RESOLVERS[chainId] ?? []).some((known) =>
+  return KNOWN_PUBLIC_RESOLVERS[chainId].some((known) =>
     isAddressEqual(known, address as Address),
   )
 }

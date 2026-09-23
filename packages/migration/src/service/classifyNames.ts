@@ -1,3 +1,4 @@
+import type { SupportedL1ChainId } from '@ensdomains/ensjs/chain'
 import { ChildFuses, FullParentFuses } from '@ensdomains/ensjs/utils'
 import { type Address, isAddress } from 'viem'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
@@ -87,7 +88,7 @@ const resolverStrategyFor = (params: {
   tokenType: MigrationTokenType
   fuses: bigint
   v1ResolverAddress: string | null
-  chainId: number
+  chainId: SupportedL1ChainId
 }): ResolverStrategy => {
   const { tokenType, fuses, v1ResolverAddress, chainId } = params
 
@@ -140,7 +141,7 @@ const isDotEthSubname = (
 
 const hasSupportedCopyResolver = (
   resolverAddress: string | null,
-  chainId: number,
+  chainId: SupportedL1ChainId,
 ): boolean =>
   resolverAddress === null || isKnownPublicResolver(resolverAddress, chainId)
 
@@ -166,7 +167,7 @@ const hasExpiredDotEthRegistration = (
 }
 
 type ClassificationContext = {
-  readonly chainId: number
+  readonly chainId: SupportedL1ChainId
   readonly domain: V1Domain
   readonly label: string
   readonly ownerAddressLower: string
@@ -408,7 +409,7 @@ const classifyActiveWrapper = (
 export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
-  chainId: number,
+  chainId: SupportedL1ChainId,
 ): ClassifyResult => {
   if (hasUnknownLabel(domain)) return ineligible(domain, 'unknown-label')
   const label = domain.labelName
@@ -450,7 +451,7 @@ export type ClassifyNamesResult = {
 export const classifyNames = (
   domains: readonly V1Domain[],
   ownerAddress: Address,
-  chainId: number,
+  chainId: SupportedL1ChainId,
 ): ClassifyNamesResult => {
   const results = domains.map((domain) =>
     classifyName(domain, ownerAddress, chainId),

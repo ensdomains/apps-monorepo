@@ -200,3 +200,25 @@ describe('NETWORKS', () => {
     }
   })
 })
+
+describe('undeployed contracts', () => {
+  // ensjs holds an undeployed contract as the zero address rather than
+  // omitting it, so a lookup succeeds and the call goes to 0x0. The build
+  // guard is what turns that into a failure, and it must cover the reverse
+  // set too now that ensjs carries those keys.
+  it('fails a mainnet build naming every zero-address contract', () => {
+    expect(() =>
+      buildConfig({
+        network: 'mainnet',
+        overrides: { indexerGraphql: 'https://indexer.example/' },
+      }),
+    ).toThrow(/ensDefaultReverseRegistrar/)
+  })
+
+  it('does not fail sepolia, where they are deployed', () => {
+    const { contracts } = buildSepolia().chain
+
+    expect(contracts.ensDefaultReverseRegistrar.address).not.toMatch(/^0x0+$/)
+    expect(contracts.ensReverseRegistrarAdapter.address).not.toMatch(/^0x0+$/)
+  })
+})

@@ -8,13 +8,6 @@ export {
   orderedRpcUrls,
 } from './buildConfig'
 export {
-  ensContractsFor,
-  getSupportedTokens,
-  getTokens,
-  type SUPPORTED_TOKEN,
-  type TOKEN_SYMBOL,
-} from './contracts'
-export {
   ENS_NETWORKS,
   type EnsNetwork,
   isEnsNetwork,

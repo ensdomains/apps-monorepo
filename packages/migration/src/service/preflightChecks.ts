@@ -1,7 +1,14 @@
-import { ensContractsFor, requireChainId } from '@ens-apps/config'
+import { requireEnsChain } from '@ens-apps/config'
 import { registryOwnerSnippet } from '@ensdomains/ensjs-abi/registry'
 import { permissionedRegistryGetStatusSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
-import { type Address, namehash, type PublicClient, zeroAddress } from 'viem'
+import {
+  type Address,
+  type Chain,
+  getChainContractAddress,
+  namehash,
+  type PublicClient,
+  zeroAddress,
+} from 'viem'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { batchedMulticall } from './batchedMulticall'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
@@ -36,11 +43,14 @@ type OwnershipContract = Parameters<typeof batchedMulticall>[1][number]
 
 const buildOwnershipContract = (
   name: ClassifiedName,
-  contracts: ReturnType<typeof ensContractsFor>,
+  chain: Chain,
 ): OwnershipContract => {
   if (name.action === 'copy' && name.copySource === 'registry') {
     return {
-      address: contracts.ensLegacyRegistry.address,
+      address: getChainContractAddress({
+        chain,
+        contract: 'ensLegacyRegistry',
+      }),
       abi: registryOwnerSnippet,
       functionName: 'owner' as const,
       args: [namehash(name.domain.name)] as const,
@@ -48,14 +58,17 @@ const buildOwnershipContract = (
   }
   if (name.action === 'migrate' && name.tokenType === 'unwrapped') {
     return {
-      address: contracts.ensBaseRegistrarImplementation.address,
+      address: getChainContractAddress({
+        chain,
+        contract: 'ensBaseRegistrarImplementation',
+      }),
       abi: BASE_REGISTRAR_ABI,
       functionName: 'ownerOf' as const,
       args: [BigInt(name.domain.labelhash)] as const,
     }
   }
   return {
-    address: contracts.ensNameWrapper.address,
+    address: getChainContractAddress({ chain, contract: 'ensNameWrapper' }),
     abi: NAME_WRAPPER_ABI,
     functionName: 'getData' as const,
     args: [BigInt(name.domain.id)] as const,
@@ -80,12 +93,8 @@ export const checkOwnership = async (
   const ids = new Set<string>()
   if (names.length === 0) return ids
 
-  const ensContracts = ensContractsFor(
-    requireChainId(publicClient, 'migration preflight'),
-  )
-  const contracts = names.map((name) =>
-    buildOwnershipContract(name, ensContracts),
-  )
+  const chain = requireEnsChain(publicClient, 'migration preflight')
+  const contracts = names.map((name) => buildOwnershipContract(name, chain))
 
   const results = await batchedMulticall<OwnershipResult>(
     publicClient,
@@ -130,9 +139,10 @@ export const checkFrozenApproval = async (
   )
   if (directCandidates.length === 0) return ids
 
-  const nameWrapper = ensContractsFor(
-    requireChainId(publicClient, 'migration preflight'),
-  ).ensNameWrapper.address
+  const nameWrapper = getChainContractAddress({
+    chain: requireEnsChain(publicClient, 'migration preflight'),
+    contract: 'ensNameWrapper',
+  })
 
   const results = await batchedMulticall<Address>(
     publicClient,
@@ -183,9 +193,10 @@ export const checkPremigrationReservation = async (
   )
   if (candidates.length === 0) return ids
 
-  const ethRegistryV2 = ensContractsFor(
-    requireChainId(publicClient, 'migration preflight'),
-  ).ensRegistry.address
+  const ethRegistryV2 = getChainContractAddress({
+    chain: requireEnsChain(publicClient, 'migration preflight'),
+    contract: 'ensRegistry',
+  })
 
   const results = await batchedMulticall<number>(
     publicClient,

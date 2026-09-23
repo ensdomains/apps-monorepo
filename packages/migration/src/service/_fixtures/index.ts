@@ -1,3 +1,4 @@
+import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import type { Address, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import type {
@@ -13,8 +14,11 @@ export const OWNER: Address = '0x0000000000000000000000000000000000000001'
 export const OTHER: Address = '0x0000000000000000000000000000000000000002'
 
 // The preflight checks resolve their contracts from the client's chain, so the
-// fixture has to carry one. A chainless client is rejected by design.
-export const publicClient = { chain: sepolia } as unknown as PublicClient
+// fixture has to carry the ENS-extended one. A chainless client is rejected
+// by design.
+export const publicClient = {
+  chain: extendChainWithEns(sepolia),
+} as unknown as PublicClient
 
 export const ok = <T>(result: T) => ({ status: 'success' as const, result })
 export const fail = () => ({

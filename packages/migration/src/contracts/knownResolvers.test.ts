@@ -59,10 +59,4 @@ describe('isKnownPublicResolver', () => {
     ).toBe(true)
     expect(isKnownPublicResolver(olderMainnetResolver, SEPOLIA)).toBe(false)
   })
-
-  it('treats an unknown chain as having no known resolvers', () => {
-    expect(
-      isKnownPublicResolver('0x640294a2b2d87e7f522db3e3e3e876764bce170d', 1234),
-    ).toBe(false)
-  })
 })
