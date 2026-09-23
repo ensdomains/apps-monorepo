@@ -55,10 +55,51 @@ export const RegistrationDetails = () => {
     basePriceWithoutDiscount + details.premiumPriceNumber - discountAmount
 
   return (
+    <RegistrationDetailsView
+      basePriceWithoutDiscount={basePriceWithoutDiscount}
+      discountAmount={discountAmount}
+      discountPercentage={discountPercentage}
+      duration={Number(details.duration)}
+      expirationDate={expirationDate}
+      label={details.label}
+      premiumPriceNumber={details.premiumPriceNumber}
+      referenceDate={getStartOfDay()}
+      showCompleteProfileCta={showCompleteProfileCta}
+      totalPrice={totalPrice}
+    />
+  )
+}
+
+interface RegistrationDetailsViewProps {
+  label: string
+  duration: number
+  referenceDate: Date
+  expirationDate: Date
+  basePriceWithoutDiscount: number
+  premiumPriceNumber: number
+  discountAmount: number
+  discountPercentage: number
+  totalPrice: number
+  showCompleteProfileCta: boolean
+}
+
+export const RegistrationDetailsView = ({
+  label,
+  duration,
+  referenceDate,
+  expirationDate,
+  basePriceWithoutDiscount,
+  premiumPriceNumber,
+  discountAmount,
+  discountPercentage,
+  totalPrice,
+  showCompleteProfileCta,
+}: RegistrationDetailsViewProps) => {
+  return (
     <div className="flex w-full flex-col gap-6">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-16">
         <div className="w-full lg:w-1/2">
-          <DomainCard domainName={`${details.label}.eth`} variant="garnet" />
+          <DomainCard domainName={`${label}.eth`} variant="garnet" />
         </div>
 
         <div className="flex w-full flex-col gap-6 lg:w-1/2">
@@ -74,8 +115,8 @@ export const RegistrationDetails = () => {
                 </p>
                 <p className="text-base text-ens-blue-dark">
                   <DurationLabel
-                    duration={Number(details.duration)}
-                    referenceDate={getStartOfDay()}
+                    duration={duration}
+                    referenceDate={referenceDate}
                   />
                 </p>
               </div>
@@ -89,7 +130,7 @@ export const RegistrationDetails = () => {
                 </p>
               </div>
 
-              {details.premiumPriceNumber > 0 && (
+              {premiumPriceNumber > 0 && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-ens-lapis-500">
                     <MSymbol
@@ -101,7 +142,7 @@ export const RegistrationDetails = () => {
                     </p>
                   </div>
                   <p className="text-base text-ens-lapis-500 tabular-nums">
-                    +{formatUsd(details.premiumPriceNumber)}
+                    +{formatUsd(premiumPriceNumber)}
                   </p>
                 </div>
               )}
@@ -139,7 +180,7 @@ export const RegistrationDetails = () => {
 
           {showCompleteProfileCta && (
             <LinkButton
-              params={{ name: `${details.label}.eth` }}
+              params={{ name: `${label}.eth` }}
               size="xl"
               to="/$name"
               variant="blue"

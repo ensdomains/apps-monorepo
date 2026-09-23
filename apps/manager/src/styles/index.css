@@ -187,6 +187,20 @@
     animation: shimmer 2s infinite;
   }
 
+  @keyframes domain-card-shimmer {
+    from {
+      transform: translate(-80px, -80px);
+    }
+
+    to {
+      transform: translate(400px, 400px);
+    }
+  }
+
+  .animate-domain-card-shimmer {
+    animation: domain-card-shimmer 3s ease-in-out infinite alternate;
+  }
+
   @keyframes fee-decay-nudge {
     0%,
     60%,
@@ -204,6 +218,11 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .animate-domain-card-shimmer {
+      display: none;
+      animation: none;
+    }
+
     .animate-fee-decay {
       animation: none;
     }

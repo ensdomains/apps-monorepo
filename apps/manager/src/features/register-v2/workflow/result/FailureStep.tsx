@@ -5,11 +5,35 @@ import { Button } from '@/components/ui/button'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 
 export const FailureStep = () => {
-  const { t } = useLingui()
   const { uiActor, label } = RegisterV2Context.use()
   const message = RegisterV2Context.useSelector(
     (state) => state.context.lastErrorMessage,
   )
+
+  return (
+    <FailureStepView
+      label={label}
+      message={message}
+      onCancel={() => uiActor.send({ type: 'cancel' })}
+      onRetry={() => uiActor.send({ type: 'retry' })}
+    />
+  )
+}
+
+interface FailureStepViewProps {
+  label: string
+  message?: string
+  onRetry: () => void
+  onCancel: () => void
+}
+
+export const FailureStepView = ({
+  label,
+  message,
+  onRetry,
+  onCancel,
+}: FailureStepViewProps) => {
+  const { t } = useLingui()
 
   return (
     <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
@@ -50,7 +74,7 @@ export const FailureStep = () => {
           <div className="flex gap-3">
             <Button
               className="flex-1"
-              onClick={() => uiActor.send({ type: 'retry' })}
+              onClick={onRetry}
               size="xl"
               type="button"
               variant="blue"
@@ -59,7 +83,7 @@ export const FailureStep = () => {
             </Button>
             <Button
               className="flex-1"
-              onClick={() => uiActor.send({ type: 'cancel' })}
+              onClick={onCancel}
               size="xl"
               type="button"
               variant="lightBlue"

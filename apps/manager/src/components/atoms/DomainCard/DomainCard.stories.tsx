@@ -9,6 +9,13 @@ const meta: Meta<typeof DomainCard> = {
     layout: 'centered',
   },
   tags: ['autodocs'],
+  decorators: [
+    (Story) => (
+      <div className="w-[460px] max-w-[calc(100vw-2rem)]">
+        <Story />
+      </div>
+    ),
+  ],
   argTypes: {
     variant: {
       control: { type: 'select' },
@@ -29,6 +36,21 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   args: {
     domainName: 'erni.eth',
+    variant: 'garnet',
+  },
+}
+
+export const RegistrationCompletion: Story = {
+  args: {
+    domainName: 'jony.eth',
+    variant: 'garnet',
+  },
+}
+
+export const RegistrationCompletionLongName: Story = {
+  args: {
+    domainName:
+      'erniqweqweqweqweqwe.ethasdasdasdasdasdasdasdasdasdasdasdasdasdaasdasdaasdasdasdasdasdasdasdasdasdasdasdasdasdasdasdadsaszxczczxczczxcasdadasdasdasdhaksdhasasdsdasdasdasdsdasd.eth',
     variant: 'garnet',
   },
 }
@@ -63,7 +85,7 @@ export const LongDomainName: Story = {
 
 export const AllVariants: Story = {
   render: () => (
-    <div className="flex flex-col items-center gap-8">
+    <div className="flex flex-col gap-8">
       <div className="text-center">
         <DomainCard domainName="garnet.eth" variant="garnet" />
         <p className="mt-2 text-sm">Garnet</p>
@@ -80,13 +102,13 @@ export const AllVariants: Story = {
   ),
 }
 
-// Dynamic font sizing stories
 export const ByteLengthTier0: Story = {
+  name: 'Short Names',
   render: () => (
-    <div className="flex flex-col items-center gap-8">
+    <div className="flex flex-col gap-8">
       <div className="text-center">
         <p className="mb-2 text-gray-600 text-sm">
-          Tier 0 (0-30 bytes) - text-xl - {getByteLength('abc.eth')} bytes
+          Short ASCII - {getByteLength('abc.eth')} bytes
         </p>
         <DomainCard domainName="abc.eth" variant="garnet" />
       </div>
@@ -107,12 +129,12 @@ export const ByteLengthTier0: Story = {
 }
 
 export const ByteLengthTier1: Story = {
+  name: 'Longer Names',
   render: () => (
-    <div className="flex flex-col items-center gap-8">
+    <div className="flex flex-col gap-8">
       <div className="text-center">
         <p className="mb-2 text-gray-600 text-sm">
-          Tier 1 (31-80 bytes) - text-base -{' '}
-          {getByteLength('verylongdomainnamewithmore.eth')} bytes
+          Longer ASCII - {getByteLength('verylongdomainnamewithmore.eth')} bytes
         </p>
         <DomainCard
           domainName="verylongdomainnamewithmore.eth"
@@ -130,11 +152,12 @@ export const ByteLengthTier1: Story = {
 }
 
 export const ByteLengthTier2: Story = {
+  name: 'Long Multibyte Names',
   render: () => (
-    <div className="flex flex-col items-center gap-8">
+    <div className="flex flex-col gap-8">
       <div className="text-center">
         <p className="mb-2 text-gray-600 text-sm">
-          Tier 2 (81-150 bytes) - text-sm -{' '}
+          Long emoji name -{' '}
           {getByteLength('😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀.eth')} bytes
         </p>
         <DomainCard
@@ -158,11 +181,12 @@ export const ByteLengthTier2: Story = {
 }
 
 export const ByteLengthTier3: Story = {
+  name: 'Very Long Names',
   render: () => (
-    <div className="flex flex-col items-center gap-8">
+    <div className="flex flex-col gap-8">
       <div className="text-center">
         <p className="mb-2 text-gray-600 text-sm">
-          Tier 3 (151+ bytes) - text-xs -{' '}
+          Very long ASCII -{' '}
           {getByteLength(
             'verylongdomainnamewithmultiplewordsinreallylongformatwithmultiplelinesthisgoesonevenmorewithmorecontentandmore.eth',
           )}{' '}
@@ -190,10 +214,9 @@ export const ByteLengthTier3: Story = {
   ),
 }
 
-// Multi-byte character showcase
 export const MultiByteCharacters: Story = {
   render: () => (
-    <div className="flex flex-col items-center gap-8">
+    <div className="flex flex-col gap-8">
       <div className="text-center">
         <p className="mb-2 text-gray-600 text-sm">
           Emoji faces - {getByteLength('🎉🎊🎈.eth')} bytes
@@ -216,20 +239,19 @@ export const MultiByteCharacters: Story = {
   ),
 }
 
-// All tiers comparison
 export const AllByteTiers: Story = {
+  name: 'Name Length Comparison',
   render: () => (
-    <div className="flex flex-col items-center gap-8">
+    <div className="flex flex-col gap-8">
       <div className="text-center">
         <p className="mb-2 font-semibold text-sm">
-          Tier 0 (0-30 bytes) - text-xl - {getByteLength('abc.eth')} bytes
+          Short ASCII - {getByteLength('abc.eth')} bytes
         </p>
         <DomainCard domainName="abc.eth" variant="garnet" />
       </div>
       <div className="text-center">
         <p className="mb-2 font-semibold text-sm">
-          Tier 1 (31-80 bytes) - text-base -{' '}
-          {getByteLength('verylongdomainnamewithmore.eth')} bytes
+          Longer ASCII - {getByteLength('verylongdomainnamewithmore.eth')} bytes
         </p>
         <DomainCard
           domainName="verylongdomainnamewithmore.eth"
@@ -238,7 +260,7 @@ export const AllByteTiers: Story = {
       </div>
       <div className="text-center">
         <p className="mb-2 font-semibold text-sm">
-          Tier 2 (81-150 bytes) - text-sm -{' '}
+          Long emoji name -{' '}
           {getByteLength('😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀.eth')} bytes
         </p>
         <DomainCard
@@ -248,7 +270,7 @@ export const AllByteTiers: Story = {
       </div>
       <div className="text-center">
         <p className="mb-2 font-semibold text-sm">
-          Tier 3 (151+ bytes) - text-xs -{' '}
+          Very long emoji name -{' '}
           {getByteLength(
             '😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀.eth',
           )}{' '}
