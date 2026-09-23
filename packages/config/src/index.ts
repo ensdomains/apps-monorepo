@@ -23,5 +23,5 @@ export {
   type NetworkProfile,
 } from './networks'
 export { originFromEnvUrl } from './origin'
-export { requireChainId } from './require-chain-id'
+export { requireChainId, requireEnsChain } from './require-chain-id'
 export { WALLETCONNECT_PROJECT_ID } from './walletconnect'

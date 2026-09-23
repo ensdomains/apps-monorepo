@@ -4,7 +4,7 @@
  * Pure functions for ENS registration operations.
  */
 
-import { requireChainId } from '@ens-apps/config'
+import { requireChainId, requireEnsChain } from '@ens-apps/config'
 import {
   ethRegistrarCommitmentsSnippet,
   ethRegistrarCommitSnippet,
@@ -41,7 +41,6 @@ import { getBlock, multicall, readContract } from 'viem/actions'
 import type { Signer } from '../..'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
-import { requireChainId, requireEnsChain } from '@ens-apps/config'
 
 // `MIN_COMMITMENT_AGE` is an immutable on ETHRegistrar; ensjs-abi does not (yet)
 // expose a dedicated snippet for it.

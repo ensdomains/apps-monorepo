@@ -9,7 +9,6 @@ import {
 } from 'viem'
 import { readContract } from 'viem/actions'
 import { ETH_REGISTRAR_CONTROLLER_ABI } from '../contracts/abis/ETHRegistrarController.abi'
-import { requireEnsChain } from '@ens-apps/config'
 
 export class RhinestoneAccountError extends Error {
   constructor(message: string) {
