@@ -1,6 +1,7 @@
 import { Pencil, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LinkItem, ProfileRecords } from '@/features/profile/types'
+import { MAX_PROFILE_LINKS } from '@/features/profile/utils/linkLimits'
 import { cn } from '@/lib/utils'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
 import {
@@ -98,6 +99,7 @@ export const LinksTab = ({
     draftRows.map(({ link }) => link),
   )
   const rows = getLinkRows(values.links, linkRowKeys, draftRows)
+  const canAddLink = rows.length < MAX_PROFILE_LINKS
   const titleInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
@@ -147,6 +149,8 @@ export const LinksTab = ({
         return
       }
 
+      if (values.links.length >= MAX_PROFILE_LINKS) return
+
       onLinksChange([...values.links, nextLink])
       setLinkRowKeys((current) => [...current, row.key])
       setDraftRows((current) =>
@@ -183,8 +187,15 @@ export const LinksTab = ({
           Links
         </p>
         <p className="text-[16px] text-ens-quartz-400 leading-[1.2]">
-          Add links to your website, portfolio, or anything you want to share.
+          Add up to {MAX_PROFILE_LINKS} links to your website, portfolio, or
+          anything you want to share.
         </p>
+        {values.links.length > MAX_PROFILE_LINKS && (
+          <p className="text-[14px] text-ens-quartz-400 leading-[1.2]">
+            Only the first {MAX_PROFILE_LINKS} links appear on your profile.
+            Remove extra links to stay within the limit.
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-4 overflow-hidden">
@@ -282,17 +293,23 @@ export const LinksTab = ({
           )
         })}
 
-        <button
-          className="flex h-6 min-w-0 items-center gap-2.75 rounded-[15px] p-1 text-[14px] text-ens-quartz-500 leading-[0.96] tracking-[0.07px] transition-colors hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50 md:min-w-75"
-          disabled={isSaving}
-          onClick={() =>
-            setDraftRows((current) => [...current, createDraftRow()])
-          }
-          type="button"
-        >
-          <Plus className="size-4" />
-          Add more
-        </button>
+        {canAddLink && (
+          <button
+            className="flex h-6 min-w-0 items-center gap-2.75 rounded-[15px] p-1 text-[14px] text-ens-quartz-500 leading-[0.96] tracking-[0.07px] transition-colors hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50 md:min-w-75"
+            disabled={isSaving}
+            onClick={() =>
+              setDraftRows((current) =>
+                values.links.length + current.length < MAX_PROFILE_LINKS
+                  ? [...current, createDraftRow()]
+                  : current,
+              )
+            }
+            type="button"
+          >
+            <Plus className="size-4" />
+            Add more
+          </button>
+        )}
       </div>
     </div>
   )
