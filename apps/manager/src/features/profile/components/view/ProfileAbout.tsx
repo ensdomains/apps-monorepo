@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { NamePill } from '@/features/dashboard/components/NamePill'
 import type { ProfileRecords } from '@/features/profile/types'
+import { cn } from '@/lib/utils'
 import { getDisplayHost, getSafeProfileHref } from './ProfileView.helpers'
 
 const getContactRecordValue = (records: ProfileRecords | null, key: string) =>
@@ -52,8 +53,22 @@ export const ProfileAbout = ({
   const location = getContactRecordValue(records, 'location')?.toUpperCase()
 
   return (
-    <section className="flex min-h-0 flex-1 rounded-none border-none bg-transparent p-0 shadow-none lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-[0_2px_6px_rgba(0,0,0,0.06)]">
-      <div className="grid w-full gap-8 lg:landscape:grid-cols-[minmax(0,346.5px)_228px] lg:landscape:gap-3">
+    <section
+      className={cn(
+        'flex min-h-0 flex-1',
+        primaryName
+          ? 'min-h-35 rounded-xl border-[0.25px] border-ens-quartz-300 bg-white p-5 shadow-[0_2px_6px_rgba(0,0,0,0.06)] lg:landscape:max-w-158.75 lg:landscape:p-6'
+          : 'rounded-none border-none bg-transparent p-0 shadow-none lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-[0_2px_6px_rgba(0,0,0,0.06)]',
+      )}
+    >
+      <div
+        className={cn(
+          'grid w-full',
+          primaryName
+            ? 'gap-3'
+            : 'gap-8 lg:landscape:grid-cols-[minmax(0,346.5px)_228px] lg:landscape:gap-3',
+        )}
+      >
         <div className="min-w-0">
           {primaryName ? (
             <NamePill label={primaryName} />
@@ -84,35 +99,37 @@ export const ProfileAbout = ({
             </a>
           ) : null}
         </div>
-        <div className="grid min-w-0 grid-cols-3 gap-4 lg:landscape:flex lg:landscape:flex-col lg:landscape:justify-start lg:landscape:gap-1.5">
-          <AboutMetaItem
-            icon={
-              <MSymbol
-                className="ms-opsz-20 ms-wght-300 text-[20px] lg:landscape:ms-opsz-24 lg:landscape:text-[24px]"
-                symbol="language"
-              />
-            }
-            value={timezone}
-          />
-          <AboutMetaItem
-            icon={
-              <MSymbol
-                className="ms-opsz-20 ms-wght-300 text-[20px] lg:landscape:ms-opsz-24 lg:landscape:text-[24px]"
-                symbol="translate"
-              />
-            }
-            value={language}
-          />
-          <AboutMetaItem
-            icon={
-              <MSymbol
-                className="ms-opsz-20 ms-wght-300 text-[20px] lg:landscape:ms-opsz-24 lg:landscape:text-[24px]"
-                symbol="distance"
-              />
-            }
-            value={location}
-          />
-        </div>
+        {primaryName ? null : (
+          <div className="grid min-w-0 grid-cols-3 gap-4 lg:landscape:flex lg:landscape:flex-col lg:landscape:justify-start lg:landscape:gap-1.5">
+            <AboutMetaItem
+              icon={
+                <MSymbol
+                  className="ms-opsz-20 ms-wght-300 text-[20px] lg:landscape:ms-opsz-24 lg:landscape:text-[24px]"
+                  symbol="language"
+                />
+              }
+              value={timezone}
+            />
+            <AboutMetaItem
+              icon={
+                <MSymbol
+                  className="ms-opsz-20 ms-wght-300 text-[20px] lg:landscape:ms-opsz-24 lg:landscape:text-[24px]"
+                  symbol="translate"
+                />
+              }
+              value={language}
+            />
+            <AboutMetaItem
+              icon={
+                <MSymbol
+                  className="ms-opsz-20 ms-wght-300 text-[20px] lg:landscape:ms-opsz-24 lg:landscape:text-[24px]"
+                  symbol="distance"
+                />
+              }
+              value={location}
+            />
+          </div>
+        )}
       </div>
     </section>
   )

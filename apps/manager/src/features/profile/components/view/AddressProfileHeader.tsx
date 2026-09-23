@@ -1,18 +1,14 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Copy } from 'lucide-react'
-import type { CSSProperties } from 'react'
 import type { Address } from 'viem'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
-import { getThemeVars } from '@/features/profile/utils/themeColor'
-import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
+import type { ProfileRecords } from '@/features/profile/types'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { truncateAddress } from '@/lib/utils'
 import { ProfileAbout } from './ProfileAbout'
 import { ProfileAvatar } from './ProfileAvatar'
-import { ProfileThemeColorProvider } from './ProfileThemeColor'
 
 const AddressLabel = ({ address }: { readonly address: Address }) => {
   const { t } = useLingui()
@@ -43,50 +39,46 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
 export const AddressProfileHeader = ({
   address,
   primaryName,
+  records,
 }: {
   readonly address: Address
   readonly primaryName?: string
+  readonly records: ProfileRecords | null
 }) => {
-  const { data: profileRecords } = useQuery({
-    ...profileRecordsQuery(primaryName ?? ''),
-    enabled: !!primaryName,
-  })
-  const records = profileRecords
-    ? transformProfileRecords(profileRecords)
-    : null
-  const themeVars = records ? getThemeVars(records.base.theme) : undefined
-  const themeColor = themeVars?.['--theme-color']
-
   return (
-    <div
-      className="w-full space-y-6"
-      style={themeVars as CSSProperties | undefined}
-    >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex w-full flex-col gap-5 lg:landscape:gap-6">
+      {primaryName ? (
+        <ProfileAvatar
+          avatarLoading={false}
+          avatarUrl={buildNameAvatarUrl(primaryName)}
+          className="mx-auto -mt-14 size-40 rounded-xl shadow-none lg:landscape:hidden"
+          name={primaryName}
+        />
+      ) : null}
+      <div className="flex flex-col items-center gap-4 lg:landscape:flex-row lg:landscape:justify-between">
         <AddressLabel address={address} />
         {primaryName ? (
           <Link
-            className="inline-flex h-13.5 w-full items-center justify-center rounded border border-ens-quartz-900 px-4 font-medium font-mono text-ens-quartz-700 text-sm uppercase tracking-[1.12px] hover:bg-ens-quartz-50 sm:w-[185px]"
+            className="inline-flex h-11 w-44 items-center justify-center gap-2 rounded bg-ens-lapis-core px-4 font-medium font-mono text-sm text-white uppercase tracking-[1.12px] hover:bg-[#026B9C]"
             params={{ name: primaryName }}
             to="/$name"
           >
+            <MSymbol className="ms-opsz-20 text-lg" symbol="person_check" />
             <Trans>View profile</Trans>
           </Link>
         ) : null}
       </div>
 
       {primaryName ? (
-        <ProfileThemeColorProvider value={themeColor}>
-          <div className="flex flex-col gap-6 lg:landscape:flex-row lg:landscape:items-stretch">
-            <ProfileAvatar
-              avatarLoading={false}
-              avatarUrl={buildNameAvatarUrl(primaryName)}
-              className="mx-auto size-38 rounded-xl shadow-none lg:landscape:mx-0 lg:landscape:size-[147px]"
-              name={primaryName}
-            />
-            <ProfileAbout primaryName={primaryName} records={records} />
-          </div>
-        </ProfileThemeColorProvider>
+        <div className="flex flex-col gap-5 lg:landscape:flex-row lg:landscape:items-stretch">
+          <ProfileAvatar
+            avatarLoading={false}
+            avatarUrl={buildNameAvatarUrl(primaryName)}
+            className="hidden rounded-xl shadow-none lg:landscape:block lg:landscape:size-auto lg:landscape:w-35 lg:landscape:self-stretch"
+            name={primaryName}
+          />
+          <ProfileAbout primaryName={primaryName} records={records} />
+        </div>
       ) : null}
     </div>
   )
