@@ -6,6 +6,7 @@ import { normalize } from 'viem/ens'
 import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/setSubregistry'
 import { prepareChangeResolverTransaction } from '@/features/resolver/helpers/changeResolver'
 import { prepareSetForwardResolutionTransaction } from '@/features/reverse-resolution/helpers/setForwardResolution'
+import { prepareRevokeRolesTransaction } from '@/features/roles/helpers/revokeRoles'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { IntentContext } from '@/features/transaction-manager/types'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
@@ -17,7 +18,7 @@ import {
   prepareSetV1RegistryOwnerTransaction,
   prepareTransferV1NameTransaction,
 } from '../v1/writes'
-import type { TransferStepKind } from './buildTransferPlan'
+import type { TransferStep } from './buildTransferPlan'
 
 export type TransferStepContext = IntentContext & {
   readonly name: string
@@ -51,7 +52,7 @@ export type TransferStepContext = IntentContext & {
  * Throws for a step the plan should never have produced for this subject.
  */
 export const buildTransferStepIntent = (
-  step: TransferStepKind,
+  step: TransferStep,
   {
     name: rawName,
     subject,
@@ -91,8 +92,25 @@ export const buildTransferStepIntent = (
     })
   }
 
+  // Handled ahead of the match because it is the one step that carries data of
+  // its own: which account's grant it takes away, and which roles of theirs.
+  if (step.kind === 'revoke-roles') {
+    if (subject.kind !== 'v2')
+      throw new Error(
+        `Step "revoke-roles" does not apply to a ${subject.kind} name`,
+      )
+    return prepareRevokeRolesTransaction({
+      name,
+      account: step.grant.account,
+      roles: step.grant.roles,
+      walletClient,
+      chainId,
+      registryAddress: subject.registryAddress,
+    })
+  }
+
   return (
-    match([step, subject] as const)
+    match([step.kind, subject] as const)
       .with(['set-eth-addr', P._], () => prepareSetEthAddress(recipient))
       .with(['restore-eth-addr', P._], () => {
         if (!previousEthAddress)
@@ -170,7 +188,7 @@ export const buildTransferStepIntent = (
       )
       .otherwise(() => {
         throw new Error(
-          `Step "${step}" does not apply to a ${subject.kind} name`,
+          `Step "${step.kind}" does not apply to a ${subject.kind} name`,
         )
       })
   )

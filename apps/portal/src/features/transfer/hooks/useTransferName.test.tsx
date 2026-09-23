@@ -90,6 +90,7 @@ const options: TransferOptions = {
   setEthAddress: false,
   detachResolver: false,
   detachRegistry: false,
+  revokeRoles: false,
 }
 
 const renderTransfer = (name: string) => {
@@ -130,6 +131,7 @@ describe('useTransferName — non-canonical name gate', () => {
       result.current.startTransfer({
         recipient: RECIPIENT,
         recipientInput: RECIPIENT,
+        roleGrants: [],
         options,
       })
     })
@@ -152,6 +154,7 @@ describe('useTransferName — non-canonical name gate', () => {
       result.current.startTransfer({
         recipient: RECIPIENT,
         recipientInput: RECIPIENT,
+        roleGrants: [],
         options,
       })
     })
