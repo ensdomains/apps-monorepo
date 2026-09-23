@@ -231,6 +231,60 @@ describe('TokenPickerContentBase', () => {
     )
   })
 
+  it('places the insufficient DAI error in the left details column', () => {
+    renderPicker({
+      funding: {
+        registration: 347.68,
+        networkFee: 4.32,
+        total: 352,
+        walletDebit: 352,
+        hcaCredit: 0,
+        isUnderfunded: false,
+        isLoading: false,
+      },
+      pricingData: 352,
+      selectedToken: 'DAI',
+      stablecoinBalances: [
+        usdc,
+        { ...dai, balance: '5000000000000000000' } as StablecoinBalance,
+      ],
+    })
+
+    const daiOption = screen.getByRole('button', { name: 'Select DAI' })
+    const error = screen.getByText('Need $352.00')
+    const balance = daiOption.querySelector(
+      '[data-slot="payment-method-balance"]',
+    )
+
+    expect(daiOption).toBeDisabled()
+    expect(daiOption).toHaveAttribute('aria-describedby', error.id)
+    expect(daiOption).toHaveClass(
+      'grid',
+      'grid-cols-[minmax(0,1fr)_auto]',
+      'sm:min-h-[77px]',
+    )
+    expect(balance?.lastElementChild).toHaveTextContent('balance')
+    expect(error).toHaveClass(
+      'col-start-1',
+      'gap-0.5',
+      'h-[15px]',
+      'justify-self-start',
+      'pl-9',
+      'text-left',
+      'text-ens-signal-danger-500',
+      'leading-[normal]',
+      'sm:h-[17px]',
+      'sm:pl-[46px]',
+    )
+    const errorIcon = error.querySelector('.material-symbol')
+    expect(errorIcon).toHaveClass('inline-block')
+    expect(errorIcon).not.toHaveClass('hidden')
+    expect(errorIcon).toHaveTextContent('flash_off')
+    expect(
+      screen.queryByText('not enough funds to pay network fees'),
+    ).not.toBeInTheDocument()
+  })
+
   it('does not override a token the user already picked', () => {
     const onSelectCoin = renderPicker({ selectedToken: 'USDC' })
 

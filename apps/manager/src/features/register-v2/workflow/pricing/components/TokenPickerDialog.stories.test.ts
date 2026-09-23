@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import meta, { FundedWithUnavailableUSDC } from './TokenPickerDialog.stories'
+import meta, {
+  FundedWithUnavailableUSDC,
+  InvalidDAI,
+} from './TokenPickerDialog.stories'
 
 describe('TokenPickerDialog stories', () => {
   it('keeps the inherited USDC and DAI payment options', () => {
@@ -22,5 +25,16 @@ describe('TokenPickerDialog stories', () => {
       ),
     ).toEqual(['DAI', 'USDC'])
     expect(FundedWithUnavailableUSDC.args?.funding?.isUnderfunded).toBe(true)
+  })
+
+  it('keeps deterministic insufficient-DAI evidence separate from USDC funding', () => {
+    expect(InvalidDAI.args?.initialSelectedToken).toBe('DAI')
+    expect(
+      InvalidDAI.args?.stablecoinBalances?.find(
+        ({ symbol }) => symbol === 'DAI',
+      )?.formattedBalance,
+    ).toBe('5.00')
+    expect(InvalidDAI.args?.funding?.isUnderfunded).toBe(false)
+    expect(InvalidDAI.args?.pricingData).toBe(352)
   })
 })
