@@ -60,12 +60,13 @@ describe('commemorative NFT sharing', () => {
 
     expect(urls.external).toBe(externalUrl)
     expect(urls.message).toBe(`${text}\n${externalUrl}`)
-    for (const intent of [urls.x, urls.telegram]) {
-      expect(intent).toBeDefined()
-      const params = new URL(intent ?? '').searchParams
-      expect(params.get('text')).toBe(text)
-      expect(params.get('url')).toBe(externalUrl)
-    }
+    const xParams = new URL(urls.x ?? '').searchParams
+    expect(xParams.get('text')).toBe(`${text}\n${externalUrl}`)
+    expect(xParams.has('url')).toBe(false)
+
+    const telegramParams = new URL(urls.telegram ?? '').searchParams
+    expect(telegramParams.get('text')).toBe(text)
+    expect(telegramParams.get('url')).toBe(externalUrl)
   })
 
   it.each([
@@ -83,7 +84,7 @@ describe('commemorative NFT sharing', () => {
     )
 
     expect(new URL(urls.x ?? '').searchParams.get('text')).toBe(
-      `Upgraded to ENSv2 and minted my card.\n${line}`,
+      `Upgraded to ENSv2 and minted my card.\n${line}\nhttps://example.com/nft/`,
     )
   })
 

@@ -53,10 +53,12 @@ export const buildCommemorativeNftShareUrls = (
 
   const introduction = 'Upgraded to ENSv2 and minted my card.'
   const text = `${introduction}\n${getShareTraitLine(traits)}`
+  const message = `${text}\n${externalUrl}`
   return {
     external: externalUrl,
-    message: `${text}\n${externalUrl}`,
-    x: `https://x.com/intent/post?${new URLSearchParams({ text, url: externalUrl })}`,
+    message,
+    // X inserts a space before a separate url parameter, so keep the URL in text.
+    x: `https://x.com/intent/post?${new URLSearchParams({ text: message })}`,
     telegram: `https://t.me/share/url?${new URLSearchParams({ text, url: externalUrl })}`,
   }
 }
