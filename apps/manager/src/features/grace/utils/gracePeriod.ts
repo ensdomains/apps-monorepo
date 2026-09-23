@@ -115,6 +115,23 @@ export type NameExpiryStatus = {
   readonly isPastGrace: boolean
 }
 
+/** A parent-issued subname has no registrar, so no grace window after expiry. */
+export const getSubnameExpiryStatus = (
+  expiryDate: Date | null | undefined,
+  now: Date = new Date(),
+): NameExpiryStatus => {
+  const date = normalizeExpiryDate(expiryDate)
+
+  return {
+    expiryDate: date,
+    isInGrace: false,
+    graceEndDate: null,
+    daysSinceExpiry: null,
+    displayExpiryDate: date,
+    isPastGrace: !!date && now >= date,
+  }
+}
+
 export const getNameExpiryStatus = (
   expiryDate: Date | null | undefined,
   protocol: RenewalProtocol,

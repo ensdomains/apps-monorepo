@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   client: {},
   getV1Expiry: vi.fn(),
   getV2Expiry: vi.fn(),
+  indexerQuery: vi.fn(),
   owner: null as null | { readonly owner?: string; readonly protocol: string },
 }))
 
@@ -11,6 +12,14 @@ vi.mock('./profileOwner', async () => {
   const { ok } = await import('neverthrow')
   return { getOwner: () => ok(mocks.owner) }
 })
+
+vi.mock('@ens-apps/indexer/urql', () => ({
+  default: {
+    query: (...args: unknown[]) => ({
+      toPromise: () => Promise.resolve(mocks.indexerQuery(...args)),
+    }),
+  },
+}))
 
 vi.mock('@ensdomains/ensjs/public/v1', () => ({
   getExpiry: mocks.getV1Expiry,
@@ -175,5 +184,32 @@ describe('getExpiry', () => {
     })
 
     expect(status.isInGrace).toBe(true)
+  })
+})
+
+describe('subnames', () => {
+  // A subname lives in its parent's subregistry and has no registrar, so the
+  // expiry comes from the indexer and no grace window follows it.
+  it('reads the expiry from the indexer and reports no grace', async () => {
+    mocks.indexerQuery.mockResolvedValue({
+      data: { domain: { expiryDate: 1_600_000_000 } },
+    })
+
+    const result = await getExpiry('mini.shiba.eth')
+    const expiry = result._unsafeUnwrap()
+
+    expect(expiry).toEqual({
+      expiry: 1_600_000_000n,
+      isNonExpiring: false,
+      protocol: 'v2',
+      isSubname: true,
+    })
+    expect(mocks.getV2Expiry).not.toHaveBeenCalled()
+
+    const status = getProfileExpiryResultStatus(expiry)
+    expect(status.isInGrace).toBe(false)
+    expect(status.graceEndDate).toBeNull()
+    expect(status.isPastGrace).toBe(true)
+    expect(status.displayExpiryDate).toEqual(new Date(1_600_000_000 * 1000))
   })
 })

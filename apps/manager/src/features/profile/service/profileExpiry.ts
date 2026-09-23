@@ -1,3 +1,5 @@
+import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
+import indexerClient from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -12,14 +14,16 @@ import {
   type GetExpiryErrorType as GetV2ExpiryErrorType,
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
+import { namehash } from 'viem'
 import {
   getNameExpiryStatus,
+  getSubnameExpiryStatus,
   type NameExpiryStatus,
 } from '@/features/grace/utils/gracePeriod'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { normalizeEth2LdName } from './profileName'
+import { normalizeEth2LdName, normalizeEthName } from './profileName'
 import { getOwner, type ProfileProtocol } from './profileOwner'
 
 export const profileExpiryDateFromSeconds = (
@@ -40,12 +44,15 @@ export type ProfileExpiryResult = {
   readonly expiry: bigint | null
   readonly isNonExpiring: boolean
   readonly protocol: 'v1' | 'v2'
+  readonly isSubname?: boolean
 }
 
 export const getProfileExpiryResultStatus = (
   expiry: ProfileExpiryResult | null | undefined,
 ): NameExpiryStatus =>
-  getProfileNameExpiryStatus(expiry?.expiry, expiry?.protocol ?? 'v2')
+  expiry?.isSubname
+    ? getSubnameExpiryStatus(profileExpiryDateFromSeconds(expiry.expiry))
+    : getProfileNameExpiryStatus(expiry?.expiry, expiry?.protocol ?? 'v2')
 
 class GetProfileExpiryError extends TaggedError('GetProfileExpiryError')<{
   cause: GetV1ExpiryErrorType | GetV2ExpiryErrorType
@@ -70,10 +77,33 @@ const normalizeV1Expiry = (
   }
 }
 
+// A subname lives in its parent's subregistry, which the profile has no address
+// for, so its expiry comes from the indexer. Any failure answers null, which
+// renders the same as an unindexed name.
+const getIndexedExpiry = (name: string) =>
+  indexerClient
+    .query<DomainQuery>(DomainDocument, { id: namehash(name) })
+    .toPromise()
+    .then((result) => result.data?.domain?.expiryDate ?? null)
+    .catch(() => null)
+
 export const getExpiry = ResultFn(async function* (
   name: string,
   protocol?: ProfileProtocol,
 ) {
+  const subname = normalizeEthName(name)
+
+  if (subname && subname.parentLabelsRootFirst.length > 0) {
+    const expiry = await getIndexedExpiry(subname.name)
+
+    return ok({
+      expiry: expiry === null ? null : BigInt(expiry),
+      isNonExpiring: false,
+      protocol: 'v2',
+      isSubname: true,
+    } satisfies ProfileExpiryResult)
+  }
+
   const ethName = normalizeEth2LdName(name)
 
   if (!ethName) {
