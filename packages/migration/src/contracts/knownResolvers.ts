@@ -12,21 +12,19 @@ import { type Address, isAddressEqual } from 'viem'
 const KNOWN_PUBLIC_RESOLVERS: Record<number, readonly Address[]> = {
   [supportedL1Chains.mainnet]: [
     ensL1Contracts[supportedL1Chains.mainnet].ensPublicResolver.address,
+    // An earlier mainnet PublicResolver. Verified by code: this address has
+    // bytecode on mainnet and none on Sepolia.
+    '0x4976fb03C32e5B8cfe2b6cCB31c09Ba78EBaBa41',
   ],
   [supportedL1Chains.sepolia]: [
     ensL1Contracts[supportedL1Chains.sepolia].ensPublicResolver.address,
-    // Legacy V1 PublicResolvers used by migration fixtures. Two of these
-    // (0x4976fb03…, 0x231b0Ee1…) are the mainnet v1/v2 PublicResolvers rather
-    // than Sepolia deployments. Left as-is because dropping them would change
-    // how existing Sepolia names classify; worth confirming separately.
+    // Legacy Sepolia V1 PublicResolvers used by migration fixtures.
     '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
     '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
     '0x640294a2b2d87e7f522db3e3e3e876764bce170d',
     '0xc30ba2bd21583605d815826c3807e8224e398e10',
     '0x1da022710dF5002339274AaDEe8D58218e9D6AB5',
     '0xDaaF96c344f63131acadD0Ea35170E7892d3dfBA',
-    '0x4976fb03C32e5B8cfe2b6cCB31c09Ba78EBaBa41',
-    '0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63',
     '0xF29100983E058B709F3D539b0c765937B804AC15',
   ],
 }

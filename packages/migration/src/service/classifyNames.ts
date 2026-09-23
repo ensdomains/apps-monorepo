@@ -448,7 +448,7 @@ export type ClassifyNamesResult = {
 }
 
 export const classifyNames = (
-  domains: V1Domain[],
+  domains: readonly V1Domain[],
   ownerAddress: Address,
   chainId: number,
 ): ClassifyNamesResult => {

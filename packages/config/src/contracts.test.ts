@@ -1,6 +1,6 @@
 import { getAddress } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { buildConfig } from './build-config'
+import { buildConfig } from './buildConfig'
 import { ensContractsFor, getSupportedTokens, getTokens } from './contracts'
 import { NetworkConfigError } from './errors'
 import { ENS_NETWORKS, NETWORKS } from './networks'

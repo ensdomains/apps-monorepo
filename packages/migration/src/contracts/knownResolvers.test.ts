@@ -49,6 +49,17 @@ describe('isKnownPublicResolver', () => {
     )
   })
 
+  // These two were in the Sepolia list but have no bytecode on Sepolia and
+  // real code on mainnet, so they were mis-filed.
+  it('keeps historical mainnet resolvers on mainnet', () => {
+    const olderMainnetResolver = '0x4976fb03C32e5B8cfe2b6cCB31c09Ba78EBaBa41'
+
+    expect(
+      isKnownPublicResolver(olderMainnetResolver, supportedL1Chains.mainnet),
+    ).toBe(true)
+    expect(isKnownPublicResolver(olderMainnetResolver, SEPOLIA)).toBe(false)
+  })
+
   it('treats an unknown chain as having no known resolvers', () => {
     expect(
       isKnownPublicResolver('0x640294a2b2d87e7f522db3e3e3e876764bce170d', 1234),

@@ -1,4 +1,4 @@
-export { assertNetworkConfig } from './assert-network-config'
+export { assertNetworkConfig } from './assertNetworkConfig'
 export {
   type BuildConfigInput,
   buildConfig,
@@ -6,7 +6,7 @@ export {
   type EnsChain,
   NetworkConfigError,
   orderedRpcUrls,
-} from './build-config'
+} from './buildConfig'
 export {
   ensContractsFor,
   getSupportedTokens,
@@ -23,5 +23,5 @@ export {
   type NetworkProfile,
 } from './networks'
 export { originFromEnvUrl } from './origin'
-export { requireChainId, requireEnsChain } from './require-chain-id'
+export { requireChainId, requireEnsChain } from './requireChainId'
 export { WALLETCONNECT_PROJECT_ID } from './walletconnect'

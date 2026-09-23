@@ -1,4 +1,4 @@
-import { buildConfig, NetworkConfigError } from './build-config'
+import { buildConfig, NetworkConfigError } from './buildConfig'
 
 /**
  * Build-time guard: resolve the network configuration from a loaded env and

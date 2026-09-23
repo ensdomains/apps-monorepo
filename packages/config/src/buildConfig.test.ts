@@ -1,6 +1,6 @@
 import { zeroAddress } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { buildConfig, NetworkConfigError } from './build-config'
+import { buildConfig, NetworkConfigError } from './buildConfig'
 import { ENS_NETWORKS, NETWORKS } from './networks'
 
 const SEPOLIA_RPC = 'https://rpc.example/sepolia/key'
