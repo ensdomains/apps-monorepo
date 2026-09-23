@@ -57,22 +57,17 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly isReady: boolean
   readonly walletClient: WalletClient | null
   readonly infrastructure: 'warp'
-  /**
-   * Whether a valid time-boxed-owner session is active (registration runs
-   * prompt-free). NOT SmartSessions — an ephemeral key added as a temporary HCA
-   * owner.
-   */
+  /** Whether a valid scoped HCA session is available for prompt-free intents. */
   readonly hasActiveSession: boolean
-  /** True while the one-time ENABLE signature is in flight. */
+  /** True while the one-time session authorization signature is in flight. */
   readonly isEnablingSession: boolean
   /** Last session-enable error message, if any. */
   readonly sessionError: string | null
   /**
-   * Ensure a valid time-boxed-owner session exists for the current owner,
-   * creating one (the single ENABLE wallet signature that adds the ephemeral
-   * key as a temporary HCA owner) if needed. Resolves with the session-attached
-   * signer and enable payload to use IMMEDIATELY (avoids waiting for a React
-   * re-render), or null on failure / the EOA-only path.
+   * Ensure a valid scoped session exists for the current owner, requesting its
+   * single wallet authorization signature if needed. Resolves with the
+   * session-attached signer and reusable proof to use immediately (without
+   * waiting for a React re-render), or null on failure / the EOA-only path.
    */
   readonly enableSession: () => Promise<EnabledSmartSession | null>
   /**
@@ -143,7 +138,7 @@ interface BuildRhinestoneSignerParams {
 }
 
 /**
- * Build the HCA (rhinestone) signer, attaching the time-boxed-owner session
+ * Build the HCA (rhinestone) signer, attaching the scoped session
  * ONLY when the owner is verified (WEB-287). A session present without a
  * verified owner means the connected wallet diverged from the HCA owner mid-
  * flight — we drop the session (fall back to the owner-signed path) rather than
@@ -280,11 +275,10 @@ export const SmartAccountContextProvider = ({
   const isLoading = useSelector(actorRef, selectIsLoading)
   const isReady = useSelector(actorRef, selectIsReady)
 
-  // ── Time-boxed-owner session state ──────────────────────────────────────
-  // NOT SmartSessions: the active session is an ephemeral key added as a
-  // temporary OWNER of the HCA (the ENABLE signature), for the current owner.
-  // Attached to the rhinestone signer so registration Intents are signed by the
-  // ephemeral owner key (prompt-free) instead of the connected owner.
+  // ── Scoped HCA session state ─────────────────────────────────────────────
+  // The active SmartSession contains a scoped ephemeral key and the owner's
+  // reusable authorization. It is attached to the Rhinestone signer so
+  // registration intents are prompt-free after that authorization.
   // Declared up here (above the wallet-sync hook) so the disconnect handler can
   // clear it when the owner changes.
   const [activeSession, setActiveSession] =
@@ -293,8 +287,9 @@ export const SmartAccountContextProvider = ({
   // WEB-287: when the connection leaves a previously-connected owner (disconnect
   // or switch to a different EOA), evict that owner's stored session AND drop
   // the in-memory one. Without this a session enabled by owner A on a shared
-  // device could be reused for owner B (the on-chain OwnableValidator would
-  // reject it — but better to never attach it). No `useCallback` needed:
+  // device could be reused for owner B (the validator would reject the
+  // mismatched authorization, but better to never attach it). No `useCallback`
+  // needed:
   // `removeSessionsByOwner` and `setActiveSession` are stable, and the eviction
   // hook holds this callback in a ref (it isn't an effect dependency).
   const onOwnerCleared = (previousOwner: Address) => {
@@ -331,12 +326,13 @@ export const SmartAccountContextProvider = ({
   // WEB-287 / EXP-RHN-003: the HCA owner has two independent sources — the
   // state machine (set at HCA init / enable time) and wagmi's connected wallet.
   // For the SESSION/SIGNER path we do NOT fall back to `eoaAddress`: a silent
-  // fallback can diverge from the owner that enabled the on-chain session
+  // fallback can diverge from the owner that signed the session authorization
   // (cross-EOA reconnect / shared device / a transitional snapshot where the
   // machine reset to `disconnected` while wagmi reports a new EOA), and the
   // session machinery is keyed on this address — a divergence would enable /
   // reuse a session for the WRONG owner (register to the wrong owner, or attach
-  // a session the on-chain OwnableValidator rejects). Resolve it ONLY when both
+  // a session whose authorization the validator rejects). Resolve it ONLY when
+  // both
   // sources agree (case-insensitive); otherwise it is null and the session
   // paths fail fast. EOA-only mode has no sessions, so this stays null there.
   const sessionOwnerAddress = useEoa
@@ -503,10 +499,10 @@ export const SmartAccountContextProvider = ({
   const [sessionError, setSessionError] = useState<string | null>(null)
 
   // When the owner changes (incl. initial mount / reconnect), hydrate the
-  // active session from localStorage: a valid, non-expired stored session for
-  // this owner is reused WITHOUT prompting (the ephemeral key is already an
-  // HCA owner on-chain). This makes a 2nd registration within the session's
-  // lifetime skip the enable modal entirely. EOA-only mode keeps no session.
+  // active session from localStorage: a valid, non-expired stored authorization
+  // for this owner is reused WITHOUT prompting. This makes a 2nd registration
+  // within the session's lifetime skip the enable modal entirely. EOA-only mode
+  // keeps no session.
   // Key the guard on BOTH addresses. On a page reload mid-registration the
   // owner resolves a tick BEFORE the HCA `accountAddress` does; keying only on
   // the owner would run this effect once (while `accountAddress` is still null,
@@ -535,8 +531,8 @@ export const SmartAccountContextProvider = ({
     if (!accountAddress) return
 
     // Scope reuse to THIS HCA (owner + chain verified) so a stored session for
-    // a different account/chain is never attached — its ephemeral key is not an
-    // owner of the current HCA. Mirrors resolveSessionActor's lookup.
+    // a different account/chain is never attached — its authorization is bound
+    // to the original HCA. Mirrors resolveSessionActor's lookup.
     const stored = getValidSessionForAccount({
       accountAddress,
       ownerAddress: sessionOwnerAddress,
@@ -552,9 +548,8 @@ export const SmartAccountContextProvider = ({
       // WEB-287: `sessionOwnerAddress` is the VERIFIED owner (machine + wagmi
       // agree). If it is null while the machine still reports an owner, the
       // connected wallet diverges from the HCA's owner — refuse to enable a
-      // session for the wrong owner (it would add the ephemeral key as an owner of
-      // the wrong HCA / register to the wrong owner) rather than silently
-      // proceeding.
+      // session for the wrong owner (it would authorize against the wrong HCA /
+      // register to the wrong owner) rather than silently proceeding.
       if (!baseClient || !accountAddress || !sessionOwnerAddress) {
         if (
           snapshot.context.ownerAddress &&
@@ -683,11 +678,10 @@ export const SmartAccountContextProvider = ({
       return null
     }
 
-    // HCA signer. A time-boxed-owner session, if active, is attached so
-    // registration Intents are signed by the ephemeral session key
-    // (prompt-free) via the HCA's preinstalled OwnableValidator — NOT
-    // SmartSessions, just an extra owner. `buildRhinestoneSigner` enforces the
-    // WEB-287 verified-owner guard before attaching it.
+    // HCA signer. A scoped SmartSession, if active, is attached so registration
+    // intents are signed by the ephemeral session key without another wallet
+    // prompt. `buildRhinestoneSigner` enforces the WEB-287 verified-owner guard
+    // before attaching it.
     return buildRhinestoneSigner({
       baseClient,
       accountAddress,

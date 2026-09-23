@@ -463,7 +463,7 @@ export const TokenPickerContent = () => {
     attempt: RegistrationAttempt,
     resolvedSetAsPrimary: boolean,
   ) => {
-    // Resolve the session-enable payload up front (checks on-chain enablement).
+    // Resolve the reusable session proof before dispatching registration.
     const hcaSessionEnable =
       attempt.token === TOKENS.USDC.symbol
         ? (attempt.session?.sessionEnable ??

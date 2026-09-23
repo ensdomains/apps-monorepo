@@ -18,7 +18,7 @@ type EnableSessionModalProps = {
   onEnableSession: () => Promise<void>
   walletAddress?: string
   smartAccountAddress?: string
-  /** True while the ENABLE signature is in flight. */
+  /** True while the session authorization signature is in flight. */
   isEnabling?: boolean
   /** True when session enablement errored. */
   hasError?: boolean

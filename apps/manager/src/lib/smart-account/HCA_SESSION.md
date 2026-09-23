@@ -19,8 +19,9 @@ traces, see
   token, refund caps, and an expiry.
 - The wallet signs the authorization before registration begins. This does not
   submit a standalone enable transaction.
-- The first HCA action carries the authorization through
-  `enableSessionWithRefund(...)`; later actions use the enabled session.
+- Every session-signed intent carries the reusable authorization and session
+  configuration as `enableData`; the validator does not persist enabled-session
+  state on-chain.
 - The current implementation builds only the destination-chain session. The
   source-chain salt helper exists for a future cross-chain funding route.
 
@@ -46,10 +47,10 @@ the USDC payment method. It refreshes the same displayed budget when Register
 is clicked, then compares the raw wallet balance with the raw wallet debit.
 Existing USDC in the user's HCA is account credit and reduces the permit amount.
 
-The funding pair is an EIP-2612 `permit` plus `transferFrom`. Whenever that pair
-is present, the commit batch also carries the reusable session-enable proof.
-This is required even if the session was enabled by an earlier registration;
-the validator routes the funding pair through the proof-bearing policy path.
+The funding pair is an EIP-2612 `permit` plus `transferFrom`. Like every
+session-signed intent, the commit batch carries the reusable session-enable
+proof. The validator checks that proof on each intent rather than recording an
+enabled session on-chain.
 
 ### DAI
 
@@ -101,8 +102,8 @@ expired record is evicted; a session without enough registration headroom is
 replaced when the next registration starts.
 
 The enable-data can be rebuilt from the stored authorization without another
-wallet prompt. It is safe to attach on every qualifying commit because the
-proof is reusable while valid and `enableSessionWithRefund(...)` is idempotent.
+wallet prompt. It must be attached to every session-signed intent because the
+proof is reusable while valid and the validator is stateless.
 
 ## Code map
 
@@ -129,7 +130,7 @@ proof is reusable while valid and `enableSessionWithRefund(...)` is idempotent.
   10 minutes of remaining lifetime.
 - The USDC row's displayed fee, account credit, wallet debit, funding check, and
   permit amount derive from the same HCA budget.
-- A funding permit is paired with the session-enable proof on every qualifying
-  commit.
+- Every session-signed commit and reveal carries the reusable session-enable
+  proof.
 - DAI bypasses the HCA session and budget and uses the connected EOA with the
   canonical registrar.

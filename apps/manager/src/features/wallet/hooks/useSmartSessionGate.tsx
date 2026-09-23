@@ -13,8 +13,8 @@
  *   {sessionModal}
  *
  * `gate(onProceed)`: if a session is needed, opens the EnableSessionModal and
- * defers `onProceed` until the single ENABLE signature succeeds and supplies
- * the new session; otherwise runs `onProceed` immediately.
+ * defers `onProceed` until the single authorization signature succeeds and
+ * supplies the new session; otherwise runs `onProceed` immediately.
  */
 
 import { useCallback, useRef, useState } from 'react'
@@ -29,7 +29,7 @@ export interface SmartSessionGate {
   /**
    * Run `onProceed`, gating on an active smart session first. If none is
    * active, the EnableSessionModal opens and `onProceed` runs only after the
-   * ENABLE signature succeeds.
+   * session authorization signature succeeds.
    */
   readonly gate: (onProceed: (session?: EnabledSmartSession) => void) => void
   /** The wired EnableSessionModal element — render it in your tree. */
