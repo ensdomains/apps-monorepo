@@ -2,7 +2,6 @@ import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import * as v from 'valibot'
 import { zeroAddress } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
-import { type EnsContracts, getEnsContracts } from './contracts'
 import { NetworkConfigError } from './errors'
 
 export { NetworkConfigError }
@@ -27,6 +26,11 @@ const REQUIRED_ENSV2_CONTRACTS = [
   'ensStandardRentPriceOracle',
   'ensPermissionedResolverImpl',
   'ensVerifiableFactory',
+  // ensjs holds these as the zero address until they are deployed, so they
+  // belong in the same check rather than in a separate mechanism.
+  'ensDefaultReverseRegistrar',
+  'ensDefaultReverseRegistrarAdapter',
+  'ensReverseRegistrarAdapter',
 ] as const
 
 /**
@@ -122,8 +126,6 @@ export type EnsAppConfig = Readonly<{
   rpcUrls: readonly string[]
   /** The network's shared public fallbacks, for consumers resolving their own primary. */
   rpcFallbacks: readonly string[]
-  /** ENS contract addresses for the selected network. */
-  contracts: EnsContracts
   endpoints: Readonly<Record<keyof NetworkEndpoints, string>>
 }>
 
@@ -232,7 +234,6 @@ export const buildConfig = ({
     network,
     isTestnet: profile.isTestnet,
     chain: chain as EnsChain,
-    contracts: Object.freeze(getEnsContracts(profile.chainId)),
     rpcUrls: Object.freeze(rpcUrls),
     rpcFallbacks: profile.rpcFallbacks,
     endpoints: Object.freeze(endpoints),

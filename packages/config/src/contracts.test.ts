@@ -1,6 +1,7 @@
 import { getAddress } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { getEnsContracts, getSupportedTokens, getTokens } from './contracts'
+import { buildConfig } from './build-config'
+import { ensContractsFor, getSupportedTokens, getTokens } from './contracts'
 import { NetworkConfigError } from './errors'
 import { ENS_NETWORKS, NETWORKS } from './networks'
 
@@ -24,60 +25,56 @@ const expectChecksummed = (label: string, address: string) => {
 
 const SEPOLIA_CHAIN_ID = NETWORKS.sepolia.chainId
 
-describe('getEnsContracts', () => {
+describe('ensContractsFor', () => {
   it.each(
-    Object.entries(getEnsContracts(SEPOLIA_CHAIN_ID)),
-  )('sepolia %s is a checksummed address', (label, address) => {
-    expectChecksummed(label, address)
+    Object.entries(ensContractsFor(SEPOLIA_CHAIN_ID)),
+  )('sepolia %s is a checksummed address', (label, contract) => {
+    expectChecksummed(label, (contract as { address: string }).address)
   })
 
   it('refuses a chain with no ENS deployment instead of guessing', () => {
-    expect(() => getEnsContracts(1234)).toThrow(NetworkConfigError)
-  })
-
-  // The reverse-registrar adapters are not in ensjs, so a network without them
-  // must fail loudly rather than hand back a placeholder. That failure is per
-  // property: it must not deny a caller the contracts that do exist.
-  it('names the missing contract only when it is actually read', () => {
-    const mainnet = getEnsContracts(NETWORKS.mainnet.chainId)
-
-    expect(() => mainnet.DefaultReverseRegistrar).toThrow(
-      /DefaultReverseRegistrar has no deployment on mainnet/,
-    )
-    expect(() => mainnet.ReverseRegistrarAdapter).toThrow(NetworkConfigError)
-  })
-
-  it('still resolves the canonical contracts on a network missing its reverse set', () => {
-    const mainnet = getEnsContracts(NETWORKS.mainnet.chainId)
-
-    expectChecksummed(
-      'mainnet.ETHRegistrarController',
-      mainnet.ETHRegistrarController,
-    )
-    expectChecksummed('mainnet.PublicResolver', mainnet.PublicResolver)
-    expectChecksummed('mainnet.LegacyRegistry', mainnet.LegacyRegistry)
+    expect(() => ensContractsFor(1234)).toThrow(NetworkConfigError)
   })
 })
 
 describe('token maps', () => {
-  it.each(
-    Object.entries(getSupportedTokens(SEPOLIA_CHAIN_ID)),
-  )('SUPPORTED_TOKENS.%s is a checksummed address', (label, address) => {
-    expectChecksummed(label, address)
-  })
-
   it.each(
     Object.entries(getTokens(SEPOLIA_CHAIN_ID)),
   )('TOKENS.%s.address is a checksummed address', (label, token) => {
     expectChecksummed(label, token.address)
   })
 
-  // Every network's tokens come from ensjs, so they are worth checking too.
+  it('offers only the tokens the registrar settles', () => {
+    expect(Object.keys(getSupportedTokens(SEPOLIA_CHAIN_ID))).toEqual(['USDC'])
+  })
+
   it.each(ENS_NETWORKS)('%s tokens are checksummed', (network) => {
     for (const [label, token] of Object.entries(
       getTokens(NETWORKS[network].chainId),
     )) {
       expectChecksummed(`${network}.${label}`, token.address)
     }
+  })
+})
+
+describe('undeployed contracts', () => {
+  // ensjs holds an undeployed contract as the zero address rather than
+  // omitting it, so a lookup succeeds and the call goes to 0x0. The build
+  // guard is what turns that into a failure, and it must cover the reverse
+  // set too now that ensjs carries those keys.
+  it('fails a mainnet build naming every zero-address contract', () => {
+    expect(() =>
+      buildConfig({
+        network: 'mainnet',
+        overrides: { indexerGraphql: 'https://indexer.example/' },
+      }),
+    ).toThrow(/ensDefaultReverseRegistrar/)
+  })
+
+  it('does not fail sepolia, where they are deployed', () => {
+    const sepolia = ensContractsFor(SEPOLIA_CHAIN_ID)
+
+    expect(sepolia.ensDefaultReverseRegistrar.address).not.toMatch(/^0x0+$/)
+    expect(sepolia.ensReverseRegistrarAdapter.address).not.toMatch(/^0x0+$/)
   })
 })

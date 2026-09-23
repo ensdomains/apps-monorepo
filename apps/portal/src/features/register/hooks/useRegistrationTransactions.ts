@@ -274,7 +274,7 @@ export const useRegistrationTransactions = ({
                     duration: BigInt(duration),
                     paymentToken: savedParams.tokenAddress,
                     resolverAddress,
-                    registrarAddress: ENS_CONTRACTS.ETHRegistrar,
+                    registrarAddress: ENS_CONTRACTS.ensEthRegistrar.address,
                   }),
                   chainId,
                   gas: 500_000n,

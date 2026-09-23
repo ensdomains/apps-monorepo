@@ -1,4 +1,4 @@
-import { getEnsContracts } from '@ens-apps/config'
+import { ensContractsFor } from '@ens-apps/config'
 import { logger } from '@ens-apps/utils/logger'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import { encodeFunctionData, type Hex, type PublicClient } from 'viem'
@@ -32,8 +32,8 @@ export function getENSRenewalPrice(
   return fromPromise(
     (async () => {
       const price = await readContract(publicClient, {
-        address: getEnsContracts(requireChainId(publicClient, 'renewal price'))
-          .ETHRegistrarController,
+        address: ensContractsFor(requireChainId(publicClient, 'renewal price'))
+          .ensEthRegistrarController.address,
         abi: ETH_REGISTRAR_CONTROLLER_ABI,
         functionName: 'rentPrice',
         args: [name, duration],
@@ -68,8 +68,8 @@ export function prepareENSRenewalTransaction(
       })
 
       const txData = {
-        to: getEnsContracts(requireChainId(publicClient, 'renewal'))
-          .ETHRegistrarController,
+        to: ensContractsFor(requireChainId(publicClient, 'renewal'))
+          .ensEthRegistrarController.address,
         data,
         value: renewalPrice,
       }
