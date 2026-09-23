@@ -32,8 +32,6 @@ const DQA_ORIGIN =
 // Deployment-specific override origins, derived from the same build-time envs
 // the RPC/indexer clients read (lib/wagmi.ts, packages/indexer/urql/client.ts).
 const OVERRIDE_CONNECT_ORIGINS = [
-  originFromEnvUrl(import.meta.env?.VITE_SEPOLIA_RPC_URL),
-  originFromEnvUrl(import.meta.env?.VITE_INDEXER_GRAPHQL_URL),
   originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
   DQA_ORIGIN,
   DQA_ORIGIN?.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:'),
@@ -52,6 +50,10 @@ const DEFAULT_CONNECT_HOSTS = [
   ...config.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
+  // The ENSv2 indexer, resolved the same way the urql client resolves it.
+  ...[originFromEnvUrl(config.endpoints.indexerGraphql)].filter(
+    (origin): origin is string => origin !== null,
+  ),
   // ENS-owned hosts: indexer GraphQL (graphql.ens.dev — packages/indexer/
   // urql/client.ts) and the fund/faucet API (app-api.ens.dev —
   // src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env

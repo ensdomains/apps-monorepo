@@ -26,11 +26,10 @@ const DQA_ORIGIN =
 const COMMEMORATIVE_RENDERER_ORIGIN = getCommemorativeNftConfig().rendererOrigin
 const COMMEMORATIVE_ASSET_ORIGIN = getCommemorativeNftConfig().assetOrigin
 
-// Deployment-specific override origins, derived from the same build-time envs
-// the RPC / indexer / Rhinestone / NFT clients read.
+// Deployment-specific override origins for the endpoints config does not own.
+// The RPC and indexer overrides are already folded into `config`, so they are
+// covered below rather than read from env a second time.
 const OVERRIDE_CONNECT_ORIGINS = [
-  originFromEnvUrl(import.meta.env?.VITE_SEPOLIA_RPC_URL),
-  originFromEnvUrl(import.meta.env?.VITE_INDEXER_GRAPHQL_URL),
   originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
   originFromEnvUrl(import.meta.env?.VITE_API_URL),
   originFromEnvUrl(import.meta.env?.VITE_RHINESTONE_ENDPOINT_URL),
@@ -55,6 +54,10 @@ const DEFAULT_CONNECT_HOSTS = [
   ...config.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
+  // The ENSv2 indexer, resolved the same way the urql client resolves it.
+  ...[originFromEnvUrl(config.endpoints.indexerGraphql)].filter(
+    (origin): origin is string => origin !== null,
+  ),
   // ENS-owned hosts: indexer GraphQL, backend API (VITE_API_URL /
   // app-api.ens.dev), v1 subgraph (v1-graphql.ens.dev). Wildcarded so
   // per-deployment / per-env *.ens.dev hosts don't silently break a flow.
