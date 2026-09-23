@@ -1,9 +1,13 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Address } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import { createTestWrapper } from '@/test-utils/providers'
-import type { RegistryDetachImpact, TransferDetachTargets } from '../types'
+import type {
+  RegistryDetachImpact,
+  TransferDetachTargets,
+  TransferRoleRevocations,
+} from '../types'
 import { SendNameForm } from './SendNameForm'
 
 // The modal needs the TransactionManager provider and renders nothing for an
@@ -242,6 +246,155 @@ describe('SendNameForm — an unknown blast radius', () => {
       screen.getByText(/couldn’t check how many subnames/i),
     ).toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /transfer name/i }),
+    ).toBeDisabled()
+  })
+})
+
+/**
+ * Immunefi #89627: registry roles are keyed on the label and ownership on the
+ * token id, so a delegate the seller added through the Add User sheet keeps
+ * write authority over the name after it is sold. The transfer form is where
+ * the seller is offered the clean handoff, so it is where the grant has to go.
+ */
+describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
+  const DELEGATE = '0x1111111111111111111111111111111111111111' as Address
+
+  const ONE_DELEGATE: TransferRoleRevocations = {
+    status: 'ready',
+    holders: [{ account: DELEGATE, roles: ['ROLE_SET_RESOLVER'] }],
+    revocable: [{ account: DELEGATE, roles: ['ROLE_SET_RESOLVER'] }],
+    unrevocable: [],
+  }
+
+  const renderWithRoles = (revocations: TransferRoleRevocations) => {
+    const startTransfer = vi.fn()
+    render(
+      <SendNameForm
+        owner={OWNER}
+        detachTargets={ALL_TARGETS}
+        parentWarning={null}
+        registryDetachImpact={EMPTY_REGISTRY}
+        roleRevocations={revocations}
+        transfer={{
+          startTransfer,
+          transactions: [],
+          isPreparing: false,
+          prepError: null,
+        }}
+      />,
+      { wrapper: createTestWrapper() },
+    )
+    return startTransfer
+  }
+
+  it('revokes a delegate’s grant on a default-configured transfer', async () => {
+    const startTransfer = renderWithRoles(ONE_DELEGATE)
+    const user = await enterRecipient()
+
+    expect(
+      await screen.findByRole('switch', { name: /revoke everyone else/i }),
+    ).toBeChecked()
+
+    await user.click(screen.getByRole('button', { name: /transfer name/i }))
+
+    expect(startTransfer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({ revokeRoles: true }),
+        roleGrants: [{ account: DELEGATE, roles: ['ROLE_SET_RESOLVER'] }],
+      }),
+    )
+  })
+
+  it('names the delegate and what it holds', async () => {
+    renderWithRoles(ONE_DELEGATE)
+    await enterRecipient()
+
+    expect(await screen.findByText(/0x1111/)).toBeInTheDocument()
+    expect(screen.getByText(/Set Resolver/)).toBeInTheDocument()
+  })
+
+  it('warns, and sends no grants, when the sender turns it off', async () => {
+    const startTransfer = renderWithRoles(ONE_DELEGATE)
+    const user = await enterRecipient()
+
+    await user.click(
+      await screen.findByRole('switch', { name: /revoke everyone else/i }),
+    )
+    expect(screen.getByText(/keep their permissions/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /transfer name/i }))
+
+    expect(startTransfer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({ revokeRoles: false }),
+        roleGrants: [],
+      }),
+    )
+  })
+
+  // No toggle to offer, and nothing for the sender to decide.
+  it('offers nothing when nobody else holds a role', async () => {
+    renderWithRoles({
+      status: 'ready',
+      holders: [],
+      revocable: [],
+      unrevocable: [],
+    })
+    await enterRecipient()
+
+    // Waited on rather than read once: the recipient's own resolution keeps the
+    // button disabled for a tick, and it is the settled state that matters.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /transfer name/i }),
+      ).toBeEnabled(),
+    )
+    expect(
+      screen.queryByRole('switch', { name: /revoke everyone else/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  // A grant the sender holds no admin role for survives the transfer whatever
+  // the toggle says, so it is called out rather than silently attempted.
+  it('says which grants it cannot revoke, and leaves them out', async () => {
+    const startTransfer = renderWithRoles({
+      status: 'ready',
+      holders: [{ account: DELEGATE, roles: ['ROLE_RENEW'] }],
+      revocable: [],
+      unrevocable: [{ account: DELEGATE, roles: ['ROLE_RENEW'] }],
+    })
+    const user = await enterRecipient()
+
+    expect(
+      await screen.findByText(/doesn’t hold the admin permission/i),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /transfer name/i }))
+    expect(startTransfer).toHaveBeenCalledWith(
+      expect.objectContaining({ roleGrants: [] }),
+    )
+  })
+
+  // An unread answer must never pass for "nobody else holds roles": that is
+  // exactly the state that would hand the name over with the grants live.
+  it('blocks while the grants are still being read', async () => {
+    renderWithRoles({ status: 'pending' })
+    await enterRecipient()
+
+    expect(
+      await screen.findByRole('button', { name: /transfer name/i }),
+    ).toBeDisabled()
+  })
+
+  it('blocks, and says why, when the grants cannot be read', async () => {
+    renderWithRoles({ status: 'error' })
+    await enterRecipient()
+
+    expect(
+      await screen.findByText(/couldn’t check who else holds permissions/i),
+    ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /transfer name/i }),
     ).toBeDisabled()

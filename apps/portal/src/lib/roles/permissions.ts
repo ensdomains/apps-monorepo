@@ -3,7 +3,15 @@
  * @see https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/registry/libraries/RegistryRolesLib.sol
  */
 
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
+
+/**
+ * Whether a raw string names a registry role. Worth checking before a value
+ * reaches `encodeRoleBitmap`, which indexes `registryRoles` directly and would
+ * throw on anything else.
+ */
+export const isRegistryRole = (role: string): role is Role =>
+  Object.hasOwn(registryRoles, role)
 
 /** A role is an "admin" variant when it carries the `_ADMIN` suffix. */
 export const isAdminRole = (role: string): boolean => role.endsWith('_ADMIN')

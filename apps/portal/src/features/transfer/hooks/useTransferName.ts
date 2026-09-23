@@ -28,6 +28,7 @@ import {
   type getIsPermissionedResolver,
   getIsPermissionedResolverQueryOptions,
 } from '@/features/resolver/hooks/useIsPermissionedResolver'
+import { invalidateRolesQueries } from '@/features/roles/utils/invalidateRolesQueries'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import {
   estimateGasForCall,
@@ -46,11 +47,12 @@ import {
   type GetOwnResolverError,
   getOwnResolverQueryOptions,
 } from '../queries/getOwnResolver'
-import type { TransferSubject, V1TransferActor } from '../types'
+import type { NameRoleGrant, TransferSubject, V1TransferActor } from '../types'
 import {
   buildTransferPlan,
-  STEP_LABELS,
+  describeTransferStep,
   type TransferOptions,
+  transferStepKey,
 } from '../utils/buildTransferPlan'
 import { buildTransferStepIntent } from '../utils/buildTransferStepIntent'
 import { canStartStep } from '../utils/canStartStep'
@@ -65,6 +67,12 @@ import { getV1TransferGate, type V1TransferGate } from '../v1/rules'
 export type StartTransferParams = {
   readonly recipient: Address
   readonly options: TransferOptions
+  /**
+   * The third-party registry grants the `revokeRoles` option revokes, resolved
+   * by the form. Empty unless the option is on — the plan only reads it then,
+   * but the two are kept in step here so a stale list can't outlive the toggle.
+   */
+  readonly roleGrants: readonly NameRoleGrant[]
 }
 
 type NameReads = StartTransferParams & {
@@ -209,6 +217,9 @@ export const useTransferName = ({
     const parentName = is2LD(name) ? null : getParentName(name)
     const invalidate = () =>
       Promise.all([
+        // The revoke steps rewrite the name's role table, and the roles page is
+        // where the recipient checks nobody else is left on it.
+        invalidateRolesQueries(queryClient),
         queryClient.invalidateQueries({
           queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
         }),
@@ -298,7 +309,8 @@ export const useTransferName = ({
       reads.options,
       subject.kind,
       actor,
-    ).includes('set-eth-addr')
+      reads.roleGrants,
+    ).some((step) => step.kind === 'set-eth-addr')
     if (!resolverAddress || !writesResolver)
       return okAsync({ ...reads, isPermissionedResolver: null })
     return fromPromise(
@@ -322,9 +334,12 @@ export const useTransferName = ({
         const walletClient = await getWalletClient(config, { account })
         if (!walletClient?.account || !publicClient)
           throw new Error('No connected wallet')
-        const move = buildTransferPlan(params.options, subject.kind, actor).at(
-          -1,
-        )
+        const move = buildTransferPlan(
+          params.options,
+          subject.kind,
+          actor,
+          params.roleGrants,
+        ).at(-1)
         if (!move) throw new Error('Transfer plan has no move step')
         const { request } = buildTransferStepIntent(move, {
           ...params,
@@ -396,14 +411,19 @@ export const useTransferName = ({
   // array in a ref for auto-advance, so referential stability isn't required.
   const buildTransactions = (): Transaction[] => {
     if (!savedParams) return []
-    const steps = buildTransferPlan(savedParams.options, subject.kind, actor)
+    const steps = buildTransferPlan(
+      savedParams.options,
+      subject.kind,
+      actor,
+      savedParams.roleGrants,
+    )
     const stepContext = { ...savedParams, name, subject }
 
     // Idempotent runner per step: `onStart` may be invoked twice (modal UI +
     // the prior step's auto-advance `onDone`). Errors clear the guard so the
     // step can be retried; the tx error surfaces via the modal's machine state.
     const runners = steps.map((step) => async () => {
-      const id = transferStepId(name, step, attempt.scope)
+      const id = transferStepId(name, transferStepKey(step), attempt.scope)
       if (
         !canStartStep({
           startedSteps: startedStepsRef.current,
@@ -426,7 +446,7 @@ export const useTransferName = ({
           createEOASigner(walletClient),
           {
             id,
-            description: `${STEP_LABELS[step]} - ${name}`,
+            description: `${describeTransferStep(step)} - ${name}`,
             publicClient,
             timeout: 120_000,
           },
@@ -439,15 +459,15 @@ export const useTransferName = ({
         // swallow silently. Clearing the guard allows a retry from the modal.
         // Deliberately not a `finally`: a step that succeeded must stay
         // guarded, or a stray `onStart` would send it a second time.
-        console.error(`Transfer step "${step}" failed:`, err)
+        console.error(`Transfer step "${transferStepKey(step)}" failed:`, err)
         startedStepsRef.current.delete(id)
       }
     })
 
     return steps.map((step, i) => ({
-      id: transferStepId(name, step, attempt.scope),
-      title: STEP_LABELS[step],
-      transactionName: `${STEP_LABELS[step]} - ${name}`,
+      id: transferStepId(name, transferStepKey(step), attempt.scope),
+      title: describeTransferStep(step),
+      transactionName: `${describeTransferStep(step)} - ${name}`,
       // Same builder as the submit path, so the modal's live gas estimate is
       // for exactly the call that will be sent.
       intent: {

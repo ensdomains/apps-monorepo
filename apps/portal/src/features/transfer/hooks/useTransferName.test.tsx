@@ -90,6 +90,7 @@ const options: TransferOptions = {
   setEthAddress: false,
   detachResolver: false,
   detachRegistry: false,
+  revokeRoles: false,
 }
 
 const renderTransfer = (name: string) => {
@@ -127,7 +128,11 @@ describe('useTransferName — non-canonical name gate', () => {
     const { result } = renderTransfer(name)
 
     act(() => {
-      result.current.startTransfer({ recipient: RECIPIENT, options })
+      result.current.startTransfer({
+        recipient: RECIPIENT,
+        roleGrants: [],
+        options,
+      })
     })
 
     await waitFor(() => {
@@ -145,7 +150,11 @@ describe('useTransferName — non-canonical name gate', () => {
     const { result } = renderTransfer('alice.eth')
 
     act(() => {
-      result.current.startTransfer({ recipient: RECIPIENT, options })
+      result.current.startTransfer({
+        recipient: RECIPIENT,
+        roleGrants: [],
+        options,
+      })
     })
 
     await waitFor(() => {
