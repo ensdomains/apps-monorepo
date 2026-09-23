@@ -124,7 +124,7 @@ const AddressNameRow = ({
 
   return (
     <motion.div
-      className="border-ens-quartz-250 border-b-[0.5px] py-8 last:border-none"
+      className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none md:first:pt-8"
       {...(shouldReduceMotion
         ? {}
         : {
@@ -137,28 +137,24 @@ const AddressNameRow = ({
             },
           })}
     >
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <NameRow
-            avatarPending={profilePreview.isAvatarPending}
-            avatarUrl={profilePreview.avatarUrl}
-            canRenew={canRenew}
-            cta={canRenew ? 'renew' : null}
-            expiryLabel={formatExpiryLabel(name.expiryDate)}
-            isAuthenticated={isAuthed}
-            isFavorite={isFavorite}
-            label={name.label}
-            nameRoles={name.nameRoles}
-            onToggleFavorite={onToggleFavorite}
-            renewalProtocol={name.protocol}
-            showFavoriteButton={isConnectedView}
-            showNotificationsAction={false}
-            status={status}
-            themeColor={profilePreview.themeColor}
-            verified={isPrimary}
-          />
-        </div>
-      </div>
+      <NameRow
+        avatarPending={profilePreview.isAvatarPending}
+        avatarUrl={profilePreview.avatarUrl}
+        canRenew={canRenew}
+        cta={canRenew ? 'renew' : null}
+        expiryLabel={formatExpiryLabel(name.expiryDate)}
+        isAuthenticated={isAuthed}
+        isFavorite={isFavorite}
+        label={name.label}
+        nameRoles={name.nameRoles}
+        onToggleFavorite={onToggleFavorite}
+        renewalProtocol={name.protocol}
+        showFavoriteButton={isConnectedView}
+        showNotificationsAction={false}
+        status={status}
+        themeColor={profilePreview.themeColor}
+        verified={isPrimary}
+      />
     </motion.div>
   )
 }
@@ -273,11 +269,17 @@ export const AddressProfileNamesList = ({
       value: 'owned',
       label: t`Owned`,
       count: ownedCount,
+      activeClassName:
+        'bg-ens-lapis-100 text-ens-lapis-500 shadow-[inset_0px_0px_1px_0px_rgba(0,130,187,0.25)]',
+      activeCountClassName: 'bg-ens-lapis-tint text-ens-lapis-900',
     },
     {
       value: 'managed',
       label: t`Managed`,
       count: managedCount,
+      activeClassName:
+        'bg-ens-lapis-100 text-ens-lapis-500 shadow-[inset_0px_0px_1px_0px_rgba(0,130,187,0.25)]',
+      activeCountClassName: 'bg-ens-lapis-tint text-ens-lapis-900',
     },
   ]
 
@@ -340,12 +342,12 @@ export const AddressProfileNamesList = ({
     <div
       className="w-full rounded-none border-0 border-[#dededf] bg-transparent px-1 py-0 shadow-none md:rounded-xl md:border-[0.25px] md:bg-white md:px-6 md:py-8" // Figma-spec hairline width and border colour — no matching design tokens
     >
-      <div className="mb-5 flex w-full flex-col items-start gap-5">
+      <div className="mb-5 flex w-full flex-col items-start gap-5 md:mb-4">
         {/* Search filters the visible list for any address. Role filters stay
             with the connected view. */}
         <div className="flex w-full flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <h2
-            className="font-sans text-[#232222] text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]" // Figma-spec heading colour/size/tracking — no matching design tokens
+            className="font-sans text-[#232222] text-[16px] leading-[0.96] tracking-[0.16px] md:text-[28px] md:tracking-[0.28px]" // Figma-spec heading colour/size/tracking — no matching design tokens
           >
             <Trans>Names</Trans>
           </h2>
@@ -395,17 +397,15 @@ export const AddressProfileNamesList = ({
       </div>
 
       {!isPending && !isError && total > 0 ? (
-        <div className="mt-6">
-          <DashboardPagination
-            currentPage={currentPage}
-            disabled={isPending}
-            onPageChange={setPage}
-            rangeEnd={rangeEnd}
-            rangeStart={rangeStart}
-            total={total}
-            totalPages={totalPages}
-          />
-        </div>
+        <DashboardPagination
+          currentPage={currentPage}
+          disabled={isPending}
+          onPageChange={setPage}
+          rangeEnd={rangeEnd}
+          rangeStart={rangeStart}
+          total={total}
+          totalPages={totalPages}
+        />
       ) : null}
     </div>
   )
