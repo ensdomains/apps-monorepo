@@ -213,6 +213,7 @@ describe('getProfileAddressNames', () => {
               normalizedName: 'crypto.eth',
               tokenId: null,
               createdAt: 1_700_000_050,
+              registrationDate: null,
               expiryDate: 1_891_036_800,
               owner: {
                 __typename: 'Account',
