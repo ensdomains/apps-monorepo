@@ -311,7 +311,10 @@ describe('SearchModalContent', () => {
 
   it('keeps an owned exact match in Suggestions so Enter selects it first', async () => {
     connectedAddressOverride = '0x7Bc153b2a4C8a2f3428bd0da77a901b81c6dD809'
-    ownedNamesOverride = [{ name: 'foo.eth' }]
+    // foobar.eth is owned but not the exact match, so it anchors the wait:
+    // once it renders, the owned-names query has resolved and the placement
+    // of the exact match foo.eth is final.
+    ownedNamesOverride = [{ name: 'foo.eth' }, { name: 'foobar.eth' }]
     mockBuildSearchSuggestions.mockReturnValue([
       {
         id: 'name:foo.eth',
@@ -342,17 +345,16 @@ describe('SearchModalContent', () => {
 
     await vi.waitFor(() => {
       expect(
-        screen.getByRole('group', { name: 'Suggestions' }),
-      ).toBeInTheDocument()
+        screen
+          .getAllByRole('option')
+          .some((el) => el.getAttribute('data-value') === 'owned:foobar.eth'),
+      ).toBe(true)
     })
-    const optionsWithFoo = screen
+    const optionsWithFooEth = screen
       .getAllByRole('option')
       .filter((el) => el.textContent?.includes('foo.eth'))
-    expect(optionsWithFoo).toHaveLength(1)
-    expect(optionsWithFoo[0]).toHaveAttribute('data-value', 'name:foo.eth')
-    expect(
-      screen.queryByRole('group', { name: 'Names you own' }),
-    ).not.toBeInTheDocument()
+    expect(optionsWithFooEth).toHaveLength(1)
+    expect(optionsWithFooEth[0]).toHaveAttribute('data-value', 'name:foo.eth')
   })
 
   it('shows an owned name that is not the exact match under Names you own', async () => {
