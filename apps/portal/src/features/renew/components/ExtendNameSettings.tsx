@@ -32,6 +32,7 @@ export const ExtendNameSettings = ({
         <h2
           className="text-h2 min-w-0 truncate text-foreground"
           title={selectedName.name}
+          aria-label={selectedName.name}
         >
           {truncateName(selectedName.name)}
         </h2>
