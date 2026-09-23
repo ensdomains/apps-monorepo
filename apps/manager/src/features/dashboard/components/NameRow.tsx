@@ -534,7 +534,7 @@ export const NameRow = ({
             selected={isSelected}
             themeColor={resolvedThemeColor}
           />
-          <NamePill label={label} selected={isSelected} />
+          <NamePill isSelected={isSelected} label={label} />
           {isSelected ? <SelectedCheck /> : null}
         </div>
 

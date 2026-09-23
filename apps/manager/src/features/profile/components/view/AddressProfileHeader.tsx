@@ -59,7 +59,7 @@ export const AddressProfileHeader = ({
         <AddressLabel address={address} />
         {primaryName ? (
           <Link
-            className="inline-flex h-12.5 w-43 items-center justify-center gap-2.5 whitespace-nowrap rounded bg-ens-lapis-core px-4 font-medium font-mono text-[13px] text-white uppercase tracking-[1.56px] hover:bg-[#026B9C] lg:landscape:h-11"
+            className="inline-flex h-12.5 w-43 items-center justify-center gap-2.5 whitespace-nowrap rounded bg-ens-lapis-core px-4 font-medium font-mono text-[13px] text-white uppercase tracking-[1.56px] hover:bg-ens-lapis-hover lg:landscape:h-11"
             params={{ name: primaryName }}
             to="/$name"
           >

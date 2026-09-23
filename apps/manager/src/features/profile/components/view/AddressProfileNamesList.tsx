@@ -1,7 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
-import { CheckSquare, Mountain, Search, Square } from 'lucide-react'
+import { Mountain, Search } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
@@ -34,7 +34,6 @@ import {
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
-import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { tw } from '@/utils/tailwind'
 
@@ -93,34 +92,6 @@ const formatExpiryLabel = (expiryDate: number | null): string | null => {
   return formatted === '—' ? null : formatted
 }
 
-const canSelectAll = (isConnectedView: boolean, count: number): boolean =>
-  isConnectedView && count > 0
-
-const SelectionCheckbox = ({
-  checked,
-  onChange,
-  label,
-}: {
-  readonly checked: boolean
-  readonly onChange: () => void
-  readonly label: string
-}) => (
-  <label className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center text-ens-quartz-700">
-    <input
-      aria-label={label}
-      checked={checked}
-      className="sr-only"
-      onChange={onChange}
-      type="checkbox"
-    />
-    {checked ? (
-      <CheckSquare className="size-6" strokeWidth={1.5} />
-    ) : (
-      <Square className="size-6" strokeWidth={1.5} />
-    )}
-  </label>
-)
-
 const AddressNameRow = ({
   name,
   index,
@@ -129,11 +100,9 @@ const AddressNameRow = ({
   isV1Renewable,
   isAuthed,
   isFavorite,
-  isSelected,
   isConnectedView,
   shouldReduceMotion,
   onToggleFavorite,
-  onToggleSelected,
 }: {
   readonly name: ProfileAddressName
   readonly index: number
@@ -142,13 +111,10 @@ const AddressNameRow = ({
   readonly isV1Renewable: boolean
   readonly isAuthed: boolean
   readonly isFavorite: boolean
-  readonly isSelected: boolean
   readonly isConnectedView: boolean
   readonly shouldReduceMotion: boolean | null
   readonly onToggleFavorite: () => void
-  readonly onToggleSelected: () => void
 }) => {
-  const { t } = useLingui()
   const isPrimary = primaryName?.toLowerCase() === name.label.toLowerCase()
   const status: NameStatus | null = name.protocol === 'v1' ? 'ensv1Only' : null
   const canRenew =
@@ -171,16 +137,7 @@ const AddressNameRow = ({
             },
           })}
     >
-      <div
-        className={cn('flex items-start gap-2', isConnectedView && 'md:gap-3')}
-      >
-        {isConnectedView ? (
-          <SelectionCheckbox
-            checked={isSelected}
-            label={t`Select ${name.label}`}
-            onChange={onToggleSelected}
-          />
-        ) : null}
+      <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <NameRow
             avatarPending={profilePreview.isAvatarPending}
@@ -190,7 +147,6 @@ const AddressNameRow = ({
             expiryLabel={formatExpiryLabel(name.expiryDate)}
             isAuthenticated={isAuthed}
             isFavorite={isFavorite}
-            isSelected={isSelected}
             label={name.label}
             nameRoles={name.nameRoles}
             onToggleFavorite={onToggleFavorite}
@@ -225,14 +181,10 @@ export const AddressProfileNamesList = ({
   const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
-  const showSelection = isConnectedView
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [sort, setSort] = useState<Sort>('created-desc')
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('owned')
-  const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  )
   const { field: sortField, dir: sortDir } = parseSort(sort)
 
   const allNames = addressNames
@@ -275,12 +227,11 @@ export const AddressProfileNamesList = ({
       .sort((a, b) => compareNames(a, b, sortField, sortDir))
   }, [allNames, isConnectedView, roleFilter, searchQuery, sortDir, sortField])
 
-  const filterKey = `${searchQuery}:${sort}:${roleFilter}:${isConnectedView}:${showSelection}`
+  const filterKey = `${searchQuery}:${sort}:${roleFilter}:${isConnectedView}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)
     setPage(1)
-    if (showSelection) setSelectedKeys(new Set())
   }
 
   const total = filteredSorted.length
@@ -310,33 +261,6 @@ export const AddressProfileNamesList = ({
       .filter((name) => name.protocol === 'v1')
       .map((name) => name.label),
   )
-
-  const filteredKeys = filteredSorted.map((item) => item.key)
-  const allFilteredSelected =
-    showSelection &&
-    filteredKeys.length > 0 &&
-    filteredKeys.every((key) => selectedKeys.has(key))
-
-  const toggleSelectAll = () => {
-    setSelectedKeys((current) => {
-      const next = new Set(current)
-      if (allFilteredSelected) {
-        for (const key of filteredKeys) next.delete(key)
-      } else {
-        for (const key of filteredKeys) next.add(key)
-      }
-      return next
-    })
-  }
-
-  const toggleSelected = (key: string) => {
-    setSelectedKeys((current) => {
-      const next = new Set(current)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
 
   const sortOptions: SortOption<SortField>[] = [
     { value: 'name', label: t`Name` },
@@ -396,12 +320,10 @@ export const AddressProfileNamesList = ({
           isAuthed={isAuthed}
           isConnectedView={isConnectedView}
           isFavorite={favoriteLabels.has(name.label.toLowerCase())}
-          isSelected={selectedKeys.has(name.key)}
           isV1Renewable={isV1Renewable(name.label)}
           key={name.key}
           name={name}
           onToggleFavorite={() => onToggleFavorite(name.label)}
-          onToggleSelected={() => toggleSelected(name.key)}
           primaryName={primaryName}
           profilePreview={getNameRowProfilePreview({
             label: name.label,
@@ -419,10 +341,8 @@ export const AddressProfileNamesList = ({
       className="w-full rounded-none border-0 border-[#dededf] bg-transparent px-1 py-0 shadow-none md:rounded-xl md:border-[0.25px] md:bg-white md:px-6 md:py-8" // Figma-spec hairline width and border colour — no matching design tokens
     >
       <div className="mb-5 flex w-full flex-col items-start gap-5">
-        {/* Heading and search render for any address: the search filters the
-            list that is already on screen, which is as useful on someone
-            else's names as on your own. The controls below it act on roles
-            and selection, so they stay with the connected view. */}
+        {/* Search filters the visible list for any address. Role filters stay
+            with the connected view. */}
         <div className="flex w-full flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <h2
             className="font-sans text-[#232222] text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]" // Figma-spec heading colour/size/tracking — no matching design tokens
@@ -463,33 +383,6 @@ export const AddressProfileNamesList = ({
             />
           ) : null}
         </div>
-
-        {canSelectAll(showSelection, filteredKeys.length) ? (
-          <div
-            className="inline-flex h-8 items-center gap-0.5 rounded-full text-[#232222]" // Figma-spec text colour — no matching design token
-          >
-            <SelectionCheckbox
-              checked={allFilteredSelected}
-              label={
-                allFilteredSelected
-                  ? t`Deselect all names`
-                  : t`Select all names`
-              }
-              onChange={toggleSelectAll}
-            />
-            <button
-              className="font-sans text-base tracking-[0.32px]"
-              onClick={toggleSelectAll}
-              type="button"
-            >
-              {allFilteredSelected ? (
-                <Trans>Deselect all</Trans>
-              ) : (
-                <Trans>Select all</Trans>
-              )}
-            </button>
-          </div>
-        ) : null}
       </div>
 
       <div

@@ -1,7 +1,8 @@
 import { type Address, getAddress, isAddress } from 'viem'
 
 const REVERSE_ADDRESS_LABEL = /^[0-9a-f]{40}$/i
-const COIN_TYPE_LABEL = /^[0-9a-f]{8}$/i
+// EVM coin types occupy the 0x80000000 namespace and above.
+const EVM_COIN_TYPE_LABEL = /^[89a-f][0-9a-f]{7}$/i
 
 /** Extract the wallet represented by an EVM reverse record name. */
 export const getReverseNameAddress = (name: string): Address | null => {
@@ -16,7 +17,7 @@ export const getReverseNameAddress = (name: string): Address | null => {
     !namespace ||
     (namespace.toLowerCase() !== 'addr' &&
       namespace.toLowerCase() !== 'default' &&
-      !COIN_TYPE_LABEL.test(namespace))
+      !EVM_COIN_TYPE_LABEL.test(namespace))
   ) {
     return null
   }

@@ -692,12 +692,10 @@ msgid "Deselect {label}"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Deselect all"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Deselect all names"
 msgstr ""
 
@@ -1988,9 +1986,7 @@ msgstr ""
 msgid "See all"
 msgstr ""
 
-#. placeholder {0}: name.label
 #. placeholder {0}: stablecoin.symbol
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Select {0}"
 msgstr ""
@@ -2005,12 +2001,10 @@ msgstr "Välj {label} som primärt namn"
 
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Select all"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Select all names"
 msgstr ""
 

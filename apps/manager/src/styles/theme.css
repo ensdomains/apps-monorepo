@@ -32,6 +32,7 @@
   --color-ens-lapis-dust: #cee1e8;
   --color-ens-lapis-surface: #79b1d0;
   --color-ens-lapis-core: #0080bc;
+  --color-ens-lapis-hover: #026b9c;
   --color-ens-lapis-dense: #093c52;
   --color-ens-lapis-bg: #e5f7ff;
   --color-ens-lapis-tint: #f5fcff;
@@ -80,6 +81,7 @@
   --color-ens-citrine-900: #441b03;
 
   --color-ens-quartz-0: #ffffff;
+  --color-ens-quartz-25: #fcfbfb;
   --color-ens-quartz-50: #faf9f7;
   --color-ens-quartz-75: #f4f4f4;
   --color-ens-quartz-100: #eeeded;

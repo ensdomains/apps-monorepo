@@ -58,7 +58,7 @@ export const AddressProfileView = ({
 
   return (
     <div
-      className="relative -mt-13.5 min-h-screen bg-[#FCFBFB] pb-12 lg:landscape:-mt-20"
+      className="relative -mt-13.5 min-h-screen bg-ens-quartz-25 pb-12 lg:landscape:-mt-20"
       style={themeVars as CSSProperties}
     >
       <ProfileThemeColorProvider value={themeVars['--theme-color']}>

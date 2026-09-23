@@ -687,12 +687,10 @@ msgid "Deselect {label}"
 msgstr "Deselect {label}"
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Deselect all"
 msgstr "Deselect all"
 
 #: src/features/dashboard/components/NamesTable.tsx
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Deselect all names"
 msgstr "Deselect all names"
 
@@ -1983,9 +1981,7 @@ msgstr "Search notifications"
 msgid "See all"
 msgstr "See all"
 
-#. placeholder {0}: name.label
 #. placeholder {0}: stablecoin.symbol
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Select {0}"
 msgstr "Select {0}"
@@ -2000,12 +1996,10 @@ msgstr "Select {label} as primary name"
 
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Select all"
 msgstr "Select all"
 
 #: src/features/dashboard/components/NamesTable.tsx
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Select all names"
 msgstr "Select all names"
 
