@@ -66,10 +66,10 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
   /**
    * Ensure a valid scoped session exists for the current owner, requesting its
    * single wallet authorization signature if needed. Resolves with the
-   * session-attached signer and reusable proof to use immediately (without
-   * waiting for a React re-render), or null on failure / the EOA-only path.
+   * session-attached signer to use immediately (without waiting for a React
+   * re-render), or null on failure / the EOA-only path.
    */
-  readonly enableSession: () => Promise<EnabledSmartSession | null>
+  readonly enableSession: () => Promise<Signer | null>
   /**
    * The active persisted session record for the current HCA, if any. Carries
    * the fields needed to rebuild the session-enable payload for registration.
@@ -94,11 +94,6 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
    * reads and actions cannot retain the counterfactual/deployment snapshot.
    */
   readonly refreshAccount: () => Promise<void>
-}
-
-export interface EnabledSmartSession {
-  readonly signer: Signer
-  readonly sessionEnable: HcaSessionEnablePayload
 }
 
 const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
@@ -541,95 +536,87 @@ export const SmartAccountContextProvider = ({
     setActiveSession(stored && isRhinestoneSession(stored) ? stored : null)
   }, [sessionOwnerAddress, accountAddress])
 
-  const enableSession =
-    useCallback(async (): Promise<EnabledSmartSession | null> => {
-      // EOA-only path has no sessions.
-      if (isFeatureEnabled('USE_EOA')) return null
-      // WEB-287: `sessionOwnerAddress` is the VERIFIED owner (machine + wagmi
-      // agree). If it is null while the machine still reports an owner, the
-      // connected wallet diverges from the HCA's owner — refuse to enable a
-      // session for the wrong owner (it would authorize against the wrong HCA /
-      // register to the wrong owner) rather than silently proceeding.
-      if (!baseClient || !accountAddress || !sessionOwnerAddress) {
-        if (
-          snapshot.context.ownerAddress &&
-          eoaAddress &&
-          !sessionOwnerAddress
-        ) {
-          logger.error(
-            'Wallet owner mismatch; refusing to enable session signer',
-            {
-              machineOwner: snapshot.context.ownerAddress,
-              connectedEoa: eoaAddress,
-            },
-          )
-        }
-        return null
+  const enableSession = useCallback(async (): Promise<Signer | null> => {
+    // EOA-only path has no sessions.
+    if (isFeatureEnabled('USE_EOA')) return null
+    // WEB-287: `sessionOwnerAddress` is the VERIFIED owner (machine + wagmi
+    // agree). If it is null while the machine still reports an owner, the
+    // connected wallet diverges from the HCA's owner — refuse to enable a
+    // session for the wrong owner (it would authorize against the wrong HCA /
+    // register to the wrong owner) rather than silently proceeding.
+    if (!baseClient || !accountAddress || !sessionOwnerAddress) {
+      if (snapshot.context.ownerAddress && eoaAddress && !sessionOwnerAddress) {
+        logger.error(
+          'Wallet owner mismatch; refusing to enable session signer',
+          {
+            machineOwner: snapshot.context.ownerAddress,
+            connectedEoa: eoaAddress,
+          },
+        )
       }
-      const rhinestoneApiKey = resolveRhinestoneApiKey()
-      if (!rhinestoneApiKey) return null
+      return null
+    }
+    const rhinestoneApiKey = resolveRhinestoneApiKey()
+    if (!rhinestoneApiKey) return null
 
-      const rhinestoneAccount =
-        baseClient as unknown as RhinestoneSigner['account']
+    const rhinestoneAccount =
+      baseClient as unknown as RhinestoneSigner['account']
 
-      if (!wagmiPublicClient) {
-        setSessionError('No public client available for session authorization')
-        return null
-      }
+    if (!wagmiPublicClient) {
+      setSessionError('No public client available for session authorization')
+      return null
+    }
 
-      setIsEnablingSession(true)
-      setSessionError(null)
-      // The session salt depends on the HCA's on-chain nonce (0 when undeployed).
-      const alreadyDeployed = await rhinestoneAccount.isDeployed(customSepolia)
-      const result = await resolveSessionActor({
-        ownerAddress: sessionOwnerAddress,
-        accountAddress,
-        chain: customSepolia,
-        rhinestoneAccount,
-        publicClient: wagmiPublicClient as unknown as PublicClient,
-        alreadyDeployed,
-      })
-      setIsEnablingSession(false)
+    setIsEnablingSession(true)
+    setSessionError(null)
+    // The session salt depends on the HCA's on-chain nonce (0 when undeployed).
+    const alreadyDeployed = await rhinestoneAccount.isDeployed(customSepolia)
+    const result = await resolveSessionActor({
+      ownerAddress: sessionOwnerAddress,
+      accountAddress,
+      chain: customSepolia,
+      rhinestoneAccount,
+      publicClient: wagmiPublicClient as unknown as PublicClient,
+      alreadyDeployed,
+    })
+    setIsEnablingSession(false)
 
-      if (result.isErr()) {
-        setSessionError(result.error.message)
-        return null
-      }
+    if (result.isErr()) {
+      setSessionError(result.error.message)
+      return null
+    }
 
-      // Update state so future renders/intents pick up the session…
-      setActiveSession(result.value.session)
+    // Update state so future renders/intents pick up the session…
+    setActiveSession(result.value.session)
 
-      // …AND return a signer with the session attached NOW, so the caller can
-      // start registration in the same tick without waiting for a re-render
-      // (which would otherwise use the stale, session-less signer). Route through
-      // `buildRhinestoneSigner` (rather than re-building the shape inline) so this
-      // site stays in sync with the render-path signer and inherits any future
-      // defaults/guards. `sessionOwnerAddress` is verified non-null above, so the
-      // session is always attached here.
-      return {
-        signer: buildRhinestoneSigner({
-          baseClient,
-          accountAddress,
-          rhinestoneApiKey,
-          sessionContext: buildSessionContext({
-            session: result.value.session,
-            chain: customSepolia,
-            hca: accountAddress,
-          }),
-          sessionOwnerAddress,
-          machineOwner: snapshot.context.ownerAddress,
-          eoaAddress,
-        }),
-        sessionEnable: buildHcaSessionEnablePayload(result.value.session),
-      }
-    }, [
+    // …AND return a signer with the session attached NOW, so the caller can
+    // start registration in the same tick without waiting for a re-render
+    // (which would otherwise use the stale, session-less signer). Route through
+    // `buildRhinestoneSigner` (rather than re-building the shape inline) so this
+    // site stays in sync with the render-path signer and inherits any future
+    // defaults/guards. `sessionOwnerAddress` is verified non-null above, so the
+    // session is always attached here.
+    return buildRhinestoneSigner({
       baseClient,
       accountAddress,
+      rhinestoneApiKey,
+      sessionContext: buildSessionContext({
+        session: result.value.session,
+        chain: customSepolia,
+        hca: accountAddress,
+      }),
       sessionOwnerAddress,
-      snapshot.context.ownerAddress,
+      machineOwner: snapshot.context.ownerAddress,
       eoaAddress,
-      wagmiPublicClient,
-    ])
+    })
+  }, [
+    baseClient,
+    accountAddress,
+    sessionOwnerAddress,
+    snapshot.context.ownerAddress,
+    eoaAddress,
+    wagmiPublicClient,
+  ])
 
   // Resolve the START_REGISTRATION session-enable payload.
   //

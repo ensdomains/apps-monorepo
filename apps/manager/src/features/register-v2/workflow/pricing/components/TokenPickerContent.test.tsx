@@ -544,17 +544,8 @@ describe('startRegistrationWithSession', () => {
     expect(onStart).not.toHaveBeenCalled()
     const onProceed = gate.mock.calls[0]?.[0]
     expect(onProceed).toBeTypeOf('function')
-    const session = {
-      signer: { type: 'rhinestone' as const },
-      sessionEnable: {
-        enableData: {},
-        permissionId: '0x1234' as const,
-        sessionKey: '0x1111111111111111111111111111111111111111' as const,
-        validUntil: 1n,
-      },
-    }
-    onProceed?.(session)
-    expect(onStart).toHaveBeenCalledWith({ ...attempt, session })
+    onProceed?.()
+    expect(onStart).toHaveBeenCalledWith(attempt)
   })
 
   it('starts with DAI without requiring a session', () => {

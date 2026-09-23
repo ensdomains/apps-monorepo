@@ -17,10 +17,7 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import { useSmartSessionGate } from '@/features/wallet/hooks/useSmartSessionGate'
 import type { StablecoinBalance } from '@/lib/smart-account'
-import {
-  type EnabledSmartSession,
-  useSmartAccountContext,
-} from '@/lib/smart-account/SmartAccountContext'
+import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -287,7 +284,6 @@ const getPaymentSummary = ({
 
 type RegistrationAttempt = {
   token: SUPPORTED_TOKEN
-  session?: EnabledSmartSession
   pricing: {
     basePriceNumber: number
     premiumPriceNumber: number
@@ -302,11 +298,11 @@ export const startRegistrationWithSession = ({
   onStart,
 }: {
   attempt: RegistrationAttempt
-  gate: (onProceed: (session?: EnabledSmartSession) => void) => void
+  gate: (onProceed: () => void) => void
   onStart: (attempt: RegistrationAttempt) => void
 }) => {
   if (attempt.token === TOKENS.USDC.symbol) {
-    gate((session) => onStart(session ? { ...attempt, session } : attempt))
+    gate(() => onStart(attempt))
     return
   }
   onStart(attempt)
@@ -466,8 +462,7 @@ export const TokenPickerContent = () => {
     // Resolve the reusable session proof before dispatching registration.
     const hcaSessionEnable =
       attempt.token === TOKENS.USDC.symbol
-        ? (attempt.session?.sessionEnable ??
-          (await account.getSessionEnablePayload()))
+        ? await account.getSessionEnablePayload()
         : undefined
     uiActor.send({
       type: 'registration.start',
@@ -475,9 +470,7 @@ export const TokenPickerContent = () => {
       duration: BigInt(Math.ceil(duration)),
       token: attempt.token,
       totalPrice: attempt.pricing.rawPrice,
-      account: attempt.session
-        ? { ...account, signer: attempt.session.signer }
-        : account,
+      account,
       hcaSessionEnable,
       basePriceNumber: attempt.pricing.basePriceNumber,
       premiumPriceNumber: attempt.pricing.premiumPriceNumber,
@@ -489,16 +482,9 @@ export const TokenPickerContent = () => {
 
   const availabilityMutation = useMutation({
     mutationFn: async (attempt: RegistrationAttempt) => {
-      const enabledSession = attempt.session
       const budget =
         attempt.token === TOKENS.USDC.symbol
-          ? await refreshHcaBudgetQuery(queryClient, {
-              ...budgetQueryParams,
-              signer: enabledSession?.signer ?? budgetQueryParams.signer,
-              getSessionEnablePayload: enabledSession
-                ? async () => enabledSession.sessionEnable
-                : budgetQueryParams.getSessionEnablePayload,
-            })
+          ? await refreshHcaBudgetQuery(queryClient, budgetQueryParams)
               // A quote failure is not a funding failure. Fall through and let the
               // machine (and its own pre-permit balance check) surface the problem.
               .catch(() => null)
