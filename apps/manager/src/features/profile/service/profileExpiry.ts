@@ -98,14 +98,16 @@ type SubnameExpiryQuery = {
  * outlive its parent, so a computed minimum would report a date no registry
  * holds. Any failure answers null and renders as no expiry.
  */
-const getIndexedExpiry = async (name: string): Promise<number | null> => {
+const getIndexedExpiry = async (name: string): Promise<bigint | null> => {
   try {
     const { domains } = await graphqlRequest<
       SubnameExpiryQuery,
       { name: string }
     >(indexerClient, SubnameExpiryDocument, { name })
 
-    return domains[0]?.expiryDate ?? null
+    const expiryDate = domains[0]?.expiryDate
+
+    return expiryDate == null ? null : BigInt(expiryDate)
   } catch {
     return null
   }
@@ -121,7 +123,7 @@ export const getExpiry = ResultFn(async function* (
     const expiry = await getIndexedExpiry(subname.name)
 
     return ok({
-      expiry: expiry === null ? null : BigInt(expiry),
+      expiry,
       isNonExpiring: false,
       protocol: 'v2',
       isSubname: true,
