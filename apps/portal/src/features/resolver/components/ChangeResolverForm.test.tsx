@@ -4,8 +4,21 @@ import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChangeResolverForm } from './ChangeResolverForm'
 
+// Captures the transaction descriptors so the tests can invoke the lifecycle
+// callbacks (notably `onDone`) the real modal would fire.
+const transactionsRef: { current: { id: string; onDone?: () => void }[] } = {
+  current: [],
+}
+
 vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
-  TransactionModal: () => null,
+  TransactionModal: ({
+    transactions,
+  }: {
+    transactions: { id: string; onDone?: () => void }[]
+  }) => {
+    transactionsRef.current = transactions
+    return null
+  },
 }))
 
 const mockOpenModal = vi.fn()
@@ -18,7 +31,9 @@ vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
   }),
 }))
 
+const mockNavigate = vi.fn()
 vi.mock('@tanstack/react-router', () => ({
+  useNavigate: () => mockNavigate,
   Link: ({
     children,
     to,
@@ -116,6 +131,8 @@ describe('ChangeResolverForm', () => {
     mockChangeResolver.mockReset()
     mockDeployPermissionedResolverAsync.mockReset()
     mockOpenModal.mockReset()
+    mockNavigate.mockReset()
+    transactionsRef.current = []
     changeResolverHookState.isPending = false
     changeResolverHookState.hasWallet = true
   })
@@ -188,5 +205,39 @@ describe('ChangeResolverForm', () => {
     expect(
       screen.getByRole('button', { name: /Changing resolver.../i }),
     ).toBeInTheDocument()
+  })
+
+  // Staying on the form left no sign the change landed, so users saved twice.
+  it('navigates to the resolver page once the change transaction is done', () => {
+    render(<ChangeResolverForm name={name} target={target} />)
+
+    const changeTransaction = transactionsRef.current.find(
+      (transaction) => transaction.id === 'tx-change-resolver',
+    )
+    changeTransaction?.onDone?.()
+
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: '/$name/resolver',
+      params: { name },
+    })
+  })
+
+  it('navigates to the resolver page after the deploy-then-change flow', async () => {
+    const user = userEvent.setup()
+    render(<ChangeResolverForm name={name} target={target} />)
+
+    await user.click(
+      screen.getByRole('switch', { name: /Use custom resolver/i }),
+    )
+
+    const changeTransaction = transactionsRef.current.find(
+      (transaction) => transaction.id === 'tx-change-resolver',
+    )
+    changeTransaction?.onDone?.()
+
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: '/$name/resolver',
+      params: { name },
+    })
   })
 })
