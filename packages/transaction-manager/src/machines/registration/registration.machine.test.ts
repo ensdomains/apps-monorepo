@@ -139,6 +139,59 @@ const startHcaRegistration = (overrides: {
   return { actor, estimateHcaBudget, signFundingPermit, submitFundingAndCommit }
 }
 
+const EOA_RESOLVER = '0xcccc000000000000000000000000000000000003' as Address
+const EOA_COMMITMENT = {
+  commitment: `0x${'44'.repeat(32)}`,
+  secret: `0x${'55'.repeat(32)}`,
+} as const
+
+/**
+ * Pure-EOA leg: resolver deployment → commitment generation → commit. Only the
+ * actors up to the commit are stubbed; the assertions stop there.
+ */
+const startEoaRegistration = (overrides: {
+  generateCommitment?: ReturnType<typeof vi.fn>
+  submitCommitment?: ReturnType<typeof vi.fn>
+}) => {
+  const generateCommitment =
+    overrides.generateCommitment ?? vi.fn(async () => EOA_COMMITMENT)
+  const submitCommitment =
+    overrides.submitCommitment ??
+    vi.fn(() => new Promise(() => {})) /* park: assertions stop here */
+
+  const actor = createActor(
+    registrationMachine.provide({
+      actors: {
+        deployResolver: fromPromise(async () => ({
+          txId: 'resolver-tx',
+          salt: 1n,
+        })) as never,
+        resolveResolverDeployment: fromPromise(async () => ({
+          resolverAddress: EOA_RESOLVER,
+        })) as never,
+        generateCommitment: fromPromise(generateCommitment) as never,
+        submitCommitment: fromPromise(submitCommitment) as never,
+      },
+    }),
+    { input: { chainId: sepolia.id } },
+  )
+
+  actor.start()
+  actor.send({
+    type: 'START_REGISTRATION',
+    name: 'myname.eth',
+    duration: 31_536_000n,
+    token: 'USDC',
+    price: 5_000_000n,
+    signer: { type: 'eoa' } as unknown as Signer,
+    accountAddress: WALLET,
+    ownerAddress: WALLET,
+    publicClient: { chain: sepolia } as unknown as PublicClient,
+  })
+
+  return { actor, generateCommitment, submitCommitment }
+}
+
 describe('registrationMachine — standalone-HCA funding', () => {
   it('skips the funding permit when the HCA already covers the budget', async () => {
     const { actor, signFundingPermit } = startHcaRegistration({
@@ -288,6 +341,37 @@ describe('registrationMachine — standalone-HCA funding', () => {
     expect(signFundingPermit).toHaveBeenCalledOnce()
     // A stale commitment is cleared too, so the reveal can't bind to it.
     expect(actor.getSnapshot().context.commitmentTxId).toBeUndefined()
+  })
+})
+
+describe('registrationMachine — pure-EOA commitment retry', () => {
+  it('regenerates the commitment on retry instead of committing nothing', async () => {
+    // A failed generation leaves `commitment` unset. Retrying the commit
+    // directly submits `undefined`, which throws a TypeError back into `error`
+    // with the same target — every further retry reproduces it, and the user
+    // sees the TypeError instead of the RPC error that actually failed.
+    const generateCommitment = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('rpc hiccup on the registrar read'))
+      .mockImplementation(async () => EOA_COMMITMENT)
+
+    const { actor, submitCommitment } = startEoaRegistration({
+      generateCommitment,
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.commitment).toBeUndefined()
+    expect(actor.getSnapshot().context.retryTarget).toBe('preparingCommitment')
+
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('committingTransaction'))
+
+    expect(generateCommitment).toHaveBeenCalledTimes(2)
+    expect(submitCommitment.mock.calls[0][0].input.commitment).toEqual(
+      EOA_COMMITMENT,
+    )
+    // The resolver is already on-chain — the retry must not redeploy it.
+    expect(actor.getSnapshot().context.resolverAddress).toBe(EOA_RESOLVER)
   })
 })
 

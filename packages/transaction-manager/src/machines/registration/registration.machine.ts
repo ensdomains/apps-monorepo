@@ -1147,6 +1147,9 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              // Nothing was committed and `commitment` is still unset, so the
+              // retry has to regenerate it here. Targeting the commit itself
+              // would submit `undefined` and throw.
               retryTarget: () => 'preparingCommitment' as const,
             }),
             ({ event }) => {
