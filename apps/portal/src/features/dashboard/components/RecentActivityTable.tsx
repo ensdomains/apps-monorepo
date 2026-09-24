@@ -1,6 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { match, P } from 'ts-pattern'
-import type { Address } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -83,10 +82,7 @@ export const RecentActivityTable = () => {
                         </EntityBadge>
                       ))
                       .with({ type: 'address' }, ({ value }) => (
-                        <EntityBadge
-                          variant="address"
-                          address={value as Address}
-                        >
+                        <EntityBadge variant="address" address={value}>
                           {truncateAddress(value, 6, 4)}
                         </EntityBadge>
                       ))
@@ -112,18 +108,11 @@ export const RecentActivityTable = () => {
                       {value}
                     </EntityBadge>
                   )}
-                  {match(actor)
-                    .with({ type: 'address' }, ({ value }) => (
-                      <EntityBadge variant="address" address={value as Address}>
-                        {truncateAddress(value, 6, 4)}
-                      </EntityBadge>
-                    ))
-                    .with({ type: 'name' }, ({ value }) => (
-                      <EntityBadge variant="name" name={value}>
-                        {truncateName(value)}
-                      </EntityBadge>
-                    ))
-                    .otherwise(() => null)}
+                  {actor && (
+                    <EntityBadge variant="address" address={actor.value}>
+                      {truncateAddress(actor.value, 6, 4)}
+                    </EntityBadge>
+                  )}
                 </div>
               </div>
             )

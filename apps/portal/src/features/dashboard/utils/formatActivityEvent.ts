@@ -1,4 +1,4 @@
-import { isAddress } from 'viem'
+import { type Address, isAddress } from 'viem'
 import {
   parseEventData,
   readString,
@@ -6,29 +6,29 @@ import {
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
 
-type ActivityEntity = {
-  type: 'address' | 'name'
-  value: string
-}
+type AddressEntity = { type: 'address'; value: Address }
+
+/** Raw event data is untrusted, so an address is only an entity once it parses. */
+const toAddressEntity = (value: string): AddressEntity | undefined =>
+  isAddress(value) ? { type: 'address', value } : undefined
 
 export type FormattedActivity = {
   text: string
   /** Actor shown on the right side of the row (e.g. "registered by {actor}") */
-  actor?: ActivityEntity
+  actor?: AddressEntity
   /** Fallback entity for the name column when event.name is null */
-  entityFromData?: ActivityEntity
+  entityFromData?: AddressEntity
   /** A raw on-chain value (e.g. a text-record key), shown as a neutral entity pill. */
   value?: string
 }
 
 type StaticDescriptor = {
   text: string
+  /** Address field shown as the actor, e.g. the owner of a registration */
   actorField?: string
-  actorType?: 'address' | 'name'
-  /** Extract a display entity from data when event.name is null */
+  /** Address field shown in the name column when event.name is null */
   entityField?: string
-  entityType?: 'address' | 'name'
-  /** Raw data field shown as a value pill after the text (e.g. text record key) */
+  /** Raw data field shown as an unlinked value pill after the text (e.g. text record key) */
   valueField?: string
 }
 
@@ -44,12 +44,10 @@ const EVENT_DESCRIPTORS: Record<string, Descriptor> = {
   NameRegistered: {
     text: 'Registered by',
     actorField: 'owner',
-    actorType: 'address',
   },
   LabelRegistered: {
     text: 'Registered by',
     actorField: 'owner',
-    actorType: 'address',
   },
   NameRenewed: { text: 'Name renewed' },
 
@@ -58,20 +56,18 @@ const EVENT_DESCRIPTORS: Record<string, Descriptor> = {
     const to = readString(data, 'to', 'owner')
     return {
       text: 'Ownership transferred to',
-      actor: to ? { type: 'address', value: to } : undefined,
+      actor: to ? toAddressEntity(to) : undefined,
     }
   },
   NewOwner: {
     text: 'Subname created by',
     actorField: 'owner',
-    actorType: 'address',
   },
 
   // Resolver
   ResolverUpdated: {
     text: 'Resolver updated to',
     actorField: 'resolver',
-    actorType: 'address',
   },
   AddrChanged: { text: 'ETH address updated' },
   // `address` is raw bytes per coin type — only a real address when ETH.
@@ -81,22 +77,16 @@ const EVENT_DESCRIPTORS: Record<string, Descriptor> = {
     if (coinType !== ETH_COIN_TYPE) return { text: 'Address updated' }
     return {
       text: 'ETH address updated',
-      entityFromData:
-        address && isAddress(address)
-          ? { type: 'address', value: address }
-          : undefined,
+      entityFromData: address ? toAddressEntity(address) : undefined,
     }
   },
   TextChanged: { text: 'Text record updated', valueField: 'key' },
   ContenthashChanged: { text: 'Contenthash updated' },
   VersionChanged: { text: 'Resolver records cleared' },
 
-  // Name / reverse resolution — name lives inside data.name
-  NameChanged: {
-    text: 'Primary name updated',
-    entityField: 'name',
-    entityType: 'name',
-  },
+  // Anyone can set any string as their own reverse record and nothing here
+  // forward-verifies it, so the name is a neutral value pill, not a name badge.
+  NameChanged: { text: 'Primary name updated', valueField: 'name' },
 
   // Migration
   NameWrapped: { text: 'Migrated from ENSv1 to ENSv2' },
@@ -106,7 +96,6 @@ const EVENT_DESCRIPTORS: Record<string, Descriptor> = {
   EACRolesChanged: {
     text: 'Roles updated',
     entityField: 'account',
-    entityType: 'address',
   },
   FusesSet: { text: 'Fuses updated' },
   ExpiryExtended: { text: 'Expiry extended' },
@@ -134,7 +123,7 @@ export const formatActivityEvent = (
   const result: FormattedActivity = { text: descriptor.text }
 
   if (descriptor.valueField) {
-    // A text record key is arbitrary user-authored bytes, and this feed is the landing page.
+    // These are arbitrary user-authored bytes, and this feed is the landing page.
     const value = sanitizeOnChainText(
       readString(parsedData, descriptor.valueField) ?? '',
     )
@@ -143,22 +132,12 @@ export const formatActivityEvent = (
 
   if (descriptor.actorField) {
     const actorValue = readString(parsedData, descriptor.actorField)
-    if (actorValue) {
-      result.actor = {
-        type: descriptor.actorType ?? 'address',
-        value: actorValue,
-      }
-    }
+    if (actorValue) result.actor = toAddressEntity(actorValue)
   }
 
   if (descriptor.entityField) {
     const entityValue = readString(parsedData, descriptor.entityField)
-    if (entityValue) {
-      result.entityFromData = {
-        type: descriptor.entityType ?? 'name',
-        value: entityValue,
-      }
-    }
+    if (entityValue) result.entityFromData = toAddressEntity(entityValue)
   }
 
   return result
