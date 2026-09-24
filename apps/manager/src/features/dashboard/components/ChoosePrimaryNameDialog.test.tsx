@@ -37,6 +37,9 @@ beforeEach(() => {
     isSubmitting: false,
     isError: false,
     error: null,
+    fundingPrompt: null,
+    approveFunding: vi.fn(),
+    declineFunding: vi.fn(),
   })
   mocks.useSmartAccountContext.mockReturnValue({
     ownerAddress: null,
