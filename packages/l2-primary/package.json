@@ -29,6 +29,7 @@
   "keywords": [],
   "dependencies": {
     "@ensdomains/ensjs": "catalog:",
+    "@ensdomains/ensjs-abi": "catalog:",
     "viem": "catalog:"
   }
 }
