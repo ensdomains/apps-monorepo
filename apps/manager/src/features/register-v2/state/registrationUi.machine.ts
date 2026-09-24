@@ -605,22 +605,6 @@ const startRegistrationAction = machineSetup.createAction(
       event.account.signer.type === 'rhinestone' &&
       ownerAddress.toLowerCase() !== event.account.accountAddress.toLowerCase()
 
-    // One registration at a time per wallet, across tabs. The commit batch
-    // funds the HCA with an EIP-2612 permit whose nonce is sequential per
-    // wallet, so a concurrent run reverts `TransferFromFailed()` and never
-    // records its commitment.
-    const blockingName = getBlockingRegistration(
-      ownerAddress,
-      asEthName(event.label),
-    )
-
-    if (blockingName !== null) {
-      return enqueue.raise({
-        type: '$error',
-        error: new Error(registrationLockMessage(blockingName)),
-      })
-    }
-
     if (isHcaRegistration && !approvalSigner) {
       return enqueue.raise({
         type: '$error',
@@ -668,6 +652,23 @@ const startRegistrationAction = machineSetup.createAction(
       hcaPrimaryName: bundlePrimaryName,
       addrReverseClearTxId: undefined,
     })
+
+    // One registration at a time per wallet, across tabs. The commit batch
+    // funds the HCA with an EIP-2612 permit whose nonce is sequential per
+    // wallet, so a concurrent run reverts `TransferFromFailed()` and never
+    // records its commitment. Checked after the assign above: `confirmedData`
+    // is what `retry` reads to re-run this guard.
+    const blockingName = getBlockingRegistration(
+      ownerAddress,
+      asEthName(event.label),
+    )
+
+    if (blockingName !== null) {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(registrationLockMessage(blockingName)),
+      })
+    }
 
     acquireRegistrationLock(ownerAddress, asEthName(event.label))
 

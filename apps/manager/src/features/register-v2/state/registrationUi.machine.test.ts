@@ -282,7 +282,7 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
   })
 
   it('refuses to start while the wallet is registering another name', async () => {
-    const { acquireRegistrationLock } = await import(
+    const { acquireRegistrationLock, releaseRegistrationLock } = await import(
       '../service/registrationLock'
     )
     acquireRegistrationLock(EOA_ADDRESS, 'othername.eth')
@@ -301,6 +301,15 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     const snapshot = actor.getSnapshot()
     expect(snapshot.value).toBe('failure')
     expect(snapshot.context.lastErrorMessage).toMatch(/othername\.eth/i)
+
+    // QA's sequence: the block held, then Try Again went straight through.
+    actor.send({ type: 'retry' })
+    expect(actor.getSnapshot().value).toBe('failure')
+
+    // Only once the other tab is done does the retry proceed.
+    releaseRegistrationLock(EOA_ADDRESS, 'othername.eth')
+    actor.send({ type: 'retry' })
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
   })
 
   // QA hit this: the block held, then Try Again re-entered `registering`
