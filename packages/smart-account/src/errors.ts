@@ -18,10 +18,11 @@ export class SessionEnableError extends TaggedError('SessionEnableError')<{
 /**
  * Why an owner-signed on-chain session revocation could not complete.
  *
- * `not-deployed` is NOT a benign "nothing to do": no session is enabled yet,
- * but a leaked stored record still carries an authorization signed against
- * nonce 0, and deployment is permissionless — so the UI must offer to deploy
- * and revoke rather than quietly report success.
+ * `not-deployed` is NOT a benign "nothing to do": the validator keeps no
+ * session state, so a stored record's authorization (signed against nonce 0)
+ * is live as soon as anyone deploys the account — and deployment is
+ * permissionless. The UI must offer to deploy and revoke rather than quietly
+ * report success.
  */
 export type SessionRevokeReason =
   | 'not-deployed'

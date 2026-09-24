@@ -92,14 +92,14 @@ export function saveSession(session: RhinestoneStoredSession): void {
  * Forget a session by smart-account address.
  *
  * LOCAL ONLY — this is not a revocation. It drops our copy of the record; a
- * key already exfiltrated from this device stays a valid session signer until
- * `validUntil` elapses. Worse, the stored record carries the owner-signed
- * enable authorization, which `_validateSessionEnableProof` accepts without
- * ever reading the on-chain session slot — so a leaked copy can (re-)enable
- * itself. The only true revocation is `StandaloneSingleOwnerHCA.revokeSessions()`,
- * which bumps the account session nonce that both the proof check and the
- * permission ID derive from. That is `onlyOwner` and unreachable from the
- * account's own execution paths, so it needs a direct owner EOA transaction.
+ * copy already taken off this device stays usable until `validUntil`. The
+ * validator is stateless: the record carries the owner-signed authorization,
+ * every session-signed intent presents it inline, and nothing on-chain records
+ * that a session exists. The only true revocation is
+ * `StandaloneSingleOwnerHCA.revokeSessions()`, which bumps the account session
+ * nonce the authorization is checked against (see `revoke-sessions.ts`). That
+ * is `onlyOwner` and unreachable from the account's own execution paths, so it
+ * needs a direct owner EOA transaction.
  */
 export function removeSession(accountAddress: Address): void {
   if (!hasWindow()) return

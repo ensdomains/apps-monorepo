@@ -1,23 +1,31 @@
 /**
  * Session revocation — the owner-signed on-chain kill switch.
  *
- * `StandaloneSingleOwnerHCA.revokeSessions()` increments the account's session
- * nonce. The validator compares that nonce on every path AND mixes it into the
- * salt that derives the `permissionId`, so one call permanently invalidates
- * every enabled session and every outstanding enable proof for the account.
+ * Built against the stateless `HCAOwnerAndSessionValidator` (contracts-v2 #426,
+ * the 2026-09-15 Sepolia deployment). That validator keeps NO per-session
+ * state: there is no `enableSessionWithRefund`, no stored session slot, and
+ * `isPermissionEnabled` always returns false. Every session-signed intent
+ * carries the owner-signed authorization inline, and `_validateSessionEnableProof`
+ * checks it against the account's CURRENT session nonce (`ownerAndSessionNonce`)
+ * on every call, and mixes that nonce into the salt the `permissionId` derives
+ * from. So the stored record is the session: anyone holding a copy can keep
+ * using it until `validUntil`, and the nonce is the only thing that can end it
+ * early.
  *
- * This is the ONLY real revocation. Clearing `localStorage` forgets our copy of
- * a session; it does not stop a key that already left the device, because the
- * stored record carries the owner-signed enable proof and
- * `_validateSessionEnableProof` never reads the on-chain session slot.
+ * `StandaloneSingleOwnerHCA.revokeSessions()` increments that nonce and emits
+ * `SessionsRevoked(uint96 indexed sessionNonce)`. One call invalidates every
+ * authorization the owner has signed for the account on this chain. Clearing
+ * `localStorage` forgets our copy; it does not stop a copy that already left
+ * the device.
  *
  * It must be a DIRECT owner EOA transaction, and it costs the owner gas.
- * `revokeSessions()` is `onlyOwner`, and every account-routed path (an
+ * `revokeSessions()` is `onlyOwner` (the owner the factory certified,
+ * `StandaloneHCAFactory.hcaOwners`), and every account-routed path (an
  * IntentExecutor intent, a 4337 userOp, `executeByOwner`) makes the inner call
  * with the ACCOUNT as `msg.sender`; delegatecall is rejected outright. That is
  * deliberate — revocation depends only on the owner key, so nothing holding a
- * valid intent signature can undo or front-run it. Do NOT try to route this
- * through `buildHcaOwnerExecutionCall`; it will revert `CallerNotOwner()`.
+ * valid session can undo or front-run it. Do NOT try to route this through
+ * `buildHcaOwnerExecutionCall`; it will revert `CallerNotOwner()` (`0x5cd83192`).
  */
 
 import { fromPromise, type ResultAsync } from 'neverthrow'
@@ -29,6 +37,8 @@ import {
   isAddressEqual,
   type PublicClient,
   parseAbi,
+  parseEventLogs,
+  type TransactionReceipt,
   type WalletClient,
 } from 'viem'
 import { SessionRevokeError, type SessionRevokeReason } from '../../errors'
@@ -48,6 +58,7 @@ class RevokeFailure extends Error {
 const standaloneHcaRevokeAbi = parseAbi([
   'function revokeSessions()',
   'function ownerAndSessionNonce() view returns (address owner, uint96 sessionNonce)',
+  'event SessionsRevoked(uint96 indexed sessionNonce)',
 ])
 
 /**
@@ -77,22 +88,23 @@ export interface RevokeSessionsParams {
    *
    * The app pins its public client to the registration chain while the wallet
    * client follows whatever network the wallet is on, so the two can diverge.
-   * Sending there would be worse than failing: the HCA address has no code on
-   * another chain, so `revokeSessions()` would succeed as a no-op, report a
-   * confirmed receipt, and let us clear the session while the real ones stay
-   * live. Both clients are checked against this before anything is sent.
+   * The nonce is per chain, so revoking anywhere else leaves this chain's
+   * sessions live. Both clients are checked against this before anything is
+   * sent.
    */
   readonly chain: Chain
   readonly hca: Address
   /**
-   * Deploy the HCA first when it has no code yet, from
-   * `getHcaDirectExecutionReadiness`. An undeployed account has no enabled
-   * session, but a leaked stored record still carries an authorization signed
-   * against nonce 0 — and deployment is permissionless, so a holder of that
-   * record can deploy the account themselves and use it. Passing the
-   * deployment call makes revocation complete at the cost of a second
-   * transaction; omitting it makes an undeployed account an error rather than
-   * a false success.
+   * Deploy the HCA first when it has no code yet — `buildHcaDeploymentCall`,
+   * built for the connected wallet as `expectedOwner` (it refuses any other
+   * owner, so a wrong wallet fails before paying for a deployment).
+   *
+   * An undeployed account still has live sessions: its authorizations are
+   * signed against nonce 0, every intent carries them inline, and deployment
+   * is permissionless, so a holder of a copied record can deploy the account
+   * and use it. Passing the deployment call makes revocation complete at the
+   * cost of a second transaction; omitting it makes an undeployed account an
+   * error rather than a false success.
    */
   readonly deploymentCall?: Call
 }
@@ -100,6 +112,11 @@ export interface RevokeSessionsParams {
 export interface RevokeSessionsResult {
   /** The `revokeSessions()` transaction. */
   readonly transactionHash: Hex
+  /**
+   * The account's session nonce after the revoke, from `SessionsRevoked`.
+   * Every authorization signed against a lower nonce is now rejected.
+   */
+  readonly sessionNonce: bigint
   /** The deployment transaction, when the account had to be deployed first. */
   readonly deploymentTransactionHash?: Hex
 }
@@ -125,7 +142,7 @@ async function sendAndConfirm(
   account: NonNullable<WalletClient['account']>,
   call: Call,
   failureMessage: string,
-): Promise<Hex> {
+): Promise<TransactionReceipt> {
   const hash = await params.walletClient.sendTransaction({
     account,
     chain: params.chain,
@@ -137,7 +154,7 @@ async function sendAndConfirm(
   if (receipt.status !== 'success') {
     throw new RevokeFailure('transaction-failed', failureMessage)
   }
-  return hash
+  return receipt
 }
 
 /** Deploy the HCA when it has no code, or refuse if no deployment call exists. */
@@ -150,21 +167,22 @@ async function ensureDeployed(
   if (!params.deploymentCall) {
     throw new RevokeFailure(
       'not-deployed',
-      'HCA is not deployed, so there is nothing to revoke on-chain. Its stored authorization stays usable once the account is deployed — pass a deploymentCall to revoke completely.',
+      'HCA is not deployed yet. Its signed session authorizations still work once anyone deploys it — pass a deploymentCall to deploy and revoke.',
     )
   }
-  return sendAndConfirm(
+  const receipt = await sendAndConfirm(
     params,
     account,
     params.deploymentCall,
     'HCA deployment transaction reverted',
   )
+  return receipt.transactionHash
 }
 
 /**
- * `onlyOwner` compares msg.sender to the account's immutable owner, so a
- * mismatch reverts CallerNotOwner(). Check first to fail with a readable
- * message instead of an opaque wallet error.
+ * `onlyOwner` compares msg.sender to the factory-certified owner, so a mismatch
+ * reverts CallerNotOwner(). Check first to fail with a readable message instead
+ * of an opaque wallet error.
  */
 async function assertOwner(
   params: RevokeSessionsParams,
@@ -184,10 +202,29 @@ async function assertOwner(
 }
 
 /**
+ * The new nonce from the HCA's own `SessionsRevoked` event.
+ *
+ * A successful receipt alone is not proof: a call to an address with no code
+ * also succeeds. Requiring the event, emitted by this HCA, is.
+ */
+function readRevokedNonce(
+  receipt: TransactionReceipt,
+  hca: Address,
+): bigint | undefined {
+  const [event] = parseEventLogs({
+    abi: standaloneHcaRevokeAbi,
+    eventName: 'SessionsRevoked',
+    logs: receipt.logs.filter((log) => isAddressEqual(log.address, hca)),
+  })
+  return event?.args.sessionNonce
+}
+
+/**
  * Revoke every session for an HCA, then drop the local record.
  *
- * Storage is cleared only AFTER the receipt confirms, so a rejected or reverted
- * transaction never leaves the user believing they revoked.
+ * Storage is cleared only AFTER the receipt confirms and carries the HCA's
+ * `SessionsRevoked` event, so a rejected, reverted, or no-op transaction never
+ * leaves the user believing they revoked.
  */
 export function revokeSessionsOnChain(
   params: RevokeSessionsParams,
@@ -203,17 +240,28 @@ export function revokeSessionsOnChain(
       const deploymentTransactionHash = await ensureDeployed(params, account)
       await assertOwner(params, account.address)
 
-      const transactionHash = await sendAndConfirm(
+      const receipt = await sendAndConfirm(
         params,
         account,
         buildRevokeSessionsCall({ hca: params.hca }),
         'revokeSessions transaction reverted',
       )
+      const sessionNonce = readRevokedNonce(receipt, params.hca)
+      if (sessionNonce === undefined) {
+        throw new RevokeFailure(
+          'transaction-failed',
+          'revokeSessions confirmed without a SessionsRevoked event from the HCA',
+        )
+      }
 
       // Only now is the stored record genuinely dead.
       removeSession(params.hca)
 
-      return { transactionHash, deploymentTransactionHash }
+      return {
+        transactionHash: receipt.transactionHash,
+        sessionNonce,
+        ...(deploymentTransactionHash ? { deploymentTransactionHash } : {}),
+      }
     })(),
     (error: unknown) =>
       new SessionRevokeError({

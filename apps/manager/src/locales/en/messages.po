@@ -1200,6 +1200,10 @@ msgstr "is too short to register"
 msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
 msgstr "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
 
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "It takes two transactions from your wallet, one to set up the account and one to revoke, and both cost gas. Your next registration will ask you to sign a new session."
+msgstr "It takes two transactions from your wallet, one to set up the account and one to revoke, and both cost gas. Your next registration will ask you to sign a new session."
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Join the community"
 msgstr "Join the community"
@@ -1621,6 +1625,10 @@ msgstr "Open Notification Settings"
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
 msgid "OpenSea"
 msgstr "OpenSea"
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Or remove the saved session from this browser only. That costs nothing, but doesn't stop a copy made elsewhere."
+msgstr "Or remove the saved session from this browser only. That costs nothing, but doesn't stop a copy made elsewhere."
 
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
@@ -2247,6 +2255,10 @@ msgstr "Set primary name"
 msgid "Set this as your primary name?"
 msgstr "Set this as your primary name?"
 
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Set up and revoke"
+msgstr "Set up and revoke"
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Set up later"
 msgstr "Set up later"
@@ -2625,8 +2637,8 @@ msgid "This commemorative NFT has already been minted."
 msgstr "This commemorative NFT has already been minted."
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "This ends every active session for this account, on every device."
-msgstr "This ends every active session for this account, on every device."
+msgid "This ends every session you have signed for this account, in every browser and on every device."
+msgstr "This ends every session you have signed for this account, in every browser and on every device."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "This is taking longer than expected."
@@ -2751,8 +2763,8 @@ msgid "unique searches in the last 30 days"
 msgstr "unique searches in the last 30 days"
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Unlike enabling a session, this is a transaction from your wallet, so it costs gas. Your next registration will ask you to sign a new session."
-msgstr "Unlike enabling a session, this is a transaction from your wallet, so it costs gas. Your next registration will ask you to sign a new session."
+msgid "Unlike starting a session, this is a transaction from your wallet, so it costs gas. Your next registration will ask you to sign a new session."
+msgstr "Unlike starting a session, this is a transaction from your wallet, so it costs gas. Your next registration will ask you to sign a new session."
 
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Unread only"
@@ -3101,10 +3113,6 @@ msgstr "You approve"
 msgid "You can buy this name at any point during the {periodDays}-day cooldown."
 msgstr "You can buy this name at any point during the {periodDays}-day cooldown."
 
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "You can remove the saved session from this browser. If you think it was copied elsewhere, revoke again after your first registration."
-msgstr "You can remove the saved session from this browser. If you think it was copied elsewhere, revoke again after your first registration."
-
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "You can still use the manager, but these features won't be available:"
 msgstr "You can still use the manager, but these features won't be available:"
@@ -3284,8 +3292,8 @@ msgid "Your saved upgrade needs attention"
 msgstr "Your saved upgrade needs attention"
 
 #: src/lib/smart-account/SmartAccountContext.tsx
-msgid "Your smart account isn't deployed yet, so no session is active on-chain."
-msgstr "Your smart account isn't deployed yet, so no session is active on-chain."
+msgid "Your smart account isn't set up on-chain yet. Sessions you signed for it still work once anyone sets it up, so revoking needs a setup transaction first."
+msgstr "Your smart account isn't set up on-chain yet. Sessions you signed for it still work once anyone sets it up, so revoking needs a setup transaction first."
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "Your upgrades are still being verified. Check again in a moment."

@@ -19,6 +19,21 @@ const DEPLOY_TX: Hex = `0x${'cd'.repeat(32)}`
 
 /** keccak256("revokeSessions()")[0:4], computed independently of the encoder. */
 const REVOKE_SELECTOR = '0xac2d5d4b'
+/** keccak256("SessionsRevoked(uint96)") — `cast keccak`, not the encoder. */
+const SESSIONS_REVOKED_TOPIC: Hex =
+  '0xf528e33e309b774e1127be0439036e1245975bd40e5795551dab22399cca8a0a'
+
+/** A `SessionsRevoked(sessionNonce)` log as the HCA emits it. */
+function sessionsRevokedLog(sessionNonce: bigint, address: Address = HCA) {
+  return {
+    address,
+    topics: [
+      SESSIONS_REVOKED_TOPIC,
+      `0x${sessionNonce.toString(16).padStart(64, '0')}` as Hex,
+    ],
+    data: '0x' as Hex,
+  }
+}
 
 function makeSession(): RhinestoneStoredSession {
   return {
@@ -45,6 +60,8 @@ function makeClients(
     code?: Hex
     owner?: Address
     receiptStatus?: 'success' | 'reverted'
+    /** Logs on the revoke receipt; defaults to the HCA's nonce-1 event. */
+    revokeLogs?: ReturnType<typeof sessionsRevokedLog>[]
     walletChainId?: number
     publicChainId?: number
   } = {},
@@ -54,9 +71,15 @@ function makeClients(
     chain: { id: overrides.publicChainId ?? CHAIN.id },
     getCode: vi.fn().mockResolvedValue(overrides.code ?? '0x6080'),
     readContract: vi.fn().mockResolvedValue([overrides.owner ?? OWNER, 0n]),
-    waitForTransactionReceipt: vi
-      .fn()
-      .mockResolvedValue({ status: overrides.receiptStatus ?? 'success' }),
+    waitForTransactionReceipt: vi.fn(({ hash }: { hash: Hex }) =>
+      Promise.resolve({
+        transactionHash: hash,
+        status: overrides.receiptStatus ?? 'success',
+        // Only the revoke emits SessionsRevoked; a deployment receipt does not.
+        logs:
+          hash === TX ? (overrides.revokeLogs ?? [sessionsRevokedLog(1n)]) : [],
+      }),
+    ),
   }
   const walletClient = {
     account: { address: OWNER },
@@ -97,11 +120,91 @@ describe('revokeSessionsOnChain', () => {
     })
 
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().transactionHash).toBe(TX)
-    expect(sendTransaction).toHaveBeenCalledWith(
-      expect.objectContaining({ to: HCA, data: REVOKE_SELECTOR, value: 0n }),
-    )
+    expect(result._unsafeUnwrap()).toEqual({
+      transactionHash: TX,
+      sessionNonce: 1n,
+    })
+    // A direct owner transaction to the HCA itself — not an executeByOwner or
+    // intent wrapper, where the account would be msg.sender and onlyOwner
+    // would revert CallerNotOwner().
+    expect(sendTransaction).toHaveBeenCalledTimes(1)
+    expect(sendTransaction).toHaveBeenCalledWith({
+      account: { address: OWNER },
+      chain: CHAIN,
+      to: HCA,
+      data: REVOKE_SELECTOR,
+      value: 0n,
+    })
     expect(getSession(HCA)).toBeNull()
+  })
+
+  it('returns the bumped nonce the HCA reports', async () => {
+    const { publicClient, walletClient } = makeClients({
+      revokeLogs: [sessionsRevokedLog(7n)],
+    })
+
+    const result = await revokeSessionsOnChain({
+      publicClient,
+      walletClient,
+      chain: CHAIN,
+      hca: HCA,
+    })
+
+    expect(result._unsafeUnwrap().sessionNonce).toBe(7n)
+  })
+
+  it('treats a receipt without SessionsRevoked as a failure', async () => {
+    saveSession(makeSession())
+    // A call to an address with no code also "succeeds"; only the HCA's own
+    // event proves the nonce moved.
+    const { publicClient, walletClient } = makeClients({ revokeLogs: [] })
+
+    const result = await revokeSessionsOnChain({
+      publicClient,
+      walletClient,
+      chain: CHAIN,
+      hca: HCA,
+    })
+
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().reason).toBe('transaction-failed')
+    expect(getSession(HCA)).not.toBeNull()
+  })
+
+  it('ignores a SessionsRevoked emitted by a different contract', async () => {
+    saveSession(makeSession())
+    const { publicClient, walletClient } = makeClients({
+      revokeLogs: [sessionsRevokedLog(1n, OTHER)],
+    })
+
+    const result = await revokeSessionsOnChain({
+      publicClient,
+      walletClient,
+      chain: CHAIN,
+      hca: HCA,
+    })
+
+    expect(result._unsafeUnwrapErr().reason).toBe('transaction-failed')
+    expect(getSession(HCA)).not.toBeNull()
+  })
+
+  it('reports a rejected wallet request without clearing the session', async () => {
+    saveSession(makeSession())
+    const { publicClient, walletClient, sendTransaction } = makeClients()
+    sendTransaction.mockRejectedValueOnce(new Error('User rejected'))
+
+    const result = await revokeSessionsOnChain({
+      publicClient,
+      walletClient,
+      chain: CHAIN,
+      hca: HCA,
+    })
+
+    expect(result._unsafeUnwrapErr()).toMatchObject({
+      reason: 'unknown',
+      message: 'User rejected',
+    })
+    expect(getSession(HCA)).not.toBeNull()
   })
 
   it('keeps the stored session when the transaction reverts', async () => {
@@ -201,9 +304,39 @@ describe('revokeSessionsOnChain', () => {
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toEqual({
       transactionHash: TX,
+      sessionNonce: 1n,
       deploymentTransactionHash: DEPLOY_TX,
     })
     expect(sendTransaction).toHaveBeenCalledTimes(2)
+    expect(sendTransaction.mock.calls[0]?.[0]).toMatchObject({
+      to: OTHER,
+      data: '0xdeadbeef',
+    })
+    expect(sendTransaction.mock.calls[1]?.[0]).toMatchObject({
+      to: HCA,
+      data: REVOKE_SELECTOR,
+    })
     expect(getSession(HCA)).toBeNull()
+  })
+
+  it('stops after a reverted deployment without sending the revoke', async () => {
+    saveSession(makeSession())
+    const { publicClient, walletClient, sendTransaction } = makeClients({
+      code: '0x',
+      receiptStatus: 'reverted',
+    })
+    sendTransaction.mockResolvedValueOnce(DEPLOY_TX)
+
+    const result = await revokeSessionsOnChain({
+      publicClient,
+      walletClient,
+      chain: CHAIN,
+      hca: HCA,
+      deploymentCall: { to: OTHER, value: 0n, data: '0xdeadbeef' },
+    })
+
+    expect(result._unsafeUnwrapErr().reason).toBe('transaction-failed')
+    expect(sendTransaction).toHaveBeenCalledTimes(1)
+    expect(getSession(HCA)).not.toBeNull()
   })
 })

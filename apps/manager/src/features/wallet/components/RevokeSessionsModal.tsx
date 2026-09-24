@@ -14,15 +14,20 @@ import { cn } from '@/lib/utils'
 type RevokeSessionsModalProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Resolves true once the revoke receipt confirms. */
-  onRevokeSessions: () => Promise<boolean>
+  /**
+   * Resolves true once the revoke receipt confirms. `deployFirst` asks for the
+   * account to be deployed in a transaction of its own before the revoke.
+   */
+  onRevokeSessions: (options?: { deployFirst?: boolean }) => Promise<boolean>
   smartAccountAddress?: string
-  /** True while the owner's revoke transaction is in flight. */
+  /** True while the owner's revoke (or deployment) transaction is in flight. */
   isRevoking?: boolean
   /** Localized revocation error, if the last attempt failed. */
   errorMessage?: string | null
-  /** True when the failure was an undeployed account (nothing to revoke). */
+  /** True when the last attempt failed because the account is undeployed. */
   isUndeployed?: boolean
+  /** Whether this browser holds a saved session to forget. */
+  hasLocalSession?: boolean
   /** Clear this browser's saved session. Not revocation — see the copy. */
   onForgetLocalSession?: () => void
 }
@@ -33,8 +38,8 @@ type RevokeSessionsModalProps = {
  * A confirm step rather than a one-click menu action, because this is the one
  * account operation the app cannot sponsor: it is a direct owner transaction
  * and costs gas. The copy has to say so before the wallet opens, and has to be
- * clear that it applies to every session on the account rather than just this
- * browser.
+ * clear that it applies to every session signed for the account rather than
+ * just this browser's.
  */
 export const RevokeSessionsModal = ({
   open,
@@ -44,6 +49,7 @@ export const RevokeSessionsModal = ({
   isRevoking = false,
   errorMessage = null,
   isUndeployed = false,
+  hasLocalSession = false,
   onForgetLocalSession,
 }: RevokeSessionsModalProps) => {
   const formatAddress = (address?: string) => {
@@ -51,9 +57,16 @@ export const RevokeSessionsModal = ({
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
+  // An undeployed account's signed sessions go live as soon as anyone deploys
+  // it, so the retry has to deploy first — never a quiet local-only "success".
+  const forgetLocally =
+    isUndeployed && hasLocalSession ? onForgetLocalSession : undefined
+
   const handleRevoke = async () => {
     if (isRevoking) return
-    const revoked = await onRevokeSessions()
+    const revoked = await onRevokeSessions(
+      isUndeployed ? { deployFirst: true } : undefined,
+    )
     // Leave the dialog open on failure so the error stays visible.
     if (revoked) onOpenChange(false)
   }
@@ -92,16 +105,24 @@ export const RevokeSessionsModal = ({
           <div className="text-center">
             <p className="text-ens-blue-midnight">
               <Trans>
-                This ends every active session for this account, on every
-                device.
+                This ends every session you have signed for this account, in
+                every browser and on every device.
               </Trans>
             </p>
             <p className="mt-2 text-ens-gray text-sm">
-              <Trans>
-                Unlike enabling a session, this is a transaction from your
-                wallet, so it costs gas. Your next registration will ask you to
-                sign a new session.
-              </Trans>
+              {isUndeployed ? (
+                <Trans>
+                  It takes two transactions from your wallet, one to set up the
+                  account and one to revoke, and both cost gas. Your next
+                  registration will ask you to sign a new session.
+                </Trans>
+              ) : (
+                <Trans>
+                  Unlike starting a session, this is a transaction from your
+                  wallet, so it costs gas. Your next registration will ask you
+                  to sign a new session.
+                </Trans>
+              )}
             </p>
           </div>
 
@@ -109,16 +130,14 @@ export const RevokeSessionsModal = ({
             <p className="text-center text-red-600 text-sm">{errorMessage}</p>
           )}
 
-          {/* An undeployed account has no on-chain session to revoke, so the
-              stored record is the whole exposure. Offer to clear it rather
-              than dead-ending — but never call that a revocation: a copy taken
-              off this device still works once the account is deployed. */}
-          {isUndeployed && onForgetLocalSession && (
+          {/* Clearing this browser is the gas-free alternative to set-up-and-
+              revoke, but never call it a revocation: a copy taken off this
+              device still works once the account is deployed. */}
+          {forgetLocally && (
             <p className="text-center text-ens-gray text-sm">
               <Trans>
-                You can remove the saved session from this browser. If you think
-                it was copied elsewhere, revoke again after your first
-                registration.
+                Or remove the saved session from this browser only. That costs
+                nothing, but doesn't stop a copy made elsewhere.
               </Trans>
             </p>
           )}
@@ -137,18 +156,20 @@ export const RevokeSessionsModal = ({
           >
             {isRevoking ? (
               <Trans>Revoking…</Trans>
+            ) : isUndeployed ? (
+              <Trans>Set up and revoke</Trans>
             ) : errorMessage ? (
               <Trans>Try Again</Trans>
             ) : (
               <Trans>Revoke sessions</Trans>
             )}
           </Button>
-          {isUndeployed && onForgetLocalSession && (
+          {forgetLocally && (
             <Button
               className="h-11 w-full rounded font-medium font-mono text-sm uppercase tracking-wider"
               disabled={isRevoking}
               onClick={() => {
-                onForgetLocalSession()
+                forgetLocally()
                 onOpenChange(false)
               }}
               type="button"
