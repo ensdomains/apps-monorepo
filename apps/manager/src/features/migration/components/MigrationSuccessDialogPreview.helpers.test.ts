@@ -45,9 +45,7 @@ describe('published NFT preview state', () => {
     expect(state.card.eligibility).toBe(eligibility)
     expect(state.card.assets).toBe(eligibility.assets)
     expect(state.card.shareUrls).toEqual({})
-    expect(state.card.marketplaceUrl).toMatch(
-      /^https:\/\/opensea\.io\/assets\/ethereum\/0x[a-fA-F0-9]{40}\/\d+$/,
-    )
+    expect(state.card.marketplaceUrl).toBeUndefined()
   })
 
   it('does not display cached artwork without a verified connected owner', () => {

@@ -22,10 +22,12 @@ export const buildCommemorativeNftCardData = (params: {
   return {
     assets: params.eligibility.assets,
     eligibility: params.eligibility,
-    marketplaceUrl: buildCommemorativeNftMarketplaceUrl({
-      chainId: params.chainId,
-      ownerAddress: params.ownerAddress,
-    }),
+    marketplaceUrl: params.minted
+      ? buildCommemorativeNftMarketplaceUrl({
+          chainId: params.chainId,
+          ownerAddress: params.ownerAddress,
+        })
+      : undefined,
     shareUrls: buildCommemorativeNftShareUrls(
       shareTarget,
       params.minted,
