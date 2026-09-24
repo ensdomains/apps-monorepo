@@ -18,7 +18,7 @@ export const WalkingFren = ({
   readonly className: string
   readonly isWalking?: boolean
 }) => {
-  const reduceMotion = useReducedMotion()
+  const shouldReduceMotion = useReducedMotion()
   const fallback = (
     <img
       alt=""
@@ -29,7 +29,7 @@ export const WalkingFren = ({
 
   return (
     <div aria-hidden className={className}>
-      {reduceMotion ? (
+      {shouldReduceMotion ? (
         fallback
       ) : (
         <Suspense fallback={fallback}>

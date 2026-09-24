@@ -89,14 +89,14 @@
   },
 
   "triggers": {
-    "crons": ["0 */1 * * *"]
+    "crons": ["0 */1 * * *", "17 */3 * * *"]
   },
 
   "vars": {
     "CHAIN": "sepolia",
     "BASE_URL": "https://app-api.ens.dev",
     "EMAIL_FROM_ADDRESS": "noreply@ens.dev",
-    "ENS_INDEXER_GRAPHQL_URL": "https://graphql.ens.dev/",
+    "ENS_INDEXER_GRAPHQL_URL": "https://staging-graphql.ens.dev/",
     "MANAGER_APP_URL": "https://app.ens.dev",
     "POSTHOG": {
       "host": "https://eu.posthog.com",
@@ -104,9 +104,12 @@
     },
     "VAPID_SUBJECT": "mailto:notifications@ens.domains",
     "VAPID_PUBLIC_KEY": "BOBjtfgZPtGSJtajVkh4T1Ceswos_aRXYlD4Mq8aXEa4sc_0lkrwKzUhnUIgCt22_cAEYSr0wZlhCiWPsFXyRGs",
+    "TELEGRAM": {
+      "ALERT_CHAT_ID": "-5381499765"
+    },
     "SENDGRID_BROADCAST_LIST_ID": "",
     "SENDGRID_TEMPLATE_IDS": {
-      "name-expiry": "d-fb5409b2dc1e44f6919cd648eb983adf",
+      "name-expiry": "d-9c087294a77f410fa3a5af6c3a9a54cd",
       "name-transferred": "d-f1db08f6dcc54d92a055e8637327ac2a"
     }
   }

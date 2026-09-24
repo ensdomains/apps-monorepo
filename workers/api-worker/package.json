@@ -20,6 +20,7 @@
     "deploy": "pnpm build:vite && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings worker-configuration.gen.d.ts",
     "test": "vitest run",
+    "test:db": "RUN_REAL_DB_TESTS=1 vitest run src/queues/event-ingestion.db.test.ts",
     "lint": "biome check"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
     "@ens-apps/shared-schema": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
+    "@ensdomains/ensjs-abi": "catalog:",
     "@hono/valibot-validator": "^0.5.3",
     "@neondatabase/serverless": "^1.0.2",
     "@urql/core": "^6.0.3",

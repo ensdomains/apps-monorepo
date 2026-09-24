@@ -11,6 +11,7 @@ const makeName = (name: string): ClassifiedName =>
       labelName: name.split('.')[0] ?? name,
     },
     parentName: null,
+    managerAddress: null,
   }) as ClassifiedName
 
 describe('useNameSelection', () => {
@@ -36,5 +37,44 @@ describe('useNameSelection', () => {
     await waitFor(() => expect(result.current.totalSelected).toBe(1))
     expect(result.current.selected.has('two.eth')).toBe(false)
     expect(onNamesChange.mock.calls.at(-1)?.[0]).toEqual(['one.eth'])
+  })
+
+  it('requires an explicit selection for a name needing manager restoration', async () => {
+    const onNamesChange = vi.fn<(names: string[]) => void>()
+    const gifted = {
+      ...makeName('gifted.eth'),
+      managerAddress: '0x0000000000000000000000000000000000000002' as const,
+    } as ClassifiedName
+    const { result } = renderHook(() =>
+      useNameSelection({
+        eligible: [makeName('owned.eth'), gifted],
+        isPending: false,
+        onNamesChange,
+      }),
+    )
+
+    await waitFor(() => expect(result.current.totalSelected).toBe(1))
+    expect(result.current.selected.has('gifted.eth')).toBe(false)
+    expect(onNamesChange).toHaveBeenCalledWith(['owned.eth'])
+  })
+
+  it('restores a previously selected manager name during recovery', async () => {
+    const onNamesChange = vi.fn<(names: string[]) => void>()
+    const gifted = {
+      ...makeName('gifted.eth'),
+      managerAddress: '0x0000000000000000000000000000000000000002' as const,
+    } as ClassifiedName
+    const { result } = renderHook(() =>
+      useNameSelection({
+        eligible: [gifted],
+        isPending: false,
+        isRecovery: true,
+        onNamesChange,
+      }),
+    )
+
+    await waitFor(() =>
+      expect(result.current.selected.has('gifted.eth')).toBe(true),
+    )
   })
 })

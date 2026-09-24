@@ -24,6 +24,7 @@ import { columns } from '@/features/reverse-resolution/components/ReverseResolut
 import { ReverseResolutionTable } from '@/features/reverse-resolution/components/ReverseResolutionTable/ReverseResolutionTable'
 import { REVERSE_RESOLUTION_NETWORKS } from '@/features/reverse-resolution/config'
 import { getReverseResolutionQueryOptions } from '@/features/reverse-resolution/hooks/useReverseResolution'
+import { useIsConnectedAddress } from '@/hooks/useIsConnectedAddress'
 import { queryClient } from '@/utils/queryClient'
 
 // Stable identity: a fresh `[]` each render makes the table recompute its row
@@ -45,6 +46,10 @@ export const Route = createFileRoute('/addr/$addr/reverse-resolution')({
 function RouteComponent() {
   const { addr: address } = Route.useParams() as { addr: Address }
   const [sorting, setSorting] = useState<SortingState>([])
+
+  // Same predicate the table uses to decide whether to offer its row actions,
+  // so the two can't disagree about whether this page has anything to do.
+  const isOwnAddress = useIsConnectedAddress(address)
 
   const { data, error, isLoading } = useQuery(
     getReverseResolutionQueryOptions({
@@ -96,7 +101,15 @@ function RouteComponent() {
   // reverse record exists anywhere, so emptiness means "no row has a name".
   const hasReverseRecords = data?.some((row) => row.name || row.defaultName)
 
-  if (!data || !hasReverseRecords)
+  // On your own address the table renders even with nothing set: its rows are
+  // the networks a reverse name *can* be set on, and the row actions are the
+  // only way into that flow. Swapping them for a message left the wallet most
+  // likely to want the feature with nowhere to go.
+  //
+  // A visitor still gets the message. Every write here is signer-scoped, so
+  // there is genuinely nothing for them to do on someone else's address — the
+  // same reason the table withholds its row actions from them.
+  if (!data || (!hasReverseRecords && !isOwnAddress))
     return (
       <>
         <header className="flex flex-col gap-4">
@@ -120,6 +133,17 @@ function RouteComponent() {
             Reverse resolution
           </PageHeading>
         </div>
+        {/*
+          Without this the table reads as a column of "null"s with no
+          explanation. It only shows on your own address, since a visitor never
+          reaches a record-less table.
+        */}
+        {!hasReverseRecords && (
+          <p className="text-sm text-muted-foreground">
+            No reverse records set yet. Open a network below to set its reverse
+            name.
+          </p>
+        )}
         <InputGroup className="bg-background rounded-sm">
           <InputGroupInput
             id={searchId}

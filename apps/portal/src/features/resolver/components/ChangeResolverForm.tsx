@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -12,7 +12,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { prepareChangeResolverTransaction } from '@/features/resolver/helpers/changeResolver'
+import {
+  prepareSetResolverTransaction,
+  type ResolverWriteTarget,
+} from '@/features/resolver/helpers/changeResolver'
 import { useChangeResolver } from '@/features/resolver/hooks/useChangeResolver'
 import {
   prepareDeployPermissionedResolverTransaction,
@@ -46,23 +49,26 @@ function useAutoSelectFirstResolver(
   ])
 }
 
-const SUCCESS_LABEL_DURATION_MS = 5000
-
 interface ChangeResolverFormProps {
   readonly name: string
-  readonly registryAddress: Address
+  readonly target: ResolverWriteTarget
 }
 
 export const ChangeResolverForm = ({
   name,
-  registryAddress,
+  target,
 }: ChangeResolverFormProps) => {
   const { address: connectedAddress } = useConnection()
-  const [useCustomResolver, setUseCustomResolver] = useState(true)
+  const navigate = useNavigate()
+  // A PermissionedResolver is a V2 contract, and the deploy/select paths hand
+  // its roles to the caller against a V2 registry. A V1 name can still be
+  // pointed at any resolver address, so it gets the custom-address path only.
+  const isV1 = target.protocol === 'ENSv1'
+  const [customResolverPreference, setUseCustomResolver] = useState(true)
+  const useCustomResolver = isV1 || customResolverPreference
   const [deployNewResolver, setDeployNewResolver] = useState(true)
   const [resolverAddress, setResolverAddress] = useState('')
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
-  const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
   const deployedResolverAddressRef = useRef<Address | null>(null)
 
   const {
@@ -85,7 +91,7 @@ export const ChangeResolverForm = ({
     hasWallet: hasChangeWallet,
   } = useChangeResolver({
     name,
-    registryAddress,
+    target,
     id: CHANGE_RESOLVER_TX_ID,
   })
 
@@ -162,16 +168,14 @@ export const ChangeResolverForm = ({
     }
   }
 
+  // Land on the resolver page rather than back on this form: it shows the
+  // resolver now in force plus the history entry for the change, so the update
+  // is visibly confirmed instead of leaving a "Save changes" prompt that reads
+  // as though nothing happened. Mirrors create-subname and edit-records.
   const handleChangeResolverTransactionDone = () => {
     closeTransactionModal()
     clearTransaction()
-    setResolverAddress('')
-    deployedResolverAddressRef.current = null
-    setShowSuccessButtonLabel(true)
-    setTimeout(
-      () => setShowSuccessButtonLabel(false),
-      SUCCESS_LABEL_DURATION_MS,
-    )
+    navigate({ to: '/$name/resolver', params: { name } })
   }
 
   const handleSubmit = async () => {
@@ -202,14 +206,9 @@ export const ChangeResolverForm = ({
     selectedExistingResolver,
   })
 
-  const buttonText = match({
-    isDeployConfirming,
-    isChangeResolverPending,
-    showSuccessButtonLabel,
-  })
+  const buttonText = match({ isDeployConfirming, isChangeResolverPending })
     .with({ isDeployConfirming: true }, () => 'Deploying resolver...')
     .with({ isChangeResolverPending: true }, () => 'Changing resolver...')
-    .with({ showSuccessButtonLabel: true }, () => 'Resolver changed!')
     .otherwise(() => 'Save changes')
 
   return (
@@ -223,16 +222,24 @@ export const ChangeResolverForm = ({
 
       <PageHeading parent={{ type: 'name', name }}>Change resolver</PageHeading>
 
-      <div className="flex items-center gap-3">
-        <Switch
-          checked={useCustomResolver}
-          onCheckedChange={setUseCustomResolver}
-          id="use-custom-resolver"
-        />
-        <Label htmlFor="use-custom-resolver" className="cursor-pointer">
-          Use custom resolver
-        </Label>
-      </div>
+      {isV1 ? (
+        <p className="text-base text-muted-foreground">
+          <strong>{name}</strong> is an ENSv1 name, so it takes any resolver
+          address. Deploying a permissioned resolver is a V2 feature and is not
+          offered here.
+        </p>
+      ) : (
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={useCustomResolver}
+            onCheckedChange={setUseCustomResolver}
+            id="use-custom-resolver"
+          />
+          <Label htmlFor="use-custom-resolver" className="cursor-pointer">
+            Use custom resolver
+          </Label>
+        </div>
+      )}
 
       {useCustomResolver ? (
         <div className="flex flex-col gap-3">
@@ -359,9 +366,9 @@ export const ChangeResolverForm = ({
                   intent: {
                     prepare: customResolverToUse
                       ? ({ walletClient, chainId }) =>
-                          prepareChangeResolverTransaction({
+                          prepareSetResolverTransaction({
                             name,
-                            registryAddress,
+                            target,
                             resolverAddress: customResolverToUse,
                             from: walletClient.account.address,
                             chainId,

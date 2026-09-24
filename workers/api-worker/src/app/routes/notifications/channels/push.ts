@@ -1,6 +1,6 @@
 import type { ChannelData } from '@ens-apps/shared-schema/notifications'
 import { vValidator } from '@hono/valibot-validator'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import * as v from 'valibot'
 import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
@@ -15,6 +15,8 @@ const ALLOWED_PUSH_ENDPOINTS = [
   'https://push.services.mozilla.com/', // firefox (older)
   'https://web.push.apple.com/', // safari
 ] as const
+
+export const MAX_ACTIVE_PUSH_SUBSCRIPTIONS = 10
 
 const isAllowedPushEndpoint = (url: string): boolean => {
   // check common prefixes first
@@ -66,6 +68,12 @@ export default createApp()
     async (c) => {
       const userId = c.var.user_id
       const subscription = c.req.valid('json')
+      const now = Date.now()
+      const pushData = {
+        auth: subscription.keys.auth,
+        p256dh: subscription.keys.p256dh,
+        expirationTime: subscription.expirationTime ?? null,
+      } satisfies ChannelData['push']
 
       // Check if already subscribed with this endpoint
       const existingChannel = await c.var.db.query.userChannels.findFirst({
@@ -76,16 +84,50 @@ export default createApp()
         ),
       })
 
+      const existingPushData = existingChannel?.data as
+        | ChannelData['push']
+        | null
+      const existingExpirationTime = existingPushData?.expirationTime ?? null
+      const isExistingChannelActive =
+        existingChannel?.status === 'verified' &&
+        (existingExpirationTime === null || existingExpirationTime > now)
+      const isExistingChannelReactivated =
+        existingChannel?.status === 'verified' &&
+        !isExistingChannelActive &&
+        (pushData.expirationTime === null || pushData.expirationTime > now)
+      const shouldCheckActiveSubscriptionLimit =
+        !existingChannel || isExistingChannelReactivated
+
+      if (shouldCheckActiveSubscriptionLimit) {
+        // This is a best-effort guardrail. Concurrent registrations may race;
+        // the ticket intentionally does not add locking or transaction machinery.
+        const activePushSubscriptionCount = await c.var.db.$count(
+          TABLE.userChannels,
+          and(
+            eq(TABLE.userChannels.user_id, userId),
+            eq(TABLE.userChannels.channel, 'push'),
+            eq(TABLE.userChannels.status, 'verified'),
+            sql`(
+              ${TABLE.userChannels.data}->>'expirationTime' is null
+              or (${TABLE.userChannels.data}->>'expirationTime')::double precision > ${now}
+            )`,
+          ),
+        )
+
+        if (activePushSubscriptionCount >= MAX_ACTIVE_PUSH_SUBSCRIPTIONS) {
+          return c.json(
+            { error: 'Maximum active push subscriptions reached' },
+            409,
+          )
+        }
+      }
+
       if (existingChannel) {
         // Update keys if subscription exists (keys may have rotated)
         await c.var.db
           .update(TABLE.userChannels)
           .set({
-            data: {
-              auth: subscription.keys.auth,
-              p256dh: subscription.keys.p256dh,
-              expirationTime: subscription.expirationTime ?? null,
-            } satisfies ChannelData['push'],
+            data: pushData,
           })
           .where(eq(TABLE.userChannels.id, existingChannel.id))
 
@@ -104,11 +146,7 @@ export default createApp()
           user_id: userId,
           channel: 'push',
           target: subscription.endpoint,
-          data: {
-            auth: subscription.keys.auth,
-            p256dh: subscription.keys.p256dh,
-            expirationTime: subscription.expirationTime ?? null,
-          } satisfies ChannelData['push'],
+          data: pushData,
           status: 'verified', // Push subscriptions are verified by the browser
           verified_at: new Date(),
         })

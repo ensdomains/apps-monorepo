@@ -34,6 +34,7 @@ const settled = (data: unknown): QueryResult => ({
 })
 let ownerResult: QueryResult
 let resolverResult: QueryResult
+let v1StateResult: QueryResult
 
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
@@ -42,10 +43,17 @@ vi.mock('@tanstack/react-query', async () => {
   return {
     ...actual,
     useQueries: () => [ownerResult, resolverResult],
-    // Grant every role, so a missing "Change resolver" button can only mean
-    // the route had no registry entry to check the role against.
-    useQuery: (options: { queryKey: readonly unknown[] }) =>
-      settled(options.queryKey[0] === 'hasRoles' ? true : undefined),
+    // Roles are granted unconditionally, so a missing "Change resolver" button
+    // on a V2 name can only mean the route found no registry entry. A V1 name
+    // never consults them: its authority is the registry slot, which comes
+    // from the V1 name state below.
+    useQuery: (options: { queryKey: readonly unknown[] }) => {
+      const key = options.queryKey[0]
+      if (key === 'hasRoles') return settled(true)
+      if (key === 'get-ens-owner') return ownerResult
+      if (key === 'transfer-v1-name-state') return v1StateResult
+      return settled(undefined)
+    },
   }
 })
 
@@ -84,6 +92,8 @@ beforeEach(() => {
   routeName = 'jobintime.xyz'
   ownerResult = settled(null)
   resolverResult = settled(ENS_V1_RESOLVER)
+  // No registry entry by default — the gasless DNS name the first case covers.
+  v1StateResult = settled({ subject: null })
   offchain = { isLoading: false, resolvedAddress: null }
 })
 
@@ -130,10 +140,35 @@ describe('resolver route', () => {
       registryAddress: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
       protocolVersion: 'ENSv1',
     })
+    v1StateResult = settled({
+      subject: {
+        kind: 'v1-registry',
+        owner: '0x55e55C649895940826a852820d9e1A076Ec47b09',
+      },
+    })
 
     render(<ResolverRoute />)
 
     expect(screen.getByText('Change resolver')).toBeInTheDocument()
     expect(screen.getByText(ENS_V1_RESOLVER)).toBeInTheDocument()
+  })
+
+  it('hides it from someone who does not hold the V1 registry slot', () => {
+    routeName = 'v1rtl.site'
+    ownerResult = settled({
+      owner: '0x55e55C649895940826a852820d9e1A076Ec47b09',
+      registryAddress: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+      protocolVersion: 'ENSv1',
+    })
+    v1StateResult = settled({
+      subject: {
+        kind: 'v1-registry',
+        owner: '0x1111111111111111111111111111111111111111',
+      },
+    })
+
+    render(<ResolverRoute />)
+
+    expect(screen.queryByText('Change resolver')).not.toBeInTheDocument()
   })
 })

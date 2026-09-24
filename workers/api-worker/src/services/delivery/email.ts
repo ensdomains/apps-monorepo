@@ -22,6 +22,7 @@ export const deliverEmailNotification = ResultFn(async function* (
   const deliveryJob = await db.query.notificationDeliveries.findFirst({
     where: eq(TABLE.notificationDeliveries.id, job.id),
     columns: {
+      status: true,
       target: true,
     },
     with: {
@@ -36,6 +37,18 @@ export const deliverEmailNotification = ResultFn(async function* (
     return yield* new NotificationDeliveryNotFoundError({
       message: `Delivery job not found: ${job.id}`,
     })
+  }
+
+  if (
+    deliveryJob.status === 'delivered' ||
+    deliveryJob.status === 'permanently_failed'
+  ) {
+    logger.debug('Skipping terminal email delivery', {
+      jobId: job.id,
+      kind: job.kind,
+      status: deliveryJob.status,
+    })
+    return ok(undefined)
   }
 
   // Get the template function

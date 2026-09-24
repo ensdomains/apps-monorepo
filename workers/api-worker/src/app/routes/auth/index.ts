@@ -10,14 +10,14 @@ import { createApp, internalServerError } from '../../middleware/hono'
 
 export default createApp()
   .basePath('/auth')
-  .post('/nonce', async (c) => {
-    const nonce = await createNonce(c.env)
+  .post('/nonce', injectDb, async (c) => {
+    const nonce = await createNonce(c.var.db)
 
     if (nonce.isErr()) {
       return c.json({ error: 'Failed to create nonce' }, 500)
     }
 
-    return c.json({ nonce: nonce.value }, 200)
+    return c.json(nonce.value, 200)
   })
   .post(
     '/login',
@@ -28,12 +28,14 @@ export default createApp()
         message: v.string(),
         signature: hex,
         nonce: v.string(),
+        redemptionToken: v.string(),
       }),
     ),
     injectEthClient,
     injectDb,
     async (c) => {
-      const { address, message, signature, nonce } = c.req.valid('json')
+      const { address, message, signature, nonce, redemptionToken } =
+        c.req.valid('json')
 
       const jwt = await createJWT({
         env: c.env,
@@ -43,6 +45,7 @@ export default createApp()
         message,
         signature,
         nonce,
+        redemptionToken,
       })
 
       if (jwt.isErr()) {
@@ -67,12 +70,16 @@ export default createApp()
             {
               _tag: P.union(
                 'DATABASE_ERROR',
-                'KV_ERROR',
+                'REDEMPTION_TOKEN_ERROR',
                 'SIGN_JWT_ERROR',
                 'SIWE_VERIFY_ERROR',
               ),
             },
-            (error) => internalServerError(c, error),
+            (error) =>
+              internalServerError(
+                c,
+                error as Parameters<typeof internalServerError>[1],
+              ),
           )
           .exhaustive()
       }

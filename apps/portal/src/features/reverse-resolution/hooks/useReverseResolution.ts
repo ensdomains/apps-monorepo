@@ -38,6 +38,13 @@ export type ReverseResolutionResult = {
   normalized: boolean
   forwardMatch: boolean
   defaultName: string | null
+  /**
+   * Whether the `default.reverse` record in {@link defaultName} forward-resolves
+   * back to this address. It travels with `defaultName` because an inherited
+   * default is only a primary name when both halves agree — the record alone is
+   * an unverified claim, settable by anyone for any name.
+   */
+  defaultForwardMatch: boolean
 }
 
 type Network = ReverseResolutionNetwork
@@ -53,6 +60,7 @@ function createEmptyResult(network: Network): ReverseResolutionResult {
     normalized: true,
     forwardMatch: false,
     defaultName: null,
+    defaultForwardMatch: false,
   }
 }
 
@@ -99,6 +107,7 @@ async function getL1ReverseRecord(
     normalized: nameResult?.normalized ?? true,
     forwardMatch: nameResult?.match ?? false,
     defaultName: null,
+    defaultForwardMatch: false,
   }
 }
 
@@ -177,6 +186,7 @@ async function getL2ReverseRecord(
     normalized: true,
     forwardMatch,
     defaultName: null,
+    defaultForwardMatch: false,
   }
 }
 
@@ -236,8 +246,16 @@ const getReverseResolution = ResultFn(async function* ({
     allowMismatch: true,
   })
   const defaultName = defaultResult?.name ?? null
+  // `allowMismatch` makes `getName` return the record even when the name's
+  // forward `addr` points somewhere else, so `match` is the only thing that
+  // separates a verified default from an unverified claim — anyone can set
+  // `default.reverse` to a name they don't own. Carry the flag alongside the
+  // name; the rows that inherit it must not present it as verified.
+  const defaultForwardMatch = defaultResult?.match ?? false
 
-  return ok(resolvedResults.map((r) => ({ ...r, defaultName })))
+  return ok(
+    resolvedResults.map((r) => ({ ...r, defaultName, defaultForwardMatch })),
+  )
 })
 
 const getReverseResolutionQueryKey = createQueryKey<

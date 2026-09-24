@@ -37,6 +37,14 @@ const getNavItems = (
       disabled: !reverseName,
     }),
   },
+  {
+    id: 'migration-permissions',
+    icon: <MSymbol className="ms-opsz-20" symbol="key_vertical" />,
+    label: <Trans>Migration permissions</Trans>,
+    link: linkOptions({
+      to: '/migration-permissions',
+    }),
+  },
 ]
 
 export const NavSection = ({ onAction }: NavSectionProps) => {

@@ -254,14 +254,14 @@ describe('ProfileView helpers', () => {
     const records = makeRecords({
       addresses: [
         { coinType: 60, value: evmValue },
-        { coinType: 614, value: evmValue.toUpperCase() }, // Optimism, same address
+        { coinType: 2147483658, value: evmValue.toUpperCase() }, // Optimism, same address
         { coinType: 0, value: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh' },
       ],
     })
 
     expect(
       getReceivingAddressChains(records).map((item) => item.coinType),
-    ).toEqual([60, 614])
+    ).toEqual([60, 2147483658])
     expect(
       getChainSpecificAddresses(records).map((item) => item.coinType),
     ).toEqual([0])
@@ -282,5 +282,94 @@ describe('ProfileView helpers', () => {
     expect(
       getChainSpecificAddresses(records).map((item) => item.coinType),
     ).toEqual([501])
+  })
+
+  it.each([
+    [291, 501, 'ExampleAddress', 'exampleAddress'],
+    [501, 291, 'exampleAddress', 'ExampleAddress'],
+    [291, 501, 'ExampleAddress', 'ExampleAddress'],
+    [501, 501, 'ExampleAddress', 'exampleAddress'],
+    [999, 1000, 'ExampleAddress', 'ExampleAddress'],
+  ])('keeps independent case-sensitive records separate (%i, %i, %s, %s)', (mainCoinType, otherCoinType, mainValue, otherValue) => {
+    // Synthetic strings test grouping without requiring valid network keys.
+    const mainRecord = { coinType: mainCoinType, value: mainValue }
+    const otherRecord = { coinType: otherCoinType, value: otherValue }
+    const records = makeRecords({ addresses: [mainRecord, otherRecord] })
+
+    expect(getMainReceivingAddress(records)).toMatchObject(mainRecord)
+    expect(getReceivingAddressChains(records)).toMatchObject([mainRecord])
+    expect(getChainSpecificAddresses(records)).toMatchObject([otherRecord])
+  })
+
+  it('does not group a non-EVM record with a matching EVM value', () => {
+    const value = '0x1234567890abcdef1234567890abcdef12345678'
+    const records = makeRecords({
+      addresses: [
+        { coinType: 60, value },
+        { coinType: 501, value },
+        { coinType: 999, value: value.toUpperCase() },
+      ],
+    })
+
+    expect(getReceivingAddressChains(records)).toMatchObject([
+      { coinType: 60, value },
+    ])
+    expect(getChainSpecificAddresses(records)).toMatchObject([
+      { coinType: 501, value },
+      { coinType: 999, value: value.toUpperCase() },
+    ])
+  })
+
+  it('groups matching EVM records without ETH and keeps different keys separate', () => {
+    const value = '0x1234567890abcdef1234567890abcdef12345678'
+    const records = makeRecords({
+      addresses: [
+        { coinType: 60, value: ' ' },
+        { coinType: 2147483658, value: ` ${value} ` },
+        { coinType: 2147492101, value: value.toUpperCase() },
+        {
+          coinType: 2147525809,
+          value: '0x1234567890abcdef1234567890abcdef12345679',
+        },
+      ],
+    })
+
+    expect(getMainReceivingAddress(records)).toMatchObject({
+      coinType: 2147483658,
+      value,
+    })
+    expect(
+      getReceivingAddressChains(records).map(({ coinType }) => coinType),
+    ).toEqual([2147483658, 2147492101])
+    expect(getChainSpecificAddresses(records)).toMatchObject([
+      {
+        coinType: 2147525809,
+        value: '0x1234567890abcdef1234567890abcdef12345679',
+      },
+    ])
+  })
+
+  it('does not case-fold malformed EVM values', () => {
+    const records = makeRecords({
+      addresses: [
+        { coinType: 60, value: 'ExampleAddress' },
+        { coinType: 2147483658, value: 'exampleAddress' },
+      ],
+    })
+
+    expect(getReceivingAddressChains(records)).toMatchObject([
+      { coinType: 60, value: 'ExampleAddress' },
+    ])
+    expect(getChainSpecificAddresses(records)).toMatchObject([
+      { coinType: 2147483658, value: 'exampleAddress' },
+    ])
+  })
+
+  it('returns no address cards for empty records', () => {
+    const records = makeRecords({ addresses: [{ coinType: 60, value: ' ' }] })
+
+    expect(getMainReceivingAddress(records)).toBeUndefined()
+    expect(getReceivingAddressChains(records)).toEqual([])
+    expect(getChainSpecificAddresses(records)).toEqual([])
   })
 })

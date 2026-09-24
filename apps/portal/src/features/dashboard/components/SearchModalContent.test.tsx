@@ -309,9 +309,57 @@ describe('SearchModalContent', () => {
     )
   })
 
-  it('shows owned name only in Names you own, not in Suggestions', async () => {
+  it('keeps an owned exact match in Suggestions so Enter selects it first', async () => {
     connectedAddressOverride = '0x7Bc153b2a4C8a2f3428bd0da77a901b81c6dD809'
-    ownedNamesOverride = [{ name: 'foo.eth' }]
+    // foobar.eth is owned but not the exact match, so it anchors the wait:
+    // once it renders, the owned-names query has resolved and the placement
+    // of the exact match foo.eth is final.
+    ownedNamesOverride = [{ name: 'foo.eth' }, { name: 'foobar.eth' }]
+    mockBuildSearchSuggestions.mockReturnValue([
+      {
+        id: 'name:foo.eth',
+        label: 'foo.eth',
+        description: 'View ENS name details',
+        inputValue: 'foo.eth',
+        action: () => mockNavigateToName('foo.eth'),
+      },
+    ])
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Command>
+          <SearchModalContent
+            searchValue="foo"
+            onSelectSuggestion={mockOnSelectSuggestion}
+            onSelectOwnedName={mockOnSelectOwnedName}
+            navigateToName={mockNavigateToName}
+            navigateToAddress={mockNavigateToAddress}
+            navigateToResolver={mockNavigateToResolver}
+          />
+        </Command>
+      </QueryClientProvider>,
+    )
+
+    await vi.waitFor(() => {
+      expect(
+        screen
+          .getAllByRole('option')
+          .some((el) => el.getAttribute('data-value') === 'owned:foobar.eth'),
+      ).toBe(true)
+    })
+    const optionsWithFooEth = screen
+      .getAllByRole('option')
+      .filter((el) => el.textContent?.includes('foo.eth'))
+    expect(optionsWithFooEth).toHaveLength(1)
+    expect(optionsWithFooEth[0]).toHaveAttribute('data-value', 'name:foo.eth')
+  })
+
+  it('shows an owned name that is not the exact match under Names you own', async () => {
+    connectedAddressOverride = '0x7Bc153b2a4C8a2f3428bd0da77a901b81c6dD809'
+    ownedNamesOverride = [{ name: 'foobar.eth' }]
     mockBuildSearchSuggestions.mockReturnValue([
       {
         id: 'name:foo.eth',
@@ -345,10 +393,9 @@ describe('SearchModalContent', () => {
         screen.getByRole('group', { name: 'Names you own' }),
       ).toBeInTheDocument()
     })
-    const optionsWithFoo = screen
+    const ownedOption = screen
       .getAllByRole('option')
-      .filter((el) => el.textContent?.includes('foo.eth'))
-    expect(optionsWithFoo).toHaveLength(1)
-    expect(optionsWithFoo[0]).toHaveAttribute('data-value', 'owned:foo.eth')
+      .find((el) => el.textContent?.includes('foobar.eth'))
+    expect(ownedOption).toHaveAttribute('data-value', 'owned:foobar.eth')
   })
 })

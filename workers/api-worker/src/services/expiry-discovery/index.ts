@@ -8,9 +8,12 @@ import {
   type NotificationCursors,
   storeNotificationCursors,
 } from './cursors.js'
-import { fetchExpiringNamesPage } from './indexer.js'
+import { reportExpiryTimestampOverflow } from './overflow-alert.js'
+import { fetchProcessableExpiringNames } from './page.js'
 import {
   type ExpiryStageConfig,
+  getLowerBoundForStage,
+  getQueryCursorForStage,
   getUpperBoundForStage,
   STAGES,
 } from './stages.js'
@@ -26,10 +29,16 @@ type StageRunMetrics = {
   cursorStart: number
   cursorEnd: number
   upperBound: number
+  queryCursor: number
+  lowerBound: number
+  lagSec: number
   enqueuedCount: number
   pageDomainCount: number
   chunkCount: number
   hasMore: boolean
+  overflow: boolean
+  firstExpiryDate?: number
+  lastExpiryDate?: number
 }
 
 function buildExpiryEvents(
@@ -53,56 +62,98 @@ const processStage = ResultFn(async function* (ctx: {
   nowSec: number
 }) {
   const upperBound = getUpperBoundForStage(ctx.stage, ctx.nowSec)
-  const lagSec = Math.max(0, upperBound - ctx.cursor)
+  const lowerBound = getLowerBoundForStage(ctx.stage, ctx.nowSec)
+  const queryCursor = getQueryCursorForStage(ctx.stage, ctx.cursor, ctx.nowSec)
+  const clampedBySec = Math.max(0, queryCursor - ctx.cursor)
+  const lagSec = Math.max(0, upperBound - queryCursor)
 
   // Cursor already caught up with the stage window.
-  if (ctx.cursor >= upperBound) {
+  if (queryCursor >= upperBound) {
     logger.debug('Expiry stage skipped (cursor caught up)', {
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
+      queryCursor,
+      lowerBound,
       upperBound,
+      lagSec,
     })
     return ok({
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
       cursorEnd: ctx.cursor,
+      queryCursor,
+      lowerBound,
       upperBound,
+      lagSec,
       enqueuedCount: 0,
       pageDomainCount: 0,
       chunkCount: 0,
       hasMore: false,
+      overflow: false,
+      firstExpiryDate: undefined,
+      lastExpiryDate: undefined,
     } satisfies StageRunMetrics)
+  }
+
+  if (clampedBySec > 0) {
+    logger.warn('Expiry stage cursor clamped to exclusive window', {
+      stageId: ctx.stage.id,
+      cursorStart: ctx.cursor,
+      queryCursor,
+      lowerBound,
+      upperBound,
+      clampedBySec,
+    })
   }
 
   logger.debug('Processing expiry stage window', {
     stageId: ctx.stage.id,
     cursorStart: ctx.cursor,
+    queryCursor,
+    lowerBound,
     upperBound,
     lagSec,
   })
 
-  const page = yield* fetchExpiringNamesPage({
+  const page = yield* fetchProcessableExpiringNames({
     env: ctx.env,
     stage: ctx.stage,
-    cursor: ctx.cursor,
+    cursor: queryCursor,
     upperBound,
   })
+
+  if (page.overflow) {
+    await reportExpiryTimestampOverflow({
+      env: ctx.env,
+      stageId: ctx.stage.id,
+      expiryTimestamp: page.overflow.expiryTimestamp,
+      processedCount: page.overflow.processedCount,
+    })
+  }
 
   if (page.domains.length === 0) {
     logger.debug('Expiry stage returned no domains', {
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
+      queryCursor,
+      lowerBound,
       upperBound,
     })
     return ok({
       stageId: ctx.stage.id,
       cursorStart: ctx.cursor,
-      cursorEnd: ctx.cursor,
+      cursorEnd: page.cursorEnd,
+      queryCursor,
+      lowerBound,
       upperBound,
+      lagSec,
       enqueuedCount: 0,
       pageDomainCount: 0,
       chunkCount: 0,
       hasMore: false,
+      overflow: Boolean(page.overflow),
+      firstExpiryDate: undefined,
+      lastExpiryDate: undefined,
     } satisfies StageRunMetrics)
   }
 
@@ -133,18 +184,19 @@ const processStage = ResultFn(async function* (ctx: {
   return ok({
     stageId: ctx.stage.id,
     cursorStart: ctx.cursor,
-    cursorEnd: lastExpiryDate ?? ctx.cursor,
+    cursorEnd: page.cursorEnd,
+    queryCursor,
+    lowerBound,
     upperBound,
+    lagSec,
     enqueuedCount: events.length,
     pageDomainCount: page.domains.length,
     chunkCount: eventChunks.length,
     hasMore: page.hasMore,
+    overflow: Boolean(page.overflow),
     firstExpiryDate,
     lastExpiryDate,
-  } satisfies StageRunMetrics & {
-    firstExpiryDate?: number
-    lastExpiryDate?: number
-  })
+  } satisfies StageRunMetrics)
 })
 
 export const runExpiryDiscoveryCron = ResultFn(async function* (
@@ -213,11 +265,17 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
       cursorStart: result.value.cursorStart,
       cursorEnd: result.value.cursorEnd,
       upperBound: result.value.upperBound,
+      queryCursor: result.value.queryCursor,
+      lowerBound: result.value.lowerBound,
+      lagSec: result.value.lagSec,
       cursorAdvancedBySec: result.value.cursorEnd - result.value.cursorStart,
       pageDomainCount: result.value.pageDomainCount,
+      firstExpiryDate: result.value.firstExpiryDate,
+      lastExpiryDate: result.value.lastExpiryDate,
       enqueuedCount: result.value.enqueuedCount,
       chunkCount: result.value.chunkCount,
       hasMore: result.value.hasMore,
+      overflow: result.value.overflow,
     })
   }
 
