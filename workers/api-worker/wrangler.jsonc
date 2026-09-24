@@ -103,9 +103,12 @@
     },
     "VAPID_SUBJECT": "mailto:notifications@ens.domains",
     "VAPID_PUBLIC_KEY": "BOBjtfgZPtGSJtajVkh4T1Ceswos_aRXYlD4Mq8aXEa4sc_0lkrwKzUhnUIgCt22_cAEYSr0wZlhCiWPsFXyRGs",
+    "TELEGRAM": {
+      "ALERT_CHAT_ID": "-5381499765"
+    },
     "SENDGRID_BROADCAST_LIST_ID": "",
     "SENDGRID_TEMPLATE_IDS": {
-      "name-expiry": "d-fb5409b2dc1e44f6919cd648eb983adf",
+      "name-expiry": "d-9c087294a77f410fa3a5af6c3a9a54cd",
       "name-transferred": "d-f1db08f6dcc54d92a055e8637327ac2a"
     }
   }

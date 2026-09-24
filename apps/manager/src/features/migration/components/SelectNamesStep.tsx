@@ -35,6 +35,9 @@ export const SelectNamesStep = ({
   const { eligible, isPending, recoveryState } = useEligibleV1Names()
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
+  const hasNamesNeedingManagerRestoration = eligible.some(
+    ({ managerAddress }) => managerAddress !== null,
+  )
 
   const {
     search,
@@ -47,7 +50,12 @@ export const SelectNamesStep = ({
     filteredOrphans,
     toggleName,
     toggleAll,
-  } = useNameSelection({ eligible, isPending, onNamesChange })
+  } = useNameSelection({
+    eligible,
+    isPending,
+    isRecovery: recoveryState.status === 'recovering',
+    onNamesChange,
+  })
 
   const isEstimatingGas = totalSelected > 0 && gasEstimate.status === 'loading'
   const isWaitingForGasEstimate =
@@ -107,6 +115,16 @@ export const SelectNamesStep = ({
               <Trans>Your names are ready to upgrade</Trans>
             )}
           </h1>
+
+          {hasNamesNeedingManagerRestoration && !isRecoveryStale && (
+            <p className="max-w-160 text-ens-garnet-900/75 text-sm leading-5 md:text-center">
+              <Trans>
+                Names with a different manager start unselected. Selecting one
+                requires temporary permission for your smart account to manage
+                your names. We remove that permission after the upgrade.
+              </Trans>
+            </p>
+          )}
 
           {isRecoveryStale ? (
             <div

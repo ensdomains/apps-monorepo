@@ -124,6 +124,13 @@ type Events =
       basePriceNumber: number
       premiumPriceNumber: number
       postRegistrationSetup?: RegistrationPostRegistrationSetup
+      /**
+       * Standalone-HCA: the USDC (6dp) wallet debit the confirm screen showed.
+       * Passed straight to the registration machine, which refuses to request a
+       * funding-permit signature for materially more than this. Absent when the
+       * budget quote failed and only the rent was displayed.
+       */
+      displayedWalletDebit?: bigint
     }
   | { type: 'registration.completed' }
   | { type: 'notifications.step.next' }
@@ -557,6 +564,8 @@ const startRegistrationAction = machineSetup.createAction(
         // Standalone-HCA session-enable payload (omitted once enabled).
         hcaSessionEnable: event.hcaSessionEnable,
         primaryName: bundlePrimaryName,
+        // Consent bound on the funding permit: what the confirm screen showed.
+        displayedWalletDebit: event.displayedWalletDebit,
       } satisfies RegistrationEvent),
     )
   }),

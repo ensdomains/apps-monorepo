@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -49,8 +49,6 @@ function useAutoSelectFirstResolver(
   ])
 }
 
-const SUCCESS_LABEL_DURATION_MS = 5000
-
 interface ChangeResolverFormProps {
   readonly name: string
   readonly target: ResolverWriteTarget
@@ -61,6 +59,7 @@ export const ChangeResolverForm = ({
   target,
 }: ChangeResolverFormProps) => {
   const { address: connectedAddress } = useConnection()
+  const navigate = useNavigate()
   // A PermissionedResolver is a V2 contract, and the deploy/select paths hand
   // its roles to the caller against a V2 registry. A V1 name can still be
   // pointed at any resolver address, so it gets the custom-address path only.
@@ -70,7 +69,6 @@ export const ChangeResolverForm = ({
   const [deployNewResolver, setDeployNewResolver] = useState(true)
   const [resolverAddress, setResolverAddress] = useState('')
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
-  const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
   const deployedResolverAddressRef = useRef<Address | null>(null)
 
   const {
@@ -170,16 +168,14 @@ export const ChangeResolverForm = ({
     }
   }
 
+  // Land on the resolver page rather than back on this form: it shows the
+  // resolver now in force plus the history entry for the change, so the update
+  // is visibly confirmed instead of leaving a "Save changes" prompt that reads
+  // as though nothing happened. Mirrors create-subname and edit-records.
   const handleChangeResolverTransactionDone = () => {
     closeTransactionModal()
     clearTransaction()
-    setResolverAddress('')
-    deployedResolverAddressRef.current = null
-    setShowSuccessButtonLabel(true)
-    setTimeout(
-      () => setShowSuccessButtonLabel(false),
-      SUCCESS_LABEL_DURATION_MS,
-    )
+    navigate({ to: '/$name/resolver', params: { name } })
   }
 
   const handleSubmit = async () => {
@@ -210,14 +206,9 @@ export const ChangeResolverForm = ({
     selectedExistingResolver,
   })
 
-  const buttonText = match({
-    isDeployConfirming,
-    isChangeResolverPending,
-    showSuccessButtonLabel,
-  })
+  const buttonText = match({ isDeployConfirming, isChangeResolverPending })
     .with({ isDeployConfirming: true }, () => 'Deploying resolver...')
     .with({ isChangeResolverPending: true }, () => 'Changing resolver...')
-    .with({ showSuccessButtonLabel: true }, () => 'Resolver changed!')
     .otherwise(() => 'Save changes')
 
   return (

@@ -11,7 +11,8 @@ import { getConfig } from '#core/config.js'
 import { logger } from '#utils/logger.js'
 import type { ExpiryStageConfig } from './stages.js'
 
-export const PAGE_SIZE = 1000
+export const PROCESS_PAGE_SIZE = 999
+export const QUERY_PAGE_SIZE = PROCESS_PAGE_SIZE + 1
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 300
 
@@ -21,7 +22,7 @@ const expiringNamesQuery = gql`
       where: { expiry_gt: $cursor, expiry_lte: $upper_bound }
       orderBy: expiryDate
       orderDirection: asc
-      first: ${String(PAGE_SIZE)}
+      first: ${String(QUERY_PAGE_SIZE)}
     ) {
       name
       expiryDate
@@ -175,7 +176,7 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
 
   return ok({
     domains,
-    hasMore: parsedResponse.domains.length === PAGE_SIZE,
+    hasMore: parsedResponse.domains.length === QUERY_PAGE_SIZE,
   })
 })
 

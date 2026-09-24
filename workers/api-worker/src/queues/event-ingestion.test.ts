@@ -4,6 +4,7 @@ import { makeMockEnv, makeMockQueue } from '#test-utils/env.js'
 import { runQueue } from '#test-utils/queue.js'
 import {
   buildIdempotencyKey,
+  collapseExpiryEvents,
   shouldCreateExternalDeliveries,
 } from './event-ingestion.js'
 
@@ -16,7 +17,7 @@ const event = {
   type: 'name_expiring',
   name: 'alpha.eth',
   expiryDate: 1700000000,
-  stage: '7d',
+  stage: 'expiry-7d',
   owner: '0xabc',
   includeFavorites: false,
 } as const
@@ -78,12 +79,53 @@ beforeEach(() => vi.clearAllMocks())
 
 it('uses a stable identity and owner-specific external delivery preferences', () => {
   expect(buildIdempotencyKey(event, 'owner')).toBe(
-    'name-expiry:owner:alpha.eth:7d:1700000000',
+    'name-expiry:owner:alpha.eth:expiry-7d:1700000000',
   )
   const settings = { owned_name_expiry: true, favourited_name_expiry: false }
   expect(shouldCreateExternalDeliveries('owned', settings)).toBe(true)
   expect(shouldCreateExternalDeliveries('favourited', settings)).toBe(false)
   expect(shouldCreateExternalDeliveries('manual', settings)).toBe(true)
+})
+
+it('selects the most advanced overlapping stage and merges routing data', () => {
+  expect(
+    collapseExpiryEvents([
+      {
+        ...event,
+        stage: 'grace-start',
+        owner: undefined,
+        includeFavorites: false,
+      },
+      {
+        ...event,
+        stage: 'expiry-30d',
+        owner: '0xowner',
+        includeFavorites: true,
+      },
+    ]),
+  ).toEqual([
+    expect.objectContaining({
+      stage: 'grace-start',
+      owner: '0xowner',
+      includeFavorites: true,
+    }),
+  ])
+})
+
+it('processes overlapping messages once and ACKs every source message', async () => {
+  const db = controlledDb()
+  vi.mocked(getDatabase).mockReturnValue(db as never)
+  const result = await runQueue(
+    'app-api-worker-event-ingestion',
+    [
+      { ...event, stage: 'expiry-30d', owner: undefined },
+      { ...event, stage: 'expiry-7d', includeFavorites: true },
+    ],
+    makeMockEnv(),
+  )
+  expect(result.explicitAcks).toEqual(['message-0', 'message-1'])
+  expect(result.retryMessages).toEqual([])
+  expect(db.insert).toHaveBeenCalledTimes(2)
 })
 
 it('reconciles persisted identities, emits all channel jobs, and ACKs the source', async () => {
@@ -124,11 +166,47 @@ it('retries only the failing source event and ACKs its successful sibling', asyn
   vi.mocked(getDatabase).mockReturnValue(db as never)
   const result = await runQueue(
     'app-api-worker-event-ingestion',
-    [{ ...event, owner: undefined, includeFavorites: true }, event],
+    [
+      {
+        ...event,
+        expiryDate: event.expiryDate - 1,
+        owner: undefined,
+        includeFavorites: true,
+      },
+      event,
+    ],
     makeMockEnv(),
   )
   expect(result.explicitAcks).toEqual(['message-1'])
   expect(result.retryMessages).toEqual([{ msgId: 'message-0' }])
+})
+
+it('retries every source in a failing lifecycle group while ACKing an unrelated group', async () => {
+  const db = controlledDb()
+  db.query.favorites.findMany.mockRejectedValueOnce(
+    new Error('database unavailable'),
+  )
+  vi.mocked(getDatabase).mockReturnValue(db as never)
+  const alpha = {
+    ...event,
+    expiryDate: event.expiryDate - 1,
+    owner: undefined,
+    includeFavorites: true,
+  }
+  const result = await runQueue(
+    'app-api-worker-event-ingestion',
+    [
+      { ...alpha, stage: 'expiry-30d' },
+      { ...alpha, stage: 'grace-start' },
+      event,
+    ],
+    makeMockEnv(),
+  )
+  expect(result.explicitAcks).toEqual(['message-2'])
+  expect(result.retryMessages).toEqual([
+    { msgId: 'message-0' },
+    { msgId: 'message-1' },
+  ])
 })
 
 it('ACKs malformed and unsupported messages without delivery work', async () => {
