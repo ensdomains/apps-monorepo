@@ -58,10 +58,6 @@ msgstr ""
 msgid "{0}% discount"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "{completedNameCount, plural, one {Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed.} other {Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed.}}"
-msgstr ""
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Approve # name} other {Approve # names}}"
 msgstr ""
@@ -185,6 +181,10 @@ msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Active access"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
@@ -432,6 +432,10 @@ msgstr ""
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Checking allowance"
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Checking migration access..."
 msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
@@ -1129,6 +1133,18 @@ msgstr ""
 msgid "Let this temporary account move your wrapped names."
 msgstr ""
 
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Lets the migration contract move any unwrapped .eth name you own."
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Lets the migration contract move any wrapped name you own."
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Lets your smart account manage every ENSv2 name you own. Used temporarily to restore managers during an upgrade."
+msgstr ""
+
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Link copied to clipboard"
 msgstr ""
@@ -1230,6 +1246,11 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
+#: src/features/migration/pages/MigrationPermissionsPage.tsx
+#: src/features/navigation/Header/account/NavSection.tsx
+msgid "Migration permissions"
+msgstr ""
+
 #: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
 msgid "Migration value propositions"
 msgstr ""
@@ -1294,6 +1315,10 @@ msgstr ""
 msgid "Names"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Names with a different manager start unselected. Selecting one requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
+msgstr ""
+
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"
@@ -1353,6 +1378,10 @@ msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx
 msgid "No favorites to display"
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "No migration access to remove"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
@@ -1750,6 +1779,14 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Remove access"
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Remove access you no longer need. Your wallet will ask you to confirm each change."
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Remove Email Contact Method?"
 msgstr ""
@@ -1772,7 +1809,6 @@ msgid "Remove Telegram Contact Method?"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-#: src/features/migration/pages/MigrationPage.tsx
 msgid "Remove temporary access"
 msgstr ""
 
@@ -1800,6 +1836,10 @@ msgstr ""
 
 #: src/features/migration/components/GameStep.tsx
 msgid "Removing temporary access"
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Removing..."
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx
@@ -1908,6 +1948,10 @@ msgstr ""
 msgid "Retry artwork"
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Retry upgrade and cleanup"
+msgstr ""
+
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Retrying will attempt the registration again from where it left off."
 msgstr ""
@@ -1918,6 +1962,14 @@ msgstr ""
 
 #: src/components/NameFallbackCard.tsx
 msgid "Return to Dashboard"
+msgstr ""
+
+#: src/features/migration/pages/MigrationPermissionsPage.tsx
+msgid "Review access granted during ENS name upgrades."
+msgstr ""
+
+#: src/features/dashboard/components/TemporaryMigrationAccessNotice.tsx
+msgid "Review permissions"
 msgstr ""
 
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
@@ -2157,6 +2209,10 @@ msgstr ""
 msgid "Smart Account"
 msgstr ""
 
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Smart account access"
+msgstr ""
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Smart sessions are required to use this app."
 msgstr ""
@@ -2284,6 +2340,18 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Telegram Notifications"
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Temporary"
+msgstr ""
+
+#: src/features/dashboard/components/TemporaryMigrationAccessNotice.tsx
+msgid "Temporary migration access is still active for your smart account."
+msgstr ""
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Temporary migration access is still active. Retry to remove it and continue any unfinished upgrade."
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
@@ -2474,6 +2542,7 @@ msgid "Trademark Guidelines"
 msgstr ""
 
 #: src/features/bulk-renew/components/FailureStep.tsx
+#: src/features/migration/components/MigrationApprovalSettings.tsx
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 #: src/features/migration/pages/MigrationPage.tsx
@@ -2502,6 +2571,10 @@ msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Unread only"
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Unwrapped .eth name access"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
@@ -2743,6 +2816,10 @@ msgstr ""
 msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr ""
 
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "We couldn't check your migration access."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't confirm that {domainName} is still available. Please try again."
@@ -2754,6 +2831,10 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "We couldn't read your current records."
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "We couldn't remove access. Check your wallet and try again."
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
@@ -2803,6 +2884,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "Wrapped name access"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
@@ -2863,6 +2948,10 @@ msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "You'll be notified 30, 7, and 1 day before expiry."
+msgstr ""
+
+#: src/features/migration/components/MigrationApprovalSettings.tsx
+msgid "You're all set."
 msgstr ""
 
 #: src/features/migration/components/MigrationProgressBanner.tsx

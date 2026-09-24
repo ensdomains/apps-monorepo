@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as MigrationPermissionsRouteImport } from './routes/migration-permissions'
 import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as NameRouteRouteImport } from './routes/$name/route'
@@ -32,6 +33,11 @@ import { Route as DebugBackendSettingsRouteImport } from './routes/debug/backend
 import { Route as NotificationsAuthenticatedSettingsIndexRouteImport } from './routes/notifications/_authenticated/settings/index'
 import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/notifications/channels/email/verify'
 
+const MigrationPermissionsRoute = MigrationPermissionsRouteImport.update({
+  id: '/migration-permissions',
+  path: '/migration-permissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MigrationRoute = MigrationRouteImport.update({
   id: '/migration',
   path: '/migration',
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/$name': typeof NameRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
+  '/migration-permissions': typeof MigrationPermissionsRoute
   '/notifications': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
+  '/migration-permissions': typeof MigrationPermissionsRoute
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
@@ -200,6 +208,7 @@ export interface FileRoutesById {
   '/$name': typeof NameRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
+  '/migration-permissions': typeof MigrationPermissionsRoute
   '/notifications/_authenticated': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
@@ -226,6 +235,7 @@ export interface FileRouteTypes {
     | '/$name'
     | '/dashboard'
     | '/migration'
+    | '/migration-permissions'
     | '/notifications'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/migration'
+    | '/migration-permissions'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
@@ -271,6 +282,7 @@ export interface FileRouteTypes {
     | '/$name'
     | '/dashboard'
     | '/migration'
+    | '/migration-permissions'
     | '/notifications/_authenticated'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
@@ -296,6 +308,7 @@ export interface RootRouteChildren {
   NameRouteRoute: typeof NameRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   MigrationRoute: typeof MigrationRoute
+  MigrationPermissionsRoute: typeof MigrationPermissionsRoute
   NotificationsAuthenticatedRouteRoute: typeof NotificationsAuthenticatedRouteRouteWithChildren
   LegalPrivacyPolicyRoute: typeof LegalPrivacyPolicyRoute
   LegalTermsOfUseRoute: typeof LegalTermsOfUseRoute
@@ -313,6 +326,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/migration-permissions': {
+      id: '/migration-permissions'
+      path: '/migration-permissions'
+      fullPath: '/migration-permissions'
+      preLoaderRoute: typeof MigrationPermissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/migration': {
       id: '/migration'
       path: '/migration'
@@ -517,6 +537,7 @@ const rootRouteChildren: RootRouteChildren = {
   NameRouteRoute: NameRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
   MigrationRoute: MigrationRoute,
+  MigrationPermissionsRoute: MigrationPermissionsRoute,
   NotificationsAuthenticatedRouteRoute:
     NotificationsAuthenticatedRouteRouteWithChildren,
   LegalPrivacyPolicyRoute: LegalPrivacyPolicyRoute,

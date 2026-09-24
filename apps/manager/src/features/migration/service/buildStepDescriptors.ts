@@ -2,6 +2,7 @@ import type { AtomicMigrationBatch } from './buildAtomicMigrationBatches'
 import type {
   MigrationApproval,
   MigrationApprovalId,
+  MigrationCleanupApproval,
 } from './migrationApprovals'
 import { requiresMigrationApprovalCleanup } from './migrationApprovals'
 
@@ -35,6 +36,7 @@ export type MigrationStepDescriptor =
 export type BuildStepDescriptorsParams = {
   readonly hcaDeploymentRequired: boolean
   readonly approvals: readonly MigrationApproval[]
+  readonly cleanupApprovals?: readonly MigrationCleanupApproval[]
   readonly atomicBatches: readonly AtomicMigrationBatch[]
   readonly registrationApprovalTargets: readonly RegistrationApprovalTarget[]
 }
@@ -90,7 +92,7 @@ export const buildStepDescriptors = (
     })
   }
 
-  for (const approval of params.approvals) {
+  for (const approval of params.cleanupApprovals ?? params.approvals) {
     if (!requiresMigrationApprovalCleanup(approval)) continue
     descriptors.push({ type: 'cleanup', approvalId: approval.id })
   }
