@@ -29,7 +29,7 @@ test.describe('ENS name registration', () => {
   })
 
   test('registers a name after connecting from the pricing page', {
-    tag: ['@scenario:A16'],
+    tag: ['@scenario:A16', '@smoke'],
   }, async ({ page, wallet }) => {
     // Navigate directly to avoid the fragile landing-page search-dropdown click
     // (getByText(domain) times out because the label and .eth are separate nodes).

@@ -219,7 +219,7 @@ async function setEthAddressRecord(
 
 test.describe('Portal name transfer', () => {
   test('transfers a name from wallet A to wallet B, and wallet B is shown as the owner', {
-    tag: ['@scenario:F10'],
+    tag: ['@scenario:F10', '@smoke'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
 
@@ -1034,7 +1034,7 @@ test.describe('Portal name transfer', () => {
      * transaction.
      */
     test('blocks detaching a registry with third-party subnames until the exact blast radius is acknowledged, and voids that acknowledgement if the toggle is reset', {
-      tag: ['@scenario:F41'],
+      tag: ['@scenario:F41', '@smoke'],
     }, async ({
       portalPage: page,
       wallet,
@@ -1156,7 +1156,7 @@ test.describe('Portal name transfer', () => {
      * mocked instead of waiting for Panoptes to index the detach block.
      */
     test('shows "Registry detached" instead of "Configure registry" after a detach transfer', {
-      tag: ['@scenario:F42'],
+      tag: ['@scenario:F42', '@smoke'],
     }, async ({
       portalPage: page,
       wallet,

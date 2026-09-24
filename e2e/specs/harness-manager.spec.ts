@@ -101,9 +101,9 @@ test.describe('Harness integrity — manager', () => {
 
   // ── makeV2Name ─────────────────────────────────────────────────────────
 
-  test('makeV2Name: rule 5 — the name it reports is registered in the .eth registry, owned by somebody', async ({
-    makeV2Name,
-  }) => {
+  test('makeV2Name: rule 5 — the name it reports is registered in the .eth registry, owned by somebody', {
+    tag: ['@smoke'],
+  }, async ({ makeV2Name }) => {
     const name = await makeV2Name({ label: 'harness-v2' })
     const label = labelOf(name)
 
@@ -132,11 +132,9 @@ test.describe('Harness integrity — manager', () => {
     ).not.toBe(zeroAddress)
   })
 
-  test('makeV2Name: rule 6 — the manager renders the name it made', async ({
-    connectedPage: page,
-    makeV2Name,
-    accounts,
-  }) => {
+  test('makeV2Name: rule 6 — the manager renders the name it made', {
+    tag: ['@smoke'],
+  }, async ({ connectedPage: page, makeV2Name, accounts }) => {
     // Un-skipped 2026-08-12. This was blocked-env: `connectWithHeadlessWallet`
     // waited for a Connect button the manager did not render, because
     // `apps/manager/.env` had lost its local-dev values. Restored by the repo

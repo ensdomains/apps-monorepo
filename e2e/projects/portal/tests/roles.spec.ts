@@ -454,7 +454,7 @@ test.describe('Portal name roles', () => {
   })
 
   test('grants a single role to a second wallet', {
-    tag: ['@scenario:C2'],
+    tag: ['@scenario:C2', '@smoke'],
   }, async ({ portalPage: page, wallet, makeName, wallets }) => {
     await connectWithHeadlessWallet(page, wallet)
 

@@ -14,10 +14,9 @@ const DOMAIN_TO_REGISTER =
   process.env.E2E_DOMAIN ?? `e2e-portal-${Date.now().toString(36)}.eth`
 
 test.describe('Portal ENS name registration', () => {
-  test('registers a name via headless wallet and stablecoin payment', async ({
-    portalPage: page,
-    wallet,
-  }) => {
+  test('registers a name via headless wallet and stablecoin payment', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet }) => {
     test.setTimeout(300_000) // Registration involves multiple on-chain txs
 
     // ── 1. Connect wallet ──────────────────────────────────────────
@@ -151,10 +150,9 @@ test.describe('Portal ENS name registration', () => {
   // (`apps/portal/src/routes/register/index.test.tsx`) proves this with every
   // on-chain actor stubbed out; this test drives the same switch through a
   // real browser against a real chain, which the unit test cannot cover.
-  test('switching to a different name mid-flow cancels the first registration instead of completing it', async ({
-    portalPage: page,
-    wallet,
-  }) => {
+  test('switching to a different name mid-flow cancels the first registration instead of completing it', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet }) => {
     test.setTimeout(240_000)
 
     const NAME_A = `e2e-switch-a-${Date.now().toString(36)}.eth`

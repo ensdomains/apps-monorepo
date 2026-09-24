@@ -495,12 +495,9 @@ test.describe('Harness integrity', () => {
 
   // ── wallets ────────────────────────────────────────────────────────────
 
-  test('wallets: every participant is a distinct, funded account, and the app agrees on who is connected', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-    wallets,
-  }) => {
+  test('wallets: every participant is a distinct, funded account, and the app agrees on who is connected', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, accounts, wallets }) => {
     const participants = ['owner', 'manager', 'stranger'] as const
 
     const addresses = participants.map((p) => wallets.account(p).address)
@@ -717,7 +714,9 @@ test.describe('Harness integrity', () => {
 
   // ── the apps' own wiring (goal §6 B0) ──────────────────────────────────
 
-  test('the apps under test are pointed at this fork, not a public RPC', async () => {
+  test('the apps under test are pointed at this fork, not a public RPC', {
+    tag: ['@smoke'],
+  }, async () => {
     // B0's missing half, added 2026-08-12 after it cost a two-hour suite run
     // and a confidently wrong diagnosis.
     //
@@ -752,7 +751,9 @@ test.describe('Harness integrity', () => {
 
   // ── the chain itself ───────────────────────────────────────────────────
 
-  test('anvil: the fork is a fork, and the .eth registry is deployed on it', async () => {
+  test('anvil: the fork is a fork, and the .eth registry is deployed on it', {
+    tag: ['@smoke'],
+  }, async () => {
     // B0's cheapest half. A misconfigured chain fails every fixture above in a
     // way that reads as many unrelated bugs.
     const block = await publicClient.getBlockNumber()
