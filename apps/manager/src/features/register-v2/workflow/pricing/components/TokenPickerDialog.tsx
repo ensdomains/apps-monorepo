@@ -47,7 +47,7 @@ export const PaymentDialogBase = ({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
-        className="flex max-h-[90vh] min-h-[500px] flex-col"
+        className="flex max-h-[90dvh] min-h-0 flex-col sm:min-h-[500px]"
         // The first focusable element here is an info button, and a tooltip
         // opens on focus: without this the sheet opens with a tooltip already
         // covering the price. Focus the panel itself instead, so the dialog

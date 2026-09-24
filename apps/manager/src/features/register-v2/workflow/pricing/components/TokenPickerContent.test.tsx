@@ -15,11 +15,9 @@ const usdc = {
   balance: '1000000000',
 } as unknown as StablecoinBalance
 
-const dai = {
-  address: '0xff34b3d4aee8ddcd6f9afffb6fe49bd371b8a357',
-  symbol: 'DAI',
-  decimals: 18,
-  balance: '1000000000000000000000',
+const secondUsdc = {
+  ...usdc,
+  address: '0x0000000000000000000000000000000000000002',
 } as unknown as StablecoinBalance
 
 const renderPicker = (
@@ -37,6 +35,7 @@ const renderPicker = (
         pricingData={330}
         pricingLoading={false}
         selectedToken={undefined}
+        showNetworkFeeDetails
         stablecoinBalances={[usdc]}
         {...props}
       />
@@ -52,8 +51,10 @@ describe('TokenPickerContentBase', () => {
     expect(onSelectCoin).toHaveBeenCalledWith('USDC')
   })
 
-  it('leaves the choice to the user when there is more than one option', () => {
-    const onSelectCoin = renderPicker({ stablecoinBalances: [usdc, dai] })
+  it('leaves the choice to the user when there is more than one supplied balance', () => {
+    const onSelectCoin = renderPicker({
+      stablecoinBalances: [usdc, secondUsdc],
+    })
 
     expect(onSelectCoin).not.toHaveBeenCalled()
   })
@@ -133,6 +134,8 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('Name price')).toBeVisible()
     expect(screen.getByText('$160.00')).toBeVisible()
+    expect(screen.getByText('Mainnet est. fee: $4.32')).toBeVisible()
+    expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
     expect(screen.getByText('Left from your last attempt')).toBeVisible()
     expect(screen.getByText('-$1.82')).toBeVisible()
     expect(screen.getByText('You pay now')).toBeVisible()
@@ -163,11 +166,80 @@ describe('TokenPickerContentBase', () => {
     expect(screen.queryByText('Name price')).not.toBeInTheDocument()
   })
 
-  it('says whose balance the token row is showing', () => {
+  it('moves the exact fee disclosure and balance label onto USDC', () => {
+    renderPicker({
+      funding: {
+        registration: 325.68,
+        networkFee: 4.32,
+        total: 330,
+        walletDebit: 330,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('balance')).toBeVisible()
+    expect(screen.queryByText('in your wallet')).not.toBeInTheDocument()
+    expect(screen.getByText('Mainnet est. fee: $4.32')).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'What is the network fee?' }),
+    ).toBeVisible()
+    expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
+  })
+
+  it('keeps fee quote loading on the affected method', () => {
+    renderPicker({
+      isQuotingFunding: true,
+      selectedToken: 'USDC',
+    })
+
+    const fee = screen.getByText('Mainnet est. fee: —')
+    expect(fee).toBeVisible()
+    expect(fee.parentElement).toHaveClass('animate-pulse')
+    expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
+  })
+
+  it('preserves the rent-only fallback when the fee quote is unavailable', () => {
     renderPicker({ selectedToken: 'USDC' })
 
-    expect(screen.getByText('in your wallet')).toBeVisible()
-    expect(screen.queryByText('available')).not.toBeInTheDocument()
+    expect(screen.getByText('Mainnet est. fee: —')).toBeVisible()
+    expect(screen.getByText('$330.00')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
+  })
+
+  it('keeps a funding shortfall local to the affected method', () => {
+    renderPicker({
+      funding: {
+        registration: 1_999.8,
+        networkFee: 0.2,
+        total: 2_000,
+        walletDebit: 2_000,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      methodErrorMessage: 'not enough funds to pay network fees',
+      selectedToken: 'USDC',
+    })
+
+    const error = screen.getByText('not enough funds to pay network fees')
+    expect(error).toBeVisible()
+    expect(error.closest('[data-slot="payment-method-error"]')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('keeps availability failure global', () => {
+    renderPicker({
+      globalErrorMessage:
+        "We couldn't confirm that jeff.eth is still available. Please try again.",
+      selectedToken: 'USDC',
+    })
+
+    const error = screen.getByText(
+      "We couldn't confirm that jeff.eth is still available. Please try again.",
+    )
+    expect(error).toBeVisible()
+    expect(error.closest('[data-slot="payment-method-error"]')).toBeNull()
   })
 
   // Six-decimal USDC: rounding each figure on its own would print
@@ -187,7 +259,8 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('-$1.00')).toBeVisible()
     expect(screen.queryByText('-$1.01')).not.toBeInTheDocument()
-    expect(screen.getAllByText('$1.00').length).toBeGreaterThanOrEqual(3)
+    expect(screen.getByText('Mainnet est. fee: $1.00')).toBeVisible()
+    expect(screen.getAllByText('$1.00').length).toBeGreaterThanOrEqual(2)
   })
 
   // A balance under a cent: the deduction would print as "--$0.01", money the
