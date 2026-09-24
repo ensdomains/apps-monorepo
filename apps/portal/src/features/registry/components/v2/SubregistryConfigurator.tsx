@@ -374,23 +374,23 @@ const SubregistryConfiguratorForm = ({
  * The id `setSubregistry` will be addressed with, resolved before the form is
  * built so nothing below re-derives it from the displayed name (WEB-1458).
  * No id means no form, not a guess.
+ *
+ * Only mounted once registry discovery has answered, so its loading and error
+ * states are about identifying the name and nothing else.
  */
-export const SubregistryConfigurator = (
-  props: SubregistryConfiguratorProps,
-) => {
-  // The same discovery query the form runs, so this costs no extra read.
-  const {
-    data: registries,
-    isLoading: isRegistriesLoading,
-    error: registriesError,
-  } = useQuery(getNameRegistriesQueryOptions({ name: props.name }))
-  const parentRegistry = registries?.at(1) ?? undefined
-
+const SubregistryResourceIdGate = ({
+  parentRegistry,
+  ...props
+}: SubregistryConfiguratorProps & {
+  readonly parentRegistry: Address | undefined
+}) => {
   const idFromName = resourceIdForName(props.name).unwrapOr(null)
   const {
     data: readId,
-    isLoading: isReadingId,
-    error: readIdError,
+    isLoading,
+    error,
+    refetch,
+    isRefetching,
   } = useQuery({
     ...getNameResourceIdQueryOptions({
       name: props.name,
@@ -400,25 +400,27 @@ export const SubregistryConfigurator = (
   })
   const resourceId = idFromName ?? readId ?? null
 
-  if (isRegistriesLoading || isReadingId)
-    return <LoadingSpinner title="Identifying this name" />
-
-  if (registriesError)
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching registry data. Please refresh the page."
-      />
-    )
+  if (isLoading) return <LoadingSpinner title="Identifying this name" />
 
   // A failed read is not an answer, and must not be reported as "this name has
   // no identity".
-  if (readIdError)
+  if (error)
     return (
-      <ErrorMessage
-        compact
-        description={`The registry could not be asked which name ${props.name} is, so nothing was loaded: ${readIdError.message}`}
-      />
+      <div className="flex flex-col gap-3">
+        <ErrorMessage
+          compact
+          description={`The registry could not be asked which name ${props.name} is, so nothing was loaded: ${error.message}`}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          disabled={isRefetching}
+          onClick={() => void refetch()}
+        >
+          Try again
+        </Button>
+      </div>
     )
 
   if (!resourceId)
@@ -430,4 +432,38 @@ export const SubregistryConfigurator = (
     )
 
   return <SubregistryConfiguratorForm {...props} resourceId={resourceId} />
+}
+
+/**
+ * Finds the registry holding the name, then hands over to
+ * {@link SubregistryResourceIdGate} to identify the name in it. Each step
+ * renders its own loading and error state, so a failure says which question
+ * went unanswered.
+ */
+export const SubregistryConfigurator = (
+  props: SubregistryConfiguratorProps,
+) => {
+  // The same discovery query the form runs, so this costs no extra read.
+  const {
+    data: registries,
+    isLoading,
+    error,
+  } = useQuery(getNameRegistriesQueryOptions({ name: props.name }))
+
+  if (isLoading) return <LoadingSpinner title="Loading registry information" />
+
+  if (error)
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching registry data. Please refresh the page."
+      />
+    )
+
+  return (
+    <SubregistryResourceIdGate
+      {...props}
+      parentRegistry={registries?.at(1) ?? undefined}
+    />
+  )
 }
