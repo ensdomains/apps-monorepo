@@ -81,6 +81,55 @@ const getDomainSizeClasses = (domainName: string): string => {
   return 'text-[40px]'
 }
 
+const PaymentMethods = ({
+  showNetworkFeeDetails,
+  paymentMethodItems,
+  stablecoinBalances,
+  onSelectCoin,
+  selectedToken,
+  requiredAmount,
+}: {
+  readonly showNetworkFeeDetails: boolean
+  readonly paymentMethodItems: readonly PaymentMethodListItem[]
+  readonly stablecoinBalances: readonly StablecoinBalance[]
+  readonly onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  readonly selectedToken: SUPPORTED_TOKEN | undefined
+  readonly requiredAmount: number | undefined
+}) => {
+  if (showNetworkFeeDetails) {
+    return <PaymentMethodList items={paymentMethodItems} />
+  }
+
+  return (
+    <div className="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
+      {stablecoinBalances.map((stablecoin) => (
+        <TokenListItem
+          key={stablecoin.address}
+          onSelectCoin={onSelectCoin}
+          priceUSD={requiredAmount ?? 0}
+          selectedCoin={selectedToken}
+          stablecoin={stablecoin}
+        />
+      ))}
+    </div>
+  )
+}
+
+const getPaymentHeadline = (
+  funding: RegistrationFundingSummary | undefined,
+  displayTotal: number | undefined,
+) => {
+  if (!funding) {
+    return { hasAccountCredit: false, headlineAmount: displayTotal }
+  }
+
+  const figures = getPaymentBreakdownFigures(funding)
+  return {
+    hasAccountCredit: figures.credit > 0,
+    headlineAmount: figures.walletDebit,
+  }
+}
+
 export const TokenPickerContent = () => {
   const { t } = useLingui()
   const { label, uiActor } = useRegistrationV2Context()
@@ -438,9 +487,10 @@ export const TokenPickerContentBase = ({
   // Rounded together with the breakdown lines, so they add up on screen. The
   // headline is always the debit once a budget is quoted; the label only
   // changes when a credit line is there to explain the gap.
-  const figures = funding && getPaymentBreakdownFigures(funding)
-  const hasAccountCredit = !!figures && figures.credit > 0
-  const headlineAmount = figures ? figures.walletDebit : displayTotal
+  const { hasAccountCredit, headlineAmount } = getPaymentHeadline(
+    funding,
+    displayTotal,
+  )
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
@@ -579,23 +629,16 @@ export const TokenPickerContentBase = ({
                 </div>
               </div>
             ))
-            .with({ stablecoinsCount: P.number.gt(0) }, () =>
-              showNetworkFeeDetails ? (
-                <PaymentMethodList items={paymentMethodItems} />
-              ) : (
-                <div className="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
-                  {stablecoinBalances.map((stablecoin) => (
-                    <TokenListItem
-                      key={stablecoin.address}
-                      onSelectCoin={onSelectCoin}
-                      priceUSD={requiredAmount ?? 0}
-                      selectedCoin={selectedToken}
-                      stablecoin={stablecoin}
-                    />
-                  ))}
-                </div>
-              ),
-            )
+            .with({ stablecoinsCount: P.number.gt(0) }, () => (
+              <PaymentMethods
+                onSelectCoin={onSelectCoin}
+                paymentMethodItems={paymentMethodItems}
+                requiredAmount={requiredAmount}
+                selectedToken={selectedToken}
+                showNetworkFeeDetails={showNetworkFeeDetails}
+                stablecoinBalances={stablecoinBalances}
+              />
+            ))
             .otherwise(() => undefined)}
 
           {globalErrorMessage && (

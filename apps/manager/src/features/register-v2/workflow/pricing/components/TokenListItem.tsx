@@ -106,9 +106,7 @@ export const TokenListItem = ({
 
   const displayedError =
     errorMessage ??
-    (isFunded ? undefined : (
-      <Trans>not enough funds to pay network fees</Trans>
-    ))
+    (isFunded ? undefined : <Trans>not enough funds to pay network fees</Trans>)
 
   return (
     <PaymentMethodRow
