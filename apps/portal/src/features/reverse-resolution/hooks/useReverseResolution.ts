@@ -19,7 +19,7 @@ import {
 } from 'viem'
 import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import type { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -50,7 +50,7 @@ export type ReverseResolutionResult = {
 
 type Network = ReverseResolutionNetwork
 
-const REVERSE_RESOLUTION_NETWORK = config.network
+const REVERSE_RESOLUTION_NETWORK = envConfig.network
 
 function createEmptyResult(network: Network): ReverseResolutionResult {
   return {

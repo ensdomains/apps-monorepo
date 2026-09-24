@@ -1,6 +1,6 @@
 import { createPlainClient, graphqlRequest } from '@ens-apps/indexer/urql'
 import type { AnyVariables, DocumentInput } from '@urql/core'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 
 /**
  * Portal's indexer client.
@@ -12,7 +12,7 @@ import { config } from '@/config'
  * Portal reads these payloads generically (`Object.entries` over event detail
  * objects), so an injected `__typename` would surface as a rendered field.
  */
-const client = createPlainClient(config.endpoints.indexerGraphql)
+const client = createPlainClient(envConfig.endpoints.indexerGraphql)
 
 /**
  * Run an indexer query and resolve to its `data`, throwing on failure — every

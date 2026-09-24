@@ -10,7 +10,7 @@ import {
   namehash,
   type PublicClient,
 } from 'viem'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 
 import { V2_CONTRACTS } from '../contracts/addresses'
 import {
@@ -413,7 +413,7 @@ export const buildMigrationPlan = async (params: {
   const classifiedNamesResult = classifyNames(
     [...domains],
     migrationOwner,
-    config.chain.id,
+    envConfig.chain.id,
   )
   const classified = classifiedNamesResult.classified
   const directNames = classified.filter(
@@ -581,7 +581,7 @@ export const classifyMigrationRecoverySnapshot = (params: {
   const result = classifyNames(
     [...params.snapshot.registryDomains],
     params.migrationOwner,
-    config.chain.id,
+    envConfig.chain.id,
   )
   if (
     result.ineligible.length > 0 ||

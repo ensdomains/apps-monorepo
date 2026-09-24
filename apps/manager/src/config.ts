@@ -41,7 +41,7 @@ const resolveRpcOverride = createIsomorphicFn()
     return envUrl
   })
 
-export const config = buildConfig({
+export const envConfig = buildConfig({
   network,
   // `createIsomorphicFn` is a no-op stub until the TanStack Start Vite plugin
   // transforms it, so it returns `undefined` where that transform does not run
@@ -52,4 +52,4 @@ export const config = buildConfig({
   },
 })
 
-export const { chain, isTestnet, rpcUrls } = config
+export const { chain, isTestnet, rpcUrls } = envConfig

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // The service reads contracts off the resolved chain, so the fixture shapes
 // them the way ensjs does.
 vi.mock('@/config', () => ({
-  config: {
+  envConfig: {
     chain: {
       contracts: {
         ensDefaultReverseRegistrar: {

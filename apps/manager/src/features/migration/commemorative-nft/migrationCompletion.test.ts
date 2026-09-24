@@ -4,7 +4,7 @@ import { err, ok } from 'neverthrow'
 import { type Address, type Hex, namehash, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 
 const mocks = vi.hoisted(() => ({
   getPublicClient: vi.fn(),
@@ -72,7 +72,7 @@ const domain = makeDomain({
 const classified = classifyNames(
   [domain],
   ownerAddress,
-  config.chain.id,
+  envConfig.chain.id,
 ).classified
 const emptyEligibility = () => ({
   eligible: [] as ClassifiedName[],

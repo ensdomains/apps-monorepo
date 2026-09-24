@@ -2,7 +2,7 @@ import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/config'
 import { walletConnect } from '@wagmi/connectors'
 import { createClient, fallback, http } from 'viem'
 import { createConfig } from 'wagmi'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
@@ -19,7 +19,7 @@ export { WALLETCONNECT_PROJECT_ID }
 // Failover across the app's attributed primary and the network's shared
 // public endpoints.
 export const sepoliaFallbackTransport = fallback(
-  config.rpcUrls.map((url) =>
+  envConfig.rpcUrls.map((url) =>
     http(url, {
       retryCount: 2,
       batch: {
@@ -32,7 +32,7 @@ export const sepoliaFallbackTransport = fallback(
   { rank: false, retryCount: 2 },
 )
 
-export const sepoliaWithEns = config.chain
+export const sepoliaWithEns = envConfig.chain
 
 // Injected wallets (MetaMask, Coinbase extension, Rabby, …) are discovered via
 // EIP-6963, so WalletConnect is the only explicit connector. We skip the

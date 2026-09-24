@@ -1,6 +1,6 @@
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, PublicClient } from 'viem'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 import {
   type ClassifiedName,
   classifyNames,
@@ -172,7 +172,7 @@ export const computeMigrationPreflight = async (params: {
   const { eoa, hcaAddress, domains, wagmiConfig, publicClient, signal } = params
   signal?.throwIfAborted()
 
-  const { classified } = classifyNames([...domains], eoa, config.chain.id)
+  const { classified } = classifyNames([...domains], eoa, envConfig.chain.id)
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )

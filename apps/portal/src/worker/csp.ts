@@ -16,7 +16,7 @@
  */
 
 import { originFromEnvUrl } from '@ens-apps/config'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 
 // DQA overlay origin (QA/preview builds only): needed in script-src and
 // connect-src (https + wss). Statically null unless the build sets VITE_DQA=1.
@@ -47,11 +47,11 @@ const DEFAULT_CONNECT_HOSTS = [
   // the transports read (lib/wagmi.ts), so an endpoint change can never be
   // silently blocked. Relative primaries (`/rpc` in e2e) yield null and are
   // covered by 'self'.
-  ...config.rpcUrls
+  ...envConfig.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
   // The ENSv2 indexer, resolved the same way the urql client resolves it.
-  ...[originFromEnvUrl(config.endpoints.indexerGraphql)].filter(
+  ...[originFromEnvUrl(envConfig.endpoints.indexerGraphql)].filter(
     (origin): origin is string => origin !== null,
   ),
   // ENS-owned hosts: indexer GraphQL (graphql.ens.dev — packages/indexer/
@@ -62,7 +62,7 @@ const DEFAULT_CONNECT_HOSTS = [
   // The v1 subgraph ensjs resolves for this network. Derived rather than
   // listed, because mainnet's host is not under *.ens.dev and a stale entry
   // here fails closed in the browser.
-  new URL(config.chain.subgraphs.ens.url).origin,
+  new URL(envConfig.chain.subgraphs.ens.url).origin,
   // ENS-owned *.ens.domains hosts: the DNSSEC oracle/gateway (DNS import flow)
   // and the PostHog analytics host (jakob.ens.domains — .env
   // VITE_PUBLIC_POSTHOG_HOST). Wildcarded for the same reason as *.ens.dev.

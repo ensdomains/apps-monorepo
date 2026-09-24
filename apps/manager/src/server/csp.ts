@@ -11,7 +11,7 @@
 
 import { originFromEnvUrl } from '@ens-apps/config'
 import { ensL1Subgraphs } from '@ensdomains/ensjs/chain'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 
 import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
 
@@ -51,11 +51,11 @@ const DEFAULT_CONNECT_HOSTS = [
   // primary plus the network's shared fallbacks. Derived from the same config
   // the transports read, so an endpoint change can never be silently blocked.
   // Relative primaries (`/rpc` in e2e) yield null and are covered by 'self'.
-  ...config.rpcUrls
+  ...envConfig.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
   // The ENSv2 indexer, resolved the same way the urql client resolves it.
-  ...[originFromEnvUrl(config.endpoints.indexerGraphql)].filter(
+  ...[originFromEnvUrl(envConfig.endpoints.indexerGraphql)].filter(
     (origin): origin is string => origin !== null,
   ),
   // ENS-owned hosts: indexer GraphQL, backend API (VITE_API_URL /

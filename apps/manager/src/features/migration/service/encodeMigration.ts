@@ -1,6 +1,6 @@
 import { isKnownPublicResolver } from '@ens-apps/migration'
 import { type Address, zeroAddress } from 'viem'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
 
 export type MigrationData = {
@@ -34,7 +34,7 @@ export const resolverFor = (
     switch (name.resolverStrategy) {
       case 'keep-v1':
         return (
-          isKnownPublicResolver(name.v1ResolverAddress, config.chain.id)
+          isKnownPublicResolver(name.v1ResolverAddress, envConfig.chain.id)
             ? defaultResolver
             : (name.v1ResolverAddress ??
               (cannotSetResolverLocked ? zeroAddress : defaultResolver))

@@ -20,7 +20,7 @@ import {
 } from 'viem'
 import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import type { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -28,7 +28,7 @@ import { l2WagmiConfig } from '@/lib/wagmiL2'
 
 type EnsV1Client = Client<Transport, typeof sepoliaWithEns>
 
-const REVERSE_MATCH_NETWORK = config.network
+const REVERSE_MATCH_NETWORK = envConfig.network
 
 /** A forward-resolved address to reverse-check against the name. */
 export type ReverseMatchNetwork = {

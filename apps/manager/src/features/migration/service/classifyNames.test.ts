@@ -1,6 +1,6 @@
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 import {
   makeClassified,
   makeDomain,
@@ -391,7 +391,7 @@ describe('classifyNames', () => {
       const { classified: names, ineligible } = classifyNames(
         domains,
         OWNER,
-        config.chain.id,
+        envConfig.chain.id,
       )
 
       expect(
@@ -451,7 +451,7 @@ describe('classifyNames', () => {
     const { classified, ineligible } = classifyNames(
       domains,
       OWNER,
-      config.chain.id,
+      envConfig.chain.id,
     )
     expect(classified.map((c) => c.domain.id)).toEqual(['0x1'])
     expect(ineligible.map((i) => [i.domain.id, i.reason])).toEqual([
@@ -485,7 +485,7 @@ describe('classifyNames', () => {
     const { classified: names, ineligible } = classifyNames(
       domains,
       OWNER,
-      config.chain.id,
+      envConfig.chain.id,
     )
 
     expect(names.map((name) => [name.domain.name, name.action])).toEqual([
@@ -515,7 +515,7 @@ describe('classifyNames', () => {
       }),
     ]
 
-    const result = classifyNames(domains, OWNER, config.chain.id)
+    const result = classifyNames(domains, OWNER, envConfig.chain.id)
 
     expect(result.classified.map((name) => name.domain.name)).toEqual([
       'raffy.eth',

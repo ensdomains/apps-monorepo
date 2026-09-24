@@ -32,7 +32,7 @@ const PORTAL_RPC_URLS: Partial<Record<EnsNetwork, string>> = {
 
 const network = import.meta.env?.VITE_ENS_NETWORK
 
-export const config = buildConfig({
+export const envConfig = buildConfig({
   network,
   rpcUrl:
     import.meta.env?.VITE_SEPOLIA_RPC_URL ??
@@ -42,4 +42,4 @@ export const config = buildConfig({
   },
 })
 
-export const { chain, isTestnet, rpcUrls } = config
+export const { chain, isTestnet, rpcUrls } = envConfig

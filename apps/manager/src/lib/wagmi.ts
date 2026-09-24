@@ -2,7 +2,7 @@ import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/config'
 import { createPublicClient, fallback, http } from 'viem'
 import { createConfig } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
 /**
@@ -15,11 +15,11 @@ import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 // instead of latency ranking, which would let a fast public node steal
 // traffic from our key.
 export const sepoliaFallbackTransport = fallback(
-  config.rpcUrls.map((url) => http(url, { retryCount: 2 })),
+  envConfig.rpcUrls.map((url) => http(url, { retryCount: 2 })),
   { rank: false, retryCount: 2 },
 )
 
-export const sepoliaWithEns = config.chain
+export const sepoliaWithEns = envConfig.chain
 
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,

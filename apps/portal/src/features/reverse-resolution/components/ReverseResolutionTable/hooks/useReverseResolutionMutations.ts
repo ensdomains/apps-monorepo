@@ -14,7 +14,7 @@ import { useCallback, useMemo } from 'react'
 import { type Address, isAddressEqual } from 'viem'
 import { normalize } from 'viem/ens'
 import { useConnection, useWalletClient } from 'wagmi'
-import { config } from '@/config'
+import { envConfig } from '@/config'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
@@ -116,7 +116,7 @@ export function useReverseResolutionMutations({
           kind: 'l1-v1-direct',
           request: {
             // biome-ignore lint/style/noNonNullAssertion: coinType 60 always has an L1 registrar
-            address: getRegistrarAddress(60, config.network)!,
+            address: getRegistrarAddress(60, envConfig.network)!,
             abi: reverseRegistrarSetNameSnippet,
             functionName: 'setName',
             args: [normalizedName] as const,
@@ -135,7 +135,7 @@ export function useReverseResolutionMutations({
           reverseRegistrarChainId,
           // The network is a property of the build, not of whichever L2 the
           // wallet happens to be connected to.
-          network: config.network,
+          network: envConfig.network,
         }),
       }
     },
