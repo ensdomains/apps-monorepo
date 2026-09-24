@@ -1,6 +1,6 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: focused machine tests use compact fixtures
 import type { Address } from 'viem'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assign, createActor, createMachine } from 'xstate'
 
 /**
@@ -255,6 +255,10 @@ const flush = async (times = 8) => {
   }
 }
 
+beforeEach(() => {
+  localStorage.clear()
+})
+
 afterEach(() => {
   vi.clearAllMocks()
 })
@@ -275,6 +279,81 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     const snapshot = actor.getSnapshot()
     expect(snapshot.value).toBe('failure')
     expect(snapshot.context.lastErrorMessage).toMatch(/reconnect your wallet/i)
+  })
+
+  it('refuses to start while the wallet is registering another name', async () => {
+    const { acquireRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    acquireRegistrationLock(EOA_ADDRESS, 'othername.eth')
+
+    const actor = startActorInTokens()
+
+    actor.send(
+      startEvent({
+        signer: { type: 'rhinestone' } as any,
+        accountAddress: HCA_ADDRESS,
+        ownerAddress: EOA_ADDRESS,
+        walletClient: {} as any,
+      } as unknown as SmartAccountContextValue),
+    )
+
+    const snapshot = actor.getSnapshot()
+    expect(snapshot.value).toBe('failure')
+    expect(snapshot.context.lastErrorMessage).toMatch(/othername\.eth/i)
+  })
+
+  // QA hit this: the block held, then Try Again re-entered `registering`
+  // without re-checking, and both names registered at once.
+  it('refuses a retry while the wallet is registering another name', async () => {
+    const { acquireRegistrationLock, releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    const actor = startActorInTokens()
+
+    actor.send(
+      startEvent({
+        signer: { type: 'rhinestone' } as any,
+        accountAddress: HCA_ADDRESS,
+        ownerAddress: EOA_ADDRESS,
+        walletClient: {} as any,
+      } as unknown as SmartAccountContextValue),
+    )
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+
+    // Another tab takes the wallet while this one sits on the failure screen.
+    releaseRegistrationLock(EOA_ADDRESS, 'example.eth')
+    acquireRegistrationLock(EOA_ADDRESS, 'othername.eth')
+    actor.send({ type: '$error', error: new Error('boom') })
+    expect(actor.getSnapshot().value).toBe('failure')
+
+    actor.send({ type: 'retry' })
+
+    const snapshot = actor.getSnapshot()
+    expect(snapshot.value).toBe('failure')
+    expect(snapshot.context.lastErrorMessage).toMatch(/othername\.eth/i)
+  })
+
+  it('allows a retry once the wallet is free again', async () => {
+    const { releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    const actor = startActorInTokens()
+
+    actor.send(
+      startEvent({
+        signer: { type: 'rhinestone' } as any,
+        accountAddress: HCA_ADDRESS,
+        ownerAddress: EOA_ADDRESS,
+        walletClient: {} as any,
+      } as unknown as SmartAccountContextValue),
+    )
+    actor.send({ type: '$error', error: new Error('boom') })
+    releaseRegistrationLock(EOA_ADDRESS, 'example.eth')
+
+    actor.send({ type: 'retry' })
+
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
   })
 
   it('proceeds when an HCA registration has an owner wallet client', () => {
