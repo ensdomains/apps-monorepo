@@ -25,7 +25,6 @@ export const buildCommemorativeNftCardData = (params: {
     marketplaceUrl: buildCommemorativeNftMarketplaceUrl({
       chainId: params.chainId,
       ownerAddress: params.ownerAddress,
-      minted: params.minted,
     }),
     shareUrls: buildCommemorativeNftShareUrls(
       shareTarget,

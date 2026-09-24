@@ -113,20 +113,24 @@ const SharingRail = ({
         <legend className="sr-only">
           <Trans>NFT actions</Trans>
         </legend>
-        <SocialControl
-          href={state.card.shareUrls.x}
-          icon={<SiX aria-hidden className="size-4.5" />}
-          isDisabled={isDisabled}
-        >
-          <Trans>Share on X</Trans>
-        </SocialControl>
-        <SocialControl
-          href={state.card.shareUrls.telegram}
-          icon={<SiTelegram aria-hidden className="size-4.5" />}
-          isDisabled={isDisabled}
-        >
-          <Trans>Share on Telegram</Trans>
-        </SocialControl>
+        {state.status === 'minted' ? (
+          <>
+            <SocialControl
+              href={state.card.shareUrls.x}
+              icon={<SiX aria-hidden className="size-4.5" />}
+              isDisabled={isDisabled}
+            >
+              <Trans>Share on X</Trans>
+            </SocialControl>
+            <SocialControl
+              href={state.card.shareUrls.telegram}
+              icon={<SiTelegram aria-hidden className="size-4.5" />}
+              isDisabled={isDisabled}
+            >
+              <Trans>Share on Telegram</Trans>
+            </SocialControl>
+          </>
+        ) : null}
         {state.card.marketplaceUrl ? (
           <SocialControl
             href={state.card.marketplaceUrl}
@@ -137,60 +141,62 @@ const SharingRail = ({
           </SocialControl>
         ) : null}
       </fieldset>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            className={socialControlClassName}
-            disabled={isDisabled || (!externalUrl && !hasDownload)}
-            type="button"
-          >
-            <MSymbol
-              aria-hidden
-              className="ms-wght-500 text-xl/none"
-              symbol="more_horiz"
-            />
-            <span className="sr-only">
-              <Trans>More NFT actions</Trans>
-            </span>
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-44" side="left">
-          <DropdownMenuItem
-            aria-busy={pending}
-            disabled={!hasDownload || pending}
-            onSelect={() => void download()}
-          >
-            <MSymbol aria-hidden className="text-lg" symbol="download" />
-            {pending ? (
-              <Trans>Downloading artwork…</Trans>
-            ) : (
-              <Trans>Download WebP</Trans>
-            )}
-          </DropdownMenuItem>
-          {externalUrl ? (
-            <>
-              <DropdownMenuItem asChild>
-                <a href={externalUrl} rel="noreferrer" target="_blank">
+      {state.status === 'minted' ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className={socialControlClassName}
+              disabled={isDisabled || (!externalUrl && !hasDownload)}
+              type="button"
+            >
+              <MSymbol
+                aria-hidden
+                className="ms-wght-500 text-xl/none"
+                symbol="more_horiz"
+              />
+              <span className="sr-only">
+                <Trans>More NFT actions</Trans>
+              </span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-44" side="left">
+            <DropdownMenuItem
+              aria-busy={pending}
+              disabled={!hasDownload || pending}
+              onSelect={() => void download()}
+            >
+              <MSymbol aria-hidden className="text-lg" symbol="download" />
+              {pending ? (
+                <Trans>Downloading artwork…</Trans>
+              ) : (
+                <Trans>Download WebP</Trans>
+              )}
+            </DropdownMenuItem>
+            {externalUrl ? (
+              <>
+                <DropdownMenuItem asChild>
+                  <a href={externalUrl} rel="noreferrer" target="_blank">
+                    <MSymbol
+                      aria-hidden
+                      className="text-lg"
+                      symbol="arrow_outward"
+                    />
+                    <Trans>Open NFT in a new tab</Trans>
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void copy(externalUrl)}>
                   <MSymbol
                     aria-hidden
                     className="text-lg"
-                    symbol="arrow_outward"
+                    symbol="content_copy"
                   />
-                  <Trans>Open NFT in a new tab</Trans>
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => void copy(externalUrl)}>
-                <MSymbol
-                  aria-hidden
-                  className="text-lg"
-                  symbol="content_copy"
-                />
-                <Trans>Copy link</Trans>
-              </DropdownMenuItem>
-            </>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+                  <Trans>Copy link</Trans>
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
     </div>
   )
 }
@@ -224,7 +230,7 @@ const ArtworkActions = ({
             : undefined,
       )}
     >
-      {state.status === 'minted' ? (
+      {state.status === 'minted' || state.card.marketplaceUrl ? (
         <SharingRail isDisabled={isDisabled} state={state} variant={variant} />
       ) : null}
       {variant === 'profile' ? null : (
