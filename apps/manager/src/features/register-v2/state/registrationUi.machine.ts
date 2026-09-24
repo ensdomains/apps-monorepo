@@ -37,6 +37,11 @@ import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
+import {
+  acquireRegistrationLock,
+  getBlockingRegistration,
+  releaseRegistrationLock,
+} from '../service/registrationLock'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import { getDurationInSecondsFromYears } from '../utils/time'
 import {
@@ -378,6 +383,15 @@ const machineSetup = setup({
     forwardRetry: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'RETRY' }),
     forwardCancel: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'CANCEL' }),
     forwardSuspend: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'SUSPEND' }),
+    releaseRegistrationLock: ({ context }) => {
+      const confirmed = context.confirmedData
+      if (!confirmed) return
+
+      releaseRegistrationLock(
+        confirmed.ownerAddress,
+        asEthName(confirmed.label),
+      )
+    },
     clearRegistrationData: assign({
       confirmedData: () => undefined,
       postRegistrationSetup: () => undefined,
@@ -433,6 +447,14 @@ const machineSetup = setup({
     }),
     captureChildSuccess: enqueueActions(({ enqueue, context, event }) => {
       if (!isRegistrationSnapshotEvent(event)) return
+
+      const confirmed = context.confirmedData
+      if (confirmed) {
+        releaseRegistrationLock(
+          confirmed.ownerAddress,
+          asEthName(confirmed.label),
+        )
+      }
 
       enqueue.assign({
         registrationCompleted: true,
@@ -546,6 +568,24 @@ const startRegistrationAction = machineSetup.createAction(
       event.account.signer.type === 'rhinestone' &&
       ownerAddress.toLowerCase() !== event.account.accountAddress.toLowerCase()
 
+    // One registration at a time per wallet, across tabs. The commit batch
+    // funds the HCA with an EIP-2612 permit whose nonce is sequential per
+    // wallet, so a concurrent run reverts `TransferFromFailed()` and never
+    // records its commitment.
+    const blockingName = getBlockingRegistration(
+      ownerAddress,
+      asEthName(event.label),
+    )
+
+    if (blockingName !== null) {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(
+          `Cannot register: ${blockingName} is already being registered with this wallet, possibly in another tab. Finish or cancel it first.`,
+        ),
+      })
+    }
+
     if (isHcaRegistration && !approvalSigner) {
       return enqueue.raise({
         type: '$error',
@@ -593,6 +633,8 @@ const startRegistrationAction = machineSetup.createAction(
       hcaPrimaryName: bundlePrimaryName,
       addrReverseClearTxId: undefined,
     })
+
+    acquireRegistrationLock(ownerAddress, asEthName(event.label))
 
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
@@ -1183,7 +1225,12 @@ export const registrationV2UiMachine = machineSetup.createMachine({
         },
         cancel: {
           target: 'pricing',
-          actions: ['clearRegistrationData', 'clearError', 'forwardCancel'],
+          actions: [
+            'releaseRegistrationLock',
+            'clearRegistrationData',
+            'clearError',
+            'forwardCancel',
+          ],
         },
         // "Try Again" would carry on with the previous wallet's signer.
         'registration.suspend': {
@@ -1200,7 +1247,12 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     },
     'label.changed': {
       target: '.pricing',
-      actions: ['clearRegistrationData', 'clearError', 'forwardCancel'],
+      actions: [
+        'releaseRegistrationLock',
+        'clearRegistrationData',
+        'clearError',
+        'forwardCancel',
+      ],
     },
   },
 })
