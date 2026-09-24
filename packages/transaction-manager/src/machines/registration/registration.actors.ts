@@ -4,6 +4,7 @@
  * Pure functions for ENS registration operations.
  */
 
+import { requireChainId, requireEnsChain } from '@ens-apps/config'
 import {
   ethRegistrarCommitmentsSnippet,
   ethRegistrarCommitSnippet,
@@ -40,7 +41,6 @@ import { getBlock, multicall, readContract } from 'viem/actions'
 import type { Signer } from '../..'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
-import { requireChainId, requireEnsChain } from '../../helpers/requireChainId'
 
 // `MIN_COMMITMENT_AGE` is an immutable on ETHRegistrar; ensjs-abi does not (yet)
 // expose a dedicated snippet for it.
@@ -48,7 +48,6 @@ const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
   'function MIN_COMMITMENT_AGE() view returns (uint64)',
 ])
 
-import { getTokens, type TOKEN_SYMBOL } from '@ens-apps/config'
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
 import { transactionManager } from '../../providers/transactionManager'
@@ -261,11 +260,15 @@ export function encodeRegisterCall({
   }
 }
 
-/**
- * Get payment token address
- */
-function getPaymentTokenAddress(token: TOKEN_SYMBOL, chainId: number): Address {
-  return getTokens(chainId)[token].address
+export type TOKEN_SYMBOL = 'USDC' | 'DAI'
+
+const PAYMENT_TOKEN_CONTRACT = { USDC: 'usdc', DAI: 'dai' } as const
+
+function getPaymentTokenAddress(token: TOKEN_SYMBOL, chain: Chain): Address {
+  return getChainContractAddress({
+    chain,
+    contract: PAYMENT_TOKEN_CONTRACT[token],
+  })
 }
 
 export function getSignerAddress(signer: Signer): Address {
@@ -360,16 +363,17 @@ export function submitResolverDeploymentActor(input: {
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
       const salt = generateResolverSalt(input.name)
+      const chain = requireEnsChain(input.publicClient, 'registration')
 
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        chainId: requireChainId(input.publicClient, 'registration'),
+        chainId: chain.id,
         calls: [
           encodeDeployDedicatedResolverCall({
             owner: input.owner,
             salt,
-            chain: requireEnsChain(input.publicClient, 'registration'),
+            chain,
           }),
         ],
       })
@@ -603,7 +607,7 @@ export function readPaymentTokenAllowanceActor(input: {
     input.paymentTokenAddress ??
     getPaymentTokenAddress(
       input.selectedToken,
-      requireChainId(input.publicClient, 'registration'),
+      requireEnsChain(input.publicClient, 'registration'),
     )
   return fromPromise(
     readContract(input.publicClient, {
@@ -644,7 +648,7 @@ export function readPaymentAuthorizationActor(input: {
     input.paymentTokenAddress ??
     getPaymentTokenAddress(
       input.selectedToken,
-      requireChainId(input.publicClient, 'registration'),
+      requireEnsChain(input.publicClient, 'registration'),
     )
   const label = input.name.replace('.eth', '')
   return fromPromise(
@@ -896,7 +900,7 @@ export function submitApprovalActor(input: {
         input.paymentTokenAddress ??
         getPaymentTokenAddress(
           input.selectedToken,
-          requireChainId(input.publicClient, 'registration'),
+          requireEnsChain(input.publicClient, 'registration'),
         )
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
       const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
@@ -969,7 +973,7 @@ export function submitRegistrationActor(input: {
 
       const paymentToken = getPaymentTokenAddress(
         input.selectedToken,
-        requireChainId(input.publicClient, 'registration'),
+        requireEnsChain(input.publicClient, 'registration'),
       )
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
@@ -1132,7 +1136,7 @@ export function submitRenewActor(input: {
       // anything else (e.g. DAI) before we spend gas on it.
       const paymentToken = getPaymentTokenAddress(
         input.selectedToken,
-        requireChainId(input.publicClient, 'registration'),
+        requireEnsChain(input.publicClient, 'registration'),
       )
       // Normalize to lowercase to avoid Rhinestone SDK validation issues.
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address

@@ -10,6 +10,7 @@ import {
   namehash,
   type PublicClient,
 } from 'viem'
+import { config } from '@/config'
 
 import { V2_CONTRACTS } from '../contracts/addresses'
 import {
@@ -409,7 +410,11 @@ export const buildMigrationPlan = async (params: {
   } = params
   signal?.throwIfAborted()
 
-  const classifiedNamesResult = classifyNames([...domains], migrationOwner)
+  const classifiedNamesResult = classifyNames(
+    [...domains],
+    migrationOwner,
+    config.chain.id,
+  )
   const classified = classifiedNamesResult.classified
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
@@ -576,6 +581,7 @@ export const classifyMigrationRecoverySnapshot = (params: {
   const result = classifyNames(
     [...params.snapshot.registryDomains],
     params.migrationOwner,
+    config.chain.id,
   )
   if (
     result.ineligible.length > 0 ||

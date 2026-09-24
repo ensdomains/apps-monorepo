@@ -15,6 +15,7 @@ import {
   parseAbi,
   zeroAddress,
 } from 'viem'
+import { config } from '@/config'
 
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import {
@@ -227,7 +228,7 @@ const assertSourceResolverFresh = async (params: {
   if (
     params.requireSupportedResolver &&
     !isAddressEqual(resolver, zeroAddress) &&
-    !isKnownPublicResolver(resolver)
+    !isKnownPublicResolver(resolver, config.chain.id)
   ) {
     throw sourceError(
       name,

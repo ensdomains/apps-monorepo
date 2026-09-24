@@ -1,6 +1,6 @@
 import { zeroAddress } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { buildConfig, NetworkConfigError } from './build-config'
+import { buildConfig, NetworkConfigError } from './buildConfig'
 import { ENS_NETWORKS, NETWORKS } from './networks'
 
 const SEPOLIA_RPC = 'https://rpc.example/sepolia/key'
@@ -198,5 +198,27 @@ describe('NETWORKS', () => {
     for (const network of ENS_NETWORKS) {
       expect(NETWORKS[network].rpcFallbacks.length).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('undeployed contracts', () => {
+  // ensjs holds an undeployed contract as the zero address rather than
+  // omitting it, so a lookup succeeds and the call goes to 0x0. The build
+  // guard is what turns that into a failure, and it must cover the reverse
+  // set too now that ensjs carries those keys.
+  it('fails a mainnet build naming every zero-address contract', () => {
+    expect(() =>
+      buildConfig({
+        network: 'mainnet',
+        overrides: { indexerGraphql: 'https://indexer.example/' },
+      }),
+    ).toThrow(/ensDefaultReverseRegistrar/)
+  })
+
+  it('does not fail sepolia, where they are deployed', () => {
+    const { contracts } = buildSepolia().chain
+
+    expect(contracts.ensDefaultReverseRegistrar.address).not.toMatch(/^0x0+$/)
+    expect(contracts.ensReverseRegistrarAdapter.address).not.toMatch(/^0x0+$/)
   })
 })

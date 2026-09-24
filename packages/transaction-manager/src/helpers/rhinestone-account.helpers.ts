@@ -1,3 +1,4 @@
+import { requireEnsChain } from '@ens-apps/config'
 import { logger } from '@ens-apps/utils/logger'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import {
@@ -8,7 +9,6 @@ import {
 } from 'viem'
 import { readContract } from 'viem/actions'
 import { ETH_REGISTRAR_CONTROLLER_ABI } from '../contracts/abis/ETHRegistrarController.abi'
-import { requireEnsChain } from './requireChainId'
 
 export class RhinestoneAccountError extends Error {
   constructor(message: string) {

@@ -39,6 +39,7 @@ export {
 export {
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
+  type TOKEN_SYMBOL,
 } from './machines/registration/registration.actors'
 export type {
   RegistrationContext,

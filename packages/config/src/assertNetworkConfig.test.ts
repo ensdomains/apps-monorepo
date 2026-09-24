@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { assertNetworkConfig } from './assert-network-config'
-import { buildConfig, NetworkConfigError } from './build-config'
+import { assertNetworkConfig } from './assertNetworkConfig'
+import { buildConfig, NetworkConfigError } from './buildConfig'
 
 describe('assertNetworkConfig', () => {
   it('returns the resolved config for a usable env', () => {

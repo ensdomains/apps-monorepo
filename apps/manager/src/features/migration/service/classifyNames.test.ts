@@ -1,4 +1,6 @@
+import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
+import { config } from '@/config'
 import {
   makeClassified,
   makeDomain,
@@ -16,7 +18,7 @@ import {
 import type { V1Domain } from './v1SubgraphClient'
 
 const classify = (o: Parameters<typeof makeDomain>[0] = {}) =>
-  classifyName(makeDomain(o), OWNER)
+  classifyName(makeDomain(o), OWNER, sepolia.id)
 
 const classified = (r: ReturnType<typeof classifyName>): ClassifiedName => {
   if (r?.type !== 'classified') throw new Error('not classified')
@@ -386,7 +388,11 @@ describe('classifyNames', () => {
         }),
       ]
 
-      const { classified: names, ineligible } = classifyNames(domains, OWNER)
+      const { classified: names, ineligible } = classifyNames(
+        domains,
+        OWNER,
+        config.chain.id,
+      )
 
       expect(
         names.map(({ domain, action, tokenType }) => [
@@ -442,7 +448,11 @@ describe('classifyNames', () => {
       }),
       makeDomain({ id: '0x4', labelName: null }),
     ]
-    const { classified, ineligible } = classifyNames(domains, OWNER)
+    const { classified, ineligible } = classifyNames(
+      domains,
+      OWNER,
+      config.chain.id,
+    )
     expect(classified.map((c) => c.domain.id)).toEqual(['0x1'])
     expect(ineligible.map((i) => [i.domain.id, i.reason])).toEqual([
       ['0x2', 'not-transferable'],
@@ -472,7 +482,11 @@ describe('classifyNames', () => {
       }),
     ]
 
-    const { classified: names, ineligible } = classifyNames(domains, OWNER)
+    const { classified: names, ineligible } = classifyNames(
+      domains,
+      OWNER,
+      config.chain.id,
+    )
 
     expect(names.map((name) => [name.domain.name, name.action])).toEqual([
       ['raffy.eth', 'migrate'],
@@ -501,7 +515,7 @@ describe('classifyNames', () => {
       }),
     ]
 
-    const result = classifyNames(domains, OWNER)
+    const result = classifyNames(domains, OWNER, config.chain.id)
 
     expect(result.classified.map((name) => name.domain.name)).toEqual([
       'raffy.eth',
