@@ -289,7 +289,11 @@ function RouteComponent() {
   // separately registrable name. Namehash is defined over the normalised name.
   const ascii = asciiEncode(name)
 
-  const hash = namehash(normalizeOrLower(name))
+  // Token identity is the normalised name's; the rows below describe the raw
+  // input, so they keep using `name`.
+  const normalizedName = normalizeOrLower(name)
+
+  const hash = namehash(normalizedName)
 
   const normalized = isNormalized(name)
 
@@ -306,9 +310,12 @@ function RouteComponent() {
       </header>
 
       {data?.protocolVersion === 'ENSv1' ? (
-        <TokenV1Name name={name} />
+        <TokenV1Name name={normalizedName} />
       ) : data?.protocolVersion === 'ENSv2' ? (
-        <TokenV2Name name={name} registryAddress={data.registryAddress} />
+        <TokenV2Name
+          name={normalizedName}
+          registryAddress={data.registryAddress}
+        />
       ) : null}
 
       <InfoCard
