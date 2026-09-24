@@ -59,6 +59,17 @@ describe('TokenPickerContentBase', () => {
     expect(onSelectCoin).not.toHaveBeenCalled()
   })
 
+  it('keeps the existing token row outside registration', () => {
+    renderPicker({
+      selectedToken: 'USDC',
+      showNetworkFeeDetails: false,
+    })
+
+    expect(screen.getByText('available')).toBeVisible()
+    expect(screen.queryByText('balance')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Mainnet est\. fee/)).not.toBeInTheDocument()
+  })
+
   it('does not override a token the user already picked', () => {
     const onSelectCoin = renderPicker({ selectedToken: 'USDC' })
 
