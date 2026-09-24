@@ -19,8 +19,8 @@ export const assertNetworkConfig = (
   try {
     const config = buildConfig({
       network: env.VITE_ENS_NETWORK,
-      rpcUrl: env.VITE_SEPOLIA_RPC_URL || undefined,
-      overrides: { indexerGraphql: env.VITE_INDEXER_GRAPHQL_URL || undefined },
+      rpcUrl: env.VITE_SEPOLIA_RPC_URL,
+      overrides: { indexerGraphql: env.VITE_INDEXER_GRAPHQL_URL },
     })
     return config
   } catch (error) {

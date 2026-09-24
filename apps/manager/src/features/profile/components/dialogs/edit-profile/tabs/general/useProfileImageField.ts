@@ -262,7 +262,6 @@ export const useProfileImageField = ({
         zoom: cropZoom,
       })
       const upload = await prepareProfileImageUpload({
-        chainId,
         file: croppedFile,
         name,
         type: kind,

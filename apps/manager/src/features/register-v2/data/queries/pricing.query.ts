@@ -9,7 +9,7 @@ import {
 } from '@ensdomains/ensjs/public'
 import { err, fromPromise, ok } from 'neverthrow'
 import { parseAbi } from 'viem'
-import { sepolia } from 'viem/chains'
+import { chain } from '@/config'
 import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 
@@ -24,7 +24,7 @@ const ETH_REGISTRAR = getChainContractAddress({
 // token (Circle Sepolia USDC), so the quote the user sees matches what the
 // commit/reveal charges. The legacy ensjs `ensEthRegistrar` + mock USDC path
 // priced against a different contract and token.
-const HCA_CONTRACTS = getDestinationContracts(sepolia.id)
+const HCA_CONTRACTS = getDestinationContracts(chain.id)
 const hcaRegistrarAbi = parseAbi([
   'function getRegisterPrice(string label, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)',
 ])

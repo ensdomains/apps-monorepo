@@ -10,7 +10,7 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import { sepolia } from 'viem/chains'
+import { chain } from '@/config'
 import { publicClient } from '@/lib/wagmi'
 
 /**
@@ -109,7 +109,7 @@ const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
     name: params.label,
     duration: BigInt(Math.ceil(params.durationInSeconds)),
     publicClient,
-    chainId: sepolia.id,
+    chainId: chain.id,
     ...(params.signer ? { signer: params.signer } : {}),
     ...(sessionEnable ? { sessionEnable } : {}),
     ...(params.primaryName ? { primaryName: params.primaryName } : {}),
@@ -123,7 +123,7 @@ const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
     ? await readHcaUsdcBalanceActor({
         hca: params.hca,
         publicClient,
-        chainId: sepolia.id,
+        chainId: chain.id,
       }).unwrapOr(0n)
     : 0n
 

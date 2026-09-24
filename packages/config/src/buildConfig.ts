@@ -51,10 +51,12 @@ const buildEnsChain = (network: EnsNetwork, rpcUrls: readonly string[]) => ({
 
 /**
  * Both networks produce structurally identical chains: the same contract
- * keys, differing only in address values. Pinning the static type to one
- * instantiation keeps a single concrete chain type flowing into ensjs and
- * wagmi. Leaving it as the union would surface in every action signature
- * downstream, for a distinction that only exists in literal address types.
+ * keys, differing only in `id` and address values. The static type is pinned
+ * to one instantiation on purpose. ensjs types its client as a union of two
+ * concrete chains and viem's generics distribute over unions, so a chain typed
+ * as the union cannot flow into any ensjs action without narrowing at every
+ * call. The one lie this tells is the literal `id`; which network a build
+ * targets is a runtime fact, checked by `assertEnsV2Deployed`, not a type.
  */
 export type EnsChain = Extract<
   ReturnType<typeof buildEnsChain>,
@@ -166,7 +168,9 @@ const resolveEndpoints = (
   const missing: string[] = []
 
   for (const key of Object.keys(profile) as (keyof NetworkEndpoints)[]) {
-    const value = overrides?.[key] ?? profile[key]
+    // `||`, not `??`: an override that is set but empty (a CI variable that
+    // was never given a value) must fall through to the profile.
+    const value = overrides?.[key] || profile[key]
     if (!value) {
       missing.push(key)
       continue
@@ -191,9 +195,10 @@ const assertEnsV2Deployed = (
   // contract is deployed is exactly the runtime question being asked.
   contracts: Record<string, { readonly address: string } | undefined>,
 ): void => {
-  const undeployed = REQUIRED_ENSV2_CONTRACTS.filter(
-    (name) => contracts[name]?.address?.toLowerCase() === zeroAddress,
-  )
+  const undeployed = REQUIRED_ENSV2_CONTRACTS.filter((name) => {
+    const address = contracts[name]?.address
+    return !address || address.toLowerCase() === zeroAddress
+  })
   if (undeployed.length > 0) {
     throw new NetworkConfigError(
       `ENSv2 is not deployed on ${network}: ${undeployed.join(', ')} ` +
@@ -218,10 +223,9 @@ export const buildConfig = ({
   const network = resolveNetwork(requestedNetwork)
   const profile = NETWORKS[network]
 
-  const primaryRpcUrl =
-    rpcUrl === undefined
-      ? undefined
-      : parseOrThrow(endpointUrlSchema, rpcUrl, 'rpcUrl')
+  const primaryRpcUrl = rpcUrl
+    ? parseOrThrow(endpointUrlSchema, rpcUrl, 'rpcUrl')
+    : undefined
   const rpcUrls = orderedRpcUrls(primaryRpcUrl, profile.rpcFallbacks)
 
   const endpoints = resolveEndpoints(network, overrides)

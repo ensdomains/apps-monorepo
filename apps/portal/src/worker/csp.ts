@@ -54,9 +54,8 @@ const DEFAULT_CONNECT_HOSTS = [
   ...[originFromEnvUrl(envConfig.endpoints.indexerGraphql)].filter(
     (origin): origin is string => origin !== null,
   ),
-  // ENS-owned hosts: indexer GraphQL (graphql.ens.dev — packages/indexer/
-  // urql/client.ts) and the fund/faucet API (app-api.ens.dev —
-  // src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env
+  // ENS-owned hosts: the indexer GraphQL endpoint (resolved in `@/config`)
+  // and the fund/faucet API (app-api.ens.dev, src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env
   // *.ens.dev hosts (and future ones) don't silently break a flow.
   'https://*.ens.dev',
   // The v1 subgraph ensjs resolves for this network. Derived rather than

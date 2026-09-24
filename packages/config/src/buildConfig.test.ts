@@ -102,7 +102,6 @@ describe('buildConfig', () => {
     })
 
     it.each([
-      '',
       '   ',
       'not-a-url',
       'ftp://rpc.example',
@@ -220,5 +219,27 @@ describe('undeployed contracts', () => {
 
     expect(contracts.ensDefaultReverseRegistrar.address).not.toMatch(/^0x0+$/)
     expect(contracts.ensReverseRegistrarAdapter.address).not.toMatch(/^0x0+$/)
+  })
+})
+
+describe('empty-string environment values', () => {
+  // Vite inlines `VITE_X=` and an unset CI variable as `''`, not `undefined`.
+  // Both have to read as "not set", or the prebuild guard passes and the
+  // bundle throws at module load.
+  it('falls back to the profile endpoint on an empty override', () => {
+    const config = buildConfig({
+      network: 'sepolia',
+      overrides: { indexerGraphql: '' },
+    })
+
+    expect(config.endpoints.indexerGraphql).toBe(
+      NETWORKS.sepolia.endpoints.indexerGraphql,
+    )
+  })
+
+  it('falls back to the shared endpoints on an empty rpcUrl', () => {
+    const config = buildConfig({ network: 'sepolia', rpcUrl: '' })
+
+    expect(config.rpcUrls).toEqual(NETWORKS.sepolia.rpcFallbacks)
   })
 })

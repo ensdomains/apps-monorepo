@@ -25,8 +25,8 @@ import { icons, names } from '@/lib/reverseRegistrarChainId'
  * `default.reverse`, coin type `0x80000000`). `setName(string)` sets the
  * caller's cross-chain primary name — NOT the ENSv2 permissioned-resolver path.
  *
- * Do not use `ENS_CONTRACTS.ensDefaultReverseRegistrar.address`; that currently
- * points at a different Sepolia deployment.
+ * Do not use the chain's `ensDefaultReverseRegistrar`; that currently points
+ * at a different Sepolia deployment.
  *
  * TODO: Sepolia-only; move to a network-keyed source (e.g. `@ens-apps/l2-primary`)
  * when mainnet is supported.

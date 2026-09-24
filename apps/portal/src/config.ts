@@ -1,4 +1,4 @@
-import { buildConfig, type EnsNetwork } from '@ens-apps/config'
+import { buildConfig, type EnsNetwork, isEnsNetwork } from '@ens-apps/config'
 
 /**
  * The portal's composition root for configuration: the only browser-side
@@ -36,7 +36,7 @@ export const envConfig = buildConfig({
   network,
   rpcUrl:
     import.meta.env?.VITE_SEPOLIA_RPC_URL ??
-    PORTAL_RPC_URLS[network as EnsNetwork],
+    (isEnsNetwork(network) ? PORTAL_RPC_URLS[network] : undefined),
   overrides: {
     indexerGraphql: import.meta.env?.VITE_INDEXER_GRAPHQL_URL,
   },

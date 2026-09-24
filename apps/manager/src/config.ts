@@ -1,4 +1,4 @@
-import { buildConfig, type EnsNetwork } from '@ens-apps/config'
+import { buildConfig, type EnsNetwork, isEnsNetwork } from '@ens-apps/config'
 import { createIsomorphicFn } from '@tanstack/react-start'
 
 /**
@@ -46,7 +46,9 @@ export const envConfig = buildConfig({
   // `createIsomorphicFn` is a no-op stub until the TanStack Start Vite plugin
   // transforms it, so it returns `undefined` where that transform does not run
   // (the vitest config, which omits the Start plugin).
-  rpcUrl: resolveRpcOverride() ?? MANAGER_RPC_URLS[network as EnsNetwork],
+  rpcUrl:
+    resolveRpcOverride() ??
+    (isEnsNetwork(network) ? MANAGER_RPC_URLS[network] : undefined),
   overrides: {
     indexerGraphql: import.meta.env?.VITE_INDEXER_GRAPHQL_URL,
   },
