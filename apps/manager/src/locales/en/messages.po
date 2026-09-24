@@ -43,6 +43,11 @@ msgstr "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
 msgid "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
 msgstr "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
 
+#. placeholder {0}: description.length
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+msgid "{0} / {DESCRIPTION_MAX_LENGTH} characters"
+msgstr "{0} / {DESCRIPTION_MAX_LENGTH} characters"
+
 #. placeholder {0}: preset.years
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "{0} years"
@@ -698,6 +703,14 @@ msgstr "Deploying smart account…"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Deploying the resolver"
 msgstr "Deploying the resolver"
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+msgid "Description"
+msgstr "Description"
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+msgid "Description must be {DESCRIPTION_MAX_LENGTH} characters or fewer"
+msgstr "Description must be {DESCRIPTION_MAX_LENGTH} characters or fewer"
 
 #: src/features/dashboard/components/NameRow.tsx
 msgid "Deselect {label}"

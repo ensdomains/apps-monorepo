@@ -24,11 +24,7 @@ const formatLanguage = (language: string | undefined) =>
     .join(', ')
     .toUpperCase()
 
-const ProfileDescription = ({
-  description,
-}: {
-  readonly description: string
-}) => {
+const useHasHiddenDescription = (description: string) => {
   const descriptionRef = useRef<HTMLParagraphElement>(null)
   const [hasHiddenContent, setHasHiddenContent] = useState(false)
 
@@ -36,24 +32,35 @@ const ProfileDescription = ({
     const element = descriptionRef.current
     if (!element) return
 
-    const updateHeight = () => {
-      const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight)
+    const updateOverflow = () => {
       setHasHiddenContent(
-        description.length > 0 && element.scrollHeight > lineHeight * 2 + 1,
+        description.length > 0 &&
+          element.scrollHeight > element.clientHeight + 1,
       )
     }
 
-    updateHeight()
-    const resizeObserver = new ResizeObserver(updateHeight)
+    updateOverflow()
+    const resizeObserver = new ResizeObserver(updateOverflow)
     resizeObserver.observe(element)
     return () => resizeObserver.disconnect()
   }, [description])
+
+  return { descriptionRef, hasHiddenContent }
+}
+
+const ProfileDescription = ({
+  description,
+}: {
+  readonly description: string
+}) => {
+  const { descriptionRef, hasHiddenContent } =
+    useHasHiddenDescription(description)
 
   return (
     <Dialog>
       <div className="mt-3">
         <p
-          className="max-h-[3em] overflow-hidden text-ens-quartz-500 text-sm leading-normal"
+          className="wrap-anywhere line-clamp-2 text-ens-quartz-500 text-sm leading-normal"
           ref={descriptionRef}
         >
           {description}
@@ -61,7 +68,7 @@ const ProfileDescription = ({
         {hasHiddenContent ? (
           <DialogTrigger asChild>
             <button
-              className="mt-1 font-medium text-(--theme-color) text-sm hover:underline focus-visible:outline-2 focus-visible:outline-current focus-visible:outline-offset-2"
+              className="mt-1 font-medium text-(--theme-color) text-sm hover:underline focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2"
               type="button"
             >
               <Trans>Show more</Trans>
@@ -69,7 +76,7 @@ const ProfileDescription = ({
           </DialogTrigger>
         ) : null}
       </div>
-      <DialogContent className="max-h-[80dvh] overflow-hidden">
+      <DialogContent className="overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             <Trans>About</Trans>
@@ -122,7 +129,7 @@ export const ProfileAbout = ({
   return (
     <section
       className={cn(
-        'wrap-anywhere flex min-h-0 min-w-0 flex-1 rounded-none border-none bg-transparent p-0 shadow-none lg:landscape:max-h-45.5 lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:overflow-y-auto lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-[0_2px_6px_rgba(0,0,0,0.06)]',
+        'wrap-anywhere flex min-h-0 min-w-0 flex-1 rounded-none border-none bg-transparent p-0 shadow-none lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-[0_2px_6px_rgba(0,0,0,0.06)]',
         className,
       )}
     >
