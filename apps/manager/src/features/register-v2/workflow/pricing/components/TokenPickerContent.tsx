@@ -55,14 +55,14 @@ class InsufficientFundingError extends Error {
 }
 
 /**
- * What the wallet is actually debited, itemised — `rent + networkFee` on the
- * standalone-HCA route. See {@link computeRegistrationFunding}.
+ * The registration funding budget and the wallet's share of it. See
+ * {@link computeRegistrationFunding}.
  */
 export type RegistrationFundingSummary = {
   /** The registrar's charge, shown as its own line once a credit applies. */
   readonly registration: number
   readonly networkFee: number
-  /** What the registration costs — the figure shown on the total row. */
+  /** What the registration costs before applying existing HCA credit. */
   readonly total: number
   /**
    * What the wallet must hold: `total` less anything the HCA already carries.
@@ -447,7 +447,7 @@ export const TokenPickerContentBase = ({
   footer?: ReactNode
   /**
    * Carries the funding budget used by the method-level fee disclosure and the
-   * inherited account-credit breakdown. When present, `total` — not
+   * inherited account-credit breakdown. When present, `walletDebit` — not
    * `pricingData` — is what the wallet must cover.
    */
   funding?: RegistrationFundingSummary
