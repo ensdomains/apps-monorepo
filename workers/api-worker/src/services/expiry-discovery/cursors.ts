@@ -4,16 +4,20 @@ import * as v from 'valibot'
 import { intoKVResult, KV_KEY } from '#core/kv/index.js'
 import type { ExpiryStageId } from '#types/events/index.js'
 import { logger } from '#utils/logger.js'
+import { getDefaultCursorForStage, STAGES } from './stages.js'
 
 const cursorValueSchema = v.object({
   expiry_timestamp: v.number(),
 })
 
 const cursorSchema = v.object({
-  '30d': v.optional(cursorValueSchema),
-  '7d': v.optional(cursorValueSchema),
-  '1d': v.optional(cursorValueSchema),
-  expired: v.optional(cursorValueSchema),
+  'expiry-30d': v.optional(cursorValueSchema),
+  'expiry-7d': v.optional(cursorValueSchema),
+  'expiry-1d': v.optional(cursorValueSchema),
+  'grace-start': v.optional(cursorValueSchema),
+  'grace-7d': v.optional(cursorValueSchema),
+  'grace-1d': v.optional(cursorValueSchema),
+  'premium-start': v.optional(cursorValueSchema),
 })
 
 export type NotificationCursors = Record<
@@ -33,12 +37,12 @@ function summarizeCursorLagSec(cursors: NotificationCursors, nowSec: number) {
 }
 
 function createDefaultCursors(nowSec: number): NotificationCursors {
-  return {
-    '30d': { expiry_timestamp: nowSec },
-    '7d': { expiry_timestamp: nowSec },
-    '1d': { expiry_timestamp: nowSec },
-    expired: { expiry_timestamp: nowSec },
-  }
+  return Object.fromEntries(
+    STAGES.map((stage) => [
+      stage.id,
+      { expiry_timestamp: getDefaultCursorForStage(stage, nowSec) },
+    ]),
+  ) as NotificationCursors
 }
 
 export const loadNotificationCursors = ResultFn(async function* (
@@ -74,12 +78,9 @@ export const loadNotificationCursors = ResultFn(async function* (
 
   const defaults = createDefaultCursors(nowSec)
 
-  const normalized = {
-    '30d': parsed['30d'] ?? defaults['30d'],
-    '7d': parsed['7d'] ?? defaults['7d'],
-    '1d': parsed['1d'] ?? defaults['1d'],
-    expired: parsed.expired ?? defaults.expired,
-  }
+  const normalized = Object.fromEntries(
+    STAGES.map((stage) => [stage.id, parsed[stage.id] ?? defaults[stage.id]]),
+  ) as NotificationCursors
 
   logger.trace('Loaded and normalized expiry cursors', {
     cursors: normalized,

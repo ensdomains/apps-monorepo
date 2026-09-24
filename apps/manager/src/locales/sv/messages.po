@@ -1007,7 +1007,11 @@ msgid "Get instant updates through Telegram for your domains."
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
-msgid "Get notified when names you favorited expire."
+msgid "Get notified as favourited names approach expiry and move through their grace period."
+msgstr ""
+
+#: src/features/notifications/settings/preferences.tsx
+msgid "Get notified as owned names approach expiry and move through their grace period."
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
@@ -2969,10 +2973,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You'll always see important notifications in the app."
-msgstr ""
-
-#: src/features/notifications/settings/preferences.tsx
-msgid "You'll be notified 30, 7, and 1 day before expiry."
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
