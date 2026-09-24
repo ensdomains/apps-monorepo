@@ -39,6 +39,7 @@ import { getTokenIdQueryOptions } from '@/features/profile/hooks/useTokenId'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 import { useContractAddress } from '@/hooks/useContractAddress'
 import { cn } from '@/lib/utils'
+import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import { asciiEncode } from '@/utils/token/ascii'
 import { dnsEncodeName } from '@/utils/token/dnsEncodeName'
 import { escapeUnicode } from '@/utils/token/escapeUnicode'
@@ -284,9 +285,11 @@ function RouteComponent() {
 
   const dnsEncode = dnsEncodeName(name)
 
+  // Display only — hashing this A-label would print the node of a different,
+  // separately registrable name. Namehash is defined over the normalised name.
   const ascii = asciiEncode(name)
 
-  const hash = namehash(ascii)
+  const hash = namehash(normalizeOrLower(name))
 
   const normalized = isNormalized(name)
 
