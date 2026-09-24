@@ -19,6 +19,15 @@ signatures. Do not start debugging signing — get the inner revert first.
 
 ## 2. Get the inner revert with `cast`, no fork needed
 
+Credentials live outside the repo — look them up, don't hunt for a `.env`:
+
+```bash
+gh variable list                      # VITE_RHINESTONE_API_KEY
+```
+
+The Sepolia endpoint in `packages/indexer/chain.ts` (drpc.live) serves archive
+state, so it works for the replays below.
+
 The error payload contains everything required to replay the call: `call.to`,
 `call.data`, `details.relayer`, `details.blockNumber`, and
 `details.stateOverride`. Feed them to `cast call --trace` against an archive
@@ -72,7 +81,7 @@ Known selectors:
 | `0x815e1d64` | `InvalidSigner()` | a bad key **or** a session that was never enabled — see below |
 | `0x9bdfc59f` | `InvalidSessionData()` | payload is not the Smart Session USE form, or the enable proof is expired (`validUntil`), carries a stale session nonce, or has zero refund caps |
 | `0x037b5679` | `CallerNotIntentExecutor()` | presented by someone other than the IntentExecutor |
-| `0xf679d4db` | `InvalidOperationEncoding()` | operation data is not an ERC-7579 operation payload |
+| `0xf679d4db` | `InvalidOperationEncoding()` | operation data is not an ERC-7579 operation payload — usually the wrong outer signature mode, see §9 |
 | `0xbff8a462` | `OwnerUnavailable()` | the account returned no owner from `ownerAndSessionNonce` |
 
 The previous validator reverted `SessionExpired()` (`0x1fd05a4a`) for an elapsed
@@ -308,3 +317,36 @@ error resurfaces, check that gate first.
 Note that `checkingHcaFunding` reads the **HCA's** balance, not the wallet's —
 it decides whether a permit is needed at all, and never validated that the
 wallet could honour one.
+
+## 9. The outer signature mode is an authorization decision
+
+`resolveSignatureMode` (SDK patch) picks one `SIG_MODE_*`, and the orchestrator
+stamps it into the packed operation's first two bytes — the `0x02NN` prefix the
+validator decodes in `HCAOperationHashLib`. The two are the same field:
+
+| SDK constant | op mode | validator |
+|---|---|---|
+| `SIG_MODE_ERC1271` (1) | `0x0201` | accepted — **but owner mode, see below** |
+| `SIG_MODE_EMISSARY_EXECUTION` (4) | `0x0204` | `isSupportedMode` only, not `isERC1271Mode` |
+| `SIG_MODE_EMISSARY_EXECUTION_ERC1271` (5) | `0x0205` | **rejected** `InvalidOperationEncoding()` |
+| `SIG_MODE_ERC1271_EMISSARY_EXECUTION` (6) | `0x0206` | accepted |
+
+So a standalone HCA has exactly one safe mode, **6**:
+
+- Mode 1 is the Immunefi #91014 bypass. The IntentExecutor reads the outer mode
+  as the principal; owner mode settles the refund through `settleGasRefund()`
+  instead of `settleGasRefund_requireCallback()`, letting a session key drain
+  the account through refund parameters.
+- Mode 5 is safe but the deployed validator (`0x6a62af42`) does not decode it —
+  `isERC1271Mode` accepts only `0x0201` and `0x0206`.
+
+The mode-5 failure looks nothing like a mode problem: the envelope parses, the
+owner `ecrecover` returns the right address, `_checkGasRefund` passes, and only
+then `_decodeERC1271Operation` reverts. **Read the first two bytes of the packed
+op** (§7's last table row) before assuming the operation bytes are malformed.
+
+Confirm a mode diagnosis by flipping those two bytes in the replayed calldata —
+in both the outer `ops` field and the copy inside the validator signature — and
+re-running §2. Getting further, to `InvalidSigner()`, proves the mode was the
+only blocker; the session key signed the original bytes, so that last failure is
+expected.

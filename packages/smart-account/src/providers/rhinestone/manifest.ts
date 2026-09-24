@@ -11,18 +11,21 @@
  * the complete source. Keep it grouped per chain so a redeploy is a
  * single-block edit and adding a source chain is additive.
  *
- * SDK patch SHA-256: ffede08bfadce94fe1dbc91ae02c4606a01607efd70d674a9aaa33781f5e567f
+ * SDK patch SHA-256: 6eb7b1bca1b05af530e42973782755823eec05ad5b3b27d2545f20bc642c4377
  *
  * That is contracts-v2 `patches/@rhinestone%2Fsdk@1.8.0.patch` @ 71a3b733
  * (SHA-256 805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)
  * plus the WEB-1434 / Immunefi #91014 fix: `resolveSignatureMode` no longer
  * downgrades a standalone-HCA session to the ERC-1271 owner mode, and now
  * throws rather than reach stock's owner-mode arm for a standalone-HCA session
- * that does not verify executions. Only the outer, orchestrator-level signature
- * mode changed — every validator envelope the patch packs is still
- * byte-identical to the one this deployment's validator expects. Fold the fix
- * back into contracts-v2 before the next redeploy so the two patches converge
- * again.
+ * that does not verify executions. A standalone HCA resolves to mode 6
+ * (`0x0206`) — mode 5 is execution-emissary too, but this deployment's
+ * `HCAOperationHashLib.isERC1271Mode` accepts only `0x0201` and `0x0206`, so a
+ * mode-5 op reverts `InvalidOperationEncoding()`. Only the outer,
+ * orchestrator-level signature mode changed — every validator envelope the
+ * patch packs is still byte-identical to the one this deployment's validator
+ * expects. Fold the fix back into contracts-v2 before the next redeploy so the
+ * two patches converge again.
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
