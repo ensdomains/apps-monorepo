@@ -12,6 +12,13 @@ import { useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -50,11 +57,12 @@ import { hasOwnerWallet } from '@/lib/wallet'
 import { usePrimaryNameDomains } from '../hooks/usePrimaryNameDomains'
 import { resolveDomainLabel } from '../utils'
 import {
-  getEthAddressFromRecords,
+  isConfirmationForSelection,
   isConfirmBlocked,
+  needsPrimaryNameConfirmation,
   PRIMARY_NAME_PAGE_SIZE,
+  type PrimaryNameConfirmation,
   recordsForPrimaryNameResolver,
-  shouldUpdateEthAddress,
 } from './ChoosePrimaryNameDialog.handlers'
 import {
   PrimaryNameListFooter,
@@ -213,18 +221,18 @@ const PrimaryNameErrorNotice = ({
 }
 
 const EthAddressUpdateNotice = ({
-  show,
+  id,
   ownerAddress,
   existingEthAddress,
 }: {
-  readonly show: boolean
+  readonly id?: string
   readonly ownerAddress: Address | null
-  readonly existingEthAddress: string | undefined
+  readonly existingEthAddress: Address | null
 }) => {
   const { t } = useLingui()
-  if (!show || !ownerAddress) return null
+  if (!ownerAddress) return null
   return (
-    <Alert variant="warning">
+    <Alert id={id} variant="warning">
       <AlertCircle />
       <AlertDescription>
         <p>
@@ -241,6 +249,54 @@ const EthAddressUpdateNotice = ({
     </Alert>
   )
 }
+
+const EthAddressConfirmDialog = ({
+  confirmation,
+  onConfirm,
+  onOpenChange,
+}: {
+  readonly confirmation: PrimaryNameConfirmation | null
+  readonly onConfirm: () => void
+  readonly onOpenChange: (open: boolean) => void
+}) => (
+  <AlertDialog
+    onOpenChange={onOpenChange}
+    open={confirmation?.kind === 'update-eth-address'}
+  >
+    <AlertDialogContent aria-describedby="primary-name-eth-address-warning">
+      <AlertDialogHeader>
+        <AlertDialogTitle>
+          <Trans>Set this as your primary name?</Trans>
+        </AlertDialogTitle>
+      </AlertDialogHeader>
+      <EthAddressUpdateNotice
+        existingEthAddress={confirmation?.existingEthAddress ?? null}
+        id="primary-name-eth-address-warning"
+        ownerAddress={confirmation?.ownerAddress ?? null}
+      />
+      <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
+        <Button
+          className="flex-1/3 uppercase"
+          onClick={() => onOpenChange(false)}
+          size="lg"
+          variant="outline"
+        >
+          <Trans>Cancel</Trans>
+        </Button>
+        <Button
+          className="flex-2/3 uppercase"
+          onClick={() => {
+            onConfirm()
+            onOpenChange(false)
+          }}
+          size="lg"
+        >
+          <Trans>Confirm</Trans>
+        </Button>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+)
 
 const useUpdateEthAddressMutation = ({
   account,
@@ -366,7 +422,8 @@ export const ChoosePrimaryNameDialog = ({
   const { t } = useLingui()
   const [open, setOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<string | null>(null)
-  const [setupConfirmOpen, setSetupConfirmOpen] = useState(false)
+  const [confirmation, setConfirmation] =
+    useState<PrimaryNameConfirmation | null>(null)
   const [isCheckingPreparation, setIsCheckingPreparation] = useState(false)
   const [preparationError, setPreparationError] = useState<Error | null>(null)
   const { address } = useConnection()
@@ -390,6 +447,7 @@ export const ChoosePrimaryNameDialog = ({
       queryClient.invalidateQueries({
         queryKey: $qk({ $scope: 'profile', $action: 'get_records' }),
       })
+      setConfirmation(null)
       setOpen(false)
       onUpdated?.()
     },
@@ -416,20 +474,9 @@ export const ChoosePrimaryNameDialog = ({
   const { domains, isLoading, hasForwardAddressError, isSelectedNameOffered } =
     nameList
 
-  const {
-    data: selectedNameRecords,
-    isSuccess: recordsSettled,
-    isError: isRecordsError,
-  } = useQuery({
+  const { isSuccess: recordsSettled, isError: isRecordsError } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
     enabled: open && isSelectedNameOffered,
-  })
-  const existingEthAddress = getEthAddressFromRecords(selectedNameRecords)
-  const needsEthAddressUpdate = shouldUpdateEthAddress({
-    selectedName,
-    recordsSettled,
-    selectedNameRecords,
-    ownerAddress: account.ownerAddress ?? undefined,
   })
   const updateEthAddressMutation = useUpdateEthAddressMutation({
     account,
@@ -451,14 +498,6 @@ export const ChoosePrimaryNameDialog = ({
     enabled: open && isSelectedNameOffered,
   })
 
-  // Cached checks only choose the preview notice. Confirmation reads the chain
-  // again before deciding whether to update an address or set up a resolver.
-  const resolverBlocked = resolverWriteAccess.data === false
-
-  // A matching forward record needs no resolver write, even when this wallet
-  // can no longer edit the resolver after a transfer.
-  const needsResolverSetup = resolverBlocked && needsEthAddressUpdate
-
   // Set selected name to current primary on mount
   useEffect(() => {
     if (reverseName && !selectedName) {
@@ -471,6 +510,7 @@ export const ChoosePrimaryNameDialog = ({
       updateEthAddressMutation.reset()
       setupResolverMutation.reset()
       setPreparationError(null)
+      setConfirmation(null)
       setSelectedName(name)
     }
   }
@@ -498,15 +538,45 @@ export const ChoosePrimaryNameDialog = ({
   }
 
   const applyPreparation = async (preparation: PrimaryNamePreparation) => {
-    if (preparation === 'setup-resolver') {
+    if (preparation.kind === 'setup-resolver') {
       await setupResolverMutation.mutateAsync()
-    } else if (preparation === 'update-eth-address') {
+    } else if (preparation.kind === 'update-eth-address') {
       await updateEthAddressMutation.mutateAsync()
     }
   }
 
-  const runConfirm = async (allowResolverSetup = false) => {
+  const submitPreparedName = async (
+    preparation: PrimaryNamePreparation,
+    name: string,
+    ownerAddress: Address,
+  ) => {
+    try {
+      await applyPreparation(preparation)
+    } catch {
+      return
+    }
+
+    try {
+      await submitPrimaryName({ name, owner: ownerAddress })
+    } catch {
+      // Error surfaced via isError / primaryNameErrorMessage.
+    }
+  }
+
+  const runConfirm = async (confirmed?: PrimaryNameConfirmation) => {
     if (!selectedName || !account.ownerAddress || !isSelectedNameOffered) return
+
+    if (
+      confirmed &&
+      !isConfirmationForSelection(
+        confirmed,
+        selectedName,
+        account.ownerAddress as Address,
+      )
+    ) {
+      setConfirmation(null)
+      return
+    }
 
     if (!hasOwnerWallet(account.walletClient, account.ownerAddress)) {
       toast.error(t`Wallet isn’t ready yet. Try again in a moment.`)
@@ -517,27 +587,26 @@ export const ChoosePrimaryNameDialog = ({
       selectedName,
       account.ownerAddress as Address,
     )
-    if (!preparation) return
-
-    if (preparation === 'setup-resolver' && !allowResolverSetup) {
-      setSetupConfirmOpen(true)
+    if (!preparation) {
+      setConfirmation(null)
       return
     }
 
-    try {
-      await applyPreparation(preparation)
-    } catch {
-      return
-    }
-
-    try {
-      await submitPrimaryName({
+    if (needsPrimaryNameConfirmation(preparation, confirmed)) {
+      setConfirmation({
+        ...preparation,
         name: selectedName,
-        owner: account.ownerAddress as Address,
+        ownerAddress: account.ownerAddress as Address,
       })
-    } catch {
-      // Error surfaced via isError / primaryNameErrorMessage.
+      return
     }
+
+    setConfirmation(null)
+    await submitPreparedName(
+      preparation,
+      selectedName,
+      account.ownerAddress as Address,
+    )
   }
 
   const handleConfirm = () => {
@@ -546,6 +615,7 @@ export const ChoosePrimaryNameDialog = ({
 
   const handleCancel = () => {
     if (!isSubmitting) {
+      setConfirmation(null)
       setOpen(false)
       setSelectedName(reverseName ?? null)
     }
@@ -553,7 +623,6 @@ export const ChoosePrimaryNameDialog = ({
 
   const hasChanges = selectedName !== reverseName
 
-  const showEthAddressInfo = needsEthAddressUpdate && !needsResolverSetup
   const isPreparing =
     isCheckingPreparation ||
     updateEthAddressMutation.isPending ||
@@ -597,7 +666,7 @@ export const ChoosePrimaryNameDialog = ({
     <>
       <Dialog onOpenChange={setOpen} open={open}>
         <DialogTrigger asChild>{children}</DialogTrigger>
-        <DialogContent className="flex max-h-[90vh] max-w-125 flex-col overflow-hidden">
+        <DialogContent className="flex max-h-[90dvh] max-w-125 flex-col overflow-hidden sm:h-[min(90dvh,50rem)]">
           <DialogHeader>
             <DialogTitle className="text-[24px] text-foreground">
               <Trans>Choose Primary Name</Trans>
@@ -619,7 +688,7 @@ export const ChoosePrimaryNameDialog = ({
             {/* Names List */}
             <div
               aria-busy={isLoading}
-              className="flex h-80 min-h-0 flex-col gap-2 overflow-y-auto pr-1"
+              className="flex h-80 min-h-0 flex-col gap-2 overflow-y-auto pr-1 sm:h-auto sm:flex-1"
             >
               {match({ isLoading, domains, hasForwardAddressError })
                 .with({ isLoading: true }, () => <PrimaryNameSkeletonList />)
@@ -650,12 +719,6 @@ export const ChoosePrimaryNameDialog = ({
 
             {/* Error Message */}
             <PrimaryNameErrorNotice errorMessage={actionErrorMessage} />
-            {/* ETH Address Mismatch/Missing Info */}
-            <EthAddressUpdateNotice
-              existingEthAddress={existingEthAddress}
-              ownerAddress={account.ownerAddress}
-              show={showEthAddressInfo}
-            />
             {/* Action Buttons */}
             <div className="flex shrink-0 gap-3">
               <Button
@@ -682,14 +745,30 @@ export const ChoosePrimaryNameDialog = ({
         </DialogContent>
       </Dialog>
 
+      <EthAddressConfirmDialog
+        confirmation={confirmation}
+        onConfirm={() => {
+          if (confirmation) void runConfirm(confirmation)
+        }}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setConfirmation(null)
+        }}
+      />
       <ResolverSetupConfirmDialog
         intent="primary-name"
         onConfirm={() => {
-          void runConfirm(true)
+          if (confirmation) void runConfirm(confirmation)
         }}
-        onOpenChange={setSetupConfirmOpen}
-        open={setupConfirmOpen}
-      />
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setConfirmation(null)
+        }}
+        open={confirmation?.kind === 'setup-resolver'}
+      >
+        <EthAddressUpdateNotice
+          existingEthAddress={confirmation?.existingEthAddress ?? null}
+          ownerAddress={confirmation?.ownerAddress ?? null}
+        />
+      </ResolverSetupConfirmDialog>
     </>
   )
 }

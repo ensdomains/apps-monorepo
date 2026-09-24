@@ -1,4 +1,9 @@
-import type { Address, PublicClient } from 'viem'
+import {
+  type Address,
+  isAddressEqual,
+  type PublicClient,
+  zeroAddress,
+} from 'viem'
 import {
   getPrimaryNameForwardAddress,
   hasPrimaryNameForwardAddress,
@@ -6,9 +11,11 @@ import {
 import { getResolverWriteAccess } from './resolverWriteAccess'
 
 export type PrimaryNamePreparation =
-  | 'ready'
-  | 'update-eth-address'
-  | 'setup-resolver'
+  | { readonly kind: 'ready' }
+  | {
+      readonly kind: 'update-eth-address' | 'setup-resolver'
+      readonly existingEthAddress: Address | null
+    }
 
 /** Decide from fresh chain reads, not cached profile records or indexer hints. */
 export async function getPrimaryNamePreparation(
@@ -18,11 +25,17 @@ export async function getPrimaryNamePreparation(
 ): Promise<PrimaryNamePreparation> {
   const forwardAddress = await getPrimaryNameForwardAddress(publicClient, name)
   if (hasPrimaryNameForwardAddress(forwardAddress, ownerAddress)) {
-    return 'ready'
+    return { kind: 'ready' }
   }
 
   const writeAccess = await getResolverWriteAccess(name, ownerAddress)
   if (writeAccess.isErr()) throw writeAccess.error
 
-  return writeAccess.value ? 'update-eth-address' : 'setup-resolver'
+  return {
+    kind: writeAccess.value ? 'update-eth-address' : 'setup-resolver',
+    existingEthAddress:
+      forwardAddress && !isAddressEqual(forwardAddress, zeroAddress)
+        ? forwardAddress
+        : null,
+  }
 }

@@ -18,6 +18,7 @@ interface ResolverSetupConfirmDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly onConfirm: () => void
+  readonly children?: ReactNode
 }
 
 const getCopy = (
@@ -52,6 +53,7 @@ export const ResolverSetupConfirmDialog = ({
   open,
   onOpenChange,
   onConfirm,
+  children,
 }: ResolverSetupConfirmDialogProps) => {
   const { title, description, confirmLabel } = getCopy(intent)
 
@@ -62,6 +64,7 @@ export const ResolverSetupConfirmDialog = ({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
+        {children}
         <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
           <Button
             className="flex-1/3 uppercase"

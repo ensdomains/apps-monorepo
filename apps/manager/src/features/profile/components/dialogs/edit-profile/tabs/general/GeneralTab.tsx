@@ -23,11 +23,24 @@ import { profileLanguageOptions } from './profileLanguages'
 
 type BaseGeneralField = Extract<GeneralField, keyof ProfileRecords['base']>
 
-const timezoneSelectOptions = Array.from({ length: 27 }, (_, index) => {
-  const offset = index - 12
-  const value = `UTC${offset >= 0 ? `+${offset}` : offset}`
-  return { label: value, value }
-})
+// Include fractional UTC offsets used by IANA timezones, including seasonal
+// offsets such as Newfoundland's UTC-2:30 and Chatham's UTC+13:45.
+const fractionalTimezoneOffsets = [
+  -570, -210, -150, 210, 270, 330, 345, 390, 525, 570, 630, 765, 825,
+]
+
+const timezoneSelectOptions = [
+  ...Array.from({ length: 27 }, (_, index) => (index - 12) * 60),
+  ...fractionalTimezoneOffsets,
+]
+  .sort((left, right) => left - right)
+  .map((offsetMinutes) => {
+    const hours = Math.floor(Math.abs(offsetMinutes) / 60)
+    const minutes = Math.abs(offsetMinutes) % 60
+    const offset = `${offsetMinutes >= 0 ? '+' : '-'}${hours}${minutes ? `:${String(minutes).padStart(2, '0')}` : ''}`
+    const value = `UTC${offset}`
+    return { label: value, value }
+  })
 
 const setTextRecordValue = (
   records: readonly TextRecordValue[],

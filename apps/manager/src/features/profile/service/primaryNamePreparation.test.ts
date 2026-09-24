@@ -1,5 +1,5 @@
 import { err, ok } from 'neverthrow'
-import type { PublicClient } from 'viem'
+import { type PublicClient, zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getPrimaryNameForwardAddress,
@@ -29,9 +29,9 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(owner)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(true)
 
-    await expect(getPrimaryNamePreparation(client, name, owner)).resolves.toBe(
-      'ready',
-    )
+    await expect(
+      getPrimaryNamePreparation(client, name, owner),
+    ).resolves.toEqual({ kind: 'ready' })
     expect(getResolverWriteAccess).not.toHaveBeenCalled()
   })
 
@@ -40,9 +40,9 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteAccess).mockResolvedValue(ok(false))
 
-    await expect(getPrimaryNamePreparation(client, name, owner)).resolves.toBe(
-      'setup-resolver',
-    )
+    await expect(
+      getPrimaryNamePreparation(client, name, owner),
+    ).resolves.toEqual({ kind: 'setup-resolver', existingEthAddress: null })
     expect(getResolverWriteAccess).toHaveBeenCalledWith(name, owner)
   })
 
@@ -51,9 +51,33 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteAccess).mockResolvedValue(ok(true))
 
-    await expect(getPrimaryNamePreparation(client, name, owner)).resolves.toBe(
-      'update-eth-address',
-    )
+    await expect(
+      getPrimaryNamePreparation(client, name, owner),
+    ).resolves.toEqual({ kind: 'update-eth-address', existingEthAddress: null })
+  })
+
+  it('provides the live different wallet address for the confirmation warning', async () => {
+    const otherAddress = '0x1234567890123456789012345678901234567890'
+    vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(otherAddress)
+    vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
+    vi.mocked(getResolverWriteAccess).mockResolvedValue(ok(true))
+
+    await expect(
+      getPrimaryNamePreparation(client, name, owner),
+    ).resolves.toEqual({
+      kind: 'update-eth-address',
+      existingEthAddress: otherAddress,
+    })
+  })
+
+  it('treats an unset zero-address record as missing in the warning', async () => {
+    vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(zeroAddress)
+    vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
+    vi.mocked(getResolverWriteAccess).mockResolvedValue(ok(false))
+
+    await expect(
+      getPrimaryNamePreparation(client, name, owner),
+    ).resolves.toEqual({ kind: 'setup-resolver', existingEthAddress: null })
   })
 
   it('stops on a failed resolver probe instead of assuming setup is safe', async () => {

@@ -4,12 +4,42 @@
  * Business logic kept outside the React component for testability.
  */
 
+import type { Address } from 'viem'
+import type { PrimaryNamePreparation } from '@/features/profile/service/primaryNamePreparation'
 import { getCanonicalPrimaryName } from '@/features/profile/service/profileName'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import type { ServiceRecordSnapshot } from '@/features/profile/service/profileRecordTransactions'
 import { resolveDomainLabel } from '../utils'
 
-export const PRIMARY_NAME_PAGE_SIZE = 5
+export const PRIMARY_NAME_PAGE_SIZE = 8
+
+type PrimaryNameWritePreparation = Extract<
+  PrimaryNamePreparation,
+  { kind: 'update-eth-address' | 'setup-resolver' }
+>
+
+export type PrimaryNameConfirmation = PrimaryNameWritePreparation & {
+  readonly name: string
+  readonly ownerAddress: Address
+}
+
+export const isConfirmationForSelection = (
+  confirmation: PrimaryNameConfirmation,
+  name: string,
+  ownerAddress: Address,
+): boolean =>
+  confirmation.name === name &&
+  confirmation.ownerAddress.toLowerCase() === ownerAddress.toLowerCase()
+
+export const needsPrimaryNameConfirmation = (
+  preparation: PrimaryNamePreparation,
+  confirmed?: PrimaryNameConfirmation,
+): preparation is PrimaryNameWritePreparation =>
+  preparation.kind !== 'ready' &&
+  (!confirmed ||
+    confirmed.kind !== preparation.kind ||
+    confirmed.existingEthAddress?.toLowerCase() !==
+      preparation.existingEthAddress?.toLowerCase())
 
 export function getPrimaryNamePage<
   TDomain extends Parameters<typeof resolveDomainLabel>[0],
@@ -62,12 +92,6 @@ export function getPrimaryNameCandidates<
 
 const ETH_COIN_TYPE = 60
 
-export function getEthAddressFromRecords(
-  records: ProfileRecordsResult | undefined,
-): string | undefined {
-  return records?.coins?.find((c) => c.coinType === ETH_COIN_TYPE)?.value
-}
-
 /** Keep the live records when a primary-name claim needs a new resolver. */
 export function recordsForPrimaryNameResolver(
   records: ProfileRecordsResult,
@@ -84,41 +108,6 @@ export function recordsForPrimaryNameResolver(
     contentHash: records.contentHash,
     abi: records.abi,
   }
-}
-
-export function hasMatchingEthAddress(
-  records: ProfileRecordsResult | undefined,
-  walletAddress: string | undefined,
-): boolean {
-  if (!walletAddress) return false
-  const ethAddress = getEthAddressFromRecords(records)
-  if (!ethAddress) return false
-  return ethAddress.toLowerCase() === walletAddress.toLowerCase()
-}
-
-/**
- * A forward write is needed: the name's ETH record does not already point at
- * the connected wallet. `recordsSettled` must come from the query's `isSuccess`
- * — a *failed* read leaves `data` undefined exactly as a pending one does, and
- * reading that as "no ETH record" sends the dialog down the resolver-setup
- * branch on nothing more than an RPC blip.
- */
-export function shouldUpdateEthAddress({
-  selectedName,
-  recordsSettled,
-  selectedNameRecords,
-  ownerAddress,
-}: {
-  readonly selectedName: string | null
-  readonly recordsSettled: boolean
-  readonly selectedNameRecords: ProfileRecordsResult | undefined
-  readonly ownerAddress?: string
-}): boolean {
-  return (
-    Boolean(selectedName) &&
-    recordsSettled &&
-    !hasMatchingEthAddress(selectedNameRecords, ownerAddress)
-  )
 }
 
 /**
