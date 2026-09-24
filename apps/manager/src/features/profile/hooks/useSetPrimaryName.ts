@@ -1,7 +1,10 @@
-import { transactionManager } from '@ens-apps/transaction-manager'
+import {
+  type HcaFundingPrompt,
+  transactionManager,
+} from '@ens-apps/transaction-manager'
 import { useMutation } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { Address, Hex, PublicClient } from 'viem'
 import { useChainId } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -30,6 +33,16 @@ export interface UseSetPrimaryNameResult {
   error: Error | null
   /** Hash of the in-flight / latest transaction, tracked reactively. */
   txHash: Hex | undefined
+  /**
+   * Set while the HCA path is waiting for the user to accept the USDC funding
+   * amount. The submit promise is parked until {@link approveFunding} or
+   * {@link declineFunding} is called, and no wallet signature is requested
+   * until then — render this and nothing else will ask the user to approve a
+   * figure they have not seen.
+   */
+  fundingPrompt: HcaFundingPrompt | null
+  approveFunding: () => void
+  declineFunding: () => void
   reset: () => void
 }
 
@@ -49,6 +62,31 @@ export function useSetPrimaryName(
 
   const txActor = txId ? transactionManager.getTransaction(txId) : undefined
   const txHash = useSelector(txActor, (snapshot) => snapshot?.context.hash)
+
+  // The funding amount is only known once the intent has been quoted, which
+  // happens inside the submit call — so showing it means parking that call on a
+  // promise the UI resolves, rather than gathering consent up front from a
+  // figure we would have had to guess.
+  const [fundingPrompt, setFundingPrompt] = useState<HcaFundingPrompt | null>(
+    null,
+  )
+  const decideFundingRef = useRef<((approved: boolean) => void) | null>(null)
+
+  const requestFundingApproval = useCallback(
+    (prompt: HcaFundingPrompt) =>
+      new Promise<boolean>((resolve) => {
+        decideFundingRef.current = resolve
+        setFundingPrompt(prompt)
+      }),
+    [],
+  )
+
+  const settleFunding = useCallback((approved: boolean) => {
+    const decide = decideFundingRef.current
+    decideFundingRef.current = null
+    setFundingPrompt(null)
+    decide?.(approved)
+  }, [])
 
   const mutation = useMutation({
     onSuccess: options?.onSuccess,
@@ -71,6 +109,7 @@ export function useSetPrimaryName(
           publicClient: publicClient as PublicClient,
           chainId,
           onTxId: setTxId,
+          confirmFunding: requestFundingApproval,
         })
         return
       }
@@ -100,7 +139,13 @@ export function useSetPrimaryName(
     isError: mutation.isError,
     error: mutation.error,
     txHash,
+    fundingPrompt,
+    approveFunding: () => settleFunding(true),
+    declineFunding: () => settleFunding(false),
     reset: () => {
+      // Settle any parked prompt first, or the submit promise never resolves
+      // and the mutation is stuck pending behind a dialog that is now gone.
+      settleFunding(false)
       mutation.reset()
       setTxId(undefined)
     },
