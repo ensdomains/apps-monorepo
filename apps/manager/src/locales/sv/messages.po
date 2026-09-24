@@ -253,6 +253,10 @@ msgstr ""
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 msgstr ""
 
+#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+msgid "Approve"
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve {name}"
 msgstr ""
@@ -263,6 +267,10 @@ msgstr ""
 
 #: src/features/migration/components/GameStep.tsx
 msgid "Approve restoring your managers in your wallet"
+msgstr ""
+
+#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+msgid "Approve the network fee?"
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
@@ -395,6 +403,7 @@ msgstr ""
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
+#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "Cancel"
@@ -652,6 +661,10 @@ msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't verify your name records. Please try again."
+msgstr ""
+
+#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+msgid "Covered by your account balance"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
@@ -1334,6 +1347,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
 msgid "Network cost"
+msgstr ""
+
+#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+msgid "Network fee"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
@@ -2114,6 +2131,10 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböcker."
+
+#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+msgid "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
+msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting ETH address record"
@@ -2901,6 +2922,10 @@ msgstr "Ja. Skriv alice.eth i fältet 'skicka till' i stället för 0x74...2d35 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
+
+#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+msgid "You approve"
+msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "You can buy this name at any point during the {periodDays}-day cooldown."
