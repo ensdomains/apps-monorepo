@@ -1,3 +1,7 @@
+import {
+  type FlowScope,
+  scopeTransactionId,
+} from '@ens-apps/transaction-manager'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import type { Transaction } from '@/features/transaction-manager/types'
@@ -16,7 +20,7 @@ export const removeResolverUserTxId = (account: Address, resource: bigint) =>
   `tx-remove-resolver-user:${account.toLowerCase()}:${resource}`
 
 export type ResolverRolesTransactionHandlers = {
-  readonly save: (action: ResolverRolesSaveAction) => void
+  readonly save: (action: ResolverRolesSaveAction, id: string) => void
   readonly revoke: (params: {
     readonly account: Address
     readonly revocation: ResolverRevocation
@@ -30,32 +34,43 @@ export type ResolverRolesTransactionHandlers = {
  * The modal steps for a pending sidebar action. A save is one step. A removal
  * is one revoke per resource the account holds, chained so each step's
  * `onDone` starts the next.
+ *
+ * `flowScope` names the attempt, and is required rather than optional: left
+ * unscoped the ids are fixed strings, so a second save or removal in the same
+ * session would be matched to the finished actor the first one left behind.
  */
 export const buildResolverRolesTransactions = (
   action: ResolverRolesAction | null,
   resolverAddress: Address,
   handlers: ResolverRolesTransactionHandlers,
+  flowScope: FlowScope | null,
 ): readonly Transaction[] =>
   match(action)
     .returnType<readonly Transaction[]>()
     .with(P.nullish, () => [])
-    .with({ type: 'save' }, (save) => [
-      {
-        id: SAVE_RESOLVER_ROLES_TX_ID,
-        title: 'Save resolver role changes',
-        transactionName: `Update roles for ${save.account} on ${save.resourceLabel}`,
-        intent: {
-          prepare: (ctx) =>
-            prepareResolverRolesSaveIntent(save, resolverAddress, ctx),
+    .with({ type: 'save' }, (save) => {
+      const id = scopeTransactionId(SAVE_RESOLVER_ROLES_TX_ID, flowScope)
+      return [
+        {
+          id,
+          title: 'Save resolver role changes',
+          transactionName: `Update roles for ${save.account} on ${save.resourceLabel}`,
+          intent: {
+            prepare: (ctx) =>
+              prepareResolverRolesSaveIntent(save, resolverAddress, ctx),
+          },
+          onStart: () => handlers.save(save, id),
+          onDone: handlers.done,
         },
-        onStart: () => handlers.save(save),
-        onDone: handlers.done,
-      },
-    ])
+      ]
+    })
     .with({ type: 'remove' }, ({ account, revocations }) => {
       const steps = revocations.map((revocation) => ({
         revocation,
-        id: removeResolverUserTxId(account, revocation.resource),
+        id: scopeTransactionId(
+          removeResolverUserTxId(account, revocation.resource),
+          flowScope,
+        ),
       }))
       const run = (step: (typeof steps)[number]) =>
         handlers.revoke({ account, revocation: step.revocation, id: step.id })
