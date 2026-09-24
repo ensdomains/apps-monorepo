@@ -197,7 +197,8 @@ const StatusContent = ({
         variant="dialog"
       />
 
-      <div className="flex w-full flex-col items-center gap-1">
+      {/* Keep the dialog height stable when Mint and Later become mint progress. */}
+      <div className="flex min-h-23 w-full flex-col items-center gap-1">
         {state.status === 'claimPending' ? (
           <>
             <p
