@@ -49,14 +49,15 @@ const readLocks = (): RegistrationLocks => {
   }
 }
 
-const writeLocks = (locks: RegistrationLocks): void => {
-  if (typeof window === 'undefined') return
+/** Whether the write landed. A wallet that can't be locked still registers. */
+const writeLocks = (locks: RegistrationLocks): boolean => {
+  if (typeof window === 'undefined') return false
 
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(locks))
+    return true
   } catch {
-    // A wallet that can't hold the lock still registers; it just loses the
-    // cross-tab guard, which is better than blocking the flow outright.
+    return false
   }
 }
 
@@ -85,40 +86,49 @@ const isLive = (lock: RegistrationLock | undefined, now: number): boolean =>
   !!lock && now - lock.updatedAt < STALE_AFTER_MS
 
 /**
- * The registration holding this wallet in another tab, if any.
- *
- * Matched on the holder, not the name: a reload resumes its own registration,
- * while a second tab is blocked even when it is registering the same name.
+ * A registration attempt is this tab registering this name. A reload resumes
+ * it; a second tab, or a different name in the same tab, is a different one.
  */
+const isOwnAttempt = (lock: RegistrationLock, name: string): boolean =>
+  lock.holderId === getHolderId() && lock.name === name
+
+/** The registration holding this wallet, if it isn't this attempt's own claim. */
 export const getBlockingRegistration = (
   owner: Address,
+  name: string,
   now: number = Date.now(),
 ): string | null => {
   const lock = readLock(owner)
 
-  if (!isLive(lock, now) || !lock) return null
+  if (!lock || !isLive(lock, now)) return null
 
-  return lock.holderId === getHolderId() ? null : lock.name
+  return isOwnAttempt(lock, name) ? null : lock.name
 }
 
 /**
  * Claim the wallet for `name`. The write is read back, so when two tabs claim
  * at once the loser sees the winner's record and reports failure rather than
- * both proceeding on the same permit nonce.
+ * both proceeding on the same permit nonce. A write that fails outright means
+ * storage is unavailable, so the claim is granted without the guard.
  */
 export const acquireRegistrationLock = (
   owner: Address,
   name: string,
   now: number = Date.now(),
 ): boolean => {
-  if (getBlockingRegistration(owner, now) !== null) return false
+  if (getBlockingRegistration(owner, name, now) !== null) return false
 
   const key = owner.toLowerCase()
   const holderId = getHolderId()
 
-  writeLocks({ ...readLocks(), [key]: { name, holderId, updatedAt: now } })
+  const written = writeLocks({
+    ...readLocks(),
+    [key]: { name, holderId, updatedAt: now },
+  })
+  if (!written) return true
 
-  return readLock(owner)?.holderId === holderId
+  const stored = readLock(owner)
+  return !!stored && isOwnAttempt(stored, name)
 }
 
 /** Keep the claim alive while the registration runs. */
@@ -128,19 +138,18 @@ export const refreshRegistrationLock = (
   now: number = Date.now(),
 ): void => {
   const lock = readLock(owner)
-  if (!lock || lock.holderId !== getHolderId()) return
+  if (!lock || !isOwnAttempt(lock, name)) return
 
-  const key = owner.toLowerCase()
   writeLocks({
     ...readLocks(),
-    [key]: { name, holderId: lock.holderId, updatedAt: now },
+    [owner.toLowerCase()]: { ...lock, updatedAt: now },
   })
 }
 
-/** Release the claim. A claim held by another tab is left alone. */
-export const releaseRegistrationLock = (owner: Address): void => {
+/** Release the claim. A claim held by another attempt is left alone. */
+export const releaseRegistrationLock = (owner: Address, name: string): void => {
   const lock = readLock(owner)
-  if (!lock || lock.holderId !== getHolderId()) return
+  if (!lock || !isOwnAttempt(lock, name)) return
 
   const { [owner.toLowerCase()]: _released, ...rest } = readLocks()
   writeLocks(rest)

@@ -320,7 +320,7 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     expect(actor.getSnapshot().value).toBe('failure')
 
     // Only once the other tab is done does the retry proceed.
-    asAnotherTab(() => releaseRegistrationLock(EOA_ADDRESS))
+    asAnotherTab(() => releaseRegistrationLock(EOA_ADDRESS, 'othername.eth'))
     actor.send({ type: 'retry' })
     expect(actor.getSnapshot().matches('registering')).toBe(true)
   })
@@ -344,7 +344,7 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     expect(actor.getSnapshot().matches('registering')).toBe(true)
 
     // Another tab takes the wallet while this one sits on the failure screen.
-    releaseRegistrationLock(EOA_ADDRESS)
+    releaseRegistrationLock(EOA_ADDRESS, 'example.eth')
     asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
     actor.send({ type: '$error', error: new Error('boom') })
     expect(actor.getSnapshot().value).toBe('failure')
@@ -371,7 +371,7 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
       } as unknown as SmartAccountContextValue),
     )
     actor.send({ type: '$error', error: new Error('boom') })
-    releaseRegistrationLock(EOA_ADDRESS)
+    releaseRegistrationLock(EOA_ADDRESS, 'example.eth')
 
     actor.send({ type: 'retry' })
 

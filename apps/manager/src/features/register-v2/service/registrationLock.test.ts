@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   acquireRegistrationLock,
   getBlockingRegistration,
@@ -32,7 +32,7 @@ describe('registrationLock', () => {
 
     asAnotherTab(() => {
       expect(acquireRegistrationLock(WALLET, 'tab02.eth')).toBe(false)
-      expect(getBlockingRegistration(WALLET)).toBe('tab01.eth')
+      expect(getBlockingRegistration(WALLET, 'tab02.eth')).toBe('tab01.eth')
     })
   })
 
@@ -42,7 +42,7 @@ describe('registrationLock', () => {
     acquireRegistrationLock(WALLET, 'tab01.eth')
 
     expect(acquireRegistrationLock(WALLET, 'tab01.eth')).toBe(true)
-    expect(getBlockingRegistration(WALLET)).toBeNull()
+    expect(getBlockingRegistration(WALLET, 'tab01.eth')).toBeNull()
   })
 
   it('blocks a second tab registering the same name', () => {
@@ -62,7 +62,7 @@ describe('registrationLock', () => {
       expect(acquireRegistrationLock(OTHER_WALLET, 'tab02.eth')).toBe(true)
     })
 
-    expect(getBlockingRegistration(WALLET)).toBeNull()
+    expect(getBlockingRegistration(WALLET, 'tab01.eth')).toBeNull()
 
     asAnotherTab(() => {
       expect(acquireRegistrationLock(WALLET, 'tab03.eth')).toBe(false)
@@ -84,7 +84,7 @@ describe('registrationLock', () => {
 
   it('frees the wallet once released', () => {
     acquireRegistrationLock(WALLET, 'tab01.eth')
-    releaseRegistrationLock(WALLET)
+    releaseRegistrationLock(WALLET, 'tab01.eth')
 
     asAnotherTab(() => {
       expect(acquireRegistrationLock(WALLET, 'tab02.eth')).toBe(true)
@@ -94,10 +94,10 @@ describe('registrationLock', () => {
   it('will not let one tab release another tab’s claim', () => {
     acquireRegistrationLock(WALLET, 'tab01.eth')
 
-    asAnotherTab(() => releaseRegistrationLock(WALLET))
+    asAnotherTab(() => releaseRegistrationLock(WALLET, 'tab01.eth'))
 
     asAnotherTab(() => {
-      expect(getBlockingRegistration(WALLET)).toBe('tab01.eth')
+      expect(getBlockingRegistration(WALLET, 'tab02.eth')).toBe('tab01.eth')
     })
   })
 
@@ -143,10 +143,40 @@ describe('registrationLock', () => {
     })
   })
 
+  // Same tab, different name: a second registration started while the first
+  // commit is still pending shares the tab id but is not the same attempt.
+  it('blocks a different name in the same tab', () => {
+    acquireRegistrationLock(WALLET, 'tab01.eth')
+
+    expect(acquireRegistrationLock(WALLET, 'tab02.eth')).toBe(false)
+    expect(getBlockingRegistration(WALLET, 'tab02.eth')).toBe('tab01.eth')
+  })
+
+  it('will not let a different name in the same tab release the claim', () => {
+    acquireRegistrationLock(WALLET, 'tab01.eth')
+    releaseRegistrationLock(WALLET, 'tab02.eth')
+
+    expect(getBlockingRegistration(WALLET, 'tab02.eth')).toBe('tab01.eth')
+  })
+
+  // Storage that refuses writes must not turn the guard into a wall.
+  it('grants the claim when storage cannot be written', () => {
+    const setItem = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => {
+        throw new Error('QuotaExceededError')
+      })
+    try {
+      expect(acquireRegistrationLock(WALLET, 'tab01.eth')).toBe(true)
+    } finally {
+      setItem.mockRestore()
+    }
+  })
+
   it('survives corrupt storage', () => {
     localStorage.setItem('ens-registration-locks-v1', 'not json')
 
-    expect(getBlockingRegistration(WALLET)).toBeNull()
+    expect(getBlockingRegistration(WALLET, 'tab01.eth')).toBeNull()
     expect(acquireRegistrationLock(WALLET, 'tab01.eth')).toBe(true)
   })
 })

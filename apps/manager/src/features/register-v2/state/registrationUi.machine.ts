@@ -319,7 +319,12 @@ const machineSetup = setup({
       const confirmed = context.confirmedData
       if (!confirmed) return false
 
-      return getBlockingRegistration(confirmed.ownerAddress) !== null
+      return (
+        getBlockingRegistration(
+          confirmed.ownerAddress,
+          asEthName(confirmed.label),
+        ) !== null
+      )
     },
     isDurationValid: ({ context }) =>
       context.duration >= MIN_REGISTER_DURATION_SECONDS,
@@ -393,7 +398,10 @@ const machineSetup = setup({
       lastErrorMessage: ({ context }) => {
         const confirmed = context.confirmedData
         const blocking = confirmed
-          ? getBlockingRegistration(confirmed.ownerAddress)
+          ? getBlockingRegistration(
+              confirmed.ownerAddress,
+              asEthName(confirmed.label),
+            )
           : null
 
         return registrationLockMessage(blocking)
@@ -412,7 +420,10 @@ const machineSetup = setup({
       const confirmed = context.confirmedData
       if (!confirmed) return
 
-      releaseRegistrationLock(confirmed.ownerAddress)
+      releaseRegistrationLock(
+        confirmed.ownerAddress,
+        asEthName(confirmed.label),
+      )
     },
     clearRegistrationData: assign({
       confirmedData: () => undefined,
@@ -472,7 +483,10 @@ const machineSetup = setup({
 
       const confirmed = context.confirmedData
       if (confirmed) {
-        releaseRegistrationLock(confirmed.ownerAddress)
+        releaseRegistrationLock(
+          confirmed.ownerAddress,
+          asEthName(confirmed.label),
+        )
       }
 
       enqueue.assign({
@@ -648,7 +662,9 @@ const startRegistrationAction = machineSetup.createAction(
       return enqueue.raise({
         type: '$error',
         error: new Error(
-          registrationLockMessage(getBlockingRegistration(ownerAddress)),
+          registrationLockMessage(
+            getBlockingRegistration(ownerAddress, asEthName(event.label)),
+          ),
         ),
       })
     }
