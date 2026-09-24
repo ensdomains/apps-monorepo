@@ -5,6 +5,7 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { PaymentTokenPicker } from '@/features/register/components/PaymentTokenPicker'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
+import { truncateName } from '@/utils/formatting/truncateName'
 import type { SelectedName } from '../hooks/useRenewalTransactions'
 import { ExtendNameSummaryCards } from './ExtendNameSummaryCards'
 
@@ -27,10 +28,16 @@ export const ExtendNameConfirmation = ({
     useState<TokenWithPriceAndBalance | null>(null)
 
   return (
-    <div className="space-y-6 mt-2">
+    <div className="space-y-6 mt-2 min-w-0">
       <div className="flex items-center gap-2">
         <NameAvatar name={selectedName.name} height="60px" width="60px" />
-        <h2 className="text-h2 w-max text-foreground">{selectedName.name}</h2>
+        <h2
+          className="text-h2 min-w-0 truncate text-foreground"
+          title={selectedName.name}
+          aria-label={selectedName.name}
+        >
+          {truncateName(selectedName.name)}
+        </h2>
       </div>
       <ExtendNameSummaryCards
         durationSeconds={durationSeconds}

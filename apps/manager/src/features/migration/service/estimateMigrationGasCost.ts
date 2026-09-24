@@ -27,8 +27,11 @@ type EstimateMigrationGasCostParams = {
 const predictedGasUnits = (plan: MigrationPlan): bigint => {
   const approvals = plan.preflight.migrationApprovals ?? []
   const approvalCount = BigInt(approvals.length)
+  const cleanupCount = BigInt(
+    plan.preflight.migrationCleanupApprovals?.length ?? 0,
+  )
   const deploymentGas = plan.hcaDeploymentRequired ? HCA_DEPLOYMENT_GAS : 0n
-  const approvalGas = approvalCount * APPROVAL_GAS
+  const approvalGas = (approvalCount + cleanupCount) * APPROVAL_GAS
   const atomicBatchGas = plan.atomicBatches.reduce(
     (total, batch) => total + batch.estimatedGas,
     0n,
@@ -40,8 +43,11 @@ const predictedGasUnits = (plan: MigrationPlan): bigint => {
 const predictedTransactionCount = (plan: MigrationPlan): number => {
   const approvals = plan.preflight.migrationApprovals ?? []
   const approvalCount = approvals.length
+  const cleanupCount = plan.preflight.migrationCleanupApprovals?.length ?? 0
   const deploymentCount = plan.hcaDeploymentRequired ? 1 : 0
-  return deploymentCount + approvalCount + plan.atomicBatches.length
+  return (
+    deploymentCount + approvalCount + cleanupCount + plan.atomicBatches.length
+  )
 }
 
 const estimateFeePerGas = async (

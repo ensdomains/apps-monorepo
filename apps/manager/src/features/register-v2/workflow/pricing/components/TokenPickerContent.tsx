@@ -217,6 +217,13 @@ export const TokenPickerContent = () => {
       postRegistrationSetup: resolvedSetAsPrimary
         ? { primaryName: { enabled: true, syncEthRecord: true } }
         : undefined,
+      // The USDC figure this screen actually rendered. The machine re-quotes
+      // before sizing the permit, and refuses to prompt if that re-quote lands
+      // materially above this — so what the wallet is asked to approve can
+      // never diverge from what was on screen. `undefined` when the quote
+      // failed and only the rent was shown; the machine's independent ceiling
+      // still applies.
+      ...(funding ? { displayedWalletDebit: funding.walletDebitRaw } : {}),
     })
   }
 

@@ -21,17 +21,18 @@ path, the common cases are:
 
 | Selection | Existing HCA | Fresh HCA |
 | --- | ---: | ---: |
-| One unwrapped name | 2 | 3 |
-| Wrapped names or multiple unwrapped names | 3 | 4 |
-| Required permissions already exist | 1 | 2 |
+| One unwrapped name needing token approval | 2 | 3 |
+| `n` unwrapped names needing token approvals | `n + 1` | `n + 2` |
+| Wrapped names needing NameWrapper approval | 2 | 3 |
+| NFT permissions already exist; no HCA approval | 1 | 2 |
 
 The count includes the migration batch, required permission grants, automatic
 operator-permission cleanup, and HCA deployment when needed. NFT approvals are
 granted to MigrationHelper; the ETHRegistry manager-restoration approval is
-granted to the HCA. One unwrapped name uses a per-token ERC-721 approval, which
-clears automatically when the transfer succeeds. Multiple unwrapped names use
-one temporary operator approval. A missing ETHRegistry approval adds a grant
-and a cleanup confirmation. Every additional gas-safe atomic batch adds one
+granted to the HCA. Each unwrapped name needing approval uses a per-token
+ERC-721 approval, which clears automatically when the transfer succeeds.
+An active ETHRegistry approval adds a cleanup confirmation even if a previous
+attempt created it. Every additional gas-safe atomic batch adds one
 confirmation.
 
 ## Operator notes
@@ -66,12 +67,14 @@ confirmation.
   source-token ownership before it can rebuild an incomplete batch.
 - Custom resolvers are preserved. Locked names whose replaceable resolver is
   absent from the live `PublicResolverSet` remain blocked.
-- Operator approvals created by the migration are temporary and are revoked
-  automatically after the atomic batches verify. This includes NFT access for
-  MigrationHelper and any manager-restoration access for the HCA. If cleanup is
-  rejected or fails, the recovery action remains labelled
-  `Revoke temporary HCA access`. Per-token approvals clear automatically when
-  their transfers succeed.
+- The ETHRegistry manager-restoration approval for the HCA is temporary. Its
+  current on-chain state is checked and revoked after the batches verify and
+  when an upgrade fails. If the browser closes, the dashboard flags the active
+  approval and links to Migration permissions in the profile menu for revocation.
+  NameWrapper approval for MigrationHelper remains active after wrapped
+  migration; older BaseRegistrar operator grants can remain active too. The
+  owner can remove either on the Migration permissions page. New unwrapped
+  migrations use per-token approvals, which clear on transfer.
 - Text, address, contenthash, and ABI records are read from the V1 resolver,
   replayed in the HCA batch, and verified on-chain before completion.
 - The rollout remains behind the existing migration feature flag.
