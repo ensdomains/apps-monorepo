@@ -8,7 +8,11 @@ export {
 // Helpers
 export { getSmartAccountAddress } from './helpers/getSmartAccountAddress'
 export {
+  HCA_MAX_STANDALONE_INTENT_FEE_USDC,
   HCA_STANDALONE_INTENT_GAS_LIMIT,
+  HcaFundingDeclinedError,
+  type HcaFundingPrompt,
+  HcaIntentFeeExceedsMaximumError,
   type HcaIntentFunding,
   type PlanHcaIntentFundingParams,
   planHcaIntentFunding,

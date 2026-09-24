@@ -9,6 +9,7 @@ import { EducationCarousel } from '@/features/dashboard/components/EducationCaro
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
+import { TemporaryMigrationAccessNotice } from '@/features/dashboard/components/TemporaryMigrationAccessNotice'
 import { MigrationModal } from '@/features/migration/components/MigrationModal'
 import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
 import { CommemorativeNftDashboard } from '@/features/migration/components/success/CommemorativeNftDashboard'
@@ -119,6 +120,7 @@ export const DashboardPage = () => {
           />
         </motion.div>
         {migrationEnabled && <MigrationProgressBanner />}
+        <TemporaryMigrationAccessNotice />
         {commemorativeNftEnabled ? <CommemorativeNftDashboard /> : null}
         <motion.div
           className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"

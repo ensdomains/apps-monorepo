@@ -64,9 +64,11 @@ export {
   getValidSessionByOwner,
   getValidSessionForAccount,
   HCA_LEG_GAS_LIMITS,
+  HCA_MAX_LEG_FEES_USDC,
   HCA_PRIMARY_NAME_BASE_GAS,
   HCA_PRIMARY_NAME_WORD_GAS,
   type HcaBudgetBreakdown,
+  HcaBudgetExceedsMaximumError,
   type HcaBudgetParams,
   HcaDeploymentCallValidationError,
   type HcaDirectExecutionReadiness,
@@ -74,6 +76,7 @@ export {
   type HcaSessionConfig,
   type HcaSessionEnablePayload,
   hasRegistrationHeadroom,
+  hcaBudgetMaximum,
   type InitializeRhinestoneAccountParams,
   initializeRhinestoneAccount,
   isRhinestoneSession,
@@ -110,6 +113,7 @@ export {
   USER_SALT,
   type VerifyStandaloneHcaParams,
   verifyStandaloneHca,
+  withBudgetDrift,
 } from './providers/rhinestone'
 export type { BaseStoredSession } from './types'
 export {
