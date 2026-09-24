@@ -175,7 +175,10 @@ const AddressProfileAvatarSection = ({
             className="mx-auto size-38 rounded-xl shadow-none lg:landscape:mx-0 lg:landscape:size-[147px]" // 147px avatar per Figma — not on the spacing scale
             name={primaryName}
           />
-          <ProfileAbout records={records} />
+          <ProfileAbout
+            className="lg:landscape:max-h-[147px] lg:landscape:min-h-[147px]"
+            records={records}
+          />
         </div>
       </ProfileThemeColorProvider>
     )

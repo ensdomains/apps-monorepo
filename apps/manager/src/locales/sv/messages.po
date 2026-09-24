@@ -2196,6 +2196,10 @@ msgstr ""
 msgid "Show less"
 msgstr ""
 
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Show more"
+msgstr ""
+
 #: src/features/dashboard/components/DashboardPagination.tsx
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""

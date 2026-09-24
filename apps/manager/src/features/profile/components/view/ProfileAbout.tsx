@@ -1,6 +1,16 @@
 import { Trans } from '@lingui/react/macro'
+import { useEffect, useRef, useState } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { ProfileRecords } from '@/features/profile/types'
+import { cn } from '@/lib/utils'
 import { getDisplayHost, getSafeProfileHref } from './ProfileView.helpers'
 
 const getContactRecordValue = (records: ProfileRecords, key: string) =>
@@ -13,6 +23,65 @@ const formatLanguage = (language: string | undefined) =>
     .filter(Boolean)
     .join(', ')
     .toUpperCase()
+
+const ProfileDescription = ({
+  description,
+}: {
+  readonly description: string
+}) => {
+  const descriptionRef = useRef<HTMLParagraphElement>(null)
+  const [hasHiddenContent, setHasHiddenContent] = useState(false)
+
+  useEffect(() => {
+    const element = descriptionRef.current
+    if (!element) return
+
+    const updateHeight = () => {
+      const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight)
+      setHasHiddenContent(
+        description.length > 0 && element.scrollHeight > lineHeight * 2 + 1,
+      )
+    }
+
+    updateHeight()
+    const resizeObserver = new ResizeObserver(updateHeight)
+    resizeObserver.observe(element)
+    return () => resizeObserver.disconnect()
+  }, [description])
+
+  return (
+    <Dialog>
+      <div className="mt-3">
+        <p
+          className="max-h-[3em] overflow-hidden text-ens-quartz-500 text-sm leading-normal"
+          ref={descriptionRef}
+        >
+          {description}
+        </p>
+        {hasHiddenContent ? (
+          <DialogTrigger asChild>
+            <button
+              className="mt-1 font-medium text-(--theme-color) text-sm hover:underline focus-visible:outline-2 focus-visible:outline-current focus-visible:outline-offset-2"
+              type="button"
+            >
+              <Trans>Show more</Trans>
+            </button>
+          </DialogTrigger>
+        ) : null}
+      </div>
+      <DialogContent className="max-h-[80dvh] overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>
+            <Trans>About</Trans>
+          </DialogTitle>
+        </DialogHeader>
+        <DialogDescription className="wrap-anywhere min-h-0 overflow-y-auto whitespace-pre-wrap text-ens-quartz-700 text-sm leading-normal">
+          {description}
+        </DialogDescription>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 const AboutMetaItem = ({
   icon,
@@ -28,7 +97,7 @@ const AboutMetaItem = ({
       <span className="flex size-5 shrink-0 items-center justify-center text-ens-quartz-700 leading-none lg:landscape:size-6">
         {icon}
       </span>
-      <span className="min-w-0 text-[12px] leading-4.5 lg:landscape:truncate lg:landscape:text-sm lg:landscape:leading-normal">
+      <span className="min-w-0 text-[12px] leading-4.5 lg:landscape:text-sm lg:landscape:leading-normal">
         {value}
       </span>
     </div>
@@ -36,8 +105,10 @@ const AboutMetaItem = ({
 }
 
 export const ProfileAbout = ({
+  className,
   records,
 }: {
+  readonly className?: string
   readonly records: ProfileRecords
 }) => {
   const websiteHref = records.base.url
@@ -49,18 +120,19 @@ export const ProfileAbout = ({
   const location = getContactRecordValue(records, 'location')?.toUpperCase()
 
   return (
-    <section className="flex min-h-0 flex-1 rounded-none border-none bg-transparent p-0 shadow-none lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-[0_2px_6px_rgba(0,0,0,0.06)]">
-      <div className="grid w-full gap-8 lg:landscape:grid-cols-[minmax(0,346.5px)_228px] lg:landscape:gap-3">
+    <section
+      className={cn(
+        'wrap-anywhere flex min-h-0 min-w-0 flex-1 rounded-none border-none bg-transparent p-0 shadow-none lg:landscape:max-h-45.5 lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:overflow-y-auto lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-[0_2px_6px_rgba(0,0,0,0.06)]',
+        className,
+      )}
+    >
+      <div className="grid w-full min-w-0 gap-8 lg:landscape:grid-cols-[minmax(0,346.5px)_228px] lg:landscape:gap-3">
         <div className="min-w-0">
           <h2 className="text-base text-ens-quartz-700 leading-normal">
-            <span className="block truncate">
-              {fullName || <Trans>About</Trans>}
-            </span>
+            <span className="block">{fullName || <Trans>About</Trans>}</span>
           </h2>
           {records.base.description ? (
-            <p className="mt-3 text-ens-quartz-500 text-sm leading-normal">
-              {records.base.description}
-            </p>
+            <ProfileDescription description={records.base.description} />
           ) : null}
           {websiteHref ? (
             <a
@@ -69,7 +141,7 @@ export const ProfileAbout = ({
               rel="noopener noreferrer"
               target="_blank"
             >
-              <span className="truncate">{getDisplayHost(websiteHref)}</span>
+              <span className="min-w-0">{getDisplayHost(websiteHref)}</span>
               <MSymbol
                 className="ms-opsz-20 ms-wght-300 shrink-0"
                 symbol="arrow_outward"

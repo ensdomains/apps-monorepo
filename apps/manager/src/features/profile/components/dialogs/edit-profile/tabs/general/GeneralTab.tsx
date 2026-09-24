@@ -41,6 +41,8 @@ const setTextRecordValue = (
 const fieldClassName =
   'w-full rounded-sm border border-[#d4d4d4] bg-transparent p-4 text-[16px] text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50'
 
+const DESCRIPTION_MAX_LENGTH = 500
+const descriptionCharacterCountId = 'profile-description-character-count'
 const urlErrorMessageId = 'general-url-error-message'
 const mobileHiddenShortcutFields: ReadonlySet<GeneralField> = new Set([
   'name',
@@ -182,6 +184,7 @@ export const GeneralTab = ({
     preparedImageUploads.find(
       (upload) => upload.kind === kind && upload.imageUrl === values.base[kind],
     )?.dataURL
+  const description = values.base.description ?? ''
   const urlErrorMessage = getGeneralUrlErrorMessage(values.base.url)
   const getShortcutLabel = (field: GeneralField, label: string) => {
     if (field === 'avatar') {
@@ -289,15 +292,26 @@ export const GeneralTab = ({
         />
 
         {isVisible('description') && (
-          <textarea
-            className={cn(fieldClassName, 'min-h-[101px] resize-none')}
-            disabled={isSaving}
-            onChange={(event) =>
-              setBaseValue('description', event.target.value)
-            }
-            placeholder="Description"
-            value={values.base.description ?? ''}
-          />
+          <div className="w-full">
+            <textarea
+              aria-describedby={descriptionCharacterCountId}
+              aria-label="Description"
+              className={cn(fieldClassName, 'min-h-[101px] resize-none')}
+              disabled={isSaving}
+              maxLength={DESCRIPTION_MAX_LENGTH}
+              onChange={(event) =>
+                setBaseValue('description', event.target.value)
+              }
+              placeholder="Description"
+              value={description}
+            />
+            <p
+              className="text-right text-ens-quartz-400 text-xs"
+              id={descriptionCharacterCountId}
+            >
+              {description.length} / {DESCRIPTION_MAX_LENGTH} characters
+            </p>
+          </div>
         )}
 
         {isVisible('url') && (
