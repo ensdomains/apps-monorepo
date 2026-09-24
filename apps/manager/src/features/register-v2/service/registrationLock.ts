@@ -10,7 +10,10 @@ import type { Address } from 'viem'
  * preflighted per tab too, so concurrent runs can also collectively overdraw a
  * balance each one individually cleared.
  */
-const STORAGE_KEY = 'ens-registration-lock-v1'
+const STORAGE_KEY = 'ens-registration-locks-v1'
+
+/** Identifies the tab, not the name: `sessionStorage` is per tab and survives reload. */
+const HOLDER_KEY = 'ens-registration-holder'
 
 /**
  * A holder that stops refreshing is treated as gone. Long enough to survive a
@@ -22,81 +25,100 @@ const STALE_AFTER_MS = 60_000
 export const REGISTRATION_LOCK_REFRESH_MS = 15_000
 
 export type RegistrationLock = {
-  readonly owner: string
   readonly name: string
+  readonly holderId: string
   readonly updatedAt: number
 }
 
-const readLock = (): RegistrationLock | null => {
-  if (typeof window === 'undefined') return null
+/** Locks by lowercased wallet, so one wallet's claim can't evict another's. */
+type RegistrationLocks = Record<string, RegistrationLock>
+
+const readLocks = (): RegistrationLocks => {
+  if (typeof window === 'undefined') return {}
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
+    if (!raw) return {}
 
-    const parsed = JSON.parse(raw) as Partial<RegistrationLock>
-    if (
-      typeof parsed?.owner !== 'string' ||
-      typeof parsed?.name !== 'string' ||
-      typeof parsed?.updatedAt !== 'number'
-    ) {
-      return null
-    }
-
-    return parsed as RegistrationLock
+    const parsed: unknown = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as RegistrationLocks)
+      : {}
   } catch {
-    return null
+    return {}
   }
 }
 
-const writeLock = (lock: RegistrationLock): void => {
+const writeLocks = (locks: RegistrationLocks): void => {
   if (typeof window === 'undefined') return
 
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(lock))
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(locks))
   } catch {
     // A wallet that can't hold the lock still registers; it just loses the
-    // cross-tab guard, which is strictly better than blocking the flow.
+    // cross-tab guard, which is better than blocking the flow outright.
   }
 }
 
-const isSameHolder = (
-  lock: RegistrationLock,
-  owner: Address,
-  name: string,
-): boolean =>
-  lock.owner.toLowerCase() === owner.toLowerCase() && lock.name === name
+/** This tab's id, stable across reloads and distinct from every other tab. */
+export const getHolderId = (): string => {
+  if (typeof window === 'undefined') return 'server'
 
-const isStale = (lock: RegistrationLock, now: number): boolean =>
-  now - lock.updatedAt >= STALE_AFTER_MS
+  try {
+    const existing = window.sessionStorage.getItem(HOLDER_KEY)
+    if (existing) return existing
+
+    const created = crypto.randomUUID()
+    window.sessionStorage.setItem(HOLDER_KEY, created)
+    return created
+  } catch {
+    // Without per-tab storage every tab looks like the same holder, which only
+    // relaxes the guard back to name-based re-entrancy.
+    return 'fallback'
+  }
+}
+
+const readLock = (owner: Address): RegistrationLock | undefined =>
+  readLocks()[owner.toLowerCase()]
+
+const isLive = (lock: RegistrationLock | undefined, now: number): boolean =>
+  !!lock && now - lock.updatedAt < STALE_AFTER_MS
 
 /**
- * The name currently registering on this wallet in another tab, if any.
- * Re-entrant for `name` itself, so a reload resumes its own registration.
+ * The registration holding this wallet in another tab, if any.
+ *
+ * Matched on the holder, not the name: a reload resumes its own registration,
+ * while a second tab is blocked even when it is registering the same name.
  */
 export const getBlockingRegistration = (
   owner: Address,
-  name: string,
   now: number = Date.now(),
 ): string | null => {
-  const lock = readLock()
+  const lock = readLock(owner)
 
-  if (!lock || isStale(lock, now)) return null
-  if (lock.owner.toLowerCase() !== owner.toLowerCase()) return null
+  if (!isLive(lock, now) || !lock) return null
 
-  return isSameHolder(lock, owner, name) ? null : lock.name
+  return lock.holderId === getHolderId() ? null : lock.name
 }
 
-/** Claim the wallet for `name`, unless another name already holds it. */
+/**
+ * Claim the wallet for `name`. The write is read back, so when two tabs claim
+ * at once the loser sees the winner's record and reports failure rather than
+ * both proceeding on the same permit nonce.
+ */
 export const acquireRegistrationLock = (
   owner: Address,
   name: string,
   now: number = Date.now(),
 ): boolean => {
-  if (getBlockingRegistration(owner, name, now) !== null) return false
+  if (getBlockingRegistration(owner, now) !== null) return false
 
-  writeLock({ owner, name, updatedAt: now })
-  return true
+  const key = owner.toLowerCase()
+  const holderId = getHolderId()
+
+  writeLocks({ ...readLocks(), [key]: { name, holderId, updatedAt: now } })
+
+  return readLock(owner)?.holderId === holderId
 }
 
 /** Keep the claim alive while the registration runs. */
@@ -105,22 +127,21 @@ export const refreshRegistrationLock = (
   name: string,
   now: number = Date.now(),
 ): void => {
-  const lock = readLock()
-  if (!lock || !isSameHolder(lock, owner, name)) return
+  const lock = readLock(owner)
+  if (!lock || lock.holderId !== getHolderId()) return
 
-  writeLock({ owner, name, updatedAt: now })
+  const key = owner.toLowerCase()
+  writeLocks({
+    ...readLocks(),
+    [key]: { name, holderId: lock.holderId, updatedAt: now },
+  })
 }
 
-/** Release the claim. A lock held by anything else is left alone. */
-export const releaseRegistrationLock = (owner: Address, name: string): void => {
-  if (typeof window === 'undefined') return
+/** Release the claim. A claim held by another tab is left alone. */
+export const releaseRegistrationLock = (owner: Address): void => {
+  const lock = readLock(owner)
+  if (!lock || lock.holderId !== getHolderId()) return
 
-  const lock = readLock()
-  if (!lock || !isSameHolder(lock, owner, name)) return
-
-  try {
-    window.localStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // Nothing to do: the record goes stale on its own.
-  }
+  const { [owner.toLowerCase()]: _released, ...rest } = readLocks()
+  writeLocks(rest)
 }

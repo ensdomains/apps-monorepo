@@ -257,7 +257,20 @@ const flush = async (times = 8) => {
 
 beforeEach(() => {
   localStorage.clear()
+  sessionStorage.clear()
 })
+
+/** Run as a second tab: same storage, its own stable holder id. */
+const asAnotherTab = <T>(run: () => T): T => {
+  const held = sessionStorage.getItem('ens-registration-holder')
+  sessionStorage.setItem('ens-registration-holder', 'other-tab')
+  try {
+    return run()
+  } finally {
+    if (held) sessionStorage.setItem('ens-registration-holder', held)
+    else sessionStorage.removeItem('ens-registration-holder')
+  }
+}
 
 afterEach(() => {
   vi.clearAllMocks()
@@ -285,7 +298,7 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     const { acquireRegistrationLock, releaseRegistrationLock } = await import(
       '../service/registrationLock'
     )
-    acquireRegistrationLock(EOA_ADDRESS, 'othername.eth')
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
 
     const actor = startActorInTokens()
 
@@ -307,7 +320,7 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     expect(actor.getSnapshot().value).toBe('failure')
 
     // Only once the other tab is done does the retry proceed.
-    releaseRegistrationLock(EOA_ADDRESS, 'othername.eth')
+    asAnotherTab(() => releaseRegistrationLock(EOA_ADDRESS))
     actor.send({ type: 'retry' })
     expect(actor.getSnapshot().matches('registering')).toBe(true)
   })
@@ -331,8 +344,8 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
     expect(actor.getSnapshot().matches('registering')).toBe(true)
 
     // Another tab takes the wallet while this one sits on the failure screen.
-    releaseRegistrationLock(EOA_ADDRESS, 'example.eth')
-    acquireRegistrationLock(EOA_ADDRESS, 'othername.eth')
+    releaseRegistrationLock(EOA_ADDRESS)
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
     actor.send({ type: '$error', error: new Error('boom') })
     expect(actor.getSnapshot().value).toBe('failure')
 
@@ -358,7 +371,7 @@ describe('registrationV2UiMachine — HCA approval-signer guard', () => {
       } as unknown as SmartAccountContextValue),
     )
     actor.send({ type: '$error', error: new Error('boom') })
-    releaseRegistrationLock(EOA_ADDRESS, 'example.eth')
+    releaseRegistrationLock(EOA_ADDRESS)
 
     actor.send({ type: 'retry' })
 
