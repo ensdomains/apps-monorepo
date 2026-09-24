@@ -193,6 +193,22 @@ describe('estimateHcaBudget', () => {
     )
   })
 
+  it('pins the leg-fee ceiling at 25 USDC', async () => {
+    // The other ceiling tests feed the constant back into itself, so they stay
+    // green whatever it is set to. These use literals on purpose: raising the
+    // ceiling (e.g. for mainnet, see the REVISIT ON MAINNET note on
+    // HCA_MAX_LEG_FEES_USDC in budget.ts) must be a deliberate edit here too.
+    expect(HCA_MAX_LEG_FEES_USDC).toBe(25_000_000n)
+
+    // 13 USDC per leg = 26 USDC of fees, just over the ceiling.
+    await expect(
+      estimateHcaBudget({
+        ...baseParams(USDC(5)),
+        quoteLegCostUsdc: async () => ({ spendUsdc: 13_000_000n }),
+      }),
+    ).rejects.toThrow(HcaBudgetExceedsMaximumError)
+  })
+
   it('reports the ceiling it accepted the budget under', async () => {
     const breakdown = await estimateHcaBudget({
       ...baseParams(USDC(5)),

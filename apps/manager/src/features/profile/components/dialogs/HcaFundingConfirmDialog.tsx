@@ -95,11 +95,17 @@ export const HcaFundingConfirmDialog = ({
           className="flex-1/3 uppercase"
           onClick={onDecline}
           size="lg"
+          type="button"
           variant="outline"
         >
           <Trans>Cancel</Trans>
         </Button>
-        <Button className="flex-2/3 uppercase" onClick={onApprove} size="lg">
+        <Button
+          className="flex-2/3 uppercase"
+          onClick={onApprove}
+          size="lg"
+          type="button"
+        >
           <Trans>Approve</Trans>
         </Button>
       </AlertDialogFooter>
