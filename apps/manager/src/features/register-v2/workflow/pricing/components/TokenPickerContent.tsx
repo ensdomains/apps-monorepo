@@ -30,6 +30,10 @@ import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
 import { PaymentBreakdown } from './PaymentBreakdown'
+import {
+  PaymentMethodList,
+  type PaymentMethodListItem,
+} from './PaymentMethodList'
 import { PaymentTotalRow } from './PaymentTotalRow'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { TokenListItem } from './TokenListItem'
@@ -285,46 +289,19 @@ export const TokenPickerContent = () => {
   const { stablecoinBalances, isLoadingBalances, isConnected } =
     useSmartAccountContext()
 
-  // Prefer the funding shortfall over the generic availability copy: it is the
-  // more specific failure and the only one the user can act on directly.
-  //
-  // The headline figure is always the DEBIT — with a part-funded HCA the wallet
-  // owes less than the registration costs, and quoting the budget would name a
-  // figure the user does not have to hold. The itemisation has to follow suit:
-  // `registration + networkFee` sums to the TOTAL, so spelling it out next to a
-  // credited debit prints two different numbers for the same quantity. Only the
-  // uncredited case itemises; the credited one names the credit instead, which
-  // is what reconciles the two.
-  const errorMessage = match({
-    funding,
-    mutationError: availabilityMutation.error,
-    isAvailabilityError: availabilityMutation.isError,
-  })
-    .with(
-      { funding: { isUnderfunded: true, hcaCredit: P.number.gt(0) } },
-      ({ funding: f }) =>
-        t`Not enough USDC. This name costs ${f.total.toFixed(2)} USDC, and ${f.hcaCredit.toFixed(2)} is left from your last attempt, so you pay ${f.walletDebit.toFixed(2)} now. Your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
-    )
-    .with(
-      { funding: { isUnderfunded: true } },
-      ({ funding: f }) =>
-        t`Not enough USDC. This name costs ${f.walletDebit.toFixed(2)} USDC: ${f.registration.toFixed(2)} for the name plus ${f.networkFee.toFixed(2)} in network fees. Your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
-    )
-    .with(
-      { mutationError: P.instanceOf(InsufficientFundingError) },
-      ({ mutationError: e }) =>
-        t`Not enough USDC. This registration needs ${e.required.toFixed(2)} USDC but your wallet holds ${e.available.toFixed(2)} USDC.`,
-    )
-    .with(
-      { isAvailabilityError: true },
-      () =>
-        t`We couldn't confirm that ${domainName} is still available. Please try again.`,
-    )
-    .otherwise(() => null)
+  const isClickFundingShortfall =
+    availabilityMutation.error instanceof InsufficientFundingError
+  const methodErrorMessage =
+    funding?.isUnderfunded || isClickFundingShortfall
+      ? t`not enough funds to pay network fees`
+      : null
+  const globalErrorMessage =
+    availabilityMutation.isError && !isClickFundingShortfall
+      ? t`We couldn't confirm that ${domainName} is still available. Please try again.`
+      : null
 
   return (
     <TokenPickerContentBase
-      errorMessage={errorMessage}
       footer={
         <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
           <div className="flex flex-col gap-0.5">
@@ -359,16 +336,19 @@ export const TokenPickerContent = () => {
             }
           : undefined
       }
+      globalErrorMessage={globalErrorMessage}
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
       isQuotingFunding={budgetQuery.isLoading}
       label={label}
+      methodErrorMessage={methodErrorMessage}
       onNext={() => availabilityMutation.mutate()}
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
       selectedToken={selectedToken}
+      showNetworkFeeDetails
       stablecoinBalances={stablecoinBalances}
     />
   )
@@ -380,7 +360,8 @@ export const TokenPickerContentBase = ({
   pricingData,
   isInPriceCooldown = false,
   selectedToken,
-  errorMessage,
+  globalErrorMessage,
+  methodErrorMessage,
   onSelectCoin,
   onNext,
   stablecoinBalances,
@@ -390,13 +371,16 @@ export const TokenPickerContentBase = ({
   footer,
   funding,
   isQuotingFunding = false,
+  showNetworkFeeDetails = false,
+  isFeeTooltipOpen,
 }: {
   label: string
   pricingLoading: boolean
   pricingData: number | undefined
   isInPriceCooldown?: boolean
   selectedToken: SUPPORTED_TOKEN | undefined
-  errorMessage?: string | null
+  globalErrorMessage?: string | null
+  methodErrorMessage?: string | null
   onSelectCoin: (coin: SUPPORTED_TOKEN) => void
   onNext: () => void
   stablecoinBalances: StablecoinBalance[]
@@ -406,19 +390,17 @@ export const TokenPickerContentBase = ({
   /** Optional content below the payment options (e.g. the primary-name toggle). */
   footer?: ReactNode
   /**
-   * Itemises the funding budget when the wallet is debited more than the rent —
-   * the standalone-HCA route funds both on-chain legs from the same transfer.
-   * Absent until the quote lands, and for routes that have no budget to quote
-   * (a pure-EOA signer pays the registrar directly). When present, `total` —
-   * not `pricingData` — is what the wallet must cover.
+   * Carries the funding budget used by the method-level fee disclosure and the
+   * inherited account-credit breakdown. When present, `total` — not
+   * `pricingData` — is what the wallet must cover.
    */
   funding?: RegistrationFundingSummary
-  /**
-   * The budget quote is still in flight. Reserves the network-cost row's space
-   * so the token list below it does not jump once the quote lands — two
-   * orchestrator round-trips is long enough for that shift to be felt.
-   */
+  /** The method-level fee quote is still in flight. */
   isQuotingFunding?: boolean
+  /** Registration-only disclosure; renewals keep their existing token row. */
+  showNetworkFeeDetails?: boolean
+  /** Story-only control used to capture the open tooltip reference state. */
+  isFeeTooltipOpen?: boolean
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -477,8 +459,42 @@ export const TokenPickerContentBase = ({
     hasBalances &&
     hasSufficientBalanceForSelectedCoin
 
+  const paymentMethodItems: PaymentMethodListItem[] = stablecoinBalances.map(
+    (stablecoin) => {
+      const balance = decimalBigintToNumber(
+        BigInt(stablecoin.balance),
+        stablecoin.decimals,
+      )
+      const isFunded = requiredAmount !== undefined && balance >= requiredAmount
+
+      return {
+        id: stablecoin.address,
+        isAvailable: true,
+        isFunded,
+        isCommon: stablecoin.symbol === TOKENS.USDC.symbol,
+        content: (
+          <TokenListItem
+            errorMessage={
+              stablecoin.symbol === TOKENS.USDC.symbol
+                ? methodErrorMessage
+                : undefined
+            }
+            isFeeTooltipOpen={isFeeTooltipOpen}
+            isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
+            networkFee={funding?.networkFee}
+            onSelectCoin={onSelectCoin}
+            priceUSD={requiredAmount ?? 0}
+            selectedCoin={selectedToken}
+            showNetworkFeeDetails={showNetworkFeeDetails}
+            stablecoin={stablecoin}
+          />
+        ),
+      }
+    },
+  )
+
   return (
-    <div className="flex h-full flex-1 flex-col gap-6 px-4 pt-2 pb-6">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-6 pt-2 pb-6">
       <div className="flex flex-1 flex-col items-center gap-8 overflow-y-auto">
         <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
           {(premiumLabel || isInPriceCooldown) && (
@@ -504,7 +520,7 @@ export const TokenPickerContentBase = ({
             {domainName}
           </span>
 
-          <PaymentBreakdown funding={funding} isQuoting={!!isQuotingFunding} />
+          <PaymentBreakdown funding={funding} />
         </div>
 
         <div className="flex w-full flex-col gap-6">
@@ -552,22 +568,14 @@ export const TokenPickerContentBase = ({
               </div>
             ))
             .with({ stablecoinsCount: P.number.gt(0) }, () => (
-              <div className="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
-                {stablecoinBalances.map((stablecoin) => (
-                  <TokenListItem
-                    key={stablecoin.address}
-                    onSelectCoin={onSelectCoin}
-                    priceUSD={requiredAmount ?? 0}
-                    selectedCoin={selectedToken}
-                    stablecoin={stablecoin}
-                  />
-                ))}
-              </div>
+              <PaymentMethodList items={paymentMethodItems} />
             ))
             .otherwise(() => undefined)}
 
-          {errorMessage && (
-            <p className="text-center text-ens-error text-sm">{errorMessage}</p>
+          {globalErrorMessage && (
+            <p className="text-center text-ens-error text-sm">
+              {globalErrorMessage}
+            </p>
           )}
 
           <div className="flex flex-col items-center gap-1.5">

@@ -1,0 +1,21 @@
+import { MSymbol } from '@/components/ui/material-symbol'
+
+export const PaymentMethodError = ({
+  id,
+  children,
+}: {
+  readonly id?: string
+  readonly children: React.ReactNode
+}) => (
+  <span
+    className="flex min-w-0 items-center gap-1 whitespace-nowrap text-[#c82e1f] text-[10px] leading-none sm:text-xs"
+    id={id}
+  >
+    <MSymbol
+      aria-hidden="true"
+      className="ms-opsz-16 ms-wght-400 shrink-0"
+      symbol="flash_off"
+    />
+    <span>{children}</span>
+  </span>
+)

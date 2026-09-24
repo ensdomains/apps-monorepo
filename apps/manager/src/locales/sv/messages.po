@@ -257,7 +257,7 @@ msgstr ""
 msgid "An error occurred during verification"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr ""
 
@@ -365,6 +365,10 @@ msgstr ""
 
 #: src/features/payment/components/index.tsx
 msgid "Backup Card"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "balance"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx
@@ -1155,10 +1159,6 @@ msgstr ""
 msgid "Image not available"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "in your wallet"
-msgstr ""
-
 #: src/features/notifications/settings/preferences.tsx
 msgid "In-app notifications are always enabled"
 msgstr ""
@@ -1215,6 +1215,10 @@ msgstr ""
 msgid "Links"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "Load {hiddenCount} more"
+msgstr ""
+
 #: src/features/notifications/inbox/list.tsx
 msgid "Load more"
 msgstr ""
@@ -1258,6 +1262,11 @@ msgstr ""
 
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Main receiving address"
+msgstr ""
+
+#. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "Mainnet est. fee: {0}"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
@@ -1395,10 +1404,6 @@ msgstr ""
 msgid "Need more help? Visit ENS Support Docs"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
-msgid "Network fee"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Never lose your name to expiry."
 msgstr ""
@@ -1469,26 +1474,9 @@ msgstr ""
 msgid "No wallet connected yet"
 msgstr ""
 
-#. placeholder {0}: f.total.toFixed(2)
-#. placeholder {1}: f.hcaCredit.toFixed(2)
-#. placeholder {2}: f.walletDebit.toFixed(2)
-#. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This name costs {0} USDC, and {1} is left from your last attempt, so you pay {2} now. Your wallet holds {3} USDC."
-msgstr ""
-
-#. placeholder {0}: f.walletDebit.toFixed(2)
-#. placeholder {1}: f.registration.toFixed(2)
-#. placeholder {2}: f.networkFee.toFixed(2)
-#. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This name costs {0} USDC: {1} for the name plus {2} in network fees. Your wallet holds {3} USDC."
-msgstr ""
-
-#. placeholder {0}: e.required.toFixed(2)
-#. placeholder {1}: e.available.toFixed(2)
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
+msgid "not enough funds to pay network fees"
 msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
@@ -1784,6 +1772,7 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
 msgid "Register name"
 msgstr ""
 
@@ -2132,6 +2121,7 @@ msgstr ""
 
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
 msgid "Select payment"
 msgstr ""
 
@@ -2902,7 +2892,7 @@ msgstr ""
 msgid "What is a primary name?"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "What is the network fee?"
 msgstr ""
 
