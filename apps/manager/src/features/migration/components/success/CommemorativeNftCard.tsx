@@ -435,12 +435,13 @@ const ArtworkCard = ({
             alt={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
             aria-hidden={!artworkReady}
             className={cn(
-              'absolute inset-0 h-full w-full rounded-lg object-contain drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)] transition-opacity duration-300 ease-out motion-reduce:transition-none',
+              'pointer-events-none absolute inset-0 h-full w-full select-none rounded-lg object-contain drop-shadow-[0_7px_7px_rgba(90,0,36,0.2)] transition-opacity duration-300 ease-out motion-reduce:transition-none',
               artworkReady && !artwork.animationReady
                 ? 'opacity-100'
                 : 'opacity-0',
             )}
             decoding="async"
+            draggable={false}
             src={imageUrl}
           />
         ) : null}
