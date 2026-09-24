@@ -198,6 +198,20 @@ export type RegistrationContext = {
 
   // Error state
   error?: Error
+  /**
+   * Set when the on-chain check finds the name registered to a DIFFERENT
+   * address — two people registered the same name and this one lost the race.
+   * Terminal: no retry can win the name back, so RETRY is refused and the app
+   * shows the name as gone instead of resubmitting.
+   */
+  nameUnavailable?: boolean
+  /**
+   * The reveal failed at submission, so nothing reached the chain. Tells
+   * `verifyingRegistration` to read the registry once — enough to spot a lost
+   * race — instead of grace-polling for a transaction that never went out, and
+   * to keep the submission error (a declined prompt, say) as the message.
+   */
+  revealSubmitFailed?: boolean
   /** The state to return to on RETRY — set when entering error state */
   retryTarget?:
     | 'computingHcaBudget'
@@ -538,6 +552,7 @@ export const registrationMachine = setup({
             intentId: bigint,
             signal?: AbortSignal,
           ) => Promise<string | null>
+          graceWindowMs?: number
         },
         // Both actors grace-poll for up to 30s; pass the actor's signal so
         // CANCEL stops the poll instead of leaving it running to term.
@@ -555,6 +570,7 @@ export const registrationMachine = setup({
               duration: input.duration,
               intentId: input.intentId,
               fetchIntentStatus: input.fetchIntentStatus,
+              graceWindowMs: input.graceWindowMs,
               signal,
             })
           : verifyRegistrationActor({ ...input, signal })
@@ -749,6 +765,10 @@ export const registrationMachine = setup({
               registrationTxId: () => undefined,
               registrationIntentId: () => undefined,
               suspended: () => undefined,
+              error: () => undefined,
+              retryTarget: () => undefined,
+              nameUnavailable: () => undefined,
+              revealSubmitFailed: () => undefined,
             }),
           ],
         },
@@ -1458,12 +1478,15 @@ export const registrationMachine = setup({
             registrationTxId: ({ event }) => event.output,
           }),
         },
+        // Same as the pure-EOA reveal: a rejected batch is what losing a
+        // same-name race looks like, so let the on-chain check decide between
+        // "someone else owns it" (terminal) and a retryable failure.
         onError: {
-          target: 'error',
+          target: 'verifyingRegistration',
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'submittingRhinestoneBundle' as const,
+              revealSubmitFailed: () => true,
             }),
             ({ event }) => {
               console.error(
@@ -1659,12 +1682,18 @@ export const registrationMachine = setup({
             registrationTxId: ({ event }) => event.output,
           }),
         },
+        // A failed reveal is exactly what losing a same-name race looks like:
+        // the registrar rejects the register because the label is already
+        // owned. Ask the chain who owns it before declaring a retryable
+        // failure — `verifyingRegistration` ends the flow when it's someone
+        // else, and falls back to the ordinary retryable error otherwise
+        // (a declined prompt included).
         onError: {
-          target: 'error',
+          target: 'verifyingRegistration',
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'registeringDomain' as const,
+              revealSubmitFailed: () => true,
             }),
             ({ event }) => {
               console.error(
@@ -1724,7 +1753,11 @@ export const registrationMachine = setup({
           commitment: context.commitment!.commitment,
           duration: context.duration,
           intentId: context.registrationIntentId,
-          fetchIntentStatus: context.fetchRegistrationIntentStatus,
+          // A reveal rejected at submission sent nothing, so there is nothing
+          // to wait for: read once and let the result decide.
+          ...(context.revealSubmitFailed
+            ? { graceWindowMs: 0 }
+            : { fetchIntentStatus: context.fetchRegistrationIntentStatus }),
         }),
         onDone: [
           {
@@ -1732,16 +1765,45 @@ export const registrationMachine = setup({
             target: 'success',
             actions: assign({
               error: () => undefined,
+              nameUnavailable: () => undefined,
+              revealSubmitFailed: () => undefined,
             }),
+          },
+          {
+            // Someone else registered the name first. Resubmitting can only
+            // fail the same way, so end here with a message that says why
+            // rather than offering a retry that loops forever.
+            guard: ({ event }) => event.output.registeredToOther,
+            target: 'error',
+            actions: [
+              assign({
+                error: ({ context }) =>
+                  new Error(
+                    `${context.name} was registered by another address first. The name is no longer available.`,
+                  ),
+                nameUnavailable: () => true,
+                retryTarget: () => undefined,
+                revealSubmitFailed: () => undefined,
+              }),
+              ({ context }) => {
+                console.error(
+                  '❌ [REGISTRATION] Name registered by another address:',
+                  context.name,
+                )
+              },
+            ],
           },
           {
             target: 'error',
             actions: [
               assign({
-                // Prefer why the check refused over the polling error that sent
-                // us here — only the former means the name is now taken.
+                // After a polling failure, prefer why the check refused over the
+                // polling error — only the former means the name is now taken.
+                // A reveal rejected at submission never reached the chain, so
+                // the check's reason (nothing registered yet) says nothing and
+                // the submission error is kept.
                 error: ({ context, event }) =>
-                  event.output.reason
+                  event.output.reason && !context.revealSubmitFailed
                     ? new Error(
                         `This registration could not be confirmed as yours: ${event.output.reason}`,
                         { cause: context.error },
@@ -1751,6 +1813,7 @@ export const registrationMachine = setup({
                   context.signer?.type === 'rhinestone'
                     ? ('submittingRhinestoneBundle' as const)
                     : ('registeringDomain' as const),
+                revealSubmitFailed: () => undefined,
               }),
               ({ event }) => {
                 console.error(
@@ -1769,6 +1832,7 @@ export const registrationMachine = setup({
                 context.signer?.type === 'rhinestone'
                   ? ('submittingRhinestoneBundle' as const)
                   : ('registeringDomain' as const),
+              revealSubmitFailed: () => undefined,
             }),
             ({ event }) => {
               console.error(
@@ -1815,6 +1879,19 @@ export const registrationMachine = setup({
       ],
       on: {
         RETRY: [
+          {
+            // The name belongs to someone else now. Every target below would
+            // resubmit a registration that cannot succeed — and the catch-all
+            // would restart the whole flow, paying for a fresh commitment on
+            // each press. Stay put; only CANCEL leaves.
+            guard: ({ context }) => context.nameUnavailable === true,
+            actions: ({ context }) => {
+              console.warn(
+                '⚠️ [REGISTRATION] Retry refused — name already registered by another address:',
+                context.name,
+              )
+            },
+          },
           {
             guard: ({ context }) => context.retryTarget === 'registeringDomain',
             target: 'registeringDomain',

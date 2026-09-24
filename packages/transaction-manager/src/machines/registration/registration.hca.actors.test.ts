@@ -329,6 +329,24 @@ describe('verifyHcaRegistrationActor', () => {
     expect(verified).toBe(false)
     expect(reason).toMatch(/expiry/i)
   })
+
+  it('reports a name registered to another wallet as lost, not merely unverified', async () => {
+    // Two people registered the same name; this one lost. Resubmitting the
+    // reveal can only fail the same way, so the caller must be able to tell
+    // this apart from "not registered yet".
+    const rival = '0xbbbb000000000000000000000000000000000002' as Address
+    mockRegistry(registeredState(rival), hcaResolver)
+
+    const output = (await verify())._unsafeUnwrap()
+    expect(output.verified).toBe(false)
+    expect(output.registeredToOther).toBe(true)
+  })
+
+  it('does not report an unregistered name as lost', async () => {
+    mockRegistry({ ...registeredState(WALLET), status: 0 }, hcaResolver)
+
+    expect((await verify())._unsafeUnwrap().registeredToOther).toBe(false)
+  })
 })
 
 describe('signFundingPermitActor', () => {
