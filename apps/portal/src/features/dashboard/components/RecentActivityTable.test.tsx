@@ -42,7 +42,9 @@ vi.mock('@/utils/blockExplorer/useBlockExplorerUrl', () => ({
     `https://etherscan.io/tx/${txHash}`,
 }))
 
-const eventsRef = vi.hoisted(() => ({ current: [] as RecentActivityEvent[] }))
+const eventsRef = vi.hoisted(() => ({
+  current: [] as readonly RecentActivityEvent[],
+}))
 
 vi.mock('../hooks/useRecentActivity', () => ({
   getRecentActivityQueryOptions: () => ({
@@ -72,7 +74,7 @@ const nameChangedEvent = (
   data: JSON.stringify({ name: reverseName }),
 })
 
-const renderTable = async (events: RecentActivityEvent[]) => {
+const renderTable = async (events: readonly RecentActivityEvent[]) => {
   eventsRef.current = events
   render(
     <QueryClientProvider
