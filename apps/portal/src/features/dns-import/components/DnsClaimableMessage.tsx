@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { BadgeCheck } from 'lucide-react'
+import type { ReactNode } from 'react'
 import type { Address } from 'viem'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -10,6 +11,13 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { useDnsOffchainName } from '../hooks/useDnsOffchainName'
 import { getDnsTldStatusQueryOptions } from '../queries/getDnsTldStatus'
 import { CustomTldMessage } from './CustomTldMessage'
+
+/** The record's parts, highlighted the way the design calls them out. */
+const InlineCode = ({ children }: { readonly children: ReactNode }) => (
+  <code className="rounded-sm bg-current/10 px-1 font-mono text-[0.9em]">
+    {children}
+  </code>
+)
 
 /**
  * Shown for a DNS name that is already live through the gasless path. It has
@@ -87,9 +95,17 @@ export const DnsClaimableMessage = ({ name }: { readonly name: string }) => {
     <AvailableNameMessage
       name={name}
       description={
+        // Both prerequisites are stated up front: they are set in the same DNS
+        // manager, so a user who learns about them one step at a time makes two
+        // trips to their provider.
         <p>
-          This DNS name can be imported to ENS — free off-chain, or onchain with
-          a token.
+          This domain can be imported into ENS and used like a .eth name. First,
+          enable DNSSEC with your DNS provider. Then add a TXT record named{' '}
+          <InlineCode>_ens</InlineCode> with the value{' '}
+          <InlineCode>a=&lt;your address&gt;</InlineCode> using an Ethereum
+          address you control. Sign a transaction to verify. Once imported, the
+          owner can set ENS records for {name}, such as an ETH address to
+          receive funds.
         </p>
       }
       actionButton={{
