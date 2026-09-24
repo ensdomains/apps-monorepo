@@ -48,6 +48,11 @@ msgstr ""
 msgid "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
 msgstr ""
 
+#. placeholder {0}: description.length
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+msgid "{0} / {DESCRIPTION_MAX_LENGTH} characters"
+msgstr ""
+
 #. placeholder {0}: preset.years
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "{0} years"
@@ -704,6 +709,14 @@ msgstr ""
 msgid "Deploying the resolver"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+msgid "Description"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+msgid "Description must be {DESCRIPTION_MAX_LENGTH} characters or fewer"
+msgstr ""
+
 #: src/features/dashboard/components/NameRow.tsx
 msgid "Deselect {label}"
 msgstr ""
@@ -1007,7 +1020,11 @@ msgid "Get instant updates through Telegram for your domains."
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
-msgid "Get notified when names you favorited expire."
+msgid "Get notified as favourited names approach expiry and move through their grace period."
+msgstr ""
+
+#: src/features/notifications/settings/preferences.tsx
+msgid "Get notified as owned names approach expiry and move through their grace period."
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
@@ -2192,6 +2209,10 @@ msgstr ""
 msgid "Show less"
 msgstr ""
 
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Show more"
+msgstr ""
+
 #: src/features/dashboard/components/DashboardPagination.tsx
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
@@ -2969,10 +2990,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You'll always see important notifications in the app."
-msgstr ""
-
-#: src/features/notifications/settings/preferences.tsx
-msgid "You'll be notified 30, 7, and 1 day before expiry."
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx

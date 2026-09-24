@@ -1,21 +1,14 @@
+import {
+  GRACE_PERIOD_DAYS,
+  getGraceEndDate,
+  MS_PER_DAY,
+  V2_GRACE_PERIOD_DAYS,
+} from '@ens-apps/utils/gracePeriod'
 import { match, P } from 'ts-pattern'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 
-export const MS_PER_DAY = 24 * 60 * 60 * 1000
-export const GRACE_PERIOD_DAYS = 90
-export const V2_GRACE_PERIOD_DAYS = 28
+export { GRACE_PERIOD_DAYS, getGraceEndDate, MS_PER_DAY, V2_GRACE_PERIOD_DAYS }
 export const PROMINENT_RENEW_THRESHOLD_DAYS = 30
-
-// v1 and v2 registrars give different grace windows, so callers pass the
-// protocol the name resolved to rather than a boolean that is easy to get
-// backwards or to leave defaulted.
-const graceDaysFor = (protocol: RenewalProtocol): number =>
-  protocol === 'v2' ? V2_GRACE_PERIOD_DAYS : GRACE_PERIOD_DAYS
-
-export const getGraceEndDate = (
-  expiryDate: Date,
-  protocol: RenewalProtocol,
-): Date => new Date(expiryDate.getTime() + graceDaysFor(protocol) * MS_PER_DAY)
 
 const normalizeExpiryDate = (
   expiryDate: Date | null | undefined,

@@ -23,14 +23,14 @@ describe('formatActivityEvent', () => {
   it('reads the ERC-1155 transfer destination from `to`', () => {
     expect(
       formatActivityEvent(event('Transfer', { from: '0x0', to: OWNER })).actor,
-    ).toEqual({ type: 'address', value: OWNER })
+    ).toEqual(OWNER)
   })
 
   it('reads the registry transfer destination from `owner`', () => {
     expect(
       formatActivityEvent(event('Transfer', { node: '0x0', owner: OWNER }))
         .actor,
-    ).toEqual({ type: 'address', value: OWNER })
+    ).toEqual(OWNER)
   })
 
   it('carries a text-record key as a value, not appended to the label', () => {
@@ -63,6 +63,41 @@ describe('formatActivityEvent', () => {
     ).toEqual({ text: 'Text record updated' })
   })
 
+  it('does not render an unverified reverse-record name as a name entity', () => {
+    const formatted = formatActivityEvent(
+      event('NameChanged', { name: 'vitalik.eth' }),
+    )
+    expect(formatted.entityFromData).toBeUndefined()
+    expect(formatted.actor).toBeUndefined()
+    expect(formatted).toEqual({
+      text: 'Primary name updated',
+      value: 'vitalik.eth',
+    })
+  })
+
+  it('sanitizes an attacker-chosen reverse-record name', () => {
+    expect(
+      formatActivityEvent(
+        event('NameChanged', { name: '\u202Evitalik.eth\nsigned by ENS' }),
+      ),
+    ).toEqual({
+      text: 'Primary name updated',
+      value: 'vitalik.eth signed by ENS',
+    })
+  })
+
+  it('omits an actor that is not a valid address', () => {
+    expect(
+      formatActivityEvent(event('NameRegistered', { owner: 'vitalik.eth' })),
+    ).toEqual({ text: 'Registered by' })
+  })
+
+  it('omits a role-change account that is not a valid address', () => {
+    expect(
+      formatActivityEvent(event('EACRolesChanged', { account: 'not-an-addr' })),
+    ).toEqual({ text: 'Roles updated' })
+  })
+
   it('links an ETH multicoin address as an address entity', () => {
     expect(
       formatActivityEvent(
@@ -70,7 +105,7 @@ describe('formatActivityEvent', () => {
       ),
     ).toEqual({
       text: 'ETH address updated',
-      entityFromData: { type: 'address', value: OWNER },
+      entityFromData: OWNER,
     })
   })
 

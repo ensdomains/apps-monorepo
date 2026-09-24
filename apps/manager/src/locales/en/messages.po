@@ -43,6 +43,11 @@ msgstr "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
 msgid "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
 msgstr "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
 
+#. placeholder {0}: description.length
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+msgid "{0} / {DESCRIPTION_MAX_LENGTH} characters"
+msgstr "{0} / {DESCRIPTION_MAX_LENGTH} characters"
+
 #. placeholder {0}: preset.years
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "{0} years"
@@ -699,6 +704,14 @@ msgstr "Deploying smart account…"
 msgid "Deploying the resolver"
 msgstr "Deploying the resolver"
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+msgid "Description"
+msgstr "Description"
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+msgid "Description must be {DESCRIPTION_MAX_LENGTH} characters or fewer"
+msgstr "Description must be {DESCRIPTION_MAX_LENGTH} characters or fewer"
+
 #: src/features/dashboard/components/NameRow.tsx
 msgid "Deselect {label}"
 msgstr "Deselect {label}"
@@ -1002,8 +1015,12 @@ msgid "Get instant updates through Telegram for your domains."
 msgstr "Get instant updates through Telegram for your domains."
 
 #: src/features/notifications/settings/preferences.tsx
-msgid "Get notified when names you favorited expire."
-msgstr "Get notified when names you favorited expire."
+msgid "Get notified as favourited names approach expiry and move through their grace period."
+msgstr "Get notified as favourited names approach expiry and move through their grace period."
+
+#: src/features/notifications/settings/preferences.tsx
+msgid "Get notified as owned names approach expiry and move through their grace period."
+msgstr "Get notified as owned names approach expiry and move through their grace period."
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "Get updated on the latest releases and features."
@@ -2187,6 +2204,10 @@ msgstr "Should I register now or wait?"
 msgid "Show less"
 msgstr "Show less"
 
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Show more"
+msgstr "Show more"
+
 #: src/features/dashboard/components/DashboardPagination.tsx
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr "Showing {rangeStart}-{rangeEnd} of {total}"
@@ -2965,10 +2986,6 @@ msgstr "You need to verify your wallet ownership to manage your notification pre
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You'll always see important notifications in the app."
 msgstr "You'll always see important notifications in the app."
-
-#: src/features/notifications/settings/preferences.tsx
-msgid "You'll be notified 30, 7, and 1 day before expiry."
-msgstr "You'll be notified 30, 7, and 1 day before expiry."
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "You're all set."
