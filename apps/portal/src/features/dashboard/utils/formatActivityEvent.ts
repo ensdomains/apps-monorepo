@@ -6,18 +6,12 @@ import {
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
 
-type AddressEntity = { type: 'address'; value: Address }
-
-/** Raw event data is untrusted, so an address is only an entity once it parses. */
-const toAddressEntity = (value: string): AddressEntity | undefined =>
-  isAddress(value) ? { type: 'address', value } : undefined
-
 export type FormattedActivity = {
   text: string
   /** Actor shown on the right side of the row (e.g. "registered by {actor}") */
-  actor?: AddressEntity
+  actor?: Address
   /** Fallback entity for the name column when event.name is null */
-  entityFromData?: AddressEntity
+  entityFromData?: Address
   /** A raw on-chain value (e.g. a text-record key), shown as a neutral entity pill. */
   value?: string
 }
@@ -53,10 +47,10 @@ const EVENT_DESCRIPTORS: Record<string, Descriptor> = {
 
   // ERC-1155/721 transfers carry `to`; the registry's Transfer carries `owner`.
   Transfer: (data) => {
-    const to = readString(data, 'to', 'owner')
+    const to = readString(data, 'to', 'owner') ?? ''
     return {
       text: 'Ownership transferred to',
-      actor: to ? toAddressEntity(to) : undefined,
+      actor: isAddress(to) ? to : undefined,
     }
   },
   NewOwner: {
@@ -73,11 +67,11 @@ const EVENT_DESCRIPTORS: Record<string, Descriptor> = {
   // `address` is raw bytes per coin type — only a real address when ETH.
   AddressChanged: (data) => {
     const coinType = data.coinType
-    const address = readString(data, 'address')
+    const address = readString(data, 'address') ?? ''
     if (coinType !== ETH_COIN_TYPE) return { text: 'Address updated' }
     return {
       text: 'ETH address updated',
-      entityFromData: address ? toAddressEntity(address) : undefined,
+      entityFromData: isAddress(address) ? address : undefined,
     }
   },
   TextChanged: { text: 'Text record updated', valueField: 'key' },
@@ -130,14 +124,15 @@ export const formatActivityEvent = (
     if (value) result.value = value
   }
 
+  // Raw event data is untrusted: anything that isn't an address is dropped.
   if (descriptor.actorField) {
-    const actorValue = readString(parsedData, descriptor.actorField)
-    if (actorValue) result.actor = toAddressEntity(actorValue)
+    const actor = readString(parsedData, descriptor.actorField) ?? ''
+    if (isAddress(actor)) result.actor = actor
   }
 
   if (descriptor.entityField) {
-    const entityValue = readString(parsedData, descriptor.entityField)
-    if (entityValue) result.entityFromData = toAddressEntity(entityValue)
+    const entity = readString(parsedData, descriptor.entityField) ?? ''
+    if (isAddress(entity)) result.entityFromData = entity
   }
 
   return result

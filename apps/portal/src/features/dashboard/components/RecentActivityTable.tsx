@@ -60,10 +60,6 @@ export const RecentActivityTable = () => {
               !rawName.startsWith('canonicalId:')
                 ? rawName
                 : null
-            const nameEntity = resolvedName
-              ? { type: 'name' as const, value: resolvedName }
-              : entityFromData
-
             const txHash = event.transactionHash
 
             return (
@@ -75,15 +71,15 @@ export const RecentActivityTable = () => {
                 {/* Desktop: sm:contents spreads these into the parent flex. */}
                 <div className="flex items-center justify-between pt-3 pb-1 sm:contents">
                   <div className="sm:order-2 sm:w-32 sm:shrink-0">
-                    {match(nameEntity)
-                      .with({ type: 'name' }, ({ value }) => (
-                        <EntityBadge variant="name" name={value}>
-                          {truncateName(value)}
+                    {match({ name: resolvedName, address: entityFromData })
+                      .with({ name: P.string }, ({ name }) => (
+                        <EntityBadge variant="name" name={name}>
+                          {truncateName(name)}
                         </EntityBadge>
                       ))
-                      .with({ type: 'address' }, ({ value }) => (
-                        <EntityBadge variant="address" address={value}>
-                          {truncateAddress(value, 6, 4)}
+                      .with({ address: P.string }, ({ address }) => (
+                        <EntityBadge variant="address" address={address}>
+                          {truncateAddress(address, 6, 4)}
                         </EntityBadge>
                       ))
                       .otherwise(() => (
@@ -109,8 +105,8 @@ export const RecentActivityTable = () => {
                     </EntityBadge>
                   )}
                   {actor && (
-                    <EntityBadge variant="address" address={actor.value}>
-                      {truncateAddress(actor.value, 6, 4)}
+                    <EntityBadge variant="address" address={actor}>
+                      {truncateAddress(actor, 6, 4)}
                     </EntityBadge>
                   )}
                 </div>

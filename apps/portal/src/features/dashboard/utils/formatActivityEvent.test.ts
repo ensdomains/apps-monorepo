@@ -23,14 +23,14 @@ describe('formatActivityEvent', () => {
   it('reads the ERC-1155 transfer destination from `to`', () => {
     expect(
       formatActivityEvent(event('Transfer', { from: '0x0', to: OWNER })).actor,
-    ).toEqual({ type: 'address', value: OWNER })
+    ).toEqual(OWNER)
   })
 
   it('reads the registry transfer destination from `owner`', () => {
     expect(
       formatActivityEvent(event('Transfer', { node: '0x0', owner: OWNER }))
         .actor,
-    ).toEqual({ type: 'address', value: OWNER })
+    ).toEqual(OWNER)
   })
 
   it('carries a text-record key as a value, not appended to the label', () => {
@@ -105,7 +105,7 @@ describe('formatActivityEvent', () => {
       ),
     ).toEqual({
       text: 'ETH address updated',
-      entityFromData: { type: 'address', value: OWNER },
+      entityFromData: OWNER,
     })
   })
 
