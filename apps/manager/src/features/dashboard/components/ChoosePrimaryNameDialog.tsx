@@ -23,9 +23,16 @@ import {
 } from '@/components/ui/dialog'
 import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
+import {
+  getPrimaryNamePreparation,
+  type PrimaryNamePreparation,
+} from '@/features/profile/service/primaryNamePreparation'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import {
+  getProfileRecords,
+  profileRecordsQuery,
+} from '@/features/profile/service/profileRecords'
 import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
@@ -46,6 +53,7 @@ import {
   getEthAddressFromRecords,
   isConfirmBlocked,
   PRIMARY_NAME_PAGE_SIZE,
+  recordsForPrimaryNameResolver,
   shouldUpdateEthAddress,
 } from './ChoosePrimaryNameDialog.handlers'
 import {
@@ -59,7 +67,6 @@ interface ChoosePrimaryNameDialogProps {
 }
 
 type PrimaryNameDomain = DomainsQuery['domains'][number]
-type SelectedNameRecords = Parameters<typeof getEthAddressFromRecords>[0]
 
 const getPrimaryNameErrorMessage = (
   error: Error | null,
@@ -239,12 +246,10 @@ const useUpdateEthAddressMutation = ({
   account,
   chainId,
   selectedName,
-  selectedNameRecords,
 }: {
   readonly account: SmartAccountContextValue
   readonly chainId: number
   readonly selectedName: string | null
-  readonly selectedNameRecords: SelectedNameRecords
 }) => {
   const { t } = useLingui()
 
@@ -264,10 +269,9 @@ const useUpdateEthAddressMutation = ({
         return
       }
 
-      const snapshot = await getProfileEthAddressSnapshot(
-        selectedName,
-        selectedNameRecords?.resolverAddress as Address | undefined,
-      )
+      // Resolve the live pointer. An indexer resolver hint can refer to a
+      // resolver that is no longer attached to the name after a transfer.
+      const snapshot = await getProfileEthAddressSnapshot(selectedName)
 
       if (snapshot.isErr()) {
         const name = selectedName
@@ -329,6 +333,13 @@ const useSetupResolverMutation = ({
         throw new Error(t`Please finish connecting your wallet, then try again`)
       }
 
+      const currentRecords = await getProfileRecords(selectedName)
+      if (currentRecords.isErr()) {
+        throw new Error(
+          t`Couldn’t load this name’s records. Please try again in a moment.`,
+        )
+      }
+
       await setupControlledResolver({
         name: selectedName,
         signer: { type: 'eoa', walletClient },
@@ -336,10 +347,10 @@ const useSetupResolverMutation = ({
         publicClient: publicClient as PublicClient,
         chainId,
         before: { texts: [], coins: [] },
-        after: {
-          texts: [],
-          coins: [{ coinType: 60, value: getAddress(account.ownerAddress) }],
-        },
+        after: recordsForPrimaryNameResolver(
+          currentRecords.value,
+          getAddress(account.ownerAddress),
+        ),
       })
     },
     onError: (error) => {
@@ -356,6 +367,8 @@ export const ChoosePrimaryNameDialog = ({
   const [open, setOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [setupConfirmOpen, setSetupConfirmOpen] = useState(false)
+  const [isCheckingPreparation, setIsCheckingPreparation] = useState(false)
+  const [preparationError, setPreparationError] = useState<Error | null>(null)
   const { address } = useConnection()
   const account = useSmartAccountContext()
   const queryClient = useQueryClient()
@@ -422,7 +435,6 @@ export const ChoosePrimaryNameDialog = ({
     account,
     chainId,
     selectedName,
-    selectedNameRecords,
   })
   const setupResolverMutation = useSetupResolverMutation({
     account,
@@ -439,16 +451,12 @@ export const ChoosePrimaryNameDialog = ({
     enabled: open && isSelectedNameOffered,
   })
 
-  // No write access → confirm, then set up a controlled resolver before primary.
+  // Cached checks only choose the preview notice. Confirmation reads the chain
+  // again before deciding whether to update an address or set up a resolver.
   const resolverBlocked = resolverWriteAccess.data === false
 
-  // Only set up a resolver when a forward write actually needs one. When the ETH
-  // record already points at this wallet, setting primary writes nothing but the
-  // reverse record, which the reverse registrar authorizes on `msg.sender` — so
-  // it lands whoever owns the name. The picker is indexer-fed and lags a
-  // transfer, so a name this wallet no longer owns can still be offered; without
-  // the `needsEthAddressUpdate` half the dialog offers to replace a resolver it
-  // has since lost `ROLE_SET_RESOLVER` on, and the setup reverts in simulation.
+  // A matching forward record needs no resolver write, even when this wallet
+  // can no longer edit the resolver after a transfer.
   const needsResolverSetup = resolverBlocked && needsEthAddressUpdate
 
   // Set selected name to current primary on mount
@@ -462,11 +470,42 @@ export const ChoosePrimaryNameDialog = ({
     if (!isSubmitting && !isPreparing) {
       updateEthAddressMutation.reset()
       setupResolverMutation.reset()
+      setPreparationError(null)
       setSelectedName(name)
     }
   }
 
-  const runConfirm = async () => {
+  const readPreparation = async (
+    name: string,
+    ownerAddress: Address,
+  ): Promise<PrimaryNamePreparation | null> => {
+    setPreparationError(null)
+    setIsCheckingPreparation(true)
+    try {
+      return await getPrimaryNamePreparation(
+        publicClient as PublicClient,
+        name,
+        ownerAddress,
+      )
+    } catch (error) {
+      setPreparationError(
+        error instanceof Error ? error : new Error(String(error)),
+      )
+      return null
+    } finally {
+      setIsCheckingPreparation(false)
+    }
+  }
+
+  const applyPreparation = async (preparation: PrimaryNamePreparation) => {
+    if (preparation === 'setup-resolver') {
+      await setupResolverMutation.mutateAsync()
+    } else if (preparation === 'update-eth-address') {
+      await updateEthAddressMutation.mutateAsync()
+    }
+  }
+
+  const runConfirm = async (allowResolverSetup = false) => {
     if (!selectedName || !account.ownerAddress || !isSelectedNameOffered) return
 
     if (!hasOwnerWallet(account.walletClient, account.ownerAddress)) {
@@ -474,12 +513,19 @@ export const ChoosePrimaryNameDialog = ({
       return
     }
 
+    const preparation = await readPreparation(
+      selectedName,
+      account.ownerAddress as Address,
+    )
+    if (!preparation) return
+
+    if (preparation === 'setup-resolver' && !allowResolverSetup) {
+      setSetupConfirmOpen(true)
+      return
+    }
+
     try {
-      if (needsResolverSetup) {
-        await setupResolverMutation.mutateAsync()
-      } else if (needsEthAddressUpdate) {
-        await updateEthAddressMutation.mutateAsync()
-      }
+      await applyPreparation(preparation)
     } catch {
       return
     }
@@ -495,18 +541,6 @@ export const ChoosePrimaryNameDialog = ({
   }
 
   const handleConfirm = () => {
-    if (!selectedName || !account.ownerAddress || !isSelectedNameOffered) return
-
-    if (!hasOwnerWallet(account.walletClient, account.ownerAddress)) {
-      toast.error(t`Wallet isn’t ready yet. Try again in a moment.`)
-      return
-    }
-
-    if (needsResolverSetup) {
-      setSetupConfirmOpen(true)
-      return
-    }
-
     void runConfirm()
   }
 
@@ -521,7 +555,9 @@ export const ChoosePrimaryNameDialog = ({
 
   const showEthAddressInfo = needsEthAddressUpdate && !needsResolverSetup
   const isPreparing =
-    updateEthAddressMutation.isPending || setupResolverMutation.isPending
+    isCheckingPreparation ||
+    updateEthAddressMutation.isPending ||
+    setupResolverMutation.isPending
   const isBusy = isSubmitting || isPreparing
   const confirmDisabled = isConfirmBlocked({
     isSubmitting,
@@ -550,6 +586,7 @@ export const ChoosePrimaryNameDialog = ({
       notAuthorized: t`Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this.`,
       notReady: t`The replacement resolver could not be verified. Please try again.`,
     }) ??
+    preparationError?.message ??
     updateEthAddressMutation.error?.message ??
     primaryNameErrorMessage ??
     (hasForwardAddressError
@@ -648,7 +685,7 @@ export const ChoosePrimaryNameDialog = ({
       <ResolverSetupConfirmDialog
         intent="primary-name"
         onConfirm={() => {
-          void runConfirm()
+          void runConfirm(true)
         }}
         onOpenChange={setSetupConfirmOpen}
         open={setupConfirmOpen}

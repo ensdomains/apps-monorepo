@@ -6,6 +6,7 @@ import {
   getPrimaryNamePage,
   hasMatchingEthAddress,
   isConfirmBlocked,
+  recordsForPrimaryNameResolver,
   shouldUpdateEthAddress,
 } from './ChoosePrimaryNameDialog.handlers'
 
@@ -141,6 +142,39 @@ describe('getEthAddressFromRecords', () => {
   })
 })
 
+describe('recordsForPrimaryNameResolver', () => {
+  it('keeps existing text, non-ETH addresses, and metadata while setting the owner ETH address', () => {
+    expect(
+      recordsForPrimaryNameResolver(
+        {
+          texts: [
+            { key: 'name', value: 'Yoginth' },
+            { key: 'description', value: 'Yoginths' },
+          ],
+          coins: [
+            { coinType: 60, value: THIRD_PARTY },
+            { coinType: 0, value: 'bc1qexample' },
+          ],
+          contentHash: 'ipfs://example',
+          abi: '[]',
+        },
+        OLD_OWNER,
+      ),
+    ).toEqual({
+      texts: [
+        { key: 'name', value: 'Yoginth' },
+        { key: 'description', value: 'Yoginths' },
+      ],
+      coins: [
+        { coinType: 0, value: 'bc1qexample' },
+        { coinType: 60, value: OLD_OWNER },
+      ],
+      contentHash: 'ipfs://example',
+      abi: '[]',
+    })
+  })
+})
+
 describe('hasMatchingEthAddress', () => {
   it('matches regardless of checksum casing', () => {
     expect(
@@ -210,7 +244,7 @@ describe('shouldUpdateEthAddress', () => {
   })
 })
 
-describe('WEB-1256 end-to-end predicate matrix', () => {
+describe('WEB-1256 cached address notice predicate', () => {
   const decide = ({
     ethRecord,
     resolverBlocked,
@@ -228,7 +262,7 @@ describe('WEB-1256 end-to-end predicate matrix', () => {
         : recordsWithoutEthAddress(),
       ownerAddress: OLD_OWNER,
     })
-    // Mirrors the component: `resolverBlocked && needsEthAddressUpdate`.
+    // Mirrors the notice condition. Submission uses fresh chain reads.
     return resolverBlocked && needsEthAddressUpdate
   }
 

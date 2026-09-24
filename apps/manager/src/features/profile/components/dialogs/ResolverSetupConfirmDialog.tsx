@@ -29,7 +29,8 @@ const getCopy = (
       description: (
         <Trans>
           To use this as your primary name, we’ll set a resolver your wallet
-          controls and keep only your wallet address.
+          controls, point the name to your wallet, and carry over its current
+          records.
         </Trans>
       ),
       confirmLabel: <Trans>Replace & Continue</Trans>,

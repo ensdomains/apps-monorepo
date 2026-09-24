@@ -6,6 +6,7 @@
 
 import { getCanonicalPrimaryName } from '@/features/profile/service/profileName'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
+import type { ServiceRecordSnapshot } from '@/features/profile/service/profileRecordTransactions'
 import { resolveDomainLabel } from '../utils'
 
 export const PRIMARY_NAME_PAGE_SIZE = 5
@@ -65,6 +66,24 @@ export function getEthAddressFromRecords(
   records: ProfileRecordsResult | undefined,
 ): string | undefined {
   return records?.coins?.find((c) => c.coinType === ETH_COIN_TYPE)?.value
+}
+
+/** Keep the live records when a primary-name claim needs a new resolver. */
+export function recordsForPrimaryNameResolver(
+  records: ProfileRecordsResult,
+  ownerAddress: string,
+): ServiceRecordSnapshot {
+  return {
+    texts: records.texts.map(({ key, value }) => ({ key, value })),
+    coins: [
+      ...records.coins
+        .filter(({ coinType }) => coinType !== ETH_COIN_TYPE)
+        .map(({ coinType, value }) => ({ coinType, value })),
+      { coinType: ETH_COIN_TYPE, value: ownerAddress },
+    ],
+    contentHash: records.contentHash,
+    abi: records.abi,
+  }
 }
 
 export function hasMatchingEthAddress(

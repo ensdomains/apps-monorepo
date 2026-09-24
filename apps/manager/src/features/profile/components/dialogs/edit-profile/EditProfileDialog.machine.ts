@@ -6,10 +6,7 @@ import type {
   ServiceRecordSnapshot,
 } from '@/features/profile/service/profileRecordTransactions'
 import type { ProfileRecords } from '@/features/profile/types'
-import {
-  newEmptyProfileRecords,
-  transformToServiceFormat,
-} from '@/features/profile/utils/transformRecords'
+import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
 import { hasOwnerWallet } from '@/lib/wallet'
 import {
   type GeneralField,
@@ -99,7 +96,7 @@ const getPendingSave = (
 
     return {
       kind: 'setup',
-      currentRecords: newEmptyProfileRecords(),
+      currentRecords,
       before,
       after,
       ethAddressChanged,
