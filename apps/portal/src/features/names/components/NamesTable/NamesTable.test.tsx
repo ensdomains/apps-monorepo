@@ -34,6 +34,13 @@ const NamesTableHarness = ({ data }: { data: MergedName[] }) => {
   return <NamesTable table={table} />
 }
 
+/** The `<tr>` the given name renders in, so each row's expiry is read in place. */
+const desktopRowText = (name: string) =>
+  screen
+    .getAllByText(name)
+    .map((el) => el.closest('tr'))
+    .find(Boolean)?.textContent ?? ''
+
 describe('NamesTable expiry cell', () => {
   it('renders a name whose expiry overflows the Date range', () => {
     const data = mergeNamesData(
@@ -73,7 +80,8 @@ describe('NamesTable expiry cell', () => {
 
     render(<NamesTableHarness data={data} />)
 
-    expect(screen.getAllByText('victim.eth')).not.toHaveLength(0)
-    expect(screen.getAllByText(/2030/)).not.toHaveLength(0)
+    // Per row, so a silently dropped bad row can't pass this.
+    expect(desktopRowText('attacker-minted.eth')).toContain('Does not expire')
+    expect(desktopRowText('victim.eth')).toContain('2030')
   })
 })
