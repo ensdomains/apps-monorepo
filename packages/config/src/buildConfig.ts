@@ -1,11 +1,7 @@
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
-import * as v from 'valibot'
 import { zeroAddress } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
 import { NetworkConfigError } from './errors'
-
-export { NetworkConfigError }
-
 import {
   ENS_NETWORKS,
   type EnsNetwork,
@@ -14,31 +10,21 @@ import {
   type NetworkEndpoints,
 } from './networks'
 
-/**
- * ENSv2 contracts an app cannot function without. ensjs carries a key for
- * every network but fills undeployed ones with `zeroAddress`, so a lookup
- * returns `0x0` instead of throwing. Checking them here converts that silent
- * failure into a build-time error.
- */
+export { NetworkConfigError }
+
+// ensjs carries every key on every network and fills undeployed contracts with
+// the zero address, so a lookup returns 0x0 instead of throwing.
 const REQUIRED_ENSV2_CONTRACTS = [
   'ensRegistry',
   'ensEthRegistrar',
   'ensStandardRentPriceOracle',
   'ensPermissionedResolverImpl',
   'ensVerifiableFactory',
-  // ensjs holds these as the zero address until they are deployed, so they
-  // belong in the same check rather than in a separate mechanism.
   'ensDefaultReverseRegistrar',
   'ensDefaultReverseRegistrarAdapter',
   'ensReverseRegistrarAdapter',
 ] as const
 
-/**
- * `extendChainWithEns` narrows on a literal chain, so each branch passes a
- * concrete chain rather than an indexed lookup. viem types a stock chain's
- * `rpcUrls.http` as a literal tuple, so the override is applied by spreading
- * rather than by annotation.
- */
 const buildEnsChain = (network: EnsNetwork, rpcUrls: readonly string[]) => ({
   ...(network === 'mainnet'
     ? extendChainWithEns(mainnet)
@@ -49,71 +35,20 @@ const buildEnsChain = (network: EnsNetwork, rpcUrls: readonly string[]) => ({
   },
 })
 
-/**
- * Both networks produce structurally identical chains: the same contract
- * keys, differing only in `id` and address values. The static type is pinned
- * to one instantiation on purpose. ensjs types its client as a union of two
- * concrete chains and viem's generics distribute over unions, so a chain typed
- * as the union cannot flow into any ensjs action without narrowing at every
- * call. The one lie this tells is the literal `id`; which network a build
- * targets is a runtime fact, checked by `assertEnsV2Deployed`, not a type.
- */
+// Pinned to one instantiation: ensjs types its client as a union of concrete
+// chains, so a chain typed as the union cannot flow into any ensjs action.
+// Both chains share every key; only `id` and the addresses differ.
 export type EnsChain = Extract<
   ReturnType<typeof buildEnsChain>,
   { id: 11155111 }
 >
 
-/**
- * Absolute http(s) URL, or a root-relative path. Relative paths are how the
- * e2e stack and PR previews proxy an ephemeral node through the app's own
- * origin (e.g. `/rpc`), so rejecting them would break those environments.
- */
-const endpointUrlSchema = v.pipe(
-  v.string(),
-  v.trim(),
-  v.minLength(1, 'must not be empty'),
-  v.check((value) => {
-    if (value.startsWith('/')) return true
-    try {
-      return ['http:', 'https:'].includes(new URL(value).protocol)
-    } catch {
-      return false
-    }
-  }, 'must be an absolute http(s) URL or a root-relative path'),
-)
-
-/**
- * Primary first, then the shared fallbacks with the primary removed so a
- * primary that is itself a public endpoint is not tried twice. Exported
- * because consumers that resolve their own primary at runtime (the portal's
- * SSR worker reads a Cloudflare secret) need the same ordering.
- */
-export const orderedRpcUrls = (
-  primary: string | undefined,
-  fallbacks: readonly string[],
-): readonly string[] => [
-  ...(primary ? [primary] : []),
-  ...fallbacks.filter((url) => url !== primary),
-]
-
 export type BuildConfigInput = {
-  /**
-   * Network name, typically from an env var. There is no default: an absent
-   * or unrecognised value throws.
-   */
+  /** Network name, typically from env. No default: absent or unknown throws. */
   readonly network: string | undefined
-  /**
-   * Preferred RPC URL. Each app owns this so provider quota stays attributed
-   * per app, and the network's shared public fallbacks are appended behind
-   * it. Optional: an app with no attributed endpoint for the selected network
-   * uses the public fallbacks alone.
-   */
+  /** The app's own RPC endpoint. The network's public fallbacks follow it. */
   readonly rpcUrl?: string | undefined
-  /**
-   * Per-endpoint overrides, typically from env. An `undefined` entry falls
-   * back to the network profile; overrides are how e2e and PR previews point
-   * at ephemeral infrastructure.
-   */
+  /** Per-endpoint overrides, typically from env. Empty or absent falls back. */
   readonly overrides?: Partial<
     Record<keyof NetworkEndpoints, string | undefined>
   >
@@ -122,38 +57,39 @@ export type BuildConfigInput = {
 export type EnsAppConfig = Readonly<{
   network: EnsNetwork
   isTestnet: boolean
-  /** ENS-extended viem chain. Contract addresses resolve off this. */
   chain: EnsChain
-  /** Primary first, then the network's shared fallbacks, deduped. */
+  /** Primary first, then the network's public fallbacks, deduped. */
   rpcUrls: readonly string[]
-  /** The network's shared public fallbacks, for consumers resolving their own primary. */
   rpcFallbacks: readonly string[]
   endpoints: Readonly<Record<keyof NetworkEndpoints, string>>
 }>
 
-const parseOrThrow = (
-  schema: typeof endpointUrlSchema,
-  value: string,
-  field: string,
-): string => {
-  const result = v.safeParse(schema, value)
-  if (!result.success) {
+// Absolute http(s), or root-relative like `/rpc` for the e2e proxy.
+const isEndpointUrl = (value: string): boolean => {
+  if (value.startsWith('/')) return true
+  try {
+    return ['http:', 'https:'].includes(new URL(value).protocol)
+  } catch {
+    return false
+  }
+}
+
+const requireUrl = (value: string, field: string): string => {
+  const url = value.trim()
+  if (!url || !isEndpointUrl(url)) {
     throw new NetworkConfigError(
-      `Invalid ${field}: ${result.issues[0]?.message ?? 'invalid value'} (received ${JSON.stringify(value)})`,
+      `Invalid ${field}: expected an absolute http(s) URL or a root-relative path, received ${JSON.stringify(value)}`,
     )
   }
-  return result.output
+  return url
 }
 
 const resolveNetwork = (network: string | undefined): EnsNetwork => {
-  if (!network) {
-    throw new NetworkConfigError(
-      `Missing network. Expected one of: ${ENS_NETWORKS.join(', ')}.`,
-    )
-  }
+  const expected = `Expected one of: ${ENS_NETWORKS.join(', ')}.`
+  if (!network) throw new NetworkConfigError(`Missing network. ${expected}`)
   if (!isEnsNetwork(network)) {
     throw new NetworkConfigError(
-      `Unknown network ${JSON.stringify(network)}. Expected one of: ${ENS_NETWORKS.join(', ')}.`,
+      `Unknown network ${JSON.stringify(network)}. ${expected}`,
     )
   }
   return network
@@ -164,35 +100,22 @@ const resolveEndpoints = (
   overrides: BuildConfigInput['overrides'],
 ): Record<keyof NetworkEndpoints, string> => {
   const profile = NETWORKS[network].endpoints
-  const resolved: Partial<Record<keyof NetworkEndpoints, string>> = {}
-  const missing: string[] = []
-
-  for (const key of Object.keys(profile) as (keyof NetworkEndpoints)[]) {
-    // `||`, not `??`: an override that is set but empty (a CI variable that
-    // was never given a value) must fall through to the profile.
+  const keys = Object.keys(profile) as (keyof NetworkEndpoints)[]
+  const entries = keys.map((key) => {
+    // `||`: an override that is set but empty must fall through.
     const value = overrides?.[key] || profile[key]
     if (!value) {
-      missing.push(key)
-      continue
+      throw new NetworkConfigError(
+        `Network ${network} has no endpoint configured for: ${key}. Deploy the service and add it to NETWORKS, or pass an override.`,
+      )
     }
-    resolved[key] = parseOrThrow(endpointUrlSchema, value, `endpoint ${key}`)
-  }
-
-  if (missing.length > 0) {
-    throw new NetworkConfigError(
-      `Network ${network} has no endpoint configured for: ${missing.join(', ')}. ` +
-        `Deploy the service and add it to NETWORKS, or pass an override.`,
-    )
-  }
-
-  return resolved as Record<keyof NetworkEndpoints, string>
+    return [key, requireUrl(value, `endpoint ${key}`)] as const
+  })
+  return Object.fromEntries(entries) as Record<keyof NetworkEndpoints, string>
 }
 
 const assertEnsV2Deployed = (
   network: EnsNetwork,
-  // Deliberately loose: the literal address types of a concrete chain make
-  // TypeScript consider the zero-address comparison impossible, but whether a
-  // contract is deployed is exactly the runtime question being asked.
   contracts: Record<string, { readonly address: string } | undefined>,
 ): void => {
   const undeployed = REQUIRED_ENSV2_CONTRACTS.filter((name) => {
@@ -201,19 +124,23 @@ const assertEnsV2Deployed = (
   })
   if (undeployed.length > 0) {
     throw new NetworkConfigError(
-      `ENSv2 is not deployed on ${network}: ${undeployed.join(', ')} ` +
-        `resolve to the zero address. Building against this network would ` +
-        `send calls to 0x0.`,
+      `ENSv2 is not deployed on ${network}: ${undeployed.join(', ')} resolve to the zero address. Building against this network would send calls to 0x0.`,
     )
   }
 }
 
+/** Primary first, then the fallbacks with the primary removed. */
+export const orderedRpcUrls = (
+  primary: string | undefined,
+  fallbacks: readonly string[],
+): readonly string[] => [
+  ...(primary ? [primary] : []),
+  ...fallbacks.filter((url) => url !== primary),
+]
+
 /**
- * Resolve the application configuration for one network.
- *
- * Pure: it reads no environment and creates no clients, so it is safe to call
- * from the browser, a Cloudflare Worker, the api-worker and tests alike. Each
- * app reads its own env at its composition root and passes the values in.
+ * Resolve the app configuration for one network. Pure: reads no env and
+ * creates no clients, so it runs in the browser, both workers and tests.
  */
 export const buildConfig = ({
   network: requestedNetwork,
@@ -223,13 +150,9 @@ export const buildConfig = ({
   const network = resolveNetwork(requestedNetwork)
   const profile = NETWORKS[network]
 
-  const primaryRpcUrl = rpcUrl
-    ? parseOrThrow(endpointUrlSchema, rpcUrl, 'rpcUrl')
-    : undefined
+  const primaryRpcUrl = rpcUrl ? requireUrl(rpcUrl, 'rpcUrl') : undefined
   const rpcUrls = orderedRpcUrls(primaryRpcUrl, profile.rpcFallbacks)
-
   const endpoints = resolveEndpoints(network, overrides)
-
   const chain = buildEnsChain(network, rpcUrls)
 
   assertEnsV2Deployed(network, chain.contracts)

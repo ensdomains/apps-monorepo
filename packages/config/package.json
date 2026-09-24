@@ -16,7 +16,6 @@
   "keywords": [],
   "dependencies": {
     "@ensdomains/ensjs": "catalog:",
-    "valibot": "^1.2.0",
     "viem": "catalog:"
   },
   "devDependencies": {
