@@ -86,11 +86,13 @@ export const DashboardPagination = ({
         </button>
       </div>
 
-      <span className="font-sans text-ens-quartz-400 text-sm leading-[1.2] tracking-[0.14px]">
-        <Trans>
-          Showing {rangeStart}-{rangeEnd} of {total}
-        </Trans>
-      </span>
+      {!compact && (
+        <span className="font-sans text-ens-quartz-400 text-sm leading-[1.2] tracking-[0.14px]">
+          <Trans>
+            Showing {rangeStart}-{rangeEnd} of {total}
+          </Trans>
+        </span>
+      )}
     </div>
   )
 }

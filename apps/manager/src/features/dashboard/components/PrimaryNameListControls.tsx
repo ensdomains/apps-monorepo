@@ -47,13 +47,15 @@ export const PrimaryNameListFooter = ({
   readonly selectedName: string | null
   readonly disabled: boolean
 }) => (
-  <div className="flex shrink-0 flex-col gap-2">
-    <DashboardPagination {...pagination} compact disabled={disabled} />
+  <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
     <div
       aria-live="polite"
-      className="min-h-5 break-all font-sans text-muted-foreground text-sm"
+      className="min-h-5 min-w-0 break-all font-sans text-muted-foreground text-sm"
     >
       {selectedName && <Trans>Selected: {selectedName}</Trans>}
+    </div>
+    <div className="shrink-0 self-end sm:self-auto">
+      <DashboardPagination {...pagination} compact disabled={disabled} />
     </div>
   </div>
 )
