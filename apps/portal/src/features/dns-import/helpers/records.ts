@@ -9,17 +9,24 @@ export type DnsRecordSpec = {
 }
 
 /**
+ * Stands in for the address while no wallet is connected, so the record can be
+ * shown up front — the user configures DNSSEC and this record in one visit to
+ * their DNS manager, and connecting first is not a prerequisite for either.
+ */
+export const ADDRESS_PLACEHOLDER = '<your address>'
+
+/**
  * The record required by the onchain import path: the DNSRegistrar's
  * `DNSClaimChecker` reads a TXT record at `_ens.<name>` whose value is
  * `a=0x<address>`. The checksummed form is required by the ensjs client-side
  * check (the contract itself is case-insensitive).
  */
 export const getOnchainVerificationRecord = (
-  connectedAddress: Address,
+  connectedAddress: Address | undefined,
 ): DnsRecordSpec => ({
   type: 'TXT',
   name: '_ens',
-  value: `a=${connectedAddress}`,
+  value: `a=${connectedAddress ?? ADDRESS_PLACEHOLDER}`,
 })
 
 /**
@@ -30,9 +37,11 @@ export const getOnchainVerificationRecord = (
  */
 export const getOffchainVerificationRecord = (
   chainId: number,
-  connectedAddress: Address,
+  connectedAddress: Address | undefined,
 ): DnsRecordSpec => ({
   type: 'TXT',
   name: '@',
-  value: `ENS1 ${getOffchainResolverDisplay(chainId)} ${connectedAddress}`,
+  value: `ENS1 ${getOffchainResolverDisplay(chainId)} ${
+    connectedAddress ?? ADDRESS_PLACEHOLDER
+  }`,
 })

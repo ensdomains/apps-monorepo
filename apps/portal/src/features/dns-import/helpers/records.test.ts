@@ -14,6 +14,16 @@ describe('getOnchainVerificationRecord', () => {
       value: `a=${ADDRESS}`,
     })
   })
+
+  // Shown before the wallet is connected so DNSSEC and this record can be set
+  // up in one visit to the DNS manager.
+  it('falls back to a placeholder address with no wallet connected', () => {
+    expect(getOnchainVerificationRecord(undefined)).toEqual({
+      type: 'TXT',
+      name: '_ens',
+      value: 'a=<your address>',
+    })
+  })
 })
 
 describe('getOffchainVerificationRecord', () => {
@@ -30,6 +40,14 @@ describe('getOffchainVerificationRecord', () => {
       type: 'TXT',
       name: '@',
       value: `ENS1 0x0EF1aF80c24B681991d675176D9c07d8C9236B9a ${ADDRESS}`,
+    })
+  })
+
+  it('falls back to a placeholder address with no wallet connected', () => {
+    expect(getOffchainVerificationRecord(1, undefined)).toEqual({
+      type: 'TXT',
+      name: '@',
+      value: 'ENS1 dnsname.ens.eth <your address>',
     })
   })
 })

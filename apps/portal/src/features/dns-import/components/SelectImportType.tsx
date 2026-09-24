@@ -1,3 +1,4 @@
+import { TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import type { DnsImportType } from '../types'
@@ -5,29 +6,33 @@ import type { DnsImportType } from '../types'
 const OPTIONS: readonly {
   readonly value: DnsImportType
   readonly title: string
-  readonly lines: readonly string[]
+  readonly description: string
+  /** Shown under the option, before the next one. */
+  readonly notice?: string
 }[] = [
   {
-    value: 'offchain',
-    title: 'Free off-chain import',
-    lines: [
-      'Your name will not have an on-chain token.',
-      'This does not affect its ability to receive transactions or be used as a primary name.',
-      'You will not be able to edit your profile from ENS.',
-    ],
+    value: 'onchain',
+    title: 'Onchain import',
+    description:
+      'Your name will have an onchain token. Records and subnames may be edited here. Import in one transaction for the cost of gas.',
+    notice:
+      'Onchain DNS imports are currently supported by ENS v1. In the future it will be possible to migrate to ENS v2 functionality.',
   },
   {
-    value: 'onchain',
-    title: 'On-chain import',
-    lines: ['Your name will have an on-chain token.'],
+    value: 'offchain',
+    title: 'Offchain import',
+    description:
+      'Your name will not have an onchain token, and you will not be able to edit your profile from ENS. This name can receive transactions as an ETH address, which you may edit at your DNS provider.',
   },
 ]
 
 export const SelectImportType = ({
+  name,
   type,
   onTypeChange,
   onBegin,
 }: {
+  readonly name: string
   readonly type: DnsImportType
   readonly onTypeChange: (type: DnsImportType) => void
   readonly onBegin: () => void
@@ -35,7 +40,8 @@ export const SelectImportType = ({
   <div className="flex flex-col gap-6">
     <div className="rounded-xl border p-6 flex flex-col gap-5">
       <p className="text-p">
-        Importing DNS names allows them to be used as ENS names.
+        Choose how to import <strong>{name}</strong>. Both routes involve
+        turning on DNSSEC and adding a TXT record at your DNS provider.
       </p>
       <RadioGroup
         value={type}
@@ -43,25 +49,33 @@ export const SelectImportType = ({
         className="gap-5"
       >
         {OPTIONS.map((option) => (
-          <label
-            key={option.value}
-            htmlFor={`dns-import-type-${option.value}`}
-            className="flex items-start gap-3 cursor-pointer"
-          >
-            <RadioGroupItem
-              id={`dns-import-type-${option.value}`}
-              value={option.value}
-              className="mt-0.5"
-            />
-            <div className="flex flex-col gap-1">
-              <span className="font-medium">{option.title}</span>
-              {option.lines.map((line) => (
-                <span key={line} className="text-sm text-muted-foreground">
-                  {line}
+          <div key={option.value} className="flex flex-col gap-5">
+            <label
+              htmlFor={`dns-import-type-${option.value}`}
+              className="flex items-start gap-3 cursor-pointer"
+            >
+              <RadioGroupItem
+                id={`dns-import-type-${option.value}`}
+                value={option.value}
+                className="mt-0.5"
+              />
+              <div className="flex flex-col gap-1">
+                <span className="font-medium">{option.title}</span>
+                <span className="text-sm text-muted-foreground">
+                  {option.description}
                 </span>
-              ))}
-            </div>
-          </label>
+              </div>
+            </label>
+            {option.notice && (
+              <div className="flex items-start gap-2 rounded-sm bg-message-warning-fill p-3 text-sm text-message-warning-text">
+                <TriangleAlert
+                  className="size-4 shrink-0 mt-0.5"
+                  strokeWidth={1.5}
+                />
+                <span>{option.notice}</span>
+              </div>
+            )}
+          </div>
         ))}
       </RadioGroup>
     </div>
