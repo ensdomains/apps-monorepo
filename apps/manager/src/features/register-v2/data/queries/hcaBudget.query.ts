@@ -137,7 +137,7 @@ const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
  * Exported because `fetchQuery` ignores `enabled`, so a caller that refuses to
  * proceed without a budget must ask this first or it blocks the EOA route too.
  */
-export const hcaBudgetQuoteRequired = (
+export const isHcaBudgetQuoteRequired = (
   params: Pick<
     HcaBudgetQueryParams,
     'hca' | 'signer' | 'label' | 'durationInSeconds'
@@ -161,7 +161,7 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
       primaryName: params.primaryName ?? null,
     }),
     queryFn: () => getHcaBudget(params),
-    enabled: hcaBudgetQuoteRequired(params),
+    enabled: isHcaBudgetQuoteRequired(params),
     staleTime: HCA_BUDGET_STALE_TIME_MS,
     // One retry for a flaky orchestrator. If it still fails the caller must
     // surface that: here "no budget" means "the permit cannot be sized", not

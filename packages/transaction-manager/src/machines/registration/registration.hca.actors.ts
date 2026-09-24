@@ -424,7 +424,7 @@ export function estimateHcaBudgetActor(input: {
             chain,
             toCalls(revealCalls),
             registerLegGasLimit({
-              resolverDeployed,
+              isResolverDeployed: resolverDeployed,
               ...(input.primaryName ? { primaryName: input.primaryName } : {}),
             }),
             signers,
@@ -468,7 +468,7 @@ export function estimateHcaBudgetActor(input: {
         label,
         duration: input.duration,
         hcaBalanceUsdc,
-        resolverDeployed,
+        isResolverDeployed: resolverDeployed,
         ...(input.primaryName ? { primaryName: input.primaryName } : {}),
         ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
       })

@@ -131,7 +131,7 @@ export interface RegisterLegShape {
    * defaulted: `false` is both the common case and the expensive one, and
    * defaulting either way is what let the deploy go unpriced.
    */
-  readonly resolverDeployed: boolean
+  readonly isResolverDeployed: boolean
   /** The primary name the batch will set, or `undefined` when opted out. */
   readonly primaryName?: string
 }
@@ -148,7 +148,7 @@ export interface RegisterLegShape {
 export function registerLegGasLimit(shape: RegisterLegShape): bigint {
   return (
     HCA_LEG_GAS_LIMITS.register +
-    (shape.resolverDeployed ? 0n : HCA_RESOLVER_DEPLOY_GAS) +
+    (shape.isResolverDeployed ? 0n : HCA_RESOLVER_DEPLOY_GAS) +
     (shape.primaryName ? primaryNameGas(shape.primaryName) : 0n)
   )
 }
@@ -346,7 +346,7 @@ export interface HcaBudgetParams {
    * See {@link RegisterLegShape}. Must be the same value the caller hands
    * `buildRevealBatch`, so the budget and the batch cannot disagree.
    */
-  readonly resolverDeployed: boolean
+  readonly isResolverDeployed: boolean
 }
 
 export interface HcaBudgetBreakdown {
@@ -407,7 +407,7 @@ export async function estimateHcaBudget(
 
   // What the reveal batch will contain, and so what the leg must be funded for.
   const registerGasLimit = registerLegGasLimit({
-    resolverDeployed: params.resolverDeployed,
+    isResolverDeployed: params.isResolverDeployed,
     ...(params.primaryName ? { primaryName: params.primaryName } : {}),
   })
 

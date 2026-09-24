@@ -29,7 +29,7 @@ const baseParams = (price: bigint) => ({
   label: 'myname',
   duration: 31_536_000n,
   // The deploy-specific cases below override this.
-  resolverDeployed: true,
+  isResolverDeployed: true,
 })
 
 /** ETH at $3000, USDC at $1, 2 gwei — the shape `signedMetadata` carries. */
@@ -266,10 +266,10 @@ describe('estimateHcaBudget', () => {
   it('prices the resolver deploy into the register leg on a first registration', async () => {
     // Immunefi #89462: a flat 450k limit never funded the conditional
     // `deployProxy` a first registration carries.
-    const budgetFor = (resolverDeployed: boolean) =>
+    const budgetFor = (isResolverDeployed: boolean) =>
       estimateHcaBudget({
         ...baseParams(USDC(5)),
-        resolverDeployed,
+        isResolverDeployed,
         quoteLegCostUsdc: async () => ({
           spendUsdc: null,
           market: market(2_000_000_000n),
@@ -288,10 +288,10 @@ describe('estimateHcaBudget', () => {
 describe('registerLegGasLimit', () => {
   it('funds the resolver deploy only when the resolver does not exist yet', () => {
     // This number, not the batch handed to the quoter, is what funds the leg.
-    expect(registerLegGasLimit({ resolverDeployed: true })).toBe(
+    expect(registerLegGasLimit({ isResolverDeployed: true })).toBe(
       HCA_LEG_GAS_LIMITS.register,
     )
-    expect(registerLegGasLimit({ resolverDeployed: false })).toBe(
+    expect(registerLegGasLimit({ isResolverDeployed: false })).toBe(
       HCA_LEG_GAS_LIMITS.register + HCA_RESOLVER_DEPLOY_GAS,
     )
   })
@@ -300,7 +300,7 @@ describe('registerLegGasLimit', () => {
     // A first registration with the opt-in carries both extra calls.
     expect(
       registerLegGasLimit({
-        resolverDeployed: false,
+        isResolverDeployed: false,
         primaryName: 'myname.eth',
       }),
     ).toBe(

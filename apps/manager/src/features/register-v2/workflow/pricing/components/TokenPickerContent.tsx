@@ -2,6 +2,7 @@ import {
   type SUPPORTED_TOKEN,
   TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -23,7 +24,7 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
 import {
   getHcaBudgetQueryOptions,
-  hcaBudgetQuoteRequired,
+  isHcaBudgetQuoteRequired,
 } from '../../../data/queries/hcaBudget.query'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
@@ -57,12 +58,11 @@ class InsufficientFundingError extends Error {
  * hard stop: the only figure left is the rent, which is less than the permit
  * must cover, so proceeding strands a paid-for commitment (Immunefi #93021).
  */
-class BudgetQuoteUnavailableError extends Error {
-  constructor(readonly cause: unknown) {
-    super('The registration budget could not be quoted')
-    this.name = 'BudgetQuoteUnavailableError'
-  }
-}
+class BudgetQuoteUnavailableError extends TaggedError(
+  'BudgetQuoteUnavailableError',
+)<{
+  cause: unknown
+}> {}
 
 /**
  * What the wallet is actually debited, itemised — `rent + networkFee` on the
@@ -181,8 +181,8 @@ export const TokenPickerContent = () => {
   // The EOA route needs no budget and must not be gated on a quote it never
   // takes; on the HCA route a missing quote blocks rather than falling back to
   // the rent, which is not what the wallet pays.
-  const requiresBudget = hcaBudgetQuoteRequired(budgetQueryParams)
-  const budgetQuoteFailed = requiresBudget && budgetQuery.isError
+  const isBudgetRequired = isHcaBudgetQuoteRequired(budgetQueryParams)
+  const hasBudgetQuoteFailed = isBudgetRequired && budgetQuery.isError
 
   // Absent until the quote lands, and permanently absent if it fails.
   const funding = computeRegistrationFunding({
@@ -256,9 +256,9 @@ export const TokenPickerContent = () => {
       // Surfaced, not swallowed: the rent cannot fund the batch, so there is
       // nothing to fall through to. Gated because `fetchQuery` ignores
       // `enabled` and the EOA route has no signer to quote with.
-      const budget = requiresBudget
+      const budget = isBudgetRequired
         ? await queryClient.fetchQuery(budgetQueryOptions).catch((cause) => {
-            throw new BudgetQuoteUnavailableError(cause)
+            throw new BudgetQuoteUnavailableError({ cause })
           })
         : undefined
 
@@ -322,7 +322,7 @@ export const TokenPickerContent = () => {
   // is what reconciles the two.
   const errorMessage = match({
     funding,
-    budgetQuoteFailed,
+    hasBudgetQuoteFailed,
     mutationError: availabilityMutation.error,
     isAvailabilityError: availabilityMutation.isError,
   })
@@ -330,7 +330,7 @@ export const TokenPickerContent = () => {
     // Covers a failure on render and on the click path.
     .with(
       P.union(
-        { budgetQuoteFailed: true },
+        { hasBudgetQuoteFailed: true },
         { mutationError: P.instanceOf(BudgetQuoteUnavailableError) },
       ),
       () =>
@@ -360,7 +360,6 @@ export const TokenPickerContent = () => {
 
   return (
     <TokenPickerContentBase
-      budgetQuoteFailed={budgetQuoteFailed}
       errorMessage={errorMessage}
       footer={
         <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
@@ -394,6 +393,7 @@ export const TokenPickerContent = () => {
             }
           : undefined
       }
+      hasBudgetQuoteFailed={hasBudgetQuoteFailed}
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
@@ -425,7 +425,7 @@ export const TokenPickerContentBase = ({
   footer,
   funding,
   isQuotingFunding = false,
-  budgetQuoteFailed = false,
+  hasBudgetQuoteFailed = false,
 }: {
   label: string
   pricingLoading: boolean
@@ -460,7 +460,7 @@ export const TokenPickerContentBase = ({
    * only the rent — less than the registration costs. Blocks checkout. Routes
    * with no budget to quote (a pure-EOA signer) never set this.
    */
-  budgetQuoteFailed?: boolean
+  hasBudgetQuoteFailed?: boolean
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -510,7 +510,7 @@ export const TokenPickerContentBase = ({
     hasBalances &&
     hasSufficientBalanceForSelectedCoin &&
     // Refuse rather than proceed on a figure that cannot fund the batch.
-    !budgetQuoteFailed
+    !hasBudgetQuoteFailed
 
   return (
     <div className="flex h-full flex-1 flex-col gap-6 px-4 pt-2 pb-6">
@@ -631,7 +631,7 @@ export const TokenPickerContentBase = ({
         left, which the registration is guaranteed to exceed.
       */}
       <PaymentTotalRow
-        isEstimate={!!funding || budgetQuoteFailed}
+        isEstimate={!!funding || hasBudgetQuoteFailed}
         total={displayTotal}
       />
 

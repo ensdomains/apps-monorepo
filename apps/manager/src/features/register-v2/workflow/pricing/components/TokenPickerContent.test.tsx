@@ -115,14 +115,14 @@ describe('TokenPickerContentBase', () => {
   it('blocks checkout when the budget quote failed', () => {
     // Immunefi #93021: the wallet affords the 330 rent, but the rent is not
     // what the registration costs, so proceeding strands the commitment.
-    renderPicker({ budgetQuoteFailed: true, selectedToken: 'USDC' })
+    renderPicker({ hasBudgetQuoteFailed: true, selectedToken: 'USDC' })
 
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 
   it('keeps the "up to" hedge when the budget quote failed', () => {
     // The total falls back to the rent — a lower bound, not an exact price.
-    renderPicker({ budgetQuoteFailed: true, selectedToken: 'USDC' })
+    renderPicker({ hasBudgetQuoteFailed: true, selectedToken: 'USDC' })
 
     expect(screen.getByText('up to')).toBeInTheDocument()
   })
