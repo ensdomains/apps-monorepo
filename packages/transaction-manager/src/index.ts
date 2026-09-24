@@ -2,6 +2,7 @@
 // Errors
 export {
   SignerAddressMismatchError,
+  TransactionStoppedError,
   TransactionSubmissionError,
 } from './errors/transaction.errors'
 // Helpers

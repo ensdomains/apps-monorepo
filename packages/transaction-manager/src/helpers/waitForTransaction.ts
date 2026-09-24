@@ -1,7 +1,11 @@
 import type { Hash, TransactionReceipt } from 'viem'
-import { TransactionStoppedError } from '../errors/transaction.errors'
-import type { TransactionMachineActor } from '../machines/transaction.types'
 import { transactionManager } from '../providers/transactionManager'
+import {
+  awaitTransactionOutcome,
+  isErrorSnapshot,
+  isSuccessSnapshot,
+  type ReadOutcome,
+} from './awaitTransactionOutcome'
 
 /**
  * Result returned when a transaction completes successfully
@@ -9,48 +13,6 @@ import { transactionManager } from '../providers/transactionManager'
 export interface WaitForTransactionResult {
   hash: Hash
   receipt?: TransactionReceipt
-}
-
-/**
- * Subscribe to an actor in a way that always settles.
- *
- * XState delivers a stop through `complete`, not through `next`, so a
- * next-only subscriber learns nothing when its actor is stopped and any
- * promise built on it hangs for the rest of the session. Every waiter here
- * therefore carries `complete` and `error` handlers: whatever happens to the
- * actor, the caller's `await` finishes.
- */
-function subscribeUntilSettled<T>(
-  txId: string,
-  actor: TransactionMachineActor,
-  onSnapshot: (
-    snapshot: ReturnType<TransactionMachineActor['getSnapshot']>,
-    settle: {
-      resolve: (value: T) => void
-      reject: (reason: unknown) => void
-    },
-  ) => void,
-): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const subscription = actor.subscribe({
-      next: (snapshot) => {
-        onSnapshot(snapshot, {
-          resolve: (value) => {
-            subscription.unsubscribe()
-            resolve(value)
-          },
-          reject: (reason) => {
-            subscription.unsubscribe()
-            reject(reason)
-          },
-        })
-      },
-      // The actor was stopped (retired, cleared, or the app torn down)
-      // without reaching a terminal state.
-      complete: () => reject(new TransactionStoppedError(txId)),
-      error: (error) => reject(error),
-    })
-  })
 }
 
 /**
@@ -64,28 +26,22 @@ export async function waitForTransactionHash(txId: string): Promise<Hash> {
     throw new Error(`Transaction ${txId} not found`)
   }
 
-  const snapshot = txActor.getSnapshot()
-  if (snapshot.context.hash) return snapshot.context.hash
-  if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
-    throw snapshot.context.error || new Error(`Transaction ${txId} failed`)
+  const read: ReadOutcome<Hash> = (snapshot) => {
+    if (snapshot.context.hash) {
+      return { settled: true, value: snapshot.context.hash }
+    }
+    if (isErrorSnapshot(snapshot)) {
+      return {
+        settled: false,
+        error:
+          snapshot.context.error ||
+          new Error(`Transaction ${txId} failed during submission`),
+      }
+    }
+    return undefined
   }
 
-  return subscribeUntilSettled<Hash>(txId, txActor, (nextSnapshot, settle) => {
-    if (nextSnapshot.context.hash) {
-      settle.resolve(nextSnapshot.context.hash)
-      return
-    }
-
-    if (
-      typeof nextSnapshot.value === 'object' &&
-      'error' in nextSnapshot.value
-    ) {
-      settle.reject(
-        nextSnapshot.context.error ||
-          new Error(`Transaction ${txId} failed during submission`),
-      )
-    }
-  })
+  return awaitTransactionOutcome(txId, txActor, read)
 }
 
 /**
@@ -95,13 +51,9 @@ export async function waitForTransactionHash(txId: string): Promise<Hash> {
  * and resolves on success or rejects on error. Generic helper that
  * works with any transaction managed by transactionManager.
  *
- * Rejects with {@link TransactionStoppedError} if the actor is stopped before
- * it settles, so a caller is never left waiting on an actor that no longer
- * exists.
- *
  * @param txId - The transaction ID returned from transactionManager.startTransaction()
  * @returns Promise that resolves with hash and receipt on success
- * @throws Error if transaction not found or fails
+ * @throws Error if transaction not found, fails, or is stopped before completing
  *
  * @example
  * ```ts
@@ -118,55 +70,25 @@ export async function waitForTransaction(
     throw new Error(`Transaction ${txId} not found`)
   }
 
-  const snapshot = txActor.getSnapshot()
-  const completedHash =
-    snapshot.context.receipt?.transactionHash ?? snapshot.context.hash
-
-  // Already complete?
-  if (
-    (snapshot.matches?.('success' as never) || snapshot.value === 'success') &&
-    completedHash
-  ) {
-    return {
-      hash: completedHash,
-      receipt: snapshot.context.receipt,
+  const read: ReadOutcome<WaitForTransactionResult> = (snapshot) => {
+    const completedHash =
+      snapshot.context.receipt?.transactionHash ?? snapshot.context.hash
+    if (isSuccessSnapshot(snapshot) && completedHash) {
+      return {
+        settled: true,
+        value: { hash: completedHash, receipt: snapshot.context.receipt },
+      }
     }
+    if (isErrorSnapshot(snapshot)) {
+      return {
+        settled: false,
+        error:
+          snapshot.context.error ||
+          new Error(`Transaction ${txId} failed during execution`),
+      }
+    }
+    return undefined
   }
 
-  // Already failed?
-  if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
-    throw snapshot.context.error || new Error(`Transaction ${txId} failed`)
-  }
-
-  // Subscribe and wait
-  return subscribeUntilSettled<WaitForTransactionResult>(
-    txId,
-    txActor,
-    (nextSnapshot, settle) => {
-      const nextHash =
-        nextSnapshot.context.receipt?.transactionHash ??
-        nextSnapshot.context.hash
-      if (
-        (nextSnapshot.matches?.('success' as never) ||
-          nextSnapshot.value === 'success') &&
-        nextHash
-      ) {
-        settle.resolve({
-          hash: nextHash,
-          receipt: nextSnapshot.context.receipt,
-        })
-        return
-      }
-
-      if (
-        typeof nextSnapshot.value === 'object' &&
-        'error' in nextSnapshot.value
-      ) {
-        settle.reject(
-          nextSnapshot.context.error ||
-            new Error(`Transaction ${txId} failed during execution`),
-        )
-      }
-    },
-  )
+  return awaitTransactionOutcome(txId, txActor, read)
 }
