@@ -124,7 +124,9 @@ describe('TokenPickerContentBase', () => {
     const daiRow = screen
       .getByRole('button', { name: 'Select DAI' })
       .closest('[data-slot="payment-method-row"]')
-    const error = screen.getByText('not enough funds to pay network fees')
+    const error = screen
+      .getByText('not enough funds to pay network fees')
+      .closest('[data-slot="payment-method-error"]')
     const unavailableBalance = usdcRow?.querySelector(
       '[data-slot="payment-method-balance"]',
     )
@@ -135,12 +137,30 @@ describe('TokenPickerContentBase', () => {
       '[data-slot="payment-method-details"]',
     )
 
-    expect(usdcRow).toHaveClass('sm:min-h-[77px]', 'sm:px-4', 'sm:py-3')
-    expect(usdcRow).not.toHaveClass('sm:bg-ens-quartz-70')
-    expect(daiRow).toHaveClass(
+    expect(usdcRow).toHaveClass(
+      'grid',
+      'content-start',
+      'items-start',
+      'sm:px-4',
+      'sm:py-3',
+    )
+    expect(usdcRow).not.toHaveClass(
+      'min-h-17',
       'sm:min-h-[63px]',
+      'sm:min-h-[77px]',
+      'sm:bg-ens-quartz-70',
+    )
+    expect(daiRow).toHaveClass(
+      'grid',
+      'content-start',
+      'items-start',
       'sm:bg-ens-quartz-70',
       'sm:p-3',
+    )
+    expect(daiRow).not.toHaveClass(
+      'min-h-17',
+      'sm:min-h-[63px]',
+      'sm:min-h-[77px]',
     )
     expect(unavailableIcon).toHaveClass('opacity-30')
     expect(unavailableDetails).not.toHaveClass('opacity-50')
@@ -156,18 +176,22 @@ describe('TokenPickerContentBase', () => {
       'sm:leading-[normal]',
     )
     expect(error).toHaveClass(
+      'col-span-2',
+      'col-start-1',
       'gap-0.5',
+      'justify-self-stretch',
+      'whitespace-nowrap',
+      'pl-9',
+      'text-left',
       'text-ens-signal-danger-500',
-      'sm:col-start-1',
-      'sm:h-[17px]',
-      'sm:justify-self-start',
+      'leading-[normal]',
       'sm:pl-[46px]',
-      'sm:text-left',
-      'sm:leading-[normal]',
     )
-    expect(error.querySelector('.material-symbol')).toHaveTextContent(
-      'flash_off',
-    )
+    expect(error).not.toHaveClass('h-[15px]', 'sm:h-[17px]')
+    const errorIcon = error?.querySelector('.material-symbol')
+    expect(errorIcon).toHaveClass('inline-block', 'shrink-0')
+    expect(errorIcon).not.toHaveClass('hidden', 'sm:hidden')
+    expect(errorIcon).toHaveTextContent('flash_off')
   })
 
   it('does not gate unselected DAI with the USDC quote', () => {
@@ -231,7 +255,7 @@ describe('TokenPickerContentBase', () => {
     )
   })
 
-  it('places the insufficient DAI error in the left details column', () => {
+  it('uses the shared intrinsic error row for an insufficient DAI balance', () => {
     renderPicker({
       funding: {
         registration: 347.68,
@@ -251,38 +275,50 @@ describe('TokenPickerContentBase', () => {
     })
 
     const daiOption = screen.getByRole('button', { name: 'Select DAI' })
-    const error = screen.getByText('Need $352.00')
+    const error = screen
+      .getByText('Need $352.00')
+      .closest('[data-slot="payment-method-error"]')
     const balance = daiOption.querySelector(
       '[data-slot="payment-method-balance"]',
     )
 
     expect(daiOption).toBeDisabled()
-    expect(daiOption).toHaveAttribute('aria-describedby', error.id)
+    expect(error).not.toBeNull()
+    expect(daiOption).toHaveAttribute('aria-describedby', error?.id)
     expect(daiOption).toHaveClass(
       'grid',
       'grid-cols-[minmax(0,1fr)_auto]',
+      'content-start',
+      'items-start',
+    )
+    expect(daiOption).not.toHaveClass(
+      'min-h-17',
+      'sm:min-h-[63px]',
       'sm:min-h-[77px]',
     )
+    expect(daiOption.firstElementChild).toHaveClass('items-start')
     expect(balance?.lastElementChild).toHaveTextContent('balance')
     expect(error).toHaveClass(
+      'col-span-2',
       'col-start-1',
       'gap-0.5',
-      'h-[15px]',
-      'justify-self-start',
+      'justify-self-stretch',
+      'whitespace-nowrap',
       'pl-9',
       'text-left',
       'text-ens-signal-danger-500',
       'leading-[normal]',
-      'sm:h-[17px]',
       'sm:pl-[46px]',
     )
-    const errorIcon = error.querySelector('.material-symbol')
-    expect(errorIcon).toHaveClass('inline-block')
-    expect(errorIcon).not.toHaveClass('hidden')
+    expect(error).not.toHaveClass('h-[15px]', 'sm:h-[17px]')
+    const errorIcon = error?.querySelector('.material-symbol')
+    expect(errorIcon).toHaveClass('inline-block', 'shrink-0')
+    expect(errorIcon).not.toHaveClass('hidden', 'sm:hidden')
     expect(errorIcon).toHaveTextContent('flash_off')
     expect(
       screen.queryByText('not enough funds to pay network fees'),
     ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 
   it('does not override a token the user already picked', () => {
@@ -417,9 +453,19 @@ describe('TokenPickerContentBase', () => {
     )
     expect(method).toBeVisible()
     expect(method).toHaveClass(
-      'sm:min-h-[63px]',
+      'grid',
+      'content-start',
+      'items-start',
       'sm:bg-ens-quartz-70',
       'sm:p-3',
+    )
+    expect(method).not.toHaveClass(
+      'min-h-17',
+      'sm:min-h-[63px]',
+      'sm:min-h-[77px]',
+    )
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toHaveClass(
+      'items-start',
     )
     expect(tokenIcon).toHaveClass('sm:size-8.5')
     expect(networkIcon).toHaveClass('sm:size-4', 'sm:-right-1', 'sm:-bottom-1')

@@ -148,9 +148,7 @@ const PaymentMethods = ({
               selectedToken === stablecoin.symbol ? (pricingData ?? 0) : 0
             }
             selectedCoin={selectedToken}
-            showInsufficientBalanceErrorInDetails={
-              showRegistrationFee && stablecoin.symbol === TOKENS.DAI.symbol
-            }
+            showInsufficientBalanceError={showRegistrationFee}
             stablecoin={stablecoin}
           />
         )

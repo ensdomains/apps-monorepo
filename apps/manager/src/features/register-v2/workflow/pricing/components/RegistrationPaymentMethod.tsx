@@ -10,6 +10,7 @@ import type { StablecoinBalance } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import { PaymentMethodError } from './PaymentMethodError'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 
 export const RegistrationPaymentMethod = ({
@@ -39,20 +40,19 @@ export const RegistrationPaymentMethod = ({
   return (
     <div
       className={cn(
-        'grid min-h-17 w-full grid-cols-[minmax(0,1fr)_auto] content-center items-center gap-x-3 rounded px-3 py-2 transition-colors',
-        hasInsufficientBalance ? 'sm:min-h-[77px]' : 'sm:min-h-[63px]',
+        'grid w-full grid-cols-[minmax(0,1fr)_auto] content-start items-start gap-x-3 rounded px-3 py-2 transition-colors',
         isSelected
-          ? 'bg-ens-quartz-75 sm:content-start sm:items-start sm:bg-ens-quartz-70 sm:p-3'
-          : 'hover:bg-ens-quartz-50 sm:content-center sm:items-center sm:px-4 sm:py-3',
+          ? 'bg-ens-quartz-75 sm:bg-ens-quartz-70 sm:p-3'
+          : 'hover:bg-ens-quartz-50 sm:px-4 sm:py-3',
       )}
       data-slot="payment-method-row"
     >
-      <div className="flex min-w-0 flex-1 items-center sm:items-start">
+      <div className="flex min-w-0 flex-1 items-start">
         <button
           aria-describedby={hasInsufficientBalance ? errorId : undefined}
           aria-label={t`Select ${stablecoin.symbol}`}
           className={cn(
-            'flex min-w-0 items-center gap-2 text-left sm:items-start sm:gap-3',
+            'flex min-w-0 items-start gap-2 text-left sm:gap-3',
             hasInsufficientBalance && 'cursor-not-allowed',
           )}
           disabled={hasInsufficientBalance}
@@ -127,17 +127,9 @@ export const RegistrationPaymentMethod = ({
       </div>
 
       {hasInsufficientBalance && (
-        <p
-          className="col-span-2 flex items-center gap-0.5 justify-self-end text-right text-[10px] text-ens-signal-danger-500 sm:col-span-1 sm:col-start-1 sm:h-[17px] sm:justify-self-start sm:pl-[46px] sm:text-left sm:text-xs sm:leading-[normal]"
-          id={errorId}
-        >
-          <MSymbol
-            aria-hidden="true"
-            className="ms-opsz-12 ms-wght-400 hidden sm:inline-block"
-            symbol="flash_off"
-          />
+        <PaymentMethodError id={errorId}>
           <Trans>not enough funds to pay network fees</Trans>
-        </p>
+        </PaymentMethodError>
       )}
     </div>
   )
