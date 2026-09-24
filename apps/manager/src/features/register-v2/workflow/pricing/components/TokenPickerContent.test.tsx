@@ -20,6 +20,13 @@ const secondUsdc = {
   address: '0x0000000000000000000000000000000000000002',
 } as unknown as StablecoinBalance
 
+const insufficientDai = {
+  ...usdc,
+  address: '0x0000000000000000000000000000000000000003',
+  symbol: 'DAI',
+  balance: '0',
+} as unknown as StablecoinBalance
+
 const renderPicker = (
   props: Partial<Parameters<typeof TokenPickerContentBase>[0]> = {},
 ) => {
@@ -63,9 +70,14 @@ describe('TokenPickerContentBase', () => {
     renderPicker({
       selectedToken: 'USDC',
       showNetworkFeeDetails: false,
+      stablecoinBalances: [usdc, insufficientDai],
     })
 
-    expect(screen.getByText('available')).toBeVisible()
+    expect(screen.getAllByText('in your wallet')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Select DAI' })).toBeDisabled()
+    expect(
+      screen.queryByRole('button', { name: /Load/ }),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText('balance')).not.toBeInTheDocument()
     expect(screen.queryByText(/Mainnet est\. fee/)).not.toBeInTheDocument()
   })

@@ -501,7 +501,12 @@ export const TokenPickerContentBase = ({
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-6 pt-2 pb-6">
+    <div
+      className={cn(
+        'flex h-full flex-1 flex-col gap-6 pt-2 pb-6',
+        showNetworkFeeDetails ? 'min-h-0' : 'px-4',
+      )}
+    >
       <div className="flex flex-1 flex-col items-center gap-8 overflow-y-auto">
         <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
           {(premiumLabel || isInPriceCooldown) && (
@@ -574,9 +579,23 @@ export const TokenPickerContentBase = ({
                 </div>
               </div>
             ))
-            .with({ stablecoinsCount: P.number.gt(0) }, () => (
-              <PaymentMethodList items={paymentMethodItems} />
-            ))
+            .with({ stablecoinsCount: P.number.gt(0) }, () =>
+              showNetworkFeeDetails ? (
+                <PaymentMethodList items={paymentMethodItems} />
+              ) : (
+                <div className="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
+                  {stablecoinBalances.map((stablecoin) => (
+                    <TokenListItem
+                      key={stablecoin.address}
+                      onSelectCoin={onSelectCoin}
+                      priceUSD={requiredAmount ?? 0}
+                      selectedCoin={selectedToken}
+                      stablecoin={stablecoin}
+                    />
+                  ))}
+                </div>
+              ),
+            )
             .otherwise(() => undefined)}
 
           {globalErrorMessage && (

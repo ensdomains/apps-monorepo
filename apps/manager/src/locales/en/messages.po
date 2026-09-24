@@ -1106,6 +1106,10 @@ msgstr "If your connected wallet has fewer than two names and no primary name ye
 msgid "Image not available"
 msgstr "Image not available"
 
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "in your wallet"
+msgstr "in your wallet"
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "In-app notifications are always enabled"
 msgstr "In-app notifications are always enabled"

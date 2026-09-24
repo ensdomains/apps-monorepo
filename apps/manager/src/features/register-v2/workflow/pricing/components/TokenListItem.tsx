@@ -91,7 +91,7 @@ export const TokenListItem = ({
               {formatUsd(coinBalanceUSD)}
             </p>
             <span className="text-[#A0A4A6] text-sm">
-              <Trans>available</Trans>
+              <Trans>in your wallet</Trans>
             </span>
           </div>
           {!isFunded && priceUSD > 0 && (
