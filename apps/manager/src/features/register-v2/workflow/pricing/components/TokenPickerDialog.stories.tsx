@@ -75,6 +75,7 @@ export const TokenPickerDialogShell = ({
     <PaymentDialogBase
       onOpenChange={setOpen}
       open={open}
+      registrationLayout
       title="Select payment"
     >
       <TokenPickerContentBase
@@ -318,6 +319,7 @@ const FixtureTokenPickerDialogShell = ({
     <PaymentDialogBase
       onOpenChange={setOpen}
       open={open}
+      registrationLayout
       title="Select payment"
     >
       <FixtureTokenPickerContent

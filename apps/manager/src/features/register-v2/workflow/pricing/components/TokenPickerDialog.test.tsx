@@ -31,7 +31,12 @@ describe('PaymentDialogBase', () => {
   it('takes focus itself rather than the first info button', async () => {
     render(
       <I18nProvider i18n={i18n}>
-        <PaymentDialogBase onOpenChange={() => {}} open title="Select payment">
+        <PaymentDialogBase
+          onOpenChange={() => {}}
+          open
+          registrationLayout
+          title="Select payment"
+        >
           {feeRow}
         </PaymentDialogBase>
       </I18nProvider>,
@@ -54,7 +59,12 @@ describe('PaymentDialogBase', () => {
   it('uses viewport-safe mobile sizing and restores the desktop minimum', () => {
     render(
       <I18nProvider i18n={i18n}>
-        <PaymentDialogBase onOpenChange={() => {}} open title="Select payment">
+        <PaymentDialogBase
+          onOpenChange={() => {}}
+          open
+          registrationLayout
+          title="Select payment"
+        >
           {feeRow}
         </PaymentDialogBase>
       </I18nProvider>,
@@ -66,5 +76,23 @@ describe('PaymentDialogBase', () => {
       'sm:min-h-[500px]',
     )
     expect(screen.getByRole('dialog')).not.toHaveClass('max-h-[90vh]')
+  })
+
+  it('preserves renewal sizing and autofocus by default', async () => {
+    render(
+      <I18nProvider i18n={i18n}>
+        <PaymentDialogBase onOpenChange={() => {}} open title="Renew name">
+          <button type="button">Renew</button>
+        </PaymentDialogBase>
+      </I18nProvider>,
+    )
+
+    const action = screen.getByRole('button', { name: 'Renew' })
+    await waitFor(() => expect(action).toHaveFocus())
+    expect(screen.getByRole('dialog')).toHaveClass(
+      'max-h-[90vh]',
+      'min-h-[500px]',
+    )
+    expect(screen.getByRole('dialog')).not.toHaveClass('min-h-0')
   })
 })

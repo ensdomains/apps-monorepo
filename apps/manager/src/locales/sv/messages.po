@@ -1159,6 +1159,10 @@ msgstr ""
 msgid "Image not available"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "in your wallet"
+msgstr ""
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "In-app notifications are always enabled"
 msgstr ""
