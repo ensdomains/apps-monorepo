@@ -129,10 +129,19 @@ const NewEmailContactMethod = () => {
   )
 }
 
-const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
+const ExistingEmailContactMethod = ({
+  checkedAt,
+  email,
+}: {
+  checkedAt: number
+  email: Channel
+}) => {
   const { t } = useLingui()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [otp, setOtp] = useState('')
+  const codeExpired =
+    email.status === 'pending' &&
+    new Date(email.expires_at).getTime() <= checkedAt
 
   const verifyMutation = useMutation({
     ...verifyEmailMutationOptions,
@@ -152,6 +161,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
       })
     },
     onSuccess: (_, id) => {
+      setOtp('')
       toast.success(t`Email verification sent`, {
         id: `resend-email-verification-${id}`,
       })
@@ -283,7 +293,25 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-      {email.status === 'pending' && (
+      {email.status === 'pending' && codeExpired && (
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-[#CA6200] text-sm" role="status">
+            <Trans>
+              This verification code has expired. Resend verification to get a
+              new code.
+            </Trans>
+          </p>
+          <Button
+            disabled={resendMutation.isPending}
+            onClick={() => resendMutation.mutate(email.id)}
+            size="lg"
+            variant="lightBlue"
+          >
+            <Trans>Resend Verification</Trans>
+          </Button>
+        </div>
+      )}
+      {email.status === 'pending' && !codeExpired && (
         <div className="flex gap-2 max-md:flex-col">
           <InputGroup className="h-12 bg-white">
             <InputGroupInput
@@ -314,7 +342,13 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
   )
 }
 
-export const EmailContactMethod = ({ email }: { email?: Channel }) => {
+export const EmailContactMethod = ({
+  checkedAt,
+  email,
+}: {
+  checkedAt: number
+  email?: Channel
+}) => {
   return (
     <div className="flex flex-col gap-3 rounded-lg bg-[#FAFAFB] p-5">
       {match(email?.status)
@@ -353,7 +387,7 @@ export const EmailContactMethod = ({ email }: { email?: Channel }) => {
       </div>
 
       {email ? (
-        <ExistingEmailContactMethod email={email} />
+        <ExistingEmailContactMethod checkedAt={checkedAt} email={email} />
       ) : (
         <NewEmailContactMethod />
       )}

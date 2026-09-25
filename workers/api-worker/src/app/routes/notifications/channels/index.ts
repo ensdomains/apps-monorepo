@@ -58,6 +58,7 @@ export default createApp()
       last_sent_at: null,
       last_bounce_at: null,
       last_verification_sent_at: challenge.last_sent_at,
+      expires_at: challenge.expires_at,
       label: challenge.email,
     }))
 

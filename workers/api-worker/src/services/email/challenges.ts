@@ -72,11 +72,8 @@ export const issueEmailChallenge = async (
 
 export const getPendingEmailChallenges = (db: Database, userId: string) =>
   db.query.emailVerifications.findMany({
-    columns: { id: true, email: true, last_sent_at: true },
-    where: and(
-      eq(TABLE.emailVerifications.user_id, userId),
-      gt(TABLE.emailVerifications.expires_at, new Date()),
-    ),
+    columns: { id: true, email: true, expires_at: true, last_sent_at: true },
+    where: eq(TABLE.emailVerifications.user_id, userId),
   })
 
 export const cancelEmailChallenge = async (

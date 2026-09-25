@@ -80,6 +80,7 @@ export type PublicPendingEmail = {
   last_sent_at: null
   last_bounce_at: null
   last_verification_sent_at: Date
+  expires_at: Date
   label: string
 }
 

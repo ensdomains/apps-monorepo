@@ -28,7 +28,11 @@ export const ContactMethods = () => {
       <h2 className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
         <Trans>Contact methods</Trans>
       </h2>
-      <EmailContactMethod email={channels.data?.email} />
+      {/* The existing pending-channel poll advances dataUpdatedAt even when data is unchanged. */}
+      <EmailContactMethod
+        checkedAt={Math.max(Date.now(), channels.dataUpdatedAt)}
+        email={channels.data?.email}
+      />
       <Collapsible>
         <CollapsibleTrigger asChild>
           <button

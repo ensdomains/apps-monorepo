@@ -2513,6 +2513,10 @@ msgstr ""
 msgid "This signature is free and doesn't cost any gas."
 msgstr ""
 
+#: src/features/notifications/settings/contact-methods/email.tsx
+msgid "This verification code has expired. Resend verification to get a new code."
+msgstr ""
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "This wasn't set up with the wallet you're using now. Connect the original wallet."
 msgstr ""

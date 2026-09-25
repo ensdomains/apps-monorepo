@@ -250,6 +250,85 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       )
     })
 
+    it('keeps an expired pending email visible and lets resend refresh and redeem it', async () => {
+      const email = `${crypto.randomUUID()}@example.com`
+      const started = await request(0, '/channels/email', 'POST', { email })
+      expect(started.status).toBe(200)
+      const { challengeId } = (await started.json()) as { challengeId: string }
+      const oldOtp = sendVerificationEmail.mock.calls.at(-1)?.[3] as string
+      const expiredAt = new Date(Date.now() - 60_000)
+      await db
+        .update(TABLE.emailVerifications)
+        .set({ expires_at: expiredAt })
+        .where(eq(TABLE.emailVerifications.id, challengeId))
+
+      const pendingResponse = await request(0, '/channels')
+      expect(pendingResponse.status).toBe(200)
+      const pending = (await pendingResponse.json()) as Array<{
+        id: string
+        channel: string
+        status: string
+        label: string
+        expires_at?: string
+      }>
+      expect(pending).toContainEqual(
+        expect.objectContaining({
+          id: challengeId,
+          channel: 'email',
+          status: 'pending',
+          label: email,
+          expires_at: expiredAt.toISOString(),
+        }),
+      )
+
+      const resent = await request(
+        0,
+        `/channels/email/${challengeId}/resend`,
+        'POST',
+      )
+      expect(resent.status).toBe(200)
+      expect(
+        ((await resent.json()) as { challengeId: string }).challengeId,
+      ).toBe(challengeId)
+      const newOtp = sendVerificationEmail.mock.calls.at(-1)?.[3] as string
+      expect(newOtp).not.toBe(oldOtp)
+      const refreshed = await db.query.emailVerifications.findFirst({
+        where: eq(TABLE.emailVerifications.id, challengeId),
+      })
+      expect(refreshed?.expires_at.getTime()).toBeGreaterThan(Date.now())
+      expect(refreshed?.send_count).toBe(1)
+      expect(
+        (
+          await request(0, `/channels/email/${challengeId}/verify`, 'POST', {
+            otp: oldOtp,
+          })
+        ).status,
+      ).toBe(400)
+      expect(
+        (
+          await request(0, `/channels/email/${challengeId}/verify`, 'POST', {
+            otp: newOtp,
+          })
+        ).status,
+      ).toBe(200)
+      expect(
+        await db.query.emailVerifications.findFirst({
+          where: eq(TABLE.emailVerifications.id, challengeId),
+        }),
+      ).toBeUndefined()
+      expect(
+        await db.query.userChannels.findFirst({
+          where: eq(TABLE.userChannels.user_id, firstUserId()),
+        }),
+      ).toEqual(
+        expect.objectContaining({
+          channel: 'email',
+          target: email,
+          status: 'verified',
+        }),
+      )
+    })
+
     it('does not mutate a challenge or send mail after the caller limit is reached', async () => {
       const email = `${crypto.randomUUID()}@example.com`
       const started = await request(0, '/channels/email', 'POST', { email })
