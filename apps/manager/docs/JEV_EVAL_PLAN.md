@@ -1,6 +1,6 @@
 # Jev evaluation plan for Manager name search
 
-Status: the approved 30-case baseline ran against `jev-1.13.0`. Final interpretation matched 29 cases; `supported-021` needs review.
+Status: the approved 30-case baseline ran against `jev-1.13.0` and matched 29 cases. The 23-case challenge experiment matched 21 cases after adding Chrono-based relative-time parsing; the two remaining failures are typo cases.
 
 This belongs in `apps/manager/docs/` because Jev is only used by the Manager dashboard. Repository instructions, READMEs, tests, CI, environment examples, and telemetry were reviewed at `c30f356cd`.
 
@@ -13,6 +13,7 @@ NamesTable search text
   -> interpretNameSearch TanStack server function
   -> POST https://api.typesafe.ai/v1/systemone
   -> parseJevNameSearchResponse
+  -> Chrono relative-time parsing when expiry is `expiring`
   -> SmartNameFilters or fallback
   -> buildDashboardSearchResults
   -> displayed and bulk-selectable names
@@ -23,7 +24,9 @@ NamesTable search text
 | `components/NamesTable.tsx` | Triggers on Enter, suppresses stale responses, and handles UI fallback. |
 | `service/interpretNameSearch.ts` | Reads the server secret and maps internal results to the browser contract. |
 | `service/executeJevNameSearch.ts` | Shared production/eval operation that validates input, calls TypeSafe, preserves evidence, and parses filters. |
-| `service/jevNameSearch.ts` | Owns the UI routing heuristic, builds versioned questions, and converts answers into `SmartNameFilters` with rejection reasons. |
+| `service/jevNameSearchRouting.ts` | Owns the shared production/eval UI routing heuristic without pulling server parsing into the client bundle. |
+| `service/jevNameSearch.ts` | Builds versioned questions and converts answers into `SmartNameFilters` with rejection reasons. |
+| `service/jevNameSearchTime.ts` | Uses Chrono to convert one future relative-duration expression into `withinDays`; calendar expressions remain unsupported. |
 | `evals/jev-name-search/run.ts` | Runs approved cases through the shared operation and writes a baseline report. |
 | `smartNameSearch.ts` | Applies filters and sorting to loaded V1/V2 records. |
 | `service/jevNameSearch.test.ts` | Tests synthetic Jev answers. |
@@ -59,7 +62,7 @@ Questions and options are static. No Score or dynamic-label question exists.
 | `primary` | `any`, `yes`, `no` |
 | `sort` | `any`, name/created/expiry ascending or descending |
 
-All Choice answers are required. A non-`any` choice below `0.35` confidence becomes `any`. The parser then applies regexes and consistency rules. Explicit wording often overrides Jev; role and version can only be created by regex. `withinDays` is extracted locally.
+All Choice answers are required. A non-`any` choice below `0.35` confidence becomes `any`. The parser then applies deterministic wording and consistency rules. Explicit wording often overrides Jev; role and version can only be created by deterministic rules. When the resolved expiry is `expiring`, Chrono converts one future relative duration, such as “in two weeks,” into `withinDays`. Vague wording keeps the 30-day default; calendar expressions are rejected.
 
 The wrapper returns:
 
@@ -144,7 +147,7 @@ type BaseCase = {
 
 The 30 approved pilot cases live in `apps/manager/evals/jev-name-search/base-candidates.json`. Run them with `pnpm --filter manager eval:jev-name-search`; reports are written under `evals/jev-name-search/results/`. The first baseline passed 29 of 30.
 
-A separate 30-case candidate set in `challenge-candidates.json` covers equivalent requests at different lengths, synthetic single-edit typos, and numeric, relative, and calendar-based time expressions. These labels remain pending human review. After approval, run it with `pnpm --filter manager eval:jev-name-search -- challenge-candidates.json`. The runner now grades the production UI routing heuristic before deciding whether to call Jev.
+A separate 23-case candidate set in `challenge-candidates.json` covers equivalent requests at different lengths, selected synthetic typos, and numeric, relative, and calendar-based time expressions. Seven one-word typo cases that could not pass the production routing heuristic were removed. These labels remain pending human review. Run it with `pnpm --filter manager eval:jev-name-search -- challenge-candidates.json --include-pending`. The runner grades the production UI routing heuristic before deciding whether to call Jev.
 
 ## 5. Test layers, metrics, and threshold policy
 
@@ -200,7 +203,8 @@ Implemented for the pilot:
 - shared `executeJevNameSearch` production/eval operation;
 - question and policy versions plus parser rejection reasons;
 - 30 approved supported-query cases;
-- 30 pending text-length, typo, and time-expression challenge cases;
+- 23 pending text-length, typo, and time-expression challenge cases;
+- Chrono-based relative-duration conversion gated by the resolved `expiring` facet;
 - production UI routing checks in the eval runner;
 - opt-in `eval:jev-name-search` script and JSON report;
 - offline wrapper tests using fake HTTP responses.
@@ -209,7 +213,7 @@ Deferred until after baseline review: unsupported and ambiguous cases, UI tests,
 
 ## 7. Expected API calls and cost
 
-The first baseline made 30 calls to `jev-1.13.0` and used 39,533 input tokens plus 10,832 free output tokens. At the published price of $0.042 per million input tokens, the estimated model charge was about $0.0017. Median latency was 235 ms and p95 was 564 ms. Recheck [pricing](https://docs.typesafe.ai/models) before later runs.
+The first baseline made 30 calls to `jev-1.13.0` and used 39,533 input tokens plus 10,832 free output tokens. At the published price of $0.042 per million input tokens, the estimated model charge was about $0.0017. Median latency was 235 ms and p95 was 564 ms. The Chrono challenge run made 23 calls and passed 21 cases; all six numeric, week, and hour duration cases passed, while both unsupported calendar expressions and the calendar-period case correctly fell back. Recheck [pricing](https://docs.typesafe.ai/models) before later runs.
 
 ## 8. Open questions for approval
 

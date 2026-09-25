@@ -23,7 +23,7 @@ import {
   type InterpretNameSearchResult,
   interpretNameSearch,
 } from '../service/interpretNameSearch'
-import { looksLikeJevNameSearchRequest } from '../service/jevNameSearch'
+import { looksLikeJevNameSearchRequest } from '../service/jevNameSearchRouting'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'

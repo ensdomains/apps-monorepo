@@ -1,4 +1,5 @@
 import type { SmartNameFilters } from '../smartNameSearch'
+import { parseExpiryWithinDays } from './jevNameSearchTime'
 
 const choices = {
   expiry: {
@@ -65,13 +66,7 @@ const facetInstructions: Record<Facet, string> = {
 }
 
 export const JEV_NAME_SEARCH_QUESTION_SET_VERSION = 'v0'
-export const JEV_NAME_SEARCH_POLICY_VERSION = 'v0'
-
-export const looksLikeJevNameSearchRequest = (query: string): boolean =>
-  /\s/.test(query) ||
-  /\b(expir\w*|grace|owner|manager|upgrade\w*|eligible|ineligible|favou?rite\w*|primary|oldest|newest|alphabetic\w*|sort\w*|order\w*|(?:ens)?v[12])\b/i.test(
-    query,
-  )
+export const JEV_NAME_SEARCH_POLICY_VERSION = 'v1'
 
 export const buildJevNameSearchRequest = (query: string) => ({
   model: 'jev-latest',
@@ -140,20 +135,6 @@ const readFacetChoice = <K extends Facet>(
   return choice !== 'any' && confidence < 0.35 ? 'any' : choice
 }
 
-export const parseExplicitDayCount = (
-  query: string,
-): number | null | 'invalid' => {
-  const dayMentions = [...query.matchAll(/\b\d+\s+days?\b/gi)]
-  if (dayMentions.length === 0) return null
-  if (dayMentions.length !== 1) return 'invalid'
-  const match = query.match(
-    /\b(?:within|next|in(?: the next)?)\s+(\d+)\s+days?\b/i,
-  )
-  if (!match) return 'invalid'
-  const days = Number(match[1])
-  return Number.isSafeInteger(days) && days > 0 ? days : 'invalid'
-}
-
 const explicitRole = (
   query: string,
 ): 'owner' | 'manager' | null | 'invalid' => {
@@ -208,10 +189,7 @@ const hasExpiryStatusCue = (query: string): boolean =>
   /\b(expir(?:es?|ed|ing)|grace|non-expiring|active|soon)\b/i.test(query) ||
   /\bexpiry\b.*\b(?:soon|within|next)\b/i.test(query)
 
-const explicitExpiry = (
-  query: string,
-  withinDays: number | null,
-): ParsedFacets['expiry'] | null => {
+const explicitExpiry = (query: string): ParsedFacets['expiry'] | null => {
   if (/\b(?:past|after|out of)\s+(?:the\s+)?grace\b/i.test(query))
     return 'past-grace'
   if (/\bgrace(?:\s+period)?\s+(?:has\s+)?(?:ended|over)\b/i.test(query))
@@ -221,8 +199,7 @@ const explicitExpiry = (
     return 'non-expiring'
   if (/\b(?:not expired|active)\b/i.test(query)) return 'active'
   if (/\bexpired\b/i.test(query)) return 'expired'
-  if (withinDays !== null || /\b(?:expiring|expires?|soon)\b/i.test(query))
-    return 'expiring'
+  if (/\b(?:expiring|expires?|soon)\b/i.test(query)) return 'expiring'
   return null
 }
 
@@ -341,13 +318,12 @@ const resolveRoleVersion = (
 const resolveFacetValues = (
   query: string,
   facets: ParsedFacets,
-  withinDays: number | null,
 ): Pick<
   ParsedFacets,
   'expiry' | 'upgrade' | 'favorite' | 'primary' | 'sort'
 > => ({
   expiry:
-    explicitExpiry(query, withinDays) ??
+    explicitExpiry(query) ??
     (hasExpiryStatusCue(query) ? facets.expiry : 'any'),
   upgrade:
     explicitUpgrade(query) ??
@@ -361,13 +337,14 @@ const resolveFacetValues = (
   sort: explicitSort(query) ?? (hasSortCue(query) ? facets.sort : 'any'),
 })
 
-const resolveQueryFacets = (query: string, facets: ParsedFacets) => {
+const resolveQueryFacets = (query: string, facets: ParsedFacets, now: Date) => {
   if (hasExplicitUnsupportedConstraint(query)) return null
-  const withinDays = parseExplicitDayCount(query)
-  if (withinDays === 'invalid') return null
   const roleVersion = resolveRoleVersion(query, facets)
   if (!roleVersion) return null
-  const resolved = resolveFacetValues(query, facets, withinDays)
+  const resolved = resolveFacetValues(query, facets)
+  const withinDays =
+    resolved.expiry === 'expiring' ? parseExpiryWithinDays(query, now) : null
+  if (withinDays === 'invalid') return null
   if (
     hasUnrepresentedCue(query, {
       ...facets,
@@ -395,12 +372,13 @@ export type JevNameSearchParseResult =
 export const parseJevNameSearchResponseWithReason = (
   response: unknown,
   query: string,
+  now: Date = new Date(),
 ): JevNameSearchParseResult => {
   const supported = readSupportedAnswers(response)
   if (supported.status === 'rejected') return supported
   const facets = readFacets(supported.answers)
   if (!facets) return { status: 'rejected', reason: 'invalid_choice_answer' }
-  const resolved = resolveQueryFacets(query, facets)
+  const resolved = resolveQueryFacets(query, facets, now)
   if (!resolved) {
     return { status: 'rejected', reason: 'deterministic_policy_rejected' }
   }
@@ -422,7 +400,8 @@ export const parseJevNameSearchResponseWithReason = (
 export const parseJevNameSearchResponse = (
   response: unknown,
   query: string,
+  now: Date = new Date(),
 ): SmartNameFilters | null => {
-  const result = parseJevNameSearchResponseWithReason(response, query)
+  const result = parseJevNameSearchResponseWithReason(response, query, now)
   return result.status === 'ok' ? result.filters : null
 }

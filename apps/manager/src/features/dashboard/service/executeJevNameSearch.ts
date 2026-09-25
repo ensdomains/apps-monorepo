@@ -116,11 +116,13 @@ export const executeJevNameSearch = async ({
   apiKey,
   fetcher = fetch,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  now = new Date(),
 }: {
   readonly input: unknown
   readonly apiKey: string
   readonly fetcher?: JevFetch
   readonly timeoutMs?: number
+  readonly now?: Date
 }): Promise<ExecuteJevNameSearchResult> => {
   const { query } = validateNameSearchInput(input)
   const request = buildJevNameSearchRequest(query)
@@ -157,7 +159,7 @@ export const executeJevNameSearch = async ({
     }
 
     const evidence = readEvidence(request.model, payload)
-    const parsed = parseJevNameSearchResponseWithReason(payload, query)
+    const parsed = parseJevNameSearchResponseWithReason(payload, query, now)
     return parsed.status === 'ok'
       ? { status: 'ok', filters: parsed.filters, evidence }
       : { status: 'unsupported', reason: parsed.reason, evidence }

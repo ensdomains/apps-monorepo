@@ -8,7 +8,7 @@ import {
   executeJevNameSearch,
   validateNameSearchInput,
 } from '../../src/features/dashboard/service/executeJevNameSearch'
-import { looksLikeJevNameSearchRequest } from '../../src/features/dashboard/service/jevNameSearch'
+import { looksLikeJevNameSearchRequest } from '../../src/features/dashboard/service/jevNameSearchRouting'
 
 const filtersSchema = v.strictObject({
   expiry: v.optional(

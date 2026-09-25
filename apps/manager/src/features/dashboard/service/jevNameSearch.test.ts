@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildJevNameSearchRequest,
-  looksLikeJevNameSearchRequest,
-  parseExplicitDayCount,
   parseJevNameSearchResponse,
 } from './jevNameSearch'
+import { looksLikeJevNameSearchRequest } from './jevNameSearchRouting'
 
 const choice = (value: string, confidence = 0.95) => ({
   type: 'choice',
@@ -42,14 +41,6 @@ describe('Jev name search interpretation', () => {
     expect(looksLikeJevNameSearchRequest('active')).toBe(false)
     expect(looksLikeJevNameSearchRequest('reverse')).toBe(false)
     expect(looksLikeJevNameSearchRequest('active names')).toBe(true)
-  })
-
-  it('parses arbitrary positive day counts', () => {
-    expect(parseExplicitDayCount('expiring within 45 days')).toBe(45)
-    expect(parseExplicitDayCount('expiring in the next 123 days')).toBe(123)
-    expect(parseExplicitDayCount('expiring soon')).toBeNull()
-    expect(parseExplicitDayCount('expired 45 days ago')).toBe('invalid')
-    expect(parseExplicitDayCount('within 0 days')).toBe('invalid')
   })
 
   it('accepts supported combined filters and a day count', () => {
@@ -108,6 +99,23 @@ describe('Jev name search interpretation', () => {
         'names about surfing expiring soon',
       ),
     ).toBeNull()
+  })
+
+  it('uses Chrono only for future expiring windows', () => {
+    expect(
+      parseJevNameSearchResponse(
+        response({ expiry: choice('expiring') }),
+        'expires tomorrow',
+        new Date('2026-09-25T12:00:00.000Z'),
+      ),
+    ).toBeNull()
+    expect(
+      parseJevNameSearchResponse(
+        response({ expiry: choice('expired') }),
+        'expired 45 days ago',
+        new Date('2026-09-25T12:00:00.000Z'),
+      ),
+    ).toEqual({ expiry: 'expired' })
   })
 
   it('accepts direct supported wording when global support is less certain', () => {

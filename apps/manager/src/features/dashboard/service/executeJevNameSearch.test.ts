@@ -66,7 +66,7 @@ describe('executeJevNameSearch', () => {
       evidence: {
         requestedModel: 'jev-latest',
         questionSetVersion: 'v0',
-        policyVersion: 'v0',
+        policyVersion: 'v1',
         returnedModel: 'jev-1.13.0',
         answers: payload().answers,
         usage: { inputTokens: 321, outputTokens: 20 },
@@ -80,6 +80,20 @@ describe('executeJevNameSearch', () => {
     const body = JSON.parse(String(sentInit?.body))
     expect(body.state).toBe('names expiring within 45 days')
     expect(body.model).toBe('jev-latest')
+  })
+
+  it('converts Chrono relative time into withinDays', async () => {
+    const result = await executeJevNameSearch({
+      input: { query: 'names expiring in two weeks' },
+      apiKey: 'test-key',
+      fetcher: async () => jsonResponse(payload()),
+      now: new Date('2026-09-25T12:00:00.000Z'),
+    })
+
+    expect(result).toMatchObject({
+      status: 'ok',
+      filters: { expiry: 'expiring', withinDays: 14 },
+    })
   })
 
   it('keeps semantic rejection distinct from provider failure', async () => {
