@@ -3,6 +3,7 @@ import {
   acquireRegistrationLock,
   getBlockingRegistration,
   refreshRegistrationLock,
+  releaseHolderLocks,
   releaseRegistrationLock,
 } from './registrationLock'
 
@@ -84,7 +85,7 @@ describe('registrationLock', () => {
 
   it('frees the wallet once released', () => {
     acquireRegistrationLock(WALLET, 'tab01.eth')
-    releaseRegistrationLock(WALLET, 'tab01.eth')
+    releaseRegistrationLock(WALLET)
 
     asAnotherTab(() => {
       expect(acquireRegistrationLock(WALLET, 'tab02.eth')).toBe(true)
@@ -94,7 +95,7 @@ describe('registrationLock', () => {
   it('will not let one tab release another tab’s claim', () => {
     acquireRegistrationLock(WALLET, 'tab01.eth')
 
-    asAnotherTab(() => releaseRegistrationLock(WALLET, 'tab01.eth'))
+    asAnotherTab(() => releaseRegistrationLock(WALLET))
 
     asAnotherTab(() => {
       expect(getBlockingRegistration(WALLET, 'tab02.eth')).toBe('tab01.eth')
@@ -152,11 +153,29 @@ describe('registrationLock', () => {
     expect(getBlockingRegistration(WALLET, 'tab02.eth')).toBe('tab01.eth')
   })
 
-  it('will not let a different name in the same tab release the claim', () => {
+  it('releases whatever name this tab holds', () => {
     acquireRegistrationLock(WALLET, 'tab01.eth')
-    releaseRegistrationLock(WALLET, 'tab02.eth')
+    releaseRegistrationLock(WALLET)
 
-    expect(getBlockingRegistration(WALLET, 'tab02.eth')).toBe('tab01.eth')
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(WALLET, 'tab02.eth')).toBe(true)
+    })
+  })
+
+  // A reload or route change leaves no live registration in this tab, so its
+  // claims must not keep blocking it for the stale window.
+  it('drops every claim this tab holds and nothing else', () => {
+    acquireRegistrationLock(WALLET, 'tab01.eth')
+    asAnotherTab(() => acquireRegistrationLock(OTHER_WALLET, 'tab02.eth'))
+
+    releaseHolderLocks()
+
+    expect(acquireRegistrationLock(WALLET, 'tab03.eth')).toBe(true)
+    asAnotherTab(() => {
+      expect(getBlockingRegistration(OTHER_WALLET, 'tab04.eth')).toBe(
+        'tab02.eth',
+      )
+    })
   })
 
   // Storage that refuses writes must not turn the guard into a wall.

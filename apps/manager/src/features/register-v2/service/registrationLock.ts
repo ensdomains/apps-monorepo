@@ -146,11 +146,29 @@ export const refreshRegistrationLock = (
   })
 }
 
-/** Release the claim. A claim held by another attempt is left alone. */
-export const releaseRegistrationLock = (owner: Address, name: string): void => {
+/**
+ * Release this tab's claim on the wallet. Matched on the holder only: one tab
+ * runs one registration, so whatever name it holds is the one being abandoned.
+ * A claim held by another tab is left alone.
+ */
+export const releaseRegistrationLock = (owner: Address): void => {
   const lock = readLock(owner)
-  if (!lock || !isOwnAttempt(lock, name)) return
+  if (!lock || lock.holderId !== getHolderId()) return
 
   const { [owner.toLowerCase()]: _released, ...rest } = readLocks()
   writeLocks(rest)
+}
+
+/**
+ * Drop every claim this tab holds. Called when the registration flow mounts or
+ * unmounts: a tab that is not mid-registration cannot legitimately hold one, so
+ * a reload or a route change frees the wallet instead of waiting out staleness.
+ */
+export const releaseHolderLocks = (): void => {
+  const holderId = getHolderId()
+  const locks = readLocks()
+  const rest = Object.fromEntries(
+    Object.entries(locks).filter(([, lock]) => lock.holderId !== holderId),
+  )
+  if (Object.keys(rest).length !== Object.keys(locks).length) writeLocks(rest)
 }
