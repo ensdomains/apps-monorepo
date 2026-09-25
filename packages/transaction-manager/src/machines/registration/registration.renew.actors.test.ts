@@ -1,13 +1,14 @@
+import { ensL1Contracts, extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import type { Address, PublicClient, WalletClient } from 'viem'
-import { decodeFunctionData, erc20Abi, toFunctionSelector } from 'viem'
+import {
+  decodeFunctionData,
+  erc20Abi,
+  toFunctionSelector,
+  zeroHash,
+} from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  ENS_SEPOLIA_CONTRACTS,
-  REFERER_ADDRESS,
-  TOKENS,
-} from '../../contracts/ens-sepolia'
 import type { EOASigner } from '../../types/signer.types'
 import type { EoaTransactionRequest } from '../../types/transaction.types'
 import { submitApprovalActor, submitRenewActor } from './registration.actors'
@@ -28,12 +29,16 @@ vi.mock('../../providers/transactionManager', () => ({
 }))
 
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
-const V1_RENEWER = ENS_SEPOLIA_CONTRACTS.ETHRenewerV1
+const CONTRACTS = ensL1Contracts[sepolia.id]
+const TOKENS = { USDC: CONTRACTS.usdc, DAI: CONTRACTS.dai }
+const V1_RENEWER = CONTRACTS.ensEthRenewerV1.address
 const signer = {
   type: 'eoa',
   walletClient: { account: { address: WALLET } } as WalletClient,
 } satisfies EOASigner
-const publicClient = { chain: sepolia } as PublicClient
+// The ENS-extended chain, matching what the apps actually build their
+// clients with. A bare viem chain has no ENS contracts on it.
+const publicClient = { chain: extendChainWithEns(sepolia) } as PublicClient
 
 const submittedRequest = (): EoaTransactionRequest => {
   const [intent] = mocks.startTransaction.mock.calls.at(-1) as unknown as [
@@ -96,7 +101,7 @@ describe('V1 renewal actors', () => {
       toFunctionSelector('renew((string,uint64,bytes32),address)'),
     )
     expect(decoded.args).toEqual([
-      { label: 'alice', duration: 31_536_000n, referrer: REFERER_ADDRESS },
+      { label: 'alice', duration: 31_536_000n, referrer: zeroHash },
       TOKENS.USDC.address,
     ])
   })
@@ -110,6 +115,6 @@ describe('V1 renewal actors', () => {
       publicClient,
     })
 
-    expect(submittedRequest().to).toBe(ENS_SEPOLIA_CONTRACTS.ETHRegistrar)
+    expect(submittedRequest().to).toBe(CONTRACTS.ensEthRegistrar.address)
   })
 })

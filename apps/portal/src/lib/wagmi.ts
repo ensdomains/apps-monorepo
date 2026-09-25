@@ -1,40 +1,25 @@
-import {
-  orderedSepoliaRpcUrls,
-  WALLETCONNECT_PROJECT_ID,
-} from '@ens-apps/indexer/chain'
-import { extendChainWithEns } from '@ensdomains/ensjs/chain'
+import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/config'
 import { walletConnect } from '@wagmi/connectors'
 import { createClient, fallback, http } from 'viem'
-import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
+import { envConfig } from '@/config'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
+/**
+ * wagmi wiring. The network, chain and RPC endpoints are resolved in
+ * `@/config`; this module only turns them into clients.
+ *
+ * Browser-only (`ssr: false`). The SSR/OG worker reads its own Cloudflare
+ * secret and builds a separate client; see `worker/clients.ts`.
+ */
+
 export { WALLETCONNECT_PROJECT_ID }
 
-// Portal owns its Sepolia RPC URL — it must NOT reuse the RPC URL exported by
-// `@ens-apps/indexer/chain`, so each app's DRPC key is attributed separately.
-// This key is shipped in the browser bundle and is therefore not secret; it
-// only scopes quota/usage to the portal app. An optional build-time override
-// (`VITE_SEPOLIA_RPC_URL`) takes precedence when provided.
-//
-// This config is browser-only (`wagmiConfig` is `ssr: false`); the SSR/OG
-// worker does not use it and reads its own Cloudflare secret instead (see
-// `worker/clients.ts`), so no server-side RPC resolution is needed here.
-const PORTAL_SEPOLIA_RPC_URL =
-  'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j'
-
-export const SEPOLIA_RPC_URL: string =
-  import.meta.env?.VITE_SEPOLIA_RPC_URL || PORTAL_SEPOLIA_RPC_URL
-
-// Failover to the shared public endpoints (see SEPOLIA_FALLBACK_RPC_URLS in
-// @ens-apps/indexer/chain for the rationale and provider choice). The portal's
-// own RPC URL stays the preferred (primary) endpoint so quota/usage is still
-// attributed to the portal app.
-const SEPOLIA_RPC_URLS = orderedSepoliaRpcUrls(SEPOLIA_RPC_URL)
-
+// Failover across the app's attributed primary and the network's shared
+// public endpoints.
 export const sepoliaFallbackTransport = fallback(
-  SEPOLIA_RPC_URLS.map((url) =>
+  envConfig.rpcUrls.map((url) =>
     http(url, {
       retryCount: 2,
       batch: {
@@ -47,20 +32,13 @@ export const sepoliaFallbackTransport = fallback(
   { rank: false, retryCount: 2 },
 )
 
-export const customSepolia = {
-  ...sepolia,
-  rpcUrls: {
-    default: { http: [...SEPOLIA_RPC_URLS] },
-    public: { http: [...SEPOLIA_RPC_URLS] },
-  },
-}
-
 /**
  * The V1 subgraph endpoint, overridable for local work.
  *
- * The override has to happen *after* `extendChainWithEns`, not by passing a URL
- * into it: that function spreads ensjs's own `ensL1Subgraphs` last, so anything
- * supplied by the caller is silently discarded.
+ * The override has to happen *after* `envConfig.chain` is built (which calls
+ * ensjs's `extendChainWithEns` internally), not by passing a URL further
+ * upstream: that function spreads ensjs's own `ensL1Subgraphs` last, so
+ * anything supplied earlier is silently discarded.
  *
  * Why it is here at all: every name the e2e suite creates lives on an Anvil fork
  * that diverged from Sepolia minutes ago, so the public subgraph cannot see any
@@ -69,23 +47,22 @@ export const customSepolia = {
  * for names with real events — none of which are product bugs.
  * `packages/v1-subgraph-shim` answers the same schema from the fork's own logs.
  *
- * Unset in production, where this is exactly the public endpoint it always was.
+ * Unset in production, where this is exactly the public endpoint `envConfig`
+ * already resolved for the build's network.
  */
-const baseSepoliaWithEns = extendChainWithEns(customSepolia)
-
 export const sepoliaWithEns = {
-  ...baseSepoliaWithEns,
+  ...envConfig.chain,
   subgraphs: {
-    ...baseSepoliaWithEns.subgraphs,
+    ...envConfig.chain.subgraphs,
     ens: {
-      ...baseSepoliaWithEns.subgraphs.ens,
+      ...envConfig.chain.subgraphs.ens,
       // Cast because ensjs types this as the string LITERAL it hardcoded, so
       // any other value is a type error by construction. The literal is an
       // artefact of the value being hardcoded, not a real constraint — the
       // field is a URL, and the whole point here is that it is configurable.
       url: (import.meta.env?.VITE_V1_SUBGRAPH_URL ||
-        baseSepoliaWithEns.subgraphs.ens
-          .url) as typeof baseSepoliaWithEns.subgraphs.ens.url,
+        envConfig.chain.subgraphs.ens
+          .url) as typeof envConfig.chain.subgraphs.ens.url,
     },
   },
 }

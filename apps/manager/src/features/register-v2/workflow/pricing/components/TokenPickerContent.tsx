@@ -1,7 +1,3 @@
-import {
-  type SUPPORTED_TOKEN,
-  TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -18,6 +14,7 @@ import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedName
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'

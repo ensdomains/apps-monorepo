@@ -12,6 +12,7 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
+import { envConfig } from '@/config'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { l2WagmiConfig } from '@/lib/wagmiL2'
 
@@ -26,7 +27,7 @@ class PrimaryNameError extends TaggedError('PrimaryNameError')<{
 // Sepolia only — the L2 reverse registrars we read are on the matching
 // sepolia testnets via the local `l2WagmiConfig`.
 const L2_FALLBACK_COIN_TYPES = [10, 42161, 8453, 59144, 534352] as const
-const L2_REVERSE_NETWORK = 'sepolia' as const
+const L2_REVERSE_NETWORK = envConfig.network
 
 const getPrimaryName = ResultFn(async function* (address: Address | undefined) {
   if (!address) return ok(null)

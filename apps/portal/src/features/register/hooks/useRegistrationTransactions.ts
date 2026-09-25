@@ -210,6 +210,7 @@ export const useRegistrationTransactions = ({
                     salt: hexToBigInt(
                       keccak256(stringToBytes(`estimate:${name}`)),
                     ),
+                    chain: sepoliaWithEns,
                   }),
                   chainId,
                 })
@@ -272,6 +273,7 @@ export const useRegistrationTransactions = ({
                     duration: BigInt(duration),
                     paymentToken: savedParams.tokenAddress,
                     resolverAddress,
+                    registrarAddress: ethRegistrar,
                   }),
                   chainId,
                   gas: 500_000n,

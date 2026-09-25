@@ -302,7 +302,7 @@ export function createIndexerMock() {
     // Matches:
     //   http://127.0.0.1:5655/graphql  (direct)
     //   http://localhost:3000/indexer/graphql  (Vite proxy)
-    //   https://staging-graphql.ens.dev/  (SSR fallback)
+    //   https://staging-graphql.ens.dev/  (the sepolia profile default)
     const pattern =
       /:5655\/graphql(?!\.)|\/indexer\/graphql(?!\.)|staging-graphql\.ens\.dev/
     await page.route(pattern, routeHandler)

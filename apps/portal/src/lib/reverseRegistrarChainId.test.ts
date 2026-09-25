@@ -1,4 +1,8 @@
-import { getCoinTypeForReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
+import {
+  getCoinTypeForReverseRegistrarChainId,
+  resolveNetworkFromChain,
+} from '@ens-apps/l2-primary/v1'
+import { baseSepolia, mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import { isL1ReverseRegistrarChainId } from './reverseRegistrarChainId'
 
@@ -85,7 +89,31 @@ describe('getCoinTypeForReverseRegistrarChainId', () => {
     expect(getCoinTypeForReverseRegistrarChainId(60, 'mainnet')).toBe(60)
   })
 
-  it('defaults to sepolia', () => {
-    expect(getCoinTypeForReverseRegistrarChainId(10)).toBe(0x80aa37dc)
+  // There is deliberately no default network: a caller that omits it would
+  // otherwise silently resolve testnet coin types on a mainnet build.
+  it('requires the network to be stated explicitly', () => {
+    expect(getCoinTypeForReverseRegistrarChainId(10, 'sepolia')).toBe(
+      0x80aa37dc,
+    )
+    expect(getCoinTypeForReverseRegistrarChainId(10, 'mainnet')).not.toBe(
+      0x80aa37dc,
+    )
+  })
+})
+
+describe('resolveNetworkFromChain', () => {
+  it.each([
+    [mainnet, 'mainnet'],
+    [sepolia, 'sepolia'],
+  ])('maps the L1 chain $name to its network key', (chain, expected) => {
+    expect(resolveNetworkFromChain(chain)).toBe(expected)
+  })
+
+  // Previously this fell through to 'sepolia', which meant a mainnet build
+  // could resolve testnet reverse-registrar addresses without any signal.
+  it('throws for a chain it has no mapping for', () => {
+    expect(() => resolveNetworkFromChain(baseSepolia)).toThrow(
+      /has no ENS reverse-registrar network mapping/,
+    )
   })
 })

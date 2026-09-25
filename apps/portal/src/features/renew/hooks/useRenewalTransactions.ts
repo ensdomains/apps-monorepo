@@ -1,12 +1,16 @@
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
-import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet'
 import { useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { type Address, encodeFunctionData, type PublicClient } from 'viem'
+import {
+  type Address,
+  encodeFunctionData,
+  type PublicClient,
+  zeroHash,
+} from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
@@ -197,7 +201,7 @@ function buildRenewIntent(params: RenewParams): CustomTransactionIntent {
       name: `${getLabel(params.name)}.eth`,
       duration: BigInt(params.duration),
       paymentToken: params.tokenAddress,
-      referrer: REFERER_ADDRESS,
+      referrer: zeroHash,
       contract: params.isV2 ? 'ensEthRegistrar' : 'ensEthRenewerV1',
     },
   )

@@ -9,8 +9,8 @@ const mocks = vi.hoisted(() => ({
   queryV2Domain: vi.fn(),
 }))
 
-vi.mock('@ens-apps/indexer/urql', () => ({
-  default: {
+vi.mock('@/lib/indexer-client', () => ({
+  indexerClient: {
     query: mocks.queryV2Domain,
   },
 }))

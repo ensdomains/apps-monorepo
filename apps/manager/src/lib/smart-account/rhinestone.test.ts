@@ -34,14 +34,6 @@ vi.mock(import('@rhinestone/sdk'), () => ({
   }),
 }))
 
-vi.mock('@/lib/wagmi', () => ({
-  customSepolia: {
-    id: 11155111,
-    name: 'Sepolia',
-    rpcUrls: { default: { http: ['https://sepolia.example/rpc'] } },
-  },
-}))
-
 import { RhinestoneSDK, walletClientToAccount } from '@rhinestone/sdk'
 import type { PublicClient } from 'viem'
 import {
