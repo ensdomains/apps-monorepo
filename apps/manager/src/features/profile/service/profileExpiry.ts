@@ -188,4 +188,5 @@ export const profileExpiryQuery = (name: string, protocol?: ProfileProtocol) =>
   resultQueryOptions({
     queryKey: qk('profile', 'expiry', { name, protocol }),
     queryFn: ({ queryKey: [{ name, protocol }] }) => getExpiry(name, protocol),
+    staleTime: 30_000,
   })

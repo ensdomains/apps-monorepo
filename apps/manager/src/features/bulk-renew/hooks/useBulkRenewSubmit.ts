@@ -156,10 +156,16 @@ const invalidateName = (label: string) =>
   })
 
 /** Refresh the dashboard owned-names list so renewed expiries update. */
-const invalidateDashboardNames = () =>
-  getQueryClient()?.invalidateQueries({
+const invalidateDashboardNames = () => {
+  const queryClient = getQueryClient()
+  if (!queryClient) return
+  queryClient.invalidateQueries({
     queryKey: qk('dashboard', 'all_domains'),
   })
+  queryClient.invalidateQueries({
+    queryKey: qk('profile', 'address_names'),
+  })
+}
 
 type SubmitArgs = {
   readonly items: readonly RenewItem[]

@@ -6,7 +6,7 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match } from 'ts-pattern'
 import {
   type Address,
@@ -362,6 +362,16 @@ const machineSetup = setup({
           queryKey: profileReverseNameQuery(ownerAddress).queryKey,
         })
       }
+
+      queryClient.invalidateQueries({
+        queryKey: qk('dashboard', 'all_domains'),
+      })
+      queryClient.invalidateQueries({
+        queryKey: qk('dashboard', 'domains'),
+      })
+      queryClient.invalidateQueries({
+        queryKey: qk('profile', 'address_names'),
+      })
     },
     updateRegistrationStageFromChild: assign({
       maxProgressReached: ({ context, event }) => {

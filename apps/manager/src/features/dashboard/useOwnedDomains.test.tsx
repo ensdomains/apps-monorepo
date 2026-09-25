@@ -1,5 +1,5 @@
 import type { DomainFragment } from '@ens-apps/indexer'
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const reactQueryMock = vi.hoisted(() => ({
@@ -60,6 +60,8 @@ describe('useOwnedDomains', () => {
     smartAccountMock.useSmartAccountContextSafe.mockReturnValue({
       accountAddress: '0x0000000000000000000000000000000000000002',
       ownerAddress: '0xABCDEF0123456789ABCDEF0123456789ABCDEF01',
+      isAccountReady: true,
+      error: null,
     })
     reactQueryMock.useInfiniteQuery.mockReturnValue({
       data: [],
@@ -67,6 +69,7 @@ describe('useOwnedDomains', () => {
       isError: false,
       fetchNextPage: vi.fn(),
       hasNextPage: false,
+      isFetching: false,
       isFetchingNextPage: false,
     })
     reactQueryMock.useQuery.mockReturnValue({
@@ -82,6 +85,7 @@ describe('useOwnedDomains', () => {
       isError: false,
       fetchNextPage: vi.fn(),
       hasNextPage: false,
+      isFetching: false,
       isFetchingNextPage: false,
     })
     reactQueryMock.useQuery.mockReturnValue({
@@ -107,6 +111,7 @@ describe('useOwnedDomains', () => {
       isError: false,
       fetchNextPage: vi.fn(),
       hasNextPage: false,
+      isFetching: false,
       isFetchingNextPage: false,
     })
     reactQueryMock.useQuery.mockReturnValue({
@@ -118,5 +123,116 @@ describe('useOwnedDomains', () => {
     const { result } = renderHook(() => useOwnedDomains())
 
     expect(result.current.isError).toBe(true)
+  })
+
+  it('requests the next page without cancelling an in-flight page request', () => {
+    const fetchNextPage = vi.fn().mockResolvedValue(undefined)
+    reactQueryMock.useInfiniteQuery.mockReturnValue({
+      data: [makeDomain()],
+      isPending: false,
+      isError: false,
+      fetchNextPage,
+      hasNextPage: true,
+      isFetching: false,
+      isFetchingNextPage: false,
+    })
+
+    renderHook(() => useOwnedDomains())
+
+    expect(fetchNextPage).toHaveBeenCalledExactlyOnceWith({
+      cancelRefetch: false,
+    })
+  })
+
+  it('waits for the HCA address before fetching the wallet name list', () => {
+    smartAccountMock.useSmartAccountContextSafe.mockReturnValue({
+      accountAddress: null,
+      ownerAddress: '0xABCDEF0123456789ABCDEF0123456789ABCDEF01',
+      isAccountReady: false,
+      error: null,
+    })
+
+    const { result, rerender } = renderHook(() => useOwnedDomains())
+
+    expect(result.current.isPending).toBe(true)
+    expect(
+      domainsQueryMock.getAllDomainsInfiniteQuery,
+    ).toHaveBeenLastCalledWith(undefined)
+    expect(
+      roleAssignmentsQueryMock.getDashboardRoleAssignmentsQuery,
+    ).toHaveBeenLastCalledWith(undefined)
+
+    smartAccountMock.useSmartAccountContextSafe.mockReturnValue({
+      accountAddress: '0x0000000000000000000000000000000000000002',
+      ownerAddress: '0xABCDEF0123456789ABCDEF0123456789ABCDEF01',
+      isAccountReady: true,
+      error: null,
+    })
+    rerender()
+
+    expect(
+      domainsQueryMock.getAllDomainsInfiniteQuery,
+    ).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          owner_in: [
+            '0xabcdef0123456789abcdef0123456789abcdef01',
+            '0x0000000000000000000000000000000000000002',
+          ],
+        },
+      }),
+    )
+  })
+
+  it('fetches from the EOA after a bounded HCA wait', () => {
+    vi.useFakeTimers()
+    try {
+      smartAccountMock.useSmartAccountContextSafe.mockReturnValue({
+        accountAddress: null,
+        ownerAddress: '0xABCDEF0123456789ABCDEF0123456789ABCDEF01',
+        isAccountReady: false,
+        error: null,
+      })
+
+      renderHook(() => useOwnedDomains())
+      expect(
+        domainsQueryMock.getAllDomainsInfiniteQuery,
+      ).toHaveBeenLastCalledWith(undefined)
+
+      act(() => vi.advanceTimersByTime(5_000))
+
+      expect(
+        domainsQueryMock.getAllDomainsInfiniteQuery,
+      ).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            owner_in: ['0xabcdef0123456789abcdef0123456789abcdef01'],
+          },
+        }),
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('fetches EOA-only mode without waiting for an HCA', () => {
+    smartAccountMock.useSmartAccountContextSafe.mockReturnValue({
+      accountAddress: '0xABCDEF0123456789ABCDEF0123456789ABCDEF01',
+      ownerAddress: '0xABCDEF0123456789ABCDEF0123456789ABCDEF01',
+      isAccountReady: true,
+      error: null,
+    })
+
+    renderHook(() => useOwnedDomains())
+
+    expect(
+      domainsQueryMock.getAllDomainsInfiniteQuery,
+    ).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          owner_in: ['0xabcdef0123456789abcdef0123456789abcdef01'],
+        },
+      }),
+    )
   })
 })

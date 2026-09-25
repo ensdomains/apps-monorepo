@@ -56,7 +56,17 @@ describe('useConnectedAvatar', () => {
     expect(result.current.themeColor).toBe('#984D1B')
     expect(result.current.isLoading).toBe(false)
     expect(vi.mocked(useQuery)).toHaveBeenCalledWith(
-      expect.objectContaining({ enabled: true }),
+      expect.objectContaining({
+        enabled: true,
+        queryKey: [
+          {
+            $scope: 'profile',
+            $action: 'get_records',
+            name: 'alia.eth',
+            selection: 'name-row',
+          },
+        ],
+      }),
     )
   })
 

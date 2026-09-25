@@ -47,17 +47,15 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
 const useAddressProfileAvatarUrl = ({
   addressNames,
   primaryName,
-  isNamesPending,
 }: {
   readonly addressNames: readonly ProfileAddressName[]
   readonly primaryName?: string
-  readonly isNamesPending: boolean
 }) => {
   const primaryEntry = findPrimaryAddressName(addressNames, primaryName)
   const isV1Primary = primaryEntry?.protocol === 'v1'
   const { data: expiryData } = useQuery({
     ...profileExpiryQuery(primaryName ?? ''),
-    enabled: !!primaryName && !isNamesPending && !isV1Primary,
+    enabled: !!primaryName,
   })
 
   const isInGrace =
@@ -72,19 +70,16 @@ export const AddressProfileHeader = ({
   address,
   addressNames,
   primaryName,
-  isNamesPending = false,
   records,
 }: {
   readonly address: Address
   readonly addressNames: readonly ProfileAddressName[]
   readonly primaryName?: string
-  readonly isNamesPending?: boolean
   readonly records: ProfileRecords | null
 }) => {
   const avatarUrl = useAddressProfileAvatarUrl({
     addressNames,
     primaryName,
-    isNamesPending,
   })
 
   return (

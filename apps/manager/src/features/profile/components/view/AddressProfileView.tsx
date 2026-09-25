@@ -2,9 +2,10 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import type { CSSProperties } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
+import { profileAddressHeaderRecordsQuery } from '@/features/profile/service/profileAddressHeaderRecords'
 import { profileAddressNamesQuery } from '@/features/profile/service/profileAddressNames'
 import { buildNameHeaderUrl } from '@/features/profile/service/profileAvatar'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
@@ -15,13 +16,7 @@ import { isViewingConnectedAddress } from './connectedAccounts.helpers'
 import { ProfileBanner } from './ProfileBanner'
 import { ProfileThemeColorProvider } from './ProfileThemeColor'
 
-export const AddressProfileView = ({
-  address,
-  primaryName,
-}: {
-  address: Address
-  primaryName?: string
-}) => {
+export const AddressProfileView = ({ address }: { address: Address }) => {
   const { address: walletAddress } = useConnection()
   const smartAccount = useSmartAccountContextSafe()
   const isConnectedView = isViewingConnectedAddress({
@@ -30,6 +25,7 @@ export const AddressProfileView = ({
     accountAddress: smartAccount?.accountAddress,
     ownerAddress: smartAccount?.ownerAddress,
   })
+  const { data: primaryName } = useQuery(profileReverseNameQuery(address))
 
   const {
     data: addressNames = [],
@@ -41,7 +37,7 @@ export const AddressProfileView = ({
     placeholderData: keepPreviousData,
   })
   const { data: profileRecords } = useQuery({
-    ...profileRecordsQuery(primaryName ?? ''),
+    ...profileAddressHeaderRecordsQuery(primaryName ?? ''),
     enabled: !!primaryName,
   })
   const records = profileRecords
@@ -73,8 +69,7 @@ export const AddressProfileView = ({
           <AddressProfileHeader
             address={address}
             addressNames={addressNames}
-            isNamesPending={isPending}
-            primaryName={primaryName}
+            primaryName={primaryName ?? undefined}
             records={records}
           />
           <AddressProfileNamesList
@@ -83,7 +78,7 @@ export const AddressProfileView = ({
             isError={isError}
             isPending={isPending}
             isPlaceholderData={isPlaceholderData}
-            primaryName={primaryName}
+            primaryName={primaryName ?? undefined}
           />
         </div>
       </ProfileThemeColorProvider>

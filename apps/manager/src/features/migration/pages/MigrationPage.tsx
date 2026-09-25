@@ -1,5 +1,6 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import { assessGasAffordability } from '@ens-apps/utils/gasAffordability'
+import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
@@ -191,6 +192,15 @@ const invalidateMigrationQueries = (
 ) => {
   queryClient.invalidateQueries({
     predicate: (query) => isMigrationQueryKey(query.queryKey),
+  })
+  queryClient.invalidateQueries({
+    queryKey: qk('dashboard', 'all_domains'),
+  })
+  queryClient.invalidateQueries({
+    queryKey: qk('dashboard', 'domains'),
+  })
+  queryClient.invalidateQueries({
+    queryKey: qk('profile', 'address_names'),
   })
 }
 

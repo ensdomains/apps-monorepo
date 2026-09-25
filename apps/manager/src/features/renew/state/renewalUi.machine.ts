@@ -170,6 +170,12 @@ export const renewalUiMachine = setup({
           name: `${name}.eth`,
         }),
       })
+      queryClient.invalidateQueries({
+        queryKey: qk('dashboard', 'all_domains'),
+      })
+      queryClient.invalidateQueries({
+        queryKey: qk('profile', 'address_names'),
+      })
 
       if (context.protocol === 'v1') {
         queryClient.invalidateQueries({

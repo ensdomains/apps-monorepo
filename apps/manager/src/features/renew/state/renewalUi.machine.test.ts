@@ -160,6 +160,18 @@ describe('V1 renewal state machine', () => {
     expect(invalidatedKeys).toEqual(
       expect.arrayContaining([
         [{ name: 'alice.eth' }],
+        [
+          expect.objectContaining({
+            $action: 'all_domains',
+            $scope: 'dashboard',
+          }),
+        ],
+        [
+          expect.objectContaining({
+            $action: 'address_names',
+            $scope: 'profile',
+          }),
+        ],
         [expect.objectContaining({ $action: 'is-renewable', protocol: 'v1' })],
         [expect.objectContaining({ $action: 'v1_names', $scope: 'migration' })],
       ]),

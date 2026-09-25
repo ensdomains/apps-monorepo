@@ -1,23 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { AddressProfileView } from '@/features/profile/components/view/AddressProfileView'
+import { profileAddressNamesQuery } from '@/features/profile/service/profileAddressNames'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 
 export const Route = createFileRoute('/$address/')({
-  loader: async ({ params: { address }, context: { queryClient } }) => {
-    const resolvedName = await queryClient.ensureQueryData(
-      profileReverseNameQuery(address),
-    )
-
-    return { resolvedName: resolvedName ?? undefined }
+  loader: ({ params: { address }, context: { queryClient } }) => {
+    void queryClient.prefetchQuery(profileReverseNameQuery(address))
+    void queryClient.prefetchQuery(profileAddressNamesQuery(address))
   },
   component: RouteComponent,
 })
 
 function RouteComponent() {
   const address = Route.useParams({ select: (params) => params.address })
-  const reverseName = Route.useLoaderData({
-    select: (data) => data.resolvedName,
-  })
 
-  return <AddressProfileView address={address} primaryName={reverseName} />
+  return <AddressProfileView address={address} />
 }

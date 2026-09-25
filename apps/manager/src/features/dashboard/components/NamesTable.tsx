@@ -24,7 +24,7 @@ import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { useDashboardV1Names } from '../useDashboardV1Names'
-import { useOwnedDomains } from '../useOwnedDomains'
+import type { OwnedDomainsResult } from '../useOwnedDomains'
 import {
   FavoritesList,
   type FavoritesSort,
@@ -40,6 +40,7 @@ type FilterKey = 'owned' | 'favorites'
 interface NamesTableProps {
   readonly primaryLabel?: string | null
   readonly migrationEnabled?: boolean
+  readonly ownedDomains: OwnedDomainsResult
 }
 
 type DirectionalSort<Field extends string> = `${Field}-${SortDir}`
@@ -61,6 +62,7 @@ const reverseSortDir = (dir: SortDir): SortDir =>
 
 export const NamesTable = ({
   migrationEnabled = false,
+  ownedDomains,
   primaryLabel,
 }: NamesTableProps) => {
   const { t } = useLingui()
@@ -75,7 +77,7 @@ export const NamesTable = ({
   const isAuthed = useAtom(isBackendAuthed)
   const activeFilter = !isAuthed && filter === 'favorites' ? 'owned' : filter
 
-  const { v2Names } = useOwnedDomains()
+  const { v2Names } = ownedDomains
   const { data: favorites = [] } = useQuery({
     ...favoritesQueryOptions,
     enabled: isAuthed,
@@ -330,6 +332,7 @@ export const NamesTable = ({
                 migrationEnabled={migrationEnabled}
                 onToggleFavorite={onToggleFavorite}
                 onToggleSelect={onToggleSelect}
+                ownedDomains={ownedDomains}
                 primaryLabel={primaryLabel}
                 searchQuery={searchQuery}
                 selectedLabels={selectedLabels}

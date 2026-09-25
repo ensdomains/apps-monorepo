@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  client: {},
+  batchClient: { id: 'batch' },
+  directClient: { id: 'direct' },
   getRecords: vi.fn(),
   isDebugProfileName: vi.fn(() => false),
 }))
@@ -9,8 +10,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@ensdomains/ensjs/public', () => ({ getRecords: mocks.getRecords }))
 vi.mock('@/lib/wagmi/helpers', async () => {
   const { ok } = await import('neverthrow')
-  return { safeGetClient: () => ok(mocks.client) }
+  return { safeGetClient: () => ok(mocks.directClient) }
 })
+vi.mock('./nameRowRecordsClient', () => ({
+  nameRowRecordsClient: mocks.batchClient,
+}))
 vi.mock('@/utils/debug-features', () => ({
   isDebugProfileName: mocks.isDebugProfileName,
 }))
@@ -38,8 +42,58 @@ describe('dashboard row records', () => {
     expect((await getNameRowRecords('gift.eth'))._unsafeUnwrap()).toEqual({
       texts,
     })
-    expect(mocks.getRecords).toHaveBeenCalledExactlyOnceWith(mocks.client, {
-      name: 'gift.eth',
+    expect(mocks.getRecords).toHaveBeenCalledExactlyOnceWith(
+      mocks.batchClient,
+      {
+        name: 'gift.eth',
+        texts: ['avatar', 'theme'],
+      },
+    )
+  })
+
+  it('keeps wildcard resolution on the UniversalResolver batch path', async () => {
+    const texts = [{ key: 'avatar', value: 'ipfs://wildcard-avatar' }]
+    mocks.getRecords.mockResolvedValue({ texts })
+
+    expect(
+      (await getNameRowRecords('sub.wildcard.eth'))._unsafeUnwrap(),
+    ).toEqual({
+      texts,
+    })
+    expect(mocks.getRecords).toHaveBeenCalledExactlyOnceWith(
+      mocks.batchClient,
+      { name: 'sub.wildcard.eth', texts: ['avatar', 'theme'] },
+    )
+  })
+
+  it('retries a failed CCIP batch entry directly without retrying successful names', async () => {
+    const ordinaryTexts = [{ key: 'theme', value: '#123456' }]
+    const ccipTexts = [{ key: 'avatar', value: 'https://example.test/avatar' }]
+    mocks.getRecords.mockImplementation(
+      (client: object, { name }: { name: string }) => {
+        if (client === mocks.batchClient && name === 'ccip.eth') {
+          return Promise.reject(new Error('OffchainLookup in multicall'))
+        }
+        return Promise.resolve({
+          texts: name === 'ccip.eth' ? ccipTexts : ordinaryTexts,
+        })
+      },
+    )
+
+    const [ordinary, ccip] = await Promise.all([
+      getNameRowRecords('ordinary.eth'),
+      getNameRowRecords('ccip.eth'),
+    ])
+
+    expect(ordinary._unsafeUnwrap()).toEqual({ texts: ordinaryTexts })
+    expect(ccip._unsafeUnwrap()).toEqual({ texts: ccipTexts })
+    expect(mocks.getRecords).toHaveBeenCalledTimes(3)
+    expect(mocks.getRecords).toHaveBeenCalledWith(mocks.directClient, {
+      name: 'ccip.eth',
+      texts: ['avatar', 'theme'],
+    })
+    expect(mocks.getRecords).not.toHaveBeenCalledWith(mocks.directClient, {
+      name: 'ordinary.eth',
       texts: ['avatar', 'theme'],
     })
   })

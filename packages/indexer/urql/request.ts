@@ -89,9 +89,12 @@ export async function graphqlRequest<
   client: Client,
   query: DocumentInput<Data, Variables>,
   variables?: Variables,
+  signal?: AbortSignal,
 ): Promise<Data> {
   const result = await client
-    .query<Data, Variables>(query, (variables ?? {}) as Variables)
+    .query<Data, Variables>(query, (variables ?? {}) as Variables, {
+      fetchOptions: signal ? { signal } : undefined,
+    })
     .toPromise()
 
   if (result.error) throw result.error

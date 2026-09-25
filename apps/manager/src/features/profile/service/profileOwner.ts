@@ -114,4 +114,6 @@ export const profileOwnerQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'owner', { name }),
     queryFn: () => getOwner({ name }),
+    // The route overrides this to zero when deciding whether to redirect.
+    staleTime: 5_000,
   })

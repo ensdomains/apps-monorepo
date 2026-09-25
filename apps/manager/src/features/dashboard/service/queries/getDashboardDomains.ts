@@ -1,4 +1,5 @@
 import {
+  type DomainFragment,
   DomainsDocument,
   type DomainsQuery,
   type DomainsQueryVariables,
@@ -13,6 +14,68 @@ import { ok, ResultAsync } from 'neverthrow'
 export class GetDomainsError extends TaggedError('GetDomainsError')<{
   cause: unknown
 }> {}
+
+// Keep the dashboard and address lists independent of full resolver records.
+// The nullable resolver is supplied locally so existing list consumers can
+// keep using DomainFragment without carrying resolver texts and addresses.
+export const DOMAIN_LIST_FIELDS = /* GraphQL */ `
+  id
+  name
+  normalizedName
+  tokenId
+  owner { id }
+  createdAt
+  registrationDate
+  expiryDate
+`
+
+export type ListDomain = Omit<DomainFragment, 'resolver'>
+
+export const toListDomain = (domain: ListDomain): DomainFragment => ({
+  ...domain,
+  resolver: null,
+})
+
+export type ListDomainsQuery = {
+  readonly domains: readonly ListDomain[]
+}
+
+export const ListDomainsDocument = /* GraphQL */ `
+  query ListDomains(
+    $where: DomainFilter!
+    $first: Int
+    $skip: Int
+    $orderBy: Domain_orderBy
+    $orderDirection: OrderDirection
+  ) {
+    domains(
+      where: $where
+      first: $first
+      skip: $skip
+      orderBy: $orderBy
+      orderDirection: $orderDirection
+    ) {
+      ${DOMAIN_LIST_FIELDS}
+    }
+  }
+`
+
+export const getListDomains = ResultFn(async function* (
+  variables: DomainsQueryVariables,
+  signal?: AbortSignal,
+) {
+  const data = yield* await ResultAsync.fromPromise(
+    graphqlRequest<ListDomainsQuery, DomainsQueryVariables>(
+      indexerClient,
+      ListDomainsDocument,
+      variables,
+      signal,
+    ),
+    (error) => new GetDomainsError({ cause: error }),
+  )
+
+  return ok({ domains: data.domains.map(toListDomain) })
+})
 
 export const getDomains = ResultFn(async function* (
   variables: DomainsQueryVariables,
@@ -32,5 +95,6 @@ export const getDomains = ResultFn(async function* (
 export const getDomainsQuery = (variables: DomainsQueryVariables | undefined) =>
   resultQueryOptions({
     queryKey: qk('dashboard', 'domains', variables ?? {}),
-    queryFn: variables ? () => getDomains(variables) : skipToken,
+    queryFn: variables ? () => getListDomains(variables) : skipToken,
+    staleTime: 60_000,
   })

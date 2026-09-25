@@ -16,7 +16,7 @@ import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
 import { useDashboardV1Names } from '../useDashboardV1Names'
-import { useOwnedDomains } from '../useOwnedDomains'
+import type { OwnedDomainsResult } from '../useOwnedDomains'
 import { DashboardPagination } from './DashboardPagination'
 import type { NameRole } from './DashboardPills'
 import { NameRow, type NameRowCta, type NameStatus } from './NameRow'
@@ -30,6 +30,7 @@ export type Sort = `${SortField}-${SortDir}`
 
 interface MyNamesListProps {
   readonly migrationEnabled?: boolean
+  readonly ownedDomains: OwnedDomainsResult
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
   readonly sort: Sort
@@ -181,6 +182,7 @@ const AnimatedNameRow = ({
 
 export const MyNamesList = ({
   migrationEnabled = false,
+  ownedDomains,
   primaryLabel,
   searchQuery = '',
   sort,
@@ -209,11 +211,7 @@ export const MyNamesList = ({
     migrationEnabled,
   })
 
-  const {
-    v2Names,
-    isPending: isV2Pending,
-    isError: isV2Error,
-  } = useOwnedDomains()
+  const { v2Names, isPending: isV2Pending, isError: isV2Error } = ownedDomains
 
   const mergedSortedFiltered = useMemo(
     () =>

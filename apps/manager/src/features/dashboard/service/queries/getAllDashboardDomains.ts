@@ -1,16 +1,19 @@
-import {
-  type Domain_OrderBy,
-  type DomainFilter,
-  type DomainFragment,
-  DomainsDocument,
-  type DomainsQuery,
-  type DomainsQueryVariables,
-  type OrderDirection,
+import type {
+  Domain_OrderBy,
+  DomainFilter,
+  DomainFragment,
+  DomainsQueryVariables,
+  OrderDirection,
 } from '@ens-apps/indexer'
 import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { infiniteQueryOptions } from '@tanstack/react-query'
-import { GetDomainsError } from './getDashboardDomains'
+import {
+  GetDomainsError,
+  ListDomainsDocument,
+  type ListDomainsQuery,
+  toListDomain,
+} from './getDashboardDomains'
 
 const PAGE_SIZE = 200
 
@@ -30,17 +33,20 @@ const fetchDomainsPage = async ({
   orderBy,
   orderDirection,
   skip,
+  signal,
 }: DashboardDomainsQueryVariables & {
   readonly skip: number
+  readonly signal?: AbortSignal
 }): Promise<DashboardDomainsPage> => {
   try {
-    const data = await graphqlRequest<DomainsQuery, DomainsQueryVariables>(
+    const data = await graphqlRequest<ListDomainsQuery, DomainsQueryVariables>(
       indexerClient,
-      DomainsDocument,
+      ListDomainsDocument,
       { where, first: PAGE_SIZE, skip, orderBy, orderDirection },
+      signal,
     )
 
-    const domains = data.domains
+    const domains = data.domains.map(toListDomain)
     return {
       domains,
       nextSkip: domains.length < PAGE_SIZE ? undefined : skip + PAGE_SIZE,
@@ -57,12 +63,14 @@ export const getAllDomainsInfiniteQuery = (
     queryKey: qk('dashboard', 'all_domains', variables ?? {}),
     enabled: variables !== undefined,
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => {
+    staleTime: 60_000,
+    queryFn: ({ pageParam, signal }) => {
       if (!variables)
         return Promise.resolve({ domains: [], nextSkip: undefined })
       return fetchDomainsPage({
         ...variables,
         skip: pageParam as number,
+        signal,
       })
     },
     getNextPageParam: (lastPage) => lastPage.nextSkip,

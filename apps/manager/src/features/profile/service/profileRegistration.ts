@@ -1,5 +1,3 @@
-import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
-import indexerClient from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -7,10 +5,10 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getRegistrationDate as ensjsv2_getRegistrationDate } from '@ensdomains/ensjs/public/v2'
 import { getNameHistory as ensjs_getNameHistory } from '@ensdomains/ensjs/subgraph'
 import { err, fromPromise, ok } from 'neverthrow'
-import { namehash } from 'viem'
 import { getBlock } from 'viem/actions'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { getProfileIndexedDomain } from './profileIndexedDomain'
 import { normalizeEth2LdName, normalizeEthName } from './profileName'
 import { getOwner, type ProfileProtocol } from './profileOwner'
 
@@ -56,10 +54,8 @@ const blockNumberToBigInt = (blockNumber: number | bigint) =>
 // Every failure, an unindexed name and an indexer outage alike, answers null so
 // the on-chain read below settles it rather than the query ending without a date.
 const getIndexedRegistrationDate = (name: string) =>
-  indexerClient
-    .query<DomainQuery>(DomainDocument, { id: namehash(name) })
-    .toPromise()
-    .then((result) => result.data?.domain?.registrationDate ?? null)
+  getProfileIndexedDomain(name)
+    .then((domain) => domain?.registrationDate ?? null)
     .catch(() => null)
 
 export const getRegistration = ResultFn(async function* (
@@ -149,4 +145,5 @@ export const profileRegistrationQuery = (
     queryKey: qk('profile', 'registration', { name, protocol }),
     queryFn: ({ queryKey: [{ name, protocol }] }) =>
       getRegistration(name, protocol),
+    staleTime: 30_000,
   })

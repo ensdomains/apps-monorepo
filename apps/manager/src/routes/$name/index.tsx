@@ -5,7 +5,6 @@ import {
   redirect,
 } from '@tanstack/react-router'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
 import {
   NameFallbackCard,
   type NameFallbackReason,
@@ -20,7 +19,6 @@ import { normalizeProfileName } from '@/features/profile/service/profileName'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
-import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { getReverseNameAddress } from '@/features/profile/service/reverseNameAddress'
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { parseName } from '@/features/register-v2/utils/name-parser'
@@ -61,13 +59,18 @@ const requiresDnssecCheck = (
   name: string,
 ): boolean => !isEthName(parsed) && !isDebugProfileName(name)
 
-const prefetchOwnerReverseName = async (
+const isSupportedProfileTld = async (
   queryClient: QueryClient,
-  owner?: Address,
-): Promise<void> => {
-  if (owner) {
-    await queryClient.prefetchQuery(profileReverseNameQuery(owner))
-  }
+  name: string,
+): Promise<boolean> => {
+  const parsed = parseName(name)
+  if (!requiresDnssecCheck(parsed, name)) return true
+  if (parsed.isErr()) return false
+
+  // A DoH failure should not classify a valid DNS name as unsupported.
+  return queryClient
+    .ensureQueryData(dnsSecEnabledQuery(parsed.value.tld))
+    .catch(() => true)
 }
 
 const getCanonicalProfileName = (name: string): string => {
@@ -102,29 +105,19 @@ export const Route = createFileRoute('/$name/')({
 
     const [profileRecords, ownerData] = await Promise.all([
       queryClient.ensureQueryData(profileRecordsQuery(normalizedName)),
-      // Fetch, not ensure: `ensureQueryData` serves invalidated data, so a name
-      // cached as ownerless pre-registration would redirect its owner away.
-      queryClient.fetchQuery(profileOwnerQuery(normalizedName)),
+      // Always recheck ownership for redirect decisions, even when a recent
+      // display query exists in the cache after registration or transfer.
+      queryClient.fetchQuery({
+        ...profileOwnerQuery(normalizedName),
+        staleTime: 0,
+      }),
     ])
 
-    const parsed = parseName(normalizedName)
-
-    // Validate the TLD before showing any profile data: a TLD is supported
-    // if it's .eth or has DNSSEC enabled. On DoH failure, prefer the profile
-    // fallback over a false "unsupported"
-    if (requiresDnssecCheck(parsed, name)) {
-      const dnsSecEnabled = parsed.isOk()
-        ? await queryClient
-            .ensureQueryData(dnsSecEnabledQuery(parsed.value.tld))
-            .catch(() => true)
-        : false
-
-      if (!dnsSecEnabled) {
-        return {
-          fallback: 'unsupported-tld' as const,
-          description: undefined,
-          name: normalizedName,
-        }
+    if (!(await isSupportedProfileTld(queryClient, normalizedName))) {
+      return {
+        fallback: 'unsupported-tld' as const,
+        description: undefined,
+        name: normalizedName,
       }
     }
 
@@ -155,14 +148,24 @@ export const Route = createFileRoute('/$name/')({
       }
     }
 
-    const [expiryData] = await Promise.all([
-      queryClient.ensureQueryData(
-        profileExpiryQuery(normalizedName, ownerData?.protocol),
-      ),
-      queryClient.prefetchQuery(
-        profileRegistrationQuery(normalizedName, ownerData?.protocol),
-      ),
-    ])
+    const indexedRegistrationDate = profileRecords.indexedRegistrationDate
+    if (ownerData.protocol === 'v2' && indexedRegistrationDate != null) {
+      const registrationQuery = profileRegistrationQuery(
+        normalizedName,
+        ownerData.protocol,
+      )
+      queryClient.setQueryData(
+        registrationQuery.queryKey,
+        (current) =>
+          current ?? {
+            registrationDate: indexedRegistrationDate,
+          },
+      )
+    }
+
+    const expiryData = await queryClient.ensureQueryData(
+      profileExpiryQuery(normalizedName, ownerData.protocol),
+    )
 
     const expiryDate =
       expiryData?.expiry == null
@@ -177,8 +180,6 @@ export const Route = createFileRoute('/$name/')({
         replace: true,
       })
     }
-
-    await prefetchOwnerReverseName(queryClient, ownerData?.owner)
 
     const description = profileRecords.texts.find(
       (r) => r.key === 'description',

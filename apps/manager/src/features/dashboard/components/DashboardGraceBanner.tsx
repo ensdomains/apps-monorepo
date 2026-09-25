@@ -9,30 +9,37 @@ import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
+import type { ProfileProtocol } from '@/features/profile/service/profileOwner'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
-import { useOwnedDomains } from '../useOwnedDomains'
+import type { OwnedDomainsResult } from '../useOwnedDomains'
 
 type DashboardGraceBannerProps = {
   readonly primaryLabel: string | null
+  readonly primaryProtocol?: ProfileProtocol
+  readonly isPrimaryOwnerPending?: boolean
+  readonly ownedDomains: OwnedDomainsResult
 }
 
 export const DashboardGraceBanner = ({
   primaryLabel,
+  primaryProtocol,
+  isPrimaryOwnerPending = false,
+  ownedDomains,
 }: DashboardGraceBannerProps) => {
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
     false,
   )
-  const { v2Names, isAllPagesLoaded } = useOwnedDomains()
+  const { v2Names, isAllPagesLoaded } = ownedDomains
 
   const { eligible: v1Classified } = useEligibleV1Names({
     enabled: migrationEnabled,
   })
 
   const { data: primaryExpiryData } = useQuery({
-    ...profileExpiryQuery(primaryLabel ?? ''),
-    enabled: !!primaryLabel,
+    ...profileExpiryQuery(primaryLabel ?? '', primaryProtocol),
+    enabled: !!primaryLabel && !isPrimaryOwnerPending,
   })
 
   const banner = useMemo(

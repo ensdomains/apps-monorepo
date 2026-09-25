@@ -15,6 +15,7 @@ import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
+import type { ProfileProtocol } from '@/features/profile/service/profileOwner'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { cn } from '@/lib/utils'
@@ -25,6 +26,10 @@ type PrimaryNameCardProps = {
   readonly primaryName?: string | null
   readonly avatarUrl?: string | null
   readonly themeColor?: string | null
+  readonly primaryProtocol?: ProfileProtocol
+  readonly isPrimaryOwnerPending?: boolean
+  readonly indexedRegistrationDate?: number | null
+  readonly isIndexedRegistrationPending?: boolean
 }
 
 const PrimaryNameNameplate = ({
@@ -70,35 +75,59 @@ const getExpiryLabel = (params: {
   return formatDashboardDate(params.displayExpiryDate)
 }
 
+const getRegistrationLabel = (params: {
+  readonly indexedDate?: number | null
+  readonly queriedDate?: number | null
+  readonly isLoading: boolean
+  readonly loadingLabel: string
+}): string => {
+  const registrationDate = params.indexedDate ?? params.queriedDate
+  if (registrationDate == null && params.isLoading) return params.loadingLabel
+  return formatDashboardDate(
+    registrationDate == null ? null : new Date(registrationDate * 1000),
+  )
+}
+
 export const PrimaryNameCard = ({
   primaryName,
   avatarUrl,
   themeColor,
+  primaryProtocol,
+  isPrimaryOwnerPending = false,
+  indexedRegistrationDate,
+  isIndexedRegistrationPending = false,
 }: PrimaryNameCardProps) => {
   const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
 
   const { data: registration, isLoading: isRegistrationLoading } = useQuery({
-    ...profileRegistrationQuery(primaryName ?? ''),
-    enabled: !!primaryName,
+    ...profileRegistrationQuery(primaryName ?? '', primaryProtocol),
+    enabled:
+      !!primaryName &&
+      !isPrimaryOwnerPending &&
+      !isIndexedRegistrationPending &&
+      indexedRegistrationDate == null,
   })
 
   const { data: reverseExpiry, isLoading: isReverseExpiryLoading } = useQuery({
-    ...profileExpiryQuery(primaryName ?? ''),
-    enabled: !!primaryName,
+    ...profileExpiryQuery(primaryName ?? '', primaryProtocol),
+    enabled: !!primaryName && !isPrimaryOwnerPending,
   })
   const { isInGrace, displayExpiryDate } =
     getProfileExpiryResultStatus(reverseExpiry)
 
-  const registeredDate =
-    registration?.registrationDate == null
-      ? null
-      : new Date(registration.registrationDate * 1000)
   const hasAvatar = Boolean(avatarUrl) && !isInGrace
   const displayName = primaryName ?? t`Your ENS name`
-  const registeredLabel = isRegistrationLoading
-    ? t`Loading...`
-    : formatDashboardDate(registeredDate)
+  const registeredLabel = getRegistrationLabel({
+    indexedDate: indexedRegistrationDate,
+    queriedDate: registration?.registrationDate,
+    isLoading:
+      indexedRegistrationDate == null &&
+      (isRegistrationLoading ||
+        isPrimaryOwnerPending ||
+        isIndexedRegistrationPending),
+    loadingLabel: t`Loading...`,
+  })
   const expiryLabel = getExpiryLabel({
     displayExpiryDate,
     isLoading: isReverseExpiryLoading,

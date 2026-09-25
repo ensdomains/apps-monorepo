@@ -56,10 +56,43 @@ export const getDashboardRoleAssignmentsForAddresses = async (
   const normalizedAccounts = Array.from(
     new Set(accounts.map((account) => account.toLowerCase())),
   )
-  const roleAssignments = await Promise.all(
-    normalizedAccounts.map(getDashboardRoleAssignments),
+  if (normalizedAccounts.length === 0) return []
+  const firstAccount = normalizedAccounts[0]
+  if (normalizedAccounts.length === 1 && firstAccount) {
+    return getDashboardRoleAssignments(firstAccount)
+  }
+
+  const aliases = normalizedAccounts.map((_, index) => `account${index}`)
+  const declarations = aliases.map((alias) => `$${alias}: String!`).join(', ')
+  const selections = aliases
+    .map((alias) => `${alias}: roles(account: $${alias}) { name roleBitmap }`)
+    .join('\n')
+  // Alias names are generated from array indexes; account values are passed as
+  // GraphQL variables, so user-controlled addresses never enter the document.
+  const document = /* GraphQL */ `
+    query DashboardRoleAssignmentsForAddresses(${declarations}) {
+      ${selections}
+    }
+  `
+  const variables = Object.fromEntries(
+    normalizedAccounts.map((account, index) => [`account${index}`, account]),
   )
-  return roleAssignments.flat()
+
+  try {
+    const data = await graphqlRequest<
+      Record<string, readonly Pick<EacRoleAssignment, 'name' | 'roleBitmap'>[]>,
+      Record<string, string>
+    >(indexerClient, document, variables)
+
+    return aliases.flatMap((alias) =>
+      (data[alias] ?? []).map(({ name, roleBitmap }) => ({
+        name: name ?? null,
+        roleBitmap,
+      })),
+    )
+  } catch (error) {
+    throw new GetDashboardRoleAssignmentsError({ cause: error })
+  }
 }
 
 export const getDashboardRoleAssignmentsQuery = (
@@ -75,6 +108,7 @@ export const getDashboardRoleAssignmentsQuery = (
       normalizedAccounts && normalizedAccounts.length > 0
         ? () => getDashboardRoleAssignmentsForAddresses(normalizedAccounts)
         : skipToken,
+    staleTime: 60_000,
     meta: {
       dependsOn: ['indexer'],
     },

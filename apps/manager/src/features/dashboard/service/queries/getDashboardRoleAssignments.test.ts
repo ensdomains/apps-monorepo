@@ -66,8 +66,12 @@ describe('getDashboardRoleAssignments', () => {
   })
 
   it('fetches assignments for every unique address', async () => {
-    respond({ data: { roles: [{ name: 'alaska.eth', roleBitmap: '1' }] } })
-    respond({ data: { roles: [{ name: 'figma.eth', roleBitmap: '2' }] } })
+    respond({
+      data: {
+        account0: [{ name: 'alaska.eth', roleBitmap: '1' }],
+        account1: [{ name: 'figma.eth', roleBitmap: '2' }],
+      },
+    })
 
     await expect(
       getDashboardRoleAssignmentsForAddresses([
@@ -80,6 +84,13 @@ describe('getDashboardRoleAssignments', () => {
       { name: 'figma.eth', roleBitmap: '2' },
     ])
 
-    expect(queryMock).toHaveBeenCalledTimes(2)
+    expect(queryMock).toHaveBeenCalledTimes(1)
+    const document = queryMock.mock.calls[0]?.[0] as string
+    expect(document).toContain('account0: roles(account: $account0)')
+    expect(document).toContain('account1: roles(account: $account1)')
+    expect(queryMock.mock.calls[0]?.[1]).toEqual({
+      account0: ADDR,
+      account1: '0x0000000000000000000000000000000000000002',
+    })
   })
 })

@@ -14,6 +14,7 @@ import {
   type NameStatus,
 } from '@/features/dashboard/components/NameRow'
 import { getNameRowProfilePreview } from '@/features/dashboard/components/nameRowProfileRecords'
+import { nameRowRecordsQuery } from '@/features/dashboard/components/nameRowRecordsQuery'
 import {
   SortMenu,
   type SortOption,
@@ -31,7 +32,6 @@ import {
   PROFILE_NAMES_PAGE_SIZE,
   type ProfileAddressName,
 } from '@/features/profile/service/profileAddressNames'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { isBackendAuthed } from '@/utils/backend-client'
@@ -243,7 +243,7 @@ export const AddressProfileNamesList = ({
 
   const pageProfileRecords = useQueries({
     queries: pageItems.map((name) => ({
-      ...profileRecordsQuery(name.label),
+      ...nameRowRecordsQuery(name.label),
       enabled: name.protocol === 'v2',
     })),
     combine: (results) =>

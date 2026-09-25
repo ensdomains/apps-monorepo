@@ -1,5 +1,4 @@
-import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
-import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
+import type { DomainQuery } from '@ens-apps/indexer'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -21,6 +20,7 @@ import {
 } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
 import { getProfileCoinRecords } from './profileCoinRecords'
+import { getProfileIndexedDomain } from './profileIndexedDomain'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
@@ -39,22 +39,6 @@ type IndexerRecords = {
   resolverAddress?: string
   coinAddresses: IndexerCoinAddress[]
   contentHash: string | null
-}
-
-const indexerDomainInflight = new Map<string, Promise<DomainQuery>>()
-
-function fetchIndexerDomain(name: string): Promise<DomainQuery> {
-  const existing = indexerDomainInflight.get(name)
-  if (existing) return existing
-
-  const promise = graphqlRequest<DomainQuery>(indexerClient, DomainDocument, {
-    id: name,
-  }).finally(() => {
-    indexerDomainInflight.delete(name)
-  })
-
-  indexerDomainInflight.set(name, promise)
-  return promise
 }
 
 const unique = <T>(values: readonly T[]): T[] => Array.from(new Set(values))
@@ -88,10 +72,10 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
   const client = yield* safeGetClient()
   const indexerDomain = yield* fromPromise(
-    fetchIndexerDomain(name),
+    getProfileIndexedDomain(name),
     (error) => new GetProfileRecordsError({ cause: error }),
   )
-  const resolver = indexerDomain.domain?.resolver
+  const resolver = indexerDomain?.resolver
   const indexerRecords: IndexerRecords = {
     isMigrated: true,
     createdAt: { date: new Date(), value: Date.now() },
@@ -132,6 +116,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     texts: records.texts,
     coins: coinRecords,
     resolverAddress: normalizeResolverAddress(records.resolverAddress),
+    indexedRegistrationDate: indexerDomain?.registrationDate ?? null,
     _rawSubgraphRecords: indexerRecords,
   }
 
@@ -156,6 +141,7 @@ export type ProfileRecordsResult = {
   contentHash?: string
   abi?: string
   resolverAddress?: Address
+  indexedRegistrationDate?: number | null
   _rawSubgraphRecords?: unknown
 }
 
@@ -163,4 +149,5 @@ export const profileRecordsQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'get_records', { name }),
     queryFn: ({ queryKey: [{ name }] }) => getProfileRecords(name),
+    staleTime: 30_000,
   })

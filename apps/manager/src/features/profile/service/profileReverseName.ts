@@ -44,4 +44,5 @@ export const profileReverseNameQuery = (address?: Address) =>
   resultQueryOptions({
     queryKey: qk('profile', 'reverse_name', { address }),
     queryFn: ({ queryKey: [{ address }] }) => getReverseName(address),
+    staleTime: 30_000,
   })

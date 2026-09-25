@@ -126,6 +126,7 @@ describe('MyNamesList', () => {
         isAuthenticated
         migrationEnabled={false}
         onToggleFavorite={() => undefined}
+        ownedDomains={ownedDomainsMock.useOwnedDomains()}
         sort="name-asc"
       />,
     )
@@ -177,6 +178,7 @@ describe('MyNamesList', () => {
         isAuthenticated
         migrationEnabled={false}
         onToggleFavorite={() => undefined}
+        ownedDomains={ownedDomainsMock.useOwnedDomains()}
         sort="name-asc"
       />,
     )
@@ -212,6 +214,7 @@ describe('MyNamesList', () => {
         favoriteLabels={new Set()}
         isAuthenticated
         onToggleFavorite={() => undefined}
+        ownedDomains={ownedDomainsMock.useOwnedDomains()}
         sort="name-asc"
       />,
     )
@@ -234,6 +237,7 @@ describe('MyNamesList', () => {
         isAuthenticated
         migrationEnabled={false}
         onToggleFavorite={() => undefined}
+        ownedDomains={ownedDomainsMock.useOwnedDomains()}
         sort="name-asc"
       />,
     )
@@ -260,6 +264,7 @@ describe('MyNamesList', () => {
         isAuthenticated
         migrationEnabled={false}
         onToggleFavorite={() => undefined}
+        ownedDomains={ownedDomainsMock.useOwnedDomains()}
         sort="name-asc"
       />,
     )
@@ -295,6 +300,7 @@ describe('MyNamesList', () => {
         isAuthenticated
         migrationEnabled={false}
         onToggleFavorite={() => undefined}
+        ownedDomains={ownedDomainsMock.useOwnedDomains()}
         selectedLabels={new Set(['alice.eth'])}
         sort="name-asc"
       />,

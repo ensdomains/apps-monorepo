@@ -1,4 +1,3 @@
-import { namehash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -22,11 +21,8 @@ vi.mock('viem/actions', () => ({
 }))
 
 vi.mock('@ens-apps/indexer/urql', () => ({
-  default: {
-    query: (...args: unknown[]) => ({
-      toPromise: () => Promise.resolve(mocks.indexerQuery(...args)),
-    }),
-  },
+  default: {},
+  graphqlRequest: (...args: unknown[]) => mocks.indexerQuery(...args),
 }))
 
 vi.mock('@/lib/wagmi/helpers', async () => {
@@ -57,20 +53,22 @@ describe('profileRegistrationQuery', () => {
 describe('getRegistration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.indexerQuery.mockResolvedValue({ data: { domain: null } })
+    mocks.indexerQuery.mockResolvedValue({ domain: null })
   })
 
   it('reads a V2 registration date from the indexer', async () => {
     mocks.indexerQuery.mockResolvedValue({
-      data: { domain: { registrationDate: 1_789_640_616 } },
+      domain: { registrationDate: 1_789_640_616 },
     })
 
     const result = await getRegistration('rabbit.eth', 'v2')
 
     expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_789_640_616 })
-    expect(mocks.indexerQuery).toHaveBeenCalledWith(expect.anything(), {
-      id: namehash('rabbit.eth'),
-    })
+    expect(mocks.indexerQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { id: 'rabbit.eth' },
+    )
     expect(mocks.getRegistrationDate).not.toHaveBeenCalled()
   })
 
@@ -93,15 +91,17 @@ describe('getRegistration', () => {
 
   it('reads a subname registration date from the indexer', async () => {
     mocks.indexerQuery.mockResolvedValue({
-      data: { domain: { registrationDate: 1_790_000_000 } },
+      domain: { registrationDate: 1_790_000_000 },
     })
 
     const result = await getRegistration('mini.shiba.eth')
 
     expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_790_000_000 })
-    expect(mocks.indexerQuery).toHaveBeenCalledWith(expect.anything(), {
-      id: namehash('mini.shiba.eth'),
-    })
+    expect(mocks.indexerQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { id: 'mini.shiba.eth' },
+    )
     expect(mocks.getRegistrationDate).not.toHaveBeenCalled()
   })
 

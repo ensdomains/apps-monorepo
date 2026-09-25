@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
+import { nameRowRecordsQuery } from '@/features/dashboard/components/nameRowRecordsQuery'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
 
@@ -8,7 +8,7 @@ export const useConnectedAvatar = () => {
   const reverseNameQuery = useConnectedReverseName()
   const name = reverseNameQuery.data ?? undefined
   const profileRecords = useQuery({
-    ...profileRecordsQuery(name ?? ''),
+    ...nameRowRecordsQuery(name ?? ''),
     enabled: !!name,
   })
   const savedTheme = profileRecords.data?.texts.find(

@@ -5,7 +5,6 @@ import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
-import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { Route } from './index'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -38,10 +37,6 @@ vi.mock('@/features/profile/service/profileRegistration', () => ({
   profileRegistrationQuery: vi.fn(),
 }))
 
-vi.mock('@/features/profile/service/profileReverseName', () => ({
-  profileReverseNameQuery: vi.fn(),
-}))
-
 vi.mock('@/features/profile/components/view/ProfileView', () => ({
   ProfileView: ({ name }: { name: string }) => (
     <div data-testid="profile-view">{name}</div>
@@ -61,7 +56,11 @@ const renderRouteOption = (option: 'component' | 'pendingComponent') => {
 
 const PROFILE_OWNER = '0x0000000000000000000000000000000000000001'
 
-const runLoader = async (name: string) => {
+const runLoader = async (
+  name: string,
+  indexedRegistrationDate?: number,
+  dnsSecEnabled = true,
+) => {
   vi.mocked(profileRecordsQuery).mockImplementation(
     (queryName) => ({ kind: 'records', name: queryName }) as never,
   )
@@ -74,15 +73,18 @@ const runLoader = async (name: string) => {
   )
   vi.mocked(profileRegistrationQuery).mockImplementation(
     (queryName, protocol) =>
-      ({ kind: 'registration', name: queryName, protocol }) as never,
-  )
-  vi.mocked(profileReverseNameQuery).mockImplementation(
-    (address) => ({ address, kind: 'reverse-name' }) as never,
+      ({ queryKey: ['registration', queryName, protocol] }) as never,
   )
 
   const ensureQueryData = vi.fn(
-    async (query: { readonly kind: string; readonly name: string }) => {
-      if (query.kind === 'records') return { coins: [], texts: [] }
+    async (query: {
+      readonly kind?: string
+      readonly name?: string
+      readonly queryKey?: readonly [{ readonly $action?: string }]
+    }) => {
+      if (query.queryKey?.[0]?.$action === 'dnsSecEnabled') return dnsSecEnabled
+      if (query.kind === 'records')
+        return { coins: [], texts: [], indexedRegistrationDate }
       return { expiry: null }
     },
   )
@@ -91,6 +93,7 @@ const runLoader = async (name: string) => {
     protocol: 'v2',
   })
   const prefetchQuery = vi.fn().mockResolvedValue(undefined)
+  const setQueryData = vi.fn()
   const loader = Route.options.loader as (args: {
     params: { name: string }
     context: { queryClient: unknown }
@@ -99,11 +102,11 @@ const runLoader = async (name: string) => {
   const outcome = await loader({
     params: { name },
     context: {
-      queryClient: { ensureQueryData, fetchQuery, prefetchQuery },
+      queryClient: { ensureQueryData, fetchQuery, prefetchQuery, setQueryData },
     },
   }).catch((error: unknown) => error)
 
-  return { ensureQueryData, fetchQuery, outcome, prefetchQuery }
+  return { ensureQueryData, fetchQuery, outcome, prefetchQuery, setQueryData }
 }
 
 beforeEach(() => {
@@ -159,8 +162,26 @@ describe('/$name client-rendered profile route', () => {
     expect(prefetchQuery).not.toHaveBeenCalled()
   })
 
-  it('uses one canonical name for every profile query', async () => {
-    const { outcome } = await runLoader('alice.eth')
+  it('returns a fallback for an unsupported DNS TLD', async () => {
+    const { ensureQueryData, fetchQuery, outcome } = await runLoader(
+      'alice.xyz',
+      undefined,
+      false,
+    )
+
+    expect(outcome).toEqual({
+      fallback: 'unsupported-tld',
+      description: undefined,
+      name: 'alice.xyz',
+    })
+    expect(profileRecordsQuery).toHaveBeenCalledWith('alice.xyz')
+    expect(profileOwnerQuery).toHaveBeenCalledWith('alice.xyz')
+    expect(fetchQuery).toHaveBeenCalledTimes(1)
+    expect(ensureQueryData).toHaveBeenCalledTimes(2)
+  })
+
+  it('loads essential queries with one canonical name without waiting for display data', async () => {
+    const { fetchQuery, outcome, prefetchQuery } = await runLoader('alice.eth')
 
     expect(outcome).toEqual({
       fallback: undefined,
@@ -169,8 +190,28 @@ describe('/$name client-rendered profile route', () => {
     })
     expect(profileRecordsQuery).toHaveBeenCalledWith('alice.eth')
     expect(profileOwnerQuery).toHaveBeenCalledWith('alice.eth')
+    expect(fetchQuery).toHaveBeenCalledWith({
+      kind: 'owner',
+      name: 'alice.eth',
+      staleTime: 0,
+    })
     expect(profileExpiryQuery).toHaveBeenCalledWith('alice.eth', 'v2')
+    expect(profileRegistrationQuery).not.toHaveBeenCalled()
+    expect(prefetchQuery).not.toHaveBeenCalled()
+  })
+
+  it('reuses indexed V2 registration without a second Domain request', async () => {
+    const { setQueryData } = await runLoader('alice.eth', 1_800_000_000)
+
     expect(profileRegistrationQuery).toHaveBeenCalledWith('alice.eth', 'v2')
-    expect(profileReverseNameQuery).toHaveBeenCalledWith(PROFILE_OWNER)
+    expect(setQueryData).toHaveBeenCalledWith(
+      ['registration', 'alice.eth', 'v2'],
+      expect.any(Function),
+    )
+    const seed = setQueryData.mock.calls[0]?.[1] as (
+      current: unknown,
+    ) => unknown
+    expect(seed(undefined)).toEqual({ registrationDate: 1_800_000_000 })
+    expect(seed({ registrationDate: 2 })).toEqual({ registrationDate: 2 })
   })
 })

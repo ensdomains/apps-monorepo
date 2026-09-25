@@ -15,11 +15,14 @@ import { MigrationProgressBanner } from '@/features/migration/components/Migrati
 import { CommemorativeNftDashboard } from '@/features/migration/components/success/CommemorativeNftDashboard'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { normalizeEth2LdName } from '@/features/profile/service/profileName'
+import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { nameRowRecordsQuery } from '../components/nameRowRecordsQuery'
+import { useOwnedDomains } from '../useOwnedDomains'
 
 const stagger = (index: number, shouldReduceMotion: boolean | null) =>
   shouldReduceMotion
@@ -42,6 +45,7 @@ export const DashboardPage = () => {
     false,
   )
   const commemorativeNftEnabled = useMigrationNftEnabled()
+  const ownedDomains = useOwnedDomains()
 
   // Non-suspense so a resolver error degrades to `undefined` (UI falls back to
   // `reverseName ?? null`) instead of throwing into the route and crashing it.
@@ -51,13 +55,33 @@ export const DashboardPage = () => {
   })
 
   const { data: reverseRecords } = useQuery({
-    ...profileRecordsQuery(reverseName ?? ''),
+    ...nameRowRecordsQuery(reverseName ?? ''),
     enabled: !!reverseName,
   })
+
+  const shouldResolvePrimaryOwner = Boolean(
+    reverseName && normalizeEth2LdName(reverseName),
+  )
+  const { data: primaryOwner, isPending: isOwnerQueryPending } = useQuery({
+    ...profileOwnerQuery(reverseName ?? ''),
+    enabled: shouldResolvePrimaryOwner,
+  })
+  const isPrimaryOwnerPending = shouldResolvePrimaryOwner && isOwnerQueryPending
 
   const themeColor = reverseRecords?.texts.find(
     (text) => text.key === 'theme',
   )?.value
+
+  const indexedRegistrationDate = ownedDomains.v2Names.find(
+    (domain) =>
+      domain.name === reverseName || domain.normalizedName === reverseName,
+  )?.registrationDate
+  const isIndexedRegistrationPending =
+    primaryOwner?.protocol === 'v2' &&
+    ownedDomains.hasOwnerAddresses &&
+    !ownedDomains.isDomainScanComplete &&
+    !ownedDomains.isError &&
+    indexedRegistrationDate == null
 
   const defaultName = reverseName ?? null
   const avatarUrl = reverseName ? buildNameAvatarUrl(reverseName) : null
@@ -76,13 +100,22 @@ export const DashboardPage = () => {
           className="w-full px-4 empty:hidden md:px-0"
           {...stagger(1, shouldReduceMotion)}
         >
-          <DashboardGraceBanner primaryLabel={defaultName} />
+          <DashboardGraceBanner
+            isPrimaryOwnerPending={isPrimaryOwnerPending}
+            ownedDomains={ownedDomains}
+            primaryLabel={defaultName}
+            primaryProtocol={primaryOwner?.protocol}
+          />
         </motion.div>
         {hasProfile ? (
           <motion.div {...stagger(2, shouldReduceMotion)}>
             <PrimaryNameCard
               avatarUrl={avatarUrl}
+              indexedRegistrationDate={indexedRegistrationDate}
+              isIndexedRegistrationPending={isIndexedRegistrationPending}
+              isPrimaryOwnerPending={isPrimaryOwnerPending}
               primaryName={defaultName}
+              primaryProtocol={primaryOwner?.protocol}
               themeColor={themeColor}
             />
           </motion.div>
@@ -116,6 +149,7 @@ export const DashboardPage = () => {
         >
           <NamesTable
             migrationEnabled={migrationEnabled}
+            ownedDomains={ownedDomains}
             primaryLabel={defaultName}
           />
         </motion.div>
