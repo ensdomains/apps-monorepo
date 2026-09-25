@@ -233,3 +233,5 @@ The `/orchestrator` path is proxied by Vite to `http://127.0.0.1:3007` (mockestr
 - `waitForConsolePattern` must be set up **before** the triggering click to avoid race conditions
 - Para modal animations may need short `sleep()` calls where no completion signal exists
 - Playwright's trace/video/screenshot artifacts are captured on failure (configured in base config)
+
+<!-- ci trigger: smoke suite control baseline, no functional change -->
