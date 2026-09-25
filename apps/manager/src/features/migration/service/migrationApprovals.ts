@@ -6,6 +6,7 @@ import {
   erc721Abi,
   isAddress,
   isAddressEqual,
+  type PublicClient,
 } from 'viem'
 import { OPERATOR_APPROVAL_ABI } from '@/features/migration/contracts/abis'
 import {
@@ -69,6 +70,64 @@ export type MigrationApproval =
 export type MigrationCleanupApproval = MigrationOperatorApproval & {
   readonly id: 'eth-registry:hca'
 }
+
+export const temporaryMigrationHcaApproval = (
+  hcaAddress: Address,
+): MigrationCleanupApproval => ({
+  kind: 'operator',
+  id: 'eth-registry:hca',
+  contractAddress: V2_CONTRACTS.ETHRegistry,
+  operatorAddress: hcaAddress,
+})
+
+export const migrationOperatorApprovals = (
+  hcaAddress: Address,
+): readonly MigrationOperatorApproval[] => [
+  {
+    kind: 'operator',
+    id: 'base-registrar:hca',
+    contractAddress: V1_CONTRACTS.BaseRegistrar,
+    operatorAddress: V2_CONTRACTS.MigrationHelper,
+  },
+  {
+    kind: 'operator',
+    id: 'name-wrapper:hca',
+    contractAddress: V1_CONTRACTS.NameWrapper,
+    operatorAddress: V2_CONTRACTS.MigrationHelper,
+  },
+  temporaryMigrationHcaApproval(hcaAddress),
+]
+
+export const readActiveMigrationOperatorApprovals = async (params: {
+  readonly eoa: Address
+  readonly hcaAddress: Address
+  readonly wagmiConfig: WagmiConfig
+}): Promise<readonly MigrationOperatorApproval[]> => {
+  const approvals = migrationOperatorApprovals(params.hcaAddress)
+  const results = await readContracts(params.wagmiConfig, {
+    contracts: approvals.map((approval) => ({
+      address: approval.contractAddress,
+      abi: OPERATOR_APPROVAL_ABI,
+      functionName: 'isApprovedForAll',
+      args: [params.eoa, approval.operatorAddress],
+    })),
+    allowFailure: false,
+    batchSize: 0,
+  })
+  return approvals.filter((_, index) => results[index] === true)
+}
+
+export const hasTemporaryMigrationHcaApproval = async (params: {
+  readonly publicClient: PublicClient
+  readonly eoa: Address
+  readonly hcaAddress: Address
+}): Promise<boolean> =>
+  (await params.publicClient.readContract({
+    address: V2_CONTRACTS.ETHRegistry,
+    abi: OPERATOR_APPROVAL_ABI,
+    functionName: 'isApprovedForAll',
+    args: [params.eoa, params.hcaAddress],
+  })) === true
 
 /**
  * Only direct HCA permissions are temporary. MigrationHelper approvals are
@@ -183,14 +242,14 @@ export const checkMigrationApprovals = async (params: {
     })
   }
 
-  if (needs.requiresManagerRestoration) {
-    reads.push({
-      kind: 'operator',
-      key: 'ethRegistryHcaApproved',
-      contractAddress: V2_CONTRACTS.ETHRegistry,
-      operatorAddress: hcaAddress,
-    })
-  }
+  // A grant from an interrupted earlier attempt must be visible even when the
+  // current selection does not need manager restoration.
+  reads.push({
+    kind: 'operator',
+    key: 'ethRegistryHcaApproved',
+    contractAddress: V2_CONTRACTS.ETHRegistry,
+    operatorAddress: hcaAddress,
+  })
 
   const initialStatus: MigrationApprovalStatus = {
     baseRegistrarHcaApproved: !needs.hasUnwrapped,
@@ -199,7 +258,7 @@ export const checkMigrationApprovals = async (params: {
       approved: !needs.hasUnwrapped,
     })),
     nameWrapperHcaApproved: !needs.hasWrapped,
-    ethRegistryHcaApproved: !needs.requiresManagerRestoration,
+    ethRegistryHcaApproved: false,
   }
   if (reads.length === 0) return initialStatus
 
@@ -288,29 +347,20 @@ export const planMigrationApprovals = (params: {
   const missingTokenIds = tokenIds.filter(
     (tokenId) => !tokenStatus.get(tokenId),
   )
-  const needsBaseRegistrarApproval =
-    tokenIds.length === 0 || missingTokenIds.length > 0
-
   if (
     needs.hasUnwrapped &&
     !status.baseRegistrarHcaApproved &&
-    needsBaseRegistrarApproval
+    missingTokenIds.length > 0
   ) {
-    if (missingTokenIds.length === 1) {
-      approvals.push(
-        ...missingTokenIds.map((tokenId) =>
-          migrationApprovalForId({
-            id: 'base-registrar:hca-token',
-            hcaAddress,
-            tokenId,
-          }),
-        ),
-      )
-    } else {
-      approvals.push(
-        migrationApprovalForId({ id: 'base-registrar:hca', hcaAddress }),
-      )
-    }
+    approvals.push(
+      ...missingTokenIds.map((tokenId) =>
+        migrationApprovalForId({
+          id: 'base-registrar:hca-token',
+          hcaAddress,
+          tokenId,
+        }),
+      ),
+    )
   }
   if (needs.hasWrapped && !status.nameWrapperHcaApproved) {
     approvals.push(

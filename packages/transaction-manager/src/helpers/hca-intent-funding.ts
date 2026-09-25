@@ -21,7 +21,7 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { Transaction } from '@rhinestone/sdk'
 import type { Address, Chain, Hex, PublicClient } from 'viem'
-import { encodeFunctionData, parseAbi } from 'viem'
+import { encodeFunctionData, formatUnits, parseAbi } from 'viem'
 import {
   readHcaUsdcBalanceActor,
   readUsdcSpend,
@@ -42,6 +42,66 @@ const erc2612Abi = parseAbi([
  * must cover the batch or the permit is sized short and the fill fails.
  */
 export const HCA_STANDALONE_INTENT_GAS_LIMIT = 300_000n
+
+/**
+ * Ceiling (USDC, 6dp) on what a standalone intent's fee may be quoted at.
+ *
+ * Same reasoning as `HCA_MAX_LEG_FEES_USDC` on the registration budget: the fee
+ * is read out of an orchestrator HTTP response and becomes the value of an
+ * EIP-2612 permit, so it needs a bound derived without that response. These are
+ * small fixed-shape intents (one or two adapter calls under a 300k gas limit),
+ * which fill for well under 1 USDC on Sepolia; 10 USDC is far above anything a
+ * legitimate gas regime produces — `HCA_STANDALONE_INTENT_GAS_LIMIT` at the
+ * 5 gwei clamp used elsewhere is ~0.0015 ETH, about 6 USDC at $4000/ETH.
+ *
+ * There is no on-chain price component here (nothing is being bought), so
+ * unlike the registration budget the whole bound is the fee margin.
+ */
+export const HCA_MAX_STANDALONE_INTENT_FEE_USDC = 10_000_000n
+
+/**
+ * What the user is shown before the funding permit is requested.
+ *
+ * The permit is signed for EXACTLY {@link permitValue} — not a ceiling, not a
+ * rounded-up allowance — so the figure on screen is the figure authorized.
+ */
+export interface HcaFundingPrompt {
+  /** USDC (6dp) the permit will authorize: the quoted fee less what the HCA holds. */
+  readonly permitValue: bigint
+  /** USDC (6dp) the orchestrator quoted for the whole intent. */
+  readonly quotedFeeUsdc: bigint
+  /** USDC (6dp) the HCA already holds, which offsets the fee. */
+  readonly hcaBalanceUsdc: bigint
+}
+
+/** The user saw the funding amount and declined it. Not an error condition. */
+export class HcaFundingDeclinedError extends Error {
+  constructor() {
+    super('Funding was not approved, so no signature was requested.')
+    this.name = 'HcaFundingDeclinedError'
+  }
+}
+
+/** The orchestrator quoted a fee above {@link HCA_MAX_STANDALONE_INTENT_FEE_USDC}. */
+export class HcaIntentFeeExceedsMaximumError extends Error {
+  readonly quotedFeeUsdc: bigint
+  readonly expectedMaximum: bigint
+
+  constructor(quotedFeeUsdc: bigint, expectedMaximum: bigint) {
+    super(
+      `Refusing to request a signature: the payment relayer quoted ` +
+        `${formatUnits(quotedFeeUsdc, 6)} USDC for this action, above the ` +
+        `expected maximum of ${formatUnits(expectedMaximum, 6)} USDC. ` +
+        `Please try again in a moment.`,
+    )
+    this.name = 'HcaIntentFeeExceedsMaximumError'
+    this.quotedFeeUsdc = quotedFeeUsdc
+    this.expectedMaximum = expectedMaximum
+  }
+}
+
+/** `Math.max` for bigints (no bigint overload on `Math.max`). */
+const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
 
 /**
  * Balance (USDC, 6dp) the first-pass quote pretends the HCA will hold.
@@ -166,6 +226,19 @@ export interface PlanHcaIntentFundingParams {
   readonly chainId: number
   /** The action calls. The funding pair, when needed, is prepended to these. */
   readonly calls: readonly Call[]
+  /**
+   * Show the user what the funding permit will authorize and wait for a
+   * decision. Called ONLY when funding is actually needed, after the quote and
+   * BEFORE the wallet is asked for a signature; returning `false` aborts with
+   * {@link HcaFundingDeclinedError} and no prompt is raised.
+   *
+   * Optional so non-interactive callers still work, but any flow that leads to
+   * a wallet signature should supply it: otherwise the user approves a
+   * fund-moving permit for an amount they were never shown.
+   */
+  readonly confirmFunding?: (
+    prompt: HcaFundingPrompt,
+  ) => Promise<boolean> | boolean
 }
 
 /**
@@ -183,8 +256,15 @@ export interface PlanHcaIntentFundingParams {
 export async function planHcaIntentFunding(
   params: PlanHcaIntentFundingParams,
 ): Promise<HcaIntentFunding> {
-  const { signer, ownerAddress, approvalSigner, publicClient, chainId, calls } =
-    params
+  const {
+    signer,
+    ownerAddress,
+    approvalSigner,
+    publicClient,
+    chainId,
+    calls,
+    confirmFunding,
+  } = params
 
   const chain = publicClient.chain
   if (!chain) {
@@ -245,6 +325,17 @@ export async function planHcaIntentFunding(
     )
   }
 
+  // Bound the orchestrator's figure against one derived without it, before it
+  // can become a permit value. Checked even when the HCA turns out to cover the
+  // fee: a quote this far out is evidence the response is wrong, and the same
+  // number sizes nothing else worth trusting.
+  if (quotedFeeUsdc > HCA_MAX_STANDALONE_INTENT_FEE_USDC) {
+    throw new HcaIntentFeeExceedsMaximumError(
+      quotedFeeUsdc,
+      HCA_MAX_STANDALONE_INTENT_FEE_USDC,
+    )
+  }
+
   if (balance >= quotedFeeUsdc) {
     // The HCA already covers it — submit the bare action. The quote was taken
     // over a larger batch, so it only over-estimated, which is safe here
@@ -254,6 +345,17 @@ export async function planHcaIntentFunding(
 
   const shortfall = quotedFeeUsdc - balance
 
+  // Show the amount, then ask for the signature — never the other way round.
+  // Only reached when a permit is actually going to be requested.
+  if (confirmFunding) {
+    const approved = await confirmFunding({
+      permitValue: shortfall,
+      quotedFeeUsdc,
+      hcaBalanceUsdc: balance,
+    })
+    if (!approved) throw new HcaFundingDeclinedError()
+  }
+
   const permit = await signFundingPermitActor({
     wallet: ownerAddress,
     hca,
@@ -261,6 +363,18 @@ export async function planHcaIntentFunding(
     approvalSigner,
     publicClient,
     chainId,
+    bounds: {
+      // The permit tops the HCA up to the fee, so the ceiling nets off the
+      // standing balance exactly as the value does.
+      expectedMaximum: bigintMax(
+        HCA_MAX_STANDALONE_INTENT_FEE_USDC - balance,
+        0n,
+      ),
+      // What `confirmFunding` just put on screen. Equal by construction here,
+      // so this asserts the two can never drift apart if the order of these
+      // steps is ever changed.
+      displayedValue: shortfall,
+    },
   }).match(
     (signed) => signed,
     (error) => {

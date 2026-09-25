@@ -2,6 +2,7 @@ import {
   type Call,
   ENS_SEPOLIA_CONTRACTS,
   getSmartAccountAddress,
+  type HcaFundingPrompt,
   planHcaIntentFunding,
   type RhinestoneSigner,
   type RhinestoneTransactionRequest,
@@ -111,6 +112,13 @@ export interface SetPrimaryNameWithHcaParams {
   chainId: number
   /** Called with the submitted txId so the UI can track it via a selector */
   onTxId?: (txId: string) => void
+  /**
+   * Show the USDC amount the funding permit will authorize and wait for the
+   * user to accept it. Called only when the HCA cannot cover its own fee, and
+   * always before the wallet is asked to sign. Declining aborts the whole
+   * action with `HcaFundingDeclinedError`.
+   */
+  confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
 }
 
 /**
@@ -136,6 +144,7 @@ export async function setPrimaryNameWithHca(
     publicClient,
     chainId,
     onTxId,
+    confirmFunding,
   } = params
   const cleanName = withEthSuffix(name)
 
@@ -195,6 +204,9 @@ export async function setPrimaryNameWithHca(
     publicClient,
     chainId,
     calls,
+    // The USDC cost is quoted here, not at any earlier screen, so this is the
+    // only place it can be shown before the permit signature is requested.
+    ...(confirmFunding ? { confirmFunding } : {}),
   })
 
   const request: RhinestoneTransactionRequest = {

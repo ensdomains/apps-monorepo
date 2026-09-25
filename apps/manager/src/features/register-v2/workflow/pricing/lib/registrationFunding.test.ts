@@ -26,6 +26,21 @@ describe('computeRegistrationFunding', () => {
     ).toBeCloseTo(funding?.total ?? 0, 6)
   })
 
+  it('carries the displayed debit in raw units for the consent bound', () => {
+    // The registration machine refuses to request a permit signature for
+    // materially more than this figure, so it must be the exact number the
+    // screen rendered — not one round-tripped through a float.
+    const funding = computeRegistrationFunding({
+      budget: PRODUCTION_FAILURE,
+      walletBalanceRaw: 50_000_000n,
+      hcaBalanceRaw: 1_196_054n,
+      decimals: USDC,
+    })
+
+    expect(funding?.walletDebitRaw).toBe(19_000_000n)
+    expect(funding?.walletDebit).toBe(19)
+  })
+
   it('flags the wallet that covers the price but not the budget', () => {
     // Exactly the production case: 20 USDC against an 8 USDC name. The token
     // picker sees 20 > 8 and lets it through; the budget is what it fails on.

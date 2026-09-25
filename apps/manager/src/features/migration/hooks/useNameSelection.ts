@@ -12,12 +12,14 @@ import { groupByParent } from '../service/groupByParent'
 type Params = {
   readonly eligible: readonly ClassifiedName[]
   readonly isPending: boolean
+  readonly isRecovery?: boolean
   readonly onNamesChange: (names: string[]) => void
 }
 
 export const useNameSelection = ({
   eligible,
   isPending,
+  isRecovery = false,
   onNamesChange,
 }: Params) => {
   const [search, setSearch] = useState('')
@@ -32,14 +34,29 @@ export const useNameSelection = ({
     () => collectAllSelectable(groups, orphans),
     [groups, orphans],
   )
+  const initiallySelected = useMemo(() => {
+    if (isRecovery) return allSelectable
+    const namesNeedingManagerRestoration = new Set(
+      eligible
+        .filter(({ managerAddress }) => managerAddress !== null)
+        .flatMap(({ domain }) => [
+          ...(rootSubtrees.get(domain.name) ?? [domain.name]),
+        ]),
+    )
+    return new Set(
+      [...allSelectable].filter(
+        (name) => !namesNeedingManagerRestoration.has(name),
+      ),
+    )
+  }, [allSelectable, eligible, isRecovery, rootSubtrees])
 
   const didSeed = useRef(false)
   useEffect(() => {
     if (didSeed.current || isPending || eligible.length === 0) return
     didSeed.current = true
-    setSelected(allSelectable)
-    onNamesChange([...allSelectable])
-  }, [isPending, eligible.length, allSelectable, onNamesChange])
+    setSelected(initiallySelected)
+    onNamesChange([...initiallySelected])
+  }, [isPending, eligible.length, initiallySelected, onNamesChange])
 
   useEffect(() => {
     if (!didSeed.current || isPending) return

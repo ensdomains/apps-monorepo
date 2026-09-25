@@ -21,7 +21,6 @@ export const CommemorativeNftDashboardCard = ({
     </h2>
     <CommemorativeNftCard
       active={active}
-      interactive={false}
       state={{ status: 'minted', card }}
       variant="dashboard"
     />

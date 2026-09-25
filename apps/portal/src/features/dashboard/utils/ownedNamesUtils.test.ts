@@ -163,6 +163,23 @@ describe('filterAndSortOwnedNames', () => {
     expect(result).toHaveLength(3)
   })
 
+  it('drops the excluded name', () => {
+    const result = filterAndSortOwnedNames(names, 'fox', {
+      exclude: '  FOX.eth ',
+    })
+    expect(result.map((d) => d.name)).not.toContain('fox.eth')
+    expect(result.map((d) => d.name)).toContain('arcticfox.eth')
+  })
+
+  it('applies max after excluding', () => {
+    const result = filterAndSortOwnedNames(names, 'fox', {
+      max: 3,
+      exclude: 'fox.eth',
+    })
+    expect(result).toHaveLength(3)
+    expect(result.map((d) => d.name)).not.toContain('fox.eth')
+  })
+
   it('trims search query', () => {
     const result = filterAndSortOwnedNames(names, '  fox.eth  ')
     expect(result.length).toBeGreaterThan(0)

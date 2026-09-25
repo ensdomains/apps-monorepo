@@ -71,6 +71,8 @@ export const AddressProfileView = ({
         <div className="relative z-10 mx-auto -mt-21 w-[calc(100%-40px)] max-w-[809.257px] space-y-6 lg:landscape:-mt-11.25">
           <AddressProfileHeader
             address={address}
+            addressNames={addressNames}
+            isNamesPending={isPending}
             primaryName={primaryName}
             records={records}
           />

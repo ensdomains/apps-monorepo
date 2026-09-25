@@ -6,6 +6,14 @@ const resolverQueryKeys = new Set([
   'user-permissioned-resolvers',
   'get-name-resolver-address',
   'ensResolver',
+  // The name's history feed, which the resolver page renders: a resolver
+  // change is a new entry there, and that timeline is how the change is
+  // confirmed after the flow redirects to it. Without these, a page visited
+  // earlier in the session serves cached history missing the update.
+  'get-name-history-pages',
+  'get-name-history-anchor',
+  'get-name-history-auxiliary',
+  'get-name-event-types',
 ])
 
 /**
