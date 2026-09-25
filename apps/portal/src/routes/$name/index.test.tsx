@@ -9,10 +9,9 @@ const RESOLVER = '0x2222222222222222222222222222222222222222'
 let protocolVersion: 'ENSv1' | 'ENSv2' = 'ENSv1'
 let isInGrace = false
 let migrationStatus: {
-  data: unknown
-  isLoading: boolean
   isMigratableByConnectedOwner: boolean
-} = { data: undefined, isLoading: false, isMigratableByConnectedOwner: false }
+  isWrapped: boolean
+} = { isMigratableByConnectedOwner: false, isWrapped: false }
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-router')>()
@@ -198,8 +197,8 @@ describe('name route — Owner row', () => {
 })
 
 describe('name route — Protocol row', () => {
-  // The V1 row fetches its own name-scoped verdict, so a visitor who cannot
-  // migrate the name still sees whether it can be migrated.
+  // The V1 row decides for itself whether the viewer owns the name and so
+  // gets the migration verdict; see ProtocolRow.test.tsx.
   it('renders the V1 row, which owns the migration verdict, for a V1 name', () => {
     protocolVersion = 'ENSv1'
 
@@ -221,22 +220,17 @@ describe('name route — Protocol row', () => {
 
 describe('name route — upgrade banner', () => {
   afterEach(() => {
-    migrationStatus = {
-      data: undefined,
-      isLoading: false,
-      isMigratableByConnectedOwner: false,
-    }
+    migrationStatus = { isMigratableByConnectedOwner: false, isWrapped: false }
   })
 
-  const holderMigration = (tokenType: string) => ({
-    data: { migratable: true, tokenHolder: CONTROLLER, tokenType },
-    isLoading: false,
+  const holderMigration = (isWrapped: boolean) => ({
     isMigratableByConnectedOwner: true,
+    isWrapped,
   })
 
   it('tells the holder of an unlocked wrapped name it is unwrapped on the way', () => {
     protocolVersion = 'ENSv1'
-    migrationStatus = holderMigration('unlocked')
+    migrationStatus = holderMigration(true)
 
     renderRoute()
 
@@ -249,7 +243,7 @@ describe('name route — upgrade banner', () => {
   // Locked names migrate still wrapped, so they get the plain upgrade copy.
   it('offers a plain upgrade for a locked wrapped name', () => {
     protocolVersion = 'ENSv1'
-    migrationStatus = holderMigration('locked-2ld')
+    migrationStatus = holderMigration(false)
 
     renderRoute()
 

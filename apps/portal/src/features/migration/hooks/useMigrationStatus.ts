@@ -147,7 +147,8 @@ export const getMigrationStatusQueryOptions = (
  *
  * `isMigratableByConnectedOwner` is the answer every migration prompt wants:
  * the name is migratable *and* this wallet holds the v1 token. A non-owner
- * cannot migrate, so nothing should offer them the action.
+ * cannot migrate, so nothing should offer them the action. `isWrapped` marks
+ * an unlocked NameWrapper token, which is unwrapped as part of the upgrade.
  *
  * `enabled` exists because the read is not cheap: a subgraph request plus
  * on-chain eligibility checks. Callers pass false for anything that is not a
@@ -172,5 +173,6 @@ export const useMigrationStatus = (
       data?.migratable === true &&
       !!address &&
       isAddressEqual(address, data.tokenHolder),
+    isWrapped: data?.migratable === true && data.tokenType === 'unlocked',
   }
 }

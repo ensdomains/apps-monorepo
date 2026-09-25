@@ -362,8 +362,7 @@ const Profile = ({
   // owner query hasn't resolved, and 'ENSv2' is the safe conservative choice.
   const resolvedProtocolVersion = ownerQuery.data.protocolVersion ?? 'ENSv2'
 
-  const migration = migrationQuery.data
-  const { isMigratableByConnectedOwner } = migrationQuery
+  const { isMigratableByConnectedOwner, isWrapped } = migrationQuery
 
   // Suppress the upgrade prompt whenever the name is expired (grace period or
   // fully expired past grace) — the user must extend/renew first. The upgrade
@@ -386,14 +385,7 @@ const Profile = ({
         />
       )}
 
-      {showUpgradeBanner && (
-        <UpgradeBanner
-          name={name}
-          isWrapped={
-            migration?.migratable && migration.tokenType === 'unlocked'
-          }
-        />
-      )}
+      {showUpgradeBanner && <UpgradeBanner name={name} isWrapped={isWrapped} />}
 
       {dnsSync.status === 'syncable' && <SyncManagerBanner name={name} />}
 

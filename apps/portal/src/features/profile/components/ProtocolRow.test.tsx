@@ -1,23 +1,21 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
-import type { MigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
-import { createTestWrapper } from '@/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProtocolRow, V1ProtocolRow } from './ProtocolRow'
 
 const HOLDER = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
 
-let verdict: MigrationStatus = { migratable: false }
-const queriedNames: string[] = []
+let owner = { isOwner: true, isLoading: false }
+let migration: {
+  data: unknown
+  isLoading: boolean
+  error: unknown
+} = { data: undefined, isLoading: false, error: null }
 
-// The query runs through real react-query, so only the fetch is stubbed.
+vi.mock('@/features/ownership/hooks/useIsNameOwner', () => ({
+  useIsNameOwner: () => owner,
+}))
 vi.mock('@/features/migration/hooks/useMigrationStatus', () => ({
-  getMigrationStatusQueryOptions: ({ name }: { name: string }) => ({
-    queryKey: ['get-migration-status', { name }],
-    queryFn: async () => {
-      queriedNames.push(name)
-      return verdict
-    },
-  }),
+  useMigrationStatus: () => migration,
 }))
 
 describe('ProtocolRow', () => {
@@ -44,42 +42,73 @@ describe('ProtocolRow', () => {
     expect(screen.getByText(/ENSv1: Cannot be migrated/)).toBeInTheDocument()
   })
 
-  it('shows only the version while the verdict is loading', () => {
-    render(
-      <ProtocolRow
-        protocolVersion="ENSv1"
-        migration={{ migratable: false }}
-        isLoading
-      />,
-    )
+  it('shows the version alone when there is no verdict', () => {
+    render(<ProtocolRow protocolVersion="ENSv2" />)
 
-    expect(screen.queryByText(/migrated/)).not.toBeInTheDocument()
+    expect(screen.getByText('ENSv2')).toBeInTheDocument()
+    expect(screen.queryByText(/migrat/)).not.toBeInTheDocument()
   })
 })
 
 describe('V1ProtocolRow', () => {
-  it('fetches the verdict for the name itself, wallet or not', async () => {
-    verdict = { migratable: false }
-
-    render(<V1ProtocolRow name="locked.eth" />, {
-      wrapper: createTestWrapper(),
-    })
-
-    expect(
-      await screen.findByText(/ENSv1: Cannot be migrated/),
-    ).toBeInTheDocument()
-    expect(queriedNames).toContain('locked.eth')
+  beforeEach(() => {
+    owner = { isOwner: true, isLoading: false }
+    migration = { data: undefined, isLoading: false, error: null }
   })
 
-  it('says a migratable name can be migrated', async () => {
-    verdict = { migratable: true, tokenHolder: HOLDER, tokenType: 'unlocked' }
+  it('tells the owner their name cannot be migrated', () => {
+    migration.data = { migratable: false }
 
-    render(<V1ProtocolRow name="unlocked.eth" />, {
-      wrapper: createTestWrapper(),
-    })
+    render(<V1ProtocolRow name="locked.eth" />)
 
-    expect(
-      await screen.findByText(/ENSv1: Can be migrated/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/ENSv1: Cannot be migrated/)).toBeInTheDocument()
+  })
+
+  it('tells the owner their name can be migrated', () => {
+    migration.data = {
+      migratable: true,
+      tokenHolder: HOLDER,
+      tokenType: 'unwrapped',
+    }
+
+    render(<V1ProtocolRow name="plain.eth" />)
+
+    expect(screen.getByText(/ENSv1: Can be migrated/)).toBeInTheDocument()
+  })
+
+  // Migratability is the owner's business; a visitor sees only the version.
+  it('keeps the verdict from anyone who does not own the name', () => {
+    owner = { isOwner: false, isLoading: false }
+    migration.data = { migratable: false }
+
+    render(<V1ProtocolRow name="someone-else.eth" />)
+
+    expect(screen.getByText('ENSv1')).toBeInTheDocument()
+    expect(screen.queryByText(/migrat/)).not.toBeInTheDocument()
+  })
+
+  it('says nothing about migration until ownership is known', () => {
+    owner = { isOwner: false, isLoading: true }
+
+    render(<V1ProtocolRow name="plain.eth" />)
+
+    expect(screen.queryByText(/migrat/)).not.toBeInTheDocument()
+  })
+
+  it('shows the check in progress rather than a bare version', () => {
+    migration.isLoading = true
+
+    render(<V1ProtocolRow name="plain.eth" />)
+
+    expect(screen.getByText(/Checking migration/)).toBeInTheDocument()
+  })
+
+  it('says the check failed rather than falling back to a bare version', () => {
+    migration.error = new Error('subgraph down')
+
+    render(<V1ProtocolRow name="plain.eth" />)
+
+    expect(screen.getByText(/Failed to check migration/)).toBeInTheDocument()
+    expect(screen.queryByText(/Can be migrated/)).not.toBeInTheDocument()
   })
 })
