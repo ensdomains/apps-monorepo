@@ -39,7 +39,9 @@ const DnsImportPage = () => {
 export const Route = createFileRoute('/import/$name')({
   component: DnsImportPage,
   validateSearch: (search: Record<string, unknown>): DnsImportSearch => ({
-    type: search.type === 'onchain' ? 'onchain' : 'offchain',
+    // Onchain is the first option offered, so it is what an unqualified link
+    // preselects — matching the CTA that describes the onchain record.
+    type: search.type === 'offchain' ? 'offchain' : 'onchain',
     // `dnssec` and `verify` were separate steps before the two were merged;
     // keep old links working by landing them on the combined step.
     step:

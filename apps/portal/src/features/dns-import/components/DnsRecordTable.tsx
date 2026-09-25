@@ -62,7 +62,9 @@ export const DnsRecordTable = ({
     <Row label="Value">
       <span className="inline-flex items-start gap-1 font-mono break-all">
         {record.value}
-        <CopyValue value={record.value} />
+        {/* A sample value holds a placeholder, not an address — copying it
+            would only produce a record that can never verify. */}
+        {!record.isSample && <CopyValue value={record.value} />}
       </span>
     </Row>
     <div className="border-t pt-4">

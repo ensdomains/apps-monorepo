@@ -83,15 +83,26 @@ export const StatusChip = ({
   </div>
 )
 
-/** The "Refresh" button next to a DNS check. */
+/**
+ * The "Refresh" button next to a DNS check. The setup step shows two of them,
+ * so each names the check it re-runs rather than reading as "Refresh, Refresh".
+ */
 export const RefreshButton = ({
   onClick,
   isRefreshing,
+  label,
 }: {
   readonly onClick: () => void
   readonly isRefreshing: boolean
+  /** Accessible name; the visible text stays "Refresh". */
+  readonly label: string
 }) => (
-  <Button onClick={onClick} disabled={isRefreshing} className="shrink-0">
+  <Button
+    onClick={onClick}
+    disabled={isRefreshing}
+    aria-label={label}
+    className="shrink-0"
+  >
     <RefreshCw className={cn('size-4', isRefreshing && 'animate-spin')} />
     Refresh
   </Button>

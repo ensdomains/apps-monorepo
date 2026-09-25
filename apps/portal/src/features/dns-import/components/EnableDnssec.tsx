@@ -42,6 +42,7 @@ export const EnableDnssec = ({ name }: { readonly name: string }) => {
           </StatusChip>
         )}
         <RefreshButton
+          label="Refresh DNSSEC check"
           onClick={() => void dnssecQuery.refetch()}
           isRefreshing={dnssecQuery.isRefetching}
         />
