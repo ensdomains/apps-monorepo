@@ -23,6 +23,7 @@ import {
   type InterpretNameSearchResult,
   interpretNameSearch,
 } from '../service/interpretNameSearch'
+import { looksLikeJevNameSearchRequest } from '../service/jevNameSearch'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
@@ -72,12 +73,6 @@ const toDirectionalSort = <Field extends string>(
 const reverseSortDir = (dir: SortDir): SortDir =>
   dir === 'asc' ? 'desc' : 'asc'
 
-const looksLikeFilterRequest = (query: string): boolean =>
-  /\s/.test(query) ||
-  /\b(expir\w*|grace|owner|manager|upgrade\w*|eligible|ineligible|favou?rite\w*|primary|oldest|newest|alphabetic\w*|sort\w*|order\w*|(?:ens)?v[12])\b/i.test(
-    query,
-  )
-
 const shouldInterpretSearch = (
   event: KeyboardEvent<HTMLInputElement>,
   activeFilter: FilterKey,
@@ -86,7 +81,7 @@ const shouldInterpretSearch = (
   event.key === 'Enter' &&
   import.meta.env.DEV &&
   activeFilter === 'owned' &&
-  looksLikeFilterRequest(query.trim())
+  looksLikeJevNameSearchRequest(query.trim())
 
 const SmartSearchFeedback = ({
   query,
@@ -104,7 +99,7 @@ const SmartSearchFeedback = ({
   <>
     {import.meta.env.DEV &&
     active &&
-    looksLikeFilterRequest(query) &&
+    looksLikeJevNameSearchRequest(query) &&
     !filters &&
     !message &&
     !pending ? (

@@ -1,0 +1,584 @@
+{
+  "datasetVersion": "jev-name-search-supported-v0",
+  "status": "approved-pilot",
+  "description": "Synthetic supported-query candidates. Expected outputs are proposals until a human changes reviewStatus to approved.",
+  "cases": [
+    {
+      "id": "supported-001",
+      "reviewStatus": "approved",
+      "query": "names expiring soon",
+      "dimensions": {
+        "facets": ["expiry"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeFeatures": ["default-window"]
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-002",
+      "reviewStatus": "approved",
+      "query": "show names expiring within 45 days",
+      "dimensions": {
+        "facets": ["expiry"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": ["explicit-days"]
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 45
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-003",
+      "reviewStatus": "approved",
+      "query": "which names expire in the next 7 days?",
+      "dimensions": {
+        "facets": ["expiry"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "question",
+        "cueStyle": "canonical",
+        "timeFeatures": ["explicit-days"]
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 7
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-004",
+      "reviewStatus": "approved",
+      "query": "show names that are still active",
+      "dimensions": {
+        "facets": ["expiry"],
+        "composition": "single",
+        "surfacePolarity": "negative",
+        "syntax": "command",
+        "cueStyle": "paraphrase",
+        "timeFeatures": ["status"]
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "active"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-005",
+      "reviewStatus": "approved",
+      "query": "expired names",
+      "dimensions": {
+        "facets": ["expiry"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeFeatures": ["status"]
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expired"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-006",
+      "reviewStatus": "approved",
+      "query": "which names are in the grace period?",
+      "dimensions": {
+        "facets": ["expiry"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "question",
+        "cueStyle": "canonical",
+        "timeFeatures": ["in-grace"]
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "in-grace"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-007",
+      "reviewStatus": "approved",
+      "query": "names whose grace period has ended",
+      "dimensions": {
+        "facets": ["expiry"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "fragment",
+        "cueStyle": "paraphrase",
+        "timeFeatures": ["past-grace"]
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "past-grace"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-008",
+      "reviewStatus": "approved",
+      "query": "show names that never expire",
+      "dimensions": {
+        "facets": ["expiry"],
+        "composition": "single",
+        "surfacePolarity": "negative",
+        "syntax": "command",
+        "cueStyle": "paraphrase",
+        "timeFeatures": ["non-expiring"]
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "non-expiring"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-009",
+      "reviewStatus": "approved",
+      "query": "names I own",
+      "dimensions": {
+        "facets": ["role"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "role": "owner"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-010",
+      "reviewStatus": "approved",
+      "query": "names I manage",
+      "dimensions": {
+        "facets": ["role"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "role": "manager"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-011",
+      "reviewStatus": "approved",
+      "query": "show only my ENSv1 names",
+      "dimensions": {
+        "facets": ["version"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "version": "v1"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-012",
+      "reviewStatus": "approved",
+      "query": "which names are on v2?",
+      "dimensions": {
+        "facets": ["version"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "question",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "version": "v2"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-013",
+      "reviewStatus": "approved",
+      "query": "names eligible for upgrade",
+      "dimensions": {
+        "facets": ["upgrade"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "upgrade": "eligible"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-014",
+      "reviewStatus": "approved",
+      "query": "names not eligible for upgrade",
+      "dimensions": {
+        "facets": ["upgrade"],
+        "composition": "single",
+        "surfacePolarity": "negative",
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "upgrade": "ineligible"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-015",
+      "reviewStatus": "approved",
+      "query": "which names can I upgrade?",
+      "dimensions": {
+        "facets": ["upgrade"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "question",
+        "cueStyle": "paraphrase",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "upgrade": "eligible"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-016",
+      "reviewStatus": "approved",
+      "query": "show my favorite names",
+      "dimensions": {
+        "facets": ["favorite"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "yes"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-017",
+      "reviewStatus": "approved",
+      "query": "show names that are not favorites",
+      "dimensions": {
+        "facets": ["favorite"],
+        "composition": "single",
+        "surfacePolarity": "negative",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "no"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-018",
+      "reviewStatus": "approved",
+      "query": "show my starred names",
+      "dimensions": {
+        "facets": ["favorite"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "paraphrase",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "yes"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-019",
+      "reviewStatus": "approved",
+      "query": "show my primary name",
+      "dimensions": {
+        "facets": ["primary"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "primary": "yes"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-020",
+      "reviewStatus": "approved",
+      "query": "show my non-primary names",
+      "dimensions": {
+        "facets": ["primary"],
+        "composition": "single",
+        "surfacePolarity": "negative",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "primary": "no"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-021",
+      "reviewStatus": "approved",
+      "query": "which one is my reverse name?",
+      "dimensions": {
+        "facets": ["primary"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "question",
+        "cueStyle": "paraphrase",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "primary": "yes"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-022",
+      "reviewStatus": "approved",
+      "query": "sort names alphabetically",
+      "dimensions": {
+        "facets": ["sort"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "sort": "name-asc"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-023",
+      "reviewStatus": "approved",
+      "query": "show names in reverse alphabetical order",
+      "dimensions": {
+        "facets": ["sort"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "paraphrase",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "sort": "name-desc"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-024",
+      "reviewStatus": "approved",
+      "query": "show my oldest names first",
+      "dimensions": {
+        "facets": ["sort"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "sort": "created-asc"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-025",
+      "reviewStatus": "approved",
+      "query": "show my newest names first",
+      "dimensions": {
+        "facets": ["sort"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "sort": "created-desc"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-026",
+      "reviewStatus": "approved",
+      "query": "sort by soonest expiry",
+      "dimensions": {
+        "facets": ["sort"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": ["expiry-sort"]
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "sort": "expiry-asc"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-027",
+      "reviewStatus": "approved",
+      "query": "sort by latest expiry",
+      "dimensions": {
+        "facets": ["sort"],
+        "composition": "single",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": ["expiry-sort"]
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "sort": "expiry-desc"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-028",
+      "reviewStatus": "approved",
+      "query": "show my favorite names expiring soon",
+      "dimensions": {
+        "facets": ["expiry", "favorite"],
+        "composition": "combined",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": ["default-window"]
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "favorite": "yes"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-029",
+      "reviewStatus": "approved",
+      "query": "show my v2 names that I own",
+      "dimensions": {
+        "facets": ["role", "version"],
+        "composition": "combined",
+        "surfacePolarity": "positive",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "role": "owner",
+        "version": "v2"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    },
+    {
+      "id": "supported-030",
+      "reviewStatus": "approved",
+      "query": "show non-favorite non-primary names in alphabetical order",
+      "dimensions": {
+        "facets": ["favorite", "primary", "sort"],
+        "composition": "combined",
+        "surfacePolarity": "negative",
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeFeatures": []
+      },
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "no",
+        "primary": "no",
+        "sort": "name-asc"
+      },
+      "reviewNotes": "",
+      "expectedRoute": "interpret"
+    }
+  ],
+  "evaluationBoundary": "query_to_interpretation_result"
+}

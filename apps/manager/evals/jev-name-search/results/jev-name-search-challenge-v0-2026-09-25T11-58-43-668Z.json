@@ -1,0 +1,2704 @@
+{
+  "datasetVersion": "jev-name-search-challenge-v0",
+  "runAt": "2026-09-25T11:58:43.668Z",
+  "summary": {
+    "includedPendingCases": true,
+    "total": 30,
+    "passed": 14,
+    "needsReview": 16,
+    "unavailable": 0,
+    "inputTokens": 30270,
+    "outputTokens": 8305,
+    "returnedModels": ["jev-1.13.0"]
+  },
+  "results": [
+    {
+      "caseId": "challenge-001",
+      "query": "favorites",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "yes"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "favorite": "yes"
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.49
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "expired": 0,
+            "expiring": 0,
+            "active": 0,
+            "any": 1,
+            "past-grace": 0,
+            "in-grace": 0,
+            "non-expiring": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "manager": 0,
+            "any": 1,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v1": 0,
+            "any": 1,
+            "v2": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "eligible": 0,
+            "ineligible": 0
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.65,
+          "probabilities": {
+            "yes": 0.23,
+            "any": 0.77,
+            "no": 0
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.94,
+          "probabilities": {
+            "yes": 0.01,
+            "any": 0.96,
+            "no": 0.03
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "name-asc": 0,
+            "expiry-desc": 0,
+            "created-desc": 0.01,
+            "any": 0.99,
+            "expiry-asc": 0,
+            "created-asc": 0,
+            "name-desc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1313,
+        "outputTokens": 360
+      },
+      "latencyMs": 712
+    },
+    {
+      "caseId": "challenge-002",
+      "query": "favorite names",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "yes"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "favorite": "yes"
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.59
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "expiring": 0,
+            "any": 1,
+            "expired": 0,
+            "past-grace": 0,
+            "active": 0,
+            "non-expiring": 0,
+            "in-grace": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "owner": 0,
+            "any": 1,
+            "manager": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "any": 1,
+            "v2": 0,
+            "v1": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "eligible": 0,
+            "ineligible": 0
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 0.36,
+          "probabilities": {
+            "yes": 0.57,
+            "any": 0.43,
+            "no": 0
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.79,
+          "probabilities": {
+            "yes": 0.01,
+            "any": 0.86,
+            "no": 0.13
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "expiry-desc": 0,
+            "any": 1,
+            "expiry-asc": 0,
+            "name-desc": 0,
+            "created-desc": 0,
+            "created-asc": 0,
+            "name-asc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1314,
+        "outputTokens": 360
+      },
+      "latencyMs": 583
+    },
+    {
+      "caseId": "challenge-003",
+      "query": "show only my favorite names please",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "yes"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "favorite": "yes"
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.86
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "active": 0,
+            "non-expiring": 0,
+            "expired": 0,
+            "in-grace": 0,
+            "past-grace": 0,
+            "any": 1,
+            "expiring": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "manager": 0,
+            "any": 1,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v1": 0,
+            "v2": 0,
+            "any": 1
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "eligible": 0,
+            "ineligible": 0,
+            "any": 1
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 0.99,
+          "probabilities": {
+            "yes": 0.99,
+            "no": 0,
+            "any": 0.01
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.41,
+          "probabilities": {
+            "yes": 0.11,
+            "no": 0.28,
+            "any": 0.61
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "created-asc": 0,
+            "name-desc": 0,
+            "name-asc": 0,
+            "any": 1,
+            "created-desc": 0,
+            "expiry-desc": 0,
+            "expiry-asc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1318,
+        "outputTokens": 360
+      },
+      "latencyMs": 257
+    },
+    {
+      "caseId": "challenge-004",
+      "query": "primary",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "primary": "yes"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "primary": "yes"
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.47
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.29
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "active": 0,
+            "in-grace": 0,
+            "any": 1,
+            "past-grace": 0,
+            "expiring": 0,
+            "expired": 0,
+            "non-expiring": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.82,
+          "probabilities": {
+            "manager": 0.01,
+            "any": 0.88,
+            "owner": 0.11
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.97,
+          "probabilities": {
+            "v2": 0,
+            "any": 0.99,
+            "v1": 0.01
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.98,
+          "probabilities": {
+            "ineligible": 0,
+            "any": 0.99,
+            "eligible": 0.01
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.88,
+          "probabilities": {
+            "any": 0.92,
+            "no": 0.01,
+            "yes": 0.07
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.9,
+          "probabilities": {
+            "any": 0.9400000000000001,
+            "no": 0,
+            "yes": 0.06
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.98,
+          "probabilities": {
+            "expiry-asc": 0,
+            "any": 0.99,
+            "created-desc": 0,
+            "name-desc": 0,
+            "name-asc": 0.01,
+            "created-asc": 0,
+            "expiry-desc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1313,
+        "outputTokens": 360
+      },
+      "latencyMs": 233
+    },
+    {
+      "caseId": "challenge-005",
+      "query": "primary name",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "primary": "yes"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "primary": "yes"
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.6
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "active": 0,
+            "expired": 0,
+            "expiring": 0,
+            "non-expiring": 0,
+            "past-grace": 0,
+            "in-grace": 0,
+            "any": 1
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "any": 0.99,
+            "manager": 0,
+            "owner": 0.01
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "any": 0.99,
+            "v2": 0.01,
+            "v1": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "ineligible": 0,
+            "any": 1,
+            "eligible": 0
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.97,
+          "probabilities": {
+            "any": 0.98,
+            "no": 0.01,
+            "yes": 0.01
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.72,
+          "probabilities": {
+            "any": 0.8099999999999999,
+            "no": 0.01,
+            "yes": 0.18
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.92,
+          "probabilities": {
+            "expiry-asc": 0,
+            "any": 0.93,
+            "name-desc": 0,
+            "name-asc": 0.07,
+            "expiry-desc": 0,
+            "created-asc": 0,
+            "created-desc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1314,
+        "outputTokens": 360
+      },
+      "latencyMs": 228
+    },
+    {
+      "caseId": "challenge-006",
+      "query": "could you show me my primary ENS name",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "primary": "yes"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "primary": "yes"
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.78
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "expiring": 0,
+            "any": 1,
+            "in-grace": 0,
+            "non-expiring": 0,
+            "active": 0,
+            "expired": 0,
+            "past-grace": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "manager": 0,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "v2": 0,
+            "v1": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "ineligible": 0,
+            "eligible": 0,
+            "any": 1
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.96,
+          "probabilities": {
+            "any": 0.98,
+            "no": 0.01,
+            "yes": 0.01
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 0.93,
+          "probabilities": {
+            "any": 0.04,
+            "no": 0,
+            "yes": 0.96
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "expiry-asc": 0,
+            "any": 1,
+            "created-desc": 0,
+            "name-asc": 0,
+            "created-asc": 0,
+            "name-desc": 0,
+            "expiry-desc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1320,
+        "outputTokens": 360
+      },
+      "latencyMs": 224
+    },
+    {
+      "caseId": "challenge-007",
+      "query": "expiring",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring"
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.52
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.19
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.65,
+          "probabilities": {
+            "expiring": 0.7,
+            "in-grace": 0,
+            "active": 0,
+            "any": 0.3,
+            "past-grace": 0,
+            "non-expiring": 0,
+            "expired": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "owner": 0,
+            "any": 1,
+            "manager": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v1": 0,
+            "v2": 0,
+            "any": 1
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.96,
+          "probabilities": {
+            "any": 0.97,
+            "ineligible": 0.02,
+            "eligible": 0.01
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.98,
+          "probabilities": {
+            "any": 0.99,
+            "yes": 0,
+            "no": 0.01
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.95,
+          "probabilities": {
+            "any": 0.97,
+            "yes": 0.02,
+            "no": 0.01
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "expiry-asc",
+          "confidence": 0.53,
+          "probabilities": {
+            "created-asc": 0,
+            "expiry-asc": 0.59,
+            "any": 0.4,
+            "expiry-desc": 0.01,
+            "name-desc": 0,
+            "name-asc": 0,
+            "created-desc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1314,
+        "outputTokens": 363
+      },
+      "latencyMs": 220
+    },
+    {
+      "caseId": "challenge-008",
+      "query": "expiring soon",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring"
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.75
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.73,
+          "probabilities": {
+            "any": 0.2,
+            "expired": 0,
+            "in-grace": 0,
+            "active": 0.02,
+            "expiring": 0.78,
+            "past-grace": 0,
+            "non-expiring": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "manager": 0,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "v2": 0,
+            "v1": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "any": 1,
+            "eligible": 0,
+            "ineligible": 0
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "yes": 0,
+            "any": 0.99,
+            "no": 0.01
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.97,
+          "probabilities": {
+            "yes": 0.01,
+            "any": 0.98,
+            "no": 0.01
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "expiry-asc",
+          "confidence": 0.78,
+          "probabilities": {
+            "any": 0.18,
+            "created-asc": 0,
+            "expiry-desc": 0,
+            "expiry-asc": 0.8200000000000001,
+            "name-asc": 0,
+            "created-desc": 0,
+            "name-desc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1315,
+        "outputTokens": 363
+      },
+      "latencyMs": 209
+    },
+    {
+      "caseId": "challenge-009",
+      "query": "show names that are going to expire soon",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring"
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.78
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.22
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.78,
+          "probabilities": {
+            "past-grace": 0,
+            "active": 0.07,
+            "expired": 0,
+            "non-expiring": 0,
+            "any": 0.11,
+            "in-grace": 0,
+            "expiring": 0.81
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "manager": 0,
+            "any": 1,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v1": 0,
+            "v2": 0,
+            "any": 1
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "eligible": 0,
+            "any": 1,
+            "ineligible": 0
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "yes": 0,
+            "any": 1,
+            "no": 0
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.62,
+          "probabilities": {
+            "yes": 0.03,
+            "any": 0.74,
+            "no": 0.23
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "expiry-asc",
+          "confidence": 0.5,
+          "probabilities": {
+            "expiry-desc": 0,
+            "expiry-asc": 0.58,
+            "name-desc": 0,
+            "created-asc": 0,
+            "name-asc": 0,
+            "any": 0.42,
+            "created-desc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1320,
+        "outputTokens": 363
+      },
+      "latencyMs": 278
+    },
+    {
+      "caseId": "challenge-010",
+      "query": "manager",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "role": "manager"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "role": "manager"
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.44
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.23
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "active": 0,
+            "any": 1,
+            "expiring": 0,
+            "past-grace": 0,
+            "non-expiring": 0,
+            "expired": 0,
+            "in-grace": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "manager",
+          "confidence": 0.89,
+          "probabilities": {
+            "any": 0.07,
+            "manager": 0.93,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v2": 0,
+            "any": 1,
+            "v1": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "any": 1,
+            "ineligible": 0,
+            "eligible": 0
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "no": 0,
+            "any": 1,
+            "yes": 0
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.96,
+          "probabilities": {
+            "no": 0.02,
+            "any": 0.97,
+            "yes": 0.01
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "name-asc": 0,
+            "expiry-desc": 0,
+            "created-asc": 0,
+            "any": 1,
+            "created-desc": 0,
+            "name-desc": 0,
+            "expiry-asc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1313,
+        "outputTokens": 360
+      },
+      "latencyMs": 224
+    },
+    {
+      "caseId": "challenge-011",
+      "query": "favrites",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "yes"
+      },
+      "actualRoute": "literal_name_search",
+      "actualStatus": "not_called",
+      "actualFilters": null,
+      "passed": false,
+      "failureReason": "route_mismatch",
+      "latencyMs": 0
+    },
+    {
+      "caseId": "challenge-012",
+      "query": "primry",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "primary": "yes"
+      },
+      "actualRoute": "literal_name_search",
+      "actualStatus": "not_called",
+      "actualFilters": null,
+      "passed": false,
+      "failureReason": "route_mismatch",
+      "latencyMs": 0
+    },
+    {
+      "caseId": "challenge-013",
+      "query": "expried",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expired"
+      },
+      "actualRoute": "literal_name_search",
+      "actualStatus": "not_called",
+      "actualFilters": null,
+      "passed": false,
+      "failureReason": "route_mismatch",
+      "latencyMs": 0
+    },
+    {
+      "caseId": "challenge-014",
+      "query": "managr",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "role": "manager"
+      },
+      "actualRoute": "literal_name_search",
+      "actualStatus": "not_called",
+      "actualFilters": null,
+      "passed": false,
+      "failureReason": "route_mismatch",
+      "latencyMs": 0
+    },
+    {
+      "caseId": "challenge-015",
+      "query": "eligble",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "upgrade": "eligible"
+      },
+      "actualRoute": "literal_name_search",
+      "actualStatus": "not_called",
+      "actualFilters": null,
+      "passed": false,
+      "failureReason": "route_mismatch",
+      "latencyMs": 0
+    },
+    {
+      "caseId": "challenge-016",
+      "query": "not favorties",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "no"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "unsupported",
+      "actualFilters": null,
+      "passed": false,
+      "failureReason": "empty_filters",
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.68
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.96,
+          "probabilities": {
+            "expiring": 0,
+            "non-expiring": 0.02,
+            "expired": 0.01,
+            "in-grace": 0,
+            "past-grace": 0,
+            "active": 0,
+            "any": 0.97
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "manager": 0,
+            "any": 1,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "v1": 0,
+            "v2": 0,
+            "any": 1
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.59,
+          "probabilities": {
+            "eligible": 0.01,
+            "any": 0.72,
+            "ineligible": 0.27
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.91,
+          "probabilities": {
+            "yes": 0,
+            "no": 0.94,
+            "any": 0.06
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.24,
+          "probabilities": {
+            "yes": 0.04,
+            "any": 0.47,
+            "no": 0.49
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.98,
+          "probabilities": {
+            "created-asc": 0,
+            "name-desc": 0.01,
+            "name-asc": 0,
+            "any": 0.99,
+            "expiry-asc": 0,
+            "created-desc": 0,
+            "expiry-desc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1316,
+        "outputTokens": 360
+      },
+      "latencyMs": 247
+    },
+    {
+      "caseId": "challenge-017",
+      "query": "past the grce period",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "past-grace"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "unsupported",
+      "actualFilters": null,
+      "passed": false,
+      "failureReason": "empty_filters",
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.59
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.18
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "past-grace",
+          "confidence": 0.99,
+          "probabilities": {
+            "non-expiring": 0,
+            "active": 0,
+            "in-grace": 0,
+            "expiring": 0,
+            "past-grace": 0.99,
+            "any": 0.01,
+            "expired": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "manager": 0,
+            "any": 1,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v1": 0,
+            "v2": 0,
+            "any": 1
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.36,
+          "probabilities": {
+            "ineligible": 0.42,
+            "any": 0.57,
+            "eligible": 0.01
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "no": 0.01,
+            "yes": 0,
+            "any": 0.99
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.95,
+          "probabilities": {
+            "no": 0.02,
+            "yes": 0.01,
+            "any": 0.97
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.88,
+          "probabilities": {
+            "name-asc": 0,
+            "expiry-desc": 0.05,
+            "created-asc": 0,
+            "created-desc": 0,
+            "name-desc": 0,
+            "any": 0.89,
+            "expiry-asc": 0.06
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1317,
+        "outputTokens": 362
+      },
+      "latencyMs": 208
+    },
+    {
+      "caseId": "challenge-018",
+      "query": "alphbetical",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "sort": "name-asc"
+      },
+      "actualRoute": "literal_name_search",
+      "actualStatus": "not_called",
+      "actualFilters": null,
+      "passed": false,
+      "failureReason": "route_mismatch",
+      "latencyMs": 0
+    },
+    {
+      "caseId": "challenge-019",
+      "query": "upradeable",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "upgrade": "eligible"
+      },
+      "actualRoute": "literal_name_search",
+      "actualStatus": "not_called",
+      "actualFilters": null,
+      "passed": false,
+      "failureReason": "route_mismatch",
+      "latencyMs": 0
+    },
+    {
+      "caseId": "challenge-020",
+      "query": "expriing soon",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring"
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.73
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.62,
+          "probabilities": {
+            "expired": 0,
+            "expiring": 0.68,
+            "active": 0.03,
+            "any": 0.29,
+            "past-grace": 0,
+            "in-grace": 0,
+            "non-expiring": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "manager": 0,
+            "any": 1,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v1": 0,
+            "any": 1,
+            "v2": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "any": 1,
+            "eligible": 0,
+            "ineligible": 0
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "no": 0.01,
+            "any": 0.99,
+            "yes": 0
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.97,
+          "probabilities": {
+            "no": 0.01,
+            "any": 0.98,
+            "yes": 0.01
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "expiry-asc",
+          "confidence": 0.64,
+          "probabilities": {
+            "name-asc": 0,
+            "expiry-desc": 0,
+            "name-desc": 0,
+            "any": 0.3,
+            "created-desc": 0,
+            "created-asc": 0,
+            "expiry-asc": 0.7
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1316,
+        "outputTokens": 363
+      },
+      "latencyMs": 287
+    },
+    {
+      "caseId": "challenge-021",
+      "query": "expiring in 7 days",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 7
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring",
+        "withinDays": 7
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.77
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.48
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.99,
+          "probabilities": {
+            "non-expiring": 0,
+            "in-grace": 0,
+            "active": 0,
+            "past-grace": 0,
+            "any": 0.01,
+            "expired": 0,
+            "expiring": 0.99
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "manager": 0,
+            "owner": 0,
+            "any": 1
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v2": 0,
+            "v1": 0,
+            "any": 1
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "ineligible": 0,
+            "eligible": 0,
+            "any": 1
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "yes": 0,
+            "no": 0.01,
+            "any": 0.99
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "yes": 0,
+            "no": 0,
+            "any": 1
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.58,
+          "probabilities": {
+            "name-desc": 0,
+            "created-asc": 0,
+            "expiry-asc": 0.35,
+            "expiry-desc": 0,
+            "any": 0.65,
+            "created-desc": 0,
+            "name-asc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1318,
+        "outputTokens": 361
+      },
+      "latencyMs": 260
+    },
+    {
+      "caseId": "challenge-022",
+      "query": "expires within 30 days",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 30
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring",
+        "withinDays": 30
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.74
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.44
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.93,
+          "probabilities": {
+            "active": 0.01,
+            "expired": 0,
+            "any": 0.05,
+            "past-grace": 0,
+            "non-expiring": 0,
+            "expiring": 0.94,
+            "in-grace": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "owner": 0,
+            "manager": 0,
+            "any": 1
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v2": 0,
+            "any": 1,
+            "v1": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.98,
+          "probabilities": {
+            "ineligible": 0.01,
+            "eligible": 0.01,
+            "any": 0.98
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "yes": 0,
+            "no": 0,
+            "any": 1
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.97,
+          "probabilities": {
+            "yes": 0.01,
+            "no": 0.01,
+            "any": 0.98
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.62,
+          "probabilities": {
+            "expiry-desc": 0.01,
+            "expiry-asc": 0.31,
+            "created-asc": 0,
+            "name-asc": 0,
+            "name-desc": 0,
+            "created-desc": 0,
+            "any": 0.68
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1318,
+        "outputTokens": 361
+      },
+      "latencyMs": 247
+    },
+    {
+      "caseId": "challenge-023",
+      "query": "expiring in a week",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 7
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring"
+      },
+      "passed": false,
+      "failureReason": "filter_mismatch",
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.73
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.47
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.99,
+          "probabilities": {
+            "active": 0,
+            "any": 0.01,
+            "expiring": 0.99,
+            "expired": 0,
+            "non-expiring": 0,
+            "past-grace": 0,
+            "in-grace": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "manager": 0,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v1": 0,
+            "any": 1,
+            "v2": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.98,
+          "probabilities": {
+            "any": 0.98,
+            "ineligible": 0.01,
+            "eligible": 0.01
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "no": 0,
+            "any": 1,
+            "yes": 0
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.98,
+          "probabilities": {
+            "no": 0.01,
+            "any": 0.98,
+            "yes": 0.01
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.43,
+          "probabilities": {
+            "name-asc": 0,
+            "any": 0.51,
+            "created-asc": 0,
+            "expiry-desc": 0.01,
+            "name-desc": 0,
+            "created-desc": 0,
+            "expiry-asc": 0.48
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1317,
+        "outputTokens": 361
+      },
+      "latencyMs": 223
+    },
+    {
+      "caseId": "challenge-024",
+      "query": "expires in two weeks",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 14
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring"
+      },
+      "passed": false,
+      "failureReason": "filter_mismatch",
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.74
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.45
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.82,
+          "probabilities": {
+            "non-expiring": 0,
+            "active": 0.13,
+            "expiring": 0.85,
+            "past-grace": 0,
+            "in-grace": 0,
+            "any": 0.02,
+            "expired": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "owner": 0,
+            "any": 1,
+            "manager": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v2": 0,
+            "v1": 0,
+            "any": 1
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "ineligible": 0,
+            "eligible": 0,
+            "any": 1
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "yes": 0,
+            "no": 0.01,
+            "any": 0.99
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "yes": 0,
+            "no": 0,
+            "any": 1
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.66,
+          "probabilities": {
+            "expiry-desc": 0.02,
+            "name-asc": 0,
+            "created-desc": 0,
+            "created-asc": 0,
+            "expiry-asc": 0.27,
+            "any": 0.71,
+            "name-desc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1316,
+        "outputTokens": 361
+      },
+      "latencyMs": 443
+    },
+    {
+      "caseId": "challenge-025",
+      "query": "expires in 24 hours",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 1
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring"
+      },
+      "passed": false,
+      "failureReason": "filter_mismatch",
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.68
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.3
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.68,
+          "probabilities": {
+            "in-grace": 0,
+            "any": 0.06,
+            "non-expiring": 0,
+            "expiring": 0.73,
+            "expired": 0,
+            "past-grace": 0,
+            "active": 0.21
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "manager": 0,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v2": 0,
+            "any": 1,
+            "v1": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "eligible": 0,
+            "ineligible": 0
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "any": 1,
+            "yes": 0,
+            "no": 0
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.98,
+          "probabilities": {
+            "any": 0.99,
+            "no": 0,
+            "yes": 0.01
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.66,
+          "probabilities": {
+            "created-desc": 0,
+            "name-desc": 0,
+            "any": 0.72,
+            "name-asc": 0,
+            "expiry-desc": 0.01,
+            "expiry-asc": 0.27,
+            "created-asc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1318,
+        "outputTokens": 361
+      },
+      "latencyMs": 233
+    },
+    {
+      "caseId": "challenge-026",
+      "query": "expires in the next 48 hours",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 2
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring"
+      },
+      "passed": false,
+      "failureReason": "filter_mismatch",
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.66
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.4
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.96,
+          "probabilities": {
+            "any": 0.02,
+            "in-grace": 0,
+            "expiring": 0.97,
+            "expired": 0,
+            "non-expiring": 0,
+            "active": 0.01,
+            "past-grace": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "manager": 0,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "v2": 0,
+            "v1": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.98,
+          "probabilities": {
+            "any": 0.98,
+            "eligible": 0.01,
+            "ineligible": 0.01
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "any": 1,
+            "no": 0,
+            "yes": 0
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.98,
+          "probabilities": {
+            "any": 0.99,
+            "no": 0,
+            "yes": 0.01
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.47,
+          "probabilities": {
+            "created-asc": 0,
+            "any": 0.55,
+            "expiry-desc": 0.01,
+            "name-desc": 0,
+            "name-asc": 0,
+            "created-desc": 0,
+            "expiry-asc": 0.44
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1320,
+        "outputTokens": 361
+      },
+      "latencyMs": 355
+    },
+    {
+      "caseId": "challenge-027",
+      "query": "expiring this month",
+      "expectedRoute": "interpret",
+      "expectedAction": "fallback_unsupported",
+      "expectedFilters": null,
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring"
+      },
+      "passed": false,
+      "failureReason": "filter_mismatch",
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.67
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.31
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.82,
+          "probabilities": {
+            "non-expiring": 0,
+            "expiring": 0.85,
+            "past-grace": 0,
+            "in-grace": 0,
+            "any": 0.1,
+            "active": 0.05,
+            "expired": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "owner": 0,
+            "any": 1,
+            "manager": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v2": 0,
+            "v1": 0,
+            "any": 1
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "ineligible": 0,
+            "any": 1,
+            "eligible": 0
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "no": 0,
+            "any": 1,
+            "yes": 0
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.98,
+          "probabilities": {
+            "no": 0.01,
+            "any": 0.98,
+            "yes": 0.01
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.54,
+          "probabilities": {
+            "expiry-asc": 0.37,
+            "created-asc": 0,
+            "name-asc": 0,
+            "created-desc": 0,
+            "expiry-desc": 0.02,
+            "any": 0.61,
+            "name-desc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1316,
+        "outputTokens": 361
+      },
+      "latencyMs": 220
+    },
+    {
+      "caseId": "challenge-028",
+      "query": "expires before Friday",
+      "expectedRoute": "interpret",
+      "expectedAction": "fallback_unsupported",
+      "expectedFilters": null,
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring"
+      },
+      "passed": false,
+      "failureReason": "filter_mismatch",
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.48
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.67
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "active",
+          "confidence": 0.49,
+          "probabilities": {
+            "expired": 0.01,
+            "non-expiring": 0,
+            "expiring": 0.37,
+            "past-grace": 0,
+            "any": 0.06,
+            "in-grace": 0,
+            "active": 0.56
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "manager": 0,
+            "owner": 0,
+            "any": 1
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v2": 0,
+            "any": 1,
+            "v1": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "ineligible": 0,
+            "any": 1,
+            "eligible": 0
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "yes": 0,
+            "no": 0
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "any": 1,
+            "yes": 0,
+            "no": 0
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.66,
+          "probabilities": {
+            "expiry-desc": 0.01,
+            "name-asc": 0,
+            "expiry-asc": 0.28,
+            "created-asc": 0,
+            "any": 0.71,
+            "name-desc": 0,
+            "created-desc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1315,
+        "outputTokens": 360
+      },
+      "latencyMs": 279
+    },
+    {
+      "caseId": "challenge-029",
+      "query": "expires tomorrow",
+      "expectedRoute": "interpret",
+      "expectedAction": "fallback_unsupported",
+      "expectedFilters": null,
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring"
+      },
+      "passed": false,
+      "failureReason": "filter_mismatch",
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.72
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.38
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.86,
+          "probabilities": {
+            "active": 0.08,
+            "any": 0.03,
+            "in-grace": 0,
+            "non-expiring": 0,
+            "past-grace": 0,
+            "expired": 0,
+            "expiring": 0.89
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "owner": 0,
+            "any": 1,
+            "manager": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "v1": 0,
+            "any": 1,
+            "v2": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "any": 1,
+            "eligible": 0,
+            "ineligible": 0
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "yes": 0,
+            "any": 1,
+            "no": 0
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "yes": 0.01,
+            "any": 0.99,
+            "no": 0
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.43,
+          "probabilities": {
+            "name-asc": 0,
+            "any": 0.51,
+            "created-desc": 0,
+            "name-desc": 0,
+            "expiry-desc": 0.01,
+            "expiry-asc": 0.48,
+            "created-asc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1314,
+        "outputTokens": 361
+      },
+      "latencyMs": 215
+    },
+    {
+      "caseId": "challenge-030",
+      "query": "about to expire",
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring"
+      },
+      "actualRoute": "interpret",
+      "actualStatus": "ok",
+      "actualFilters": {
+        "expiry": "expiring"
+      },
+      "passed": true,
+      "requestedModel": "jev-latest",
+      "questionSetVersion": "v0",
+      "policyVersion": "v0",
+      "returnedModel": "jev-1.13.0",
+      "answers": {
+        "fully_supported": {
+          "type": "noul",
+          "noul": 0.6
+        },
+        "unsupported_requirement": {
+          "type": "noul",
+          "noul": 0.22
+        },
+        "expiry": {
+          "type": "choice",
+          "choice": "expiring",
+          "confidence": 0.61,
+          "probabilities": {
+            "active": 0.02,
+            "any": 0.3,
+            "expiring": 0.68,
+            "past-grace": 0,
+            "in-grace": 0,
+            "non-expiring": 0,
+            "expired": 0
+          }
+        },
+        "role": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "manager": 0,
+            "owner": 0
+          }
+        },
+        "version": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 1,
+          "probabilities": {
+            "any": 1,
+            "v2": 0,
+            "v1": 0
+          }
+        },
+        "upgrade": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "eligible": 0,
+            "any": 1,
+            "ineligible": 0
+          }
+        },
+        "favorite": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "any": 1,
+            "yes": 0,
+            "no": 0
+          }
+        },
+        "primary": {
+          "type": "choice",
+          "choice": "any",
+          "confidence": 0.99,
+          "probabilities": {
+            "any": 0.99,
+            "yes": 0.01,
+            "no": 0
+          }
+        },
+        "sort": {
+          "type": "choice",
+          "choice": "expiry-asc",
+          "confidence": 0.62,
+          "probabilities": {
+            "name-desc": 0,
+            "any": 0.32,
+            "expiry-desc": 0,
+            "name-asc": 0,
+            "created-desc": 0,
+            "expiry-asc": 0.68,
+            "created-asc": 0
+          }
+        }
+      },
+      "usage": {
+        "inputTokens": 1315,
+        "outputTokens": 363
+      },
+      "latencyMs": 244
+    }
+  ]
+}

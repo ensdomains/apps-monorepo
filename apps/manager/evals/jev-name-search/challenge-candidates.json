@@ -1,0 +1,468 @@
+{
+  "datasetVersion": "jev-name-search-challenge-v0",
+  "status": "candidate",
+  "evaluationBoundary": "query_to_interpretation_result",
+  "description": "Synthetic challenge candidates for text length, single-edit typos, and time expressions. Expected outcomes are proposals until human approval.",
+  "cases": [
+    {
+      "id": "challenge-001",
+      "reviewStatus": "pending",
+      "query": "favorites",
+      "dimensions": {
+        "challengeDimension": "text-length",
+        "textLength": "one-word",
+        "wordCount": 1,
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeExpression": "none",
+        "facets": ["favorite"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "yes"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-002",
+      "reviewStatus": "pending",
+      "query": "favorite names",
+      "dimensions": {
+        "challengeDimension": "text-length",
+        "textLength": "two-three-words",
+        "wordCount": 2,
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeExpression": "none",
+        "facets": ["favorite"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "yes"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-003",
+      "reviewStatus": "pending",
+      "query": "show only my favorite names please",
+      "dimensions": {
+        "challengeDimension": "text-length",
+        "textLength": "four-plus",
+        "wordCount": 6,
+        "syntax": "command",
+        "cueStyle": "canonical",
+        "timeExpression": "none",
+        "facets": ["favorite"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "yes"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-004",
+      "reviewStatus": "pending",
+      "query": "primary",
+      "dimensions": {
+        "challengeDimension": "text-length",
+        "textLength": "one-word",
+        "wordCount": 1,
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeExpression": "none",
+        "facets": ["primary"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "primary": "yes"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-005",
+      "reviewStatus": "pending",
+      "query": "primary name",
+      "dimensions": {
+        "challengeDimension": "text-length",
+        "textLength": "two-three-words",
+        "wordCount": 2,
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeExpression": "none",
+        "facets": ["primary"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "primary": "yes"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-006",
+      "reviewStatus": "pending",
+      "query": "could you show me my primary ENS name",
+      "dimensions": {
+        "challengeDimension": "text-length",
+        "textLength": "four-plus",
+        "wordCount": 8,
+        "syntax": "question",
+        "cueStyle": "canonical",
+        "timeExpression": "none",
+        "facets": ["primary"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "primary": "yes"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-007",
+      "reviewStatus": "pending",
+      "query": "expiring",
+      "dimensions": {
+        "challengeDimension": "text-length",
+        "textLength": "one-word",
+        "wordCount": 1,
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeExpression": "default-window",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-008",
+      "reviewStatus": "pending",
+      "query": "expiring soon",
+      "dimensions": {
+        "challengeDimension": "text-length",
+        "textLength": "two-three-words",
+        "wordCount": 2,
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeExpression": "default-window",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-009",
+      "reviewStatus": "pending",
+      "query": "show names that are going to expire soon",
+      "dimensions": {
+        "challengeDimension": "text-length",
+        "textLength": "four-plus",
+        "wordCount": 8,
+        "syntax": "command",
+        "cueStyle": "paraphrase",
+        "timeExpression": "default-window",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-010",
+      "reviewStatus": "pending",
+      "query": "manager",
+      "dimensions": {
+        "challengeDimension": "text-length",
+        "textLength": "one-word",
+        "wordCount": 1,
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeExpression": "none",
+        "facets": ["role"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "role": "manager"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-016",
+      "reviewStatus": "pending",
+      "query": "not favorties",
+      "dimensions": {
+        "challengeDimension": "typo",
+        "textLength": "two-three-words",
+        "wordCount": 2,
+        "syntax": "fragment",
+        "cueStyle": "single-edit-typo",
+        "timeExpression": "none",
+        "facets": ["favorite"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "favorite": "no"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-017",
+      "reviewStatus": "pending",
+      "query": "past the grce period",
+      "dimensions": {
+        "challengeDimension": "typo",
+        "textLength": "four-plus",
+        "wordCount": 4,
+        "syntax": "fragment",
+        "cueStyle": "single-edit-typo",
+        "timeExpression": "grace-status",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "past-grace"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-020",
+      "reviewStatus": "pending",
+      "query": "expriing soon",
+      "dimensions": {
+        "challengeDimension": "typo",
+        "textLength": "two-three-words",
+        "wordCount": 2,
+        "syntax": "fragment",
+        "cueStyle": "single-edit-typo",
+        "timeExpression": "default-window",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring"
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-021",
+      "reviewStatus": "pending",
+      "query": "expiring in 7 days",
+      "dimensions": {
+        "challengeDimension": "time-expression",
+        "textLength": "four-plus",
+        "wordCount": 4,
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeExpression": "explicit-days",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 7
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-022",
+      "reviewStatus": "pending",
+      "query": "expires within 30 days",
+      "dimensions": {
+        "challengeDimension": "time-expression",
+        "textLength": "four-plus",
+        "wordCount": 4,
+        "syntax": "fragment",
+        "cueStyle": "canonical",
+        "timeExpression": "explicit-days",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 30
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-023",
+      "reviewStatus": "pending",
+      "query": "expiring in a week",
+      "dimensions": {
+        "challengeDimension": "time-expression",
+        "textLength": "four-plus",
+        "wordCount": 4,
+        "syntax": "fragment",
+        "cueStyle": "paraphrase",
+        "timeExpression": "relative-week",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 7
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-024",
+      "reviewStatus": "pending",
+      "query": "expires in two weeks",
+      "dimensions": {
+        "challengeDimension": "time-expression",
+        "textLength": "four-plus",
+        "wordCount": 4,
+        "syntax": "fragment",
+        "cueStyle": "paraphrase",
+        "timeExpression": "relative-week",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 14
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-025",
+      "reviewStatus": "pending",
+      "query": "expires in 24 hours",
+      "dimensions": {
+        "challengeDimension": "time-expression",
+        "textLength": "four-plus",
+        "wordCount": 4,
+        "syntax": "fragment",
+        "cueStyle": "paraphrase",
+        "timeExpression": "relative-hours",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 1
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-026",
+      "reviewStatus": "pending",
+      "query": "expires in the next 48 hours",
+      "dimensions": {
+        "challengeDimension": "time-expression",
+        "textLength": "four-plus",
+        "wordCount": 6,
+        "syntax": "fragment",
+        "cueStyle": "paraphrase",
+        "timeExpression": "relative-hours",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring",
+        "withinDays": 2
+      },
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-027",
+      "reviewStatus": "pending",
+      "query": "expiring this month",
+      "dimensions": {
+        "challengeDimension": "time-expression",
+        "textLength": "two-three-words",
+        "wordCount": 3,
+        "syntax": "fragment",
+        "cueStyle": "paraphrase",
+        "timeExpression": "calendar-period",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "fallback_unsupported",
+      "expectedFilters": null,
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-028",
+      "reviewStatus": "pending",
+      "query": "expires before Friday",
+      "dimensions": {
+        "challengeDimension": "time-expression",
+        "textLength": "two-three-words",
+        "wordCount": 3,
+        "syntax": "fragment",
+        "cueStyle": "paraphrase",
+        "timeExpression": "calendar-date",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "fallback_unsupported",
+      "expectedFilters": null,
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-029",
+      "reviewStatus": "pending",
+      "query": "expires tomorrow",
+      "dimensions": {
+        "challengeDimension": "time-expression",
+        "textLength": "two-three-words",
+        "wordCount": 2,
+        "syntax": "fragment",
+        "cueStyle": "paraphrase",
+        "timeExpression": "calendar-date",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "fallback_unsupported",
+      "expectedFilters": null,
+      "reviewNotes": ""
+    },
+    {
+      "id": "challenge-030",
+      "reviewStatus": "pending",
+      "query": "about to expire",
+      "dimensions": {
+        "challengeDimension": "time-expression",
+        "textLength": "two-three-words",
+        "wordCount": 3,
+        "syntax": "fragment",
+        "cueStyle": "paraphrase",
+        "timeExpression": "default-window",
+        "facets": ["expiry"]
+      },
+      "expectedRoute": "interpret",
+      "expectedAction": "apply_filters",
+      "expectedFilters": {
+        "expiry": "expiring"
+      },
+      "reviewNotes": ""
+    }
+  ]
+}

@@ -1,4 +1,4 @@
 VITE_TELEGRAM_BOT_ID=""
 
 # Local-only Manager dashboard Jev search
-TYPESAFE_API_KEY=""
+JEV_API_KEY=""

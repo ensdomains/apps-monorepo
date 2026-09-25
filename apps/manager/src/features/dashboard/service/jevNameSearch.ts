@@ -64,6 +64,15 @@ const facetInstructions: Record<Facet, string> = {
   sort: 'Which result order does the user explicitly request? Choose any if none.',
 }
 
+export const JEV_NAME_SEARCH_QUESTION_SET_VERSION = 'v0'
+export const JEV_NAME_SEARCH_POLICY_VERSION = 'v0'
+
+export const looksLikeJevNameSearchRequest = (query: string): boolean =>
+  /\s/.test(query) ||
+  /\b(expir\w*|grace|owner|manager|upgrade\w*|eligible|ineligible|favou?rite\w*|primary|oldest|newest|alphabetic\w*|sort\w*|order\w*|(?:ens)?v[12])\b/i.test(
+    query,
+  )
+
 export const buildJevNameSearchRequest = (query: string) => ({
   model: 'jev-latest',
   state: query,
@@ -234,34 +243,48 @@ const explicitSort = (query: string): ParsedFacets['sort'] | null => {
   return null
 }
 
-const readSupportedAnswers = (
-  response: unknown,
-): Record<string, unknown> | null => {
-  if (!isRecord(response) || !isRecord(response.answers)) return null
+export type JevNameSearchRejectionReason =
+  | 'invalid_response'
+  | 'invalid_support_answer'
+  | 'support_gate_rejected'
+  | 'invalid_choice_answer'
+  | 'deterministic_policy_rejected'
+  | 'empty_filters'
+
+type SupportedAnswersResult =
+  | { readonly status: 'ok'; readonly answers: Record<string, unknown> }
+  | {
+      readonly status: 'rejected'
+      readonly reason: JevNameSearchRejectionReason
+    }
+
+const readSupportedAnswers = (response: unknown): SupportedAnswersResult => {
+  if (!isRecord(response) || !isRecord(response.answers)) {
+    return { status: 'rejected', reason: 'invalid_response' }
+  }
   const answers = response.answers
   const support = answers.fully_supported
+  const unsupported = answers.unsupported_requirement
   if (
     !isRecord(support) ||
     support.type !== 'noul' ||
     typeof support.noul !== 'number' ||
     !Number.isFinite(support.noul) ||
-    support.noul < 0.3 ||
-    support.noul > 1
-  ) {
-    return null
-  }
-  const unsupported = answers.unsupported_requirement
-  if (
+    support.noul < 0 ||
+    support.noul > 1 ||
     !isRecord(unsupported) ||
     unsupported.type !== 'noul' ||
     typeof unsupported.noul !== 'number' ||
     !Number.isFinite(unsupported.noul) ||
     unsupported.noul < 0 ||
-    unsupported.noul >= 0.85
+    unsupported.noul > 1
   ) {
-    return null
+    return { status: 'rejected', reason: 'invalid_support_answer' }
   }
-  return answers
+  if (support.noul < 0.3 || unsupported.noul >= 0.85) {
+    return { status: 'rejected', reason: 'support_gate_rejected' }
+  }
+  return { status: 'ok', answers }
 }
 
 const readFacets = (answers: Record<string, unknown>) => {
@@ -362,16 +385,25 @@ const resolveQueryFacets = (query: string, facets: ParsedFacets) => {
   }
 }
 
-export const parseJevNameSearchResponse = (
+export type JevNameSearchParseResult =
+  | { readonly status: 'ok'; readonly filters: SmartNameFilters }
+  | {
+      readonly status: 'rejected'
+      readonly reason: JevNameSearchRejectionReason
+    }
+
+export const parseJevNameSearchResponseWithReason = (
   response: unknown,
   query: string,
-): SmartNameFilters | null => {
-  const answers = readSupportedAnswers(response)
-  if (!answers) return null
-  const facets = readFacets(answers)
-  if (!facets) return null
+): JevNameSearchParseResult => {
+  const supported = readSupportedAnswers(response)
+  if (supported.status === 'rejected') return supported
+  const facets = readFacets(supported.answers)
+  if (!facets) return { status: 'rejected', reason: 'invalid_choice_answer' }
   const resolved = resolveQueryFacets(query, facets)
-  if (!resolved) return null
+  if (!resolved) {
+    return { status: 'rejected', reason: 'deterministic_policy_rejected' }
+  }
   const filters: SmartNameFilters = {
     ...(resolved.expiry !== 'any' && { expiry: resolved.expiry }),
     ...(resolved.withinDays !== null && { withinDays: resolved.withinDays }),
@@ -382,5 +414,15 @@ export const parseJevNameSearchResponse = (
     ...(resolved.primary !== 'any' && { primary: resolved.primary }),
     ...(resolved.sort !== 'any' && { sort: resolved.sort }),
   }
-  return Object.keys(filters).length > 0 ? filters : null
+  return Object.keys(filters).length > 0
+    ? { status: 'ok', filters }
+    : { status: 'rejected', reason: 'empty_filters' }
+}
+
+export const parseJevNameSearchResponse = (
+  response: unknown,
+  query: string,
+): SmartNameFilters | null => {
+  const result = parseJevNameSearchResponseWithReason(response, query)
+  return result.status === 'ok' ? result.filters : null
 }

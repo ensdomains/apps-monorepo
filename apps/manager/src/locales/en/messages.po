@@ -182,6 +182,10 @@ msgstr "About"
 msgid "Account address:"
 msgstr "Account address:"
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Active"
+msgstr "Active"
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Add an external contact method if you also want reminders by email or Telegram or in your browser."
 msgstr "Add an external contact method if you also want reminders by email or Telegram or in your browser."
@@ -247,6 +251,10 @@ msgstr "An error occurred during verification"
 #: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Applied search filters"
+msgstr "Applied search filters"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve {name}"
@@ -600,18 +608,14 @@ msgstr "Copy link"
 msgid "Copy Link"
 msgstr "Copy Link"
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Copy message and open Discord"
-msgstr "Copy message and open Discord"
-
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Could not copy the message."
-msgstr "Could not copy the message."
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Could not interpret this request. Try a name or a supported status."
+msgstr "Could not interpret this request. Try a name or a supported status."
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Couldn't check this name"
@@ -720,6 +724,7 @@ msgid "Do I have to upgrade my names? What happens if I don't?"
 msgstr "Do I have to upgrade my names? What happens if I don't?"
 
 #: src/features/dashboard/components/NameRow.tsx
+#: src/features/dashboard/components/NamesTable.tsx
 msgid "Does not expire"
 msgstr "Does not expire"
 
@@ -757,6 +762,7 @@ msgid "Eligibility could not be loaded. Please try again."
 msgstr "Eligibility could not be loaded. Please try again."
 
 #: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/dashboard/components/NamesTable.tsx
 msgid "Eligible for upgrade"
 msgstr "Eligible for upgrade"
 
@@ -816,10 +822,18 @@ msgstr "ENS app landing page"
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "ENSv1"
+msgstr "ENSv1"
+
 #: src/features/dashboard/components/DashboardPills.tsx
 #: src/features/renew/workflow/pricing/PricingStep.tsx
 msgid "ENSv1 only"
 msgstr "ENSv1 only"
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "ENSv2"
+msgstr "ENSv2"
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "ENSv2 commemorative NFT"
@@ -850,6 +864,10 @@ msgstr "Estimating the network fee..."
 msgid "Estimating..."
 msgstr "Estimating..."
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Expired"
+msgstr "Expired"
+
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
@@ -865,6 +883,11 @@ msgstr "Expires in {days} days"
 #: src/features/dashboard/components/NameRow.tsx
 msgid "Expires on"
 msgstr "Expires on"
+
+#. placeholder {0}: smartFilters.withinDays ?? 30
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Expires within {0} days"
+msgstr "Expires within {0} days"
 
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx
 #: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx
@@ -1079,6 +1102,10 @@ msgstr "If your connected wallet has fewer than two names and no primary name ye
 msgid "Image not available"
 msgstr "Image not available"
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "In grace period"
+msgstr "In grace period"
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "In-app notifications are always enabled"
 msgstr "In-app notifications are always enabled"
@@ -1086,6 +1113,10 @@ msgstr "In-app notifications are always enabled"
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
 msgid "Inbox"
 msgstr "Inbox"
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Interpreting search…"
+msgstr "Interpreting search…"
 
 #: src/components/NameFallbackCard.tsx
 msgid "is too short to register"
@@ -1122,6 +1153,10 @@ msgstr "Language"
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Later"
 msgstr "Later"
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Latest expiry first"
+msgstr "Latest expiry first"
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
 msgid "Learn More<0> about NFT traits</0>"
@@ -1221,6 +1256,7 @@ msgid "Managed"
 msgstr "Managed"
 
 #: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/dashboard/components/NamesTable.tsx
 msgid "Manager"
 msgstr "Manager"
 
@@ -1231,10 +1267,6 @@ msgstr "Mark all as read"
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Marking..."
 msgstr "Marking..."
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Message copied. Paste it into Discord."
-msgstr "Message copied. Paste it into Discord."
 
 #: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
 msgid "Migration value propositions"
@@ -1256,6 +1288,10 @@ msgstr "Minted"
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Minting…"
 msgstr "Minting…"
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "More NFT actions"
+msgstr "More NFT actions"
 
 #: src/features/dashboard/components/NameRow.tsx
 msgid "More options for {label}"
@@ -1279,6 +1315,10 @@ msgstr "My Names"
 msgid "Name"
 msgstr "Name"
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Name A to Z"
+msgstr "Name A to Z"
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "Name Expiry"
 msgstr "Name Expiry"
@@ -1291,6 +1331,10 @@ msgstr "Name not found"
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Name owner is not available yet. Try again in a moment."
 msgstr "Name owner is not available yet. Try again in a moment."
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Name Z to A"
+msgstr "Name Z to A"
 
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Names"
@@ -1316,6 +1360,10 @@ msgstr "Network cost"
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Never lose your name to expiry."
 msgstr "Never lose your name to expiry."
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Newest first"
+msgstr "Newest first"
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "Next"
@@ -1379,6 +1427,10 @@ msgstr "No recent searches"
 msgid "No stablecoins available"
 msgstr "No stablecoins available"
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Not eligible for upgrade"
+msgstr "Not eligible for upgrade"
+
 #. placeholder {0}: formatGasEth(shortfall.requiredWei)
 #. placeholder {1}: formatGasEth(shortfall.balanceWei)
 #: src/features/migration/components/SelectNamesStepFooter.tsx
@@ -1406,6 +1458,14 @@ msgstr "Not enough USDC. This registration needs {0} USDC — a {1} registration
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
 msgstr "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Not favorites"
+msgstr "Not favorites"
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Not primary"
+msgstr "Not primary"
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
@@ -1437,6 +1497,10 @@ msgstr "Notifications"
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Notifications blocked"
 msgstr "Notifications blocked"
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Oldest first"
+msgstr "Oldest first"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "One approval covers all the .eth names you selected."
@@ -1484,6 +1548,7 @@ msgid "Owned"
 msgstr "Owned"
 
 #: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Owner"
 msgstr "Owner"
@@ -1491,6 +1556,10 @@ msgstr "Owner"
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "Page not found"
 msgstr "Page not found"
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Past grace period"
+msgstr "Past grace period"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Pay with stablecoins"
@@ -1573,6 +1642,10 @@ msgstr "Preparing your newly registered name"
 msgid "Preparing your registration"
 msgstr "Preparing your registration"
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Press Enter to search by status"
+msgstr "Press Enter to search by status"
+
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Preview and mint"
 msgstr "Preview and mint"
@@ -1600,6 +1673,11 @@ msgstr "Price Cooldown"
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
 msgid "Price cooldown fee"
 msgstr "Price cooldown fee"
+
+#: src/features/dashboard/components/NamesTable.tsx
+#: src/features/migration/components/NameRow.tsx
+msgid "Primary name"
+msgstr "Primary name"
 
 #: src/features/dashboard/components/PrimaryBadge.tsx
 msgid "Primary Name"
@@ -1743,6 +1821,10 @@ msgstr "Remind me"
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Remove"
 msgstr "Remove"
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Remove {label} filter"
+msgstr "Remove {label} filter"
 
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Remove Email Contact Method?"
@@ -2151,6 +2233,10 @@ msgstr "Signing in..."
 msgid "Smart Account"
 msgstr "Smart Account"
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Smart search is unavailable. Name search still works."
+msgstr "Smart search is unavailable. Name search still works."
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Smart sessions are required to use this app."
 msgstr "Smart sessions are required to use this app."
@@ -2190,6 +2276,10 @@ msgstr "Something went wrong preparing the save. Please try again."
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Something went wrong. Refresh and try again."
 msgstr "Something went wrong. Refresh and try again."
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Soonest expiry first"
+msgstr "Soonest expiry first"
 
 #: src/features/dashboard/components/SortMenu.tsx
 msgid "Sort by"
@@ -2376,6 +2466,10 @@ msgstr "This browser cannot safely coordinate your mint. Try an up-to-date brows
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This commemorative NFT has already been minted."
 msgstr "This commemorative NFT has already been minted."
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "This filter needs upgrade or favorites data that is unavailable here."
+msgstr "This filter needs upgrade or favorites data that is unavailable here."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "This is taking longer than expected."

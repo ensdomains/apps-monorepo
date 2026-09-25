@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildJevNameSearchRequest,
+  looksLikeJevNameSearchRequest,
   parseExplicitDayCount,
   parseJevNameSearchResponse,
 } from './jevNameSearch'
@@ -33,6 +34,14 @@ describe('Jev name search interpretation', () => {
     expect(request.state).toBe('names expiring soon')
     expect(Object.keys(request.questions)).toContain('fully_supported')
     expect(Object.keys(request.questions)).toContain('unsupported_requirement')
+  })
+
+  it('matches the production UI routing policy', () => {
+    expect(looksLikeJevNameSearchRequest('favorites')).toBe(true)
+    expect(looksLikeJevNameSearchRequest('v1')).toBe(true)
+    expect(looksLikeJevNameSearchRequest('active')).toBe(false)
+    expect(looksLikeJevNameSearchRequest('reverse')).toBe(false)
+    expect(looksLikeJevNameSearchRequest('active names')).toBe(true)
   })
 
   it('parses arbitrary positive day counts', () => {
