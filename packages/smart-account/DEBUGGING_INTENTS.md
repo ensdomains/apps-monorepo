@@ -350,3 +350,39 @@ in both the outer `ops` field and the copy inside the validator signature — an
 re-running §2. Getting further, to `InvalidSigner()`, proves the mode was the
 only blocker; the session key signed the original bytes, so that last failure is
 expected.
+
+## 10. Mode 6 needs a validator that allows the refund callback
+
+Fixing §9 gets the operation decoded and both `ecrecover`s passing, and then
+surfaces the next policy violation — §3's warning, in practice:
+
+```
+0x6a62af42::isValidSignatureWithSender(...)
+  ├─ ownerAndSessionNonce()            → owner, nonce 0
+  ├─ ecrecover ×2                      → owner, then the session key
+  ├─ ethRegistry::hasRootRoles(1, 0x1d7df6Dd…) → false
+  └─ ← [Revert] 0xde1834f2  ActionNotAllowed(0x1d7df6Dd…, 0x482ac196)
+```
+
+`0x482ac196` is `callbackAllowMaxAmount(address,uint256)` and `0x1d7df6Dd…` is
+the validator's own `GAS_REFUND_PAYMASTER()` — read it off chain to confirm.
+Mode 6 keeps execution-emissary, so the refund settles through
+`settleGasRefund_requireCallback()`, and the orchestrator adds that callback to
+the fill batch next to the `approve`.
+
+`_checkRegistrationExecutions` has no branch for it. It allows
+**`approve(GAS_REFUND_PAYMASTER, …)`** via `_checkPaymentTokenApproval` — which
+is why the preceding `hasRootRoles` lookup appears and is *not* the failure —
+but any call whose target is the paymaster falls through every branch to the
+final `revert ActionNotAllowed(target, selector)`.
+
+So this one is not fixable here: the validator must gain a branch permitting
+`callbackAllowMaxAmount` on `GAS_REFUND_PAYMASTER`, then be redeployed and
+pinned in `manifest.ts`. The app-side alternatives are all worse — mode 1 is
+the #91014 bypass, mode 5 and mode 4 are not decoded (§9).
+
+The same trace also shows the execution emissary (`0xad568B3F…`) reverting
+`0x526d0da5 InvalidPermissionId(bytes32)` with `signature[0:32]` — i.e. it read
+the permissionId without skipping the 20-byte zero prefix and the mode byte.
+Whether that is a second blocker or just the fallthrough after the ERC-1271 arm
+already failed is unresolved; re-check it once the allowlist branch lands.
