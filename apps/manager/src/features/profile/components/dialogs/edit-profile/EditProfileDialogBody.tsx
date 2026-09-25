@@ -15,7 +15,10 @@ import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
 import { getAddressValidationIssues } from './tabs/addresses/AddressesTab.helpers'
 import { getContactValidationIssues } from './tabs/contact/records'
-import { getGeneralValidationIssues } from './tabs/general/fields'
+import {
+  getGeneralValidationIssues,
+  isDescriptionOverLimit,
+} from './tabs/general/fields'
 import { getLinkValidationIssues } from './tabs/links/validation'
 
 interface EditProfileDialogBodyProps {
@@ -92,7 +95,11 @@ export const EditProfileDialogBody = withForm({
           const hasContactValidationIssues =
             getContactValidationIssues(values).length > 0
           const hasGeneralValidationIssues =
-            getGeneralValidationIssues(values).length > 0
+            getGeneralValidationIssues(values).length > 0 ||
+            isDescriptionOverLimit(
+              values.base.description,
+              savedRecords.base.description,
+            )
           const canSaveProfile =
             (hasChanges || hasPreparedImageUpload) &&
             canSubmit &&
@@ -119,11 +126,14 @@ export const EditProfileDialogBody = withForm({
           const handleLinksChange = (links: ProfileRecords['links']) => {
             form.setFieldValue('links', links)
           }
-          const handleSave = () =>
+          const handleSave = () => {
+            if (!canSaveProfile) return
+
             onSave(submittedValues, {
               hasRecordChanges: hasChanges,
               preparedImageUploads: activePreparedImageUploads,
             })
+          }
 
           return (
             <Tabs
@@ -154,6 +164,7 @@ export const EditProfileDialogBody = withForm({
                 onSocialChange={handleSocialChange}
                 owner={owner}
                 preparedImageUploads={activePreparedImageUploads}
+                savedDescription={savedRecords.base.description}
                 values={values}
               />
             </Tabs>

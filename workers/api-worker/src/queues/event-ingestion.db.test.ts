@@ -76,7 +76,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         type: 'name_expiring',
         name: `${crypto.randomUUID()}.eth`,
         expiryDate: 1700000000,
-        stage: '7d',
+        stage: 'grace-7d',
         includeFavorites: false,
       }
       sendMail.mockReset().mockReturnValue(ok({ statusCode: 202 }))
@@ -196,6 +196,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       expect(deliveries).toHaveLength(deliveryCount)
       for (const notification of notifications)
         expect(notification.payload).toMatchObject({
+          stage: 'grace-7d',
           watchReason:
             notification.user_id === users[0]?.id ? 'owned' : 'favourited',
         })
@@ -227,6 +228,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
           expiryDate: event.expiryDate * 1000,
           isOwner: true,
           watchReason: 'owned',
+          stage: event.stage,
         },
         idempotency_key: buildIdempotencyKey(event, owner.id),
       })
@@ -258,6 +260,9 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       }
       const before = await state()
       expect(before.notifications).toHaveLength(1)
+      expect(before.notifications[0]?.payload).toMatchObject({
+        stage: 'grace-7d',
+      })
       expect(before.deliveries).toHaveLength(1)
       await assertNoDuplicateGroups()
       const jobs = email.sendBatch.mock.calls.flatMap(([batch]) =>

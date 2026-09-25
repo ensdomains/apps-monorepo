@@ -15,6 +15,7 @@ import type { PermitSignature } from './registration.actors'
 import {
   estimateHcaBudgetActor,
   readUsdcSpend,
+  rejectPermitValue,
   signFundingPermitActor,
   submitFundingAndCommitActor,
   submitRevealBatchActor,
@@ -355,6 +356,78 @@ describe('signFundingPermitActor', () => {
     )
     // The wallet must never be asked to sign a permit that cannot be honoured.
     expect(signTypedData).not.toHaveBeenCalled()
+  })
+
+  it('requests no signature for a value above the expected maximum', async () => {
+    // The value traces back to figures the orchestrator returned over HTTP.
+    // The maximum is computed from the on-chain price and a fixed margin, so a
+    // value above it means the quote cannot be trusted at all.
+    const result = await signFundingPermitActor({
+      wallet: WALLET,
+      hca: HCA,
+      value: 40_000_000n,
+      approvalSigner: eoaSigner(WALLET),
+      publicClient,
+      chainId: sepolia.id,
+      bounds: { expectedMaximum: 30_000_000n },
+    })
+
+    expect(result._unsafeUnwrapErr().message).toMatch(
+      /above the expected maximum of 30 USDC/,
+    )
+    expect(signTypedData).not.toHaveBeenCalled()
+    // Refused before the RPC round-trips, so a flaky node cannot mask it.
+    expect(readContract).not.toHaveBeenCalled()
+  })
+
+  it('requests no signature for a value above what was displayed', async () => {
+    const result = await signFundingPermitActor({
+      wallet: WALLET,
+      hca: HCA,
+      value: 20_000_000n,
+      approvalSigner: eoaSigner(WALLET),
+      publicClient,
+      chainId: sepolia.id,
+      bounds: { displayedValue: 12_000_000n },
+    })
+
+    expect(result._unsafeUnwrapErr().message).toMatch(
+      /12 USDC was shown at checkout/,
+    )
+    expect(signTypedData).not.toHaveBeenCalled()
+  })
+
+  it('allows honest gas drift above the displayed figure', async () => {
+    // Checkout and the machine take separate quotes up to a minute apart, so
+    // the two legitimately disagree. A bound that refused any divergence would
+    // break registration whenever gas moved.
+    getEip712Domain.mockRejectedValue(new Error('execution reverted'))
+    readContract
+      .mockResolvedValueOnce(0n) // nonces(wallet)
+      .mockResolvedValueOnce(50_000_000n) // balanceOf(wallet)
+      .mockResolvedValueOnce('USDC') // name()
+      .mockResolvedValueOnce('2') // version()
+    signTypedData.mockResolvedValue(`0x${'11'.repeat(32)}${'22'.repeat(32)}1b`)
+
+    const result = await signFundingPermitActor({
+      wallet: WALLET,
+      hca: HCA,
+      value: 12_500_000n, // exactly the 25% allowance over the displayed 10
+      approvalSigner: eoaSigner(WALLET),
+      publicClient,
+      chainId: sepolia.id,
+      bounds: { displayedValue: 10_000_000n },
+    })
+
+    expect(result.isOk()).toBe(true)
+  })
+
+  it('never refuses a value BELOW what was displayed', async () => {
+    // Being asked to approve less than was quoted has not misled anyone — and
+    // a cheaper re-quote is the common case when gas falls.
+    expect(
+      rejectPermitValue(4_000_000n, { displayedValue: 10_000_000n }),
+    ).toBeNull()
   })
 })
 

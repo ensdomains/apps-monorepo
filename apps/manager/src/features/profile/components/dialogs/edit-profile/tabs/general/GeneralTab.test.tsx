@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProfileRecords } from '@/features/profile/types'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
+import { render } from '@/utils/test-utils'
 import { GeneralTab } from './GeneralTab'
 
 const profileImageFieldMock = vi.hoisted(() => ({
@@ -16,7 +17,8 @@ vi.mock('../../EditProfileDialog.context', () => ({
     toggleField: vi.fn(),
   }),
   useEditProfileDialogStatus: () => ({ isSaving: false }),
-  useEditProfileVisibleFields: () => new Set(['avatar', 'header']),
+  useEditProfileVisibleFields: () =>
+    new Set(['avatar', 'header', 'description']),
 }))
 
 vi.mock('./ProfileImageField', () => ({
@@ -77,6 +79,29 @@ const getBaseRecords = () =>
     string
   >
 
+const LegacyDescriptionHarness = () => {
+  const savedDescription = 'A'.repeat(700)
+  const [values, setValues] = useState<ProfileRecords>({
+    ...newEmptyProfileRecords(),
+    base: { description: savedDescription },
+  })
+
+  return (
+    <GeneralTab
+      name="test.eth"
+      onBaseChange={(base) =>
+        setValues((currentValues) => ({ ...currentValues, base }))
+      }
+      onContactChange={(contact) =>
+        setValues((currentValues) => ({ ...currentValues, contact }))
+      }
+      preparedImageUploads={[]}
+      savedDescription={savedDescription}
+      values={values}
+    />
+  )
+}
+
 describe('GeneralTab image removal', () => {
   beforeEach(() => {
     profileImageFieldMock.removeHandlers.clear()
@@ -106,5 +131,23 @@ describe('GeneralTab image removal', () => {
       header: '',
       theme: '#984D1B',
     })
+  })
+})
+
+describe('GeneralTab description', () => {
+  it('keeps a legacy description intact but flags an over-limit edit', () => {
+    render(<LegacyDescriptionHarness />)
+
+    const description = screen.getByRole('textbox', { name: 'Description' })
+    expect(description).toHaveValue('A'.repeat(700))
+    expect(description).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    fireEvent.change(description, { target: { value: 'A'.repeat(699) } })
+
+    expect(description).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Description must be 500 characters or fewer',
+    )
   })
 })

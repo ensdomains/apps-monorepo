@@ -75,10 +75,7 @@ const PlainMigrationSuccessDialog = ({
   />
 )
 
-const formatMigrationError = (
-  error: MigrationError,
-  completedNameCount: number,
-): ReactNode => {
+const formatMigrationError = (error: MigrationError): ReactNode => {
   switch (error.type) {
     case 'generic':
       return <Trans>Upgrade details: {error.message}</Trans>
@@ -114,11 +111,10 @@ const formatMigrationError = (
     case 'cleanup-failed':
       return (
         <div>
-          <Plural
-            one="Your name was upgraded. One thing left: a temporary permission on your name still needs to be removed."
-            other="Your names were upgraded. One thing left: a temporary permission on your names still needs to be removed."
-            value={completedNameCount}
-          />
+          <Trans>
+            Temporary migration access is still active. Retry to remove it and
+            continue any unfinished upgrade.
+          </Trans>
         </div>
       )
     case 'profile-fetch-failed':
@@ -382,8 +378,7 @@ export const MigrationPage = () => {
               transition={{ duration: 0.4, delay: 0.15 }}
             >
               <div className="whitespace-pre-wrap break-words text-ens-garnet-900/70 text-sm leading-normal">
-                {lastError &&
-                  formatMigrationError(lastError, completedOperations.length)}
+                {lastError && formatMigrationError(lastError)}
               </div>
             </motion.div>
 
@@ -405,7 +400,7 @@ export const MigrationPage = () => {
                 type="button"
               >
                 {lastError?.type === 'cleanup-failed' ? (
-                  <Trans>Remove temporary access</Trans>
+                  <Trans>Retry upgrade and cleanup</Trans>
                 ) : (
                   <Trans>Try again</Trans>
                 )}

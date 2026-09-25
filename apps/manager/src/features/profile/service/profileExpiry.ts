@@ -1,3 +1,4 @@
+import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -14,12 +15,13 @@ import {
 import { fromPromise, ok } from 'neverthrow'
 import {
   getNameExpiryStatus,
+  getSubnameExpiryStatus,
   type NameExpiryStatus,
 } from '@/features/grace/utils/gracePeriod'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { normalizeEth2LdName } from './profileName'
+import { normalizeEth2LdName, normalizeEthName } from './profileName'
 import { getOwner, type ProfileProtocol } from './profileOwner'
 
 export const profileExpiryDateFromSeconds = (
@@ -40,12 +42,15 @@ export type ProfileExpiryResult = {
   readonly expiry: bigint | null
   readonly isNonExpiring: boolean
   readonly protocol: 'v1' | 'v2'
+  readonly isSubname?: boolean
 }
 
 export const getProfileExpiryResultStatus = (
   expiry: ProfileExpiryResult | null | undefined,
 ): NameExpiryStatus =>
-  getProfileNameExpiryStatus(expiry?.expiry, expiry?.protocol ?? 'v2')
+  expiry?.isSubname
+    ? getSubnameExpiryStatus(profileExpiryDateFromSeconds(expiry.expiry))
+    : getProfileNameExpiryStatus(expiry?.expiry, expiry?.protocol ?? 'v2')
 
 class GetProfileExpiryError extends TaggedError('GetProfileExpiryError')<{
   cause: GetV1ExpiryErrorType | GetV2ExpiryErrorType
@@ -70,10 +75,61 @@ const normalizeV1Expiry = (
   }
 }
 
+// Kept as a raw string: parsing with graphql 17 at module scope opens a
+// diagnostics-channel tracing span, which workerd disallows in global scope.
+const SubnameExpiryDocument = /* GraphQL */ `
+  query SubnameExpiry($name: String!) {
+    domains(where: { name: $name, includeUnreachable: true }) {
+      expiryDate
+    }
+  }
+`
+
+type SubnameExpiryQuery = {
+  readonly domains: readonly { readonly expiryDate: number | null }[]
+}
+
+/**
+ * A subname's own expiry, as its registry records it.
+ *
+ * It lives in its parent's subregistry, which the profile has no address for,
+ * so this reads the indexer. Deliberately not bounded by the ancestors: a v2
+ * label carries its own expiry, and a detached or custom subregistry can
+ * outlive its parent, so a computed minimum would report a date no registry
+ * holds. Any failure answers null and renders as no expiry.
+ */
+const getIndexedExpiry = async (name: string): Promise<bigint | null> => {
+  try {
+    const { domains } = await graphqlRequest<
+      SubnameExpiryQuery,
+      { name: string }
+    >(indexerClient, SubnameExpiryDocument, { name })
+
+    const expiryDate = domains[0]?.expiryDate
+
+    return expiryDate == null ? null : BigInt(expiryDate)
+  } catch {
+    return null
+  }
+}
+
 export const getExpiry = ResultFn(async function* (
   name: string,
   protocol?: ProfileProtocol,
 ) {
+  const subname = normalizeEthName(name)
+
+  if (subname && subname.parentLabelsRootFirst.length > 0) {
+    const expiry = await getIndexedExpiry(subname.name)
+
+    return ok({
+      expiry,
+      isNonExpiring: false,
+      protocol: 'v2',
+      isSubname: true,
+    } satisfies ProfileExpiryResult)
+  }
+
   const ethName = normalizeEth2LdName(name)
 
   if (!ethName) {

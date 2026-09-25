@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Suggestion } from './buildSearchSuggestions'
-import { buildSearchResultItems } from './searchResultsUtils'
+import {
+  buildSearchResultItems,
+  sortExactMatchFirst,
+} from './searchResultsUtils'
 
 const noop = vi.fn()
 
@@ -103,5 +106,28 @@ describe('buildSearchResultItems', () => {
       ownedNamesFiltered: [{ name: 'my.eth' }],
     })
     expect(result[0].type === 'owned' && result[0].value).toBe('owned:my.eth')
+  })
+})
+
+describe('sortExactMatchFirst', () => {
+  const suggestions = [
+    suggestion({ id: 'name:fox.eth', inputValue: 'fox.eth' }),
+    suggestion({ id: 'name:fox.box', inputValue: 'fox.box' }),
+    suggestion({ id: 'name:fox.com', inputValue: 'fox.com' }),
+  ]
+
+  it('moves the exact match to the front, keeping the rest in order', () => {
+    expect(
+      sortExactMatchFirst(suggestions, 'fox.com').map((s) => s.inputValue),
+    ).toEqual(['fox.com', 'fox.eth', 'fox.box'])
+  })
+
+  it('returns the list unchanged when the exact match is already first', () => {
+    expect(sortExactMatchFirst(suggestions, 'fox.eth')).toBe(suggestions)
+  })
+
+  it('returns the list unchanged when there is no exact match', () => {
+    expect(sortExactMatchFirst(suggestions, 'other.eth')).toBe(suggestions)
+    expect(sortExactMatchFirst(suggestions, '')).toBe(suggestions)
   })
 })
