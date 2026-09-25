@@ -135,14 +135,12 @@ test.describe('DNS import flow', () => {
     await page.getByRole('button', { name: 'Import name' }).click()
 
     await expect(page).toHaveURL(new RegExp(`/import/${domain}`))
-    await expect(
-      page.getByText(
-        'Importing DNS names allows them to be used as ENS names.',
-      ),
-    ).toBeVisible()
+    await expect(page.getByText('Choose how to import')).toBeVisible()
+    // The CTA's copy describes the onchain record, so that route is preselected.
+    await expect(page).toHaveURL(/type=onchain/)
   })
 
-  test('onchain path: DNSSEC gate, verify states, and reload resume', async ({
+  test('onchain path: combined setup step, record states, and reload resume', async ({
     portalPage: page,
     wallet,
     accounts,
@@ -153,45 +151,41 @@ test.describe('DNS import flow', () => {
     const dns: MockDnsState = { domainSecure: false, ensOwner: null }
     await mockDnsOverHttps(page, respondWith(domain, dns))
 
-    // Connect on the base page so the verify step sees a wallet.
+    // Connect on the base page so the setup step sees a wallet.
     await connectWithHeadlessWallet(page, wallet)
 
     await page.goto(`${PORTAL_APP_URL}/import/${domain}`)
 
     // Step 1 — select the onchain type and begin.
-    await expect(
-      page.getByText(
-        'Importing DNS names allows them to be used as ENS names.',
-      ),
-    ).toBeVisible({ timeout: 30_000 })
-    await page.getByText('On-chain import').click()
+    await expect(page.getByText('Choose how to import')).toBeVisible({
+      timeout: 30_000,
+    })
+    await page.getByText('Onchain import', { exact: true }).click()
     await page.getByRole('button', { name: 'Begin' }).click()
-    await expect(page).toHaveURL(/step=dnssec/)
+    await expect(page).toHaveURL(/step=setup/)
     await expect(page).toHaveURL(/type=onchain/)
 
-    // Step 2 — DNSSEC disabled blocks Next; Refresh picks up the change.
+    // Step 2 — DNSSEC and the ownership record are asked for together, so the
+    // record spec is readable while DNSSEC is still off (one trip to the DNS
+    // manager covers both).
+    await expect(page.getByText('Set up your domain')).toBeVisible()
     await expect(page.getByText('DNSSEC not enabled')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled()
-
-    dns.domainSecure = true
-    await page.getByRole('button', { name: 'Refresh' }).click()
-    await expect(
-      page.getByText('DNSSEC enabled', { exact: true }),
-    ).toBeVisible()
-    await page.getByRole('button', { name: 'Next' }).click()
-    await expect(page).toHaveURL(/step=verify/)
-
-    // Step 3 — the protocol-correct record spec is shown.
-    await expect(page.getByText('Verify ownership')).toBeVisible()
     await expect(page.getByText('_ens', { exact: true })).toBeVisible()
     await expect(page.getByText(`a=${user}`)).toBeVisible()
 
     // No record yet -> None.
     await expect(page.getByText('None', { exact: true })).toBeVisible()
 
+    // Each check refreshes independently, by its own named button.
+    dns.domainSecure = true
+    await page.getByRole('button', { name: 'Refresh DNSSEC check' }).click()
+    await expect(
+      page.getByText('DNSSEC enabled', { exact: true }),
+    ).toBeVisible()
+
     // Record pointing at someone else -> mismatch, import-without-ownership.
     dns.ensOwner = stranger
-    await page.getByRole('button', { name: 'Refresh' }).click()
+    await page.getByRole('button', { name: 'Refresh record check' }).click()
     await expect(page.getByText('Record does not match')).toBeVisible()
     await expect(
       page.getByRole('button', { name: 'Import without ownership' }),
@@ -199,19 +193,41 @@ test.describe('DNS import flow', () => {
 
     // Record matching the connected wallet -> verified + summary.
     dns.ensOwner = user
-    await page.getByRole('button', { name: 'Refresh' }).click()
+    await page.getByRole('button', { name: 'Refresh record check' }).click()
     await expect(page.getByText('Ownership verified')).toBeVisible()
     await expect(page.getByText('Gas cost')).toBeVisible()
     await expect(page.getByText('Owner', { exact: true })).toBeVisible()
     // The DNSSEC proof cannot be fetched (wire-format DNS answers 502), so
     // the import transaction stays unavailable.
-    await expect(page.getByRole('button', { name: 'Import' })).toBeDisabled()
+    await expect(
+      page.getByRole('button', { name: 'Import', exact: true }),
+    ).toBeDisabled()
 
     // Reload resumes on the same step from the URL alone.
     await page.reload()
-    await expect(page).toHaveURL(/step=verify/)
+    await expect(page).toHaveURL(/step=setup/)
     await expect(page).toHaveURL(/type=onchain/)
     await expect(page.getByText('Ownership verified')).toBeVisible({
+      timeout: 30_000,
+    })
+  })
+
+  test('legacy step links land on the combined setup step', async ({
+    page,
+  }) => {
+    const domain = `e2e-dns-legacy-${Date.now()}.xyz`
+    await mockDnsOverHttps(
+      page,
+      respondWith(domain, { domainSecure: false, ensOwner: null }),
+    )
+
+    await page.goto(
+      `${PORTAL_APP_URL}/import/${domain}?type=onchain&step=dnssec`,
+    )
+
+    // `dnssec` and `verify` are no longer steps of their own; an old link
+    // must still open the flow rather than falling back to the type picker.
+    await expect(page.getByText('Set up your domain')).toBeVisible({
       timeout: 30_000,
     })
   })
@@ -257,10 +273,10 @@ test.describe('DNS import flow', () => {
 
     await connectWithHeadlessWallet(page, wallet)
     await page.goto(
-      `${PORTAL_APP_URL}/import/${domain}?type=offchain&step=verify`,
+      `${PORTAL_APP_URL}/import/${domain}?type=offchain&step=setup`,
     )
 
-    await expect(page.getByText('Verify ownership')).toBeVisible({
+    await expect(page.getByText('Set up your domain')).toBeVisible({
       timeout: 30_000,
     })
     await expect(page.getByText('@', { exact: true })).toBeVisible()
@@ -271,5 +287,35 @@ test.describe('DNS import flow', () => {
     // The domain has no ENS1 record -> None, Claim stays disabled.
     await expect(page.getByText('None', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Claim' })).toBeDisabled()
+  })
+
+  test('the setup step shows a sample record before a wallet is connected', async ({
+    page,
+  }) => {
+    const domain = `e2e-dns-sample-${Date.now()}.xyz`
+    await mockDnsOverHttps(
+      page,
+      respondWith(domain, { domainSecure: false, ensOwner: null }),
+    )
+
+    await page.goto(
+      `${PORTAL_APP_URL}/import/${domain}?type=offchain&step=setup`,
+    )
+
+    // Both prerequisites are legible with no wallet attached — that is the
+    // point of showing them up front.
+    await expect(page.getByText('Set up your domain')).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(page.getByText('DNSSEC not enabled')).toBeVisible()
+    await expect(
+      page.getByText(`ENS1 ${OFFICIAL_SEPOLIA_RESOLVER} <your address>`),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible()
+
+    // The record name is real and copyable; the sample value is not, so the
+    // placeholder cannot be pasted into a DNS manager as-is.
+    await expect(page.getByRole('button', { name: 'Copy @' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Copy ENS1' })).toBeHidden()
   })
 })

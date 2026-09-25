@@ -14,7 +14,7 @@ import { CustomTldMessage } from './CustomTldMessage'
 
 /** The record's parts, highlighted the way the design calls them out. */
 const InlineCode = ({ children }: { readonly children: ReactNode }) => (
-  <code className="rounded-sm bg-current/10 px-1 font-mono text-[0.9em]">
+  <code className="rounded-sm bg-current/10 px-1 font-mono text-sm">
     {children}
   </code>
 )
@@ -111,10 +111,13 @@ export const DnsClaimableMessage = ({ name }: { readonly name: string }) => {
       actionButton={{
         label: 'Import name',
         onClick: () =>
+          // The description above is the onchain record (`_ens`, a signing
+          // step, editable records afterwards), so that's the route this
+          // preselects — the next screen still lets them switch to offchain.
           void navigate({
             to: '/import/$name',
             params: { name },
-            search: { type: 'offchain', step: 'start' },
+            search: { type: 'onchain', step: 'start' },
           }),
       }}
     />

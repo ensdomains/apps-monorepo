@@ -6,6 +6,12 @@ export type DnsRecordSpec = {
   /** DNS record name relative to the domain (`@` = the domain itself). */
   readonly name: string
   readonly value: string
+  /**
+   * The value still carries {@link ADDRESS_PLACEHOLDER} because no wallet is
+   * connected. It illustrates the record's shape; pasting it into a DNS
+   * manager verbatim produces a record that can never verify.
+   */
+  readonly isSample: boolean
 }
 
 /**
@@ -27,6 +33,7 @@ export const getOnchainVerificationRecord = (
   type: 'TXT',
   name: '_ens',
   value: `a=${connectedAddress ?? ADDRESS_PLACEHOLDER}`,
+  isSample: !connectedAddress,
 })
 
 /**
@@ -44,4 +51,5 @@ export const getOffchainVerificationRecord = (
   value: `ENS1 ${getOffchainResolverDisplay(chainId)} ${
     connectedAddress ?? ADDRESS_PLACEHOLDER
   }`,
+  isSample: !connectedAddress,
 })

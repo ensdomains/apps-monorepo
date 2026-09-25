@@ -178,7 +178,11 @@ const VerificationDetails = ({
               ))
               .otherwise(() => null)}
           </div>
-          <RefreshButton onClick={onRefresh} isRefreshing={isRefreshing} />
+          <RefreshButton
+            label="Refresh record check"
+            onClick={onRefresh}
+            isRefreshing={isRefreshing}
+          />
         </div>
       }
     />
