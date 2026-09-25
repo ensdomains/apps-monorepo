@@ -18,7 +18,7 @@ const cardColors = {
   lapis: {
     card: 'bg-ens-lapis-100',
     badge: 'bg-ens-lapis-500',
-    text: 'text-ens-citrine-100',
+    text: 'text-white',
   },
   peridot: {
     card: 'bg-ens-peridot-100',
@@ -29,10 +29,10 @@ const cardColors = {
 
 export const DomainCard = ({
   domainName,
-  variant = 'garnet',
+  variant = 'lapis',
   className,
 }: DomainCardProps) => {
-  const selectedVariant = variant ?? 'garnet'
+  const selectedVariant = variant ?? 'lapis'
   const colors = cardColors[selectedVariant]
 
   return (

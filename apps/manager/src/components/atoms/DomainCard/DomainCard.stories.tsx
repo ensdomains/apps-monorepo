@@ -36,22 +36,22 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   args: {
     domainName: 'erni.eth',
-    variant: 'garnet',
+    variant: 'lapis',
   },
 }
 
 export const RegistrationCompletion: Story = {
   args: {
     domainName: 'jony.eth',
-    variant: 'garnet',
+    variant: 'lapis',
   },
 }
 
 export const NameSpecificPatterns: Story = {
   render: () => (
     <div className="flex flex-col gap-8">
-      <DomainCard domainName="erni.eth" variant="garnet" />
-      <DomainCard domainName="jony.eth" variant="garnet" />
+      <DomainCard domainName="erni.eth" variant="lapis" />
+      <DomainCard domainName="jony.eth" variant="lapis" />
     </div>
   ),
 }
@@ -60,7 +60,7 @@ export const RegistrationCompletionLongName: Story = {
   args: {
     domainName:
       'erniqweqweqweqweqwe.ethasdasdasdasdasdasdasdasdasdasdasdasdasdaasdasdaasdasdasdasdasdasdasdasdasdasdasdasdasdasdasdadsaszxczczxczczxcasdadasdasdasdhaksdhasasdsdasdasdasdsdasd.eth',
-    variant: 'garnet',
+    variant: 'lapis',
   },
 }
 

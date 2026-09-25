@@ -99,7 +99,7 @@ export const RegistrationDetailsView = ({
     <div className="flex w-full flex-col gap-6">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-16">
         <div className="w-full lg:w-1/2">
-          <DomainCard domainName={`${label}.eth`} variant="garnet" />
+          <DomainCard domainName={`${label}.eth`} variant="lapis" />
         </div>
 
         <div className="flex w-full flex-col gap-6 lg:w-1/2">

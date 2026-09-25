@@ -74,15 +74,16 @@ export const DomainCardPattern = ({
         <linearGradient
           gradientUnits="userSpaceOnUse"
           id={glintId}
-          x1="-50"
-          x2="50"
-          y1="-50"
-          y2="50"
+          x1="-60"
+          x2="60"
+          y1="-60"
+          y2="60"
         >
           <stop stopColor={colors.shimmer} stopOpacity="0" />
-          <stop offset="0.25" stopColor={colors.shimmer} stopOpacity="0.15" />
-          <stop offset="0.5" stopColor={colors.highlight} stopOpacity="0.85" />
-          <stop offset="0.75" stopColor={colors.shimmer} stopOpacity="0.15" />
+          <stop offset="0.2" stopColor={colors.shimmer} stopOpacity="0.15" />
+          <stop offset="0.4" stopColor={colors.highlight} stopOpacity="0.85" />
+          <stop offset="0.6" stopColor={colors.highlight} stopOpacity="0.85" />
+          <stop offset="0.8" stopColor={colors.shimmer} stopOpacity="0.15" />
           <stop offset="1" stopColor={colors.shimmer} stopOpacity="0" />
         </linearGradient>
       </defs>
