@@ -488,6 +488,10 @@ msgstr "Clear search"
 msgid "Close"
 msgstr "Close"
 
+#: src/features/notifications/settings/contact-methods/email.tsx
+msgid "Code expires in {countdown}"
+msgstr "Code expires in {countdown}"
+
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Committed"
 msgstr "Committed"

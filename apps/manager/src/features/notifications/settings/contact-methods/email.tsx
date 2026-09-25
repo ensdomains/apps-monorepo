@@ -1,7 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import * as v from 'valibot'
@@ -40,6 +40,24 @@ import {
 const newEmailContactMethodFormSchema = v.object({
   email: v.pipe(v.string(), v.email('Please enter a valid email address')),
 })
+
+const useOtpSecondsRemaining = (expiresAt: number) => {
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    setNow(Date.now())
+    if (Date.now() >= expiresAt) return
+
+    const interval = setInterval(() => {
+      const current = Date.now()
+      setNow(current)
+      if (current >= expiresAt) clearInterval(interval)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [expiresAt])
+
+  return Math.max(0, Math.ceil((expiresAt - now) / 1000))
+}
 
 const NewEmailContactMethod = () => {
   const { t } = useLingui()
@@ -129,19 +147,21 @@ const NewEmailContactMethod = () => {
   )
 }
 
-const ExistingEmailContactMethod = ({
-  checkedAt,
+const PendingEmailVerification = ({
   email,
+  isResending,
+  onResend,
 }: {
-  checkedAt: number
-  email: Channel
+  email: Extract<Channel, { status: 'pending' }>
+  isResending: boolean
+  onResend: () => void
 }) => {
   const { t } = useLingui()
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [otp, setOtp] = useState('')
-  const codeExpired =
-    email.status === 'pending' &&
-    new Date(email.expires_at).getTime() <= checkedAt
+  const secondsRemaining = useOtpSecondsRemaining(
+    new Date(email.expires_at).getTime(),
+  )
+  const countdown = `${Math.floor(secondsRemaining / 60)}:${String(secondsRemaining % 60).padStart(2, '0')}`
 
   const verifyMutation = useMutation({
     ...verifyEmailMutationOptions,
@@ -152,6 +172,61 @@ const ExistingEmailContactMethod = ({
     onError: (error: Error) => toast.error(error.message),
   })
 
+  if (secondsRemaining === 0) {
+    return (
+      <div className="flex flex-col items-start gap-2">
+        <p className="text-[#CA6200] text-sm" role="status">
+          <Trans>
+            This verification code has expired. Resend verification to get a new
+            code.
+          </Trans>
+        </p>
+        <Button
+          disabled={isResending}
+          onClick={onResend}
+          size="lg"
+          variant="lightBlue"
+        >
+          <Trans>Resend Verification</Trans>
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-2 max-md:flex-col">
+        <InputGroup className="h-12 bg-white">
+          <InputGroupInput
+            aria-label={t`Email verification code`}
+            autoComplete="one-time-code"
+            inputMode="numeric"
+            maxLength={6}
+            onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))}
+            placeholder={t`6-digit code`}
+            value={otp}
+          />
+        </InputGroup>
+        <Button
+          disabled={otp.length !== 6 || verifyMutation.isPending}
+          onClick={() => verifyMutation.mutate({ challengeId: email.id, otp })}
+          size="lg"
+          variant="lightBlue"
+        >
+          <Trans>Verify Email</Trans>
+        </Button>
+      </div>
+      <p className="text-slate-600 text-sm">
+        <Trans>Code expires in {countdown}</Trans>
+      </p>
+    </div>
+  )
+}
+
+const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
+  const { t } = useLingui()
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+
   const resendMutation = useMutation({
     ...resendVerificationMutationOptions,
     onMutate: (id) => {
@@ -161,7 +236,6 @@ const ExistingEmailContactMethod = ({
       })
     },
     onSuccess: (_, id) => {
-      setOtp('')
       toast.success(t`Email verification sent`, {
         id: `resend-email-verification-${id}`,
       })
@@ -293,62 +367,19 @@ const ExistingEmailContactMethod = ({
           </AlertDialogContent>
         </AlertDialog>
       </div>
-      {email.status === 'pending' && codeExpired && (
-        <div className="flex flex-col items-start gap-2">
-          <p className="text-[#CA6200] text-sm" role="status">
-            <Trans>
-              This verification code has expired. Resend verification to get a
-              new code.
-            </Trans>
-          </p>
-          <Button
-            disabled={resendMutation.isPending}
-            onClick={() => resendMutation.mutate(email.id)}
-            size="lg"
-            variant="lightBlue"
-          >
-            <Trans>Resend Verification</Trans>
-          </Button>
-        </div>
-      )}
-      {email.status === 'pending' && !codeExpired && (
-        <div className="flex gap-2 max-md:flex-col">
-          <InputGroup className="h-12 bg-white">
-            <InputGroupInput
-              aria-label={t`Email verification code`}
-              autoComplete="one-time-code"
-              inputMode="numeric"
-              maxLength={6}
-              onChange={(event) =>
-                setOtp(event.target.value.replace(/\D/g, ''))
-              }
-              placeholder={t`6-digit code`}
-              value={otp}
-            />
-          </InputGroup>
-          <Button
-            disabled={otp.length !== 6 || verifyMutation.isPending}
-            onClick={() =>
-              verifyMutation.mutate({ challengeId: email.id, otp })
-            }
-            size="lg"
-            variant="lightBlue"
-          >
-            <Trans>Verify Email</Trans>
-          </Button>
-        </div>
+      {email.status === 'pending' && (
+        <PendingEmailVerification
+          email={email}
+          isResending={resendMutation.isPending}
+          key={String(email.expires_at)}
+          onResend={() => resendMutation.mutate(email.id)}
+        />
       )}
     </div>
   )
 }
 
-export const EmailContactMethod = ({
-  checkedAt,
-  email,
-}: {
-  checkedAt: number
-  email?: Channel
-}) => {
+export const EmailContactMethod = ({ email }: { email?: Channel }) => {
   return (
     <div className="flex flex-col gap-3 rounded-lg bg-[#FAFAFB] p-5">
       {match(email?.status)
@@ -387,7 +418,7 @@ export const EmailContactMethod = ({
       </div>
 
       {email ? (
-        <ExistingEmailContactMethod checkedAt={checkedAt} email={email} />
+        <ExistingEmailContactMethod email={email} />
       ) : (
         <NewEmailContactMethod />
       )}

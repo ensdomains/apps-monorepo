@@ -493,6 +493,10 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
+#: src/features/notifications/settings/contact-methods/email.tsx
+msgid "Code expires in {countdown}"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Committed"
 msgstr ""
