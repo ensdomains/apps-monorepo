@@ -1,4 +1,5 @@
 import type { DomainsQuery } from '@ens-apps/indexer'
+import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -28,6 +29,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { HcaFundingConfirmDialog } from '@/features/profile/components/dialogs/HcaFundingConfirmDialog'
 import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import {
@@ -79,7 +81,10 @@ type PrimaryNameDomain = DomainsQuery['domains'][number]
 const getPrimaryNameErrorMessage = (
   error: Error | null,
   fallback: string,
-): string | undefined => (error ? error.message || fallback : undefined)
+): string | undefined =>
+  error && !(error instanceof HcaFundingDeclinedError)
+    ? error.message || fallback
+    : undefined
 
 const getSetupResolverErrorMessage = (
   error: Error | null,
@@ -435,6 +440,9 @@ export const ChoosePrimaryNameDialog = ({
     submit: submitPrimaryName,
     isSubmitting,
     error: primaryNameError,
+    fundingPrompt,
+    approveFunding,
+    declineFunding,
   } = useSetPrimaryName({
     onSuccess: () => {
       toast.success(t`Primary name set successfully`)
@@ -453,6 +461,7 @@ export const ChoosePrimaryNameDialog = ({
     },
   })
 
+  // Declining the funding prompt is a user cancellation, not an error.
   const primaryNameErrorMessage = getPrimaryNameErrorMessage(
     primaryNameError,
     t`Failed to set primary name`,
@@ -754,6 +763,12 @@ export const ChoosePrimaryNameDialog = ({
           if (!nextOpen) setConfirmation(null)
         }}
       />
+      <HcaFundingConfirmDialog
+        onApprove={approveFunding}
+        onDecline={declineFunding}
+        prompt={fundingPrompt}
+      />
+
       <ResolverSetupConfirmDialog
         intent="primary-name"
         onConfirm={() => {

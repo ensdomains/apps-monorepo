@@ -37,6 +37,7 @@ interface EditProfileDialogTabsProps {
   readonly onSocialChange: (social: ProfileRecords['social']) => void
   readonly owner?: Address
   readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
+  readonly savedDescription?: string
   readonly values: ProfileRecords
 }
 
@@ -127,6 +128,7 @@ export const EditProfileDialogTabs = ({
   onSocialChange,
   owner,
   preparedImageUploads,
+  savedDescription,
   values,
 }: EditProfileDialogTabsProps) => {
   const { isSaving } = useEditProfileDialogStatus()
@@ -176,6 +178,7 @@ export const EditProfileDialogTabs = ({
               onImageUploadPrepared={onImageUploadPrepared}
               owner={owner}
               preparedImageUploads={preparedImageUploads}
+              savedDescription={savedDescription}
               values={values}
             />
           </TabsContent>

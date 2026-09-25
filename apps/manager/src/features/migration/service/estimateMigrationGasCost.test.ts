@@ -7,6 +7,7 @@ import type {
   MigrationApproval,
   MigrationOperatorApprovalId,
 } from './migrationApprovals'
+import { temporaryMigrationHcaApproval } from './migrationApprovals'
 
 const account = '0x0000000000000000000000000000000000000001' as Address
 const contract = '0x0000000000000000000000000000000000000002' as Address
@@ -122,13 +123,14 @@ describe('estimateMigrationGasCost', () => {
     expect(estimate.transactionCount).toBe(2)
   })
 
-  it('manager restoration adds one persistent grant confirmation', async () => {
+  it('budgets both manager restoration grant and cleanup', async () => {
     const publicClient = makePublicClient({ maxFeePerGas: 2n })
     const basePlan = makePlan({ atomicBatches: [makeAtomicBatch(100n)] })
     const managerPlan = makePlan({
       preflight: {
         ...basePlan.preflight,
         migrationApprovals: [makeOperatorApproval('eth-registry:hca')],
+        migrationCleanupApprovals: [temporaryMigrationHcaApproval(account)],
       },
       atomicBatches: [makeAtomicBatch(100n)],
     })
@@ -147,7 +149,7 @@ describe('estimateMigrationGasCost', () => {
     if (base.status !== 'ready' || manager.status !== 'ready') {
       throw new Error('expected ready estimates')
     }
-    expect(manager.transactionCount - base.transactionCount).toBe(1)
+    expect(manager.transactionCount - base.transactionCount).toBe(2)
   })
 
   it('every additional atomic batch adds one confirmation', async () => {

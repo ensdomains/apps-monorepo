@@ -1,37 +1,115 @@
+import { V2_GRACE_PERIOD_DAYS } from '@ens-apps/utils/gracePeriod'
 import { describe, expect, it } from 'vitest'
-import { getUpperBoundForStage, STAGES } from './stages.js'
+import type { ExpiryStageId } from '#types/events/index.js'
+import {
+  type ExpiryStageConfig,
+  getCloserStage,
+  getDefaultCursorForStage,
+  getExpiryStageRank,
+  getLowerBoundForStage,
+  getQueryCursorForStage,
+  getUpperBoundForStage,
+  MAX_STAGE_CATCH_UP_SECONDS,
+  STAGES,
+} from './stages.js'
+
+const DAY = 86_400
+const getStage = (id: ExpiryStageId): ExpiryStageConfig => {
+  const stage = STAGES.find((candidate) => candidate.id === id)
+  if (!stage) throw new Error(`Missing stage fixture: ${id}`)
+  return stage
+}
 
 describe('expiry stages', () => {
-  it('contains all required stage ids and favorite flags', () => {
+  it('defines and orders the complete lifecycle', () => {
     expect(STAGES.map((stage) => stage.id)).toEqual([
-      '30d',
-      '7d',
-      '1d',
-      'expired',
+      'expiry-30d',
+      'expiry-7d',
+      'expiry-1d',
+      'grace-start',
+      'grace-7d',
+      'grace-1d',
+      'premium-start',
     ])
-
-    const byId = new Map(STAGES.map((stage) => [stage.id, stage]))
-    expect(byId.get('30d')?.includeFavorites).toBe(false)
-    expect(byId.get('7d')?.includeFavorites).toBe(true)
-    expect(byId.get('1d')?.includeFavorites).toBe(true)
-    expect(byId.get('expired')?.includeFavorites).toBe(true)
+    expect(STAGES.map((stage) => stage.offsetDays)).toEqual([
+      30,
+      7,
+      1,
+      0,
+      -(V2_GRACE_PERIOD_DAYS - 7),
+      -(V2_GRACE_PERIOD_DAYS - 1),
+      -V2_GRACE_PERIOD_DAYS,
+    ])
+    expect(getStage('expiry-30d').includeFavorites).toBe(false)
+    expect(STAGES.slice(1).every((stage) => stage.includeFavorites)).toBe(true)
   })
 
-  it('computes upper bounds correctly', () => {
-    const nowSec = 1_700_000_000
-    const byId = new Map(STAGES.map((stage) => [stage.id, stage]))
-
-    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
-    expect(getUpperBoundForStage(byId.get('expired')!, nowSec)).toBe(nowSec)
-    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
-    expect(getUpperBoundForStage(byId.get('1d')!, nowSec)).toBe(nowSec + 86_400)
-    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
-    expect(getUpperBoundForStage(byId.get('7d')!, nowSec)).toBe(
-      nowSec + 7 * 86_400,
+  it('uses exclusive stage windows and a bounded final catch-up', () => {
+    const now = 1_700_000_000
+    expect(getLowerBoundForStage(getStage('expiry-30d'), now)).toBe(
+      now + 7 * DAY,
     )
-    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
-    expect(getUpperBoundForStage(byId.get('30d')!, nowSec)).toBe(
-      nowSec + 30 * 86_400,
+    expect(getLowerBoundForStage(getStage('expiry-7d'), now)).toBe(now + DAY)
+    expect(getLowerBoundForStage(getStage('expiry-1d'), now)).toBe(now)
+    expect(getLowerBoundForStage(getStage('grace-start'), now)).toBe(
+      now - 21 * DAY,
+    )
+    expect(getLowerBoundForStage(getStage('grace-7d'), now)).toBe(
+      now - 27 * DAY,
+    )
+    expect(getLowerBoundForStage(getStage('grace-1d'), now)).toBe(
+      now - 28 * DAY,
+    )
+    const premiumUpper = getUpperBoundForStage(getStage('premium-start'), now)
+    expect(getLowerBoundForStage(getStage('premium-start'), now)).toBe(
+      premiumUpper - MAX_STAGE_CATCH_UP_SECONDS,
+    )
+  })
+
+  it('finds closer stages by offset instead of array position', () => {
+    const disordered: ExpiryStageConfig[] = [
+      getStage('premium-start'),
+      getStage('expiry-30d'),
+      getStage('grace-start'),
+      getStage('expiry-7d'),
+    ]
+    expect(getCloserStage(getStage('expiry-30d'), disordered)?.id).toBe(
+      'expiry-7d',
+    )
+    expect(getCloserStage(getStage('grace-start'), disordered)?.id).toBe(
+      'premium-start',
+    )
+  })
+
+  it('clamps stale cursors without moving in-window cursors', () => {
+    const now = 1_700_000_000
+    const stage = getStage('expiry-30d')
+    expect(getQueryCursorForStage(stage, now - 200 * DAY, now)).toBe(
+      now + 7 * DAY,
+    )
+    expect(getQueryCursorForStage(stage, now + 10 * DAY, now)).toBe(
+      now + 10 * DAY,
+    )
+  })
+
+  it('defaults post-expiry stages at their current boundaries', () => {
+    const now = 1_700_000_000
+    expect(getDefaultCursorForStage(getStage('expiry-30d'), now)).toBe(now)
+    expect(getDefaultCursorForStage(getStage('grace-start'), now)).toBe(now)
+    expect(getDefaultCursorForStage(getStage('grace-7d'), now)).toBe(
+      now - 21 * DAY,
+    )
+    expect(getDefaultCursorForStage(getStage('premium-start'), now)).toBe(
+      now - 28 * DAY,
+    )
+  })
+
+  it('ranks stages from future to past', () => {
+    expect(getExpiryStageRank('expiry-30d')).toBeLessThan(
+      getExpiryStageRank('grace-start'),
+    )
+    expect(getExpiryStageRank('grace-start')).toBeLessThan(
+      getExpiryStageRank('premium-start'),
     )
   })
 })

@@ -11,6 +11,7 @@ import {
   type MigrationApprovalStatus,
   migrationApprovalForId,
   planMigrationApprovals,
+  readActiveMigrationOperatorApprovals,
 } from './migrationApprovals'
 
 vi.mock('@wagmi/core', () => ({
@@ -45,7 +46,8 @@ beforeEach(() => {
 })
 
 describe('checkMigrationApprovals', () => {
-  it('skips reads and treats irrelevant permissions as satisfied', async () => {
+  it('checks for leftover HCA access even when this selection needs no grants', async () => {
+    readContractsMock.mockResolvedValueOnce([true] as never)
     await expect(
       checkMigrationApprovals({
         eoa: EOA,
@@ -64,7 +66,8 @@ describe('checkMigrationApprovals', () => {
       nameWrapperHcaApproved: true,
       ethRegistryHcaApproved: true,
     })
-    expect(readContractsMock).not.toHaveBeenCalled()
+    expect(readContractsMock).toHaveBeenCalledOnce()
+    expect(readContractsMock.mock.calls[0]?.[1].contracts).toHaveLength(1)
   })
 
   it('checks helper NFT approvals and the HCA manager approval in one batch', async () => {
@@ -139,6 +142,24 @@ describe('checkMigrationApprovals', () => {
   })
 })
 
+describe('readActiveMigrationOperatorApprovals', () => {
+  it('shows active helper and HCA operators independently of selected names', async () => {
+    readContractsMock.mockResolvedValueOnce([true, false, true] as never)
+
+    const active = await readActiveMigrationOperatorApprovals({
+      eoa: EOA,
+      hcaAddress: HCA,
+      wagmiConfig: WAGMI,
+    })
+
+    expect(active.map(({ id }) => id)).toEqual([
+      'base-registrar:hca',
+      'eth-registry:hca',
+    ])
+    expect(readContractsMock.mock.calls[0]?.[1].contracts).toHaveLength(3)
+  })
+})
+
 describe('planMigrationApprovals', () => {
   const needsFor = (unwrappedTokenIds: readonly bigint[]) => ({
     hasUnwrapped: unwrappedTokenIds.length > 0,
@@ -158,17 +179,20 @@ describe('planMigrationApprovals', () => {
     ])
   })
 
-  it('uses one operator approval when two registrations are missing', () => {
+  it('keeps approvals token-scoped when two registrations are missing', () => {
     expect(
       planMigrationApprovals({
         hcaAddress: HCA,
         needs: needsFor([TOKEN_ONE, TOKEN_TWO]),
         status: statusFor([TOKEN_ONE, TOKEN_TWO]),
       }),
-    ).toMatchObject([{ kind: 'operator', id: 'base-registrar:hca' }])
+    ).toMatchObject([
+      { kind: 'erc721-token', tokenId: TOKEN_ONE },
+      { kind: 'erc721-token', tokenId: TOKEN_TWO },
+    ])
   })
 
-  it('counts only missing token approvals when selecting the strategy', () => {
+  it('approves only the selected tokens still missing permission', () => {
     expect(
       planMigrationApprovals({
         hcaAddress: HCA,
@@ -181,7 +205,10 @@ describe('planMigrationApprovals', () => {
           ],
         }),
       }),
-    ).toMatchObject([{ kind: 'operator', id: 'base-registrar:hca' }])
+    ).toMatchObject([
+      { kind: 'erc721-token', tokenId: TOKEN_TWO },
+      { kind: 'erc721-token', tokenId: TOKEN_THREE },
+    ])
   })
 
   it('omits registration grants when every token is already approved', () => {
