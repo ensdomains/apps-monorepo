@@ -18,7 +18,7 @@ describe('UpgradeBanner', () => {
   // An unlocked wrapped name leaves the NameWrapper as part of the upgrade, so
   // the banner says so and the CTA names both steps.
   it('tells the holder of a wrapped name it is unwrapped on the way', () => {
-    render(<UpgradeBanner name="jooooe.eth" wrapped />)
+    render(<UpgradeBanner name="jooooe.eth" isWrapped />)
 
     expect(
       screen.getByText(

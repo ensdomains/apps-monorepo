@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createTestWrapper } from '@/test-utils'
 
 const CONTROLLER = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
@@ -8,6 +8,11 @@ const RESOLVER = '0x2222222222222222222222222222222222222222'
 
 let protocolVersion: 'ENSv1' | 'ENSv2' = 'ENSv1'
 let isInGrace = false
+let migrationStatus: {
+  data: unknown
+  isLoading: boolean
+  isMigratableByConnectedOwner: boolean
+} = { data: undefined, isLoading: false, isMigratableByConnectedOwner: false }
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-router')>()
@@ -48,16 +53,7 @@ vi.mock('@/features/renew/hooks/useCanExtend', () => ({
   useCanExtend: () => ({ canExtend: false, isLoading: false }),
 }))
 vi.mock('@/features/migration/hooks/useMigrationStatus', () => ({
-  getMigrationStatusQueryOptions: () => ({
-    queryKey: ['get-migration-status'],
-    queryFn: () => null,
-    enabled: false,
-  }),
-  useMigrationStatus: () => ({
-    data: undefined,
-    isLoading: false,
-    isMigratableByConnectedOwner: false,
-  }),
+  useMigrationStatus: () => migrationStatus,
 }))
 
 // Everything else in the header list is covered by its own tests; this route
@@ -78,8 +74,11 @@ vi.mock('@/features/profile/components/RegistryCard', () => ({
   RegistryCard: () => null,
 }))
 vi.mock('@/features/profile/components/ProtocolRow', () => ({
-  ProtocolRow: ({ migration }: { migration?: unknown }) => (
-    <div data-testid="protocol-row">{JSON.stringify(migration)}</div>
+  ProtocolRow: ({ protocolVersion }: { protocolVersion: string }) => (
+    <div data-testid="protocol-row">{protocolVersion}</div>
+  ),
+  V1ProtocolRow: ({ name }: { name: string }) => (
+    <div data-testid="v1-protocol-row">{name}</div>
   ),
 }))
 vi.mock('@/features/profile/components/SubnameCount', () => ({
@@ -124,12 +123,6 @@ vi.mock('@tanstack/react-query', async () => {
               registryAddress: REGISTRY,
               protocolVersion,
             },
-            isLoading: false,
-            error: null,
-          }
-        case 'get-migration-status':
-          return {
-            data: { migratable: false },
             isLoading: false,
             error: null,
           }
@@ -205,15 +198,65 @@ describe('name route — Owner row', () => {
 })
 
 describe('name route — Protocol row', () => {
-  // The verdict is about the name, so a visitor who cannot migrate it still
-  // sees "Cannot be migrated" rather than a bare protocol version.
-  it('hands the row the name-scoped migration verdict', () => {
+  // The V1 row fetches its own name-scoped verdict, so a visitor who cannot
+  // migrate the name still sees whether it can be migrated.
+  it('renders the V1 row, which owns the migration verdict, for a V1 name', () => {
     protocolVersion = 'ENSv1'
 
     renderRoute()
 
-    expect(screen.getByTestId('protocol-row')).toHaveTextContent(
-      JSON.stringify({ migratable: false }),
-    )
+    expect(screen.getByTestId('v1-protocol-row')).toHaveTextContent('alice.eth')
+    expect(screen.queryByTestId('protocol-row')).not.toBeInTheDocument()
+  })
+
+  it('renders the plain row for a V2 name', () => {
+    protocolVersion = 'ENSv2'
+
+    renderRoute()
+
+    expect(screen.getByTestId('protocol-row')).toHaveTextContent('ENSv2')
+    expect(screen.queryByTestId('v1-protocol-row')).not.toBeInTheDocument()
+  })
+})
+
+describe('name route — upgrade banner', () => {
+  afterEach(() => {
+    migrationStatus = {
+      data: undefined,
+      isLoading: false,
+      isMigratableByConnectedOwner: false,
+    }
+  })
+
+  const holderMigration = (tokenType: string) => ({
+    data: { migratable: true, tokenHolder: CONTROLLER, tokenType },
+    isLoading: false,
+    isMigratableByConnectedOwner: true,
+  })
+
+  it('tells the holder of an unlocked wrapped name it is unwrapped on the way', () => {
+    protocolVersion = 'ENSv1'
+    migrationStatus = holderMigration('unlocked')
+
+    renderRoute()
+
+    expect(screen.getByText(/must be unwrapped before/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /Unwrap and upgrade/ }),
+    ).toBeInTheDocument()
+  })
+
+  // Locked names migrate still wrapped, so they get the plain upgrade copy.
+  it('offers a plain upgrade for a locked wrapped name', () => {
+    protocolVersion = 'ENSv1'
+    migrationStatus = holderMigration('locked-2ld')
+
+    renderRoute()
+
+    expect(screen.getByText(/reserved on ENS v2/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /Upgrade to v2/ }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/must be unwrapped/)).not.toBeInTheDocument()
   })
 })

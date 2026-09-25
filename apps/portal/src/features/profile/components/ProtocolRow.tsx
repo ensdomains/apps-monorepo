@@ -1,5 +1,9 @@
+import { useQuery } from '@tanstack/react-query'
 import { Layers } from 'lucide-react'
-import type { MigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
+import {
+  getMigrationStatusQueryOptions,
+  type MigrationStatus,
+} from '@/features/migration/hooks/useMigrationStatus'
 import type { ProtocolVersion } from '@/utils/types'
 import { InfoRow } from './InfoRow'
 
@@ -29,5 +33,22 @@ export const ProtocolRow = ({
         </>
       )}
     </InfoRow>
+  )
+}
+
+/**
+ * Protocol row for an ENSv1 name. The verdict is a fact about the name, so it
+ * is evaluated against the name's own v1 token holder rather than the
+ * connected wallet: a visitor still sees whether the name can be migrated.
+ */
+export const V1ProtocolRow = ({ name }: { readonly name: string }) => {
+  const { data, isLoading } = useQuery(getMigrationStatusQueryOptions({ name }))
+
+  return (
+    <ProtocolRow
+      protocolVersion="ENSv1"
+      migration={data}
+      isLoading={isLoading}
+    />
   )
 }

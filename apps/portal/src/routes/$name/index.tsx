@@ -15,17 +15,17 @@ import { SyncManagerBanner } from '@/features/dns-import/components/SyncManagerB
 import { useDnsSyncStatus } from '@/features/dns-import/hooks/useDnsSyncStatus'
 import { RecentHistoryTimeline } from '@/features/history/components/RecentHistoryTimeline'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
-import {
-  getMigrationStatusQueryOptions,
-  useMigrationStatus,
-} from '@/features/migration/hooks/useMigrationStatus'
+import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
 import { DnsManagerRow } from '@/features/ownership/components/DnsManagerRow'
 import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { ParentName } from '@/features/profile/components/ParentName'
-import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
+import {
+  ProtocolRow,
+  V1ProtocolRow,
+} from '@/features/profile/components/ProtocolRow'
 import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
 import { RecordCount } from '@/features/profile/components/RecordCount'
 import { RegistryCard } from '@/features/profile/components/RegistryCard'
@@ -157,13 +157,6 @@ const Profile = ({
   })
 
   const migrationQuery = useMigrationStatus(name, {
-    enabled: ownerQuery.data?.protocolVersion === 'ENSv1',
-  })
-  // The Protocol row states a fact about the name, so it is evaluated against
-  // the name's own v1 token holder rather than the connected wallet: a visitor
-  // still sees whether the name can be migrated.
-  const nameMigrationQuery = useQuery({
-    ...getMigrationStatusQueryOptions({ name }),
     enabled: ownerQuery.data?.protocolVersion === 'ENSv1',
   })
 
@@ -396,7 +389,9 @@ const Profile = ({
       {showUpgradeBanner && (
         <UpgradeBanner
           name={name}
-          wrapped={migration?.migratable && migration.tokenType === 'unlocked'}
+          isWrapped={
+            migration?.migratable && migration.tokenType === 'unlocked'
+          }
         />
       )}
 
@@ -453,11 +448,11 @@ const Profile = ({
             asRow
             protocolVersion={resolvedProtocolVersion}
           />
-          <ProtocolRow
-            protocolVersion={resolvedProtocolVersion}
-            migration={nameMigrationQuery.data}
-            isLoading={nameMigrationQuery.isLoading}
-          />
+          {resolvedProtocolVersion === 'ENSv1' ? (
+            <V1ProtocolRow name={name} />
+          ) : (
+            <ProtocolRow protocolVersion={resolvedProtocolVersion} />
+          )}
         </div>
 
         {/* Counter cards */}
