@@ -6,7 +6,7 @@ import {
   primaryNameGas,
 } from '@ens-apps/smart-account'
 import type { Address, Hex, PublicClient } from 'viem'
-import { decodeFunctionData, isAddressEqual, parseAbi } from 'viem'
+import { decodeFunctionData, isAddressEqual, parseAbi, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EOASigner, Signer } from '../../types/signer.types'
@@ -214,20 +214,33 @@ describe('submitRevealBatchActor', () => {
 describe('verifyHcaRegistrationActor', () => {
   const publicClient = { chain: sepolia } as unknown as PublicClient
   const hcaResolver = computeResolverAddress({ chainId: sepolia.id, hca: HCA })
+  const DURATION = 31_536_000n
+  const ATTACKER_REGISTRY =
+    '0xbadbad0000000000000000000000000000000001' as Address
 
-  const registeredState = (latestOwner: Address) => ({
+  const registeredState = (latestOwner: Address, expiry?: bigint) => ({
     status: 2, // IPermissionedRegistry.Status.REGISTERED
-    expiry: 0n,
+    expiry: expiry ?? BigInt(Math.floor(Date.now() / 1000)) + DURATION,
     latestOwner,
     tokenId: 0n,
     resource: 0n,
   })
 
-  /** `getState` then `getResolver`, in the order the actor reads them. */
-  const mockRegistry = (state: unknown, resolver: Address) => {
+  /**
+   * `getState`, `getResolver`, `getSubregistry`, `commitmentAt` — the order the
+   * actor reads them. `commitTime` 0 means our commitment was consumed.
+   */
+  const mockRegistry = (
+    state: unknown,
+    resolver: Address,
+    subregistry: Address = zeroAddress,
+    commitTime: bigint = 0n,
+  ) => {
     readContract
       .mockResolvedValueOnce(state)
       .mockResolvedValueOnce(resolver as unknown)
+      .mockResolvedValueOnce(subregistry as unknown)
+      .mockResolvedValueOnce(commitTime as unknown)
   }
 
   const verify = () =>
@@ -236,6 +249,8 @@ describe('verifyHcaRegistrationActor', () => {
       wallet: WALLET,
       hca: HCA,
       publicClient,
+      commitment: COMMITMENT,
+      duration: DURATION,
     })
 
   it('verifies a name owned by the wallet and resolved by the HCA resolver', async () => {
@@ -256,6 +271,35 @@ describe('verifyHcaRegistrationActor', () => {
     mockRegistry(registeredState(WALLET), WALLET)
 
     expect((await verify())._unsafeUnwrap().verified).toBe(false)
+  })
+
+  it('rejects a registration carrying a subregistry we never set', async () => {
+    // An attacker's registration: our wallet as owner, our resolver, but their
+    // subregistry — so they own the namespace beneath the name.
+    mockRegistry(registeredState(WALLET), hcaResolver, ATTACKER_REGISTRY)
+
+    const { verified, reason } = (await verify())._unsafeUnwrap()
+    expect(verified).toBe(false)
+    expect(reason).toMatch(/subregistry/i)
+  })
+
+  it('rejects a registration that left our commitment unconsumed', async () => {
+    // Only we can consume it, so a recorded commitment means somebody else's
+    // reveal registered this name — even with every other field matching.
+    mockRegistry(registeredState(WALLET), hcaResolver, zeroAddress, 1_700_000n)
+
+    const { verified, reason } = (await verify())._unsafeUnwrap()
+    expect(verified).toBe(false)
+    expect(reason).toMatch(/commitment/i)
+  })
+
+  it('rejects a registration expiring sooner than the duration we paid for', async () => {
+    const oneMonth = BigInt(Math.floor(Date.now() / 1000)) + 28n * 86_400n
+    mockRegistry(registeredState(WALLET, oneMonth), hcaResolver)
+
+    const { verified, reason } = (await verify())._unsafeUnwrap()
+    expect(verified).toBe(false)
+    expect(reason).toMatch(/expiry/i)
   })
 })
 
