@@ -64,6 +64,7 @@ export const AddressProfileView = ({
       <ProfileThemeColorProvider value={themeVars['--theme-color']}>
         <ProfileBanner
           defaultHeaderUrl={defaultHeaderUrl}
+          fadeClassName="bottom-0"
           headerLoading={false}
           headerUrl={headerUrl}
           name={primaryName ?? address}

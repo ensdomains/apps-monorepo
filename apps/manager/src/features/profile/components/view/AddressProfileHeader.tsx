@@ -1,7 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Copy } from 'lucide-react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { ProfileAddressName } from '@/features/profile/service/profileAddressNames'
@@ -16,7 +15,7 @@ import { profileRegistrationQuery } from '@/features/profile/service/profileRegi
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import type { ProfileRecords } from '@/features/profile/types'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
-import { truncateAddress } from '@/lib/utils'
+import { cn, truncateAddress } from '@/lib/utils'
 import { findPrimaryAddressName } from './addressProfilePrimary'
 import { ProfileAbout } from './ProfileAbout'
 import { ProfileAvatar } from './ProfileAvatar'
@@ -27,24 +26,25 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
   const { copied, copy } = useCopyFeedback()
 
   return (
-    <div className="inline-flex max-w-full items-center gap-1">
-      <h1 className="truncate font-semi-mono text-[28px] text-ens-quartz-900 leading-[0.96] tracking-[-0.56px] md:text-[32px] md:tracking-[-0.64px]">
-        {truncateAddress(address)}
-      </h1>
+    <h1 className="max-w-full font-semi-mono text-[28px] text-ens-quartz-900 leading-[0.96] tracking-[-0.56px] md:text-[32px] md:tracking-[-0.64px]">
       <button
-        aria-label={t`Copy to clipboard`}
-        className="inline-flex size-6 shrink-0 items-center justify-center text-ens-quartz-400"
+        aria-label={`${address} — ${t`Copy to clipboard`}`}
+        className="group inline-flex max-w-full cursor-pointer items-center gap-1 rounded-sm text-left focus-visible:outline-2 focus-visible:outline-ens-lapis-core focus-visible:outline-offset-2"
         onClick={() => copy(address)}
         title={t`Copy to clipboard`}
         type="button"
       >
-        {copied ? (
-          <Check className="size-5" />
-        ) : (
-          <Copy className="size-5" strokeWidth={1.5} />
-        )}
+        <span className="min-w-0 truncate">{truncateAddress(address)}</span>
+        <MSymbol
+          aria-hidden="true"
+          className={cn(
+            'ms-opsz-30 ms-wght-500 shrink-0 text-ens-quartz-400 group-hover:opacity-100 group-focus-visible:opacity-100',
+            copied ? 'opacity-100' : 'opacity-0',
+          )}
+          symbol={copied ? 'check' : 'content_copy'}
+        />
       </button>
-    </div>
+    </h1>
   )
 }
 
@@ -186,9 +186,8 @@ export const AddressProfileHeader = ({
       ) : null}
 
       {primaryName ? (
-        <div className="flex flex-col gap-5 lg:landscape:flex-row lg:landscape:items-stretch lg:landscape:gap-5.5">
-          {/* Keep the Figma avatar width while letting the bio set their shared height. */}
-          <div className="relative hidden w-[152.257px] shrink-0 lg:landscape:block">
+        <div className="flex flex-col gap-5 lg:landscape:grid lg:landscape:grid-cols-[max-content_minmax(0,1fr)] lg:landscape:items-start lg:landscape:gap-5.5">
+          <div className="relative hidden aspect-square h-full max-h-50 lg:landscape:block">
             <ProfileAvatar
               avatarLoading={false}
               avatarUrl={avatarUrl}
