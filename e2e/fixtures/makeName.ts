@@ -15,7 +15,7 @@
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { setRecords } from '@ensdomains/ensjs/wallet/v1'
+import { setRecords } from '@ensdomains/ensjs/wallet/v2'
 
 import {
   permissionedRegistryGetExpirySnippet,
