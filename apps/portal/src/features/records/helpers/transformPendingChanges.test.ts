@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
-import { transformPendingChangesToSetRecords } from './transformPendingChanges'
+import type { EditableRecord } from '@/utils/records/editRecordUtils'
+import {
+  type SetRecordsInput,
+  transformPendingChangesToSetRecords,
+} from './transformPendingChanges'
 
 describe('transformPendingChangesToSetRecords', () => {
   const originalRecords: NameRecord[] = [
@@ -115,9 +119,9 @@ describe('transformPendingChangesToSetRecords', () => {
       })
 
       expect(result.texts).toEqual([
-        { key: 'twitter', value: '@ens' },
-        { key: 'name', value: 'Jane' },
         { key: 'description', value: '' },
+        { key: 'name', value: 'Jane' },
+        { key: 'twitter', value: '@ens' },
       ])
     })
 
@@ -129,6 +133,119 @@ describe('transformPendingChangesToSetRecords', () => {
       })
 
       expect(result).toEqual({})
+    })
+  })
+
+  describe('same-key replacement', () => {
+    const records: NameRecord[] = [
+      { type: 'text', key: 'url', value: 'https://old.example' },
+      { type: 'address', key: 'base', value: '0xold', id: 2147492101 },
+      { type: 'contentHash', value: 'ipfs://old' },
+      { type: 'abi', value: '{"old":true}' },
+    ]
+    const replacements = [
+      {
+        id: 'text-url',
+        record: { type: 'text', key: 'url', value: 'https://new.example' },
+        pick: (r: SetRecordsInput) => r.texts,
+        expected: [{ key: 'url', value: 'https://new.example' }],
+        cleared: [{ key: 'url', value: '' }],
+      },
+      {
+        id: 'address-base',
+        record: {
+          type: 'address',
+          key: 'base',
+          value: '0xnew',
+          id: 2147492101,
+        },
+        pick: (r: SetRecordsInput) => r.coins,
+        expected: [{ coin: 2147492101, value: '0xnew' }],
+        cleared: [{ coin: 2147492101, value: '' }],
+      },
+      {
+        id: 'contentHash',
+        record: { type: 'contentHash', value: 'ipfs://new' },
+        pick: (r: SetRecordsInput) => r.contentHash,
+        expected: 'ipfs://new',
+        cleared: null,
+      },
+      {
+        id: 'abi',
+        record: { type: 'abi', value: '{"new":true}' },
+        pick: (r: SetRecordsInput) => r.abi,
+        expected: { encodeAs: 'json', data: { new: true } },
+        cleared: { encodeAs: 'json', data: null },
+      },
+    ] as const satisfies ReadonlyArray<{
+      id: string
+      record: EditableRecord
+      pick: (r: SetRecordsInput) => unknown
+      expected: unknown
+      cleared: unknown
+    }>
+
+    it.each(
+      replacements,
+    )('coalesces a delete plus an add of $id into one set of the new value', ({
+      id,
+      record,
+      pick,
+      expected,
+    }) => {
+      const result = transformPendingChangesToSetRecords(records, {
+        newRecords: [{ ...record, _uid: 'new' }],
+        editedValues: new Map(),
+        deletedIds: new Set([id]),
+      })
+
+      expect(pick(result)).toEqual(expected)
+    })
+
+    it.each(replacements)('serialises a lone delete of $id as one clear', ({
+      id,
+      pick,
+      cleared,
+    }) => {
+      const result = transformPendingChangesToSetRecords(records, {
+        newRecords: [],
+        editedValues: new Map(),
+        deletedIds: new Set([id]),
+      })
+
+      expect(pick(result)).toEqual(cleared)
+    })
+
+    it('never emits a clear after a set, and orders clears before sets', () => {
+      const result = transformPendingChangesToSetRecords(
+        [
+          ...records,
+          { type: 'text', key: 'email', value: 'a@b.c' },
+          { type: 'address', key: 'eth', value: '0xeth', id: 60 },
+        ],
+        {
+          newRecords: [
+            { type: 'text', key: 'url', value: 'https://new.example' },
+            { type: 'address', key: 'base', value: '0xnew', id: 2147492101 },
+          ],
+          editedValues: new Map(),
+          deletedIds: new Set([
+            'text-url',
+            'address-base',
+            'text-email',
+            'address-eth',
+          ]),
+        },
+      )
+
+      expect(result.texts).toEqual([
+        { key: 'email', value: '' },
+        { key: 'url', value: 'https://new.example' },
+      ])
+      expect(result.coins).toEqual([
+        { coin: 60, value: '' },
+        { coin: 2147492101, value: '0xnew' },
+      ])
     })
   })
 

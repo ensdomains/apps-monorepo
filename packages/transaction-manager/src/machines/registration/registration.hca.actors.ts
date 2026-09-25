@@ -35,6 +35,7 @@ import {
   readCommitment,
   readRegisterPrice,
   registerLegGasLimit,
+  withBudgetDrift,
 } from '@ens-apps/smart-account'
 import type { Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
@@ -534,11 +535,76 @@ export function readHcaUsdcBalanceActor(input: {
 }
 
 /**
+ * Bounds a funding permit's value must satisfy before the wallet is asked to
+ * sign it. Both are optional and independent — each rules out a different way
+ * the value could be wrong.
+ */
+export interface PermitValueBounds {
+  /**
+   * Ceiling (USDC 6dp) derived WITHOUT the orchestrator's figures — the
+   * on-chain registration price plus a fixed execution-cost margin
+   * (`hcaBudgetMaximum`). Catches a quote that is simply too large, whatever
+   * the user was or was not shown.
+   */
+  readonly expectedMaximum?: bigint
+  /**
+   * The USDC (6dp) figure the user was shown for THIS debit before the prompt.
+   * Catches a value that is plausible on its own but is not the one consented
+   * to. Only an upward divergence beyond `withBudgetDrift` refuses: being asked
+   * to approve less than was displayed has not misled anyone, and the two
+   * figures come from separate quotes that legitimately drift with gas.
+   */
+  readonly displayedValue?: bigint
+}
+
+/**
+ * Why this permit value must not be signed, or `null` when it is in bounds.
+ *
+ * Pure and exported so the refusal is testable without a wallet: the whole
+ * point of the check is that it happens BEFORE any signature is requested.
+ */
+export function rejectPermitValue(
+  value: bigint,
+  bounds: PermitValueBounds,
+): string | null {
+  if (bounds.expectedMaximum !== undefined && value > bounds.expectedMaximum) {
+    return (
+      `Refusing to request a signature: the funding permit would authorize ` +
+      `${formatUnits(value, 6)} USDC, above the expected maximum of ` +
+      `${formatUnits(bounds.expectedMaximum, 6)} USDC for this registration. ` +
+      `The amount is quoted by the payment relayer and this bound is computed ` +
+      `independently from the on-chain price, so a value above it means the ` +
+      `quote cannot be trusted.`
+    )
+  }
+
+  if (bounds.displayedValue !== undefined) {
+    const allowed = withBudgetDrift(bounds.displayedValue)
+    if (value > allowed) {
+      return (
+        `Refusing to request a signature: the funding permit would authorize ` +
+        `${formatUnits(value, 6)} USDC, but ` +
+        `${formatUnits(bounds.displayedValue, 6)} USDC was shown at checkout. ` +
+        `Please start the registration again so the amount you approve is the ` +
+        `amount you were quoted.`
+      )
+    }
+  }
+
+  return null
+}
+
+/**
  * Sign the HCA funding permit — the SECOND (and last) wallet prompt:
  * EIP-2612 permit with `owner = wallet`, `spender = HCA`, `value = budget`.
  *
  * NOT a registrar allowance: the registrar is paid by the HCA itself inside
  * the reveal batch (`approve(price)` from the HCA's own balance).
+ *
+ * `value` ultimately traces back to figures the orchestrator returned over
+ * HTTP, so callers pass {@link PermitValueBounds} and this refuses outright
+ * rather than prompting. Both are optional because one caller (a `hcaBudget`
+ * override supplied by the app itself) has no orchestrator figure to bound.
  */
 export function signFundingPermitActor(input: {
   wallet: Address
@@ -547,7 +613,15 @@ export function signFundingPermitActor(input: {
   approvalSigner: Signer
   publicClient: PublicClient
   chainId: number
+  bounds?: PermitValueBounds
 }): ResultAsync<PermitSignature, Error> {
+  // Before anything else, including the RPC reads: a refusal must never reach
+  // the wallet, and must not depend on a network round-trip succeeding first.
+  const refusal = input.bounds
+    ? rejectPermitValue(input.value, input.bounds)
+    : null
+  if (refusal) return errAsync(new Error(refusal))
+
   if (input.approvalSigner.type !== 'eoa') {
     return errAsync(
       new Error('Funding permit requires an EOA signer (the wallet).'),

@@ -15,6 +15,7 @@ import {
 } from '../types/transaction.types'
 
 const MAX_TELEMETRY_BYTES = 900 * 1024
+const MAX_ERROR_TEXT_CHARS = 4096
 
 interface RunBootstrapInput {
   txId: string
@@ -536,7 +537,12 @@ function trimTimelineForSize(payload: FailedRunPayloadV2): FailedRunPayloadV2 {
       const terminal = importantEvents.find(
         (event) => event.sequence === terminalSequence,
       )
-      importantEvents = terminal ? [...kept, terminal] : kept
+      const halved = terminal ? [...kept, terminal] : kept
+      // Halving a single removable event keeps it (index 0), so once we are
+      // down to one important event plus the terminal one this rebuilds the
+      // same timeline forever. Give up rather than spin.
+      if (halved.length >= importantEvents.length) break
+      importantEvents = halved
     } else {
       break
     }
@@ -567,9 +573,43 @@ function trimTimelineForSize(payload: FailedRunPayloadV2): FailedRunPayloadV2 {
     if (estimateTelemetryBytes(withShortData) <= MAX_TELEMETRY_BYTES) {
       return withShortData
     }
+
+    candidate = withShortData
   }
 
-  return candidate
+  // Last resort: the surviving events are individually oversized, because
+  // TransactionSubmissionError serializes the orchestrator's context and
+  // simulation blobs into Error.message and that message is copied onto both
+  // the retrying and the terminal event. Dropping more events cannot help
+  // here, so clamp the error text rather than emit a multi-megabyte payload.
+  return {
+    ...candidate,
+    timeline: candidate.timeline.map((event) =>
+      event.error ? { ...event, error: clampErrorText(event.error) } : event,
+    ),
+    summary: {
+      ...candidate.summary,
+      finalError: clampErrorText(candidate.summary.finalError),
+    },
+  }
+}
+
+function clampErrorText(
+  error: SerializedRunError | undefined,
+): SerializedRunError | undefined {
+  if (!error) return error
+
+  const clamp = (value: string | undefined) =>
+    value && value.length > MAX_ERROR_TEXT_CHARS
+      ? `${value.slice(0, MAX_ERROR_TEXT_CHARS)}...`
+      : value
+
+  return {
+    ...error,
+    message: clamp(error.message),
+    stack: clamp(error.stack),
+    cause: clampErrorText(error.cause),
+  }
 }
 
 function shouldDedupeEvent(

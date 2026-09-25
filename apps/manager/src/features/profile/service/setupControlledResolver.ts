@@ -67,6 +67,18 @@ const hasRecords = ({
   Boolean(contentHash?.trim()) ||
   Boolean(abi?.trim())
 
+/**
+ * `name` arrives either as a bare label (`alice`) or as a full name
+ * (`alice.eth`, `sub.alice.eth`, `jobintime.xyz`). Only a bare label is missing
+ * a TLD, so only it gets the `.eth` suffix.
+ *
+ * Appending `.eth` to every name that merely did not end in it turned an
+ * imported DNS name into `jobintime.xyz.eth`, and the registry lookup then
+ * failed naming a name the user never typed.
+ */
+const qualifyName = (name: string): string =>
+  name.includes('.') ? name : `${name}.eth`
+
 export interface SetupControlledResolverParams {
   /** ENS name, with or without the `.eth` suffix */
   readonly name: string
@@ -95,10 +107,11 @@ export interface SetupControlledResolverParams {
  * pointer changes so a rejected record transaction cannot leave the live name
  * on an empty resolver, and a retry cannot publish stale attempted values.
  *
- * Works for any name under `.eth`: `setResolver` is sent to whichever V2
- * registry holds the name's leaf label (the `.eth` registry for a 2LD, the
- * parent's registry for a subname). Locating that registry happens first, so a
- * name no V2 registry holds fails before anything is submitted.
+ * Only a name an ENS V2 registry holds can be set up this way: `setResolver`
+ * is sent to whichever V2 registry holds the name's leaf label (the `.eth`
+ * registry for a 2LD, the parent's registry for a subname). Locating that
+ * registry happens first, so a name no V2 registry holds — an imported DNS name,
+ * say — fails with `NameRegistryNotFoundError` before anything is submitted.
  *
  * Resolves with the resolver address once the final transaction is confirmed.
  */
@@ -112,8 +125,7 @@ export async function setupControlledResolver({
   after,
   description = `Set up resolver for ${name}`,
 }: SetupControlledResolverParams): Promise<Address> {
-  const fullName = name.endsWith('.eth') ? name : `${name}.eth`
-  const location = await resolveNameRegistry(fullName)
+  const location = await resolveNameRegistry(qualifyName(name))
 
   const existing = await findExistingPermRes({
     eoa: ownerAddress,

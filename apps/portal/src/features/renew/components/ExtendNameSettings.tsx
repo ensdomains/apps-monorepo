@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { truncateName } from '@/utils/formatting/truncateName'
 import type { SelectedName } from '../hooks/useRenewalTransactions'
 import type { ExtensionSpan } from '../utils/extensionDurationPicker'
 import { ExtendNameCheckoutSummary } from './ExtendNameCheckoutSummary'
@@ -25,10 +26,16 @@ export const ExtendNameSettings = ({
   onNext,
 }: ExtendNameSettingsProps) => {
   return (
-    <div className="space-y-6 mt-2">
+    <div className="space-y-6 mt-2 min-w-0">
       <div className="flex items-center gap-2">
         <NameAvatar name={selectedName.name} height="60px" width="60px" />
-        <h2 className="text-h2 w-max text-foreground">{selectedName.name}</h2>
+        <h2
+          className="text-h2 min-w-0 truncate text-foreground"
+          title={selectedName.name}
+          aria-label={selectedName.name}
+        >
+          {truncateName(selectedName.name)}
+        </h2>
       </div>
       <ExtensionDurationOrExpiryPicker
         span={span}

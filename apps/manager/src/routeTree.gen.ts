@@ -9,8 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as MigrationPermissionsRouteImport } from './routes/migration-permissions'
 import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AiRouteImport } from './routes/ai'
 import { Route as NameRouteRouteImport } from './routes/$name/route'
 import { Route as AddressRouteRouteImport } from './routes/$address/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -32,6 +34,11 @@ import { Route as DebugBackendSettingsRouteImport } from './routes/debug/backend
 import { Route as NotificationsAuthenticatedSettingsIndexRouteImport } from './routes/notifications/_authenticated/settings/index'
 import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/notifications/channels/email/verify'
 
+const MigrationPermissionsRoute = MigrationPermissionsRouteImport.update({
+  id: '/migration-permissions',
+  path: '/migration-permissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MigrationRoute = MigrationRouteImport.update({
   id: '/migration',
   path: '/migration',
@@ -40,6 +47,11 @@ const MigrationRoute = MigrationRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiRoute = AiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NameRouteRoute = NameRouteRouteImport.update({
@@ -152,8 +164,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$address': typeof AddressRouteRouteWithChildren
   '/$name': typeof NameRouteRouteWithChildren
+  '/ai': typeof AiRoute
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
+  '/migration-permissions': typeof MigrationPermissionsRoute
   '/notifications': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
@@ -174,8 +188,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai': typeof AiRoute
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
+  '/migration-permissions': typeof MigrationPermissionsRoute
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
@@ -198,8 +214,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$address': typeof AddressRouteRouteWithChildren
   '/$name': typeof NameRouteRouteWithChildren
+  '/ai': typeof AiRoute
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
+  '/migration-permissions': typeof MigrationPermissionsRoute
   '/notifications/_authenticated': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
@@ -224,8 +242,10 @@ export interface FileRouteTypes {
     | '/'
     | '/$address'
     | '/$name'
+    | '/ai'
     | '/dashboard'
     | '/migration'
+    | '/migration-permissions'
     | '/notifications'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
@@ -246,8 +266,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/ai'
     | '/dashboard'
     | '/migration'
+    | '/migration-permissions'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
@@ -269,8 +291,10 @@ export interface FileRouteTypes {
     | '/'
     | '/$address'
     | '/$name'
+    | '/ai'
     | '/dashboard'
     | '/migration'
+    | '/migration-permissions'
     | '/notifications/_authenticated'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
@@ -294,8 +318,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddressRouteRoute: typeof AddressRouteRouteWithChildren
   NameRouteRoute: typeof NameRouteRouteWithChildren
+  AiRoute: typeof AiRoute
   DashboardRoute: typeof DashboardRoute
   MigrationRoute: typeof MigrationRoute
+  MigrationPermissionsRoute: typeof MigrationPermissionsRoute
   NotificationsAuthenticatedRouteRoute: typeof NotificationsAuthenticatedRouteRouteWithChildren
   LegalPrivacyPolicyRoute: typeof LegalPrivacyPolicyRoute
   LegalTermsOfUseRoute: typeof LegalTermsOfUseRoute
@@ -313,6 +339,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/migration-permissions': {
+      id: '/migration-permissions'
+      path: '/migration-permissions'
+      fullPath: '/migration-permissions'
+      preLoaderRoute: typeof MigrationPermissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/migration': {
       id: '/migration'
       path: '/migration'
@@ -325,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai': {
+      id: '/ai'
+      path: '/ai'
+      fullPath: '/ai'
+      preLoaderRoute: typeof AiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$name': {
@@ -515,8 +555,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddressRouteRoute: AddressRouteRouteWithChildren,
   NameRouteRoute: NameRouteRouteWithChildren,
+  AiRoute: AiRoute,
   DashboardRoute: DashboardRoute,
   MigrationRoute: MigrationRoute,
+  MigrationPermissionsRoute: MigrationPermissionsRoute,
   NotificationsAuthenticatedRouteRoute:
     NotificationsAuthenticatedRouteRouteWithChildren,
   LegalPrivacyPolicyRoute: LegalPrivacyPolicyRoute,

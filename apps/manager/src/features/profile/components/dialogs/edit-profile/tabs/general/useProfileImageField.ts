@@ -13,10 +13,7 @@ import {
   getConstrainedCropOffset,
   getCropViewportSize,
 } from './ProfileImageField.crop'
-import {
-  MAX_FILE_SIZE_BYTES,
-  MAX_FILE_SIZE_MB,
-} from './ProfileImageField.helpers'
+import { getImageUploadError } from './ProfileImageField.helpers'
 import type {
   ProfileImageCropOffset,
   ProfileImageFieldProps,
@@ -149,16 +146,10 @@ export const useProfileImageField = ({
   const processSelectedFile = (file: File) => {
     if (disabled) return
 
-    if (!file.type.startsWith('image/')) {
-      send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
-      return
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      send({
-        type: 'SET_ERROR',
-        error: `Image must be under ${MAX_FILE_SIZE_MB}MB`,
-      })
+    const error = getImageUploadError(file)
+    if (error) {
+      onActivate()
+      send({ type: 'SET_ERROR', error })
       return
     }
 

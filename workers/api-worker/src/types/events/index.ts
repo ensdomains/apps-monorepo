@@ -1,7 +1,21 @@
+import {
+  type NameExpiryStage,
+  nameExpiryStageSchema,
+} from '@ens-apps/shared-schema/notifications'
 import * as v from 'valibot'
 
-export const expiryStageIdSchema = v.picklist(['30d', '7d', '1d', 'expired'])
+export const expiryStageIdSchema = nameExpiryStageSchema
 export type ExpiryStageId = v.InferOutput<typeof expiryStageIdSchema>
+
+export const EXPIRY_STAGE_IDS = [
+  'expiry-30d',
+  'expiry-7d',
+  'expiry-1d',
+  'grace-start',
+  'grace-7d',
+  'grace-1d',
+  'premium-start',
+] as const satisfies readonly NameExpiryStage[]
 
 export const expiryEventSchema = v.object({
   type: v.literal('name_expiring'),

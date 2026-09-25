@@ -16,17 +16,14 @@ jobs:
           # Fetch all history for change detection
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@v2
+        env:
+          # pnpm/setup has no frozen-lockfile input; force it via config env.
+          PNPM_CONFIG_FROZEN_LOCKFILE: true
         with:
-          node-version: "lts/*"
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          runtime: node@lts
+          cache: true
 
       - name: Determine base ref
         id: base
@@ -39,10 +36,29 @@ jobs:
             echo "ref=origin/main" >> $GITHUB_OUTPUT
           fi
 
+      # A root-file change selects the workspace root, which has none of these
+      # scripts, while subtracting only the root would leave nothing selected —
+      # so widen to the whole workspace whenever the root is in the selection.
+      - name: Determine package scope
+        env:
+          REF: ${{ steps.base.outputs.ref }}
+        run: |
+          if pnpm --filter="...[$REF]" list --depth=-1 --json \
+            | jq -e --arg root "$PWD" 'any(.[]; .path == $root)' > /dev/null; then
+            echo "🌐 Root files changed — scoping checks to every workspace package."
+            echo "SCOPE=--filter=!{.}" >> "$GITHUB_ENV"
+          else
+            echo "🎯 Scoping checks to packages changed since $REF and their dependents."
+            echo "SCOPE=--filter=...[$REF] --filter=!{.}" >> "$GITHUB_ENV"
+          fi
+
+      # `set -f` keeps the glob characters in `$SCOPE` (`[ref]`, `!{.}`) from
+      # being expanded against the working tree; the words still split.
       - name: Type check changed packages
         run: |
           echo "🔍 Type checking changed packages and their dependents..."
-          pnpm --filter="...[${{ steps.base.outputs.ref }}]" typecheck
+          set -f
+          pnpm $SCOPE typecheck
 
       # No `--if-present`: a package without a `lint` script must fail the
       # build, not be skipped. That flag silently green-lit every package
@@ -50,12 +66,14 @@ jobs:
       - name: Run Biome lint on changed packages
         run: |
           echo "🔍 Running Biome on changed packages..."
-          pnpm --filter="...[${{ steps.base.outputs.ref }}]" lint
+          set -f
+          pnpm $SCOPE lint
 
       - name: Run tests with coverage on changed packages
         run: |
           echo "📊 Running coverage tests on changed packages..."
-          pnpm --filter="...[${{ steps.base.outputs.ref }}]" test:coverage
+          set -f
+          pnpm $SCOPE test:coverage
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v7
@@ -66,4 +84,5 @@ jobs:
       # - name: Run Knip on changed packages
       #   run: |
       #     echo "🧹 Checking for unused code in changed packages..."
-      #     pnpm --filter="...[${{ steps.base.outputs.ref }}]" knip --include files,dependencies
+      #     set -f
+      #     pnpm $SCOPE knip --include files,dependencies

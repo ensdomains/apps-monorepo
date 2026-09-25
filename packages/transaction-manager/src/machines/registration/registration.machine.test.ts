@@ -45,6 +45,8 @@ const startHcaRegistration = (overrides: {
   readHcaUsdcBalance?: ReturnType<typeof vi.fn>
   estimateHcaBudget?: ReturnType<typeof vi.fn>
   hcaBudget?: bigint
+  /** The USDC wallet debit the confirm screen showed, if any. */
+  displayedWalletDebit?: bigint
   /** Stored session-enable proof, as rebuilt from storage on every run. */
   hcaSessionEnable?: HcaSessionEnableParams
 }) => {
@@ -55,6 +57,9 @@ const startHcaRegistration = (overrides: {
       commitCost: 4_000_000n,
       registerCost: 6_000_000n,
       registrationPrice: 5_000_000n,
+      // price + HCA_MAX_LEG_FEES_USDC — the ceiling the estimator accepted this
+      // budget under, and the bound the permit is then checked against.
+      expectedMaximum: 30_000_000n,
       source: 'quote' as const,
     }))
   const signFundingPermit =
@@ -100,6 +105,9 @@ const startHcaRegistration = (overrides: {
     hcaSessionEnable: overrides.hcaSessionEnable ?? SESSION_ENABLE,
     ...(overrides.hcaBudget !== undefined
       ? { hcaBudget: overrides.hcaBudget }
+      : {}),
+    ...(overrides.displayedWalletDebit !== undefined
+      ? { displayedWalletDebit: overrides.displayedWalletDebit }
       : {}),
   })
 
@@ -154,6 +162,62 @@ describe('registrationMachine — standalone-HCA funding', () => {
     expect(signFundingPermit.mock.calls[0][0].input).toMatchObject({
       value: BUDGET,
     })
+  })
+
+  it('bounds the permit it asks for by the ceiling and the displayed figure', async () => {
+    // `value` is derived from figures the orchestrator returned over HTTP, so
+    // the actor is handed both bounds it must re-check before prompting: one
+    // computed from the on-chain price, one from what the user was shown. Both
+    // net off the standing balance exactly as `value` does.
+    const balance = 1_000_000n
+    const { actor, signFundingPermit } = startHcaRegistration({
+      balances: [balance],
+      displayedWalletDebit: BUDGET - balance,
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(signFundingPermit.mock.calls[0][0].input).toMatchObject({
+      value: BUDGET - balance,
+      bounds: {
+        expectedMaximum: 30_000_000n - balance,
+        displayedValue: BUDGET - balance,
+      },
+    })
+  })
+
+  it('passes no consent bound when checkout had no figure to show', async () => {
+    // A failed budget quote leaves the confirm screen showing the rent alone.
+    // There is nothing the user consented to, so only the independent ceiling
+    // applies — inventing a bound here would block a legitimate registration.
+    const { actor, signFundingPermit } = startHcaRegistration({
+      balances: [0n],
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    const { bounds } = signFundingPermit.mock.calls[0][0].input
+    expect(bounds.displayedValue).toBeUndefined()
+    expect(bounds.expectedMaximum).toBe(30_000_000n)
+  })
+
+  it('requests no signature when the budget estimate is refused', async () => {
+    // The estimator throws when the orchestrator's figures exceed the expected
+    // maximum. The flow must stop there — the wallet is never reached.
+    const { actor, signFundingPermit } = startHcaRegistration({
+      estimateHcaBudget: vi.fn(async () => {
+        throw new Error('above the expected maximum of 30 USDC')
+      }),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+
+    expect(signFundingPermit).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.error?.message).toMatch(
+      /above the expected maximum/,
+    )
+    // Retryable: a transient bad quote should not strand the user.
+    expect(actor.getSnapshot().context.retryTarget).toBe('computingHcaBudget')
   })
 
   it('honours a caller-supplied budget instead of estimating one', async () => {

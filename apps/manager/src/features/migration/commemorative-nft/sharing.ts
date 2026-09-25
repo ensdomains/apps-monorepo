@@ -1,5 +1,4 @@
 import type { Address } from 'viem'
-import { mainnet, sepolia } from 'viem/chains'
 import {
   getCommemorativeNftContractAddress,
   getCommemorativeNftTokenId,
@@ -66,23 +65,10 @@ export const buildCommemorativeNftShareUrls = (
 export const buildCommemorativeNftMarketplaceUrl = (params: {
   readonly chainId: number
   readonly ownerAddress: Address
-  readonly minted: boolean
 }): string | undefined => {
-  if (!params.minted) return undefined
-
-  const assetBaseUrl =
-    params.chainId === mainnet.id
-      ? 'https://opensea.io/assets/ethereum'
-      : params.chainId === sepolia.id
-        ? 'https://testnets.opensea.io/assets/sepolia'
-        : undefined
-  if (!assetBaseUrl) return undefined
-
   const contractAddress = getCommemorativeNftContractAddress(params.chainId)
   if (!contractAddress) return undefined
 
   const tokenId = getCommemorativeNftTokenId(params.ownerAddress).toString()
-  // Retain the chain-specific asset link for Sepolia previews, although
-  // OpenSea no longer indexes testnets.
-  return `${assetBaseUrl}/${contractAddress}/${tokenId}`
+  return `https://opensea.io/assets/ethereum/${contractAddress}/${tokenId}`
 }
