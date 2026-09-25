@@ -17,13 +17,12 @@ vi.mock('@tanstack/react-router', () => ({
 
 // The EOA flow's first on-chain step resolves only when the test says so, and
 // the step after it is a spy: a flow that is really stopped never reaches it.
-// A test that needs the flow to go on past it sets `deploy.landed`; the later
+// A test that needs the flow to go on past it resolves the spy once; the later
 // steps then succeed until register, which the wallet rejects.
-const deploy = vi.hoisted(() => ({
-  finish: () => {},
-  landed: new Promise(() => {}),
-}))
-const waitForResolverDeployment = vi.hoisted(() => vi.fn())
+const deploy = vi.hoisted(() => ({ finish: () => {} }))
+const waitForResolverDeployment = vi.hoisted(() =>
+  vi.fn(() => new Promise(() => {})),
+)
 vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@ens-apps/transaction-manager')>()
@@ -37,10 +36,9 @@ vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
               deploy.finish = () => resolve({ txId: 'deploy', salt: 0n })
             }),
         ) as never,
-        resolveResolverDeployment: fromPromise(() => {
-          waitForResolverDeployment()
-          return deploy.landed
-        }) as never,
+        resolveResolverDeployment: fromPromise(() =>
+          waitForResolverDeployment(),
+        ) as never,
         generateCommitment: fromPromise(async () => ({
           commitment: '0x01',
           secret: '0x02',
@@ -176,7 +174,9 @@ describe('/register', () => {
 
   it('keeps completed steps when retrying a rejected register', async () => {
     search.name = 'retry.eth'
-    deploy.landed = Promise.resolve({ resolverAddress: ACCOUNT })
+    waitForResolverDeployment.mockResolvedValueOnce({
+      resolverAddress: ACCOUNT,
+    })
     render(<RegisterRoute />)
 
     act(() => flow.startFlow(SUPPORTED_TOKENS.USDC, 160_000_000n))
