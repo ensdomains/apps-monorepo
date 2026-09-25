@@ -47,6 +47,15 @@ export const RegistrationCompletion: Story = {
   },
 }
 
+export const NameSpecificPatterns: Story = {
+  render: () => (
+    <div className="flex flex-col gap-8">
+      <DomainCard domainName="erni.eth" variant="garnet" />
+      <DomainCard domainName="jony.eth" variant="garnet" />
+    </div>
+  ),
+}
+
 export const RegistrationCompletionLongName: Story = {
   args: {
     domainName:

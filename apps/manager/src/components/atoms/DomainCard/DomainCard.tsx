@@ -60,7 +60,7 @@ export const DomainCard = ({
           </p>
         </div>
       </div>
-      <DomainCardPattern variant={selectedVariant} />
+      <DomainCardPattern domainName={domainName} variant={selectedVariant} />
     </div>
   )
 }

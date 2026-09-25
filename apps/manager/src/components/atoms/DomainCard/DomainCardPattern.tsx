@@ -1,4 +1,5 @@
-import { useId } from 'react'
+import { generatePatternDataURI } from '@ensdomains/etherloom'
+import { useId, useMemo } from 'react'
 
 export type DomainCardVariant = 'garnet' | 'lapis' | 'peridot'
 
@@ -24,15 +25,26 @@ const patternColors = {
 } as const
 
 export const DomainCardPattern = ({
+  domainName,
   variant,
 }: {
-  variant: DomainCardVariant
+  readonly domainName: string
+  readonly variant: DomainCardVariant
 }) => {
   const id = useId()
-  const weaveId = `${id}-weave`
   const maskId = `${id}-tiles`
   const glintId = `${id}-glint`
   const colors = patternColors[variant]
+  const patternSrc = useMemo(
+    () =>
+      generatePatternDataURI(domainName, 'ENS Vertical Pairs', '#FEFEFE', {
+        width: 440,
+        height: 200,
+        cellSize: 10,
+        backgroundColor: '#000000',
+      }),
+    [domainName],
+  )
 
   return (
     <svg
@@ -46,31 +58,17 @@ export const DomainCardPattern = ({
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <pattern
-          height="25"
-          id={weaveId}
-          patternUnits="userSpaceOnUse"
-          width="25"
-        >
-          <rect fill="white" height="12.5" rx="2.25" width="11.25" x="0.625" />
-          <rect
-            fill="white"
-            height="12.5"
-            rx="2.25"
-            width="11.25"
-            x="13.125"
-            y="12.5"
-          />
-        </pattern>
         <mask
           height="200"
           id={maskId}
           maskUnits="userSpaceOnUse"
+          style={{ maskType: 'luminance' }}
           width="440"
           x="0"
           y="0"
         >
-          <rect fill={`url(#${weaveId})`} height="200" width="440" />
+          {/* Near-white preserves Etherloom's tile breaks while masking the color and wave. */}
+          <image height="200" href={patternSrc} width="440" />
         </mask>
         {/* Equal SVG coordinate spans preserve the 45-degree band. */}
         <linearGradient

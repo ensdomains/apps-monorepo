@@ -198,7 +198,7 @@
   }
 
   .animate-domain-card-shimmer {
-    animation: domain-card-shimmer 3s ease-in-out infinite alternate;
+    animation: domain-card-shimmer 6s ease-in-out infinite alternate;
   }
 
   @keyframes fee-decay-nudge {
