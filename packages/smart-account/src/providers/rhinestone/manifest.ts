@@ -197,9 +197,6 @@ export const DEFAULT_REGISTRATION_DURATION = 31536000n
 /** `referrer` is a bytes32 arg on makeCommitment/register (NOT an address). */
 export const REFERER =
   '0x0000000000000000000000000000000000000000000000000000000000000000' as const
-/** `subregistry` is an address arg (address(0) = default). */
-export const ZERO_ADDRESS =
-  '0x0000000000000000000000000000000000000000' as const
 
 export const DEFAULT_SESSION_VALIDITY_SECONDS = 24 * 60 * 60
 
