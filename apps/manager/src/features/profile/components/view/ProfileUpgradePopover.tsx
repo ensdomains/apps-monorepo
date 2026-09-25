@@ -56,6 +56,7 @@ export const ProfileUpgradePopover = ({
         {isMigrationEnabled ? (
           <Link
             className="flex h-8.5 pointer-coarse:h-11 items-center gap-1.5 rounded font-semi-mono text-ens-lapis-500 text-sm uppercase tracking-tight hover:text-ens-lapis-900 focus-visible:outline-2 focus-visible:outline-ens-lapis-500 focus-visible:outline-offset-2"
+            search={{}}
             to="/migration"
           >
             <Trans>Upgrade Name</Trans>

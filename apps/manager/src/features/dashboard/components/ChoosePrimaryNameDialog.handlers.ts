@@ -4,9 +4,39 @@
  * Business logic kept outside the React component for testability.
  */
 
+import { normalize } from 'viem/ens'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 
 const ETH_COIN_TYPE = 60
+
+export const normalizePrimaryProposal = (
+  name: string | undefined,
+): string | null => {
+  if (!name) return null
+  try {
+    return normalize(name.trim())
+  } catch {
+    return null
+  }
+}
+
+export const isExactPrimaryProposalOwned = (
+  domain:
+    | {
+        readonly name?: string | null
+        readonly normalizedName?: string | null
+        readonly owner: { readonly id: string }
+      }
+    | undefined,
+  name: string,
+  ownerAddress: string | undefined,
+): boolean =>
+  Boolean(
+    domain &&
+      ownerAddress &&
+      (domain.normalizedName ?? domain.name)?.toLowerCase() === name &&
+      domain.owner.id.toLowerCase() === ownerAddress.toLowerCase(),
+  )
 
 export function getEthAddressFromRecords(
   records: ProfileRecordsResult | undefined,

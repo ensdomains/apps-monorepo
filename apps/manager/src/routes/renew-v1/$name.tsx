@@ -5,13 +5,19 @@ import {
 } from '@tanstack/react-router'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
+import {
+  durationSearchSchema,
+  getDurationPrefillSeconds,
+} from '@/features/register-v2/utils/durationSearch'
 import { getV1RenewableQueryOptions } from '@/features/renew/data/queries/v1Renewable.query'
 import { parseRenewableName } from '@/features/renew/utils/renewableName'
 import { RenewalRouteError } from '@/features/renew/workflow/components/RenewalRouteError'
 import { RenewalPage } from '@/features/renew/workflow/RenewalPage'
 
 export const Route = createFileRoute('/renew-v1/$name')({
-  loader: async ({ params: { name }, context: { queryClient } }) => {
+  validateSearch: durationSearchSchema,
+  loaderDeps: ({ search }) => search,
+  loader: async ({ params: { name }, context: { queryClient }, deps }) => {
     const parsedName = parseRenewableName(name)
 
     if (parsedName.isErr()) {
@@ -23,6 +29,7 @@ export const Route = createFileRoute('/renew-v1/$name')({
     if (ownerData?.protocol === 'v2') {
       throw redirect({
         params: { name },
+        search: deps,
         to: '/renew/$name',
         replace: true,
       })
@@ -58,8 +65,24 @@ export const Route = createFileRoute('/renew-v1/$name')({
 
 function RouteComponent() {
   const { label, currentExpiry } = Route.useLoaderData()
+  const durationSearch = Route.useSearch()
+  const initialDurationSeconds = getDurationPrefillSeconds(
+    durationSearch,
+    new Date(Number(currentExpiry) * 1000),
+  )
+
   return (
-    <RenewalPage currentExpiry={currentExpiry} label={label} protocol="v1" />
+    <RenewalPage
+      currentExpiry={currentExpiry}
+      initialDurationSeconds={
+        initialDurationSeconds === undefined
+          ? undefined
+          : BigInt(initialDurationSeconds)
+      }
+      key={`${label}:${currentExpiry}:${durationSearch.durationDays ?? ''}:${durationSearch.durationYears ?? ''}`}
+      label={label}
+      protocol="v1"
+    />
   )
 }
 

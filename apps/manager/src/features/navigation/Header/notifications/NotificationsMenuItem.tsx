@@ -33,6 +33,7 @@ export const NotificationsMenuItem = ({
           className="gap-1.5 font-[450] capitalize"
           color="temp-light-gray-ghost"
           onClick={() => onAction?.()}
+          search={{}}
           size="temp-xxs"
           to="/notifications/settings"
         >

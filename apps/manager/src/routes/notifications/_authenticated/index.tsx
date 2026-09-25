@@ -75,6 +75,7 @@ export const AllNotificationsPage = () => {
           </div>
           <Link
             className="group flex items-center gap-2"
+            search={{}}
             to="/notifications/settings"
           >
             <MSymbol className="ms-opsz-30 ms-wght-200" symbol="settings" />

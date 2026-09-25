@@ -40,8 +40,29 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
   return ok(name)
 })
 
+/** Keep lookup failures distinct from an address with no primary name. */
+export const getReverseNameStrict = ResultFn(async function* (
+  address?: Address,
+) {
+  if (!address) return ok(null)
+
+  const client = yield* safeGetClient()
+  const name = yield* fromPromise(
+    getEnsName(client, { address }),
+    (e) => new ReverseResolverError({ cause: e }),
+  )
+
+  return ok(name)
+})
+
 export const profileReverseNameQuery = (address?: Address) =>
   resultQueryOptions({
     queryKey: qk('profile', 'reverse_name', { address }),
     queryFn: ({ queryKey: [{ address }] }) => getReverseName(address),
+  })
+
+export const profileReverseNameStrictQuery = (address?: Address) =>
+  resultQueryOptions({
+    queryKey: qk('profile', 'reverse_name_strict', { address }),
+    queryFn: ({ queryKey: [{ address }] }) => getReverseNameStrict(address),
   })

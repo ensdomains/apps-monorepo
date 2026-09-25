@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { useActorRef, useSelector } from '@xstate/react'
+import { useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
@@ -16,6 +17,10 @@ export const EditProfileDialog = ({
   owner,
   onUpdated,
   trigger,
+  open: requestedOpen,
+  onOpenChange,
+  initialTab,
+  initialLink,
 }: EditProfileDialogProps) => {
   const dialogActor = useActorRef(editProfileDialogMachine, {
     input: { records },
@@ -62,32 +67,57 @@ export const EditProfileDialog = ({
     savedRecords,
   })
 
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen) {
+  const handleOpenChange = useCallback(
+    (isOpen: boolean) => {
+      if (isOpen) {
+        resetPreparedImageSaveState()
+        form.reset(records)
+        if (initialLink) {
+          form.setFieldValue('links', [...records.links, initialLink])
+        }
+        dialogActor.send({ type: 'OPEN', records })
+        onOpenChange?.(true)
+        return
+      }
+
+      if (isSaving) {
+        return
+      }
+
       resetPreparedImageSaveState()
-      form.reset(records)
-      dialogActor.send({ type: 'OPEN', records })
-      return
-    }
+      dialogActor.send({ type: 'CLOSE' })
+      onOpenChange?.(false)
+    },
+    [
+      dialogActor,
+      form,
+      initialLink,
+      isSaving,
+      onOpenChange,
+      records,
+      resetPreparedImageSaveState,
+    ],
+  )
 
-    if (isSaving) {
-      return
-    }
-
-    resetPreparedImageSaveState()
-    dialogActor.send({ type: 'CLOSE' })
-  }
+  // A launcher may open the existing editor without rendering an extra trigger.
+  // The actor still owns save/close transitions and their resolver checks.
+  useEffect(() => {
+    if (requestedOpen === true && !open) handleOpenChange(true)
+    if (requestedOpen === false && open) handleOpenChange(false)
+  }, [requestedOpen, open, handleOpenChange])
 
   return (
     <>
       <Dialog onOpenChange={handleOpenChange} open={open}>
-        <DialogTrigger asChild>
-          {trigger ?? (
-            <Button className="w-full" type="button">
-              <Trans>Edit Profile</Trans>
-            </Button>
-          )}
-        </DialogTrigger>
+        {requestedOpen === undefined ? (
+          <DialogTrigger asChild>
+            {trigger ?? (
+              <Button className="w-full" type="button">
+                <Trans>Edit Profile</Trans>
+              </Button>
+            )}
+          </DialogTrigger>
+        ) : null}
         <DialogContent
           className="top-0 left-0 h-dvh max-h-dvh w-screen max-w-none! translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg sm:max-w-none! md:top-[50%] md:left-[50%] md:h-[min(90dvh,739px)] md:w-[min(92vw,800px)] md:max-w-200! md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-xl"
           overlayClassName="bg-black/20 backdrop-blur-[2px]"
@@ -96,6 +126,7 @@ export const EditProfileDialog = ({
           <EditProfileDialogProvider actor={dialogActor}>
             <EditProfileDialogBody
               form={form}
+              initialTab={initialTab}
               isFinalizingImageSave={isFinalizingImageSave}
               isResolverAccessPending={isResolverAccessPending}
               name={name}

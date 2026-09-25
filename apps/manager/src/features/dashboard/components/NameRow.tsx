@@ -166,6 +166,7 @@ const RowCta = ({
     return (
       <Link
         className={ctaVariants({ kind: 'remindMe' })}
+        search={{}}
         to="/notifications/settings"
       >
         <Trans>Remind me</Trans>
@@ -456,6 +457,7 @@ const NameOptionsMenu = ({
         <DropdownMenuItem asChild>
           <Link
             className="flex h-12 items-center justify-between rounded-[10px] px-4 py-3 font-semi-mono text-[14px] text-ens-lapis-900 uppercase focus:bg-transparent focus:text-ens-lapis-900"
+            search={{}}
             to="/notifications/settings"
           >
             <Trans>Manage notifications</Trans>

@@ -143,6 +143,7 @@ type Events =
 
 type Input = {
   chainId: number
+  initialDurationSeconds?: number
 }
 
 const INITIAL_POST_REGISTRATION_PROGRESS: PostRegistrationProgress = {
@@ -671,7 +672,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
   initial: 'pricing',
   context: ({ input }) => ({
     chainId: input.chainId,
-    duration: getDurationInSecondsFromYears(3),
+    duration: input.initialDurationSeconds ?? getDurationInSecondsFromYears(3),
     selectedToken: undefined,
     lastErrorMessage: undefined,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,

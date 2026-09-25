@@ -22,6 +22,12 @@ import {
 import { getLinkValidationIssues } from './tabs/links/validation'
 
 interface EditProfileDialogBodyProps {
+  readonly initialTab?:
+    | 'general'
+    | 'contact'
+    | 'addresses'
+    | 'links'
+    | 'appearance'
   readonly isFinalizingImageSave: boolean
   readonly isResolverAccessPending: boolean
   readonly name: string
@@ -37,6 +43,7 @@ export const EditProfileDialogBody = withForm({
   ...sharedOptions,
   props: {
     isFinalizingImageSave: false,
+    initialTab: 'general',
     isResolverAccessPending: false,
     name: '',
     onSave: () => {},
@@ -48,6 +55,7 @@ export const EditProfileDialogBody = withForm({
   render: ({
     form,
     isFinalizingImageSave,
+    initialTab,
     isResolverAccessPending,
     name,
     onSave,
@@ -138,7 +146,7 @@ export const EditProfileDialogBody = withForm({
           return (
             <Tabs
               className="h-full min-h-0 flex-1 gap-0 overflow-hidden"
-              defaultValue="general"
+              defaultValue={initialTab ?? 'general'}
               orientation="vertical"
             >
               <EditProfileDialogHeader

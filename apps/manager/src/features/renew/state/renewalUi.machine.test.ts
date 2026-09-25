@@ -65,6 +65,22 @@ beforeEach(() => {
 })
 
 describe('V1 renewal state machine', () => {
+  it.each([
+    'v1',
+    'v2',
+  ] as const)('starts %s renewal at the validated route duration', (protocol) => {
+    const actor = createActor(renewalUiMachine, {
+      input: {
+        currentExpiry: 1_800_000_000n,
+        protocol,
+        initialDurationSeconds: 63_115_200n,
+      },
+    }).start()
+
+    expect(actor.getSnapshot().context.duration).toBe(63_115_200n)
+    actor.stop()
+  })
+
   it('stores renewal durations as bigint', () => {
     const actor = createActor(renewalUiMachine, {
       input: { currentExpiry: 1_800_000_000n, protocol: 'v1' },

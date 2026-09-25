@@ -28,13 +28,15 @@ export type RegistrationV2UiSnapshot = SnapshotFrom<
 export const RegistrationV2UiProvider = ({
   children,
   label,
+  initialDurationSeconds,
 }: {
   children: React.ReactNode
   label: string
+  initialDurationSeconds?: number
 }) => {
   const chainId = useChainId()
   const registrationV2UiActor = useActorRef(registrationV2UiMachine, {
-    input: { chainId },
+    input: { chainId, initialDurationSeconds },
   })
   const registrationActor = useSelector(
     registrationV2UiActor,

@@ -9,6 +9,10 @@ import {
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import {
+  durationSearchSchema,
+  getDurationPrefillSeconds,
+} from '@/features/register-v2/utils/durationSearch'
+import {
   canRenewV2Name,
   resolveRenewalLabel,
   toCanonicalRenewableName,
@@ -17,12 +21,14 @@ import { RenewalRouteError } from '@/features/renew/workflow/components/RenewalR
 import { RenewalPage } from '@/features/renew/workflow/RenewalPage'
 
 export const Route = createFileRoute('/renew/$name')({
+  validateSearch: durationSearchSchema,
+  loaderDeps: ({ search }) => search,
   // `ALICE.eth` and its look-alikes renew `alice.eth`, so they don't resolve
   // here — redirect rather than charge on a page titled with what was typed.
   // In `beforeLoad`, not the loader: a loader redirect during SSR abandons the
   // route chunk load the router has already started, and every later render
   // of this route on that worker waits on it forever.
-  beforeLoad: ({ params: { name } }) => {
+  beforeLoad: ({ params: { name }, search }) => {
     if (resolveRenewalLabel(name).isOk()) return
 
     const canonicalName = toCanonicalRenewableName(name)
@@ -30,12 +36,13 @@ export const Route = createFileRoute('/renew/$name')({
     if (canonicalName !== null) {
       throw redirect({
         params: { name: canonicalName },
+        search,
         to: '/renew/$name',
         replace: true,
       })
     }
   },
-  loader: async ({ params: { name }, context: { queryClient } }) => {
+  loader: async ({ params: { name }, context: { queryClient }, deps }) => {
     const renewalLabel = resolveRenewalLabel(name)
 
     if (renewalLabel.isErr()) {
@@ -50,6 +57,7 @@ export const Route = createFileRoute('/renew/$name')({
     if (expiryData?.protocol === 'v1') {
       throw redirect({
         params: { name },
+        search: deps,
         to: '/renew-v1/$name',
         replace: true,
       })
@@ -69,6 +77,7 @@ export const Route = createFileRoute('/renew/$name')({
       // No expiry record at all means the label is unregistered.
       throw redirect({
         params: { name },
+        search: deps,
         to: '/register/$name',
         replace: true,
       })
@@ -79,6 +88,7 @@ export const Route = createFileRoute('/renew/$name')({
     if (isPastGracePeriod(expiryDate, expiryData.protocol)) {
       throw redirect({
         params: { name },
+        search: deps,
         to: '/register/$name',
         replace: true,
       })
@@ -99,8 +109,24 @@ export const Route = createFileRoute('/renew/$name')({
 
 function RouteComponent() {
   const { label, currentExpiry } = Route.useLoaderData()
+  const durationSearch = Route.useSearch()
+  const initialDurationSeconds = getDurationPrefillSeconds(
+    durationSearch,
+    new Date(Number(currentExpiry) * 1000),
+  )
+
   return (
-    <RenewalPage currentExpiry={currentExpiry} label={label} protocol="v2" />
+    <RenewalPage
+      currentExpiry={currentExpiry}
+      initialDurationSeconds={
+        initialDurationSeconds === undefined
+          ? undefined
+          : BigInt(initialDurationSeconds)
+      }
+      key={`${label}:${currentExpiry}:${durationSearch.durationDays ?? ''}:${durationSearch.durationYears ?? ''}`}
+      label={label}
+      protocol="v2"
+    />
   )
 }
 

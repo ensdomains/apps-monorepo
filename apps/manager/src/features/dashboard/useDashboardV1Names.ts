@@ -26,28 +26,33 @@ export const useDashboardV1Names = (
     return classifyNames(v1NamesRaw, resolvedOwnerAddress as Address).classified
   }, [migrationEnabled, v1NamesRaw, resolvedOwnerAddress])
 
-  const { data: eligibility, isPending: isEligibilityPending } =
-    useMigrationEligibility(
-      classified,
-      migrationEnabled ? resolvedOwnerAddress : undefined,
-    )
+  const {
+    data: eligibility,
+    isPending: isEligibilityPending,
+    isError: isEligibilityError,
+  } = useMigrationEligibility(
+    classified,
+    migrationEnabled ? resolvedOwnerAddress : undefined,
+  )
 
   const eligibleIds = useMemo(() => {
-    if (!migrationEnabled) return new Set<string>()
+    if (!migrationEnabled || isEligibilityError) return new Set<string>()
     return new Set(
       (eligibility?.eligible ?? classified).map((name) => name.domain.id),
     )
-  }, [classified, eligibility?.eligible, migrationEnabled])
+  }, [classified, eligibility?.eligible, isEligibilityError, migrationEnabled])
 
   const v1Names = useMemo<DashboardV1Name[]>(
     () =>
       (v1NamesRaw ?? []).map((domain) => ({
         domain,
         label: domain.labelName ?? domain.name,
-        isMigrationEligible: eligibleIds.has(domain.id),
+        isMigrationEligible: isEligibilityError
+          ? undefined
+          : eligibleIds.has(domain.id),
         nameRoles: getV1NameRoles(domain, resolvedOwnerAddress),
       })),
-    [eligibleIds, resolvedOwnerAddress, v1NamesRaw],
+    [eligibleIds, isEligibilityError, resolvedOwnerAddress, v1NamesRaw],
   )
 
   return {
@@ -55,6 +60,6 @@ export const useDashboardV1Names = (
     isPending:
       isPending ||
       (migrationEnabled && classified.length > 0 && isEligibilityPending),
-    isError,
+    isError: isError || (migrationEnabled && isEligibilityError),
   }
 }

@@ -7,6 +7,10 @@ import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMi
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { cn } from '@/lib/utils'
+import {
+  NO_MANAGER_RESTORATION_PRESET,
+  proposeNoManagerRestorationNames,
+} from './migrationAiPreset'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
@@ -23,6 +27,7 @@ type SelectNamesStepProps = {
   readonly gasFundingStatus: MigrationGasFundingStatus
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
+  readonly preset?: typeof NO_MANAGER_RESTORATION_PRESET
 }
 
 export const SelectNamesStep = ({
@@ -31,10 +36,20 @@ export const SelectNamesStep = ({
   gasFundingStatus,
   onNamesChange,
   onNext,
+  preset,
 }: SelectNamesStepProps) => {
-  const { eligible, isPending, recoveryState } = useEligibleV1Names()
+  const isAiPreset = preset === NO_MANAGER_RESTORATION_PRESET
+  const { eligible, isPending, isError, recoveryState } = useEligibleV1Names({
+    fallbackToClassified: !isAiPreset,
+    requireFresh: isAiPreset,
+  })
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
+  const isRecovering = recoveryState.status === 'recovering'
+  const dependencyConflicts =
+    isAiPreset && !isRecovering
+      ? proposeNoManagerRestorationNames(eligible).dependencyConflicts
+      : []
   const hasNamesNeedingManagerRestoration = eligible.some(
     ({ managerAddress }) => managerAddress !== null,
   )
@@ -53,7 +68,8 @@ export const SelectNamesStep = ({
   } = useNameSelection({
     eligible,
     isPending,
-    isRecovery: recoveryState.status === 'recovering',
+    isRecovery: isRecovering,
+    preset,
     onNamesChange,
   })
 
@@ -68,6 +84,7 @@ export const SelectNamesStep = ({
   const isUpgradeDisabled =
     totalSelected === 0 ||
     isPending ||
+    isError ||
     isRecoveryStale ||
     isStarting ||
     isWaitingForGasEstimate ||
@@ -124,6 +141,70 @@ export const SelectNamesStep = ({
                 your names. We remove that permission after the upgrade.
               </Trans>
             </p>
+          )}
+
+          {isAiPreset && isError && (
+            <div
+              className="flex w-full max-w-160 items-start gap-3 rounded-lg bg-ens-garnet-50/70 px-4 py-4 text-ens-garnet-900"
+              role="alert"
+            >
+              <CircleAlert
+                aria-hidden="true"
+                className="mt-0.5 size-5 shrink-0"
+              />
+              <p className="text-sm leading-5">
+                <Trans>
+                  We couldn&apos;t refresh your upgrade eligibility. Reload this
+                  page before choosing names.
+                </Trans>
+              </p>
+            </div>
+          )}
+
+          {isAiPreset && isRecovering && !isPending && (
+            <div
+              className="flex w-full max-w-160 items-start gap-3 rounded-lg bg-ens-garnet-50/70 px-4 py-4 text-ens-garnet-900"
+              role="status"
+            >
+              <CircleAlert
+                aria-hidden="true"
+                className="mt-0.5 size-5 shrink-0"
+              />
+              <p className="text-sm leading-5">
+                <Trans>
+                  Your unfinished upgrade is being restored. Its saved selection
+                  takes priority over the new request.
+                </Trans>
+              </p>
+            </div>
+          )}
+
+          {isAiPreset && dependencyConflicts.length > 0 && !isPending && (
+            <div
+              className="flex w-full max-w-160 items-start gap-3 rounded-lg bg-ens-garnet-50/70 px-4 py-4 text-ens-garnet-900"
+              role="alert"
+            >
+              <CircleAlert
+                aria-hidden="true"
+                className="mt-0.5 size-5 shrink-0"
+              />
+              <div className="flex flex-col gap-2 text-sm leading-5">
+                <p>
+                  <Trans>
+                    Some subnames depend on a parent that needs manager
+                    restoration. They start unselected so the excluded parent is
+                    not added for you. Review this before upgrading:
+                  </Trans>
+                </p>
+                <ul className="list-disc pl-5">
+                  {dependencyConflicts.map(({ name, excludedParent }) => (
+                    <li key={name}>
+                      {name} → {excludedParent}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           )}
 
           {isRecoveryStale ? (

@@ -15,9 +15,14 @@ import {
   RegistrationV2UiProvider,
   SuccessStep,
 } from '@/features/register-v2'
+import {
+  durationSearchSchema,
+  getDurationPrefillSeconds,
+} from '@/features/register-v2/utils/durationSearch'
 import { useRegistrationFlowController } from '@/features/weave-registration'
 
 export const Route = createFileRoute('/register/$name')({
+  validateSearch: durationSearchSchema,
   loader: async ({ params: { name }, context: { queryClient } }) => {
     // Validate the name shape first: the availability query can throw on
     // names the registrar doesn't understand
@@ -64,11 +69,18 @@ export const Route = createFileRoute('/register/$name')({
 function RouteComponent() {
   const name = Route.useParams({ select: (params) => params.name })
   const { label, fallback } = Route.useLoaderData()
+  const durationSearch = Route.useSearch()
 
   if (fallback) return <NameFallbackCard name={name} reason={fallback} />
 
+  const initialDurationSeconds = getDurationPrefillSeconds(durationSearch)
+
   return (
-    <RegistrationV2UiProvider label={label}>
+    <RegistrationV2UiProvider
+      initialDurationSeconds={initialDurationSeconds}
+      key={`${label}:${durationSearch.durationDays ?? ''}:${durationSearch.durationYears ?? ''}`}
+      label={label}
+    >
       <PageContent key={label} />
     </RegistrationV2UiProvider>
   )

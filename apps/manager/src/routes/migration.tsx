@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-router'
 import { type ReactNode, useCallback } from 'react'
 import { useConnection } from 'wagmi'
+import { NO_MANAGER_RESTORATION_PRESET } from '@/features/migration/components/migrationAiPreset'
 import { MigrationPage } from '@/features/migration/pages/MigrationPage'
 import { MigrationUiProvider } from '@/features/migration/state/migrationUi.context'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
@@ -14,6 +15,12 @@ import { getFeatureFlag } from '@/lib/posthog/get-feature-flag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/migration')({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { preset?: typeof NO_MANAGER_RESTORATION_PRESET } =>
+    search.preset === NO_MANAGER_RESTORATION_PRESET
+      ? { preset: NO_MANAGER_RESTORATION_PRESET }
+      : {},
   beforeLoad: async () => {
     const migrationAccess = await getFeatureFlag({
       data: { flag: POSTHOG_FEATURE_FLAGS.MIGRATION },
@@ -27,10 +34,11 @@ export const Route = createFileRoute('/migration')({
 })
 
 function RouteComponent() {
+  const { preset } = Route.useSearch()
   return (
     <MigrationUiProvider>
       <RequireConnectedWallet>
-        <MigrationPage />
+        <MigrationPage preset={preset} />
       </RequireConnectedWallet>
     </MigrationUiProvider>
   )

@@ -25,7 +25,7 @@ vi.mock('wagmi', async (importOriginal) => ({
   useConnection: mocks.useConnection,
 }))
 
-import { makeDomain } from '../service/_fixtures'
+import { makeClassified, makeDomain } from '../service/_fixtures'
 import type { MigrationRecoverySnapshot } from '../service/migrationBatchJournal'
 import { useEligibleV1Names } from './useEligibleV1Names'
 
@@ -103,7 +103,9 @@ describe('useEligibleV1Names durable recovery', () => {
         managerAddress: null,
       }),
     ])
-    expect(mocks.useMigrationEligibility).toHaveBeenCalledWith([], OWNER)
+    expect(mocks.useMigrationEligibility).toHaveBeenCalledWith([], OWNER, {
+      requireFresh: false,
+    })
   })
 
   it('returns a typed stale state instead of throwing when the saved root enters grace', () => {
@@ -123,6 +125,55 @@ describe('useEligibleV1Names durable recovery', () => {
         reason: 'classification-changed',
       },
     })
-    expect(mocks.useMigrationEligibility).toHaveBeenCalledWith([], OWNER)
+    expect(mocks.useMigrationEligibility).toHaveBeenCalledWith([], OWNER, {
+      requireFresh: false,
+    })
+  })
+})
+
+describe('useEligibleV1Names with a fresh AI proposal', () => {
+  it('does not expose cached eligibility while the source or checks refetch', () => {
+    const name = makeClassified({ name: 'ready.eth' })
+    mocks.useV1Names.mockReturnValue({
+      data: [makeDomain({ name: 'ready.eth' })],
+      isPending: false,
+      isFetching: true,
+      isError: false,
+    })
+    mocks.useMigrationEligibility.mockReturnValue({
+      data: { eligible: [name] },
+      isPending: false,
+      isFetching: false,
+      isError: false,
+    })
+
+    const { result, rerender } = renderHook(() =>
+      useEligibleV1Names({ requireFresh: true, fallbackToClassified: false }),
+    )
+
+    expect(result.current.eligible).toEqual([])
+    expect(result.current.isPending).toBe(true)
+    expect(mocks.useMigrationEligibility).toHaveBeenCalledWith(
+      expect.any(Array),
+      undefined,
+      { requireFresh: true },
+    )
+
+    mocks.useV1Names.mockReturnValue({
+      data: [makeDomain({ name: 'ready.eth' })],
+      isPending: false,
+      isFetching: false,
+      isError: false,
+    })
+    mocks.useMigrationEligibility.mockReturnValue({
+      data: { eligible: [name] },
+      isPending: false,
+      isFetching: false,
+      isError: false,
+    })
+    rerender()
+
+    expect(result.current.eligible).toEqual([name])
+    expect(result.current.isPending).toBe(false)
   })
 })

@@ -55,6 +55,35 @@ const securityHeadersMiddleware = createMiddleware().server(
   },
 )
 
+const sameOriginMutationMiddleware = createMiddleware().server(
+  ({ next, request }) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return next()
+
+    const expectedOrigin = new URL(request.url).origin
+    const origin = request.headers.get('Origin')
+    const referer = request.headers.get('Referer')
+    const fetchSite = request.headers.get('Sec-Fetch-Site')
+    const validOrigin = origin === null || origin === expectedOrigin
+    let validReferer = false
+    if (referer) {
+      try {
+        validReferer = new URL(referer).origin === expectedOrigin
+      } catch {
+        validReferer = false
+      }
+    }
+    if (
+      !validOrigin ||
+      (fetchSite !== 'same-origin' &&
+        origin !== expectedOrigin &&
+        !validReferer)
+    ) {
+      throw new Response('Forbidden', { status: 403 })
+    }
+    return next()
+  },
+)
+
 export const startInstance = createStart(() => ({
-  requestMiddleware: [securityHeadersMiddleware],
+  requestMiddleware: [sameOriginMutationMiddleware, securityHeadersMiddleware],
 }))

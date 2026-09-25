@@ -3,13 +3,15 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { Search, X } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { type KeyboardEvent, useMemo, useRef, useState } from 'react'
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
+import { useConnection } from 'wagmi'
 import { Input } from '@/components/ui/input'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { BulkRenewDialog, type BulkRenewName } from '@/features/bulk-renew'
-import { isBackendAuthed } from '@/utils/backend-client'
+import { backendAuthStore, isBackendAuthed } from '@/utils/backend-client'
 import {
+  pruneSelectedLabels,
   selectionKey,
   toBulkRenewName,
   toSelectableDomain,
@@ -48,7 +50,12 @@ import { SelectionCheckbox } from './SelectionCheckbox'
 import { SortMenu, type SortOption } from './SortMenu'
 
 type FilterKey = 'owned' | 'favorites'
-type SmartSearchMessage = 'unsupported' | 'unavailable' | 'missing-data'
+type SmartSearchMessage =
+  | 'unsupported'
+  | 'unavailable'
+  | 'unauthorized'
+  | 'rate_limited'
+  | 'missing-data'
 
 interface NamesTableProps {
   readonly primaryLabel?: string | null
@@ -84,7 +91,6 @@ const shouldInterpretSearch = (
   query: string,
 ): boolean =>
   event.key === 'Enter' &&
-  import.meta.env.DEV &&
   activeFilter === 'owned' &&
   looksLikeFilterRequest(query.trim())
 
@@ -102,8 +108,7 @@ const SmartSearchFeedback = ({
   readonly pending: boolean
 }) => (
   <>
-    {import.meta.env.DEV &&
-    active &&
+    {active &&
     looksLikeFilterRequest(query) &&
     !filters &&
     !message &&
@@ -124,6 +129,12 @@ const SmartSearchFeedback = ({
       ) : null}
       {!pending && message === 'unavailable' ? (
         <Trans>Smart search is unavailable. Name search still works.</Trans>
+      ) : null}
+      {!pending && message === 'unauthorized' ? (
+        <Trans>Connect and verify your wallet to search by status.</Trans>
+      ) : null}
+      {!pending && message === 'rate_limited' ? (
+        <Trans>Too many searches. Please try again in a minute.</Trans>
       ) : null}
       {!pending && message === 'missing-data' ? (
         <Trans>
@@ -150,8 +161,11 @@ export const NamesTable = ({
   const [pendingQuery, setPendingQuery] = useState<string | null>(null)
   const requestId = useRef(0)
   const interpretMutation = useMutation({
-    mutationFn: (query: string) => interpretNameSearch({ data: { query } }),
+    mutationFn: (input: { query: string; authToken: string }) =>
+      interpretNameSearch({ data: input }),
   })
+  const { address: walletAddress, isConnected: isWalletConnected } =
+    useConnection()
   const [ownedSort, setOwnedSort] = useState<Sort>('name-asc')
   const [favoritesSort, setFavoritesSort] = useState<FavoritesSort>('name-asc')
   const effectiveOwnedSort = smartFilters?.sort ?? ownedSort
@@ -196,6 +210,7 @@ export const NamesTable = ({
 
   const applyInterpretationResult = (result: InterpretNameSearchResult) => {
     if (result.status !== 'ok') {
+      if (result.status === 'unauthorized') backendAuthStore.trigger.signOut()
       setSmartMessage(result.status)
       return
     }
@@ -211,7 +226,33 @@ export const NamesTable = ({
     setSmartFilters(result.filters)
   }
 
-  const onSearchKeyDown = async (event: KeyboardEvent<HTMLInputElement>) => {
+  const currentSearchAuthToken = (): string | null => {
+    const backendAuth = backendAuthStore.get().context
+    if (
+      !isWalletConnected ||
+      !walletAddress ||
+      !backendAuth.authKey ||
+      backendAuth.address?.toLowerCase() !== walletAddress.toLowerCase()
+    )
+      return null
+    return backendAuth.authKey
+  }
+
+  const runSearchInterpretation = async (query: string, authToken: string) => {
+    const currentRequest = ++requestId.current
+    setPendingQuery(query)
+    try {
+      const result = await interpretMutation.mutateAsync({ query, authToken })
+      if (currentRequest !== requestId.current) return
+      applyInterpretationResult(result)
+    } catch {
+      if (currentRequest === requestId.current) setSmartMessage('unavailable')
+    } finally {
+      if (currentRequest === requestId.current) setPendingQuery(null)
+    }
+  }
+
+  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (!shouldInterpretSearch(event, activeFilter, searchQuery)) return
     const query = searchQuery.trim()
     event.preventDefault()
@@ -220,17 +261,13 @@ export const NamesTable = ({
       setSmartMessage('unsupported')
       return
     }
-    const currentRequest = ++requestId.current
-    setPendingQuery(query)
-    try {
-      const result = await interpretMutation.mutateAsync(query)
-      if (currentRequest !== requestId.current) return
-      applyInterpretationResult(result)
-    } catch {
-      if (currentRequest === requestId.current) setSmartMessage('unavailable')
-    } finally {
-      if (currentRequest === requestId.current) setPendingQuery(null)
+    const authToken = currentSearchAuthToken()
+    if (!authToken) {
+      setSmartMessage('unauthorized')
+      if (isWalletConnected) backendAuthStore.trigger.resetModal()
+      return
     }
+    void runSearchInterpretation(query, authToken)
   }
 
   const removeChip = (key: SmartNameFilterKey) => {
@@ -335,41 +372,54 @@ export const NamesTable = ({
 
   const [isRenewOpen, setIsRenewOpen] = useState(false)
 
-  const selectedCount = selectedLabels.size
+  const selectedInResults = useMemo(
+    () => pruneSelectedLabels(selectedLabels, allOwnedLabels),
+    [selectedLabels, allOwnedLabels],
+  )
+
+  // The derived selection updates the UI immediately when a filter changes.
+  // Prune stored keys too, so a removed selection cannot return after clearing
+  // a search or switching back from Favorites.
+  useEffect(() => {
+    if (selectedInResults.size !== selectedLabels.size) {
+      setSelectedLabels(selectedInResults)
+    }
+  }, [selectedInResults, selectedLabels])
+
+  const selectedCount = selectedInResults.size
   const allSelected =
     allOwnedLabels.length > 0 &&
-    allOwnedLabels.every((label) => selectedLabels.has(label))
+    allOwnedLabels.every((label) => selectedInResults.has(label))
   const someSelected = selectedCount > 0
 
   const selectedNames = useMemo<BulkRenewName[]>(
     () =>
       v2Names
-        .filter((domain) => selectedLabels.has(selectionKey(domain)))
+        .filter((domain) => selectedInResults.has(selectionKey(domain)))
         .map((domain) => toBulkRenewName(toSelectableDomain(domain)))
         .filter((name): name is BulkRenewName => name !== null),
-    [v2Names, selectedLabels],
+    [v2Names, selectedInResults],
   )
 
   const onToggleSelect = (label: string) => {
     setSelectedLabels((prev) => {
-      const next = new Set(prev)
+      const next = new Set(pruneSelectedLabels(prev, allOwnedLabels))
       if (next.has(label)) {
         next.delete(label)
-      } else {
+      } else if (allOwnedLabels.includes(label)) {
         next.add(label)
       }
       return next
     })
   }
 
-  // Toggle only the currently-visible names, preserving any selections made
-  // under a different search/filter.
+  // Toggle every selectable match across pages of the current result set.
   const onToggleSelectAll = () => {
     setSelectedLabels((prev) => {
       const allIn =
         allOwnedLabels.length > 0 &&
         allOwnedLabels.every((label) => prev.has(label))
-      const next = new Set(prev)
+      const next = new Set(pruneSelectedLabels(prev, allOwnedLabels))
       for (const label of allOwnedLabels) {
         if (allIn) next.delete(label)
         else next.add(label)
@@ -430,7 +480,7 @@ export const NamesTable = ({
             <Input
               className="h-10 rounded-full border-none bg-ens-white pl-10 text-base text-foreground tracking-[-0.32px] shadow-none placeholder:text-ens-quartz-350 focus-visible:ring-0"
               onChange={(event) => onSearchChange(event.target.value)}
-              onKeyDown={(event) => void onSearchKeyDown(event)}
+              onKeyDown={onSearchKeyDown}
               placeholder={t`Search my names`}
               startIcon={
                 <Search className="-ml-1 size-4.5 text-ens-quartz-350" />
@@ -491,6 +541,7 @@ export const NamesTable = ({
             onChange={(next) => {
               setFilter(next)
               setSearchQuery('')
+              setSelectedLabels(new Set())
               clearSmartSearch()
             }}
             value={activeFilter}
@@ -584,7 +635,7 @@ export const NamesTable = ({
                 onToggleSelect={onToggleSelect}
                 primaryLabel={primaryLabel}
                 searchQuery={searchQuery}
-                selectedLabels={selectedLabels}
+                selectedLabels={selectedInResults}
                 smartFilters={smartFilters}
                 sort={ownedSort}
               />

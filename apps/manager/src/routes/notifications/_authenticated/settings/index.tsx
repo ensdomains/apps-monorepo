@@ -3,6 +3,7 @@ import { ContactMethods } from '@/features/notifications/settings/contact-method
 import { NotificationPreferences } from '@/features/notifications/settings/preferences'
 
 export const NotificationSettingsPage = () => {
+  const { aiPreference, aiEnabled } = Route.useSearch()
   return (
     <div className="mx-auto w-full max-w-5xl px-2 py-8 lg:my-5">
       <div className="flex flex-col gap-4 pb-6">
@@ -21,7 +22,13 @@ export const NotificationSettingsPage = () => {
           <ContactMethods />
         </div>
 
-        <NotificationPreferences />
+        <NotificationPreferences
+          proposedPreference={
+            aiPreference
+              ? { key: aiPreference, enabled: aiEnabled ?? true }
+              : undefined
+          }
+        />
       </div>
     </div>
   )
@@ -29,6 +36,27 @@ export const NotificationSettingsPage = () => {
 
 export const Route = createFileRoute('/notifications/_authenticated/settings/')(
   {
+    validateSearch: (
+      search: Record<string, unknown>,
+    ): {
+      aiPreference?:
+        | 'favouritedNameExpiry'
+        | 'ownedNameExpiry'
+        | 'ensLabsUpdates'
+      aiEnabled?: boolean
+    } => {
+      const aiPreference =
+        search.aiPreference === 'favouritedNameExpiry' ||
+        search.aiPreference === 'ownedNameExpiry' ||
+        search.aiPreference === 'ensLabsUpdates'
+          ? search.aiPreference
+          : undefined
+      if (!aiPreference) return {}
+      return {
+        aiPreference,
+        aiEnabled: search.aiEnabled !== false && search.aiEnabled !== 'false',
+      }
+    },
     component: NotificationSettingsPage,
   },
 )

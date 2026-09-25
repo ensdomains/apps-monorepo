@@ -459,6 +459,10 @@ msgstr "Checking migration access..."
 msgid "Checking status…"
 msgstr "Checking status…"
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Checking that this name belongs to your wallet..."
+msgstr "Checking that this name belongs to your wallet..."
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking token allowance"
 msgstr "Checking token allowance"
@@ -648,6 +652,10 @@ msgid "Couldn't check this name"
 msgstr "Couldn't check this name"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Couldn’t check this name. Please try again in a moment."
+msgstr "Couldn’t check this name. Please try again in a moment."
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t check this name’s resolver. Please try again in a moment."
 msgstr "Couldn’t check this name’s resolver. Please try again in a moment."
 
@@ -678,6 +686,10 @@ msgstr "Couldn’t read the wallet address for {name}"
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't restore your upgrade progress. Reload to check the latest state."
 msgstr "Couldn't restore your upgrade progress. Reload to check the latest state."
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Couldn’t verify this name’s owner. Please try again in a moment."
+msgstr "Couldn’t verify this name’s owner. Please try again in a moment."
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't verify your name records. Please try again."
@@ -2397,6 +2409,10 @@ msgid "Some names could not be loaded"
 msgstr "Some names could not be loaded"
 
 #: src/features/migration/components/SelectNamesStep.tsx
+msgid "Some subnames depend on a parent that needs manager restoration. They start unselected so the excluded parent is not added for you. Review this before upgrading:"
+msgstr "Some subnames depend on a parent that needs manager restoration. They start unselected so the excluded parent is not added for you. Review this before upgrading:"
+
+#: src/features/migration/components/SelectNamesStep.tsx
 msgid "Something about your names changed since you last tried, so we can't safely pick up where you left off."
 msgstr "Something about your names changed since you last tried, so we can't safely pick up where you left off."
 
@@ -2622,6 +2638,10 @@ msgstr "This commemorative NFT has already been minted."
 msgid "This filter needs upgrade or favorites data that is unavailable here."
 msgstr "This filter needs upgrade or favorites data that is unavailable here."
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "This is not a valid ENS name."
+msgstr "This is not a valid ENS name."
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "This is taking longer than expected."
 msgstr "This is taking longer than expected."
@@ -2649,6 +2669,14 @@ msgstr "This name is in grace period"
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx
 msgid "This name is in price cooldown"
 msgstr "This name is in price cooldown"
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "This name is no longer owned by your connected wallet."
+msgstr "This name is no longer owned by your connected wallet."
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "This name is not owned by your connected wallet."
+msgstr "This name is not owned by your connected wallet."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
@@ -3020,6 +3048,10 @@ msgstr "We couldn’t confirm that this name is renewable."
 msgid "We couldn't read your current records."
 msgstr "We couldn't read your current records."
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "We couldn't refresh your upgrade eligibility. Reload this page before choosing names."
+msgstr "We couldn't refresh your upgrade eligibility. Reload this page before choosing names."
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "We couldn't remove access. Check your wallet and try again."
 msgstr "We couldn't remove access. Check your wallet and try again."
@@ -3269,6 +3301,10 @@ msgstr "Your request"
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your saved upgrade needs attention"
 msgstr "Your saved upgrade needs attention"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your unfinished upgrade is being restored. Its saved selection takes priority over the new request."
+msgstr "Your unfinished upgrade is being restored. Its saved selection takes priority over the new request."
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "Your upgrades are still being verified. Check again in a moment."

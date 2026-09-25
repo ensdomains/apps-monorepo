@@ -2,6 +2,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
+import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { EnsMobileIcon } from '@/assets/icons/ens-mobile-icon'
 import { Button } from '@/components/ui/button'
@@ -22,11 +23,16 @@ export type UseNotificationPreferencesFormOptions = {
   nameExpiryDefaultWhenUnset?: boolean
   /** Called after a successful save + refetch + form reset (e.g. registration continue). */
   onPersistSuccess?: () => void
+  proposedPreference?: {
+    readonly key: 'ownedNameExpiry' | 'favouritedNameExpiry' | 'ensLabsUpdates'
+    readonly enabled: boolean
+  }
 }
 
 export const useNotificationPreferencesForm = ({
   nameExpiryDefaultWhenUnset = false,
   onPersistSuccess,
+  proposedPreference,
 }: UseNotificationPreferencesFormOptions) => {
   const { t } = useLingui()
   const isAuthed = useAtom(isBackendAuthed)
@@ -70,6 +76,23 @@ export const useNotificationPreferencesForm = ({
       onPersistSuccess?.()
     },
   })
+
+  const didApplyProposal = useRef(false)
+  useEffect(() => {
+    if (!proposedPreference || !preferences.data || didApplyProposal.current) {
+      return
+    }
+    didApplyProposal.current = true
+    form.reset({
+      ownedNameExpiry:
+        preferences.data.settings?.ownedNameExpiry ??
+        nameExpiryDefaultWhenUnset,
+      ensLabsUpdates: preferences.data.settings?.ensLabsUpdates ?? false,
+      favouritedNameExpiry:
+        preferences.data.settings?.favouritedNameExpiry ?? false,
+    })
+    form.setFieldValue(proposedPreference.key, proposedPreference.enabled)
+  }, [form, nameExpiryDefaultWhenUnset, preferences.data, proposedPreference])
 
   const hasVerifiedChannels = (verifiedChannels.data?.length ?? 0) > 0
 
@@ -153,10 +176,15 @@ export const NotificationPreferencesFields = ({
   )
 }
 
-export const NotificationPreferences = () => {
+export const NotificationPreferences = ({
+  proposedPreference,
+}: {
+  readonly proposedPreference?: UseNotificationPreferencesFormOptions['proposedPreference']
+}) => {
   const { form, preferences, hasVerifiedChannels } =
     useNotificationPreferencesForm({
       nameExpiryDefaultWhenUnset: false,
+      proposedPreference,
     })
 
   return (

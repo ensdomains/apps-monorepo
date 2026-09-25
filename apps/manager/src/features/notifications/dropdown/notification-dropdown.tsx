@@ -32,6 +32,7 @@ export const NotificationsDropdown = ({
           <Link
             className="group flex items-center gap-2"
             onClick={() => onAction?.()}
+            search={{}}
             to="/notifications/settings"
           >
             <MSymbol className="ms-opsz-30 ms-wght-200" symbol="settings" />

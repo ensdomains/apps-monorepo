@@ -10,6 +10,7 @@ const ELIGIBILITY_STALE_MS = 30 * 60 * 1000
 export const useMigrationEligibility = (
   names: readonly ClassifiedName[],
   ownerAddress?: string | null,
+  options: { readonly requireFresh?: boolean } = {},
 ) => {
   const domainIds = names.map((n) => n.domain.id)
   return useQuery({
@@ -24,6 +25,7 @@ export const useMigrationEligibility = (
         ownerAddress as Address,
       ),
     enabled: !!ownerAddress && names.length > 0,
-    staleTime: ELIGIBILITY_STALE_MS,
+    staleTime: options.requireFresh ? 0 : ELIGIBILITY_STALE_MS,
+    refetchOnMount: options.requireFresh ? 'always' : undefined,
   })
 }

@@ -12,6 +12,15 @@ export interface EditProfileDialogProps {
   readonly owner?: Address
   readonly onUpdated?: () => undefined | Promise<unknown>
   readonly trigger?: React.ReactNode
+  readonly open?: boolean
+  readonly onOpenChange?: (open: boolean) => void
+  readonly initialTab?:
+    | 'general'
+    | 'contact'
+    | 'addresses'
+    | 'links'
+    | 'appearance'
+  readonly initialLink?: ProfileRecords['links'][number]
 }
 
 interface EditProfileSaveOptions {
