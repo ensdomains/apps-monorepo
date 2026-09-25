@@ -80,7 +80,7 @@ const PendingEmailResendMenuItem = ({
       disabled={isResending || resendWait > 0}
       onClick={onResend}
     >
-      <MSymbol className="ms-wght-300 text-[#515151]" symbol="cached" />
+      <MSymbol className="ms-wght-300 text-ens-quartz-550" symbol="cached" />
       {resendWait > 0 ? (
         <Trans>Resend in {resendWait}s</Trans>
       ) : (
@@ -315,7 +315,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex h-12 items-center rounded border border-[#D4D9DB] bg-white px-4">
-        <div className="text-[#515151] text-base">{email.label}</div>
+        <div className="text-base text-ens-quartz-550">{email.label}</div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -344,7 +344,10 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
             )}
 
             <DropdownMenuItem onClick={() => setShowDeleteDialog(true)}>
-              <MSymbol className="ms-wght-300 text-[#515151]" symbol="delete" />
+              <MSymbol
+                className="ms-wght-300 text-ens-quartz-550"
+                symbol="delete"
+              />
               {email.status === 'pending' ? (
                 <Trans>Cancel Verification</Trans>
               ) : (
@@ -419,7 +422,11 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
   )
 }
 
-export const EmailContactMethod = ({ emails }: { emails: Channel[] }) => {
+export const EmailContactMethod = ({
+  emails,
+}: {
+  emails: readonly Channel[]
+}) => {
   return (
     <div className="flex flex-col gap-3 rounded-lg bg-[#FAFAFB] p-5">
       <div className="flex items-start gap-2">
@@ -451,7 +458,7 @@ export const EmailContactMethod = ({ emails }: { emails: Channel[] }) => {
               </div>
             ))
             .with('verified', () => (
-              <div className="flex w-fit items-center rounded bg-[#DCFCE7] px-2 py-1 text-ens-peridot-core">
+              <div className="flex w-fit items-center rounded bg-ens-signal-success-100 px-2 py-1 text-ens-peridot-core">
                 <MSymbol className="ms-opsz-16 ms-wght-300" symbol="check" />
                 <span className="ml-2 text-xs">
                   <Trans>Verified</Trans>

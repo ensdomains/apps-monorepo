@@ -16,7 +16,6 @@ import {
   generateEmailOtp,
   issueEmailChallenge,
   redeemEmailChallenge,
-  restoreEmailChallengeResendAvailability,
   secondsUntilEmailOtpResend,
 } from '#services/email/challenges.js'
 import { sendVerificationEmail } from '#services/email/verification.js'
@@ -104,16 +103,11 @@ const sendChallenge = async (c: EmailContext, email: string) => {
     c.var.address,
   )
   if (sent.isErr()) {
-    // A recipient-specific provider rejection must not disclose mailbox state.
+    // Keep the same challenge and cooldown state for accepted and rejected
+    // requests; otherwise resend and channel listing reveal provider results.
     logger.error('Failed to send verification email', {
       challengeId: challenge.id,
       error: sent.error,
-    })
-    await restoreEmailChallengeResendAvailability(c.var.db, {
-      userId,
-      challengeId: challenge.id,
-      digest,
-      previousLastSentAt: previous?.last_sent_at ?? null,
     })
   }
 

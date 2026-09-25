@@ -95,31 +95,6 @@ export const getPendingEmailChallenges = (db: Database, userId: string) =>
     where: eq(TABLE.emailVerifications.user_id, userId),
   })
 
-/** A rejected provider request should not force the account to wait to retry.
- * Keep the send count and caller rate limit consumed, including for recipients
- * that SendGrid suppresses. The digest guard leaves a newer rotation alone.
- */
-export const restoreEmailChallengeResendAvailability = async (
-  db: Database,
-  input: {
-    userId: string
-    challengeId: string
-    digest: string
-    previousLastSentAt: Date | null
-  },
-) => {
-  await db
-    .update(TABLE.emailVerifications)
-    .set({ last_sent_at: input.previousLastSentAt ?? new Date(0) })
-    .where(
-      and(
-        eq(TABLE.emailVerifications.id, input.challengeId),
-        eq(TABLE.emailVerifications.user_id, input.userId),
-        eq(TABLE.emailVerifications.otp_digest, input.digest),
-      ),
-    )
-}
-
 export const cancelEmailChallenge = async (
   db: Database,
   userId: string,

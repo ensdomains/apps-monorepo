@@ -456,46 +456,75 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       expect(sendVerificationEmail).toHaveBeenCalledTimes(1)
     })
 
-    it('allows an immediate bounded retry after SendGrid rejects a send without disclosing the rejection', async () => {
-      const email = `${crypto.randomUUID()}@example.com`
+    it('keeps resend behavior identical after accepted and rejected provider sends', async () => {
+      const rejectedEmail = `${crypto.randomUUID()}@example.com`
+      const acceptedEmail = `${crypto.randomUUID()}@example.com`
       sendVerificationEmail.mockImplementationOnce(async () =>
         err(new Error('recipient suppressed')),
       )
-      const first = await request(0, '/channels/email', 'POST', { email })
-      expect(first.status).toBe(200)
-      const firstBody = (await first.json()) as { challengeId: string }
-      const rejectedCode = sendVerificationEmail.mock.calls[0]?.[3] as string
-      const afterRejection = await db.query.emailVerifications.findFirst({
-        where: eq(TABLE.emailVerifications.id, firstBody.challengeId),
+      const rejected = await request(0, '/channels/email', 'POST', {
+        email: rejectedEmail,
       })
-      expect(afterRejection?.last_sent_at.getTime()).toBe(0)
-      expect(afterRejection?.send_count).toBe(1)
+      const accepted = await request(1, '/channels/email', 'POST', {
+        email: acceptedEmail,
+      })
+      expect(rejected.status).toBe(200)
+      expect(accepted.status).toBe(200)
+      const rejectedBody = (await rejected.json()) as { challengeId: string }
+      const acceptedBody = (await accepted.json()) as { challengeId: string }
 
-      const second = await request(
+      for (const [userIndex, challengeId] of [
+        [0, rejectedBody.challengeId],
+        [1, acceptedBody.challengeId],
+      ] as const) {
+        const challenge = await db.query.emailVerifications.findFirst({
+          where: eq(TABLE.emailVerifications.id, challengeId),
+        })
+        expect(challenge?.last_sent_at.getTime()).toBeGreaterThan(
+          Date.now() - 30_000,
+        )
+        expect(challenge?.send_count).toBe(1)
+        const pending = (await (
+          await request(userIndex, '/channels')
+        ).json()) as Array<{ id: string; last_verification_sent_at?: string }>
+        expect(
+          pending.find((channel) => channel.id === challengeId)
+            ?.last_verification_sent_at,
+        ).toBe(challenge?.last_sent_at.toISOString())
+        expect(
+          (
+            await request(
+              userIndex,
+              `/channels/email/${challengeId}/resend`,
+              'POST',
+            )
+          ).status,
+        ).toBe(429)
+      }
+      expect(sendVerificationEmail).toHaveBeenCalledTimes(2)
+
+      await allowResend(rejectedBody.challengeId)
+      const retry = await request(
         0,
-        `/channels/email/${firstBody.challengeId}/resend`,
+        `/channels/email/${rejectedBody.challengeId}/resend`,
         'POST',
       )
-      expect(second.status).toBe(200)
-      expect((await second.json()) as Record<string, unknown>).toMatchObject({
-        message: 'Verification email requested',
-        challengeId: firstBody.challengeId,
-      })
-      const deliveredCode = sendVerificationEmail.mock.calls[1]?.[3] as string
-      expect(deliveredCode).not.toBe(rejectedCode)
+      expect(retry.status).toBe(200)
+      const rejectedCode = sendVerificationEmail.mock.calls[0]?.[3] as string
+      const retryCode = sendVerificationEmail.mock.calls[2]?.[3] as string
+      expect(retryCode).not.toBe(rejectedCode)
       const afterRetry = await db.query.emailVerifications.findFirst({
-        where: eq(TABLE.emailVerifications.id, firstBody.challengeId),
+        where: eq(TABLE.emailVerifications.id, rejectedBody.challengeId),
       })
       expect(afterRetry?.send_count).toBe(2)
-      expect(afterRetry?.last_sent_at.getTime()).toBeGreaterThan(0)
       expect(
         (
           await request(
             0,
-            `/channels/email/${firstBody.challengeId}/verify`,
+            `/channels/email/${rejectedBody.challengeId}/verify`,
             'POST',
             {
-              otp: deliveredCode,
+              otp: retryCode,
             },
           )
         ).status,
