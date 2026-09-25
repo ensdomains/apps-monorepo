@@ -179,7 +179,10 @@ export const useRegistrationTransactions = ({
   const handleProceed = useCallback(() => {
     const currentState = actor.getSnapshot().value
     if (currentState === 'error') {
-      transactionManager.clear()
+      for (const id of Object.values(REGISTRATION_TX_IDS)) {
+        if (transactionManager.getTransaction(id)?.getSnapshot().context.error)
+          transactionManager.cancelTransaction(id)
+      }
       actor.send({ type: 'RETRY' })
     }
   }, [actor])

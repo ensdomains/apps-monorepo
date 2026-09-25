@@ -17,7 +17,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 // The EOA flow's first on-chain step resolves only when the test says so, and
 // the step after it is a spy: a flow that is really stopped never reaches it.
-const deploy = vi.hoisted(() => ({ finish: () => {} }))
+const deploy = vi.hoisted(() => ({ finish: () => {}, fail: () => {} }))
 const waitForResolverDeployment = vi.hoisted(() => vi.fn())
 vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
   const actual =
@@ -28,8 +28,9 @@ vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
       actors: {
         deployResolver: fromPromise(
           () =>
-            new Promise((resolve) => {
+            new Promise((resolve, reject) => {
               deploy.finish = () => resolve({ txId: 'deploy', salt: 0n })
+              deploy.fail = () => reject(new Error('User rejected'))
             }),
         ) as never,
         resolveResolverDeployment: fromPromise(() => {
@@ -145,6 +146,39 @@ describe('/register', () => {
     )
     expect(clear).not.toHaveBeenCalled()
 
+    cancel.mockRestore()
+    clear.mockRestore()
+  })
+  it('keeps completed steps when retrying the failed one', async () => {
+    search.name = 'retry.eth'
+    render(<RegisterRoute />)
+
+    act(() => flow.startFlow(SUPPORTED_TOKENS.USDC, 160_000_000n))
+    await act(() => flow.transactions[0].onStart?.())
+    await act(async () => deploy.fail())
+    expect(flow.actor.getSnapshot().value).toBe('error')
+
+    const attempt = (error?: Error) =>
+      ({ getSnapshot: () => ({ context: { error } }) }) as never
+    const attempts: Record<string, never> = {
+      [REGISTRATION_TX_IDS.commit]: attempt(),
+      [REGISTRATION_TX_IDS.approve]: attempt(),
+      [REGISTRATION_TX_IDS.register]: attempt(new Error('User rejected')),
+    }
+    const get = vi
+      .spyOn(transactionManager, 'getTransaction')
+      .mockImplementation((id) => attempts[id])
+    const cancel = vi.spyOn(transactionManager, 'cancelTransaction')
+    const clear = vi.spyOn(transactionManager, 'clear')
+
+    act(() => flow.transactions[1].onStart?.())
+
+    // Steps that landed keep their status; only the failed attempt is retired.
+    expect(cancel.mock.calls).toEqual([[REGISTRATION_TX_IDS.register]])
+    expect(clear).not.toHaveBeenCalled()
+    expect(flow.actor.getSnapshot().value).toBe('deployingResolver')
+
+    get.mockRestore()
     cancel.mockRestore()
     clear.mockRestore()
   })
