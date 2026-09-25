@@ -3,6 +3,12 @@ import { KV_KEY } from '#core/kv/index.js'
 export const EMAIL_VERIFICATION_RATE_LIMIT_MAX_SENDS = 3
 export const EMAIL_VERIFICATION_RATE_LIMIT_WINDOW_SECONDS = 60 * 60
 
+// This limits each authenticated account, not all accounts targeting a mailbox.
+// Wallet accounts are cheap to create, so it cannot stop a cross-account spam
+// campaign. A hard mailbox quota would let other accounts exhaust the real
+// recipient's allowance; add recipient protection only with a non-blocking
+// abuse signal or an explicit product policy for that tradeoff.
+
 type RateLimitWindow = {
   count: number
   windowStartMs: number

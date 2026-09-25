@@ -95,7 +95,7 @@ const NewEmailContactMethod = () => {
   const addEmailMutation = useMutation({
     ...addEmailChannelMutationOptions,
     onSuccess: () => {
-      toast.success(t`Verification code sent`)
+      toast.success(t`Verification requested. Check your email.`)
     },
     onError: (error: Error) => {
       toast.error(error.message || t`Failed to add email`)
@@ -164,6 +164,7 @@ const NewEmailContactMethod = () => {
               form.handleSubmit()
             }}
             size="lg"
+            type="button"
             variant="lightBlue"
           >
             {isSubmitting ? (
@@ -209,7 +210,7 @@ const PendingEmailVerification = ({
   if (secondsRemaining === 0) {
     return (
       <div className="flex flex-col items-start gap-2">
-        <p className="text-[#CA6200] text-sm" role="status">
+        <p className="text-ens-signal-warning-700 text-sm" role="status">
           <Trans>
             This verification code has expired. Resend verification to get a new
             code.
@@ -219,6 +220,7 @@ const PendingEmailVerification = ({
           disabled={isResending || resendWait > 0}
           onClick={onResend}
           size="lg"
+          type="button"
           variant="lightBlue"
         >
           {resendWait > 0 ? (
@@ -249,6 +251,7 @@ const PendingEmailVerification = ({
           disabled={otp.length !== 6 || verifyMutation.isPending}
           onClick={() => verifyMutation.mutate({ challengeId: email.id, otp })}
           size="lg"
+          type="button"
           variant="lightBlue"
         >
           <Trans>Verify Email</Trans>
@@ -274,7 +277,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
       })
     },
     onSuccess: (_, id) => {
-      toast.success(t`Email verification sent`, {
+      toast.success(t`Email verification requested. Check your email.`, {
         id: `resend-email-verification-${id}`,
       })
     },
@@ -319,6 +322,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
               aria-label={t`Email options`}
               className="ml-auto"
               size="icon"
+              type="button"
               variant="ghost"
             >
               <MSymbol
@@ -376,6 +380,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
                 className="flex-1/3 uppercase"
                 onClick={() => setShowDeleteDialog(false)}
                 size="lg"
+                type="button"
                 variant="outline"
               >
                 <Trans>Cancel</Trans>
@@ -389,6 +394,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
                   setShowDeleteDialog(false)
                 }}
                 size="lg"
+                type="button"
                 variant="lightBlue"
               >
                 {email.status === 'pending' ? (
@@ -413,27 +419,9 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
   )
 }
 
-export const EmailContactMethod = ({ email }: { email?: Channel }) => {
+export const EmailContactMethod = ({ emails }: { emails: Channel[] }) => {
   return (
     <div className="flex flex-col gap-3 rounded-lg bg-[#FAFAFB] p-5">
-      {match(email?.status)
-        .with('pending', () => (
-          <div className="flex w-fit items-center rounded bg-[#F8F7E2] px-2 py-1 text-[#CA6200]">
-            <MSymbol className="ms-opsz-16 ms-wght-300" symbol="schedule" />
-            <span className="ml-2 text-xs">
-              <Trans>Pending</Trans>
-            </span>
-          </div>
-        ))
-        .with('verified', () => (
-          <div className="flex w-fit items-center rounded bg-[#DCFCE7] px-2 py-1 text-ens-peridot-core">
-            <MSymbol className="ms-opsz-16 ms-wght-300" symbol="check" />
-            <span className="ml-2 text-xs">
-              <Trans>Verified</Trans>
-            </span>
-          </div>
-        ))
-        .otherwise(() => null)}
       <div className="flex items-start gap-2">
         <MSymbol
           className="ms-opsz-18 ms-wght-400 text-ens-lapis-core not-italic leading-[19.6px]"
@@ -451,9 +439,30 @@ export const EmailContactMethod = ({ email }: { email?: Channel }) => {
         </div>
       </div>
 
-      {email ? (
-        <ExistingEmailContactMethod email={email} />
-      ) : (
+      {emails.map((email) => (
+        <div className="flex flex-col gap-3" key={email.id}>
+          {match(email.status)
+            .with('pending', () => (
+              <div className="flex w-fit items-center rounded bg-ens-signal-warning-100 px-2 py-1 text-ens-signal-warning-700">
+                <MSymbol className="ms-opsz-16 ms-wght-300" symbol="schedule" />
+                <span className="ml-2 text-xs">
+                  <Trans>Pending</Trans>
+                </span>
+              </div>
+            ))
+            .with('verified', () => (
+              <div className="flex w-fit items-center rounded bg-[#DCFCE7] px-2 py-1 text-ens-peridot-core">
+                <MSymbol className="ms-opsz-16 ms-wght-300" symbol="check" />
+                <span className="ml-2 text-xs">
+                  <Trans>Verified</Trans>
+                </span>
+              </div>
+            ))
+            .otherwise(() => null)}
+          <ExistingEmailContactMethod email={email} />
+        </div>
+      ))}
+      {!emails.some((email) => email.status === 'pending') && (
         <NewEmailContactMethod />
       )}
     </div>

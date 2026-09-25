@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { okAsync } from 'neverthrow'
 import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
@@ -71,12 +71,23 @@ export default createApp()
       .delete(TABLE.userChannels)
       .where(eq(TABLE.userChannels.id, channelId))
 
-    // broadcast list cleanup via waitUntil
+    // SendGrid marketing contacts are keyed by email, so another account may
+    // still need this contact after this channel is removed.
     if (
       channel.channel === 'email' &&
       channel.target &&
       c.env.SENDGRID_BROADCAST_LIST_ID
     ) {
+      const remaining = await c.var.db.query.userChannels.findFirst({
+        columns: { id: true },
+        where: and(
+          eq(TABLE.userChannels.channel, 'email'),
+          eq(TABLE.userChannels.status, 'verified'),
+          sql`lower(${TABLE.userChannels.target}) = lower(${channel.target})`,
+        ),
+      })
+      if (remaining) return c.json({ message: 'Channel deleted successfully' })
+
       const env = {
         SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
         SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,

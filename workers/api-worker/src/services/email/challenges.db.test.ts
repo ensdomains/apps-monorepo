@@ -13,6 +13,7 @@ import {
   vi,
 } from 'vitest'
 import app from '#app/index.js'
+import { processEvents } from '#app/routes/webhook/sendgrid.js'
 import { type Database, getDatabase, TABLE } from '#core/database/index.js'
 import { makeMockEnv } from '#test-utils/env.js'
 import { requireLocalTestDatabase } from '#test-utils/real-db-config.js'
@@ -20,6 +21,10 @@ import { requireLocalTestDatabase } from '#test-utils/real-db-config.js'
 const sendVerificationEmail = vi.hoisted(() => vi.fn())
 const verifyTelegramAuth = vi.hoisted(() => vi.fn())
 const makeTelegramRequest = vi.hoisted(() => vi.fn())
+const contacts = vi.hoisted(() => ({
+  search: vi.fn(),
+  delete: vi.fn(),
+}))
 vi.mock('#services/email/verification.js', () => ({ sendVerificationEmail }))
 vi.mock('#services/telegram/auth.js', () => ({ verifyTelegramAuth }))
 vi.mock('#services/telegram/utils.js', () => ({
@@ -31,8 +36,8 @@ vi.mock('#services/email/welcome.js', () => ({
 }))
 vi.mock('#services/sendgrid/contacts.js', () => ({
   addContactToList: vi.fn(async () => ok(undefined)),
-  searchContact: vi.fn(async () => ok(null)),
-  deleteContact: vi.fn(async () => ok(undefined)),
+  searchContact: contacts.search,
+  deleteContact: contacts.delete,
 }))
 
 const testEnv = env as CloudflareBindings & {
@@ -87,6 +92,8 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         .mockReset()
         .mockReturnValue(Promise.resolve(ok(undefined)))
       makeTelegramRequest.mockReset().mockReturnValue(okAsync({}))
+      contacts.search.mockReset().mockReturnValue(okAsync(null))
+      contacts.delete.mockReset().mockReturnValue(okAsync(undefined))
     })
 
     afterEach(async () => {
@@ -449,6 +456,52 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       expect(sendVerificationEmail).toHaveBeenCalledTimes(1)
     })
 
+    it('allows an immediate bounded retry after SendGrid rejects a send without disclosing the rejection', async () => {
+      const email = `${crypto.randomUUID()}@example.com`
+      sendVerificationEmail.mockImplementationOnce(async () =>
+        err(new Error('recipient suppressed')),
+      )
+      const first = await request(0, '/channels/email', 'POST', { email })
+      expect(first.status).toBe(200)
+      const firstBody = (await first.json()) as { challengeId: string }
+      const rejectedCode = sendVerificationEmail.mock.calls[0]?.[3] as string
+      const afterRejection = await db.query.emailVerifications.findFirst({
+        where: eq(TABLE.emailVerifications.id, firstBody.challengeId),
+      })
+      expect(afterRejection?.last_sent_at.getTime()).toBe(0)
+      expect(afterRejection?.send_count).toBe(1)
+
+      const second = await request(
+        0,
+        `/channels/email/${firstBody.challengeId}/resend`,
+        'POST',
+      )
+      expect(second.status).toBe(200)
+      expect((await second.json()) as Record<string, unknown>).toMatchObject({
+        message: 'Verification email requested',
+        challengeId: firstBody.challengeId,
+      })
+      const deliveredCode = sendVerificationEmail.mock.calls[1]?.[3] as string
+      expect(deliveredCode).not.toBe(rejectedCode)
+      const afterRetry = await db.query.emailVerifications.findFirst({
+        where: eq(TABLE.emailVerifications.id, firstBody.challengeId),
+      })
+      expect(afterRetry?.send_count).toBe(2)
+      expect(afterRetry?.last_sent_at.getTime()).toBeGreaterThan(0)
+      expect(
+        (
+          await request(
+            0,
+            `/channels/email/${firstBody.challengeId}/verify`,
+            'POST',
+            {
+              otp: deliveredCode,
+            },
+          )
+        ).status,
+      ).toBe(200)
+    })
+
     it('locks a challenge after five incorrect attempts', async () => {
       const started = await request(0, '/channels/email', 'POST', {
         email: `${crypto.randomUUID()}@example.com`,
@@ -540,6 +593,116 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       )
       expect(linkedBody.message).toBe(unusedBody.message)
       expect(sendVerificationEmail).toHaveBeenCalledTimes(2)
+    })
+
+    it('applies mailbox events to every matching email channel, and no other channel', async () => {
+      const email = `${crypto.randomUUID()}@example.com`
+      const unrelated = `${crypto.randomUUID()}@example.com`
+      const otherUser = users[1]
+      if (!otherUser) throw new Error('Missing second test user')
+      await db.insert(TABLE.userChannels).values([
+        {
+          user_id: firstUserId(),
+          channel: 'email',
+          target: email.toUpperCase(),
+          status: 'verified',
+        },
+        {
+          user_id: otherUser.id,
+          channel: 'email',
+          target: email,
+          status: 'verified',
+        },
+        {
+          user_id: firstUserId(),
+          channel: 'email',
+          target: unrelated,
+          status: 'verified',
+        },
+        {
+          user_id: firstUserId(),
+          channel: 'telegram',
+          target: email,
+          status: 'verified',
+        },
+      ])
+
+      await processEvents(db, [
+        { email, event: 'bounce', timestamp: 1_750_000_000 },
+      ])
+      const bounced = await db.query.userChannels.findMany({
+        where: eq(TABLE.userChannels.target, email),
+      })
+      expect(
+        bounced.find((channel) => channel.channel === 'email')?.status,
+      ).toBe('bounced')
+      expect(
+        bounced.find((channel) => channel.channel === 'telegram')?.status,
+      ).toBe('verified')
+      expect(
+        (
+          await db.query.userChannels.findFirst({
+            where: eq(TABLE.userChannels.target, email.toUpperCase()),
+          })
+        )?.status,
+      ).toBe('bounced')
+
+      await processEvents(db, [
+        { email, event: 'unsubscribe', timestamp: 1_750_000_001 },
+      ])
+      const matching = await db.query.userChannels.findMany({
+        where: eq(TABLE.userChannels.target, email),
+      })
+      expect(
+        matching.find((channel) => channel.channel === 'email')?.status,
+      ).toBe('unsubscribed')
+      expect(
+        (
+          await db.query.userChannels.findFirst({
+            where: eq(TABLE.userChannels.target, email.toUpperCase()),
+          })
+        )?.status,
+      ).toBe('unsubscribed')
+      expect(
+        (
+          await db.query.userChannels.findFirst({
+            where: eq(TABLE.userChannels.target, unrelated),
+          })
+        )?.status,
+      ).toBe('verified')
+    })
+
+    it('keeps a shared SendGrid contact until the last verified channel is removed', async () => {
+      const email = `${crypto.randomUUID()}@example.com`
+      const [first, second] = await db
+        .insert(TABLE.userChannels)
+        .values(
+          users.map((user) => ({
+            user_id: user.id,
+            channel: 'email' as const,
+            target: email,
+            status: 'verified' as const,
+          })),
+        )
+        .returning({ id: TABLE.userChannels.id })
+      if (!first || !second) throw new Error('Missing test channels')
+      bindings = {
+        ...bindings,
+        SENDGRID_BROADCAST_LIST_ID: 'test-list',
+      } as unknown as CloudflareBindings
+      contacts.search.mockReturnValue(
+        okAsync({ id: 'sendgrid-contact', email, listIds: ['test-list'] }),
+      )
+
+      expect((await request(0, `/channels/${first.id}`, 'DELETE')).status).toBe(
+        200,
+      )
+      expect(contacts.search).not.toHaveBeenCalled()
+      expect(contacts.delete).not.toHaveBeenCalled()
+      expect(
+        (await request(1, `/channels/${second.id}`, 'DELETE')).status,
+      ).toBe(200)
+      await vi.waitFor(() => expect(contacts.delete).toHaveBeenCalledOnce())
     })
 
     it('keeps Telegram associated but unavailable after 403 and restores it on /start', async () => {

@@ -805,7 +805,7 @@ msgid "Email verification code"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
-msgid "Email verification sent"
+msgid "Email verification requested. Check your email."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -2701,7 +2701,7 @@ msgid "Validating the commitment"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
-msgid "Verification code sent"
+msgid "Verification requested. Check your email."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx

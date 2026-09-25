@@ -15,9 +15,7 @@ export const ContactMethods = () => {
   const channels = useQuery({
     ...channelsQueryOptions,
     select: (data) => ({
-      email:
-        data.find((c) => c.channel === 'email' && c.status === 'pending') ??
-        data.find((c) => c.channel === 'email'),
+      email: data.filter((c) => c.channel === 'email'),
       telegram: data.find((c) => c.channel === 'telegram'),
       push: data.filter((c) => c.channel === 'push'),
     }),
@@ -28,7 +26,7 @@ export const ContactMethods = () => {
       <h2 className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
         <Trans>Contact methods</Trans>
       </h2>
-      <EmailContactMethod email={channels.data?.email} />
+      <EmailContactMethod emails={channels.data?.email ?? []} />
       <Collapsible>
         <CollapsibleTrigger asChild>
           <button
