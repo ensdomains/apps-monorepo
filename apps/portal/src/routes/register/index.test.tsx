@@ -17,7 +17,12 @@ vi.mock('@tanstack/react-router', () => ({
 
 // The EOA flow's first on-chain step resolves only when the test says so, and
 // the step after it is a spy: a flow that is really stopped never reaches it.
-const deploy = vi.hoisted(() => ({ finish: () => {}, fail: () => {} }))
+// A test that needs the flow to go on past it sets `deploy.landed`; the later
+// steps then succeed until register, which the wallet rejects.
+const deploy = vi.hoisted(() => ({
+  finish: () => {},
+  landed: new Promise(() => {}),
+}))
 const waitForResolverDeployment = vi.hoisted(() => vi.fn())
 vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
   const actual =
@@ -28,14 +33,33 @@ vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
       actors: {
         deployResolver: fromPromise(
           () =>
-            new Promise((resolve, reject) => {
+            new Promise((resolve) => {
               deploy.finish = () => resolve({ txId: 'deploy', salt: 0n })
-              deploy.fail = () => reject(new Error('User rejected'))
             }),
         ) as never,
         resolveResolverDeployment: fromPromise(() => {
           waitForResolverDeployment()
-          return new Promise(() => {})
+          return deploy.landed
+        }) as never,
+        generateCommitment: fromPromise(async () => ({
+          commitment: '0x01',
+          secret: '0x02',
+        })) as never,
+        submitCommitment: fromPromise(
+          async () => actual.REGISTRATION_TX_IDS.commit,
+        ) as never,
+        pollTransactionStatus: fromPromise(async () => {}) as never,
+        readMinCommitmentAge: fromPromise(async () => 0n) as never,
+        readPaymentAuthorization: fromPromise(async () => ({
+          allowance: 0n,
+          livePrice: 1n,
+        })) as never,
+        submitApproval: fromPromise(
+          async () => actual.REGISTRATION_TX_IDS.approve,
+        ) as never,
+        waitAfterCommitment: fromPromise(async () => {}) as never,
+        submitRegistration: fromPromise(async () => {
+          throw new Error('User rejected')
         }) as never,
       },
     }),
@@ -149,18 +173,26 @@ describe('/register', () => {
     cancel.mockRestore()
     clear.mockRestore()
   })
-  it('keeps completed steps when retrying the failed one', async () => {
+
+  it('keeps completed steps when retrying a rejected register', async () => {
     search.name = 'retry.eth'
+    deploy.landed = Promise.resolve({ resolverAddress: ACCOUNT })
     render(<RegisterRoute />)
 
     act(() => flow.startFlow(SUPPORTED_TOKENS.USDC, 160_000_000n))
     await act(() => flow.transactions[0].onStart?.())
-    await act(async () => deploy.fail())
-    expect(flow.actor.getSnapshot().value).toBe('error')
+    await act(async () => deploy.finish())
+    await vi.waitFor(() =>
+      expect(flow.actor.getSnapshot().context.retryTarget).toBe(
+        'registeringDomain',
+      ),
+    )
 
+    // The steps before register landed; the wallet rejected register itself.
     const attempt = (error?: Error) =>
       ({ getSnapshot: () => ({ context: { error } }) }) as never
     const attempts: Record<string, never> = {
+      [REGISTRATION_TX_IDS.deployResolver]: attempt(),
       [REGISTRATION_TX_IDS.commit]: attempt(),
       [REGISTRATION_TX_IDS.approve]: attempt(),
       [REGISTRATION_TX_IDS.register]: attempt(new Error('User rejected')),
@@ -171,12 +203,13 @@ describe('/register', () => {
     const cancel = vi.spyOn(transactionManager, 'cancelTransaction')
     const clear = vi.spyOn(transactionManager, 'clear')
 
-    act(() => flow.transactions[1].onStart?.())
+    // "Try again" on the register step.
+    act(() => flow.transactions.at(-1)?.onStart?.())
 
-    // Steps that landed keep their status; only the failed attempt is retired.
+    // The overview reads each step's status from the manager, so the steps
+    // that landed must stay there; only the rejected attempt is retired.
     expect(cancel.mock.calls).toEqual([[REGISTRATION_TX_IDS.register]])
     expect(clear).not.toHaveBeenCalled()
-    expect(flow.actor.getSnapshot().value).toBe('deployingResolver')
 
     get.mockRestore()
     cancel.mockRestore()
