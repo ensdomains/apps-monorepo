@@ -160,6 +160,10 @@ msgstr ""
 msgid "4 character premium name"
 msgstr ""
 
+#: src/features/notifications/settings/contact-methods/email.tsx
+msgid "6-digit code"
+msgstr ""
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "A mint is already being prepared in another tab. Continue there or try again after it finishes."
 msgstr ""
@@ -250,10 +254,6 @@ msgstr ""
 msgid "Allow this temporary account to move this name."
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "An error occurred during verification"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 msgstr ""
@@ -341,10 +341,6 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Back to Home"
-msgstr ""
-
 #: src/features/renew/workflow/components/RenewalRouteError.tsx
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
 msgid "Back to profile"
@@ -353,10 +349,6 @@ msgstr ""
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 #: src/features/renew/workflow/result/FailureStep.tsx
 msgid "Back to Quote"
-msgstr ""
-
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Back to Settings"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx
@@ -373,6 +365,10 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Blog"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Bot access needed"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push.tsx
@@ -414,6 +410,14 @@ msgstr ""
 msgid "Cancel"
 msgstr "Avbryt"
 
+#: src/features/notifications/settings/contact-methods/email.tsx
+msgid "Cancel Email Verification?"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx
+msgid "Cancel Verification"
+msgstr ""
+
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Cannot save profile"
 msgstr ""
@@ -434,10 +438,6 @@ msgstr ""
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Check status"
-msgstr ""
-
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Check Your Email"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
@@ -483,10 +483,6 @@ msgstr ""
 #: src/components/molecules/SearchField/SearchField.tsx
 #: src/features/navigation/Header/search/SearchInput.tsx
 msgid "Clear search"
-msgstr ""
-
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Click the button below to verify your email address and start receiving notifications."
 msgstr ""
 
 #: src/components/ui/dialog.tsx
@@ -581,14 +577,6 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/index.tsx
 msgid "Contact methods"
-msgstr ""
-
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Continue to Home"
-msgstr ""
-
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Continue to Settings"
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -789,10 +777,6 @@ msgid "Eligible for upgrade"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
-msgid "Email added"
-msgstr ""
-
-#: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Email channel removed"
 msgstr ""
 
@@ -804,16 +788,24 @@ msgstr ""
 msgid "Email options"
 msgstr ""
 
+#: src/routes/notifications/channels/email/verify.tsx
+msgid "Email verification"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx
+msgid "Email verification cancelled"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx
+msgid "Email verification code"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Email verification sent"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx
+#: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Email verified successfully"
-msgstr ""
-
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Email Verified!"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push.tsx
@@ -855,6 +847,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Enter a price you'd be willing to pay. We'll calculate when the fee will reach that price."
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx
+msgid "Enter the code from your email in Notification Settings while signed in to the account that requested it."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -965,10 +961,6 @@ msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "Failed to update preferences"
-msgstr ""
-
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Failed to verify email"
 msgstr ""
 
 #: src/features/weave-registration/lib/weaveSteps.ts
@@ -1536,7 +1528,7 @@ msgid "Open NFT in a new tab"
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
-msgid "Open the verification link from your email to finish setup."
+msgid "Open Notification Settings"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
@@ -1563,10 +1555,6 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Pending"
-msgstr ""
-
-#: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Pending verification"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
@@ -1604,10 +1592,6 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Please sign in to telegram in the popup window."
-msgstr ""
-
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Please wait while we verify your email address."
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
@@ -2452,6 +2436,10 @@ msgstr ""
 msgid "The page you're looking for doesn't exist or may have been moved."
 msgstr ""
 
+#: src/features/notifications/settings/contact-methods/email.tsx
+msgid "The pending code will stop working."
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "The registrar requires a short wait between commit and register"
 msgstr ""
@@ -2479,10 +2467,6 @@ msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "The upgrade contracts don't match this account. Please contact support."
-msgstr ""
-
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "There was a problem verifying your email address."
 msgstr ""
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
@@ -2523,10 +2507,6 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
-msgstr ""
-
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "This page can only verify your email when opened from the link in the verification email."
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
@@ -2595,7 +2575,6 @@ msgstr ""
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 #: src/features/renew/workflow/result/FailureStep.tsx
 #: src/features/wallet/components/EnableSessionModal.tsx
-#: src/routes/notifications/channels/email/verify.tsx
 msgid "Try Again"
 msgstr ""
 
@@ -2709,8 +2688,8 @@ msgstr ""
 msgid "Validating the commitment"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Verification Failed"
+#: src/features/notifications/settings/contact-methods/email.tsx
+msgid "Verification code sent"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -2725,8 +2704,8 @@ msgstr ""
 msgid "Verify authenticity and stay safe."
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Verify Email Address"
+#: src/features/notifications/settings/contact-methods/email.tsx
+msgid "Verify Email"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
@@ -2738,16 +2717,8 @@ msgstr ""
 msgid "Verify wallet ownership"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Verify Your Email"
-msgstr ""
-
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Verify your wallet"
-msgstr ""
-
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Verifying Email..."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -2952,10 +2923,6 @@ msgstr ""
 msgid "You can buy this name at any point during the {periodDays}-day cooldown."
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "You can now receive notifications at this email address."
-msgstr ""
-
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "You can still use the manager, but these features won't be available:"
 msgstr ""
@@ -3018,10 +2985,6 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 msgid "Your commemorative NFT"
-msgstr ""
-
-#: src/routes/notifications/channels/email/verify.tsx
-msgid "Your email has been verified successfully!"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationCompletionBanner.tsx

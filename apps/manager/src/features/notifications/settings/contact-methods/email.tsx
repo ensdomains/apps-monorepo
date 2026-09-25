@@ -31,8 +31,10 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import {
   addEmailChannelMutationOptions,
   type Channel,
+  cancelEmailVerificationMutationOptions,
   deleteChannelMutationOptions,
   resendVerificationMutationOptions,
+  verifyEmailMutationOptions,
 } from '@/features/notifications/data/queries/channels'
 
 const newEmailContactMethodFormSchema = v.object({
@@ -44,7 +46,7 @@ const NewEmailContactMethod = () => {
   const addEmailMutation = useMutation({
     ...addEmailChannelMutationOptions,
     onSuccess: () => {
-      toast.success(t`Email added`)
+      toast.success(t`Verification code sent`)
     },
     onError: (error: Error) => {
       toast.error(error.message || t`Failed to add email`)
@@ -130,6 +132,16 @@ const NewEmailContactMethod = () => {
 const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
   const { t } = useLingui()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [otp, setOtp] = useState('')
+
+  const verifyMutation = useMutation({
+    ...verifyEmailMutationOptions,
+    onSuccess: () => {
+      setOtp('')
+      toast.success(t`Email verified successfully`)
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
 
   const resendMutation = useMutation({
     ...resendVerificationMutationOptions,
@@ -163,7 +175,6 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
       toast.success(t`Email channel removed`, {
         id: `remove-email-${id}`,
       })
-      toast.success(t`Email channel removed`)
     },
     onError: (error: Error, id) => {
       toast.error(error.message || t`Failed to remove email channel`, {
@@ -171,80 +182,134 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
       })
     },
   })
+  const cancelMutation = useMutation({
+    ...cancelEmailVerificationMutationOptions,
+    onSuccess: () => toast.success(t`Email verification cancelled`),
+    onError: (error: Error) => toast.error(error.message),
+  })
   return (
-    <div className="flex h-12 items-center rounded border border-[#D4D9DB] bg-white px-4">
-      <div className="text-[#515151] text-base">{email.label}</div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            aria-label={t`Email options`}
-            className="ml-auto"
-            size="icon"
-            variant="ghost"
-          >
-            <MSymbol
-              className="ms-wght-300 text-[#1C1B1F]"
-              symbol="more_horiz"
+    <div className="flex flex-col gap-3">
+      <div className="flex h-12 items-center rounded border border-[#D4D9DB] bg-white px-4">
+        <div className="text-[#515151] text-base">{email.label}</div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label={t`Email options`}
+              className="ml-auto"
+              size="icon"
+              variant="ghost"
+            >
+              <MSymbol
+                className="ms-wght-300 text-[#1C1B1F]"
+                symbol="more_horiz"
+              />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {email.status === 'pending' && (
+              <>
+                <DropdownMenuItem
+                  onClick={() => resendMutation.mutate(email.id)}
+                >
+                  <MSymbol
+                    className="ms-wght-300 text-[#515151]"
+                    symbol="cached"
+                  />
+                  <Trans>Resend Verification</Trans>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+
+            <DropdownMenuItem onClick={() => setShowDeleteDialog(true)}>
+              <MSymbol className="ms-wght-300 text-[#515151]" symbol="delete" />
+              {email.status === 'pending' ? (
+                <Trans>Cancel Verification</Trans>
+              ) : (
+                <Trans>Remove</Trans>
+              )}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <AlertDialog onOpenChange={setShowDeleteDialog} open={showDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {email.status === 'pending' ? (
+                  <Trans>Cancel Email Verification?</Trans>
+                ) : (
+                  <Trans>Remove Email Contact Method?</Trans>
+                )}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {email.status === 'pending' ? (
+                  <Trans>The pending code will stop working.</Trans>
+                ) : (
+                  <Trans>
+                    You may miss important alerts if you remove this contact
+                    method. Are you sure you want to continue?
+                  </Trans>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
+              <Button
+                className="flex-1/3 uppercase"
+                onClick={() => setShowDeleteDialog(false)}
+                size="lg"
+                variant="outline"
+              >
+                <Trans>Cancel</Trans>
+              </Button>
+              <Button
+                className="flex-2/3 uppercase"
+                onClick={() => {
+                  if (email.status === 'pending')
+                    cancelMutation.mutate(email.id)
+                  else deleteMutation.mutate(email.id)
+                  setShowDeleteDialog(false)
+                }}
+                size="lg"
+                variant="lightBlue"
+              >
+                {email.status === 'pending' ? (
+                  <Trans>Cancel Verification</Trans>
+                ) : (
+                  <Trans>Remove</Trans>
+                )}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+      {email.status === 'pending' && (
+        <div className="flex gap-2 max-md:flex-col">
+          <InputGroup className="h-12 bg-white">
+            <InputGroupInput
+              aria-label={t`Email verification code`}
+              autoComplete="one-time-code"
+              inputMode="numeric"
+              maxLength={6}
+              onChange={(event) =>
+                setOtp(event.target.value.replace(/\D/g, ''))
+              }
+              placeholder={t`6-digit code`}
+              value={otp}
             />
+          </InputGroup>
+          <Button
+            disabled={otp.length !== 6 || verifyMutation.isPending}
+            onClick={() =>
+              verifyMutation.mutate({ challengeId: email.id, otp })
+            }
+            size="lg"
+            variant="lightBlue"
+          >
+            <Trans>Verify Email</Trans>
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {email.status === 'pending' && (
-            <>
-              <DropdownMenuItem onClick={() => resendMutation.mutate(email.id)}>
-                <MSymbol
-                  className="ms-wght-300 text-[#515151]"
-                  symbol="cached"
-                />
-                <Trans>Resend Verification</Trans>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
-          )}
-
-          <DropdownMenuItem onClick={() => setShowDeleteDialog(true)}>
-            <MSymbol className="ms-wght-300 text-[#515151]" symbol="delete" />
-            <Trans>Remove</Trans>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <AlertDialog onOpenChange={setShowDeleteDialog} open={showDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              <Trans>Remove Email Contact Method?</Trans>
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              <Trans>
-                You may miss important alerts if you remove this contact method.
-                Are you sure you want to continue?
-              </Trans>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
-            <Button
-              className="flex-1/3 uppercase"
-              onClick={() => setShowDeleteDialog(false)}
-              size="lg"
-              variant="outline"
-            >
-              <Trans>Cancel</Trans>
-            </Button>
-            <Button
-              className="flex-2/3 uppercase"
-              onClick={() => {
-                deleteMutation.mutate(email.id)
-                setShowDeleteDialog(false)
-              }}
-              size="lg"
-              variant="lightBlue"
-            >
-              <Trans>Remove</Trans>
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        </div>
+      )}
     </div>
   )
 }

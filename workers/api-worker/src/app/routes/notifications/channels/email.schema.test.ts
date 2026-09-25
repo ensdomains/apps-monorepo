@@ -35,8 +35,14 @@ describe('addEmailChannelBodySchema', () => {
 })
 
 describe('verifyEmailChannelBodySchema', () => {
-  it('rejects empty token', () => {
-    const result = v.safeParse(verifyEmailChannelBodySchema, { token: '' })
+  it('accepts a six digit code', () => {
+    expect(
+      v.safeParse(verifyEmailChannelBodySchema, { otp: '004219' }).success,
+    ).toBe(true)
+  })
+
+  it('rejects malformed codes', () => {
+    const result = v.safeParse(verifyEmailChannelBodySchema, { otp: 'abc' })
     expect(result.success).toBe(false)
   })
 

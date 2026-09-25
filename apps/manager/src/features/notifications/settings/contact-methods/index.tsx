@@ -15,7 +15,9 @@ export const ContactMethods = () => {
   const channels = useQuery({
     ...channelsQueryOptions,
     select: (data) => ({
-      email: data.find((c) => c.channel === 'email'),
+      email:
+        data.find((c) => c.channel === 'email' && c.status === 'pending') ??
+        data.find((c) => c.channel === 'email'),
       telegram: data.find((c) => c.channel === 'telegram'),
       push: data.filter((c) => c.channel === 'push'),
     }),

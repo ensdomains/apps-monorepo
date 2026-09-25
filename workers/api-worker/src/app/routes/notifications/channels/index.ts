@@ -3,8 +3,10 @@ import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
+import { getPendingEmailChallenges } from '#services/email/challenges.js'
 import {
   type PublicChannel,
+  type PublicPendingEmail,
   type QueryChannelRow,
   toPublicChannel,
 } from '#services/notifications/helpers.js'
@@ -41,14 +43,25 @@ export default createApp()
         verified_at: true,
         last_sent_at: true,
         last_bounce_at: true,
-        last_verification_sent_at: true,
       },
       where: eq(TABLE.userChannels.user_id, userId),
     })
 
     const publicChannels = await mapPublicChannels(channels)
+    const pending = await getPendingEmailChallenges(c.var.db, userId)
+    const pendingChannels: PublicPendingEmail[] = pending.map((challenge) => ({
+      id: challenge.id,
+      channel: 'email',
+      status: 'pending',
+      status_reason: null,
+      verified_at: null,
+      last_sent_at: null,
+      last_bounce_at: null,
+      last_verification_sent_at: challenge.last_sent_at,
+      label: challenge.email,
+    }))
 
-    return c.json<PublicChannel[]>(publicChannels)
+    return c.json<PublicChannel[]>([...publicChannels, ...pendingChannels])
   })
   .route('/', emailRoutes)
   .route('/', telegramRoutes)

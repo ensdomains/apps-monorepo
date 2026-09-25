@@ -61,7 +61,6 @@ export type QueryChannelRow = Pick<
   | 'verified_at'
   | 'last_sent_at'
   | 'last_bounce_at'
-  | 'last_verification_sent_at'
 >
 
 type PublicChannelBase = Omit<QueryChannelRow, 'target' | 'data'> & {
@@ -70,6 +69,18 @@ type PublicChannelBase = Omit<QueryChannelRow, 'target' | 'data'> & {
 
 type PublicEmailChannel = PublicChannelBase & {
   channel: 'email'
+}
+
+export type PublicPendingEmail = {
+  id: string
+  channel: 'email'
+  status: 'pending'
+  status_reason: null
+  verified_at: null
+  last_sent_at: null
+  last_bounce_at: null
+  last_verification_sent_at: Date
+  label: string
 }
 
 type PublicTelegramChannel = PublicChannelBase & {
@@ -83,6 +94,7 @@ type PublicPushChannel = PublicChannelBase & {
 
 export type PublicChannel =
   | PublicEmailChannel
+  | PublicPendingEmail
   | PublicTelegramChannel
   | PublicPushChannel
 
@@ -105,7 +117,6 @@ export const toPublicChannel = ResultFn(async function* (
         verified_at: channel.verified_at,
         last_sent_at: channel.last_sent_at,
         last_bounce_at: channel.last_bounce_at,
-        last_verification_sent_at: channel.last_verification_sent_at,
         label: sanitizeChannel(
           'email',
           channel.target,
@@ -122,7 +133,6 @@ export const toPublicChannel = ResultFn(async function* (
         verified_at: channel.verified_at,
         last_sent_at: channel.last_sent_at,
         last_bounce_at: channel.last_bounce_at,
-        last_verification_sent_at: channel.last_verification_sent_at,
         label: sanitizeChannel(
           'telegram',
           channel.target,
@@ -153,7 +163,6 @@ export const toPublicChannel = ResultFn(async function* (
         verified_at: channel.verified_at,
         last_sent_at: channel.last_sent_at,
         last_bounce_at: channel.last_bounce_at,
-        last_verification_sent_at: channel.last_verification_sent_at,
         label: sanitizeChannel(
           'push',
           target,
