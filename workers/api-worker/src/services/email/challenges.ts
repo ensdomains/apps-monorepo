@@ -6,6 +6,18 @@ import { randomUUIDv7 } from '#core/database/utils/schemaHelpers.js'
 export const EMAIL_OTP_TTL_MS = 10 * 60 * 1000
 export const EMAIL_OTP_MAX_ATTEMPTS = 5
 export const EMAIL_OTP_MAX_SENDS = 5
+export const EMAIL_OTP_RESEND_COOLDOWN_MS = 30 * 1000
+
+export const secondsUntilEmailOtpResend = (
+  lastSentAt: Date,
+  now = Date.now(),
+) =>
+  Math.max(
+    0,
+    Math.ceil(
+      (lastSentAt.getTime() + EMAIL_OTP_RESEND_COOLDOWN_MS - now) / 1000,
+    ),
+  )
 
 const hex = (bytes: Uint8Array) =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
@@ -58,9 +70,16 @@ export const issueEmailChallenge = async (
         attempts: 0,
         send_count: sql`CASE WHEN ${TABLE.emailVerifications.expires_at} <= ${now} THEN 1 ELSE ${TABLE.emailVerifications.send_count} + 1 END`,
       },
-      setWhere: or(
-        lte(TABLE.emailVerifications.expires_at, now),
-        lt(TABLE.emailVerifications.send_count, EMAIL_OTP_MAX_SENDS),
+      // The conflict update serializes concurrent requests for this account.
+      setWhere: and(
+        lte(
+          TABLE.emailVerifications.last_sent_at,
+          new Date(now.getTime() - EMAIL_OTP_RESEND_COOLDOWN_MS),
+        ),
+        or(
+          lte(TABLE.emailVerifications.expires_at, now),
+          lt(TABLE.emailVerifications.send_count, EMAIL_OTP_MAX_SENDS),
+        ),
       ),
     })
     .returning({

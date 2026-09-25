@@ -105,6 +105,13 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       return user.id
     }
 
+    const allowResend = async (challengeId: string) => {
+      await db
+        .update(TABLE.emailVerifications)
+        .set({ last_sent_at: new Date(Date.now() - 31_000) })
+        .where(eq(TABLE.emailVerifications.id, challengeId))
+    }
+
     const request = async (
       userIndex: number | null,
       path: string,
@@ -185,6 +192,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         (await request(1, `/channels/email/${challengeId}`, 'DELETE')).status,
       ).toBe(404)
 
+      await allowResend(challengeId)
       const resent = await request(
         0,
         `/channels/email/${challengeId}/resend`,
@@ -259,7 +267,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       const expiredAt = new Date(Date.now() - 60_000)
       await db
         .update(TABLE.emailVerifications)
-        .set({ expires_at: expiredAt })
+        .set({ expires_at: expiredAt, last_sent_at: expiredAt })
         .where(eq(TABLE.emailVerifications.id, challengeId))
 
       const pendingResponse = await request(0, '/channels')
@@ -335,15 +343,17 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       const challengeId = ((await started.json()) as { challengeId: string })
         .challengeId
       for (let i = 0; i < 2; i++) {
+        await allowResend(challengeId)
         expect(
           (await request(0, `/channels/email/${challengeId}/resend`, 'POST'))
             .status,
         ).toBe(200)
       }
-      const before = await db.query.emailVerifications.findFirst({
+      const sentBefore = sendVerificationEmail.mock.calls.length
+      await allowResend(challengeId)
+      const beforeLimited = await db.query.emailVerifications.findFirst({
         where: eq(TABLE.emailVerifications.user_id, firstUserId()),
       })
-      const sentBefore = sendVerificationEmail.mock.calls.length
       expect(
         (await request(0, `/channels/email/${challengeId}/resend`, 'POST'))
           .status,
@@ -351,7 +361,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       const after = await db.query.emailVerifications.findFirst({
         where: eq(TABLE.emailVerifications.user_id, firstUserId()),
       })
-      expect(after).toEqual(before)
+      expect(after).toEqual(beforeLimited)
       expect(sendVerificationEmail).toHaveBeenCalledTimes(sentBefore)
       expect(
         (
@@ -364,11 +374,79 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         await db.query.emailVerifications.findMany({
           where: eq(TABLE.emailVerifications.user_id, firstUserId()),
         }),
-      ).toEqual([before])
+      ).toEqual([beforeLimited])
       expect(sendVerificationEmail).toHaveBeenCalledTimes(sentBefore)
       expect(
         (await request(1, '/channels/email', 'POST', { email })).status,
       ).toBe(200)
+    })
+
+    it('blocks immediate and concurrent resends without rotating the code or sending extra mail', async () => {
+      const email = `${crypto.randomUUID()}@example.com`
+      const started = await request(0, '/channels/email', 'POST', { email })
+      const { challengeId } = (await started.json()) as { challengeId: string }
+      const original = await db.query.emailVerifications.findFirst({
+        where: eq(TABLE.emailVerifications.id, challengeId),
+      })
+      const kvBefore = [...kv.entries()]
+
+      expect(
+        (await request(0, `/channels/email/${challengeId}/resend`, 'POST'))
+          .status,
+      ).toBe(429)
+      expect(
+        await db.query.emailVerifications.findFirst({
+          where: eq(TABLE.emailVerifications.id, challengeId),
+        }),
+      ).toEqual(original)
+      expect([...kv.entries()]).toEqual(kvBefore)
+      expect(sendVerificationEmail).toHaveBeenCalledTimes(1)
+
+      await allowResend(challengeId)
+      const responses = await Promise.all([
+        request(0, `/channels/email/${challengeId}/resend`, 'POST'),
+        request(0, `/channels/email/${challengeId}/resend`, 'POST'),
+      ])
+      expect(responses.map((response) => response.status).sort()).toEqual([
+        200, 429,
+      ])
+      expect(sendVerificationEmail).toHaveBeenCalledTimes(2)
+      const updated = await db.query.emailVerifications.findFirst({
+        where: eq(TABLE.emailVerifications.id, challengeId),
+      })
+      expect(updated?.send_count).toBe(2)
+      expect(updated?.otp_digest).not.toBe(original?.otp_digest)
+    })
+
+    it('fails closed before challenge mutation or mail when KV cannot record a send', async () => {
+      const started = await request(0, '/channels/email', 'POST', {
+        email: `${crypto.randomUUID()}@example.com`,
+      })
+      const { challengeId } = (await started.json()) as { challengeId: string }
+      await allowResend(challengeId)
+      const before = await db.query.emailVerifications.findFirst({
+        where: eq(TABLE.emailVerifications.id, challengeId),
+      })
+      bindings = {
+        ...bindings,
+        KV: {
+          get: async (key: string) => kv.get(key) ?? null,
+          put: async () => {
+            throw new Error('KV write unavailable')
+          },
+        } as unknown as KVNamespace,
+      }
+
+      expect(
+        (await request(0, `/channels/email/${challengeId}/resend`, 'POST'))
+          .status,
+      ).toBe(503)
+      expect(
+        await db.query.emailVerifications.findFirst({
+          where: eq(TABLE.emailVerifications.id, challengeId),
+        }),
+      ).toEqual(before)
+      expect(sendVerificationEmail).toHaveBeenCalledTimes(1)
     })
 
     it('locks a challenge after five incorrect attempts', async () => {
@@ -443,6 +521,13 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       const linked = await request(1, '/channels/email', 'POST', {
         email: linkedEmail,
       })
+      const otherUser = users[1]
+      if (!otherUser) throw new Error('Missing second test user')
+      const firstChallenge = await db.query.emailVerifications.findFirst({
+        where: eq(TABLE.emailVerifications.user_id, otherUser.id),
+      })
+      if (!firstChallenge) throw new Error('Missing email challenge')
+      await allowResend(firstChallenge.id)
       const unused = await request(1, '/channels/email', 'POST', {
         email: `${crypto.randomUUID()}@example.com`,
       })

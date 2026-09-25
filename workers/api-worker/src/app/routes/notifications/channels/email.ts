@@ -16,6 +16,7 @@ import {
   generateEmailOtp,
   issueEmailChallenge,
   redeemEmailChallenge,
+  secondsUntilEmailOtpResend,
 } from '#services/email/challenges.js'
 import { sendVerificationEmail } from '#services/email/verification.js'
 import { sendWelcomeEmail } from '#services/email/welcome.js'
@@ -40,10 +41,34 @@ type EmailContext = Context<
 
 const sendChallenge = async (c: EmailContext, email: string) => {
   const userId = c.var.user_id
-  const rateLimit = await checkAndConsumeEmailVerificationRateLimit(
-    c.env.KV,
-    userId,
-  )
+  const previous = await c.var.db.query.emailVerifications.findFirst({
+    columns: { otp_digest: true, last_sent_at: true },
+    where: eq(TABLE.emailVerifications.user_id, userId),
+  })
+  const resendWait = previous
+    ? secondsUntilEmailOtpResend(previous.last_sent_at)
+    : 0
+  if (resendWait > 0) {
+    return c.json(
+      {
+        error: `Please wait ${resendWait} seconds before requesting another verification code`,
+      },
+      429,
+    )
+  }
+
+  let rateLimit: Awaited<
+    ReturnType<typeof checkAndConsumeEmailVerificationRateLimit>
+  >
+  try {
+    rateLimit = await checkAndConsumeEmailVerificationRateLimit(
+      c.env.KV,
+      userId,
+    )
+  } catch (error) {
+    logger.error('Email verification rate limit unavailable', { userId, error })
+    return c.json({ error: 'Verification temporarily unavailable' }, 503)
+  }
   if (!rateLimit.isAllowed) {
     return c.json(
       {
@@ -55,10 +80,6 @@ const sendChallenge = async (c: EmailContext, email: string) => {
     )
   }
 
-  const previous = await c.var.db.query.emailVerifications.findFirst({
-    columns: { otp_digest: true },
-    where: eq(TABLE.emailVerifications.user_id, userId),
-  })
   let otp = generateEmailOtp()
   let digest = await digestEmailOtp(c.env.JWT_SECRET, userId, otp)
   while (digest === previous?.otp_digest) {

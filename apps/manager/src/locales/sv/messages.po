@@ -1946,6 +1946,10 @@ msgid "Replace & Save"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
+msgid "Resend in {resendWait}s"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Resend Verification"
 msgstr ""
 

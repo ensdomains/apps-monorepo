@@ -41,7 +41,10 @@ const newEmailContactMethodFormSchema = v.object({
   email: v.pipe(v.string(), v.email('Please enter a valid email address')),
 })
 
-const useOtpSecondsRemaining = (expiresAt: number) => {
+// Match EMAIL_OTP_RESEND_COOLDOWN_MS in the API worker.
+const RESEND_COOLDOWN_MS = 30 * 1000
+
+const useSecondsRemaining = (expiresAt: number) => {
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -57,6 +60,34 @@ const useOtpSecondsRemaining = (expiresAt: number) => {
   }, [expiresAt])
 
   return Math.max(0, Math.ceil((expiresAt - now) / 1000))
+}
+
+const PendingEmailResendMenuItem = ({
+  email,
+  isResending,
+  onResend,
+}: {
+  email: Extract<Channel, { status: 'pending' }>
+  isResending: boolean
+  onResend: () => void
+}) => {
+  const resendWait = useSecondsRemaining(
+    new Date(email.last_verification_sent_at).getTime() + RESEND_COOLDOWN_MS,
+  )
+
+  return (
+    <DropdownMenuItem
+      disabled={isResending || resendWait > 0}
+      onClick={onResend}
+    >
+      <MSymbol className="ms-wght-300 text-[#515151]" symbol="cached" />
+      {resendWait > 0 ? (
+        <Trans>Resend in {resendWait}s</Trans>
+      ) : (
+        <Trans>Resend Verification</Trans>
+      )}
+    </DropdownMenuItem>
+  )
 }
 
 const NewEmailContactMethod = () => {
@@ -158,8 +189,11 @@ const PendingEmailVerification = ({
 }) => {
   const { t } = useLingui()
   const [otp, setOtp] = useState('')
-  const secondsRemaining = useOtpSecondsRemaining(
+  const secondsRemaining = useSecondsRemaining(
     new Date(email.expires_at).getTime(),
+  )
+  const resendWait = useSecondsRemaining(
+    new Date(email.last_verification_sent_at).getTime() + RESEND_COOLDOWN_MS,
   )
   const countdown = `${Math.floor(secondsRemaining / 60)}:${String(secondsRemaining % 60).padStart(2, '0')}`
 
@@ -182,12 +216,16 @@ const PendingEmailVerification = ({
           </Trans>
         </p>
         <Button
-          disabled={isResending}
+          disabled={isResending || resendWait > 0}
           onClick={onResend}
           size="lg"
           variant="lightBlue"
         >
-          <Trans>Resend Verification</Trans>
+          {resendWait > 0 ? (
+            <Trans>Resend in {resendWait}s</Trans>
+          ) : (
+            <Trans>Resend Verification</Trans>
+          )}
         </Button>
       </div>
     )
@@ -292,15 +330,11 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
           <DropdownMenuContent align="end">
             {email.status === 'pending' && (
               <>
-                <DropdownMenuItem
-                  onClick={() => resendMutation.mutate(email.id)}
-                >
-                  <MSymbol
-                    className="ms-wght-300 text-[#515151]"
-                    symbol="cached"
-                  />
-                  <Trans>Resend Verification</Trans>
-                </DropdownMenuItem>
+                <PendingEmailResendMenuItem
+                  email={email}
+                  isResending={resendMutation.isPending}
+                  onResend={() => resendMutation.mutate(email.id)}
+                />
                 <DropdownMenuSeparator />
               </>
             )}
