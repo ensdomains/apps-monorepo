@@ -1,4 +1,5 @@
 import {
+  type ClassifiedName,
   classifyName,
   runEligibilityChecks,
   type V1Domain,
@@ -21,10 +22,15 @@ import { gql } from '@/utils/subgraph/gql'
 
 /**
  * Migration status for a name, scoped to the connected wallet: whether it can
- * migrate and, if so, which address holds the v1 token.
+ * migrate and, if so, which address holds the v1 token and which kind of token
+ * it is (`unlocked` is a wrapped .eth name that is unwrapped on the way to v2).
  */
 export type MigrationStatus =
-  | { readonly migratable: true; readonly tokenHolder: Address }
+  | {
+      readonly migratable: true
+      readonly tokenHolder: Address
+      readonly tokenType: ClassifiedName['tokenType']
+    }
   | { readonly migratable: false }
 
 type V1DomainResponse = { domains: V1Domain[] }
@@ -112,7 +118,11 @@ const getMigrationStatus = ResultFn(async function* ({
 
   return ok<MigrationStatus>(
     eligible.length > 0
-      ? { migratable: true, tokenHolder: classified.name.tokenHolder }
+      ? {
+          migratable: true,
+          tokenHolder: classified.name.tokenHolder,
+          tokenType: classified.name.tokenType,
+        }
       : { migratable: false },
   )
 })

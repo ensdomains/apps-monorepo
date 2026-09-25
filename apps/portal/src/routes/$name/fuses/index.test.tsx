@@ -213,7 +213,7 @@ describe('fuses index route', () => {
 
     migrationResult = {
       ...SETTLED_EMPTY,
-      data: { migratable: true, tokenHolder: OWNER },
+      data: { migratable: true, tokenHolder: OWNER, tokenType: 'locked-2ld' },
     }
     render(<FusesRoute />)
 

@@ -5,9 +5,16 @@ import { UpgradeActions } from '@/features/migration/components/UpgradeActions'
 /**
  * Prompts the connected owner of a migratable v1 name to upgrade it to ENSv2 in
  * the Manager app. Rendered only when the name is migratable and the owner
- * wallet is connected (gated by the caller).
+ * wallet is connected (gated by the caller). `wrapped` marks an unlocked
+ * NameWrapper token, which is unwrapped as part of the upgrade.
  */
-export const UpgradeBanner = ({ name }: { name: string }) => (
+export const UpgradeBanner = ({
+  name,
+  wrapped = false,
+}: {
+  readonly name: string
+  readonly wrapped?: boolean
+}) => (
   <Alert
     variant="default"
     className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 p-5"
@@ -20,9 +27,11 @@ export const UpgradeBanner = ({ name }: { name: string }) => (
     </div>
     <div className="flex items-start lg:items-center gap-4 flex-col lg:flex-row">
       <p className="text-p">
-        This name is reserved on ENS v2 until it is migrated from ENS v1{' '}
+        {wrapped
+          ? 'This wrapped name must be unwrapped before it can be migrated to ENS v2'
+          : 'This name is reserved on ENS v2 until it is migrated from ENS v1'}
       </p>
-      <UpgradeActions name={name} />
+      <UpgradeActions name={name} wrapped={wrapped} />
     </div>
   </Alert>
 )

@@ -15,7 +15,10 @@ import { SyncManagerBanner } from '@/features/dns-import/components/SyncManagerB
 import { useDnsSyncStatus } from '@/features/dns-import/hooks/useDnsSyncStatus'
 import { RecentHistoryTimeline } from '@/features/history/components/RecentHistoryTimeline'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
-import { useMigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
+import {
+  getMigrationStatusQueryOptions,
+  useMigrationStatus,
+} from '@/features/migration/hooks/useMigrationStatus'
 import { DnsManagerRow } from '@/features/ownership/components/DnsManagerRow'
 import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
@@ -154,6 +157,13 @@ const Profile = ({
   })
 
   const migrationQuery = useMigrationStatus(name, {
+    enabled: ownerQuery.data?.protocolVersion === 'ENSv1',
+  })
+  // The Protocol row states a fact about the name, so it is evaluated against
+  // the name's own v1 token holder rather than the connected wallet: a visitor
+  // still sees whether the name can be migrated.
+  const nameMigrationQuery = useQuery({
+    ...getMigrationStatusQueryOptions({ name }),
     enabled: ownerQuery.data?.protocolVersion === 'ENSv1',
   })
 
@@ -383,7 +393,12 @@ const Profile = ({
         />
       )}
 
-      {showUpgradeBanner && <UpgradeBanner name={name} />}
+      {showUpgradeBanner && (
+        <UpgradeBanner
+          name={name}
+          wrapped={migration?.migratable && migration.tokenType === 'unlocked'}
+        />
+      )}
 
       {dnsSync.status === 'syncable' && <SyncManagerBanner name={name} />}
 
@@ -440,8 +455,8 @@ const Profile = ({
           />
           <ProtocolRow
             protocolVersion={resolvedProtocolVersion}
-            migration={isMigratableByConnectedOwner ? migration : undefined}
-            isLoading={migrationQuery.isLoading}
+            migration={nameMigrationQuery.data}
+            isLoading={nameMigrationQuery.isLoading}
           />
         </div>
 

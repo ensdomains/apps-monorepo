@@ -48,6 +48,11 @@ vi.mock('@/features/renew/hooks/useCanExtend', () => ({
   useCanExtend: () => ({ canExtend: false, isLoading: false }),
 }))
 vi.mock('@/features/migration/hooks/useMigrationStatus', () => ({
+  getMigrationStatusQueryOptions: () => ({
+    queryKey: ['get-migration-status'],
+    queryFn: () => null,
+    enabled: false,
+  }),
   useMigrationStatus: () => ({
     data: undefined,
     isLoading: false,
@@ -73,7 +78,9 @@ vi.mock('@/features/profile/components/RegistryCard', () => ({
   RegistryCard: () => null,
 }))
 vi.mock('@/features/profile/components/ProtocolRow', () => ({
-  ProtocolRow: () => null,
+  ProtocolRow: ({ migration }: { migration?: unknown }) => (
+    <div data-testid="protocol-row">{JSON.stringify(migration)}</div>
+  ),
 }))
 vi.mock('@/features/profile/components/SubnameCount', () => ({
   SubnameCount: () => null,
@@ -117,6 +124,12 @@ vi.mock('@tanstack/react-query', async () => {
               registryAddress: REGISTRY,
               protocolVersion,
             },
+            isLoading: false,
+            error: null,
+          }
+        case 'get-migration-status':
+          return {
+            data: { migratable: false },
             isLoading: false,
             error: null,
           }
@@ -188,5 +201,19 @@ describe('name route — Owner row', () => {
     )
 
     isInGrace = false
+  })
+})
+
+describe('name route — Protocol row', () => {
+  // The verdict is about the name, so a visitor who cannot migrate it still
+  // sees "Cannot be migrated" rather than a bare protocol version.
+  it('hands the row the name-scoped migration verdict', () => {
+    protocolVersion = 'ENSv1'
+
+    renderRoute()
+
+    expect(screen.getByTestId('protocol-row')).toHaveTextContent(
+      JSON.stringify({ migratable: false }),
+    )
   })
 })

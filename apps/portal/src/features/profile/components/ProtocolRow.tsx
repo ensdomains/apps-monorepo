@@ -24,7 +24,7 @@ export const ProtocolRow = ({
       {protocolVersion}
       {showMigrationSuffix && (
         <>
-          {' : '}
+          {': '}
           {migration.migratable ? 'Can be migrated' : 'Cannot be migrated'}
         </>
       )}
