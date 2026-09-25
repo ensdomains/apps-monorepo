@@ -149,7 +149,10 @@ export const ProfileAbout = ({
       >
         <div className="min-w-0">
           {primaryName ? (
-            <NamePill label={primaryName} />
+            <NamePill
+              className="bg-[var(--theme-color,var(--color-ens-lapis-500))] text-white"
+              label={primaryName}
+            />
           ) : (
             <h2 className="text-base text-ens-quartz-700 leading-normal">
               <span className="block">{fullName || <Trans>About</Trans>}</span>

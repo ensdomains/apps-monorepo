@@ -5,14 +5,17 @@ import { cn } from '@/lib/utils'
 export const NamePill = ({
   label,
   isSelected = false,
+  className,
 }: {
   readonly label: string
   readonly isSelected?: boolean
+  readonly className?: string
 }) => (
   <Link
     className={cn(
       'inline-flex max-w-full items-center gap-2 rounded-sm bg-ens-lapis-core px-1.5 py-1.75 text-ens-lapis-bg',
       isSelected && 'text-ens-quartz-0',
+      className,
     )}
     params={{ name: label }}
     to="/$name"
