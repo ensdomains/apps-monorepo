@@ -10,16 +10,12 @@ import {
   getProfileNameExpiryStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
-import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
-import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
-import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import type { ProfileRecords } from '@/features/profile/types'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn, truncateAddress } from '@/lib/utils'
 import { findPrimaryAddressName } from './addressProfilePrimary'
 import { ProfileAbout } from './ProfileAbout'
 import { ProfileAvatar } from './ProfileAvatar'
-import { ProfileDetails } from './ProfileDetails'
 
 const AddressLabel = ({ address }: { readonly address: Address }) => {
   const { t } = useLingui()
@@ -48,83 +44,28 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
   )
 }
 
-const useAddressProfileDetails = ({
-  address,
+const useAddressProfileAvatarUrl = ({
   addressNames,
   primaryName,
   isNamesPending,
 }: {
-  readonly address: Address
   readonly addressNames: readonly ProfileAddressName[]
   readonly primaryName?: string
   readonly isNamesPending: boolean
 }) => {
   const primaryEntry = findPrimaryAddressName(addressNames, primaryName)
   const isV1Primary = primaryEntry?.protocol === 'v1'
-  const useChainMetadata = !!primaryName && !isNamesPending && !isV1Primary
-
-  const { data: ownerData } = useQuery({
-    ...profileOwnerQuery(primaryName ?? ''),
-    enabled: useChainMetadata,
-  })
-  const owner = isV1Primary
-    ? address
-    : (ownerData?.owner as Address | undefined)
-  const { data: registration } = useQuery({
-    ...profileRegistrationQuery(primaryName ?? '', ownerData?.protocol),
-    enabled: useChainMetadata,
-  })
   const { data: expiryData } = useQuery({
-    ...profileExpiryQuery(primaryName ?? '', ownerData?.protocol),
-    enabled: useChainMetadata,
+    ...profileExpiryQuery(primaryName ?? ''),
+    enabled: !!primaryName && !isNamesPending && !isV1Primary,
   })
 
-  const expiry =
+  const isInGrace =
     isV1Primary && primaryEntry
-      ? getProfileNameExpiryStatus(primaryEntry.expiryDate, 'v1')
-      : getProfileExpiryResultStatus(expiryData)
-  const registrationDate = isV1Primary
-    ? primaryEntry?.createdAt
-    : registration?.registrationDate
+      ? getProfileNameExpiryStatus(primaryEntry.expiryDate, 'v1').isInGrace
+      : getProfileExpiryResultStatus(expiryData).isInGrace
 
-  return {
-    isV1Primary,
-    owner,
-    displayExpiryDate: expiry.displayExpiryDate,
-    registrationDate,
-    avatarUrl:
-      primaryName && !expiry.isInGrace
-        ? buildNameAvatarUrl(primaryName)
-        : undefined,
-  }
-}
-
-const AddressProfileDetailsSection = ({
-  primaryName,
-  isV1Primary,
-  owner,
-  displayExpiryDate,
-  registrationDate,
-}: {
-  readonly primaryName: string
-  readonly isV1Primary: boolean
-  readonly owner?: Address
-  readonly displayExpiryDate?: Date | null
-  readonly registrationDate?: number | null
-}) => {
-  const { data: ownerReverseName } = useQuery({
-    ...profileReverseNameQuery(owner),
-    enabled: !isV1Primary && !!owner,
-  })
-
-  return (
-    <ProfileDetails
-      displayExpiryDate={displayExpiryDate}
-      owner={owner}
-      ownerReverseName={isV1Primary ? primaryName : ownerReverseName}
-      registrationDate={registrationDate}
-    />
-  )
+  return primaryName && !isInGrace ? buildNameAvatarUrl(primaryName) : undefined
 }
 
 export const AddressProfileHeader = ({
@@ -140,13 +81,11 @@ export const AddressProfileHeader = ({
   readonly isNamesPending?: boolean
   readonly records: ProfileRecords | null
 }) => {
-  const { isV1Primary, owner, displayExpiryDate, registrationDate, avatarUrl } =
-    useAddressProfileDetails({
-      address,
-      addressNames,
-      primaryName,
-      isNamesPending,
-    })
+  const avatarUrl = useAddressProfileAvatarUrl({
+    addressNames,
+    primaryName,
+    isNamesPending,
+  })
 
   return (
     <div className="flex w-full flex-col gap-5 lg:landscape:gap-6">
@@ -174,16 +113,6 @@ export const AddressProfileHeader = ({
           </Link>
         ) : null}
       </div>
-
-      {primaryName ? (
-        <AddressProfileDetailsSection
-          displayExpiryDate={displayExpiryDate}
-          isV1Primary={isV1Primary}
-          owner={owner}
-          primaryName={primaryName}
-          registrationDate={registrationDate}
-        />
-      ) : null}
 
       {primaryName ? (
         <div className="flex flex-col gap-5 lg:landscape:grid lg:landscape:grid-cols-[max-content_minmax(0,1fr)] lg:landscape:items-start lg:landscape:gap-5.5">
