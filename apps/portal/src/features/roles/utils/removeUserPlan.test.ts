@@ -21,25 +21,31 @@ const OWNER_ROLES = [
   'ROLE_SET_SUBREGISTRY_ADMIN',
 ] as Role[]
 
+/** The registrar grants no `ROLE_RENEW_ADMIN`, so the owner can't revoke its own renew. */
+const OWNER_ADMIN_ROLES = new Set([
+  'ROLE_CAN_TRANSFER_ADMIN',
+  'ROLE_SET_RESOLVER_ADMIN',
+  'ROLE_SET_SUBREGISTRY_ADMIN',
+] as Role[])
+
 const adminRoles = (...roles: string[]) => new Set(roles as Role[])
 
 const holders = (
   entries: Array<{ account: Address; roles: Role[] }>,
 ): NameRoleHolder[] => entries
 
+/** Nobody holds roles at the registry root, as on a `.eth` 2LD. */
+const NO_ROOT_ADMINS = new Set<Role>()
+
 describe('buildRemoveUserPlan', () => {
   describe("the owner's own row on a .eth 2LD", () => {
     const plan = buildRemoveUserPlan({
       account: OWNER,
       currentRoles: OWNER_ROLES,
-      // The registrar grants no ROLE_RENEW_ADMIN, so the owner cannot revoke
-      // its own ROLE_RENEW.
-      callerAdminRoles: adminRoles(
-        'ROLE_CAN_TRANSFER_ADMIN',
-        'ROLE_SET_RESOLVER_ADMIN',
-        'ROLE_SET_SUBREGISTRY_ADMIN',
-      ),
+      callerAdminRoles: OWNER_ADMIN_ROLES,
       holders: holders([{ account: OWNER, roles: OWNER_ROLES }]),
+      ownerAddress: OWNER,
+      rootAdminRoles: NO_ROOT_ADMINS,
     })
 
     it('never encodes ROLE_CAN_TRANSFER_ADMIN', () => {
@@ -68,49 +74,108 @@ describe('buildRemoveUserPlan', () => {
     })
   })
 
-  it('keeps the transfer role when holders have not loaded yet', () => {
-    const plan = buildRemoveUserPlan({
-      account: OWNER,
-      currentRoles: OWNER_ROLES,
-      callerAdminRoles: adminRoles('ROLE_CAN_TRANSFER_ADMIN'),
-      holders: undefined,
+  describe('the transfer role', () => {
+    it('stays with the owner even when another account holds it too', () => {
+      // The gate reads the role on the token owner, so a second holder does not
+      // keep the name transferable.
+      const plan = buildRemoveUserPlan({
+        account: OWNER,
+        currentRoles: OWNER_ROLES,
+        callerAdminRoles: OWNER_ADMIN_ROLES,
+        holders: holders([
+          { account: OWNER, roles: OWNER_ROLES },
+          { account: MANAGER, roles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[] },
+        ]),
+        ownerAddress: OWNER,
+        rootAdminRoles: NO_ROOT_ADMINS,
+      })
+
+      expect(plan.rolesToRevoke).not.toContain('ROLE_CAN_TRANSFER_ADMIN')
+      expect(plan.frozenRoles).toEqual(['ROLE_CAN_TRANSFER_ADMIN'])
     })
 
-    expect(plan.rolesToRevoke).not.toContain('ROLE_CAN_TRANSFER_ADMIN')
-    expect(plan.frozenRoles).toEqual(['ROLE_CAN_TRANSFER_ADMIN'])
-  })
+    it('stays with a non-owner who is its last holder on the name', () => {
+      const plan = buildRemoveUserPlan({
+        account: MANAGER,
+        currentRoles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[],
+        callerAdminRoles: adminRoles('ROLE_CAN_TRANSFER_ADMIN'),
+        holders: holders([
+          { account: MANAGER, roles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[] },
+          { account: OWNER, roles: ['ROLE_SET_RESOLVER'] as Role[] },
+        ]),
+        ownerAddress: OWNER,
+        rootAdminRoles: NO_ROOT_ADMINS,
+      })
 
-  it('revokes the transfer role when another holder can grant it back', () => {
-    const plan = buildRemoveUserPlan({
-      account: MANAGER,
-      currentRoles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[],
-      callerAdminRoles: adminRoles('ROLE_CAN_TRANSFER_ADMIN'),
-      holders: holders([
-        { account: MANAGER, roles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[] },
-        { account: OWNER, roles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[] },
-      ]),
+      expect(plan.rolesToRevoke).toEqual([])
+      expect(plan.frozenRoles).toEqual(['ROLE_CAN_TRANSFER_ADMIN'])
     })
 
-    expect(plan.rolesToRevoke).toEqual(['ROLE_CAN_TRANSFER_ADMIN'])
-    expect(plan.frozenRoles).toEqual([])
-    expect(plan.lockoutRoles).toEqual([])
-  })
+    it('is revocable from a non-owner while the owner still holds it', () => {
+      const plan = buildRemoveUserPlan({
+        account: MANAGER,
+        currentRoles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[],
+        callerAdminRoles: adminRoles('ROLE_CAN_TRANSFER_ADMIN'),
+        holders: holders([
+          { account: MANAGER, roles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[] },
+          { account: OWNER, roles: OWNER_ROLES },
+        ]),
+        ownerAddress: OWNER,
+        rootAdminRoles: NO_ROOT_ADMINS,
+      })
 
-  it('matches the other holder case-insensitively', () => {
-    const plan = buildRemoveUserPlan({
-      account: MANAGER.toLowerCase() as Address,
-      currentRoles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[],
-      callerAdminRoles: adminRoles('ROLE_CAN_TRANSFER_ADMIN'),
-      holders: holders([
-        {
-          account: MANAGER.toUpperCase().replace('0X', '0x') as Address,
-          roles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[],
-        },
-        { account: OWNER, roles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[] },
-      ]),
+      expect(plan.rolesToRevoke).toEqual(['ROLE_CAN_TRANSFER_ADMIN'])
+      expect(plan.frozenRoles).toEqual([])
+      expect(plan.lockoutRoles).toEqual([])
     })
 
-    expect(plan.rolesToRevoke).toEqual(['ROLE_CAN_TRANSFER_ADMIN'])
+    it('compares the owner and other holders case-insensitively', () => {
+      const plan = buildRemoveUserPlan({
+        account: MANAGER.toLowerCase() as Address,
+        currentRoles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[],
+        callerAdminRoles: adminRoles('ROLE_CAN_TRANSFER_ADMIN'),
+        holders: holders([
+          {
+            account: MANAGER.toUpperCase().replace('0X', '0x') as Address,
+            roles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[],
+          },
+          { account: OWNER, roles: OWNER_ROLES },
+        ]),
+        ownerAddress: OWNER.toLowerCase() as Address,
+        rootAdminRoles: NO_ROOT_ADMINS,
+      })
+
+      expect(plan.rolesToRevoke).toEqual(['ROLE_CAN_TRANSFER_ADMIN'])
+    })
+
+    it('is kept when the holder list has not loaded yet', () => {
+      const plan = buildRemoveUserPlan({
+        account: MANAGER,
+        currentRoles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[],
+        callerAdminRoles: adminRoles('ROLE_CAN_TRANSFER_ADMIN'),
+        holders: undefined,
+        ownerAddress: OWNER,
+        rootAdminRoles: NO_ROOT_ADMINS,
+      })
+
+      expect(plan.frozenRoles).toEqual(['ROLE_CAN_TRANSFER_ADMIN'])
+    })
+
+    it('is kept when the owner is not known yet', () => {
+      const plan = buildRemoveUserPlan({
+        account: MANAGER,
+        currentRoles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[],
+        callerAdminRoles: adminRoles('ROLE_CAN_TRANSFER_ADMIN'),
+        holders: holders([
+          { account: MANAGER, roles: ['ROLE_CAN_TRANSFER_ADMIN'] as Role[] },
+          { account: OWNER, roles: OWNER_ROLES },
+        ]),
+        ownerAddress: undefined,
+        rootAdminRoles: NO_ROOT_ADMINS,
+      })
+
+      expect(plan.frozenRoles).toEqual(['ROLE_CAN_TRANSFER_ADMIN'])
+    })
   })
 
   describe('a delegated manager removing another row', () => {
@@ -125,6 +190,8 @@ describe('buildRemoveUserPlan', () => {
           { account: OWNER, roles: OWNER_ROLES },
           { account: OTHER, roles: managerRoles },
         ]),
+        ownerAddress: OWNER,
+        rootAdminRoles: NO_ROOT_ADMINS,
       })
 
       expect(plan.rolesToRevoke).toEqual(['ROLE_SET_RESOLVER'])
@@ -133,20 +200,21 @@ describe('buildRemoveUserPlan', () => {
     })
 
     it('revokes a delegated admin role the owner still holds', () => {
+      const delegated = [
+        'ROLE_SET_RESOLVER',
+        'ROLE_SET_RESOLVER_ADMIN',
+      ] as Role[]
+
       const plan = buildRemoveUserPlan({
         account: OTHER,
-        currentRoles: [
-          'ROLE_SET_RESOLVER',
-          'ROLE_SET_RESOLVER_ADMIN',
-        ] as Role[],
+        currentRoles: delegated,
         callerAdminRoles: adminRoles('ROLE_SET_RESOLVER_ADMIN'),
         holders: holders([
           { account: OWNER, roles: OWNER_ROLES },
-          {
-            account: OTHER,
-            roles: ['ROLE_SET_RESOLVER', 'ROLE_SET_RESOLVER_ADMIN'] as Role[],
-          },
+          { account: OTHER, roles: delegated },
         ]),
+        ownerAddress: OWNER,
+        rootAdminRoles: NO_ROOT_ADMINS,
       })
 
       expect(plan.rolesToRevoke).toEqual([
@@ -157,17 +225,69 @@ describe('buildRemoveUserPlan', () => {
     })
   })
 
+  describe('registry-root authority', () => {
+    const soleDelegated = ['ROLE_SET_RESOLVER_ADMIN'] as Role[]
+
+    it('counts towards what the caller may revoke', () => {
+      // `_getRevokableRoles` runs on `_effectiveRoles`, which ORs the caller's
+      // root roles over its per-name ones.
+      const plan = buildRemoveUserPlan({
+        account: OTHER,
+        currentRoles: ['ROLE_SET_RESOLVER', 'ROLE_SET_SUBREGISTRY'] as Role[],
+        callerAdminRoles: adminRoles(
+          'ROLE_SET_RESOLVER_ADMIN',
+          'ROLE_SET_SUBREGISTRY_ADMIN',
+        ),
+        holders: holders([{ account: OTHER, roles: soleDelegated }]),
+        ownerAddress: OWNER,
+        rootAdminRoles: adminRoles('ROLE_SET_SUBREGISTRY_ADMIN'),
+      })
+
+      expect(plan.rolesToRevoke).toEqual([
+        'ROLE_SET_RESOLVER',
+        'ROLE_SET_SUBREGISTRY',
+      ])
+      expect(plan.unauthorizedRoles).toEqual([])
+    })
+
+    it('stops a last-admin revoke counting as a lockout', () => {
+      const withRootHolder = buildRemoveUserPlan({
+        account: OTHER,
+        currentRoles: soleDelegated,
+        callerAdminRoles: adminRoles('ROLE_SET_RESOLVER_ADMIN'),
+        holders: holders([{ account: OTHER, roles: soleDelegated }]),
+        ownerAddress: OWNER,
+        rootAdminRoles: adminRoles('ROLE_SET_RESOLVER_ADMIN'),
+      })
+
+      expect(withRootHolder.rolesToRevoke).toEqual(['ROLE_SET_RESOLVER_ADMIN'])
+      expect(withRootHolder.lockoutRoles).toEqual([])
+
+      const withoutRootHolder = buildRemoveUserPlan({
+        account: OTHER,
+        currentRoles: soleDelegated,
+        callerAdminRoles: adminRoles('ROLE_SET_RESOLVER_ADMIN'),
+        holders: holders([{ account: OTHER, roles: soleDelegated }]),
+        ownerAddress: OWNER,
+        rootAdminRoles: NO_ROOT_ADMINS,
+      })
+
+      expect(withoutRootHolder.lockoutRoles).toEqual([
+        'ROLE_SET_RESOLVER_ADMIN',
+      ])
+    })
+  })
+
   it('drops ROLE_WAS_RESERVED, which has no admin and cannot be revoked', () => {
+    const reserved = ['ROLE_SET_RESOLVER', 'ROLE_WAS_RESERVED'] as Role[]
+
     const plan = buildRemoveUserPlan({
       account: OWNER,
-      currentRoles: ['ROLE_SET_RESOLVER', 'ROLE_WAS_RESERVED'] as Role[],
+      currentRoles: reserved,
       callerAdminRoles: adminRoles('ROLE_SET_RESOLVER_ADMIN'),
-      holders: holders([
-        {
-          account: OWNER,
-          roles: ['ROLE_SET_RESOLVER', 'ROLE_WAS_RESERVED'] as Role[],
-        },
-      ]),
+      holders: holders([{ account: OWNER, roles: reserved }]),
+      ownerAddress: OWNER,
+      rootAdminRoles: NO_ROOT_ADMINS,
     })
 
     expect(plan.rolesToRevoke).toEqual(['ROLE_SET_RESOLVER'])
@@ -181,6 +301,8 @@ describe('buildRemoveUserPlan', () => {
         currentRoles: [],
         callerAdminRoles: adminRoles('ROLE_SET_RESOLVER_ADMIN'),
         holders: holders([]),
+        ownerAddress: OWNER,
+        rootAdminRoles: NO_ROOT_ADMINS,
       }),
     ).toEqual({
       rolesToRevoke: [],
@@ -190,12 +312,14 @@ describe('buildRemoveUserPlan', () => {
     })
   })
 
-  it('revokes nothing when no account is selected', () => {
+  it('revokes nothing dangerous when no account is selected', () => {
     const plan = buildRemoveUserPlan({
       account: undefined,
       currentRoles: OWNER_ROLES,
-      callerAdminRoles: adminRoles('ROLE_CAN_TRANSFER_ADMIN'),
+      callerAdminRoles: OWNER_ADMIN_ROLES,
       holders: holders([{ account: OWNER, roles: OWNER_ROLES }]),
+      ownerAddress: OWNER,
+      rootAdminRoles: NO_ROOT_ADMINS,
     })
 
     expect(plan.rolesToRevoke).not.toContain('ROLE_CAN_TRANSFER_ADMIN')

@@ -19,11 +19,13 @@ import {
 } from '@/components/ui/sheet'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
+import { getAccountAdminRoles } from '@/features/registry/utils/registryRoleAccess'
 import { RemoveUserConfirmDialog } from '@/features/roles/components/RemoveUserConfirmDialog'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
+import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { useRevokeRoles } from '@/features/roles/hooks/useRevokeRoles'
 import type {
   PendingRemove,
@@ -115,11 +117,33 @@ export const RolesSidebar = <
     enabled: Boolean(callerAddress),
   })
 
-  // Only `_ADMIN` roles authorise a revoke, so they alone decide what Remove
-  // user may encode.
+  // Already fetched by the page's registry-wide roles section, so this is a cache
+  // read in practice.
+  const { data: rootHolders } = useQuery(
+    getRegistryRootRoleHoldersQueryOptions({ registryAddress }),
+  )
+
+  // Only `_ADMIN` roles authorise a revoke, so they alone decide what Remove user
+  // may encode. `_getRevokableRoles` runs on `_effectiveRoles`, which ORs the
+  // caller's root roles over its per-name ones, so root authority counts too.
   const callerAdminRoles = useMemo(
-    () => new Set<Role>((callerRolesData?.decoded ?? []).filter(isAdminRole)),
-    [callerRolesData],
+    () =>
+      new Set<Role>([
+        ...(callerRolesData?.decoded ?? []).filter(isAdminRole),
+        ...getAccountAdminRoles(rootHolders, callerAddress),
+      ]),
+    [callerRolesData, rootHolders, callerAddress],
+  )
+
+  /** Root holders can grant on any resource, so these roles survive a revoke. */
+  const rootAdminRoles = useMemo(
+    () =>
+      new Set<Role>(
+        (rootHolders ?? []).flatMap((holder) =>
+          holder.roles.filter(isAdminRole),
+        ),
+      ),
+    [rootHolders],
   )
 
   // `GetNameRolesAccountsReturnType` widens its values to `string[]` — it types
@@ -140,6 +164,8 @@ export const RolesSidebar = <
     currentRoles: originalRoles,
     callerAdminRoles,
     holders,
+    ownerAddress: ownerData?.owner,
+    rootAdminRoles,
   })
 
   const { editedPermissions, setEditedPermissions } = useEditedPermissions(row)
