@@ -1,23 +1,15 @@
+import type { GetNameRolesAccountsReturnType } from '@ensdomains/ensjs/public/v2'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
 import { Trash2 } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { CopyButton } from '@/components/CopyButton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import {
   Sheet,
@@ -27,21 +19,28 @@ import {
 } from '@/components/ui/sheet'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
+import { RemoveUserConfirmDialog } from '@/features/roles/components/RemoveUserConfirmDialog'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { useRevokeRoles } from '@/features/roles/hooks/useRevokeRoles'
 import type {
   PendingRemove,
   PendingSave,
 } from '@/features/roles/utils/buildRoleTransactionDescriptors'
 import { buildRoleTransactions } from '@/features/roles/utils/buildRoleTransactions'
+import { buildRemoveUserPlan } from '@/features/roles/utils/removeUserPlan'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { resourceIdForName } from '@/lib/resource/resourceId'
-import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
+import {
+  isAdminRole,
+  isManagerRoleSettable,
+  permissions,
+} from '@/lib/roles/permissions'
 import {
   computeRoleChanges,
   hasPermissionsChanged,
@@ -58,6 +57,8 @@ type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
     readonly name: string
     readonly canManageRoles: boolean
     readonly registryAddress: Address
+    /** Every account holding roles on the name — needed to spot last-admin revokes. */
+    readonly roleHolders: GetNameRolesAccountsReturnType
   }>
 
 export const RolesSidebar = <
@@ -70,6 +71,7 @@ export const RolesSidebar = <
   name,
   canManageRoles,
   registryAddress,
+  roleHolders,
 }: RolesSidebarProps<TData>) => {
   const isMobile = useIsMobile()
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -78,6 +80,7 @@ export const RolesSidebar = <
   const [pendingRemove, setPendingRemove] = useState<PendingRemove | null>(null)
 
   const { data: walletClient } = useWalletClient()
+  const callerAddress = walletClient?.account?.address
   const { closeModal, clearTransaction } = useTransactionModal()
   // Names the attempt currently in the modal, so a second change in the same
   // session can't be served by the first one's finished actor.
@@ -102,6 +105,42 @@ export const RolesSidebar = <
     () => (row?.original.items ?? []) as Role[],
     [row],
   )
+
+  const { data: callerRolesData } = useQuery({
+    ...getNameRolesForAccountQueryOptions({
+      registryAddress,
+      label: name.split('.')[0],
+      account: callerAddress ?? zeroAddress,
+    }),
+    enabled: Boolean(callerAddress),
+  })
+
+  // Only `_ADMIN` roles authorise a revoke, so they alone decide what Remove
+  // user may encode.
+  const callerAdminRoles = useMemo(
+    () => new Set<Role>((callerRolesData?.decoded ?? []).filter(isAdminRole)),
+    [callerRolesData],
+  )
+
+  // `GetNameRolesAccountsReturnType` widens its values to `string[]` — it types
+  // them as `RoleName<readonly string[]>`, which instantiates the generic with
+  // its own constraint. Both ensjs and our own fetcher only ever put `Role` in
+  // there. Drop the cast once the ensjs pin picks the fixed type up.
+  const holders = useMemo(
+    () =>
+      [...roleHolders].map(([account, roles]) => ({
+        account,
+        roles: roles as Role[],
+      })),
+    [roleHolders],
+  )
+
+  const removePlan = buildRemoveUserPlan({
+    account: selectedAccount,
+    currentRoles: originalRoles,
+    callerAdminRoles,
+    holders,
+  })
 
   const { editedPermissions, setEditedPermissions } = useEditedPermissions(row)
 
@@ -138,17 +177,21 @@ export const RolesSidebar = <
   }
 
   const handleRemoveUser = () => {
-    const signer = walletClient?.account?.address
-    if (!selectedAccount || originalRoles.length === 0 || !signer) return
+    if (
+      !selectedAccount ||
+      removePlan.rolesToRevoke.length === 0 ||
+      !callerAddress
+    )
+      return
 
     setConfirmOpen(false)
     setOpen(false)
     setPendingRemove({
       account: selectedAccount,
-      roles: originalRoles,
+      roles: removePlan.rolesToRevoke,
     })
     setPendingSave(null)
-    attempt.start(signer)
+    attempt.start(callerAddress)
   }
 
   const handlePermissionChange = (
@@ -215,7 +258,10 @@ export const RolesSidebar = <
                 {canManageRoles && selectedAccount && (
                   <Button
                     variant="outline"
-                    disabled={!isWalletConnected}
+                    disabled={
+                      !isWalletConnected ||
+                      removePlan.rolesToRevoke.length === 0
+                    }
                     onClick={() => setConfirmOpen(true)}
                   >
                     <Trash2 className="size-4" />
@@ -353,32 +399,14 @@ export const RolesSidebar = <
             </div>
           </div>
 
-          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Remove user</DialogTitle>
-                <DialogDescription>
-                  {isOwnerRole
-                    ? 'You are trying to delete the owner of this name. Deleting it would prohibit you from adding more users. Are you sure?'
-                    : 'Are you sure you want to remove this user from all roles? This action cannot be undone.'}
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DialogClose>
-                <Button
-                  variant="danger"
-                  onClick={() => {
-                    setConfirmOpen(false)
-                    handleRemoveUser()
-                  }}
-                >
-                  Remove
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <RemoveUserConfirmDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            onConfirm={handleRemoveUser}
+            name={name}
+            account={selectedAccount}
+            plan={removePlan}
+          />
         </SheetContent>
       </Sheet>
 
