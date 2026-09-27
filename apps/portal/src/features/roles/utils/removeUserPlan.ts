@@ -7,10 +7,13 @@
  *
  * - `ROLE_CAN_TRANSFER_ADMIN` is checked on the *token owner* by
  *   `PermissionedRegistry._update`, which reverts `TransferDisallowed` without
- *   it. `EnhancedAccessControl._getSettableRoles` only lets an account grant
+ *   it. Because the gate reads the owner and not the caller, another account
+ *   holding the role does not keep the name transferable — so the owner keeps it
+ *   however many other holders there are. Revoking the *last* holder is worse
+ *   still: `EnhancedAccessControl._getSettableRoles` only lets an account grant
  *   roles it holds the `_ADMIN` for, and this role has no regular counterpart,
- *   so once its last holder loses it nobody can grant it back — the name cannot
- *   be transferred or sold for the rest of its term.
+ *   so nobody can ever grant it back and the name cannot be transferred or sold
+ *   for the rest of its term.
  * - Any other `_ADMIN` role whose last holder this account is goes the same way:
  *   unrecoverable, though it costs a power rather than the whole name.
  *
@@ -55,42 +58,56 @@ type BuildRemoveUserPlanParameters = {
   readonly account: Address | undefined
   /** That account's current roles on the name. */
   readonly currentRoles: readonly Role[]
-  /** The connected wallet's `_ADMIN` roles on the name. */
+  /**
+   * The connected wallet's effective `_ADMIN` roles — those held on the name and
+   * those held at the registry root, which `EnhancedAccessControl` ORs in.
+   */
   readonly callerAdminRoles: ReadonlySet<Role>
   /** Every account holding roles on the name, including `account`'s own row. */
   readonly holders: readonly NameRoleHolder[] | undefined
+  /** The name's token owner — the account the transfer gate reads. */
+  readonly ownerAddress: Address | undefined
+  /**
+   * `_ADMIN` roles held by anyone at the registry root. Root holders can grant on
+   * any resource in the registry, so these roles stay restorable after a revoke.
+   */
+  readonly rootAdminRoles: ReadonlySet<Role>
 }
 
 /**
  * Split `currentRoles` into what Remove user revokes and what it must keep.
  *
  * The three kept/revoked buckets are disjoint and preserve `currentRoles` order.
- * Holders are the name's own grants, so an `_ADMIN` role held at the registry
- * root — which `EnhancedAccessControl` ORs in, and which could therefore restore
- * a revoked role — reads as sole here. That errs towards keeping a role we could
- * have safely revoked, which is the harmless direction.
+ * Anything still unknown — the holder list, the owner — resolves towards keeping
+ * the transfer role, since keeping a role we could have revoked is recoverable
+ * and revoking one we shouldn't have is not.
  */
 export const buildRemoveUserPlan = ({
   account,
   currentRoles,
   callerAdminRoles,
   holders,
+  ownerAddress,
+  rootAdminRoles,
 }: BuildRemoveUserPlanParameters): RemoveUserPlan => {
-  // Unknown holders must not read as "someone else can restore it": default to
-  // freezing the transfer role unless another holder is positively confirmed.
-  const hasOtherTransferAdmin = Boolean(
+  // The gate reads the transfer role on the token owner, so the owner keeps it
+  // whoever else holds it. An unknown owner might be this row.
+  const isOwnerRow =
+    !ownerAddress || !account || isSameAccount(account, ownerAddress)
+
+  const isLastTransferAdmin = !(
     account &&
-      holders?.some(
-        (holder) =>
-          !isSameAccount(holder.account, account) &&
-          holder.roles.includes(TRANSFER_ROLE),
-      ),
+    holders?.some(
+      (holder) =>
+        !isSameAccount(holder.account, account) &&
+        holder.roles.includes(TRANSFER_ROLE),
+    )
   )
 
   const frozen = new Set<Role>(
-    hasOtherTransferAdmin
-      ? []
-      : currentRoles.filter((role) => role === TRANSFER_ROLE),
+    isOwnerRow || isLastTransferAdmin
+      ? currentRoles.filter((role) => role === TRANSFER_ROLE)
+      : [],
   )
 
   const removable = new Set(getRemovableRoles(currentRoles, callerAdminRoles))
@@ -106,6 +123,10 @@ export const buildRemoveUserPlan = ({
     unauthorizedRoles: currentRoles.filter(
       (role) => !removable.has(role) && !frozen.has(role),
     ),
-    lockoutRoles: rolesToRevoke.filter((role) => soleAdminRoles.has(role)),
+    // A root holder of the same `_ADMIN` role can grant it back, so being the
+    // name's last admin only locks the role out when root has no holder either.
+    lockoutRoles: rolesToRevoke.filter(
+      (role) => soleAdminRoles.has(role) && !rootAdminRoles.has(role),
+    ),
   }
 }
