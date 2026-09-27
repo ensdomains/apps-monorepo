@@ -31,8 +31,11 @@ const OWNER_ADMIN_ROLES = new Set([
 const adminRoles = (...roles: string[]) => new Set(roles as Role[])
 
 const holders = (
-  entries: Array<{ account: Address; roles: Role[] }>,
-): NameRoleHolder[] => entries
+  entries: readonly {
+    readonly account: Address
+    readonly roles: readonly Role[]
+  }[],
+): readonly NameRoleHolder[] => entries
 
 /** Nobody holds roles at the registry root, as on a `.eth` 2LD. */
 const NO_ROOT_ADMINS = new Set<Role>()

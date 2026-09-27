@@ -47,6 +47,7 @@ import {
 } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { getLabel } from '@/utils/token/getLabel'
 
 type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
   PropsWithChildren<{
@@ -94,13 +95,25 @@ export const RolesSidebar = <
     [row],
   )
 
+  // A raw route parameter would address a resource the registry never wrote to,
+  // so the label is normalised first. `getLabel` throws on a name it can't
+  // normalise; that leaves the query disabled, which reads as no admin roles and
+  // so disables Remove user rather than under-reporting what it would revoke.
+  const label = useMemo(() => {
+    try {
+      return getLabel(name)
+    } catch {
+      return null
+    }
+  }, [name])
+
   const { data: callerRolesData } = useQuery({
     ...getNameRolesForAccountQueryOptions({
       registryAddress,
-      label: name.split('.')[0],
+      label: label ?? '',
       account: callerAddress ?? zeroAddress,
     }),
-    enabled: Boolean(callerAddress),
+    enabled: Boolean(callerAddress) && Boolean(label),
   })
 
   // Already fetched by the page's registry-wide roles section, so this is a cache
