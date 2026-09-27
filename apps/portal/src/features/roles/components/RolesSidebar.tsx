@@ -145,16 +145,8 @@ export const RolesSidebar = <
     [rootHolders],
   )
 
-  // `GetNameRolesAccountsReturnType` widens its values to `string[]` — it types
-  // them as `RoleName<readonly string[]>`, which instantiates the generic with
-  // its own constraint. Both ensjs and our own fetcher only ever put `Role` in
-  // there. Drop the cast once the ensjs pin picks the fixed type up.
   const holders = useMemo(
-    () =>
-      [...roleHolders].map(([account, roles]) => ({
-        account,
-        roles: roles as Role[],
-      })),
+    () => [...roleHolders].map(([account, roles]) => ({ account, roles })),
     [roleHolders],
   )
 
