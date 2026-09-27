@@ -16,6 +16,13 @@ describe('addEmailChannelBodySchema', () => {
     }
   })
 
+  it('normalizes email casing before creating a challenge', () => {
+    const result = v.safeParse(addEmailChannelBodySchema, {
+      email: 'User@EXAMPLE.COM',
+    })
+    expect(result.success && result.output.email).toBe('user@example.com')
+  })
+
   it('rejects null body', () => {
     const result = v.safeParse(addEmailChannelBodySchema, null)
     expect(result.success).toBe(false)

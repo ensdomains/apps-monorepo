@@ -1,4 +1,4 @@
-import { and, eq, gt, lt, lte, ne, or, sql } from 'drizzle-orm'
+import { and, eq, gt, lt, lte, ne, notExists, or, sql } from 'drizzle-orm'
 import type { Database } from '#core/database/index.js'
 import { TABLE } from '#core/database/index.js'
 import { randomUUIDv7 } from '#core/database/utils/schemaHelpers.js'
@@ -129,6 +129,24 @@ export const redeemEmailChallenge = async (
           eq(TABLE.emailVerifications.id, input.challengeId),
           eq(TABLE.emailVerifications.user_id, input.userId),
           eq(TABLE.emailVerifications.otp_digest, input.digest),
+          // A different-cased email may have been established after this OTP
+          // was issued. Do not consume it into a second channel.
+          notExists(
+            db
+              .select({ id: TABLE.userChannels.id })
+              .from(TABLE.userChannels)
+              .where(
+                and(
+                  eq(
+                    TABLE.userChannels.user_id,
+                    TABLE.emailVerifications.user_id,
+                  ),
+                  eq(TABLE.userChannels.channel, 'email'),
+                  eq(TABLE.userChannels.status, 'verified'),
+                  sql`lower(${TABLE.userChannels.target}) = lower(${TABLE.emailVerifications.email})`,
+                ),
+              ),
+          ),
           gt(TABLE.emailVerifications.expires_at, sql`now()`),
           lt(TABLE.emailVerifications.attempts, EMAIL_OTP_MAX_ATTEMPTS),
         ),

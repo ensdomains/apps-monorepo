@@ -265,6 +265,117 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       )
     })
 
+    it('treats case variants as one email channel for an account', async () => {
+      const email = `${crypto.randomUUID()}@example.com`
+      const started = await request(0, '/channels/email', 'POST', {
+        email: email.toUpperCase(),
+      })
+      expect(started.status).toBe(200)
+      const challengeId = ((await started.json()) as { challengeId: string })
+        .challengeId
+      const otp = sendVerificationEmail.mock.calls.at(-1)?.[3] as string
+      expect(
+        (
+          await request(0, `/channels/email/${challengeId}/verify`, 'POST', {
+            otp,
+          })
+        ).status,
+      ).toBe(200)
+
+      const channel = await db.query.userChannels.findFirst({
+        where: eq(TABLE.userChannels.user_id, firstUserId()),
+      })
+      expect(channel?.target).toBe(email)
+      const duplicate = await request(0, '/channels/email', 'POST', {
+        email: email.toUpperCase(),
+      })
+      expect(duplicate.status).toBe(400)
+      expect(sendVerificationEmail).toHaveBeenCalledTimes(1)
+
+      const otherAccount = await request(1, '/channels/email', 'POST', {
+        email: email.toUpperCase(),
+      })
+      expect(otherAccount.status).toBe(200)
+      expect(sendVerificationEmail).toHaveBeenCalledTimes(2)
+
+      if (!channel) throw new Error('Missing email channel')
+      await db
+        .update(TABLE.userChannels)
+        .set({ status: 'disabled', target: email.toUpperCase() })
+        .where(eq(TABLE.userChannels.id, channel.id))
+      const reverify = await request(0, '/channels/email', 'POST', {
+        email: email.toUpperCase(),
+      })
+      expect(reverify.status).toBe(200)
+      const reverifyId = ((await reverify.json()) as { challengeId: string })
+        .challengeId
+      const reverifyOtp = sendVerificationEmail.mock.calls.at(-1)?.[3] as string
+      expect(
+        (
+          await request(0, `/channels/email/${reverifyId}/verify`, 'POST', {
+            otp: reverifyOtp,
+          })
+        ).status,
+      ).toBe(200)
+      expect(
+        await db.query.userChannels.findMany({
+          where: eq(TABLE.userChannels.user_id, firstUserId()),
+        }),
+      ).toHaveLength(1)
+      expect(
+        await db.query.userChannels.findFirst({
+          where: eq(TABLE.userChannels.id, channel.id),
+        }),
+      ).toMatchObject({ status: 'verified', target: email.toUpperCase() })
+
+      // Older data may already contain a second, unavailable case variant.
+      // A verified match must still win over whichever row is returned first.
+      await db.insert(TABLE.userChannels).values({
+        user_id: firstUserId(),
+        channel: 'email',
+        target: email,
+        status: 'disabled',
+      })
+      const existingVariant = await request(0, '/channels/email', 'POST', {
+        email,
+      })
+      expect(existingVariant.status).toBe(400)
+      expect(sendVerificationEmail).toHaveBeenCalledTimes(3)
+    })
+
+    it('does not redeem a pending OTP after a case variant becomes verified', async () => {
+      const email = `${crypto.randomUUID()}@example.com`
+      const started = await request(0, '/channels/email', 'POST', { email })
+      const challengeId = ((await started.json()) as { challengeId: string })
+        .challengeId
+      const otp = sendVerificationEmail.mock.calls.at(-1)?.[3] as string
+
+      await db.insert(TABLE.userChannels).values({
+        user_id: firstUserId(),
+        channel: 'email',
+        target: email.toUpperCase(),
+        status: 'verified',
+        verified_at: new Date(),
+      })
+      expect(
+        (
+          await request(0, `/channels/email/${challengeId}/verify`, 'POST', {
+            otp,
+          })
+        ).status,
+      ).toBe(400)
+      expect(
+        await db.query.userChannels.findMany({
+          where: eq(TABLE.userChannels.user_id, firstUserId()),
+        }),
+      ).toHaveLength(1)
+      expect(
+        await db.query.emailVerifications.findFirst({
+          where: eq(TABLE.emailVerifications.id, challengeId),
+        }),
+      ).toBeDefined()
+    })
+
     it('keeps an expired pending email visible and lets resend refresh and redeem it', async () => {
       const email = `${crypto.randomUUID()}@example.com`
       const started = await request(0, '/channels/email', 'POST', { email })

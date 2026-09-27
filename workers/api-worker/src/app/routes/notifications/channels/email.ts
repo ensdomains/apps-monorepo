@@ -1,5 +1,5 @@
 import { vValidator } from '@hono/valibot-validator'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import type { Context } from 'hono'
 import * as v from 'valibot'
 import { requireAuth } from '#app/middleware/auth.js'
@@ -28,7 +28,14 @@ import { addContactToList } from '#services/sendgrid/contacts.js'
 import { logger } from '#utils/logger.js'
 
 export const addEmailChannelBodySchema = v.object({
-  email: v.pipe(v.string(), v.trim(), v.minLength(1), v.email()),
+  // Case-fold email identity without provider-specific alias rules.
+  email: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1),
+    v.email(),
+    v.transform((email) => email.toLowerCase()),
+  ),
 })
 
 export const verifyEmailChannelBodySchema = v.object({
@@ -41,6 +48,20 @@ type EmailContext = Context<
 
 const sendChallenge = async (c: EmailContext, email: string) => {
   const userId = c.var.user_id
+  const existing = await c.var.db.query.userChannels.findMany({
+    columns: { status: true, target: true },
+    where: and(
+      eq(TABLE.userChannels.user_id, userId),
+      eq(TABLE.userChannels.channel, 'email'),
+      sql`lower(${TABLE.userChannels.target}) = lower(${email})`,
+    ),
+  })
+  if (existing.some((channel) => channel.status === 'verified')) {
+    return c.json({ error: 'Email already connected to this account' }, 400)
+  }
+  // New addresses use one casing. An older disabled channel is re-verified
+  // through its existing target so the upsert reuses that channel.
+  const target = existing[0]?.target ?? email.toLowerCase()
   const previous = await c.var.db.query.emailVerifications.findFirst({
     columns: { otp_digest: true, last_sent_at: true },
     where: eq(TABLE.emailVerifications.user_id, userId),
@@ -88,7 +109,7 @@ const sendChallenge = async (c: EmailContext, email: string) => {
   }
   const challenge = await issueEmailChallenge(c.var.db, {
     userId,
-    email,
+    email: target,
     digest,
   })
   if (!challenge) {
@@ -98,7 +119,7 @@ const sendChallenge = async (c: EmailContext, email: string) => {
   const sent = await sendVerificationEmail(
     c.env.SENDGRID_API_KEY,
     c.env.EMAIL_FROM_ADDRESS,
-    email,
+    target,
     otp,
     c.var.address,
   )
@@ -125,21 +146,7 @@ export default createApp()
     ...requireAuth,
     injectDb,
     vValidator('json', addEmailChannelBodySchema),
-    async (c) => {
-      const email = c.req.valid('json').email
-      const existing = await c.var.db.query.userChannels.findFirst({
-        columns: { status: true },
-        where: and(
-          eq(TABLE.userChannels.user_id, c.var.user_id),
-          eq(TABLE.userChannels.channel, 'email'),
-          eq(TABLE.userChannels.target, email),
-        ),
-      })
-      if (existing?.status === 'verified') {
-        return c.json({ error: 'Email already connected to this account' }, 400)
-      }
-      return sendChallenge(c, email)
-    },
+    (c) => sendChallenge(c, c.req.valid('json').email),
   )
   .post('/:id/resend', ...requireAuth, injectDb, async (c) => {
     const challenge = await c.var.db.query.emailVerifications.findFirst({
