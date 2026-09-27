@@ -180,6 +180,17 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         }),
       ).toBeUndefined()
 
+      const secondStart = await request(0, '/channels/email', 'POST', {
+        email: `${crypto.randomUUID()}@example.com`,
+      })
+      expect(secondStart.status).toBe(409)
+      expect(sendVerificationEmail).toHaveBeenCalledTimes(1)
+      expect(
+        await db.query.emailVerifications.findMany({
+          where: eq(TABLE.emailVerifications.user_id, firstUserId()),
+        }),
+      ).toHaveLength(1)
+
       expect(
         (
           await request(null, `/channels/email/${challengeId}/verify`, 'POST', {
@@ -244,6 +255,16 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         ).some((c) => c.status === 'pending'),
       ).toBe(false)
 
+      const anotherEmail = await request(0, '/channels/email', 'POST', {
+        email: `${crypto.randomUUID()}@example.com`,
+      })
+      expect(anotherEmail.status).toBe(400)
+      expect(
+        await db.query.userChannels.findMany({
+          where: eq(TABLE.userChannels.user_id, firstUserId()),
+        }),
+      ).toHaveLength(1)
+
       const otherStart = await request(1, '/channels/email', 'POST', { email })
       expect(otherStart.status).toBe(started.status)
       const otherId = ((await otherStart.json()) as { challengeId: string })
@@ -265,7 +286,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       )
     })
 
-    it('treats case variants as one email channel for an account', async () => {
+    it('requires removal before changing an established email', async () => {
       const email = `${crypto.randomUUID()}@example.com`
       const started = await request(0, '/channels/email', 'POST', {
         email: email.toUpperCase(),
@@ -286,64 +307,49 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         where: eq(TABLE.userChannels.user_id, firstUserId()),
       })
       expect(channel?.target).toBe(email)
-      const duplicate = await request(0, '/channels/email', 'POST', {
-        email: email.toUpperCase(),
-      })
-      expect(duplicate.status).toBe(400)
-      expect(sendVerificationEmail).toHaveBeenCalledTimes(1)
-
-      const otherAccount = await request(1, '/channels/email', 'POST', {
-        email: email.toUpperCase(),
-      })
-      expect(otherAccount.status).toBe(200)
-      expect(sendVerificationEmail).toHaveBeenCalledTimes(2)
-
       if (!channel) throw new Error('Missing email channel')
       await db
         .update(TABLE.userChannels)
-        .set({ status: 'disabled', target: email.toUpperCase() })
+        .set({ status: 'disabled' })
         .where(eq(TABLE.userChannels.id, channel.id))
-      const reverify = await request(0, '/channels/email', 'POST', {
-        email: email.toUpperCase(),
-      })
-      expect(reverify.status).toBe(200)
-      const reverifyId = ((await reverify.json()) as { challengeId: string })
-        .challengeId
-      const reverifyOtp = sendVerificationEmail.mock.calls.at(-1)?.[3] as string
+      const replacementEmail = `${crypto.randomUUID()}@example.com`
       expect(
         (
-          await request(0, `/channels/email/${reverifyId}/verify`, 'POST', {
-            otp: reverifyOtp,
+          await request(0, '/channels/email', 'POST', {
+            email: replacementEmail,
+          })
+        ).status,
+      ).toBe(400)
+      expect(sendVerificationEmail).toHaveBeenCalledTimes(1)
+
+      expect(
+        (await request(0, `/channels/${channel.id}`, 'DELETE')).status,
+      ).toBe(200)
+      const replacement = await request(0, '/channels/email', 'POST', {
+        email: replacementEmail,
+      })
+      expect(replacement.status).toBe(200)
+      const replacementId = (
+        (await replacement.json()) as { challengeId: string }
+      ).challengeId
+      const replacementOtp = sendVerificationEmail.mock.calls.at(
+        -1,
+      )?.[3] as string
+      expect(
+        (
+          await request(0, `/channels/email/${replacementId}/verify`, 'POST', {
+            otp: replacementOtp,
           })
         ).status,
       ).toBe(200)
-      expect(
-        await db.query.userChannels.findMany({
-          where: eq(TABLE.userChannels.user_id, firstUserId()),
-        }),
-      ).toHaveLength(1)
-      expect(
-        await db.query.userChannels.findFirst({
-          where: eq(TABLE.userChannels.id, channel.id),
-        }),
-      ).toMatchObject({ status: 'verified', target: email.toUpperCase() })
-
-      // Older data may already contain a second, unavailable case variant.
-      // A verified match must still win over whichever row is returned first.
-      await db.insert(TABLE.userChannels).values({
-        user_id: firstUserId(),
-        channel: 'email',
-        target: email,
-        status: 'disabled',
+      const channels = await db.query.userChannels.findMany({
+        where: eq(TABLE.userChannels.user_id, firstUserId()),
       })
-      const existingVariant = await request(0, '/channels/email', 'POST', {
-        email,
-      })
-      expect(existingVariant.status).toBe(400)
-      expect(sendVerificationEmail).toHaveBeenCalledTimes(3)
+      expect(channels).toHaveLength(1)
+      expect(channels[0]?.target).toBe(replacementEmail)
     })
 
-    it('does not redeem a pending OTP after a case variant becomes verified', async () => {
+    it('does not redeem a pending OTP after another email becomes established', async () => {
       const email = `${crypto.randomUUID()}@example.com`
       const started = await request(0, '/channels/email', 'POST', { email })
       const challengeId = ((await started.json()) as { challengeId: string })
@@ -353,7 +359,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       await db.insert(TABLE.userChannels).values({
         user_id: firstUserId(),
         channel: 'email',
-        target: email.toUpperCase(),
+        target: `${crypto.randomUUID()}@example.com`,
         status: 'verified',
         verified_at: new Date(),
       })
@@ -487,7 +493,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
             email: `${crypto.randomUUID()}@example.com`,
           })
         ).status,
-      ).toBe(429)
+      ).toBe(409)
       expect(
         await db.query.emailVerifications.findMany({
           where: eq(TABLE.emailVerifications.user_id, firstUserId()),
@@ -720,7 +726,10 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         where: eq(TABLE.emailVerifications.user_id, otherUser.id),
       })
       if (!firstChallenge) throw new Error('Missing email challenge')
-      await allowResend(firstChallenge.id)
+      expect(
+        (await request(1, `/channels/email/${firstChallenge.id}`, 'DELETE'))
+          .status,
+      ).toBe(200)
       const unused = await request(1, '/channels/email', 'POST', {
         email: `${crypto.randomUUID()}@example.com`,
       })
@@ -740,6 +749,12 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       const unrelated = `${crypto.randomUUID()}@example.com`
       const otherUser = users[1]
       if (!otherUser) throw new Error('Missing second test user')
+      const unrelatedUser = {
+        id: crypto.randomUUID(),
+        address: `0x${crypto.randomUUID().replaceAll('-', '')}`,
+      }
+      await db.insert(TABLE.users).values(unrelatedUser)
+      users.push(unrelatedUser)
       await db.insert(TABLE.userChannels).values([
         {
           user_id: firstUserId(),
@@ -754,7 +769,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
           status: 'verified',
         },
         {
-          user_id: firstUserId(),
+          user_id: unrelatedUser.id,
           channel: 'email',
           target: unrelated,
           status: 'verified',

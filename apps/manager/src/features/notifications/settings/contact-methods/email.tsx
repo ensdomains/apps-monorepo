@@ -422,11 +422,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
   )
 }
 
-export const EmailContactMethod = ({
-  emails,
-}: {
-  emails: readonly Channel[]
-}) => {
+export const EmailContactMethod = ({ email }: { email?: Channel }) => {
   return (
     <div className="flex flex-col gap-3 rounded-lg bg-[#FAFAFB] p-5">
       <div className="flex items-start gap-2">
@@ -446,8 +442,8 @@ export const EmailContactMethod = ({
         </div>
       </div>
 
-      {emails.map((email) => (
-        <div className="flex flex-col gap-3" key={email.id}>
+      {email && (
+        <div className="flex flex-col gap-3">
           {match(email.status)
             .with('pending', () => (
               <div className="flex w-fit items-center rounded bg-ens-signal-warning-100 px-2 py-1 text-ens-signal-warning-700">
@@ -468,10 +464,8 @@ export const EmailContactMethod = ({
             .otherwise(() => null)}
           <ExistingEmailContactMethod email={email} />
         </div>
-      ))}
-      {!emails.some((email) => email.status === 'pending') && (
-        <NewEmailContactMethod />
       )}
+      {!email && <NewEmailContactMethod />}
     </div>
   )
 }

@@ -129,8 +129,8 @@ export const redeemEmailChallenge = async (
           eq(TABLE.emailVerifications.id, input.challengeId),
           eq(TABLE.emailVerifications.user_id, input.userId),
           eq(TABLE.emailVerifications.otp_digest, input.digest),
-          // A different-cased email may have been established after this OTP
-          // was issued. Do not consume it into a second channel.
+          // A channel may have been established after this OTP was issued.
+          // Changing the email requires removing that channel first.
           notExists(
             db
               .select({ id: TABLE.userChannels.id })
@@ -142,8 +142,6 @@ export const redeemEmailChallenge = async (
                     TABLE.emailVerifications.user_id,
                   ),
                   eq(TABLE.userChannels.channel, 'email'),
-                  eq(TABLE.userChannels.status, 'verified'),
-                  sql`lower(${TABLE.userChannels.target}) = lower(${TABLE.emailVerifications.email})`,
                 ),
               ),
           ),
@@ -176,14 +174,6 @@ export const redeemEmailChallenge = async (
         })
         .from(redeemed),
     )
-    .onConflictDoUpdate({
-      target: [
-        TABLE.userChannels.user_id,
-        TABLE.userChannels.channel,
-        TABLE.userChannels.target,
-      ],
-      set: { status: 'verified', status_reason: null, verified_at: sql`now()` },
-    })
     .returning({ id: TABLE.userChannels.id, email: TABLE.userChannels.target })
   if (established?.email)
     return { id: established.id, email: established.email }

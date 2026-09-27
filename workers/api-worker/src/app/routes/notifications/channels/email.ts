@@ -1,5 +1,5 @@
 import { vValidator } from '@hono/valibot-validator'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { Context } from 'hono'
 import * as v from 'valibot'
 import { requireAuth } from '#app/middleware/auth.js'
@@ -48,20 +48,17 @@ type EmailContext = Context<
 
 const sendChallenge = async (c: EmailContext, email: string) => {
   const userId = c.var.user_id
-  const existing = await c.var.db.query.userChannels.findMany({
-    columns: { status: true, target: true },
+  const target = email.toLowerCase()
+  const existing = await c.var.db.query.userChannels.findFirst({
+    columns: { id: true },
     where: and(
       eq(TABLE.userChannels.user_id, userId),
       eq(TABLE.userChannels.channel, 'email'),
-      sql`lower(${TABLE.userChannels.target}) = lower(${email})`,
     ),
   })
-  if (existing.some((channel) => channel.status === 'verified')) {
+  if (existing) {
     return c.json({ error: 'Email already connected to this account' }, 400)
   }
-  // New addresses use one casing. An older disabled channel is re-verified
-  // through its existing target so the upsert reuses that channel.
-  const target = existing[0]?.target ?? email.toLowerCase()
   const previous = await c.var.db.query.emailVerifications.findFirst({
     columns: { otp_digest: true, last_sent_at: true },
     where: eq(TABLE.emailVerifications.user_id, userId),
@@ -146,7 +143,19 @@ export default createApp()
     ...requireAuth,
     injectDb,
     vValidator('json', addEmailChannelBodySchema),
-    (c) => sendChallenge(c, c.req.valid('json').email),
+    async (c) => {
+      const pending = await c.var.db.query.emailVerifications.findFirst({
+        columns: { id: true },
+        where: eq(TABLE.emailVerifications.user_id, c.var.user_id),
+      })
+      if (pending) {
+        return c.json(
+          { error: 'Email verification already pending; resend or cancel it' },
+          409,
+        )
+      }
+      return sendChallenge(c, c.req.valid('json').email)
+    },
   )
   .post('/:id/resend', ...requireAuth, injectDb, async (c) => {
     const challenge = await c.var.db.query.emailVerifications.findFirst({
