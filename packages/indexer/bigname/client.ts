@@ -1,31 +1,18 @@
-import { ResultAsync } from 'neverthrow'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { err, ok, ResultAsync } from 'neverthrow'
 import { BignameError, isBignameApiErrorCode } from './errors'
 import type * as T from './types'
 
 export type BignameClientOptions = {
   /** Injected for tests and for runtimes that wrap fetch. */
   readonly fetch?: typeof fetch
-  /** Retries after the first attempt on 429, 503 and network failure. */
-  readonly retries?: number
-  readonly retryDelayMs?: number
-  readonly sleep?: (ms: number) => Promise<void>
 }
 
 type QueryValue = string | number | boolean | readonly string[] | undefined
 type Query = Readonly<Record<string, QueryValue>>
 
-const DEFAULT_RETRIES = 2
-const DEFAULT_RETRY_DELAY_MS = 300
-const MAX_BACKOFF_MS = 5_000
-// A server that asks for a longer wait is believed, within reason.
-const MAX_RETRY_AFTER_MS = 30_000
-const RETRYABLE_STATUSES = new Set([429, 503])
-
-const sleepFor = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms))
-
 // bigname rejects unknown parameters with 400, so only defined values are sent.
-// `include`, `type` and `relation` take comma-separated sets.
+// `include`, `type`, `keys` and `relation` take comma-separated sets.
 const toSearchParams = (query: Query | undefined): string => {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(query ?? {})) {
@@ -39,18 +26,19 @@ const toSearchParams = (query: Query | undefined): string => {
 const isEnvelope = (body: unknown): body is T.Envelope<unknown> =>
   typeof body === 'object' && body !== null && 'data' in body && 'meta' in body
 
-const retryDelay = (
-  attempt: number,
-  baseMs: number,
-  retryAfter: string | null,
-): number => {
-  const fromHeader = retryAfter ? Number(retryAfter) * 1000 : Number.NaN
-  if (Number.isFinite(fromHeader) && fromHeader >= 0) {
-    return Math.min(fromHeader, MAX_RETRY_AFTER_MS)
-  }
-  const backoff = baseMs * 2 ** attempt + Math.floor(Math.random() * 100)
-  return Math.min(backoff, MAX_BACKOFF_MS)
-}
+const networkError = (cause: unknown) =>
+  new BignameError({
+    code: 'network',
+    message: `bigname request failed: ${String(cause)}`,
+    cause,
+  })
+
+const malformed = (response: Response, message: string) =>
+  new BignameError({
+    code: 'malformed_response',
+    status: response.status,
+    message,
+  })
 
 const toApiError = async (response: Response): Promise<BignameError> => {
   const body: unknown = await response.json().catch(() => undefined)
@@ -62,26 +50,28 @@ const toApiError = async (response: Response): Promise<BignameError> => {
           }
         ).error
       : undefined
-  const code = isBignameApiErrorCode(error?.code) ? error.code : undefined
+  if (!isBignameApiErrorCode(error?.code)) {
+    return malformed(
+      response,
+      `bigname responded ${response.status} without an error body`,
+    )
+  }
   return new BignameError({
-    code: code ?? 'malformed_response',
+    code: error.code,
     status: response.status,
-    message:
-      typeof error?.message === 'string'
-        ? error.message
-        : `bigname responded ${response.status} without an error body`,
-    details: error?.details,
+    message: typeof error.message === 'string' ? error.message : error.code,
+    details: error.details,
   })
 }
 
 /**
- * A client for one bigname deployment.
+ * A client for one bigname deployment: typed routes, query serialization and
+ * envelope parsing, nothing more. One call is one HTTP attempt and one page.
+ * Retry, paging and stale-cursor restarts belong to the caller, which on the
+ * frontend is TanStack Query and on the worker is the job's own loop.
  *
- * Takes the base URL as an argument and reads no environment: the apps build
- * one at boot from `envConfig.endpoints.bignameApi`, the worker one per
- * request from its bindings. Every method returns the unwrapped envelope as a
- * `Result`, never throws, and sends no custom headers on GET, because the edge
- * answers CORS preflight only for `POST /v1/lookup`.
+ * Takes the base URL as an argument and reads no environment. GET requests
+ * carry no headers: the edge answers CORS preflight only for `POST /v1/lookup`.
  */
 export const createBignameClient = (
   baseUrl: string,
@@ -89,15 +79,12 @@ export const createBignameClient = (
 ) => {
   const base = baseUrl.replace(/\/+$/, '')
   const fetchImpl = options.fetch ?? globalThis.fetch
-  const retries = options.retries ?? DEFAULT_RETRIES
-  const retryDelayMs = options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS
-  const sleep = options.sleep ?? sleepFor
 
-  const send = async (
+  const send = ResultFn(async function* (
     path: string,
-    query: Query | undefined,
-    body: unknown,
-  ): Promise<Response> => {
+    query?: Query,
+    body?: unknown,
+  ) {
     const url = `${base}${path}${toSearchParams(query)}`
     const init: RequestInit =
       body === undefined
@@ -108,61 +95,31 @@ export const createBignameClient = (
             body: JSON.stringify(body),
           }
 
-    let attempt = 0
-    for (;;) {
-      let response: Response
-      try {
-        response = await fetchImpl(url, init)
-      } catch (cause) {
-        if (attempt >= retries) {
-          throw new BignameError({
-            code: 'network',
-            message: `bigname request failed: ${String(cause)}`,
-            cause,
-          })
-        }
-        await sleep(retryDelay(attempt, retryDelayMs, null))
-        attempt += 1
-        continue
-      }
-      if (!RETRYABLE_STATUSES.has(response.status) || attempt >= retries) {
-        return response
-      }
-      await sleep(
-        retryDelay(attempt, retryDelayMs, response.headers.get('retry-after')),
+    const response = yield* ResultAsync.fromPromise(
+      fetchImpl(url, init),
+      networkError,
+    )
+    if (!response.ok) return err(await toApiError(response))
+
+    const parsed = yield* ResultAsync.fromPromise(
+      response.json() as Promise<unknown>,
+      () =>
+        malformed(response, 'bigname responded with a body that is not JSON'),
+    )
+    if (!isEnvelope(parsed)) {
+      return err(
+        malformed(response, 'bigname responded without a data envelope'),
       )
-      attempt += 1
     }
-  }
+    return ok(parsed)
+  })
 
   const request = <Data, Res extends T.Envelope<Data> = T.Envelope<Data>>(
     path: string,
     query?: Query,
     body?: unknown,
   ): ResultAsync<Res, BignameError> =>
-    ResultAsync.fromPromise(
-      (async () => {
-        const response = await send(path, query, body)
-        if (!response.ok) throw await toApiError(response)
-        const parsed: unknown = await response.json().catch(() => undefined)
-        if (!isEnvelope(parsed)) {
-          throw new BignameError({
-            code: 'malformed_response',
-            status: response.status,
-            message: 'bigname responded without a data envelope',
-          })
-        }
-        return parsed as Res
-      })(),
-      (error) =>
-        error instanceof BignameError
-          ? error
-          : new BignameError({
-              code: 'network',
-              message: `bigname request failed: ${String(error)}`,
-              cause: error,
-            }),
-    )
+    send(path, query, body).map((envelope) => envelope as Res)
 
   const seg = encodeURIComponent
 

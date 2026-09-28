@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createBignameClient } from './client'
 import { BignameError, isStale } from './errors'
-import { allPages } from './paging'
 
 const json = (body: unknown, status = 200, headers?: Record<string, string>) =>
   new Response(JSON.stringify(body), {
@@ -17,13 +16,10 @@ const apiError = (code: string, status: number) =>
 /** A client whose fetch replays the given responses in order. */
 const clientWith = (...responses: Response[]) => {
   const fetch = vi.fn(async () => responses.shift() ?? json({}, 500))
-  const sleep = vi.fn(async () => {})
   const client = createBignameClient('https://bigname.example/', {
     fetch: fetch as unknown as typeof globalThis.fetch,
-    sleep,
-    retries: 2,
   })
-  return { client, fetch, sleep }
+  return { client, fetch }
 }
 
 const requestOf = (fetch: ReturnType<typeof vi.fn>, call = 0) => {
@@ -151,168 +147,33 @@ describe('createBignameClient', () => {
     })
   })
 
-  describe('retries', () => {
-    it('retries a 429 and then succeeds', async () => {
-      const { client, fetch, sleep } = clientWith(
-        apiError('rate_limited', 429),
-        envelope({ status: 'ready' }),
-      )
-
-      const result = await client.status()
-
-      expect(result.isOk()).toBe(true)
-      expect(fetch).toHaveBeenCalledTimes(2)
-      expect(sleep).toHaveBeenCalledTimes(1)
-    })
-
-    it('honours retry-after on a 503', async () => {
-      const { client, sleep } = clientWith(
-        json({ error: { code: 'overloaded', message: 'busy' } }, 503, {
-          'retry-after': '2',
-        }),
-        envelope({}),
-      )
-
-      await client.status()
-
-      expect(sleep).toHaveBeenCalledWith(2000)
-    })
-
-    it('believes a long retry-after instead of capping it at the backoff limit', async () => {
-      const { client, sleep } = clientWith(
-        json({ error: { code: 'rate_limited', message: 'slow down' } }, 429, {
-          'retry-after': '20',
-        }),
-        envelope({}),
-      )
-
-      await client.status()
-
-      expect(sleep).toHaveBeenCalledWith(20_000)
-    })
-
-    it('gives up after the configured retries', async () => {
-      const { client, fetch } = clientWith(
-        apiError('overloaded', 503),
-        apiError('overloaded', 503),
-        apiError('overloaded', 503),
-      )
+  // One call is one HTTP attempt. Retry belongs to the caller: TanStack Query
+  // on the frontend, the job's own loop on the worker.
+  describe('one attempt per call', () => {
+    it.each([
+      ['rate_limited', 429],
+      ['overloaded', 503],
+    ])('returns a %s error after a single request', async (code, status) => {
+      const { client, fetch } = clientWith(apiError(code, status), envelope({}))
 
       const error = (await client.status())._unsafeUnwrapErr()
 
-      expect(error.code).toBe('overloaded')
-      expect(fetch).toHaveBeenCalledTimes(3)
+      expect(error.code).toBe(code)
+      expect(fetch).toHaveBeenCalledTimes(1)
     })
 
-    it('retries a network failure and reports it when it persists', async () => {
+    it('reports a failed fetch as a network error', async () => {
       const fetch = vi.fn(async () => {
         throw new TypeError('fetch failed')
       })
       const client = createBignameClient('https://bigname.example', {
         fetch: fetch as unknown as typeof globalThis.fetch,
-        sleep: async () => {},
-        retries: 1,
       })
 
       const error = (await client.status())._unsafeUnwrapErr()
 
       expect(error.code).toBe('network')
-      expect(fetch).toHaveBeenCalledTimes(2)
-    })
-
-    it('does not retry a 404', async () => {
-      const { client, fetch } = clientWith(apiError('not_found', 404))
-
-      await client.name('missing.eth')
-
       expect(fetch).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  describe('allPages', () => {
-    const page = (rows: string[], next: string | null) =>
-      json({
-        data: rows,
-        page: {
-          cursor: null,
-          next_cursor: next,
-          page_size: 2,
-          total_count: null,
-          has_more: next !== null,
-        },
-        meta: {},
-      })
-
-    it('follows next_cursor to the end', async () => {
-      const { client, fetch } = clientWith(
-        page(['a', 'b'], 'c2'),
-        page(['c'], null),
-      )
-
-      const rows = await allPages((cursor) =>
-        client.subnames('x.eth', { page_size: 2, cursor }),
-      )
-
-      expect(rows._unsafeUnwrap()).toEqual(['a', 'b', 'c'])
-      expect(requestOf(fetch, 1).url).toContain('cursor=c2')
-    })
-
-    it('restarts from page one when a cursor goes stale', async () => {
-      const { client, fetch } = clientWith(
-        page(['a'], 'c2'),
-        apiError('stale', 409),
-        page(['a', 'b'], null),
-      )
-
-      const rows = await allPages((cursor) =>
-        client.subnames('x.eth', { page_size: 2, cursor }),
-      )
-
-      expect(rows._unsafeUnwrap()).toEqual(['a', 'b'])
-      expect(requestOf(fetch, 2).url).not.toContain('cursor=')
-    })
-
-    it('gives up after the allowed restarts', async () => {
-      const { client } = clientWith(
-        page(['a'], 'c2'),
-        apiError('stale', 409),
-        page(['a'], 'c2'),
-        apiError('stale', 409),
-      )
-
-      const rows = await allPages(
-        (cursor) => client.subnames('x.eth', { page_size: 2, cursor }),
-        { restarts: 1 },
-      )
-
-      expect(isStale(rows._unsafeUnwrapErr())).toBe(true)
-    })
-
-    it('reports a collection that outgrows the page limit instead of truncating it', async () => {
-      const { client } = clientWith(page(['a'], 'c2'), page(['b'], 'c3'))
-
-      const rows = await allPages(
-        (cursor) => client.subnames('x.eth', { page_size: 1, cursor }),
-        { maxPages: 2 },
-      )
-
-      expect(rows._unsafeUnwrapErr().code).toBe('page_limit')
-    })
-
-    it('counts pages from one again after a restart', async () => {
-      const { client } = clientWith(
-        page(['a'], 'c2'),
-        apiError('stale', 409),
-        page(['a'], 'c2'),
-        page(['b'], null),
-      )
-
-      const rows = await allPages(
-        (cursor) => client.subnames('x.eth', { page_size: 1, cursor }),
-        { maxPages: 2 },
-      )
-
-      expect(rows._unsafeUnwrap()).toEqual(['a', 'b'])
     })
   })
 
