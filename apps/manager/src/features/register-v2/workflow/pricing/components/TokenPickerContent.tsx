@@ -43,6 +43,7 @@ const MEDIUM_NAME_CHAR_THRESHOLD = 10
 const LONG_NAME_CHAR_THRESHOLD = 43
 
 const USDC_DECIMALS = TOKENS.USDC.decimals
+const USDC_SCALE = 10 ** USDC_DECIMALS
 
 /** Raised when the wallet cannot cover the funding budget. */
 class InsufficientFundingError extends Error {
@@ -130,9 +131,14 @@ const UsdcFundingErrorMessage = ({
   readonly hcaCredit: number
 }) => {
   const requiredAmount = formatUsd(required)
-  const walletRegistrationShare = Math.max(registration - hcaCredit, 0)
+  const availableRaw = Math.round(available * USDC_SCALE)
+  const walletRegistrationShareRaw = Math.max(
+    Math.round(registration * USDC_SCALE) -
+      Math.round(hcaCredit * USDC_SCALE),
+    0,
+  )
 
-  if (available >= walletRegistrationShare) {
+  if (availableRaw >= walletRegistrationShareRaw) {
     return <Trans>Need {requiredAmount} USDC incl. network fees</Trans>
   }
 

@@ -245,6 +245,23 @@ describe('TokenPickerContent funding shortfall paths', () => {
     expect(integration.fetch).not.toHaveBeenCalled()
   })
 
+  it('keeps an exact credited name-price boundary in the fee shortfall', async () => {
+    integration.walletBalanceRaw = 100_000n
+    integration.budget = {
+      registrationPrice: 800_000n,
+      total: 1_000_000n,
+      hcaBalance: 700_000n,
+    }
+
+    renderIntegratedPicker()
+
+    const error = await screen.findByText(/^Need /)
+    expect(error).toHaveTextContent('Need $0.30 USDC incl. network fees')
+    expect(error.closest('[data-slot="payment-method-error"]')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+    expect(integration.fetch).not.toHaveBeenCalled()
+  })
+
   it.each([
     {
       caseName: 'below the refreshed name price',
