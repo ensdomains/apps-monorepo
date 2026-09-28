@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { useEffect, useRef, useState } from 'react'
+import { cardSurfaceTreatmentClassName } from '@/components/ui/card-surface'
 import {
   Dialog,
   DialogContent,
@@ -134,8 +135,8 @@ export const ProfileAbout = ({
       className={cn(
         'wrap-anywhere flex min-h-0 min-w-0 flex-1',
         primaryName
-          ? 'min-h-35 rounded-xl border-none bg-white p-6 shadow-[0_2px_6px_rgba(0,0,0,0.06)] lg:landscape:min-h-[147.09px] lg:landscape:max-w-158.75'
-          : 'rounded-none border-none bg-transparent p-0 shadow-none lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-[0_2px_6px_rgba(0,0,0,0.06)]',
+          ? `${cardSurfaceTreatmentClassName} min-h-47 rounded-xl p-6 lg:landscape:min-h-45 lg:landscape:max-w-158.75`
+          : 'rounded-none border-0 bg-transparent p-0 shadow-none lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-ens-card',
         className,
       )}
     >

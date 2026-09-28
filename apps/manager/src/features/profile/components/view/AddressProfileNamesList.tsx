@@ -339,9 +339,7 @@ export const AddressProfileNamesList = ({
     )
 
   return (
-    <div
-      className="w-full rounded-none border-0 border-[#dededf] bg-transparent px-1 py-0 shadow-none md:rounded-xl md:border-[0.25px] md:bg-white md:px-6 md:py-8" // Figma-spec hairline width and border colour — no matching design tokens
-    >
+    <div className="w-full rounded-none border-0 border-ens-quartz-300 bg-transparent px-1 py-0 shadow-none md:rounded-xl md:border-[0.25px] md:bg-white md:px-6 md:py-8 md:shadow-ens-card">
       <div className="mb-5 flex w-full flex-col items-start gap-5 md:mb-4">
         {/* Search filters the visible list for any address. Role filters stay
             with the connected view. */}

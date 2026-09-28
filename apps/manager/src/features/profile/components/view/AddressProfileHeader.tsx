@@ -22,19 +22,19 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
   const { copied, copy } = useCopyFeedback()
 
   return (
-    <h1 className="max-w-full font-semi-mono text-[28px] text-ens-quartz-900 leading-[0.96] tracking-[-0.56px] md:text-[32px] md:tracking-[-0.64px]">
+    <h1 className="w-full max-w-full text-center font-semi-mono text-[28px] text-ens-quartz-900 leading-[0.96] tracking-[-0.56px] md:text-[32px] md:tracking-[-0.64px] lg:landscape:w-auto lg:landscape:text-left">
       <button
         aria-label={`${address} — ${t`Copy to clipboard`}`}
-        className="group inline-flex max-w-full cursor-pointer items-center gap-1 rounded-sm text-left focus-visible:outline-2 focus-visible:outline-ens-lapis-core focus-visible:outline-offset-2"
+        className="group relative inline-block max-w-[calc(100%-34px)] cursor-pointer rounded-sm text-left focus-visible:outline-2 focus-visible:outline-ens-lapis-core focus-visible:outline-offset-2 lg:landscape:max-w-full"
         onClick={() => copy(address)}
         title={t`Copy to clipboard`}
         type="button"
       >
-        <span className="min-w-0 truncate">{truncateAddress(address)}</span>
+        <span className="block truncate">{truncateAddress(address)}</span>
         <MSymbol
           aria-hidden="true"
           className={cn(
-            'ms-opsz-30 ms-wght-500 shrink-0 text-ens-quartz-400 group-hover:opacity-100 group-focus-visible:opacity-100',
+            'absolute top-1/2 left-full ms-opsz-30 ms-wght-500 ml-1 -translate-y-1/2 text-ens-quartz-400 group-hover:opacity-100 group-focus-visible:opacity-100',
             copied ? 'opacity-100' : 'opacity-0',
           )}
           symbol={copied ? 'check' : 'content_copy'}
@@ -116,7 +116,7 @@ export const AddressProfileHeader = ({
 
       {primaryName ? (
         <div className="flex flex-col gap-5 lg:landscape:grid lg:landscape:grid-cols-[max-content_minmax(0,1fr)] lg:landscape:items-start lg:landscape:gap-5.5">
-          <div className="relative hidden aspect-square h-full max-h-50 lg:landscape:block">
+          <div className="relative hidden size-45 lg:landscape:block">
             <ProfileAvatar
               avatarLoading={false}
               avatarUrl={avatarUrl}

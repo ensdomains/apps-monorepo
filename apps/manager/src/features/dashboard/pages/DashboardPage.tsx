@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
+import { cardSurfaceTreatmentClassName } from '@/components/ui/card-surface'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
 import { DashboardGraceBanner } from '@/features/dashboard/components/DashboardGraceBanner'
@@ -88,7 +89,7 @@ export const DashboardPage = () => {
           </motion.div>
         ) : (
           <motion.div
-            className="flex flex-col items-start gap-3 border-[0.25px] border-border bg-white px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:rounded-xl md:px-6 md:py-8"
+            className={`${cardSurfaceTreatmentClassName} flex flex-col items-start gap-3 px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:rounded-xl md:px-6 md:py-8`}
             {...stagger(2, shouldReduceMotion)}
           >
             <span className="font-sans text-[16px] text-foreground">
@@ -111,7 +112,7 @@ export const DashboardPage = () => {
           </motion.div>
         )}
         <motion.div
-          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"
+          className={`${cardSurfaceTreatmentClassName} px-4 py-6 md:rounded-xl md:px-6 md:py-8`}
           {...stagger(3, shouldReduceMotion)}
         >
           <NamesTable
@@ -123,7 +124,7 @@ export const DashboardPage = () => {
         <TemporaryMigrationAccessNotice />
         {commemorativeNftEnabled ? <CommemorativeNftDashboard /> : null}
         <motion.div
-          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"
+          className={`${cardSurfaceTreatmentClassName} px-4 py-6 md:rounded-xl md:px-6 md:py-8`}
           {...stagger(4, shouldReduceMotion)}
         >
           <EducationCarousel />
