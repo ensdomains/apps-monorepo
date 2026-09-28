@@ -31,8 +31,6 @@ describe('getStatus', () => {
   })
 
   it('reports an auto-retry as in flight, not failed', () => {
-    // The machine keeps the last attempt's error while it resubmits; a "Try
-    // again" offered then has nothing to act on.
     const map = new Map<string, TransactionMachineActor>([
       ['tx-1', createMockActor('retrying', new Error('Failed'))],
     ])

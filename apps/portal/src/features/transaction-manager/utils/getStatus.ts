@@ -8,9 +8,7 @@ function getStatusFromActor(
 ): TransactionMachineState | undefined {
   const snapshot = actor.getSnapshot()
 
-  // Read the state, not `context.error`: an auto-retry keeps the last attempt's
-  // error while it resubmits, and reporting that as failed offers a "Try again"
-  // the flow cannot act on yet.
+  // `context.error` survives into an auto-retry, which is not a failure.
   if (snapshot.matches('error')) return 'error'
 
   return snapshot.value as TransactionMachineState

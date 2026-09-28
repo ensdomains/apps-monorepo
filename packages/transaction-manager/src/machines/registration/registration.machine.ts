@@ -1035,11 +1035,7 @@ export const registrationMachine = setup({
         // `commitmentAt` is set we continue, otherwise that state's retry
         // resubmits the correct (signer-aware) commit path.
         onError: [
-          // A declined commit or a failed EOA send is not worth verifying:
-          // it almost never landed, and verifying only delays the error the
-          // modal already shows. If it did land, the retry commits a fresh
-          // commitment rather than repeating this one. A Warp intent can fill
-          // after its transport reports failure, so the HCA path verifies.
+          // Warp can fill after a reported failure, so only HCA verifies.
           {
             guard: ({ context, event }) =>
               !isRetryableSubmissionError(event.error) ||
@@ -1645,8 +1641,7 @@ export const registrationMachine = setup({
           {
             guard: ({ context }) =>
               context.retryTarget === 'preparingCommitment',
-            // A fresh commitment: the failed one may still have landed, and
-            // the registrar reverts on a repeat (`UnexpiredCommitmentExists`).
+            // The failed commitment may have landed, and a repeat reverts.
             target: 'preparingCommitment',
             actions: assign(({ context }) => ({
               ...context,

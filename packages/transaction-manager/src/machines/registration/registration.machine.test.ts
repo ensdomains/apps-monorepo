@@ -365,8 +365,6 @@ describe('registrationMachine — failed commit send', () => {
   }
 
   it('fails an EOA commit the wallet could not send straight away', async () => {
-    // Verifying on-chain polls for ~12s while the modal already shows "Try
-    // again" — and ignores the click until then.
     const validateCommitment = vi.fn(() => new Promise(() => {}))
     const actor = startEoaRegistration({ validateCommitment })
 
@@ -377,7 +375,6 @@ describe('registrationMachine — failed commit send', () => {
   })
 
   it('retries with a fresh commitment, since the failed one may have landed', async () => {
-    // The registrar reverts a repeated commitment (`UnexpiredCommitmentExists`).
     const generateCommitment = vi
       .fn()
       .mockResolvedValueOnce({ commitment: '0x01' })
