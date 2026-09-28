@@ -358,33 +358,39 @@ export const TokenPickerContent = () => {
   const { stablecoinBalances, isLoadingBalances, isConnected } =
     useSmartAccountContext()
 
-  const clickFundingError =
+  const revalidatedFundingError =
     availabilityMutation.error instanceof InsufficientFundingError
       ? availabilityMutation.error
       : null
-  const isClickFundingShortfall = clickFundingError !== null
-  const fundingShortfallCause = funding?.shortfallCause ?? null
-  const shortfallCause =
-    fundingShortfallCause ?? clickFundingError?.shortfallCause ?? null
-  const shortfallRequiredAmount =
-    fundingShortfallCause === null
-      ? clickFundingError?.required
-      : funding?.walletDebit
-  const methodErrorMessage = (() => {
-    if (
-      shortfallCause === 'name-price' &&
-      shortfallRequiredAmount !== undefined
-    ) {
-      const amount = formatUsd(shortfallRequiredAmount)
-      return t`${amount} needed to register name`
-    }
-    if (shortfallCause === 'network-fee') {
-      return t`not enough funds to pay network fees`
-    }
-    return null
-  })()
+  const methodErrorMessage = match({
+    renderFunding: funding,
+    revalidatedFundingError,
+  })
+    .with(
+      { renderFunding: { shortfallCause: 'name-price' } },
+      ({ renderFunding }) => {
+        const amount = formatUsd(renderFunding.walletDebit)
+        return t`${amount} needed to register name`
+      },
+    )
+    .with(
+      { renderFunding: { shortfallCause: 'network-fee' } },
+      () => t`not enough funds to pay network fees`,
+    )
+    .with(
+      { revalidatedFundingError: { shortfallCause: 'name-price' } },
+      ({ revalidatedFundingError }) => {
+        const amount = formatUsd(revalidatedFundingError.required)
+        return t`${amount} needed to register name`
+      },
+    )
+    .with(
+      { revalidatedFundingError: { shortfallCause: 'network-fee' } },
+      () => t`not enough funds to pay network fees`,
+    )
+    .otherwise(() => null)
   const globalErrorMessage =
-    availabilityMutation.isError && !isClickFundingShortfall
+    availabilityMutation.isError && revalidatedFundingError === null
       ? t`We couldn't confirm that ${domainName} is still available. Please try again.`
       : null
 

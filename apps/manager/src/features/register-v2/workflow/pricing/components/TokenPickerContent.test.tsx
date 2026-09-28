@@ -1,10 +1,116 @@
 import '@testing-library/jest-dom'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StablecoinBalance } from '@/lib/smart-account'
-import { TokenPickerContentBase } from './TokenPickerContent'
+import {
+  TokenPickerContent,
+  TokenPickerContentBase,
+} from './TokenPickerContent'
+
+const containerMocks = vi.hoisted(() => ({
+  renderBudget: null as {
+    total: bigint
+    registrationPrice: bigint
+    hcaBalance: bigint
+  } | null,
+  revalidatedBudget: null as {
+    total: bigint
+    registrationPrice: bigint
+    hcaBalance: bigint
+  } | null,
+  walletBalance: '100000000',
+  availabilityError: null as Error | null,
+  fetchCalls: 0,
+}))
+
+vi.mock('@xstate/react', () => ({
+  useSelector: () => [31_536_000, 'USDC'] as const,
+}))
+
+vi.mock('../../../state/registrationUi.context', () => ({
+  useRegistrationV2Context: () => ({
+    label: 'jeff',
+    uiActor: { send: vi.fn() },
+  }),
+}))
+
+vi.mock('@/lib/smart-account/useSmartAccountBalances', () => ({
+  HCA_PAYMENT_TOKEN: '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238',
+}))
+
+vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
+  useSmartAccountContext: () => ({
+    accountAddress: '0x0000000000000000000000000000000000000001',
+    ownerAddress: null,
+    signer: null,
+    stablecoinBalances: [
+      {
+        address: '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238',
+        symbol: 'USDC',
+        decimals: 6,
+        balance: containerMocks.walletBalance,
+      },
+    ],
+    isLoadingBalances: false,
+    isConnected: true,
+    getSessionEnablePayload: vi.fn().mockResolvedValue(undefined),
+  }),
+}))
+
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useNavigate: () => vi.fn(),
+}))
+
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const React = await import('react')
+  return {
+    ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+    useQuery: (options: {
+      queryKey?: unknown
+      select?: (value: unknown) => unknown
+    }) => {
+      const key = JSON.stringify(options.queryKey)
+      if (key.includes('get-register-price')) {
+        const raw = { basePrice: 100_000_000n, premium: 0n }
+        return {
+          data: options.select ? options.select(raw) : raw,
+          isLoading: false,
+        }
+      }
+      if (key.includes('hca-budget')) {
+        return {
+          data: containerMocks.renderBudget,
+          isLoading: false,
+          isFetching: false,
+        }
+      }
+      return { data: undefined, isLoading: false }
+    },
+    useQueryClient: () => ({
+      fetchQuery: async () => {
+        containerMocks.fetchCalls += 1
+        if (containerMocks.fetchCalls === 1) {
+          return containerMocks.revalidatedBudget
+        }
+        if (containerMocks.availabilityError) {
+          throw containerMocks.availabilityError
+        }
+        return { isAvailable: true }
+      },
+    }),
+    useMutation: (options: { mutationFn: () => Promise<unknown> }) => {
+      const [error, setError] = React.useState<Error | null>(null)
+      return {
+        error,
+        isError: error !== null,
+        mutate: () => void options.mutationFn().catch(setError),
+      }
+    },
+  }
+})
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
 
@@ -32,6 +138,13 @@ const insufficientDai = {
   balance: '0',
 } as unknown as StablecoinBalance
 
+const renderContainer = () =>
+  render(
+    <I18nProvider i18n={i18n}>
+      <TokenPickerContent />
+    </I18nProvider>,
+  )
+
 const renderPicker = (
   props: Partial<Parameters<typeof TokenPickerContentBase>[0]> = {},
 ) => {
@@ -55,6 +168,96 @@ const renderPicker = (
   )
   return onSelectCoin
 }
+
+describe('TokenPickerContent', () => {
+  beforeEach(() => {
+    containerMocks.renderBudget = null
+    containerMocks.revalidatedBudget = null
+    containerMocks.walletBalance = '100000000'
+    containerMocks.availabilityError = null
+    containerMocks.fetchCalls = 0
+  })
+
+  const captureRevalidatedNamePriceError = async () => {
+    containerMocks.revalidatedBudget = {
+      total: 999_000_000n,
+      registrationPrice: 999_000_000n,
+      hcaBalance: 0n,
+    }
+    const view = renderContainer()
+    fireEvent.click(screen.getByRole('button', { name: 'Register name' }))
+    await screen.findByText('$999.00 needed to register name')
+    return view
+  }
+
+  it('prefers a render-time network-fee shortfall to a revalidated name-price error', async () => {
+    const view = await captureRevalidatedNamePriceError()
+    containerMocks.renderBudget = {
+      total: 200_000_000n,
+      registrationPrice: 100_000_000n,
+      hcaBalance: 0n,
+    }
+
+    view.rerender(
+      <I18nProvider i18n={i18n}>
+        <TokenPickerContent />
+      </I18nProvider>,
+    )
+
+    expect(
+      screen.getByText('not enough funds to pay network fees'),
+    ).toBeVisible()
+    expect(
+      screen.queryByText('$999.00 needed to register name'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('uses the render-time wallet debit for a name-price shortfall', async () => {
+    const view = await captureRevalidatedNamePriceError()
+    containerMocks.renderBudget = {
+      total: 200_000_000n,
+      registrationPrice: 200_000_000n,
+      hcaBalance: 0n,
+    }
+
+    view.rerender(
+      <I18nProvider i18n={i18n}>
+        <TokenPickerContent />
+      </I18nProvider>,
+    )
+
+    expect(screen.getByText('$200.00 needed to register name')).toBeVisible()
+    expect(
+      screen.queryByText('$999.00 needed to register name'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('falls back to the revalidated name-price amount without a render-time shortfall', async () => {
+    await captureRevalidatedNamePriceError()
+
+    expect(screen.getByText('$999.00 needed to register name')).toBeVisible()
+    expect(
+      screen.queryByText('not enough funds to pay network fees'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps a non-funding mutation failure global only', async () => {
+    containerMocks.availabilityError = new Error('availability failed')
+    renderContainer()
+    fireEvent.click(screen.getByRole('button', { name: 'Register name' }))
+
+    const error = await screen.findByText(
+      "We couldn't confirm that jeff.eth is still available. Please try again.",
+    )
+    expect(error).toBeVisible()
+    expect(error.closest('[data-slot="payment-method-error"]')).toBeNull()
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/needed to register name|pay network fees/),
+      ).not.toBeInTheDocument(),
+    )
+  })
+})
 
 describe('TokenPickerContentBase', () => {
   it('selects the only payment option automatically', () => {
