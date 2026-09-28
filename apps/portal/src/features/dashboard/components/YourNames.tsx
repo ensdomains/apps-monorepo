@@ -1,7 +1,6 @@
 import { useQueries } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
-import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -51,9 +50,21 @@ export const YourNames = ({ address }: { address: Address }) => {
     ],
   })
 
-  const names = partitionOwnedNames(
+  // Names a parent granted the wallet are still its names; they just follow
+  // the ones it holds or minted itself.
+  const { acquired, assigned } = partitionOwnedNames(
     mergeNamesData(v1Query.data, v2Query.data),
-  ).acquired
+  )
+  const names = [...acquired, ...assigned]
+
+  // Each source reports its own state, so a slow or failed one never hides
+  // the names the other already returned.
+  const sources = [
+    { label: 'ENSv1', query: v1Query },
+    { label: 'ENSv2', query: v2Query },
+  ]
+  const isSettled = sources.every(({ query }) => !query.isLoading)
+  const failed = sources.filter(({ query }) => query.error)
 
   return (
     <div className="flex flex-col gap-6 rounded-lg border border-border px-6 pt-6 pb-3">
@@ -64,54 +75,47 @@ export const YourNames = ({ address }: { address: Address }) => {
           <WalletMenu />
         </div>
       </div>
-      {match({
-        isLoading: v1Query.isLoading || v2Query.isLoading,
-        error: v1Query.error ?? v2Query.error,
-        count: names.length,
-      })
-        .with({ isLoading: true }, () => (
-          <LoadingSpinner title="Loading your names" />
-        ))
-        .with({ error: P.nonNullable }, () => (
-          <ErrorMessage
-            compact
-            className="mb-3"
-            description="Error fetching your names. Please refresh the page."
-          />
-        ))
-        .with({ count: 0 }, () => (
-          <p className="border-t border-border py-3 text-sm text-muted-foreground">
-            No names yet
-          </p>
-        ))
-        .otherwise(() => (
-          <ul>
-            {names.slice(0, visibleCount).map(({ name, expiryDate }) =>
-              name ? (
-                <li
-                  key={name}
-                  className="flex flex-col items-start gap-4 border-t border-border py-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <EntityBadge variant="name" name={name} showAvatar compact>
-                    {name}
-                  </EntityBadge>
-                  <Expiry expiryDate={expiryDate} />
-                </li>
-              ) : null,
-            )}
-            {names.length > visibleCount && (
-              <li className="border-t border-border py-3">
-                <button
-                  type="button"
-                  onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-                  className="cursor-pointer font-semi-mono text-sm text-muted-foreground hover:underline"
-                >
-                  Show more ({names.length} total)
-                </button>
+      {failed.map(({ label }) => (
+        <ErrorMessage
+          key={label}
+          compact
+          description={`Error fetching ${label} names. Please refresh the page.`}
+        />
+      ))}
+      {names.length > 0 && (
+        <ul>
+          {names.slice(0, visibleCount).map(({ name, expiryDate }) =>
+            name ? (
+              <li
+                key={name}
+                className="flex flex-col items-start gap-4 border-t border-border py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <EntityBadge variant="name" name={name} showAvatar compact>
+                  {name}
+                </EntityBadge>
+                <Expiry expiryDate={expiryDate} />
               </li>
-            )}
-          </ul>
-        ))}
+            ) : null,
+          )}
+          {names.length > visibleCount && (
+            <li className="border-t border-border py-3">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+                className="cursor-pointer font-semi-mono text-sm text-muted-foreground hover:underline"
+              >
+                Show more ({names.length} total)
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+      {!isSettled && <LoadingSpinner title="Loading your names" />}
+      {isSettled && failed.length === 0 && names.length === 0 && (
+        <p className="border-t border-border py-3 text-sm text-muted-foreground">
+          No names yet
+        </p>
+      )}
     </div>
   )
 }
