@@ -1,4 +1,3 @@
-import type { V1Domain } from '@ens-apps/migration'
 import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
@@ -8,7 +7,6 @@ import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMi
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { cn } from '@/lib/utils'
-import { GracePeriodRenewalDialog } from './GracePeriodRenewalDialog'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
@@ -52,7 +50,6 @@ export const SelectNamesStep = ({
 }: SelectNamesStepProps) => {
   const { eligible, gracePeriodNames, isPending, recoveryState } =
     useEligibleV1Names()
-  const [renewalDomain, setRenewalDomain] = useState<V1Domain | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
   const hasNamesNeedingManagerRestoration = eligible.some(
@@ -89,7 +86,6 @@ export const SelectNamesStep = ({
   const isWaitingForGasFunding =
     totalSelected > 0 && gasFundingStatus === 'funding'
   const isUpgradeDisabled =
-    renewalDomain !== null ||
     totalSelected === 0 ||
     isPending ||
     isRecoveryStale ||
@@ -183,7 +179,6 @@ export const SelectNamesStep = ({
               isCompactLayout={isCompactLayout}
               isContentHeightCard={isContentHeightCard}
               isPending={isPending}
-              onRenew={setRenewalDomain}
               search={search}
               selected={selected}
               setSearch={setSearch}
@@ -197,14 +192,6 @@ export const SelectNamesStep = ({
           )}
         </div>
       </div>
-
-      {renewalDomain && (
-        <GracePeriodRenewalDialog
-          domain={renewalDomain}
-          key={renewalDomain.id}
-          onClose={() => setRenewalDomain(null)}
-        />
-      )}
 
       <SelectNamesStepFooter
         gasAffordability={gasAffordability}

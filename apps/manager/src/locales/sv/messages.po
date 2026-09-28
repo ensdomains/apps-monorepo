@@ -348,7 +348,6 @@ msgstr ""
 
 #: src/components/GlobalBackButton.tsx
 #: src/features/bulk-renew/components/FailureStep.tsx
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Back"
 msgstr ""
@@ -358,7 +357,6 @@ msgstr ""
 msgid "Back to profile"
 msgstr ""
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 #: src/features/renew/workflow/result/FailureStep.tsx
 msgid "Back to Quote"
@@ -465,10 +463,6 @@ msgstr ""
 msgid "Checking migration access..."
 msgstr ""
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "Checking renewal..."
-msgstr ""
-
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Checking status…"
 msgstr ""
@@ -520,10 +514,6 @@ msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
-msgstr ""
-
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "Complete the renewal in your wallet. Keep this window open until it finishes."
 msgstr ""
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
@@ -602,10 +592,6 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/index.tsx
 msgid "Contact methods"
-msgstr ""
-
-#: src/features/migration/components/GracePeriodRenewalSuccess.tsx
-msgid "Continue to upgrade"
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -1749,10 +1735,6 @@ msgstr ""
 msgid "Reconnect your owner wallet to continue."
 msgstr ""
 
-#: src/features/migration/components/GracePeriodRenewalSuccess.tsx
-msgid "Refresh names"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Register name"
@@ -1902,16 +1884,8 @@ msgstr ""
 msgid "Renew"
 msgstr ""
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "Renew {name}"
-msgstr ""
-
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "Renew before completing your upgrade"
-msgstr ""
-
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "Renew for the time spent in grace plus one week, then upgrade your name. You can renew for longer after upgrading."
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx
@@ -1946,10 +1920,6 @@ msgstr ""
 msgid "Renew your names before upgrading"
 msgstr ""
 
-#: src/features/migration/components/GracePeriodRenewalSuccess.tsx
-msgid "Renewal complete"
-msgstr ""
-
 #: src/features/bulk-renew/components/SuccessStep.tsx
 msgid "Renewal Complete"
 msgstr ""
@@ -1966,7 +1936,6 @@ msgstr ""
 msgid "Renewal failed"
 msgstr ""
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
 #: src/features/renew/workflow/result/FailureStep.tsx
 msgid "Renewal Failed"
 msgstr ""
@@ -2054,10 +2023,6 @@ msgstr ""
 
 #: src/features/dashboard/components/TemporaryMigrationAccessNotice.tsx
 msgid "Review permissions"
-msgstr ""
-
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "Review renewal"
 msgstr ""
 
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
@@ -2579,14 +2544,6 @@ msgstr ""
 msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 msgstr ""
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "This name's grace period has ended. It can no longer be renewed for upgrade."
-msgstr ""
-
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "This renewal quote has expired. Close this dialog and renew again for a fresh quote."
-msgstr ""
-
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "This signature is free and doesn't cost any gas."
 msgstr ""
@@ -2654,7 +2611,6 @@ msgstr ""
 msgid "Try again"
 msgstr ""
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 #: src/features/renew/workflow/result/FailureStep.tsx
 #: src/features/wallet/components/EnableSessionModal.tsx
@@ -2691,10 +2647,6 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Updating profile..."
-msgstr ""
-
-#: src/features/migration/components/GracePeriodRenewalSuccess.tsx
-msgid "Updating your names for upgrade..."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
@@ -2930,10 +2882,6 @@ msgstr ""
 msgid "We couldn’t confirm that this name is renewable."
 msgstr ""
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "We couldn't confirm this name can be renewed in grace. Refresh and try again."
-msgstr ""
-
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "We couldn't read your current records."
 msgstr ""
@@ -3128,10 +3076,6 @@ msgstr ""
 msgid "Your name is in grace period"
 msgstr ""
 
-#: src/features/migration/components/GracePeriodRenewalSuccess.tsx
-msgid "Your name is out of grace. Return to your names to continue upgrading."
-msgstr ""
-
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
@@ -3172,13 +3116,8 @@ msgstr ""
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
-msgstr ""
-
-#: src/features/migration/components/GracePeriodRenewalSuccess.tsx
-msgid "Your renewal succeeded, but we couldn't refresh your names. Try refreshing again before upgrading."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx

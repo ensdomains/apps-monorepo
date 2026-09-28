@@ -28,7 +28,6 @@ vi.mock('wagmi', async (importOriginal) => ({
 import { makeDomain } from '../service/_fixtures'
 import type { MigrationRecoverySnapshot } from '../service/migrationBatchJournal'
 import { useEligibleV1Names } from './useEligibleV1Names'
-import { useV1NameClassificationTime } from './useV1NameClassificationTime'
 
 const OWNER = '0x0000000000000000000000000000000000000001' as Address
 const RESOLVER = '0x0000000000000000000000000000000000000003' as Address
@@ -270,22 +269,5 @@ describe('useEligibleV1Names durable recovery', () => {
       },
     })
     expect(mocks.useMigrationEligibility).toHaveBeenCalledWith([], OWNER)
-  })
-})
-
-describe('renewal quote expiry', () => {
-  it('wakes at the fixed quote expiry before the name leaves grace', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(10_000_000_000)
-    const domains = [makeDomain({ registrationExpiry: '9999999' })]
-    const quoteExpiry = 10_604_800n
-    const { result, unmount } = renderHook(() =>
-      useV1NameClassificationTime(domains, true, quoteExpiry),
-    )
-    expect(result.current).toBe(10_000_000n)
-    act(() => vi.advanceTimersByTime(604_800_000))
-    expect(result.current).toBe(quoteExpiry)
-    unmount()
-    expect(vi.getTimerCount()).toBe(0)
   })
 })

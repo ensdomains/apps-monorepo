@@ -1,4 +1,3 @@
-import type { V1Domain } from '@ens-apps/migration'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Check, Info, Search } from 'lucide-react'
 import type { useNameSelection } from '@/features/migration/hooks/useNameSelection'
@@ -50,7 +49,6 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   readonly isCompactLayout: boolean
   readonly isContentHeightCard: boolean
   readonly isPending: boolean
-  readonly onRenew?: (domain: V1Domain) => void
   readonly showBulkSelection: boolean
   readonly showNameSearch: boolean
 }
@@ -63,7 +61,6 @@ export const SelectNamesStepSelectionOptions = ({
   isCompactLayout,
   isContentHeightCard,
   isPending,
-  onRenew,
   search,
   selected,
   setSearch,
@@ -168,7 +165,6 @@ export const SelectNamesStepSelectionOptions = ({
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
               isPending={isPending}
-              onRenew={onRenew}
               search={search}
               selected={selected}
               toggleName={toggleName}

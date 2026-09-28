@@ -1,4 +1,3 @@
-import type { V1Domain } from '@ens-apps/migration'
 import { Trans } from '@lingui/react/macro'
 import { type CSSProperties, memo } from 'react'
 import { match } from 'ts-pattern'
@@ -21,7 +20,6 @@ type SelectNamesStepNameListProps = Pick<
   | 'toggleName'
 > & {
   readonly isPending: boolean
-  readonly onRenew?: (domain: V1Domain) => void
 }
 
 type NameTreeRowsProps = {
@@ -122,7 +120,6 @@ const SelectNamesStepNameListComponent = ({
   filteredOrphans,
   filteredGracePeriodNames,
   isPending,
-  onRenew,
   search,
   selected,
   toggleName,
@@ -170,7 +167,6 @@ const SelectNamesStepNameListComponent = ({
                   isPrimary={item.domain.name === primaryName}
                   isSelected={false}
                   item={item}
-                  onRenew={onRenew}
                 />
               </li>
             ))}

@@ -8,7 +8,6 @@ const EMPTY_DOMAINS: readonly V1Domain[] = []
 export const useV1NameClassificationTime = (
   domains: readonly V1Domain[] = EMPTY_DOMAINS,
   enabled = true,
-  additionalBoundary?: bigint,
 ): bigint => {
   const [nowSeconds, setNowSeconds] = useState(() =>
     BigInt(Math.floor(Date.now() / 1000)),
@@ -23,13 +22,7 @@ export const useV1NameClassificationTime = (
       const nowMs = Date.now()
       const now = BigInt(Math.floor(nowMs / 1000))
       setNowSeconds(now)
-      const expiryBoundary = getNextNameExpiryBoundary(domains, now)
-      const nextBoundary =
-        additionalBoundary !== undefined &&
-        additionalBoundary > now &&
-        (expiryBoundary === null || additionalBoundary < expiryBoundary)
-          ? additionalBoundary
-          : expiryBoundary
+      const nextBoundary = getNextNameExpiryBoundary(domains, now)
       if (nextBoundary === null) return
 
       // Browser timers overflow beyond ~24 days; wake then to schedule the rest.
@@ -52,7 +45,7 @@ export const useV1NameClassificationTime = (
       window.removeEventListener('focus', refresh)
       document.removeEventListener('visibilitychange', refreshWhenVisible)
     }
-  }, [domains, enabled, additionalBoundary])
+  }, [domains, enabled])
 
   return nowSeconds
 }

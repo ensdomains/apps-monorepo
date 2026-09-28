@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { RotateCw } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
 import { useId } from 'react'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -8,17 +8,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { getRenewalRoute } from '@/features/renew/utils/renewalProtocol'
 
 type GracePeriodNameRowProps = {
   readonly name: string
   readonly isPrimary?: boolean
-  readonly onRenew?: () => void
 }
 
 export const GracePeriodNameRow = ({
   name,
   isPrimary = false,
-  onRenew,
 }: GracePeriodNameRowProps) => {
   const statusId = useId()
   const primaryNameId = useId()
@@ -73,16 +72,20 @@ export const GracePeriodNameRow = ({
       </label>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
+          <a
             className="relative inline-flex size-7 shrink-0 items-center justify-center rounded-md text-ens-garnet-900 transition-colors before:absolute before:-inset-2 hover:bg-white/50 focus-visible:outline-2 focus-visible:outline-ens-garnet-900 focus-visible:outline-offset-2 motion-reduce:transition-none"
-            onClick={onRenew}
-            type="button"
+            href={getRenewalRoute('v1').replace(
+              '$name',
+              encodeURIComponent(name),
+            )}
+            rel="noopener noreferrer"
+            target="_blank"
           >
-            <RotateCw aria-hidden className="size-3.5" />
+            <ExternalLink aria-hidden className="size-3.5" />
             <span className="sr-only">
               <Trans>Renew</Trans> {name}
             </span>
-          </button>
+          </a>
         </TooltipTrigger>
         <TooltipContent className="motion-reduce:animate-none">
           <Trans>Renew</Trans>

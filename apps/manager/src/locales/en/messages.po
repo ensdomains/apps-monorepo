@@ -343,7 +343,6 @@ msgstr "Available"
 
 #: src/components/GlobalBackButton.tsx
 #: src/features/bulk-renew/components/FailureStep.tsx
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Back"
 msgstr "Back"
@@ -353,7 +352,6 @@ msgstr "Back"
 msgid "Back to profile"
 msgstr "Back to profile"
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 #: src/features/renew/workflow/result/FailureStep.tsx
 msgid "Back to Quote"
@@ -460,10 +458,6 @@ msgstr "Checking allowance"
 msgid "Checking migration access..."
 msgstr "Checking migration access..."
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "Checking renewal..."
-msgstr "Checking renewal..."
-
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Checking status…"
 msgstr "Checking status…"
@@ -516,10 +510,6 @@ msgstr "Committed"
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 msgstr "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
-
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "Complete the renewal in your wallet. Keep this window open until it finishes."
-msgstr "Complete the renewal in your wallet. Keep this window open until it finishes."
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "Complete Upgrade"
@@ -598,10 +588,6 @@ msgstr "Contact"
 #: src/features/notifications/settings/contact-methods/index.tsx
 msgid "Contact methods"
 msgstr "Contact methods"
-
-#: src/features/migration/components/GracePeriodRenewalSuccess.tsx
-msgid "Continue to upgrade"
-msgstr "Continue to upgrade"
 
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Continue without signing in"
@@ -1744,10 +1730,6 @@ msgstr "Reconnect Wallet"
 msgid "Reconnect your owner wallet to continue."
 msgstr "Reconnect your owner wallet to continue."
 
-#: src/features/migration/components/GracePeriodRenewalSuccess.tsx
-msgid "Refresh names"
-msgstr "Refresh names"
-
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Register name"
@@ -1897,17 +1879,9 @@ msgstr "Removing..."
 msgid "Renew"
 msgstr "Renew"
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "Renew {name}"
-msgstr "Renew {name}"
-
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "Renew before completing your upgrade"
 msgstr "Renew before completing your upgrade"
-
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "Renew for the time spent in grace plus one week, then upgrade your name. You can renew for longer after upgrading."
-msgstr "Renew for the time spent in grace plus one week, then upgrade your name. You can renew for longer after upgrading."
 
 #: src/features/dashboard/components/NameRow.tsx
 msgid "Renew name"
@@ -1941,10 +1915,6 @@ msgstr "Renew to date instead"
 msgid "Renew your names before upgrading"
 msgstr "Renew your names before upgrading"
 
-#: src/features/migration/components/GracePeriodRenewalSuccess.tsx
-msgid "Renewal complete"
-msgstr "Renewal complete"
-
 #: src/features/bulk-renew/components/SuccessStep.tsx
 msgid "Renewal Complete"
 msgstr "Renewal Complete"
@@ -1961,7 +1931,6 @@ msgstr "Renewal Details"
 msgid "Renewal failed"
 msgstr "Renewal failed"
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
 #: src/features/renew/workflow/result/FailureStep.tsx
 msgid "Renewal Failed"
 msgstr "Renewal Failed"
@@ -2050,10 +2019,6 @@ msgstr "Review access granted during ENS name upgrades."
 #: src/features/dashboard/components/TemporaryMigrationAccessNotice.tsx
 msgid "Review permissions"
 msgstr "Review permissions"
-
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "Review renewal"
-msgstr "Review renewal"
 
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
 #: src/features/bulk-renew/components/DurationPresets.tsx
@@ -2574,14 +2539,6 @@ msgstr "This name is in price cooldown"
 msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 msgstr "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "This name's grace period has ended. It can no longer be renewed for upgrade."
-msgstr "This name's grace period has ended. It can no longer be renewed for upgrade."
-
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "This renewal quote has expired. Close this dialog and renew again for a fresh quote."
-msgstr "This renewal quote has expired. Close this dialog and renew again for a fresh quote."
-
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "This signature is free and doesn't cost any gas."
 msgstr "This signature is free and doesn't cost any gas."
@@ -2649,7 +2606,6 @@ msgstr "Trademark Guidelines"
 msgid "Try again"
 msgstr "Try again"
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 #: src/features/renew/workflow/result/FailureStep.tsx
 #: src/features/wallet/components/EnableSessionModal.tsx
@@ -2687,10 +2643,6 @@ msgstr "Updating address..."
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Updating profile..."
 msgstr "Updating profile..."
-
-#: src/features/migration/components/GracePeriodRenewalSuccess.tsx
-msgid "Updating your names for upgrade..."
-msgstr "Updating your names for upgrade..."
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Upgrade all names to receive NFT"
@@ -2925,10 +2877,6 @@ msgstr "We couldn't confirm that {domainName} is still available. Please try aga
 msgid "We couldn’t confirm that this name is renewable."
 msgstr "We couldn’t confirm that this name is renewable."
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
-msgid "We couldn't confirm this name can be renewed in grace. Refresh and try again."
-msgstr "We couldn't confirm this name can be renewed in grace. Refresh and try again."
-
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "We couldn't read your current records."
 msgstr "We couldn't read your current records."
@@ -3123,10 +3071,6 @@ msgstr "Your mint was submitted. Check its status to continue."
 msgid "Your name is in grace period"
 msgstr "Your name is in grace period"
 
-#: src/features/migration/components/GracePeriodRenewalSuccess.tsx
-msgid "Your name is out of grace. Return to your names to continue upgrading."
-msgstr "Your name is out of grace. Return to your names to continue upgrading."
-
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
@@ -3167,14 +3111,9 @@ msgstr "Your primary name is the .eth name that apps show in place of your walle
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 
-#: src/features/migration/components/GracePeriodRenewalDialog.tsx
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
-
-#: src/features/migration/components/GracePeriodRenewalSuccess.tsx
-msgid "Your renewal succeeded, but we couldn't refresh your names. Try refreshing again before upgrading."
-msgstr "Your renewal succeeded, but we couldn't refresh your names. Try refreshing again before upgrading."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your saved upgrade needs attention"

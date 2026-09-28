@@ -70,7 +70,6 @@ export const renewalUiMachine = setup({
     input: {} as {
       currentExpiry: bigint
       protocol: RenewalProtocol
-      initialDuration?: bigint
     },
     events: {} as
       | { type: 'pricing.step.next' }
@@ -188,14 +187,12 @@ export const renewalUiMachine = setup({
     currentExpiry: input.currentExpiry,
     protocol: input.protocol,
     renewerAddress: getRenewerAddress(input.protocol),
-    duration:
-      input.initialDuration ??
-      BigInt(
-        getDurationInSecondsFromYears(
-          1,
-          new Date(Number(input.currentExpiry) * 1000),
-        ),
+    duration: BigInt(
+      getDurationInSecondsFromYears(
+        1,
+        new Date(Number(input.currentExpiry) * 1000),
       ),
+    ),
     selectedToken: undefined,
     lastErrorMessage: undefined,
   }),
