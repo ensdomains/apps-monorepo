@@ -50,6 +50,7 @@ class InsufficientFundingError extends Error {
     readonly required: number,
     readonly available: number,
     readonly registration: number,
+    readonly hcaCredit: number,
   ) {
     super('Insufficient USDC to fund the registration')
     this.name = 'InsufficientFundingError'
@@ -121,14 +122,17 @@ const UsdcFundingErrorMessage = ({
   required,
   available,
   registration,
+  hcaCredit,
 }: {
   readonly required: number
   readonly available: number
   readonly registration: number
+  readonly hcaCredit: number
 }) => {
   const requiredAmount = formatUsd(required)
+  const walletRegistrationShare = Math.max(registration - hcaCredit, 0)
 
-  if (available >= registration) {
+  if (available >= walletRegistrationShare) {
     return <Trans>Need {requiredAmount} USDC incl. network fees</Trans>
   }
 
@@ -336,6 +340,12 @@ export const TokenPickerContent = () => {
           decimalBigintToNumber(walletDebitRaw, USDC_DECIMALS),
           decimalBigintToNumber(usdcBalanceRaw, USDC_DECIMALS),
           decimalBigintToNumber(budget.registrationPrice, USDC_DECIMALS),
+          decimalBigintToNumber(
+            budget.hcaBalance < budget.total
+              ? budget.hcaBalance
+              : budget.total,
+            USDC_DECIMALS,
+          ),
         )
       }
 
@@ -384,6 +394,7 @@ export const TokenPickerContent = () => {
         required: currentFunding.walletDebit,
         available: currentFunding.walletBalance,
         registration: currentFunding.registration,
+        hcaCredit: currentFunding.hcaCredit,
       }),
     )
     .with(

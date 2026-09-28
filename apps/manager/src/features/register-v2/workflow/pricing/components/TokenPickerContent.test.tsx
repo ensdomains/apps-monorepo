@@ -2,9 +2,16 @@ import '@testing-library/jest-dom'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StablecoinBalance } from '@/lib/smart-account'
+import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
 import {
   TokenPickerContent,
   TokenPickerContentBase,
@@ -47,7 +54,7 @@ vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
   useSmartAccountContext: () => ({
     stablecoinBalances: [
       {
-        address: '0x768F42455A2D082E23ceeF7d51e5787C82d67a39',
+        address: HCA_PAYMENT_TOKEN,
         symbol: 'USDC',
         decimals: 6,
         balance: integration.walletBalanceRaw.toString(),
@@ -153,7 +160,10 @@ beforeEach(() => {
   vi.stubGlobal('fetch', integration.fetch)
 })
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 const renderPicker = (
   props: Partial<Parameters<typeof TokenPickerContentBase>[0]> = {},
@@ -216,7 +226,20 @@ describe('TokenPickerContent funding shortfall paths', () => {
 
     renderIntegratedPicker()
 
-    const error = await screen.findByText(expected)
+    const error = await screen.findByText(/^Need /)
+    expect(error).toHaveTextContent(expected)
+    expect(error.closest('[data-slot="payment-method-error"]')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+    expect(integration.fetch).not.toHaveBeenCalled()
+  })
+
+  it('classifies a credited render-time shortfall as fees only', async () => {
+    integration.budget.hcaBalance = 15_000_000n
+
+    renderIntegratedPicker()
+
+    const error = await screen.findByText(/^Need /)
+    expect(error).toHaveTextContent('Need $5.20 USDC incl. network fees')
     expect(error.closest('[data-slot="payment-method-error"]')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
     expect(integration.fetch).not.toHaveBeenCalled()
@@ -252,7 +275,31 @@ describe('TokenPickerContent funding shortfall paths', () => {
     await waitFor(() => expect(register).toBeEnabled())
     fireEvent.click(register)
 
-    const error = await screen.findByText(expected)
+    const error = await screen.findByText(/^Need /)
+    expect(error).toHaveTextContent(expected)
+    expect(error.closest('[data-slot="payment-method-error"]')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+    expect(integration.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'registration.start' }),
+    )
+    expect(integration.fetch).not.toHaveBeenCalled()
+  })
+
+  it('classifies a credited click-time shortfall as fees only', async () => {
+    integration.isBudgetEnabled = false
+    integration.pricingRaw = 4_000_000n
+    integration.budget.hcaBalance = 15_000_000n
+
+    renderIntegratedPicker()
+
+    const register = await screen.findByRole('button', {
+      name: 'Register name',
+    })
+    await waitFor(() => expect(register).toBeEnabled())
+    fireEvent.click(register)
+
+    const error = await screen.findByText(/^Need /)
+    expect(error).toHaveTextContent('Need $5.20 USDC incl. network fees')
     expect(error.closest('[data-slot="payment-method-error"]')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
     expect(integration.send).not.toHaveBeenCalledWith(
