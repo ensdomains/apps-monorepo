@@ -61,19 +61,8 @@ const DOMAIN_CARD_SIZE_CLASSES = [
   'text-xs',
 ] as const
 
-/** DomainCard (success/registration): ≤30 text-5xl, ≤150 text-4xl, ≤190+ text-3xl. */
-const DOMAIN_CARD_DISPLAY_SIZE_CLASSES = [
-  'text-5xl', // ≤30 bytes
-  'text-4xl', // ≤80 bytes
-  'text-4xl', // ≤150 bytes
-  'text-3xl', // ≤190 bytes
-  'text-3xl', // 191+ bytes
-] as const
-
 const HEADER_CLASSES = DOMAIN_HEADER_SIZE_CLASSES as readonly string[]
 const CARD_CLASSES = DOMAIN_CARD_SIZE_CLASSES as readonly string[]
-const CARD_DISPLAY_CLASSES =
-  DOMAIN_CARD_DISPLAY_SIZE_CLASSES as readonly string[]
 
 /** Font size for domain header: smaller as byte length increases. */
 export function getDomainHeaderSizeClasses(length: number): string {
@@ -85,14 +74,4 @@ export function getDomainHeaderSizeClasses(length: number): string {
 export function getDomainCardSizeClasses(length: number): string {
   const i = getDomainLengthTierIndex(length)
   return CARD_CLASSES[i] ?? CARD_CLASSES[CARD_CLASSES.length - 1] ?? ''
-}
-
-/** Font size for DomainCard (success/registration): min text-sm. */
-export function getDomainCardDisplaySizeClasses(length: number): string {
-  const i = getDomainLengthTierIndex(length)
-  return (
-    CARD_DISPLAY_CLASSES[i] ??
-    CARD_DISPLAY_CLASSES[CARD_DISPLAY_CLASSES.length - 1] ??
-    ''
-  )
 }
