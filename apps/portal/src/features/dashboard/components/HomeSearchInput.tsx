@@ -34,14 +34,14 @@ const SEARCH_DEBOUNCE_MS = 300
 export const HomeSearchInput = ({
   className,
   iconOnly = false,
-  hero = false,
+  isHero = false,
   defaultValue = '',
 }: {
-  className?: string
-  iconOnly?: boolean
+  readonly className?: string
+  readonly iconOnly?: boolean
   /** Landing-page hero: larger field with the typed-entity hint. */
-  hero?: boolean
-  defaultValue?: string
+  readonly isHero?: boolean
+  readonly defaultValue?: string
 }) => {
   const listboxId = useId()
   const navigate = useNavigate()
@@ -249,7 +249,7 @@ export const HomeSearchInput = ({
           <InputGroup
             ref={triggerRef}
             className={cn(
-              hero
+              isHero
                 ? 'h-13.5 w-full rounded-lg border-border px-2 shadow-none hover:border-neutral-4 has-[input:focus]:border-neutral-5'
                 : 'bg-sidebar-accent dark:bg-sidebar-accent rounded-sm max-w-3xl w-full',
               className,
@@ -271,16 +271,16 @@ export const HomeSearchInput = ({
               aria-label="Search for a name, wallet, or contract"
               className={cn(
                 'w-full',
-                hero && 'text-base sm:placeholder:text-transparent',
+                isHero && 'text-base sm:placeholder:text-transparent',
               )}
-              placeholder={hero ? 'Search' : 'Search...'}
+              placeholder={isHero ? 'Search' : 'Search...'}
               value={searchValue}
               onFocus={(e) => e.target.value.trim() && setMenuOpen(true)}
               onChange={(e) => setSearchValue(e.target.value)}
               onKeyDown={onSearchKeyDown}
               onPaste={(event) => applyPastedNameSearch(event, setSearchValue)}
             />
-            {hero && !searchValue && (
+            {isHero && !searchValue && (
               <span
                 aria-hidden
                 className="pointer-events-none absolute left-11 top-1/2 hidden -translate-y-1/2 text-base text-foreground group-focus-within/input-group:hidden sm:block"

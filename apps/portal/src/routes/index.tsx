@@ -36,7 +36,7 @@ function RouteComponent() {
           Explore the source of truth <br className="hidden sm:inline" />
           for Ethereum Name Service
         </h1>
-        <HomeSearchInput hero defaultValue={q} />
+        <HomeSearchInput isHero defaultValue={q} />
       </section>
 
       <section className="flex flex-col gap-6 w-full max-w-175">

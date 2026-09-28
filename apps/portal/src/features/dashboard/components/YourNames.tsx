@@ -7,7 +7,6 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { SettingsMenu } from '@/components/SettingsMenu'
 import { WalletMenu } from '@/components/WalletMenu'
-import { partitionOwnedNames } from '@/features/address/nameAttribution'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import { mergeNamesData } from '@/utils/names/mergeNamesData'
 import { dateToPlainDate } from '@/utils/temporal'
@@ -18,7 +17,7 @@ const INITIAL_COUNT = 4
 const PAGE_SIZE = 10
 const WARNING_DAYS = 30
 
-const Expiry = ({ expiryDate }: { expiryDate?: Date | null }) => {
+const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
   if (!expiryDate) {
     return (
       <span className="text-sm text-muted-foreground">Does not expire</span>
@@ -41,7 +40,7 @@ const Expiry = ({ expiryDate }: { expiryDate?: Date | null }) => {
   )
 }
 
-export const YourNames = ({ address }: { address: Address }) => {
+export const YourNames = ({ address }: { readonly address: Address }) => {
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT)
   const [v1Query, v2Query] = useQueries({
     queries: [
@@ -50,12 +49,8 @@ export const YourNames = ({ address }: { address: Address }) => {
     ],
   })
 
-  // Names a parent granted the wallet are still its names; they just follow
-  // the ones it holds or minted itself.
-  const { acquired, assigned } = partitionOwnedNames(
-    mergeNamesData(v1Query.data, v2Query.data),
-  )
-  const names = [...acquired, ...assigned]
+  // Every name the wallet owns, granted subnames included, soonest expiry first.
+  const names = mergeNamesData(v1Query.data, v2Query.data)
 
   // Each source reports its own state, so a slow or failed one never hides
   // the names the other already returned.
@@ -63,7 +58,7 @@ export const YourNames = ({ address }: { address: Address }) => {
     { label: 'ENSv1', query: v1Query },
     { label: 'ENSv2', query: v2Query },
   ]
-  const isSettled = sources.every(({ query }) => !query.isLoading)
+  const isSettled = sources.every(({ query }) => !query.isPending)
   const failed = sources.filter(({ query }) => query.error)
 
   return (
