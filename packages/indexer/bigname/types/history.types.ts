@@ -104,8 +104,11 @@ export type NameHistoryRow = EventRowBase &
     subject?: 'name' | 'child'
   }>
 
-/** `GET /v1/addresses/{address}/history`: lean row. */
-export type AddressHistoryRow = EventRowBase
+/** `GET /v1/addresses/{address}/history`: lean row; `name` is omitted on the wire despite the docs. */
+export type AddressHistoryRow = Omit<EventRowBase, 'name'> &
+  Readonly<{
+    name?: string
+  }>
 
 /** `GET /v1/events`: lean row; `name` is omitted when the event carries none. */
 export type EventsRow = Omit<EventRowBase, 'name'> &
