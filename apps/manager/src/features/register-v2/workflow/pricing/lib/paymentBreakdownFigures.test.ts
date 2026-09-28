@@ -3,9 +3,8 @@ import { getPaymentBreakdownFigures } from './paymentBreakdownFigures'
 
 describe('getPaymentBreakdownFigures', () => {
   it('keeps the lines adding up to the headline', () => {
-    // Six-decimal USDC amounts that each round away from the sum: the credit
-    // is 1.008 exactly, but showing it as -1.01 would leave 1.00 + 1.00 - 1.01
-    // against a 1.00 debit.
+    // Six-decimal USDC amounts that each round away from the sum: preserving
+    // the visible 1.01 credit requires the displayed fee to absorb one cent.
     const figures = getPaymentBreakdownFigures({
       registration: 1.004,
       networkFee: 1.004,
@@ -15,9 +14,9 @@ describe('getPaymentBreakdownFigures', () => {
 
     expect(figures).toEqual({
       registration: 1,
-      networkFee: 1,
+      networkFee: 1.01,
       walletDebit: 1,
-      credit: 1,
+      credit: 1.01,
     })
     expect(
       figures.registration + figures.networkFee - figures.credit,
@@ -73,6 +72,25 @@ describe('getPaymentBreakdownFigures', () => {
         hcaCredit: 0.004,
       }).credit,
     ).toBe(0)
+  })
+
+  it('keeps a visible cent and reallocates the rounding residue to the fee', () => {
+    const figures = getPaymentBreakdownFigures({
+      registration: 4.994,
+      networkFee: 4.994,
+      walletDebit: 9.978,
+      hcaCredit: 0.01,
+    })
+
+    expect(figures).toEqual({
+      registration: 4.99,
+      networkFee: 5,
+      walletDebit: 9.98,
+      credit: 0.01,
+    })
+    expect(
+      figures.registration + figures.networkFee - figures.credit,
+    ).toBeCloseTo(figures.walletDebit, 10)
   })
 
   it('keeps a credit of a cent or more', () => {

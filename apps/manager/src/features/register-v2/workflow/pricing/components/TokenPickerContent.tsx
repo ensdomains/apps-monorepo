@@ -126,13 +126,18 @@ const getPaymentHeadline = (
   displayTotal: number | undefined,
 ) => {
   if (!funding) {
-    return { hasAccountCredit: false, headlineAmount: displayTotal }
+    return {
+      hasAccountCredit: false,
+      headlineAmount: displayTotal,
+      networkFee: undefined,
+    }
   }
 
   const figures = getPaymentBreakdownFigures(funding)
   return {
     hasAccountCredit: figures.credit > 0,
     headlineAmount: figures.walletDebit,
+    networkFee: figures.networkFee,
   }
 }
 
@@ -514,10 +519,11 @@ export const TokenPickerContentBase = ({
   // Rounded together with the breakdown lines, so they add up on screen. The
   // headline is always the debit once a budget is quoted; the label only
   // changes when a credit line is there to explain the gap.
-  const { hasAccountCredit, headlineAmount } = getPaymentHeadline(
-    funding,
-    displayTotal,
-  )
+  const {
+    hasAccountCredit,
+    headlineAmount,
+    networkFee: displayedNetworkFee,
+  } = getPaymentHeadline(funding, displayTotal)
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
@@ -565,7 +571,7 @@ export const TokenPickerContentBase = ({
             }
             isFeeTooltipOpen={isFeeTooltipOpen}
             isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
-            networkFee={funding?.networkFee}
+            networkFee={displayedNetworkFee}
             onSelectCoin={onSelectCoin}
             priceUSD={requiredAmount ?? 0}
             selectedCoin={selectedToken}

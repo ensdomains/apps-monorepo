@@ -19,10 +19,10 @@ export type PaymentBreakdownFigures = {
  * USDC carries six decimals, so rounding each figure on its own can leave the
  * lines a cent short of the headline (registration 1.004 + fee 1.004 - credit
  * 1.008 renders as 1.00 + 1.00 - 1.01 against a 1.00 debit). Since the point
- * of the breakdown is that the subtraction is checkable, the credit is derived
- * from the other three once they are rounded and absorbs the residue: those
- * three are amounts the user can compare against their wallet, the credit is
- * the app's own bookkeeping.
+ * of the breakdown is that the subtraction is checkable, the rounded wallet
+ * debit and authoritative credit stay fixed while the network-fee presentation
+ * absorbs any rounding residue. Callers use that adjusted fee everywhere it is
+ * shown.
  *
  * The residue cuts both ways, so `hcaCredit` must itself round to a visible
  * cent before the derived figure says how that credit is shown. Without that,
@@ -41,14 +41,20 @@ export const getPaymentBreakdownFigures = (funding: {
   const registration = toCents(funding.registration)
   const networkFee = toCents(funding.networkFee)
   const walletDebit = toCents(funding.walletDebit)
+  const credit = Math.max(0, toCents(funding.hcaCredit))
+
+  if (credit === 0) {
+    return { registration, networkFee, walletDebit, credit }
+  }
+
+  const roundingResidual = toCents(
+    walletDebit + credit - registration - networkFee,
+  )
 
   return {
     registration,
-    networkFee,
+    networkFee: toCents(networkFee + roundingResidual),
     walletDebit,
-    credit:
-      toCents(funding.hcaCredit) > 0
-        ? Math.max(0, toCents(registration + networkFee - walletDebit))
-        : 0,
+    credit,
   }
 }

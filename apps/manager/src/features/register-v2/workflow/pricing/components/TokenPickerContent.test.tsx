@@ -285,8 +285,8 @@ describe('TokenPickerContentBase', () => {
     expect(error.closest('[data-slot="payment-method-error"]')).toBeNull()
   })
 
-  // Six-decimal USDC: rounding each figure on its own would print
-  // 1.00 + 1.00 - 1.01 against a 1.00 debit.
+  // Six-decimal USDC: preserving the visible 1.01 credit requires the
+  // displayed fee to absorb one cent so the lines still close.
   it('keeps the credited lines adding up to the headline', () => {
     renderPicker({
       funding: {
@@ -300,9 +300,8 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByText('-$1.00')).toBeVisible()
-    expect(screen.queryByText('-$1.01')).not.toBeInTheDocument()
-    expect(screen.getByText('Mainnet est. fee: $1.00')).toBeVisible()
+    expect(screen.getByText('-$1.01')).toBeVisible()
+    expect(screen.getByText('Mainnet est. fee: $1.01')).toBeVisible()
     expect(screen.getAllByText('$1.00').length).toBeGreaterThanOrEqual(2)
   })
 
@@ -348,6 +347,28 @@ describe('TokenPickerContentBase', () => {
     ).not.toBeInTheDocument()
     expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
     expect(screen.getByText('Total')).toBeVisible()
+  })
+
+  it('keeps a visible cent of credit and closes the displayed equation', () => {
+    renderPicker({
+      funding: {
+        registration: 4.994,
+        networkFee: 4.994,
+        total: 9.988,
+        walletDebit: 9.978,
+        hcaCredit: 0.01,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('Name price')).toBeVisible()
+    expect(screen.getByText('$4.99')).toBeVisible()
+    expect(screen.getByText('Mainnet est. fee: $5.00')).toBeVisible()
+    expect(screen.getByText('Left from your last attempt')).toBeVisible()
+    expect(screen.getByText('-$0.01')).toBeVisible()
+    expect(screen.getByText('You pay now')).toBeVisible()
+    expect(screen.getByText('$9.98')).toBeVisible()
   })
 
   // Rounding can leave a cent over on an empty account; a credit line there
