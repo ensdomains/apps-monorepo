@@ -48,7 +48,7 @@ export const RenewalDetails = () => {
         <div className="w-full lg:w-1/2">
           <DomainCard
             domainName={`${submissionData.label}.eth`}
-            variant="garnet"
+            variant="lapis"
           />
         </div>
 

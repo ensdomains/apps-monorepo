@@ -5,24 +5,48 @@ import { Button } from '@/components/ui/button'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 
 export const FailureStep = () => {
-  const { t } = useLingui()
   const { uiActor, label } = RegisterV2Context.use()
   const message = RegisterV2Context.useSelector(
     (state) => state.context.lastErrorMessage,
   )
 
   return (
+    <FailureStepView
+      label={label}
+      message={message}
+      onCancel={() => uiActor.send({ type: 'cancel' })}
+      onRetry={() => uiActor.send({ type: 'retry' })}
+    />
+  )
+}
+
+interface FailureStepViewProps {
+  readonly label: string
+  readonly message?: string
+  readonly onRetry: () => void
+  readonly onCancel: () => void
+}
+
+export const FailureStepView = ({
+  label,
+  message,
+  onRetry,
+  onCancel,
+}: FailureStepViewProps) => {
+  const { t } = useLingui()
+
+  return (
     <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
-      <div className="flex items-start gap-3 rounded-lg border border-ens-garnet-dust bg-ens-garnet-dust/15 p-4">
+      <div className="flex items-start gap-3 rounded-lg border border-ens-lapis-dust bg-ens-lapis-tint p-4">
         <XCircle
           aria-hidden="true"
-          className="mt-0.5 h-4 w-4 shrink-0 text-ens-garnet-dense"
+          className="mt-0.5 h-4 w-4 shrink-0 text-ens-lapis-dense"
         />
         <div className="flex min-w-0 flex-col gap-1">
-          <p className="font-medium text-ens-garnet-dense text-sm leading-5">
+          <p className="font-medium text-ens-lapis-dense text-sm leading-5">
             <Trans>Registration Failed</Trans>
           </p>
-          <p className="wrap-anywhere max-h-32 overflow-y-auto text-ens-garnet-dense/70 text-sm leading-5">
+          <p className="wrap-anywhere max-h-32 overflow-y-auto text-ens-lapis-dense/70 text-sm leading-5">
             {message ??
               t`The registration for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`}
           </p>
@@ -31,7 +55,7 @@ export const FailureStep = () => {
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-16">
         <div className="w-full lg:w-1/2">
-          <DomainCard domainName={`${label}.eth`} variant="garnet" />
+          <DomainCard domainName={`${label}.eth`} variant="lapis" />
         </div>
 
         <div className="flex w-full flex-col gap-6 lg:w-1/2">
@@ -50,7 +74,7 @@ export const FailureStep = () => {
           <div className="flex gap-3">
             <Button
               className="flex-1"
-              onClick={() => uiActor.send({ type: 'retry' })}
+              onClick={onRetry}
               size="xl"
               type="button"
               variant="blue"
@@ -59,7 +83,7 @@ export const FailureStep = () => {
             </Button>
             <Button
               className="flex-1"
-              onClick={() => uiActor.send({ type: 'cancel' })}
+              onClick={onCancel}
               size="xl"
               type="button"
               variant="lightBlue"
