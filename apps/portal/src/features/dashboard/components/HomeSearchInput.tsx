@@ -35,11 +35,13 @@ export const HomeSearchInput = ({
   className,
   iconOnly = false,
   isHero = false,
+  ariaLabel,
 }: {
   readonly className?: string
   readonly iconOnly?: boolean
   /** Landing-page hero: larger field with the typed-entity hint. */
   readonly isHero?: boolean
+  readonly ariaLabel?: string
 }) => {
   const listboxId = useId()
   const navigate = useNavigate()
@@ -268,6 +270,7 @@ export const HomeSearchInput = ({
                 activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined
               }
               aria-autocomplete="list"
+              aria-label={ariaLabel}
               className={cn(
                 'w-full',
                 isHero &&
