@@ -7,10 +7,17 @@ import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/dashboard')({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { tab?: 'owned' | 'favorites' } =>
+    search.tab === 'owned' || search.tab === 'favorites'
+      ? { tab: search.tab }
+      : {},
   component: RouteComponent,
 })
 
 function RouteComponent() {
+  const { tab } = Route.useSearch()
   const navigate = useNavigate()
   const { isLoading, hasInitialized, isConnected } = useSmartAccountContext()
   const {
@@ -35,7 +42,7 @@ function RouteComponent() {
   return (
     <div className="flex flex-1 flex-col bg-[#FCFBFB]">
       <Suspense fallback={<DashboardLoading />}>
-        <DashboardPage />
+        <DashboardPage initialTab={tab} key={tab ?? 'owned'} />
       </Suspense>
     </div>
   )

@@ -17,6 +17,7 @@ import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 type UseEligibleV1NamesOptions = {
   readonly enabled?: boolean
   readonly fallbackToClassified?: boolean
+  readonly requireFresh?: boolean
 }
 
 type EligibleV1NamesRecoveryState =
@@ -33,11 +34,20 @@ type ClassificationState = {
 }
 
 export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
-  const { enabled = true, fallbackToClassified = true } = options
+  const {
+    enabled = true,
+    fallbackToClassified = true,
+    requireFresh = false,
+  } = options
   const { ownerAddress } = useSmartAccountContext()
   const { address } = useConnection()
   const resolvedOwnerAddress = ownerAddress ?? address
-  const { data: v1NamesRaw, isPending: isV1Pending } = useV1Names({ enabled })
+  const {
+    data: v1NamesRaw,
+    isPending: isV1Pending,
+    isFetching: isV1Fetching,
+    isError: isV1Error,
+  } = useV1Names(requireFresh ? { enabled, requireFresh: true } : { enabled })
   const recoverySnapshot = useMigrationRecoverySnapshot()
 
   const { classified, recoveryState } = useMemo<ClassificationState>(() => {
@@ -73,26 +83,52 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
     }
   }, [enabled, recoverySnapshot, v1NamesRaw, resolvedOwnerAddress])
 
-  const { data: eligibility, isPending: isEligibilityPending } =
-    useMigrationEligibility(
-      recoverySnapshot ? [] : classified,
-      enabled ? resolvedOwnerAddress : undefined,
-    )
+  const {
+    data: eligibility,
+    isPending: isEligibilityPending,
+    isFetching: isEligibilityFetching,
+    isError: isEligibilityError,
+  } = useMigrationEligibility(
+    recoverySnapshot ? [] : classified,
+    enabled && (!requireFresh || !isV1Fetching)
+      ? resolvedOwnerAddress
+      : undefined,
+    { requireFresh },
+  )
 
   const eligible = useMemo<readonly ClassifiedName[]>(
     () =>
       recoverySnapshot
         ? classified
-        : (eligibility?.eligible ?? (fallbackToClassified ? classified : [])),
-    [eligibility, classified, fallbackToClassified, recoverySnapshot],
+        : requireFresh &&
+            (isV1Fetching ||
+              isEligibilityFetching ||
+              isV1Error ||
+              isEligibilityError)
+          ? []
+          : (eligibility?.eligible ?? (fallbackToClassified ? classified : [])),
+    [
+      eligibility,
+      classified,
+      fallbackToClassified,
+      recoverySnapshot,
+      requireFresh,
+      isV1Fetching,
+      isEligibilityFetching,
+      isV1Error,
+      isEligibilityError,
+    ],
   )
 
   return {
     eligible,
     recoveryState,
+    isError: !recoverySnapshot && (isV1Error || isEligibilityError),
     isPending:
       enabled &&
       !recoverySnapshot &&
-      (isV1Pending || (classified.length > 0 && isEligibilityPending)),
+      (isV1Pending ||
+        (classified.length > 0 && isEligibilityPending) ||
+        (requireFresh && (isV1Fetching || isEligibilityFetching))),
   }
 }

@@ -1,0 +1,13 @@
+{
+  "createdAt": "2026-09-26T12:02:58.931Z",
+  "corpusHash": "d1cb171f5b8754e7a69c82348cd7000ffdfaa2e36fda7d25dcbc277b24dfff6c",
+  "caseCount": 12,
+  "split": "development",
+  "supported": 9,
+  "clarification": 1,
+  "unsupported": 2,
+  "socialFieldsCovered": 11,
+  "providerCallsBeforeFreeze": 0,
+  "labelsAuthoredBeforeRepairOutcomeInspection": true,
+  "noReservedCases": true
+}

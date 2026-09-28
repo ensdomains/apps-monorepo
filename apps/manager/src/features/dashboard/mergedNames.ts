@@ -1,9 +1,7 @@
 import type { DomainFragment } from '@ens-apps/indexer'
 import {
-  getDaysSinceExpiry,
-  getDisplayExpiryDate,
-  getGraceEndDate,
-  isInGracePeriod,
+  getNameExpiryStatus,
+  getSubnameExpiryStatus,
 } from '@/features/grace/utils/gracePeriod'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
@@ -60,6 +58,21 @@ const protocolFor = (isV1: boolean): RenewalProtocol => (isV1 ? 'v1' : 'v2')
 
 const getMergedExpiryDate = (expirySeconds: number | null): Date | null =>
   expirySeconds === 0 ? null : toDateFromSeconds(expirySeconds)
+
+const isEthSubname = (name: string): boolean => {
+  const labels = name.split('.')
+  return labels.length > 2 && labels.at(-1)?.toLowerCase() === 'eth'
+}
+
+export const getMergedNameExpiryStatus = (
+  item: MergedItem,
+  now: Date = new Date(),
+) => {
+  const expiryDate = getMergedExpiryDate(item.sortExpiry)
+  return isEthSubname(item.sortName)
+    ? getSubnameExpiryStatus(expiryDate, now)
+    : getNameExpiryStatus(expiryDate, protocolFor(item.kind === 'v1'), now)
+}
 
 const getExpirySortValue = (expirySeconds: number | null): number | null =>
   expirySeconds === 0 ? null : expirySeconds
@@ -201,17 +214,14 @@ export const mergedRowMetadata = (
   now: Date = new Date(),
 ): MergedRowMetadata => {
   const label = item.sortName
-  const expiryDate = getMergedExpiryDate(item.sortExpiry)
+  const expiryStatus = getMergedNameExpiryStatus(item, now)
+  const { expiryDate, graceEndDate, displayExpiryDate, daysSinceExpiry } =
+    expiryStatus
   const isV1 = item.kind === 'v1'
   const protocol = protocolFor(isV1)
-  const isInGrace = isInGracePeriod(expiryDate, protocol, now)
-  const graceEndDate =
-    expiryDate && isInGrace ? getGraceEndDate(expiryDate, protocol) : null
-  const displayExpiryDate = getDisplayExpiryDate(expiryDate, protocol, now)
+  const isInGrace = expiryStatus.isInGrace
   const isMigrationEligible = getIsMigrationEligible(item)
   const daysUntilExpiry = getDaysUntil(expiryDate)
-  const daysSinceExpiry =
-    expiryDate && isInGrace ? getDaysSinceExpiry(expiryDate, now) : null
   const expiringSoon = isExpiringSoon(expiryDate, 30, daysUntilExpiry)
   const expiryCta =
     protocol === 'v2' && isInGrace

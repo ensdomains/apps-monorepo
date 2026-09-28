@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { type SelectableDomain, toBulkRenewName } from './bulkRenewSelection'
+import {
+  pruneSelectedLabels,
+  type SelectableDomain,
+  toBulkRenewName,
+} from './bulkRenewSelection'
 
 const NOW = new Date('2024-06-01T12:00:00Z')
 // Comfortably in the future, so eligibility turns only on the label.
@@ -72,5 +76,31 @@ describe('toBulkRenewName', () => {
       Math.floor(new Date('2023-01-01T00:00:00Z').getTime() / 1000),
     )
     expect(toBulkRenewName(domain({ expiryDate: expired }))).toBeNull()
+  })
+})
+
+describe('pruneSelectedLabels', () => {
+  it('drops selections outside a narrower literal or smart filter', () => {
+    const selected = new Set(['alnila.eth', 'alnina.eth'])
+
+    expect(pruneSelectedLabels(selected, ['alnina.eth'])).toEqual(
+      new Set(['alnina.eth']),
+    )
+    expect(pruneSelectedLabels(selected, [])).toEqual(new Set())
+  })
+
+  it('preserves a page-one selection while viewing page two of the same results', () => {
+    const allResultLabels = [
+      'alpha.eth',
+      'bravo.eth',
+      'charlie.eth',
+      'delta.eth',
+      'echo.eth',
+      'foxtrot.eth',
+    ]
+
+    expect(
+      pruneSelectedLabels(new Set(['alpha.eth']), allResultLabels),
+    ).toEqual(new Set(['alpha.eth']))
   })
 })

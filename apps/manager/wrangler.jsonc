@@ -5,6 +5,13 @@
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
   "preview_urls": true,
+  "ratelimits": [
+    {
+      "name": "JEV_RATE_LIMIT",
+      "namespace_id": "68324791",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
   "observability": {
     "enabled": true
   }

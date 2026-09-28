@@ -14,13 +14,16 @@ export const RenewalPage = ({
   currentExpiry,
   label,
   protocol,
+  initialDurationSeconds,
 }: {
   readonly currentExpiry: bigint
   readonly label: string
   readonly protocol: RenewalProtocol
+  readonly initialDurationSeconds?: bigint
 }) => (
   <RenewalUiProvider
     currentExpiry={currentExpiry}
+    initialDurationSeconds={initialDurationSeconds}
     label={label}
     protocol={protocol}
   >

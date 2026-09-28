@@ -109,6 +109,7 @@ export const NotificationsList = ({
         </div>
         <RouterLink
           className="group flex items-center gap-2"
+          search={{}}
           to="/notifications/settings"
         >
           <MSymbol

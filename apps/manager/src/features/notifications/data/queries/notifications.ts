@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query'
 import type { InferResponseType } from 'hono'
 import { selectValidNotifications } from '@/features/notifications/data/selectors'
+import { captureNotificationSession } from '@/features/notifications/services/backendSession'
 import { backendClient } from '@/utils/backend-client'
 
 export type NotificationsResponse = InferResponseType<
@@ -55,17 +56,22 @@ const patchReadNotifications = async (
   notifications: NotificationIdentifier[],
 ) => {
   if (notifications.length === 0) return
+  const session = captureNotificationSession()
+  try {
+    for (let i = 0; i < notifications.length; i += READ_BATCH_SIZE) {
+      session.assertCurrent()
+      const response = await backendClient.notifications.read.$patch({
+        json: notifications.slice(i, i + READ_BATCH_SIZE),
+      })
 
-  for (let i = 0; i < notifications.length; i += READ_BATCH_SIZE) {
-    const response = await backendClient.notifications.read.$patch({
-      json: notifications.slice(i, i + READ_BATCH_SIZE),
-    })
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to mark notifications as read: ${response.status}`,
-      )
+      if (!response.ok) {
+        throw new Error(
+          `Failed to mark notifications as read: ${response.status}`,
+        )
+      }
     }
+  } finally {
+    session.dispose()
   }
 }
 

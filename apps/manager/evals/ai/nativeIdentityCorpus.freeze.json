@@ -1,0 +1,13 @@
+{
+  "frozenAt": "2026-09-26T13:21:30.330218+00:00",
+  "caseCount": 6,
+  "supported": 3,
+  "clarification": 1,
+  "unsupported": 2,
+  "split": "development",
+  "corpusHash": "be5ef07a10001313a0e88baa0fab72650f0cbb1f6474282b27000c2a5bcc68a0",
+  "labelsBeforeProviderCalls": true,
+  "providerCallsAtFreeze": 0,
+  "reservedMaterialUsed": false,
+  "nativeStateScope": "Absence of a current primary or fresh ownership record must be tested in native handoff; not claimed by model evaluation."
+}

@@ -4,6 +4,8 @@ import {
   getEthAddressFromRecords,
   hasMatchingEthAddress,
   isConfirmBlocked,
+  isExactPrimaryProposalOwned,
+  normalizePrimaryProposal,
   shouldUpdateEthAddress,
 } from './ChoosePrimaryNameDialog.handlers'
 
@@ -20,6 +22,33 @@ const recordsWithEthAddress = (value: string): ProfileRecordsResult => ({
 const recordsWithoutEthAddress = (): ProfileRecordsResult => ({
   texts: [],
   coins: [{ coinType: 0, value: 'bc1qexample' }],
+})
+
+describe('exact primary-name proposal', () => {
+  it('normalizes ENS names and rejects invalid proposals', () => {
+    expect(normalizePrimaryProposal('  YoGiNtH.eth  ')).toBe('yoginth.eth')
+    expect(normalizePrimaryProposal('bad name.eth')).toBeNull()
+  })
+
+  it('only accepts an exact indexed name owned by the connected wallet', () => {
+    const domain = {
+      name: 'YoGiNtH.eth',
+      normalizedName: 'yoginth.eth',
+      owner: { id: OLD_OWNER.toLowerCase() },
+    }
+    expect(isExactPrimaryProposalOwned(domain, 'yoginth.eth', OLD_OWNER)).toBe(
+      true,
+    )
+    expect(isExactPrimaryProposalOwned(domain, 'other.eth', OLD_OWNER)).toBe(
+      false,
+    )
+    expect(isExactPrimaryProposalOwned(domain, 'yoginth.eth', NEW_OWNER)).toBe(
+      false,
+    )
+    expect(
+      isExactPrimaryProposalOwned(undefined, 'yoginth.eth', OLD_OWNER),
+    ).toBe(false)
+  })
 })
 
 describe('getEthAddressFromRecords', () => {

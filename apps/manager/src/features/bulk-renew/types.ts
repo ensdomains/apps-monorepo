@@ -18,7 +18,12 @@ export type BulkRenewName = {
  */
 export type Selection =
   | { readonly kind: 'preset'; readonly years: number }
-  | { readonly kind: 'custom'; readonly targetMs: number }
+  | { readonly kind: 'days'; readonly days: number }
+  | {
+      readonly kind: 'custom'
+      readonly targetMs: number
+      readonly exactTarget?: boolean
+    }
 
 /** One row of the per-name renewal summary. */
 export type SummaryRow = {

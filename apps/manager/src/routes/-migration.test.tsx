@@ -11,7 +11,10 @@ const navigateMock = vi.hoisted(() => vi.fn())
 const getFeatureFlagMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => (options: Record<string, unknown>) => ({ options }),
+  createFileRoute: () => (options: Record<string, unknown>) => ({
+    options,
+    useSearch: () => ({}),
+  }),
   redirect: (options: unknown) => ({ options }),
   useHydrated: vi.fn(),
   useNavigate: () => navigateMock,

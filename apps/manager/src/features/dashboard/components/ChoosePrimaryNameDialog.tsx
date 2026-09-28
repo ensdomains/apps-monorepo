@@ -31,6 +31,7 @@ import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialog
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
+import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
@@ -51,12 +52,17 @@ import { resolveDomainLabel } from '../utils'
 import {
   getEthAddressFromRecords,
   isConfirmBlocked,
+  isExactPrimaryProposalOwned,
+  normalizePrimaryProposal,
   shouldUpdateEthAddress,
 } from './ChoosePrimaryNameDialog.handlers'
 
 interface ChoosePrimaryNameDialogProps {
   readonly onUpdated?: () => void
   readonly children?: React.ReactNode
+  readonly open?: boolean
+  readonly onOpenChange?: (open: boolean) => void
+  readonly initialName?: string
 }
 
 type PrimaryNameDomain = DomainsQuery['domains'][number]
@@ -330,9 +336,17 @@ const getPrimaryNameQueryVariables = (
 export const ChoosePrimaryNameDialog = ({
   onUpdated,
   children,
+  open: controlledOpen,
+  onOpenChange,
+  initialName,
 }: ChoosePrimaryNameDialogProps) => {
   const { t } = useLingui()
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = (nextOpen: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(nextOpen)
+    onOpenChange?.(nextOpen)
+  }
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [setupConfirmOpen, setSetupConfirmOpen] = useState(false)
   const { address } = useConnection()
@@ -387,11 +401,44 @@ export const ChoosePrimaryNameDialog = ({
     getDomainsQuery(open ? queryVariables : undefined),
   )
   const allDomains = domainsData?.domains ?? []
+  const proposedName = normalizePrimaryProposal(initialName)
+  const proposedQuery = useQuery({
+    ...getDomainsQuery(
+      open && proposedName && address
+        ? {
+            where: { name: proposedName, owner: address.toLowerCase() },
+            first: 1,
+          }
+        : undefined,
+    ),
+    enabled: open && !!proposedName && !!address,
+    refetchOnMount: 'always',
+  })
+  const proposedDomain = proposedQuery.data?.domains[0]
+  const indexedProposalOwned =
+    proposedName !== null &&
+    proposedQuery.isSuccess &&
+    !proposedQuery.isFetching &&
+    isExactPrimaryProposalOwned(proposedDomain, proposedName, address)
+  const proposedOwnerQuery = useQuery({
+    ...profileOwnerQuery(proposedName ?? ''),
+    enabled: open && indexedProposalOwned,
+    refetchOnMount: 'always',
+  })
+  const proposalOwned =
+    indexedProposalOwned &&
+    proposedOwnerQuery.isSuccess &&
+    !proposedOwnerQuery.isFetching &&
+    proposedOwnerQuery.data?.owner?.toLowerCase() ===
+      account.ownerAddress?.toLowerCase()
 
   // Sort domains to always show primary name first
   const domains = useMemo(
     () =>
-      [...allDomains].sort((a, b) => {
+      [
+        ...(proposalOwned && proposedDomain ? [proposedDomain] : []),
+        ...allDomains.filter((domain) => domain.id !== proposedDomain?.id),
+      ].sort((a, b) => {
         const labelA = resolveDomainLabel(a)
         const labelB = resolveDomainLabel(b)
         const isPrimaryA = labelA.toLowerCase() === reverseName?.toLowerCase()
@@ -401,7 +448,7 @@ export const ChoosePrimaryNameDialog = ({
         if (isPrimaryB) return 1
         return 0
       }),
-    [allDomains, reverseName],
+    [allDomains, proposedDomain, proposalOwned, reverseName],
   )
 
   const {
@@ -452,12 +499,22 @@ export const ChoosePrimaryNameDialog = ({
   // has since lost `ROLE_SET_RESOLVER` on, and the setup reverts in simulation.
   const needsResolverSetup = resolverBlocked && needsEthAddressUpdate
 
-  // Set selected name to current primary on mount
   useEffect(() => {
-    if (reverseName && !selectedName) {
+    if (open && initialName) setSelectedName(null)
+  }, [open, initialName])
+
+  useEffect(() => {
+    if (open && proposalOwned && proposedName) {
+      setSelectedName((current) => current ?? proposedName)
+    }
+  }, [open, proposalOwned, proposedName])
+
+  // Set selected name to current primary on mount when no name was proposed.
+  useEffect(() => {
+    if (!initialName && reverseName && !selectedName) {
       setSelectedName(reverseName)
     }
-  }, [reverseName, selectedName])
+  }, [initialName, reverseName, selectedName])
 
   const handleSelectName = (name: string) => {
     if (!isSubmitting) {
@@ -523,14 +580,34 @@ export const ChoosePrimaryNameDialog = ({
   const showEthAddressInfo = needsEthAddressUpdate && !needsResolverSetup
   const isPreparing =
     updateEthAddressMutation.isPending || setupResolverMutation.isPending
-  const confirmDisabled = isConfirmBlocked({
-    isSubmitting,
-    isPreparing,
-    resolverAccessSettled: resolverWriteAccess.isSuccess,
-    recordsSettled,
-    hasChanges,
-    selectedName,
-  })
+  const confirmDisabled =
+    isConfirmBlocked({
+      isSubmitting,
+      isPreparing,
+      resolverAccessSettled: resolverWriteAccess.isSuccess,
+      recordsSettled,
+      hasChanges,
+      selectedName,
+    }) ||
+    (selectedName === proposedName && !proposalOwned)
+  const proposalErrorMessage =
+    initialName && !proposedName
+      ? t`This is not a valid ENS name.`
+      : proposedName && proposedQuery.isError
+        ? t`Couldn’t check this name. Please try again in a moment.`
+        : proposedName && proposedOwnerQuery.isError
+          ? t`Couldn’t verify this name’s owner. Please try again in a moment.`
+          : proposedName &&
+              proposedQuery.isSuccess &&
+              !proposedQuery.isFetching &&
+              !indexedProposalOwned
+            ? t`This name is not owned by your connected wallet.`
+            : proposedName &&
+                proposedOwnerQuery.isSuccess &&
+                !proposedOwnerQuery.isFetching &&
+                !proposalOwned
+              ? t`This name is no longer owned by your connected wallet.`
+              : undefined
   const actionErrorMessage =
     // Probe failures first: both choose the branch, so neither can be silent —
     // confirm is disabled and nothing else would say why.
@@ -551,12 +628,13 @@ export const ChoosePrimaryNameDialog = ({
       notReady: t`The replacement resolver could not be verified. Please try again.`,
     }) ??
     updateEthAddressMutation.error?.message ??
-    primaryNameErrorMessage
+    primaryNameErrorMessage ??
+    proposalErrorMessage
 
   return (
     <>
       <Dialog onOpenChange={setOpen} open={open}>
-        <DialogTrigger asChild>{children}</DialogTrigger>
+        {children && <DialogTrigger asChild>{children}</DialogTrigger>}
         <DialogContent className="flex max-h-[90vh] max-w-125 flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-[24px] text-foreground">
@@ -594,6 +672,21 @@ export const ChoosePrimaryNameDialog = ({
             </div>
 
             {/* Error Message */}
+            {proposedName &&
+              (proposedQuery.isPending ||
+                proposedQuery.isFetching ||
+                (indexedProposalOwned &&
+                  (proposedOwnerQuery.isPending ||
+                    proposedOwnerQuery.isFetching))) && (
+                <p
+                  className="font-sans text-muted-foreground text-sm"
+                  role="status"
+                >
+                  <Trans>
+                    Checking that this name belongs to your wallet...
+                  </Trans>
+                </p>
+              )}
             <PrimaryNameErrorNotice errorMessage={actionErrorMessage} />
             {/* ETH Address Mismatch/Missing Info */}
             {showEthAddressInfo && account.ownerAddress && (

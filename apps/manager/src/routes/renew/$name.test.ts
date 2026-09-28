@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { DurationSearch } from '@/features/register-v2/utils/durationSearch'
 
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({ options }),
@@ -25,29 +26,36 @@ const EXPIRY_2030 = BigInt(
   Math.floor(new Date('2030-01-01T00:00:00Z').getTime() / 1000),
 )
 
-const runLoader = async (name: string, expiryData: ExpiryResult) => {
+const runLoader = async (
+  name: string,
+  expiryData: ExpiryResult,
+  search: DurationSearch = {},
+) => {
   const fetchQuery = vi.fn().mockResolvedValue(expiryData)
   const ensureQueryData = vi.fn()
   const loader = Route.options.loader as (args: {
     params: { name: string }
     context: { queryClient: unknown }
+    deps: DurationSearch
   }) => Promise<unknown>
 
   const outcome = await loader({
     params: { name },
     context: { queryClient: { fetchQuery, ensureQueryData } },
+    deps: search,
   }).catch((error: unknown) => error)
 
   return { outcome, fetchQuery, ensureQueryData }
 }
 
-const runBeforeLoad = (name: string) => {
+const runBeforeLoad = (name: string, search: DurationSearch = {}) => {
   const beforeLoad = Route.options.beforeLoad as (args: {
     params: { name: string }
+    search: DurationSearch
   }) => void
 
   try {
-    return beforeLoad({ params: { name } })
+    return beforeLoad({ params: { name }, search })
   } catch (error) {
     return error
   }
@@ -73,9 +81,10 @@ describe('/renew/$name loader', () => {
   it('redirects a look-alike label to the name it would actually renew', () => {
     // `ALICE.eth` renews `alice.eth`, a registration someone else may own, so
     // the user lands on — and pays on — a page titled with the real name.
-    expect(runBeforeLoad('ALICE.eth')).toEqual({
+    expect(runBeforeLoad('ALICE.eth', { durationYears: 2 })).toEqual({
       redirect: {
         params: { name: 'alice.eth' },
+        search: { durationYears: 2 },
         to: '/renew/$name',
         replace: true,
       },
@@ -122,6 +131,7 @@ describe('/renew/$name loader', () => {
     expect(outcome).toEqual({
       redirect: {
         params: { name: 'never-registered.eth' },
+        search: {},
         to: '/register/$name',
         replace: true,
       },
@@ -152,6 +162,7 @@ describe('/renew/$name loader', () => {
     expect(outcome).toEqual({
       redirect: {
         params: { name: 'lapsed.eth' },
+        search: {},
         to: '/register/$name',
         replace: true,
       },
@@ -159,15 +170,20 @@ describe('/renew/$name loader', () => {
   })
 
   it('routes a v1 name to the v1 renewal flow', async () => {
-    const { outcome } = await runLoader('legacy.eth', {
-      expiry: EXPIRY_2030,
-      isNonExpiring: false,
-      protocol: 'v1',
-    })
+    const { outcome } = await runLoader(
+      'legacy.eth',
+      {
+        expiry: EXPIRY_2030,
+        isNonExpiring: false,
+        protocol: 'v1',
+      },
+      { durationYears: 2 },
+    )
 
     expect(outcome).toEqual({
       redirect: {
         params: { name: 'legacy.eth' },
+        search: { durationYears: 2 },
         to: '/renew-v1/$name',
         replace: true,
       },

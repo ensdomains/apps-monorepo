@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-router'
 import { type ReactNode, useCallback } from 'react'
 import { useConnection } from 'wagmi'
+import { validateMigrationAiSearch } from '@/features/migration/components/migrationAiPreset'
 import { MigrationPage } from '@/features/migration/pages/MigrationPage'
 import { MigrationUiProvider } from '@/features/migration/state/migrationUi.context'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
@@ -14,6 +15,7 @@ import { getFeatureFlag } from '@/lib/posthog/get-feature-flag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/migration')({
+  validateSearch: validateMigrationAiSearch,
   beforeLoad: async () => {
     const migrationAccess = await getFeatureFlag({
       data: { flag: POSTHOG_FEATURE_FLAGS.MIGRATION },
@@ -27,10 +29,11 @@ export const Route = createFileRoute('/migration')({
 })
 
 function RouteComponent() {
+  const { preset, names } = Route.useSearch()
   return (
-    <MigrationUiProvider>
+    <MigrationUiProvider key={JSON.stringify([preset, names])}>
       <RequireConnectedWallet>
-        <MigrationPage />
+        <MigrationPage names={names} preset={preset} />
       </RequireConnectedWallet>
     </MigrationUiProvider>
   )

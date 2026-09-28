@@ -29,6 +29,15 @@ export const toSelectableDomain = (
 export const selectionKey = (domain: DomainLabels): string =>
   resolveDomainLabel(domain)
 
+/** Keep selections only while their names remain in the current result set. */
+export const pruneSelectedLabels = (
+  selectedLabels: ReadonlySet<string>,
+  selectableLabels: readonly string[],
+): ReadonlySet<string> => {
+  const selectable = new Set(selectableLabels)
+  return new Set([...selectedLabels].filter((label) => selectable.has(label)))
+}
+
 /**
  * A domain's bulk-renew payload, or `null` if it can't be renewed here. One
  * label for display and calldata, and never a stored label that isn't already

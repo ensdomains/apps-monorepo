@@ -7,6 +7,11 @@ import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMi
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { cn } from '@/lib/utils'
+import { MigrationAiSelectionNotice } from './MigrationAiSelectionNotice'
+import {
+  getMigrationAiProposal,
+  type MigrationAiPreset,
+} from './migrationAiPreset'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
@@ -23,7 +28,16 @@ type SelectNamesStepProps = {
   readonly gasFundingStatus: MigrationGasFundingStatus
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
+  readonly preset?: MigrationAiPreset
+  readonly names?: readonly string[]
 }
+
+const getSelectionSpacing = (contentHeight: boolean, compact: boolean) =>
+  contentHeight
+    ? 'md:justify-center md:pt-0 md:pb-0'
+    : compact
+      ? 'md:pt-6'
+      : 'md:pt-16'
 
 export const SelectNamesStep = ({
   gasEstimate,
@@ -31,10 +45,23 @@ export const SelectNamesStep = ({
   gasFundingStatus,
   onNamesChange,
   onNext,
+  preset,
+  names,
 }: SelectNamesStepProps) => {
-  const { eligible, isPending, recoveryState } = useEligibleV1Names()
+  const isAiPreset = preset !== undefined || names !== undefined
+  const { eligible, isPending, isError, recoveryState } = useEligibleV1Names({
+    fallbackToClassified: !isAiPreset,
+    requireFresh: isAiPreset,
+  })
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
+  const isRecovering = recoveryState.status === 'recovering'
+  const { requestedProposal, dependencyConflicts } = getMigrationAiProposal(
+    eligible,
+    names,
+    preset,
+    isRecovering,
+  )
   const hasNamesNeedingManagerRestoration = eligible.some(
     ({ managerAddress }) => managerAddress !== null,
   )
@@ -53,7 +80,9 @@ export const SelectNamesStep = ({
   } = useNameSelection({
     eligible,
     isPending,
-    isRecovery: recoveryState.status === 'recovering',
+    isRecovery: isRecovering,
+    preset,
+    names,
     onNamesChange,
   })
 
@@ -68,6 +97,7 @@ export const SelectNamesStep = ({
   const isUpgradeDisabled =
     totalSelected === 0 ||
     isPending ||
+    isError ||
     isRecoveryStale ||
     isStarting ||
     isWaitingForGasEstimate ||
@@ -95,11 +125,7 @@ export const SelectNamesStep = ({
       <div
         className={cn(
           'flex min-h-0 flex-1 flex-col items-center px-5 pt-6 pb-0 md:pb-5',
-          isContentHeightCard
-            ? 'md:justify-center md:pt-0 md:pb-0'
-            : isCompactOuterSpacing
-              ? 'md:pt-6'
-              : 'md:pt-16',
+          getSelectionSpacing(isContentHeightCard, isCompactOuterSpacing),
         )}
       >
         <div
@@ -125,6 +151,48 @@ export const SelectNamesStep = ({
               </Trans>
             </p>
           )}
+
+          {isAiPreset && isError && (
+            <div
+              className="flex w-full max-w-160 items-start gap-3 rounded-lg bg-ens-garnet-50/70 px-4 py-4 text-ens-garnet-900"
+              role="alert"
+            >
+              <CircleAlert
+                aria-hidden="true"
+                className="mt-0.5 size-5 shrink-0"
+              />
+              <p className="text-sm leading-5">
+                <Trans>
+                  We couldn&apos;t refresh your upgrade eligibility. Reload this
+                  page before choosing names.
+                </Trans>
+              </p>
+            </div>
+          )}
+
+          {isAiPreset && isRecovering && !isPending && (
+            <div
+              className="flex w-full max-w-160 items-start gap-3 rounded-lg bg-ens-garnet-50/70 px-4 py-4 text-ens-garnet-900"
+              role="status"
+            >
+              <CircleAlert
+                aria-hidden="true"
+                className="mt-0.5 size-5 shrink-0"
+              />
+              <p className="text-sm leading-5">
+                <Trans>
+                  Your unfinished upgrade is being restored. Its saved selection
+                  takes priority over the new request.
+                </Trans>
+              </p>
+            </div>
+          )}
+
+          <MigrationAiSelectionNotice
+            dependencyConflicts={dependencyConflicts}
+            isPending={isPending}
+            requestedProposal={requestedProposal}
+          />
 
           {isRecoveryStale ? (
             <div

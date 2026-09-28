@@ -210,6 +210,22 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+describe('registrationV2UiMachine — duration prefill', () => {
+  it('starts the pricing step at an exact validated 69-day duration', () => {
+    const actor = createActor(registrationV2UiMachine, {
+      input: {
+        chainId: 11155111,
+        initialDurationSeconds: 69 * 86_400,
+      },
+    }).start()
+
+    expect(actor.getSnapshot().context.duration).toBe(69 * 86_400)
+    actor.send({ type: 'pricing.step.next' })
+    expect(actor.getSnapshot().matches({ pricing: 'tokens' })).toBe(true)
+    actor.stop()
+  })
+})
+
 describe('registrationV2UiMachine — HCA approval-signer guard', () => {
   it('fails fast when an HCA registration has no owner wallet client', () => {
     const actor = startActorInTokens()

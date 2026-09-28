@@ -18,35 +18,32 @@ import {
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
-  addTelegramChannelMutationOptions,
   type Channel,
   deleteChannelMutationOptions,
-  telegramAuthMutationOptions,
 } from '@/features/notifications/data/queries/channels'
+import { connectTelegramChannelMutationOptions } from '@/features/notifications/data/queries/connectTelegram'
 import { ContactMethodCard } from './contact-method-card'
 
 const TELEGRAM_BOT_USERNAME = '@ens_earl_bot'
 
-export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
+export const TelegramContactMethod = ({
+  telegram,
+  proposedRemoval = false,
+  proposedConnection = false,
+}: {
+  telegram?: Channel
+  readonly proposedRemoval?: boolean
+  readonly proposedConnection?: boolean
+}) => {
   const { t } = useLingui()
 
-  const addTelegramChannelMutation = useMutation({
-    ...addTelegramChannelMutationOptions,
+  const telegramAuthMutation = useMutation({
+    ...connectTelegramChannelMutationOptions,
     onSuccess: () => {
       toast.success(t`Telegram channel added`)
     },
     onError: (error: Error) => {
       toast.error(error.message || t`Failed to add Telegram channel`)
-    },
-  })
-
-  const telegramAuthMutation = useMutation({
-    ...telegramAuthMutationOptions,
-    onSuccess: (authData) => {
-      addTelegramChannelMutation.mutate({ auth_data: authData })
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || t`Failed to authenticate with Telegram`)
     },
   })
 
@@ -64,7 +61,6 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
       })
 
       telegramAuthMutation.reset()
-      addTelegramChannelMutation.reset()
     },
     onError: (error: Error, id) => {
       toast.error(error.message || t`Failed to remove Telegram channel`, {
@@ -74,22 +70,15 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
   })
 
   if (!telegram) {
-    const isPending =
-      telegramAuthMutation.isPending || addTelegramChannelMutation.isPending
+    const isPending = telegramAuthMutation.isPending
 
     const statusMessage = match({
       authPending: telegramAuthMutation.isPending,
-      error: telegramAuthMutation.error ?? addTelegramChannelMutation.error,
-      addPending: addTelegramChannelMutation.isPending,
+      error: telegramAuthMutation.error,
     })
       .with({ authPending: true }, () => (
         <p className="text-[#45556C] text-sm leading-ens-normal">
           <Trans>Please sign in to telegram in the popup window.</Trans>
-        </p>
-      ))
-      .with({ addPending: true }, () => (
-        <p className="text-[#45556C] text-sm leading-ens-normal">
-          <Trans>Adding telegram...</Trans>
         </p>
       ))
       .with({ error: P.not(P.nullish) }, ({ error }) => (
@@ -124,55 +113,62 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
   return (
     <ContactMethodCard
       action={
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <button
-              className="flex w-fit items-center gap-3 rounded-full bg-[#54a9ec] px-4 py-3 transition-colors hover:bg-[#3b95d8]"
-              type="button"
-            >
-              <span className="font-normal text-sm text-white leading-ens-normal">
-                {telegram.label}
-              </span>
-              <MSymbol className="ms-wght-300 text-ens-white" symbol="close" />
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                <Trans>Remove Telegram Contact Method?</Trans>
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                <Trans>
-                  You may miss important notifications if you remove this
-                  contact method. Are you sure you want to continue?
-                </Trans>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
-              <AlertDialogCancelPrimitive asChild>
-                <Button
-                  className="flex-1/3 uppercase"
-                  size="lg"
-                  variant="outline"
-                >
-                  <Trans>Cancel</Trans>
-                </Button>
-              </AlertDialogCancelPrimitive>
-              <AlertDialogActionPrimitive asChild>
-                <Button
-                  className="flex-2/3 uppercase"
-                  onClick={() => {
-                    deleteMutation.mutate(telegram.id)
-                  }}
-                  size="lg"
-                  variant="lightBlue"
-                >
-                  <Trans>Remove</Trans>
-                </Button>
-              </AlertDialogActionPrimitive>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        proposedConnection ? (
+          <span className="text-slate-600 text-sm">{telegram.label}</span>
+        ) : (
+          <AlertDialog defaultOpen={proposedRemoval}>
+            <AlertDialogTrigger asChild>
+              <button
+                className="flex w-fit items-center gap-3 rounded-full bg-[#54a9ec] px-4 py-3 transition-colors hover:bg-[#3b95d8]"
+                type="button"
+              >
+                <span className="font-normal text-sm text-white leading-ens-normal">
+                  {telegram.label}
+                </span>
+                <MSymbol
+                  className="ms-wght-300 text-ens-white"
+                  symbol="close"
+                />
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  <Trans>Remove Telegram Contact Method?</Trans>
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  <Trans>
+                    You may miss important notifications if you remove this
+                    contact method. Are you sure you want to continue?
+                  </Trans>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
+                <AlertDialogCancelPrimitive asChild>
+                  <Button
+                    className="flex-1/3 uppercase"
+                    size="lg"
+                    variant="outline"
+                  >
+                    <Trans>Cancel</Trans>
+                  </Button>
+                </AlertDialogCancelPrimitive>
+                <AlertDialogActionPrimitive asChild>
+                  <Button
+                    className="flex-2/3 uppercase"
+                    onClick={() => {
+                      deleteMutation.mutate(telegram.id)
+                    }}
+                    size="lg"
+                    variant="lightBlue"
+                  >
+                    <Trans>Remove</Trans>
+                  </Button>
+                </AlertDialogActionPrimitive>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )
       }
       description={
         telegram.status === 'pending' ? (

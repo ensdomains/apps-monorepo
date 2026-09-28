@@ -24,7 +24,7 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
   const { ownerAddress } = useSmartAccountContext()
   const { openConnectModal } = useConnectModal()
 
-  const { status: connectionStatus } = useConnection()
+  const { address: walletAddress, status: connectionStatus } = useConnection()
 
   if (
     connectionStatus === 'connecting' ||
@@ -39,11 +39,34 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
     )
   }
 
-  // This should never happen, but just in case
+  // The live wallet address takes precedence during wallet switching.
+  const connectedAddress = walletAddress ?? ownerAddress
   const isWrongWallet =
     !!authAddress &&
-    !!ownerAddress &&
-    authAddress.toLowerCase() !== ownerAddress.toLowerCase()
+    !!connectedAddress &&
+    authAddress.toLowerCase() !== connectedAddress.toLowerCase()
+
+  if (connectionStatus === 'disconnected') {
+    return (
+      <div className="mx-auto max-w-md px-4 py-6">
+        <div className="space-y-4 text-center">
+          <h3 className="font-medium text-lg">
+            <Trans>Connect your wallet</Trans>
+          </h3>
+          <p className="text-muted-foreground text-sm">
+            <Trans>Connect a wallet to continue in Manager.</Trans>
+          </p>
+          <Button
+            className="w-full"
+            onClick={() => openConnectModal?.()}
+            size="lg"
+          >
+            <Trans>Connect Wallet</Trans>
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   if (isWrongWallet) {
     return (
@@ -54,7 +77,8 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
           </h3>
           <p className="text-muted-foreground text-sm">
             <Trans>
-              Reconnect the wallet used for notifications, then sign in again.
+              Reconnect the wallet used for this Manager sign-in, then sign in
+              again.
             </Trans>
           </p>
           {/* Show the two addresses */}
@@ -63,7 +87,7 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
               <Trans>Auth address:</Trans> {authAddress}
             </div>
             <div>
-              <Trans>Account address:</Trans> {ownerAddress}
+              <Trans>Connected address:</Trans> {connectedAddress}
             </div>
           </div>
           <Button
@@ -78,33 +102,8 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
     )
   }
 
-  if (isAuthed) {
+  if (isAuthed && authAddress && connectedAddress) {
     return <>{children}</>
-  }
-
-  if (connectionStatus === 'disconnected') {
-    return (
-      <div className="mx-auto max-w-md px-4 py-6">
-        <div className="space-y-4 text-center">
-          <h3 className="font-medium text-lg">
-            <Trans>Connect your wallet</Trans>
-          </h3>
-          <p className="text-muted-foreground text-sm">
-            <Trans>
-              Connect a wallet to continue to notification settings and
-              activity.
-            </Trans>
-          </p>
-          <Button
-            className="w-full"
-            onClick={() => openConnectModal?.()}
-            size="lg"
-          >
-            <Trans>Connect Wallet</Trans>
-          </Button>
-        </div>
-      </div>
-    )
   }
 
   const handleSignIn = async () => {
@@ -128,8 +127,7 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
           </h3>
           <p className="text-muted-foreground text-sm">
             <Trans>
-              Sign in to access notifications about your ENS domains, including
-              transfers, expiry reminders, and important updates.
+              Sign in to use wallet features that require Manager verification.
             </Trans>
           </p>
         </div>

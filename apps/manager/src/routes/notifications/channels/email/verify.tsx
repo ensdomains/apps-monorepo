@@ -230,7 +230,7 @@ function EmailVerificationPage() {
               variant="outline"
             >
               {isAuthed ? (
-                <Link to="/notifications/settings">
+                <Link search={{}} to="/notifications/settings">
                   <Trans>Back to Settings</Trans>
                 </Link>
               ) : (

@@ -15,6 +15,7 @@ import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
+import type { MigrationAiPreset } from '@/features/migration/components/migrationAiPreset'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { CommemorativeNftClaimDialog } from '@/features/migration/components/success/CommemorativeNftClaimDialog'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -194,7 +195,13 @@ const invalidateMigrationQueries = (
   })
 }
 
-export const MigrationPage = () => {
+export const MigrationPage = ({
+  preset,
+  names,
+}: {
+  readonly preset?: MigrationAiPreset
+  readonly names?: readonly string[]
+}) => {
   const navigate = useNavigate()
   const canGoBack = useCanGoBack()
   const { uiActor } = useMigrationUiContext()
@@ -350,8 +357,10 @@ export const MigrationPage = () => {
             gasAffordability={gasAffordability}
             gasEstimate={gasEstimate}
             gasFundingStatus={gasFundingStatus}
+            names={names}
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}
+            preset={preset}
           />
         ))
         .with('migrate', () => <GameStep />)

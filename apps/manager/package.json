@@ -21,7 +21,10 @@
     "i18n:push": "crowdin upload sources --config crowdin.yml",
     "i18n:pull": "crowdin download --config crowdin.yml",
     "lint": "biome check",
-    "lint:fix": "biome check --fix"
+    "lint:fix": "biome check --fix",
+    "test:ai": "vitest run src/features/ai src/features/dashboard/smartNameSearch.test.ts src/features/dashboard/service/jevNameSearch.test.ts src/features/dashboard/service/nameSearchLanguage.test.ts src/features/dashboard/mergedNames.test.ts src/features/profile/service/profileRecordProposal.test.ts src/features/profile/service/profileEditProposal.test.ts src/features/profile/components/dialogs/edit-profile/useRequestedProfileDialogOpen.test.ts src/features/bulk-renew/utils/durationPrefill.test.ts src/features/migration/components/migrationAiPreset.test.ts src/features/migration/hooks/useNameSelection.test.ts src/features/notifications/services/backendSession.test.ts src/features/notifications/data/readSelection.test.ts src/features/notifications/data/queries/notifications.test.ts src/features/notifications/data/queries/preferences.test.ts src/features/notifications/settings/preferences.test.ts src/features/notifications/data/queries/connectTelegram.test.ts src/features/notifications/data/queries/push.test.ts src/features/notifications/settings/contact-methods/pushProposal.test.ts src/features/notifications/settings/contact-methods/emailProposal.test.ts src/features/notifications/settings/contact-methods/telegram.test.ts src/features/register-v2/utils/durationSearch.test.ts && vitest run --config vitest.ai-eval.config.ts evals/ai/*.test.ts",
+    "eval:ai": "AI_EVAL_LIVE=1 vitest run --config vitest.ai-eval.config.ts evals/ai/live.eval.ts",
+    "eval:ai:smoke": "AI_EVAL_SMOKE=1 pnpm eval:ai"
   },
   "dependencies": {
     "@ens-apps/dev-dqa-overlay": "workspace:*",

@@ -12,7 +12,7 @@ vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok({}),
 }))
 
-import { getReverseName } from './profileReverseName'
+import { getReverseName, getReverseNameStrict } from './profileReverseName'
 
 const ADDRESS = '0xA6362Dcb7Db14C357E788C876eE99e1f982f1115' as Address
 
@@ -49,6 +49,23 @@ describe('getReverseName', () => {
     viemActionMocks.getEnsName.mockRejectedValue(new Error('rpc down'))
 
     const result = await getReverseName(ADDRESS)
+
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toBeNull()
+  })
+
+  it('keeps an RPC failure distinct from no primary name for strict lookups', async () => {
+    viemActionMocks.getEnsName.mockRejectedValue(new Error('rpc down'))
+
+    const result = await getReverseNameStrict(ADDRESS)
+
+    expect(result.isErr()).toBe(true)
+  })
+
+  it('returns a successful null when a strict lookup finds no primary name', async () => {
+    viemActionMocks.getEnsName.mockResolvedValue(null)
+
+    const result = await getReverseNameStrict(ADDRESS)
 
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toBeNull()

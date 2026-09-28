@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "corpus": "focused",
+  "exportName": "FOCUSED_AI_EVAL_CORPUS",
+  "authoredDate": "2026-09-26",
+  "caseCount": 60,
+  "developmentCount": 40,
+  "reservedCount": 20,
+  "splitUnit": "whole linguistic construction and scenario group",
+  "groupCount": 12,
+  "casesPerGroup": 5,
+  "labelsAuthoredBeforeProviderCalls": true,
+  "interpreterInspectedByAuthor": false,
+  "outcomeBasedLabelChangesAllowed": false,
+  "comparison": "Run the same immutable queries and exact expected prepared outcomes against current baseline and focused interpreter; report clarification, rejection, provider error and wrong proposal separately.",
+  "reservedPolicy": "Keep reserved prompts and labels from implementation agents until the candidate source is locked. Preserve first reserved outcomes. Subsequent runs are regressions, not blind evaluations.",
+  "privacyExposedBeforeProviderCalls": [
+    {
+      "id": "focused-contrasted-resource-role-1",
+      "reason": "Exact profile value exposed by both outgoing builders; inspected only to repair privacy. No model outcome or semantic label was used.",
+      "countsAsBlindReserved": false
+    }
+  ],
+  "remainingBlindReservedCount": 19,
+  "hashMethod": "sha256(JSON.stringify(FOCUSED_AI_EVAL_CORPUS))",
+  "corpusSha256": "35e6c0055512c264bfaaf61000d3ec850892ae8739f173582233ac37915052db"
+}

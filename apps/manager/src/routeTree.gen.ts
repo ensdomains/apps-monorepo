@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as MigrationPermissionsRouteImport } from './routes/migration-permissions'
 import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AiRouteImport } from './routes/ai'
 import { Route as NameRouteRouteImport } from './routes/$name/route'
 import { Route as AddressRouteRouteImport } from './routes/$address/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -46,6 +47,11 @@ const MigrationRoute = MigrationRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiRoute = AiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NameRouteRoute = NameRouteRouteImport.update({
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$address': typeof AddressRouteRouteWithChildren
   '/$name': typeof NameRouteRouteWithChildren
+  '/ai': typeof AiRoute
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
   '/migration-permissions': typeof MigrationPermissionsRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai': typeof AiRoute
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
   '/migration-permissions': typeof MigrationPermissionsRoute
@@ -206,6 +214,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$address': typeof AddressRouteRouteWithChildren
   '/$name': typeof NameRouteRouteWithChildren
+  '/ai': typeof AiRoute
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
   '/migration-permissions': typeof MigrationPermissionsRoute
@@ -233,6 +242,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$address'
     | '/$name'
+    | '/ai'
     | '/dashboard'
     | '/migration'
     | '/migration-permissions'
@@ -256,6 +266,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/ai'
     | '/dashboard'
     | '/migration'
     | '/migration-permissions'
@@ -280,6 +291,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$address'
     | '/$name'
+    | '/ai'
     | '/dashboard'
     | '/migration'
     | '/migration-permissions'
@@ -306,6 +318,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddressRouteRoute: typeof AddressRouteRouteWithChildren
   NameRouteRoute: typeof NameRouteRouteWithChildren
+  AiRoute: typeof AiRoute
   DashboardRoute: typeof DashboardRoute
   MigrationRoute: typeof MigrationRoute
   MigrationPermissionsRoute: typeof MigrationPermissionsRoute
@@ -345,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai': {
+      id: '/ai'
+      path: '/ai'
+      fullPath: '/ai'
+      preLoaderRoute: typeof AiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$name': {
@@ -535,6 +555,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddressRouteRoute: AddressRouteRouteWithChildren,
   NameRouteRoute: NameRouteRouteWithChildren,
+  AiRoute: AiRoute,
   DashboardRoute: DashboardRoute,
   MigrationRoute: MigrationRoute,
   MigrationPermissionsRoute: MigrationPermissionsRoute,

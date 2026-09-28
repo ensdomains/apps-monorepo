@@ -1,1 +1,5 @@
 VITE_TELEGRAM_BOT_ID=""
+
+# TypeSafe Jev API key for the Manager server function; use a deployed
+# Cloudflare secret when running beyond local development.
+TYPESAFE_API_KEY=""

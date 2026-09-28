@@ -7,6 +7,7 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 
 type UseV1NamesOptions = {
   readonly enabled?: boolean
+  readonly requireFresh?: boolean
 }
 
 const v1NamesQueryOptions = (
@@ -23,8 +24,11 @@ const v1NamesQueryOptions = (
   })
 
 export const useV1Names = (options: UseV1NamesOptions = {}) => {
-  const { enabled = true } = options
+  const { enabled = true, requireFresh = false } = options
   const { ownerAddress } = useSmartAccountContext()
   const { address } = useConnection()
-  return useQuery(v1NamesQueryOptions(ownerAddress ?? address, enabled))
+  return useQuery({
+    ...v1NamesQueryOptions(ownerAddress ?? address, enabled),
+    refetchOnMount: requireFresh ? 'always' : undefined,
+  })
 }

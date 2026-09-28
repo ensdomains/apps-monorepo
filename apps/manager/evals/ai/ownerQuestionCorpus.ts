@@ -1,0 +1,111 @@
+import type { AiEvalCase } from './corpus'
+
+// Independent labels for current-owner questions, authored before live calls.
+// The model sees redacted name tokens, not the names in these cases.
+export const OWNER_QUESTION_CORPUS: readonly AiEvalCase[] = [
+  {
+    id: 'owner-question-exact',
+    entryPoint: 'ai',
+    category: 'supported',
+    language: 'canonical',
+    split: 'development',
+    family: 'manager_action',
+    query: 'who owns pookie.eth?',
+    expected: {
+      status: 'ready',
+      action: {
+        intent: 'manager_action',
+        kind: 'view_profile_owner',
+        name: 'pookie.eth',
+      },
+    },
+    smoke: true,
+  },
+  {
+    id: 'owner-question-possessive',
+    entryPoint: 'ai',
+    category: 'supported',
+    language: 'paraphrase',
+    split: 'development',
+    family: 'manager_action',
+    query: "Who is willow.eth's owner?",
+    expected: {
+      status: 'ready',
+      action: {
+        intent: 'manager_action',
+        kind: 'view_profile_owner',
+        name: 'willow.eth',
+      },
+    },
+    smoke: false,
+  },
+  {
+    id: 'owner-question-current',
+    entryPoint: 'ai',
+    category: 'supported',
+    language: 'paraphrase',
+    split: 'development',
+    family: 'manager_action',
+    query: 'What is the current owner of willow.eth?',
+    expected: {
+      status: 'ready',
+      action: {
+        intent: 'manager_action',
+        kind: 'view_profile_owner',
+        name: 'willow.eth',
+      },
+    },
+    smoke: false,
+  },
+  {
+    id: 'owner-question-missing-name',
+    entryPoint: 'ai',
+    category: 'clarification',
+    language: 'canonical',
+    split: 'development',
+    family: 'manager_action',
+    query: 'Who owns this ENS name?',
+    expected: {
+      status: 'needs_input',
+      field: 'name',
+      interpretedAction: {
+        intent: 'manager_action',
+        kind: 'view_profile_owner',
+      },
+    },
+    smoke: false,
+  },
+  {
+    id: 'owner-question-previous-owner',
+    entryPoint: 'ai',
+    category: 'unsupported',
+    language: 'canonical',
+    split: 'development',
+    family: 'safety',
+    query: 'Who used to own willow.eth?',
+    expected: { status: 'unsupported' },
+    smoke: false,
+  },
+  {
+    id: 'owner-question-manager-role',
+    entryPoint: 'ai',
+    category: 'unsupported',
+    language: 'canonical',
+    split: 'development',
+    family: 'safety',
+    query: 'Who manages willow.eth?',
+    expected: { status: 'unsupported' },
+    smoke: false,
+  },
+  {
+    id: 'owner-question-extra-action',
+    entryPoint: 'ai',
+    category: 'unsupported',
+    language: 'canonical',
+    split: 'development',
+    family: 'safety',
+    query: 'Who owns willow.eth and renew it?',
+    expected: { status: 'unsupported' },
+    smoke: false,
+  },
+] as const
