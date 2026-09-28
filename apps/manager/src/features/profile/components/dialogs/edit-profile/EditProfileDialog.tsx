@@ -1,15 +1,28 @@
 import { Trans } from '@lingui/react/macro'
 import { useActorRef, useSelector } from '@xstate/react'
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
+import {
+  applyProfileEditProposal,
+  type ProfileEditProposal,
+} from '@/features/profile/service/profileEditProposal'
+import { getProfileFieldDefinition } from '@/features/profile/service/profileFieldRegistry'
 import { useAppForm } from '../../form'
 import { EditProfileDialogProvider } from './EditProfileDialog.context'
 import { editProfileDialogMachine } from './EditProfileDialog.machine'
 import type { EditProfileDialogProps } from './EditProfileDialog.types'
 import { EditProfileDialogBody } from './EditProfileDialogBody'
+import { generalShortcuts } from './tabs/general/fields'
 import { useEditProfileDialogSave } from './useEditProfileDialogSave'
+import { useRequestedProfileDialogOpen } from './useRequestedProfileDialogOpen'
+
+const getProposedGeneralField = (proposal?: ProfileEditProposal) => {
+  if (!proposal) return undefined
+  const key = getProfileFieldDefinition(proposal.field)?.key
+  return generalShortcuts.find(({ field }) => field === key)?.field
+}
 
 export const EditProfileDialog = ({
   name,
@@ -21,6 +34,7 @@ export const EditProfileDialog = ({
   onOpenChange,
   initialTab,
   initialLink,
+  initialProposal,
 }: EditProfileDialogProps) => {
   const dialogActor = useActorRef(editProfileDialogMachine, {
     input: { records },
@@ -44,6 +58,22 @@ export const EditProfileDialog = ({
   const form = useAppForm({
     defaultValues: records,
   })
+  const prefillProposal = useCallback(
+    (proposal: ProfileEditProposal) => {
+      const proposedRecords = applyProfileEditProposal(records, proposal)
+      for (const section of [
+        'base',
+        'contact',
+        'social',
+        'addresses',
+        'links',
+      ] as const) {
+        if (proposedRecords[section] !== records[section])
+          form.setFieldValue(section, proposedRecords[section])
+      }
+    },
+    [form, records],
+  )
 
   const {
     confirmSetupSave,
@@ -75,7 +105,16 @@ export const EditProfileDialog = ({
         if (initialLink) {
           form.setFieldValue('links', [...records.links, initialLink])
         }
+        if (initialProposal) {
+          prefillProposal(initialProposal)
+        }
         dialogActor.send({ type: 'OPEN', records })
+        const proposedGeneralField = getProposedGeneralField(initialProposal)
+        if (proposedGeneralField)
+          dialogActor.send({
+            type: 'SHOW_GENERAL_FIELD',
+            field: proposedGeneralField,
+          })
         onOpenChange?.(true)
         return
       }
@@ -92,6 +131,8 @@ export const EditProfileDialog = ({
       dialogActor,
       form,
       initialLink,
+      initialProposal,
+      prefillProposal,
       isSaving,
       onOpenChange,
       records,
@@ -99,12 +140,12 @@ export const EditProfileDialog = ({
     ],
   )
 
-  // A launcher may open the existing editor without rendering an extra trigger.
-  // The actor still owns save/close transitions and their resolver checks.
-  useEffect(() => {
-    if (requestedOpen === true && !open) handleOpenChange(true)
-    if (requestedOpen === false && open) handleOpenChange(false)
-  }, [requestedOpen, open, handleOpenChange])
+  useRequestedProfileDialogOpen({
+    requestedOpen,
+    open,
+    handleOpenChange,
+    onOpenChange,
+  })
 
   return (
     <>

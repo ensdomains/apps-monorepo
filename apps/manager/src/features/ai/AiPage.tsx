@@ -1,20 +1,27 @@
-import { Trans, useLingui } from '@lingui/react/macro'
+import { Trans } from '@lingui/react/macro'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/store-react'
+import { ArrowRight, Loader2 } from 'lucide-react'
 import {
-  ArrowRight,
-  CircleHelp,
-  Command,
-  Loader2,
-  Search,
-  Sparkles,
-} from 'lucide-react'
-import { type FormEvent, useMemo, useRef, useState } from 'react'
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { BulkRenewDialog, type BulkRenewName } from '@/features/bulk-renew'
 import {
   toBulkRenewName,
@@ -22,6 +29,7 @@ import {
 } from '@/features/dashboard/bulkRenewSelection'
 import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
 import { addFavoriteMutationOptions } from '@/features/dashboard/service/mutations/addFavorite'
+import { removeFavoriteMutationOptions } from '@/features/dashboard/service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '@/features/dashboard/service/queries/getFavorites'
 import {
   buildDashboardSearchResults,
@@ -30,41 +38,57 @@ import {
 } from '@/features/dashboard/smartNameSearch'
 import { useDashboardV1Names } from '@/features/dashboard/useDashboardV1Names'
 import { useOwnedDomains } from '@/features/dashboard/useOwnedDomains'
+import { resolveDomainLabel } from '@/features/dashboard/utils'
+import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { EditProfileDialog } from '@/features/profile/components/dialogs/edit-profile/EditProfileDialog'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
 import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
+import {
+  getProfileFieldDefinition,
+  getProfileNetwork,
+} from '@/features/profile/service/profileFieldRegistry'
 import { normalizeEthName } from '@/features/profile/service/profileName'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
+import { checkProfileEditProposal } from '@/features/profile/service/profileRecordProposal'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameStrictQuery } from '@/features/profile/service/profileReverseName'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
-import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { backendAuthStore } from '@/utils/backend-client'
+import { AiConfirmationPreview } from './AiConfirmationPreview'
+import { AiNamesResults } from './AiNamesResults'
+import { AiPrompt } from './AiPrompt'
+import {
+  type AiConfirmationContext,
+  confirmAiInterpretation,
+  isAiConfirmationCurrent,
+} from './actionConfirmation'
+import { type AiDialog, resolveAiDialog } from './actionDialog'
 import type { AiInterpretResult } from './intent'
 import { interpretAiAction } from './interpretAiAction'
+import { ManagerActionReview } from './ManagerActionReview'
 import {
+  getManagerActionTitle,
+  type PreparedManagerAction,
+} from './managerActions'
+import { getNameSelectionIssue } from './nameSelection'
+import { openAiAction } from './openAiAction'
+import { prepareAiDetail } from './prepareAiDetail'
+import {
+  type AiHandoffInputs,
   type AiHandoffPreparation,
   type PreparedAiAction,
   prepareAiHandoff,
 } from './prepareAiHandoff'
 
-const examples = [
-  'Set yoginth.eth as primary name',
-  'Register yoginth.eth for 69 days',
-  'Renew name.eth for two years',
-  'Show my manager names expiring within 45 days',
-  'Upgrade eligible V1 names except ones needing manager restoration',
-  'Add my GitHub to yoginth.eth',
-  'Turn on favourite expiry reminders',
-] as const
-
 const actionTitle = (action: PreparedAiAction): string => {
   switch (action.intent) {
+    case 'manager_action':
+      return getManagerActionTitle(action)
     case 'set_primary':
       return `Set ${action.name} as primary`
     case 'register':
@@ -72,7 +96,11 @@ const actionTitle = (action: PreparedAiAction): string => {
     case 'renew':
       return `Renew ${action.name}`
     case 'find_names':
-      return 'Names matching your request'
+      return action.filters.expiry === 'in-grace'
+        ? 'Names in grace'
+        : action.filters.expiry === 'past-grace'
+          ? 'Names past grace'
+          : 'Your names'
     case 'bulk_renew':
       return 'Review names for bulk renewal'
     case 'migrate':
@@ -88,28 +116,63 @@ const actionTitle = (action: PreparedAiAction): string => {
   }
 }
 
+const profileDescription = (
+  action: Extract<PreparedAiAction, { intent: 'edit_profile' }>,
+): string => {
+  if (action.link)
+    return `Open Links with ${action.link.url} proposed. Review and save it in the editor.`
+  const proposal = action.proposal
+  if (!proposal)
+    return `Open the ${action.section} section of the profile editor.`
+  const field =
+    proposal.field === 'address'
+      ? `${getProfileNetwork(proposal.coinType)?.name ?? 'Network'} address`
+      : proposal.field === 'link'
+        ? `link “${proposal.linkTarget ?? proposal.linkName}”`
+        : (getProfileFieldDefinition(proposal.field)?.label ??
+          proposal.field.replaceAll('_', ' '))
+  switch (proposal.operation) {
+    case 'remove':
+      return `Remove ${field} from the draft. Review and save it in the editor.`
+    case 'feature':
+      return `Feature ${field} on this profile. Review and save it in the editor.`
+    case 'unfeature':
+      return `Stop featuring ${field} on this profile. Review and save it in the editor.`
+    case 'use_eth':
+      return 'Use the existing Ethereum address for this network. Review and save it in the editor.'
+    case 'rename':
+      return `Rename ${field} to ${proposal.field === 'link' ? proposal.linkName : proposal.value}. Review and save it in the editor.`
+    default:
+      return `Set ${field} to ${proposal.value} in the draft. Review and save it in the editor.`
+  }
+}
+
 const actionDescription = (action: PreparedAiAction): string => {
   switch (action.intent) {
     case 'set_primary':
-      return 'Manager will verify this exact name and ask your wallet to confirm the primary name change.'
+      return 'Review this name, then confirm with your wallet.'
     case 'register':
-      return `${action.durationDays} days. Manager will check availability, show the price and resulting expiry date, then ask you to confirm.`
+      return `Register for ${action.durationDays} days. Review availability and pricing in the next step.`
     case 'renew':
-      return `Add ${action.durationYears ? `${action.durationYears} ${action.durationYears === 1 ? 'year' : 'years'}` : `${action.durationDays} days`}. Manager will check the name, price and checkout conditions.`
+      if (action.targetDate)
+        return `Renew to the end of ${action.targetDate} in your local calendar. Review the date and pricing before confirming.`
+      return `Extend by ${action.durationYears ? `${action.durationYears} ${action.durationYears === 1 ? 'year' : 'years'}` : `${action.durationDays} days`}. Review pricing before confirming.`
     case 'find_names':
       return 'These filters are applied to the names loaded for your connected wallet.'
     case 'bulk_renew':
-      return 'Only currently renewable ENSv2 .eth names will enter the existing review and pricing dialog.'
+      return action.targetDate
+        ? `Renew the eligible names to the end of ${action.targetDate} in your local calendar. Review each name’s expiry and price before confirming.`
+        : 'Review the eligible names and renewal price before confirming.'
     case 'migrate':
       return action.excludeManagerRestoration
         ? 'Manager will check fresh eligibility and exclude names that need manager restoration.'
         : 'Manager will check fresh eligibility before showing the migration flow.'
     case 'edit_profile':
-      return action.link
-        ? `Open the ${action.section} editor with ${action.link.url} proposed. You review and save it.`
-        : `Open the ${action.section} section of the existing profile editor. You review and save any changes.`
+      return profileDescription(action)
     case 'notification':
-      return `Open notification settings with ${action.preference} proposed. Saving still requires a verified contact method.`
+      return `Open settings with ${action.preference === 'ensLabsUpdates' ? 'ENS Labs updates' : action.preference === 'ownedNameExpiry' ? 'owned name expiry reminders' : 'favourite name expiry reminders'} turned ${action.enabled ? 'on' : 'off'} in the draft. Review and save the change.`
+    case 'manager_action':
+      return 'Open the existing Manager control to review this request.'
     case 'favorite':
       return 'Add this name to your favourites after you confirm here.'
     case 'view_name':
@@ -118,10 +181,15 @@ const actionDescription = (action: PreparedAiAction): string => {
 }
 
 const resultMessage = (result: AiInterpretResult | null): string | null => {
-  if (!result || result.status === 'ok') return null
+  if (
+    !result ||
+    result.status === 'ok' ||
+    result.status === 'needs_confirmation'
+  )
+    return null
   switch (result.status) {
     case 'unsupported':
-      return 'I could not safely match every part of that request to a supported Manager action. Try one action at a time.'
+      return 'I couldn’t match that request. Try finding names, editing a profile, or renewing a name.'
     case 'unauthorized':
       return 'Your Manager sign-in expired. Sign in with your wallet again to use AI actions.'
     case 'rate_limited':
@@ -131,8 +199,49 @@ const resultMessage = (result: AiInterpretResult | null): string | null => {
   }
 }
 
+const resultTitle = (result: AiInterpretResult | null): string => {
+  switch (result?.status) {
+    case 'ok':
+      return 'One more detail'
+    case 'needs_confirmation':
+      return 'Is this what you meant?'
+    case 'unauthorized':
+      return 'Sign in to continue'
+    case 'rate_limited':
+      return 'Try again shortly'
+    case 'unavailable':
+      return 'AI is unavailable'
+    default:
+      return 'Try another request'
+  }
+}
+
+const previewDialogTitle = (
+  isPending: boolean,
+  action: PreparedAiAction | null,
+  result: AiInterpretResult | null,
+): string => {
+  if (isPending) return 'Working on your request'
+  return action ? actionTitle(action) : resultTitle(result)
+}
+
+const prepareNameSelection = (
+  result: AiInterpretResult,
+  inputs: AiHandoffInputs,
+) => {
+  if (result.status !== 'ok' || result.action.intent !== 'find_names')
+    return null
+  const selection = prepareAiHandoff(result.action, inputs)
+  return selection.status === 'ready' &&
+    selection.action.intent === 'find_names'
+    ? selection.action
+    : null
+}
+
 const actionButtonLabel = (action: PreparedAiAction): string => {
   switch (action.intent) {
+    case 'manager_action':
+      return 'Continue'
     case 'set_primary':
       return 'Review primary name'
     case 'register':
@@ -158,219 +267,195 @@ const actionButtonLabel = (action: PreparedAiAction): string => {
 
 type NameMatch = ReturnType<typeof buildDashboardSearchResults>[number]
 
-const PromptComposer = ({
-  prompt,
-  isPending,
-  isAuthenticated,
-  onChange,
-  onSubmit,
+const NameMatchesPreview = ({
+  action,
+  data,
 }: {
-  prompt: string
-  isPending: boolean
-  isAuthenticated: boolean
-  onChange: (value: string) => void
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  action: Extract<PreparedAiAction, { intent: 'find_names' | 'bulk_renew' }>
+  data: ActionPreviewData
 }) => {
-  const { t } = useLingui()
-
-  return (
-    <form
-      className="overflow-hidden rounded-2xl border border-ens-quartz-200 bg-white shadow-[0_18px_60px_rgba(7,28,47,0.07)]"
-      onSubmit={onSubmit}
-    >
-      <label
-        className="block px-5 pt-5 font-mono text-ens-quartz-400 text-xs uppercase tracking-wide"
-        htmlFor="ai-prompt"
+  if (!data.filterDataAvailable) {
+    return (
+      <p className="py-8 text-center text-ens-quartz-500 text-sm" role="alert">
+        Wallet data is unavailable. Please try again.
+      </p>
+    )
+  }
+  if (!data.nameDataReady) {
+    return (
+      <div
+        className="flex items-center justify-center gap-3 py-16 text-ens-quartz-500 text-sm"
+        role="status"
       >
-        <Trans>Your request</Trans>
-      </label>
-      <textarea
-        aria-describedby="ai-prompt-guidance"
-        autoComplete="off"
-        className="min-h-35 w-full resize-y border-0 bg-transparent px-5 py-4 font-sans text-lg leading-relaxed outline-none placeholder:text-ens-quartz-300 focus-visible:outline-2 focus-visible:outline-ens-lapis-500"
-        id="ai-prompt"
-        maxLength={160}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={t`e.g. Renew name.eth for two years`}
-        value={prompt}
-      />
-      <div className="flex flex-col gap-3 border-ens-quartz-100 border-t px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <span
-          className="flex items-start gap-1.5 text-ens-quartz-400 text-xs sm:items-center"
-          id="ai-prompt-guidance"
-        >
-          <CircleHelp aria-hidden="true" className="size-3.5 shrink-0" />
-          <Trans>One action per request. You confirm every change.</Trans>
-        </span>
-        <Button
-          className="w-full shrink-0 sm:w-auto"
-          disabled={!prompt.trim() || isPending || !isAuthenticated}
-          size="lg"
-          type="submit"
-        >
-          {isPending ? (
-            <Loader2 aria-hidden="true" className="mr-2 size-4 animate-spin" />
-          ) : (
-            <ArrowRight aria-hidden="true" className="mr-2 size-4" />
-          )}
-          <Trans>Find action</Trans>
-        </Button>
+        <Loader2 aria-hidden="true" className="size-5 animate-spin" />
+        Loading your names…
       </div>
-    </form>
+    )
+  }
+  return (
+    <div>
+      {action.intent === 'bulk_renew' ? (
+        <p className="mb-5 text-ens-quartz-500 text-sm">
+          {data.renewableCount} of {data.matches.length} matching names can be
+          renewed together.
+        </p>
+      ) : null}
+      <AiNamesResults
+        favoriteLabels={data.favoriteLabels}
+        filters={action.filters}
+        isAuthenticated={data.isAuthenticated}
+        migrationEnabled={data.migrationEnabled}
+        names={action.names}
+        onToggleFavorite={data.onToggleFavorite}
+        primaryLabel={data.primaryLabel}
+      />
+    </div>
   )
 }
 
-const ExamplePrompts = ({
-  onChoose,
-}: {
-  onChoose: (example: string) => void
-}) => (
-  <div className="space-y-3">
-    <div className="flex items-center gap-2 font-mono text-ens-quartz-400 text-xs uppercase tracking-wide">
-      <Command aria-hidden="true" className="size-3.5" />
-      <Trans>Try a request</Trans>
-    </div>
-    <div className="flex flex-wrap gap-2">
-      {examples.map((example) => (
-        <button
-          className="rounded-full border border-ens-quartz-200 bg-white px-3.5 py-2 text-left font-sans text-ens-quartz-600 text-sm transition-colors hover:border-ens-lapis-500 hover:text-ens-lapis-500 focus-visible:outline-2 focus-visible:outline-ens-lapis-500"
-          key={example}
-          onClick={() => onChoose(example)}
-          type="button"
-        >
-          {example}
-        </button>
-      ))}
-    </div>
-  </div>
-)
+type NeededDetailControlProps = {
+  readonly preparation: Extract<AiHandoffPreparation, { status: 'needs_input' }>
+  readonly value: string
+  readonly error: string | null
+  readonly onChange: (value: string) => void
+}
 
-const NameMatchesPreview = ({
-  action,
-  matches,
-  renewableCount,
-  nameDataReady,
-  filterDataAvailable,
-}: {
-  action: Extract<PreparedAiAction, { intent: 'find_names' | 'bulk_renew' }>
-  matches: readonly NameMatch[]
-  renewableCount: number
-  nameDataReady: boolean
-  filterDataAvailable: boolean
-}) => (
-  <div className="space-y-3" id="ai-matches">
-    {filterDataAvailable ? null : (
-      <p className="text-ens-garnet-900 text-sm">
-        Wallet data needed for this action is unavailable. Try again later.
-      </p>
-    )}
-    {nameDataReady || !filterDataAvailable ? null : (
-      <p className="text-ens-quartz-500 text-sm">
-        Loading all wallet names before showing results…
-      </p>
-    )}
-    {nameDataReady && filterDataAvailable ? (
-      <>
-        <p className="font-medium text-sm">
-          {matches.length} matching {matches.length === 1 ? 'name' : 'names'}
-          {action.intent === 'bulk_renew'
-            ? ` · ${renewableCount} renewable`
-            : ''}
-        </p>
-        <ul className="max-h-52 space-y-1 overflow-y-auto">
-          {matches.slice(0, 20).map((item) => (
-            <li
-              className="flex items-center justify-between gap-2 rounded-lg bg-ens-quartz-100 px-3 py-2 text-sm"
-              key={item.key}
-            >
-              <span className="min-w-0 truncate">{item.sortName}</span>
-              <span className="shrink-0 font-mono text-ens-quartz-400 text-xs uppercase">
-                {item.kind}
-              </span>
-            </li>
-          ))}
-        </ul>
-        {matches.length > 20 ? (
-          <p className="text-ens-quartz-400 text-xs">
-            Showing the first 20 names. All matching renewable names enter the
-            review.
-          </p>
-        ) : null}
-      </>
-    ) : null}
-  </div>
-)
+const NeededDetailControl = ({
+  preparation,
+  value,
+  error,
+  onChange,
+}: NeededDetailControlProps) => {
+  const accessibility = {
+    'aria-describedby': error ? 'ai-detail-error' : undefined,
+    'aria-invalid': !!error,
+    id: 'ai-needed-detail',
+  }
+  if (preparation.options) {
+    return (
+      <select
+        {...accessibility}
+        className="h-11 w-full rounded-lg border border-ens-quartz-200 bg-white px-3 outline-none focus-visible:border-ens-lapis-500 focus-visible:outline-2 focus-visible:outline-ens-lapis-500"
+        onChange={(event) => onChange(event.target.value)}
+        value={value}
+      >
+        <option disabled value="">
+          Choose an option
+        </option>
+        {preparation.options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    )
+  }
+  if (preparation.multiline) {
+    return (
+      <textarea
+        {...accessibility}
+        className="min-h-24 w-full rounded-lg border border-ens-quartz-200 px-3 py-2 outline-none focus-visible:border-ens-lapis-500 focus-visible:outline-2 focus-visible:outline-ens-lapis-500"
+        maxLength={500}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={preparation.placeholder}
+        value={value}
+      />
+    )
+  }
+  const isDuration = preparation.field.startsWith('duration')
+  const defaultPlaceholder =
+    preparation.field === 'name'
+      ? 'name.eth'
+      : preparation.field === 'url'
+        ? 'https://github.com/you'
+        : 'e.g. 2'
+  return (
+    <input
+      {...accessibility}
+      className="h-11 w-full rounded-lg border border-ens-quartz-200 px-3 outline-none focus-visible:border-ens-lapis-500 focus-visible:outline-2 focus-visible:outline-ens-lapis-500"
+      inputMode={isDuration ? 'numeric' : 'text'}
+      min={preparation.minimum ?? 1}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={preparation.placeholder ?? defaultPlaceholder}
+      type={isDuration ? 'number' : 'text'}
+      value={value}
+    />
+  )
+}
 
 const NeededDetailPreview = ({
   preparation,
-  nameInput,
-  durationInput,
-  urlInput,
-  onNameChange,
-  onDurationChange,
-  onUrlChange,
+  value,
+  error,
+  onChange,
+  onSubmit,
 }: {
   preparation: Exclude<AiHandoffPreparation, { status: 'ready' }>
-  nameInput: string
-  durationInput: string
-  urlInput: string
-  onNameChange: (value: string) => void
-  onDurationChange: (value: string) => void
-  onUrlChange: (value: string) => void
+  value: string
+  error: string | null
+  onChange: (value: string) => void
+  onSubmit: () => void
 }) => {
   if (preparation.status === 'invalid') {
     return (
-      <p className="rounded-xl bg-ens-garnet-100 p-4 text-ens-garnet-900 text-sm">
+      <p
+        className="rounded-xl bg-ens-garnet-100 p-4 text-ens-garnet-900 text-sm"
+        role="alert"
+      >
         {preparation.message}
       </p>
     )
   }
-
   const labels = {
     name: 'ENS name',
     url: 'Link URL',
     durationDays: 'Days',
     durationYears: 'Years',
+    profileValue: 'Profile value',
+    profileField: 'Profile field',
+    durationUnit: 'Duration unit',
+    notificationPreference: 'Notification preference',
+    notificationEnabled: 'Notification setting',
+    profileNetwork: 'Address network',
+    profileLinkName: 'Link name',
+    profileLinkTarget: 'Existing link title',
+    address: 'Wallet address',
+    managerValue: 'Value',
   } as const
-  const isDuration = preparation.field.startsWith('duration')
-  const value =
-    preparation.field === 'name'
-      ? nameInput
-      : preparation.field === 'url'
-        ? urlInput
-        : durationInput
-  const onChange =
-    preparation.field === 'name'
-      ? onNameChange
-      : preparation.field === 'url'
-        ? onUrlChange
-        : onDurationChange
-
   return (
-    <div className="space-y-4">
-      <h2 className="font-sans text-xl">
-        <Trans>One detail needed</Trans>
-      </h2>
+    <form
+      className="space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault()
+        onSubmit()
+      }}
+    >
       <p className="text-ens-quartz-500 text-sm">{preparation.message}</p>
-      <label className="block space-y-2 text-sm">
-        <span className="font-medium">{labels[preparation.field]}</span>
-        <input
-          className="h-11 w-full rounded-lg border border-ens-quartz-200 px-3 outline-none focus-visible:border-ens-lapis-500 focus-visible:outline-2 focus-visible:outline-ens-lapis-500"
-          inputMode={isDuration ? 'numeric' : 'text'}
-          min={preparation.field === 'durationDays' ? 28 : 1}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={
-            preparation.field === 'name'
-              ? 'name.eth'
-              : preparation.field === 'url'
-                ? 'https://github.com/you'
-                : 'e.g. 2'
-          }
-          type={isDuration ? 'number' : 'text'}
+      <label className="block space-y-2 text-sm" htmlFor="ai-needed-detail">
+        <span className="font-medium">
+          {preparation.label ?? labels[preparation.field]}
+        </span>
+        <NeededDetailControl
+          error={error}
+          onChange={onChange}
+          preparation={preparation}
           value={value}
         />
       </label>
-    </div>
+      {error ? (
+        <p
+          className="text-ens-garnet-900 text-sm"
+          id="ai-detail-error"
+          role="alert"
+        >
+          {error}
+        </p>
+      ) : null}
+      <Button className="w-full" disabled={!value.trim()} type="submit">
+        <Trans>Continue</Trans>
+        <ArrowRight aria-hidden="true" className="ml-2 size-4" />
+      </Button>
+    </form>
   )
 }
 
@@ -414,6 +499,10 @@ type ActionPreviewData = {
   profileReady: boolean
   canEditProfile: boolean
   migrationEnabled: boolean
+  primaryLabel?: string | null
+  favoriteLabels: ReadonlySet<string>
+  isAuthenticated: boolean
+  onToggleFavorite: (label: string) => void
 }
 
 const ReadyActionPreview = ({
@@ -434,17 +523,13 @@ const ReadyActionPreview = ({
   onContinue: () => void
 }) => (
   <div className="space-y-5">
-    <div className="space-y-3">
-      <span className="inline-block rounded-full bg-ens-lapis-100 px-2.5 py-1 font-mono text-ens-lapis-500 text-xs uppercase">
-        <Trans>Understood</Trans>
-      </span>
-      <h2 className="font-sans text-2xl leading-tight tracking-tight">
-        {actionTitle(action)}
-      </h2>
+    {action.intent !== 'find_names' &&
+    action.intent !== 'bulk_renew' &&
+    action.intent !== 'edit_profile' ? (
       <p className="text-ens-quartz-500 text-sm leading-relaxed">
         {actionDescription(action)}
       </p>
-    </div>
+    ) : null}
     {multiAction ? (
       <p className="rounded-xl border border-ens-quartz-200 bg-ens-quartz-100 p-3 text-ens-quartz-600 text-sm">
         This also asks for {multiAction.nextIntent.replaceAll('_', ' ')}.
@@ -452,13 +537,7 @@ const ReadyActionPreview = ({
       </p>
     ) : null}
     {action.intent === 'find_names' || action.intent === 'bulk_renew' ? (
-      <NameMatchesPreview
-        action={action}
-        filterDataAvailable={data.filterDataAvailable}
-        matches={data.matches}
-        nameDataReady={data.nameDataReady}
-        renewableCount={data.renewableCount}
-      />
+      <NameMatchesPreview action={action} data={data} />
     ) : null}
     <ActionAccessStatus
       action={action}
@@ -502,13 +581,13 @@ const ActionPreview = ({
   issue,
   canContinue,
   data,
-  nameInput,
-  durationInput,
-  urlInput,
-  onNameChange,
-  onDurationChange,
-  onUrlChange,
+  detailInput,
+  detailError,
+  onDetailChange,
+  onDetailSubmit,
   onContinue,
+  onConfirmInterpretation,
+  onEditRequest,
 }: {
   result: AiInterpretResult | null
   preparation: AiHandoffPreparation | null
@@ -518,13 +597,13 @@ const ActionPreview = ({
   issue: string | null
   canContinue: boolean
   data: ActionPreviewData
-  nameInput: string
-  durationInput: string
-  urlInput: string
-  onNameChange: (value: string) => void
-  onDurationChange: (value: string) => void
-  onUrlChange: (value: string) => void
+  detailInput: string
+  detailError: string | null
+  onDetailChange: (value: string) => void
+  onDetailSubmit: () => void
   onContinue: () => void
+  onConfirmInterpretation: () => void
+  onEditRequest: () => void
 }) => {
   const errorMessage = resultMessage(result)
   let content: React.ReactNode = null
@@ -550,6 +629,14 @@ const ActionPreview = ({
         {errorMessage}
       </p>
     )
+  } else if (result?.status === 'needs_confirmation') {
+    content = (
+      <AiConfirmationPreview
+        onConfirm={onConfirmInterpretation}
+        onEdit={onEditRequest}
+        result={result}
+      />
+    )
   } else if (result?.status === 'ok' && action) {
     content = (
       <ReadyActionPreview
@@ -569,177 +656,20 @@ const ActionPreview = ({
   ) {
     content = (
       <NeededDetailPreview
-        durationInput={durationInput}
-        nameInput={nameInput}
-        onDurationChange={onDurationChange}
-        onNameChange={onNameChange}
-        onUrlChange={onUrlChange}
+        error={detailError}
+        onChange={onDetailChange}
+        onSubmit={onDetailSubmit}
         preparation={preparation}
-        urlInput={urlInput}
+        value={detailInput}
       />
-    )
-  } else {
-    content = (
-      <div className="flex min-h-55 flex-col justify-center gap-3 text-center">
-        <Search
-          aria-hidden="true"
-          className="mx-auto size-8 text-ens-quartz-300"
-        />
-        <p className="font-sans text-ens-quartz-500">
-          <Trans>Enter a request to see what Manager can do.</Trans>
-        </p>
-      </div>
     )
   }
 
   return (
-    <aside className="min-w-0 lg:row-span-2 lg:pt-5">
-      <div className="rounded-2xl border border-ens-quartz-200 bg-white p-5 shadow-[0_18px_60px_rgba(7,28,47,0.04)] sm:p-6 lg:sticky lg:top-24 lg:min-h-80 lg:p-7">
-        <div className="mb-6 flex items-center gap-2 font-mono text-ens-lapis-500 text-xs uppercase tracking-wide">
-          <Sparkles aria-hidden="true" className="size-4" />
-          <Trans>Action preview</Trans>
-        </div>
-        <div aria-busy={isPending} aria-live="polite">
-          {content}
-        </div>
-      </div>
-    </aside>
+    <div aria-busy={isPending} aria-live="polite">
+      {content}
+    </div>
   )
-}
-
-type AiHandoffContext = {
-  navigate: ReturnType<typeof useNavigate>
-  queryClient: ReturnType<typeof useQueryClient>
-  favoriteLabels: ReadonlySet<string>
-  addFavorite: (input: { name: string }) => Promise<unknown>
-  openPrimary: () => void
-  openBulkRenew: () => void
-  openProfileEditor: () => void
-}
-
-const openRegistration = async (
-  action: Extract<PreparedAiAction, { intent: 'register' }>,
-  { queryClient, navigate }: AiHandoffContext,
-): Promise<string | null> => {
-  const availability = await queryClient.fetchQuery({
-    ...getRegistrationV2AvailabilityQueryOptions(action.name),
-    staleTime: 0,
-  })
-  if (!availability?.isAvailable) {
-    return `${action.name} is unavailable for registration.`
-  }
-  await navigate({
-    to: '/register/$name',
-    params: { name: action.name },
-    search: { durationDays: action.durationDays },
-  })
-  return null
-}
-
-const openRenewal = async (
-  action: Extract<PreparedAiAction, { intent: 'renew' }>,
-  { queryClient, navigate }: AiHandoffContext,
-): Promise<string | null> => {
-  const owner = await queryClient.fetchQuery({
-    ...profileOwnerQuery(action.name),
-    staleTime: 0,
-  })
-  if (!owner?.owner) {
-    return 'Manager could not find an active registration for this name.'
-  }
-  const search =
-    action.durationYears === undefined
-      ? { durationDays: action.durationDays }
-      : { durationYears: action.durationYears }
-  if (owner.protocol === 'v1') {
-    await navigate({
-      to: '/renew-v1/$name',
-      params: { name: action.name },
-      search,
-    })
-  } else {
-    await navigate({
-      to: '/renew/$name',
-      params: { name: action.name },
-      search,
-    })
-  }
-  return null
-}
-
-const openAiAction = async (
-  action: PreparedAiAction,
-  context: AiHandoffContext,
-): Promise<string | null> => {
-  switch (action.intent) {
-    case 'set_primary':
-      context.openPrimary()
-      return null
-    case 'register':
-      return openRegistration(action, context)
-    case 'renew':
-      return openRenewal(action, context)
-    case 'find_names':
-      document
-        .getElementById('ai-matches')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      return null
-    case 'bulk_renew':
-      context.openBulkRenew()
-      return null
-    case 'migrate':
-      await context.navigate({
-        to: '/migration',
-        search: action.excludeManagerRestoration
-          ? { preset: 'eligible-no-manager-restoration' }
-          : {},
-      })
-      return null
-    case 'edit_profile':
-      context.openProfileEditor()
-      return null
-    case 'notification':
-      await context.navigate({
-        to: '/notifications/settings',
-        search: {
-          aiPreference: action.preference,
-          aiEnabled: action.enabled,
-        },
-      })
-      return null
-    case 'favorite':
-      if (context.favoriteLabels.has(action.name.toLowerCase())) {
-        return `${action.name} is already in your favourites.`
-      }
-      await context.addFavorite({ name: action.name })
-      return null
-    case 'view_name':
-      await context.navigate({ to: '/$name', params: { name: action.name } })
-      return null
-  }
-}
-
-const prepareCurrentAction = (
-  result: AiInterpretResult | null,
-  nameInput: string,
-  durationInput: string,
-  urlInput: string,
-  lastFilters: SmartNameFilters | undefined,
-): AiHandoffPreparation | null => {
-  if (result?.status !== 'ok') return null
-  return prepareAiHandoff(result.action, {
-    name: nameInput,
-    durationDays:
-      result.action.intent === 'register' && durationInput
-        ? Number(durationInput)
-        : undefined,
-    durationYears:
-      result.action.intent === 'renew' && durationInput
-        ? Number(durationInput)
-        : undefined,
-    url: urlInput,
-    lastFilters,
-  })
 }
 
 const useAiNameData = (action: PreparedAiAction | null) => {
@@ -763,6 +693,10 @@ const useAiNameData = (action: PreparedAiAction | null) => {
     action?.intent === 'find_names' || action?.intent === 'bulk_renew'
       ? action.filters
       : null
+  const requestedNames =
+    action?.intent === 'find_names' || action?.intent === 'bulk_renew'
+      ? action.names
+      : undefined
   const needsFavorites = requestedFilters?.favorite !== undefined
   const needsPrimary = requestedFilters?.primary !== undefined
   const favoritesReady =
@@ -785,11 +719,19 @@ const useAiNameData = (action: PreparedAiAction | null) => {
             sortField: 'name',
             sortDir: 'asc',
             smartFilters: requestedFilters,
+            exactNames: requestedNames,
             primaryLabel: primaryName,
             favoriteLabels,
           })
         : [],
-    [requestedFilters, owned.v2Names, v1.v1Names, primaryName, favoriteLabels],
+    [
+      requestedFilters,
+      requestedNames,
+      owned.v2Names,
+      v1.v1Names,
+      primaryName,
+      favoriteLabels,
+    ],
   )
   const renewableNames = useMemo<BulkRenewName[]>(
     () =>
@@ -807,6 +749,16 @@ const useAiNameData = (action: PreparedAiAction | null) => {
     !v1.isError &&
     favoritesReady &&
     primaryReady
+  const nameSelectionIssue = getNameSelectionIssue(
+    action,
+    nameDataReady,
+    matches,
+    renewableNames,
+    [
+      ...owned.v2Names.map(resolveDomainLabel),
+      ...v1.v1Names.map(({ domain }) => domain.name),
+    ],
+  )
   const filterDataAvailable =
     !owned.isError &&
     !v1.isError &&
@@ -820,10 +772,12 @@ const useAiNameData = (action: PreparedAiAction | null) => {
   return {
     migrationEnabled,
     favoriteLabels,
+    primaryLabel: primaryName,
     matches,
     renewableNames,
     nameDataReady,
     filterDataAvailable,
+    nameSelectionIssue,
   }
 }
 
@@ -855,14 +809,33 @@ const useAiProfileData = (action: PreparedAiAction | null) => {
     !(
       profileOwner.data.protocol === 'v1' && normalizeEthName(editName) !== null
     ) &&
+    !profileOwner.isError &&
+    !profileRecords.isError &&
+    !profileExpiry.isError &&
     !getProfileExpiryResultStatus(profileExpiry.data).isInGrace
   const profileReady =
     !!editName &&
     !profileOwner.isPending &&
     !profileRecords.isPending &&
-    !profileExpiry.isPending
+    (!profileOwner.data || !profileExpiry.isPending)
+  const profileProposalIssue =
+    profileReady &&
+    profileRecords.data &&
+    action?.intent === 'edit_profile' &&
+    action.proposal
+      ? checkProfileEditProposal(
+          transformProfileRecords(profileRecords.data),
+          action.proposal,
+        )
+      : null
 
-  return { profileOwner, profileRecords, canEditProfile, profileReady }
+  return {
+    profileOwner,
+    profileRecords,
+    canEditProfile,
+    profileReady,
+    profileProposalIssue,
+  }
 }
 
 const canContinueAction = (
@@ -882,13 +855,25 @@ const canContinueAction = (
     return nameData.nameDataReady && nameData.filterDataAvailable
   }
   if (action.intent === 'edit_profile') {
-    return profileData.profileReady && profileData.canEditProfile
+    return (
+      profileData.profileReady &&
+      profileData.canEditProfile &&
+      !profileData.profileProposalIssue
+    )
   }
   if (action.intent === 'migrate') return nameData.migrationEnabled
   return true
 }
 
+// A new wallet starts a new draft and selection context. Names selected by one
+// account must never become a follow-up action for a different account.
 export const AiPage = () => {
+  const { address } = useConnection()
+  return <AiSessionPage key={address?.toLowerCase() ?? 'disconnected'} />
+}
+
+const AiSessionPage = () => {
+  const { address } = useConnection()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const authToken = useSelector(
@@ -897,28 +882,52 @@ export const AiPage = () => {
   )
   const [prompt, setPrompt] = useState('')
   const [result, setResult] = useState<AiInterpretResult | null>(null)
-  const [nameInput, setNameInput] = useState('')
-  const [durationInput, setDurationInput] = useState('')
-  const [urlInput, setUrlInput] = useState('')
+  const [detailInput, setDetailInput] = useState('')
+  const [detailError, setDetailError] = useState<string | null>(null)
+  const [details, setDetails] = useState<AiHandoffInputs>({})
+  const [hasConfirmedDetails, setHasConfirmedDetails] = useState(false)
   const [issue, setIssue] = useState<string | null>(null)
   const [isHandoffPending, setIsHandoffPending] = useState(false)
-  const [primaryOpen, setPrimaryOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [bulkOpen, setBulkOpen] = useState(false)
+  const [activeDialog, setActiveDialog] = useState<AiDialog>(null)
+  const [managerReview, setManagerReview] =
+    useState<PreparedManagerAction | null>(null)
   const lastFilters = useRef<SmartNameFilters | undefined>(undefined)
+  const lastNames = useRef<readonly string[] | undefined>(undefined)
+  const promptRevision = useRef(0)
+  const handoffRevision = useRef(0)
+  const confirmationContext = useRef<AiConfirmationContext | null>(null)
+  const currentConfirmationContext = useCallback((): AiConfirmationContext => {
+    const context = backendAuthStore.get().context
+    return {
+      revision: promptRevision.current,
+      walletAddress: address,
+      authAddress: context.address,
+      authToken: context.authKey,
+      apiBaseUrlOverride: context.apiBaseUrlOverride,
+    }
+  }, [address])
+  useEffect(
+    () => () => {
+      promptRevision.current += 1
+      handoffRevision.current += 1
+    },
+    [],
+  )
   const interpretation = useMutation({
-    mutationFn: (query: string) =>
-      interpretAiAction({ data: { query, authToken: authToken ?? '' } }),
+    mutationFn: (data: { query: string; authToken: string }) =>
+      interpretAiAction({ data }),
   })
   const addFavorite = useMutation(addFavoriteMutationOptions)
+  const removeFavorite = useMutation(removeFavoriteMutationOptions)
 
-  const preparation = prepareCurrentAction(
-    result,
-    nameInput,
-    durationInput,
-    urlInput,
-    lastFilters.current,
-  )
+  const preparation =
+    result?.status === 'ok'
+      ? prepareAiHandoff(result.action, {
+          ...details,
+          lastFilters: lastFilters.current,
+          lastNames: lastNames.current,
+        })
+      : null
   const action = preparation?.status === 'ready' ? preparation.action : null
   const nameData = useAiNameData(action)
   const profileData = useAiProfileData(action)
@@ -930,130 +939,299 @@ export const AiPage = () => {
     nameDataReady,
     filterDataAvailable,
   } = nameData
-  const { profileOwner, profileRecords, canEditProfile, profileReady } =
-    profileData
+  const {
+    profileOwner,
+    profileRecords,
+    canEditProfile,
+    profileReady,
+    profileProposalIssue,
+  } = profileData
+
+  const resetActionPreview = useCallback(() => {
+    confirmationContext.current = null
+    setManagerReview(null)
+    setResult(null)
+    setIssue(null)
+    setDetailInput('')
+    setDetailError(null)
+    setDetails({})
+    setHasConfirmedDetails(false)
+    handoffRevision.current += 1
+    setIsHandoffPending(false)
+    setActiveDialog(null)
+  }, [])
+
+  useEffect(() => {
+    let previous = backendAuthStore.get().context
+    const subscription = backendAuthStore.subscribe(({ context }) => {
+      const changed =
+        previous.authKey !== context.authKey ||
+        previous.address?.toLowerCase() !== context.address?.toLowerCase() ||
+        previous.apiBaseUrlOverride !== context.apiBaseUrlOverride
+      previous = context
+      if (!changed) return
+      promptRevision.current += 1
+      lastFilters.current = undefined
+      lastNames.current = undefined
+      resetActionPreview()
+    })
+    return () => subscription.unsubscribe()
+  }, [resetActionPreview])
+
+  const updatePrompt = (value: string) => {
+    promptRevision.current += 1
+    setPrompt(value)
+    resetActionPreview()
+  }
+
+  const rememberNameSelection = (next: AiInterpretResult) => {
+    const selection = prepareNameSelection(next, {
+      lastFilters: lastFilters.current,
+      lastNames: lastNames.current,
+    })
+    if (!selection) return
+    lastFilters.current = selection.filters
+    lastNames.current = selection.names
+  }
 
   const submit = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault()
     const query = prompt.trim()
     if (!query || interpretation.isPending) return
-    setResult(null)
-    setIssue(null)
-    setNameInput('')
-    setDurationInput('')
-    setUrlInput('')
-    setPrimaryOpen(false)
-    setEditOpen(false)
-    setBulkOpen(false)
+    resetActionPreview()
+    const context = currentConfirmationContext()
+    confirmationContext.current = context
+    setActiveDialog('auto')
+    if (!isAiConfirmationCurrent(context, context)) {
+      setResult({ status: 'unauthorized' })
+      return
+    }
     try {
-      const next = await interpretation.mutateAsync(query)
+      const next = await interpretation.mutateAsync({
+        query,
+        authToken: context.authToken ?? '',
+      })
+      if (!isAiConfirmationCurrent(context, currentConfirmationContext()))
+        return
       if (next.status === 'unauthorized') backendAuthStore.trigger.signOut()
       setResult(next)
-      if (next.status === 'ok' && next.action.intent === 'find_names') {
-        lastFilters.current = next.action.filters
-      }
+      rememberNameSelection(next)
     } catch {
+      if (!isAiConfirmationCurrent(context, currentConfirmationContext()))
+        return
       setResult({ status: 'unavailable' })
     }
+  }
+
+  const confirmInterpretation = () => {
+    const next = confirmAiInterpretation(
+      result,
+      confirmationContext.current,
+      currentConfirmationContext(),
+    )
+    if (!next) return
+    confirmationContext.current = null
+    setResult(next)
+    setActiveDialog('review')
+    rememberNameSelection(next)
+  }
+
+  const editRequest = () => {
+    promptRevision.current += 1
+    resetActionPreview()
   }
 
   const continueAction = async () => {
     if (!action || isHandoffPending) return
     setIssue(null)
     setIsHandoffPending(true)
+    const revision = ++handoffRevision.current
+    const isCurrent = () => revision === handoffRevision.current
     try {
       const nextIssue = await openAiAction(action, {
         navigate,
         queryClient,
         favoriteLabels,
+        isCurrent,
+        connectedAddress: address,
+        openManagerReview: (proposal) => {
+          setActiveDialog(null)
+          setManagerReview(proposal)
+        },
         addFavorite: addFavorite.mutateAsync,
-        openPrimary: () => setPrimaryOpen(true),
-        openBulkRenew: () => setBulkOpen(true),
-        openProfileEditor: () => setEditOpen(true),
+        openPrimary: () => setActiveDialog('primary'),
+        openBulkRenew: () => setActiveDialog('bulk'),
+        openProfileEditor: () => setActiveDialog('profile'),
       })
-      setIssue(nextIssue)
+      if (isCurrent()) setIssue(nextIssue)
     } catch {
-      setIssue('Manager could not open that action. Please try again.')
+      if (isCurrent())
+        setIssue('Manager could not open that action. Please try again.')
     } finally {
-      setIsHandoffPending(false)
+      if (isCurrent()) setIsHandoffPending(false)
     }
   }
 
-  const canContinue = canContinueAction(action, nameData, profileData)
+  const submitDetail = () => {
+    if (result?.status !== 'ok' || preparation?.status !== 'needs_input') return
+    const next = prepareAiDetail(
+      result.action,
+      {
+        ...details,
+        lastFilters: lastFilters.current,
+        lastNames: lastNames.current,
+      },
+      preparation.field,
+      detailInput,
+    )
+    if (next.status === 'invalid') {
+      setDetailError(next.message)
+      return
+    }
+    setDetails(next.inputs)
+    setDetailInput('')
+    setDetailError(null)
+    setHasConfirmedDetails(next.preparation.status === 'ready')
+  }
+
+  const canContinue =
+    !nameData.nameSelectionIssue &&
+    canContinueAction(action, nameData, profileData)
+
+  const originalPreparation =
+    result?.status === 'ok'
+      ? prepareAiHandoff(result.action, {
+          lastFilters: lastFilters.current,
+          lastNames: lastNames.current,
+        })
+      : null
+  const visibleDialog = resolveAiDialog({
+    requested: activeDialog,
+    requiresConfirmation: result?.status === 'needs_confirmation',
+    intent: action?.intent,
+    isOriginalActionReady:
+      originalPreparation?.status === 'ready' || hasConfirmedDetails,
+    hasMultipleActions: result?.status === 'ok' && !!result.multiAction,
+    canOpenProfile:
+      profileReady &&
+      canEditProfile &&
+      !!profileRecords.data &&
+      !profileProposalIssue,
+  })
+  const isNameResults =
+    action?.intent === 'find_names' || action?.intent === 'bulk_renew'
+  const dialogTitle = previewDialogTitle(
+    interpretation.isPending,
+    action,
+    result,
+  )
+  const closeDialog = (open: boolean) => {
+    if (!open) {
+      if (result?.status === 'needs_confirmation') {
+        editRequest()
+        return
+      }
+      setActiveDialog(null)
+      handoffRevision.current += 1
+      setIsHandoffPending(false)
+    }
+  }
+  const onToggleFavorite = (name: string) => {
+    if (favoriteLabels.has(name.toLowerCase())) removeFavorite.mutate({ name })
+    else addFavorite.mutate({ name })
+  }
 
   return (
-    <main className="min-h-screen flex-1 bg-[#faf9f7] px-4 py-8 text-[#222122] md:px-8 md:py-14">
-      <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] lg:gap-12">
-        <section className="min-w-0 space-y-8">
-          <div className="space-y-5">
-            <div className="inline-flex items-center gap-2 rounded-full border border-ens-lapis-500/20 bg-white px-3 py-1.5 font-mono text-ens-lapis-500 text-xs uppercase tracking-wider">
-              <Sparkles aria-hidden="true" className="size-3.5" /> ENS Manager
-              AI
-            </div>
-            <h1 className="max-w-3xl font-sans text-[clamp(2.5rem,5vw,4.5rem)] leading-[0.98] tracking-[-0.055em]">
-              <Trans>Tell Manager what you want to do.</Trans>
-            </h1>
-            <p className="max-w-xl font-sans text-base text-ens-quartz-500 leading-relaxed md:text-lg">
-              <Trans>
-                Describe one ENS task. Manager checks the details and opens the
-                existing flow for you to review.
-              </Trans>
-            </p>
+    <div className="relative flex min-h-0 flex-1 items-center justify-center px-5 py-14 text-ens-lapis-900 sm:px-8 sm:pb-24">
+      <GrainOverlay className="opacity-50" tone="lapis" />
+      <AiPrompt
+        isAuthenticated={!!authToken}
+        isPending={interpretation.isPending}
+        onChange={updatePrompt}
+        onSubmit={(event) => void submit(event)}
+        prompt={prompt}
+      />
+      <Dialog onOpenChange={closeDialog} open={visibleDialog === 'review'}>
+        <DialogContent
+          className={
+            isNameResults
+              ? 'max-w-[calc(100%-1rem)] gap-0 overflow-hidden rounded-2xl border-ens-quartz-200 p-0 sm:max-w-4xl'
+              : 'max-w-[calc(100%-1rem)] gap-0 overflow-hidden rounded-2xl border-ens-quartz-200 p-0 sm:max-w-lg'
+          }
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            if (activeDialog === null)
+              document.getElementById('ai-prompt')?.focus()
+          }}
+          overlayClassName="bg-[#14233b]/20 backdrop-blur-sm"
+        >
+          <DialogHeader className="shrink-0 border-ens-quartz-150 border-b px-4 py-5 pr-12 text-left sm:px-7 sm:pr-12">
+            <DialogTitle className="font-medium font-sans text-xl tracking-tight">
+              {dialogTitle}
+            </DialogTitle>
+            <DialogDescription className="truncate text-ens-quartz-400 text-sm">
+              {prompt}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-7">
+            <ActionPreview
+              action={action}
+              canContinue={!!canContinue}
+              data={{
+                matches,
+                renewableCount: renewableNames.length,
+                nameDataReady,
+                filterDataAvailable,
+                profileReady,
+                canEditProfile,
+                migrationEnabled,
+                primaryLabel: nameData.primaryLabel,
+                favoriteLabels,
+                isAuthenticated: !!authToken,
+                onToggleFavorite,
+              }}
+              detailError={detailError}
+              detailInput={detailInput}
+              isHandoffPending={isHandoffPending}
+              isPending={interpretation.isPending}
+              issue={
+                issue ?? profileProposalIssue ?? nameData.nameSelectionIssue
+              }
+              onConfirmInterpretation={confirmInterpretation}
+              onContinue={() => void continueAction()}
+              onDetailChange={(value) => {
+                setDetailInput(value)
+                setDetailError(null)
+              }}
+              onDetailSubmit={submitDetail}
+              onEditRequest={editRequest}
+              preparation={preparation}
+              result={result}
+            />
           </div>
-
-          <PromptComposer
-            isAuthenticated={!!authToken}
-            isPending={interpretation.isPending}
-            onChange={setPrompt}
-            onSubmit={(event) => void submit(event)}
-            prompt={prompt}
-          />
-        </section>
-
-        <ActionPreview
-          action={action}
-          canContinue={!!canContinue}
-          data={{
-            matches,
-            renewableCount: renewableNames.length,
-            nameDataReady,
-            filterDataAvailable,
-            profileReady,
-            canEditProfile,
-            migrationEnabled,
-          }}
-          durationInput={durationInput}
-          isHandoffPending={isHandoffPending}
-          isPending={interpretation.isPending}
-          issue={issue}
-          nameInput={nameInput}
-          onContinue={() => void continueAction()}
-          onDurationChange={setDurationInput}
-          onNameChange={setNameInput}
-          onUrlChange={setUrlInput}
-          preparation={preparation}
-          result={result}
-          urlInput={urlInput}
+        </DialogContent>
+      </Dialog>
+      {managerReview ? (
+        <ManagerActionReview
+          action={managerReview}
+          onClose={() => setManagerReview(null)}
         />
-        <ExamplePrompts
-          onChoose={(example) => {
-            setPrompt(example)
-            setIssue(null)
-          }}
-        />
-      </div>
+      ) : null}
       {action?.intent === 'set_primary' ? (
         <ChoosePrimaryNameDialog
           initialName={action.name}
-          onOpenChange={setPrimaryOpen}
-          open={primaryOpen}
+          onOpenChange={closeDialog}
+          open={visibleDialog === 'primary'}
         />
       ) : null}
       {action?.intent === 'bulk_renew' ? (
         <BulkRenewDialog
+          initialDurationDays={action.durationDays}
+          initialDurationYears={action.durationYears}
+          initialTargetDate={action.targetDate}
           names={renewableNames}
-          onOpenChange={setBulkOpen}
-          open={bulkOpen}
+          onOpenChange={closeDialog}
+          open={visibleDialog === 'bulk'}
         />
       ) : null}
       {action?.intent === 'edit_profile' &&
@@ -1061,19 +1239,20 @@ export const AiPage = () => {
       profileRecords.data ? (
         <EditProfileDialog
           initialLink={action.link}
+          initialProposal={action.proposal}
           initialTab={action.section}
           name={action.name}
-          onOpenChange={setEditOpen}
+          onOpenChange={closeDialog}
           onUpdated={async () => {
             await queryClient.invalidateQueries({
               queryKey: profileRecordsQuery(action.name).queryKey,
             })
           }}
-          open={editOpen}
+          open={visibleDialog === 'profile'}
           owner={profileOwner.data?.owner as Address | undefined}
           records={transformProfileRecords(profileRecords.data)}
         />
       ) : null}
-    </main>
+    </div>
   )
 }

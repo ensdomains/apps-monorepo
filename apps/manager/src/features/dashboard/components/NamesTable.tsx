@@ -58,6 +58,7 @@ type SmartSearchMessage =
   | 'missing-data'
 
 interface NamesTableProps {
+  readonly initialTab?: FilterKey
   readonly primaryLabel?: string | null
   readonly migrationEnabled?: boolean
 }
@@ -146,11 +147,12 @@ const SmartSearchFeedback = ({
 )
 
 export const NamesTable = ({
+  initialTab = 'owned',
   migrationEnabled = false,
   primaryLabel,
 }: NamesTableProps) => {
   const { t } = useLingui()
-  const [filter, setFilter] = useState<FilterKey>('owned')
+  const [filter, setFilter] = useState<FilterKey>(initialTab)
   const [searchQuery, setSearchQuery] = useState('')
   const [smartFilters, setSmartFilters] = useState<SmartNameFilters | null>(
     null,

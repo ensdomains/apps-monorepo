@@ -116,6 +116,30 @@ describe('smart name filters', () => {
     ).toBe(true)
   })
 
+  it('treats expired parent-issued subnames as past grace immediately', () => {
+    const expiredYesterday = Math.floor(now.getTime() / 1000) - day
+    for (const kind of ['v1', 'v2'] as const) {
+      const subname = makeName({
+        kind,
+        name: 'child.alice.eth',
+        expiry: expiredYesterday,
+      })
+      expect(
+        matchesSmartNameFilters(subname, { expiry: 'in-grace' }, context),
+      ).toBe(false)
+      expect(
+        matchesSmartNameFilters(subname, { expiry: 'past-grace' }, context),
+      ).toBe(true)
+    }
+    expect(
+      matchesSmartNameFilters(
+        makeName({ expiry: expiredYesterday }),
+        { expiry: 'in-grace' },
+        context,
+      ),
+    ).toBe(true)
+  })
+
   it('changes grace state at the exact 28-day and 90-day boundaries', () => {
     const nowSeconds = Math.floor(now.getTime() / 1000)
     expect(

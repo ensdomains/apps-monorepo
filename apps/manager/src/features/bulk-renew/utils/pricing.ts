@@ -50,6 +50,9 @@ export const durationSecondsForName = (
   const referenceDate = referenceDateOf(currentExpiry)
   if (selection.kind === 'preset')
     return getDurationInSecondsFromYears(selection.years, referenceDate)
+  if (selection.kind === 'days') return selection.days * secondsInDay
+  if (selection.exactTarget)
+    return Math.floor(selection.targetMs / 1000) - Number(currentExpiry)
   return Math.max(
     MIN_REGISTER_DURATION_SECONDS,
     differenceInCalendarDays(
@@ -73,7 +76,14 @@ export const newExpiryDateForName = (
   selection: Selection,
   currentExpiry: bigint,
 ): Date =>
-  getDurationExpiryDateForDisplay(
-    durationSecondsForName(selection, currentExpiry),
-    referenceDateOf(currentExpiry),
-  )
+  selection.kind === 'days' ||
+  (selection.kind === 'custom' && selection.exactTarget)
+    ? new Date(
+        (Number(currentExpiry) +
+          durationSecondsForName(selection, currentExpiry)) *
+          1000,
+      )
+    : getDurationExpiryDateForDisplay(
+        durationSecondsForName(selection, currentExpiry),
+        referenceDateOf(currentExpiry),
+      )

@@ -2,7 +2,7 @@ import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/en
 import { Plural, Trans, useLingui } from '@lingui/react/macro'
 import { format } from 'date-fns'
 import { AnimatePresence, motion } from 'motion/react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,6 +14,12 @@ import {
 import { useBulkRenew } from '../hooks/useBulkRenew'
 import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
 import type { BulkRenewName, Selection, SummaryRow } from '../types'
+import {
+  type BulkRenewDurationPrefill,
+  getBulkRenewDurationPrefill,
+  getBulkRenewTargetDateIssue,
+  getRequestedTargetDateSelection,
+} from '../utils/durationPrefill'
 import { DurationPresets } from './DurationPresets'
 import { FailureStep } from './FailureStep'
 import { NamesBreakdown } from './NamesBreakdown'
@@ -27,7 +33,7 @@ const dialogTitleClassName =
 
 type Step = 'summary' | 'confirm'
 
-interface BulkRenewDialogProps {
+interface BulkRenewDialogProps extends BulkRenewDurationPrefill {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly names: readonly BulkRenewName[]
@@ -40,14 +46,40 @@ export const BulkRenewDialog = ({
   onOpenChange,
   names,
   onRenewed,
+  initialDurationDays,
+  initialDurationYears,
+  initialTargetDate,
 }: BulkRenewDialogProps) => {
   const { t } = useLingui()
   const [step, setStep] = useState<Step>('summary')
-  const [selection, setSelection] = useState<Selection>({
-    kind: 'preset',
-    years: 1,
-  })
+  const initialDuration = getBulkRenewDurationPrefill(
+    {
+      initialDurationDays,
+      initialDurationYears,
+      initialTargetDate,
+    },
+    names,
+  )
+  const [selection, setSelection] = useState<Selection>(() =>
+    initialDuration.status === 'ready'
+      ? initialDuration.selection
+      : (getRequestedTargetDateSelection(initialTargetDate) ?? {
+          kind: 'preset',
+          years: 1,
+        }),
+  )
+  const [durationError, setDurationError] = useState<string | undefined>(() =>
+    initialDuration.status === 'invalid' ? initialDuration.message : undefined,
+  )
   const [selectedToken, setSelectedToken] = useState<SUPPORTED_TOKEN>('USDC')
+  const effectiveDurationError =
+    durationError ??
+    (initialTargetDate && selection.kind === 'custom'
+      ? getBulkRenewTargetDateIssue(
+          format(new Date(selection.targetMs), 'yyyy-MM-dd'),
+          names,
+        )
+      : null)
 
   const [receipt, setReceipt] = useState<{
     readonly rows: readonly SummaryRow[]
@@ -62,7 +94,12 @@ export const BulkRenewDialog = ({
     renewItems,
     presetSummaries,
     payment,
-  } = useBulkRenew({ names, selection, selectedToken, open })
+  } = useBulkRenew({
+    names,
+    selection,
+    selectedToken,
+    open: open && !effectiveDurationError,
+  })
 
   const submit = useBulkRenewSubmit()
 
@@ -71,6 +108,7 @@ export const BulkRenewDialog = ({
     .with({ kind: 'preset' }, ({ years }) =>
       years === 1 ? t`1 year` : t`${years} years`,
     )
+    .with({ kind: 'days' }, ({ days }) => t`${days} days`)
     .with({ kind: 'custom' }, ({ targetMs }) =>
       format(new Date(targetMs), 'MMM d, yyyy'),
     )
@@ -80,6 +118,61 @@ export const BulkRenewDialog = ({
     submit.phase === 'preparing' ||
     submit.phase === 'authorizing' ||
     submit.phase === 'renewing'
+
+  const wasOpen = useRef(false)
+  const appliedPrefill = useRef(
+    `${initialDurationDays ?? ''}:${initialDurationYears ?? ''}:${initialTargetDate ?? ''}`,
+  )
+  useEffect(() => {
+    const justOpened = open && !wasOpen.current
+    wasOpen.current = open
+    const key = `${initialDurationDays ?? ''}:${initialDurationYears ?? ''}:${initialTargetDate ?? ''}`
+    const previousKey = appliedPrefill.current
+    if (!open || isSubmitting || (!justOpened && key === previousKey)) return
+    appliedPrefill.current = key
+    // An in-flight renewal keeps its selection. A new reviewed prompt gets
+    // its explicit prefill even when the dialog stayed mounted after closing.
+    if (key === '::' && previousKey === '::') return
+    const prefill = getBulkRenewDurationPrefill(
+      {
+        initialDurationDays,
+        initialDurationYears,
+        initialTargetDate,
+      },
+      names,
+    )
+    setStep('summary')
+    if (prefill.status === 'invalid') {
+      const requestedDate = getRequestedTargetDateSelection(initialTargetDate)
+      if (requestedDate) setSelection(requestedDate)
+      setDurationError(prefill.message)
+    } else {
+      setSelection(prefill.selection)
+      setDurationError(undefined)
+    }
+  }, [
+    initialDurationDays,
+    initialDurationYears,
+    initialTargetDate,
+    names,
+    isSubmitting,
+    open,
+  ])
+
+  const chooseDuration = (next: Selection) => {
+    setSelection(next)
+    setDurationError(undefined)
+  }
+
+  const chooseDate = (date: Date) => {
+    const target = new Date(date)
+    if (initialTargetDate) target.setHours(23, 59, 59, 0)
+    chooseDuration({
+      kind: 'custom',
+      targetMs: target.getTime(),
+      ...(initialTargetDate && { exactTarget: true }),
+    })
+  }
 
   // Drives both which body renders and the crossfade key.
   const view = match(submit.phase)
@@ -100,6 +193,7 @@ export const BulkRenewDialog = ({
   }
 
   const handleConfirm = () => {
+    if (effectiveDurationError) return
     setReceipt({ rows: summaryRows, total: grandTotal })
     submit.submit({ items: renewItems, token: selectedToken, sumPriceRaw })
   }
@@ -141,6 +235,43 @@ export const BulkRenewDialog = ({
         />
       )
     }
+    if (effectiveDurationError) {
+      return (
+        <>
+          <DialogHeader>
+            <DialogTitle className={dialogTitleClassName}>
+              <Trans>Review requested renewal</Trans>
+            </DialogTitle>
+          </DialogHeader>
+          {initialTargetDate && (
+            <p className="text-ens-quartz-900 text-sm">
+              <Trans>
+                Requested expiry date:{' '}
+                {selection.kind === 'custom'
+                  ? format(new Date(selection.targetMs), 'MMM d, yyyy')
+                  : initialTargetDate}{' '}
+                (end of your local day)
+              </Trans>
+            </p>
+          )}
+          <p className="text-destructive text-sm" role="alert">
+            {effectiveDurationError}
+          </p>
+          {initialTargetDate && (
+            <div className="flex justify-end">
+              <RenewToDatePopover
+                minSelectableDate={minSelectableDate}
+                onPickDate={chooseDate}
+                selection={selection}
+              />
+            </div>
+          )}
+          <Button onClick={() => handleOpenChange(false)} type="button">
+            <Trans>Close</Trans>
+          </Button>
+        </>
+      )
+    }
     if (step === 'confirm') {
       return (
         <>
@@ -163,7 +294,7 @@ export const BulkRenewDialog = ({
 
           <Button
             className="w-full uppercase"
-            disabled={!payment.canConfirm}
+            disabled={!payment.canConfirm || Boolean(effectiveDurationError)}
             onClick={handleConfirm}
             size="lg"
             type="button"
@@ -177,17 +308,25 @@ export const BulkRenewDialog = ({
       <>
         <DialogHeader>
           <DialogTitle className={dialogTitleClassName}>
-            <Plural
-              one="Renew # name for"
-              other="Renew # names for"
-              value={count}
-            />{' '}
+            {selection.kind === 'custom' ? (
+              <Plural
+                one="Renew # name to"
+                other="Renew # names to"
+                value={count}
+              />
+            ) : (
+              <Plural
+                one="Renew # name for"
+                other="Renew # names for"
+                value={count}
+              />
+            )}{' '}
             <span className="text-ens-lapis-core">{durationLabel}</span>
           </DialogTitle>
         </DialogHeader>
 
         <DurationPresets
-          onSelectPreset={(years) => setSelection({ kind: 'preset', years })}
+          onSelectPreset={(years) => chooseDuration({ kind: 'preset', years })}
           presetSummaries={presetSummaries}
           selection={selection}
         />
@@ -195,9 +334,7 @@ export const BulkRenewDialog = ({
         <div className="flex justify-end">
           <RenewToDatePopover
             minSelectableDate={minSelectableDate}
-            onPickDate={(date) =>
-              setSelection({ kind: 'custom', targetMs: date.getTime() })
-            }
+            onPickDate={chooseDate}
             selection={selection}
           />
         </div>
@@ -206,6 +343,7 @@ export const BulkRenewDialog = ({
 
         <Button
           className="w-full uppercase"
+          disabled={Boolean(effectiveDurationError)}
           onClick={() => setStep('confirm')}
           size="lg"
           type="button"

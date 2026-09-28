@@ -12,9 +12,38 @@ import {
   enableBrowserPushMutationOptions,
 } from '@/features/notifications/data/queries/push'
 import { ContactMethodCard } from './contact-method-card'
+import { getPushProposalState, type PushProposalState } from './pushProposal'
 
 type PushContactMethodProps = {
   pushChannels: Channel[]
+  proposedEnabled?: boolean
+}
+
+const PushProposalStatus = ({
+  state,
+}: {
+  readonly state: PushProposalState
+}) => {
+  switch (state) {
+    case 'checking':
+      return <Trans>Checking this browser's notification settings…</Trans>
+    case 'unavailable':
+      return (
+        <Trans>
+          Browser notification settings could not be checked. Try again.
+        </Trans>
+      )
+    case 'unsupported':
+      return (
+        <Trans>Push notifications are not supported in this browser.</Trans>
+      )
+    case 'already_enabled':
+      return <Trans>Notifications are already enabled for this browser.</Trans>
+    case 'already_disabled':
+      return <Trans>Notifications are already disabled for this browser.</Trans>
+    default:
+      return null
+  }
 }
 
 const isPushChannelWithEndpointHash = (
@@ -27,7 +56,10 @@ const isPushChannelWithEndpointHash = (
   )
 }
 
-export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
+export const PushContactMethod = ({
+  pushChannels,
+  proposedEnabled,
+}: PushContactMethodProps) => {
   const { t } = useLingui()
   const queryClient = useQueryClient()
 
@@ -72,6 +104,14 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
     : undefined
 
   const isEnabled = Boolean(matchedChannel)
+  const proposal = getPushProposalState({
+    proposedEnabled,
+    isEnabled,
+    isSupported,
+    permission,
+    isFetching: browserState.isFetching,
+    isError: browserState.isError,
+  })
 
   const onToggle = (checked: boolean) => {
     if (checked) {
@@ -82,23 +122,35 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
     disableMutation.mutate()
   }
 
-  const action = match({ isSupported, permission })
-    .with({ isSupported: true, permission: 'granted' }, () => (
-      <Switch
-        checked={isEnabled}
-        disabled={isPending || browserState.isFetching}
-        onCheckedChange={onToggle}
-      />
-    ))
+  const action = match({ isSupported, permission, proposal })
+    .with(
+      { isSupported: true, permission: 'granted', proposal: 'default' },
+      () => (
+        <Switch
+          checked={isEnabled}
+          disabled={isPending || browserState.isFetching}
+          onCheckedChange={onToggle}
+        />
+      ),
+    )
     .otherwise(() => null)
 
-  const showEnableButton = isSupported && permission === 'default'
+  const showEnableButton =
+    proposal === 'enable' ||
+    (proposal === 'default' && isSupported && permission === 'default')
+  const showDisableButton = proposal === 'disable'
 
   return (
     <ContactMethodCard
       action={action ?? undefined}
       actionDisabled={isPending || browserState.isFetching}
-      actionLabel={showEnableButton ? t`Enable` : undefined}
+      actionLabel={
+        showEnableButton
+          ? t`Enable`
+          : showDisableButton
+            ? t`Disable`
+            : undefined
+      }
       description={t`Get instant push notifications in your browser`}
       icon={
         <MSymbol
@@ -106,11 +158,28 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
           symbol="computer"
         />
       }
-      onAction={showEnableButton ? () => enableMutation.mutate() : undefined}
+      onAction={
+        showEnableButton
+          ? () => enableMutation.mutate()
+          : showDisableButton
+            ? () => disableMutation.mutate()
+            : undefined
+      }
       title={<Trans>Browser Notifications</Trans>}
       variant="browser-not"
     >
-      {isSupported && permission === 'denied' && (
+      {[
+        'checking',
+        'unavailable',
+        'unsupported',
+        'already_enabled',
+        'already_disabled',
+      ].includes(proposal) && (
+        <p className="text-sm" role="status">
+          <PushProposalStatus state={proposal} />
+        </p>
+      )}
+      {isSupported && permission === 'denied' && proposedEnabled !== false && (
         <Alert variant="destructive">
           <MSymbol className="ms-opsz-16 ms-wght-300 block" symbol="warning" />
           <AlertTitle>

@@ -1,11 +1,9 @@
-import {
-  getNameExpiryStatus,
-  MS_PER_DAY,
-} from '@/features/grace/utils/gracePeriod'
+import { MS_PER_DAY } from '@/features/grace/utils/gracePeriod'
 import {
   buildMergedNamesList,
   type DashboardV1Name,
   type DashboardV2Name,
+  getMergedNameExpiryStatus,
   type MergedItem,
   type SortDir,
   type SortField,
@@ -80,11 +78,7 @@ const matchesExpiry = (
 
   const expiryDate = new Date(item.sortExpiry * 1000)
   if (Number.isNaN(expiryDate.getTime())) return false
-  const status = getNameExpiryStatus(
-    expiryDate,
-    item.kind === 'v1' ? 'v1' : 'v2',
-    now,
-  )
+  const status = getMergedNameExpiryStatus(item, now)
 
   switch (filters.expiry) {
     case 'expiring': {
@@ -142,11 +136,15 @@ export const buildDashboardSearchResults = (params: {
   readonly primaryLabel?: string | null
   readonly favoriteLabels: ReadonlySet<string>
   readonly now?: Date
+  readonly exactNames?: readonly string[]
 }): MergedItem[] => {
   const { smartFilters } = params
   const sort = smartFilters?.sort?.split('-') as
     | [SortField, SortDir]
     | undefined
+  const exactNames =
+    params.exactNames &&
+    new Set(params.exactNames.map((name) => name.toLowerCase()))
   const items = buildMergedNamesList({
     v2Names: params.v2Names,
     v1Classified: params.v1Classified,
@@ -154,13 +152,16 @@ export const buildDashboardSearchResults = (params: {
     sortField: sort?.[0] ?? params.sortField,
     sortDir: sort?.[1] ?? params.sortDir,
   })
-  if (!smartFilters) return items
+  const selected = exactNames
+    ? items.filter((item) => exactNames.has(item.sortName.toLowerCase()))
+    : items
+  if (!smartFilters) return selected
   const context = {
     now: params.now ?? new Date(),
     primaryLabel: params.primaryLabel,
     favoriteLabels: params.favoriteLabels,
   }
-  return items.filter((item) =>
+  return selected.filter((item) =>
     matchesSmartNameFilters(item, smartFilters, context),
   )
 }

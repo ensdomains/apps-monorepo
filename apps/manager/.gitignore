@@ -16,3 +16,6 @@ storybook-static
 
 # Don't commit compiled lingui messages
 src/locales/*/messages.js
+
+# Synthetic local Jev evaluation reports (never app assets)
+evals/ai/reports/

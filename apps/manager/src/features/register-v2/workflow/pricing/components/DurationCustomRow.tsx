@@ -20,9 +20,13 @@ import { getDurationExpiryDateForDisplay } from '@/features/register-v2/utils/ti
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import { cn } from '@/lib/utils'
 
-const getDurationFromSelectedDate = (date: Date, referenceDate: Date) =>
+const getDurationFromSelectedDate = (
+  date: Date,
+  referenceDate: Date,
+  minimumDurationSeconds: number,
+) =>
   Math.max(
-    MIN_REGISTER_DURATION_SECONDS,
+    minimumDurationSeconds,
     differenceInCalendarDays(startOfDay(date), startOfDay(referenceDate)) *
       86_400,
   )
@@ -48,20 +52,25 @@ export const DurationCustomRow = memo(function DurationCustomRow({
     return value
   })
   const referenceDate = referenceDateProp ?? defaultReferenceDate
+  const minimumDurationSeconds =
+    type === 'renew' ? 86_400 : MIN_REGISTER_DURATION_SECONDS
   const expirationDate = getDurationExpiryDateForDisplay(
     selectedDuration,
     referenceDate,
   )
 
-  const minSelectableDate = addSeconds(
-    referenceDate,
-    MIN_REGISTER_DURATION_SECONDS,
-  )
+  const minSelectableDate = addSeconds(referenceDate, minimumDurationSeconds)
 
   const selectMinimumDuration = () => {
     const minDate = new Date(minSelectableDate)
     minDate.setHours(0, 0, 0, 0)
-    onDurationSet(getDurationFromSelectedDate(minDate, referenceDate))
+    onDurationSet(
+      getDurationFromSelectedDate(
+        minDate,
+        referenceDate,
+        minimumDurationSeconds,
+      ),
+    )
   }
 
   useHotkeySequence(['M', 'I', 'N'], selectMinimumDuration, {
@@ -120,7 +129,13 @@ export const DurationCustomRow = memo(function DurationCustomRow({
               return
             }
             date.setHours(0, 0, 0, 0)
-            onDurationSet(getDurationFromSelectedDate(date, referenceDate))
+            onDurationSet(
+              getDurationFromSelectedDate(
+                date,
+                referenceDate,
+                minimumDurationSeconds,
+              ),
+            )
           }}
           selected={expirationDate}
           startMonth={minSelectableDate}

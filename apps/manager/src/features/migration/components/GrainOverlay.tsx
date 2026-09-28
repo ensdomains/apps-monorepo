@@ -3,8 +3,10 @@ import { tw } from '@/utils/tailwind'
 
 export const GrainOverlay = ({
   className,
+  tone = 'garnet',
 }: {
   readonly className?: string
+  readonly tone?: 'garnet' | 'lapis'
 }) => {
   const filterId = useId()
 
@@ -26,10 +28,17 @@ export const GrainOverlay = ({
         />
         <feColorMatrix
           type="matrix"
-          values="0 0 0 0 0.96
+          values={
+            tone === 'lapis'
+              ? `0 0 0 0 0
+                  0 0 0 0 0.51
+                  0 0 0 0 0.73
+                  0 0 0 0.5 0`
+              : `0 0 0 0 0.96
                   0 0 0 0 0.196
                   0 0 0 0 0.576
-                  0 0 0 0.5 0"
+                  0 0 0 0.5 0`
+          }
         />
       </filter>
       <rect filter={`url(#${filterId})`} height="100%" width="100%" />

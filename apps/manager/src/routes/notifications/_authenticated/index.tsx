@@ -12,6 +12,10 @@ import {
 import { MSymbol } from '@/components/ui/material-symbol'
 import { Switch } from '@/components/ui/switch'
 import {
+  type NotificationTag,
+  notificationTags,
+} from '@/features/ai/managerActions'
+import {
   markAllNotificationsReadMutationOptions,
   notificationsInfiniteQuery,
 } from '@/features/notifications/data/queries/notifications'
@@ -20,9 +24,10 @@ import { NotificationsList } from '@/features/notifications/inbox/list'
 import { UnreadCount } from '@/features/notifications/inbox/unread-count'
 
 export const AllNotificationsPage = () => {
+  const { unread, tag } = Route.useSearch()
   const { t } = useLingui()
-  const [unreadOnly, setUnreadOnly] = useState(false)
-  const [selectedTag, setSelectedTag] = useState<string>('all')
+  const [unreadOnly, setUnreadOnly] = useState(unread ?? false)
+  const [selectedTag, setSelectedTag] = useState<string>(tag ?? 'all')
   const markAllAsRead = useMutation(markAllNotificationsReadMutationOptions)
   const queryClient = useQueryClient()
 
@@ -145,5 +150,17 @@ export const AllNotificationsPage = () => {
 }
 
 export const Route = createFileRoute('/notifications/_authenticated/')({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { unread?: boolean; tag?: NotificationTag } => ({
+    ...(search.unread === true || search.unread === 'true'
+      ? { unread: true }
+      : {}),
+    ...(typeof search.tag === 'string' &&
+    notificationTags.includes(search.tag as NotificationTag)
+      ? { tag: search.tag as NotificationTag }
+      : {}),
+  }),
+  remountDeps: ({ search }) => [search.unread, search.tag],
   component: AllNotificationsPage,
 })

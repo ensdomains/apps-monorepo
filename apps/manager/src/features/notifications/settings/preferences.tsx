@@ -1,19 +1,26 @@
+import type { UserNotificationSettings } from '@ens-apps/shared-schema/notifications'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useAtom } from '@xstate/store-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 import { EnsMobileIcon } from '@/assets/icons/ens-mobile-icon'
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
-  preferencesQueryOptions,
+  getPreferenceChannelsQueryOptions,
+  getPreferencesQueryOptions,
   updatePreferenceMutationOptions,
 } from '@/features/notifications/data/queries/preferences'
 import { PreferenceCard } from '@/features/notifications/settings/preference-card'
-import { isBackendAuthed } from '@/utils/backend-client'
-import { channelsQueryOptions } from '../data/queries/channels'
+import {
+  getPreferenceSession,
+  subscribePreferenceSession,
+} from '../services/preferenceSession'
+import {
+  getPreferenceProposalValues,
+  type PreferenceProposal,
+} from './preferenceProposal'
 
 export type UseNotificationPreferencesFormOptions = {
   /**
@@ -23,80 +30,129 @@ export type UseNotificationPreferencesFormOptions = {
   nameExpiryDefaultWhenUnset?: boolean
   /** Called after a successful save + refetch + form reset (e.g. registration continue). */
   onPersistSuccess?: () => void
-  proposedPreference?: {
-    readonly key: 'ownedNameExpiry' | 'favouritedNameExpiry' | 'ensLabsUpdates'
-    readonly enabled: boolean
-  }
+  proposedPreference?: PreferenceProposal
+  proposalSessionId?: string
 }
 
 export const useNotificationPreferencesForm = ({
   nameExpiryDefaultWhenUnset = false,
   onPersistSuccess,
   proposedPreference,
+  proposalSessionId,
 }: UseNotificationPreferencesFormOptions) => {
   const { t } = useLingui()
-  const isAuthed = useAtom(isBackendAuthed)
+  const session = useSyncExternalStore(
+    subscribePreferenceSession,
+    getPreferenceSession,
+    getPreferenceSession,
+  )
+  const [draft, setDraft] = useState<{
+    sessionId: string
+    baseline: UserNotificationSettings
+  } | null>(null)
 
   const preferences = useQuery({
-    ...preferencesQueryOptions,
-    enabled: isAuthed,
+    ...getPreferencesQueryOptions(session),
   })
 
   const verifiedChannels = useQuery({
-    ...channelsQueryOptions,
+    ...getPreferenceChannelsQueryOptions(session),
     select: (data) => data.filter((c) => c.status === 'verified'),
-    enabled: isAuthed,
   })
 
   const updatePreferencesMutation = useMutation({
     ...updatePreferenceMutationOptions,
-    onSuccess: () => {
-      toast.success(t`Preferences updated`)
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || t`Failed to update preferences`)
-    },
   })
 
   const form = useForm({
-    defaultValues: {
-      ownedNameExpiry:
-        preferences.data?.settings?.ownedNameExpiry ??
-        nameExpiryDefaultWhenUnset,
-      ensLabsUpdates: preferences.data?.settings?.ensLabsUpdates ?? false,
-      favouritedNameExpiry:
-        preferences.data?.settings?.favouritedNameExpiry ?? false,
-    },
-    onSubmit: async ({ formApi, value }) => {
-      await updatePreferencesMutation.mutateAsync(value)
-
-      await preferences.refetch()
-
-      formApi.reset()
-      onPersistSuccess?.()
+    defaultValues:
+      draft?.sessionId === session.id
+        ? draft.baseline
+        : {
+            ownedNameExpiry: nameExpiryDefaultWhenUnset,
+            ensLabsUpdates: false,
+            favouritedNameExpiry: false,
+          },
+    // TanStack captures submit metadata before asynchronous validation. A later
+    // render cannot replace this submission's session or original baseline.
+    onSubmitMeta: { session, draft },
+    onSubmit: async ({ formApi, value, meta }) => {
+      try {
+        meta.session.assertCurrent()
+        if (!meta.draft || meta.draft.sessionId !== meta.session.id)
+          throw new Error(
+            'Wait for your current notification settings to load.',
+          )
+        const result = await updatePreferencesMutation.mutateAsync({
+          session: meta.session,
+          baseline: meta.draft.baseline,
+          values: value,
+        })
+        meta.session.assertCurrent()
+        setDraft({ sessionId: meta.session.id, baseline: result.settings })
+        formApi.reset(result.settings)
+        toast.success(t`Preferences updated`)
+        onPersistSuccess?.()
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : t`Failed to update preferences`,
+        )
+      }
     },
   })
 
-  const didApplyProposal = useRef(false)
   useEffect(() => {
-    if (!proposedPreference || !preferences.data || didApplyProposal.current) {
+    if (
+      !preferences.isSuccess ||
+      preferences.isFetching ||
+      draft?.sessionId === session.id ||
+      getPreferenceSession().id !== session.id
+    )
       return
-    }
-    didApplyProposal.current = true
-    form.reset({
-      ownedNameExpiry:
-        preferences.data.settings?.ownedNameExpiry ??
-        nameExpiryDefaultWhenUnset,
-      ensLabsUpdates: preferences.data.settings?.ensLabsUpdates ?? false,
-      favouritedNameExpiry:
-        preferences.data.settings?.favouritedNameExpiry ?? false,
-    })
-    form.setFieldValue(proposedPreference.key, proposedPreference.enabled)
-  }, [form, nameExpiryDefaultWhenUnset, preferences.data, proposedPreference])
+    const baseline = preferences.data.settings
+    form.reset(baseline)
+    const proposed = getPreferenceProposalValues(
+      baseline,
+      proposedPreference,
+      proposalSessionId,
+      session.id,
+    )
+    if (proposedPreference && proposalSessionId === session.id)
+      form.setFieldValue(
+        proposedPreference.key,
+        proposed[proposedPreference.key],
+      )
+    setDraft({ sessionId: session.id, baseline })
+  }, [
+    draft?.sessionId,
+    form,
+    preferences.data,
+    preferences.isFetching,
+    preferences.isSuccess,
+    proposalSessionId,
+    proposedPreference,
+    session,
+  ])
 
-  const hasVerifiedChannels = (verifiedChannels.data?.length ?? 0) > 0
+  const isReady =
+    draft?.sessionId === session.id &&
+    preferences.isSuccess &&
+    !preferences.isFetching
+  const hasVerifiedChannels =
+    isReady &&
+    verifiedChannels.isSuccess &&
+    !verifiedChannels.isFetching &&
+    verifiedChannels.data.length > 0
 
-  return { form, preferences, hasVerifiedChannels }
+  return {
+    form,
+    preferences,
+    hasVerifiedChannels,
+    isReady,
+    staleProposal: !!proposedPreference && proposalSessionId !== session.id,
+  }
 }
 
 type NotificationPreferencesFieldsProps = Pick<
@@ -129,7 +185,7 @@ export const NotificationPreferencesFields = ({
                   their grace period.
                 </Trans>
               }
-              disabled={preferences.isRefetching}
+              disabled={preferences.isFetching || !preferences.isSuccess}
               icon={<MSymbol className="ms-wght-300" symbol="schedule" />}
               isLoading={preferences.isLoading}
               label={<Trans>Name Expiry</Trans>}
@@ -145,7 +201,7 @@ export const NotificationPreferencesFields = ({
               description={
                 <Trans>Get updated on the latest releases and features.</Trans>
               }
-              disabled={preferences.isRefetching}
+              disabled={preferences.isFetching || !preferences.isSuccess}
               icon={<EnsMobileIcon />}
               isLoading={preferences.isLoading}
               label={<Trans>ENS Labs Updates</Trans>}
@@ -163,7 +219,7 @@ export const NotificationPreferencesFields = ({
                   through their grace period.
                 </Trans>
               }
-              disabled={preferences.isRefetching}
+              disabled={preferences.isFetching || !preferences.isSuccess}
               icon={<MSymbol className="ms-wght-300" symbol="favorite" />}
               isLoading={preferences.isLoading}
               label={<Trans>Favourites</Trans>}
@@ -178,17 +234,35 @@ export const NotificationPreferencesFields = ({
 
 export const NotificationPreferences = ({
   proposedPreference,
+  proposalSessionId,
 }: {
   readonly proposedPreference?: UseNotificationPreferencesFormOptions['proposedPreference']
+  readonly proposalSessionId?: string
 }) => {
-  const { form, preferences, hasVerifiedChannels } =
+  const { form, preferences, hasVerifiedChannels, staleProposal } =
     useNotificationPreferencesForm({
       nameExpiryDefaultWhenUnset: false,
       proposedPreference,
+      proposalSessionId,
     })
 
   return (
     <div className="flex flex-col gap-6">
+      {staleProposal && (
+        <p role="status">
+          <Trans>
+            Your sign-in changed. The earlier notification request was
+            discarded. Review your current settings below.
+          </Trans>
+        </p>
+      )}
+      {preferences.isError && (
+        <p role="alert">
+          <Trans>
+            Your notification preferences could not be loaded. Please try again.
+          </Trans>
+        </p>
+      )}
       <div className="flex flex-col gap-4 rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)]">
         <NotificationPreferencesFields form={form} preferences={preferences} />
       </div>
@@ -203,7 +277,12 @@ export const NotificationPreferences = ({
           {([canSubmit, isSubmitting, isDefaultValue]) => (
             <Button
               className="w-full uppercase"
-              disabled={!canSubmit || !hasVerifiedChannels || isDefaultValue}
+              disabled={
+                !canSubmit ||
+                isSubmitting ||
+                !hasVerifiedChannels ||
+                isDefaultValue
+              }
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()

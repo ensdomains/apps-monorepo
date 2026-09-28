@@ -36,10 +36,12 @@ interface MyNamesListProps {
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
   readonly smartFilters?: SmartNameFilters | null
+  readonly exactNames?: readonly string[]
   readonly sort: Sort
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
+  readonly selectionEnabled?: boolean
   readonly selectedLabels?: ReadonlySet<string>
   readonly onToggleSelect?: (label: string) => void
 }
@@ -81,6 +83,7 @@ const AnimatedNameRow = ({
   favoriteLabels,
   onToggleFavorite,
   isAuthenticated,
+  selectionEnabled,
   selectedLabels,
   onToggleSelect,
   isV1Renewable,
@@ -95,6 +98,7 @@ const AnimatedNameRow = ({
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
+  readonly selectionEnabled: boolean
   readonly selectedLabels: ReadonlySet<string>
   readonly onToggleSelect: (label: string) => void
   readonly isV1Renewable: boolean
@@ -167,14 +171,14 @@ const AnimatedNameRow = ({
         isAuthenticated={isAuthenticated}
         isFavorite={favoriteLabels.has(label.toLowerCase())}
         isInGrace={isInGrace}
-        isSelected={selectedLabels.has(label)}
+        isSelected={selectionEnabled && selectedLabels.has(label)}
         label={label}
         nameRoles={nameRoles}
         nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
         onToggleSelect={() => onToggleSelect(label)}
         renewalProtocol={isV1 ? 'v1' : 'v2'}
-        selectable={!isV1 && isRenewable}
+        selectable={selectionEnabled && !isV1 && isRenewable}
         showFavoriteButton
         status={status}
         themeColor={profilePreview.themeColor}
@@ -189,10 +193,12 @@ export const MyNamesList = ({
   primaryLabel,
   searchQuery = '',
   smartFilters = null,
+  exactNames,
   sort,
   favoriteLabels,
   onToggleFavorite,
   isAuthenticated,
+  selectionEnabled = true,
   selectedLabels = EMPTY_SELECTION,
   onToggleSelect = noopToggleSelect,
 }: MyNamesListProps) => {
@@ -200,7 +206,7 @@ export const MyNamesList = ({
   const [page, setPage] = useState(1)
   const { field: sortField, dir: sortDir } = parseSort(sort)
 
-  const filterKey = `${searchQuery}:${sort}:${JSON.stringify(smartFilters)}`
+  const filterKey = `${searchQuery}:${sort}:${JSON.stringify(smartFilters)}:${JSON.stringify(exactNames)}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)
@@ -230,6 +236,7 @@ export const MyNamesList = ({
         sortField,
         sortDir,
         smartFilters,
+        exactNames,
         primaryLabel,
         favoriteLabels,
       }),
@@ -240,6 +247,7 @@ export const MyNamesList = ({
       sortField,
       sortDir,
       smartFilters,
+      exactNames,
       primaryLabel,
       favoriteLabels,
     ],
@@ -350,6 +358,7 @@ export const MyNamesList = ({
                   onToggleSelect={onToggleSelect}
                   profileRecords={profileRecordState?.records}
                   selectedLabels={selectedLabels}
+                  selectionEnabled={selectionEnabled}
                   shouldReduceMotion={shouldReduceMotion}
                 />
               )

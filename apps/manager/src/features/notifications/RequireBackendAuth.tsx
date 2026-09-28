@@ -102,7 +102,7 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
     )
   }
 
-  if (isAuthed) {
+  if (isAuthed && authAddress && connectedAddress) {
     return <>{children}</>
   }
 

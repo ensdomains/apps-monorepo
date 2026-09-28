@@ -34,12 +34,17 @@ import {
   deleteChannelMutationOptions,
   resendVerificationMutationOptions,
 } from '@/features/notifications/data/queries/channels'
+import { getNotificationEmailDefaults } from './emailProposal'
 
 const newEmailContactMethodFormSchema = v.object({
   email: v.pipe(v.string(), v.email('Please enter a valid email address')),
 })
 
-const NewEmailContactMethod = () => {
+const NewEmailContactMethod = ({
+  proposedEmail = '',
+}: {
+  readonly proposedEmail?: string
+}) => {
   const { t } = useLingui()
   const addEmailMutation = useMutation({
     ...addEmailChannelMutationOptions,
@@ -52,9 +57,7 @@ const NewEmailContactMethod = () => {
   })
 
   const form = useForm({
-    defaultValues: {
-      email: '',
-    },
+    defaultValues: getNotificationEmailDefaults(proposedEmail),
     validators: {
       onChange: newEmailContactMethodFormSchema,
     },
@@ -127,9 +130,17 @@ const NewEmailContactMethod = () => {
   )
 }
 
-const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
+const ExistingEmailContactMethod = ({
+  email,
+  proposedAction,
+}: {
+  email: Channel
+  readonly proposedAction?: 'remove' | 'resend'
+}) => {
   const { t } = useLingui()
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(
+    proposedAction === 'remove',
+  )
 
   const resendMutation = useMutation({
     ...resendVerificationMutationOptions,
@@ -174,6 +185,16 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
   return (
     <div className="flex h-12 items-center rounded border border-[#D4D9DB] bg-white px-4">
       <div className="text-[#515151] text-base">{email.label}</div>
+      {proposedAction === 'resend' && email.status === 'pending' && (
+        <Button
+          className="ml-auto"
+          disabled={resendMutation.isPending}
+          onClick={() => resendMutation.mutate(email.id)}
+          variant="lightBlue"
+        >
+          <Trans>Resend Verification</Trans>
+        </Button>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -249,7 +270,15 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
   )
 }
 
-export const EmailContactMethod = ({ email }: { email?: Channel }) => {
+export const EmailContactMethod = ({
+  email,
+  proposedEmail,
+  proposedAction,
+}: {
+  email?: Channel
+  readonly proposedEmail?: string
+  readonly proposedAction?: 'remove' | 'resend'
+}) => {
   return (
     <div className="flex flex-col gap-3 rounded-lg bg-[#FAFAFB] p-5">
       {match(email?.status)
@@ -288,9 +317,15 @@ export const EmailContactMethod = ({ email }: { email?: Channel }) => {
       </div>
 
       {email ? (
-        <ExistingEmailContactMethod email={email} />
+        <ExistingEmailContactMethod
+          email={email}
+          proposedAction={proposedAction}
+        />
       ) : (
-        <NewEmailContactMethod />
+        <NewEmailContactMethod
+          key={proposedEmail ?? ''}
+          proposedEmail={proposedEmail}
+        />
       )}
     </div>
   )

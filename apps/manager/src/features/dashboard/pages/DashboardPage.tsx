@@ -34,7 +34,11 @@ const stagger = (index: number, shouldReduceMotion: boolean | null) =>
         },
       }
 
-export const DashboardPage = () => {
+export const DashboardPage = ({
+  initialTab,
+}: {
+  readonly initialTab?: 'owned' | 'favorites'
+}) => {
   const { ownerAddress } = useSmartAccountContext()
   const shouldReduceMotion = useReducedMotion()
   const migrationEnabled = useFeatureFlagEnabled(
@@ -115,6 +119,7 @@ export const DashboardPage = () => {
           {...stagger(3, shouldReduceMotion)}
         >
           <NamesTable
+            initialTab={initialTab}
             migrationEnabled={migrationEnabled}
             primaryLabel={defaultName}
           />

@@ -1,4 +1,5 @@
 import type { Address } from 'viem'
+import type { ProfileEditProposal } from '@/features/profile/service/profileEditProposal'
 import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords } from '@/features/profile/types'
 
@@ -21,6 +22,7 @@ export interface EditProfileDialogProps {
     | 'links'
     | 'appearance'
   readonly initialLink?: ProfileRecords['links'][number]
+  readonly initialProposal?: ProfileEditProposal
 }
 
 interface EditProfileSaveOptions {

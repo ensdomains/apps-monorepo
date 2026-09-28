@@ -3,10 +3,33 @@ import { describe, expect, it } from 'vitest'
 import {
   durationSearchSchema,
   getDurationPrefillSeconds,
+  renewalDurationSearchSchema,
 } from './durationSearch'
 import { getDurationInSecondsFromYears } from './time'
 
 describe('duration route search', () => {
+  it.each([
+    1, 10, 27,
+  ])('accepts a %i-day renewal without changing the registration minimum', (durationDays) => {
+    const search = v.parse(renewalDurationSearchSchema, {
+      durationDays: String(durationDays),
+    })
+    expect(getDurationPrefillSeconds(search)).toBe(durationDays * 86_400)
+    expect(v.safeParse(durationSearchSchema, { durationDays }).success).toBe(
+      false,
+    )
+  })
+
+  it.each([
+    { durationDays: 0 },
+    { durationDays: -10 },
+    { durationDays: 1.5 },
+    { durationDays: 36_526 },
+    { durationDays: 10, durationYears: 1 },
+  ])('rejects invalid renewal durations: %o', (search) => {
+    expect(v.safeParse(renewalDurationSearchSchema, search).success).toBe(false)
+  })
+
   it('prefills an exact 69-day registration and resulting expiry', () => {
     const search = v.parse(durationSearchSchema, { durationDays: '69' })
     const seconds = getDurationPrefillSeconds(search)

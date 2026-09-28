@@ -38,7 +38,11 @@ const approvalDescription = (id: MigrationOperatorApproval['id']) => {
   }
 }
 
-export const MigrationApprovalSettings = () => {
+export const MigrationApprovalSettings = ({
+  proposedApproval,
+}: {
+  readonly proposedApproval?: MigrationOperatorApproval['id']
+}) => {
   const { owner, hca, approvalsQuery, displayedApprovals, revoke } =
     useMigrationApprovalSettings()
   const activeApprovals = approvalsQuery.data ?? []
@@ -105,58 +109,69 @@ export const MigrationApprovalSettings = () => {
           </div>
         </div>
       )}
-      {displayedApprovals.map((approval) => {
-        const description = approvalDescription(approval.id)
-        const isTemporary = approval.id === 'eth-registry:hca'
-        const isRevoking =
-          revoke.isPending && revoke.variables?.id === approval.id
-        return (
-          <div
-            className="flex flex-col gap-3 rounded-lg bg-ens-quartz-50 p-4 md:flex-row md:items-start md:justify-between md:gap-4"
-            key={approval.id}
-          >
-            <div className="flex flex-1 items-start gap-2">
-              <MSymbol
-                aria-hidden
-                className="ms-opsz-20 mt-0.5 shrink-0 text-ens-quartz-500"
-                symbol="key_vertical"
-              />
-              <div className="flex flex-col gap-1.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
-                    {description.title}
-                  </p>
-                  {isTemporary && (
-                    <span className="rounded bg-ens-garnet-50 px-2 py-0.5 text-ens-garnet-900 text-xs">
-                      <Trans>Temporary</Trans>
-                    </span>
-                  )}
-                </div>
-                <p className="text-slate-600 text-sm leading-ens-normal">
-                  {description.detail}
-                </p>
-              </div>
-            </div>
-            <Button
-              className="w-full uppercase md:w-auto"
-              disabled={revoke.isPending}
-              onClick={() => revoke.mutate(approval)}
-              size="lg"
-              type="button"
-              variant="lightBlue"
+      {approvalsQuery.isSuccess &&
+        proposedApproval &&
+        !activeApprovals.some(({ id }) => id === proposedApproval) && (
+          <p className="text-slate-600 text-sm">
+            <Trans>
+              This permission is no longer active. There is nothing to remove.
+            </Trans>
+          </p>
+        )}
+      {displayedApprovals
+        .filter(({ id }) => !proposedApproval || id === proposedApproval)
+        .map((approval) => {
+          const description = approvalDescription(approval.id)
+          const isTemporary = approval.id === 'eth-registry:hca'
+          const isRevoking =
+            revoke.isPending && revoke.variables?.id === approval.id
+          return (
+            <div
+              className="flex flex-col gap-3 rounded-lg bg-ens-quartz-50 p-4 md:flex-row md:items-start md:justify-between md:gap-4"
+              key={approval.id}
             >
-              {isRevoking ? (
-                <>
-                  <Loader2Icon aria-hidden className="size-4 animate-spin" />
-                  <Trans>Removing...</Trans>
-                </>
-              ) : (
-                <Trans>Remove access</Trans>
-              )}
-            </Button>
-          </div>
-        )
-      })}
+              <div className="flex flex-1 items-start gap-2">
+                <MSymbol
+                  aria-hidden
+                  className="ms-opsz-20 mt-0.5 shrink-0 text-ens-quartz-500"
+                  symbol="key_vertical"
+                />
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
+                      {description.title}
+                    </p>
+                    {isTemporary && (
+                      <span className="rounded bg-ens-garnet-50 px-2 py-0.5 text-ens-garnet-900 text-xs">
+                        <Trans>Temporary</Trans>
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-slate-600 text-sm leading-ens-normal">
+                    {description.detail}
+                  </p>
+                </div>
+              </div>
+              <Button
+                className="w-full uppercase md:w-auto"
+                disabled={revoke.isPending}
+                onClick={() => revoke.mutate(approval)}
+                size="lg"
+                type="button"
+                variant="lightBlue"
+              >
+                {isRevoking ? (
+                  <>
+                    <Loader2Icon aria-hidden className="size-4 animate-spin" />
+                    <Trans>Removing...</Trans>
+                  </>
+                ) : (
+                  <Trans>Remove access</Trans>
+                )}
+              </Button>
+            </div>
+          )
+        })}
       {revoke.isError && (
         <p
           className="rounded-lg bg-ens-garnet-50 p-4 text-ens-garnet-900 text-sm"

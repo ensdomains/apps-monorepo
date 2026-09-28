@@ -6,8 +6,8 @@ import {
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import {
-  durationSearchSchema,
   getDurationPrefillSeconds,
+  renewalDurationSearchSchema,
 } from '@/features/register-v2/utils/durationSearch'
 import { getV1RenewableQueryOptions } from '@/features/renew/data/queries/v1Renewable.query'
 import { parseRenewableName } from '@/features/renew/utils/renewableName'
@@ -15,7 +15,7 @@ import { RenewalRouteError } from '@/features/renew/workflow/components/RenewalR
 import { RenewalPage } from '@/features/renew/workflow/RenewalPage'
 
 export const Route = createFileRoute('/renew-v1/$name')({
-  validateSearch: durationSearchSchema,
+  validateSearch: renewalDurationSearchSchema,
   loaderDeps: ({ search }) => search,
   loader: async ({ params: { name }, context: { queryClient }, deps }) => {
     const parsedName = parseRenewableName(name)
@@ -79,7 +79,7 @@ function RouteComponent() {
           ? undefined
           : BigInt(initialDurationSeconds)
       }
-      key={`${label}:${currentExpiry}:${durationSearch.durationDays ?? ''}:${durationSearch.durationYears ?? ''}`}
+      key={`${label}:${currentExpiry}:${durationSearch.durationDays ?? ''}:${durationSearch.durationYears ?? ''}:${durationSearch.targetDate ?? ''}`}
       label={label}
       protocol="v1"
     />

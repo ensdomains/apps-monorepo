@@ -364,4 +364,20 @@ describe('mergedRowMetadata', () => {
       meta.expiryDate?.getTime() ?? 0,
     )
   })
+
+  it('does not show a registrar grace window for expired subnames', () => {
+    const expired = Math.floor(
+      new Date('2023-12-31T00:00:00Z').getTime() / 1000,
+    )
+    for (const item of [
+      makeMergedV2({ sortName: 'child.alice.eth', sortExpiry: expired }),
+      makeMergedV1({ sortName: 'child.bob.eth', sortExpiry: expired }),
+    ]) {
+      const meta = mergedRowMetadata(item, null)
+      expect(meta.isInGrace).toBe(false)
+      expect(meta.graceEndDate).toBeNull()
+      expect(meta.daysSinceExpiry).toBeNull()
+      expect(meta.displayExpiryDate).toEqual(meta.expiryDate)
+    }
+  })
 })

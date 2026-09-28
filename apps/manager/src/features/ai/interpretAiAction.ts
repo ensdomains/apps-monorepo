@@ -6,43 +6,25 @@ import {
   parseJevAiResponse,
 } from './intent'
 import {
-  callJev,
-  isValidJevQuery,
+  interpretJevRequest,
   type JevEnvironment,
-  logJevOutcome,
   validateJevInput,
-  verifyJevAccess,
 } from './jevBoundary'
 
 export const interpretAiAction = createServerFn({ method: 'POST' })
   .inputValidator(validateJevInput)
   .handler(async ({ data }): Promise<AiInterpretResult> => {
-    const startedAt = Date.now()
-    const finish = (result: AiInterpretResult) => {
-      logJevOutcome(
-        'ai',
-        result.status,
-        startedAt,
-        result.status === 'ok' ? result.action.intent : undefined,
-      )
-      return result
-    }
-    if (!isValidJevQuery(data.query)) return finish({ status: 'unsupported' })
-
     const { env } = await import('cloudflare:workers')
-    const environment = env as JevEnvironment
-    const access = await verifyJevAccess({
-      authToken: data.authToken,
+    return interpretJevRequest({
+      entryPoint: 'ai',
+      data,
       requestUrl: getRequest().url,
-      environment,
+      environment: env as JevEnvironment,
+      buildRequest: buildJevAiRequest,
+      // Candidate verification remains in the evaluation harness until it
+      // demonstrates a recovery benefit with no incorrect proposals.
+      parseResponse: parseJevAiResponse,
+      getIntent: (result) =>
+        result.status === 'ok' ? result.action.intent : undefined,
     })
-    if (access.status !== 'ok') return finish({ status: access.status })
-
-    const response = await callJev(buildJevAiRequest(data.query), environment)
-    if (response.status !== 'ok') return finish({ status: response.status })
-    return finish(
-      parseJevAiResponse(response.body, data.query) ?? {
-        status: 'unsupported',
-      },
-    )
   })

@@ -22,9 +22,14 @@ export const Layout = ({ children }: LayoutProps) => {
     select: (matches) =>
       matches.some((routeMatch) => routeMatch.routeId === '/migration'),
   })
-  const migrationHeaderColor = '#e72a96'
+  const isAiPage = useMatches({
+    select: (matches) =>
+      matches.some((routeMatch) => routeMatch.routeId === '/ai'),
+  })
+  const isGradientPage = isMigrationPage || isAiPage
+  const gradientHeaderColor = isMigrationPage ? '#e72a96' : '#0080bc'
   const isEnsNameProfilePage = profileRouteMatch !== undefined
-  const isSepoliaBannerVisible = !isMigrationPage && !isEnsNameProfilePage
+  const isSepoliaBannerVisible = !isGradientPage && !isEnsNameProfilePage
   const profileName = profileRouteMatch?.params.name ?? ''
   const profileRecords = useQuery({
     ...profileRecordsQuery(profileName),
@@ -38,9 +43,11 @@ export const Layout = ({ children }: LayoutProps) => {
     <div
       className={tw(
         'relative flex flex-col bg-[#FCFBFB]',
-        isMigrationPage
-          ? 'h-dvh overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200'
-          : 'min-h-screen',
+        isMigrationPage &&
+          'h-dvh overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200',
+        isAiPage &&
+          'min-h-dvh bg-linear-to-b from-ens-lapis-100 to-ens-lapis-300',
+        !isGradientPage && 'min-h-screen',
       )}
     >
       <div className="sticky inset-x-0 top-0 z-30 shrink-0">
@@ -48,9 +55,9 @@ export const Layout = ({ children }: LayoutProps) => {
           desktopBreakpoint={isEnsNameProfilePage ? 'lg-landscape' : 'md'}
           hasMobileBlurredBackground={isEnsNameProfilePage}
           profileThemeColor={
-            isMigrationPage ? migrationHeaderColor : profileThemeColor
+            isGradientPage ? gradientHeaderColor : profileThemeColor
           }
-          transparentBackground={isEnsNameProfilePage || isMigrationPage}
+          transparentBackground={isEnsNameProfilePage || isGradientPage}
         />
       </div>
 
@@ -58,11 +65,11 @@ export const Layout = ({ children }: LayoutProps) => {
         <main
           className={tw(
             'relative isolate flex flex-1 flex-col',
-            isMigrationPage && 'min-h-0',
+            isGradientPage && 'min-h-0',
           )}
         >
           <LayoutBackAndNoticeRow
-            isHidden={isEnsNameProfilePage}
+            isHidden={isEnsNameProfilePage || isAiPage}
             isSepoliaBannerVisible={isSepoliaBannerVisible}
           />
           {children}

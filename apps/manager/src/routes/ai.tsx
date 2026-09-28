@@ -5,8 +5,10 @@ import { RequireBackendAuth } from '@/features/notifications/RequireBackendAuth'
 export const Route = createFileRoute('/ai')({
   ssr: false,
   component: () => (
-    <RequireBackendAuth>
-      <AiPage />
-    </RequireBackendAuth>
+    <div className="flex min-h-0 flex-1 flex-col justify-center">
+      <RequireBackendAuth>
+        <AiPage />
+      </RequireBackendAuth>
+    </div>
   ),
 })

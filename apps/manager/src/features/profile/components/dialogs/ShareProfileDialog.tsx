@@ -252,6 +252,8 @@ const ShareActionButton = ({
 )
 
 interface ShareProfileDialogProps {
+  readonly open?: boolean
+  readonly onOpenChange?: (open: boolean) => void
   readonly name: string
   readonly url: string
   readonly avatarUrl?: string
@@ -260,6 +262,8 @@ interface ShareProfileDialogProps {
 }
 
 export const ShareProfileDialog = ({
+  open: controlledOpen,
+  onOpenChange,
   name,
   url,
   avatarUrl,
@@ -267,7 +271,8 @@ export const ShareProfileDialog = ({
   trigger,
 }: ShareProfileDialogProps) => {
   const { t } = useLingui()
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setOpen] = useState(false)
+  const open = controlledOpen ?? internalOpen
   const [copied, setCopied] = useState(false)
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const profileTheme = getProfileTheme(themeColor)
@@ -292,6 +297,7 @@ export const ShareProfileDialog = ({
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen)
+    onOpenChange?.(isOpen)
     if (!isOpen) setCopied(false)
   }
 

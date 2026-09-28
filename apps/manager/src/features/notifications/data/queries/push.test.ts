@@ -4,7 +4,8 @@ import {
 } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/utils/backend-client', () => ({
+vi.mock('@/utils/backend-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/backend-client')>()),
   backendClient: {
     notifications: {
       channels: {
@@ -22,7 +23,7 @@ vi.mock('@/utils/backend-client', () => ({
   },
 }))
 
-import { backendClient } from '@/utils/backend-client'
+import { backendAuthStore, backendClient } from '@/utils/backend-client'
 import {
   browserPushStateQueryOptions,
   disableBrowserPushMutationOptions,
@@ -116,9 +117,11 @@ describe('push query orchestration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    backendAuthStore.trigger.signIn({ authKey: 'session-a', address: '0xabc' })
   })
 
   afterEach(() => {
+    backendAuthStore.trigger.signOut()
     vi.unstubAllGlobals()
     Object.defineProperty(globalThis, 'navigator', {
       value: originalNavigator,
@@ -294,5 +297,88 @@ describe('push query orchestration', () => {
       _tag: 'PushChannelRequestError',
     })
     expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    'sign out',
+    'switch wallet',
+    'replace token',
+  ])('does not create a channel after %s while permission is pending', async (change) => {
+    const subscription = createMockSubscription()
+    stubPushEnvironment({ permission: 'default', subscription })
+    let finishPermission: (permission: NotificationPermission) => void = () =>
+      undefined
+    vi.mocked(Notification.requestPermission).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishPermission = resolve
+        }),
+    )
+    const mutationFn = enableBrowserPushMutationOptions.mutationFn
+    if (!mutationFn) throw new Error('Missing mutationFn')
+    const pending = mutationFn(undefined, mutationContext)
+    const rejected = expect(pending).rejects.toMatchObject({
+      _tag: 'NotificationSessionChangedError',
+    })
+    await vi.waitFor(() =>
+      expect(Notification.requestPermission).toHaveBeenCalledOnce(),
+    )
+    if (change === 'sign out') backendAuthStore.trigger.signOut()
+    else
+      backendAuthStore.trigger.signIn({
+        authKey: 'session-b',
+        address: change === 'switch wallet' ? '0xdef' : '0xabc',
+      })
+    finishPermission('granted')
+    await rejected
+    expect(mockVapidGet).not.toHaveBeenCalled()
+    expect(mockPushPost).not.toHaveBeenCalled()
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
+  })
+
+  it('does not post or unsubscribe another session after pending subscription setup', async () => {
+    const subscription = createMockSubscription()
+    let finishSubscription: (value: PushSubscription) => void = () => undefined
+    const subscribe = vi.fn(
+      () =>
+        new Promise<PushSubscription>((resolve) => {
+          finishSubscription = resolve
+        }),
+    )
+    stubPushEnvironment({ subscribeFn: subscribe })
+    mockVapidGet.mockResolvedValue(pushGetResponse(true))
+    const mutationFn = enableBrowserPushMutationOptions.mutationFn
+    if (!mutationFn) throw new Error('Missing mutationFn')
+    const pending = mutationFn(undefined, mutationContext)
+    const rejected = expect(pending).rejects.toMatchObject({
+      _tag: 'NotificationSessionChangedError',
+    })
+    await vi.waitFor(() => expect(subscribe).toHaveBeenCalledOnce())
+    backendAuthStore.trigger.signIn({ authKey: 'session-b', address: '0xdef' })
+    finishSubscription(subscription)
+    await rejected
+    expect(mockPushPost).not.toHaveBeenCalled()
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
+  })
+
+  it('does not delete a channel after the login changes during channel lookup', async () => {
+    const subscription = createMockSubscription()
+    stubPushEnvironment({ subscription })
+    const queryClient = {
+      ensureQueryData: vi.fn(async () => {
+        backendAuthStore.trigger.signIn({
+          authKey: 'session-b',
+          address: '0xdef',
+        })
+        return []
+      }),
+    } as unknown as QueryClient
+    const mutationFn = disableBrowserPushMutationOptions(queryClient).mutationFn
+    if (!mutationFn) throw new Error('Missing mutationFn')
+    await expect(mutationFn(undefined, mutationContext)).rejects.toMatchObject({
+      _tag: 'NotificationSessionChangedError',
+    })
+    expect(mockDelete).not.toHaveBeenCalled()
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
   })
 })

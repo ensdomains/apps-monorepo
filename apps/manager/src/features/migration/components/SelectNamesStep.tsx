@@ -7,9 +7,10 @@ import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMi
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { cn } from '@/lib/utils'
+import { MigrationAiSelectionNotice } from './MigrationAiSelectionNotice'
 import {
-  NO_MANAGER_RESTORATION_PRESET,
-  proposeNoManagerRestorationNames,
+  getMigrationAiProposal,
+  type MigrationAiPreset,
 } from './migrationAiPreset'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
@@ -27,8 +28,16 @@ type SelectNamesStepProps = {
   readonly gasFundingStatus: MigrationGasFundingStatus
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
-  readonly preset?: typeof NO_MANAGER_RESTORATION_PRESET
+  readonly preset?: MigrationAiPreset
+  readonly names?: readonly string[]
 }
+
+const getSelectionSpacing = (contentHeight: boolean, compact: boolean) =>
+  contentHeight
+    ? 'md:justify-center md:pt-0 md:pb-0'
+    : compact
+      ? 'md:pt-6'
+      : 'md:pt-16'
 
 export const SelectNamesStep = ({
   gasEstimate,
@@ -37,8 +46,9 @@ export const SelectNamesStep = ({
   onNamesChange,
   onNext,
   preset,
+  names,
 }: SelectNamesStepProps) => {
-  const isAiPreset = preset === NO_MANAGER_RESTORATION_PRESET
+  const isAiPreset = preset !== undefined || names !== undefined
   const { eligible, isPending, isError, recoveryState } = useEligibleV1Names({
     fallbackToClassified: !isAiPreset,
     requireFresh: isAiPreset,
@@ -46,10 +56,12 @@ export const SelectNamesStep = ({
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
   const isRecovering = recoveryState.status === 'recovering'
-  const dependencyConflicts =
-    isAiPreset && !isRecovering
-      ? proposeNoManagerRestorationNames(eligible).dependencyConflicts
-      : []
+  const { requestedProposal, dependencyConflicts } = getMigrationAiProposal(
+    eligible,
+    names,
+    preset,
+    isRecovering,
+  )
   const hasNamesNeedingManagerRestoration = eligible.some(
     ({ managerAddress }) => managerAddress !== null,
   )
@@ -70,6 +82,7 @@ export const SelectNamesStep = ({
     isPending,
     isRecovery: isRecovering,
     preset,
+    names,
     onNamesChange,
   })
 
@@ -112,11 +125,7 @@ export const SelectNamesStep = ({
       <div
         className={cn(
           'flex min-h-0 flex-1 flex-col items-center px-5 pt-6 pb-0 md:pb-5',
-          isContentHeightCard
-            ? 'md:justify-center md:pt-0 md:pb-0'
-            : isCompactOuterSpacing
-              ? 'md:pt-6'
-              : 'md:pt-16',
+          getSelectionSpacing(isContentHeightCard, isCompactOuterSpacing),
         )}
       >
         <div
@@ -179,33 +188,11 @@ export const SelectNamesStep = ({
             </div>
           )}
 
-          {isAiPreset && dependencyConflicts.length > 0 && !isPending && (
-            <div
-              className="flex w-full max-w-160 items-start gap-3 rounded-lg bg-ens-garnet-50/70 px-4 py-4 text-ens-garnet-900"
-              role="alert"
-            >
-              <CircleAlert
-                aria-hidden="true"
-                className="mt-0.5 size-5 shrink-0"
-              />
-              <div className="flex flex-col gap-2 text-sm leading-5">
-                <p>
-                  <Trans>
-                    Some subnames depend on a parent that needs manager
-                    restoration. They start unselected so the excluded parent is
-                    not added for you. Review this before upgrading:
-                  </Trans>
-                </p>
-                <ul className="list-disc pl-5">
-                  {dependencyConflicts.map(({ name, excludedParent }) => (
-                    <li key={name}>
-                      {name} → {excludedParent}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
+          <MigrationAiSelectionNotice
+            dependencyConflicts={dependencyConflicts}
+            isPending={isPending}
+            requestedProposal={requestedProposal}
+          />
 
           {isRecoveryStale ? (
             <div

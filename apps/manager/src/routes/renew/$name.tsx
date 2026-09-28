@@ -9,8 +9,8 @@ import {
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import {
-  durationSearchSchema,
   getDurationPrefillSeconds,
+  renewalDurationSearchSchema,
 } from '@/features/register-v2/utils/durationSearch'
 import {
   canRenewV2Name,
@@ -21,7 +21,7 @@ import { RenewalRouteError } from '@/features/renew/workflow/components/RenewalR
 import { RenewalPage } from '@/features/renew/workflow/RenewalPage'
 
 export const Route = createFileRoute('/renew/$name')({
-  validateSearch: durationSearchSchema,
+  validateSearch: renewalDurationSearchSchema,
   loaderDeps: ({ search }) => search,
   // `ALICE.eth` and its look-alikes renew `alice.eth`, so they don't resolve
   // here — redirect rather than charge on a page titled with what was typed.
@@ -68,6 +68,10 @@ export const Route = createFileRoute('/renew/$name')({
     }
 
     if (expiryData.expiry === null) {
+      if (deps.targetDate)
+        throw new Error(
+          'This name is unavailable for renewal to the requested date.',
+        )
       if (expiryData.isNonExpiring) {
         throw new Error(
           'This name has no expiry, so there is nothing to renew.',
@@ -86,6 +90,10 @@ export const Route = createFileRoute('/renew/$name')({
     const expiryDate = profileExpiryDateFromSeconds(expiryData.expiry)
 
     if (isPastGracePeriod(expiryDate, expiryData.protocol)) {
+      if (deps.targetDate)
+        throw new Error(
+          'This name is unavailable for renewal to the requested date.',
+        )
       throw redirect({
         params: { name },
         search: deps,
@@ -123,7 +131,7 @@ function RouteComponent() {
           ? undefined
           : BigInt(initialDurationSeconds)
       }
-      key={`${label}:${currentExpiry}:${durationSearch.durationDays ?? ''}:${durationSearch.durationYears ?? ''}`}
+      key={`${label}:${currentExpiry}:${durationSearch.durationDays ?? ''}:${durationSearch.durationYears ?? ''}:${durationSearch.targetDate ?? ''}`}
       label={label}
       protocol="v2"
     />

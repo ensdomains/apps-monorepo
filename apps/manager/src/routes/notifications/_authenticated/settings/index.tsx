@@ -3,7 +3,7 @@ import { ContactMethods } from '@/features/notifications/settings/contact-method
 import { NotificationPreferences } from '@/features/notifications/settings/preferences'
 
 export const NotificationSettingsPage = () => {
-  const { aiPreference, aiEnabled } = Route.useSearch()
+  const { aiPreference, aiEnabled, aiPreferenceSession } = Route.useSearch()
   return (
     <div className="mx-auto w-full max-w-5xl px-2 py-8 lg:my-5">
       <div className="flex flex-col gap-4 pb-6">
@@ -23,6 +23,7 @@ export const NotificationSettingsPage = () => {
         </div>
 
         <NotificationPreferences
+          proposalSessionId={aiPreferenceSession}
           proposedPreference={
             aiPreference
               ? { key: aiPreference, enabled: aiEnabled ?? true }
@@ -44,6 +45,7 @@ export const Route = createFileRoute('/notifications/_authenticated/settings/')(
         | 'ownedNameExpiry'
         | 'ensLabsUpdates'
       aiEnabled?: boolean
+      aiPreferenceSession?: string
     } => {
       const aiPreference =
         search.aiPreference === 'favouritedNameExpiry' ||
@@ -55,8 +57,16 @@ export const Route = createFileRoute('/notifications/_authenticated/settings/')(
       return {
         aiPreference,
         aiEnabled: search.aiEnabled !== false && search.aiEnabled !== 'false',
+        ...(typeof search.aiPreferenceSession === 'string' && {
+          aiPreferenceSession: search.aiPreferenceSession,
+        }),
       }
     },
+    remountDeps: ({ search }) => [
+      search.aiPreference,
+      search.aiEnabled,
+      search.aiPreferenceSession,
+    ],
     component: NotificationSettingsPage,
   },
 )

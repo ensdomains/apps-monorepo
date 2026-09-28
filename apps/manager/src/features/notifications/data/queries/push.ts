@@ -10,6 +10,10 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Channel } from '@/features/notifications/data/queries/channels'
 import { channelsQueryOptions } from '@/features/notifications/data/queries/channels'
 import {
+  type captureNotificationSession,
+  withNotificationSession,
+} from '@/features/notifications/services/backendSession'
+import {
   createPushSubscriptionResult,
   getExistingSubscriptionResult,
   getPermissionStateResult,
@@ -170,10 +174,14 @@ const findMatchingPushChannel = (
   )
 }
 
-const enableBrowserPushResult = ResultFn(async function* () {
+const enableBrowserPushResult = ResultFn(async function* (
+  session: ReturnType<typeof captureNotificationSession>,
+) {
+  yield* session.validate()
   yield* registerServiceWorkerResult()
-
+  yield* session.validate()
   const permission = yield* requestNotificationPermissionResult()
+  yield* session.validate()
   if (permission !== 'granted') {
     return yield* new PushPermissionDeniedError({
       message: 'Permission denied',
@@ -181,11 +189,15 @@ const enableBrowserPushResult = ResultFn(async function* () {
   }
 
   const vapidPublicKey = yield* getVapidPublicKeyResult()
+  yield* session.validate()
   const subscription = yield* createPushSubscriptionResult(vapidPublicKey)
   const subscriptionJson = yield* getSubscriptionJsonResult(subscription)
+  yield* session.validate()
   const channelResult = await addPushChannelResult(subscriptionJson)
   if (channelResult.isErr()) {
-    await unsubscribeLocalPushSubscriptionResult(subscription)
+    // A different session may now share this browser subscription.
+    if (session.validate().isOk())
+      await unsubscribeLocalPushSubscriptionResult(subscription)
     return channelResult
   }
   const channel = channelResult.value
@@ -194,7 +206,9 @@ const enableBrowserPushResult = ResultFn(async function* () {
 
 const disableBrowserPushResult = ResultFn(async function* (
   queryClient: QueryClient,
+  session: ReturnType<typeof captureNotificationSession>,
 ) {
+  yield* session.validate()
   const subscription = yield* getExistingSubscriptionResult()
   if (!subscription?.endpoint) {
     return ok({ removed: false as const })
@@ -208,12 +222,14 @@ const disableBrowserPushResult = ResultFn(async function* (
     (cause) => new PushChannelRequestError({ cause }),
   )
   const matchedChannel = findMatchingPushChannel(channels, endpointHash)
+  yield* session.validate()
 
   if (!matchedChannel) {
     return yield* new ChannelNotFoundForEndpointError({ endpointHash })
   }
 
   yield* deletePushChannelResult(matchedChannel.id)
+  yield* session.validate()
   yield* unsubscribeLocalPushSubscriptionResult(subscription)
 
   return ok({ removed: true as const })
@@ -232,7 +248,7 @@ export const vapidPublicKeyQueryOptions = resultQueryOptions({
 
 export const enableBrowserPushMutationOptions = resultMutationOptions({
   mutationKey: qk('channels', 'push', { key: 'enable' }),
-  mutationFn: () => enableBrowserPushResult(),
+  mutationFn: () => withNotificationSession(enableBrowserPushResult),
   meta: {
     invalidates: [qk('channels', 'list')],
   },
@@ -241,7 +257,10 @@ export const enableBrowserPushMutationOptions = resultMutationOptions({
 export const disableBrowserPushMutationOptions = (queryClient: QueryClient) =>
   resultMutationOptions({
     mutationKey: qk('channels', 'push', { key: 'disable' }),
-    mutationFn: () => disableBrowserPushResult(queryClient),
+    mutationFn: () =>
+      withNotificationSession((session) =>
+        disableBrowserPushResult(queryClient, session),
+      ),
     meta: {
       invalidates: [qk('channels', 'list'), qk('preferences', 'list')],
     },

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ALL_ELIGIBLE_PRESET,
+  type MigrationAiPreset,
   NO_MANAGER_RESTORATION_PRESET,
   proposeNoManagerRestorationNames,
+  proposeRequestedMigrationNames,
 } from '../components/migrationAiPreset'
 import {
   buildRootSubtreeIndex,
@@ -17,7 +20,8 @@ type Params = {
   readonly eligible: readonly ClassifiedName[]
   readonly isPending: boolean
   readonly isRecovery?: boolean
-  readonly preset?: typeof NO_MANAGER_RESTORATION_PRESET
+  readonly preset?: MigrationAiPreset
+  readonly names?: readonly string[]
   readonly onNamesChange: (names: string[]) => void
 }
 
@@ -26,6 +30,7 @@ export const useNameSelection = ({
   isPending,
   isRecovery = false,
   preset,
+  names,
   onNamesChange,
 }: Params) => {
   const [search, setSearch] = useState('')
@@ -42,6 +47,13 @@ export const useNameSelection = ({
   )
   const initiallySelected = useMemo(() => {
     if (isRecovery) return allSelectable
+    if (names) {
+      const proposal = proposeRequestedMigrationNames(eligible, names, preset)
+      return new Set(
+        [...proposal.selected].filter((name) => allSelectable.has(name)),
+      )
+    }
+    if (preset === ALL_ELIGIBLE_PRESET) return allSelectable
     if (preset === NO_MANAGER_RESTORATION_PRESET) {
       const proposal = proposeNoManagerRestorationNames(eligible)
       return new Set(
@@ -60,7 +72,7 @@ export const useNameSelection = ({
         (name) => !namesNeedingManagerRestoration.has(name),
       ),
     )
-  }, [allSelectable, eligible, isRecovery, preset, rootSubtrees])
+  }, [allSelectable, eligible, isRecovery, preset, rootSubtrees, names])
 
   const didSeed = useRef(false)
   useEffect(() => {

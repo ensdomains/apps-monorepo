@@ -2,6 +2,10 @@ import { isAddress } from 'viem'
 
 export type JevFailureStatus = 'unauthorized' | 'rate_limited' | 'unavailable'
 
+export type JevModelResponse =
+  | { readonly status: 'ok'; readonly body: unknown }
+  | { readonly status: 'unavailable' }
+
 export type JevEnvironment = Cloudflare.Env & {
   readonly TYPESAFE_API_KEY?: string
   readonly JEV_RATE_LIMIT?: RateLimit
@@ -84,7 +88,7 @@ export const callJev = async (
   request: unknown,
   environment: JevEnvironment,
   fetcher: typeof fetch = fetch,
-): Promise<{ status: 'ok'; body: unknown } | { status: 'unavailable' }> => {
+): Promise<JevModelResponse> => {
   const key = environment.TYPESAFE_API_KEY?.trim()
   if (!key) return { status: 'unavailable' }
 
@@ -107,7 +111,7 @@ export const callJev = async (
 
 export const logJevOutcome = (
   entryPoint: 'dashboard' | 'ai',
-  status: 'ok' | 'unsupported' | JevFailureStatus,
+  status: 'ok' | 'needs_confirmation' | 'unsupported' | JevFailureStatus,
   startedAt: number,
   intent?: string,
 ): void => {
@@ -117,4 +121,80 @@ export const logJevOutcome = (
     ...(intent && { intent }),
     latencyMs: Date.now() - startedAt,
   })
+}
+
+type JevInterpretStatus =
+  | 'ok'
+  | 'needs_confirmation'
+  | 'unsupported'
+  | JevFailureStatus
+type JevInterpretFailure = {
+  readonly status: Exclude<JevInterpretStatus, 'ok' | 'needs_confirmation'>
+}
+
+// Both launchers use this boundary so authorization and rate limiting always
+// happen before a provider request, regardless of which UI submitted it.
+export const interpretJevRequest = async <
+  TResult extends { readonly status: JevInterpretStatus },
+>({
+  entryPoint,
+  data,
+  requestUrl,
+  environment,
+  buildRequest,
+  parseResponse,
+  isSupportedQuery = () => true,
+  getIntent,
+  fetcher = fetch,
+}: {
+  readonly entryPoint: 'dashboard' | 'ai'
+  readonly data: ReturnType<typeof validateJevInput>
+  readonly requestUrl: string
+  readonly environment: JevEnvironment
+  readonly buildRequest: (query: string) => unknown
+  readonly parseResponse: (
+    body: unknown,
+    query: string,
+    requestFollowup: (request: unknown) => Promise<JevModelResponse>,
+  ) => TResult | null | Promise<TResult | null>
+  readonly isSupportedQuery?: (query: string) => boolean
+  readonly getIntent?: (result: TResult) => string | undefined
+  readonly fetcher?: typeof fetch
+}): Promise<TResult | JevInterpretFailure> => {
+  const startedAt = Date.now()
+  const finish = (result: TResult | JevInterpretFailure, intent?: string) => {
+    logJevOutcome(
+      entryPoint,
+      result.status,
+      startedAt,
+      result.status === 'ok' || result.status === 'needs_confirmation'
+        ? intent
+        : undefined,
+    )
+    return result
+  }
+  if (!isValidJevQuery(data.query) || !isSupportedQuery(data.query)) {
+    return finish({ status: 'unsupported' })
+  }
+
+  const access = await verifyJevAccess({
+    authToken: data.authToken,
+    requestUrl,
+    environment,
+    fetcher,
+  })
+  if (access.status !== 'ok') return finish({ status: access.status })
+
+  const response = await callJev(buildRequest(data.query), environment, fetcher)
+  if (response.status !== 'ok') return finish({ status: response.status })
+  let followupRequested = false
+  const requestFollowup = (request: unknown): Promise<JevModelResponse> => {
+    if (followupRequested) return Promise.resolve({ status: 'unavailable' })
+    followupRequested = true
+    return callJev(request, environment, fetcher)
+  }
+  const result = await parseResponse(response.body, data.query, requestFollowup)
+  return result
+    ? finish(result, getIntent?.(result))
+    : finish({ status: 'unsupported' })
 }

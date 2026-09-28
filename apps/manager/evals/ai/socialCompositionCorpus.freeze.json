@@ -1,0 +1,13 @@
+{
+  "frozenAt": "2026-09-26T13:18:41.196504+00:00",
+  "caseCount": 30,
+  "supported": 14,
+  "clarification": 8,
+  "unsupported": 8,
+  "split": "development",
+  "corpusHash": "1f393c75d8f3b3fc65d28d52ac1debcf024fc7bd0139580ed137134240704882",
+  "labelsBeforeProviderCalls": true,
+  "providerCallsAtFreeze": 0,
+  "reservedMaterialUsed": false,
+  "expectedShape": "Full prepared actions and opt-in exact interpretedAction for every clarification"
+}
