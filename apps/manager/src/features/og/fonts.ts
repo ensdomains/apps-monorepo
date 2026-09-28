@@ -1,26 +1,25 @@
-import { env } from 'cloudflare:workers'
 import { createOgFontCache } from '@ens-apps/og/fonts'
 import type { OgFont } from '@ens-apps/og/render'
-import ogSansFontUrl from '../../assets/fonts/og/abc-monument-grotesk-medium.ttf?url'
-import ogMonoFontUrl from '../../assets/fonts/og/abc-monument-grotesk-mono-regular.ttf?url'
-import ogSemiMonoFontUrl from '../../assets/fonts/og/abc-monument-grotesk-semi-mono-regular.ttf?url'
+
+/**
+ * Font loading for the OG cards.
+ *
+ * satori can't read the app's own WOFF2 faces, so `public/og/fonts` carries TTF
+ * builds of the same three. They live in `public/` rather than the bundle
+ * because the worker fetches them over its own origin — inlining ~600KB of
+ * base64 would count against the worker's upload size, static assets don't.
+ */
+
+const FONT_PATHS = {
+  mono: '/og/fonts/abc-monument-grotesk-mono-regular.ttf',
+  sans: '/og/fonts/abc-monument-grotesk-medium.ttf',
+  semiMono: '/og/fonts/abc-monument-grotesk-semi-mono-regular.ttf',
+} as const
 
 const fontCache = createOgFontCache()
 
-/**
- * Vite's emitted URL may be rooted at `/assets/` or `/client/assets/` in the
- * Start production output. Try both; the shared cache validates the font bytes
- * so a missing asset or SPA fallback still degrades safely.
- */
-function candidateUrls(fontPath: string, requestUrl: string): string[] {
-  const paths = fontPath.startsWith('/assets/')
-    ? [fontPath, `/client${fontPath}`]
-    : [fontPath]
-
-  return paths.map((path) => new URL(path, requestUrl).toString())
-}
-
-const fetchFont = (url: string) => env.ASSETS.fetch(new Request(url))
+// The worker has no `ASSETS` binding, so fonts come back over its own origin.
+const fetchFont = (url: string) => fetch(url)
 
 /**
  * Load the card fonts, dropping any that failed.
@@ -29,13 +28,15 @@ const fetchFont = (url: string) => env.ASSETS.fetch(new Request(url))
  * which keeps a card renderable even if an asset fetch goes wrong.
  */
 export async function loadOgFonts(requestUrl: string): Promise<OgFont[]> {
-  const load = (fontPath: string) =>
-    fontCache(candidateUrls(fontPath, requestUrl), fetchFont)
+  // Cached on the absolute URL, so an isolate serving more than one origin
+  // (a preview deployment beside production) can't cross its fonts over.
+  const load = (path: string) =>
+    fontCache([new URL(path, requestUrl).toString()], fetchFont)
 
   const [sans, semiMono, mono] = await Promise.all([
-    load(ogSansFontUrl),
-    load(ogSemiMonoFontUrl),
-    load(ogMonoFontUrl),
+    load(FONT_PATHS.sans),
+    load(FONT_PATHS.semiMono),
+    load(FONT_PATHS.mono),
   ])
 
   return [

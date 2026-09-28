@@ -1,12 +1,13 @@
 import { fitOgChipName } from '@ens-apps/og/chipName'
 import { escapeHtml } from '@ens-apps/og/markup'
+import {
+  OG_CARD_HEIGHT,
+  OG_CARD_WIDTH,
+  renderOgCard,
+} from '@ens-apps/og/render'
 import ensMarkSvg from '@/assets/og/ens-mark.svg?raw'
 import { loadOgFonts } from './fonts'
 import { GENERIC_OG_PALETTE, getOgPalette, type OgPalette } from './palette'
-
-// Match the shared renderer's default 1200 × 630 canvas.
-const OG_CARD_WIDTH = 1200
-const OG_CARD_HEIGHT = 630
 
 /** Mark and wordmark sizes for the two header scales in the design. */
 const HEADER_SIZES = {
@@ -76,12 +77,7 @@ async function renderCardImage(
   html: string,
   requestUrl: string,
 ): Promise<Response | null> {
-  const [fonts, { renderOgCard }] = await Promise.all([
-    loadOgFonts(requestUrl),
-    import('@ens-apps/og/render'),
-  ])
-
-  return renderOgCard(html, { fonts })
+  return renderOgCard(html, { fonts: await loadOgFonts(requestUrl) })
 }
 
 /** The un-themed app card, used for every route that isn't a name. */

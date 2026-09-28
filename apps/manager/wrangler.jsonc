@@ -4,10 +4,6 @@
   "compatibility_date": "2026-09-02",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
-  "assets": {
-    "directory": "dist/client",
-    "binding": "ASSETS"
-  },
   "preview_urls": true,
   "observability": {
     "enabled": true

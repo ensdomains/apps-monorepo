@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import { lingui, linguiTransformerBabelPreset } from '@lingui/vite-plugin'
@@ -6,36 +5,7 @@ import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
-import { defineConfig, type Plugin } from 'vite'
-
-const OG_FONT_FILES = [
-  'abc-monument-grotesk-medium.ttf',
-  'abc-monument-grotesk-mono-regular.ttf',
-  'abc-monument-grotesk-semi-mono-regular.ttf',
-] as const
-
-/**
- * OG fonts are imported only by a server route, so Vite otherwise emits them
- * beside the server chunks. Emit the same Vite assets in the client output,
- * which is the directory exposed by the Cloudflare ASSETS binding.
- */
-function managerOgFontAssets(): Plugin {
-  return {
-    name: 'manager-og-font-assets',
-    applyToEnvironment: (environment) => environment.name === 'client',
-    buildStart() {
-      for (const file of OG_FONT_FILES) {
-        this.emitFile({
-          type: 'asset',
-          name: file,
-          source: readFileSync(
-            new URL(`./src/assets/fonts/og/${file}`, import.meta.url),
-          ),
-        })
-      }
-    },
-  }
-}
+import { defineConfig } from 'vite'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -87,7 +57,6 @@ export default defineConfig({
       presets: [linguiTransformerBabelPreset()],
     }),
     tailwindcss(),
-    managerOgFontAssets(),
   ],
   optimizeDeps: {
     // Pre-bundle deps that Vite discovers late (during route navigation).
