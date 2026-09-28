@@ -2,7 +2,9 @@ import type { Address, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { createActor, fromPromise, waitFor } from 'xstate'
+import { TransactionSubmissionError } from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
+import type { TransactionRequest } from '../../types/transaction.types'
 import type { HcaSessionEnableParams } from './registration.hca.actors'
 import { registrationMachine } from './registration.machine'
 
@@ -49,6 +51,8 @@ const startHcaRegistration = (overrides: {
   displayedWalletDebit?: bigint
   /** Stored session-enable proof, as rebuilt from storage on every run. */
   hcaSessionEnable?: HcaSessionEnableParams
+  pollTransactionStatus?: ReturnType<typeof vi.fn>
+  validateCommitment?: ReturnType<typeof vi.fn>
 }) => {
   const estimateHcaBudget =
     overrides.estimateHcaBudget ??
@@ -86,6 +90,16 @@ const startHcaRegistration = (overrides: {
         ) as never,
         signFundingPermit: fromPromise(signFundingPermit) as never,
         submitFundingAndCommit: fromPromise(submitFundingAndCommit) as never,
+        ...(overrides.pollTransactionStatus && {
+          pollTransactionStatus: fromPromise(
+            overrides.pollTransactionStatus,
+          ) as never,
+        }),
+        ...(overrides.validateCommitment && {
+          validateCommitment: fromPromise(
+            overrides.validateCommitment,
+          ) as never,
+        }),
       },
     }),
     { input: { chainId: sepolia.id } },
@@ -296,5 +310,73 @@ describe('registrationMachine — session-enable proof', () => {
     const input = submitFundingAndCommit.mock.calls[0][0].input
     expect(input.permit).toBeUndefined()
     expect(input.sessionEnable).toEqual(SESSION_ENABLE)
+  })
+})
+
+describe('registrationMachine — failed commit send', () => {
+  const sendFailed = new TransactionSubmissionError(
+    {} as TransactionRequest,
+    new Error('Internal JSON-RPC error.'),
+  )
+
+  it('fails an EOA commit the wallet could not send straight away', async () => {
+    // Nothing was broadcast, so verifying on-chain only polls for ~12s while
+    // the modal already shows "Try again" — and ignores the click until then.
+    const validateCommitment = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          deployResolver: fromPromise(async () => ({
+            txId: 'deploy',
+            salt: 1n,
+          })) as never,
+          resolveResolverDeployment: fromPromise(async () => ({
+            resolverAddress: HCA,
+          })) as never,
+          generateCommitment: fromPromise(async () => ({})) as never,
+          submitCommitment: fromPromise(async () => 'commit') as never,
+          pollTransactionStatus: fromPromise(async () => {
+            throw sendFailed
+          }) as never,
+          validateCommitment: fromPromise(validateCommitment) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+    actor.start()
+    actor.send({
+      type: 'START_REGISTRATION',
+      name: 'myname.eth',
+      duration: 31_536_000n,
+      token: 'USDC',
+      price: 5_000_000n,
+      signer: { type: 'eoa' } as unknown as Signer,
+      accountAddress: WALLET,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+
+    expect(validateCommitment).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.retryTarget).toBe(
+      'committingTransaction',
+    )
+  })
+
+  it('still verifies an HCA commit on-chain, which can land after a failure', async () => {
+    const { actor } = startHcaRegistration({
+      balances: [BUDGET],
+      submitFundingAndCommit: vi.fn(async () => ({
+        resolverAddress: HCA,
+        commitment: {},
+        txId: 'commit',
+      })),
+      pollTransactionStatus: vi.fn(async () => {
+        throw sendFailed
+      }),
+      validateCommitment: vi.fn(() => new Promise(() => {})),
+    })
+
+    await waitFor(actor, (s) => s.matches('validatingCommitment'))
   })
 })

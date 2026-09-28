@@ -3,6 +3,7 @@ import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
+import { TransactionSubmissionError } from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
 import { isRetryableSubmissionError } from '../retry-policy'
 import type { TOKEN_SYMBOL } from './registration.actors'
@@ -1034,10 +1035,16 @@ export const registrationMachine = setup({
         // `commitmentAt` is set we continue, otherwise that state's retry
         // resubmits the correct (signer-aware) commit path.
         onError: [
-          // A declined commit never reached the chain: there is nothing to
-          // verify, and the retry below would just re-prompt the wallet.
+          // A commit that never reached the chain has nothing to verify, and
+          // verifying only delays the error the modal already shows. That is a
+          // declined commit, or any EOA send failure: the EOA transport fails
+          // only before broadcast. Warp can fail after its intent was
+          // submitted, so the HCA path still verifies.
           {
-            guard: ({ event }) => !isRetryableSubmissionError(event.error),
+            guard: ({ context, event }) =>
+              !isRetryableSubmissionError(event.error) ||
+              (context.signer?.type !== 'rhinestone' &&
+                event.error instanceof TransactionSubmissionError),
             target: 'error',
             actions: assign({
               error: ({ event }) => event.error as Error,
