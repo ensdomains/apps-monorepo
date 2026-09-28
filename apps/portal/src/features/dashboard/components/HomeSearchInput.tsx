@@ -35,17 +35,15 @@ export const HomeSearchInput = ({
   className,
   iconOnly = false,
   isHero = false,
-  defaultValue = '',
 }: {
   readonly className?: string
   readonly iconOnly?: boolean
   /** Landing-page hero: larger field with the typed-entity hint. */
   readonly isHero?: boolean
-  readonly defaultValue?: string
 }) => {
   const listboxId = useId()
   const navigate = useNavigate()
-  const [searchValue, setSearchValue] = useState(defaultValue)
+  const [searchValue, setSearchValue] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState<number>(-1)
   const triggerRef = useRef<HTMLDivElement | null>(null)
