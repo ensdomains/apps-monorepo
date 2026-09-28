@@ -214,7 +214,8 @@ describe.skipIf(!integration)(
 
       expect(page?.total_count).toBeTypeOf('number')
       for (const row of data) {
-        expectShape(row, { id: 'string', type: 'string', name: 'string' })
+        expectShape(row, { id: 'string', type: 'string', namespace: 'string' })
+        expect(EVENT_TYPES).toContain(row.type)
       }
     })
 
