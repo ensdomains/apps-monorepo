@@ -1,5 +1,5 @@
 import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
-import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
+import { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -10,6 +10,7 @@ import {
 } from '@ensdomains/ensjs/utils'
 import { fromPromise, fromThrowable, ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
+import { indexerClient } from '@/lib/indexer-client'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isDebugProfileName } from '@/utils/debug-features'
 import {

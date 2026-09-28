@@ -17,8 +17,12 @@ vi.mock('@tanstack/react-router', () => ({
 
 // The EOA flow's first on-chain step resolves only when the test says so, and
 // the step after it is a spy: a flow that is really stopped never reaches it.
+// A test that needs the flow to go on past it resolves the spy once; the later
+// steps then succeed until register, which the wallet rejects.
 const deploy = vi.hoisted(() => ({ finish: () => {} }))
-const waitForResolverDeployment = vi.hoisted(() => vi.fn())
+const waitForResolverDeployment = vi.hoisted(() =>
+  vi.fn(() => new Promise(() => {})),
+)
 vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@ens-apps/transaction-manager')>()
@@ -32,9 +36,28 @@ vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
               deploy.finish = () => resolve({ txId: 'deploy', salt: 0n })
             }),
         ) as never,
-        resolveResolverDeployment: fromPromise(() => {
-          waitForResolverDeployment()
-          return new Promise(() => {})
+        resolveResolverDeployment: fromPromise(() =>
+          waitForResolverDeployment(),
+        ) as never,
+        generateCommitment: fromPromise(async () => ({
+          commitment: '0x01',
+          secret: '0x02',
+        })) as never,
+        submitCommitment: fromPromise(
+          async () => actual.REGISTRATION_TX_IDS.commit,
+        ) as never,
+        pollTransactionStatus: fromPromise(async () => {}) as never,
+        readMinCommitmentAge: fromPromise(async () => 0n) as never,
+        readPaymentAuthorization: fromPromise(async () => ({
+          allowance: 0n,
+          livePrice: 1n,
+        })) as never,
+        submitApproval: fromPromise(
+          async () => actual.REGISTRATION_TX_IDS.approve,
+        ) as never,
+        waitAfterCommitment: fromPromise(async () => {}) as never,
+        submitRegistration: fromPromise(async () => {
+          throw new Error('User rejected')
         }) as never,
       },
     }),
@@ -145,6 +168,50 @@ describe('/register', () => {
     )
     expect(clear).not.toHaveBeenCalled()
 
+    cancel.mockRestore()
+    clear.mockRestore()
+  })
+
+  it('keeps completed steps when retrying a rejected register', async () => {
+    search.name = 'retry.eth'
+    waitForResolverDeployment.mockResolvedValueOnce({
+      resolverAddress: ACCOUNT,
+    })
+    render(<RegisterRoute />)
+
+    act(() => flow.startFlow(SUPPORTED_TOKENS.USDC, 160_000_000n))
+    await act(() => flow.transactions[0].onStart?.())
+    await act(async () => deploy.finish())
+    await vi.waitFor(() =>
+      expect(flow.actor.getSnapshot().context.retryTarget).toBe(
+        'registeringDomain',
+      ),
+    )
+
+    // The steps before register landed; the wallet rejected register itself.
+    const attempt = (error?: Error) =>
+      ({ getSnapshot: () => ({ context: { error } }) }) as never
+    const attempts: Record<string, never> = {
+      [REGISTRATION_TX_IDS.deployResolver]: attempt(),
+      [REGISTRATION_TX_IDS.commit]: attempt(),
+      [REGISTRATION_TX_IDS.approve]: attempt(),
+      [REGISTRATION_TX_IDS.register]: attempt(new Error('User rejected')),
+    }
+    const get = vi
+      .spyOn(transactionManager, 'getTransaction')
+      .mockImplementation((id) => attempts[id])
+    const cancel = vi.spyOn(transactionManager, 'cancelTransaction')
+    const clear = vi.spyOn(transactionManager, 'clear')
+
+    // "Try again" on the register step.
+    act(() => flow.transactions.at(-1)?.onStart?.())
+
+    // The overview reads each step's status from the manager, so the steps
+    // that landed must stay there; only the rejected attempt is retired.
+    expect(cancel.mock.calls).toEqual([[REGISTRATION_TX_IDS.register]])
+    expect(clear).not.toHaveBeenCalled()
+
+    get.mockRestore()
     cancel.mockRestore()
     clear.mockRestore()
   })

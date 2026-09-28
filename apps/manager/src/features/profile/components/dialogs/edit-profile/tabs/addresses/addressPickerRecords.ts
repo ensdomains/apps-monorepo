@@ -2,6 +2,7 @@ import {
   getCoinTypeForReverseRegistrarChainId,
   type ReverseRegistrarChainId,
 } from '@ens-apps/l2-primary/v1'
+import { envConfig } from '@/config'
 import { addressRecords } from '@/features/profile/data/records'
 import type { AddressRecordDef } from '@/features/profile/data/records/types'
 
@@ -25,7 +26,7 @@ export const BSC_COIN_TYPE = 2147483704
 // Shared with the explorer, so both key these L2s on the same coin type. The
 // other chains have no reverse registrar and keep their canonical coin type.
 const l2CoinType = (chainId: ReverseRegistrarChainId) =>
-  getCoinTypeForReverseRegistrarChainId(chainId, 'sepolia')
+  getCoinTypeForReverseRegistrarChainId(chainId, envConfig.network)
 
 export const evmChainOptions: readonly AddressOption[] = [
   { coinType: l2CoinType(10), label: 'Optimism' },

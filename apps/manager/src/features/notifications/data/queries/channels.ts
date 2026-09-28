@@ -153,11 +153,11 @@ export const testChannelMutationOptions = mutationOptions({
 })
 
 export const resendVerificationMutationOptions = mutationOptions({
-  mutationFn: async (channelId: string) => {
-    const response = await backendClient.notifications.channels[
+  mutationFn: async (challengeId: string) => {
+    const response = await backendClient.notifications.channels.email[
       ':id'
     ].resend.$post({
-      param: { id: channelId },
+      param: { id: challengeId },
     })
 
     if (!response.ok) {
@@ -175,11 +175,19 @@ export const resendVerificationMutationOptions = mutationOptions({
 })
 
 export const verifyEmailMutationOptions = mutationOptions({
-  mutationFn: async (token: string) => {
-    const response =
-      await backendClient.notifications.channels.email.verify.$post({
-        json: { token },
-      })
+  mutationFn: async ({
+    challengeId,
+    otp,
+  }: {
+    challengeId: string
+    otp: string
+  }) => {
+    const response = await backendClient.notifications.channels.email[
+      ':id'
+    ].verify.$post({
+      param: { id: challengeId },
+      json: { otp },
+    })
 
     if (!response.ok) {
       const error = await response.json()
@@ -190,6 +198,19 @@ export const verifyEmailMutationOptions = mutationOptions({
   },
   mutationKey: qk('channels', 'verify_email'),
   meta: {
-    invalidates: [qk('channels', 'list')],
+    invalidates: [qk('channels', 'list'), qk('preferences', 'list')],
   },
+})
+
+export const cancelEmailVerificationMutationOptions = mutationOptions({
+  mutationFn: async (challengeId: string) => {
+    const response = await backendClient.notifications.channels.email[
+      ':id'
+    ].$delete({
+      param: { id: challengeId },
+    })
+    if (!response.ok) throw new Error('Failed to cancel email verification')
+    return response.json()
+  },
+  meta: { invalidates: [qk('channels', 'list')] },
 })

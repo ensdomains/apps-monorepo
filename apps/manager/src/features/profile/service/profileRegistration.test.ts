@@ -21,8 +21,8 @@ vi.mock('viem/actions', () => ({
   getBlock: mocks.getBlock,
 }))
 
-vi.mock('@ens-apps/indexer/urql', () => ({
-  default: {
+vi.mock('@/lib/indexer-client', () => ({
+  indexerClient: {
     query: (...args: unknown[]) => ({
       toPromise: () => Promise.resolve(mocks.indexerQuery(...args)),
     }),

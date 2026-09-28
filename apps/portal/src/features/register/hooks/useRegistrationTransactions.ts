@@ -179,7 +179,10 @@ export const useRegistrationTransactions = ({
   const handleProceed = useCallback(() => {
     const currentState = actor.getSnapshot().value
     if (currentState === 'error') {
-      transactionManager.clear()
+      for (const id of Object.values(REGISTRATION_TX_IDS)) {
+        if (transactionManager.getTransaction(id)?.getSnapshot().context.error)
+          transactionManager.cancelTransaction(id)
+      }
       actor.send({ type: 'RETRY' })
     }
   }, [actor])
@@ -210,6 +213,7 @@ export const useRegistrationTransactions = ({
                     salt: hexToBigInt(
                       keccak256(stringToBytes(`estimate:${name}`)),
                     ),
+                    chain: sepoliaWithEns,
                   }),
                   chainId,
                 })
@@ -272,6 +276,7 @@ export const useRegistrationTransactions = ({
                     duration: BigInt(duration),
                     paymentToken: savedParams.tokenAddress,
                     resolverAddress,
+                    registrarAddress: ethRegistrar,
                   }),
                   chainId,
                   gas: 500_000n,

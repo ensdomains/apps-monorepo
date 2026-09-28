@@ -11,8 +11,8 @@ export const KV_KEY = {
     FUND_LOCK: (address: string) => `wallet:fund-lock:${address.toLowerCase()}`,
   },
   NOTIFICATIONS: {
-    EMAIL_VERIFICATION: (normalizedEmail: string) =>
-      `notifications:email-verification:${normalizedEmail}`,
+    EMAIL_VERIFICATION: (userId: string) =>
+      `notifications:email-verification:user:${userId}`,
   },
 } as const
 

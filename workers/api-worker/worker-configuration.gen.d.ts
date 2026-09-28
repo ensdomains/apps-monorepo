@@ -14,7 +14,6 @@ declare namespace Cloudflare {
 		DLQ: Queue;
 		CHAIN: "sepolia";
 		BASE_URL: "https://app-api.ens.dev";
-		ENS_INDEXER_GRAPHQL_URL: "https://staging-graphql.ens.dev/";
 		MANAGER_APP_URL: "https://app.ens.dev";
 		POSTHOG: { host: string; unique_searches_endpoint: string; };
 		VAPID_SUBJECT: "mailto:notifications@ens.domains";
@@ -40,7 +39,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "CHAIN" | "BASE_URL" | "ENS_INDEXER_GRAPHQL_URL" | "MANAGER_APP_URL" | "VAPID_SUBJECT" | "VAPID_PUBLIC_KEY" | "TELEGRAM" | "SENDGRID_BROADCAST_LIST_ID" | "SENDGRID_TEMPLATE_IDS" | "TELEGRAM_WEBHOOK_SECRET" | "JWT_SECRET" | "POSTHOG_PERSONAL_API_KEY" | "TELEGRAM_BOT_TOKEN" | "SENDGRID_API_KEY" | "EMAIL_FROM_ADDRESS" | "ETH_PRIVATE_KEY" | "SEPOLIA_RPC_URL" | "DATABASE_URL" | "SENDGRID_WEBHOOK_VERIFICATION_KEY" | "VAPID_PRIVATE_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "CHAIN" | "BASE_URL" | "MANAGER_APP_URL" | "VAPID_SUBJECT" | "VAPID_PUBLIC_KEY" | "TELEGRAM" | "SENDGRID_BROADCAST_LIST_ID" | "SENDGRID_TEMPLATE_IDS" | "TELEGRAM_WEBHOOK_SECRET" | "JWT_SECRET" | "POSTHOG_PERSONAL_API_KEY" | "TELEGRAM_BOT_TOKEN" | "SENDGRID_API_KEY" | "EMAIL_FROM_ADDRESS" | "ETH_PRIVATE_KEY" | "SEPOLIA_RPC_URL" | "DATABASE_URL" | "SENDGRID_WEBHOOK_VERIFICATION_KEY" | "VAPID_PRIVATE_KEY">> {}
 }
 
 // Begin runtime types

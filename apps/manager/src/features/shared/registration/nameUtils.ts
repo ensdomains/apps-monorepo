@@ -1,7 +1,7 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { sepolia } from 'viem/chains'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
+import { chain } from '@/config'
 
 export class NameAvailabilityError extends TaggedError(
   'NameAvailabilityError',
@@ -151,7 +151,7 @@ export const STABLECOINS = {
     name: 'USD Coin',
     symbol: 'USDC',
     decimals: 6,
-    address: getDestinationContracts(sepolia.id).usdc,
+    address: getDestinationContracts(chain.id).usdc,
     icon: USDCIcon,
   },
 } as const

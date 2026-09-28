@@ -1,10 +1,10 @@
-import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
+import { originFromEnvUrl } from '@ens-apps/config'
 import { describe, expect, it } from 'vitest'
+import { envConfig } from '@/config'
 import {
   buildCsp,
   CSP_HEADER_NAME,
   CSP_REPORT_ONLY,
-  originFromEnvUrl,
   SECURITY_HEADER_VALUES,
 } from './csp'
 
@@ -57,7 +57,7 @@ describe('csp', () => {
     })
 
     it('allowlists every shared RPC failover origin', () => {
-      for (const url of SEPOLIA_FALLBACK_RPC_URLS) {
+      for (const url of envConfig.rpcFallbacks) {
         expect(connectSrc).toContain(new URL(url).origin)
       }
       expect(connectSrc).toContain('https://lb.drpc.live')
@@ -169,7 +169,7 @@ describe('csp', () => {
     })
 
     it('allowlists every fallback RPC the viem transport can reach', () => {
-      for (const url of SEPOLIA_FALLBACK_RPC_URLS) {
+      for (const url of envConfig.rpcFallbacks) {
         expect(header['connect-src']).toContain(new URL(url).origin)
       }
     })
