@@ -330,6 +330,26 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByText('$9.99')).toBeVisible()
   })
 
+  it('does not show a credit row for a real balance under a cent', () => {
+    renderPicker({
+      funding: {
+        registration: 4.996,
+        networkFee: 4.996,
+        total: 9.992,
+        walletDebit: 9.988,
+        hcaCredit: 0.004,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(
+      screen.queryByText('Left from your last attempt'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
+    expect(screen.getByText('Total')).toBeVisible()
+  })
+
   // Rounding can leave a cent over on an empty account; a credit line there
   // would be money the user does not have.
   it('shows no credit for an account that is empty', () => {

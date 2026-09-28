@@ -24,18 +24,18 @@ export type PaymentBreakdownFigures = {
  * three are amounts the user can compare against their wallet, the credit is
  * the app's own bookkeeping.
  *
- * The residue cuts both ways, so `hcaCredit` decides whether there is a credit
- * at all and the derived figure only says how it is shown. Without that, an
- * empty account invents one (4.996 + 4.996 against a 9.992 debit leaves 0.01)
- * and a balance under a cent produces a negative deduction (4.994 + 4.994
- * against 9.987 leaves -0.01). Both come back as zero, and the sheet shows the
- * plain total instead.
+ * The residue cuts both ways, so `hcaCredit` must itself round to a visible
+ * cent before the derived figure says how that credit is shown. Without that,
+ * an empty account invents one (4.996 + 4.996 against a 9.992 debit leaves
+ * 0.01), while a sub-cent balance can invent the same visible cent or produce
+ * a negative deduction. All come back as zero, and the sheet shows the plain
+ * total instead.
  */
 export const getPaymentBreakdownFigures = (funding: {
   readonly registration: number
   readonly networkFee: number
   readonly walletDebit: number
-  /** The account's real balance: what decides whether a credit exists. */
+  /** The account's real balance: it must itself be visible at cent precision. */
   readonly hcaCredit: number
 }): PaymentBreakdownFigures => {
   const registration = toCents(funding.registration)
@@ -47,7 +47,7 @@ export const getPaymentBreakdownFigures = (funding: {
     networkFee,
     walletDebit,
     credit:
-      funding.hcaCredit > 0
+      toCents(funding.hcaCredit) > 0
         ? Math.max(0, toCents(registration + networkFee - walletDebit))
         : 0,
   }

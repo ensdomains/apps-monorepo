@@ -64,6 +64,17 @@ describe('getPaymentBreakdownFigures', () => {
     ).toBe(0)
   })
 
+  it('does not derive a visible credit from a sub-cent real balance', () => {
+    expect(
+      getPaymentBreakdownFigures({
+        registration: 4.996,
+        networkFee: 4.996,
+        walletDebit: 9.988,
+        hcaCredit: 0.004,
+      }).credit,
+    ).toBe(0)
+  })
+
   it('keeps a credit of a cent or more', () => {
     expect(
       getPaymentBreakdownFigures({
