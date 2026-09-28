@@ -22,7 +22,9 @@ import type { FailureCategory } from '#types/delivery.js'
 import { randomUUIDv7 } from '../utils/schemaHelpers'
 import { users } from './core'
 
-type UserChannelStatus = 'pending' | 'verified' | 'bounced' | 'unsubscribed'
+// Every channel has already been associated with its account. Status describes
+// delivery availability, never an unproven verification attempt.
+type UserChannelStatus = 'verified' | 'disabled' | 'bounced' | 'unsubscribed'
 
 export const userChannels = pgTable(
   'user_channels',
@@ -63,12 +65,6 @@ export const userChannels = pgTable(
      * When the channel was last bounced
      */
     last_bounce_at: timestamp('last_bounce_at', { withTimezone: true }),
-
-    // ⏱️ anti‑spam: track verification sends/attempts
-    last_verification_sent_at: timestamp('last_verification_sent_at', {
-      withTimezone: true,
-    }),
-    verification_attempts: integer('verification_attempts').default(0),
   },
   (table) => [
     unique('user_channel_unique').on(
@@ -79,56 +75,40 @@ export const userChannels = pgTable(
   ],
 )
 
-export const userChannelRelations = relations(
-  userChannels,
-  ({ one, many }) => ({
-    user: one(users, {
-      fields: [userChannels.user_id],
-      references: [users.id],
-    }),
-    verifications: many(channelVerifications),
+export const userChannelRelations = relations(userChannels, ({ one }) => ({
+  user: one(users, {
+    fields: [userChannels.user_id],
+    references: [users.id],
   }),
-)
+}))
 
 // ===============================
 
-export const channelVerifications = pgTable('channel_verifications', {
+export const emailVerifications = pgTable('email_verifications', {
   id: uuid('id').primaryKey().default(randomUUIDv7),
-
   user_id: uuid('user_id')
     .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-
-  channel_id: uuid('channel_id')
-    .references(() => userChannels.id, {
-      onDelete: 'cascade',
-    })
+    .references(() => users.id, { onDelete: 'cascade' })
+    .unique(),
+  email: text('email').notNull(),
+  otp_digest: text('otp_digest').notNull(),
+  created_at: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
     .notNull(),
-
-  channel: text('channel').$type<ChannelType>().notNull(),
-  target: text('target'), // email during email verification, null for Telegram until bot callback
-
-  purpose: text('purpose').notNull(), // 'verify' | 'unsubscribe' | 'link'
-
-  token: text('token').notNull(),
-
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
-  consumed_at: timestamp('consumed_at', { withTimezone: true }),
-
-  attempts: integer('attempts').default(0),
+  last_sent_at: timestamp('last_sent_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  attempts: integer('attempts').notNull().default(0),
+  send_count: integer('send_count').notNull().default(1),
 })
 
-export const channelVerificationRelations = relations(
-  channelVerifications,
+export const emailVerificationRelations = relations(
+  emailVerifications,
   ({ one }) => ({
     user: one(users, {
-      fields: [channelVerifications.user_id],
+      fields: [emailVerifications.user_id],
       references: [users.id],
-    }),
-    channel: one(userChannels, {
-      fields: [channelVerifications.channel_id],
-      references: [userChannels.id],
     }),
   }),
 )

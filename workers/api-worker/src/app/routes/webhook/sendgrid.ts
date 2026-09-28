@@ -1,5 +1,5 @@
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { fromPromise, ok } from 'neverthrow'
 import * as v from 'valibot'
 import { createApp } from '#app/middleware/hono.js'
@@ -164,28 +164,22 @@ export default createApp()
     return c.json({ ok: true })
   })
 
-async function processEvents(
+export async function processEvents(
   db: Database,
   events: v.InferOutput<typeof SendGridWebhookPayloadSchema>,
 ) {
   for (const event of events) {
-    const channel = await db.query.userChannels.findFirst({
-      where: eq(TABLE.userChannels.target, event.email),
-    })
-
-    if (!channel) {
-      logger.warn('SendGrid event for unknown email', {
-        email: event.email,
-        event: event.event,
-      })
-      continue
-    }
-
+    // SendGrid events currently identify a mailbox, not a source channel.
+    // Apply mailbox-wide suppression until WEB-1580 can attribute deliveries.
+    const matchingEmail = and(
+      eq(TABLE.userChannels.channel, 'email'),
+      sql`lower(${TABLE.userChannels.target}) = lower(${event.email})`,
+    )
+    let updated: { id: string }[]
     switch (event.event) {
       case 'bounce':
       case 'dropped':
-        // mark as bounced
-        await db
+        updated = await db
           .update(TABLE.userChannels)
           .set({
             status: 'bounced',
@@ -193,48 +187,46 @@ async function processEvents(
               event.reason ?? `${event.event}: ${event.type ?? 'unknown'}`,
             last_bounce_at: new Date(event.timestamp * 1000),
           })
-          .where(eq(TABLE.userChannels.id, channel.id))
-
-        logger.warn('Email channel marked as bounced', {
-          channelId: channel.id,
-          email: event.email,
-          reason: event.reason,
-        })
+          .where(matchingEmail)
+          .returning({ id: TABLE.userChannels.id })
         break
 
       case 'spamreport':
-        // mark as bounced (spam is a delivery failure)
-        await db
+        updated = await db
           .update(TABLE.userChannels)
           .set({
             status: 'bounced',
             status_reason: 'User reported as spam',
             last_bounce_at: new Date(event.timestamp * 1000),
           })
-          .where(eq(TABLE.userChannels.id, channel.id))
-
-        logger.warn('Email channel marked as bounced (spam report)', {
-          channelId: channel.id,
-          email: event.email,
-        })
+          .where(matchingEmail)
+          .returning({ id: TABLE.userChannels.id })
         break
 
       case 'unsubscribe':
       case 'group_unsubscribe':
-        // mark as unsubscribed
-        await db
+        updated = await db
           .update(TABLE.userChannels)
           .set({
             status: 'unsubscribed',
             status_reason: 'User unsubscribed via email link',
           })
-          .where(eq(TABLE.userChannels.id, channel.id))
-
-        logger.info('Email channel marked as unsubscribed', {
-          channelId: channel.id,
-          email: event.email,
-        })
+          .where(matchingEmail)
+          .returning({ id: TABLE.userChannels.id })
         break
+    }
+
+    if (updated.length === 0) {
+      logger.warn('SendGrid event for unknown email', {
+        email: event.email,
+        event: event.event,
+      })
+    } else {
+      logger.info('SendGrid event updated email channels', {
+        email: event.email,
+        event: event.event,
+        channelCount: updated.length,
+      })
     }
   }
 }

@@ -8,7 +8,6 @@ const baseRow = {
   verified_at: null,
   last_sent_at: null,
   last_bounce_at: null,
-  last_verification_sent_at: null,
 } satisfies Omit<QueryChannelRow, 'channel' | 'target' | 'data'>
 
 describe('toPublicChannel', () => {

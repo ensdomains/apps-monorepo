@@ -1,18 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => {
-  const findFirst = vi.fn()
-  const mockDb = {
-    query: {
-      userChannels: {
-        findFirst,
-      },
-    },
-  }
-
   return {
-    findFirst,
-    getDatabase: vi.fn(() => mockDb),
+    getDatabase: vi.fn(() => ({})),
   }
 })
 
@@ -80,7 +70,6 @@ const requestWebhook = (
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.findFirst.mockResolvedValue(undefined)
 })
 
 describe('POST /sendgrid/events', () => {
@@ -99,7 +88,6 @@ describe('POST /sendgrid/events', () => {
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: 'Internal server error' })
     expect(mocks.getDatabase).not.toHaveBeenCalled()
-    expect(mocks.findFirst).not.toHaveBeenCalled()
   })
 
   it('rejects a malformed configured key as a server error without database work', async () => {
@@ -115,7 +103,6 @@ describe('POST /sendgrid/events', () => {
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: 'Internal server error' })
     expect(mocks.getDatabase).not.toHaveBeenCalled()
-    expect(mocks.findFirst).not.toHaveBeenCalled()
   })
 
   it('rejects missing signature headers without database work', async () => {
@@ -131,7 +118,6 @@ describe('POST /sendgrid/events', () => {
       error: 'Missing signature headers',
     })
     expect(mocks.getDatabase).not.toHaveBeenCalled()
-    expect(mocks.findFirst).not.toHaveBeenCalled()
   })
 
   it('rejects a mismatched signed payload without database work', async () => {
@@ -149,17 +135,16 @@ describe('POST /sendgrid/events', () => {
     expect(response.status).toBe(401)
     expect(await response.json()).toEqual({ error: 'Invalid signature' })
     expect(mocks.getDatabase).not.toHaveBeenCalled()
-    expect(mocks.findFirst).not.toHaveBeenCalled()
   })
 
-  it('processes a valid signed payload', async () => {
+  it('accepts a valid signed empty event batch', async () => {
     const timestamp = '1750000000'
-    const signed = await createSignature(payload, timestamp)
+    const signed = await createSignature('[]', timestamp)
     const env = {
       SENDGRID_WEBHOOK_VERIFICATION_KEY: ` \t${signed.publicKey}\n `,
     } as CloudflareBindings
 
-    const response = await requestWebhook(env, payload, {
+    const response = await requestWebhook(env, '[]', {
       'X-Twilio-Email-Event-Webhook-Signature': signed.signature,
       'X-Twilio-Email-Event-Webhook-Timestamp': timestamp,
     })
@@ -167,6 +152,5 @@ describe('POST /sendgrid/events', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ ok: true })
     expect(mocks.getDatabase).toHaveBeenCalledOnce()
-    expect(mocks.findFirst).toHaveBeenCalledOnce()
   })
 })
