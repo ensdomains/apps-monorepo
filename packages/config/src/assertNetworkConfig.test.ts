@@ -28,9 +28,11 @@ describe('assertNetworkConfig', () => {
     const config = assertNetworkConfig({
       VITE_ENS_NETWORK: 'sepolia',
       VITE_INDEXER_GRAPHQL_URL: '',
+      VITE_BIGNAME_API_URL: '',
     })
 
     expect(config.endpoints.indexerGraphql).toBeTruthy()
+    expect(config.endpoints.bignameApi).toBe('https://sepolia.api.bigname.sh')
   })
 
   it('points at the variable to set when the network is missing', () => {

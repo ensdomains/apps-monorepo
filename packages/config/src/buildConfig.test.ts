@@ -173,6 +173,15 @@ describe('buildConfig', () => {
       ).toBe('http://127.0.0.1:4010')
     })
 
+    it('reports a malformed override even when another endpoint is missing', () => {
+      expect(() =>
+        buildConfig({
+          network: 'mainnet',
+          overrides: { indexerGraphql: 'not-a-url' },
+        }),
+      ).toThrow(/Invalid endpoint indexerGraphql/)
+    })
+
     it('names bigname when only the indexer is overridden on mainnet', () => {
       expect(() =>
         buildConfig({
