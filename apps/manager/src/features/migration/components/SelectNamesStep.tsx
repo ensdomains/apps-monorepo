@@ -7,6 +7,7 @@ import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMi
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { cn } from '@/lib/utils'
+import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
@@ -23,6 +24,7 @@ type SelectNamesStepProps = {
   readonly gasFundingStatus: MigrationGasFundingStatus
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
+  readonly renewal?: GraceRenewalQuoteState
 }
 
 const SelectionTitle = ({
@@ -47,6 +49,7 @@ export const SelectNamesStep = ({
   gasFundingStatus,
   onNamesChange,
   onNext,
+  renewal = { status: 'idle' },
 }: SelectNamesStepProps) => {
   const { eligible, gracePeriodNames, isPending, recoveryState } =
     useEligibleV1Names()
@@ -77,9 +80,16 @@ export const SelectNamesStep = ({
     onNamesChange,
   })
 
-  const isEstimatingGas = totalSelected > 0 && gasEstimate.status === 'loading'
+  const needsRenewal = renewal.status !== 'idle'
+  const isEstimatingGas = needsRenewal
+    ? renewal.status === 'loading'
+    : gasEstimate.status === 'loading'
   const isWaitingForGasEstimate =
-    totalSelected > 0 && gasEstimate.status !== 'ready'
+    totalSelected > 0 &&
+    (needsRenewal
+      ? renewal.status !== 'ready' ||
+        renewal.quote.balance < renewal.quote.totalAmount
+      : gasEstimate.status !== 'ready')
   // The gas drip request only resolves once any sepETH top-up is confirmed
   // on-chain, so block "Upgrade" until then — otherwise the owner can start a
   // migration that fails for lack of gas before the ETH has landed.
@@ -201,6 +211,7 @@ export const SelectNamesStep = ({
         isUpgradeDisabled={isUpgradeDisabled}
         isWaitingForGasFunding={isWaitingForGasFunding}
         onUpgrade={handleUpgrade}
+        renewal={renewal}
         totalSelected={totalSelected}
         visibleCount={visibleCount}
       />

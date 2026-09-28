@@ -12,6 +12,7 @@ type RegistrationApprovalTarget = {
 }
 
 export type MigrationStepDescriptor =
+  | { readonly type: 'renew-grace'; readonly count: number }
   | { readonly type: 'deploy-hca' }
   | {
       readonly type: 'approval'

@@ -1,13 +1,14 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import { assessGasAffordability } from '@ens-apps/utils/gasAffordability'
+import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useEffect } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
 import { match } from 'ts-pattern'
-import type { Address, WalletClient } from 'viem'
+import type { Address, PublicClient, WalletClient } from 'viem'
 import { useBalance, useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
@@ -17,6 +18,11 @@ import { MigrationPrimaryButton } from '@/features/migration/components/Migratio
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { CommemorativeNftClaimDialog } from '@/features/migration/components/success/CommemorativeNftClaimDialog'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
+import {
+  useGraceRenewalQuote,
+  withRenewalAccountReadiness,
+} from '@/features/migration/hooks/useGraceRenewalQuote'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { useMigrationGasFunding } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
@@ -34,6 +40,7 @@ import {
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient as migrationExecutionClient } from '@/lib/wagmi'
+import type { V1Domain } from '../service/v1SubgraphClient'
 import { isMigrationQueryKey } from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
@@ -199,6 +206,14 @@ export const MigrationPage = () => {
   const canGoBack = useCanGoBack()
   const { uiActor } = useMigrationUiContext()
   const migrationPlan = useSelector(uiActor, (state) => state.context.plan)
+  const renewedDomains = useSelector(
+    uiActor,
+    (state) => state.context.renewedDomains,
+  )
+  const renewalOwner = useSelector(
+    uiActor,
+    (state) => state.context.renewal?.quote.ownerAddress,
+  )
   const step = useMigrationStep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
   const completedOperations = useMigrationCompletedOperations(uiActor)
@@ -218,13 +233,31 @@ export const MigrationPage = () => {
   const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)
   const dialogNames = isMigrationSuccess ? completedNames : selectedNames
+  const { gracePeriodNames } = useEligibleV1Names()
+  const graceDomains = useMemo(() => {
+    const selected = new Set(selectedNames)
+    return gracePeriodNames
+      .filter(({ domain }) => selected.has(domain.name))
+      .map(({ domain }) => domain)
+  }, [gracePeriodNames, selectedNames])
+  const renewalQuote = useGraceRenewalQuote({
+    domains: graceDomains,
+    ownerAddress: ownerAddress as Address | undefined,
+    publicClient: migrationExecutionClient as PublicClient,
+    enabled: step === 'select',
+  })
+  const renewal = withRenewalAccountReadiness(
+    renewalQuote,
+    !!hcaAddress && !!hcaClient && !!wagmiWalletClient?.account,
+    hcaError,
+  )
   const gasEstimate = useMigrationGasEstimate({
     ownerAddress: ownerAddress as Address | undefined,
     hcaAddress: hcaAddress as Address | undefined,
     accountError: hcaError,
     selectedNames,
     v1Names,
-    enabled: step === 'select',
+    enabled: step === 'select' && graceDomains.length === 0,
   })
 
   // Migration is entirely EOA-paid, so a wallet short of sepETH stalls the run
@@ -244,6 +277,19 @@ export const MigrationPage = () => {
   // resolve until any drip is confirmed on-chain, so we gate the upgrade
   // button on `gasFundingStatus` to stop owners starting before the ETH lands.
   const gasFundingStatus = useMigrationGasFunding(ownerAddress)
+
+  useEffect(() => {
+    if (!renewedDomains || !renewalOwner) return
+    const renewed = new Map(renewedDomains.map((domain) => [domain.id, domain]))
+    queryClient.setQueriesData<readonly V1Domain[]>(
+      {
+        queryKey: qk('migration', 'v1_names', {
+          address: renewalOwner.toLowerCase(),
+        }),
+      },
+      (domains) => domains?.map((domain) => renewed.get(domain.id) ?? domain),
+    )
+  }, [queryClient, renewedDomains, renewalOwner])
 
   useEffect(() => {
     if (step === 'success') {
@@ -291,7 +337,6 @@ export const MigrationPage = () => {
       !wagmiWalletClient?.account
     )
       return false
-    if (gasEstimate.status !== 'ready') return false
     // Don't let the owner start before their gas drip is confirmed on-chain.
     if (gasFundingStatus === 'funding') return false
     const signer: Signer = {
@@ -300,6 +345,23 @@ export const MigrationPage = () => {
     }
 
     try {
+      if (graceDomains.length > 0 && renewal.status === 'ready') {
+        if (renewal.quote.balance < renewal.quote.totalAmount) return false
+        const selected = new Set(selectedNames)
+        uiActor.send({
+          type: 'migration.renewAndStart',
+          renewal: {
+            quote: renewal.quote,
+            domains: v1Names.filter(({ name }) => selected.has(name)),
+            hcaAddress: hcaAddress as Address,
+          },
+          signer,
+          hcaClient,
+          refreshAccount,
+        })
+        return true
+      }
+      if (gasEstimate.status !== 'ready') return false
       uiActor.send({
         type: 'migration.start',
         plan: gasEstimate.plan,
@@ -323,6 +385,10 @@ export const MigrationPage = () => {
     wagmiWalletClient,
     gasEstimate,
     gasFundingStatus,
+    graceDomains,
+    renewal,
+    selectedNames,
+    v1Names,
     uiActor,
   ])
 
@@ -352,6 +418,7 @@ export const MigrationPage = () => {
             gasFundingStatus={gasFundingStatus}
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}
+            renewal={renewal}
           />
         ))
         .with('migrate', () => <GameStep />)

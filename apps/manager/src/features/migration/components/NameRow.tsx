@@ -2,9 +2,13 @@ import { Trans } from '@lingui/react/macro'
 import { memo, useId, useState } from 'react'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { ClassifiedName } from '../service/classifyNames'
-import { GracePeriodNameRow } from './GracePeriodNameRow'
 import { getMigrationAvatarUrl } from './nameAvatar.helpers'
 
 type NameRowProps = {
@@ -16,10 +20,11 @@ type NameRowProps = {
   readonly onToggle?: (name: string) => void
 }
 
-const SelectableNameRow = ({
+const NameRowComponent = ({
   item,
   isSelected,
   isPrimary = false,
+  isInGrace = false,
   depth,
   onToggle,
 }: NameRowProps) => {
@@ -28,6 +33,17 @@ const SelectableNameRow = ({
   const isNested = depth > 0
   const showAvatar = failedAvatarUrl !== avatarUrl
   const primaryNameId = useId()
+  const renewalId = useId()
+  const descriptions =
+    [isPrimary && primaryNameId, isInGrace && renewalId]
+      .filter(Boolean)
+      .join(' ') || undefined
+  const badgeClass = cn(
+    'flex size-7 items-center justify-center rounded-full border-3 transition-colors',
+    isSelected
+      ? 'border-ens-garnet-300 bg-ens-garnet-100 text-ens-garnet-500'
+      : 'border-white bg-ens-quartz-500 text-ens-quartz-50',
+  )
 
   const content = (
     <>
@@ -81,23 +97,49 @@ const SelectableNameRow = ({
         )}
       >
         <span className="truncate">{item.domain.name}</span>
-        {isPrimary && (
-          <span
-            className={cn(
-              'absolute -top-3.5 -right-3 flex size-7 items-center justify-center rounded-full border-3 transition-colors',
-              isSelected
-                ? 'border-ens-garnet-300 bg-ens-garnet-100 text-ens-garnet-500'
-                : 'border-white bg-ens-quartz-500 text-ens-quartz-50',
+        {(isPrimary || isInGrace) && (
+          <span className="absolute -top-3.5 -right-3 flex gap-1">
+            {isInGrace && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    aria-labelledby={renewalId}
+                    className={cn(
+                      badgeClass,
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2',
+                    )}
+                    role="img"
+                    // biome-ignore lint/a11y/noNoninteractiveTabindex: Allow keyboard access to the tooltip without adding a button inside the checkbox label.
+                    tabIndex={0}
+                    title=""
+                  >
+                    <MSymbol
+                      aria-hidden
+                      className="ms-wght-300 size-4 text-base leading-none"
+                      symbol="cached"
+                    />
+                    <span className="sr-only" id={renewalId}>
+                      <Trans>Renew before upgrade</Trans>
+                    </span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <Trans>Renew before upgrade</Trans>
+                </TooltipContent>
+              </Tooltip>
             )}
-          >
-            <MSymbol
-              aria-hidden
-              className="ms-wght-300 size-4 text-base leading-none"
-              symbol="person_check"
-            />
-            <span className="sr-only" id={primaryNameId}>
-              <Trans>Primary name</Trans>
-            </span>
+            {isPrimary && (
+              <span className={badgeClass}>
+                <MSymbol
+                  aria-hidden
+                  className="ms-wght-300 size-4 text-base leading-none"
+                  symbol="person_check"
+                />
+                <span className="sr-only" id={primaryNameId}>
+                  <Trans>Primary name</Trans>
+                </span>
+              </span>
+            )}
           </span>
         )}
       </div>
@@ -120,7 +162,7 @@ const SelectableNameRow = ({
   return (
     <label className={rowClass} title={item.domain.name}>
       <input
-        aria-describedby={isPrimary ? primaryNameId : undefined}
+        aria-describedby={descriptions}
         aria-label={item.domain.name}
         checked={isSelected}
         className="peer sr-only"
@@ -131,15 +173,5 @@ const SelectableNameRow = ({
     </label>
   )
 }
-
-const NameRowComponent = (props: NameRowProps) =>
-  props.isInGrace ? (
-    <GracePeriodNameRow
-      isPrimary={props.isPrimary}
-      name={props.item.domain.name}
-    />
-  ) : (
-    <SelectableNameRow {...props} />
-  )
 
 export const NameRow = memo(NameRowComponent)

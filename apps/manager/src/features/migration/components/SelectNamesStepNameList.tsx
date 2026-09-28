@@ -165,8 +165,9 @@ const SelectNamesStepNameListComponent = ({
                   depth={0}
                   isInGrace
                   isPrimary={item.domain.name === primaryName}
-                  isSelected={false}
+                  isSelected={selected.has(item.domain.name)}
                   item={item}
+                  onToggle={toggleName}
                 />
               </li>
             ))}

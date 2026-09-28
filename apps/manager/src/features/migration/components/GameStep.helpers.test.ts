@@ -179,9 +179,29 @@ describe('describeNextStep', () => {
       { kind: 'progress', text: 'Approving…' },
     ],
     [
+      'empty progress description uses the renewal descriptor',
+      {
+        progressDescription: '',
+        descriptor: descriptor({ type: 'renew-grace', count: 3 }),
+      },
+      { kind: 'renew-grace', count: 3 },
+    ],
+    [
+      'empty progress description without a descriptor uses preparing',
+      { progressDescription: '', descriptor: undefined },
+      { kind: 'preparing' },
+    ],
+    [
       'no descriptor → preparing',
       { descriptor: undefined },
       { kind: 'preparing' },
+    ],
+    [
+      'grace renewal descriptor',
+      {
+        descriptor: descriptor({ type: 'renew-grace', count: 3 }),
+      },
+      { kind: 'renew-grace', count: 3 },
     ],
     [
       'deploy-hca descriptor',
