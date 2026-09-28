@@ -1,11 +1,7 @@
-export {
-  BlockCard,
-  DataBlockCard,
-  DataBlockCardError,
-  InfoBlockCard,
-  LinkBlockCard,
-} from './BlockCard'
+export { BlockCard, DataBlockCard, DataBlockCardError } from './BlockCard'
+export { ConnectWalletMessage } from './ConnectWalletMessage'
 export { DashboardProfilePreview } from './DashboardProfilePreview'
+export { EnsV2InfoMessage } from './EnsV2InfoMessage'
 export { ExampleNameCard } from './ExampleNameCard'
 export { HomeHeader } from './HomeHeader'
 export { HomeSearchInput } from './HomeSearchInput'
@@ -14,3 +10,4 @@ export { NameList } from './NameList'
 export { RecentActivityTable } from './RecentActivityTable'
 export { UpNextItem } from './UpNextItem'
 export { WhatsNewItem } from './WhatsNewItem'
+export { YourNames } from './YourNames'
