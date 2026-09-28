@@ -60,8 +60,6 @@ export const CommemorativeNftTraitsTooltip = ({
           <li>{traits.Era}</li>
           <li>{traits.Depth}</li>
           <li>{traits.Gasveteran}</li>
-          <li>{traits.Archetype}</li>
-          <li>{traits.Rarity}</li>
         </ul>
         <div className="flex items-center justify-between gap-3 text-ens-garnet-500">
           <a

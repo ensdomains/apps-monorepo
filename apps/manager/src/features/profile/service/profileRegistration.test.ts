@@ -91,6 +91,20 @@ describe('getRegistration', () => {
     expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
   })
 
+  it('reads a subname registration date from the indexer', async () => {
+    mocks.indexerQuery.mockResolvedValue({
+      data: { domain: { registrationDate: 1_790_000_000 } },
+    })
+
+    const result = await getRegistration('mini.shiba.eth')
+
+    expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_790_000_000 })
+    expect(mocks.indexerQuery).toHaveBeenCalledWith(expect.anything(), {
+      id: namehash('mini.shiba.eth'),
+    })
+    expect(mocks.getRegistrationDate).not.toHaveBeenCalled()
+  })
+
   it('reads a V1 registration date from the registration event block', async () => {
     mocks.getNameHistory.mockResolvedValue({
       registrationEvents: [
