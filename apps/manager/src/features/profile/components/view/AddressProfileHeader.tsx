@@ -1,6 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { motion, useReducedMotion } from 'motion/react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { ProfileAddressName } from '@/features/profile/service/profileAddressNames'
@@ -20,6 +21,10 @@ import { ProfileAvatar } from './ProfileAvatar'
 const AddressLabel = ({ address }: { readonly address: Address }) => {
   const { t } = useLingui()
   const { copied, copy } = useCopyFeedback()
+  const shouldReduceMotion = useReducedMotion()
+  const iconTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { type: 'spring' as const, stiffness: 420, damping: 28 }
 
   return (
     <h1 className="w-full max-w-full text-center font-semi-mono text-[28px] text-ens-quartz-900 leading-[0.96] tracking-[-0.56px] md:text-[32px] md:tracking-[-0.64px] lg:landscape:w-auto lg:landscape:text-left">
@@ -31,14 +36,30 @@ const AddressLabel = ({ address }: { readonly address: Address }) => {
         type="button"
       >
         <span className="block truncate">{truncateAddress(address)}</span>
-        <MSymbol
+        <span
           aria-hidden="true"
           className={cn(
-            'absolute top-1/2 left-full ms-opsz-30 ms-wght-500 ml-1 -translate-y-1/2 text-ens-quartz-400 group-hover:opacity-100 group-focus-visible:opacity-100',
+            'absolute top-1/2 left-full ml-1 size-7.5 -translate-y-1/2 text-ens-quartz-400 group-hover:opacity-100 group-focus-visible:opacity-100',
             copied ? 'opacity-100' : 'opacity-0',
           )}
-          symbol={copied ? 'check' : 'content_copy'}
-        />
+        >
+          <motion.span
+            animate={{ opacity: copied ? 0 : 1, scale: copied ? 0.7 : 1 }}
+            className="absolute inset-0 flex items-center justify-center"
+            initial={false}
+            transition={iconTransition}
+          >
+            <MSymbol className="ms-opsz-30 ms-wght-500" symbol="content_copy" />
+          </motion.span>
+          <motion.span
+            animate={{ opacity: copied ? 1 : 0, scale: copied ? 1 : 0.7 }}
+            className="absolute inset-0 flex items-center justify-center"
+            initial={false}
+            transition={iconTransition}
+          >
+            <MSymbol className="ms-opsz-30 ms-wght-500" symbol="check" />
+          </motion.span>
+        </span>
       </button>
     </h1>
   )
