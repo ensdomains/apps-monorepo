@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createBignameClient } from './client'
+import { isStale } from './errors'
 
 /**
  * Drift detection for the hand-written types: every typed route is read from
@@ -61,6 +62,21 @@ const expectShape = (value: unknown, shape: Shape) => {
 
 const unwrap = <T>(result: { _unsafeUnwrap: () => T }) => result._unsafeUnwrap()
 
+// A current-state collection's first page answers 409 when the publication
+// moves mid-read. Retrying is the caller's job, and here the caller is us.
+const once = async <T>(
+  read: () => Promise<{
+    isErr: () => boolean
+    error?: unknown
+    _unsafeUnwrap: () => T
+  }>,
+) => {
+  const first = await read()
+  return first.isErr() && isStale((first as { error: unknown }).error)
+    ? unwrap(await read())
+    : unwrap(first)
+}
+
 // The history routes take several seconds on Sepolia today (bigname #936).
 describe.skipIf(!integration)(
   'bigname contract on sepolia',
@@ -121,8 +137,8 @@ describe.skipIf(!integration)(
     it('names expiry window', async () => {
       const now = new Date()
       const later = new Date(now.getTime() + 30 * 24 * 3600 * 1000)
-      const { data, page } = unwrap(
-        await client.names({
+      const { data, page } = once(() =>
+        client.names({
           namespace: 'ens',
           expires_after: now.toISOString(),
           expires_before: later.toISOString(),
@@ -143,8 +159,8 @@ describe.skipIf(!integration)(
     })
 
     it('subnames', async () => {
-      const { data, page } = unwrap(
-        await client.subnames(NAME, { include: ['counts'], page_size: 5 }),
+      const { data, page } = once(() =>
+        client.subnames(NAME, { include: ['counts'], page_size: 5 }),
       )
 
       expect(page?.total_count).toBeTypeOf('number')
@@ -183,8 +199,8 @@ describe.skipIf(!integration)(
     it('address names with counts and role summary', async () => {
       const owner = unwrap(await client.name(NAME)).data.owner
       expect(owner).toBeTypeOf('string')
-      const { data, page } = unwrap(
-        await client.addressNames(owner as string, {
+      const { data, page } = once(() =>
+        client.addressNames(owner as string, {
           relation: 'any',
           include: ['counts', 'role_summary'],
           page_size: 5,
@@ -236,8 +252,8 @@ describe.skipIf(!integration)(
     })
 
     it('permissions', async () => {
-      const response = unwrap(
-        await client.permissions({ name: NAME, page_size: 10 }),
+      const response = once(() =>
+        client.permissions({ name: NAME, page_size: 10 }),
       )
 
       expect(response.data.length).toBeGreaterThan(0)
