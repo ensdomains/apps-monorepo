@@ -42,6 +42,7 @@ import {
   groupClassifiedNames,
   hasFuse,
   type IneligibleName,
+  withManagerRestorationOptIn,
 } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
@@ -400,6 +401,8 @@ export const buildMigrationPlan = async (params: {
   domains: readonly V1Domain[]
   hcaAddress: Address
   migrationOwner: Address
+  /** Names whose ENSv1 registry controller the owner chose to keep as manager. */
+  managerRestorationNames?: readonly string[]
   publicClient: PublicClient
   preflight: MigrationPreflight
   signal?: AbortSignal
@@ -408,6 +411,7 @@ export const buildMigrationPlan = async (params: {
     domains,
     hcaAddress,
     migrationOwner,
+    managerRestorationNames = [],
     publicClient,
     preflight,
     signal,
@@ -415,7 +419,13 @@ export const buildMigrationPlan = async (params: {
   signal?.throwIfAborted()
 
   const classifiedNamesResult = classifyNames([...domains], migrationOwner)
-  const classified = classifiedNamesResult.classified
+  // Classification never appoints a manager on its own: a v1 registry
+  // controller that differs from the registrant is only carried across for the
+  // names the owner explicitly opted in for.
+  const classified = withManagerRestorationOptIn(
+    classifiedNamesResult.classified,
+    managerRestorationNames,
+  )
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )
@@ -579,9 +589,15 @@ export const classifyMigrationRecoverySnapshot = (params: {
   readonly registryContext: readonly ClassifiedName[]
   readonly classified: readonly ClassifiedName[]
 } => {
+  // The opt-in is replayed from the durable snapshot, never re-derived: the
+  // resumed run must grant exactly what the first attempt planned.
   const result = classifyNames(
     [...params.snapshot.registryDomains],
     params.migrationOwner,
+  )
+  const withOptIn = withManagerRestorationOptIn(
+    result.classified,
+    params.snapshot.managerRestorationNames,
   )
   if (
     result.ineligible.length > 0 ||
@@ -593,7 +609,7 @@ export const classifyMigrationRecoverySnapshot = (params: {
       reason: 'classification-changed',
     })
   }
-  const registryContext = result.classified
+  const registryContext = withOptIn
   assertRecoveryOperationsMatch({
     classified: registryContext,
     snapshot: params.snapshot,

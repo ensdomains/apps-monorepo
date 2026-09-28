@@ -12,16 +12,28 @@ type NameSelectionState = ReturnType<typeof useNameSelection>
 
 type SelectNamesStepNameListProps = Pick<
   NameSelectionState,
-  'filteredGroups' | 'filteredOrphans' | 'search' | 'selected' | 'toggleName'
+  | 'filteredGroups'
+  | 'filteredOrphans'
+  | 'isManagerRestorationLocked'
+  | 'managerCandidates'
+  | 'restoredManagers'
+  | 'search'
+  | 'selected'
+  | 'toggleManagerRestoration'
+  | 'toggleName'
 > & {
   readonly isPending: boolean
 }
 
 type NameTreeRowsProps = {
   readonly depth: number
+  readonly isManagerRestorationLocked: boolean
+  readonly managerCandidates: NameSelectionState['managerCandidates']
   readonly nodes: readonly NameTreeNode[]
   readonly primaryName: string | null | undefined
+  readonly restoredManagers: ReadonlySet<string>
   readonly selected: ReadonlySet<string>
+  readonly toggleManagerRestoration: (name: string) => void
   readonly toggleName: (name: string) => void
 }
 
@@ -57,9 +69,13 @@ const NameTreeConnector = ({ isFirst, isLast }: NameTreeConnectorProps) => (
 
 const NameTreeRows = ({
   depth,
+  isManagerRestorationLocked,
+  managerCandidates,
   nodes,
   primaryName,
+  restoredManagers,
   selected,
+  toggleManagerRestoration,
   toggleName,
 }: NameTreeRowsProps) => (
   <ul
@@ -90,17 +106,27 @@ const NameTreeRows = ({
           {depth > 0 && <NameTreeConnector isFirst={isFirst} isLast={isLast} />}
           <NameRow
             depth={depth}
+            isManagerRestorationLocked={isManagerRestorationLocked}
+            isManagerRestored={restoredManagers.has(name)}
             isPrimary={name === primaryName}
             isSelected={selected.has(name)}
             item={node.item}
+            managerCandidate={managerCandidates.get(name)}
             onToggle={depth === 0 ? toggleName : undefined}
+            onToggleManagerRestoration={
+              depth === 0 ? toggleManagerRestoration : undefined
+            }
           />
           {node.children.length > 0 && (
             <NameTreeRows
               depth={depth + 1}
+              isManagerRestorationLocked={isManagerRestorationLocked}
+              managerCandidates={managerCandidates}
               nodes={node.children}
               primaryName={primaryName}
+              restoredManagers={restoredManagers}
               selected={selected}
+              toggleManagerRestoration={toggleManagerRestoration}
               toggleName={toggleName}
             />
           )}
@@ -113,9 +139,13 @@ const NameTreeRows = ({
 const SelectNamesStepNameListComponent = ({
   filteredGroups,
   filteredOrphans,
+  isManagerRestorationLocked,
   isPending,
+  managerCandidates,
+  restoredManagers,
   search,
   selected,
+  toggleManagerRestoration,
   toggleName,
 }: SelectNamesStepNameListProps) => {
   const { data: primaryName } = useConnectedReverseName()
@@ -142,9 +172,13 @@ const SelectNamesStepNameListComponent = ({
     .otherwise(() => (
       <NameTreeRows
         depth={0}
+        isManagerRestorationLocked={isManagerRestorationLocked}
+        managerCandidates={managerCandidates}
         nodes={[...filteredGroups, ...filteredOrphans]}
         primaryName={primaryName}
+        restoredManagers={restoredManagers}
         selected={selected}
+        toggleManagerRestoration={toggleManagerRestoration}
         toggleName={toggleName}
       />
     ))

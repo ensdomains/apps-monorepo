@@ -8,10 +8,13 @@ import { SmartAccountContextProvider } from '@/lib/smart-account'
 import { render } from '@/utils/test-utils'
 import type { ClassifiedName } from '../service/classifyNames'
 
+const CONTROLLER = '0x00000000000000000000000000000000000000c1'
+
 const makeName = (
   fullName: string,
   tokenType: ClassifiedName['tokenType'] | 'unlocked-child',
   action: 'copy' | 'migrate' = 'migrate',
+  registryController: string | null = null,
 ): ClassifiedName => {
   const label = fullName.split('.')[0] ?? fullName
   const parentName = fullName.includes('.')
@@ -37,6 +40,7 @@ const makeName = (
     tokenHolder: '0x0000000000000000000000000000000000000001',
     v1ResolverAddress: null,
     resolverStrategy: 'to-owned-permres',
+    registryController,
     managerAddress: null,
   } as unknown as ClassifiedName
 }
@@ -51,6 +55,7 @@ const eligibleFixture: readonly ClassifiedName[] = [
   makeName('four.eth', 'unwrapped'),
   makeName('five.eth', 'unwrapped'),
   makeName('six.eth', 'unwrapped'),
+  makeName('managed.eth', 'unwrapped', 'migrate', CONTROLLER),
 ]
 
 vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
@@ -89,18 +94,20 @@ const renderStep = ({
   onNext?: () => boolean | Promise<boolean>
 } = {}) => {
   const onNamesChange = vi.fn<(names: string[]) => void>()
+  const onManagerRestorationChange = vi.fn<(names: string[]) => void>()
   const utils = render(
     <SmartAccountContextProvider>
       <SelectNamesStep
         gasAffordability={gasAffordability}
         gasEstimate={gasEstimate}
         gasFundingStatus={gasFundingStatus}
+        onManagerRestorationChange={onManagerRestorationChange}
         onNamesChange={onNamesChange}
         onNext={onNext}
       />
     </SmartAccountContextProvider>,
   )
-  return { onNamesChange, onNext, ...utils }
+  return { onManagerRestorationChange, onNamesChange, onNext, ...utils }
 }
 
 describe('SelectNamesStep', () => {
@@ -164,7 +171,7 @@ describe('SelectNamesStep', () => {
       gasEstimate: readyGasEstimate,
       gasFundingStatus: 'settled',
     })
-    expect(getByRole('button', { name: 'Upgrade 9 names' })).not.toBeDisabled()
+    expect(getByRole('button', { name: 'Upgrade 10 names' })).not.toBeDisabled()
   })
 
   it('allows retrying when upgrade start exits without transitioning', async () => {
@@ -174,13 +181,13 @@ describe('SelectNamesStep', () => {
       onNext,
     })
 
-    const button = getByRole('button', { name: 'Upgrade 9 names' })
+    const button = getByRole('button', { name: 'Upgrade 10 names' })
     fireEvent.click(button)
 
     await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1))
     await waitFor(() => {
       expect(
-        getByRole('button', { name: 'Upgrade 9 names' }),
+        getByRole('button', { name: 'Upgrade 10 names' }),
       ).not.toBeDisabled()
     })
   })
@@ -210,5 +217,66 @@ describe('SelectNamesStep', () => {
 
     expect(queryByText(/Not enough ETH for gas/i)).not.toBeInTheDocument()
     expect(getByText(/Estimated network fee/i)).toBeInTheDocument()
+  })
+})
+
+describe('SelectNamesStep manager restoration (WEB-1528)', () => {
+  /** The opt-in sits inside the only label titled with the manager address. */
+  const managerCheckbox = (utils: ReturnType<typeof renderStep>) =>
+    utils
+      .getByTitle(CONTROLLER)
+      .querySelector<HTMLInputElement>('input[type="checkbox"]')
+
+  /** Each row selects through a visually-hidden checkbox named after the name. */
+  const rowCheckbox = (utils: ReturnType<typeof renderStep>, name: string) =>
+    utils.container.querySelector<HTMLInputElement>(
+      `input[aria-label="${name}"]`,
+    )
+
+  it('offers the opt-in only for a name whose v1 controller differs from its registrant', () => {
+    const utils = renderStep()
+
+    expect(utils.getAllByTitle(CONTROLLER)).toHaveLength(1)
+    expect(managerCheckbox(utils)).toBeInTheDocument()
+  })
+
+  it('shows the address that would gain control, truncated', () => {
+    const { getByTitle } = renderStep()
+    expect(getByTitle(CONTROLLER)).toBeInTheDocument()
+  })
+
+  it('reports nothing to restore until the owner opts in', () => {
+    const { onManagerRestorationChange } = renderStep()
+    const lastCall = onManagerRestorationChange.mock.calls.at(-1)?.[0]
+    expect(lastCall ?? []).toEqual([])
+  })
+
+  it('reports the opted-in name once the checkbox is ticked', () => {
+    const utils = renderStep()
+    const checkbox = managerCheckbox(utils)
+    if (!checkbox) throw new Error('manager opt-in not found')
+
+    fireEvent.click(checkbox)
+
+    expect(utils.onManagerRestorationChange.mock.calls.at(-1)?.[0]).toEqual([
+      'managed.eth',
+    ])
+  })
+
+  it('withdraws the opt-in when the name is deselected', async () => {
+    const utils = renderStep()
+    const checkbox = managerCheckbox(utils)
+    if (!checkbox) throw new Error('manager opt-in not found')
+    fireEvent.click(checkbox)
+
+    const row = rowCheckbox(utils, 'managed.eth')
+    if (!row) throw new Error('name row not found')
+    fireEvent.click(row)
+
+    await waitFor(() =>
+      expect(utils.onManagerRestorationChange.mock.calls.at(-1)?.[0]).toEqual(
+        [],
+      ),
+    )
   })
 })

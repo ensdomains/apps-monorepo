@@ -23,6 +23,11 @@ msgstr "{0, plural, one {# request} other {# requests}}"
 msgid "{0, plural, one {# year} other {# years}}"
 msgstr "{0, plural, one {# year} other {# years}}"
 
+#. placeholder {0}: roleGrants.length
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{0, plural, one {Lets the upgrade give # manager the access you picked, listed with the upgrade below.} other {Lets the upgrade give # managers the access you picked, listed with the upgrade below.}}"
+msgstr "{0, plural, one {Lets the upgrade give # manager the access you picked, listed with the upgrade below.} other {Lets the upgrade give # managers the access you picked, listed with the upgrade below.}}"
+
 #. placeholder {0}: eligibleV1Names.length
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{0, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
@@ -134,6 +139,11 @@ msgstr "{value, plural, one {# year} other {# years}}"
 msgid "{years} years"
 msgstr "{years} years"
 
+#. placeholder {0}: truncateAddress(account)
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "<0>{0}</0> will be able to change the resolver for <1>{name}</1>"
+msgstr "<0>{0}</0> will be able to change the resolver for <1>{name}</1>"
+
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
 msgstr "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
@@ -174,6 +184,10 @@ msgstr "A simple, portable identity that you control"
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "A simpler way to get paid."
 msgstr "A simpler way to get paid."
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
+msgstr "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 
 #: src/features/profile/components/view/ProfileAbout.tsx
 msgid "About"
@@ -240,6 +254,10 @@ msgstr "Agents"
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "All Notifications"
 msgstr "All Notifications"
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Allow manager changes"
+msgstr "Allow manager changes"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Allow this temporary account to move this name."
@@ -412,6 +430,10 @@ msgstr "Cancel"
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Cannot save profile"
 msgstr "Cannot save profile"
+
+#: src/features/migration/components/NameRow.tsx
+msgid "Carried over from your earlier attempt."
+msgstr "Carried over from your earlier attempt."
 
 #: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Carving your name into the blockchain"
@@ -1126,13 +1148,14 @@ msgstr "It looks like the session setup didn't complete. Please try again — wi
 msgid "Join the community"
 msgstr "Join the community"
 
+#. placeholder {0}: truncateAddress(manager)
+#: src/features/migration/components/NameRow.tsx
+msgid "Keep <0>{0}</0> as a manager. It can change this name's resolver after the upgrade."
+msgstr "Keep <0>{0}</0> as a manager. It can change this name's resolver after the upgrade."
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Keep the same managers on your names after the upgrade."
-msgstr "Keep the same managers on your names after the upgrade."
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Keep this window open while the transaction confirms."
@@ -1970,8 +1993,8 @@ msgid "Reserving your name"
 msgstr "Reserving your name"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Restore your managers"
-msgstr "Restore your managers"
+msgid "Restore the managers you chose"
+msgstr "Restore the managers you chose"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Retry artwork"

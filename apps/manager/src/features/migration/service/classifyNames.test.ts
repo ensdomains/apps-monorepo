@@ -12,6 +12,8 @@ import {
   classifyNames,
   FUSES,
   groupClassifiedNames,
+  managerRestorationCandidates,
+  withManagerRestorationOptIn,
 } from './classifyNames'
 import type { V1Domain } from './v1SubgraphClient'
 
@@ -130,18 +132,23 @@ describe('classifyName — grace period registrations', () => {
 })
 
 describe('classifyName — token type', () => {
-  it('unwrapped 2LD: keeps custom v1 resolver, flags manager when registry owner differs', () => {
+  it('unwrapped 2LD: keeps custom v1 resolver and records a divergent registry controller without appointing it', () => {
     const n = classified(classify())
     expect(n.tokenType).toBe('unwrapped')
     expect(n.v1ResolverAddress).toBe(RESOLVER)
     expect(n.resolverStrategy).toBe('keep-v1')
+    expect(n.registryController).toBeNull()
     expect(n.managerAddress).toBeNull()
     expect(n.tokenHolder.toLowerCase()).toBe(OWNER.toLowerCase())
 
-    const MANAGER = '0x0000000000000000000000000000000000000099'
-    expect(
-      classified(classify({ ownerId: MANAGER })).managerAddress?.toLowerCase(),
-    ).toBe(MANAGER.toLowerCase())
+    // A controller that is not the registrant is recorded for review, never
+    // carried forward as an appointed manager.
+    const CONTROLLER = '0x0000000000000000000000000000000000000099'
+    const diverged = classified(classify({ ownerId: CONTROLLER }))
+    expect(diverged.registryController?.toLowerCase()).toBe(
+      CONTROLLER.toLowerCase(),
+    )
+    expect(diverged.managerAddress).toBeNull()
   })
 
   it('unwrapped with no v1 resolver routes to owned-permres', () => {
@@ -150,18 +157,19 @@ describe('classifyName — token type', () => {
     expect(n.resolverStrategy).toBe('to-owned-permres')
   })
 
-  it('moves the legacy Sepolia PublicResolver while preserving a separate manager', () => {
-    const manager = '0x0000000000000000000000000000000000000099'
+  it('moves the legacy Sepolia PublicResolver while leaving a separate controller ungranted', () => {
+    const controller = '0x0000000000000000000000000000000000000099'
     const n = classified(
       classify({
-        ownerId: manager,
+        ownerId: controller,
         resolverAddress: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
       }),
     )
 
     expect(n.tokenType).toBe('unwrapped')
     expect(n.resolverStrategy).toBe('to-owned-permres')
-    expect(n.managerAddress?.toLowerCase()).toBe(manager.toLowerCase())
+    expect(n.registryController?.toLowerCase()).toBe(controller.toLowerCase())
+    expect(n.managerAddress).toBeNull()
   })
 
   it.each([
@@ -225,6 +233,7 @@ describe('classifyName — token type', () => {
       copySource: 'registry',
       sourceExpiry: (1n << 64n) - 1n,
       resolverStrategy: 'to-owned-permres',
+      registryController: null,
       managerAddress: null,
     })
   })
@@ -246,6 +255,7 @@ describe('classifyName — token type', () => {
       copySource: 'name-wrapper',
       sourceExpiry: 4_102_444_800n,
       resolverStrategy: 'to-owned-permres',
+      registryController: null,
       managerAddress: null,
     })
   })
@@ -541,5 +551,53 @@ describe('groupClassifiedNames', () => {
     expect(
       groupClassifiedNames([c('locked-child', null)]).childNames.size,
     ).toBe(0)
+  })
+})
+
+describe('manager restoration opt-in', () => {
+  const CONTROLLER = '0x0000000000000000000000000000000000000099'
+
+  const divergedName = () => classified(classify({ ownerId: CONTROLLER }))
+
+  it('offers a candidate only where the registrant and controller disagree', () => {
+    const diverged = divergedName()
+    const aligned = classified(classify())
+
+    expect(managerRestorationCandidates([diverged, aligned])).toEqual([
+      diverged,
+    ])
+  })
+
+  it('grants nothing until the name is opted in by name', () => {
+    const diverged = divergedName()
+
+    expect(withManagerRestorationOptIn([diverged], [])[0]?.managerAddress).toBe(
+      null,
+    )
+    expect(
+      withManagerRestorationOptIn([diverged], ['other.eth'])[0]?.managerAddress,
+    ).toBe(null)
+  })
+
+  it('carries the controller across only for opted-in names, case-insensitively', () => {
+    const diverged = divergedName()
+    const [optedIn] = withManagerRestorationOptIn(
+      [diverged],
+      [diverged.domain.name.toUpperCase()],
+    )
+
+    expect(optedIn?.managerAddress?.toLowerCase()).toBe(
+      CONTROLLER.toLowerCase(),
+    )
+  })
+
+  it('never appoints a manager for a name with no divergent controller', () => {
+    const aligned = classified(classify())
+    const [result] = withManagerRestorationOptIn(
+      [aligned],
+      [aligned.domain.name],
+    )
+
+    expect(result?.managerAddress).toBeNull()
   })
 })

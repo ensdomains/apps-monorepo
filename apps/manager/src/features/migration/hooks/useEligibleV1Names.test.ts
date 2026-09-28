@@ -71,6 +71,7 @@ const recoverySnapshot = (params?: {
     ]),
     ownedPermRes: RESOLVER,
     plannedApprovals: [],
+    managerRestorationNames: [],
   }
 }
 

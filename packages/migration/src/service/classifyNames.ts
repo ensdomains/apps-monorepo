@@ -1,5 +1,5 @@
 import { ChildFuses, FullParentFuses } from '@ensdomains/ensjs/utils'
-import { type Address, isAddress } from 'viem'
+import { type Address, isAddress, zeroAddress } from 'viem'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
 import { GRACE_PERIOD_SECONDS } from './constants'
 import type { V1Domain } from './v1SubgraphClient'
@@ -66,6 +66,20 @@ export type DirectClassifiedName = ClassifiedNameBase & {
   readonly action: 'migrate'
   readonly tokenType: MigrationTokenType
   readonly resolverStrategy: ResolverStrategy
+  /**
+   * The live ENSv1 registry controller, recorded only when it differs from the
+   * registrant. V1 keeps the two separate and a plain `transferFrom` moves the
+   * token without touching the controller, so a divergence is evidence of a
+   * stale controller just as often as of an appointed manager — the two are
+   * indistinguishable on-chain. Held for display and for an explicit per-name
+   * opt-in; it is never an authority the migration carries forward on its own.
+   */
+  readonly registryController: Address | null
+  /**
+   * The account that will be granted `ROLE_SET_RESOLVER` on the migrated name.
+   * Only ever set by {@link withManagerRestorationOptIn}, never by
+   * classification — see `registryController`.
+   */
   readonly managerAddress: Address | null
 }
 
@@ -75,10 +89,47 @@ export type CopyClassifiedName = ClassifiedNameBase & {
   readonly copySource: CopySource
   readonly sourceExpiry: bigint
   readonly resolverStrategy: 'to-owned-permres'
+  readonly registryController: null
   readonly managerAddress: null
 }
 
 export type ClassifiedName = DirectClassifiedName | CopyClassifiedName
+
+const nameKey = (name: string): string => name.toLowerCase()
+
+/**
+ * Names whose ENSv1 registrant and registry controller disagree, so the owner
+ * can be asked — per name, with the address shown — whether that controller
+ * should keep managing the name after the upgrade.
+ */
+export const managerRestorationCandidates = (
+  names: readonly ClassifiedName[],
+): readonly DirectClassifiedName[] =>
+  names.filter(
+    (name): name is DirectClassifiedName =>
+      name.action === 'migrate' && name.registryController !== null,
+  )
+
+/**
+ * Carry the ENSv1 registry controller forward as a v2 manager, but only for the
+ * names the owner explicitly opted in. Classification deliberately leaves
+ * `managerAddress` null so that nothing is granted by default.
+ */
+export const withManagerRestorationOptIn = <T extends ClassifiedName>(
+  names: readonly T[],
+  optedInNames: Iterable<string>,
+): T[] => {
+  const optedIn = new Set([...optedInNames].map(nameKey))
+  if (optedIn.size === 0) return [...names]
+
+  return names.map((name) =>
+    name.action === 'migrate' &&
+    name.registryController !== null &&
+    optedIn.has(nameKey(name.domain.name))
+      ? { ...name, managerAddress: name.registryController }
+      : name,
+  )
+}
 
 export const hasFuse = (fuses: bigint, fuse: bigint): boolean =>
   (fuses & fuse) !== 0n
@@ -209,6 +260,7 @@ const classifyWithoutActiveWrapper = (
         tokenHolder: registryOwner,
         v1ResolverAddress,
         resolverStrategy: 'to-owned-permres',
+        registryController: null,
         managerAddress: null,
       },
     }
@@ -224,8 +276,17 @@ const classifyWithoutActiveWrapper = (
   const tokenHolder = toAddress(registrant.id)
   if (!tokenHolder) return null
   const registryOwnerAddress = toAddress(domain.owner.id)
-  const managerAddress =
+  // Recorded, never granted. The registrant owns the name; a controller that is
+  // someone else may be a manager the registrant appointed, or the seller a
+  // marketplace `transferFrom` left behind. Only the owner can tell the two
+  // apart, so the decision is deferred to an explicit per-name opt-in.
+  //
+  // A cleared v1 registry record reads back as the zero address, which is not a
+  // manager and must never be offered as one — granting a role to it would put
+  // a meaningless call into an all-or-nothing batch.
+  const registryController =
     registryOwnerAddress &&
+    registryOwnerAddress !== zeroAddress &&
     registryOwnerAddress.toLowerCase() !== registrant.id.toLowerCase()
       ? registryOwnerAddress
       : null
@@ -246,7 +307,8 @@ const classifyWithoutActiveWrapper = (
         fuses: 0n,
         v1ResolverAddress,
       }),
-      managerAddress,
+      registryController,
+      managerAddress: null,
     },
   }
 }
@@ -275,6 +337,7 @@ const classifyUnlockedWrapper = (
           fuses,
           v1ResolverAddress,
         }),
+        registryController: null,
         managerAddress: null,
       },
     }
@@ -303,6 +366,7 @@ const classifyUnlockedWrapper = (
           fuses,
           v1ResolverAddress,
         }),
+        registryController: null,
         managerAddress: null,
       },
     }
@@ -334,6 +398,7 @@ const classifyUnlockedWrapper = (
       tokenHolder: wrappedHolder,
       v1ResolverAddress,
       resolverStrategy: 'to-owned-permres',
+      registryController: null,
       managerAddress: null,
     },
   }
@@ -368,6 +433,7 @@ const classifyLockedWrapper = (
         fuses,
         v1ResolverAddress,
       }),
+      registryController: null,
       managerAddress: null,
     },
   }
