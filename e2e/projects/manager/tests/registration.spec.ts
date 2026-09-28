@@ -13,9 +13,9 @@ const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
 const LATE_AUTH_DOMAIN = `e2e-${(Date.now() + 2).toString(36)}.eth`
 
 test.describe('ENS name registration', () => {
-  test('user is unable to register a name when disconnected', async ({
-    page,
-  }) => {
+  test('user is unable to register a name when disconnected', {
+    tag: ['@scenario:A16'],
+  }, async ({ page }) => {
     // Navigate directly to the register page — the search-dropdown click path
     // is tested in the late-auth test below and in registration-rhinestone.spec.ts.
     // This test's actual assertion is that disconnected users see the
@@ -28,10 +28,9 @@ test.describe('ENS name registration', () => {
     ).toBeVisible({ timeout: 15_000 })
   })
 
-  test('registers a name after connecting from the pricing page', async ({
-    page,
-    wallet,
-  }) => {
+  test('registers a name after connecting from the pricing page', {
+    tag: ['@scenario:A16', '@smoke'],
+  }, async ({ page, wallet }) => {
     // Navigate directly to avoid the fragile landing-page search-dropdown click
     // (getByText(domain) times out because the label and .eth are separate nodes).
     const label = LATE_AUTH_DOMAIN.replace(/\.eth$/i, '')
@@ -88,5 +87,26 @@ test.describe('ENS name registration', () => {
     })
     registrationComplete = true
     await authorizeAll
+  })
+
+  /**
+   * A10 — `apps/manager/src/routes/register/$name.tsx`'s loader checks
+   * availability before ever rendering the registration UI, and redirects
+   * straight to the profile route for a name that isn't available. This
+   * tests the loader's own behaviour, not a rendered "unavailable" message.
+   */
+  test('redirects to the profile page when the name is already registered', {
+    tag: ['@scenario:A10'],
+  }, async ({ connectedPage: page, makeName }) => {
+    const name = await makeName({ label: 'already-registered-a10' })
+
+    await page.goto(`${MANAGER_APP_URL}/register/${name}`)
+
+    await page.waitForURL(new RegExp(`/${name.replace(/\./g, '\\.')}$`), {
+      timeout: 15_000,
+    })
+    // Confirms the redirect landed on a real profile render, not a blank
+    // route or an error boundary that happens to match the URL pattern.
+    await expect(page.getByText(name).first()).toBeVisible({ timeout: 15_000 })
   })
 })

@@ -5,7 +5,15 @@ import { withRequestDeadline } from './requestDeadline'
 
 export type { V1Domain }
 
-const V1_SUBGRAPH_URL = 'https://v1-graphql.ens.dev/subgraph'
+/**
+ * This client does NOT go through ensjs, so the chain-level override in
+ * `lib/wagmi.ts` does not reach it. Repointing the apps at a local V1 subgraph
+ * therefore takes two edits, not one, and missing this one leaves the migration
+ * list reading the public endpoint while everything else reads the fork — which
+ * looks like the migration flow losing names rather than like a split config.
+ */
+const V1_SUBGRAPH_URL =
+  import.meta.env?.VITE_V1_SUBGRAPH_URL || 'https://v1-graphql.ens.dev/subgraph'
 
 type V1SubgraphResponse = {
   data: {

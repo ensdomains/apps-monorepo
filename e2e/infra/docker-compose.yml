@@ -76,11 +76,50 @@ services:
       - "8545"
       - --host
       - "0.0.0.0"
+      # The upstream fork RPC drops connections, and anvil PANICS (exit 133) when a
+      # storage read fails after its default 5 retries — twice in 45 minutes on
+      # 2026-09-10, each time taking every later test with it. More headroom.
+      - --retries
+      - '20'
+      - --timeout
+      - '120000'
+      - --fork-retry-backoff
+      - '2000'
     ports:
       - "8545:8545"
     healthcheck:
       # eth_chainId ensures RPC is ready for Alto; start_period gives fork time to init
       test: ["CMD", "cast", "rpc", "eth_chainId"]
+      interval: 5s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
+
+  # Read-only Mainnet fork — only for the "metadata" project's mainnet-v1
+  # scenarios (WEB-1191). Nothing registers or writes here: mainnet v1 names
+  # used in those tests are real, already-registered names, so this fork only
+  # needs to serve reads at a pinned block for determinism.
+  anvil-mainnet:
+    image: ghcr.io/foundry-rs/foundry@sha256:8347b728d5d393dac1c018691b36f506d23b9dcd78341d40ea0fcb11c3a19cdd
+    networks:
+      e2e:
+        aliases:
+          - anvil-mainnet
+    entrypoint: ["anvil"]
+    command:
+      - --fork-url
+      - ${MAINNET_FORK_URL:-https://ethereum-rpc.publicnode.com}
+      - --chain-id
+      - "1"
+      - --port
+      - "8546"
+      - --host
+      - "0.0.0.0"
+    ports:
+      - "8546:8546"
+    healthcheck:
+      # cast defaults to :8545 with no --rpc-url; this fork listens on :8546.
+      test: ["CMD", "cast", "rpc", "eth_chainId", "--rpc-url", "http://127.0.0.1:8546"]
       interval: 5s
       timeout: 10s
       retries: 6
@@ -161,11 +200,44 @@ services:
       anvil:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "/app/healthcheck.sh"]
+      # The image's own /app/healthcheck.sh probes "localhost", which
+      # resolves to the IPv6 loopback ([::1]) first inside this container;
+      # the status server only binds IPv4, so the baked-in script reports
+      # unhealthy even mid-sync while genuinely serving requests. Bypass it
+      # with an explicit IPv4 address instead (mirrors its own marker-file
+      # check for a still-downloading rainbow table). Panoptes is on a
+      # moving tag (see the file header), so re-check this if the image
+      # changes its status port or path.
+      test: ["CMD-SHELL", "test -f /app/data/.rainbow_downloading || wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/status"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
+    restart: on-failure
+
+  # A local stand-in for the ENS V1 subgraph, indexing the fork's own logs.
+  #
+  # The public v1-graphql.ens.dev cannot see anything this suite creates — every
+  # seeded name lives on a fork that diverged from Sepolia minutes ago — so
+  # without this the Subnames tab, text-record key discovery and name history
+  # all render confident negatives locally. See packages/v1-subgraph-shim.
+  v1-subgraph:
+    build:
+      context: ../../packages/v1-subgraph-shim
+    networks:
+      e2e:
+        aliases:
+          - v1-subgraph
+    ports:
+      - "5656:5656"
+    environment:
+      - PORT=5656
+      # Inside the compose network Anvil is reachable by service name; the apps
+      # reach this service from the host on 127.0.0.1:5656.
+      - RPC_URL=http://anvil:8545
+    depends_on:
+      anvil:
+        condition: service_healthy
     restart: on-failure
 
   panoptes-api:
@@ -195,11 +267,66 @@ services:
     depends_on:
       - panoptes-indexer
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5655/health"]
+      # Same IPv6-vs-IPv4 issue as panoptes-indexer's healthcheck above, plus
+      # this API build has no /health route at all (confirmed: a 404, not a
+      # connection error) — /graphql is the one route guaranteed to be live
+      # whenever the server is actually serving.
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5655/graphql"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
+    restart: on-failure
+
+  # ENS Metadata Service V2 (github.com/ensdomains/metadata-service-v2), run
+  # locally against the anvil forks above — for the "metadata" e2e project
+  # (WEB-1191). RPCs point at anvil/anvil-mainnet; the ENSNODE_* indexer URLs
+  # deliberately point nowhere reachable — there is no local indexer speaking
+  # the zigens/ENSNode dialect this service expects (panoptes-indexer above is
+  # a different, incompatible schema), so every scenario exercises the
+  # service's own live-on-chain-fallback classification path instead
+  # (src/services/metadata.ts statusFromSource, already covered by that repo's
+  # own fallback.test.ts / outage-taxonomy.test.ts — this is intended,
+  # resilience-tested behaviour, not a workaround).
+  metadata-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.metadata-service
+      # metadata-service-v2 is private; the clone inside the build needs a
+      # credential. Passed as a secret so it never reaches an image layer.
+      secrets:
+        - gh_token
+    networks:
+      e2e:
+        aliases:
+          - metadata-service
+    ports:
+      - "8787:8787"
+    environment:
+      - MAINNET_RPC_URL=http://anvil-mainnet:8546
+      - SEPOLIA_RPC_URL=http://anvil:8545
+      - ENSNODE_MAINNET_URL=http://indexer.invalid/subgraph
+      - ENSNODE_SEPOLIA_V2_URL=http://indexer.invalid/graphql
+      - ENSNODE_SEPOLIA_V1_URL=http://indexer.invalid/subgraph
+      # Real HMAC secret (not WEBHOOK_ALLOW_UNAUTHENTICATED) so the webhook's
+      # auth path — the thing MD6 actually tests — stays exercised for real.
+      # Must match fixtures/metadataWebhook.ts's DEFAULT_WEBHOOK_SECRET.
+      - WEBHOOK_SECRET=${METADATA_SERVICE_WEBHOOK_SECRET:-e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0}
+      - RATE_LIMIT_DISABLED=true
+    depends_on:
+      anvil:
+        condition: service_healthy
+      anvil-mainnet:
+        condition: service_healthy
+    healthcheck:
+      # /health always returns HTTP 200 (degraded status is reported in the
+      # body, not the status code — see src/index.ts) so this only confirms
+      # the worker itself is up, not that its dependencies are healthy.
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8787/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
     restart: on-failure
 
   # Rhinestone mockestrator: local orchestrator for Rhinestone intent-based transactions.
@@ -273,11 +400,22 @@ services:
       - ../../packages/dqa-server/public:/app/public:ro
     restart: on-failure
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/auth/config"]
+      # Same IPv6-vs-IPv4 "localhost" issue as the panoptes healthchecks
+      # above — this image's loopback resolves [::1] first and the server
+      # only binds IPv4, so the probe never connects even though the server
+      # is up (confirmed: /auth/config answers fine over 127.0.0.1).
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:4000/auth/config"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 10s
+
+# Build-time credential for the private metadata-service-v2 clone. Sourced from
+# the environment so nothing is written to disk:
+#   GH_TOKEN=$(gh auth token) docker compose up -d metadata-service
+secrets:
+  gh_token:
+    environment: GH_TOKEN
 
 volumes:
   panoptes-data:

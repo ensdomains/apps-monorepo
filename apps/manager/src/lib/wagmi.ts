@@ -63,7 +63,40 @@ export const customSepolia = {
   },
 }
 
-export const sepoliaWithEns = extendChainWithEns(customSepolia)
+/**
+ * The V1 subgraph endpoint, overridable for local work.
+ *
+ * The override has to happen *after* `extendChainWithEns`, not by passing a URL
+ * into it: that function spreads ensjs's own `ensL1Subgraphs` last, so anything
+ * supplied by the caller is silently discarded.
+ *
+ * Why it is here at all: every name the e2e suite creates lives on an Anvil fork
+ * that diverged from Sepolia minutes ago, so the public subgraph cannot see any
+ * of them and never will. Locally that makes the Subnames tab always empty,
+ * custom text-record keys undiscoverable and history a confident "no activity"
+ * for names with real events — none of which are product bugs.
+ * `packages/v1-subgraph-shim` answers the same schema from the fork's own logs.
+ *
+ * Unset in production, where this is exactly the public endpoint it always was.
+ */
+const baseSepoliaWithEns = extendChainWithEns(customSepolia)
+
+export const sepoliaWithEns = {
+  ...baseSepoliaWithEns,
+  subgraphs: {
+    ...baseSepoliaWithEns.subgraphs,
+    ens: {
+      ...baseSepoliaWithEns.subgraphs.ens,
+      // Cast because ensjs types this as the string LITERAL it hardcoded, so
+      // any other value is a type error by construction. The literal is an
+      // artefact of the value being hardcoded, not a real constraint — the
+      // field is a URL, and the whole point here is that it is configurable.
+      url: (import.meta.env?.VITE_V1_SUBGRAPH_URL ||
+        baseSepoliaWithEns.subgraphs.ens
+          .url) as typeof baseSepoliaWithEns.subgraphs.ens.url,
+    },
+  },
+}
 
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,

@@ -1,0 +1,27 @@
+{
+  "name": "@ens-apps/v1-subgraph-shim",
+  "version": "1.0.0",
+  "description": "A local stand-in for the ENS V1 subgraph, answering from the Anvil fork's own logs. The public v1-graphql.ens.dev cannot see fork-seeded names, which makes every V1 subname, record-key and history surface untestable locally.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "node --watch server/index.ts",
+    "start": "node server/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "dependencies": {
+    "@ensdomains/ensjs": "catalog:",
+    "@hono/node-server": "^2.1.0",
+    "graphql": "^17.0.2",
+    "hono": "^4.12.18",
+    "viem": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "catalog:"
+  }
+}
