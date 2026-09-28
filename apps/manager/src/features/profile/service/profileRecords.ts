@@ -108,6 +108,8 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     ...textRecords.map((record) => record.key),
     ...forceFetchRecords.always,
     ...forceFetchRecords.whenNotIndexed,
+    // Newly saved links must be readable before the indexer discovers the key.
+    'links',
     ...indexerRecords.texts,
   ])
   const coins = unique([
