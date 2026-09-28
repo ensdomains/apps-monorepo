@@ -19,11 +19,15 @@ vi.mock('@/components/WalletMenu', () => ({ WalletMenu: () => null }))
 const v2Ref = vi.hoisted(() => ({
   current: [] as V2NameWithRoles[] | Error,
 }))
+const v1Ref = vi.hoisted(() => ({ current: [] as [] | Error }))
 
 vi.mock('../hooks/useV1NamesForAddress', () => ({
   getV1NamesForAddressQueryOptions: () => ({
     queryKey: ['v1-names-mock'],
-    queryFn: async () => [],
+    queryFn: async () => {
+      if (v1Ref.current instanceof Error) throw v1Ref.current
+      return v1Ref.current
+    },
   }),
 }))
 
@@ -47,8 +51,9 @@ const v2Name = (name: string, daysLeft: number): V2NameWithRoles => ({
   recordCount: 0,
 })
 
-const renderNames = (names: V2NameWithRoles[] | Error) => {
+const renderNames = (names: V2NameWithRoles[] | Error, v1: [] | Error = []) => {
   v2Ref.current = names
+  v1Ref.current = v1
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -96,8 +101,25 @@ describe('YourNames', () => {
   it('shows an error instead of an empty list when a query fails', async () => {
     renderNames(new Error('indexer down'))
     expect(
-      await screen.findByText(/Error fetching your names/),
+      await screen.findByText(/Error fetching ENSv2 names/),
     ).toBeInTheDocument()
     expect(screen.queryByText('No names yet')).toBeNull()
+  })
+
+  it('keeps the names one source returned when the other fails', async () => {
+    renderNames([v2Name('kept.eth', 100)], new Error('v1 subgraph down'))
+
+    expect(await screen.findByText('kept.eth')).toBeInTheDocument()
+    expect(screen.getByText(/Error fetching ENSv1 names/)).toBeInTheDocument()
+  })
+
+  it('lists subnames a parent granted, after the names the wallet holds', async () => {
+    renderNames([v2Name('granted.parent.eth', 10), v2Name('held.eth', 500)])
+
+    const rows = await screen.findAllByRole('listitem')
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringContaining('held.eth'),
+      expect.stringContaining('granted.parent.eth'),
+    ])
   })
 })
