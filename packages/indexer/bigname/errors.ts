@@ -15,11 +15,13 @@ export const BIGNAME_API_ERROR_CODES = [
 
 export type BignameApiErrorCode = (typeof BIGNAME_API_ERROR_CODES)[number]
 
-/** API codes plus the two the client produces itself. */
+/** API codes plus the ones the client produces itself. */
 export type BignameErrorCode =
   | BignameApiErrorCode
   | 'network'
   | 'malformed_response'
+  // allPages hit its page limit with rows still remaining
+  | 'page_limit'
 
 export class BignameError extends TaggedError('BIGNAME_ERROR')<{
   readonly code: BignameErrorCode

@@ -287,6 +287,33 @@ describe('createBignameClient', () => {
 
       expect(isStale(rows._unsafeUnwrapErr())).toBe(true)
     })
+
+    it('reports a collection that outgrows the page limit instead of truncating it', async () => {
+      const { client } = clientWith(page(['a'], 'c2'), page(['b'], 'c3'))
+
+      const rows = await allPages(
+        (cursor) => client.subnames('x.eth', { page_size: 1, cursor }),
+        { maxPages: 2 },
+      )
+
+      expect(rows._unsafeUnwrapErr().code).toBe('page_limit')
+    })
+
+    it('counts pages from one again after a restart', async () => {
+      const { client } = clientWith(
+        page(['a'], 'c2'),
+        apiError('stale', 409),
+        page(['a'], 'c2'),
+        page(['b'], null),
+      )
+
+      const rows = await allPages(
+        (cursor) => client.subnames('x.eth', { page_size: 1, cursor }),
+        { maxPages: 2 },
+      )
+
+      expect(rows._unsafeUnwrap()).toEqual(['a', 'b'])
+    })
   })
 
   // Real network; opt in with BIGNAME_INTEGRATION=1.
