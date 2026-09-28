@@ -207,7 +207,7 @@ describe('ProfileView helpers', () => {
     ])
   })
 
-  it('prepares only three preview cards from a 60,000-link array', () => {
+  it('prepares only nine preview cards from a 60,000-link array', () => {
     const links = Array.from({ length: 60_000 }, (_, i) => ({
       name: `Link ${i}`,
       url: `https://example.com/${i}`,
@@ -215,9 +215,9 @@ describe('ProfileView helpers', () => {
 
     const result = getSafeProfileLinks(makeRecords({ links }))
 
-    expect(result).toHaveLength(3)
+    expect(result).toHaveLength(9)
     expect(result.map(({ url }) => url)).toEqual(
-      links.slice(0, 3).map(({ url }) => url),
+      links.slice(0, 9).map(({ url }) => url),
     )
   })
 

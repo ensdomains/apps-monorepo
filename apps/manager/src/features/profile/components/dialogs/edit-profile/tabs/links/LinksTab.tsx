@@ -187,8 +187,8 @@ export const LinksTab = ({
           Links
         </p>
         <p className="text-[16px] text-ens-quartz-400 leading-[1.2]">
-          Add up to {MAX_PROFILE_LINKS} links to your website, portfolio, or
-          anything you want to share.
+          Add up to {MAX_PROFILE_LINKS} links to your website, portfolio, or any
+          places on the internet you want to share
         </p>
         {values.links.length > MAX_PROFILE_LINKS && (
           <p className="text-[14px] text-ens-quartz-400 leading-[1.2]">
