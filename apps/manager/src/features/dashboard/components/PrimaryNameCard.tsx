@@ -6,7 +6,6 @@ import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { cardSurfaceTreatmentClassName } from '@/components/ui/card-surface'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
   formatDashboardDate,
@@ -114,7 +113,6 @@ export const PrimaryNameCard = ({
   return (
     <Card
       className={cn(
-        cardSurfaceTreatmentClassName,
         'flex flex-col gap-4 rounded-none p-4 md:rounded-xl md:p-6',
         isInGrace && 'opacity-70',
       )}

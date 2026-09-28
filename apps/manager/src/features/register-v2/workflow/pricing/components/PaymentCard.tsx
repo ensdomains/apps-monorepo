@@ -5,6 +5,7 @@ import { useSelector } from '@xstate/react'
 import { useConnection } from 'wagmi'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
+import { Card } from '@/components/ui/card'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { useSmartSessionGate } from '@/features/wallet/hooks/useSmartSessionGate'
@@ -101,12 +102,7 @@ export const PaymentCardBase = ({
   const { openConnectModal, connectModalOpen } = useConnectModal()
 
   return (
-    <div
-      className={tw(
-        'flex flex-1 flex-col items-center justify-between gap-8',
-        'rounded-xl border-[#DDDDDE] border-[0.5px] bg-white px-12 py-6 shadow-temp-card',
-      )}
-    >
+    <Card className="flex-1 items-center justify-between gap-8 px-12">
       <div className="w-full max-w-64 space-y-3 text-center">
         {premiumAmount !== undefined && premiumAmount > 0 && (
           <div className="mx-auto w-max space-y-2">
@@ -192,6 +188,6 @@ export const PaymentCardBase = ({
           </Button>
         )}
       </div>
-    </div>
+    </Card>
   )
 }

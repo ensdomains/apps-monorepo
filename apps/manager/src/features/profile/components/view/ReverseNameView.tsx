@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
+import { Card } from '@/components/ui/card'
 import { truncateAddress } from '@/lib/utils'
 
 export const ReverseNameView = ({
@@ -11,7 +12,7 @@ export const ReverseNameView = ({
   readonly address: Address
 }) => (
   <main className="mx-auto w-full max-w-[805px] space-y-6 px-4 pt-6 pb-12 md:pt-10">
-    <div className="rounded-xl border border-ens-quartz-250 bg-white p-6">
+    <Card className="block p-6">
       <h1 className="break-all font-semi-mono text-2xl text-ens-quartz-900">
         {name}
       </h1>
@@ -25,6 +26,6 @@ export const ReverseNameView = ({
       >
         <Trans>View address</Trans>
       </Link>
-    </div>
+    </Card>
   </main>
 )

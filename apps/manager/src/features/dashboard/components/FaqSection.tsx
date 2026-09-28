@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { CircleArrowDown, ExternalLink } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { cardSurfaceTreatmentClassName } from '@/components/ui/card-surface'
+import { Card } from '@/components/ui/card'
 import {
   Collapsible,
   CollapsibleContent,
@@ -79,9 +79,7 @@ const faqItems: { id: string; question: ReactNode; answer: ReactNode }[] = [
 ]
 
 export const FaqSection = () => (
-  <div
-    className={`${cardSurfaceTreatmentClassName} px-4 py-6 md:rounded-xl md:px-6 md:py-8`}
-  >
+  <Card className="block rounded-none px-4 py-6 md:rounded-xl md:px-6 md:py-8">
     <h2 className="mb-3 text-[24px] text-foreground leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
       <Trans>Frequently Asked Questions</Trans>
     </h2>
@@ -119,5 +117,5 @@ export const FaqSection = () => (
         <ExternalLink className="size-3 md:size-4" strokeWidth={2} />
       </a>
     </Button>
-  </div>
+  </Card>
 )

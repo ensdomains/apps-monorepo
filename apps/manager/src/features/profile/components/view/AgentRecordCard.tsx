@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { Bot } from 'lucide-react'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
-import { cardSurfaceTreatmentClassName } from '@/components/ui/card-surface'
+import { Card } from '@/components/ui/card'
 import type { AgentRegistrationRecord } from '@/features/profile/types'
 
 interface AgentRecordCardProps {
@@ -17,8 +17,8 @@ const fieldValueClassName = 'truncate font-medium text-foreground text-sm'
  * the full raw text-record value (the key) to the clipboard (WEB-569 req 2 & 4).
  */
 export const AgentRecordCard = ({ record }: AgentRecordCardProps) => (
-  <div
-    className={`${cardSurfaceTreatmentClassName} rounded-xl p-4`}
+  <Card
+    className="block p-4"
     data-testid={`agent-record-card-${record.agentId}`}
   >
     <div className="flex items-start justify-between gap-3">
@@ -55,5 +55,5 @@ export const AgentRecordCard = ({ record }: AgentRecordCardProps) => (
         <Trans>Copy</Trans>
       </CopyableButton>
     </div>
-  </div>
+  </Card>
 )

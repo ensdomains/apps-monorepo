@@ -1,5 +1,4 @@
 import { motion } from 'motion/react'
-import { cardSurfaceTreatmentClassName } from '@/components/ui/card-surface'
 import { cn } from '@/lib/utils'
 import { tw } from '@/utils/tailwind'
 
@@ -16,8 +15,6 @@ type ProfileSectionLoadingProps = {
   readonly shouldReduceMotion: boolean
   readonly titleWidth: string
 }
-
-export const loadingCardSurfaceClassName = `${cardSurfaceTreatmentClassName} rounded-[14px] lg:landscape:rounded-xl`
 
 export const getMotionProps = (_shouldReduceMotion: boolean, _delay = 0) => ({})
 

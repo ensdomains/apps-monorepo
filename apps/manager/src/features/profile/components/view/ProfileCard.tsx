@@ -1,12 +1,9 @@
-import { cardSurfaceTreatmentClassName } from '@/components/ui/card-surface'
 import { cn } from '@/lib/utils'
 
 export const profileCardCopyIconClassName =
   'ml-0 size-4 shrink-0 text-ens-quartz-400 lg:landscape:size-6 lg:landscape:text-ens-quartz-700'
 
 export const profileCardTrailingIconStrokeWidth = 1.33
-
-export const cardSurfaceClassName = `${cardSurfaceTreatmentClassName} rounded-[14px] transition hover:bg-ens-quartz-50 lg:landscape:rounded-xl`
 
 export const valueClassName =
   'font-mono text-sm text-ens-quartz-500 leading-normal'
