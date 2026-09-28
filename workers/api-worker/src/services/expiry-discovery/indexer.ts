@@ -3,14 +3,14 @@ import {
   EmptyGraphQLResponseError,
   graphqlRequest,
 } from '@ens-apps/indexer/urql/request'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { CombinedError, gql } from '@urql/core'
-import { fromPromise, ok } from 'neverthrow'
+import { fromPromise, ok, type Result } from 'neverthrow'
 import * as v from 'valibot'
+import { getConfig } from '#core/config.js'
 import { logger } from '#utils/logger.js'
 import type { ExpiryStageConfig } from './stages.js'
 
-const DEFAULT_INDEXER_URL = 'https://staging-graphql.ens.dev/'
 export const PROCESS_PAGE_SIZE = 999
 export const QUERY_PAGE_SIZE = PROCESS_PAGE_SIZE + 1
 const MAX_RETRIES = 3
@@ -67,8 +67,22 @@ class IndexerRequestError extends TaggedError('INDEXER_REQUEST_ERROR')<{
 
 class IndexerValidationError extends TaggedError('INDEXER_VALIDATION_ERROR') {}
 
-function getIndexerUrl(env: CloudflareBindings): string {
-  return env.ENS_INDEXER_GRAPHQL_URL || DEFAULT_INDEXER_URL
+class IndexerConfigError extends TaggedError('INDEXER_CONFIG_ERROR')<{
+  cause: unknown
+}> {}
+
+/**
+ * Resolving the network can fail (an absent or unknown `CHAIN`). Returning a
+ * Result keeps that inside the caller's error channel instead of rejecting the
+ * generator, which would bypass the cron's failure handling.
+ */
+function getIndexerUrl(
+  env: CloudflareBindings,
+): Result<string, IndexerConfigError> {
+  return fromSync(
+    () => getConfig(env).endpoints.indexerGraphql,
+    (error) => new IndexerConfigError({ cause: error }),
+  )
 }
 
 function toRetryDelayMs(attempt: number): number {
@@ -114,15 +128,13 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
   upperBound: number
   attempt: number
 }) {
+  const indexerUrl = yield* getIndexerUrl(ctx.env)
+
   const rawResponse = yield* fromPromise(
-    graphqlRequest(
-      createPlainClient(getIndexerUrl(ctx.env)),
-      expiringNamesQuery,
-      {
-        cursor: ctx.cursor,
-        upper_bound: ctx.upperBound,
-      } satisfies ExpiringNamesQueryVariables,
-    ),
+    graphqlRequest(createPlainClient(indexerUrl), expiringNamesQuery, {
+      cursor: ctx.cursor,
+      upper_bound: ctx.upperBound,
+    } satisfies ExpiringNamesQueryVariables),
     (error) => {
       const status = responseStatus(error)
 

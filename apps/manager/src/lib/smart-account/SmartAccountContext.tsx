@@ -10,7 +10,6 @@ import {
   removeSessionsByOwner,
 } from '@ens-apps/smart-account'
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
-import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useLingui } from '@lingui/react/macro'
@@ -35,7 +34,8 @@ import {
 } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { type EventFromLogic, waitFor } from 'xstate'
-import { customSepolia } from '@/lib/wagmi'
+import { chain as appChain } from '@/config'
+import { SUPPORTED_TOKENS } from '@/lib/tokens'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'
@@ -162,7 +162,7 @@ function buildRhinestoneSigner(
     type: 'rhinestone' as const,
     account: params.baseClient as unknown as RhinestoneSigner['account'],
     config: {
-      chain: customSepolia,
+      chain: appChain,
       accountAddress: params.accountAddress,
       rhinestoneApiKey: params.rhinestoneApiKey,
       defaultInfra: 'warp',
@@ -264,7 +264,7 @@ export const SmartAccountContextProvider = ({
   const { t } = useLingui()
   const { isConnecting, isReconnecting } = useConnection()
   const { data: wagmiWalletClient } = useWalletClient()
-  const wagmiPublicClient = usePublicClient({ chainId: customSepolia.id })
+  const wagmiPublicClient = usePublicClient({ chainId: appChain.id })
 
   // True while the connector is still establishing/restoring a session, so
   // we don't report the account as "initialized" mid-reconnect.
@@ -372,7 +372,7 @@ export const SmartAccountContextProvider = ({
     if (anvilSetupDoneRef.current.has(ownerAddress)) return
 
     anvilSetupDoneRef.current.add(ownerAddress)
-    anvilSetupOwner(ownerAddress, customSepolia, {
+    anvilSetupOwner(ownerAddress, appChain, {
       USDC: SUPPORTED_TOKENS.USDC,
     }).catch(() => {
       anvilSetupDoneRef.current.delete(ownerAddress)
@@ -534,7 +534,7 @@ export const SmartAccountContextProvider = ({
     const stored = getValidSessionForAccount({
       accountAddress,
       ownerAddress: sessionOwnerAddress,
-      chainId: customSepolia.id,
+      chainId: appChain.id,
     })
     setActiveSession(stored && isRhinestoneSession(stored) ? stored : null)
   }, [sessionOwnerAddress, accountAddress])
@@ -574,11 +574,11 @@ export const SmartAccountContextProvider = ({
     setIsEnablingSession(true)
     setSessionError(null)
     // The session salt depends on the HCA's on-chain nonce (0 when undeployed).
-    const alreadyDeployed = await rhinestoneAccount.isDeployed(customSepolia)
+    const alreadyDeployed = await rhinestoneAccount.isDeployed(appChain)
     const result = await resolveSessionActor({
       ownerAddress: sessionOwnerAddress,
       accountAddress,
-      chain: customSepolia,
+      chain: appChain,
       rhinestoneAccount,
       publicClient: wagmiPublicClient as unknown as PublicClient,
       alreadyDeployed,
@@ -606,7 +606,7 @@ export const SmartAccountContextProvider = ({
       rhinestoneApiKey,
       sessionContext: buildSessionContext({
         session: result.value.session,
-        chain: customSepolia,
+        chain: appChain,
         hca: accountAddress,
       }),
       sessionOwnerAddress,
@@ -642,7 +642,7 @@ export const SmartAccountContextProvider = ({
       activeSession && accountAddress
         ? buildSessionContext({
             session: activeSession,
-            chain: customSepolia,
+            chain: appChain,
             hca: accountAddress,
           })
         : undefined,

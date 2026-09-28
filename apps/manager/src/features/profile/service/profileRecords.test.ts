@@ -12,8 +12,8 @@ const mocks = vi.hoisted(() => ({
   graphqlRequest: vi.fn(),
 }))
 
+vi.mock('@/lib/indexer-client', () => ({ indexerClient: {} }))
 vi.mock('@ens-apps/indexer/urql', () => ({
-  default: {},
   graphqlRequest: mocks.graphqlRequest,
 }))
 vi.mock('@ensdomains/ensjs/public', () => ({

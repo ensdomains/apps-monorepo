@@ -7,9 +7,10 @@ import {
   type DomainsQueryVariables,
   type OrderDirection,
 } from '@ens-apps/indexer'
-import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
+import { graphqlRequest } from '@ens-apps/indexer/urql'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { infiniteQueryOptions } from '@tanstack/react-query'
+import { indexerClient } from '@/lib/indexer-client'
 import { GetDomainsError } from './getDashboardDomains'
 
 const PAGE_SIZE = 200

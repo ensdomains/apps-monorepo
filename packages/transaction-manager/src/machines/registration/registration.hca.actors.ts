@@ -2,7 +2,7 @@
  * Standalone-HCA registration actors (user-paid USDC route).
  *
  * These target the STANDALONE-HCA deployment (via `@ens-apps/smart-account`'s
- * manifest) — a different contract set from `ENS_SEPOLIA_CONTRACTS`, which the
+ * manifest) — a different contract set from the chain's ENS contracts, which the
  * pure-EOA path (portal) keeps using untouched.
  *
  * Route shape (per the "HCA: New" handoff doc; NO gas sponsorship):
@@ -21,6 +21,7 @@
  *       setters → setNameWithHCA?).
  */
 
+import { requireChainId } from '@ens-apps/config'
 import {
   buildCommitCall,
   buildRevealBatch,
@@ -51,7 +52,6 @@ import {
   stringToHex,
 } from 'viem'
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
-import { sepolia } from 'viem/chains'
 import { transactionManager } from '../../providers/transactionManager'
 import type { RhinestoneSigner, Signer } from '../../types/signer.types'
 import type {
@@ -799,7 +799,7 @@ export function submitFundingAndCommitActor(input: {
 > {
   return fromPromise(
     (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
+      const chainId = requireChainId(input.publicClient, 'HCA registration')
       const contracts = getDestinationContracts(chainId)
       const label = cleanLabel(input.name)
 
@@ -912,7 +912,7 @@ export function verifyHcaRegistrationActor(input: {
 }): ResultAsync<{ verified: boolean }, Error> {
   return fromPromise(
     (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
+      const chainId = requireChainId(input.publicClient, 'HCA registration')
       const contracts = getDestinationContracts(chainId)
       const label = cleanLabel(input.name)
       const expectedResolver = computeResolverAddress({
@@ -965,7 +965,7 @@ export function submitRevealBatchActor(input: {
 }): ResultAsync<string, Error> {
   return fromPromise(
     (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
+      const chainId = requireChainId(input.publicClient, 'HCA registration')
       const label = cleanLabel(input.name)
 
       const resolverAddress = computeResolverAddress({

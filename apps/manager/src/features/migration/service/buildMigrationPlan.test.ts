@@ -68,6 +68,9 @@ const publicClientWithProfileResults = (
   }[] = [],
 ): PublicClient =>
   ({
+    // The recovery plan resolves its chain from the client and refuses a
+    // client without one.
+    chain: { id: 11155111 },
     multicall: vi.fn(() => Promise.resolve(results)),
     readContract: vi.fn().mockResolvedValue(false),
   }) as unknown as PublicClient

@@ -1,6 +1,5 @@
 import {
   type Call,
-  ENS_SEPOLIA_CONTRACTS,
   getSmartAccountAddress,
   type HcaFundingPrompt,
   planHcaIntentFunding,
@@ -27,6 +26,7 @@ import {
   zeroAddress,
 } from 'viem'
 import { normalize } from 'viem/ens'
+import { envConfig } from '@/config'
 
 export interface SetPrimaryNameParams {
   /** ENS name, with or without the `.eth` suffix */
@@ -87,7 +87,7 @@ export async function hasStaleAddrReverse(input: {
   ownerAddress: Address
 }): Promise<boolean> {
   const resolver = await input.publicClient.readContract({
-    address: ENS_SEPOLIA_CONTRACTS.LegacyRegistry,
+    address: envConfig.chain.contracts.ensLegacyRegistry.address,
     abi: registryResolverAbi,
     functionName: 'resolver',
     args: [addrReverseNode(input.ownerAddress)],
@@ -164,7 +164,7 @@ export async function setPrimaryNameWithHca(
 
   const calls: readonly Call[] = [
     {
-      to: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrarAdapter,
+      to: envConfig.chain.contracts.ensDefaultReverseRegistrarAdapter.address,
       value: 0n,
       data: encodeFunctionData({
         abi: reverseAdapterAbi,
@@ -175,7 +175,7 @@ export async function setPrimaryNameWithHca(
     ...(clearsStaleAddrReverse
       ? [
           {
-            to: ENS_SEPOLIA_CONTRACTS.ReverseRegistrarAdapter,
+            to: envConfig.chain.contracts.ensReverseRegistrarAdapter.address,
             value: 0n,
             data: encodeFunctionData({
               abi: reverseAdapterAbi,
@@ -256,7 +256,7 @@ export function submitPrimaryNameForward(input: {
   const request: TransactionRequest = {
     type: 'eoa',
     from: input.accountAddress,
-    to: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar,
+    to: envConfig.chain.contracts.ensDefaultReverseRegistrar.address,
     data,
     value: 0n,
     chainId: input.chainId,
@@ -305,7 +305,7 @@ export function submitClearAddrReverse(input: {
   const request: TransactionRequest = {
     type: 'eoa',
     from: input.ownerAddress,
-    to: ENS_SEPOLIA_CONTRACTS.ReverseRegistrarAdapter,
+    to: envConfig.chain.contracts.ensReverseRegistrarAdapter.address,
     data,
     value: 0n,
     chainId: input.chainId,
@@ -341,7 +341,7 @@ export function submitPrimaryNameReverse(input: {
   const request: TransactionRequest = {
     type: 'eoa',
     from: input.accountAddress,
-    to: ENS_SEPOLIA_CONTRACTS.ReverseRegistrar,
+    to: envConfig.chain.contracts.ensReverseRegistrar.address,
     data,
     value: 0n,
     chainId: input.chainId,

@@ -1,3 +1,4 @@
+import { requireChainId } from '@ens-apps/config'
 import {
   buildHcaDeploymentCall,
   verifyStandaloneHca,
@@ -435,7 +436,7 @@ const ensureHcaDeployment = async (params: {
         ctx,
         buildHcaDeploymentCall({
           client: hcaClient,
-          chainId: ctx.publicClient.chain?.id ?? 11155111,
+          chainId: requireChainId(ctx.publicClient, 'migration'),
           expectedHca: ctx.hcaAddress,
           expectedOwner: ctx.walletAddress,
         }),
@@ -445,7 +446,7 @@ const ensureHcaDeployment = async (params: {
         publicClient: ctx.publicClient,
         hca: ctx.hcaAddress,
         expectedOwner: ctx.walletAddress,
-        chainId: ctx.publicClient.chain?.id ?? 11155111,
+        chainId: requireChainId(ctx.publicClient, 'migration'),
       })
       await refreshAccount()
       ctx.tracker.next()
@@ -460,7 +461,7 @@ const ensureHcaDeployment = async (params: {
     publicClient: ctx.publicClient,
     hca: ctx.hcaAddress,
     expectedOwner: ctx.walletAddress,
-    chainId: ctx.publicClient.chain?.id ?? 11155111,
+    chainId: requireChainId(ctx.publicClient, 'migration'),
   })
   // A retry can reuse an HCA deployed by the previous attempt. The preview
   // still contains the deployment descriptor, so consume that planned step
@@ -1310,7 +1311,7 @@ const buildNextAtomicBatch = async (params: {
       )
       .find((count) => count > 0) ?? 1
   const atomicPlan = await buildAtomicMigrationBatches({
-    chainId: ctx.publicClient.chain?.id ?? 11155111,
+    chainId: requireChainId(ctx.publicClient, 'migration'),
     hca: ctx.hcaAddress,
     wallet: ctx.walletAddress,
     classified: remaining,

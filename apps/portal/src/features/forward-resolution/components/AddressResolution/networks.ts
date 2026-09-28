@@ -3,6 +3,7 @@ import {
   L2_REVERSE_REGISTRAR_CHAIN_IDS,
   type L2ReverseRegistrarChainId,
 } from '@ens-apps/l2-primary/v1'
+import { envConfig } from '@/config'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { icons, names } from '@/lib/reverseRegistrarChainId'
 import type { AddressResolutionRow } from './types'
@@ -39,7 +40,7 @@ export const FORWARD_RESOLUTION_NETWORKS: ForwardResolutionNetwork[] = [
   },
   { coinType: MAINNET_COIN_TYPE, label: 'Mainnet', icon: icons[60] },
   ...L2_REVERSE_REGISTRAR_CHAIN_IDS.map((chainId) => ({
-    coinType: getCoinTypeForReverseRegistrarChainId(chainId, 'sepolia'),
+    coinType: getCoinTypeForReverseRegistrarChainId(chainId, envConfig.network),
     label: names[chainId],
     icon: icons[chainId],
     l2ChainId: chainId,

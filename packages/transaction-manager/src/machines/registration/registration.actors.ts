@@ -4,6 +4,7 @@
  * Pure functions for ENS registration operations.
  */
 
+import { requireChainId, requireEnsChain } from '@ens-apps/config'
 import {
   ethRegistrarCommitmentsSnippet,
   ethRegistrarCommitSnippet,
@@ -24,17 +25,19 @@ import type {
 } from 'viem'
 import {
   bytesToHex,
+  type Chain,
   decodeEventLog,
   encodeFunctionData,
   erc20Abi,
+  getChainContractAddress,
   isAddressEqual,
   keccak256,
   parseAbi,
   stringToBytes,
   zeroAddress,
+  zeroHash,
 } from 'viem'
 import { getBlock, multicall, readContract } from 'viem/actions'
-import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
@@ -45,12 +48,6 @@ const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
   'function MIN_COMMITMENT_AGE() view returns (uint64)',
 ])
 
-import {
-  ENS_SEPOLIA_CONTRACTS,
-  REFERER_ADDRESS,
-  type TOKEN_SYMBOL,
-  TOKENS,
-} from '../../contracts/ens-sepolia'
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
 import { transactionManager } from '../../providers/transactionManager'
@@ -136,8 +133,14 @@ function generateCommitment(
   ownerAddress: Address,
   duration: bigint,
   resolverAddress: Address,
-  registrarAddress: Address = ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+  registrarAddress?: Address,
 ): ResultAsync<CommitmentData, Error> {
+  const registrar =
+    registrarAddress ??
+    getChainContractAddress({
+      chain: requireEnsChain(publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
   const cleanName = name.replace('.eth', '')
   if (
     typeof crypto === 'undefined' ||
@@ -151,7 +154,7 @@ function generateCommitment(
   return fromPromise(
     (async () => {
       const commitment = await readContract(publicClient, {
-        address: registrarAddress,
+        address: registrar,
         abi: ethRegistrarMakeCommitmentSnippet,
         functionName: 'makeCommitment',
         args: [
@@ -161,7 +164,7 @@ function generateCommitment(
           zeroAddress,
           resolverAddress,
           duration,
-          REFERER_ADDRESS,
+          zeroHash,
         ],
       })
       return { commitment, secret }
@@ -227,6 +230,7 @@ export function encodeRegisterCall({
   duration,
   paymentToken,
   resolverAddress,
+  registrarAddress,
 }: {
   name: string
   owner: Address
@@ -234,9 +238,10 @@ export function encodeRegisterCall({
   duration: bigint
   paymentToken: Address
   resolverAddress: Address
+  registrarAddress: Address
 }): { to: Address; data: Hex; value: bigint } {
   return {
-    to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+    to: registrarAddress,
     data: encodeFunctionData({
       abi: ethRegistrarRegisterSnippet,
       functionName: 'register',
@@ -248,18 +253,22 @@ export function encodeRegisterCall({
         resolverAddress,
         duration,
         paymentToken,
-        REFERER_ADDRESS,
+        zeroHash,
       ],
     }),
     value: 0n,
   }
 }
 
-/**
- * Get payment token address
- */
-function getPaymentTokenAddress(token: TOKEN_SYMBOL): Address {
-  return TOKENS[token].address
+export type TOKEN_SYMBOL = 'USDC' | 'DAI'
+
+const PAYMENT_TOKEN_CONTRACT = { USDC: 'usdc', DAI: 'dai' } as const
+
+function getPaymentTokenAddress(token: TOKEN_SYMBOL, chain: Chain): Address {
+  return getChainContractAddress({
+    chain,
+    contract: PAYMENT_TOKEN_CONTRACT[token],
+  })
 }
 
 export function getSignerAddress(signer: Signer): Address {
@@ -350,17 +359,22 @@ export function submitResolverDeploymentActor(input: {
   publicClient: PublicClient
   id?: string
 }): ResultAsync<{ txId: string; salt: bigint }, Error> {
-  return ResultAsync.fromSafePromise(
+  return ResultAsync.fromPromise(
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
       const salt = generateResolverSalt(input.name)
+      const chain = requireEnsChain(input.publicClient, 'registration')
 
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        chainId: chain.id,
         calls: [
-          encodeDeployDedicatedResolverCall({ owner: input.owner, salt }),
+          encodeDeployDedicatedResolverCall({
+            owner: input.owner,
+            salt,
+            chain,
+          }),
         ],
       })
 
@@ -380,7 +394,6 @@ export function submitResolverDeploymentActor(input: {
 
       return { txId, salt }
     }),
-  ).mapErr(
     (error) => new Error(`Failed to submit resolver deployment: ${error}`),
   )
 }
@@ -396,14 +409,21 @@ export function submitResolverDeploymentActor(input: {
 export function encodeDeployDedicatedResolverCall(input: {
   owner: Address
   salt: bigint
+  chain: Chain
 }): { to: Address; data: Hex; value: bigint } {
   return {
-    to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
+    to: getChainContractAddress({
+      chain: input.chain,
+      contract: 'ensVerifiableFactory',
+    }),
     data: encodeFunctionData({
       abi: VERIFIABLE_FACTORY_ABI,
       functionName: 'deployProxy',
       args: [
-        ENS_SEPOLIA_CONTRACTS.PermissionedResolverImpl,
+        getChainContractAddress({
+          chain: input.chain,
+          contract: 'ensPermissionedResolverImpl',
+        }),
         input.salt,
         getResolverInitCalldata(input.owner),
       ],
@@ -446,7 +466,10 @@ export function generateCommitmentActor(input: {
   selectedToken: TOKEN_SYMBOL
   resolverAddress: Address
 }): ResultAsync<CommitmentData, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const registrarAddress = getChainContractAddress({
+    chain: requireEnsChain(input.publicClient, 'registration'),
+    contract: 'ensEthRegistrar',
+  })
 
   return generateCommitment(
     input.publicClient,
@@ -469,7 +492,10 @@ export function submitCommitmentActor(input: {
   publicClient: PublicClient
   id?: string
 }): ResultAsync<string, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const registrarAddress = getChainContractAddress({
+    chain: requireEnsChain(input.publicClient, 'registration'),
+    contract: 'ensEthRegistrar',
+  })
 
   return fromPromise(
     (async () => {
@@ -495,7 +521,7 @@ export function submitCommitmentActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        chainId: requireChainId(input.publicClient, 'registration'),
         calls: [
           {
             to: registrarAddress,
@@ -535,7 +561,11 @@ export function readMinCommitmentAgeActor(input: {
   registrarAddress?: Address
 }): ResultAsync<bigint, Error> {
   const registrarAddress =
-    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+    input.registrarAddress ??
+    getChainContractAddress({
+      chain: requireEnsChain(input.publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
   return fromPromise(
     readContract(input.publicClient, {
       address: registrarAddress,
@@ -568,9 +598,17 @@ export function readPaymentTokenAllowanceActor(input: {
   paymentTokenAddress?: Address
 }): ResultAsync<bigint, Error> {
   const registrarAddress =
-    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+    input.registrarAddress ??
+    getChainContractAddress({
+      chain: requireEnsChain(input.publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
   const tokenAddress =
-    input.paymentTokenAddress ?? getPaymentTokenAddress(input.selectedToken)
+    input.paymentTokenAddress ??
+    getPaymentTokenAddress(
+      input.selectedToken,
+      requireEnsChain(input.publicClient, 'registration'),
+    )
   return fromPromise(
     readContract(input.publicClient, {
       address: tokenAddress,
@@ -601,9 +639,17 @@ export function readPaymentAuthorizationActor(input: {
   paymentTokenAddress?: Address
 }): ResultAsync<{ allowance: bigint; livePrice: bigint }, MulticallErrorType> {
   const registrarAddress =
-    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+    input.registrarAddress ??
+    getChainContractAddress({
+      chain: requireEnsChain(input.publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
   const tokenAddress =
-    input.paymentTokenAddress ?? getPaymentTokenAddress(input.selectedToken)
+    input.paymentTokenAddress ??
+    getPaymentTokenAddress(
+      input.selectedToken,
+      requireEnsChain(input.publicClient, 'registration'),
+    )
   const label = input.name.replace('.eth', '')
   return fromPromise(
     (async () => {
@@ -644,7 +690,11 @@ export function verifyRegistrationActor(input: {
   registrarAddress?: Address
 }): ResultAsync<{ verified: boolean }, Error> {
   const registrarAddress =
-    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+    input.registrarAddress ??
+    getChainContractAddress({
+      chain: requireEnsChain(input.publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
   const cleanName = input.name.replace('.eth', '')
   return fromPromise(
     (async () => {
@@ -707,7 +757,11 @@ export function validateCommitmentActor(input: {
   registrarAddress?: Address
 }): ResultAsync<void, Error> {
   const registrarAddress =
-    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+    input.registrarAddress ??
+    getChainContractAddress({
+      chain: requireEnsChain(input.publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
 
   return fromPromise(
     (async () => {
@@ -832,14 +886,22 @@ export function submitApprovalActor(input: {
   paymentTokenAddress?: Address
 }): ResultAsync<string, Error> {
   const registrarAddress =
-    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+    input.registrarAddress ??
+    getChainContractAddress({
+      chain: requireEnsChain(input.publicClient, 'registration'),
+      contract: 'ensEthRegistrar',
+    })
 
-  return ResultAsync.fromSafePromise(
+  return ResultAsync.fromPromise(
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
 
       const tokenAddress =
-        input.paymentTokenAddress ?? getPaymentTokenAddress(input.selectedToken)
+        input.paymentTokenAddress ??
+        getPaymentTokenAddress(
+          input.selectedToken,
+          requireEnsChain(input.publicClient, 'registration'),
+        )
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
       const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
       console.log(
@@ -855,7 +917,7 @@ export function submitApprovalActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        chainId: requireChainId(input.publicClient, 'registration'),
         calls: [
           {
             to: normalizedTokenAddress,
@@ -881,7 +943,8 @@ export function submitApprovalActor(input: {
 
       return txId
     }),
-  ).mapErr((error) => new Error(`Failed to submit approval: ${error}`))
+    (error) => new Error(`Failed to submit approval: ${error}`),
+  )
 }
 
 /**
@@ -899,13 +962,19 @@ export function submitRegistrationActor(input: {
   resolverAddress: Address
   id?: string
 }): ResultAsync<string, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const registrarAddress = getChainContractAddress({
+    chain: requireEnsChain(input.publicClient, 'registration'),
+    contract: 'ensEthRegistrar',
+  })
 
   return fromPromise(
     (async () => {
       const accountAddress = getSignerAddress(input.signer)
 
-      const paymentToken = getPaymentTokenAddress(input.selectedToken)
+      const paymentToken = getPaymentTokenAddress(
+        input.selectedToken,
+        requireEnsChain(input.publicClient, 'registration'),
+      )
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
       console.log(
@@ -926,6 +995,7 @@ export function submitRegistrationActor(input: {
         owner: input.owner,
         secret: input.commitment.secret,
         duration: input.duration,
+        registrarAddress,
         paymentToken: normalizedPaymentToken,
         resolverAddress: input.resolverAddress,
       })
@@ -933,7 +1003,7 @@ export function submitRegistrationActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        chainId: requireChainId(input.publicClient, 'registration'),
         calls: [registerCall],
       })
 
@@ -1028,10 +1098,7 @@ function encodeRenewData(
   return encodeFunctionData({
     abi: ethRegistrarRenewSnippet,
     functionName: 'renew',
-    args: [
-      { label: cleanLabel, duration, referrer: REFERER_ADDRESS },
-      paymentToken,
-    ],
+    args: [{ label: cleanLabel, duration, referrer: zeroHash }, paymentToken],
   })
 }
 
@@ -1053,18 +1120,24 @@ export function submitRenewActor(input: {
   // Renewal is NOT an HCA flow — it is a plain wallet transaction against the
   // selected canonical renewer. V2 callers keep the ETHRegistrar default;
   // unmigrated V1 names explicitly target ETHRenewerV1.
-  const chainId = input.publicClient.chain?.id ?? sepolia.id
-  const renewerAddress =
-    input.renewerAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-
   return fromPromise(
     (async () => {
+      const chainId = requireChainId(input.publicClient, 'registration')
+      const renewerAddress =
+        input.renewerAddress ??
+        getChainContractAddress({
+          chain: requireEnsChain(input.publicClient, 'registration'),
+          contract: 'ensEthRegistrar',
+        })
       const accountAddress = getSignerAddress(input.signer)
 
       // The registrar only accepts its own PAYMENT_TOKEN /
       // SECONDARY_PAYMENT_TOKEN; `assertPaymentTokenSupported` below rejects
       // anything else (e.g. DAI) before we spend gas on it.
-      const paymentToken = getPaymentTokenAddress(input.selectedToken)
+      const paymentToken = getPaymentTokenAddress(
+        input.selectedToken,
+        requireEnsChain(input.publicClient, 'registration'),
+      )
       // Normalize to lowercase to avoid Rhinestone SDK validation issues.
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
 
