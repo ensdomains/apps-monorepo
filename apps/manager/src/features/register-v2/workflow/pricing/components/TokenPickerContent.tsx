@@ -20,6 +20,7 @@ import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
 import { getHcaBudgetQueryOptions } from '../../../data/queries/hcaBudget.query'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
@@ -28,8 +29,16 @@ import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
-import { computeRegistrationFunding } from '../lib/registrationFunding'
+import {
+  computeRegistrationFunding,
+  getRegistrationShortfallCause,
+  type RegistrationShortfallCause,
+} from '../lib/registrationFunding'
 import { PaymentBreakdown } from './PaymentBreakdown'
+import {
+  PaymentMethodList,
+  type PaymentMethodListItem,
+} from './PaymentMethodList'
 import { PaymentTotalRow } from './PaymentTotalRow'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { TokenListItem } from './TokenListItem'
@@ -44,6 +53,7 @@ class InsufficientFundingError extends Error {
   constructor(
     readonly required: number,
     readonly available: number,
+    readonly shortfallCause: Exclude<RegistrationShortfallCause, null>,
   ) {
     super('Insufficient USDC to fund the registration')
     this.name = 'InsufficientFundingError'
@@ -51,14 +61,14 @@ class InsufficientFundingError extends Error {
 }
 
 /**
- * What the wallet is actually debited, itemised — `rent + networkFee` on the
- * standalone-HCA route. See {@link computeRegistrationFunding}.
+ * The registration funding budget and the wallet's share of it. See
+ * {@link computeRegistrationFunding}.
  */
 export type RegistrationFundingSummary = {
   /** The registrar's charge, shown as its own line once a credit applies. */
   readonly registration: number
   readonly networkFee: number
-  /** What the registration costs — the figure shown on the total row. */
+  /** What the registration costs before applying existing HCA credit. */
   readonly total: number
   /**
    * What the wallet must hold: `total` less anything the HCA already carries.
@@ -75,6 +85,60 @@ const getDomainSizeClasses = (domainName: string): string => {
   if (charCount > LONG_NAME_CHAR_THRESHOLD) return 'text-[22px]'
   if (charCount >= MEDIUM_NAME_CHAR_THRESHOLD) return 'text-[32px]'
   return 'text-[40px]'
+}
+
+const PaymentMethods = ({
+  showNetworkFeeDetails,
+  paymentMethodItems,
+  stablecoinBalances,
+  onSelectCoin,
+  selectedToken,
+  requiredAmount,
+}: {
+  readonly showNetworkFeeDetails: boolean
+  readonly paymentMethodItems: readonly PaymentMethodListItem[]
+  readonly stablecoinBalances: readonly StablecoinBalance[]
+  readonly onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  readonly selectedToken: SUPPORTED_TOKEN | undefined
+  readonly requiredAmount: number | undefined
+}) => {
+  if (showNetworkFeeDetails) {
+    return <PaymentMethodList items={paymentMethodItems} />
+  }
+
+  return (
+    <div className="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
+      {stablecoinBalances.map((stablecoin) => (
+        <TokenListItem
+          key={stablecoin.address}
+          onSelectCoin={onSelectCoin}
+          priceUSD={requiredAmount ?? 0}
+          selectedCoin={selectedToken}
+          stablecoin={stablecoin}
+        />
+      ))}
+    </div>
+  )
+}
+
+const getPaymentHeadline = (
+  funding: RegistrationFundingSummary | undefined,
+  displayTotal: number | undefined,
+) => {
+  if (!funding) {
+    return {
+      hasAccountCredit: false,
+      headlineAmount: displayTotal,
+      networkFee: undefined,
+    }
+  }
+
+  const figures = getPaymentBreakdownFigures(funding)
+  return {
+    hasAccountCredit: figures.credit > 0,
+    headlineAmount: figures.walletDebit,
+    networkFee: figures.networkFee,
+  }
 }
 
 export const TokenPickerContent = () => {
@@ -245,15 +309,24 @@ export const TokenPickerContent = () => {
           ? budget.total - budget.hcaBalance
           : 0n
         : null
+      const shortfallCause = budget
+        ? getRegistrationShortfallCause({
+            totalRaw: budget.total,
+            registrationPriceRaw: budget.registrationPrice,
+            hcaBalanceRaw: budget.hcaBalance,
+            walletBalanceRaw: usdcBalanceRaw,
+          })
+        : null
 
       if (
         walletDebitRaw !== null &&
         usdcBalanceRaw !== null &&
-        usdcBalanceRaw < walletDebitRaw
+        shortfallCause !== null
       ) {
         throw new InsufficientFundingError(
           decimalBigintToNumber(walletDebitRaw, USDC_DECIMALS),
           decimalBigintToNumber(usdcBalanceRaw, USDC_DECIMALS),
+          shortfallCause,
         )
       }
 
@@ -285,46 +358,44 @@ export const TokenPickerContent = () => {
   const { stablecoinBalances, isLoadingBalances, isConnected } =
     useSmartAccountContext()
 
-  // Prefer the funding shortfall over the generic availability copy: it is the
-  // more specific failure and the only one the user can act on directly.
-  //
-  // The headline figure is always the DEBIT — with a part-funded HCA the wallet
-  // owes less than the registration costs, and quoting the budget would name a
-  // figure the user does not have to hold. The itemisation has to follow suit:
-  // `registration + networkFee` sums to the TOTAL, so spelling it out next to a
-  // credited debit prints two different numbers for the same quantity. Only the
-  // uncredited case itemises; the credited one names the credit instead, which
-  // is what reconciles the two.
-  const errorMessage = match({
-    funding,
-    mutationError: availabilityMutation.error,
-    isAvailabilityError: availabilityMutation.isError,
+  const revalidatedFundingError =
+    availabilityMutation.error instanceof InsufficientFundingError
+      ? availabilityMutation.error
+      : null
+  const methodErrorMessage = match({
+    renderFunding: funding,
+    revalidatedFundingError,
   })
     .with(
-      { funding: { isUnderfunded: true, hcaCredit: P.number.gt(0) } },
-      ({ funding: f }) =>
-        t`Not enough USDC. This name costs ${f.total.toFixed(2)} USDC, and ${f.hcaCredit.toFixed(2)} is left from your last attempt, so you pay ${f.walletDebit.toFixed(2)} now. Your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
+      { renderFunding: { shortfallCause: 'name-price' } },
+      ({ renderFunding }) => {
+        const amount = formatUsd(renderFunding.walletDebit)
+        return t`${amount} needed to register name`
+      },
     )
     .with(
-      { funding: { isUnderfunded: true } },
-      ({ funding: f }) =>
-        t`Not enough USDC. This name costs ${f.walletDebit.toFixed(2)} USDC: ${f.registration.toFixed(2)} for the name plus ${f.networkFee.toFixed(2)} in network fees. Your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
+      { renderFunding: { shortfallCause: 'network-fee' } },
+      () => t`not enough funds to pay network fees`,
     )
     .with(
-      { mutationError: P.instanceOf(InsufficientFundingError) },
-      ({ mutationError: e }) =>
-        t`Not enough USDC. This registration needs ${e.required.toFixed(2)} USDC but your wallet holds ${e.available.toFixed(2)} USDC.`,
+      { revalidatedFundingError: { shortfallCause: 'name-price' } },
+      ({ revalidatedFundingError }) => {
+        const amount = formatUsd(revalidatedFundingError.required)
+        return t`${amount} needed to register name`
+      },
     )
     .with(
-      { isAvailabilityError: true },
-      () =>
-        t`We couldn't confirm that ${domainName} is still available. Please try again.`,
+      { revalidatedFundingError: { shortfallCause: 'network-fee' } },
+      () => t`not enough funds to pay network fees`,
     )
     .otherwise(() => null)
+  const globalErrorMessage =
+    availabilityMutation.isError && revalidatedFundingError === null
+      ? t`We couldn't confirm that ${domainName} is still available. Please try again.`
+      : null
 
   return (
     <TokenPickerContentBase
-      errorMessage={errorMessage}
       footer={
         <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
           <div className="flex flex-col gap-0.5">
@@ -359,16 +430,19 @@ export const TokenPickerContent = () => {
             }
           : undefined
       }
+      globalErrorMessage={globalErrorMessage}
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
       isQuotingFunding={budgetQuery.isLoading}
       label={label}
+      methodErrorMessage={methodErrorMessage}
       onNext={() => availabilityMutation.mutate()}
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
       selectedToken={selectedToken}
+      showNetworkFeeDetails
       stablecoinBalances={stablecoinBalances}
     />
   )
@@ -380,7 +454,8 @@ export const TokenPickerContentBase = ({
   pricingData,
   isInPriceCooldown = false,
   selectedToken,
-  errorMessage,
+  globalErrorMessage,
+  methodErrorMessage,
   onSelectCoin,
   onNext,
   stablecoinBalances,
@@ -390,13 +465,16 @@ export const TokenPickerContentBase = ({
   footer,
   funding,
   isQuotingFunding = false,
+  showNetworkFeeDetails = false,
+  isFeeTooltipOpen,
 }: {
   label: string
   pricingLoading: boolean
   pricingData: number | undefined
   isInPriceCooldown?: boolean
   selectedToken: SUPPORTED_TOKEN | undefined
-  errorMessage?: string | null
+  globalErrorMessage?: string | null
+  methodErrorMessage?: string | null
   onSelectCoin: (coin: SUPPORTED_TOKEN) => void
   onNext: () => void
   stablecoinBalances: StablecoinBalance[]
@@ -406,19 +484,17 @@ export const TokenPickerContentBase = ({
   /** Optional content below the payment options (e.g. the primary-name toggle). */
   footer?: ReactNode
   /**
-   * Itemises the funding budget when the wallet is debited more than the rent —
-   * the standalone-HCA route funds both on-chain legs from the same transfer.
-   * Absent until the quote lands, and for routes that have no budget to quote
-   * (a pure-EOA signer pays the registrar directly). When present, `total` —
-   * not `pricingData` — is what the wallet must cover.
+   * Carries the funding budget used by the method-level fee disclosure and the
+   * inherited account-credit breakdown. When present, `walletDebit` — not
+   * `pricingData` — is what the wallet must cover.
    */
   funding?: RegistrationFundingSummary
-  /**
-   * The budget quote is still in flight. Reserves the network-cost row's space
-   * so the token list below it does not jump once the quote lands — two
-   * orchestrator round-trips is long enough for that shift to be felt.
-   */
+  /** The method-level fee quote is still in flight. */
   isQuotingFunding?: boolean
+  /** Registration-only disclosure; renewals keep their existing token row. */
+  showNetworkFeeDetails?: boolean
+  /** Story-only control used to capture the open tooltip reference state. */
+  isFeeTooltipOpen?: boolean
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -449,9 +525,11 @@ export const TokenPickerContentBase = ({
   // Rounded together with the breakdown lines, so they add up on screen. The
   // headline is always the debit once a budget is quoted; the label only
   // changes when a credit line is there to explain the gap.
-  const figures = funding && getPaymentBreakdownFigures(funding)
-  const hasAccountCredit = !!figures && figures.credit > 0
-  const headlineAmount = figures ? figures.walletDebit : displayTotal
+  const {
+    hasAccountCredit,
+    headlineAmount,
+    networkFee: displayedNetworkFee,
+  } = getPaymentHeadline(funding, displayTotal)
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
@@ -477,8 +555,47 @@ export const TokenPickerContentBase = ({
     hasBalances &&
     hasSufficientBalanceForSelectedCoin
 
+  const paymentMethodItems: PaymentMethodListItem[] = stablecoinBalances.map(
+    (stablecoin) => {
+      const balance = decimalBigintToNumber(
+        BigInt(stablecoin.balance),
+        stablecoin.decimals,
+      )
+      const isFunded = requiredAmount !== undefined && balance >= requiredAmount
+
+      return {
+        id: stablecoin.address,
+        isAvailable: true,
+        isFunded,
+        isCommon: stablecoin.symbol === TOKENS.USDC.symbol,
+        content: (
+          <TokenListItem
+            errorMessage={
+              stablecoin.symbol === TOKENS.USDC.symbol
+                ? methodErrorMessage
+                : undefined
+            }
+            isFeeTooltipOpen={isFeeTooltipOpen}
+            isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
+            networkFee={displayedNetworkFee}
+            onSelectCoin={onSelectCoin}
+            priceUSD={requiredAmount ?? 0}
+            selectedCoin={selectedToken}
+            showNetworkFeeDetails={showNetworkFeeDetails}
+            stablecoin={stablecoin}
+          />
+        ),
+      }
+    },
+  )
+
   return (
-    <div className="flex h-full flex-1 flex-col gap-6 px-4 pt-2 pb-6">
+    <div
+      className={cn(
+        'flex h-full flex-1 flex-col gap-6 pt-2 pb-6',
+        showNetworkFeeDetails ? 'min-h-0' : 'px-4',
+      )}
+    >
       <div className="flex flex-1 flex-col items-center gap-8 overflow-y-auto">
         <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
           {(premiumLabel || isInPriceCooldown) && (
@@ -504,7 +621,7 @@ export const TokenPickerContentBase = ({
             {domainName}
           </span>
 
-          <PaymentBreakdown funding={funding} isQuoting={!!isQuotingFunding} />
+          <PaymentBreakdown funding={funding} />
         </div>
 
         <div className="flex w-full flex-col gap-6">
@@ -552,22 +669,21 @@ export const TokenPickerContentBase = ({
               </div>
             ))
             .with({ stablecoinsCount: P.number.gt(0) }, () => (
-              <div className="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
-                {stablecoinBalances.map((stablecoin) => (
-                  <TokenListItem
-                    key={stablecoin.address}
-                    onSelectCoin={onSelectCoin}
-                    priceUSD={requiredAmount ?? 0}
-                    selectedCoin={selectedToken}
-                    stablecoin={stablecoin}
-                  />
-                ))}
-              </div>
+              <PaymentMethods
+                onSelectCoin={onSelectCoin}
+                paymentMethodItems={paymentMethodItems}
+                requiredAmount={requiredAmount}
+                selectedToken={selectedToken}
+                showNetworkFeeDetails={showNetworkFeeDetails}
+                stablecoinBalances={stablecoinBalances}
+              />
             ))
             .otherwise(() => undefined)}
 
-          {errorMessage && (
-            <p className="text-center text-ens-error text-sm">{errorMessage}</p>
+          {globalErrorMessage && (
+            <p className="text-center text-ens-error text-sm">
+              {globalErrorMessage}
+            </p>
           )}
 
           <div className="flex flex-col items-center gap-1.5">

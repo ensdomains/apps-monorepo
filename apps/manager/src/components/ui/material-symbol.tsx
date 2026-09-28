@@ -46,6 +46,7 @@ export const MATERIAL_SYMBOLS = [
   'face_retouching_natural',
   'favorite',
   'fingerprint',
+  'flash_off',
   'history',
   'hourglass',
   'info',

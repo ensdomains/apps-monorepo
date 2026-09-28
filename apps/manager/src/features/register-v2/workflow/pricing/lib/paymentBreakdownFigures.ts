@@ -1,5 +1,4 @@
-/** Round to cents, the precision every figure on the sheet is shown at. */
-const toCents = (value: number) => Math.round(value * 100) / 100
+import { roundUsdToCents } from '@/utils/formatting/formatUsdCeil'
 
 export type PaymentBreakdownFigures = {
   readonly registration: number
@@ -19,36 +18,51 @@ export type PaymentBreakdownFigures = {
  * USDC carries six decimals, so rounding each figure on its own can leave the
  * lines a cent short of the headline (registration 1.004 + fee 1.004 - credit
  * 1.008 renders as 1.00 + 1.00 - 1.01 against a 1.00 debit). Since the point
- * of the breakdown is that the subtraction is checkable, the credit is derived
- * from the other three once they are rounded and absorbs the residue: those
- * three are amounts the user can compare against their wallet, the credit is
- * the app's own bookkeeping.
+ * of the breakdown is that the subtraction is checkable, the rounded wallet
+ * debit and authoritative credit stay fixed while the network-fee presentation
+ * absorbs any rounding residue. If that would make the fee negative, it is
+ * floored at zero and the remainder moves to registration instead. Callers use
+ * the adjusted figures everywhere they are shown.
  *
- * The residue cuts both ways, so `hcaCredit` decides whether there is a credit
- * at all and the derived figure only says how it is shown. Without that, an
- * empty account invents one (4.996 + 4.996 against a 9.992 debit leaves 0.01)
- * and a balance under a cent produces a negative deduction (4.994 + 4.994
- * against 9.987 leaves -0.01). Both come back as zero, and the sheet shows the
- * plain total instead.
+ * The residue cuts both ways, so `hcaCredit` supplies a displayed credit only
+ * when it itself rounds to a visible cent. An independent rounding residue must
+ * not invent credit for an empty or sub-cent account; those come back as zero,
+ * and the sheet shows the plain total instead.
  */
 export const getPaymentBreakdownFigures = (funding: {
   readonly registration: number
   readonly networkFee: number
   readonly walletDebit: number
-  /** The account's real balance: what decides whether a credit exists. */
+  /** The account's real balance: it must itself be visible at cent precision. */
   readonly hcaCredit: number
 }): PaymentBreakdownFigures => {
-  const registration = toCents(funding.registration)
-  const networkFee = toCents(funding.networkFee)
-  const walletDebit = toCents(funding.walletDebit)
+  const registration = roundUsdToCents(funding.registration)
+  const networkFee = roundUsdToCents(funding.networkFee)
+  const walletDebit = roundUsdToCents(funding.walletDebit)
+  const credit = Math.max(0, roundUsdToCents(funding.hcaCredit))
+
+  if (credit === 0) {
+    return { registration, networkFee, walletDebit, credit }
+  }
+
+  const roundingResidual = roundUsdToCents(
+    walletDebit + credit - registration - networkFee,
+  )
+  const adjustedNetworkFee = roundUsdToCents(networkFee + roundingResidual)
+
+  if (adjustedNetworkFee < 0) {
+    return {
+      registration: Math.max(0, roundUsdToCents(walletDebit + credit)),
+      networkFee: 0,
+      walletDebit,
+      credit,
+    }
+  }
 
   return {
     registration,
-    networkFee,
+    networkFee: adjustedNetworkFee,
     walletDebit,
-    credit:
-      funding.hcaCredit > 0
-        ? Math.max(0, toCents(registration + networkFee - walletDebit))
-        : 0,
+    credit,
   }
 }

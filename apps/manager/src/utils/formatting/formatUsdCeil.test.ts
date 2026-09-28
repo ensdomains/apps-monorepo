@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatUsd, formatUsdCeil } from './formatUsdCeil'
+import { formatUsd, formatUsdCeil, roundUsdToCents } from './formatUsdCeil'
 
 describe('formatUsd', () => {
   it('pads whole numbers to two decimal places', () => {
@@ -14,6 +14,12 @@ describe('formatUsd', () => {
     expect(formatUsd(330.3)).toBe('$330.30')
     expect(formatUsd(0.01)).toBe('$0.01')
     expect(formatUsd(0.001)).toBe('$0.00')
+  })
+
+  it('shares its half-up cent rounding as a numeric value', () => {
+    expect(formatUsd(0.145)).toBe('$0.15')
+    expect(roundUsdToCents(0.145)).toBe(0.15)
+    expect(formatUsd(roundUsdToCents(0.145))).toBe(formatUsd(0.145))
   })
 
   it('returns "—" for non-finite values', () => {

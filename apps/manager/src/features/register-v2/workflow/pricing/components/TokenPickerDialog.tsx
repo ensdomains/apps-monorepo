@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { usePricingStep } from '../../../state/registrationUi.selectors'
 import { TokenPickerContent } from './TokenPickerContent'
@@ -25,7 +26,12 @@ export const TokenPickerDialog = () => {
   }
 
   return (
-    <PaymentDialogBase onOpenChange={handleOpenChange} open={isOpen} title={''}>
+    <PaymentDialogBase
+      onOpenChange={handleOpenChange}
+      open={isOpen}
+      registrationLayout
+      title={''}
+    >
       <TokenPickerContent />
     </PaymentDialogBase>
   )
@@ -36,26 +42,37 @@ export const PaymentDialogBase = ({
   title,
   onOpenChange,
   children,
+  registrationLayout = false,
 }: {
   open: boolean
   title?: string
   onOpenChange: (open: boolean) => void
   children: React.ReactNode
+  registrationLayout?: boolean
 }) => {
   const panelRef = useRef<HTMLDivElement>(null)
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
-        className="flex max-h-[90vh] min-h-[500px] flex-col"
+        className={cn(
+          'flex flex-col',
+          registrationLayout
+            ? 'max-h-[90dvh] min-h-0 sm:min-h-[500px]'
+            : 'max-h-[90vh] min-h-[500px]',
+        )}
         // The first focusable element here is an info button, and a tooltip
         // opens on focus: without this the sheet opens with a tooltip already
         // covering the price. Focus the panel itself instead, so the dialog
         // still takes focus from the page behind it.
-        onOpenAutoFocus={(event) => {
-          event.preventDefault()
-          panelRef.current?.focus()
-        }}
+        onOpenAutoFocus={
+          registrationLayout
+            ? (event) => {
+                event.preventDefault()
+                panelRef.current?.focus()
+              }
+            : undefined
+        }
         ref={panelRef}
         showCloseButton={true}
       >

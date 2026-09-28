@@ -3,10 +3,27 @@ import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { NetworkCostRow } from './NetworkCostRow'
+import { PaymentMethodRow } from './PaymentMethodRow'
 import { PaymentDialogBase } from './TokenPickerDialog'
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
+
+const feeRow = (
+  <PaymentMethodRow
+    amount="$100.00"
+    amountLabel="balance"
+    fee="Mainnet est. fee: $4.32"
+    feeTooltip="Fee explanation"
+    feeTooltipLabel="What is the network fee?"
+    icon={<span>$</span>}
+    isAvailable
+    isFunded
+    isSelected
+    name="USDC"
+    onSelect={() => {}}
+    selectLabel="Select USDC"
+  />
+)
 
 describe('PaymentDialogBase', () => {
   // The first focusable element inside is an info button, and a tooltip opens
@@ -14,8 +31,13 @@ describe('PaymentDialogBase', () => {
   it('takes focus itself rather than the first info button', async () => {
     render(
       <I18nProvider i18n={i18n}>
-        <PaymentDialogBase onOpenChange={() => {}} open title="Select payment">
-          <NetworkCostRow isLoading={false} networkFee={4.32} />
+        <PaymentDialogBase
+          onOpenChange={() => {}}
+          open
+          registrationLayout
+          title="Select payment"
+        >
+          {feeRow}
         </PaymentDialogBase>
       </I18nProvider>,
     )
@@ -32,5 +54,45 @@ describe('PaymentDialogBase', () => {
     )
     expect(trigger).not.toHaveFocus()
     expect(trigger).toHaveAttribute('data-state', 'closed')
+  })
+
+  it('uses viewport-safe mobile sizing and restores the desktop minimum', () => {
+    render(
+      <I18nProvider i18n={i18n}>
+        <PaymentDialogBase
+          onOpenChange={() => {}}
+          open
+          registrationLayout
+          title="Select payment"
+        >
+          {feeRow}
+        </PaymentDialogBase>
+      </I18nProvider>,
+    )
+
+    expect(screen.getByRole('dialog')).toHaveClass(
+      'max-h-[90dvh]',
+      'min-h-0',
+      'sm:min-h-[500px]',
+    )
+    expect(screen.getByRole('dialog')).not.toHaveClass('max-h-[90vh]')
+  })
+
+  it('preserves renewal sizing and autofocus by default', async () => {
+    render(
+      <I18nProvider i18n={i18n}>
+        <PaymentDialogBase onOpenChange={() => {}} open title="Renew name">
+          <button type="button">Renew</button>
+        </PaymentDialogBase>
+      </I18nProvider>,
+    )
+
+    const action = screen.getByRole('button', { name: 'Renew' })
+    await waitFor(() => expect(action).toHaveFocus())
+    expect(screen.getByRole('dialog')).toHaveClass(
+      'max-h-[90vh]',
+      'min-h-[500px]',
+    )
+    expect(screen.getByRole('dialog')).not.toHaveClass('min-h-0')
   })
 })
