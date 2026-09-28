@@ -340,7 +340,7 @@ function handlePageMeta(
     // Every matcher getPageTitle would run has already failed above, so this
     // branch is the bare app name by definition.
     title: TITLE_SUFFIX,
-    description: 'Explore the source of truth for Ethereum Name Service',
+    description: 'Explore ENS names and addresses',
     imageUrl: `https://${url.host}/og/default.png`,
   })
 }

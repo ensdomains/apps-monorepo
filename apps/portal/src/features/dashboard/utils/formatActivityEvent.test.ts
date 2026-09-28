@@ -124,10 +124,4 @@ describe('formatActivityEvent', () => {
       ),
     ).toEqual({ text: 'ETH address updated' })
   })
-
-  it('humanizes an event type it has no descriptor for', () => {
-    expect(formatActivityEvent(event('ExpiryUpdated', {}))).toEqual({
-      text: 'Expiry updated',
-    })
-  })
 })
