@@ -250,8 +250,8 @@ export const TokenPickerContent = () => {
   const budgetQuery = useQuery(budgetQueryOptions)
 
   // Absent until the quote lands, and permanently absent if it fails — in which
-  // case the screen falls back to showing the rent alone rather than blocking
-  // on a flaky quote.
+  // case the screen falls back to showing the name price alone rather than
+  // blocking on a flaky quote.
   const funding = computeRegistrationFunding({
     budget: budgetQuery.data,
     walletBalanceRaw: usdcBalanceRaw,
@@ -308,8 +308,8 @@ export const TokenPickerContent = () => {
       // before sizing the permit, and refuses to prompt if that re-quote lands
       // materially above this — so what the wallet is asked to approve can
       // never diverge from what was on screen. `undefined` when the quote
-      // failed and only the rent was shown; the machine's independent ceiling
-      // still applies.
+      // failed and only the name price was shown; the machine's independent
+      // ceiling still applies.
       ...(funding ? { displayedWalletDebit: funding.walletDebitRaw } : {}),
     })
   }
@@ -528,11 +528,11 @@ export const TokenPickerContentBase = ({
     stablecoinBalances,
   })
 
-  // Gate on the funded amount, never the rent alone: the permit is signed for
-  // `rent + networkFee`, so a wallet holding only the rent cannot pay. It is
-  // the wallet's DEBIT rather than the budget, since a part-funded HCA covers
-  // the remainder itself — gating on the budget would block a wallet that only
-  // owes the shortfall.
+  // Gate on the funded amount, never the name price alone: the permit is signed
+  // for `namePrice + networkFee`, so a wallet holding only the name price cannot
+  // pay. It is the wallet's DEBIT rather than the budget, since a part-funded
+  // HCA covers the remainder itself — gating on the budget would block a wallet
+  // that only owes the shortfall.
   const requiredAmount = funding?.walletDebit ?? pricingData
 
   // What the registration costs, shown on the total row. Diverges from

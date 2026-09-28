@@ -5,9 +5,10 @@ import { formatUsd } from '@/utils/formatting/formatUsdCeil'
  * The headline figure at the foot of the payment screen — what actually leaves
  * the wallet, per design (node 3867:126050).
  *
- * With a funding budget quoted that is `rent + networkFee`, and the fee half is
- * an estimate, so the figure is an upper bound: hence "up to". Without a budget
- * the total is exact rent and the hedge would be a lie, so it is dropped.
+ * With a funding budget quoted that is `namePrice + networkFee`, and the fee
+ * half is an estimate, so the figure is an upper bound: hence "up to". Without
+ * a budget the total is the exact name price and the hedge would be a lie, so
+ * it is dropped.
  *
  * The `tracking-*` values are Figma-spec (node 3867:126050) and stay arbitrary:
  * the theme's only letter-spacing token (`--tracking-ens-wide`, +0.015em) does
