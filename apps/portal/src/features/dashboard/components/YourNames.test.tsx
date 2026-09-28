@@ -45,11 +45,12 @@ vi.mock('../hooks/useV2NamesWithRolesForAddress', () => ({
   }),
 }))
 
-const DAY = 24 * 60 * 60
+const DAY = 24n * 60n * 60n
 
-const v2Name = (name: string, daysLeft: number): V2NameWithRoles => ({
+const v2Name = (name: string, daysLeft: bigint): V2NameWithRoles => ({
   name,
-  expiryDate: Math.floor(Date.now() / 1000) + daysLeft * DAY,
+  // V2NameWithRoles carries the indexer's number-typed expiry.
+  expiryDate: Number(BigInt(Math.floor(Date.now() / 1000)) + daysLeft * DAY),
   roleBitmap: '0x1',
   subdomainCount: 0,
   recordCount: 0,
@@ -70,7 +71,7 @@ const renderNames = (names: V2NameWithRoles[] | Error, v1: [] | Error = []) => {
 
 describe('YourNames', () => {
   it('warns about names expiring within 30 days, soonest first', async () => {
-    renderNames([v2Name('later.eth', 800), v2Name('soon.eth', 4)])
+    renderNames([v2Name('later.eth', 800n), v2Name('soon.eth', 4n)])
 
     const rows = await screen.findAllByRole('listitem')
     expect(rows[0]).toHaveTextContent('soon.eth')
@@ -84,7 +85,9 @@ describe('YourNames', () => {
 
   it('shows four names, then reveals more on demand', async () => {
     renderNames(
-      Array.from({ length: 6 }, (_, i) => v2Name(`name${i}.eth`, 100 + i)),
+      Array.from({ length: 6 }, (_, i) =>
+        v2Name(`name${i}.eth`, 100n + BigInt(i)),
+      ),
     )
 
     const showMore = await screen.findByRole('button', {
@@ -111,7 +114,7 @@ describe('YourNames', () => {
   })
 
   it('keeps the names one source returned when the other fails', async () => {
-    renderNames([v2Name('kept.eth', 100)], new Error('v1 subgraph down'))
+    renderNames([v2Name('kept.eth', 100n)], new Error('v1 subgraph down'))
 
     expect(await screen.findByText('kept.eth')).toBeInTheDocument()
     expect(screen.getByText(/Error fetching ENSv1 names/)).toBeInTheDocument()
@@ -119,8 +122,10 @@ describe('YourNames', () => {
 
   it('orders granted subnames by expiry with the rest, so their warning shows', async () => {
     renderNames([
-      ...Array.from({ length: 4 }, (_, i) => v2Name(`held${i}.eth`, 500 + i)),
-      v2Name('granted.parent.eth', 10),
+      ...Array.from({ length: 4 }, (_, i) =>
+        v2Name(`held${i}.eth`, 500n + BigInt(i)),
+      ),
+      v2Name('granted.parent.eth', 10n),
     ])
 
     const rows = await screen.findAllByRole('listitem')
