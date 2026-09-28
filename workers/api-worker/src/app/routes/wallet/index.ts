@@ -227,7 +227,7 @@ export default createApp()
         } else {
           try {
             // Fail-closed: a subgraph error throws and skips the drip.
-            const ownsV1Names = await hasV1Names(address)
+            const ownsV1Names = await hasV1Names(address, c.env)
             if (!ownsV1Names) {
               logger.debug('Address owns no v1 names, skipping drip', {
                 address,

@@ -16,6 +16,7 @@
     "lint": "biome check"
   },
   "dependencies": {
+    "@ens-apps/config": "workspace:*",
     "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.2",

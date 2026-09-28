@@ -5,7 +5,6 @@ import {
   type Signer,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match } from 'ts-pattern'
 import {
@@ -27,6 +26,7 @@ import {
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import {

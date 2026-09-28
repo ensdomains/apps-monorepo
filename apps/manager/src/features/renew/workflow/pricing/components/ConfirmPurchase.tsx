@@ -1,5 +1,4 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
@@ -8,6 +7,7 @@ import { ConfirmPurchaseBase } from '@/features/register-v2/workflow/pricing/com
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 export const ConfirmPurchase = () => {

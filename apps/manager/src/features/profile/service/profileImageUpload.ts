@@ -1,5 +1,6 @@
 import type { SignTypedDataMutateAsync } from '@wagmi/core/query'
 import { sha256 } from 'viem'
+import { envConfig } from '@/config'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 
 const UPLOAD_TIMEOUT_MS = 30000
@@ -71,22 +72,16 @@ interface UploadRequestParams {
   readonly sig: string
 }
 
-const getChainName = (chainId: number | null | undefined) => {
-  if (!chainId || chainId === 1) return 'mainnet'
-  // Default to sepolia for non-mainnet in this app
-  return 'sepolia'
-}
-
+// The upload service is per network. That network is the one this build
+// targets, not whatever chain the wallet is on.
 const getUploadEndpoint = ({
-  chainId,
   name,
   type,
 }: {
-  readonly chainId: number | undefined
   readonly name: string
   readonly type: ImageType
 }) => {
-  const chainName = getChainName(chainId)
+  const chainName = envConfig.network
   const baseUrlRoot = AVATAR_UPLOAD_BASE_URL
 
   if (type === 'avatar') {
@@ -183,16 +178,14 @@ const uploadSignedImage = async ({
 export const prepareProfileImageUpload = async ({
   type,
   name,
-  chainId,
   file,
 }: {
   readonly type: ImageType
   readonly name: string
-  readonly chainId: number | undefined
   readonly file: File
 }): Promise<PreparedProfileImageUpload> => {
   const dataURL = await fileToJpegDataURL(file)
-  const imageUrl = getUploadEndpoint({ chainId, name, type })
+  const imageUrl = getUploadEndpoint({ name, type })
 
   return {
     dataURL,

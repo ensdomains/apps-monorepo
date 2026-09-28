@@ -17,6 +17,7 @@ import {
   type PublicClient,
 } from 'viem'
 import { useConnection } from 'wagmi'
+import { envConfig } from '@/config'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { gql } from '@/utils/subgraph/gql'
 
@@ -96,7 +97,7 @@ const getMigrationStatus = ResultFn(async function* ({
     return ok<MigrationStatus>({ migratable: false })
   const evaluationAddress = holderCandidate
 
-  const classified = classifyName(domain, evaluationAddress)
+  const classified = classifyName(domain, evaluationAddress, envConfig.chain.id)
   if (classified?.type !== 'classified')
     return ok<MigrationStatus>({ migratable: false })
 

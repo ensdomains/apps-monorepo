@@ -4,6 +4,7 @@ import {
 } from '@ens-apps/l2-primary/v1'
 import { coinTypeToNameMap } from '@ensdomains/address-encoder'
 import { coinIcons } from '@/assets/coins/'
+import { envConfig } from '@/config'
 import type { AddressRecordDef } from './types'
 
 // `address-encoder` only knows the canonical (mainnet) coin types, but this
@@ -12,7 +13,7 @@ import type { AddressRecordDef } from './types'
 const deploymentCoinTypeByCanonical = new Map(
   L2_REVERSE_REGISTRAR_CHAIN_IDS.map((chainId) => [
     getCoinTypeForReverseRegistrarChainId(chainId, 'mainnet'),
-    getCoinTypeForReverseRegistrarChainId(chainId, 'sepolia'),
+    getCoinTypeForReverseRegistrarChainId(chainId, envConfig.network),
   ]),
 )
 
