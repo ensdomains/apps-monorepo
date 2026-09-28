@@ -6,16 +6,16 @@ describe('TimelineDisclosure', () => {
   it('takes collapsed content out of focus and the accessibility tree', () => {
     const { rerender } = render(
       <TimelineDisclosure isOpen>
-        <a href="/x">link</a>
+        <a href="/docs">ENS docs</a>
       </TimelineDisclosure>,
     )
-    expect(screen.getByText('link').closest('[inert]')).toBeNull()
+    expect(screen.getByText('ENS docs').closest('[inert]')).toBeNull()
 
     rerender(
       <TimelineDisclosure isOpen={false}>
-        <a href="/x">link</a>
+        <a href="/docs">ENS docs</a>
       </TimelineDisclosure>,
     )
-    expect(screen.getByText('link').closest('[inert]')).not.toBeNull()
+    expect(screen.getByText('ENS docs').closest('[inert]')).not.toBeNull()
   })
 })
