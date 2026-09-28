@@ -1,6 +1,5 @@
 import type {
   Address,
-  Authority,
   Cursor,
   Envelope,
   Hex,
@@ -12,7 +11,6 @@ import type {
   Timestamp,
 } from './common'
 import type { AuthorityRelation, Power } from './permissions'
-import type { RecordKey } from './records'
 
 /** History collections: the eleven friendly event types. */
 export type EventType =

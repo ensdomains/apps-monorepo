@@ -1,6 +1,5 @@
 import type {
   Address,
-  Authority,
   Cursor,
   Envelope,
   Hex,
