@@ -272,10 +272,6 @@ export const useProfileImageField = ({
         revokeBlobUrl(previousUrl)
         return upload.dataURL
       })
-      queryClient.setQueryData(
-        imageRecordQuery(upload.imageUrl).queryKey,
-        upload.dataURL,
-      )
       onImageUploadPrepared?.(upload)
       onImageChange(upload.imageUrl)
       onCancel()
