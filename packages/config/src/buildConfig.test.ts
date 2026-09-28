@@ -53,7 +53,10 @@ describe('buildConfig', () => {
           rpcUrl: 'https://rpc.example/mainnet',
           // Supplied so the endpoint check passes and the contract check is
           // what actually fails.
-          overrides: { indexerGraphql: 'https://indexer.example/' },
+          overrides: {
+            indexerGraphql: 'https://indexer.example/',
+            bignameApi: 'https://bigname.example/',
+          },
         }),
       ).toThrow(/ENSv2 is not deployed on mainnet.*ensRegistry/s)
     })
@@ -158,6 +161,27 @@ describe('buildConfig', () => {
       ).toThrow(/no endpoint configured for: indexerGraphql/)
     })
 
+    it('resolves the bigname endpoint from the profile and from an override', () => {
+      expect(buildSepolia().endpoints.bignameApi).toBe(
+        NETWORKS.sepolia.endpoints.bignameApi,
+      )
+      expect(
+        buildSepolia({
+          network: 'sepolia',
+          overrides: { bignameApi: 'http://127.0.0.1:4010' },
+        }).endpoints.bignameApi,
+      ).toBe('http://127.0.0.1:4010')
+    })
+
+    it('names bigname when only the indexer is overridden on mainnet', () => {
+      expect(() =>
+        buildConfig({
+          network: 'mainnet',
+          overrides: { indexerGraphql: 'https://indexer.example/' },
+        }),
+      ).toThrow(/no endpoint configured for: bignameApi/)
+    })
+
     it('rejects a malformed override instead of passing it to fetch', () => {
       expect(() =>
         buildSepolia({
@@ -209,7 +233,10 @@ describe('undeployed contracts', () => {
     expect(() =>
       buildConfig({
         network: 'mainnet',
-        overrides: { indexerGraphql: 'https://indexer.example/' },
+        overrides: {
+          indexerGraphql: 'https://indexer.example/',
+          bignameApi: 'https://bigname.example/',
+        },
       }),
     ).toThrow(/ensDefaultReverseRegistrar/)
   })
