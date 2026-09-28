@@ -356,4 +356,19 @@ describe('HomeSearchInput', () => {
       })
     })
   })
+
+  it('names the hero search for screen readers, since its hint is decorative', () => {
+    render(
+      <HomeSearchInput
+        isHero
+        ariaLabel="Search for a name, wallet, or contract"
+      />,
+      { wrapper: createWrapper() },
+    )
+    expect(
+      screen.getByRole('combobox', {
+        name: 'Search for a name, wallet, or contract',
+      }),
+    ).toBeInTheDocument()
+  })
 })

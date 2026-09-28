@@ -95,7 +95,7 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
                 className="flex flex-col items-start gap-4 border-t border-neutral-3 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <EntityBadge variant="name" name={name} showAvatar compact>
-                  {truncateName(name)}
+                  <span title={name}>{truncateName(name)}</span>
                 </EntityBadge>
                 <Expiry expiryDate={expiryDate} />
               </li>

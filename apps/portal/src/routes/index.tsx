@@ -26,11 +26,15 @@ function RouteComponent() {
       <HomeHeader />
 
       <section className="flex flex-col gap-10 items-center w-full max-w-140">
+        {/* Figma hero type (ABC Marist 36px / 350 / 1.35) has no matching text token. */}
         <h1 className="font-serif text-page-title sm:text-[36px] font-[350] text-center leading-[1.35] text-foreground">
           Explore the source of truth <br className="hidden sm:inline" />
           for Ethereum Name Service
         </h1>
-        <HomeSearchInput isHero />
+        <HomeSearchInput
+          isHero
+          ariaLabel="Search for a name, wallet, or contract"
+        />
       </section>
 
       <section className="flex flex-col gap-6 w-full max-w-175">

@@ -151,9 +151,10 @@ describe('YourNames', () => {
       '[ba9d5b944633af135d2899dce4c44a43b00ed78f640ff4bc2088401760432cdc].eth'
     renderNames([v2Name(encoded, 271n)])
 
-    expect(
-      await screen.findByText('[ba9d5b944…60432cdc].eth'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('[ba9d5b944…60432cdc].eth')).toHaveAttribute(
+      'title',
+      encoded,
+    )
     expect(screen.queryByText(encoded)).toBeNull()
     expect(screen.getByText('Expires in 271 days')).toHaveClass(
       'whitespace-nowrap',
