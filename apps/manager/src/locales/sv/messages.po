@@ -70,6 +70,11 @@ msgstr ""
 msgid "{0}% discount"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "{amount} needed to register name"
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Approve # registration} other {Approve # registrations}}"
 msgstr ""
@@ -1478,7 +1483,6 @@ msgstr ""
 msgid "No wallet connected yet"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "not enough funds to pay network fees"
 msgstr ""

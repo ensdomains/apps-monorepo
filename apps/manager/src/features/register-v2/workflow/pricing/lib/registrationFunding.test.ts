@@ -36,8 +36,31 @@ describe('computeRegistrationFunding', () => {
     })
 
     expect(funding?.isUnderfunded).toBe(true)
+    expect(funding?.shortfallCause).toBe('network-fee')
     expect(funding?.walletBalance).toBe(20)
     expect(funding?.registration).toBeLessThan(funding?.walletBalance ?? 0)
+  })
+
+  it('classifies a wallet below the name price in exact raw units', () => {
+    const funding = computeRegistrationFunding({
+      budget: PRODUCTION_FAILURE,
+      walletBalanceRaw: 8_000_020n,
+      decimals: USDC,
+    })
+
+    expect(funding?.isUnderfunded).toBe(true)
+    expect(funding?.shortfallCause).toBe('name-price')
+  })
+
+  it('classifies the exact name-price boundary as a network-fee shortfall', () => {
+    const funding = computeRegistrationFunding({
+      budget: PRODUCTION_FAILURE,
+      walletBalanceRaw: 8_000_021n,
+      decimals: USDC,
+    })
+
+    expect(funding?.isUnderfunded).toBe(true)
+    expect(funding?.shortfallCause).toBe('network-fee')
   })
 
   it('allows a wallet holding exactly the budget', () => {
@@ -48,6 +71,7 @@ describe('computeRegistrationFunding', () => {
     })
 
     expect(funding?.isUnderfunded).toBe(false)
+    expect(funding?.shortfallCause).toBeNull()
   })
 
   it('does not block when the balance could not be read', () => {
@@ -60,6 +84,7 @@ describe('computeRegistrationFunding', () => {
     })
 
     expect(funding?.isUnderfunded).toBe(false)
+    expect(funding?.shortfallCause).toBeNull()
     expect(funding?.walletBalance).toBeNull()
   })
 
@@ -89,6 +114,9 @@ describe('computeRegistrationFunding', () => {
     })
 
     expect(funding?.isUnderfunded).toBe(true)
+    // Wallet alone is below the name price, but the partial HCA credit brings
+    // the combined funds above it. Only the network-funded budget is short.
+    expect(funding?.shortfallCause).toBe('network-fee')
   })
 
   it('credits the HCA balance so the debit and credit reconstruct the total', () => {
@@ -147,6 +175,7 @@ describe('computeRegistrationFunding', () => {
     // Floored at zero rather than going negative.
     expect(funding?.walletDebit).toBe(0)
     expect(funding?.isUnderfunded).toBe(false)
+    expect(funding?.shortfallCause).toBeNull()
   })
 
   it('gates on the whole budget when the HCA balance is unknown', () => {

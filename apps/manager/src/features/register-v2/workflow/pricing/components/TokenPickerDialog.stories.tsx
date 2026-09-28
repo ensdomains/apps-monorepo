@@ -206,7 +206,7 @@ export const FIXTURE_NO_VALID_COMMON_METHODS: readonly FixtureMethod[] =
     isFunded: false,
     error:
       method.name === 'USDC' && method.network === 'Mainnet'
-        ? 'not enough funds to pay network fees'
+        ? '$352.00 needed to register name'
         : method.name === 'USDT' && method.network === 'Mainnet'
           ? 'Not enough ETH for permit approval'
           : method.name === 'DAI' && method.network === 'Mainnet'
@@ -379,7 +379,7 @@ export const InsufficientUSDC: Story = {
   args: {
     initialSelectedToken: 'USDC',
     stablecoinBalances: [INSUFFICIENT_USDC],
-    methodErrorMessage: 'not enough funds to pay network fees',
+    methodErrorMessage: '$352.00 needed to register name',
     funding: {
       registration: 351.73,
       networkFee: 0.27,

@@ -15,6 +15,11 @@ const usdc = {
   balance: '1000000000',
 } as unknown as StablecoinBalance
 
+const emptyUsdc = {
+  ...usdc,
+  balance: '0',
+} as unknown as StablecoinBalance
+
 const secondUsdc = {
   ...usdc,
   address: '0x0000000000000000000000000000000000000002',
@@ -231,7 +236,22 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
   })
 
-  it('keeps a funding shortfall local to the affected method', () => {
+  it('shows the name-price target when an unquoted wallet is empty', () => {
+    renderPicker({
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+    })
+
+    const error = screen.getByText('$330.00 needed to register name')
+    expect(error).toBeVisible()
+    expect(error.closest('[data-slot="payment-method-error"]')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it.each([
+    '$2,000.00 needed to register name',
+    'not enough funds to pay network fees',
+  ])('keeps "%s" local to the affected method', (methodErrorMessage) => {
     renderPicker({
       funding: {
         registration: 1_999.8,
@@ -241,11 +261,11 @@ describe('TokenPickerContentBase', () => {
         hcaCredit: 0,
         isLoading: false,
       },
-      methodErrorMessage: 'not enough funds to pay network fees',
+      methodErrorMessage,
       selectedToken: 'USDC',
     })
 
-    const error = screen.getByText('not enough funds to pay network fees')
+    const error = screen.getByText(methodErrorMessage)
     expect(error).toBeVisible()
     expect(error.closest('[data-slot="payment-method-error"]')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()

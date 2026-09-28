@@ -104,9 +104,10 @@ export const TokenListItem = ({
     )
   }
 
+  const amount = formatUsd(priceUSD)
   const displayedError =
     errorMessage ??
-    (isFunded ? undefined : <Trans>not enough funds to pay network fees</Trans>)
+    (isFunded ? undefined : <Trans>{amount} needed to register name</Trans>)
 
   return (
     <PaymentMethodRow

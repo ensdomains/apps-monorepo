@@ -20,6 +20,7 @@ import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
 import { getHcaBudgetQueryOptions } from '../../../data/queries/hcaBudget.query'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
@@ -28,7 +29,11 @@ import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
-import { computeRegistrationFunding } from '../lib/registrationFunding'
+import {
+  computeRegistrationFunding,
+  getRegistrationShortfallCause,
+  type RegistrationShortfallCause,
+} from '../lib/registrationFunding'
 import { PaymentBreakdown } from './PaymentBreakdown'
 import {
   PaymentMethodList,
@@ -48,6 +53,7 @@ class InsufficientFundingError extends Error {
   constructor(
     readonly required: number,
     readonly available: number,
+    readonly shortfallCause: Exclude<RegistrationShortfallCause, null>,
   ) {
     super('Insufficient USDC to fund the registration')
     this.name = 'InsufficientFundingError'
@@ -298,15 +304,24 @@ export const TokenPickerContent = () => {
           ? budget.total - budget.hcaBalance
           : 0n
         : null
+      const shortfallCause = budget
+        ? getRegistrationShortfallCause({
+            totalRaw: budget.total,
+            registrationPriceRaw: budget.registrationPrice,
+            hcaBalanceRaw: budget.hcaBalance,
+            walletBalanceRaw: usdcBalanceRaw,
+          })
+        : null
 
       if (
         walletDebitRaw !== null &&
         usdcBalanceRaw !== null &&
-        usdcBalanceRaw < walletDebitRaw
+        shortfallCause !== null
       ) {
         throw new InsufficientFundingError(
           decimalBigintToNumber(walletDebitRaw, USDC_DECIMALS),
           decimalBigintToNumber(usdcBalanceRaw, USDC_DECIMALS),
+          shortfallCause,
         )
       }
 
@@ -338,12 +353,31 @@ export const TokenPickerContent = () => {
   const { stablecoinBalances, isLoadingBalances, isConnected } =
     useSmartAccountContext()
 
-  const isClickFundingShortfall =
+  const clickFundingError =
     availabilityMutation.error instanceof InsufficientFundingError
-  const methodErrorMessage =
-    funding?.isUnderfunded || isClickFundingShortfall
-      ? t`not enough funds to pay network fees`
+      ? availabilityMutation.error
       : null
+  const isClickFundingShortfall = clickFundingError !== null
+  const fundingShortfallCause = funding?.shortfallCause ?? null
+  const shortfallCause =
+    fundingShortfallCause ?? clickFundingError?.shortfallCause ?? null
+  const shortfallRequiredAmount =
+    fundingShortfallCause === null
+      ? clickFundingError?.required
+      : funding?.walletDebit
+  const methodErrorMessage = (() => {
+    if (
+      shortfallCause === 'name-price' &&
+      shortfallRequiredAmount !== undefined
+    ) {
+      const amount = formatUsd(shortfallRequiredAmount)
+      return t`${amount} needed to register name`
+    }
+    if (shortfallCause === 'network-fee') {
+      return t`not enough funds to pay network fees`
+    }
+    return null
+  })()
   const globalErrorMessage =
     availabilityMutation.isError && !isClickFundingShortfall
       ? t`We couldn't confirm that ${domainName} is still available. Please try again.`

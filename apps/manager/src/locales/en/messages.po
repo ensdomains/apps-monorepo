@@ -65,6 +65,11 @@ msgstr "{0} years"
 msgid "{0}% discount"
 msgstr "{0}% discount"
 
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "{amount} needed to register name"
+msgstr "{amount} needed to register name"
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Approve # registration} other {Approve # registrations}}"
 msgstr "{count, plural, one {Approve # registration} other {Approve # registrations}}"
@@ -1473,7 +1478,6 @@ msgstr "No stablecoins available"
 msgid "No wallet connected yet"
 msgstr "No wallet connected yet"
 
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "not enough funds to pay network fees"
 msgstr "not enough funds to pay network fees"
