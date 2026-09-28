@@ -32,6 +32,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { envConfig } from '@/config'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { useIsNameOwner } from '@/features/ownership/hooks/useIsNameOwner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -565,7 +566,7 @@ const useAddressRecordEditor = (
     // `addr.reverse` via the ENSv1 `ReverseRegistrar`; the Default row writes
     // `default.reverse`. Both are `setName(string)` on Sepolia L1.
     if (data?.coinType === MAINNET_COIN_TYPE) {
-      const registrarAddress = getRegistrarAddress(60, 'sepolia')
+      const registrarAddress = getRegistrarAddress(60, envConfig.network)
       if (!registrarAddress) return
       setReverseResolution({
         name,

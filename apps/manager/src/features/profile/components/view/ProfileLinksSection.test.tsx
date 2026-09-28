@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
 import { render } from '@/utils/test-utils'
 import { ProfileLinksSection } from './ProfileLinksSection'
@@ -8,6 +8,24 @@ const getLinkPatternPanel = (link: HTMLElement) =>
   within(link).getByTestId('link-pattern-panel')
 
 describe('ProfileLinksSection', () => {
+  beforeEach(() => {
+    // These existing rendering checks exercise cards after they enter view.
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(private callback: IntersectionObserverCallback) {}
+        observe() {
+          this.callback(
+            [{ isIntersecting: true } as IntersectionObserverEntry],
+            this as unknown as IntersectionObserver,
+          )
+        }
+        disconnect() {}
+      },
+    )
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
   it('does not render placeholder cards when there are no links', () => {
     const { container } = render(
       <ProfileLinksSection records={newEmptyProfileRecords()} />,

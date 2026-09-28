@@ -1,5 +1,5 @@
-import indexerClient from '@ens-apps/indexer/urql'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { indexerClient } from '@/lib/indexer-client'
 import {
   getDashboardRoleAssignments,
   getDashboardRoleAssignmentsForAddresses,
@@ -7,9 +7,8 @@ import {
 
 // Stub only the client — `graphqlRequest` stays real so these exercise the
 // production unwrap path.
-vi.mock('@ens-apps/indexer/urql', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@ens-apps/indexer/urql')>()),
-  default: { query: vi.fn() },
+vi.mock('@/lib/indexer-client', () => ({
+  indexerClient: { query: vi.fn() },
 }))
 
 const queryMock = vi.mocked(indexerClient.query)

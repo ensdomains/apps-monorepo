@@ -1,10 +1,12 @@
-import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { mock } from '@wagmi/connectors'
 import { http } from 'viem'
-import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
+import { chain } from '@/config'
 
-export const sepoliaWithEns = extendChainWithEns(sepolia)
+// The app's own chain, not a second one assembled here. A mock chain drifts
+// from the real one silently, and then tests pass against a config that never
+// ships.
+export const sepoliaWithEns = chain
 
 /**
  * Mock wagmi config for testing

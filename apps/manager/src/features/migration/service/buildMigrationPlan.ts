@@ -1,3 +1,4 @@
+import { requireChainId } from '@ens-apps/config'
 import {
   buildHcaOwnerExecutionCall,
   computeResolverAddress,
@@ -10,6 +11,7 @@ import {
   namehash,
   type PublicClient,
 } from 'viem'
+import { envConfig } from '@/config'
 
 import { V2_CONTRACTS } from '../contracts/addresses'
 import {
@@ -414,7 +416,11 @@ export const buildMigrationPlan = async (params: {
   } = params
   signal?.throwIfAborted()
 
-  const classifiedNamesResult = classifyNames([...domains], migrationOwner)
+  const classifiedNamesResult = classifyNames(
+    [...domains],
+    migrationOwner,
+    envConfig.chain.id,
+  )
   const classified = classifiedNamesResult.classified
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
@@ -451,7 +457,7 @@ export const buildMigrationPlan = async (params: {
     ownedPermRes =
       preflight.hcaResolverAddress ??
       computeResolverAddress({
-        chainId: publicClient.chain?.id ?? 11155111,
+        chainId: requireChainId(publicClient, 'migration'),
         hca: hcaAddress,
       })
   }
@@ -472,7 +478,7 @@ export const buildMigrationPlan = async (params: {
     preflight.hcaResolverReadiness?.status === 'verified' &&
     preflight.hcaResolverReadiness.walletHasWildcardRoles
   const atomicPlan = await buildAtomicMigrationBatches({
-    chainId: publicClient.chain?.id ?? 11155111,
+    chainId: requireChainId(publicClient, 'migration'),
     hca: hcaAddress,
     wallet: migrationOwner,
     classified,
@@ -582,6 +588,7 @@ export const classifyMigrationRecoverySnapshot = (params: {
   const result = classifyNames(
     [...params.snapshot.registryDomains],
     params.migrationOwner,
+    envConfig.chain.id,
   )
   if (
     result.ineligible.length > 0 ||
@@ -636,7 +643,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     migrationOwner,
   })
 
-  const chainId = publicClient.chain?.id ?? 11155111
+  const chainId = requireChainId(publicClient, 'migration')
   const needsOwnedPermRes = registryContext.some(
     (name) => name.resolverStrategy === 'to-owned-permres',
   )

@@ -1,7 +1,3 @@
-import {
-  type SUPPORTED_TOKEN,
-  TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
@@ -10,6 +6,7 @@ import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 export const TokenPickerContent = () => {
