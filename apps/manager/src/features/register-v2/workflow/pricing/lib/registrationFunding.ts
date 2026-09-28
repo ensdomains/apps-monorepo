@@ -4,14 +4,13 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 /**
  * What the standalone-HCA route debits the wallet, itemised.
  *
- * The registrar's price is only part of it. The wallet signs ONE permit for the
- * whole funding budget and the commit batch moves it into the HCA, which then
- * pays the registrar from its own balance — so the amount that actually leaves
- * the wallet is `registration + networkFee`.
+ * The registrar's price is only part of it. The HCA needs a funding budget of
+ * `registration + networkFee`; the wallet signs one permit to top the HCA up
+ * to that budget, and the HCA then pays the registrar from its own balance.
  *
- * Gating on the price alone (which the token picker still does) let wallets
- * holding between the price and the budget clear checkout and then fail the
- * commit simulation with an unclassifiable revert. See
+ * The token picker must gate on the wallet debit, not the price alone;
+ * otherwise wallets holding between the price and the debit clear checkout
+ * and then fail the commit simulation with an unclassifiable revert. See
  * `packages/smart-account/DEBUGGING_INTENTS.md` §8.
  */
 export interface RegistrationFunding {

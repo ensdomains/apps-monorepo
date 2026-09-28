@@ -254,9 +254,13 @@ msgstr ""
 msgid "An error occurred during verification"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
-msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
+#~ msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
+#~ msgstr ""
 
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Approve"
@@ -328,8 +332,8 @@ msgid "Authorizing payment and registering your name"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "available"
-msgstr ""
+#~ msgid "available"
+#~ msgstr ""
 
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Available"
@@ -357,6 +361,10 @@ msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Back to Settings"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "balance"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx
@@ -1163,6 +1171,10 @@ msgstr ""
 msgid "Learn More<0> about NFT traits</0>"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
+msgid "Left from your last attempt"
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Let this temporary account move your wrapped names."
 msgstr ""
@@ -1189,6 +1201,10 @@ msgstr ""
 
 #: src/features/profile/components/view/ProfileLinksSection.tsx
 msgid "Links"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "Load {hiddenCount} more"
 msgstr ""
 
 #: src/features/notifications/inbox/list.tsx
@@ -1234,6 +1250,11 @@ msgstr ""
 
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Main receiving address"
+msgstr ""
+
+#. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "Mainnet est. fee: {0}"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
@@ -1345,6 +1366,10 @@ msgstr ""
 msgid "Name owner is not available yet. Try again in a moment."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
+msgid "Name price"
+msgstr ""
+
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Names"
 msgstr ""
@@ -1358,6 +1383,15 @@ msgstr ""
 msgid "Need {0}"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Need {requiredAmount} USDC"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Need {requiredAmount} USDC incl. network fees"
+msgstr ""
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Need help?"
 msgstr ""
@@ -1367,8 +1401,8 @@ msgid "Need more help? Visit ENS Support Docs"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
-msgid "Network cost"
-msgstr ""
+#~ msgid "Network cost"
+#~ msgstr ""
 
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Network fee"
@@ -1459,22 +1493,22 @@ msgstr ""
 #. placeholder {2}: f.walletDebit.toFixed(2)
 #. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This registration costs {0} USDC and your account already holds {1}, so you need {2} more — but your wallet holds {3} USDC."
-msgstr ""
+#~ msgid "Not enough USDC. This registration costs {0} USDC and your account already holds {1}, so you need {2} more — but your wallet holds {3} USDC."
+#~ msgstr ""
 
 #. placeholder {0}: f.walletDebit.toFixed(2)
 #. placeholder {1}: f.registration.toFixed(2)
 #. placeholder {2}: f.networkFee.toFixed(2)
 #. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This registration needs {0} USDC — a {1} registration plus a {2} network cost — but your wallet holds {3} USDC."
-msgstr ""
+#~ msgid "Not enough USDC. This registration needs {0} USDC — a {1} registration plus a {2} network cost — but your wallet holds {3} USDC."
+#~ msgstr ""
 
 #. placeholder {0}: e.required.toFixed(2)
 #. placeholder {1}: e.available.toFixed(2)
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
-msgstr ""
+#~ msgid "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
+#~ msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
@@ -1740,6 +1774,7 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
 msgid "Register name"
 msgstr ""
 
@@ -1768,7 +1803,6 @@ msgstr ""
 msgid "Registering name"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
 msgid "Registration"
 msgstr ""
@@ -2103,6 +2137,7 @@ msgstr ""
 
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
 msgid "Select payment"
 msgstr ""
 
@@ -2917,7 +2952,11 @@ msgid "What is a primary name?"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/NetworkCostRow.tsx
-msgid "What is the network cost?"
+#~ msgid "What is the network cost?"
+#~ msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "What is the network fee?"
 msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
@@ -2931,6 +2970,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
+msgid "Where did this come from?"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
@@ -2991,6 +3034,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You need to verify your wallet ownership to manage your notification preferences."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
+msgid "You pay now"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
@@ -3096,6 +3143,10 @@ msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Your new profile is ready."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
+msgid "Your own USDC, moved to your ENS account by a registration you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
