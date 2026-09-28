@@ -21,7 +21,6 @@ export type EnsNetwork = (typeof ENS_NETWORKS)[number]
 export type NetworkEndpoints = {
   /** ENSv2 indexer (Ponder) GraphQL endpoint. */
   readonly indexerGraphql: string | null
-  /** bigname REST API, the indexer replacing Panoptes and ENSNode. */
   readonly bignameApi: string | null
 }
 
@@ -53,7 +52,6 @@ export const NETWORKS = {
     endpoints: {
       // No mainnet ENSv2 indexer is deployed yet.
       indexerGraphql: null,
-      // bigname serves Sepolia only; mainnet follows on its own hostname.
       bignameApi: null,
     },
   },
