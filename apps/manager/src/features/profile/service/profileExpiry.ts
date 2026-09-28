@@ -1,4 +1,4 @@
-import indexerClient, { graphqlRequest } from '@ens-apps/indexer/urql'
+import { graphqlRequest } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -19,6 +19,7 @@ import {
   type NameExpiryStatus,
 } from '@/features/grace/utils/gracePeriod'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
+import { indexerClient } from '@/lib/indexer-client'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEth2LdName, normalizeEthName } from './profileName'
