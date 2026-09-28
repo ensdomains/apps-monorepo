@@ -37,6 +37,7 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   | 'allSelected'
   | 'filteredGroups'
   | 'filteredOrphans'
+  | 'filteredGracePeriodNames'
   | 'search'
   | 'selected'
   | 'setSearch'
@@ -56,6 +57,7 @@ export const SelectNamesStepSelectionOptions = ({
   allSelected,
   filteredGroups,
   filteredOrphans,
+  filteredGracePeriodNames,
   isCompactLayout,
   isContentHeightCard,
   isPending,
@@ -159,6 +161,7 @@ export const SelectNamesStepSelectionOptions = ({
         >
           <div className="flex flex-col gap-4 pt-4">
             <SelectNamesStepNameList
+              filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
               isPending={isPending}

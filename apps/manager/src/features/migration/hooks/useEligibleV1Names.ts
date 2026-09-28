@@ -10,8 +10,10 @@ import {
 import {
   type ClassifiedName,
   classifyNames,
+  type IneligibleName,
 } from '@/features/migration/service/classifyNames'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { getGracePeriodNames } from './useEligibleV1Names.helpers'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
 type UseEligibleV1NamesOptions = {
@@ -29,6 +31,7 @@ type EligibleV1NamesRecoveryState =
 
 type ClassificationState = {
   readonly classified: readonly ClassifiedName[]
+  readonly gracePeriodNames: readonly IneligibleName[]
   readonly recoveryState: EligibleV1NamesRecoveryState
 }
 
@@ -40,38 +43,53 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
   const { data: v1NamesRaw, isPending: isV1Pending } = useV1Names({ enabled })
   const recoverySnapshot = useMigrationRecoverySnapshot()
 
-  const { classified, recoveryState } = useMemo<ClassificationState>(() => {
-    if (!enabled || !resolvedOwnerAddress) {
-      return { classified: [], recoveryState: { status: 'none' } }
-    }
-    if (recoverySnapshot) {
-      try {
-        return {
-          classified: [
-            ...classifyMigrationRecoverySnapshot({
-              snapshot: recoverySnapshot,
-              migrationOwner: resolvedOwnerAddress as Address,
-            }).classified,
-          ],
-          recoveryState: { status: 'recovering' },
-        }
-      } catch (error) {
-        if (!(error instanceof MigrationRecoveryPlanError)) throw error
+  const { classified, gracePeriodNames, recoveryState } =
+    useMemo<ClassificationState>(() => {
+      if (!enabled || !resolvedOwnerAddress) {
         return {
           classified: [],
-          recoveryState: { status: 'stale', error },
+          gracePeriodNames: [],
+          recoveryState: { status: 'none' },
         }
       }
-    }
-    if (!v1NamesRaw) {
-      return { classified: [], recoveryState: { status: 'none' } }
-    }
-    return {
-      classified: classifyNames(v1NamesRaw, resolvedOwnerAddress as Address)
-        .classified,
-      recoveryState: { status: 'none' },
-    }
-  }, [enabled, recoverySnapshot, v1NamesRaw, resolvedOwnerAddress])
+      if (recoverySnapshot) {
+        try {
+          return {
+            classified: [
+              ...classifyMigrationRecoverySnapshot({
+                snapshot: recoverySnapshot,
+                migrationOwner: resolvedOwnerAddress as Address,
+              }).classified,
+            ],
+            gracePeriodNames: [],
+            recoveryState: { status: 'recovering' },
+          }
+        } catch (error) {
+          if (!(error instanceof MigrationRecoveryPlanError)) throw error
+          return {
+            classified: [],
+            gracePeriodNames: [],
+            recoveryState: { status: 'stale', error },
+          }
+        }
+      }
+      if (!v1NamesRaw) {
+        return {
+          classified: [],
+          gracePeriodNames: [],
+          recoveryState: { status: 'none' },
+        }
+      }
+      const { classified, ineligible } = classifyNames(
+        v1NamesRaw,
+        resolvedOwnerAddress as Address,
+      )
+      return {
+        classified,
+        gracePeriodNames: getGracePeriodNames(ineligible),
+        recoveryState: { status: 'none' },
+      }
+    }, [enabled, recoverySnapshot, v1NamesRaw, resolvedOwnerAddress])
 
   const { data: eligibility, isPending: isEligibilityPending } =
     useMigrationEligibility(
@@ -89,6 +107,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
 
   return {
     eligible,
+    gracePeriodNames,
     recoveryState,
     isPending:
       enabled &&

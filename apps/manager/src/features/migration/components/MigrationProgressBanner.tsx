@@ -13,8 +13,11 @@ export const MigrationProgressBanner = () => {
   const nftCopyEnabled = !!nftEligibility
   const navigate = useNavigate()
   const { isConnected } = useSmartAccountContext()
-  const { eligible: eligibleV1Names, isPending: isV1Pending } =
-    useEligibleV1Names()
+  const {
+    eligible: eligibleV1Names,
+    gracePeriodNames,
+    isPending: isV1Pending,
+  } = useEligibleV1Names()
   const { data: migratedCount, isPending: isCountPending } =
     useMigratedNamesCount()
 
@@ -22,7 +25,7 @@ export const MigrationProgressBanner = () => {
   if (isV1Pending || isCountPending) return null
 
   const migrated = migratedCount ?? 0
-  const remaining = eligibleV1Names.length
+  const remaining = eligibleV1Names.length + gracePeriodNames.length
   const total = migrated + remaining
 
   if (migrated < 1 || remaining < 1) return null

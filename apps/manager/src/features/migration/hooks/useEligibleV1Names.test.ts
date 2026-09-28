@@ -88,6 +88,51 @@ beforeEach(() => {
 
 afterEach(() => vi.restoreAllMocks())
 
+describe('useEligibleV1Names grace-period names', () => {
+  it('retains wrapped and unwrapped grace names separately from eligible names', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(10_000_000_000)
+    const active = makeDomain({
+      id: namehash('active.eth'),
+      name: 'active.eth',
+      labelName: 'active',
+      registrationExpiry: '10000001',
+    })
+    const unwrappedGrace = makeDomain({
+      id: namehash('unwrapped.eth'),
+      name: 'unwrapped.eth',
+      labelName: 'unwrapped',
+      registrationExpiry: '9999999',
+    })
+    const wrappedGrace = makeDomain({
+      id: namehash('wrapped.eth'),
+      name: 'wrapped.eth',
+      labelName: 'wrapped',
+      isWrapped: true,
+      registrationExpiry: '9999999',
+      wrappedExpiry: '17775999',
+    })
+    mocks.useV1Names.mockReturnValue({
+      data: [active, unwrappedGrace, wrappedGrace],
+      isPending: false,
+    })
+
+    const { result } = renderHook(() => useEligibleV1Names())
+
+    expect(result.current.eligible.map(({ domain }) => domain.name)).toEqual([
+      'active.eth',
+    ])
+    expect(result.current.gracePeriodNames).toEqual([
+      { domain: unwrappedGrace, reason: 'expired-registration' },
+      { domain: wrappedGrace, reason: 'expired-registration' },
+    ])
+    expect(result.current.isPending).toBe(false)
+    expect(mocks.useMigrationEligibility).toHaveBeenCalledWith(
+      [expect.objectContaining({ domain: active })],
+      OWNER,
+    )
+  })
+})
+
 describe('useEligibleV1Names durable recovery', () => {
   it('surfaces the remaining copy even after the migrated root disappears from V1 results', () => {
     mocks.useMigrationRecoverySnapshot.mockReturnValue(recoverySnapshot())
@@ -95,6 +140,7 @@ describe('useEligibleV1Names durable recovery', () => {
     const { result } = renderHook(() => useEligibleV1Names())
 
     expect(result.current.isPending).toBe(false)
+    expect(result.current.gracePeriodNames).toEqual([])
     expect(result.current.recoveryState).toEqual({ status: 'recovering' })
     expect(result.current.eligible).toEqual([
       expect.objectContaining({
@@ -115,6 +161,7 @@ describe('useEligibleV1Names durable recovery', () => {
     const { result } = renderHook(() => useEligibleV1Names())
 
     expect(result.current.eligible).toEqual([])
+    expect(result.current.gracePeriodNames).toEqual([])
     expect(result.current.isPending).toBe(false)
     expect(result.current.recoveryState).toMatchObject({
       status: 'stale',

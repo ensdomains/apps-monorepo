@@ -6,18 +6,22 @@ import {
   filterOrphansBySearch,
   toggleRootSubtree,
 } from '../components/selectNames.helpers'
-import type { ClassifiedName } from '../service/classifyNames'
+import type { ClassifiedName, IneligibleName } from '../service/classifyNames'
 import { groupByParent } from '../service/groupByParent'
 
 type Params = {
   readonly eligible: readonly ClassifiedName[]
+  readonly gracePeriodNames?: readonly IneligibleName[]
   readonly isPending: boolean
   readonly isRecovery?: boolean
   readonly onNamesChange: (names: string[]) => void
 }
 
+const EMPTY_GRACE_PERIOD_NAMES: readonly IneligibleName[] = []
+
 export const useNameSelection = ({
   eligible,
+  gracePeriodNames = EMPTY_GRACE_PERIOD_NAMES,
   isPending,
   isRecovery = false,
   onNamesChange,
@@ -77,6 +81,13 @@ export const useNameSelection = ({
     () => filterOrphansBySearch(orphans, searchLower),
     [orphans, searchLower],
   )
+  const filteredGracePeriodNames = useMemo(
+    () =>
+      gracePeriodNames.filter(({ domain }) =>
+        domain.name.toLowerCase().includes(searchLower),
+      ),
+    [gracePeriodNames, searchLower],
+  )
 
   const toggleName = useCallback(
     (name: string) => {
@@ -114,9 +125,11 @@ export const useNameSelection = ({
     selected: currentSelected,
     totalSelected: currentSelected.size,
     visibleCount: allSelectable.size,
+    displayedCount: allSelectable.size + gracePeriodNames.length,
     allSelected,
     filteredGroups,
     filteredOrphans,
+    filteredGracePeriodNames,
     toggleName,
     toggleAll,
   }

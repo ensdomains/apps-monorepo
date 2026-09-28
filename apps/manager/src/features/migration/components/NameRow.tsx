@@ -4,17 +4,19 @@ import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { cn } from '@/lib/utils'
 import type { ClassifiedName } from '../service/classifyNames'
+import { GracePeriodNameRow } from './GracePeriodNameRow'
 import { getMigrationAvatarUrl } from './nameAvatar.helpers'
 
 type NameRowProps = {
-  readonly item: ClassifiedName
+  readonly item: Pick<ClassifiedName, 'domain'>
   readonly isSelected: boolean
   readonly isPrimary?: boolean
+  readonly isInGrace?: boolean
   readonly depth: number
   readonly onToggle?: (name: string) => void
 }
 
-const NameRowComponent = ({
+const SelectableNameRow = ({
   item,
   isSelected,
   isPrimary = false,
@@ -129,5 +131,15 @@ const NameRowComponent = ({
     </label>
   )
 }
+
+const NameRowComponent = (props: NameRowProps) =>
+  props.isInGrace ? (
+    <GracePeriodNameRow
+      isPrimary={props.isPrimary}
+      name={props.item.domain.name}
+    />
+  ) : (
+    <SelectableNameRow {...props} />
+  )
 
 export const NameRow = memo(NameRowComponent)

@@ -32,7 +32,8 @@ export const SelectNamesStep = ({
   onNamesChange,
   onNext,
 }: SelectNamesStepProps) => {
-  const { eligible, isPending, recoveryState } = useEligibleV1Names()
+  const { eligible, gracePeriodNames, isPending, recoveryState } =
+    useEligibleV1Names()
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
   const hasNamesNeedingManagerRestoration = eligible.some(
@@ -45,13 +46,16 @@ export const SelectNamesStep = ({
     selected,
     totalSelected,
     visibleCount,
+    displayedCount,
     allSelected,
     filteredGroups,
     filteredOrphans,
+    filteredGracePeriodNames,
     toggleName,
     toggleAll,
   } = useNameSelection({
     eligible,
+    gracePeriodNames,
     isPending,
     isRecovery: recoveryState.status === 'recovering',
     onNamesChange,
@@ -73,13 +77,13 @@ export const SelectNamesStep = ({
     isWaitingForGasEstimate ||
     isWaitingForGasFunding
   const showBulkSelection = shouldShowBulkSelection(visibleCount)
-  const showNameSearch = shouldShowNameSearch(visibleCount)
-  const isCompactLayout = shouldUseCompactSelectionLayout(visibleCount)
+  const showNameSearch = shouldShowNameSearch(displayedCount)
+  const isCompactLayout = shouldUseCompactSelectionLayout(displayedCount)
   const isSmallSelectionCard =
-    !isPending && shouldUseSmallSelectionCard(visibleCount)
+    !isPending && shouldUseSmallSelectionCard(displayedCount)
   const isContentHeightCard = isPending || isSmallSelectionCard
   const isCompactOuterSpacing =
-    isCompactLayout || isPending || visibleCount === 0
+    isCompactLayout || isPending || displayedCount === 0
 
   useEffect(() => {
     if (!showNameSearch && search !== '') setSearch('')
@@ -153,6 +157,7 @@ export const SelectNamesStep = ({
           ) : (
             <SelectNamesStepSelectionOptions
               allSelected={allSelected}
+              filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
               isCompactLayout={isCompactLayout}

@@ -29,11 +29,15 @@ export const UpgradeBanner = ({
   const nftCopyEnabled = !!nftEligibility
   const isProfileBanner = profileName !== undefined
   const { isConnected } = useSmartAccountContext()
-  const { eligible: eligibleV1Names, isPending: isV1NamesPending } =
-    useEligibleV1Names({
-      enabled: migrationEnabled,
-      fallbackToClassified: false,
-    })
+  const {
+    eligible: eligibleV1Names,
+    gracePeriodNames,
+    isPending: isV1NamesPending,
+  } = useEligibleV1Names({
+    enabled: migrationEnabled,
+    fallbackToClassified: false,
+  })
+  const nameCount = eligibleV1Names.length + gracePeriodNames.length
   const { data: migratedCount, isPending: isMigratedCountPending } =
     useMigratedNamesCount({ enabled: migrationEnabled && !isProfileBanner })
 
@@ -45,6 +49,7 @@ export const UpgradeBanner = ({
   if (
     !shouldShowUpgradeBanner({
       eligibleV1Names,
+      gracePeriodNameCount: gracePeriodNames.length,
       migratedCount,
       profileName,
     })
@@ -85,14 +90,14 @@ export const UpgradeBanner = ({
                   <Plural
                     one="Upgrade your name to unlock your new ENS profile and claim your personalized NFT."
                     other="Upgrade your names to unlock your new ENS profile and claim your personalized NFT."
-                    value={eligibleV1Names.length}
+                    value={nameCount}
                   />
                 ))
                 .with({ isProfileBanner: false, nftCopyEnabled: false }, () => (
                   <Plural
                     one="Upgrade your name to unlock your new ENS profile."
                     other="Upgrade your names to unlock your new ENS profile."
-                    value={eligibleV1Names.length}
+                    value={nameCount}
                   />
                 ))
                 .exhaustive()}
