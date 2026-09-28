@@ -268,7 +268,6 @@ export const HomeSearchInput = ({
                 activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined
               }
               aria-autocomplete="list"
-              aria-label="Search for a name, wallet, or contract"
               className={cn(
                 'w-full',
                 isHero &&

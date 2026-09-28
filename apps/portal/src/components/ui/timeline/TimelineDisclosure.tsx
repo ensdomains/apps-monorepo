@@ -50,9 +50,6 @@ export const TimelineDisclosure = ({
         )}
       >
         <div
-          // Collapsed content stays mounted after the first open; keep it out
-          // of the tab order and the accessibility tree while hidden.
-          inert={!isOpen}
           className={cn(
             'transition-opacity duration-100',
             isOpen ? 'opacity-100 delay-150' : 'opacity-0',

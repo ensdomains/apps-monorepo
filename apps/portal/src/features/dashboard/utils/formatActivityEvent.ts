@@ -3,7 +3,6 @@ import {
   parseEventData,
   readString,
 } from '@/features/history/summarize/decodeRawData'
-import { humanizeType } from '@/features/history/summarize/descriptors'
 import { sanitizeOnChainText } from '@/utils/formatting/sanitizeOnChainText'
 import type { RecentActivityEvent } from '../hooks/useRecentActivity'
 
@@ -110,7 +109,7 @@ export const formatActivityEvent = (
   event: RecentActivityEvent,
 ): FormattedActivity => {
   const descriptor = EVENT_DESCRIPTORS[event.type]
-  if (!descriptor) return { text: humanizeType(event.type) }
+  if (!descriptor) return { text: event.type }
 
   const parsedData = parseEventData(event.data)
   if (typeof descriptor === 'function') return descriptor(parsedData)

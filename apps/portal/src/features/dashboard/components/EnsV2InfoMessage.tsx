@@ -1,7 +1,7 @@
 import { ChevronDown, Megaphone } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
-import { TimelineDisclosure } from '@/components/ui/timeline'
+import { TimelineDisclosure } from '@/components/ui/timeline/TimelineDisclosure'
 import { cn } from '@/lib/utils'
 
 const InlineLink = ({
@@ -97,7 +97,7 @@ export const EnsV2InfoMessage = () => {
           More info
         </button>
       </div>
-      <div id={panelId}>
+      <div id={panelId} inert={!isOpen}>
         <TimelineDisclosure isOpen={isOpen}>
           <ul className="flex flex-col gap-4 pt-4">
             {RESOURCES.map(({ title, description }) => (
