@@ -133,8 +133,7 @@ const UsdcFundingErrorMessage = ({
   const requiredAmount = formatUsd(required)
   const availableRaw = Math.round(available * USDC_SCALE)
   const walletRegistrationShareRaw = Math.max(
-    Math.round(registration * USDC_SCALE) -
-      Math.round(hcaCredit * USDC_SCALE),
+    Math.round(registration * USDC_SCALE) - Math.round(hcaCredit * USDC_SCALE),
     0,
   )
 
@@ -347,9 +346,7 @@ export const TokenPickerContent = () => {
           decimalBigintToNumber(usdcBalanceRaw, USDC_DECIMALS),
           decimalBigintToNumber(budget.registrationPrice, USDC_DECIMALS),
           decimalBigintToNumber(
-            budget.hcaBalance < budget.total
-              ? budget.hcaBalance
-              : budget.total,
+            budget.hcaBalance < budget.total ? budget.hcaBalance : budget.total,
             USDC_DECIMALS,
           ),
         )
