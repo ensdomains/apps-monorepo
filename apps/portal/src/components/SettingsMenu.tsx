@@ -1,5 +1,6 @@
 import { usePostHog } from '@posthog/react'
 import { MessageSquareTextIcon } from 'lucide-react'
+import type { ComponentProps } from 'react'
 import { ProfileSettingsIcon } from '@/assets/icons'
 import { ThemeToggle } from './ThemeToggle'
 import { Button } from './ui/button'
@@ -36,7 +37,9 @@ const FeedbackMenuItem = () => {
   )
 }
 
-export const SettingsMenu = () => {
+export const SettingsMenu = ({
+  side = 'right',
+}: Pick<ComponentProps<typeof DropdownMenuContent>, 'side'>) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -49,7 +52,7 @@ export const SettingsMenu = () => {
           <ProfileSettingsIcon className="size-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="right" align="end" className="min-w-52">
+      <DropdownMenuContent side={side} align="end" className="min-w-52">
         <ThemeToggle />
         <FeedbackMenuItem />
         {/* <DropdownMenuItem asChild>
