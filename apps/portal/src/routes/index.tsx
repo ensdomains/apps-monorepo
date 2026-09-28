@@ -11,19 +11,13 @@ import {
   YourNames,
 } from '@/features/dashboard/components'
 
-type HomeSearch = { q?: string }
-
 export const Route = createFileRoute('/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   staticData: { hideSidebar: true },
-  validateSearch: (search: Record<string, unknown>): HomeSearch => ({
-    q: typeof search.q === 'string' ? search.q : undefined,
-  }),
 })
 
 function RouteComponent() {
-  const { q } = Route.useSearch()
   const { address } = useConnection()
 
   return (
@@ -36,7 +30,7 @@ function RouteComponent() {
           Explore the source of truth <br className="hidden sm:inline" />
           for Ethereum Name Service
         </h1>
-        <HomeSearchInput isHero defaultValue={q} />
+        <HomeSearchInput isHero />
       </section>
 
       <section className="flex flex-col gap-6 w-full max-w-175">

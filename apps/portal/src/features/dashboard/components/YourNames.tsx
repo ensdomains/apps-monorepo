@@ -1,12 +1,14 @@
 import { useQueries } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { SettingsMenu } from '@/components/SettingsMenu'
 import { WalletMenu } from '@/components/WalletMenu'
+import { cn } from '@/lib/utils'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import { truncateName } from '@/utils/formatting/truncateName'
 import { mergeNamesData } from '@/utils/names/mergeNamesData'
@@ -19,26 +21,26 @@ const PAGE_SIZE = 10
 const WARNING_DAYS = 30
 
 const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
-  if (!expiryDate) {
-    return (
-      <span className="shrink-0 whitespace-nowrap font-semi-mono text-sm text-neutral-7">
-        Does not expire
-      </span>
-    )
-  }
-  const plainDate = dateToPlainDate(expiryDate)
-  const duration = formatExpiryDuration(plainDate)
-  const label = duration === 'Expired' ? duration : `Expires in ${duration}`
-  const daysLeft = Temporal.Now.plainDateISO().until(plainDate).days
+  const plainDate = expiryDate ? dateToPlainDate(expiryDate) : undefined
+  const duration = plainDate ? formatExpiryDuration(plainDate) : undefined
+  const isWarning =
+    !!plainDate &&
+    Temporal.Now.plainDateISO().until(plainDate).days <= WARNING_DAYS
 
-  return daysLeft > WARNING_DAYS ? (
-    <span className="shrink-0 whitespace-nowrap font-semi-mono text-sm text-neutral-7">
-      {label}
-    </span>
-  ) : (
-    <span className="inline-flex h-6.25 shrink-0 items-center whitespace-nowrap gap-1 rounded-xs bg-message-warning-fill px-2 font-semi-mono text-sm text-message-warning-text">
-      <TriangleAlert className="size-3.25" aria-hidden />
-      {label}
+  return (
+    <span
+      className={cn(
+        'shrink-0 whitespace-nowrap font-semi-mono text-sm',
+        isWarning
+          ? 'inline-flex h-6.25 items-center gap-1 rounded-xs bg-message-warning-fill px-2 text-message-warning-text'
+          : 'text-neutral-7',
+      )}
+    >
+      {isWarning && <TriangleAlert className="size-3.25" aria-hidden />}
+      {match(duration)
+        .with(undefined, () => 'Does not expire')
+        .with('Expired', (expired) => expired)
+        .otherwise((left) => `Expires in ${left}`)}
     </span>
   )
 }
@@ -57,12 +59,8 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
 
   // Each source reports its own state, so a slow or failed one never hides
   // the names the other already returned.
-  const sources = [
-    { label: 'ENSv1', query: v1Query },
-    { label: 'ENSv2', query: v2Query },
-  ]
-  const isSettled = sources.every(({ query }) => !query.isPending)
-  const failed = sources.filter(({ query }) => query.error)
+  const isSettled = !v1Query.isPending && !v2Query.isPending
+  const hasError = Boolean(v1Query.error || v2Query.error)
 
   return (
     <div className="flex flex-col gap-6 rounded-md border border-neutral-3 px-6 pt-6 pb-3">
@@ -76,13 +74,18 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
           <WalletMenu isPill />
         </div>
       </div>
-      {failed.map(({ label }) => (
+      {v1Query.error && (
         <ErrorMessage
-          key={label}
           compact
-          description={`Error fetching ${label} names. Please refresh the page.`}
+          description="Error fetching ENSv1 names. Please refresh the page."
         />
-      ))}
+      )}
+      {v2Query.error && (
+        <ErrorMessage
+          compact
+          description="Error fetching ENSv2 names. Please refresh the page."
+        />
+      )}
       {names.length > 0 && (
         <ul>
           {names.slice(0, visibleCount).map(({ name, expiryDate }) =>
@@ -112,7 +115,7 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
         </ul>
       )}
       {!isSettled && <LoadingSpinner title="Loading your names" />}
-      {isSettled && failed.length === 0 && names.length === 0 && (
+      {isSettled && !hasError && names.length === 0 && (
         <p className="border-t border-neutral-3 py-3 text-sm text-neutral-7">
           No names yet
         </p>
