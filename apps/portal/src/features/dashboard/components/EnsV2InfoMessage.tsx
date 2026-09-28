@@ -8,8 +8,8 @@ const InlineLink = ({
   href,
   children,
 }: {
-  href: string
-  children: ReactNode
+  readonly href: string
+  readonly children: ReactNode
 }) => (
   <ExternalLink
     href={href}

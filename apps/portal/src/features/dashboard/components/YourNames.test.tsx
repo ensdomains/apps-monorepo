@@ -1,4 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -113,13 +117,27 @@ describe('YourNames', () => {
     expect(screen.getByText(/Error fetching ENSv1 names/)).toBeInTheDocument()
   })
 
-  it('lists subnames a parent granted, after the names the wallet holds', async () => {
-    renderNames([v2Name('granted.parent.eth', 10), v2Name('held.eth', 500)])
+  it('orders granted subnames by expiry with the rest, so their warning shows', async () => {
+    renderNames([
+      ...Array.from({ length: 4 }, (_, i) => v2Name(`held${i}.eth`, 500 + i)),
+      v2Name('granted.parent.eth', 10),
+    ])
 
     const rows = await screen.findAllByRole('listitem')
-    expect(rows.map((row) => row.textContent)).toEqual([
-      expect.stringContaining('held.eth'),
-      expect.stringContaining('granted.parent.eth'),
-    ])
+    expect(rows[0]).toHaveTextContent('granted.parent.eth')
+    expect(within(rows[0]).getByText('Expires in 10 days')).toHaveClass(
+      'bg-message-warning-fill',
+    )
+  })
+
+  it('does not claim the wallet is empty while a query is paused offline', async () => {
+    onlineManager.setOnline(false)
+    try {
+      renderNames([])
+      expect(await screen.findByText('Loading your names')).toBeInTheDocument()
+      expect(screen.queryByText('No names yet')).toBeNull()
+    } finally {
+      onlineManager.setOnline(true)
+    }
   })
 })
