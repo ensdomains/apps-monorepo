@@ -2,7 +2,10 @@ import { sepolia } from 'viem/chains'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { makeDomain, OTHER, OWNER } from '../service/_fixtures'
 import { classifyNames, type IneligibleName } from '../service/classifyNames'
-import { getGracePeriodNames } from './useEligibleV1Names.helpers'
+import {
+  getGracePeriodNames,
+  getNextNameExpiryBoundary,
+} from './useEligibleV1Names.helpers'
 
 const EXPIRY = 2_000_000_000n
 const GRACE_SECONDS = 7_776_000n
@@ -15,6 +18,54 @@ const expiredName = (
 })
 
 afterEach(() => vi.restoreAllMocks())
+
+describe('getNextNameExpiryBoundary', () => {
+  it('advances from registration expiry to grace end and stops after grace', () => {
+    const domains = [expiredName().domain]
+
+    expect(getNextNameExpiryBoundary(domains, EXPIRY - 1n)).toBe(EXPIRY)
+    expect(getNextNameExpiryBoundary(domains, EXPIRY)).toBe(
+      EXPIRY + GRACE_SECONDS,
+    )
+    expect(
+      getNextNameExpiryBoundary(domains, EXPIRY + GRACE_SECONDS),
+    ).toBeNull()
+  })
+
+  it('uses wrapper boundaries when the registration expiry is absent', () => {
+    const domains = [
+      expiredName({
+        isWrapped: true,
+        registrationExpiry: null,
+        wrappedExpiry: String(EXPIRY + GRACE_SECONDS),
+      }).domain,
+    ]
+
+    expect(getNextNameExpiryBoundary(domains, EXPIRY - 1n)).toBe(EXPIRY)
+    expect(getNextNameExpiryBoundary(domains, EXPIRY)).toBe(
+      EXPIRY + GRACE_SECONDS,
+    )
+    expect(
+      getNextNameExpiryBoundary(domains, EXPIRY + GRACE_SECONDS),
+    ).toBeNull()
+  })
+
+  it('chooses the earliest future boundary across registrations and wrapped subnames', () => {
+    const domains = [
+      expiredName({ registrationExpiry: String(EXPIRY + 10n) }).domain,
+      expiredName({
+        name: 'sub.alice.eth',
+        parentName: 'alice.eth',
+        isWrapped: true,
+        registrationExpiry: null,
+        wrappedExpiry: String(EXPIRY + 5n),
+      }).domain,
+    ]
+
+    expect(getNextNameExpiryBoundary(domains, EXPIRY)).toBe(EXPIRY + 5n)
+    expect(getNextNameExpiryBoundary(domains, EXPIRY + 5n)).toBe(EXPIRY + 10n)
+  })
+})
 
 describe('getGracePeriodNames', () => {
   it.each([

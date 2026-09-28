@@ -1,10 +1,11 @@
 import { Plural, Trans } from '@lingui/react/macro'
 import { useFeatureFlagEnabled } from '@posthog/react'
+import { useNavigate } from '@tanstack/react-router'
 import { match } from 'ts-pattern'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import { MigrationUpgradeButton } from '@/features/migration/components/MigrationUpgradeButton'
 import { shouldShowUpgradeBanner } from '@/features/migration/components/UpgradeBanner.helpers'
-import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
@@ -20,6 +21,7 @@ export const UpgradeBanner = ({
   className,
   profileName,
 }: UpgradeBannerProps) => {
+  const navigate = useNavigate()
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
     false,
@@ -37,7 +39,9 @@ export const UpgradeBanner = ({
     enabled: migrationEnabled,
     fallbackToClassified: false,
   })
-  const nameCount = eligibleV1Names.length + gracePeriodNames.length
+  const nameCount = eligibleV1Names.length
+  const gracePeriodNameCount = gracePeriodNames.length
+  const needsRenewal = !isProfileBanner && nameCount === 0
   const { data: migratedCount, isPending: isMigratedCountPending } =
     useMigratedNamesCount({ enabled: migrationEnabled && !isProfileBanner })
 
@@ -49,7 +53,7 @@ export const UpgradeBanner = ({
   if (
     !shouldShowUpgradeBanner({
       eligibleV1Names,
-      gracePeriodNameCount: gracePeriodNames.length,
+      gracePeriodNameCount,
       migratedCount,
       profileName,
     })
@@ -76,7 +80,14 @@ export const UpgradeBanner = ({
           </h2>
           <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
             <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
-              {match({ isProfileBanner, nftCopyEnabled })
+              {match({ isProfileBanner, nftCopyEnabled, needsRenewal })
+                .with({ needsRenewal: true }, () => (
+                  <Plural
+                    one="Renew your grace-period name before upgrading to your new ENS profile."
+                    other="Renew your # grace-period names before upgrading to your new ENS profile."
+                    value={gracePeriodNameCount}
+                  />
+                ))
                 .with({ isProfileBanner: true, nftCopyEnabled: true }, () => (
                   <Trans>
                     Upgrade your name to edit your new ENS profile and claim
@@ -103,11 +114,30 @@ export const UpgradeBanner = ({
                 .exhaustive()}
             </p>
           </div>
+          {!isProfileBanner && !needsRenewal && gracePeriodNameCount > 0 ? (
+            <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
+              <Plural
+                one="# name needs renewal before it can be upgraded."
+                other="# names need renewal before they can be upgraded."
+                value={gracePeriodNameCount}
+              />
+            </p>
+          ) : null}
         </div>
-        <UpgradeNamesButton
+        <MigrationUpgradeButton
           className="w-full shrink-0 md:w-75"
-          showNftPlaceholder={nftCopyEnabled && isConfirmedUnclaimed}
-        />
+          onClick={() => navigate({ to: '/migration' })}
+          showNftPlaceholder={
+            !needsRenewal && nftCopyEnabled && isConfirmedUnclaimed
+          }
+          type="button"
+        >
+          {needsRenewal ? (
+            <Trans>Renew Names</Trans>
+          ) : (
+            <Trans>Upgrade Names</Trans>
+          )}
+        </MigrationUpgradeButton>
       </div>
     </div>
   )

@@ -19,14 +19,16 @@ export const RenewalUiProvider = ({
   label,
   currentExpiry,
   protocol,
+  initialDuration,
 }: {
   children: React.ReactNode
   label: string
   currentExpiry: bigint
   protocol: RenewalProtocol
+  initialDuration?: bigint
 }) => {
   const uiActor = useActorRef(renewalUiMachine, {
-    input: { currentExpiry, protocol },
+    input: { currentExpiry, protocol, initialDuration },
   })
   const previousLabel = useRef(label)
 

@@ -56,6 +56,7 @@ const eligibleFixture: readonly ClassifiedName[] = [
 vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
   useEligibleV1Names: () => ({
     eligible: eligibleFixture,
+    gracePeriodNames: [],
     isPending: false,
     recoveryState: { status: 'none' },
   }),

@@ -16,6 +16,7 @@ import {
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { getGracePeriodNames } from './useEligibleV1Names.helpers'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
+import { useV1NameClassificationTime } from './useV1NameClassificationTime'
 
 type UseEligibleV1NamesOptions = {
   readonly enabled?: boolean
@@ -43,6 +44,10 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
   const resolvedOwnerAddress = ownerAddress ?? address
   const { data: v1NamesRaw, isPending: isV1Pending } = useV1Names({ enabled })
   const recoverySnapshot = useMigrationRecoverySnapshot()
+  const nowSeconds = useV1NameClassificationTime(
+    recoverySnapshot?.registryDomains ?? v1NamesRaw,
+    enabled,
+  )
 
   const { classified, gracePeriodNames, recoveryState } =
     useMemo<ClassificationState>(() => {
@@ -88,10 +93,16 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
       )
       return {
         classified,
-        gracePeriodNames: getGracePeriodNames(ineligible),
+        gracePeriodNames: getGracePeriodNames(ineligible, nowSeconds),
         recoveryState: { status: 'none' },
       }
-    }, [enabled, recoverySnapshot, v1NamesRaw, resolvedOwnerAddress])
+    }, [
+      enabled,
+      recoverySnapshot,
+      v1NamesRaw,
+      resolvedOwnerAddress,
+      nowSeconds,
+    ])
 
   const { data: eligibility, isPending: isEligibilityPending } =
     useMigrationEligibility(
@@ -99,13 +110,16 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
       enabled ? resolvedOwnerAddress : undefined,
     )
 
-  const eligible = useMemo<readonly ClassifiedName[]>(
-    () =>
-      recoverySnapshot
-        ? classified
-        : (eligibility?.eligible ?? (fallbackToClassified ? classified : [])),
-    [eligibility, classified, fallbackToClassified, recoverySnapshot],
-  )
+  const eligible = useMemo<readonly ClassifiedName[]>(() => {
+    if (recoverySnapshot) return classified
+    if (!eligibility) return fallbackToClassified ? classified : []
+
+    // Cached RPC eligibility must not keep a newly expired name selectable.
+    const eligibleIds = new Set(
+      eligibility.eligible.map(({ domain }) => domain.id),
+    )
+    return classified.filter(({ domain }) => eligibleIds.has(domain.id))
+  }, [eligibility, classified, fallbackToClassified, recoverySnapshot])
 
   return {
     eligible,

@@ -65,6 +65,18 @@ beforeEach(() => {
 })
 
 describe('V1 renewal state machine', () => {
+  it('uses the fixed migration duration for pricing instead of a one-year default', () => {
+    const actor = createActor(renewalUiMachine, {
+      input: {
+        currentExpiry: 1_800_000_000n,
+        protocol: 'v1',
+        initialDuration: 691_200n,
+      },
+    }).start()
+    expect(actor.getSnapshot().context.duration).toBe(691_200n)
+    actor.stop()
+  })
+
   it('stores renewal durations as bigint', () => {
     const actor = createActor(renewalUiMachine, {
       input: { currentExpiry: 1_800_000_000n, protocol: 'v1' },

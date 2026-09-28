@@ -1,3 +1,4 @@
+import type { V1Domain } from '@ens-apps/migration'
 import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
@@ -7,6 +8,7 @@ import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMi
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { cn } from '@/lib/utils'
+import { GracePeriodRenewalDialog } from './GracePeriodRenewalDialog'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
@@ -25,6 +27,22 @@ type SelectNamesStepProps = {
   readonly onNext: () => boolean | Promise<boolean>
 }
 
+const SelectionTitle = ({
+  eligibleCount,
+  graceCount,
+  isRecoveryStale,
+}: {
+  readonly eligibleCount: number
+  readonly graceCount: number
+  readonly isRecoveryStale: boolean
+}) => {
+  if (isRecoveryStale) return <Trans>Your saved upgrade needs attention</Trans>
+  if (eligibleCount === 0 && graceCount > 0) {
+    return <Trans>Renew your names before upgrading</Trans>
+  }
+  return <Trans>Your names are ready to upgrade</Trans>
+}
+
 export const SelectNamesStep = ({
   gasEstimate,
   gasAffordability,
@@ -34,6 +52,7 @@ export const SelectNamesStep = ({
 }: SelectNamesStepProps) => {
   const { eligible, gracePeriodNames, isPending, recoveryState } =
     useEligibleV1Names()
+  const [renewalDomain, setRenewalDomain] = useState<V1Domain | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
   const hasNamesNeedingManagerRestoration = eligible.some(
@@ -70,6 +89,7 @@ export const SelectNamesStep = ({
   const isWaitingForGasFunding =
     totalSelected > 0 && gasFundingStatus === 'funding'
   const isUpgradeDisabled =
+    renewalDomain !== null ||
     totalSelected === 0 ||
     isPending ||
     isRecoveryStale ||
@@ -113,11 +133,11 @@ export const SelectNamesStep = ({
           )}
         >
           <h1 className="w-full shrink-0 text-left text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px] md:text-center md:text-[36px] md:tracking-[-0.72px]">
-            {isRecoveryStale ? (
-              <Trans>Your saved upgrade needs attention</Trans>
-            ) : (
-              <Trans>Your names are ready to upgrade</Trans>
-            )}
+            <SelectionTitle
+              eligibleCount={eligible.length}
+              graceCount={gracePeriodNames.length}
+              isRecoveryStale={isRecoveryStale}
+            />
           </h1>
 
           {hasNamesNeedingManagerRestoration && !isRecoveryStale && (
@@ -163,6 +183,7 @@ export const SelectNamesStep = ({
               isCompactLayout={isCompactLayout}
               isContentHeightCard={isContentHeightCard}
               isPending={isPending}
+              onRenew={setRenewalDomain}
               search={search}
               selected={selected}
               setSearch={setSearch}
@@ -176,6 +197,14 @@ export const SelectNamesStep = ({
           )}
         </div>
       </div>
+
+      {renewalDomain && (
+        <GracePeriodRenewalDialog
+          domain={renewalDomain}
+          key={renewalDomain.id}
+          onClose={() => setRenewalDomain(null)}
+        />
+      )}
 
       <SelectNamesStepFooter
         gasAffordability={gasAffordability}

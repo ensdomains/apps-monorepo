@@ -1,3 +1,4 @@
+import type { V1Domain } from '@ens-apps/migration'
 import { Trans } from '@lingui/react/macro'
 import { memo, useId, useState } from 'react'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
@@ -14,6 +15,7 @@ type NameRowProps = {
   readonly isInGrace?: boolean
   readonly depth: number
   readonly onToggle?: (name: string) => void
+  readonly onRenew?: (domain: V1Domain) => void
 }
 
 const SelectableNameRow = ({
@@ -137,6 +139,7 @@ const NameRowComponent = (props: NameRowProps) =>
     <GracePeriodNameRow
       isPrimary={props.isPrimary}
       name={props.item.domain.name}
+      onRenew={() => props.onRenew?.(props.item.domain)}
     />
   ) : (
     <SelectableNameRow {...props} />
