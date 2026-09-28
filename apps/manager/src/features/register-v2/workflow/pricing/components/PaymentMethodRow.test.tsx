@@ -11,7 +11,7 @@ const renderRow = (
     <PaymentMethodRow
       amount="$0.00"
       amountLabel="balance"
-      error="not enough funds to pay network fees"
+      error="Need $20.20 USDC incl. network fees"
       fee="Mainnet est. fee: $0.27"
       feeTooltip="An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
       feeTooltipLabel="What is the network fee?"
@@ -48,7 +48,7 @@ describe('PaymentMethodRow', () => {
       )[0],
     ).toBeVisible()
     expect(
-      screen.getByText('not enough funds to pay network fees'),
+      screen.getByText('Need $20.20 USDC incl. network fees'),
     ).toBeVisible()
     expect(screen.getByTestId('token-icon')).toBeVisible()
     expect(screen.getByTestId('network-badge')).toBeVisible()
@@ -58,7 +58,7 @@ describe('PaymentMethodRow', () => {
     renderRow()
 
     const selectButton = screen.getByRole('button', { name: 'Select USDC' })
-    const error = screen.getByText('not enough funds to pay network fees')
+    const error = screen.getByText('Need $20.20 USDC incl. network fees')
 
     expect(selectButton).toBeDisabled()
     expect(selectButton).toHaveAttribute('aria-pressed', 'true')
@@ -68,23 +68,31 @@ describe('PaymentMethodRow', () => {
     )
   })
 
-  it('selects an available funded method', () => {
+  it('selects an available funded method with the required focus ring', () => {
     const onSelect = vi.fn()
     renderRow({ error: undefined, isFunded: true, onSelect })
 
-    screen.getByRole('button', { name: 'Select USDC' }).click()
+    const selectButton = screen.getByRole('button', { name: 'Select USDC' })
+    selectButton.click()
 
     expect(onSelect).toHaveBeenCalledOnce()
+    expect(selectButton).toHaveClass(
+      'focus-visible:ring-2',
+      'focus-visible:ring-ens-blue',
+      'focus-visible:ring-offset-2',
+    )
+    expect(selectButton.className).not.toContain('focus-visible:outline-')
   })
 
   it('keeps the error icon before its copy in one shared spanning item', () => {
     const { container } = renderRow()
     const error = container.querySelector('[data-slot="payment-method-error"]')
 
-    expect(error).toHaveClass('col-[2/4]')
+    expect(error).toHaveClass('col-start-2', 'col-end-4')
     expect(error).toHaveTextContent(
-      'flash_offnot enough funds to pay network fees',
+      'flash_offNeed $20.20 USDC incl. network fees',
     )
+    expect(error?.firstElementChild).toHaveClass('whitespace-nowrap')
     expect(error?.querySelector('.material-symbol')).toHaveTextContent(
       'flash_off',
     )

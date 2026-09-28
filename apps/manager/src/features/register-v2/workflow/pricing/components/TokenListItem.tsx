@@ -13,8 +13,10 @@ import { PaymentMethodRow } from './PaymentMethodRow'
 const MainnetBadge = () => (
   <span
     aria-hidden="true"
+    // The approved Mainnet badge has no matching palette token.
     className="flex size-full items-center justify-center bg-[#6c5ce7]"
   >
+    {/* The mark occupies 70% of its responsive badge by specification. */}
     <svg className="size-[70%]" viewBox="0 0 12 12">
       <title>Mainnet</title>
       <path d="M6 1 9.5 6 6 8 2.5 6 6 1Z" fill="white" />
@@ -104,9 +106,10 @@ export const TokenListItem = ({
     )
   }
 
+  const requiredAmount = formatUsd(priceUSD)
   const displayedError =
     errorMessage ??
-    (isFunded ? undefined : <Trans>not enough funds to pay network fees</Trans>)
+    (isFunded ? undefined : <Trans>Need {requiredAmount} USDC</Trans>)
 
   return (
     <PaymentMethodRow

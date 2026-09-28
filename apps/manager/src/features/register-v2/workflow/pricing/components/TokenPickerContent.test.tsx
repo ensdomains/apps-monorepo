@@ -1,10 +1,118 @@
 import '@testing-library/jest-dom'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StablecoinBalance } from '@/lib/smart-account'
-import { TokenPickerContentBase } from './TokenPickerContent'
+import {
+  TokenPickerContent,
+  TokenPickerContentBase,
+} from './TokenPickerContent'
+
+const integration = vi.hoisted(() => ({
+  testId: 0,
+  isBudgetEnabled: true,
+  pricingRaw: 8_000_000n,
+  walletBalanceRaw: 5_000_000n,
+  budget: {
+    registrationPrice: 8_000_000n,
+    total: 20_196_054n,
+    hcaBalance: 0n,
+  },
+  send: vi.fn(),
+  navigate: vi.fn(),
+  getSessionEnablePayload: vi.fn(async () => undefined),
+  fetch: vi.fn(),
+}))
+
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useNavigate: () => integration.navigate,
+}))
+
+vi.mock('@xstate/react', () => ({
+  useSelector: (
+    _actor: unknown,
+    selector: (state: {
+      context: { duration: number; selectedToken: 'USDC' }
+    }) => unknown,
+  ) =>
+    selector({
+      context: { duration: 31_536_000, selectedToken: 'USDC' },
+    }),
+}))
+
+vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
+  useSmartAccountContext: () => ({
+    stablecoinBalances: [
+      {
+        address: '0x768F42455A2D082E23ceeF7d51e5787C82d67a39',
+        symbol: 'USDC',
+        decimals: 6,
+        balance: integration.walletBalanceRaw.toString(),
+        formattedBalance: (Number(integration.walletBalanceRaw) / 1e6).toFixed(
+          2,
+        ),
+      },
+    ],
+    isLoadingBalances: false,
+    isConnected: true,
+    ownerAddress: null,
+    accountAddress: '0x0000000000000000000000000000000000000001',
+    signer: null,
+    getSessionEnablePayload: integration.getSessionEnablePayload,
+  }),
+}))
+
+vi.mock('../../../state/registrationUi.context', () => ({
+  useRegistrationV2Context: () => ({
+    label: 'jeff',
+    uiActor: { send: integration.send },
+  }),
+}))
+
+vi.mock('../../../data/queries/pricing.query', () => ({
+  getRegisterPriceQueryOptions: () => ({
+    queryKey: ['test-price', integration.testId],
+    queryFn: async () => ({
+      basePrice: integration.pricingRaw,
+      premium: 0n,
+    }),
+  }),
+}))
+
+vi.mock('../../../data/queries/hcaBudget.query', () => ({
+  getHcaBudgetQueryOptions: () => ({
+    queryKey: ['test-budget', integration.testId],
+    queryFn: async () => integration.budget,
+    enabled: integration.isBudgetEnabled,
+    staleTime: 0,
+  }),
+}))
+
+vi.mock('../../../data/queries/availability.query', () => ({
+  getRegistrationV2AvailabilityQueryOptions: () => ({
+    queryKey: ['test-availability', integration.testId],
+    queryFn: async () => ({ isAvailable: true }),
+  }),
+}))
+
+vi.mock('@/features/profile/service/profileReverseName', () => ({
+  profileReverseNameQuery: () => ({
+    queryKey: ['test-primary-name', integration.testId],
+    queryFn: async () => null,
+    enabled: false,
+  }),
+}))
+
+vi.mock('@/features/shared/service/ownedNamesCount', () => ({
+  ownedNamesCountQueryOptions: () => ({
+    queryKey: ['test-owned-names', integration.testId],
+    queryFn: async () => 0,
+    enabled: false,
+  }),
+}))
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
 
@@ -26,6 +134,26 @@ const insufficientDai = {
   symbol: 'DAI',
   balance: '0',
 } as unknown as StablecoinBalance
+
+beforeEach(() => {
+  integration.testId += 1
+  integration.isBudgetEnabled = true
+  integration.pricingRaw = 8_000_000n
+  integration.walletBalanceRaw = 5_000_000n
+  integration.budget = {
+    registrationPrice: 8_000_000n,
+    total: 20_196_054n,
+    hcaBalance: 0n,
+  }
+  integration.send.mockClear()
+  integration.navigate.mockClear()
+  integration.getSessionEnablePayload.mockClear()
+  integration.fetch.mockReset()
+  integration.fetch.mockResolvedValue(new Response('{}', { status: 200 }))
+  vi.stubGlobal('fetch', integration.fetch)
+})
+
+afterEach(() => vi.unstubAllGlobals())
 
 const renderPicker = (
   props: Partial<Parameters<typeof TokenPickerContentBase>[0]> = {},
@@ -50,6 +178,89 @@ const renderPicker = (
   )
   return onSelectCoin
 }
+
+const renderIntegratedPicker = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  })
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <I18nProvider i18n={i18n}>
+        <TokenPickerContent />
+      </I18nProvider>
+    </QueryClientProvider>,
+  )
+}
+
+describe('TokenPickerContent funding shortfall paths', () => {
+  it.each([
+    {
+      caseName: 'below the name price',
+      walletBalanceRaw: 5_000_000n,
+      expected: 'Need $20.20 USDC',
+    },
+    {
+      caseName: 'above the name price but below the total',
+      walletBalanceRaw: 20_000_000n,
+      expected: 'Need $20.20 USDC incl. network fees',
+    },
+  ])('keeps a render-time shortfall method-local when $caseName', async ({
+    walletBalanceRaw,
+    expected,
+  }) => {
+    integration.walletBalanceRaw = walletBalanceRaw
+
+    renderIntegratedPicker()
+
+    const error = await screen.findByText(expected)
+    expect(error.closest('[data-slot="payment-method-error"]')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+    expect(integration.fetch).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    {
+      caseName: 'below the refreshed name price',
+      walletBalanceRaw: 5_000_000n,
+      pricingRaw: 4_000_000n,
+      expected: 'Need $20.20 USDC',
+    },
+    {
+      caseName: 'above the name price but below the refreshed total',
+      walletBalanceRaw: 20_000_000n,
+      pricingRaw: 8_000_000n,
+      expected: 'Need $20.20 USDC incl. network fees',
+    },
+  ])('keeps a click-time shortfall method-local when $caseName', async ({
+    walletBalanceRaw,
+    pricingRaw,
+    expected,
+  }) => {
+    integration.isBudgetEnabled = false
+    integration.walletBalanceRaw = walletBalanceRaw
+    integration.pricingRaw = pricingRaw
+
+    renderIntegratedPicker()
+
+    const register = await screen.findByRole('button', {
+      name: 'Register name',
+    })
+    await waitFor(() => expect(register).toBeEnabled())
+    fireEvent.click(register)
+
+    const error = await screen.findByText(expected)
+    expect(error.closest('[data-slot="payment-method-error"]')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+    expect(integration.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'registration.start' }),
+    )
+    expect(integration.fetch).not.toHaveBeenCalled()
+  })
+})
 
 describe('TokenPickerContentBase', () => {
   it('selects the only payment option automatically', () => {
@@ -241,11 +452,11 @@ describe('TokenPickerContentBase', () => {
         hcaCredit: 0,
         isLoading: false,
       },
-      methodErrorMessage: 'not enough funds to pay network fees',
+      methodErrorMessage: 'Need $2,000.00 USDC incl. network fees',
       selectedToken: 'USDC',
     })
 
-    const error = screen.getByText('not enough funds to pay network fees')
+    const error = screen.getByText('Need $2,000.00 USDC incl. network fees')
     expect(error).toBeVisible()
     expect(error.closest('[data-slot="payment-method-error"]')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()

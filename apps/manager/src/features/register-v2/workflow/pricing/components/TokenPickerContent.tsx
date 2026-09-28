@@ -20,6 +20,7 @@ import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
 import { getHcaBudgetQueryOptions } from '../../../data/queries/hcaBudget.query'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
@@ -48,6 +49,7 @@ class InsufficientFundingError extends Error {
   constructor(
     readonly required: number,
     readonly available: number,
+    readonly registration: number,
   ) {
     super('Insufficient USDC to fund the registration')
     this.name = 'InsufficientFundingError'
@@ -113,6 +115,24 @@ const PaymentMethods = ({
       ))}
     </div>
   )
+}
+
+const UsdcFundingErrorMessage = ({
+  required,
+  available,
+  registration,
+}: {
+  readonly required: number
+  readonly available: number
+  readonly registration: number
+}) => {
+  const requiredAmount = formatUsd(required)
+
+  if (available >= registration) {
+    return <Trans>Need {requiredAmount} USDC incl. network fees</Trans>
+  }
+
+  return <Trans>Need {requiredAmount} USDC</Trans>
 }
 
 const getPaymentHeadline = (
@@ -307,6 +327,7 @@ export const TokenPickerContent = () => {
         : null
 
       if (
+        budget !== null &&
         walletDebitRaw !== null &&
         usdcBalanceRaw !== null &&
         usdcBalanceRaw < walletDebitRaw
@@ -314,6 +335,7 @@ export const TokenPickerContent = () => {
         throw new InsufficientFundingError(
           decimalBigintToNumber(walletDebitRaw, USDC_DECIMALS),
           decimalBigintToNumber(usdcBalanceRaw, USDC_DECIMALS),
+          decimalBigintToNumber(budget.registrationPrice, USDC_DECIMALS),
         )
       }
 
@@ -347,10 +369,31 @@ export const TokenPickerContent = () => {
 
   const isClickFundingShortfall =
     availabilityMutation.error instanceof InsufficientFundingError
-  const methodErrorMessage =
-    funding?.isUnderfunded || isClickFundingShortfall
-      ? t`not enough funds to pay network fees`
-      : null
+  const fundingShortfall = match({
+    funding,
+    mutationError: availabilityMutation.error,
+  })
+    .with(
+      {
+        funding: {
+          isUnderfunded: true,
+          walletBalance: P.number,
+        },
+      },
+      ({ funding: currentFunding }) => ({
+        required: currentFunding.walletDebit,
+        available: currentFunding.walletBalance,
+        registration: currentFunding.registration,
+      }),
+    )
+    .with(
+      { mutationError: P.instanceOf(InsufficientFundingError) },
+      ({ mutationError }) => mutationError,
+    )
+    .otherwise(() => null)
+  const methodErrorMessage = fundingShortfall ? (
+    <UsdcFundingErrorMessage {...fundingShortfall} />
+  ) : null
   const globalErrorMessage =
     availabilityMutation.isError && !isClickFundingShortfall
       ? t`We couldn't confirm that ${domainName} is still available. Please try again.`
@@ -436,7 +479,7 @@ export const TokenPickerContentBase = ({
   isInPriceCooldown?: boolean
   selectedToken: SUPPORTED_TOKEN | undefined
   globalErrorMessage?: string | null
-  methodErrorMessage?: string | null
+  methodErrorMessage?: ReactNode | null
   onSelectCoin: (coin: SUPPORTED_TOKEN) => void
   onNext: () => void
   stablecoinBalances: StablecoinBalance[]

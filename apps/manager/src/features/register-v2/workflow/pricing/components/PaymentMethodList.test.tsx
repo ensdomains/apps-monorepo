@@ -48,7 +48,15 @@ describe('PaymentMethodList', () => {
     expect(screen.getByText('DAI')).toBeVisible()
     expect(screen.queryByText('USDT')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Load 7 more' }))
+    const loadMore = screen.getByRole('button', { name: 'Load 7 more' })
+    expect(loadMore).toHaveClass(
+      'focus-visible:ring-2',
+      'focus-visible:ring-ens-blue',
+      'focus-visible:ring-offset-2',
+    )
+    expect(loadMore.className).not.toContain('focus-visible:outline-')
+
+    fireEvent.click(loadMore)
 
     expect(screen.getAllByRole('listitem')).toHaveLength(9)
     expect(

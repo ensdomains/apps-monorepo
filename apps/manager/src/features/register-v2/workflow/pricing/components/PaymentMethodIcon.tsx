@@ -7,6 +7,7 @@ export const PaymentMethodIcon = ({
   readonly icon: ReactNode
   readonly networkBadge?: ReactNode
 }) => (
+  // Desktop token art is exactly 34px in the approved design.
   <span className="relative block size-7 shrink-0 sm:size-[34px]">
     <span className="block size-full">{icon}</span>
     {networkBadge && (

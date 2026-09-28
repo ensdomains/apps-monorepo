@@ -29,8 +29,8 @@ const FUNDED_USDC: StablecoinBalance = {
 
 const INSUFFICIENT_USDC: StablecoinBalance = {
   ...FUNDED_USDC,
-  balance: '0',
-  formattedBalance: '0.00',
+  balance: '351800000',
+  formattedBalance: '351.80',
 }
 
 interface TokenPickerDialogShellProps {
@@ -206,7 +206,7 @@ export const FIXTURE_NO_VALID_COMMON_METHODS: readonly FixtureMethod[] =
     isFunded: false,
     error:
       method.name === 'USDC' && method.network === 'Mainnet'
-        ? 'not enough funds to pay network fees'
+        ? 'Need $352.00 USDC'
         : method.name === 'USDT' && method.network === 'Mainnet'
           ? 'Not enough ETH for permit approval'
           : method.name === 'DAI' && method.network === 'Mainnet'
@@ -219,6 +219,7 @@ const FixtureTokenIcon = ({ name }: Pick<FixtureMethod, 'name'>) => {
   if (name === 'USDT') return <USDTIcon className="size-full" />
   if (name === 'DAI') return <DAI className="size-full" />
   return (
+    // Fixture-only ETH artwork uses the canonical brand color absent from tokens.
     <span className="flex size-full items-center justify-center rounded-full bg-[#627eea] font-medium text-white">
       Ξ
     </span>
@@ -228,6 +229,7 @@ const FixtureTokenIcon = ({ name }: Pick<FixtureMethod, 'name'>) => {
 const FixtureNetworkBadge = ({ network }: Pick<FixtureMethod, 'network'>) => (
   <span
     className={cn(
+      // Fixture badges preserve the exact compact reference type and brand colors.
       'flex size-full items-center justify-center font-medium text-[7px] text-white sm:text-[9px]',
       network === 'Mainnet' && 'bg-[#6c5ce7]',
       network === 'Optimism' && 'bg-[#ff0420]',
@@ -379,7 +381,7 @@ export const InsufficientUSDC: Story = {
   args: {
     initialSelectedToken: 'USDC',
     stablecoinBalances: [INSUFFICIENT_USDC],
-    methodErrorMessage: 'not enough funds to pay network fees',
+    methodErrorMessage: 'Need $352.00 USDC incl. network fees',
     funding: {
       registration: 351.73,
       networkFee: 0.27,

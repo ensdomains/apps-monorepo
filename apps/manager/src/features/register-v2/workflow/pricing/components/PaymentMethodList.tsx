@@ -24,6 +24,7 @@ export const PaymentMethodList = ({
   )
 
   return (
+    // The desktop payment rail is exactly 454px in the approved design.
     <div className="flex w-full flex-col self-center sm:w-[454px] sm:max-w-full">
       <ul
         aria-label="Payment methods"
@@ -36,7 +37,7 @@ export const PaymentMethodList = ({
       {hiddenCount > 0 && (
         <button
           aria-expanded={isExpanded}
-          className="mt-3 self-center rounded px-3 py-2 font-medium text-[#191919] text-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ens-blue"
+          className="mt-3 self-center rounded px-3 py-2 font-medium text-ens-quartz-900 text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
           onClick={() => setIsExpanded(true)}
           type="button"
         >
