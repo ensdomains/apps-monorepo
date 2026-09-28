@@ -71,7 +71,7 @@ describe('TokenPickerDialog stories', () => {
     renderFixture({ methods: FIXTURE_MULTIPLE_METHODS, defaultExpanded: true })
 
     expect(screen.getByText('Not enough ETH for permit approval')).toBeVisible()
-    expect(screen.getByText('Need $352.00')).toBeVisible()
+    expect(screen.getByText('$352.00 needed to register name')).toBeVisible()
     expect(screen.getAllByRole('listitem')).toHaveLength(9)
   })
 
@@ -79,9 +79,10 @@ describe('TokenPickerDialog stories', () => {
     renderFixture({ methods: FIXTURE_NO_VALID_COMMON_METHODS })
 
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
-    expect(screen.getByText('$352.00 needed to register name')).toBeVisible()
+    expect(screen.getAllByText('$352.00 needed to register name')).toHaveLength(
+      2,
+    )
     expect(screen.getByText('Not enough ETH for permit approval')).toBeVisible()
-    expect(screen.getByText('Need $352.00')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 

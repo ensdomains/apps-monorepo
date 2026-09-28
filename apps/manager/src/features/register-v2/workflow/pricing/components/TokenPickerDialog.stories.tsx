@@ -168,7 +168,7 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     isAvailable: true,
     isFunded: false,
     isCommon: false,
-    error: 'Need $352.00',
+    error: '$352.00 needed to register name',
   },
   {
     id: 'usdt-optimism',
@@ -210,7 +210,7 @@ export const FIXTURE_NO_VALID_COMMON_METHODS: readonly FixtureMethod[] =
         : method.name === 'USDT' && method.network === 'Mainnet'
           ? 'Not enough ETH for permit approval'
           : method.name === 'DAI' && method.network === 'Mainnet'
-            ? 'Need $352.00'
+            ? '$352.00 needed to register name'
             : method.error,
   }))
 
