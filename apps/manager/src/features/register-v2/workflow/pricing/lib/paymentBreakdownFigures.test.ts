@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { getPaymentBreakdownFigures } from './paymentBreakdownFigures'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import {
+  getPaymentBreakdownFigures,
+  type PaymentBreakdownFigures,
+} from './paymentBreakdownFigures'
+
+const expectValidDisplayedBreakdown = (figures: PaymentBreakdownFigures) => {
+  expect(Object.values(figures).every((figure) => figure >= 0)).toBe(true)
+  expect(
+    Math.round(figures.registration * 100) +
+      Math.round(figures.networkFee * 100) -
+      Math.round(figures.credit * 100),
+  ).toBe(Math.round(figures.walletDebit * 100))
+}
 
 describe('getPaymentBreakdownFigures', () => {
   it('keeps the lines adding up to the headline', () => {
@@ -50,8 +63,8 @@ describe('getPaymentBreakdownFigures', () => {
     ).toBe(0)
   })
 
-  // Rounding the three figures can drive the derived credit below zero, and a
-  // negative deduction would render as "--$0.01" for money the account holds.
+  // The real credit is sub-cent even when independently rounded charges could
+  // otherwise imply a negative deduction.
   it('reports no credit when the balance is under a cent', () => {
     expect(
       getPaymentBreakdownFigures({
@@ -91,6 +104,60 @@ describe('getPaymentBreakdownFigures', () => {
     expect(
       figures.registration + figures.networkFee - figures.credit,
     ).toBeCloseTo(figures.walletDebit, 10)
+  })
+
+  it('moves a residual beyond the fee into a nonnegative registration charge', () => {
+    const figures = getPaymentBreakdownFigures({
+      registration: 14.277073,
+      networkFee: 0.001508,
+      walletDebit: 6.304178,
+      hcaCredit: 7.974403,
+    })
+
+    expect(figures).toEqual({
+      registration: 14.27,
+      networkFee: 0,
+      walletDebit: 6.3,
+      credit: 7.97,
+    })
+    expectValidDisplayedBreakdown(figures)
+  })
+
+  it('matches formatter rounding for a half-cent fee without credit', () => {
+    const figures = getPaymentBreakdownFigures({
+      registration: 1,
+      networkFee: 0.145,
+      walletDebit: 1.145,
+      hcaCredit: 0,
+    })
+
+    expect(figures).toEqual({
+      registration: 1,
+      networkFee: 0.15,
+      walletDebit: 1.15,
+      credit: 0,
+    })
+    expect(formatUsd(figures.networkFee)).toBe(formatUsd(0.145))
+    expectValidDisplayedBreakdown(figures)
+  })
+
+  it('matches formatter rounding and closes a half-cent credited breakdown', () => {
+    const figures = getPaymentBreakdownFigures({
+      registration: 1.005,
+      networkFee: 0.14,
+      walletDebit: 1,
+      hcaCredit: 0.145,
+    })
+
+    expect(figures).toEqual({
+      registration: 1.01,
+      networkFee: 0.14,
+      walletDebit: 1,
+      credit: 0.15,
+    })
+    expect(formatUsd(figures.registration)).toBe(formatUsd(1.005))
+    expect(formatUsd(figures.credit)).toBe(formatUsd(0.145))
+    expectValidDisplayedBreakdown(figures)
   })
 
   it('keeps a credit of a cent or more', () => {

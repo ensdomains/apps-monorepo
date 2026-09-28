@@ -371,6 +371,68 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByText('$9.98')).toBeVisible()
   })
 
+  it('keeps displayed charges nonnegative when the fee cannot absorb the residue', () => {
+    renderPicker({
+      funding: {
+        registration: 14.277073,
+        networkFee: 0.001508,
+        total: 14.278581,
+        walletDebit: 6.304178,
+        hcaCredit: 7.974403,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('Name price')).toBeVisible()
+    expect(screen.getByText('$14.27')).toBeVisible()
+    expect(screen.getByText('Mainnet est. fee: $0.00')).toBeVisible()
+    expect(screen.getByText('-$7.97')).toBeVisible()
+    expect(screen.getByText('You pay now')).toBeVisible()
+    expect(screen.getByText('$6.30')).toBeVisible()
+  })
+
+  it('matches formatter half-up cents when there is no visible credit', () => {
+    renderPicker({
+      funding: {
+        registration: 1,
+        networkFee: 0.145,
+        total: 1.145,
+        walletDebit: 1.145,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('Mainnet est. fee: $0.15')).toBeVisible()
+    expect(screen.queryByText('Name price')).not.toBeInTheDocument()
+    expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
+    expect(screen.getByText('Total')).toBeVisible()
+    expect(screen.getByText('$1.15')).toBeVisible()
+  })
+
+  it('matches formatter half-up cents and closes the credited equation', () => {
+    renderPicker({
+      funding: {
+        registration: 1.005,
+        networkFee: 0.14,
+        total: 1.145,
+        walletDebit: 1,
+        hcaCredit: 0.145,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText('Name price')).toBeVisible()
+    expect(screen.getByText('$1.01')).toBeVisible()
+    expect(screen.getByText('Mainnet est. fee: $0.14')).toBeVisible()
+    expect(screen.getByText('-$0.15')).toBeVisible()
+    expect(screen.getByText('You pay now')).toBeVisible()
+    expect(screen.getByText('$1.00')).toBeVisible()
+  })
+
   // Rounding can leave a cent over on an empty account; a credit line there
   // would be money the user does not have.
   it('shows no credit for an account that is empty', () => {
