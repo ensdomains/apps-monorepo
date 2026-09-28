@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
+import { envConfig } from '@/config'
 import { useMigrationEligibility } from '@/features/migration/hooks/useMigrationEligibility'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import {
@@ -83,6 +84,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
       const { classified, ineligible } = classifyNames(
         v1NamesRaw,
         resolvedOwnerAddress as Address,
+        envConfig.chain.id,
       )
       return {
         classified,

@@ -7,8 +7,7 @@
   "exports": {
     ".": "./graphql.gen.ts",
     "./urql": "./urql/client.ts",
-    "./urql/request": "./urql/request.ts",
-    "./chain": "./chain.ts"
+    "./urql/request": "./urql/request.ts"
   },
   "scripts": {
     "codegen": "graphql-codegen",

@@ -1,5 +1,4 @@
 // Contracts
-export { ENS_SEPOLIA_CONTRACTS } from './contracts/ens-sepolia'
 // Errors
 export {
   SignerAddressMismatchError,
@@ -44,6 +43,7 @@ export {
 export {
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
+  type TOKEN_SYMBOL,
 } from './machines/registration/registration.actors'
 export type {
   RegistrationContext,

@@ -1,4 +1,4 @@
-import { customSepolia, SEPOLIA_RPC_URL } from '@ens-apps/indexer/chain'
+import { NETWORKS } from '@ens-apps/config'
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
   type RhinestoneAccount,
@@ -25,6 +25,7 @@ import {
   zeroHash,
 } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { sepolia } from 'viem/chains'
 
 // Payment tokens sourced from the ensjs Sepolia chain config so they can't
 // drift from the tokens the app reads.
@@ -32,6 +33,18 @@ const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 const SUPPORTED_TOKENS = {
   USDC: ensjsSepolia.usdc.address,
   DAI: ensjsSepolia.dai.address,
+}
+
+// Standalone debug harness: it pins Sepolia directly instead of going through
+// the apps' network config, so it stays runnable without app env vars.
+const SEPOLIA_RPC_URL = NETWORKS.sepolia.rpcFallbacks[0]
+
+const customSepolia = {
+  ...sepolia,
+  rpcUrls: {
+    default: { http: [SEPOLIA_RPC_URL] },
+    public: { http: [SEPOLIA_RPC_URL] },
+  },
 }
 
 const ENS_SEPOLIA_CONTRACTS = {

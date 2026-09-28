@@ -28,16 +28,6 @@ msgstr ""
 msgid "{0, plural, one {# year} other {# years}}"
 msgstr ""
 
-#. placeholder {0}: eligibleV1Names.length
-#: src/features/migration/components/UpgradeBanner.tsx
-msgid "{0, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
-msgstr ""
-
-#. placeholder {0}: eligibleV1Names.length
-#: src/features/migration/components/UpgradeBanner.tsx
-msgid "{0, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
-msgstr ""
-
 #. placeholder {0}: selectedNames.length
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
@@ -105,6 +95,14 @@ msgstr ""
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
+msgstr ""
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
+msgstr ""
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
@@ -1062,6 +1060,7 @@ msgid "Go to slide {0}"
 msgstr ""
 
 #: src/features/grace/components/GracePeriodBadge.tsx
+#: src/features/migration/components/GracePeriodNameRow.tsx
 msgid "Grace period"
 msgstr ""
 
@@ -1654,6 +1653,7 @@ msgstr ""
 msgid "Price cooldown fee"
 msgstr ""
 
+#: src/features/migration/components/GracePeriodNameRow.tsx
 #: src/features/migration/components/NameRow.tsx
 msgid "Primary name"
 msgstr ""
@@ -1867,6 +1867,7 @@ msgstr ""
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
+#: src/features/migration/components/GracePeriodNameRow.tsx
 msgid "Renew"
 msgstr ""
 
@@ -2502,7 +2503,7 @@ msgid "This name doesn’t have a wallet address yet. If you continue, we’ll s
 msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
-msgid "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
+msgid "This name has expired, but can be renewed for the previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
 msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx

@@ -1,7 +1,7 @@
-import { sepoliaWithEns } from '@ens-apps/indexer/chain'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import type { Address, Hex } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { envConfig } from '@/config'
 
 const mockResolveEnsOwner = vi.fn()
 
@@ -23,7 +23,7 @@ vi.mock('viem/actions', async () => ({
 }))
 
 vi.mock('./clients', () => ({
-  createClient: () => ({ chain: sepoliaWithEns }),
+  createClient: () => ({ chain: envConfig.chain }),
 }))
 
 const { resolveOwner, resolveAvatarDataUri, fetchIsPermissionedResolver } =
@@ -709,7 +709,7 @@ describe('resolveAvatarDataUri (worker)', () => {
 describe('fetchIsPermissionedResolver (worker)', () => {
   const env = {} as Env
   const implementation = getChainContractAddress({
-    chain: sepoliaWithEns,
+    chain: envConfig.chain,
     contract: 'ensPermissionedResolverImpl',
   })
   const proxy = '0x907ccb4f76ea54976c8a857ee7fbab2624058f56' as Address

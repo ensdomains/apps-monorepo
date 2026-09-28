@@ -1,3 +1,4 @@
+import { sepolia } from 'viem/chains'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { makeDomain, OTHER, OWNER } from '../service/_fixtures'
 import { classifyNames, type IneligibleName } from '../service/classifyNames'
@@ -125,6 +126,7 @@ describe('getGracePeriodNames', () => {
     const { ineligible } = classifyNames(
       [owned, unowned, unknownLabel, invalidLabel],
       OWNER,
+      sepolia.id,
     )
 
     expect(getGracePeriodNames(ineligible)).toEqual([

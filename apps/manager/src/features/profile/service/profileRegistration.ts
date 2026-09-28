@@ -1,5 +1,4 @@
 import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
-import indexerClient from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -9,6 +8,7 @@ import { getNameHistory as ensjs_getNameHistory } from '@ensdomains/ensjs/subgra
 import { err, fromPromise, ok } from 'neverthrow'
 import { namehash } from 'viem'
 import { getBlock } from 'viem/actions'
+import { indexerClient } from '@/lib/indexer-client'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEth2LdName, normalizeEthName } from './profileName'

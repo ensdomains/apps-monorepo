@@ -11,6 +11,7 @@ import type {
   ProfileRecords,
   TextRecordValue,
 } from '@/features/profile/types'
+import { MAX_PROFILE_LINKS } from '@/features/profile/utils/linkLimits'
 import { safeHttpHref } from '@/features/profile/utils/safeUrl'
 import { getPrimarySocialContactKeys } from '../dialogs/edit-profile/tabs/contact/records'
 
@@ -140,7 +141,7 @@ export const getDisplayHost = (href: string): string => {
 export const getSafeProfileLinks = (
   records: ProfileRecords,
 ): SafeProfileLink[] =>
-  records.links.flatMap((link) => {
+  records.links.slice(0, MAX_PROFILE_LINKS).flatMap((link) => {
     const href = toSafeHttpHref(link.url)
     return href ? [{ ...link, href, displayHost: getDisplayHost(href) }] : []
   })

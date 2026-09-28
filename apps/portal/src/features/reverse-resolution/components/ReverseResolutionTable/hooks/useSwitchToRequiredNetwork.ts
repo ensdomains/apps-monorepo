@@ -5,13 +5,14 @@ import {
 } from '@ens-apps/l2-primary/v1'
 import { useCallback } from 'react'
 import { useAccount, useSwitchChain } from 'wagmi'
+import { envConfig } from '@/config'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { l2WagmiConfig } from '@/lib/wagmiL2'
 import { useEnsureL2Connection } from '../../../hooks/useEnsureL2Connection'
 
 type UseNetworkSwitchingParams = {
   reverseRegistrarChainId: ReverseRegistrarChainId
-  /** Target deployment; defaults to 'sepolia' */
+  /** Target deployment; defaults to the network this build targets. */
   network?: NetworkKey // 'mainnet' | 'sepolia'
 }
 
@@ -34,7 +35,7 @@ type UseNetworkSwitchingParams = {
  */
 export function useSwitchToRequiredNetwork({
   reverseRegistrarChainId,
-  network = 'sepolia',
+  network = envConfig.network,
 }: UseNetworkSwitchingParams) {
   // Read `chainId` (connector-reported) rather than `chain` (config-resolved).
   // The global config only knows about Sepolia, so `chain` is `undefined`

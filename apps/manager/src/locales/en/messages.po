@@ -23,16 +23,6 @@ msgstr "{0, plural, one {# request} other {# requests}}"
 msgid "{0, plural, one {# year} other {# years}}"
 msgstr "{0, plural, one {# year} other {# years}}"
 
-#. placeholder {0}: eligibleV1Names.length
-#: src/features/migration/components/UpgradeBanner.tsx
-msgid "{0, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
-msgstr "{0, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
-
-#. placeholder {0}: eligibleV1Names.length
-#: src/features/migration/components/UpgradeBanner.tsx
-msgid "{0, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
-msgstr "{0, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
-
 #. placeholder {0}: selectedNames.length
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
@@ -101,6 +91,14 @@ msgstr "{migrated} out of {total} names upgraded"
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
 msgstr "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
+msgstr "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
+msgstr "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
 
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "{selectedCount} selected"
@@ -1057,6 +1055,7 @@ msgid "Go to slide {0}"
 msgstr "Go to slide {0}"
 
 #: src/features/grace/components/GracePeriodBadge.tsx
+#: src/features/migration/components/GracePeriodNameRow.tsx
 msgid "Grace period"
 msgstr "Grace period"
 
@@ -1649,6 +1648,7 @@ msgstr "Price Cooldown"
 msgid "Price cooldown fee"
 msgstr "Price cooldown fee"
 
+#: src/features/migration/components/GracePeriodNameRow.tsx
 #: src/features/migration/components/NameRow.tsx
 msgid "Primary name"
 msgstr "Primary name"
@@ -1862,6 +1862,7 @@ msgstr "Removing..."
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
+#: src/features/migration/components/GracePeriodNameRow.tsx
 msgid "Renew"
 msgstr "Renew"
 
@@ -2497,8 +2498,8 @@ msgid "This name doesn’t have a wallet address yet. If you continue, we’ll s
 msgstr "This name doesn’t have a wallet address yet. If you continue, we’ll set it to your current wallet and make this name your primary."
 
 #: src/features/grace/components/GracePeriodBanner.tsx
-msgid "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
-msgstr "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
+msgid "This name has expired, but can be renewed for the previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
+msgstr "This name has expired, but can be renewed for the previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name is in grace period"

@@ -1,4 +1,3 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Plural, Trans, useLingui } from '@lingui/react/macro'
 import { format } from 'date-fns'
 import { AnimatePresence, motion } from 'motion/react'
@@ -11,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { useBulkRenew } from '../hooks/useBulkRenew'
 import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
 import type { BulkRenewName, Selection, SummaryRow } from '../types'
