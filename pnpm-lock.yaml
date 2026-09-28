@@ -1019,6 +1019,9 @@ importers:
 
   packages/indexer:
     dependencies:
+      '@ens-apps/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4fc0c2a4(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.4.3))
@@ -1034,6 +1037,9 @@ importers:
       graphql:
         specifier: ^17.0.2
         version: 17.0.2
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
       viem:
         specifier: 'catalog:'
         version: 2.52.2(typescript@7.0.2)(zod@4.4.3)
@@ -1059,6 +1065,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@24.10.2)(@vitest/coverage-v8@4.1.11)(esbuild@0.28.1)(happy-dom@20.13.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
 
   packages/l2-primary:
     dependencies:
