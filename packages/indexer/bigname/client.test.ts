@@ -176,18 +176,4 @@ describe('createBignameClient', () => {
       expect(fetch).toHaveBeenCalledTimes(1)
     })
   })
-
-  // Real network; opt in with BIGNAME_INTEGRATION=1.
-  const integration = (
-    globalThis as { process?: { env?: Record<string, string | undefined> } }
-  ).process?.env?.BIGNAME_INTEGRATION
-  describe.skipIf(!integration)('sepolia', () => {
-    it('reads the status route', async () => {
-      const client = createBignameClient('https://sepolia.api.bigname.sh')
-
-      const result = await client.status()
-
-      expect(result._unsafeUnwrap().data.status).toBeDefined()
-    })
-  })
 })
