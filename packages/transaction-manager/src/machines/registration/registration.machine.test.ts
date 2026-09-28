@@ -319,10 +319,11 @@ describe('registrationMachine — failed commit send', () => {
     new Error('Internal JSON-RPC error.'),
   )
 
-  it('fails an EOA commit the wallet could not send straight away', async () => {
-    // Nothing was broadcast, so verifying on-chain only polls for ~12s while
-    // the modal already shows "Try again" — and ignores the click until then.
-    const validateCommitment = vi.fn(() => new Promise(() => {}))
+  const startEoaRegistration = (overrides: {
+    generateCommitment?: ReturnType<typeof vi.fn>
+    submitCommitment?: ReturnType<typeof vi.fn>
+    validateCommitment?: ReturnType<typeof vi.fn>
+  }) => {
     const actor = createActor(
       registrationMachine.provide({
         actors: {
@@ -333,12 +334,18 @@ describe('registrationMachine — failed commit send', () => {
           resolveResolverDeployment: fromPromise(async () => ({
             resolverAddress: HCA,
           })) as never,
-          generateCommitment: fromPromise(async () => ({})) as never,
-          submitCommitment: fromPromise(async () => 'commit') as never,
+          generateCommitment: fromPromise(
+            overrides.generateCommitment ?? (async () => ({})),
+          ) as never,
+          submitCommitment: fromPromise(
+            overrides.submitCommitment ?? (async () => 'commit'),
+          ) as never,
           pollTransactionStatus: fromPromise(async () => {
             throw sendFailed
           }) as never,
-          validateCommitment: fromPromise(validateCommitment) as never,
+          validateCommitment: fromPromise(
+            overrides.validateCommitment ?? (() => new Promise(() => {})),
+          ) as never,
         },
       }),
       { input: { chainId: sepolia.id } },
@@ -354,13 +361,37 @@ describe('registrationMachine — failed commit send', () => {
       accountAddress: WALLET,
       publicClient: { chain: sepolia } as unknown as PublicClient,
     })
+    return actor
+  }
+
+  it('fails an EOA commit the wallet could not send straight away', async () => {
+    // Verifying on-chain polls for ~12s while the modal already shows "Try
+    // again" — and ignores the click until then.
+    const validateCommitment = vi.fn(() => new Promise(() => {}))
+    const actor = startEoaRegistration({ validateCommitment })
 
     await waitFor(actor, (s) => s.matches('error'))
 
     expect(validateCommitment).not.toHaveBeenCalled()
-    expect(actor.getSnapshot().context.retryTarget).toBe(
-      'committingTransaction',
-    )
+    expect(actor.getSnapshot().context.retryTarget).toBe('preparingCommitment')
+  })
+
+  it('retries with a fresh commitment, since the failed one may have landed', async () => {
+    // The registrar reverts a repeated commitment (`UnexpiredCommitmentExists`).
+    const generateCommitment = vi
+      .fn()
+      .mockResolvedValueOnce({ commitment: '0x01' })
+      .mockResolvedValueOnce({ commitment: '0x02' })
+    const submitCommitment = vi.fn(async () => 'commit')
+    const actor = startEoaRegistration({ generateCommitment, submitCommitment })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, () => submitCommitment.mock.calls.length === 2)
+
+    expect(
+      submitCommitment.mock.calls.map(([{ input }]) => input.commitment),
+    ).toEqual([{ commitment: '0x01' }, { commitment: '0x02' }])
   })
 
   it('still verifies an HCA commit on-chain, which can land after a failure', async () => {

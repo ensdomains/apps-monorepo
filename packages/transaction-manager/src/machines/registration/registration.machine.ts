@@ -176,7 +176,7 @@ export type RegistrationContext = {
     | 'computingHcaBudget'
     | 'deployingResolver'
     | 'submittingSetupBundle'
-    | 'committingTransaction'
+    | 'preparingCommitment'
     | 'signingFundingPermit'
     | 'approvingToken'
     | 'registeringDomain'
@@ -959,7 +959,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'committingTransaction' as const,
+              retryTarget: () => 'preparingCommitment' as const,
             }),
             ({ event }) => {
               console.error(
@@ -1001,7 +1001,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'committingTransaction' as const,
+              retryTarget: () => 'preparingCommitment' as const,
             }),
             ({ event }) => {
               console.error(
@@ -1035,11 +1035,11 @@ export const registrationMachine = setup({
         // `commitmentAt` is set we continue, otherwise that state's retry
         // resubmits the correct (signer-aware) commit path.
         onError: [
-          // A commit that never reached the chain has nothing to verify, and
-          // verifying only delays the error the modal already shows. That is a
-          // declined commit, or any EOA send failure: the EOA transport fails
-          // only before broadcast. Warp can fail after its intent was
-          // submitted, so the HCA path still verifies.
+          // A declined commit or a failed EOA send is not worth verifying:
+          // it almost never landed, and verifying only delays the error the
+          // modal already shows. If it did land, the retry commits a fresh
+          // commitment rather than repeating this one. A Warp intent can fill
+          // after its transport reports failure, so the HCA path verifies.
           {
             guard: ({ context, event }) =>
               !isRetryableSubmissionError(event.error) ||
@@ -1048,7 +1048,7 @@ export const registrationMachine = setup({
             target: 'error',
             actions: assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'committingTransaction' as const,
+              retryTarget: () => 'preparingCommitment' as const,
             }),
           },
           {
@@ -1158,7 +1158,7 @@ export const registrationMachine = setup({
               retryTarget: ({ context }) =>
                 context.signer?.type === 'rhinestone'
                   ? ('submittingSetupBundle' as const)
-                  : ('committingTransaction' as const),
+                  : ('preparingCommitment' as const),
             }),
             ({ event }) => {
               console.error(
@@ -1202,7 +1202,7 @@ export const registrationMachine = setup({
             retryTarget: ({ context }) =>
               context.signer?.type === 'rhinestone'
                 ? ('submittingSetupBundle' as const)
-                : ('committingTransaction' as const),
+                : ('preparingCommitment' as const),
           }),
         },
       },
@@ -1644,12 +1644,15 @@ export const registrationMachine = setup({
           },
           {
             guard: ({ context }) =>
-              context.retryTarget === 'committingTransaction',
-            target: 'committingTransaction',
+              context.retryTarget === 'preparingCommitment',
+            // A fresh commitment: the failed one may still have landed, and
+            // the registrar reverts on a repeat (`UnexpiredCommitmentExists`).
+            target: 'preparingCommitment',
             actions: assign(({ context }) => ({
               ...context,
               error: undefined,
               retryTarget: undefined,
+              commitment: undefined,
               commitmentTxId: undefined,
               approvalTxId: undefined,
               registrationTxId: undefined,
