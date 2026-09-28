@@ -15,6 +15,7 @@
  *
  * The registered name is owned by the specified account's EOA address.
  */
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
   type Address,
   encodeFunctionData,
@@ -27,35 +28,86 @@ import {
   zeroHash,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-
 import {
   publicClient,
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import { discoverV1CompatResolver } from './premigration.js'
+import {
+  APP_V1_BASE_REGISTRAR,
+  APP_V1_CONTROLLER,
+  APP_V1_NAME_WRAPPER,
+  ensureV1ControllersAuthorised,
+} from './v1-controller-auth.js'
+
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 
 // ---------------------------------------------------------------------------
 // V1 Contract addresses (Sepolia fork)
 // ---------------------------------------------------------------------------
-const V1_ETH_REGISTRAR_CONTROLLER =
-  '0xF42dF26c1b222bee5a6B78cBB8bbfaa0Ba07786a' as const
-export const V1_BASE_REGISTRAR =
-  '0x6409609247722761b8ba96371485de92a6d7b83b' as Address
-export const V1_NAME_WRAPPER =
-  '0xc7e033b8836e4bd55d069d113f018b98478cb091' as Address
+// REPOINTED (iteration 23, ruling from iteration 14: all four constants at
+// once, not staged). Previously this fixture registered into a *different*,
+// fixture-only V1 deployment — same code, twice deployed — while the
+// migration UI resolves `ensBaseRegistrarImplementation` / `ensNameWrapper`
+// through ensjs. Every name the fixture made was therefore invisible to the
+// app under test, which was the root reason §5.G (59 rows) stayed untestable.
+//
+// `V1_ETH_REGISTRAR_CONTROLLER` / `V1_BASE_REGISTRAR` / `V1_NAME_WRAPPER` are
+// now the exact same values `v1-controller-auth.ts` calls `APP_V1_*` — single
+// source, not a second copy of the same literals. `ensureV1ControllersAuthorised()`
+// (below, called once per `makeV1Name`) is the reproducible grant iteration 14
+// asked for: `base.addController(controller)` for `register`, and
+// `base.addController(nameWrapper)` for `wrapETH2LD` (the wrapper calls back
+// into the registrar). Proven in iteration 13 (`scripts/probe-v1-*.mts`) and
+// already exercised every harness run since as `v1-controller-auth: both
+// grants land on the canonical registrar, and are idempotent`.
+//
+// `V1_ENS_REGISTRY` moves to ensjs's `ensLegacyRegistry` — the fourth constant
+// the ruling covers. Note `wrapper.controllers(controller)` is `false` on
+// both the old and new pairs, so it was never a requirement and needs no
+// equivalent grant.
+//
+// `V1_PUBLIC_RESOLVER` was the last casualty of the repoint, now fixed. A
+// PublicResolver's `ens` is immutable, set at construction, and
+// `isAuthorised(node)` compares `msg.sender` against `ens.owner(node)`. The
+// old pin (`0x640294a2…`) is bound to the *superseded* fixture registry, so a
+// name registered in the canonical one has no ownership record there and
+// every `setText`/`setAddr` reverted — which is what blocked all of `GR*` and
+// the positive half of `setEthAddress`.
+//
+// Measured on the fork (2026-09-13), simulating `setText` as the registry
+// owner of a real Sepolia name: `0x640294a2…` reverts; `0xE99638b4…` and this
+// one pass, and both stay authorised for a WRAPPED name when called by the
+// NameWrapper owner. This one is chosen because it is also a member of
+// `KNOWN_PUBLIC_RESOLVERS` (`packages/migration/src/contracts/knownResolvers.ts`),
+// so migration classifies it `to-owned-permres` rather than silently
+// degrading to `keep-v1` — i.e. the `GR*` rows exercise the branch they name.
+// It is the resolver live Sepolia names use, and the one the dev-tools drawer
+// already writes records through (`V1_RECORD_RESOLVER`).
+const V1_ETH_REGISTRAR_CONTROLLER = APP_V1_CONTROLLER
+export const V1_BASE_REGISTRAR = APP_V1_BASE_REGISTRAR
+export const V1_NAME_WRAPPER = APP_V1_NAME_WRAPPER
 export const V1_PUBLIC_RESOLVER =
-  '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address
-export const V1_ENS_REGISTRY =
-  '0x7e89b563f936c68c31a360840eb7f9a4aacaf014' as Address
+  '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD' as Address
+export const V1_ENS_REGISTRY = ensjsSepolia.ensLegacyRegistry.address
 
 // ---------------------------------------------------------------------------
 // V2 Contract addresses — used by reserveInV2()
 // ---------------------------------------------------------------------------
-// ETH Registry (PermissionedRegistry for .eth)
-const V2_ETH_REGISTRY = '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address
-// ETH Registrar — has ROLE_REGISTRAR on V2_ETH_REGISTRY (baked by bake-contracts.py)
-// We impersonate it to create RESERVED entries for dynamically-created test names.
-const V2_ETH_REGISTRAR = '0x68586418353b771cf2425ed14a07512aa880c532' as Address
+// Resolved from the ensjs Sepolia chain config, the same source the apps read.
+// These were hardcoded to 0x796fff2e… / 0x68586418…, a superseded deployment
+// that is still present on the fork — so reservations landed in a registry the
+// apps never look at, and `getStatus` on the live registry kept reporting
+// AVAILABLE while this fixture logged "already RESERVED". Same failure family
+// as the address fixed in helpers/migration-assertions.ts.
+/** PermissionedRegistry for `.eth`. */
+const V2_ETH_REGISTRY = ensjsSepolia.ensRegistry.address
+/**
+ * Holds `ROLE_REGISTRAR` on the registry above. Impersonated to create
+ * RESERVED entries for dynamically created test names.
+ */
+const V2_ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
 
 // ---------------------------------------------------------------------------
 // ABIs — struct-based V1 controller
@@ -191,6 +243,13 @@ export async function reserveInV2(
   console.log(`[reserveInV2] reserving ${label}.eth in V2 (expiry=${v1Expiry})`)
 
   await testClient.impersonateAccount({ address: V2_ETH_REGISTRAR })
+  // The registrar is a contract, so it holds no ETH to pay for gas as an
+  // impersonated sender. Fund it rather than let the send fail — the previous
+  // catch-all made that failure look like a successful no-op.
+  await testClient.setBalance({
+    address: V2_ETH_REGISTRAR,
+    value: 10_000_000_000_000_000_000n, // 10 ETH
+  })
   try {
     const hash = await walletClient.sendTransaction({
       account: V2_ETH_REGISTRAR,
@@ -202,7 +261,15 @@ export async function reserveInV2(
           label,
           zeroAddress, // owner = 0 → creates RESERVED (not REGISTERED)
           zeroAddress, // no subregistry yet
-          V1_PUBLIC_RESOLVER, // fallback resolver for resolution during unmigrated state
+          // The ENSV1Resolver, discovered from the fork rather than pinned.
+          //
+          // NOT `V1_PUBLIC_RESOLVER`, which is what this used to pass. That is
+          // the plain V1 resolver: it answers for a name's own node and cannot
+          // serve an ENSIP-10 wildcard, so a seeded V1 2LD resolved fine while
+          // every V1 SUBNAME silently returned nothing — reading exactly like
+          // an app bug in the subname path. Sepolia reserves V1 names with the
+          // wildcard-capable ENSV1Resolver, and matching that is HW10.
+          await discoverV1CompatResolver(),
           0n, // roleBitmap must be 0 when owner is zero
           v1Expiry, // sync V1 expiry into V2
         ],
@@ -211,9 +278,13 @@ export async function reserveInV2(
     await waitForTx(hash)
     console.log(`[reserveInV2] ✅ ${label}.eth RESERVED in V2`)
   } catch (err: unknown) {
-    // LabelAlreadyReserved → already RESERVED, nothing to do
+    // Only a genuine "already reserved" is benign. This used to also match any
+    // message containing "0x" — which is every viem revert, since they all
+    // carry an address or selector — so every failure was swallowed and logged
+    // as a success. The reservation silently never happened and callers had no
+    // way to tell.
     const msg = err instanceof Error ? err.message : String(err)
-    if (msg.includes('LabelAlreadyReserved') || msg.includes('0x')) {
+    if (msg.includes('LabelAlreadyReserved')) {
       console.log(`[reserveInV2] ${label}.eth already RESERVED, skipping`)
     } else {
       throw err
@@ -226,8 +297,25 @@ export async function reserveInV2(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+/**
+ * Waits for inclusion AND checks the receipt's own status — `viem`'s
+ * `waitForTransactionReceipt` resolves for a reverted tx exactly like a
+ * successful one, so a caller that only awaits it (as every call site here
+ * used to) never learns a step silently reverted. Measured effect when this
+ * was missing: an intermittent revert in `register` (root cause not yet
+ * pinned down) surfaced only minutes later, as `nameExpires` reading back 0
+ * in a harness assertion several steps downstream, rather than here where
+ * it actually happened. Same "read back and throw" discipline as rule 5
+ * elsewhere in this fixture, applied to the write itself.
+ */
 async function waitForTx(hash: Hash) {
-  return publicClient.waitForTransactionReceipt({ hash })
+  const receipt = await publicClient.waitForTransactionReceipt({ hash })
+  if (receipt.status !== 'success') {
+    throw new Error(
+      `[makeV1Name] transaction ${hash} reverted (status: ${receipt.status}) — see the receipt for details`,
+    )
+  }
+  return receipt
 }
 
 type RegistrationStruct = readonly [
@@ -264,6 +352,10 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
     console.log(
       `[makeV1Name] registering V1 name ${uniqueLabel}.eth (duration=${duration}s, type=${config.type ?? 'unwrapped'})`,
     )
+
+    // Idempotent and memoised — cheap to call every time, and required since
+    // this fixture now registers into the canonical registrar the app reads.
+    await ensureV1ControllersAuthorised()
 
     // ── 0. Fund owner if needed ────────────────────────────────────
     const balance = await publicClient.getBalance({ address: ownerAddress })
@@ -340,6 +432,14 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
         args: [regStruct],
       }),
       value: (price * 110n) / 100n,
+      // Explicit, generous limit — `eth_estimateGas` intermittently
+      // undershot this call (observed via debug_traceTransaction: "out of
+      // gas" with an estimated ~166k limit against real usage north of
+      // 190k). register()'s cost is state-dependent — it walks nested
+      // STATICCALLs into the price oracle for premium computation — so the
+      // estimate isn't stable across runs. This was the standing
+      // intermittent V1 register revert (root-caused iteration 23).
+      gas: 500_000n,
     })
     await waitForTx(registerTx)
 

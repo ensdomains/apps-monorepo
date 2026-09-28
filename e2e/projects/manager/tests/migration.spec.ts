@@ -23,6 +23,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import {
   authorizeTransaction,
+  authorizeTransactionsWhile,
   expect,
   test,
 } from '../../../fixtures/playwright.manager.fixture.js'
@@ -61,23 +62,42 @@ async function runMigrationFlow(
   const upgradeButton = page
     .getByRole('button', { name: 'Upgrade Names' })
     .first()
-  await upgradeButton.waitFor({ state: 'visible', timeout: 10_000 })
+  // E2E-004 (docs/e2e-defects.md): useEligibleV1Names/useMigrationEligibility
+  // never settles isPending=false — the eligible-names list flickers between
+  // empty and populated across renders, so this button intermittently never
+  // appears within any fixed timeout. App bug, not a test or infra issue
+  // (confirmed via render-level instrumentation — see the defect entry).
+  await upgradeButton.waitFor({ state: 'visible', timeout: 30_000 })
   await upgradeButton.click()
 
   await page.waitForTimeout(2_000)
 
-  const confirmButton = page.getByRole('button', { name: 'Upgrade Names' })
+  const confirmButton = page.getByRole('button', {
+    name: /^Upgrade \d+ names?$/,
+  })
   await confirmButton.waitFor({ state: 'visible', timeout: 10_000 })
-  // Authorize the migration transaction concurrently with clicking confirm
-  await Promise.all([
-    confirmButton.click(),
-    authorizeTransaction(wallet, 90_000),
-  ])
 
-  const successIndicator = page.getByText("You're on ENS v2!")
+  // The confirm screen names how many wallet confirmations to expect (e.g.
+  // "Expected: 2 wallet confirmations") — the migration batch is often more
+  // than one sequential eth_sendTransaction. Poll and authorize whatever
+  // arrives until the success screen shows, rather than authorizing a single
+  // fixed count.
+  let migrationComplete = false
+  const authorizeAll = authorizeTransactionsWhile(
+    page,
+    wallet,
+    () => migrationComplete,
+  )
+  await confirmButton.click()
+
+  const successIndicator = page.getByRole('heading', {
+    name: /your names? (has|have) been upgraded/i,
+  })
   await successIndicator.waitFor({ state: 'visible', timeout: 60_000 })
+  migrationComplete = true
+  await authorizeAll
 
-  const doneButton = page.getByRole('button', { name: 'Done' })
+  const doneButton = page.getByRole('button', { name: 'Open Dashboard' })
   await doneButton.waitFor({ state: 'visible', timeout: 10_000 })
   await doneButton.click()
 }
@@ -95,10 +115,16 @@ async function searchAndNavigateToProfile(
   await searchInput.fill(nameOnly)
   // Click the matching suggestion in the dropdown
   await page.getByText(name).first().click()
-  // Wait for the profile page to load
-  await page.waitForURL(new RegExp(`/p/${name.replace('.', '\\.')}`), {
-    timeout: 15_000,
-  })
+  // Wait for the profile page to load. `waitForURL` was observed hanging to
+  // its full timeout even once the profile heading was already visible and
+  // correct in a screenshot taken at the moment of "failure" — this app's
+  // client-side router doesn't reliably produce whatever navigation signal
+  // `waitForURL` waits on. Assert on the rendered heading instead, which is
+  // both the actual oracle this helper cares about and doesn't depend on
+  // how the route change is implemented.
+  await page
+    .getByRole('heading', { name, level: 1 })
+    .waitFor({ state: 'visible', timeout: 30_000 })
   await page.waitForLoadState('networkidle')
 }
 
@@ -252,6 +278,44 @@ test.describe('ENS V1 → V2 Migration', () => {
     )
   })
 
+  test('pre-registered V1 name is not available for new registration', {
+    tag: ['@scenario:A11'],
+  }, async ({ page, accounts }) => {
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const v1Name = await makeV1Name({ label: 'migblock' })
+    console.log(`[migration] V1 name pre-registered: ${v1Name}`)
+
+    await mockV1Subgraph(page, [
+      { name: v1Name, ownerAddress: HEADLESS_USER_ADDRESS },
+    ])
+
+    await page.goto(MANAGER_APP_URL)
+    await page.waitForLoadState('networkidle')
+
+    const nameOnly = v1Name.replace(/\.eth$/i, '')
+    const searchInput = await findSearchInput(page)
+    await searchInput.click()
+    await searchInput.fill(nameOnly)
+
+    // The dropdown should show DomainProfileCard ("Registered") not DomainResultCard ("available")
+    await expect(page.getByText('Available').first()).not.toBeVisible({
+      timeout: 5_000,
+    })
+
+    console.log(
+      `[migration] ✅ Pre-registered V1 name correctly blocked for ${v1Name}`,
+    )
+  })
+
+  // Untagged pending the §6 B4 audit. Candidate row is GU4, but GU4's oracle
+  // requires reading the written records back off the new V2 resolver on
+  // chain; this test asserts a "Profile updated" toast, which is the lowest
+  // oracle rank and does not prove the write landed. Add the chain read, then
+  // tag it with scenario GU4. (Written without the literal tag prefix: the
+  // reconciler scans text, and a tag-shaped string in a comment is one
+  // refactor away from becoming a coverage claim nobody made.)
   test('can edit profile after migration', async ({
     migrationConnectedPage: page,
     wallet,

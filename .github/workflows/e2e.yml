@@ -1,5 +1,11 @@
 name: E2E Tests
 
+# Fast PR/push gate: the curated @smoke suite only (~5 min measured, see
+# e2e/docs/smoke-suite.md), plus the always-cheap coverage-ledger check. The
+# full sharded matrix (manager, manager-premium, manager-migration, portal,
+# the V1 shape matrix, metadata) moved to e2e-nightly.yml — it takes hours,
+# which is no longer acceptable as a per-push gate. Re-add it here (or widen
+# the smoke set) if the smoke suite's regression signal proves insufficient.
 on:
   push:
     branches:
@@ -23,93 +29,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Detect which apps' surface area changed and emit a JSON matrix of
-  # projects to run. Shared paths (workflow, lockfile, packages/, e2e
-  # infra & base config) flip both flags so any infrastructure change
-  # still runs the full matrix.
-  changes:
+  # The coverage ledger and the harness integrity gates. Cheap (no docker, no
+  # browsers) and always runs, because their job is to catch claims that outran
+  # the evidence: a scenario tag that is not in the registry, a test skipped
+  # without a written EXEMPT, a defect filed with no failing test proving it, a
+  # tier's terminal count going down, or a contract address that stopped coming
+  # from the config the apps read.
+  coverage:
     runs-on: ubuntu-latest
-    outputs:
-      configs: ${{ steps.build-matrix.outputs.configs }}
-      has-configs: ${{ steps.build-matrix.outputs.has-configs }}
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: dorny/paths-filter@v4
-        id: filter
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
         with:
-          # Shared paths are inlined into both filters (no YAML anchors,
-          # for compatibility with the action's parser).
-          filters: |
-            manager:
-              - ".github/workflows/e2e.yml"
-              - "packages/**"
-              - "pnpm-lock.yaml"
-              - "e2e/fixtures/**"
-              - "e2e/helpers/**"
-              - "e2e/infra/**"
-              - "e2e/playwright.config.base.ts"
-              - "e2e/package.json"
-              - "e2e/.env.ci"
-              - "apps/manager/**"
-              - "e2e/projects/manager/**"
-            portal:
-              - ".github/workflows/e2e.yml"
-              - "packages/**"
-              - "pnpm-lock.yaml"
-              - "e2e/fixtures/**"
-              - "e2e/helpers/**"
-              - "e2e/infra/**"
-              - "e2e/playwright.config.base.ts"
-              - "e2e/package.json"
-              - "e2e/.env.ci"
-              - "apps/portal/**"
-              - "e2e/projects/portal/**"
-      - id: build-matrix
-        env:
-          MANAGER_CHANGED: ${{ steps.filter.outputs.manager }}
-          PORTAL_CHANGED: ${{ steps.filter.outputs.portal }}
+          node-version: "lts/*"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      # Rule 7 — no contract address literals, and no address bound to two
+      # different names. Runs before the reconciler: a suite built on a drifted
+      # address produces confident wrong results, so there is no point counting
+      # its coverage.
+      - name: Harness integrity — address literals
+        run: pnpm e2e:check:addresses
+      - name: Fail if the generated V1 matrix specs are stale
+        run: pnpm --filter @ens-apps/e2e matrix:check
+      - name: Reconcile E2E coverage
+        run: pnpm e2e:coverage
+      - name: Fail if the generated report is stale
         run: |
-          # Emit a flat array of {project, shardIndex, shardTotal} objects so
-          # each project gets the right number of shards:
-          #   manager — 5 active test files → 3 shards
-          #   portal  — 2 active test files → 2 shards
-          #   (temporaryPremium skipped until snapshot is rebuilt)
-          configs=()
-          if [[ "$MANAGER_CHANGED" == "true" ]]; then
-            for i in 1 2 3; do
-              configs+=("{\"project\":\"manager\",\"shardIndex\":$i,\"shardTotal\":3}")
-            done
-          fi
-          if [[ "$PORTAL_CHANGED" == "true" ]]; then
-            for i in 1 2; do
-              configs+=("{\"project\":\"portal\",\"shardIndex\":$i,\"shardTotal\":2}")
-            done
-          fi
-          if [[ ${#configs[@]} -eq 0 ]]; then
-            echo "configs=[]" >> "$GITHUB_OUTPUT"
-            echo "has-configs=false" >> "$GITHUB_OUTPUT"
-          else
-            json=$(printf '%s,' "${configs[@]}")
-            echo "configs=[${json%,}]" >> "$GITHUB_OUTPUT"
-            echo "has-configs=true" >> "$GITHUB_OUTPUT"
+          if ! git diff --quiet -- e2e/docs/e2e-coverage.md; then
+            echo "::error::e2e/docs/e2e-coverage.md is out of date — run 'pnpm e2e:coverage' and commit the result."
+            git --no-pager diff -- e2e/docs/e2e-coverage.md
+            exit 1
           fi
 
-  e2e:
-    needs: changes
-    if: needs.changes.outputs.has-configs == 'true'
+  # The curated @smoke suite (~5 min measured) across both apps — see
+  # e2e/docs/smoke-suite.md for what's in it and why. Runs as one job (not
+  # sharded) since the whole point is speed over breadth; the full matrix
+  # this replaced lives in e2e-nightly.yml now.
+  smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        # Each entry is {project, shardIndex, shardTotal} — emitted by the
-        # `changes` job with per-project shard counts. cross-app can be added
-        # once tests exist.
-        config: ${{ fromJSON(needs.changes.outputs.configs) }}
 
     steps:
       # ── checkout & toolchain ──────────────────────────────────────
@@ -158,51 +122,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull ENS V2 snapshot image
-        id: box
-        continue-on-error: true
-        if: false # snapshot has stale contracts — always use live Sepolia fork until snapshot is rebuilt
-        run: |
-          if docker pull ghcr.io/ensdomains/ens-v2-snapshot:latest; then
-            echo "available=true" >> $GITHUB_OUTPUT
-          else
-            echo "available=false" >> $GITHUB_OUTPUT
-            echo "::warning::ens-v2-snapshot not available — falling back to live Sepolia fork"
-          fi
-
       # ── local blockchain stack ────────────────────────────────────
-      # Only start the services each job needs to reduce memory pressure.
-      # Anvil on a GitHub Actions runner (7 GB RAM) can OOM (exit 139)
-      # when too many containers run alongside Node + Chromium.
+      # The smoke suite spans both apps (see e2e/docs/smoke-suite.md), so
+      # unlike the old per-project matrix job this always starts the full
+      # service set — mockestrator included, since the manager smoke slice
+      # (registration) goes through Rhinestone.
       - name: Start E2E stack
         run: |
-          if [[ "${{ steps.box.outputs.available }}" == "true" ]]; then
-            echo "Using ENS V2 snapshot (no live Sepolia fork)"
-            COMPOSE_FILES="-f e2e/infra/docker-compose.yml -f e2e/infra/docker-compose.snapshot.yml"
-            export PANOPTES_CONTRACTS_FILE="./panoptes/contracts.snapshot.json"
-            ANVIL_TIMEOUT=30
-          else
-            echo "Live Sepolia fork (box not available)"
-            COMPOSE_FILES="-f e2e/infra/docker-compose.yml"
-            ANVIL_TIMEOUT=60
-          fi
-
-          # Core services — Panoptes (indexer + API) is intentionally omitted.
-          # All indexer GraphQL queries are intercepted by Playwright's route mock
-          # (E2E_MOCK_INDEXER=true in e2e/.env.ci), so no live indexer is needed.
-          # This saves ~1 GB RAM and prevents Anvil OOM in CI.
-          SERVICES="anvil alto paymaster"
-
-          # Manager jobs use Rhinestone and need the mockestrator
-          if [[ "${{ matrix.config.project }}" != "portal" ]]; then
-            SERVICES="$SERVICES mockestrator"
-          fi
-
+          SERVICES="anvil alto paymaster mockestrator"
           echo "Starting: $SERVICES"
-          docker compose $COMPOSE_FILES up -d $SERVICES
+          docker compose -f e2e/infra/docker-compose.yml up -d $SERVICES
 
           echo "Waiting for Anvil..."
-          timeout $ANVIL_TIMEOUT bash -c 'until curl -sf -X POST http://127.0.0.1:8545 \
+          timeout 60 bash -c 'until curl -sf -X POST http://127.0.0.1:8545 \
             -H "Content-Type: application/json" \
             -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
             > /dev/null 2>&1; do sleep 2; done'
@@ -231,12 +163,9 @@ jobs:
 
       # ── fund test accounts ──────────────────────────────────────
       - name: Fund portal test accounts
-        if: matrix.config.project == 'portal'
-        run: |
-          bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+        run: bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 
       - name: Fund Rhinestone smart accounts
-        if: matrix.config.project == 'manager' || matrix.config.project == 'manager-premium'
         run: |
           bash e2e/infra/scripts/fund-rhinestone-account.sh
           # The manager app runs with VITE_FF_USE_EOA=false in CI (the HCA path;
@@ -246,49 +175,23 @@ jobs:
           # (insufficient balance) and the registration tests time out on USDC.
           bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 
-      # ── run e2e tests ─────────────────────────────────────────────
-      - name: Run E2E tests (${{ matrix.config.project }})
+      # ── start both app dev servers ──────────────────────────────────
+      - name: Start manager and portal dev servers
         run: |
-          # Resolve the app filter and port (manager-premium reuses the manager app)
-          if [[ "${{ matrix.config.project }}" == "portal" ]]; then
-            APP_FILTER=portal
-            APP_PORT=3001
-          else
-            APP_FILTER=manager
-            APP_PORT=3000
-          fi
+          DEBUG=vite:deps pnpm --filter manager dev -- --port 3000 > /tmp/manager-dev.log 2>&1 &
+          echo "MANAGER_PID=$!" >> "$GITHUB_ENV"
+          DEBUG=vite:deps pnpm --filter portal dev -- --port 3001 > /tmp/portal-dev.log 2>&1 &
+          echo "PORTAL_PID=$!" >> "$GITHUB_ENV"
+          timeout 60 bash -c 'until curl -sf http://localhost:3000 > /dev/null 2>&1; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:3001 > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ manager on :3000, portal on :3001"
 
-          # Enable Vite dep optimization logging to catch late-discovered deps
-          DEBUG=vite:deps pnpm --filter "$APP_FILTER" dev -- --port ${APP_PORT} > /tmp/app-dev.log 2>&1 &
-          APP_PID=$!
-          timeout 60 bash -c "until curl -sf http://localhost:${APP_PORT} > /dev/null 2>&1; do sleep 2; done"
-          echo "✅ ${APP_FILTER} dev server on :${APP_PORT} (PID $APP_PID)"
-
-          # Verify Anvil is still reachable and the app's env is correct
-          echo "Verifying Anvil RPC..."
-          curl -sf -X POST http://127.0.0.1:8545 \
-            -H 'Content-Type: application/json' \
-            -d '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
-            && echo " ✅ Anvil RPC OK" || echo " ❌ Anvil RPC FAILED"
-
-          # Check what RPC URL the app is using (grep the served JS bundle)
-          echo "Checking app RPC URL..."
-          curl -s http://localhost:${APP_PORT}/ | grep -oE 'http://[^"]+:8545[^"]*' | head -3 || echo "(RPC URL not found in HTML — may be in JS chunks)"
-
-          # Map project name to its playwright config path
-          if [[ "${{ matrix.config.project }}" == "manager-premium" ]]; then
-            PLAYWRIGHT_CONFIG="projects/manager/playwright.premium.config.ts"
-          elif [[ "${{ matrix.config.project }}" == "portal" ]]; then
-            PLAYWRIGHT_CONFIG="projects/portal/playwright.config.ts"
-          else
-            PLAYWRIGHT_CONFIG="projects/manager/playwright.config.ts"
-          fi
-
-          pnpm --filter @ens-apps/e2e exec playwright test \
-            --config=${PLAYWRIGHT_CONFIG} \
-            --shard=${{ matrix.config.shardIndex }}/${{ matrix.config.shardTotal }}
+      # ── run the curated smoke suite ─────────────────────────────────
+      - name: Run E2E smoke suite
+        run: |
+          pnpm e2e:smoke
           TEST_EXIT=$?
-          kill $APP_PID 2>/dev/null || true
+          kill "$MANAGER_PID" "$PORTAL_PID" 2>/dev/null || true
           exit $TEST_EXIT
         env:
           CI: "true"
@@ -299,11 +202,11 @@ jobs:
       - name: Show failure context
         if: failure()
         run: |
-          echo "=== App dev server log (last 100 lines) ==="
-          tail -100 /tmp/app-dev.log 2>/dev/null || echo "(no app dev log)"
+          echo "=== Manager dev server log (last 100 lines) ==="
+          tail -100 /tmp/manager-dev.log 2>/dev/null || echo "(no manager dev log)"
           echo ""
-          echo "=== Vite dep optimization events ==="
-          grep -i 'optimized\|reloading\|new dependencies\|deps' /tmp/app-dev.log 2>/dev/null || echo "(none)"
+          echo "=== Portal dev server log (last 100 lines) ==="
+          tail -100 /tmp/portal-dev.log 2>/dev/null || echo "(no portal dev log)"
           echo ""
           echo "=== Docker container status ==="
           docker compose -f e2e/infra/docker-compose.yml ps -a 2>/dev/null || echo "(docker compose not available)"
@@ -328,7 +231,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: e2e-results-${{ matrix.config.project }}-shard-${{ matrix.config.shardIndex }}
+          name: e2e-smoke-results
           path: |
             e2e/test-results/
             e2e/playwright-report/
@@ -344,16 +247,10 @@ jobs:
         uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: e2e-docker-logs-${{ matrix.config.project }}-shard-${{ matrix.config.shardIndex }}
+          name: e2e-smoke-docker-logs
           path: /tmp/e2e-docker-logs/
           retention-days: 7
 
       - name: Stop E2E stack
         if: always()
-        run: |
-          if [[ "${{ steps.box.outputs.available }}" == "true" ]]; then
-            PANOPTES_CONTRACTS_FILE="./panoptes/contracts.snapshot.json" \
-              docker compose -f e2e/infra/docker-compose.yml -f e2e/infra/docker-compose.snapshot.yml down
-          else
-            docker compose -f e2e/infra/docker-compose.yml down
-          fi
+        run: docker compose -f e2e/infra/docker-compose.yml down

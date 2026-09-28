@@ -1,0 +1,323 @@
+name: E2E Nightly
+
+# The full e2e matrix — everything e2e.yml no longer runs on every push
+# because it takes hours: manager, manager-premium, manager-migration,
+# portal (incl. the 347-cell V1 shape matrix), and metadata. Runs on a
+# schedule instead of per-push/PR. See e2e/docs/smoke-suite.md for why the
+# fast gate only covers a curated subset, and e2e/coverage/handoff.md for
+# the coverage ledger this is meant to keep honest over time.
+#
+# Unlike e2e.yml's old `changes` job, this always runs the full matrix
+# regardless of what changed — nightly's whole point is not to depend on
+# path-filtering guessing right.
+on:
+  schedule:
+    # 03:00 UTC daily.
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: e2e-nightly
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { project: manager, shardIndex: 1, shardTotal: 3 }
+          - { project: manager, shardIndex: 2, shardTotal: 3 }
+          - { project: manager, shardIndex: 3, shardTotal: 3 }
+          - { project: manager-premium, shardIndex: 1, shardTotal: 1 }
+          - { project: manager-migration, shardIndex: 1, shardTotal: 1 }
+          - { project: portal, shardIndex: 1, shardTotal: 2 }
+          - { project: portal, shardIndex: 2, shardTotal: 2 }
+          - { project: portal-v1-matrix, shardIndex: 1, shardTotal: 2 }
+          - { project: portal-v1-matrix, shardIndex: 2, shardTotal: 2 }
+
+    steps:
+      # ── checkout & toolchain ──────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@v2
+        env:
+          # pnpm/setup has no frozen-lockfile input; force it via config env.
+          PNPM_CONFIG_FROZEN_LOCKFILE: true
+        with:
+          runtime: node@lts
+          cache: true
+
+      - name: Get Playwright version
+        id: pw-version
+        run: echo "version=$(pnpm --filter @ens-apps/e2e exec playwright --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @ens-apps/e2e exec playwright install --with-deps chromium
+
+      - name: Install Playwright system deps (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @ens-apps/e2e exec playwright install-deps chromium
+
+      - name: Install Foundry (cast CLI)
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          cache: true
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── local blockchain stack ────────────────────────────────────
+      # Only start the services each job needs to reduce memory pressure.
+      # Anvil on a GitHub Actions runner (7 GB RAM) can OOM (exit 139)
+      # when too many containers run alongside Node + Chromium.
+      - name: Start E2E stack
+        run: |
+          COMPOSE_FILES="-f e2e/infra/docker-compose.yml"
+          ANVIL_TIMEOUT=60
+
+          # Core services — Panoptes (indexer + API) is intentionally omitted.
+          # All indexer GraphQL queries are intercepted by Playwright's route mock
+          # (E2E_MOCK_INDEXER=true in e2e/.env.ci), so no live indexer is needed.
+          # This saves ~1 GB RAM and prevents Anvil OOM in CI.
+          SERVICES="anvil alto paymaster"
+
+          # Manager jobs use Rhinestone and need the mockestrator
+          if [[ "${{ matrix.config.project }}" != "portal" && "${{ matrix.config.project }}" != "portal-v1-matrix" ]]; then
+            SERVICES="$SERVICES mockestrator"
+          fi
+
+          echo "Starting: $SERVICES"
+          docker compose $COMPOSE_FILES up -d $SERVICES
+
+          echo "Waiting for Anvil..."
+          timeout $ANVIL_TIMEOUT bash -c 'until curl -sf -X POST http://127.0.0.1:8545 \
+            -H "Content-Type: application/json" \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
+            > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Anvil ready"
+
+          echo "Waiting for Alto..."
+          timeout 90 bash -c 'until curl -sf -X POST http://127.0.0.1:4337 \
+            -H "Content-Type: application/json" \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
+            > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Alto ready"
+
+          echo "Waiting for Paymaster..."
+          timeout 90 bash -c 'until curl -sf -X POST http://127.0.0.1:3002 \
+            -H "Content-Type: application/json" \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
+            > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Paymaster ready"
+
+      # ── write .env from checked-in CI templates ─────────────────
+      - name: Copy CI env files
+        run: |
+          cp apps/manager/.env.ci apps/manager/.env
+          cp apps/portal/.env.ci apps/portal/.env
+          cp e2e/.env.ci e2e/.env
+
+      # ── fund test accounts ──────────────────────────────────────
+      - name: Fund portal test accounts
+        if: matrix.config.project == 'portal' || matrix.config.project == 'portal-v1-matrix'
+        run: |
+          bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+
+      - name: Fund Rhinestone smart accounts
+        if: matrix.config.project == 'manager' || matrix.config.project == 'manager-premium' || matrix.config.project == 'manager-migration'
+        run: |
+          bash e2e/infra/scripts/fund-rhinestone-account.sh
+          # The manager app runs with VITE_FF_USE_EOA=false in CI (the HCA path;
+          # see apps/manager/.env.ci). The registrar still pulls the USDC payment
+          # from the connected EOA (Anvil account 0), not the smart account, so
+          # fund it too — otherwise the stablecoin payment option stays disabled
+          # (insufficient balance) and the registration tests time out on USDC.
+          bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+
+      # ── run e2e tests ─────────────────────────────────────────────
+      - name: Run E2E tests (${{ matrix.config.project }})
+        run: |
+          # Resolve the app filter and port (manager-premium/manager-migration
+          # reuse the manager app)
+          if [[ "${{ matrix.config.project }}" == "portal" || "${{ matrix.config.project }}" == "portal-v1-matrix" ]]; then
+            APP_FILTER=portal
+            APP_PORT=3001
+          else
+            APP_FILTER=manager
+            APP_PORT=3000
+          fi
+
+          # Enable Vite dep optimization logging to catch late-discovered deps
+          DEBUG=vite:deps pnpm --filter "$APP_FILTER" dev -- --port ${APP_PORT} > /tmp/app-dev.log 2>&1 &
+          APP_PID=$!
+          timeout 60 bash -c "until curl -sf http://localhost:${APP_PORT} > /dev/null 2>&1; do sleep 2; done"
+          echo "✅ ${APP_FILTER} dev server on :${APP_PORT} (PID $APP_PID)"
+
+          # Verify Anvil is still reachable and the app's env is correct
+          echo "Verifying Anvil RPC..."
+          curl -sf -X POST http://127.0.0.1:8545 \
+            -H 'Content-Type: application/json' \
+            -d '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+            && echo " ✅ Anvil RPC OK" || echo " ❌ Anvil RPC FAILED"
+
+          # Map project name to its playwright config path, and to the
+          # playwright project inside it.
+          PLAYWRIGHT_PROJECT=""
+          if [[ "${{ matrix.config.project }}" == "manager-premium" ]]; then
+            PLAYWRIGHT_CONFIG="projects/manager/playwright.premium.config.ts"
+          elif [[ "${{ matrix.config.project }}" == "manager-migration" ]]; then
+            PLAYWRIGHT_CONFIG="projects/manager/playwright.migration.config.ts"
+          elif [[ "${{ matrix.config.project }}" == "portal" ]]; then
+            PLAYWRIGHT_CONFIG="projects/portal/playwright.config.ts"
+            PLAYWRIGHT_PROJECT="--project=portal-e2e"
+          elif [[ "${{ matrix.config.project }}" == "portal-v1-matrix" ]]; then
+            PLAYWRIGHT_CONFIG="projects/portal/playwright.config.ts"
+            PLAYWRIGHT_PROJECT="--project=portal-v1-matrix"
+          else
+            PLAYWRIGHT_CONFIG="projects/manager/playwright.config.ts"
+          fi
+
+          pnpm --filter @ens-apps/e2e exec playwright test \
+            --config=${PLAYWRIGHT_CONFIG} \
+            ${PLAYWRIGHT_PROJECT} \
+            --shard=${{ matrix.config.shardIndex }}/${{ matrix.config.shardTotal }}
+          TEST_EXIT=$?
+          kill $APP_PID 2>/dev/null || true
+          exit $TEST_EXIT
+        env:
+          CI: "true"
+          MAILINATOR_API_KEY: ${{ secrets.MAILINATOR_API_KEY }}
+          TZ: "UTC"
+
+      # ── debug failed tests ─────────────────────────────────────────
+      - name: Show failure context
+        if: failure()
+        run: |
+          echo "=== App dev server log (last 100 lines) ==="
+          tail -100 /tmp/app-dev.log 2>/dev/null || echo "(no app dev log)"
+          echo ""
+          echo "=== Docker container status ==="
+          docker compose -f e2e/infra/docker-compose.yml ps -a 2>/dev/null || echo "(docker compose not available)"
+          echo ""
+          echo "=== Anvil container logs (last 50 lines) ==="
+          docker compose -f e2e/infra/docker-compose.yml logs --no-color --tail=50 anvil 2>/dev/null || echo "(no anvil logs)"
+          echo ""
+          echo "=== Error context files ==="
+          find e2e/test-results -name 'error-context.md' -exec echo "--- {} ---" \; -exec cat {} \; 2>/dev/null || echo "(none)"
+
+      # ── artifacts & cleanup ───────────────────────────────────────
+      - name: Upload test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: e2e-nightly-results-${{ matrix.config.project }}-shard-${{ matrix.config.shardIndex }}
+          path: |
+            e2e/test-results/
+            e2e/playwright-report/
+          retention-days: 14
+
+      - name: Upload Docker logs on failure
+        if: failure()
+        run: |
+          mkdir -p /tmp/e2e-docker-logs
+          docker compose -f e2e/infra/docker-compose.yml logs --no-color > /tmp/e2e-docker-logs/docker-compose.log 2>&1
+
+      - name: Upload Docker logs artifact
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-nightly-docker-logs-${{ matrix.config.project }}-shard-${{ matrix.config.shardIndex }}
+          path: /tmp/e2e-docker-logs/
+          retention-days: 7
+
+      - name: Stop E2E stack
+        if: always()
+        run: docker compose -f e2e/infra/docker-compose.yml down
+
+  # Metadata is API-only (no app dev server, no browser) and needs its own
+  # service (metadata-service) — doesn't fit the matrix job's
+  # "start an app dev server" shape, so it's a separate job.
+  metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@v2
+        env:
+          PNPM_CONFIG_FROZEN_LOCKFILE: true
+        with:
+          runtime: node@lts
+          cache: true
+
+      - name: Install Foundry (cast CLI)
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          cache: true
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start E2E stack
+        run: |
+          docker compose -f e2e/infra/docker-compose.yml up -d anvil metadata-service
+          timeout 60 bash -c 'until curl -sf -X POST http://127.0.0.1:8545 \
+            -H "Content-Type: application/json" \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
+            > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Anvil ready"
+
+      - name: Copy CI env files
+        run: cp e2e/.env.ci e2e/.env
+
+      - name: Run metadata E2E tests
+        run: pnpm --filter @ens-apps/e2e exec playwright test --config=projects/metadata/playwright.config.ts
+        env:
+          CI: "true"
+          TZ: "UTC"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: e2e-nightly-results-metadata
+          path: |
+            e2e/test-results/
+            e2e/playwright-report/
+          retention-days: 14
+
+      - name: Stop E2E stack
+        if: always()
+        run: docker compose -f e2e/infra/docker-compose.yml down

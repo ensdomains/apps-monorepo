@@ -11,9 +11,18 @@
  *   // ... register a name on-chain ...
  *   indexerMock.addName({ name: 'foo.eth', owner: '0x...' })
  *   // the next Domains/Domain query will include it
+ *
+ * It also covers two portal-only, count-shaped queries that back the
+ * registry-detach feature (PR #1170) — useful when a test wants to control
+ * exactly what those counts are instead of waiting for Panoptes to discover
+ * a freshly deployed subregistry (a real, currently-flaky CREATE2-discovery
+ * path — see e2e/projects/portal/tests/transfer.spec.ts's mocked-indexer
+ * describe block):
+ *   indexerMock.setRegistryOccupants(subregistryAddress, { count: 2, thirdPartyCount: 1 })
+ *   indexerMock.setSubregistryHistory(namehash(name), 1)
  */
 import type { Page, Route } from '@playwright/test'
-import { namehash } from 'viem'
+import { type Address, namehash } from 'viem'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -26,6 +35,17 @@ export type MockDomain = {
   expiryDate?: number
   createdAt?: number
   records?: { key: string; value: string }[]
+}
+
+/**
+ * Response shape for `getRegistryOccupants` — mirrors portal's
+ * `RegistryOccupants` (see `useRegistryOccupants.ts`). `count` is the
+ * registry's total subname count; `thirdPartyCount` is however many of those
+ * are NOT owned by whoever is about to detach the registry.
+ */
+export type MockRegistryOccupants = {
+  count: number
+  thirdPartyCount: number
 }
 
 type GraphQLBody = {
@@ -50,6 +70,52 @@ export function createIndexerMock() {
 
   function addName(domain: MockDomain) {
     domains.push(domain)
+  }
+
+  // -------------------------------------------------------------------------
+  // getRegistryOccupants / getSubregistryUpdateCount control state
+  // -------------------------------------------------------------------------
+  // Keyed case-insensitively (addresses and namehashes both arrive lowercased
+  // from the app — see useRegistryOccupants.ts / useSubregistrySlot.ts — but
+  // callers may pass either case, so normalise on write and read).
+
+  /** `registryAddress.toLowerCase()` -> configured occupants, or `null` for
+   * "Panoptes hasn't discovered this registry yet" (the fail-closed default —
+   * see below). */
+  const registryOccupants = new Map<string, MockRegistryOccupants | null>()
+
+  /** `namehash.toLowerCase()` -> configured `SubregistryUpdated` count, or
+   * `null` for "the indexer declined to answer" (an error, not a zero). */
+  const subregistryHistory = new Map<string, number | null>()
+
+  /**
+   * Configure what `getRegistryOccupants` reports for `registryAddress`.
+   *
+   * `null` (or never calling this for the address) reproduces exactly the
+   * real bug this mock exists to route around: a subregistry Panoptes hasn't
+   * indexed yet answers `registry(address:)` with `null`, and
+   * `useRegistryDetachImpact` fails closed — same as the unmocked default. A
+   * test that wants the "empty subregistry" or "N subnames, M third-party"
+   * cases must call this explicitly.
+   */
+  function setRegistryOccupants(
+    registryAddress: Address,
+    occupants: MockRegistryOccupants | null,
+  ) {
+    registryOccupants.set(registryAddress.toLowerCase(), occupants)
+  }
+
+  /**
+   * Configure what `getSubregistryUpdateCount` reports for `nameHash` (a
+   * `viem` `namehash()` value).
+   *
+   * Defaults to `0` ("never configured") for any namehash not explicitly set
+   * — the common case for tests that don't care about registry history.
+   * Passing `null` reproduces the indexer's "declined to answer" state
+   * (`useSubregistrySlot` reads that as `error`, not `never-configured`).
+   */
+  function setSubregistryHistory(nameHash: string, totalCount: number | null) {
+    subregistryHistory.set(nameHash.toLowerCase(), totalCount)
   }
 
   function buildDomainFragment(d: MockDomain) {
@@ -158,6 +224,54 @@ export function createIndexerMock() {
         }
       }
 
+      case 'getRegistryOccupants': {
+        // useRegistryOccupants.ts sends both variables pre-lowercased.
+        const registryAddress = (
+          vars.registry as string | undefined
+        )?.toLowerCase()
+        const occupants = registryAddress
+          ? registryOccupants.get(registryAddress)
+          : undefined
+        // Unset or explicitly `null` — "undiscovered", the fail-closed
+        // default (see setRegistryOccupants's doc comment).
+        if (!occupants) {
+          return {
+            data: {
+              registry: null,
+              total: { __typename: 'DomainConnection', totalCount: null },
+              own: { __typename: 'DomainConnection', totalCount: null },
+            },
+          }
+        }
+        const ownCount = occupants.count - occupants.thirdPartyCount
+        return {
+          data: {
+            registry: { __typename: 'Registry', labelCount: occupants.count },
+            total: {
+              __typename: 'DomainConnection',
+              totalCount: occupants.count,
+            },
+            own: { __typename: 'DomainConnection', totalCount: ownCount },
+          },
+        }
+      }
+
+      case 'getSubregistryUpdateCount': {
+        const key = (vars.namehash as string | undefined)?.toLowerCase()
+        // Unset -> 0 ("never configured"); explicitly configured (including
+        // `null`) -> whatever the test set (see setSubregistryHistory).
+        const configured = key ? subregistryHistory.get(key) : undefined
+        const totalCount = key && subregistryHistory.has(key) ? configured : 0
+        return {
+          data: {
+            eventConnection: {
+              __typename: 'EventConnection',
+              totalCount,
+            },
+          },
+        }
+      }
+
       default:
         // Unknown operation — return empty data so the app doesn't crash
         console.log(`[mock-indexer] unhandled operation: ${op}`)
@@ -188,7 +302,7 @@ export function createIndexerMock() {
     // Matches:
     //   http://127.0.0.1:5655/graphql  (direct)
     //   http://localhost:3000/indexer/graphql  (Vite proxy)
-    //   https://staging-graphql.ens.dev/  (SSR fallback)
+    //   https://staging-graphql.ens.dev/  (the sepolia profile default)
     const pattern =
       /:5655\/graphql(?!\.)|\/indexer\/graphql(?!\.)|staging-graphql\.ens\.dev/
     await page.route(pattern, routeHandler)
@@ -206,5 +320,13 @@ export function createIndexerMock() {
     await install(page)
   }
 
-  return { install, installIfEnabled, addName, domains, enabled }
+  return {
+    install,
+    installIfEnabled,
+    addName,
+    domains,
+    enabled,
+    setRegistryOccupants,
+    setSubregistryHistory,
+  }
 }

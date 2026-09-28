@@ -1,6 +1,6 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useEffect } from 'react'
 import type { StablecoinBalance } from '@/lib/smart-account'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 
 /**
  * Selects the sole payment option once balances have loaded. Leaves the choice

@@ -8,7 +8,7 @@
  *     (wagmi).
  *   - Reading manager-specific env vars (`VITE_RHINESTONE_API_KEY`,
  *     `VITE_RHINESTONE_ENDPOINT_URL`, `VITE_RHINESTONE_CUSTOM_RPC_URLS`).
- *   - Injecting the manager's chain (`customSepolia`) and public client.
+ *   - Injecting the manager's chain (`appChain`) and public client.
  *
  * The account is the standalone ENS HCA (single ECDSA owner + scoped
  * SmartSession validator). It is created in-memory with a deterministic address
@@ -23,10 +23,10 @@ import {
 } from '@ens-apps/smart-account'
 import { type RhinestoneAccount, walletClientToAccount } from '@rhinestone/sdk'
 import type { Account, Address, PublicClient, WalletClient } from 'viem'
-import { customSepolia } from '@/lib/wagmi'
+import { chain as appChain } from '@/config'
 
 export interface RhinestoneConfig {
-  chain: typeof customSepolia
+  chain: typeof appChain
   rhinestoneApiKey: string
 }
 
@@ -124,7 +124,7 @@ export async function initializeRhinestoneAccount(
   const coreParams: InitializeRhinestoneAccountParams = {
     ownerAccount,
     eoaAddress,
-    chain: customSepolia,
+    chain: appChain,
     publicClient,
     rhinestoneApiKey: env.rhinestoneApiKey,
     rhinestoneEndpointUrl: env.rhinestoneEndpointUrl,
@@ -146,7 +146,7 @@ export async function initializeRhinestoneAccount(
     ownerAddress: result.ownerAddress,
     alreadyDeployed: result.alreadyDeployed,
     config: {
-      chain: customSepolia,
+      chain: appChain,
       rhinestoneApiKey: result.config.rhinestoneApiKey,
     },
   }

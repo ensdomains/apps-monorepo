@@ -21,9 +21,11 @@
     "i18n:push": "crowdin upload sources --config crowdin.yml",
     "i18n:pull": "crowdin download --config crowdin.yml",
     "lint": "biome check",
-    "lint:fix": "biome check --fix"
+    "lint:fix": "biome check --fix",
+    "prebuild": "tsx scripts/check-network-config.ts"
   },
   "dependencies": {
+    "@ens-apps/config": "workspace:^",
     "@ens-apps/dev-dqa-overlay": "workspace:*",
     "@ens-apps/dev-migration-tool": "workspace:*",
     "@ens-apps/dev-time-travel": "workspace:*",
@@ -121,6 +123,7 @@
     "happy-dom": "catalog:",
     "hono": "^4.9.1",
     "storybook": "^10.4.2",
+    "tsx": "^4.21.0",
     "tw-animate-css": "^1.3.8",
     "typescript": "catalog:",
     "vite": "catalog:",

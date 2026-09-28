@@ -1,5 +1,4 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import {
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
@@ -11,6 +10,7 @@ import { ok, okAsync, type Result, type ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
 import type { Address, WalletClient } from 'viem'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import type { BulkRenewPhase, RenewItem, RowStatus } from '../types'
