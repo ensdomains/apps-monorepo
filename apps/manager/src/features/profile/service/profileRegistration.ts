@@ -11,7 +11,7 @@ import { getBlock } from 'viem/actions'
 import { indexerClient } from '@/lib/indexer-client'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { normalizeEth2LdName } from './profileName'
+import { normalizeEth2LdName, normalizeEthName } from './profileName'
 import { getOwner, type ProfileProtocol } from './profileOwner'
 
 class GetProfileRegistrationError extends TaggedError(
@@ -66,6 +66,16 @@ export const getRegistration = ResultFn(async function* (
   name: string,
   protocol?: ProfileProtocol,
 ) {
+  const subname = normalizeEthName(name)
+
+  // A subname is issued by its parent rather than registered with a registrar,
+  // so the indexer is the only source for its date and v1 has no equivalent.
+  if (subname && subname.parentLabelsRootFirst.length > 0) {
+    return ok({
+      registrationDate: await getIndexedRegistrationDate(subname.name),
+    })
+  }
+
   const ethName = normalizeEth2LdName(name)
 
   if (!ethName) {
