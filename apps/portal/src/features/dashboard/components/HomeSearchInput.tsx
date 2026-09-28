@@ -250,14 +250,16 @@ export const HomeSearchInput = ({
             ref={triggerRef}
             className={cn(
               isHero
-                ? 'h-13.5 w-full rounded-lg border-border px-2 shadow-none hover:border-neutral-4 has-[input:focus]:border-neutral-5'
+                ? 'h-13.5 w-full rounded-md border-neutral-3 pr-2 pl-0.75 shadow-none hover:border-neutral-4 has-[input:focus]:border-neutral-5'
                 : 'bg-sidebar-accent dark:bg-sidebar-accent rounded-sm max-w-3xl w-full',
               className,
             )}
             onClick={(e) => e.preventDefault()}
           >
             <InputGroupAddon align="inline-start">
-              <Search className="size-4" />
+              <Search
+                className={cn('size-4', isHero && 'size-5 text-neutral-8')}
+              />
             </InputGroupAddon>
             <InputGroupInput
               id={listboxId}
@@ -271,7 +273,8 @@ export const HomeSearchInput = ({
               aria-label="Search for a name, wallet, or contract"
               className={cn(
                 'w-full',
-                isHero && 'text-base sm:placeholder:text-transparent',
+                isHero &&
+                  'text-base placeholder:text-neutral-8 sm:placeholder:text-transparent',
               )}
               placeholder={isHero ? 'Search' : 'Search...'}
               value={searchValue}
@@ -291,7 +294,14 @@ export const HomeSearchInput = ({
               </span>
             )}
             <InputGroupAddon align="inline-end">
-              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
+              <kbd
+                className={cn(
+                  'pointer-events-none select-none items-center gap-1',
+                  isHero
+                    ? 'flex font-sans text-sm font-normal text-neutral-5'
+                    : 'hidden h-5 rounded border px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex',
+                )}
+              >
                 <span className="translate-y-px">
                   {formatForDisplay('Mod+K')}
                 </span>

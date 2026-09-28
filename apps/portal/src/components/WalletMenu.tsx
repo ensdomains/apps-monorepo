@@ -6,6 +6,7 @@ import { AccountCircleIcon, ChipNameIcon, DisconnectIcon } from '@/assets/icons'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { useConnectModal } from '@/features/wallet/ConnectModalProvider'
+import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { Button } from './ui/button'
 import {
@@ -15,7 +16,12 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
 
-export const WalletMenu = () => {
+export const WalletMenu = ({
+  isPill = false,
+}: {
+  /** Filled pill trigger with a smaller avatar, as on the landing page. */
+  readonly isPill?: boolean
+}) => {
   const { address, isConnected } = useConnection()
   const { openConnectModal } = useConnectModal()
   const { mutate: disconnect } = useDisconnect()
@@ -42,20 +48,33 @@ export const WalletMenu = () => {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xs"
+          className={cn(
+            'flex items-center gap-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xs',
+            isPill && 'h-7.5 max-w-40 gap-1.5 rounded-md bg-neutral-2 p-1 pr-2',
+          )}
           aria-label={`Wallet menu for ${displayName}`}
         >
           {name ? (
             <NameAvatar
               name={name}
-              height="32px"
-              width="32px"
+              height={isPill ? '22px' : '32px'}
+              width={isPill ? '22px' : '32px'}
               rounded="rounded-xs"
             />
           ) : (
-            <div className="size-8 rounded-xs [background:var(--avatar-placeholder-gradient)]" />
+            <div
+              className={cn(
+                'size-8 shrink-0 rounded-xs [background:var(--avatar-placeholder-gradient)]',
+                isPill && 'size-5.5',
+              )}
+            />
           )}
-          <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">
+          <span
+            className={cn(
+              'font-medium text-sm group-data-[collapsible=icon]:hidden',
+              isPill && 'truncate font-semi-mono text-p font-medium',
+            )}
+          >
             {displayName}
           </span>
         </button>

@@ -69,10 +69,12 @@ export const EnsV2InfoMessage = () => {
   const panelId = useId()
 
   return (
-    <div className="rounded-lg bg-accent-fill p-4 text-accent-text dark:bg-entity-bg">
+    <div className="rounded-md bg-accent-fill p-4 text-accent-text dark:bg-entity-bg">
       <div className="flex flex-col items-end gap-4 sm:flex-row sm:items-center sm:gap-3">
         <div className="flex w-full items-start gap-3 sm:items-center">
-          <Megaphone className="size-6 shrink-0" aria-hidden />
+          <span className="flex size-7.5 shrink-0 items-center justify-center">
+            <Megaphone className="size-6" aria-hidden />
+          </span>
           <p className="text-p">
             <strong className="font-medium">ENS v2 is here!</strong> Same names,
             new architecture, more control
@@ -83,7 +85,7 @@ export const EnsV2InfoMessage = () => {
           aria-expanded={isOpen}
           aria-controls={panelId}
           onClick={() => setIsOpen((open) => !open)}
-          className="inline-flex h-7 shrink-0 cursor-pointer items-center gap-2 rounded-lg bg-background px-3 text-p"
+          className="inline-flex h-7 shrink-0 cursor-pointer items-center gap-2 rounded-md bg-neutral-0 px-3 text-p"
         >
           <ChevronDown
             className={cn(
@@ -101,7 +103,7 @@ export const EnsV2InfoMessage = () => {
             {RESOURCES.map(({ title, description }) => (
               <li
                 key={title}
-                className="flex flex-col gap-1 rounded-lg border border-lapis-400 px-4 py-3 sm:flex-row sm:justify-between sm:gap-4"
+                className="flex flex-col gap-1 rounded-md border border-lapis-400 px-4 py-3 sm:flex-row sm:justify-between sm:gap-4"
               >
                 <span className="text-base font-medium">{title}</span>
                 <span className="text-p sm:text-right">{description}</span>
