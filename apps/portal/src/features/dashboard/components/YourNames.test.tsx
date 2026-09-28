@@ -145,4 +145,16 @@ describe('YourNames', () => {
       onlineManager.setOnline(true)
     }
   })
+
+  it('truncates a long name so the expiry keeps its column', async () => {
+    const encoded =
+      '[ba9d5b944633af135d2899dce4c44a43b00ed78f640ff4bc2088401760432cdc].eth'
+    renderNames([v2Name(encoded, 271n)])
+
+    expect(await screen.findByText('[ba9d5b944…60432cdc].eth')).toBeInTheDocument()
+    expect(screen.queryByText(encoded)).toBeNull()
+    expect(screen.getByText('Expires in 271 days')).toHaveClass(
+      'whitespace-nowrap',
+    )
+  })
 })
