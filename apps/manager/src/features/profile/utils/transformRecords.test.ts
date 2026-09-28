@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MAX_PROFILE_LINKS_RECORD_BYTES } from './linkLimits'
 import {
   newEmptyProfileRecords,
   normalizeProfileRecords,
@@ -7,6 +8,117 @@ import {
 } from './transformRecords'
 
 describe('profile transformRecords utils', () => {
+  describe('links record limits', () => {
+    const link = { name: 'Website', url: 'https://example.com' }
+    const transformLinks = (value: string) =>
+      transformProfileRecords({
+        texts: [
+          { key: 'links', value },
+          { key: 'description', value: 'Profile remains available' },
+        ],
+        coins: [],
+      })
+
+    it('drops a 60,000-link record without losing the rest of the profile', () => {
+      const result = transformLinks(JSON.stringify(Array(60_000).fill(link)))
+
+      expect(result.links).toHaveLength(0)
+      expect(result.base.description).toBe('Profile remains available')
+    })
+
+    it('accepts the byte limit and rejects one byte over it', () => {
+      const value = JSON.stringify([link]).padEnd(
+        MAX_PROFILE_LINKS_RECORD_BYTES,
+        ' ',
+      )
+
+      expect(transformLinks(value).links).toEqual([link])
+      expect(transformLinks(`${value} `).links).toHaveLength(0)
+    })
+
+    it('enforces the UTF-8 byte limit for multibyte text', () => {
+      const emptyLink = { name: '', url: link.url }
+      const overhead = JSON.stringify([emptyLink]).length
+      const name = 'é'.repeat(
+        Math.floor((MAX_PROFILE_LINKS_RECORD_BYTES - overhead) / 2),
+      )
+      const value = JSON.stringify([{ ...emptyLink, name }]).padEnd(
+        MAX_PROFILE_LINKS_RECORD_BYTES - name.length,
+        ' ',
+      )
+
+      expect(new TextEncoder().encode(value)).toHaveLength(
+        MAX_PROFILE_LINKS_RECORD_BYTES,
+      )
+      expect(transformLinks(value).links).toEqual([{ ...emptyLink, name }])
+      expect(transformLinks(`${value} `).links).toHaveLength(0)
+    })
+
+    it.each([
+      4, 51, 75,
+    ])('preserves all %i links when editing a visible link', (count) => {
+      const links = Array.from({ length: count }, (_, i) => ({
+        name: `Link ${i}`,
+        url: `https://example.com/${i}`,
+      }))
+      const records = transformLinks(JSON.stringify(links))
+      const updatedLink = {
+        name: 'Updated website',
+        url: 'https://updated.example.com',
+      }
+
+      expect(records.links).toEqual(links)
+
+      const editedRecords = normalizeProfileRecords({
+        ...records,
+        links: records.links.map((item, index) =>
+          index === 0 ? updatedLink : item,
+        ),
+      })
+      const savedLinks = transformToServiceFormat(editedRecords).texts.find(
+        ({ key }) => key === 'links',
+      )
+
+      expect(savedLinks?.value).toBe(
+        JSON.stringify([updatedLink, ...links.slice(1)]),
+      )
+      expect(records.links).toEqual(links)
+    })
+
+    it('preserves valid links after invalid entries beyond the preview limit', () => {
+      const lastLink = {
+        name: 'Beyond preview limit',
+        url: 'https://other.example',
+      }
+      const links = [
+        link,
+        ...Array(50).fill({ name: 'Bad', url: 'data:bad' }),
+        lastLink,
+      ]
+
+      expect(transformLinks(JSON.stringify(links)).links).toEqual([
+        link,
+        lastLink,
+      ])
+    })
+
+    it('preserves links across repeated links records', () => {
+      const result = transformProfileRecords({
+        texts: [
+          {
+            key: 'links',
+            value: JSON.stringify(Array(50).fill(link)),
+          },
+          { key: 'links', value: JSON.stringify([link, link]) },
+          { key: 'links', value: JSON.stringify([link]) },
+        ],
+        coins: [],
+      })
+
+      expect(result.links).toEqual(Array(53).fill(link))
+    })
+  })
+
   describe('newEmptyProfileRecords', () => {
     it('should create empty profile records with all sections', () => {
       const records = newEmptyProfileRecords()
@@ -98,15 +210,17 @@ describe('profile transformRecords utils', () => {
       expect(result.unknown).toEqual([])
     })
 
-    it('should safely parse links JSON and drop unsafe entries from the chain', () => {
+    it.each([
+      'ipfs://QmBad',
+      'javascript:alert(1)',
+    ])('should safely parse links JSON and drop an unsafe %s entry from the chain', (unsafeUrl) => {
       const result = transformProfileRecords({
         texts: [
           {
             key: 'links',
             value: JSON.stringify([
               { name: 'ok', url: 'https://good.com' },
-              { name: 'ipfs', url: 'ipfs://QmBad' },
-              { name: 'js', url: 'javascript:alert(1)' },
+              { name: 'unsafe', url: unsafeUrl },
               { name: 'also ok', url: 'https://also.good.com' },
             ]),
           },
