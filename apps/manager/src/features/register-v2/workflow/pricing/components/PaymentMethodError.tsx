@@ -8,7 +8,10 @@ export const PaymentMethodError = ({
   readonly children: React.ReactNode
 }) => (
   <span
-    className="flex min-w-0 items-center gap-1 whitespace-nowrap text-[#c82e1f] text-[10px] leading-none sm:text-xs"
+    className={
+      // Figma specifies 10px mobile error copy; Tailwind has no exact text token.
+      'flex min-w-0 items-center gap-1 whitespace-nowrap text-[10px] text-ens-signal-danger-500 leading-none sm:text-xs'
+    }
     id={id}
   >
     <MSymbol

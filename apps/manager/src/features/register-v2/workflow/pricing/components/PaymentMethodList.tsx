@@ -24,7 +24,12 @@ export const PaymentMethodList = ({
   )
 
   return (
-    <div className="flex w-full flex-col self-center sm:w-[454px] sm:max-w-full">
+    <div
+      className={
+        // Figma specifies a 454px desktop list width; no exact theme token exists.
+        'flex w-full flex-col self-center sm:w-[454px] sm:max-w-full'
+      }
+    >
       <ul
         aria-label="Payment methods"
         className="flex w-full list-none flex-col gap-3 p-0 sm:gap-0"
@@ -36,7 +41,7 @@ export const PaymentMethodList = ({
       {hiddenCount > 0 && (
         <button
           aria-expanded={isExpanded}
-          className="mt-3 self-center rounded px-3 py-2 font-medium text-[#191919] text-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ens-blue"
+          className="mt-3 self-center rounded px-3 py-2 font-medium text-ens-quartz-900 text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
           onClick={() => setIsExpanded(true)}
           type="button"
         >

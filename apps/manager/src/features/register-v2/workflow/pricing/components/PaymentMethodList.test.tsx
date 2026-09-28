@@ -59,6 +59,17 @@ describe('PaymentMethodList', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('uses the standard keyboard-visible ring on the load-more control', () => {
+    renderList([item('USDC'), item('DAI'), item('USDT', { isFunded: false })])
+
+    expect(screen.getByRole('button', { name: 'Load 1 more' })).toHaveClass(
+      'outline-none',
+      'focus-visible:ring-2',
+      'focus-visible:ring-ens-blue',
+      'focus-visible:ring-offset-2',
+    )
+  })
+
   it('shows only common supplied errors when no method is valid', () => {
     renderList([
       item('USDC error', {

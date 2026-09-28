@@ -77,6 +77,17 @@ describe('PaymentMethodRow', () => {
     expect(onSelect).toHaveBeenCalledOnce()
   })
 
+  it('uses the standard keyboard-visible ring on the overlay control', () => {
+    renderRow({ error: undefined, isFunded: true })
+
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toHaveClass(
+      'outline-none',
+      'focus-visible:ring-2',
+      'focus-visible:ring-ens-blue',
+      'focus-visible:ring-offset-2',
+    )
+  })
+
   it('keeps the error icon before its copy in one shared spanning item', () => {
     const { container } = renderRow()
     const error = container.querySelector('[data-slot="payment-method-error"]')
