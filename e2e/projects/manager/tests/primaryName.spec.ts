@@ -63,7 +63,7 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
     // the EnableSessions modal before the token picker. Idempotent no-op in
     // EOA mode. See registration-rhinestone.spec.ts.
     await clickThroughEnableSessions(page)
-    await page.getByText('USDC', { exact: true }).click()
+    await page.getByRole('button', { name: 'Select USDC' }).click()
     await page.getByRole('button', { name: /register name/i }).click()
 
     // RegisteringStep renders NotificationSettings for as long as the
