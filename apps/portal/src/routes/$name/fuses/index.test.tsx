@@ -85,7 +85,8 @@ const FusesRoute = (Route as unknown as { component: () => React.ReactElement })
 
 const wrapperData = {
   owner: OWNER,
-  expiry: 1787852628n,
+  // Milliseconds, as ensjs returns it: 2026-08-27T17:43:48Z.
+  expiry: 1787852628000n,
   fuses: {
     parent: { PARENT_CANNOT_CONTROL: true, IS_DOT_ETH: true },
     child: {
@@ -113,6 +114,15 @@ describe('fuses index route', () => {
 
     expect(screen.getByText('Burn fuses')).toBeInTheDocument()
     expect(screen.queryByText('This name has expired')).not.toBeInTheDocument()
+  })
+
+  // WEB-1330: the fixture's expiry is milliseconds, as ensjs returns it. Scaling
+  // it by 1000 again put the banner in the year 59781.
+  it('dates the fuse expiry from ensjs milliseconds', () => {
+    render(<FusesRoute />)
+
+    expect(screen.getByText('Fuse expiry')).toBeInTheDocument()
+    expect(screen.getByText(/Aug \d+, 2026/)).toBeInTheDocument()
   })
 
   it('hides the burn CTA and explains why while the name is in grace', () => {
