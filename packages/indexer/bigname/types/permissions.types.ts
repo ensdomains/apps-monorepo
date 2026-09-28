@@ -9,7 +9,7 @@ import type {
   Timestamp,
   WrapperFuses,
   WrapperState,
-} from './common'
+} from './common.types'
 
 /**
  * Permission rows, role summaries, permission event data: one effective power.
@@ -104,17 +104,33 @@ export type Restrictions =
       locked_roles: readonly LockedRole[]
     }>
 
-/** `GET /v1/permissions`: query; at least one of `name`, `registration_id`, `address`. */
-export type PermissionsQuery = Readonly<{
-  name?: string
-  registration_id?: RegistrationId
-  address?: Address
-  namespace?: Namespace
-  include?: readonly 'lineage'[]
-  finality?: 'latest'
-  cursor?: Cursor
-  page_size?: number
-}>
+/** `GET /v1/permissions`: the subject a read is anchored on; one is required. */
+export type PermissionsSubject =
+  | Readonly<{
+      name: string
+      registration_id?: RegistrationId
+      address?: Address
+    }>
+  | Readonly<{
+      name?: string
+      registration_id: RegistrationId
+      address?: Address
+    }>
+  | Readonly<{
+      name?: string
+      registration_id?: RegistrationId
+      address: Address
+    }>
+
+/** `GET /v1/permissions`: query. */
+export type PermissionsQuery = PermissionsSubject &
+  Readonly<{
+    namespace?: Namespace
+    include?: readonly 'lineage'[]
+    finality?: 'latest'
+    cursor?: Cursor
+    page_size?: number
+  }>
 
 /** `GET /v1/permissions`: how a row was admitted under the per-name ownership rule. */
 export type AuthorityContext = 'current_for_name' | 'resource_audit'

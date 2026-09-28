@@ -8,7 +8,7 @@ import type {
   RegistryRef,
   SortOrder,
   Timestamp,
-} from './common'
+} from './common.types'
 
 /** `GET /v1/names/{name}/subnames`: query. */
 export type SubnamesQuery = Readonly<{

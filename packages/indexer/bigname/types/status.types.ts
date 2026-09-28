@@ -1,4 +1,4 @@
-import type { Envelope, Timestamp } from './common'
+import type { Envelope, Timestamp } from './common.types'
 
 /** `GET /v1/status`: the only route with the ops status vocabulary. */
 export type OpsStatus = 'ready' | 'degraded' | 'stale'

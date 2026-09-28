@@ -10,4 +10,5 @@ export {
   type BignameErrorCode,
   isStale,
 } from './errors'
+export { type AllPagesOptions, allPages } from './paging'
 export type * from './types'

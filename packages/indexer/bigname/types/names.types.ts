@@ -17,21 +17,23 @@ import type {
   Timestamp,
   WrapperFuses,
   WrapperState,
-} from './common'
+} from './common.types'
 
-/** `GET /v1/names`: query; at least one of `expires_after`/`expires_before` is required. */
-export type NamesQuery = Readonly<{
-  namespace: Namespace
-  /** Inclusive lower `expires_at` bound. */
-  expires_after?: Timestamp
-  /** Exclusive upper `expires_at` bound. */
-  expires_before?: Timestamp
-  sort?: 'expires_at'
-  order?: SortOrder
-  finality?: 'latest'
-  cursor?: Cursor
-  page_size?: number
-}>
+/** `GET /v1/names`: an expiry window; `expires_after` is inclusive, `expires_before` exclusive. */
+export type ExpiryWindow =
+  | Readonly<{ expires_after: Timestamp; expires_before?: Timestamp }>
+  | Readonly<{ expires_after?: Timestamp; expires_before: Timestamp }>
+
+/** `GET /v1/names`: query; one expiry bound is required. */
+export type NamesQuery = ExpiryWindow &
+  Readonly<{
+    namespace: Namespace
+    sort?: 'expires_at'
+    order?: SortOrder
+    finality?: 'latest'
+    cursor?: Cursor
+    page_size?: number
+  }>
 
 /** `GET /v1/names`: one listing row (the search row shape). */
 export type NameListingRow = Readonly<{

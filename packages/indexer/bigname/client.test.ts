@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createBignameClient } from './client'
 import { BignameError, isStale } from './errors'
+import { allPages } from './paging'
 
 const json = (body: unknown, status = 200, headers?: Record<string, string>) =>
   new Response(JSON.stringify(body), {
@@ -141,8 +142,8 @@ describe('createBignameClient', () => {
       expect(error.status).toBe(502)
     })
 
-    it('reports a 200 without a data envelope as malformed', async () => {
-      const { client } = clientWith(json({ unexpected: true }))
+    it('reports a 200 without a full envelope as malformed', async () => {
+      const { client } = clientWith(json({ data: {} }))
 
       expect((await client.status())._unsafeUnwrapErr().code).toBe(
         'malformed_response',
@@ -175,6 +176,19 @@ describe('createBignameClient', () => {
       await client.status()
 
       expect(sleep).toHaveBeenCalledWith(2000)
+    })
+
+    it('believes a long retry-after instead of capping it at the backoff limit', async () => {
+      const { client, sleep } = clientWith(
+        json({ error: { code: 'rate_limited', message: 'slow down' } }, 429, {
+          'retry-after': '20',
+        }),
+        envelope({}),
+      )
+
+      await client.status()
+
+      expect(sleep).toHaveBeenCalledWith(20_000)
     })
 
     it('gives up after the configured retries', async () => {
@@ -212,6 +226,66 @@ describe('createBignameClient', () => {
       await client.name('missing.eth')
 
       expect(fetch).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('allPages', () => {
+    const page = (rows: string[], next: string | null) =>
+      json({
+        data: rows,
+        page: {
+          cursor: null,
+          next_cursor: next,
+          page_size: 2,
+          total_count: null,
+          has_more: next !== null,
+        },
+        meta: {},
+      })
+
+    it('follows next_cursor to the end', async () => {
+      const { client, fetch } = clientWith(
+        page(['a', 'b'], 'c2'),
+        page(['c'], null),
+      )
+
+      const rows = await allPages((cursor) =>
+        client.subnames('x.eth', { page_size: 2, cursor }),
+      )
+
+      expect(rows._unsafeUnwrap()).toEqual(['a', 'b', 'c'])
+      expect(requestOf(fetch, 1).url).toContain('cursor=c2')
+    })
+
+    it('restarts from page one when a cursor goes stale', async () => {
+      const { client, fetch } = clientWith(
+        page(['a'], 'c2'),
+        apiError('stale', 409),
+        page(['a', 'b'], null),
+      )
+
+      const rows = await allPages((cursor) =>
+        client.subnames('x.eth', { page_size: 2, cursor }),
+      )
+
+      expect(rows._unsafeUnwrap()).toEqual(['a', 'b'])
+      expect(requestOf(fetch, 2).url).not.toContain('cursor=')
+    })
+
+    it('gives up after the allowed restarts', async () => {
+      const { client } = clientWith(
+        page(['a'], 'c2'),
+        apiError('stale', 409),
+        page(['a'], 'c2'),
+        apiError('stale', 409),
+      )
+
+      const rows = await allPages(
+        (cursor) => client.subnames('x.eth', { page_size: 2, cursor }),
+        { restarts: 1 },
+      )
+
+      expect(isStale(rows._unsafeUnwrapErr())).toBe(true)
     })
   })
 

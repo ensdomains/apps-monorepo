@@ -9,8 +9,8 @@ import type {
   ResolverRef,
   SortOrder,
   Timestamp,
-} from './common'
-import type { AuthorityRelation, Power } from './permissions'
+} from './common.types'
+import type { AuthorityRelation, Power } from './permissions.types'
 
 /** History collections: the eleven friendly event types. */
 export type EventType =

@@ -16,7 +16,9 @@ type Query = Readonly<Record<string, QueryValue>>
 
 const DEFAULT_RETRIES = 2
 const DEFAULT_RETRY_DELAY_MS = 300
-const MAX_RETRY_DELAY_MS = 5_000
+const MAX_BACKOFF_MS = 5_000
+// A server that asks for a longer wait is believed, within reason.
+const MAX_RETRY_AFTER_MS = 30_000
 const RETRYABLE_STATUSES = new Set([429, 503])
 
 const sleepFor = (ms: number) =>
@@ -35,7 +37,7 @@ const toSearchParams = (query: Query | undefined): string => {
 }
 
 const isEnvelope = (body: unknown): body is T.Envelope<unknown> =>
-  typeof body === 'object' && body !== null && 'data' in body
+  typeof body === 'object' && body !== null && 'data' in body && 'meta' in body
 
 const retryDelay = (
   attempt: number,
@@ -43,11 +45,11 @@ const retryDelay = (
   retryAfter: string | null,
 ): number => {
   const fromHeader = retryAfter ? Number(retryAfter) * 1000 : Number.NaN
+  if (Number.isFinite(fromHeader) && fromHeader >= 0) {
+    return Math.min(fromHeader, MAX_RETRY_AFTER_MS)
+  }
   const backoff = baseMs * 2 ** attempt + Math.floor(Math.random() * 100)
-  return Math.min(
-    Number.isFinite(fromHeader) ? fromHeader : backoff,
-    MAX_RETRY_DELAY_MS,
-  )
+  return Math.min(backoff, MAX_BACKOFF_MS)
 }
 
 const toApiError = async (response: Response): Promise<BignameError> => {
@@ -133,11 +135,11 @@ export const createBignameClient = (
     }
   }
 
-  const request = <Data>(
+  const request = <Data, Res extends T.Envelope<Data> = T.Envelope<Data>>(
     path: string,
     query?: Query,
     body?: unknown,
-  ): ResultAsync<T.Envelope<Data>, BignameError> =>
+  ): ResultAsync<Res, BignameError> =>
     ResultAsync.fromPromise(
       (async () => {
         const response = await send(path, query, body)
@@ -150,7 +152,7 @@ export const createBignameClient = (
             message: 'bigname responded without a data envelope',
           })
         }
-        return parsed as T.Envelope<Data>
+        return parsed as Res
       })(),
       (error) =>
         error instanceof BignameError
@@ -192,7 +194,10 @@ export const createBignameClient = (
     events: (query?: T.EventsQuery) =>
       request<readonly T.EventsRow[]>('/v1/events', query),
     permissions: (query: T.PermissionsQuery) =>
-      request<readonly T.PermissionRow[]>('/v1/permissions', query),
+      request<readonly T.PermissionRow[], T.PermissionsResponse>(
+        '/v1/permissions',
+        query,
+      ),
     lookup: (body: T.LookupRequest) =>
       request<readonly T.LookupResult[]>('/v1/lookup', undefined, body),
   }

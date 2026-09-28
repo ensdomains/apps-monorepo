@@ -5,7 +5,7 @@ import type {
   ResolverRef,
   ResultStatus,
   Source,
-} from './common'
+} from './common.types'
 
 /** `GET /v1/names/{name}/records`: the closed product record-key grammar. */
 export type RecordKey =

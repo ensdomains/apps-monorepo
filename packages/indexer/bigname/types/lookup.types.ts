@@ -1,4 +1,4 @@
-import type { AddressNameResolution } from './addresses'
+import type { AddressNameResolution } from './addresses.types'
 import type {
   Address,
   Authority,
@@ -14,9 +14,9 @@ import type {
   ResolverRef,
   ResultStatus,
   Timestamp,
-} from './common'
-import type { Relation, RelationFilter } from './permissions'
-import type { RecordInventory } from './records'
+} from './common.types'
+import type { Relation, RelationFilter } from './permissions.types'
+import type { RecordInventory } from './records.types'
 
 /** `POST /v1/lookup`: field budget; `feed` is the latency path. Defaults to `detail`. */
 export type LookupProfile = 'feed' | 'detail'

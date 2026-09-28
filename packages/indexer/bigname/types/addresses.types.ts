@@ -8,13 +8,13 @@ import type {
   RegistrationStatus,
   SortOrder,
   Timestamp,
-} from './common'
+} from './common.types'
 import type {
   Relation,
   RelationFilter,
   Restrictions,
   RoleSummary,
-} from './permissions'
+} from './permissions.types'
 
 /** `GET /v1/addresses/{address}/names`: query. */
 export type AddressNamesQuery = Readonly<{
