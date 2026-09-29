@@ -47,14 +47,26 @@ export type RoleChangeLog = {
  */
 const INDEXED_ROLE_EVENTS_LIMIT = 1000
 
+/**
+ * How long the indexed read may take before the node answers instead. A stalled
+ * connection that never rejects would otherwise leave the roles page loading
+ * with a working fallback sitting idle.
+ */
+export const INDEXED_ROLE_EVENTS_TIMEOUT_MS = 8_000
+
 const ROLE_CHANGE_EVENTS_QUERY = gql`
   query RoleChangeEvents(
     $contractAddress: String!
     $resource: String!
+    $fromBlock: Int!
     $first: Int!
   ) {
     eacRolesChangeds(
-      where: { contractAddress: $contractAddress, resource: $resource }
+      where: {
+        contractAddress: $contractAddress
+        resource: $resource
+        blockNumber_gte: $fromBlock
+      }
       first: $first
       orderBy: blockNumber
       orderDirection: asc
@@ -96,16 +108,27 @@ const getIndexedRoleChangeLogs = async ({
   registryAddress,
   resource,
   account,
+  fromBlock = ROLES_FROM_BLOCK,
 }: GetRoleChangeLogsParameters): Promise<RoleChangeLog[] | null> => {
   try {
-    const { eacRolesChangeds } = await graphqlIndexerClient.request<{
+    const request = graphqlIndexerClient.request<{
       eacRolesChangeds: readonly RoleChangeEventRow[]
     }>(ROLE_CHANGE_EVENTS_QUERY, {
       contractAddress: registryAddress.toLowerCase(),
       resource: toResourceHex(resource),
+      // Same lower bound the node read applies, so both sources answer the
+      // same question for a caller that narrows the range.
+      fromBlock: Number(fromBlock),
       first: INDEXED_ROLE_EVENTS_LIMIT,
     })
+    const timeout = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), INDEXED_ROLE_EVENTS_TIMEOUT_MS),
+    )
 
+    const page = await Promise.race([request, timeout])
+    if (page === null) return null
+
+    const { eacRolesChangeds } = page
     if (eacRolesChangeds.length >= INDEXED_ROLE_EVENTS_LIMIT) return null
 
     const logs: RoleChangeLog[] = []

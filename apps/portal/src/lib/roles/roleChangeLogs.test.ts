@@ -27,9 +27,12 @@ vi.mock('@/lib/indexer', () => ({
   },
 }))
 
-const { getRoleChangeLogs, ROOT_RESOURCE, toRoleHistoryEntries } = await import(
-  './roleChangeLogs'
-)
+const {
+  getRoleChangeLogs,
+  INDEXED_ROLE_EVENTS_TIMEOUT_MS,
+  ROOT_RESOURCE,
+  toRoleHistoryEntries,
+} = await import('./roleChangeLogs')
 
 const ROOT_HEX = `0x${'0'.repeat(64)}`
 
@@ -67,9 +70,44 @@ describe('getRoleChangeLogs via the indexer', () => {
     expect(mockGraphqlRequest).toHaveBeenCalledWith(expect.anything(), {
       contractAddress: REGISTRY.toLowerCase(),
       resource: `0x${'1234'.padStart(64, '0')}`,
+      fromBlock: Number(ROLES_FROM_BLOCK),
       first: 1000,
     })
     expect(mockGetLogs).not.toHaveBeenCalled()
+  })
+
+  // The node read honours `fromBlock`; the indexed read must ask the same
+  // question or the two sources disagree for a caller that narrows the range.
+  it('applies the caller lower bound to the indexed read', async () => {
+    await getRoleChangeLogs({
+      registryAddress: REGISTRY,
+      resource: 0n,
+      fromBlock: FROM_BLOCK,
+    })
+
+    expect(mockGraphqlRequest).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ fromBlock: Number(FROM_BLOCK) }),
+    )
+  })
+
+  it('falls back to the node when the indexer stalls', async () => {
+    vi.useFakeTimers()
+    try {
+      mockGraphqlRequest.mockReturnValue(new Promise(() => {}))
+      const logs = [{ blockNumber: 10n }]
+      mockGetLogs.mockResolvedValue(logs)
+
+      const pending = getRoleChangeLogs({
+        registryAddress: REGISTRY,
+        resource: ROOT_RESOURCE,
+      })
+      await vi.advanceTimersByTimeAsync(INDEXED_ROLE_EVENTS_TIMEOUT_MS)
+
+      expect((await pending)._unsafeUnwrap()).toEqual(logs)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('maps rows to the node log shape, checksummed and with a timestamp', async () => {
