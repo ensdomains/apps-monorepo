@@ -44,6 +44,8 @@ export {
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
   type TOKEN_SYMBOL,
+  VERIFY_GRACE_WINDOW_MS,
+  VERIFY_POLL_INTERVAL_MS,
 } from './machines/registration/registration.actors'
 export type {
   RegistrationContext,
@@ -54,6 +56,22 @@ export {
   REGISTRATION_TX_IDS,
   registrationMachine,
 } from './machines/registration/registration.machine'
+// Registration persistence & resume
+export type {
+  PersistedRegistrationContext,
+  PersistedRegistrationRecord,
+  RegistrationPersistenceAdapter,
+  ResumeTarget,
+} from './machines/registration/registration.persistence'
+export {
+  buildRegistrationRecord,
+  getResumeTarget,
+  parseRegistrationRecord,
+  REGISTRATION_PERSISTENCE_VERSION,
+  serializeRegistrationContext,
+  serializeRegistrationRecord,
+  subscribeRegistrationPersistence,
+} from './machines/registration/registration.persistence'
 export type {
   RegistrationMachineActor,
   RegistrationMachineEvent,

@@ -3,7 +3,10 @@ import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
-import { TransactionSubmissionError } from '../../errors/transaction.errors'
+import {
+  isUserRejectionError,
+  TransactionSubmissionError,
+} from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
 import { isRetryableSubmissionError } from '../retry-policy'
 import type { TOKEN_SYMBOL } from './registration.actors'
@@ -32,6 +35,10 @@ import {
   submitRevealBatchActor,
   verifyHcaRegistrationActor,
 } from './registration.hca.actors'
+import {
+  getResumeTarget,
+  type PersistedRegistrationContext,
+} from './registration.persistence'
 
 /** `Math.max` for bigints (no bigint overload on `Math.max`). */
 const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
@@ -59,7 +66,9 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  *    session-signed, no wallet prompt
  * 6. Verify against the standalone registry
  *
- * Persistence is handled automatically via inspect option (see export at bottom)
+ * Persistence lives outside the machine: `subscribeRegistrationPersistence`
+ * (registration.persistence.ts) mirrors progress into a storage adapter, and an
+ * interrupted run re-enters through the `RESUME` event on `idle`.
  */
 
 type CommitmentData = {
@@ -166,6 +175,24 @@ export type RegistrationContext = {
   permit?: PermitSignature
   approvalTxId?: string
   registrationTxId?: string
+  /**
+   * The reveal intent's orchestrator id, reported by `onIntentSubmitted` the
+   * moment the intent is accepted — BEFORE the fill resolves, because a tab
+   * closed mid-fill is exactly when it is needed. Persisted: it is the only
+   * handle a resumed run has for asking the orchestrator whether that intent
+   * is still filling or definitively dead.
+   */
+  registrationIntentId?: bigint
+  /**
+   * Asks the orchestrator for an intent's status (`'FAILED'`, `'PENDING'`, …)
+   * or null when inconclusive. Runtime dep injected on START_REGISTRATION and
+   * RESUME, never persisted; absent, verification falls back to the blind
+   * grace poll.
+   */
+  fetchRegistrationIntentStatus?: (
+    intentId: bigint,
+    signal?: AbortSignal,
+  ) => Promise<string | null>
   registerReadyTimestamp?: number
   registrationStartedAt?: number
 
@@ -181,6 +208,13 @@ export type RegistrationContext = {
     | 'approvingToken'
     | 'registeringDomain'
     | 'submittingRhinestoneBundle'
+
+  /**
+   * Set by SUSPEND: the run was stopped because the wallet that owns it went
+   * away, not cancelled. Only ever true in `idle`; START_REGISTRATION and
+   * RESUME clear it.
+   */
+  suspended?: boolean
 }
 
 export type RegistrationEvent =
@@ -210,13 +244,72 @@ export type RegistrationEvent =
       hcaSessionEnable?: HcaSessionEnableParams
       /** Standalone-HCA: set the primary name in the reveal batch. */
       primaryName?: string
+      /**
+       * Orchestrator status lookup for the reveal intent (whose id arrives via
+       * `INTENT_SUBMITTED` mid-flight), so `verifyingRegistration` can fail
+       * fast on a dead intent instead of sitting out the whole grace poll.
+       */
+      fetchIntentStatus?: (
+        intentId: bigint,
+        signal?: AbortSignal,
+      ) => Promise<string | null>
       accountAddress: Address
       ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA`, so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
       publicClient: PublicClient
     }
+  | {
+      /**
+       * Re-enter a registration that was interrupted (tab closed, reload).
+       *
+       * Carries the restored serializable context plus FRESHLY REBUILT runtime
+       * deps — the machine never restores a persisted actor snapshot, because
+       * XState v5 re-runs pending invoked promises on restore and would
+       * re-submit an in-flight bundle. Routing (`getResumeTarget`) can only
+       * reach states that read the chain before they write to it.
+       */
+      type: 'RESUME'
+      /** The stage the run was persisted at; used only for routing. */
+      stage: string
+      context: PersistedRegistrationContext
+      deps: {
+        signer: Signer
+        /** EOA that signs the EIP-2612 funding permit on the HCA path. */
+        approvalSigner?: Signer
+        publicClient: PublicClient
+        /** Rebuilt from the app's session store, never persisted. */
+        hcaSessionEnable?: HcaSessionEnableParams
+        /**
+         * Orchestrator status lookup for the persisted reveal intent, so a
+         * resumed verification can fail fast on a dead intent instead of
+         * sitting out the whole on-chain grace window.
+         */
+        fetchIntentStatus?: (
+          intentId: bigint,
+          signal?: AbortSignal,
+        ) => Promise<string | null>
+      }
+    }
+  | {
+      /**
+       * The warp transport accepted an intent and reported its orchestrator
+       * id. Fired mid-flight (before the fill), from whatever state the
+       * machine happens to be in — hence handled at the root.
+       */
+      type: 'INTENT_SUBMITTED'
+      intentId: bigint
+    }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
+  | {
+      /**
+       * Stop the run because the wallet that owns it is no longer the one
+       * connected. Unlike CANCEL this is an interruption, not an abandonment:
+       * the run goes back to `idle` so it can be RESUMEd later, and
+       * persistence keeps its record exactly as closing the tab would.
+       */
+      type: 'SUSPEND'
+    }
 
 export type RegistrationInput = {
   chainId: number
@@ -293,6 +386,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         primaryName?: string
         id?: string
+        onIntentSubmitted?: (intentId: bigint) => void
       }) => {
         return submitRevealBatchActor(input)
       },
@@ -429,16 +523,26 @@ export const registrationMachine = setup({
       },
     ),
     verifyRegistration: fromResultAsync(
-      (input: {
-        mode: 'eoa' | 'hca'
-        name: string
-        owner: Address
-        hca: Address
-        resolverAddress: Address
-        publicClient: PublicClient
-        commitment: Hash
-        duration: bigint
-      }) => {
+      (
+        input: {
+          mode: 'eoa' | 'hca'
+          name: string
+          owner: Address
+          hca: Address
+          resolverAddress: Address
+          publicClient: PublicClient
+          commitment: Hash
+          duration: bigint
+          intentId?: bigint
+          fetchIntentStatus?: (
+            intentId: bigint,
+            signal?: AbortSignal,
+          ) => Promise<string | null>
+        },
+        // Both actors grace-poll for up to 30s; pass the actor's signal so
+        // CANCEL stops the poll instead of leaving it running to term.
+        { signal }: { signal: AbortSignal },
+      ) => {
         // One machine state, two deployments: the HCA path verifies against
         // the standalone registry, the EOA path against the old deployment.
         return input.mode === 'hca'
@@ -449,8 +553,11 @@ export const registrationMachine = setup({
               publicClient: input.publicClient,
               commitment: input.commitment,
               duration: input.duration,
+              intentId: input.intentId,
+              fetchIntentStatus: input.fetchIntentStatus,
+              signal,
             })
-          : verifyRegistrationActor(input)
+          : verifyRegistrationActor({ ...input, signal })
       },
     ),
   },
@@ -471,11 +578,40 @@ export const registrationMachine = setup({
       })
     },
 
-    clearSnapshot: async () => {
-      // TODO: Implement via persistence service
-      // await persistenceService.clearRegistrationSnapshot()
-      console.log('🗑️ [REGISTRATION] Cleared snapshot')
-    },
+    /**
+     * Rehydrate from a `RESUME` event: persisted fields verbatim, runtime deps
+     * from the freshly rebuilt bag.
+     *
+     * Everything the flow can re-derive is explicitly cleared rather than
+     * carried: a permit past its 1h deadline, a budget quoted at yesterday's
+     * price and a balance read before the tab closed are each worse than no
+     * value at all, because the states that consume them treat "present" as
+     * "trustworthy".
+     */
+    applyResumeContext: assign(({ context, event }) => {
+      if (event.type !== 'RESUME') return context
+
+      // `signerType` exists only to pick the registrar when reading a record
+      // back; the live `signer` supersedes it here.
+      const { signerType: _signerType, ...restored } = event.context
+
+      return {
+        ...context,
+        ...restored,
+        signer: event.deps.signer,
+        approvalSigner: event.deps.approvalSigner,
+        publicClient: event.deps.publicClient,
+        hcaSessionEnable: event.deps.hcaSessionEnable,
+        fetchRegistrationIntentStatus: event.deps.fetchIntentStatus,
+        permit: undefined,
+        hcaBudget: undefined,
+        hcaBudgetBreakdown: undefined,
+        hcaUsdcBalance: undefined,
+        error: undefined,
+        retryTarget: undefined,
+        suspended: undefined,
+      }
+    }),
 
     clearRegisterReadyTimestamp: assign({
       registerReadyTimestamp: () => undefined,
@@ -525,8 +661,6 @@ export const registrationMachine = setup({
       })
     },
   },
-
-  // Note: Persistence will be handled via inspect option (see export at bottom)
 }).createMachine({
   id: 'registration',
   initial: 'idle',
@@ -549,47 +683,97 @@ export const registrationMachine = setup({
     resolverSalt: undefined,
   }),
 
+  on: {
+    // Arrives from the transport whenever the orchestrator accepts the reveal
+    // intent — by then the machine has usually moved past the submitting
+    // state, so the id is accepted from anywhere.
+    INTENT_SUBMITTED: {
+      actions: assign({
+        registrationIntentId: ({ event }) => event.intentId,
+      }),
+    },
+    // Accepted from anywhere, since the owning wallet can go away at any point
+    // of the run. Leaving the state stops whatever it had invoked, as closing
+    // the tab would; the flow fields stay for the RESUME that picks it back up.
+    SUSPEND: {
+      target: '.idle',
+      actions: assign({ suspended: () => true }),
+    },
+  },
+
   states: {
     idle: {
       on: {
         START_REGISTRATION: {
           target: 'settingUpRegistration',
-          actions: assign({
-            name: ({ event }) => event.name,
-            duration: ({ event }) => event.duration,
-            selectedToken: ({ event }) => event.token,
-            tokenPrice: ({ event }) => event.price,
-            signer: ({ event }) => event.signer,
-            approvalSigner: ({ event }) => event.approvalSigner,
-            accountAddress: ({ event }) => event.accountAddress,
-            registrationStartedAt: ({ event }) =>
-              event.signer.type === 'rhinestone' ? Date.now() : undefined,
-            ownerAddress: ({ event }) =>
-              event.ownerAddress ?? event.accountAddress, // ENS name owner. Default to accountAddress if not provided
-            resolverOwnerAddress: ({ event }) =>
-              event.resolverOwnerAddress ??
-              event.ownerAddress ??
-              event.accountAddress, // EACL grantee for the dedicated resolver. Should be the EOA.
-            publicClient: ({ event }) => event.publicClient,
-            registerReadyTimestamp: () => undefined,
-            hcaBudget: ({ event }) => event.hcaBudget,
-            displayedWalletDebit: ({ event }) => event.displayedWalletDebit,
-            hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
-            primaryName: ({ event }) => event.primaryName,
-            resolverAddress: () => undefined,
-            resolverTxId: () => undefined,
-            resolverSalt: () => undefined,
-            commitment: () => undefined,
-            commitmentTxId: () => undefined,
-            permit: () => undefined,
-            // Balance is re-read by `checkingHcaFunding` on every run, but
-            // clear it so a stale value can never size a permit if some future
-            // path reaches `signingFundingPermit` without the read.
-            hcaUsdcBalance: () => undefined,
-            approvalTxId: () => undefined,
-            registrationTxId: () => undefined,
-          }),
+          actions: [
+            // Full-form assign: a function-typed context value inside the
+            // property map below would be indistinguishable from a property
+            // assigner, so TS drops the `event` inference.
+            assign(({ event }) => ({
+              fetchRegistrationIntentStatus: event.fetchIntentStatus,
+            })),
+            assign({
+              name: ({ event }) => event.name,
+              duration: ({ event }) => event.duration,
+              selectedToken: ({ event }) => event.token,
+              tokenPrice: ({ event }) => event.price,
+              signer: ({ event }) => event.signer,
+              approvalSigner: ({ event }) => event.approvalSigner,
+              accountAddress: ({ event }) => event.accountAddress,
+              registrationStartedAt: ({ event }) =>
+                event.signer.type === 'rhinestone' ? Date.now() : undefined,
+              ownerAddress: ({ event }) =>
+                event.ownerAddress ?? event.accountAddress, // ENS name owner. Default to accountAddress if not provided
+              resolverOwnerAddress: ({ event }) =>
+                event.resolverOwnerAddress ??
+                event.ownerAddress ??
+                event.accountAddress, // EACL grantee for the dedicated resolver. Should be the EOA.
+              publicClient: ({ event }) => event.publicClient,
+              registerReadyTimestamp: () => undefined,
+              hcaBudget: ({ event }) => event.hcaBudget,
+              displayedWalletDebit: ({ event }) => event.displayedWalletDebit,
+              hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
+              primaryName: ({ event }) => event.primaryName,
+              resolverAddress: () => undefined,
+              resolverTxId: () => undefined,
+              resolverSalt: () => undefined,
+              commitment: () => undefined,
+              commitmentTxId: () => undefined,
+              permit: () => undefined,
+              // Balance is re-read by `checkingHcaFunding` on every run, but
+              // clear it so a stale value can never size a permit if some future
+              // path reaches `signingFundingPermit` without the read.
+              hcaUsdcBalance: () => undefined,
+              approvalTxId: () => undefined,
+              registrationTxId: () => undefined,
+              registrationIntentId: () => undefined,
+              suspended: () => undefined,
+            }),
+          ],
         },
+
+        // Re-enter an interrupted run. The target set is exactly
+        // `ResumeTarget` — no `submitting*` and no `signingFundingPermit`, so
+        // a resume can never re-send a request that may already be in flight.
+        RESUME: [
+          {
+            guard: ({ event }) =>
+              getResumeTarget(event) === 'verifyingRegistration',
+            target: 'verifyingRegistration',
+            actions: 'applyResumeContext',
+          },
+          {
+            guard: ({ event }) =>
+              getResumeTarget(event) === 'validatingCommitment',
+            target: 'validatingCommitment',
+            actions: 'applyResumeContext',
+          },
+          {
+            target: 'settingUpRegistration',
+            actions: 'applyResumeContext',
+          },
+        ],
       },
     },
 
@@ -1031,24 +1215,37 @@ export const registrationMachine = setup({
           target: 'fetchingCommitmentAge',
         },
         // Receipt polling can fail (timeout / lost tx actor) even after the
-        // commitment lands on-chain — especially for the HCA bundle,
-        // where the commit is one call inside `submittingSetupBundle`. Don't
-        // surface a false failure and resubmit a standalone `commit` (the
-        // registrar rejects an already-recorded commitment, stranding the user
-        // in `error`). Instead verify on-chain via `validatingCommitment`: if
+        // commitment lands on-chain — especially for the HCA bundle, where the
+        // commit is one call inside `submittingSetupBundle`. Don't surface a
+        // false failure and resubmit a standalone `commit` (the registrar
+        // rejects an already-recorded commitment, stranding the user in
+        // `error`). Instead verify on-chain via `validatingCommitment`: if
         // `commitmentAt` is set we continue, otherwise that state's retry
         // resubmits the correct (signer-aware) commit path.
         onError: [
-          // Warp can fill after a reported failure, so only HCA verifies.
+          // A commit that never reached the chain has nothing to verify.
+          // Validating anyway would keep the user waiting out its retries and
+          // then replace the real error with a "not found" one, hiding from
+          // persistence that the run stopped here. Warp can fill after a
+          // reported failure, so only HCA verifies a retryable send error.
+          //
+          // `isUserRejectionError` is checked on its own because
+          // `isRetryableSubmissionError` only tests `TransactionUserRejectedError`
+          // at the top level and walks at most ten causes, so a rejection nested
+          // deeper reads as retryable there.
           {
             guard: ({ context, event }) =>
+              isUserRejectionError(event.error) ||
               !isRetryableSubmissionError(event.error) ||
               (context.signer?.type !== 'rhinestone' &&
                 event.error instanceof TransactionSubmissionError),
             target: 'error',
             actions: assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'preparingCommitment' as const,
+              retryTarget: ({ context }) =>
+                context.signer?.type === 'rhinestone'
+                  ? ('submittingSetupBundle' as const)
+                  : ('preparingCommitment' as const),
             }),
           },
           {
@@ -1140,8 +1337,22 @@ export const registrationMachine = setup({
         }),
         onDone: [
           // The commitment is confirmed on-chain; HCA needs no allowance step.
-          { guard: 'isRhinestoneSigner', target: 'commitmentCooldown' },
-          { target: 'checkingAllowance' },
+          // Either way `commitmentCooldown` waits out the rest of its age.
+          {
+            guard: 'isRhinestoneSigner',
+            target: 'commitmentCooldown',
+            actions: assign({
+              registerReadyTimestamp: ({ event }) =>
+                event.output.registerReadyTimestamp,
+            }),
+          },
+          {
+            target: 'checkingAllowance',
+            actions: assign({
+              registerReadyTimestamp: ({ event }) =>
+                event.output.registerReadyTimestamp,
+            }),
+          },
         ],
         onError: {
           target: 'error',
@@ -1215,7 +1426,7 @@ export const registrationMachine = setup({
       entry: ['logTransition', 'clearRegisterReadyTimestamp'],
       invoke: {
         src: 'submitRevealBatch',
-        input: ({ context }) => ({
+        input: ({ context, self }) => ({
           name: context.name,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           wallet: context.ownerAddress ?? context.accountAddress!,
@@ -1231,6 +1442,12 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           primaryName: context.primaryName,
           id: REGISTRATION_TX_IDS.register,
+          // Fires from the transport once the orchestrator accepts the
+          // intent — typically AFTER this invoke has already resolved (the
+          // submit actor returns as soon as the tx is queued), so the id is
+          // delivered as a machine event rather than through the result.
+          onIntentSubmitted: (intentId: bigint) =>
+            self.send({ type: 'INTENT_SUBMITTED', intentId }),
         }),
         onDone: {
           target: 'waitingForRhinestoneBundle',
@@ -1503,6 +1720,8 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           commitment: context.commitment!.commitment,
           duration: context.duration,
+          intentId: context.registrationIntentId,
+          fetchIntentStatus: context.fetchRegistrationIntentStatus,
         }),
         onDone: [
           {
@@ -1565,7 +1784,10 @@ export const registrationMachine = setup({
     success: {
       // Not `type: 'final'` so `CANCEL` can return to `idle` for a new registration
       // (e.g. register-v2 after another name); `START_REGISTRATION` only runs from `idle`.
-      entry: ['logTransition', 'logRegistrationDuration', 'clearSnapshot'],
+      // Clearing the persisted record is the subscriber's job (see
+      // `subscribeRegistrationPersistence`), which keeps storage out of the
+      // machine entirely.
+      entry: ['logTransition', 'logRegistrationDuration'],
       on: {
         CANCEL: {
           target: 'idle',
@@ -1598,6 +1820,7 @@ export const registrationMachine = setup({
               error: undefined,
               retryTarget: undefined,
               registrationTxId: undefined,
+              registrationIntentId: undefined,
             })),
           },
           {
@@ -1612,6 +1835,7 @@ export const registrationMachine = setup({
               retryTarget: undefined,
               hcaBudget: undefined,
               hcaBudgetBreakdown: undefined,
+              registrationIntentId: undefined,
             })),
           },
           {
@@ -1627,6 +1851,7 @@ export const registrationMachine = setup({
               retryTarget: undefined,
               permit: undefined,
               registrationTxId: undefined,
+              registrationIntentId: undefined,
             })),
           },
           {
@@ -1641,6 +1866,11 @@ export const registrationMachine = setup({
               error: undefined,
               retryTarget: undefined,
               registrationTxId: undefined,
+              // The DEAD intent's id. Until the retried submit reports its own
+              // via INTENT_SUBMITTED, carrying this would let verification (or
+              // a persisted record) ask the orchestrator about the old intent
+              // and declare the NEW one dead while it is still filling.
+              registrationIntentId: undefined,
             })),
           },
           {
@@ -1652,6 +1882,7 @@ export const registrationMachine = setup({
               retryTarget: undefined,
               approvalTxId: undefined,
               registrationTxId: undefined,
+              registrationIntentId: undefined,
             })),
           },
           {
@@ -1667,6 +1898,7 @@ export const registrationMachine = setup({
               commitmentTxId: undefined,
               approvalTxId: undefined,
               registrationTxId: undefined,
+              registrationIntentId: undefined,
               registerReadyTimestamp: undefined,
             })),
           },
@@ -1692,6 +1924,7 @@ export const registrationMachine = setup({
               resolverSalt: undefined,
               commitment: undefined,
               commitmentTxId: undefined,
+              registrationIntentId: undefined,
               registerReadyTimestamp: undefined,
             })),
           },
@@ -1717,8 +1950,3 @@ export const registrationMachine = setup({
     },
   },
 })
-
-// TODO: Add persistence wrapper with inspect option
-// const savedSnapshot = await persistenceService.loadRegistrationSnapshot()
-// export const registrationMachine = savedSnapshot
-//   ? baseMachine.provide({ snapshot: savedSnapshot })

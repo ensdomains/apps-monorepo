@@ -266,7 +266,7 @@ export function encodeRegisterCall({
 
 export type TOKEN_SYMBOL = 'USDC' | 'DAI'
 
-const PAYMENT_TOKEN_CONTRACT = { USDC: 'usdc', DAI: 'dai' } as const
+export const PAYMENT_TOKEN_CONTRACT = { USDC: 'usdc', DAI: 'dai' } as const
 
 function getPaymentTokenAddress(token: TOKEN_SYMBOL, chain: Chain): Address {
   return getChainContractAddress({
@@ -680,25 +680,123 @@ export function readPaymentAuthorizationActor(input: {
   )
 }
 
+/** How long on-chain verification keeps re-reading before giving up. */
+export const VERIFY_GRACE_WINDOW_MS = 30_000
+/** Gap between verification reads inside the grace window. */
+export const VERIFY_POLL_INTERVAL_MS = 5_000
+
+/**
+ * Tuning for the verification grace-poll. `graceWindowMs: 0` degrades to a
+ * single read, which is what tests want when they are not exercising the poll.
+ */
+export type VerifyPollOptions = {
+  graceWindowMs?: number
+  pollIntervalMs?: number
+  /** Abort the poll early — wired to the XState actor's signal. */
+  signal?: AbortSignal
+  /**
+   * Consulted ONCE, only after the first read has already come back
+   * unverified — the chain stays authoritative. Return true when the awaited
+   * transaction is definitively dead (e.g. the orchestrator reports its
+   * intent FAILED/EXPIRED) and the grace window would be waiting for a state
+   * that cannot appear. A throw is treated as inconclusive: keep polling.
+   */
+  isDefinitivelyDead?: () => Promise<boolean>
+}
+
+function sleepUnlessAborted(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (signal?.aborted) return resolve()
+
+    const onAbort = () => {
+      clearTimeout(timer)
+      resolve()
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
+/**
+ * Re-read `check` until it verifies or the grace window closes.
+ *
+ * A single read is not enough on the standalone-HCA route: intents keep filling
+ * SERVER-SIDE after the tab closes, so a reload lands in `verifyingRegistration`
+ * while the register call is still seconds from confirming. A single-shot read
+ * there reports a false failure and pushes the user into a retry for a name
+ * they are about to own.
+ */
+export async function pollUntilVerified(
+  check: () => Promise<{ verified: boolean }>,
+  options: VerifyPollOptions = {},
+): Promise<{ verified: boolean }> {
+  const { signal } = options
+  const pollIntervalMs = options.pollIntervalMs ?? VERIFY_POLL_INTERVAL_MS
+  const deadline =
+    Date.now() + (options.graceWindowMs ?? VERIFY_GRACE_WINDOW_MS)
+
+  let result = await check()
+
+  if (!result.verified && options.isDefinitivelyDead) {
+    try {
+      // Race the oracle against one poll interval (or CANCEL): it exists to
+      // SHORTEN the grace window, so a hung status endpoint must degrade to
+      // the blind poll rather than stall verification past the window — a
+      // browser fetch can otherwise block for minutes.
+      const oracleBudgetMs = Math.max(
+        0,
+        Math.min(pollIntervalMs, deadline - Date.now()),
+      )
+      const dead = await Promise.race([
+        options.isDefinitivelyDead(),
+        sleepUnlessAborted(oracleBudgetMs, signal).then(() => false),
+      ])
+      if (dead) return result
+    } catch {
+      // Inconclusive — an unreachable oracle must never fail a verification
+      // the chain could still confirm.
+    }
+  }
+
+  while (!result.verified && !signal?.aborted) {
+    const remaining = deadline - Date.now()
+    if (remaining <= 0) break
+
+    await sleepUnlessAborted(Math.min(pollIntervalMs, remaining), signal)
+    if (signal?.aborted) break
+
+    result = await check()
+  }
+
+  return result
+}
+
 /**
  * Verify OUR registration landed on-chain. Used as a fallback after the
- * submit/poll path fails.
+ * submit/poll path fails, and as the resume anchor for a run that was
+ * interrupted after the register call went out.
  *
  * Owner and resolver are caller-supplied `register` args, so matching them
  * proves nothing on their own; `commitmentAt == 0` is what proves our own
  * reveal executed. See `verifyHcaRegistrationActor` — same check, EOA
  * deployment.
  */
-export function verifyRegistrationActor(input: {
-  name: string
-  owner: Address
-  resolverAddress: Address
-  publicClient: PublicClient
-  /** The commitment this flow's registration consumed. */
-  commitment: Hex
-  /** Override for the standalone-HCA registrar; defaults to the EOA deployment. */
-  registrarAddress?: Address
-}): ResultAsync<{ verified: boolean; reason?: string }, Error> {
+export function verifyRegistrationActor(
+  input: {
+    name: string
+    owner: Address
+    resolverAddress: Address
+    publicClient: PublicClient
+    /** The commitment this flow's registration consumed. */
+    commitment: Hex
+    /** Override for the standalone-HCA registrar; defaults to the EOA deployment. */
+    registrarAddress?: Address
+  } & VerifyPollOptions,
+): ResultAsync<{ verified: boolean; reason?: string }, Error> {
   const registrarAddress =
     input.registrarAddress ??
     getChainContractAddress({
@@ -706,101 +804,110 @@ export function verifyRegistrationActor(input: {
       contract: 'ensEthRegistrar',
     })
   const cleanName = input.name.replace('.eth', '')
-  return fromPromise(
-    (async () => {
-      // ETHRegistrar.REGISTRY() points at the IPermissionedRegistry where
-      // entries are stored. Read the registry, then look up the resolver.
-      const registryAddress = (await readContract(input.publicClient, {
+
+  const readRegistryEntry = async (): Promise<{
+    verified: boolean
+    reason?: string
+  }> => {
+    // ETHRegistrar.REGISTRY() points at the IPermissionedRegistry where
+    // entries are stored. Read the registry, then look up the resolver.
+    const registryAddress = (await readContract(input.publicClient, {
+      address: registrarAddress,
+      abi: parseAbi(['function REGISTRY() view returns (address)']),
+      functionName: 'REGISTRY',
+    })) as Address
+
+    // ensjs-abi ships no owner-by-label snippet, so that one stays local.
+    const registryOwnerAbi = parseAbi([
+      'function getOwner(string label) view returns (address)',
+    ])
+    const [[resolver, owner, subregistry], commitTime] = await Promise.all([
+      multicall(input.publicClient, {
+        allowFailure: false,
+        contracts: [
+          {
+            address: registryAddress,
+            abi: permissionedRegistryGetResolverSnippet,
+            functionName: 'getResolver',
+            args: [cleanName],
+          },
+          {
+            address: registryAddress,
+            abi: registryOwnerAbi,
+            functionName: 'getOwner',
+            args: [cleanName],
+          },
+          {
+            address: registryAddress,
+            abi: permissionedRegistryGetSubregistrySnippet,
+            functionName: 'getSubregistry',
+            args: [cleanName],
+          },
+        ],
+      }),
+      readContract(input.publicClient, {
         address: registrarAddress,
-        abi: parseAbi(['function REGISTRY() view returns (address)']),
-        functionName: 'REGISTRY',
-      })) as Address
+        abi: ethRegistrarCommitmentsSnippet,
+        functionName: 'commitmentAt',
+        args: [input.commitment],
+      }),
+    ])
 
-      // ensjs-abi ships no owner-by-label snippet, so that one stays local.
-      const registryOwnerAbi = parseAbi([
-        'function getOwner(string label) view returns (address)',
-      ])
-      const [[resolver, owner, subregistry], commitTime] = await Promise.all([
-        multicall(input.publicClient, {
-          allowFailure: false,
-          contracts: [
-            {
-              address: registryAddress,
-              abi: permissionedRegistryGetResolverSnippet,
-              functionName: 'getResolver',
-              args: [cleanName],
-            },
-            {
-              address: registryAddress,
-              abi: registryOwnerAbi,
-              functionName: 'getOwner',
-              args: [cleanName],
-            },
-            {
-              address: registryAddress,
-              abi: permissionedRegistryGetSubregistrySnippet,
-              functionName: 'getSubregistry',
-              args: [cleanName],
-            },
-          ],
-        }),
-        readContract(input.publicClient, {
-          address: registrarAddress,
-          abi: ethRegistrarCommitmentsSnippet,
-          functionName: 'commitmentAt',
-          args: [input.commitment],
-        }),
-      ])
+    if (
+      isAddressEqual(resolver, zeroAddress) ||
+      !isAddressEqual(resolver, input.resolverAddress)
+    ) {
+      return {
+        verified: false,
+        reason: `resolver is ${resolver}, expected ${input.resolverAddress}`,
+      }
+    }
+    if (
+      isAddressEqual(owner, zeroAddress) ||
+      !isAddressEqual(owner, input.owner)
+    ) {
+      return {
+        verified: false,
+        reason: `owner is ${owner}, expected ${input.owner}`,
+      }
+    }
+    // We set none, and whoever did owns every name beneath this one.
+    if (!isAddressEqual(subregistry, zeroAddress)) {
+      return {
+        verified: false,
+        reason: `subregistry is ${subregistry}, expected none — this registration is not ours`,
+      }
+    }
+    if (BigInt(commitTime) !== 0n) {
+      return {
+        verified: false,
+        reason: `our commitment is unconsumed (recorded at ${commitTime}), so a different reveal registered this name`,
+      }
+    }
 
-      if (
-        isAddressEqual(resolver, zeroAddress) ||
-        !isAddressEqual(resolver, input.resolverAddress)
-      ) {
-        return {
-          verified: false,
-          reason: `resolver is ${resolver}, expected ${input.resolverAddress}`,
-        }
-      }
-      if (
-        isAddressEqual(owner, zeroAddress) ||
-        !isAddressEqual(owner, input.owner)
-      ) {
-        return {
-          verified: false,
-          reason: `owner is ${owner}, expected ${input.owner}`,
-        }
-      }
-      // We set none, and whoever did owns every name beneath this one.
-      if (!isAddressEqual(subregistry, zeroAddress)) {
-        return {
-          verified: false,
-          reason: `subregistry is ${subregistry}, expected none — this registration is not ours`,
-        }
-      }
-      if (BigInt(commitTime) !== 0n) {
-        return {
-          verified: false,
-          reason: `our commitment is unconsumed (recorded at ${commitTime}), so a different reveal registered this name`,
-        }
-      }
+    return { verified: true }
+  }
 
-      return { verified: true }
-    })(),
-    (error) => error as Error,
+  return fromPromise(pollUntilVerified(readRegistryEntry, input), (error) =>
+    error instanceof Error ? error : new Error(String(error)),
   )
 }
 
 /**
- * Validate commitment readiness before proceeding to registration
- * Checks commitmentAt timestamp and MIN_COMMITMENT_AGE from contract
- * This ensures the commitment is recorded on-chain before registration
+ * Confirm the commitment is recorded on-chain, and work out when it becomes
+ * old enough to reveal.
+ *
+ * It does not wait for that moment itself: `commitmentCooldown` does, off the
+ * returned `registerReadyTimestamp`, which is what both apps render as the
+ * countdown. Waiting here instead left a resumed run showing "validating
+ * commitment" for the whole cooldown and then skipping the countdown.
  */
 export function validateCommitmentActor(input: {
   commitment: CommitmentData
   publicClient: PublicClient
   /** Override for the standalone-HCA registrar; defaults to the EOA deployment. */
   registrarAddress?: Address
-}): ResultAsync<void, Error> {
+}): ResultAsync<{ registerReadyTimestamp: number }, Error> {
   const registrarAddress =
     input.registrarAddress ??
     getChainContractAddress({
@@ -880,30 +987,23 @@ export function validateCommitmentActor(input: {
         `✅ [REGISTRATION ACTOR] Commitment recorded at timestamp: ${committedAt.toString()}`,
       )
 
-      // If MIN_COMMITMENT_AGE is 0, we can proceed immediately
       if (minAge === 0n) {
         console.log(
           '✅ [REGISTRATION ACTOR] MIN_COMMITMENT_AGE is 0, commitment is ready',
         )
-        return
+        return { registerReadyTimestamp: Date.now() }
       }
 
-      // Otherwise, wait until MIN_COMMITMENT_AGE has elapsed
+      // Measured in chain time, since `commitmentAt` is a block timestamp, and
+      // handed back as a wall-clock deadline for the cooldown to wait on.
       const latestBlock = await getBlock(input.publicClient)
-      const nowTs = latestBlock.timestamp as bigint
-      const elapsed = nowTs - committedAt
+      const elapsed = (latestBlock.timestamp as bigint) - committedAt
+      const remainingSeconds = elapsed < minAge ? Number(minAge - elapsed) : 0
 
-      if (elapsed < minAge) {
-        const waitSeconds = Number(minAge - elapsed)
-        console.log(
-          `⏳ [REGISTRATION ACTOR] Waiting ${waitSeconds}s for MIN_COMMITMENT_AGE before registering...`,
-        )
-        await sleep(waitSeconds * 1000)
-      } else {
-        console.log(
-          `✅ [REGISTRATION ACTOR] MIN_COMMITMENT_AGE requirement satisfied (elapsed: ${elapsed.toString()}s, required: ${minAge.toString()}s)`,
-        )
-      }
+      console.log(
+        `✅ [REGISTRATION ACTOR] Commitment is ${elapsed.toString()}s old (${minAge.toString()}s required); ready in ${remainingSeconds}s`,
+      )
+      return { registerReadyTimestamp: Date.now() + remainingSeconds * 1000 }
     })(),
     (error) => {
       console.error(

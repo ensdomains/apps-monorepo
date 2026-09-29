@@ -1,8 +1,11 @@
-import type { Address, PublicClient } from 'viem'
+import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { createActor, fromPromise, waitFor } from 'xstate'
-import { TransactionSubmissionError } from '../../errors/transaction.errors'
+import {
+  TransactionSubmissionError,
+  TransactionUserRejectedError,
+} from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
 import type { TransactionRequest } from '../../types/transaction.types'
 import type { HcaSessionEnableParams } from './registration.hca.actors'
@@ -11,6 +14,9 @@ import { registrationMachine } from './registration.machine'
 const HCA = '0xaaaa000000000000000000000000000000000001' as Address
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
 const BUDGET = 15_000_000n
+const RESOLVER = '0xbbbb000000000000000000000000000000000002' as Address
+const COMMITMENT = `0x${'ab'.repeat(32)}` as Hash
+const SECRET = `0x${'cd'.repeat(32)}` as Hex
 
 const permit = {
   owner: WALLET,
@@ -53,6 +59,8 @@ const startHcaRegistration = (overrides: {
   hcaSessionEnable?: HcaSessionEnableParams
   pollTransactionStatus?: ReturnType<typeof vi.fn>
   validateCommitment?: ReturnType<typeof vi.fn>
+  /** Orchestrator status lookup for the reveal intent. */
+  fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
 }) => {
   const estimateHcaBudget =
     overrides.estimateHcaBudget ??
@@ -122,6 +130,9 @@ const startHcaRegistration = (overrides: {
       : {}),
     ...(overrides.displayedWalletDebit !== undefined
       ? { displayedWalletDebit: overrides.displayedWalletDebit }
+      : {}),
+    ...(overrides.fetchIntentStatus
+      ? { fetchIntentStatus: overrides.fetchIntentStatus }
       : {}),
   })
 
@@ -406,5 +417,543 @@ describe('registrationMachine — failed commit send', () => {
     })
 
     await waitFor(actor, (s) => s.matches('validatingCommitment'))
+  })
+})
+
+/**
+ * Drive the machine to `verifyingRegistration` with a stubbed verifier, so the
+ * assertions are about what the machine does with the verdict.
+ */
+const startVerifyingRegistration = (options: {
+  signerType: 'eoa' | 'rhinestone'
+  verifyRegistration: ReturnType<typeof vi.fn>
+}) => {
+  const actor = createActor(
+    registrationMachine.provide({
+      actors: {
+        verifyRegistration: fromPromise(options.verifyRegistration) as never,
+        validateCommitment: fromPromise(() => new Promise(() => {})) as never,
+      },
+    }),
+    { input: { chainId: sepolia.id } },
+  )
+
+  actor.start()
+  actor.send({
+    type: 'RESUME',
+    stage: 'waitingForRhinestoneBundle',
+    context: {
+      chainId: sepolia.id,
+      name: 'myname.eth',
+      duration: 31_536_000n,
+      selectedToken: 'USDC',
+      tokenPrice: 5_000_000n,
+      signerType: options.signerType,
+      accountAddress: HCA,
+      ownerAddress: WALLET,
+      resolverAddress: RESOLVER,
+      commitment: { commitment: COMMITMENT, secret: SECRET },
+      registrationTxId: 'tx-reg-register',
+    },
+    deps: {
+      signer: { type: options.signerType } as unknown as Signer,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+    },
+  })
+
+  return actor
+}
+
+describe('registrationMachine — RESUME', () => {
+  it('routes a stored commitment straight to on-chain validation', async () => {
+    const validateCommitment = vi.fn(() => new Promise(() => {}))
+    const submitFundingAndCommit = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          validateCommitment: fromPromise(validateCommitment) as never,
+          submitFundingAndCommit: fromPromise(submitFundingAndCommit) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'commitmentCooldown',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+        commitmentTxId: 'tx-reg-commit',
+        registerReadyTimestamp: 1_800_000_000_000,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        hcaSessionEnable: SESSION_ENABLE,
+      },
+    })
+
+    await waitFor(actor, (s) => s.matches('validatingCommitment'))
+
+    // The whole point: no second commit for a commitment already on-chain.
+    expect(submitFundingAndCommit).not.toHaveBeenCalled()
+
+    // The secret and the resolver are unguessable and unrecoverable — a resume
+    // that loses either has to restart and re-pay.
+    const context = actor.getSnapshot().context
+    expect(context.commitment).toEqual({
+      commitment: COMMITMENT,
+      secret: SECRET,
+    })
+    expect(context.resolverAddress).toBe(RESOLVER)
+    expect(context.registerReadyTimestamp).toBe(1_800_000_000_000)
+
+    // Runtime deps come from the event, never from storage.
+    expect(context.signer?.type).toBe('rhinestone')
+    expect(context.hcaSessionEnable).toEqual(SESSION_ENABLE)
+
+    // A permit past its 1h deadline is worse than no permit: the states that
+    // consume it treat "present" as "valid".
+    expect(context.permit).toBeUndefined()
+    expect(context.hcaBudget).toBeUndefined()
+    actor.stop()
+  })
+
+  it('waits out the commitment age in the cooldown, where it shows', async () => {
+    // Stored before `fetchingCommitmentAge` ran, so the record has no ready
+    // time. Validation supplies it; the cooldown, which the apps render as a
+    // countdown, does the waiting.
+    const readyAt = Date.now() + 42_000
+    const waitAfterCommitment = vi.fn(
+      (_args: { input: { targetMs: number } }) => new Promise(() => {}),
+    )
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          validateCommitment: fromPromise(async () => ({
+            registerReadyTimestamp: readyAt,
+          })) as never,
+          waitAfterCommitment: fromPromise(waitAfterCommitment) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'waitingForCommitment',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+        commitmentTxId: 'tx-reg-commit',
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        hcaSessionEnable: SESSION_ENABLE,
+      },
+    })
+
+    await waitFor(actor, (s) => s.matches('commitmentCooldown'))
+
+    expect(actor.getSnapshot().context.registerReadyTimestamp).toBe(readyAt)
+    expect(waitAfterCommitment).toHaveBeenCalledWith(
+      expect.objectContaining({ input: { targetMs: readyAt } }),
+    )
+    actor.stop()
+  })
+
+  it('restarts a pre-commit run from setup', async () => {
+    const estimateHcaBudget = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          estimateHcaBudget: fromPromise(estimateHcaBudget) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'signingFundingPermit',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+      },
+    })
+
+    // Never back into `signingFundingPermit`: it re-prompts the wallet for a
+    // permit whose predecessor may already be inside an in-flight bundle.
+    await waitFor(actor, (s) => s.matches('computingHcaBudget'))
+    expect(actor.getSnapshot().value).toBe('computingHcaBudget')
+    actor.stop()
+  })
+
+  it('is ignored outside idle, so a live run cannot be rewound', async () => {
+    const { actor } = startHcaRegistration({
+      balances: [0n],
+      // Park here so the assertion is about RESUME, not about how far the
+      // funding path happened to run.
+      signFundingPermit: vi.fn(() => new Promise(() => {})),
+    })
+    await waitFor(actor, (s) => s.matches('signingFundingPermit'))
+
+    actor.send({
+      type: 'RESUME',
+      stage: 'commitmentCooldown',
+      context: {
+        chainId: sepolia.id,
+        name: 'other.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+      },
+    })
+
+    expect(actor.getSnapshot().value).toBe('signingFundingPermit')
+    expect(actor.getSnapshot().context.name).toBe('myname.eth')
+    actor.stop()
+  })
+
+  it('threads the persisted intent id and status fetcher into verification', async () => {
+    const verifyRegistration = vi.fn(() => new Promise(() => {}))
+    const fetchIntentStatus = vi.fn(async () => 'PENDING')
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          verifyRegistration: fromPromise(verifyRegistration) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'waitingForRhinestoneBundle',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+        registrationTxId: 'tx-reg-register',
+        registrationIntentId: 42n,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        fetchIntentStatus,
+      },
+    })
+
+    await waitFor(actor, (s) => s.matches('verifyingRegistration'))
+
+    // The whole point of persisting the id: verification can ask the
+    // orchestrator about THIS intent instead of blind-polling the registry.
+    expect(verifyRegistration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          intentId: 42n,
+          fetchIntentStatus,
+        }),
+      }),
+    )
+    actor.stop()
+  })
+})
+
+describe('registrationMachine — SUSPEND', () => {
+  it('stops a live run and leaves it ready to RESUME', async () => {
+    const { actor } = startHcaRegistration({
+      balances: [0n],
+      signFundingPermit: vi.fn(() => new Promise(() => {})),
+    })
+    await waitFor(actor, (s) => s.matches('signingFundingPermit'))
+
+    actor.send({ type: 'SUSPEND' })
+
+    expect(actor.getSnapshot().value).toBe('idle')
+    expect(actor.getSnapshot().context.suspended).toBe(true)
+
+    // The owner reconnecting later resumes the same run from idle.
+    actor.send({
+      type: 'RESUME',
+      stage: 'signingFundingPermit',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+      },
+    })
+
+    expect(actor.getSnapshot().value).not.toBe('idle')
+    expect(actor.getSnapshot().context.suspended).toBeUndefined()
+    actor.stop()
+  })
+})
+
+describe('registrationMachine — commit receipt failure', () => {
+  /** Walk the EOA path up to the commit receipt, which fails with `pollError`. */
+  const startEoaCommit = (pollError: Error) => {
+    const validateCommitment = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          deployResolver: fromPromise(async () => ({
+            txId: 'tx-reg-deploy-resolver',
+            salt: 1n,
+          })) as never,
+          resolveResolverDeployment: fromPromise(async () => ({
+            resolverAddress: RESOLVER,
+          })) as never,
+          generateCommitment: fromPromise(async () => ({
+            commitment: COMMITMENT,
+            secret: SECRET,
+          })) as never,
+          submitCommitment: fromPromise(async () => 'tx-reg-commit') as never,
+          pollTransactionStatus: fromPromise(async () => {
+            throw pollError
+          }) as never,
+          validateCommitment: fromPromise(validateCommitment) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'START_REGISTRATION',
+      name: 'myname.eth',
+      duration: 31_536_000n,
+      token: 'USDC',
+      price: 5_000_000n,
+      signer: { type: 'eoa' } as unknown as Signer,
+      accountAddress: WALLET,
+      ownerAddress: WALLET,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+    })
+
+    return { actor, validateCommitment }
+  }
+
+  it('goes straight to error when the user declined the commit', async () => {
+    const declined = new TransactionUserRejectedError({} as TransactionRequest)
+    const { actor, validateCommitment } = startEoaCommit(declined)
+
+    await waitFor(actor, (s) => s.matches('error'))
+
+    // Nothing reached the chain, so there is nothing to wait out retries for.
+    expect(validateCommitment).not.toHaveBeenCalled()
+    // Kept rather than replaced by "commitment not found": it is how
+    // persistence tells a declined run from an interrupted one.
+    expect(actor.getSnapshot().context.error).toBe(declined)
+    // Retry re-enters through commitment generation (fresh secret) — the one
+    // EOA commit-retry path, whether or not the declined commit was sent.
+    expect(actor.getSnapshot().context.retryTarget).toBe('preparingCommitment')
+    actor.stop()
+  })
+
+  it('still verifies on-chain when the receipt poll merely failed', async () => {
+    // The commit may have landed; resubmitting it would be rejected by the
+    // registrar and strand the user.
+    const { actor, validateCommitment } = startEoaCommit(
+      new Error('receipt timeout'),
+    )
+
+    await waitFor(actor, (s) => s.matches('validatingCommitment'))
+
+    expect(validateCommitment).toHaveBeenCalledOnce()
+    actor.stop()
+  })
+})
+
+describe('registrationMachine — intent id capture', () => {
+  it('captures the id the transport reports mid-flight, from any state', () => {
+    // `onIntentSubmitted` fires from the transport once the orchestrator
+    // accepts the reveal intent — usually after the submitting state has
+    // already moved on, which is why the handler lives at the machine root.
+    const actor = createActor(registrationMachine, {
+      input: { chainId: sepolia.id },
+    })
+
+    actor.start()
+    actor.send({ type: 'INTENT_SUBMITTED', intentId: 987n })
+
+    expect(actor.getSnapshot().context.registrationIntentId).toBe(987n)
+    actor.stop()
+  })
+
+  it('clears the dead intent id when retrying the reveal', async () => {
+    // Retrying leaves the OLD intent definitively dead. Until the new submit
+    // reports its own id via INTENT_SUBMITTED, verification (and the persisted
+    // record) must not be able to ask the orchestrator about the old one — a
+    // FAILED answer there would skip the grace poll and declare the retried
+    // registration dead while its intent is still filling.
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          verifyRegistration: fromPromise(async () => ({
+            verified: false,
+          })) as never,
+          submitRevealBatch: fromPromise(
+            () => new Promise(() => {}),
+          ) as never /* park: the assertion is about entry context */,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'waitingForRhinestoneBundle',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+        registrationTxId: 'tx-reg-register',
+        registrationIntentId: 42n,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+      },
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe(
+      'submittingRhinestoneBundle',
+    )
+
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('submittingRhinestoneBundle'))
+
+    expect(actor.getSnapshot().context.registrationIntentId).toBeUndefined()
+    actor.stop()
+  })
+
+  it('stores the status fetcher on a live run, not just on resume', () => {
+    // A live run whose reveal intent dies should fail verification in one
+    // orchestrator read, same as a resumed one — not sit out the blind poll.
+    const fetchIntentStatus = vi.fn(async () => 'PENDING')
+    const { actor } = startHcaRegistration({ fetchIntentStatus })
+
+    expect(actor.getSnapshot().context.fetchRegistrationIntentStatus).toBe(
+      fetchIntentStatus,
+    )
+    actor.stop()
+  })
+})
+
+describe('registrationMachine — verification retry target (WEB-1209)', () => {
+  it('sends a rhinestone run back to the reveal batch, not a bare register', async () => {
+    // A bare `register` on the HCA path fails: there is no permit in hand, so
+    // the allowance is 0. The reveal batch re-reads the price and re-approves.
+    const actor = startVerifyingRegistration({
+      signerType: 'rhinestone',
+      verifyRegistration: vi.fn(async () => ({ verified: false })),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe(
+      'submittingRhinestoneBundle',
+    )
+    actor.stop()
+  })
+
+  it('sends an EOA run back to register', async () => {
+    const actor = startVerifyingRegistration({
+      signerType: 'eoa',
+      verifyRegistration: vi.fn(async () => ({ verified: false })),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe('registeringDomain')
+    actor.stop()
+  })
+
+  it('is signer-aware when the verification read itself fails', async () => {
+    const actor = startVerifyingRegistration({
+      signerType: 'rhinestone',
+      verifyRegistration: vi.fn(async () => {
+        throw new Error('rpc down')
+      }),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe(
+      'submittingRhinestoneBundle',
+    )
+    actor.stop()
+  })
+
+  it('reaches success when the name is on-chain', async () => {
+    const actor = startVerifyingRegistration({
+      signerType: 'rhinestone',
+      verifyRegistration: vi.fn(async () => ({ verified: true })),
+    })
+
+    await waitFor(actor, (s) => s.matches('success'))
+    expect(actor.getSnapshot().context.error).toBeUndefined()
+    actor.stop()
   })
 })
