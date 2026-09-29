@@ -3,27 +3,18 @@ import type { Transaction } from '../types'
 import { getStatus } from './getStatus'
 
 /**
- * Whether a step's `waitUntil` countdown should be visible.
+ * Whether a step's `waitUntil` countdown should be visible: the wait is still
+ * ahead and the step has not started.
  *
- * Only show it when this step is next (all previous steps succeeded) and not
- * yet started. Otherwise a later step can look like it's waiting while an
- * earlier step is still in progress (e.g. Register "Ready in Xs" during Approve).
+ * Earlier steps do not hide it. The wait runs on its own clock (a commit-reveal
+ * window counts from the commit), so hiding it while an earlier step finishes
+ * only makes it appear partway through. The caller decides when a step has a
+ * wait at all.
  */
 export const shouldShowWaitCountdown = (
   transaction: Transaction,
-  index: number,
-  transactions: readonly Transaction[],
   activeTransactionsMap: Map<string, TransactionMachineActor>,
-): boolean => {
-  if (
-    !transaction.waitUntil ||
-    transaction.waitUntil <= Date.now() ||
-    getStatus(transaction.id, activeTransactionsMap) !== undefined
-  ) {
-    return false
-  }
-
-  return transactions
-    .slice(0, index)
-    .every((t) => getStatus(t.id, activeTransactionsMap) === 'success')
-}
+): boolean =>
+  !!transaction.waitUntil &&
+  transaction.waitUntil > Date.now() &&
+  getStatus(transaction.id, activeTransactionsMap) === undefined

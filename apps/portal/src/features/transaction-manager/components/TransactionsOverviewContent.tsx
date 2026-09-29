@@ -79,7 +79,7 @@ export const TransactionsOverviewContent = ({
         ))
         .otherwise(() => null)}
       <div className="space-y-2 min-w-0">
-        {transactions.map((transaction, index) => {
+        {transactions.map((transaction) => {
           const activeTxSnapshot = activeTransactionsMap
             .get(transaction.id)
             ?.getSnapshot()
@@ -124,8 +124,6 @@ export const TransactionsOverviewContent = ({
                     </h4>
                     {shouldShowWaitCountdown(
                       transaction,
-                      index,
-                      transactions,
                       activeTransactionsMap,
                     ) && transaction.waitUntil ? (
                       <TransactionWaitCountdown

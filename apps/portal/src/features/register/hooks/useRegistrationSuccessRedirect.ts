@@ -1,10 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { type HistoryState, useNavigate } from '@tanstack/react-router'
 import { fromPromise } from 'neverthrow'
 import { useEffect, useRef } from 'react'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import type { RegistrationSuccessState } from '@/features/register/types/registrationSuccessState'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
 type UseRegistrationSuccessRedirectParams = {
@@ -40,7 +41,21 @@ export const useRegistrationSuccessRedirect = ({
       navigate({
         to: '/$name',
         params: { name },
-        search: { registered: true, duration: durationSeconds, paid },
+        // History state, not search params: the banner must not be reproducible
+        // from a crafted link (Immunefi #92544). Without a paid figure there's
+        // nothing to show, so the banner is skipped rather than half-rendered.
+        state:
+          paid === undefined
+            ? undefined
+            : // `HistoryState` is augmentable in `@tanstack/history`, which
+              // isn't a direct dependency, so the extra key is widened here and
+              // parsed back with `readRegistrationSuccessState` on the page.
+              ({
+                registrationSuccess: {
+                  durationSeconds,
+                  paid,
+                } satisfies RegistrationSuccessState,
+              } as HistoryState),
         replace: true,
       })
 

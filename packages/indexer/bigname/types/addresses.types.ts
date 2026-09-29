@@ -1,0 +1,79 @@
+import type {
+  Address,
+  Authority,
+  Cursor,
+  Envelope,
+  Hex,
+  Namespace,
+  RegistrationStatus,
+  SortOrder,
+  Timestamp,
+} from './common.types'
+import type {
+  Relation,
+  RelationFilter,
+  Restrictions,
+  RoleSummary,
+} from './permissions.types'
+
+/** `GET /v1/addresses/{address}/names`: query. */
+export type AddressNamesQuery = Readonly<{
+  namespace?: Namespace
+  relation?: RelationFilter
+  /** Only with `relation=resolves_to`: decimal coin type (default 60) or `evm`. */
+  coin_type?: number | 'evm'
+  authority?: Authority
+  /** Rejected with `relation=resolves_to`. */
+  is_migrated?: 'true' | 'false'
+  /** ENSIP-15 name prefix; one trailing dot marks a label boundary. */
+  q?: string
+  sort?: 'name' | 'expires_at' | 'registered_at'
+  order?: SortOrder
+  dedupe?: 'name' | 'registration'
+  include?: readonly ('counts' | 'role_summary')[]
+  finality?: 'latest'
+  cursor?: Cursor
+  page_size?: number
+}>
+
+/** `resolves_to` rows: the coin type asked about and the record key that answered it. */
+export type AddressNameResolution = Readonly<{
+  coin_type: number
+  record_key: `addr:${number}`
+}>
+
+/** `GET /v1/addresses/{address}/names`: one row. */
+export type AddressName = Readonly<{
+  name: string
+  display_name: string
+  namespace: Namespace
+  namehash: Hex
+  /** Handle for `GET /v1/permissions?registration_id=`; omitted on a serving-resource-only `resolves_to` row. */
+  permission_resource_id?: string
+  owner?: Address
+  registrant?: Address
+  registration_status: RegistrationStatus
+  registered_at?: Timestamp
+  created_at?: Timestamp
+  expires_at?: Timestamp
+  authority?: Authority
+  migrated_at?: Timestamp
+  /** Matched subset of `owner`/`manager`/`registrant`, or `["resolves_to"]`. */
+  relations: readonly Relation[]
+  is_primary: boolean
+  /** `relation=resolves_to` with one decimal `coin_type` only. */
+  resolution?: AddressNameResolution
+  /** `relation=resolves_to&coin_type=evm` only; ascending by coin type, at most 100 entries. */
+  resolutions?: readonly AddressNameResolution[]
+  /** `include=counts` only. */
+  subname_count?: number
+  /** `include=counts` or `include=role_summary`; omitted with no record inventory. */
+  record_count?: number
+  /** `include=role_summary` only. */
+  role_summary?: readonly RoleSummary[]
+  /** `include=role_summary` only; omitted when no resource-level constraint model applies. */
+  restrictions?: Restrictions
+}>
+
+/** `GET /v1/addresses/{address}/names`: response. */
+export type AddressNamesResponse = Envelope<readonly AddressName[]>
