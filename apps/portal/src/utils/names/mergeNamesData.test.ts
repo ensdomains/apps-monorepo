@@ -104,6 +104,17 @@ describe('mergeNamesData', () => {
     expect(result[0]?.expiryDate).toBeNull()
   })
 
+  it('should null an expiry that overflows the Date range', () => {
+    // 2^63 is in uint64 range but past the ECMAScript time-value limit, so
+    // `new Date(x * 1000)` is a truthy `Invalid Date`.
+    const result = mergeNamesData(
+      [],
+      [{ name: 'attacker-minted.eth', subdomains: [], expiryDate: 2 ** 63 }],
+    )
+
+    expect(result[0]?.expiryDate).toBeNull()
+  })
+
   it('should handle a V2 name with a max-uint64 expiry', () => {
     const result = mergeNamesData(
       [],

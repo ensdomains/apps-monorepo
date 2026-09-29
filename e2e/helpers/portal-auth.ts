@@ -24,7 +24,8 @@ export interface PortalAccounts {
  * Connect the headless web3 wallet through the portal's connect dialog.
  *
  * Flow:
- *  1. Click the "Connect" button in the portal nav bar
+ *  1. Click the portal's connect button: "Connect wallet" on the landing page,
+ *     "Connect" in the app sidebars
  *  2. Select "Headless Web3 Provider" from the wallet list
  *  3. Programmatically authorize the wallet_requestPermissions and eth_requestAccounts calls
  *
@@ -35,10 +36,9 @@ export async function connectWithHeadlessWallet(
   page: Page,
   wallet: Web3ProviderBackend,
 ): Promise<void> {
-  // 1. Click the portal's Connect button
+  // 1. Click the portal's connect button
   const connectButton = page.getByRole('button', {
-    name: 'Connect',
-    exact: true,
+    name: /^Connect( wallet)?$/,
   })
   await connectButton.waitFor({ state: 'visible', timeout: 15_000 })
   await connectButton.click()

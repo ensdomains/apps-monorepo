@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   SignerAddressMismatchError,
   TransactionSubmissionError,
+  TransactionUserRejectedError,
 } from '../errors/transaction.errors'
 import type { EOASigner } from '../types/signer.types'
 import type { EOATransactionRequest } from '../types/transaction.types'
@@ -111,5 +112,29 @@ describe('submitEOATransaction', () => {
 
     expect(result.isErr()).toBe(true)
     expect(result._unsafeUnwrapErr()).toBeInstanceOf(TransactionSubmissionError)
+  })
+
+  it('reports a declined send as a rejection, even from another viem copy', async () => {
+    // Whenever pnpm splits viem, the app's wallet client throws errors with the
+    // right names that are not instances of this package's classes. Misread as
+    // a submission failure, the decline would be retried and re-prompted.
+    sendTransaction.mockRejectedValueOnce(
+      Object.assign(new Error('Transaction execution error'), {
+        name: 'TransactionExecutionError',
+        cause: Object.assign(new Error('User rejected the request.'), {
+          name: 'UserRejectedRequestError',
+          code: 4001,
+        }),
+      }),
+    )
+
+    const result = await submitEOATransaction({
+      request: eoaRequest(ACCOUNT),
+      signer: eoaSigner(ACCOUNT),
+    })
+
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(
+      TransactionUserRejectedError,
+    )
   })
 })

@@ -5,7 +5,12 @@ import { skipToken } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { AssetGatewayUrls } from 'viem'
 import { parseAvatarRecord } from 'viem/ens'
+import { safeImageSrc } from '@/features/profile/utils/safeUrl'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import {
+  getVersionedProfileImageUrl,
+  profileImageVersionQuery,
+} from './profileImageVersion'
 
 const IPFS_GATEWAY = 'https://ipfs.euc.li'
 
@@ -22,6 +27,11 @@ export const parseImageRecord = ResultFn(async function* (
   record: string,
   gatewayUrls?: AssetGatewayUrls,
 ) {
+  // HTTP records are already image URLs. Let the image element handle loading;
+  // some valid image hosts reject the parser's preliminary HEAD request.
+  const imageUrl = safeImageSrc(record)
+  if (imageUrl) return ok(imageUrl)
+
   const client = yield* safeGetClient()
 
   const url = yield* fromPromise(
@@ -41,5 +51,17 @@ export const imageRecordQuery = (
 ) =>
   resultQueryOptions({
     queryKey: qk('profile', 'image_record', { record, gatewayUrls }),
-    queryFn: record ? () => parseImageRecord(record, gatewayUrls) : skipToken,
+    queryFn: record
+      ? ({ client }) =>
+          parseImageRecord(record, gatewayUrls).map((url) =>
+            url
+              ? getVersionedProfileImageUrl(
+                  url,
+                  client.getQueryData(
+                    profileImageVersionQuery(record).queryKey,
+                  ),
+                )
+              : null,
+          )
+      : skipToken,
   })

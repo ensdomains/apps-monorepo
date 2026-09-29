@@ -13,8 +13,8 @@ vi.mock('./profileOwner', async () => {
   return { getOwner: () => ok(mocks.owner) }
 })
 
+vi.mock('@/lib/indexer-client', () => ({ indexerClient: {} }))
 vi.mock('@ens-apps/indexer/urql', () => ({
-  default: {},
   graphqlRequest: (...args: unknown[]) => mocks.indexerQuery(...args),
 }))
 

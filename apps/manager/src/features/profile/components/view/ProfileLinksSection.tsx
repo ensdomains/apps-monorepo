@@ -1,6 +1,5 @@
 import { Trans } from '@lingui/react/macro'
 import { ExternalLink } from 'lucide-react'
-import { useMemo } from 'react'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
 import {
@@ -9,11 +8,11 @@ import {
   profileCardTrailingIconStrokeWidth,
   valueClassName,
 } from './ProfileCard'
-import { getGeneratedLinkPattern } from './ProfileLinks.helpers'
 import {
   getSafeProfileLinks,
   type SafeProfileLink,
 } from './ProfileView.helpers'
+import { useLinkPreviewPattern } from './useLinkPreviewPattern'
 
 const linkPreviewClassName = cn(
   cardSurfaceClassName,
@@ -22,7 +21,7 @@ const linkPreviewClassName = cn(
 const linkPreviewPanelClassName = 'h-30 shrink-0 overflow-hidden bg-white'
 
 const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
-  const pattern = useMemo(() => getGeneratedLinkPattern(link.href), [link.href])
+  const { ref, pattern } = useLinkPreviewPattern(link.href)
 
   return (
     <a
@@ -35,12 +34,13 @@ const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
       <div
         aria-hidden="true"
         className={linkPreviewPanelClassName}
-        data-link-pattern-id={pattern.patternId}
-        data-link-pattern-palette-id={pattern.paletteId}
-        data-link-pattern-variant={pattern.variant}
+        data-link-pattern-id={pattern?.patternId}
+        data-link-pattern-palette-id={pattern?.paletteId}
+        data-link-pattern-variant={pattern?.variant}
         data-testid="link-pattern-panel"
+        ref={ref}
         style={{
-          backgroundImage: pattern.backgroundImage,
+          backgroundImage: pattern?.backgroundImage,
           backgroundPosition: 'left top',
           backgroundRepeat: 'repeat',
           backgroundSize: '80px 80px',

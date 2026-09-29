@@ -26,7 +26,7 @@ export const RecentActivityTable = () => {
   const events = data?.pages.flatMap((page) => page.events) ?? []
 
   return (
-    <div className="flex flex-col overflow-hidden w-full">
+    <div className="flex flex-col w-full">
       <div className="flex gap-2 h-12 items-center border-b border-border shrink-0">
         <span className="text-caps">Recent Activity</span>
       </div>

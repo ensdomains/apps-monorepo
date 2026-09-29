@@ -262,7 +262,6 @@ export const useProfileImageField = ({
         zoom: cropZoom,
       })
       const upload = await prepareProfileImageUpload({
-        chainId,
         file: croppedFile,
         name,
         type: kind,
@@ -272,10 +271,6 @@ export const useProfileImageField = ({
         revokeBlobUrl(previousUrl)
         return upload.dataURL
       })
-      queryClient.setQueryData(
-        imageRecordQuery(upload.imageUrl).queryKey,
-        upload.dataURL,
-      )
       onImageUploadPrepared?.(upload)
       onImageChange(upload.imageUrl)
       onCancel()

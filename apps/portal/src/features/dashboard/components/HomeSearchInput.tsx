@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { EntityBadge } from '@/components/EntityBadge'
 import { CommandDialog, CommandInput } from '@/components/ui/command'
 import {
   InputGroup,
@@ -33,9 +34,14 @@ const SEARCH_DEBOUNCE_MS = 300
 export const HomeSearchInput = ({
   className,
   iconOnly = false,
+  isHero = false,
+  ariaLabel,
 }: {
-  className?: string
-  iconOnly?: boolean
+  readonly className?: string
+  readonly iconOnly?: boolean
+  /** Landing-page hero: larger field with the typed-entity hint. */
+  readonly isHero?: boolean
+  readonly ariaLabel?: string
 }) => {
   const listboxId = useId()
   const navigate = useNavigate()
@@ -243,13 +249,17 @@ export const HomeSearchInput = ({
           <InputGroup
             ref={triggerRef}
             className={cn(
-              'bg-sidebar-accent dark:bg-sidebar-accent rounded-sm max-w-3xl w-full',
+              isHero
+                ? 'h-13.5 w-full rounded-md border-neutral-3 pr-2 pl-0.75 shadow-none hover:border-neutral-4 has-[input:focus]:border-neutral-5'
+                : 'bg-sidebar-accent dark:bg-sidebar-accent rounded-sm max-w-3xl w-full',
               className,
             )}
             onClick={(e) => e.preventDefault()}
           >
             <InputGroupAddon align="inline-start">
-              <Search className="size-4" />
+              <Search
+                className={cn('size-4', isHero && 'size-5 text-neutral-8')}
+              />
             </InputGroupAddon>
             <InputGroupInput
               id={listboxId}
@@ -260,16 +270,38 @@ export const HomeSearchInput = ({
                 activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined
               }
               aria-autocomplete="list"
-              className="w-full"
-              placeholder="Search..."
+              aria-label={ariaLabel}
+              className={cn(
+                'w-full',
+                isHero &&
+                  'text-base placeholder:text-neutral-8 sm:placeholder:text-transparent',
+              )}
+              placeholder={isHero ? 'Search' : 'Search...'}
               value={searchValue}
               onFocus={(e) => e.target.value.trim() && setMenuOpen(true)}
               onChange={(e) => setSearchValue(e.target.value)}
               onKeyDown={onSearchKeyDown}
               onPaste={(event) => applyPastedNameSearch(event, setSearchValue)}
             />
+            {isHero && !searchValue && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute left-11 top-1/2 hidden -translate-y-1/2 text-base text-foreground group-focus-within/input-group:hidden sm:block"
+              >
+                Search for a <EntityBadge variant="name">name</EntityBadge>,{' '}
+                <EntityBadge variant="address">wallet</EntityBadge>, or{' '}
+                <EntityBadge variant="contract">contract</EntityBadge>
+              </span>
+            )}
             <InputGroupAddon align="inline-end">
-              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
+              <kbd
+                className={cn(
+                  'pointer-events-none select-none items-center gap-1',
+                  isHero
+                    ? 'flex font-sans text-sm font-normal text-neutral-5'
+                    : 'hidden h-5 rounded border px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex',
+                )}
+              >
                 <span className="translate-y-px">
                   {formatForDisplay('Mod+K')}
                 </span>

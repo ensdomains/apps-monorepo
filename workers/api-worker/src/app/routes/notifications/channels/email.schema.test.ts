@@ -16,6 +16,13 @@ describe('addEmailChannelBodySchema', () => {
     }
   })
 
+  it('normalizes email casing before creating a challenge', () => {
+    const result = v.safeParse(addEmailChannelBodySchema, {
+      email: 'User@EXAMPLE.COM',
+    })
+    expect(result.success && result.output.email).toBe('user@example.com')
+  })
+
   it('rejects null body', () => {
     const result = v.safeParse(addEmailChannelBodySchema, null)
     expect(result.success).toBe(false)
@@ -35,8 +42,14 @@ describe('addEmailChannelBodySchema', () => {
 })
 
 describe('verifyEmailChannelBodySchema', () => {
-  it('rejects empty token', () => {
-    const result = v.safeParse(verifyEmailChannelBodySchema, { token: '' })
+  it('accepts a six digit code', () => {
+    expect(
+      v.safeParse(verifyEmailChannelBodySchema, { otp: '004219' }).success,
+    ).toBe(true)
+  })
+
+  it('rejects malformed codes', () => {
+    const result = v.safeParse(verifyEmailChannelBodySchema, { otp: 'abc' })
     expect(result.success).toBe(false)
   })
 

@@ -7,7 +7,6 @@ const MAILINATOR_V2_BASE = 'https://api.mailinator.com/v2'
 interface MailinatorMessage {
   readonly id: string
   readonly subject?: string
-  readonly clickablelinks?: ReadonlyArray<{ text?: string; link?: string }>
   readonly parts?: ReadonlyArray<{ body?: string }>
 }
 
@@ -79,28 +78,13 @@ export async function waitForMessage(
   throw new Error(`Timeout waiting for mailinator message in inbox ${inbox}`)
 }
 
-export function findVerifyLink(message: MailinatorMessage): string {
-  // Check clickthrough links first
-  const clickable = message.clickablelinks?.find(
-    (link) =>
-      (link.text || '').includes('Verify Email Address') ||
-      (link.link || '').includes('/notifications/channels/email/verify'),
-  )
-  if (clickable?.link) return clickable.link
-
-  const bodies = [message.parts?.map((p) => p.body ?? '').join('\n')].filter(
-    (body): body is string => Boolean(body),
-  )
-  for (const body of bodies) {
-    const match = body.match(
-      /https?:\/\/[^\s]+\/(notifications\/channels\/email\/verify\?token=[A-Za-z0-9._%=-]+)/,
-    )
-    if (match) {
-      return match[0]
-    }
-  }
-
-  throw new Error('Could not find email verification link in message content')
+export function findVerificationCode(message: MailinatorMessage): string {
+  const body = message.parts?.map((part) => part.body ?? '').join('\n') ?? ''
+  const match =
+    body.match(/verification code is\s+(\d{6})/i) ??
+    body.match(/font-weight:bold[^>]*>(\d{6})</i)
+  if (match?.[1]) return match[1]
+  throw new Error('Could not find email verification code in message content')
 }
 
 export function createRandomInbox(): string {

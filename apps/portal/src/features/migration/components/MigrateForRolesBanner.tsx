@@ -10,7 +10,13 @@ import { UpgradeActions } from '@/features/migration/components/UpgradeActions'
  * `Alert` lays its children out on a two-column grid, so the text and the
  * button share one `col-start-2` child rather than becoming two grid cells.
  */
-export const MigrateForRolesBanner = ({ name }: { readonly name: string }) => (
+export const MigrateForRolesBanner = ({
+  name,
+  isWrapped = false,
+}: {
+  readonly name: string
+  readonly isWrapped?: boolean
+}) => (
   <Alert variant="default" className="p-4">
     <CircleAlert />
     <div className="col-start-2 flex flex-wrap items-center justify-between gap-3">
@@ -18,7 +24,7 @@ export const MigrateForRolesBanner = ({ name }: { readonly name: string }) => (
         ENSv2 replaces fuses with Roles, a finer-grained set of permissions you
         can grant per name.
       </p>
-      <UpgradeActions name={name} learnMore={false} />
+      <UpgradeActions name={name} learnMore={false} isWrapped={isWrapped} />
     </div>
   </Alert>
 )

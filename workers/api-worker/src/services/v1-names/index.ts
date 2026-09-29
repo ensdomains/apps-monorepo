@@ -1,3 +1,4 @@
+import { getConfig } from '#core/config.js'
 import { logger } from '#utils/logger.js'
 
 /**
@@ -6,8 +7,11 @@ import { logger } from '#utils/logger.js'
  * src/features/migration/service/v1SubgraphClient.ts) — same endpoint and the
  * same eligibility filters — so the faucet's "owns v1 names" verdict can't
  * drift from what the migration flow actually shows the user.
+ *
+ * Both now read the chain's subgraph from ensjs, which keys it per network.
+ * They had drifted onto different hosts despite the comment above, and the
+ * one here no longer resolves.
  */
-const V1_SUBGRAPH_URL = 'https://api.sepolia.ensnode.io/subgraph'
 
 // keccak-derived namehash of `addr.reverse` — reverse records are not
 // migratable names, so they're excluded just like in the manager.
@@ -37,7 +41,10 @@ type V1SubgraphResponse = {
  * Throws on subgraph/network errors so callers can decide the failure mode
  * (the faucet treats a failed check as "no drip", fail-closed).
  */
-export const hasV1Names = async (address: string): Promise<boolean> => {
+export const hasV1Names = async (
+  address: string,
+  env: CloudflareBindings,
+): Promise<boolean> => {
   const addr = address.toLowerCase()
   const now = Math.floor(Date.now() / 1000).toString()
 
@@ -70,7 +77,7 @@ export const hasV1Names = async (address: string): Promise<boolean> => {
     ],
   }
 
-  const response = await fetch(V1_SUBGRAPH_URL, {
+  const response = await fetch(getConfig(env).chain.subgraphs.ens.url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

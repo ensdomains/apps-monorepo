@@ -3,7 +3,7 @@ import {
   createEmailAddress,
   createRandomInbox,
   expectMessageWithSubject,
-  findVerifyLink,
+  findVerificationCode,
   getMessageById,
   waitForMessage,
 } from '../../../helpers/mailinator.js'
@@ -49,51 +49,19 @@ test.describe('Notifications email flow', () => {
     // Wait for verify email to arrive in Mailinator
     const verifyMessage = await expectMessageWithSubject(
       inbox,
-      'Verify your email address - ENS Notifications',
+      'Your ENS email verification code',
       90_000,
     )
 
-    // Load full message body and extract the link
+    // The code can be read on another device and entered in this session.
     const verifyMessageDetail = await getMessageById(verifyMessage.id)
-    const verifyUrl = findVerifyLink(verifyMessageDetail)
-    expect(verifyUrl).toContain('/notifications/channels/email/verify?token=')
-
-    // Follow verify URL from email
-    await page.goto(verifyUrl)
-
-    // Wait for verification page to load
-    await expect(page).toHaveURL(/\/notifications\/channels\/email\/verify/)
-
-    // Check if verification succeeded by looking for success indicators
-    const successTitle = page.getByText(/Email Verified!/i)
-    const continueButton = page.getByRole('button', {
-      name: /Continue to Settings/i,
-    })
-    const verifyButton = page.getByRole('button', {
-      name: /Verify Email Address/i,
-    })
-
-    // If there's a verify button, click it (manual verification)
-    try {
-      await verifyButton.waitFor({ state: 'visible', timeout: 5_000 })
-      await verifyButton.click()
-    } catch {
-      // No manual verify button, assume auto-verification
-    }
-
-    // Check if verification was successful
-    const verificationSuccess = await Promise.race([
-      successTitle
-        .waitFor({ state: 'visible', timeout: 10_000 })
-        .then(() => true)
-        .catch(() => false),
-      continueButton
-        .waitFor({ state: 'visible', timeout: 10_000 })
-        .then(() => true)
-        .catch(() => false),
-    ])
-
-    expect(verificationSuccess).toBe(true)
+    const code = findVerificationCode(verifyMessageDetail)
+    await expect(page.getByText('Pending', { exact: true })).toBeVisible()
+    await page
+      .getByRole('textbox', { name: /Email verification code/i })
+      .fill(code)
+    await page.getByRole('button', { name: /Verify Email/i }).click()
+    await expect(page.getByText('Verified', { exact: true })).toBeVisible()
 
     // Now verify welcome message has arrived
     await expectMessageWithSubject(
@@ -115,7 +83,7 @@ test.describe('Notifications email flow', () => {
     await expect(page).toHaveURL(/\/notifications\/settings/)
 
     // Find the email container by locating the text of the email address
-    const emailContainer = page.locator('text=' + email).first()
+    const emailContainer = page.locator(`text=${email}`).first()
     await emailContainer.waitFor({ state: 'visible', timeout: 10_000 })
 
     // Click the menu button for that email entry

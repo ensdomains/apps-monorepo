@@ -13,6 +13,7 @@ import {
   parseAbi,
   zeroAddress,
 } from 'viem'
+import { envConfig } from '@/config'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
@@ -110,7 +111,7 @@ const requiresPinnedPublicResolverMembership = (
 ): name is ClassifiedName & { readonly v1ResolverAddress: Address } =>
   (name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child') &&
   hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER) &&
-  isKnownPublicResolver(name.v1ResolverAddress)
+  isKnownPublicResolver(name.v1ResolverAddress, envConfig.chain.id)
 
 type RequiredMigrationContractsParams = {
   readonly remaining: readonly ClassifiedName[]

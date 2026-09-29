@@ -34,8 +34,8 @@ describe('fetchExpiringNamesPage', () => {
 
     const result = await fetchExpiringNamesPage({
       env: {
-        ENS_INDEXER_GRAPHQL_URL: 'https://staging-graphql.ens.dev/',
-      } as unknown as CloudflareBindings,
+        CHAIN: 'sepolia',
+      } as CloudflareBindings,
       stage: STAGES[0],
       cursor: 100,
       upperBound: 200,
@@ -64,8 +64,8 @@ describe('fetchExpiringNamesPage', () => {
 
     const promise = fetchExpiringNamesPage({
       env: {
-        ENS_INDEXER_GRAPHQL_URL: 'https://staging-graphql.ens.dev/',
-      } as unknown as CloudflareBindings,
+        CHAIN: 'sepolia',
+      } as CloudflareBindings,
       stage: STAGES[1],
       cursor: 1,
       upperBound: 2,
@@ -88,8 +88,8 @@ describe('fetchExpiringNamesPage', () => {
 
     const result = await fetchExpiringNamesPage({
       env: {
-        ENS_INDEXER_GRAPHQL_URL: 'https://staging-graphql.ens.dev/',
-      } as unknown as CloudflareBindings,
+        CHAIN: 'sepolia',
+      } as CloudflareBindings,
       stage: STAGES[2],
       cursor: 1,
       upperBound: 2,
@@ -113,8 +113,8 @@ describe('fetchExpiringNamesPage', () => {
 
     const result = await fetchExpiringNamesPage({
       env: {
-        ENS_INDEXER_GRAPHQL_URL: 'https://staging-graphql.ens.dev/',
-      } as unknown as CloudflareBindings,
+        CHAIN: 'sepolia',
+      } as CloudflareBindings,
       stage: STAGES[0],
       cursor: 1,
       upperBound: 2,
@@ -135,8 +135,8 @@ describe('fetchExpiringNamesPage', () => {
 
     const result = await fetchExpiringNamesPage({
       env: {
-        ENS_INDEXER_GRAPHQL_URL: 'https://staging-graphql.ens.dev/',
-      } as unknown as CloudflareBindings,
+        CHAIN: 'sepolia',
+      } as CloudflareBindings,
       stage: STAGES[0],
       cursor: 1,
       upperBound: 2,
