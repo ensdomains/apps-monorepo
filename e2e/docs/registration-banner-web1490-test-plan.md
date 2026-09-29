@@ -44,11 +44,33 @@ that exist on the Anvil fork.
 | 5 | a crafted link on an unregistered name shows it as available, not as yours | Guard only. The old banner never rendered on the available page, so this passes on both builds | ✅ | ✅ |
 | 6 | history state is parsed on read: a well-formed entry renders, malformed ones are ignored | Positive control: the state the app writes renders the banner, which proves tests 1–4 aren't passing on a page that simply lost it. Six malformed shapes neither render nor crash | ❌ positive control fails (pre-fix ignores state) | ✅ |
 | 7 | a real registration still shows the banner, and the URL it lands on cannot reproduce it | Full UI registration (1y, USDC). The banner's **Paid** equals the USDC that actually left the wallet (chain oracle), and the period reads "1 year". The landing URL has no `registered`/`duration`/`paid`. Reloading the same tab keeps the banner. The same URL in a **new tab** has no banner. A later visit has no banner | ❌ URL carries `registered` | ✅ |
+| 8 | a link from another website cannot hand the banner over, in the same tab, a new tab, or a popup | An attacker page on a different origin (`http://attacker.test`) links to the report's URL: same-tab click, `target=_blank`, and `window.open`. No banner in any of them. Then the attacker window tries `portal.history.replaceState(...)` on the popup, and the browser refuses it with `SecurityError`. That refusal is the fix's core assumption, checked directly | ❌ banner shown | ✅ |
+| 9 | other URL shapes carrying the claim are ignored too | No trailing slash, the claim in the hash fragment, query + fragment, repeated keys | ❌ (no trailing slash) | ✅ |
+| 10 | moving around the name's pages after a crafted link never brings the banner back | From a crafted link, click through Records / Ownership / History and back to the overview through the sidebar. Then press Back until you're on the crafted entry itself (its URL still carries the claim) and Forward off it | ❌ crafted entry reached with Back | ✅ |
+| 11 | connecting a wallet on a crafted link does not bring the banner back | Land disconnected, then connect. The page re-renders with an account, which is the moment a victim is most likely to act | ❌ | ✅ |
+| 12 | the receipt stays on its own history entry and never attaches to another name | A banner entry on name A, then the real search control takes you to name B: no banner or paid figure on B. Back to A restores A's own receipt. Forward to B is still clean. A fresh navigation to A is clean | ❌ positive control fails | ✅ |
 
-**Results on the PR build (merged onto `e2e-tests-coverage`):** 7/7 pass; the
-whole `registration.spec.ts` passes 9/9, and the portal smoke gate
+**Results on the PR build (merged onto `e2e-tests-coverage`):** 12/12 pass. The
+whole `registration.spec.ts` passes 14/14, and the portal smoke gate
 (`pnpm test:portal-smoke`) passes 10/10. With the PR's two app files reverted,
-6/7 fail, each on the assertion that encodes the bug.
+11/12 fail, each on the assertion that encodes the bug. Test 5 is the guard.
+
+### Unit tests (vitest, `apps/portal`)
+
+The PR had no test for `useRegistrationSuccessRedirect`, which is the only thing
+that *writes* the banner's state. These are added:
+
+| File | Case | Pre-fix hook |
+|---|---|---|
+| `useRegistrationSuccessRedirect.test.ts` | Hands the banner over in `state.registrationSuccess`, with `replace: true` and **no `search`** | ❌ |
+| | What it writes, `readRegistrationSuccessState` reads back unchanged (the writer/reader contract) | ❌ |
+| | Still redirects *with* the banner when indexer polling fails | ❌ |
+| | Does nothing until `isSuccess` | ✅ unchanged behaviour |
+| | Writes no state when `paid` is undefined, so no banner renders | ✅ unchanged behaviour |
+| | Redirects exactly once across re-renders | ✅ unchanged behaviour |
+| `registrationSuccessState.test.ts` (extended) | `null` for ±Infinity duration, numeric or null `paid`, and a whole state that is a string, number or boolean. Extra keys on the entry (e.g. a smuggled `name`/`owner`) are dropped. Router bookkeeping keys (`__TSR_*`) are tolerated | n/a, new file in PR |
+
+`pnpm vitest run src/features/register src/routes/$name`: 200/200 pass.
 
 Typecheck is clean. `biome check` reports two complexity warnings in this
 file, and both already exist on the base branch.
@@ -100,6 +122,14 @@ at the bottom of the page.
 | M5 | `/ATTACKER/?registered=true&duration=31536000&paid=%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E` | No alert, no broken image |
 | M6 | `/ATTACKER/?registrationSuccess=%7B%22durationSeconds%22%3A1%2C%22paid%22%3A%22%240%22%7D` | The new state key doesn't work as a search param |
 | M7 | `/some-unregistered-name-xyz.eth/?registered=true&duration=315360000&paid=$0.00%20(free)` | Shows "… is available!" with Register. No banner |
+
+### Delivered from another site
+
+| # | Step | Pass |
+|---|---|---|
+| M7a | Save a local HTML file with `<a href="http://localhost:3001/ATTACKER/?registered=true&duration=315360000&paid=$0.00%20(free)">x</a>` (once plain, once with `target="_blank"`), open it from `file://` and click | No banner either way |
+| M7b | From that page's console: `w = window.open('http://localhost:3001/ATTACKER')`, wait for it to load, then `w.history.replaceState({registrationSuccess:{durationSeconds:1,paid:'$0'}}, '')` | Throws `SecurityError` |
+| M7c | Land on the M1 URL, click Records, then the name in the sidebar, then Back all the way to the M1 entry | No banner at any point |
 
 ### Real registration: the banner must still work
 

@@ -823,4 +823,247 @@ test.describe('Portal registration success banner — not forgeable from a link 
     await expectNamePageLoaded(page, name, registrant)
     await expectNoSuccessBanner(page, 'a later visit to the name')
   })
+
+  test('a link from another website cannot hand the banner over, in the same tab, a new tab, or a popup', async ({
+    portalPage: page,
+    makeName,
+    accounts,
+  }) => {
+    test.setTimeout(180_000)
+
+    // The real-world delivery of the report: a page the attacker controls,
+    // on an origin that is not the portal's, linking to the portal.
+    const name = await makeName({ label: 'banner-xorigin', owner: 'user2' })
+    const attacker = accounts.getAddress('user2')
+    const crafted = `${PORTAL_APP_URL}/${name}/?${REPORTED_CRAFTED_QUERY}`
+    const ATTACKER_ORIGIN = 'http://attacker.test'
+
+    await page.context().route(`${ATTACKER_ORIGIN}/**`, (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: `<!doctype html><html><body>
+          <a id="same-tab" href="${crafted}">claim your name</a>
+          <a id="new-tab" href="${crafted}" target="_blank" rel="opener">claim your name</a>
+        </body></html>`,
+      }),
+    )
+
+    // ── Same tab ──────────────────────────────────────────────────────────
+    await page.goto(`${ATTACKER_ORIGIN}/`)
+    await page.locator('#same-tab').click()
+    await expectNamePageLoaded(page, name, attacker)
+    await expectNoSuccessBanner(page, 'external link, same tab')
+
+    // ── New tab ───────────────────────────────────────────────────────────
+    await page.goto(`${ATTACKER_ORIGIN}/`)
+    const [newTab] = await Promise.all([
+      page.context().waitForEvent('page'),
+      page.locator('#new-tab').click(),
+    ])
+    await expectNamePageLoaded(newTab, name, attacker)
+    await expectNoSuccessBanner(newTab, 'external link, new tab')
+    await newTab.close()
+
+    // ── Popup, then try to write the portal's history state into it ───────
+    // This is the fix's core assumption: only script on the portal's own
+    // origin can write its history state. An attacker holding a handle to
+    // the portal window must be refused by the browser.
+    await page.goto(`${ATTACKER_ORIGIN}/`)
+    const [popup] = await Promise.all([
+      page.context().waitForEvent('page'),
+      page.evaluate((url) => {
+        ;(window as unknown as { portal: Window | null }).portal =
+          window.open(url)
+      }, crafted),
+    ])
+    await expectNamePageLoaded(popup, name, attacker)
+    const writeAttempt = await page.evaluate(() => {
+      const portal = (window as unknown as { portal: Window }).portal
+      try {
+        portal.history.replaceState(
+          {
+            registrationSuccess: {
+              durationSeconds: 315360000,
+              paid: '$0.00 (free)',
+            },
+          },
+          '',
+        )
+        return 'written'
+      } catch (error) {
+        return (error as Error).name
+      }
+    })
+    expect(
+      writeAttempt,
+      'another origin must not be able to write the portal’s history state',
+    ).toBe('SecurityError')
+    await popup.reload()
+    await expectNamePageLoaded(popup, name, attacker)
+    await expectNoSuccessBanner(
+      popup,
+      'popup after a cross-origin write attempt',
+    )
+    await popup.close()
+  })
+
+  test('other URL shapes carrying the claim are ignored too', async ({
+    portalPage: page,
+    makeName,
+    accounts,
+  }) => {
+    test.setTimeout(180_000)
+
+    const name = await makeName({ label: 'banner-shapes', owner: 'user2' })
+    const attacker = accounts.getAddress('user2')
+
+    const shapes: Array<[label: string, path: string]> = [
+      ['no trailing slash', `/${name}?${REPORTED_CRAFTED_QUERY}`],
+      ['in the hash fragment', `/${name}/#${REPORTED_CRAFTED_QUERY}`],
+      [
+        'query and fragment',
+        `/${name}/?${REPORTED_CRAFTED_QUERY}#${REPORTED_CRAFTED_QUERY}`,
+      ],
+      [
+        'repeated keys',
+        `/${name}/?registered=true&registered=true&duration=1&duration=315360000&paid=%240.00&paid=%240.00%20(free)`,
+      ],
+    ]
+
+    for (const [label, path] of shapes) {
+      await page.goto(`${PORTAL_APP_URL}${path}`)
+      await expectNamePageLoaded(page, name, attacker)
+      await expectNoSuccessBanner(page, label)
+      await expect(content(page).getByText('$0.00 (free)')).toHaveCount(0)
+    }
+  })
+
+  test('moving around the name’s pages after a crafted link never brings the banner back', async ({
+    portalPage: page,
+    makeName,
+    accounts,
+  }) => {
+    test.setTimeout(180_000)
+
+    // In-app links can carry search params forward. Whatever the router does
+    // with the crafted params on the way, the overview must stay clean.
+    const name = await makeName({ label: 'banner-nav', owner: 'user2' })
+    const attacker = accounts.getAddress('user2')
+    const sidebarLink = (path: string) =>
+      page.locator(`a[href="/${name}${path}"]`).first()
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/?${REPORTED_CRAFTED_QUERY}`)
+    await expectNamePageLoaded(page, name, attacker)
+
+    for (const subpage of ['/records', '/ownership', '/history']) {
+      await sidebarLink(subpage).click()
+      await expect(page).toHaveURL(new RegExp(`/${name}${subpage}`))
+      await expectNoSuccessBanner(page, `on ${subpage}`)
+
+      await sidebarLink('').click()
+      await expect(page).toHaveURL(new RegExp(`/${name}/?(\\?|#|$)`))
+      await expectNamePageLoaded(page, name, attacker)
+      await expectNoSuccessBanner(page, `back on the overview from ${subpage}`)
+    }
+
+    // Browser Back all the way to the crafted entry itself — the URL still
+    // carries the claim there, so this is the entry that matters.
+    for (let i = 0; i < 10 && !page.url().includes('registered='); i++) {
+      await page.goBack()
+    }
+    expect(page.url(), 'back on the crafted entry').toContain('registered=true')
+    await expectNamePageLoaded(page, name, attacker)
+    await expectNoSuccessBanner(page, 'the crafted entry, reached with Back')
+
+    // Forward lands on the first subpage visited from it.
+    await page.goForward()
+    await expect(page).toHaveURL(new RegExp(`/${name}/records`))
+    await expectNoSuccessBanner(page, 'Forward off the crafted entry')
+  })
+
+  test('connecting a wallet on a crafted link does not bring the banner back', async ({
+    portalPage: page,
+    wallet,
+    makeName,
+    accounts,
+  }) => {
+    test.setTimeout(180_000)
+
+    // The page re-renders with a connected account — the moment a victim
+    // would be most inclined to act on a claim of ownership.
+    const name = await makeName({ label: 'banner-connect', owner: 'user2' })
+    const attacker = accounts.getAddress('user2')
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/?${REPORTED_CRAFTED_QUERY}`)
+    await expectNamePageLoaded(page, name, attacker)
+    await expectNoSuccessBanner(page, 'before connecting')
+
+    await connectWithHeadlessWallet(page, wallet)
+
+    await expectNamePageLoaded(page, name, attacker)
+    await expectNoSuccessBanner(page, 'after connecting')
+    await expect(content(page).getByText('$0.00 (free)')).toHaveCount(0)
+  })
+
+  test('the receipt stays on its own history entry and never attaches to another name', async ({
+    portalPage: page,
+    makeName,
+    accounts,
+  }) => {
+    test.setTimeout(240_000)
+
+    // The state carries no name — the page takes the name from the URL — so
+    // the property that matters is that it cannot follow the user onto a
+    // different name. Seeded the way the app's redirect writes it (a real
+    // registration is test 7's job; this is about where the entry goes).
+    const nameA = await makeName({ label: 'banner-entry-a', owner: 'user2' })
+    const nameB = await makeName({ label: 'banner-entry-b', owner: 'user2' })
+    const owner = accounts.getAddress('user2')
+
+    await page.goto(`${PORTAL_APP_URL}/${nameA}`)
+    await expectNamePageLoaded(page, nameA, owner)
+    await page.evaluate(() => {
+      window.history.replaceState(
+        {
+          ...window.history.state,
+          registrationSuccess: { durationSeconds: 31557600, paid: '$4.21' },
+        },
+        '',
+      )
+    })
+    await page.reload()
+    await expectNamePageLoaded(page, nameA, owner)
+    await expect(content(page).getByText('Congratulations!')).toBeVisible()
+
+    // ── In-app to another name, through the real search control ───────────
+    const searchInput = page.getByRole('combobox')
+    await searchInput.click()
+    await searchInput.fill(nameB)
+    await expect(page.getByRole('option', { name: nameB })).toBeVisible({
+      timeout: 30_000,
+    })
+    await searchInput.press('Enter')
+    await expect(page).toHaveURL(new RegExp(`/${nameB}`))
+    await expectNamePageLoaded(page, nameB, owner)
+    await expectNoSuccessBanner(page, 'a different name reached from A')
+    await expect(content(page).getByText('$4.21')).toHaveCount(0)
+
+    // ── Back restores A's own entry, with its own receipt ─────────────────
+    await page.goBack()
+    await expect(page).toHaveURL(new RegExp(`/${nameA}/?$`))
+    await expectNamePageLoaded(page, nameA, owner)
+    await expect(
+      content(page).getByText(`You are the owner of ${nameA}`),
+    ).toBeVisible()
+
+    // ── Forward to B: still nothing on B ──────────────────────────────────
+    await page.goForward()
+    await expectNamePageLoaded(page, nameB, owner)
+    await expectNoSuccessBanner(page, 'B after back/forward')
+
+    // ── Typing A's URL is a new entry: no receipt ─────────────────────────
+    await page.goto(`${PORTAL_APP_URL}/${nameA}`)
+    await expectNamePageLoaded(page, nameA, owner)
+    await expectNoSuccessBanner(page, 'A reached by a fresh navigation')
+  })
 })
