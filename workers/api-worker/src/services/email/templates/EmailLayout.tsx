@@ -17,13 +17,12 @@ const bodyStyle = {
 }
 const containerStyle = { maxWidth: '600px', margin: '0 auto', padding: '24px' }
 
-export const EmailLayout = ({
-  preview,
-  children,
-}: {
-  preview: string
-  children: ReactNode
-}) => (
+interface EmailLayoutProps {
+  readonly preview: string
+  readonly children: ReactNode
+}
+
+export const EmailLayout = ({ preview, children }: EmailLayoutProps) => (
   <Html lang="en">
     <Head />
     <Preview>{preview}</Preview>

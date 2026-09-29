@@ -12,10 +12,9 @@ export const sendWelcomeEmail = ResultFn(async function* (
   apiKey: string,
   fromEmail: string,
   toEmail: string,
-  managerAppUrl: string,
 ) {
   const email = yield* fromPromise(
-    renderWelcomeEmail({ managerAppUrl }),
+    renderWelcomeEmail(),
     createIntoError('EMAIL_RENDER_ERROR'),
   )
 

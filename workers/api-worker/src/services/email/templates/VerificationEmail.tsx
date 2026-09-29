@@ -3,10 +3,10 @@ import { Heading, Text } from '@react-email/components'
 import { type RenderedEmail, renderEmail } from '../render.js'
 import { EmailLayout } from './EmailLayout.js'
 
-export type VerificationEmailProps = {
-  otp: string
-  accountAddress: string
-  expiresInMinutes: number
+export interface VerificationEmailProps {
+  readonly otp: string
+  readonly accountAddress: string
+  readonly expiresInMinutes: number
 }
 
 const otpStyle = {

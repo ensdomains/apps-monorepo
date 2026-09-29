@@ -1,20 +1,9 @@
 /** @jsxImportSource react */
-import { Button, Heading, Text } from '@react-email/components'
+import { Heading, Text } from '@react-email/components'
 import { type RenderedEmail, renderEmail } from '../render.js'
 import { EmailLayout } from './EmailLayout.js'
 
-export type WelcomeEmailProps = {
-  managerAppUrl: string
-}
-
-const buttonStyle = {
-  backgroundColor: '#2563eb',
-  color: '#ffffff',
-  padding: '12px 24px',
-  borderRadius: '6px',
-}
-
-const WelcomeEmail = ({ managerAppUrl }: WelcomeEmailProps) => (
+const WelcomeEmail = () => (
   <EmailLayout preview="Your email is verified for ENS notifications">
     <Heading as="h1">Welcome to ENS Notifications!</Heading>
     <Text>
@@ -27,20 +16,12 @@ const WelcomeEmail = ({ managerAppUrl }: WelcomeEmailProps) => (
       <li>Domain transfers</li>
       <li>And other important events</li>
     </ul>
-    <Button
-      href={`${managerAppUrl}/notifications/settings`}
-      style={buttonStyle}
-    >
-      Manage Notification Preferences
-    </Button>
     <Text>
-      You can customize which notifications you receive at any time from your
-      notification settings.
+      You can manage which notifications you receive at any time in Notification
+      Settings in the ENS Manager app.
     </Text>
   </EmailLayout>
 )
 
-export const renderWelcomeEmail = (
-  props: WelcomeEmailProps,
-): Promise<RenderedEmail> =>
-  renderEmail('Welcome to ENS Notifications', <WelcomeEmail {...props} />)
+export const renderWelcomeEmail = (): Promise<RenderedEmail> =>
+  renderEmail('Welcome to ENS Notifications', <WelcomeEmail />)

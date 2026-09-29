@@ -1,84 +1,110 @@
 import type { PersonalNotificationPayloads } from '@ens-apps/shared-schema/notifications'
 import { getGraceEndDate, MS_PER_DAY } from '@ens-apps/utils/gracePeriod'
 import { describe, expect, it } from 'vitest'
+import type { RenderedEmail } from '../render.js'
 import { renderNameExpiryEmail } from './NameExpiryEmail.js'
 import { renderNameTransferredEmail } from './NameTransferredEmail.js'
+import { renderVerificationEmail } from './VerificationEmail.js'
 import { renderWelcomeEmail } from './WelcomeEmail.js'
 
 const managerAppUrl = 'https://app.ens.dev'
+const expiry = new Date('2026-03-13T12:00:00Z')
+const expiryPayload = (
+  overrides: Partial<PersonalNotificationPayloads['name-expiry']> = {},
+): PersonalNotificationPayloads['name-expiry'] => ({
+  name: 'alice.eth',
+  expiryDate: expiry.getTime(),
+  stage: 'expiry-7d',
+  isOwner: true,
+  watchReason: 'owned',
+  ...overrides,
+})
+const transferPayload = {
+  name: 'alice.eth',
+  to: '0x1234567890abcdef1234567890abcdef12345678',
+  txHash: '0xdeadbeef',
+}
+
+// Precedent: no transactional email carries a link, so a lookalike email with
+// one is recognisable as fake.
+describe('link-free emails', () => {
+  it.each([
+    [
+      'verification',
+      () =>
+        renderVerificationEmail({
+          otp: '004219',
+          accountAddress: '0xabc123',
+          expiresInMinutes: 10,
+        }),
+    ],
+    ['welcome', () => renderWelcomeEmail()],
+    [
+      'name expiry',
+      () =>
+        renderNameExpiryEmail(expiryPayload(), { managerAppUrl, now: expiry }),
+    ],
+    ['name transferred', () => renderNameTransferredEmail(transferPayload)],
+  ] as const)('%s has no links or URLs', async (_name, render) => {
+    const email: RenderedEmail = await render()
+    expect(email.html).not.toMatch(/<a[\s>]/i)
+    expect(email.html).not.toContain('href=')
+    expect(email.text).not.toMatch(/https?:\/\//)
+    expect(email.text).not.toContain('[')
+  })
+})
 
 describe('welcome email', () => {
-  it('links to notification settings in both parts', async () => {
-    const email = await renderWelcomeEmail({ managerAppUrl })
+  it('points to Notification Settings in both parts', async () => {
+    const email = await renderWelcomeEmail()
     expect(email.subject).toBe('Welcome to ENS Notifications')
     for (const part of [email.html, email.text]) {
       expect(part).toContain('Welcome to ENS Notifications')
-      expect(part).toContain('https://app.ens.dev/notifications/settings')
+      expect(part).toContain('Notification Settings')
     }
   })
 })
 
 describe('name expiry email', () => {
-  const expiry = new Date('2026-03-13T12:00:00Z')
   const graceEnd = getGraceEndDate(expiry, 'v2')
-  const payload = (
-    overrides: Partial<PersonalNotificationPayloads['name-expiry']> = {},
-  ): PersonalNotificationPayloads['name-expiry'] => ({
-    name: 'alice.eth',
-    expiryDate: expiry.getTime(),
-    stage: 'expiry-7d',
-    isOwner: true,
-    watchReason: 'owned',
-    ...overrides,
-  })
 
   it.each([
-    ['expiry-7d', expiry, 'Domain expiration alert', '/renew/alice.eth'],
-    ['grace-start', expiry, 'Domain grace period started', '/renew/alice.eth'],
+    ['expiry-7d', expiry, 'Domain expiration alert', 'renew'],
+    ['grace-start', expiry, 'Domain grace period started', 'renew'],
     [
       'grace-1d',
       new Date(graceEnd.getTime() - MS_PER_DAY),
       'Domain grace period ending soon',
-      '/renew/alice.eth',
+      'renew',
     ],
-    [
-      'premium-start',
-      graceEnd,
-      'Domain grace period ended',
-      '/register/alice.eth',
-    ],
-  ] as const)('renders the %s lifecycle notice', async (stage, now, subject, path) => {
-    const email = await renderNameExpiryEmail(payload({ stage }), {
+    ['premium-start', graceEnd, 'Domain grace period ended', 'register'],
+  ] as const)('renders the %s lifecycle notice', async (stage, now, subject, action) => {
+    const email = await renderNameExpiryEmail(expiryPayload({ stage }), {
       managerAppUrl,
       now,
     })
     expect(email.subject).toBe(subject)
     for (const part of [email.html, email.text]) {
       expect(part).toContain('alice.eth')
-      expect(part).toContain(`${managerAppUrl}${path}`)
+      expect(part).toContain(`${action} this name`)
     }
-    const otherPath = path.startsWith('/renew') ? '/register/' : '/renew/'
-    expect(email.html).not.toContain(otherPath)
   })
 
-  it('renders hostile names as literal content with an encoded link', async () => {
+  it('renders hostile names as literal content', async () => {
     const email = await renderNameExpiryEmail(
-      payload({ name: ' <script>alert(1)</script>{{name}}&.eth\n' }),
+      expiryPayload({ name: ' <script>alert(1)</script>{{name}}&.eth\n' }),
       { managerAppUrl, now: expiry },
     )
     expect(email.html).not.toContain('<script>')
     expect(email.html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
     expect(email.text).toContain('<script>alert(1)</script>{{name}}&.eth')
-    expect(email.html).toContain(
-      `${managerAppUrl}/renew/${encodeURIComponent('<script>alert(1)</script>{{name}}&.eth')}`,
-    )
   })
 
   it('tells watchers apart from owners', async () => {
     const options = { managerAppUrl, now: expiry }
-    const owner = await renderNameExpiryEmail(payload(), options)
+    const owner = await renderNameExpiryEmail(expiryPayload(), options)
     const watcher = await renderNameExpiryEmail(
-      payload({ isOwner: false, watchReason: 'favourited' }),
+      expiryPayload({ isOwner: false, watchReason: 'favourited' }),
       options,
     )
     expect(owner.text).toContain('you own this name')
@@ -87,29 +113,21 @@ describe('name expiry email', () => {
 })
 
 describe('name transferred email', () => {
-  const payload = {
-    name: 'alice.eth',
-    to: '0x1234567890abcdef1234567890abcdef12345678',
-    txHash: '0xdeadbeef',
-  }
-
-  it('shows the name, recipient and transaction with navigation links', async () => {
-    const email = await renderNameTransferredEmail(payload, { managerAppUrl })
+  it('shows the name, recipient and transaction', async () => {
+    const email = await renderNameTransferredEmail(transferPayload)
     expect(email.subject).toBe('Domain Transferred')
     for (const part of [email.html, email.text]) {
       expect(part).toContain('alice.eth')
-      expect(part).toContain(payload.to)
-      expect(part).toContain(payload.txHash)
-      expect(part).toContain('https://etherscan.io/tx/0xdeadbeef')
-      expect(part).toContain('https://app.ens.dev/alice.eth')
+      expect(part).toContain(transferPayload.to)
+      expect(part).toContain(transferPayload.txHash)
     }
   })
 
   it('renders hostile names literally', async () => {
-    const email = await renderNameTransferredEmail(
-      { ...payload, name: '<img src=x onerror=alert(1)>.eth' },
-      { managerAppUrl },
-    )
+    const email = await renderNameTransferredEmail({
+      ...transferPayload,
+      name: '<img src=x onerror=alert(1)>.eth',
+    })
     expect(email.html).not.toContain('<img src=x')
     expect(email.text).toContain('<img src=x onerror=alert(1)>.eth')
   })

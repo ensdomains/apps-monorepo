@@ -1,5 +1,6 @@
 /** @jsxImportSource react */
-import { Button, Heading, Text } from '@react-email/components'
+import { Heading, Text } from '@react-email/components'
+import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import {
   buildNameExpiryDeliveryContext,
@@ -12,14 +13,23 @@ import {
 import { type RenderedEmail, renderEmail } from '../render.js'
 import { EmailLayout } from './EmailLayout.js'
 
-const buttonStyle = {
-  backgroundColor: '#2563eb',
-  color: '#ffffff',
-  padding: '12px 24px',
-  borderRadius: '6px',
+interface NameExpiryCopy {
+  readonly subject: string
+  readonly body: ReactNode
+  readonly action: string
 }
 
-const nameExpiryCopy = (context: NameExpiryDeliveryContext) => {
+interface NameExpiryEmailProps {
+  readonly copy: NameExpiryCopy
+  readonly isOwner: boolean
+}
+
+const RENEW_ACTION = 'Open the ENS Manager app to renew this name.'
+const REGISTER_ACTION = 'Open the ENS Manager app to register this name.'
+
+const getNameExpiryCopy = (
+  context: NameExpiryDeliveryContext,
+): NameExpiryCopy => {
   const name = <strong>{context.name}</strong>
   return match(context.noticeKind)
     .with('pre-expiry', () => ({
@@ -30,8 +40,7 @@ const nameExpiryCopy = (context: NameExpiryDeliveryContext) => {
           {formatDayCount(context.daysUntilExpiry)}).
         </>
       ),
-      buttonText: 'Renew name',
-      url: context.renewUrl,
+      action: RENEW_ACTION,
     }))
     .with('grace-start', () => ({
       subject: 'Domain grace period started',
@@ -41,8 +50,7 @@ const nameExpiryCopy = (context: NameExpiryDeliveryContext) => {
           {formatCalendarDate(context.graceEndDate)}.
         </>
       ),
-      buttonText: 'Renew name',
-      url: context.renewUrl,
+      action: RENEW_ACTION,
     }))
     .with('grace-ending', () => ({
       subject: 'Domain grace period ending soon',
@@ -54,8 +62,7 @@ const nameExpiryCopy = (context: NameExpiryDeliveryContext) => {
           name.
         </>
       ),
-      buttonText: 'Renew name',
-      url: context.renewUrl,
+      action: RENEW_ACTION,
     }))
     .with('premium-start', () => ({
       subject: 'Domain grace period ended',
@@ -65,46 +72,33 @@ const nameExpiryCopy = (context: NameExpiryDeliveryContext) => {
           premium period.
         </>
       ),
-      buttonText: 'Register name',
-      url: context.registerUrl,
+      action: REGISTER_ACTION,
     }))
     .exhaustive()
 }
 
-const NameExpiryEmail = ({
-  context,
-  isOwner,
-}: {
-  context: NameExpiryDeliveryContext
-  isOwner: boolean
-}) => {
-  const copy = nameExpiryCopy(context)
-  return (
-    <EmailLayout preview={copy.subject}>
-      <Heading as="h1">{copy.subject}</Heading>
-      <Text>{copy.body}</Text>
-      <Button href={copy.url} style={buttonStyle}>
-        {copy.buttonText}
-      </Button>
-      <Text>
-        {isOwner
-          ? 'You are receiving this because you own this name.'
-          : 'You are receiving this because you are watching this name.'}
-      </Text>
-    </EmailLayout>
-  )
-}
+const NameExpiryEmail = ({ copy, isOwner }: NameExpiryEmailProps) => (
+  <EmailLayout preview={copy.subject}>
+    <Heading as="h1">{copy.subject}</Heading>
+    <Text>{copy.body}</Text>
+    <Text>{copy.action}</Text>
+    <Text>
+      {isOwner
+        ? 'You are receiving this because you own this name.'
+        : 'You are receiving this because you are watching this name.'}
+    </Text>
+  </EmailLayout>
+)
 
 export const renderNameExpiryEmail = (
   payload: NameExpiryPayload,
   options: NameExpiryRenderOptions,
 ): Promise<RenderedEmail> => {
-  const context = buildNameExpiryDeliveryContext(payload, options)
+  const copy = getNameExpiryCopy(
+    buildNameExpiryDeliveryContext(payload, options),
+  )
   return renderEmail(
-    nameExpiryCopy(context).subject,
-    <NameExpiryEmail
-      context={context}
-      isOwner={payload.watchReason === 'owned'}
-    />,
+    copy.subject,
+    <NameExpiryEmail copy={copy} isOwner={payload.watchReason === 'owned'} />,
   )
 }

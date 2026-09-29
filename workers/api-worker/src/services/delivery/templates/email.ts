@@ -17,6 +17,5 @@ export const emailTemplates: {
   'name-expiry': (payload) =>
     renderNameExpiryEmail(payload, { managerAppUrl: env.MANAGER_APP_URL }),
 
-  'name-transferred': (payload) =>
-    renderNameTransferredEmail(payload, { managerAppUrl: env.MANAGER_APP_URL }),
+  'name-transferred': (payload) => renderNameTransferredEmail(payload),
 }

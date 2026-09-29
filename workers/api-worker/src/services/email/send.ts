@@ -3,18 +3,16 @@ import { ok } from 'neverthrow'
 import type { RenderedEmail } from './render.js'
 import { sendMailV3 } from './utils.js'
 
+interface SendRenderedEmailParams {
+  readonly from: string
+  readonly to: string
+  readonly email: RenderedEmail
+}
+
 /** SendGrid transport: submits an already-rendered email. */
 export const sendRenderedEmail = ResultFn(async function* (
   apiKey: string,
-  {
-    from,
-    to,
-    email,
-  }: {
-    from: string
-    to: string
-    email: RenderedEmail
-  },
+  { from, to, email }: SendRenderedEmailParams,
 ) {
   const result = yield* sendMailV3(apiKey, {
     personalizations: [{ to: [{ email: to }] }],
