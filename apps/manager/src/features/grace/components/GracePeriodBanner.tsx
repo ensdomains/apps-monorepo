@@ -59,7 +59,7 @@ const bannerBody = ({
 }) =>
   variant === 'profileNotOwnedName' ? (
     <Trans>
-      This name expired and can still be renewed by its previous owner until{' '}
+      This name has expired, but can be renewed for the previous owner until{' '}
       <span className="font-semibold">{formattedGraceEnd}</span>. If renewed, it
       stays with the previous owner. After grace ends, it enters temporary
       premium and anyone can register it.

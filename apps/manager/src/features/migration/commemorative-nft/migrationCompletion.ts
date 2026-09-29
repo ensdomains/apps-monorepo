@@ -2,6 +2,7 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { queryOptions } from '@tanstack/react-query'
 import { getPublicClient, type Config as WagmiConfig } from '@wagmi/core'
 import { type Address, isAddress, type PublicClient, zeroAddress } from 'viem'
+import { envConfig } from '@/config'
 import { abortablePublicClient } from '../service/abortablePublicClient'
 import { classifyNames } from '../service/classifyNames'
 import { getMigratedNamesCount } from '../service/getMigratedNamesCount'
@@ -124,7 +125,11 @@ const checkMigrationCompletion = async (
       cause: namesResult.error,
     })
   }
-  const { classified } = classifyNames(namesResult.value, params.ownerAddress)
+  const { classified } = classifyNames(
+    namesResult.value,
+    params.ownerAddress,
+    envConfig.chain.id,
+  )
   params.signal?.throwIfAborted()
   const eligibility = await withRequestDeadline(
     (signal) =>

@@ -126,7 +126,7 @@ export default createApp()
                 c.var.db
                   .update(TABLE.userChannels)
                   .set({
-                    status: 'pending',
+                    status: 'disabled',
                     status_reason: 'FORBIDDEN_BY_TELEGRAM',
                   })
                   .where(eq(TABLE.userChannels.id, channel.id)),
@@ -139,7 +139,7 @@ export default createApp()
                   error: updateResult.error,
                 })
                 return c.json(
-                  { error: 'Failed to mark channel as pending' },
+                  { error: 'Failed to mark channel as disabled' },
                   500,
                 )
               }

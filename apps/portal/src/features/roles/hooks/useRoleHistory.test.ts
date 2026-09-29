@@ -12,9 +12,16 @@ const RESOURCE = 0xabcd_0000_0007n
 const mockGetLogs = vi.fn()
 const mockGetResource = vi.fn()
 const mockGetBlockTimestamps = vi.fn()
+const mockGraphqlRequest = vi.fn()
 
 vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok({ chain: { id: 11155111 }, getLogs: mockGetLogs }),
+}))
+
+vi.mock('@/lib/indexer', () => ({
+  graphqlIndexerClient: {
+    request: (...args: unknown[]) => mockGraphqlRequest(...args),
+  },
 }))
 
 vi.mock('@ensdomains/ensjs/public/v2', () => ({
@@ -60,6 +67,35 @@ describe('getRoleHistory', () => {
     mockGetResource.mockResolvedValue(RESOURCE)
     mockGetBlockTimestamps.mockReset()
     mockGetBlockTimestamps.mockReturnValue(okAsync(new Map<bigint, bigint>()))
+    // Most cases pin the node path; the indexer is the first source now.
+    mockGraphqlRequest.mockReset()
+    mockGraphqlRequest.mockRejectedValue(new Error('indexer unavailable'))
+  })
+
+  it('reads indexed history with its own timestamps, no node calls', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      eacRolesChangeds: [
+        {
+          blockNumber: 10,
+          timestamp: 120,
+          transactionHash: `0x${'a'.padStart(64, '0')}`,
+          asEACRolesChanged: {
+            resource: `0x${RESOURCE.toString(16).padStart(64, '0')}`,
+            account: ACCOUNT,
+            oldRoleBitmap: '0x0',
+            newRoleBitmap: `0x${registryRoles.ROLE_RENEW.toString(16)}`,
+          },
+        },
+      ],
+    })
+
+    const entries = (await run())._unsafeUnwrap()
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.timestamp).toBe(120n)
+    expect(entries[0]?.newRoles).toEqual(['ROLE_RENEW'])
+    expect(mockGetLogs).not.toHaveBeenCalled()
+    expect(mockGetBlockTimestamps).not.toHaveBeenCalled()
   })
 
   it('pins the resource the registry reports, version bits included', async () => {

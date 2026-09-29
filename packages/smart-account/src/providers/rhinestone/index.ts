@@ -55,6 +55,10 @@ export {
   verifyStandaloneHca,
 } from './initialize-account'
 export {
+  fetchIntentOperationStatus,
+  type IntentOperationStatus,
+} from './intent-status'
+export {
   computeResolverSalt,
   DEFAULT_SESSION_VALIDITY_SECONDS,
   DESTINATION_CONTRACTS,

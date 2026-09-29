@@ -21,6 +21,7 @@ import {
   burnFuses,
   prepareBurnFusesTransaction,
 } from '@/features/fuses/helpers/burnFuses'
+import { formatFuseExpiry } from '@/features/fuses/utils/formatFuseExpiry'
 import { isFuseBurnt } from '@/features/fuses/utils/isFuseBurnt'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
@@ -144,7 +145,7 @@ function RouteComponent() {
   }
 
   const fuses = wrapperData.fuses as DecodedFuses | undefined
-  const expiry = wrapperData.expiry
+  const expiryLabel = formatFuseExpiry(wrapperData.expiry)
 
   const isParentFuseBurnt = (fuseKey: string): boolean =>
     isFuseBurnt(fuseKey, 'Parent', fuses)
@@ -243,19 +244,7 @@ function RouteComponent() {
           <div className="flex flex-col gap-1">
             <span className="font-medium">Fuse expiry</span>
             <div className="flex items-center h-10 px-2 border border-border rounded bg-background">
-              <span className="flex-1 text-sm">
-                {expiry
-                  ? new Date(Number(expiry) * 1000).toLocaleString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                      timeZoneName: 'short',
-                    })
-                  : 'N/A'}
-              </span>
+              <span className="flex-1 text-sm">{expiryLabel ?? 'N/A'}</span>
               <Calendar className="w-4 h-4 text-muted-foreground" />
             </div>
           </div>

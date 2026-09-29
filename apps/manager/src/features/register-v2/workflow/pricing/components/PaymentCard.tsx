@@ -1,4 +1,3 @@
-import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
@@ -10,6 +9,7 @@ import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { useSmartSessionGate } from '@/features/wallet/hooks/useSmartSessionGate'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { TOKENS } from '@/lib/tokens'
 import { useConnectModal } from '@/lib/wallet'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { tw } from '@/utils/tailwind'

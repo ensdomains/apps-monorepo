@@ -8,7 +8,8 @@ function getStatusFromActor(
 ): TransactionMachineState | undefined {
   const snapshot = actor.getSnapshot()
 
-  if (snapshot.context.error) return 'error'
+  // `context.error` survives into an auto-retry, which is not a failure.
+  if (snapshot.matches('error')) return 'error'
 
   return snapshot.value as TransactionMachineState
 }

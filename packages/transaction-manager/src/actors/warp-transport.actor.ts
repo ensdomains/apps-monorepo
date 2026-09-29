@@ -16,7 +16,6 @@ import { logger } from '@ens-apps/utils/logger'
 import type { TokenRequest, Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash } from 'viem'
-import { sepolia } from 'viem/chains'
 import {
   extractOrchestratorErrorContext,
   TransactionSubmissionError,
@@ -143,7 +142,9 @@ export function submitWarpTransaction(
 
   return fromPromise(
     (async () => {
-      const chain = config.chain || sepolia
+      // No fallback: `SmartAccountConfig.chain` is required, so an absent
+      // chain here is a construction bug, not a case to paper over.
+      const { chain } = config
 
       const sendStart = nowMs()
 
@@ -211,6 +212,17 @@ export function submitWarpTransaction(
       const intentId =
         (transaction as { id?: bigint } | undefined)?.id?.toString() ??
         'unknown'
+
+      // Hand the id to the caller before waiting on the fill: a tab closed
+      // mid-fill is precisely the case the observer exists for.
+      const rawIntentId = (transaction as { id?: bigint } | undefined)?.id
+      if (rawIntentId !== undefined) {
+        try {
+          request.rhinestoneParams.onIntentSubmitted?.(rawIntentId)
+        } catch (error) {
+          logger.debug('⚠️ [WARP] onIntentSubmitted observer threw:', error)
+        }
+      }
       // NOTE: no `gasLimit` to report — submitted intents deliberately carry
       // none, so the ceiling on a filled intent is the orchestrator's own
       // estimate, not something this app sets. (`gasLimit` is passed only to

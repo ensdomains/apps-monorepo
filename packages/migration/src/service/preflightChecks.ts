@@ -1,29 +1,19 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { requireEnsChain } from '@ens-apps/config'
 import { registryOwnerSnippet } from '@ensdomains/ensjs-abi/registry'
 import { permissionedRegistryGetStatusSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
-import { type Address, namehash, type PublicClient, zeroAddress } from 'viem'
-import { sepoliaWithEns } from '../chain'
+import {
+  type Address,
+  type Chain,
+  getChainContractAddress,
+  namehash,
+  type PublicClient,
+  zeroAddress,
+} from 'viem'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { batchedMulticall } from './batchedMulticall'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
 import { GRACE_PERIOD_SECONDS } from './constants'
 
-const BASE_REGISTRAR = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensBaseRegistrarImplementation',
-})
-const NAME_WRAPPER = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensNameWrapper',
-})
-const LEGACY_REGISTRY = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensLegacyRegistry',
-})
-const ETH_REGISTRY_V2 = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensRegistry',
-})
 const RESERVED_STATUS = 1
 
 // Whether a NameWrapper token can actually be transferred right now, matching
@@ -51,10 +41,16 @@ export type EligibilityResult = {
 type OwnershipResult = Address | readonly [Address, number, bigint]
 type OwnershipContract = Parameters<typeof batchedMulticall>[1][number]
 
-const buildOwnershipContract = (name: ClassifiedName): OwnershipContract => {
+const buildOwnershipContract = (
+  name: ClassifiedName,
+  chain: Chain,
+): OwnershipContract => {
   if (name.action === 'copy' && name.copySource === 'registry') {
     return {
-      address: LEGACY_REGISTRY,
+      address: getChainContractAddress({
+        chain,
+        contract: 'ensLegacyRegistry',
+      }),
       abi: registryOwnerSnippet,
       functionName: 'owner' as const,
       args: [namehash(name.domain.name)] as const,
@@ -62,14 +58,17 @@ const buildOwnershipContract = (name: ClassifiedName): OwnershipContract => {
   }
   if (name.action === 'migrate' && name.tokenType === 'unwrapped') {
     return {
-      address: BASE_REGISTRAR,
+      address: getChainContractAddress({
+        chain,
+        contract: 'ensBaseRegistrarImplementation',
+      }),
       abi: BASE_REGISTRAR_ABI,
       functionName: 'ownerOf' as const,
       args: [BigInt(name.domain.labelhash)] as const,
     }
   }
   return {
-    address: NAME_WRAPPER,
+    address: getChainContractAddress({ chain, contract: 'ensNameWrapper' }),
     abi: NAME_WRAPPER_ABI,
     functionName: 'getData' as const,
     args: [BigInt(name.domain.id)] as const,
@@ -94,7 +93,8 @@ export const checkOwnership = async (
   const ids = new Set<string>()
   if (names.length === 0) return ids
 
-  const contracts = names.map(buildOwnershipContract)
+  const chain = requireEnsChain(publicClient, 'migration preflight')
+  const contracts = names.map((name) => buildOwnershipContract(name, chain))
 
   const results = await batchedMulticall<OwnershipResult>(
     publicClient,
@@ -139,10 +139,15 @@ export const checkFrozenApproval = async (
   )
   if (directCandidates.length === 0) return ids
 
+  const nameWrapper = getChainContractAddress({
+    chain: requireEnsChain(publicClient, 'migration preflight'),
+    contract: 'ensNameWrapper',
+  })
+
   const results = await batchedMulticall<Address>(
     publicClient,
     directCandidates.map((name) => ({
-      address: NAME_WRAPPER,
+      address: nameWrapper,
       abi: NAME_WRAPPER_ABI,
       functionName: 'getApproved' as const,
       args: [BigInt(name.domain.id)] as const,
@@ -188,10 +193,15 @@ export const checkPremigrationReservation = async (
   )
   if (candidates.length === 0) return ids
 
+  const ethRegistryV2 = getChainContractAddress({
+    chain: requireEnsChain(publicClient, 'migration preflight'),
+    contract: 'ensRegistry',
+  })
+
   const results = await batchedMulticall<number>(
     publicClient,
     candidates.map((name) => ({
-      address: ETH_REGISTRY_V2,
+      address: ethRegistryV2,
       abi: permissionedRegistryGetStatusSnippet,
       functionName: 'getStatus' as const,
       args: [BigInt(name.domain.labelhash)] as const,
