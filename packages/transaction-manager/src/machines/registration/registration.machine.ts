@@ -3,6 +3,7 @@ import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
+import { TransactionSubmissionError } from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
 import { isRetryableSubmissionError } from '../retry-policy'
 import type { TOKEN_SYMBOL } from './registration.actors'
@@ -175,7 +176,7 @@ export type RegistrationContext = {
     | 'computingHcaBudget'
     | 'deployingResolver'
     | 'submittingSetupBundle'
-    | 'committingTransaction'
+    | 'preparingCommitment'
     | 'signingFundingPermit'
     | 'approvingToken'
     | 'registeringDomain'
@@ -435,6 +436,8 @@ export const registrationMachine = setup({
         hca: Address
         resolverAddress: Address
         publicClient: PublicClient
+        commitment: Hash
+        duration: bigint
       }) => {
         // One machine state, two deployments: the HCA path verifies against
         // the standalone registry, the EOA path against the old deployment.
@@ -444,6 +447,8 @@ export const registrationMachine = setup({
               wallet: input.owner,
               hca: input.hca,
               publicClient: input.publicClient,
+              commitment: input.commitment,
+              duration: input.duration,
             })
           : verifyRegistrationActor(input)
       },
@@ -958,7 +963,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'committingTransaction' as const,
+              retryTarget: () => 'preparingCommitment' as const,
             }),
             ({ event }) => {
               console.error(
@@ -1000,7 +1005,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'committingTransaction' as const,
+              retryTarget: () => 'preparingCommitment' as const,
             }),
             ({ event }) => {
               console.error(
@@ -1034,14 +1039,16 @@ export const registrationMachine = setup({
         // `commitmentAt` is set we continue, otherwise that state's retry
         // resubmits the correct (signer-aware) commit path.
         onError: [
-          // A declined commit never reached the chain: there is nothing to
-          // verify, and the retry below would just re-prompt the wallet.
+          // Warp can fill after a reported failure, so only HCA verifies.
           {
-            guard: ({ event }) => !isRetryableSubmissionError(event.error),
+            guard: ({ context, event }) =>
+              !isRetryableSubmissionError(event.error) ||
+              (context.signer?.type !== 'rhinestone' &&
+                event.error instanceof TransactionSubmissionError),
             target: 'error',
             actions: assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'committingTransaction' as const,
+              retryTarget: () => 'preparingCommitment' as const,
             }),
           },
           {
@@ -1151,7 +1158,7 @@ export const registrationMachine = setup({
               retryTarget: ({ context }) =>
                 context.signer?.type === 'rhinestone'
                   ? ('submittingSetupBundle' as const)
-                  : ('committingTransaction' as const),
+                  : ('preparingCommitment' as const),
             }),
             ({ event }) => {
               console.error(
@@ -1195,7 +1202,7 @@ export const registrationMachine = setup({
             retryTarget: ({ context }) =>
               context.signer?.type === 'rhinestone'
                 ? ('submittingSetupBundle' as const)
-                : ('committingTransaction' as const),
+                : ('preparingCommitment' as const),
           }),
         },
       },
@@ -1493,6 +1500,9 @@ export const registrationMachine = setup({
           resolverAddress: context.resolverAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          commitment: context.commitment!.commitment,
+          duration: context.duration,
         }),
         onDone: [
           {
@@ -1506,15 +1516,24 @@ export const registrationMachine = setup({
             target: 'error',
             actions: [
               assign({
+                // Prefer why the check refused over the polling error that sent
+                // us here — only the former means the name is now taken.
+                error: ({ context, event }) =>
+                  event.output.reason
+                    ? new Error(
+                        `This registration could not be confirmed as yours: ${event.output.reason}`,
+                        { cause: context.error },
+                      )
+                    : context.error,
                 retryTarget: ({ context }) =>
                   context.signer?.type === 'rhinestone'
                     ? ('submittingRhinestoneBundle' as const)
                     : ('registeringDomain' as const),
               }),
-              ({ context }) => {
+              ({ event }) => {
                 console.error(
-                  '❌ [REGISTRATION] Registration not present on-chain after fallback check:',
-                  context.error,
+                  '❌ [REGISTRATION] Registration not confirmed as ours after fallback check:',
+                  event.output.reason,
                 )
               },
             ],
@@ -1637,12 +1656,14 @@ export const registrationMachine = setup({
           },
           {
             guard: ({ context }) =>
-              context.retryTarget === 'committingTransaction',
-            target: 'committingTransaction',
+              context.retryTarget === 'preparingCommitment',
+            // The failed commitment may have landed, and a repeat reverts.
+            target: 'preparingCommitment',
             actions: assign(({ context }) => ({
               ...context,
               error: undefined,
               retryTarget: undefined,
+              commitment: undefined,
               commitmentTxId: undefined,
               approvalTxId: undefined,
               registrationTxId: undefined,

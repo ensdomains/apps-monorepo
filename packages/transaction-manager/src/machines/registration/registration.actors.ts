@@ -13,6 +13,10 @@ import {
   ethRegistrarRegisterSnippet,
   ethRegistrarRenewSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import {
+  permissionedRegistryGetResolverSnippet,
+  permissionedRegistryGetSubregistrySnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type {
@@ -677,18 +681,24 @@ export function readPaymentAuthorizationActor(input: {
 }
 
 /**
- * Verify a name has actually been registered on-chain. Used as a fallback
- * after the submit/poll path fails — if the wallet flaked but the tx
- * landed, the registry will already reflect the new owner + resolver.
+ * Verify OUR registration landed on-chain. Used as a fallback after the
+ * submit/poll path fails.
+ *
+ * Owner and resolver are caller-supplied `register` args, so matching them
+ * proves nothing on their own; `commitmentAt == 0` is what proves our own
+ * reveal executed. See `verifyHcaRegistrationActor` — same check, EOA
+ * deployment.
  */
 export function verifyRegistrationActor(input: {
   name: string
   owner: Address
   resolverAddress: Address
   publicClient: PublicClient
+  /** The commitment this flow's registration consumed. */
+  commitment: Hex
   /** Override for the standalone-HCA registrar; defaults to the EOA deployment. */
   registrarAddress?: Address
-}): ResultAsync<{ verified: boolean }, Error> {
+}): ResultAsync<{ verified: boolean; reason?: string }, Error> {
   const registrarAddress =
     input.registrarAddress ??
     getChainContractAddress({
@@ -706,40 +716,75 @@ export function verifyRegistrationActor(input: {
         functionName: 'REGISTRY',
       })) as Address
 
-      const registryAbi = parseAbi([
-        'function getResolver(string label) view returns (address)',
+      // ensjs-abi ships no owner-by-label snippet, so that one stays local.
+      const registryOwnerAbi = parseAbi([
         'function getOwner(string label) view returns (address)',
       ])
-      const [resolver, owner] = await multicall(input.publicClient, {
-        allowFailure: false,
-        contracts: [
-          {
-            address: registryAddress,
-            abi: registryAbi,
-            functionName: 'getResolver',
-            args: [cleanName],
-          },
-          {
-            address: registryAddress,
-            abi: registryAbi,
-            functionName: 'getOwner',
-            args: [cleanName],
-          },
-        ],
-      })
+      const [[resolver, owner, subregistry], commitTime] = await Promise.all([
+        multicall(input.publicClient, {
+          allowFailure: false,
+          contracts: [
+            {
+              address: registryAddress,
+              abi: permissionedRegistryGetResolverSnippet,
+              functionName: 'getResolver',
+              args: [cleanName],
+            },
+            {
+              address: registryAddress,
+              abi: registryOwnerAbi,
+              functionName: 'getOwner',
+              args: [cleanName],
+            },
+            {
+              address: registryAddress,
+              abi: permissionedRegistryGetSubregistrySnippet,
+              functionName: 'getSubregistry',
+              args: [cleanName],
+            },
+          ],
+        }),
+        readContract(input.publicClient, {
+          address: registrarAddress,
+          abi: ethRegistrarCommitmentsSnippet,
+          functionName: 'commitmentAt',
+          args: [input.commitment],
+        }),
+      ])
 
-      // Guard against the front-running scenario: another address could have
-      // claimed the label with the same resolver. Require both resolver and
-      // owner to match the expected values.
-      const resolverMatches =
-        !isAddressEqual(resolver, zeroAddress) &&
-        isAddressEqual(resolver, input.resolverAddress)
-      const ownerMatches =
-        !isAddressEqual(owner, zeroAddress) &&
-        isAddressEqual(owner, input.owner)
-      const matches = resolverMatches && ownerMatches
+      if (
+        isAddressEqual(resolver, zeroAddress) ||
+        !isAddressEqual(resolver, input.resolverAddress)
+      ) {
+        return {
+          verified: false,
+          reason: `resolver is ${resolver}, expected ${input.resolverAddress}`,
+        }
+      }
+      if (
+        isAddressEqual(owner, zeroAddress) ||
+        !isAddressEqual(owner, input.owner)
+      ) {
+        return {
+          verified: false,
+          reason: `owner is ${owner}, expected ${input.owner}`,
+        }
+      }
+      // We set none, and whoever did owns every name beneath this one.
+      if (!isAddressEqual(subregistry, zeroAddress)) {
+        return {
+          verified: false,
+          reason: `subregistry is ${subregistry}, expected none — this registration is not ours`,
+        }
+      }
+      if (BigInt(commitTime) !== 0n) {
+        return {
+          verified: false,
+          reason: `our commitment is unconsumed (recorded at ${commitTime}), so a different reveal registered this name`,
+        }
+      }
 
-      return { verified: matches }
+      return { verified: true }
     })(),
     (error) => error as Error,
   )

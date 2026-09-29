@@ -8,6 +8,7 @@ const createMockActor = (value: string): TransactionMachineActor =>
     getSnapshot: () => ({
       value,
       context: {},
+      matches: (state: string) => value === state,
     }),
   }) as TransactionMachineActor
 
