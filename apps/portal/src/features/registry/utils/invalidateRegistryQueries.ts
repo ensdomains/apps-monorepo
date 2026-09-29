@@ -2,8 +2,8 @@
  * Invalidate the registry-derived caches a role grant or revoke affects.
  *
  * Every key here reads the indexer, which lags a confirmed transaction by a
- * few blocks, so callers invalidate once on success and then poll the same set
- * until it catches up. The role holder and history reads fall back to a node
+ * few blocks, so callers invalidate once on success and then poll until it
+ * catches up. The role holder and history reads fall back to a node
  * log scan only when the indexer fails, so polling them is cheap in the normal
  * case and correct in the fallback case.
  *
@@ -17,7 +17,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 
 /** Read from the indexer: needs polling until it catches up. */
-export const INDEXER_BACKED_KEYS = new Set<string>([
+const INDEXER_BACKED_KEYS = new Set<string>([
   // Holders table on /registry/$address/roles.
   'get-registry-root-role-holders',
   // Per-user role-change history embedded in the edit sheet.
@@ -30,21 +30,14 @@ export const INDEXER_BACKED_KEYS = new Set<string>([
   'get-registry-labels',
 ])
 
-const invalidate = (
-  queryClient: QueryClient,
-  keys: ReadonlySet<string>,
-): Promise<void> =>
-  queryClient.invalidateQueries({
-    predicate: (query) => keys.has(query.queryKey[0] as string),
-    refetchType: 'all',
-  })
-
-/** Everything a role change touches. Call once, on success. */
+/**
+ * Everything a role change touches. Call once on success, then hand it to
+ * `pollForIndexerSync` until the indexer catches up.
+ */
 export const invalidateRegistryQueries = (
   queryClient: QueryClient,
-): Promise<void> => invalidate(queryClient, INDEXER_BACKED_KEYS)
-
-/** The polled subset. Safe to call repeatedly while the indexer catches up. */
-export const invalidateIndexedRegistryQueries = (
-  queryClient: QueryClient,
-): Promise<void> => invalidate(queryClient, INDEXER_BACKED_KEYS)
+): Promise<void> =>
+  queryClient.invalidateQueries({
+    predicate: (query) => INDEXER_BACKED_KEYS.has(query.queryKey[0] as string),
+    refetchType: 'all',
+  })
