@@ -1,3 +1,4 @@
+import { buildConfig } from '@ens-apps/config'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { getNameRegistries } from '@ensdomains/ensjs/public/v2'
 import {
@@ -9,8 +10,8 @@ import {
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { getPrimaryNameForwardAddress } from '@/features/profile/service/primaryNameForwardAddress'
-import { managerEnsChain } from './ensChain'
 
+const managerEnsChain = buildConfig({ network: 'sepolia' }).chain
 const ownerAddress = '0x1234567890123456789012345678901234567890'
 
 describe('Manager ENS deployment', () => {

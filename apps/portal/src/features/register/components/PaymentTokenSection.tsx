@@ -11,6 +11,12 @@ type PaymentTokenSectionProps = {
   readonly onConnectWallet?: () => void
   readonly isConnected: boolean
   readonly isRegistering?: boolean
+  /**
+   * Reopens the modal of a registration already under way. Given whenever one
+   * exists: after a reload no token is selected here, so Register alone would
+   * leave a closed modal with no way back.
+   */
+  readonly onViewProgress?: () => void
 }
 
 export const PaymentTokenSection = ({
@@ -20,6 +26,7 @@ export const PaymentTokenSection = ({
   onConnectWallet,
   isConnected,
   isRegistering = false,
+  onViewProgress,
 }: PaymentTokenSectionProps) => {
   const [selectedTokenData, setSelectedTokenData] =
     useState<TokenWithPriceAndBalance | null>(null)
@@ -56,14 +63,25 @@ export const PaymentTokenSection = ({
         isSubmitting={isRegistering}
         onSelectionChange={setSelectedTokenData}
       />
-      <Button
-        className="w-full"
-        onClick={handleBuyName}
-        disabled={!selectedTokenData}
-        variant="default"
-      >
-        {isRegistering ? 'Registering...' : 'Register'}
-      </Button>
+      {!isRegistering && (
+        <Button
+          className="w-full"
+          onClick={handleBuyName}
+          disabled={!selectedTokenData}
+          variant="default"
+        >
+          Register
+        </Button>
+      )}
+      {onViewProgress && (
+        <Button
+          className="w-full"
+          onClick={onViewProgress}
+          variant={isRegistering ? 'default' : 'outline'}
+        >
+          View registration progress
+        </Button>
+      )}
     </section>
   )
 }

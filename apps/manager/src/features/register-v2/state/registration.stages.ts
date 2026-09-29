@@ -28,8 +28,9 @@ export const REGISTRATION_STAGE_PROGRESS = {
   // Shared cooldown spine
   waitingForCommitment: 38,
   fetchingCommitmentAge: 40,
+  // A resumed run confirms its commitment here, then waits in the cooldown.
+  validatingCommitment: 42,
   commitmentCooldown: 44,
-  validatingCommitment: 46,
   // Pure-EOA allowance + approve
   checkingAllowance: 50,
   approvingToken: 54,

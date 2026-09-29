@@ -7,7 +7,14 @@ import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
-import { err, fromPromise, ok, okAsync, type ResultAsync } from 'neverthrow'
+import {
+  err,
+  errAsync,
+  fromPromise,
+  ok,
+  okAsync,
+  type ResultAsync,
+} from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -31,6 +38,7 @@ import { sepoliaWithEns } from '@/lib/wagmi'
 import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getLabel } from '@/utils/token/getLabel'
+import { isCanonicalName } from '@/utils/token/isNormalized'
 import type { WalletClientWithAccount } from '@/utils/types'
 import { getEthAddressQueryOptions } from '../queries/getEthAddress'
 import {
@@ -93,6 +101,16 @@ export class V1TransferRefusedError extends TaggedError(
     /** Still allowed, but in the other role — the form was built for this one. */
     | 'actor-changed'
 }> {}
+
+/**
+ * The name isn't its own ENSIP-15 form, so the label every step hashes names a
+ * different token than the form showed. The route refuses these before the form
+ * is offered; this is the same gate at the point of signing, so no path into the
+ * hook can substitute the canonical twin.
+ */
+export class NonCanonicalNameError extends TaggedError(
+  'NonCanonicalNameError',
+) {}
 
 /** Simulating the move step failed, so no config step was sent. */
 export class TransferPreflightError extends TaggedError(
@@ -324,6 +342,7 @@ export const useTransferName = ({
     | ErrorOf<ReturnType<typeof readV1>>
     | ErrorOf<ReturnType<typeof readV2>>
     | ErrorOf<ReturnType<typeof readResolverKind>>
+    | NonCanonicalNameError
     | TransferPreflightError
 
   // Prepares the flow: re-reads the name's state (V1) or its own resolver and
@@ -336,11 +355,24 @@ export const useTransferName = ({
       mutationFn: (
         params: StartTransferParams,
       ): ResultAsync<SavedParams, PrepareError> =>
-        subject.kind === 'v2'
-          ? readV2(params, subject.registryAddress)
+        match({ canonical: isCanonicalName(name), subject })
+          .with({ canonical: false }, () =>
+            errAsync(
+              new NonCanonicalNameError({
+                message:
+                  'This name isn’t written in its normalized form, so transferring it would move a different name. Nothing was sent.',
+              }),
+            ),
+          )
+          .with({ subject: { kind: 'v2' } }, ({ subject }) =>
+            readV2(params, subject.registryAddress)
               .andThen(readResolverKind)
-              .andThen(preflightMove)
-          : readV1(params).andThen(readResolverKind).andThen(preflightMove),
+              .andThen(preflightMove),
+          )
+          // Every remaining kind is a V1 subject.
+          .otherwise(() =>
+            readV1(params).andThen(readResolverKind).andThen(preflightMove),
+          ),
       onSuccess: (params) => {
         startedStepsRef.current = new Set()
         setSavedParams(params)

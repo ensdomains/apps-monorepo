@@ -8,15 +8,15 @@
  * an address to resolve to an ENS name on that chain/network.
  */
 
-import type { Address, Chain } from 'viem'
+import type { Address } from 'viem'
 import {
   l2ReverseRegistrarSetNameForAddrSnippet,
   l2ReverseRegistrarSetNameSnippet,
 } from '../v1/L2ReverseRegistrar'
 import {
   getRegistrarAddress,
+  type NetworkKey,
   type ReverseRegistrarChainId,
-  resolveNetworkFromChain,
 } from '../v1/reverseRegistrarChainIds'
 
 export type SetReverseNameRequest =
@@ -37,7 +37,7 @@ export type SetReverseNameRequest =
  * Creates contract call parameters for setting reverse resolution
  * @param params.name - The ENS name to set
  * @param params.reverseRegistrarChainId - The chain ID for the reverse registrar
- * @param params.chain - Optional chain object to determine network (mainnet/testnet)
+ * @param params.network - ENS network the request targets
  * @param params.targetAddress - Optional address to set the name for. If not provided, sets for the caller
  * @returns Contract parameters to pass to writeContract
  * @throws Error if no registrar is found for the coin type
@@ -45,15 +45,14 @@ export type SetReverseNameRequest =
 export function createSetReverseNameRequest({
   name,
   reverseRegistrarChainId,
-  chain,
+  network,
   targetAddress,
 }: {
   name: string
   reverseRegistrarChainId: ReverseRegistrarChainId
-  chain?: Chain
+  network: NetworkKey
   targetAddress?: Address
 }): SetReverseNameRequest {
-  const network = resolveNetworkFromChain(chain)
   const registrarAddress = getRegistrarAddress(reverseRegistrarChainId, network)
 
   if (!registrarAddress) {

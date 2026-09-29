@@ -29,7 +29,8 @@ export function makeMockEnv(
     TELEGRAM_QUEUE: telegramQueue as unknown as Queue,
     EMAIL_QUEUE: emailQueue as unknown as Queue,
     PUSH_QUEUE: pushQueue as unknown as Queue,
-    ENS_INDEXER_GRAPHQL_URL: 'https://staging-graphql.ens.dev/',
+    // The deployed worker always sets this; config resolution requires it.
+    CHAIN: 'sepolia',
     ...overrides,
   } as unknown as CloudflareBindings
 }

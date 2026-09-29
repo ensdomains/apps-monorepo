@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -7,6 +8,7 @@ import { useProfileImageField } from './useProfileImageField'
 const mocks = vi.hoisted(() => ({
   cropImageFile: vi.fn(),
   prepareProfileImageUpload: vi.fn(),
+  queryClient: undefined as QueryClient | undefined,
   setQueryData: vi.fn(),
 }))
 
@@ -15,19 +17,25 @@ vi.mock('wagmi', () => ({
   useChainId: () => 1,
 }))
 
-vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({
-    data: undefined,
-    error: null,
-    isFetching: false,
-  }),
-  useQueryClient: () => ({
-    setQueryData: mocks.setQueryData,
-  }),
-}))
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>()
+  return {
+    ...actual,
+    useQuery: ({ queryKey }: { queryKey: readonly unknown[] }) => ({
+      data: mocks.queryClient?.getQueryData(queryKey),
+      error: null,
+      isFetching: false,
+    }),
+    useQueryClient: () => ({
+      setQueryData: mocks.setQueryData,
+    }),
+  }
+})
 
 vi.mock('@/features/profile/service/profileImageRecord', () => ({
-  imageRecordQuery: () => ({ queryKey: ['profile', 'image_record'] }),
+  imageRecordQuery: (record: string) => ({
+    queryKey: ['profile', 'image_record', record],
+  }),
 }))
 
 vi.mock('@/features/profile/service/profileNfts', () => ({
@@ -50,11 +58,16 @@ vi.mock('@/features/profile/service/profileImageUpload', () => ({
 describe('useProfileImageField', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.queryClient = new QueryClient()
+    mocks.setQueryData.mockImplementation((queryKey, data) =>
+      mocks.queryClient?.setQueryData(queryKey, data),
+    )
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:preview')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
   })
 
   afterEach(() => {
+    mocks.queryClient?.clear()
     vi.restoreAllMocks()
   })
 
@@ -168,7 +181,10 @@ describe('useProfileImageField', () => {
     expect(result.current.uploadFile).toBe(png)
   })
 
-  it('prepares the cropped file for upload instead of the original file', async () => {
+  it.each<ProfileImageKind>([
+    'avatar',
+    'header',
+  ])('keeps the saved %s cached while preparing and discarding a replacement', async (kind) => {
     const originalFile = new File(['original-bytes'], 'avatar.jpg', {
       type: 'image/jpeg',
     })
@@ -176,25 +192,44 @@ describe('useProfileImageField', () => {
       type: 'image/jpeg',
     })
     mocks.cropImageFile.mockResolvedValue(croppedFile)
-    mocks.prepareProfileImageUpload.mockResolvedValue({
+    const savedImageUrl = `https://example.com/${kind}`
+    const savedResolvedImageUrl = `${savedImageUrl}?v=saved`
+    const queryKey = ['profile', 'image_record', savedImageUrl]
+    mocks.queryClient?.setQueryData(queryKey, savedResolvedImageUrl)
+    const preparedUpload = {
       dataURL: 'data:image/jpeg;base64,cropped',
       hash: 'hash',
-      imageUrl: 'https://example.com/avatar',
-      kind: 'avatar',
+      imageUrl: savedImageUrl,
+      kind,
       name: 'test.eth',
-    })
+    }
+    mocks.prepareProfileImageUpload.mockResolvedValue(preparedUpload)
+    const onImageChange = vi.fn()
+    const onImageUploadPrepared = vi.fn()
+    const onCancel = vi.fn()
 
-    const { result } = renderHook(() =>
-      useProfileImageField({
-        isActive: true,
-        kind: 'avatar',
-        name: 'test.eth',
-        onActivate: vi.fn(),
-        onCancel: vi.fn(),
-        onImageChange: vi.fn(),
-        onImageRemove: vi.fn(),
-      }),
+    const { result, rerender } = renderHook(
+      ({ isActive, preparedImagePreviewUrl }) =>
+        useProfileImageField({
+          currentImage: savedImageUrl,
+          isActive,
+          kind,
+          name: 'test.eth',
+          onActivate: vi.fn(),
+          onCancel,
+          onImageChange,
+          onImageRemove: vi.fn(),
+          onImageUploadPrepared,
+          preparedImagePreviewUrl,
+        }),
+      {
+        initialProps: {
+          isActive: true,
+          preparedImagePreviewUrl: undefined as string | undefined,
+        },
+      },
     )
+    expect(result.current.displayImage).toBe(savedResolvedImageUrl)
 
     act(() => {
       result.current.handleFileChange({
@@ -216,6 +251,27 @@ describe('useProfileImageField', () => {
     )
     expect(mocks.prepareProfileImageUpload).not.toHaveBeenCalledWith(
       expect.objectContaining({ file: originalFile }),
+    )
+    expect(onImageUploadPrepared).toHaveBeenCalledWith(preparedUpload)
+    expect(onImageChange).toHaveBeenCalledWith(savedImageUrl)
+    expect(onCancel).toHaveBeenCalledOnce()
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.queryClient?.getQueryData(queryKey)).toBe(
+      savedResolvedImageUrl,
+    )
+
+    rerender({
+      isActive: false,
+      preparedImagePreviewUrl: preparedUpload.dataURL,
+    })
+    expect(result.current.displayImage).toBe(preparedUpload.dataURL)
+
+    // Closing the dialog discards its prepared upload; reopening uses saved data.
+    rerender({ isActive: false, preparedImagePreviewUrl: undefined })
+    rerender({ isActive: true, preparedImagePreviewUrl: undefined })
+    expect(result.current.displayImage).toBe(savedResolvedImageUrl)
+    expect(mocks.queryClient?.getQueryData(queryKey)).toBe(
+      savedResolvedImageUrl,
     )
   })
 })

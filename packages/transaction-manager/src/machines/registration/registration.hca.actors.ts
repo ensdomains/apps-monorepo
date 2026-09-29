@@ -2,7 +2,7 @@
  * Standalone-HCA registration actors (user-paid USDC route).
  *
  * These target the STANDALONE-HCA deployment (via `@ens-apps/smart-account`'s
- * manifest) — a different contract set from `ENS_SEPOLIA_CONTRACTS`, which the
+ * manifest) — a different contract set from the chain's ENS contracts, which the
  * pure-EOA path (portal) keeps using untouched.
  *
  * Route shape (per the "HCA: New" handoff doc; NO gas sponsorship):
@@ -21,6 +21,7 @@
  *       setters → setNameWithHCA?).
  */
 
+import { requireChainId } from '@ens-apps/config'
 import {
   buildCommitCall,
   buildRevealBatch,
@@ -37,6 +38,12 @@ import {
   registerLegGasLimit,
   withBudgetDrift,
 } from '@ens-apps/smart-account'
+import { ethRegistrarCommitmentsSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import {
+  permissionedRegistryGetResolverSnippet,
+  permissionedRegistryGetStateSnippet,
+  permissionedRegistryGetSubregistrySnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import type { Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Chain, Hash, Hex, PublicClient } from 'viem'
@@ -49,9 +56,9 @@ import {
   parseAbi,
   parseSignature,
   stringToHex,
+  zeroAddress,
 } from 'viem'
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
-import { sepolia } from 'viem/chains'
 import { transactionManager } from '../../providers/transactionManager'
 import type { RhinestoneSigner, Signer } from '../../types/signer.types'
 import type {
@@ -59,7 +66,11 @@ import type {
   RhinestoneTransactionRequest,
   SessionEnableData,
 } from '../../types/transaction.types'
-import type { PermitSignature } from './registration.actors'
+import {
+  type PermitSignature,
+  pollUntilVerified,
+  type VerifyPollOptions,
+} from './registration.actors'
 
 type CommitmentData = {
   commitment: Hash
@@ -83,14 +94,13 @@ const erc2612Abi = parseAbi([
   'function balanceOf(address account) view returns (uint256)',
 ])
 
-const permissionedRegistryAbi = parseAbi([
-  'struct State { uint8 status; uint64 expiry; address latestOwner; uint256 tokenId; uint256 resource; }',
-  'function getState(uint256 anyId) view returns (State state)',
-  'function getResolver(string label) view returns (address)',
-])
-
 /** `IPermissionedRegistry.Status.REGISTERED` */
 const STATUS_REGISTERED = 2
+
+// `expiry` is `registerTime + duration`, so this only has to cover reveal →
+// check latency. Far below any registerable duration, so a hostile
+// minimum-duration registration can't hide inside it.
+const EXPIRY_SLACK_SECONDS = 60n * 60n
 
 // Comfortably covers the commitment cooldown plus relayer latency. Permits are
 // single-use (nonce-bound), so a generous deadline is not a replay risk.
@@ -739,6 +749,19 @@ export function signFundingPermitActor(input: {
         Math.floor(Date.now() / 1000) + PERMIT_DEADLINE_SECONDS,
       )
 
+      // Observability contract — do not remove. The resume e2e counts wallet
+      // prompts by matching this exact line, because the whole cost of a
+      // resumed registration is meant to be ONE permit re-signature: the
+      // permit is deliberately not persisted (1h deadline, untracked nonce),
+      // so `checkingAllowance → signingPermit` re-signs it. A second prompt
+      // means the flow restarted rather than resumed. Values are interpolated
+      // into the string, not passed as an object arg — Playwright's
+      // `msg.text()` renders object args as `JSHandle@object`, which is
+      // unmatchable.
+      console.log(
+        `📊 [TRANSACTION MANAGER] Funding permit signing: wallet=${input.wallet} value=${input.value.toString()}`,
+      )
+
       const signature = await signTypedData(walletClient, {
         account,
         domain,
@@ -799,7 +822,7 @@ export function submitFundingAndCommitActor(input: {
 > {
   return fromPromise(
     (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
+      const chainId = requireChainId(input.publicClient, 'HCA registration')
       const contracts = getDestinationContracts(chainId)
       const label = cleanLabel(input.name)
 
@@ -899,51 +922,139 @@ export function submitFundingAndCommitActor(input: {
 }
 
 /**
- * Verify a standalone-HCA registration on the NEW registry: the label must be
- * REGISTERED, `latestOwner` must be the WALLET (the registrar always assigns
- * the name to the wallet, never the HCA), and the registry resolver must be
- * the HCA's PermissionedResolver proxy.
+ * Verify that THIS flow's reveal registered the name — a pass sends the machine
+ * to `success`, so "some registration exists" is not enough. Status, owner and
+ * resolver are all caller-supplied `register` args, and registration is
+ * permissionless in the owner, so an attacker can match all three.
+ *
+ * `commitmentAt == 0` is the unforgeable check: the preimage holds our secret,
+ * `register` deletes what it consumes and `commit` only writes. Every path into
+ * `commitmentCooldown` confirms the commitment first, so zero means consumed.
  */
-export function verifyHcaRegistrationActor(input: {
-  name: string
-  wallet: Address
-  hca: Address
-  publicClient: PublicClient
-}): ResultAsync<{ verified: boolean }, Error> {
-  return fromPromise(
-    (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
-      const contracts = getDestinationContracts(chainId)
-      const label = cleanLabel(input.name)
-      const expectedResolver = computeResolverAddress({
-        chainId,
-        hca: input.hca,
-      })
+export function verifyHcaRegistrationActor(
+  input: {
+    name: string
+    wallet: Address
+    hca: Address
+    publicClient: PublicClient
+    /** The commitment this flow's reveal consumed. */
+    commitment: Hash
+    /** Duration the commitment bound, to check the expiry we paid for. */
+    duration: bigint
+    /** The reveal intent's orchestrator id, when a resumed run persisted one. */
+    intentId?: bigint
+    /**
+     * Orchestrator status lookup. `'FAILED'`/`'EXPIRED'` short-circuits the
+     * grace poll — that intent will never fill, so polling the registry is
+     * waiting for a state that cannot appear. Anything else (PENDING, null,
+     * a thrown fetch) is inconclusive and falls back to the poll. Receives the
+     * actor's abort signal so CANCEL interrupts the underlying request.
+     */
+    fetchIntentStatus?: (
+      intentId: bigint,
+      signal?: AbortSignal,
+    ) => Promise<string | null>
+  } & VerifyPollOptions,
+): ResultAsync<{ verified: boolean; reason?: string }, Error> {
+  const readRegistryState = async (): Promise<{
+    verified: boolean
+    reason?: string
+  }> => {
+    const chainId = requireChainId(input.publicClient, 'HCA registration')
+    const contracts = getDestinationContracts(chainId)
+    const label = cleanLabel(input.name)
+    const expectedResolver = computeResolverAddress({
+      chainId,
+      hca: input.hca,
+    })
 
-      const [state, registryResolver] = await Promise.all([
+    const [state, registryResolver, registrySubregistry, commitTime] =
+      await Promise.all([
         readContract(input.publicClient, {
           address: contracts.ethRegistry,
-          abi: permissionedRegistryAbi,
+          abi: permissionedRegistryGetStateSnippet,
           functionName: 'getState',
           args: [BigInt(keccak256(stringToHex(label)))],
         }),
         readContract(input.publicClient, {
           address: contracts.ethRegistry,
-          abi: permissionedRegistryAbi,
+          abi: permissionedRegistryGetResolverSnippet,
           functionName: 'getResolver',
           args: [label],
         }),
+        readContract(input.publicClient, {
+          address: contracts.ethRegistry,
+          abi: permissionedRegistryGetSubregistrySnippet,
+          functionName: 'getSubregistry',
+          args: [label],
+        }),
+        readContract(input.publicClient, {
+          address: contracts.ethRegistrar,
+          abi: ethRegistrarCommitmentsSnippet,
+          functionName: 'commitmentAt',
+          args: [input.commitment],
+        }),
       ])
 
-      const verified =
-        Number(state.status) === STATUS_REGISTERED &&
-        isAddressEqual(state.latestOwner, input.wallet) &&
-        isAddressEqual(registryResolver, expectedResolver)
+    const reason = firstFailure([
+      [
+        Number(state.status) === STATUS_REGISTERED,
+        `label is not REGISTERED (status ${Number(state.status)})`,
+      ],
+      [
+        isAddressEqual(state.latestOwner, input.wallet),
+        `owner is ${state.latestOwner}, expected the wallet ${input.wallet}`,
+      ],
+      [
+        isAddressEqual(registryResolver, expectedResolver),
+        `resolver is ${registryResolver}, expected the HCA resolver ${expectedResolver}`,
+      ],
+      [
+        // Our reveal sets none, and whoever did set it owns every name
+        // beneath this one.
+        isAddressEqual(registrySubregistry, zeroAddress),
+        `subregistry is ${registrySubregistry}, expected none — this registration is not ours`,
+      ],
+      [
+        BigInt(commitTime) === 0n,
+        `our commitment is unconsumed (recorded at ${commitTime}), so a different reveal registered this name`,
+      ],
+      [
+        BigInt(state.expiry) + EXPIRY_SLACK_SECONDS >=
+          BigInt(Math.floor(Date.now() / 1000)) + input.duration,
+        `expiry ${state.expiry} is shorter than the ${input.duration}s registered`,
+      ],
+    ])
 
-      return { verified }
-    })(),
+    return reason ? { verified: false, reason } : { verified: true }
+  }
+
+  // A definitive FAILED / EXPIRED from the orchestrator means the fill can
+  // never land — the only thing the grace window would add is 30 seconds of
+  // false hope in front of the retry screen. Anything else (PENDING, no id,
+  // an unreachable orchestrator) is inconclusive and keeps the poll.
+  const isRevealIntentDead = async (): Promise<boolean> => {
+    if (input.intentId === undefined || !input.fetchIntentStatus) return false
+    const status = await input.fetchIntentStatus(input.intentId, input.signal)
+    return status === 'FAILED' || status === 'EXPIRED'
+  }
+
+  // Grace-polls: a Rhinestone intent keeps filling server-side after the tab
+  // closes, so a resumed run reaches here before the reveal has confirmed.
+  return fromPromise(
+    pollUntilVerified(readRegistryState, {
+      ...input,
+      isDefinitivelyDead: isRevealIntentDead,
+    }),
     (error) => (error instanceof Error ? error : new Error(String(error))),
   )
+}
+
+/** The first unmet condition's message, or `undefined` when all hold. */
+function firstFailure(
+  checks: readonly [boolean, string][],
+): string | undefined {
+  return checks.find(([held]) => !held)?.[1]
 }
 
 /**
@@ -962,10 +1073,12 @@ export function submitRevealBatchActor(input: {
   publicClient: PublicClient
   primaryName?: string
   id?: string
+  /** Receives the orchestrator's intent id the moment the intent is accepted. */
+  onIntentSubmitted?: (intentId: bigint) => void
 }): ResultAsync<string, Error> {
   return fromPromise(
     (async () => {
-      const chainId = input.publicClient.chain?.id ?? sepolia.id
+      const chainId = requireChainId(input.publicClient, 'HCA registration')
       const label = cleanLabel(input.name)
 
       const resolverAddress = computeResolverAddress({
@@ -1007,7 +1120,18 @@ export function submitRevealBatchActor(input: {
       })
 
       const txId = transactionManager.startTransaction(
-        { type: 'custom', request },
+        {
+          type: 'custom',
+          request: input.onIntentSubmitted
+            ? {
+                ...request,
+                rhinestoneParams: {
+                  ...request.rhinestoneParams,
+                  onIntentSubmitted: input.onIntentSubmitted,
+                },
+              }
+            : request,
+        },
         input.signer,
         {
           id: input.id,

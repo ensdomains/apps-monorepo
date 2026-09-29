@@ -18,6 +18,33 @@ const beyondV2Grace = new Date(
 )
 
 describe('isExtendable2LD', () => {
+  // Every renew step derives the label with `getLabel`, which normalises, so an
+  // Extend offered on a non-canonical spelling would push the *canonical*
+  // twin's expiry — a different, separately registrable name. Both entry points
+  // into the flow (the name page's Extend button via useCanExtend, and the
+  // names table's multi-select) run through this pre-filter.
+  describe('non-canonical rejection', () => {
+    it.each([
+      ['an uppercase label', 'ALICE.eth'],
+      ['a fullwidth homoglyph label', 'ａlice.eth'],
+      ['an uppercase TLD', 'alice.ETH'],
+      ['an encoded labelhash label', `[${'a'.repeat(64)}].eth`],
+    ])('rejects %s', (_case, name) => {
+      expect(isExtendable2LD({ name, isV2: true, expiryDate: future })).toBe(
+        false,
+      )
+      expect(isExtendable2LD({ name, isV2: false, expiryDate: future })).toBe(
+        false,
+      )
+    })
+
+    it('still accepts the canonical spelling', () => {
+      expect(
+        isExtendable2LD({ name: 'alice.eth', isV2: true, expiryDate: future }),
+      ).toBe(true)
+    })
+  })
+
   describe('subname rejection', () => {
     it('rejects a subname', () => {
       expect(

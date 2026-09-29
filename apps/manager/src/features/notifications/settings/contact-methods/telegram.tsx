@@ -175,8 +175,8 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
         </AlertDialog>
       }
       description={
-        telegram.status === 'pending' ? (
-          <Trans>Pending verification</Trans>
+        telegram.status === 'disabled' ? (
+          <Trans>Bot access needed</Trans>
         ) : (
           <Trans>Connected</Trans>
         )
@@ -189,7 +189,7 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
       }
       title={<Trans>Telegram</Trans>}
     >
-      {telegram.status === 'pending' && (
+      {telegram.status === 'disabled' && (
         <p className="text-[#45556C] text-sm leading-ens-normal">
           <Trans>
             To finish connecting Telegram, you need to{' '}

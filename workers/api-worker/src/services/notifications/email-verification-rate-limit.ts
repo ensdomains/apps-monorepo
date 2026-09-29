@@ -3,6 +3,12 @@ import { KV_KEY } from '#core/kv/index.js'
 export const EMAIL_VERIFICATION_RATE_LIMIT_MAX_SENDS = 3
 export const EMAIL_VERIFICATION_RATE_LIMIT_WINDOW_SECONDS = 60 * 60
 
+// This limits each authenticated account, not all accounts targeting a mailbox.
+// Wallet accounts are cheap to create, so it cannot stop a cross-account spam
+// campaign. A hard mailbox quota would let other accounts exhaust the real
+// recipient's allowance; add recipient protection only with a non-blocking
+// abuse signal or an explicit product policy for that tradeoff.
+
 type RateLimitWindow = {
   count: number
   windowStartMs: number
@@ -12,22 +18,18 @@ export type EmailVerificationRateLimitResult =
   | { isAllowed: true }
   | { isAllowed: false; retryAfterSeconds: number }
 
-export const normalizeEmailForRateLimit = (email: string) =>
-  email.trim().toLowerCase()
-
 export const formatEmailVerificationRateLimitError = (
   retryAfterSeconds: number,
 ) => {
   const retryAfterMinutes = Math.max(1, Math.ceil(retryAfterSeconds / 60))
-  return `Too many verification emails sent to this address. Try again in ${retryAfterMinutes} minute${retryAfterMinutes === 1 ? '' : 's'}.`
+  return `Too many verification emails requested. Try again in ${retryAfterMinutes} minute${retryAfterMinutes === 1 ? '' : 's'}.`
 }
 
 export const checkAndConsumeEmailVerificationRateLimit = async (
   kv: KVNamespace,
-  email: string,
+  userId: string,
 ): Promise<EmailVerificationRateLimitResult> => {
-  const normalizedEmail = normalizeEmailForRateLimit(email)
-  const key = KV_KEY.NOTIFICATIONS.EMAIL_VERIFICATION(normalizedEmail)
+  const key = KV_KEY.NOTIFICATIONS.EMAIL_VERIFICATION(userId)
   const now = Date.now()
   const windowMs = EMAIL_VERIFICATION_RATE_LIMIT_WINDOW_SECONDS * 1000
 

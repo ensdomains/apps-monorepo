@@ -1,6 +1,8 @@
 import { usePostHog } from '@posthog/react'
 import { MessageSquareTextIcon } from 'lucide-react'
+import type { ComponentProps } from 'react'
 import { ProfileSettingsIcon } from '@/assets/icons'
+import { cn } from '@/lib/utils'
 import { ThemeToggle } from './ThemeToggle'
 import { Button } from './ui/button'
 import {
@@ -36,20 +38,28 @@ const FeedbackMenuItem = () => {
   )
 }
 
-export const SettingsMenu = () => {
+export const SettingsMenu = ({
+  side = 'right',
+  className,
+}: Pick<ComponentProps<typeof DropdownMenuContent>, 'side'> & {
+  readonly className?: string
+}) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
-          className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
+          className={cn(
+            'size-8 shrink-0 text-muted-foreground hover:text-foreground',
+            className,
+          )}
           aria-label="Settings"
         >
           <ProfileSettingsIcon className="size-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="right" align="end" className="min-w-52">
+      <DropdownMenuContent side={side} align="end" className="min-w-52">
         <ThemeToggle />
         <FeedbackMenuItem />
         {/* <DropdownMenuItem asChild>

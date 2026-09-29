@@ -142,8 +142,6 @@ export const TransactionStateContent = ({
                   )}
                   {shouldShowWaitCountdown(
                     transaction,
-                    index,
-                    transactions,
                     activeTransactionsMap,
                   ) && transaction.waitUntil ? (
                     <TransactionWaitCountdown
@@ -161,7 +159,7 @@ export const TransactionStateContent = ({
                     ))}
                   </ul>
                 )}
-                {txError && (
+                {status === 'error' && txError && (
                   <TransactionErrorAlert
                     title="Transaction Error"
                     summary={txError?.message || 'An unknown error occurred.'}

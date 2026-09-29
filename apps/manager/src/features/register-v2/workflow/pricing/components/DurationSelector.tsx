@@ -1,8 +1,8 @@
-import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useCallback, useMemo } from 'react'
 import { getStartOfDay } from '@/features/register-v2/utils/time'
+import { TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import {
   type GetRegisterPriceError,

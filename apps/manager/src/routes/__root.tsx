@@ -11,6 +11,10 @@ import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL, MSymbol } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
+// Deep import, NOT the feature barrel: the barrel re-exports the whole
+// register workflow (steps, machines, transaction-manager deps), which would
+// end up in the chunk every route loads.
+import { useOrphanRegistrationCleanup } from '@/features/register-v2/state/useOrphanRegistrationCleanup'
 import { RootProviders } from '@/lib/RootProviders'
 import appCss from '@/styles/index.css?url'
 import { DEBUG_FEATURES_ENABLED } from '@/utils/debug-features'
@@ -68,6 +72,16 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
   notFoundComponent: NotFoundPage,
 })
 
+/**
+ * Renders nothing — it exists so the cleanup runs above `/register/$name`,
+ * whose loader redirects away exactly when a stored registration needs
+ * resolving. See `orphanRegistrationCleanup.ts`.
+ */
+const RegistrationOrphanCleanup = () => {
+  useOrphanRegistrationCleanup()
+  return null
+}
+
 function RootComponent() {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -76,6 +90,7 @@ function RootComponent() {
       </head>
       <body suppressHydrationWarning>
         <RootProviders>
+          <RegistrationOrphanCleanup />
           <Layout>
             <Outlet />
           </Layout>

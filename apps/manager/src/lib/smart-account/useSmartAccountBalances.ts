@@ -6,7 +6,7 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { type Address, erc20Abi, formatUnits } from 'viem'
 import { getBalance, readContract } from 'viem/actions'
-import { sepolia } from 'viem/chains'
+import { chain } from '@/config'
 import { publicClient } from '@/lib/wagmi'
 import type { EthBalance, StablecoinBalance } from './types'
 
@@ -22,9 +22,7 @@ import type { EthBalance, StablecoinBalance } from './types'
  * is a deployment fact, not a guarantee — share the constant instead of
  * relying on it.
  */
-export const HCA_PAYMENT_TOKEN: Address = getDestinationContracts(
-  sepolia.id,
-).usdc
+export const HCA_PAYMENT_TOKEN: Address = getDestinationContracts(chain.id).usdc
 
 /**
  * The stablecoins to read balances for, keyed by symbol → address.
