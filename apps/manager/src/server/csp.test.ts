@@ -189,3 +189,12 @@ describe('csp', () => {
     })
   })
 })
+
+describe('indexers', () => {
+  it('allows the bigname origin resolved from config', () => {
+    const origin = originFromEnvUrl(envConfig.endpoints.bignameApi)
+
+    expect(origin).toBeTruthy()
+    expect(header['connect-src']).toContain(origin)
+  })
+})

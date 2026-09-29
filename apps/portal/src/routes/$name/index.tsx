@@ -22,7 +22,10 @@ import { ExpiryWithRegistrationData } from '@/features/profile/components/Expiry
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { ParentName } from '@/features/profile/components/ParentName'
-import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
+import {
+  ProtocolRow,
+  V1ProtocolRow,
+} from '@/features/profile/components/ProtocolRow'
 import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
 import { RecordCount } from '@/features/profile/components/RecordCount'
 import { RegistryCard } from '@/features/profile/components/RegistryCard'
@@ -359,8 +362,7 @@ const Profile = ({
   // owner query hasn't resolved, and 'ENSv2' is the safe conservative choice.
   const resolvedProtocolVersion = ownerQuery.data.protocolVersion ?? 'ENSv2'
 
-  const migration = migrationQuery.data
-  const { isMigratableByConnectedOwner } = migrationQuery
+  const { isMigratableByConnectedOwner, isWrapped } = migrationQuery
 
   // Suppress the upgrade prompt whenever the name is expired (grace period or
   // fully expired past grace) — the user must extend/renew first. The upgrade
@@ -383,7 +385,7 @@ const Profile = ({
         />
       )}
 
-      {showUpgradeBanner && <UpgradeBanner name={name} />}
+      {showUpgradeBanner && <UpgradeBanner name={name} isWrapped={isWrapped} />}
 
       {dnsSync.status === 'syncable' && <SyncManagerBanner name={name} />}
 
@@ -438,11 +440,11 @@ const Profile = ({
             asRow
             protocolVersion={resolvedProtocolVersion}
           />
-          <ProtocolRow
-            protocolVersion={resolvedProtocolVersion}
-            migration={isMigratableByConnectedOwner ? migration : undefined}
-            isLoading={migrationQuery.isLoading}
-          />
+          {resolvedProtocolVersion === 'ENSv1' ? (
+            <V1ProtocolRow name={name} />
+          ) : (
+            <ProtocolRow protocolVersion={resolvedProtocolVersion} />
+          )}
         </div>
 
         {/* Counter cards */}

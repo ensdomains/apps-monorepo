@@ -50,10 +50,11 @@ const DEFAULT_CONNECT_HOSTS = [
   ...envConfig.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
-  // The ENSv2 indexer, resolved the same way the urql client resolves it.
-  ...[originFromEnvUrl(envConfig.endpoints.indexerGraphql)].filter(
-    (origin): origin is string => origin !== null,
-  ),
+  // The indexers, resolved in `@/config`.
+  ...[
+    originFromEnvUrl(envConfig.endpoints.indexerGraphql),
+    originFromEnvUrl(envConfig.endpoints.bignameApi),
+  ].filter((origin): origin is string => origin !== null),
   // ENS-owned hosts: the indexer GraphQL endpoint (resolved in `@/config`)
   // and the fund/faucet API (app-api.ens.dev, src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env
   // *.ens.dev hosts (and future ones) don't silently break a flow.

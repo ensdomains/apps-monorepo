@@ -54,10 +54,11 @@ const DEFAULT_CONNECT_HOSTS = [
   ...envConfig.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
-  // The ENSv2 indexer, resolved the same way the urql client resolves it.
-  ...[originFromEnvUrl(envConfig.endpoints.indexerGraphql)].filter(
-    (origin): origin is string => origin !== null,
-  ),
+  // The indexers, resolved in `@/config`.
+  ...[
+    originFromEnvUrl(envConfig.endpoints.indexerGraphql),
+    originFromEnvUrl(envConfig.endpoints.bignameApi),
+  ].filter((origin): origin is string => origin !== null),
   // ENS-owned hosts: indexer GraphQL, backend API (VITE_API_URL /
   // app-api.ens.dev), v1 subgraph (v1-graphql.ens.dev). Wildcarded so
   // per-deployment / per-env *.ens.dev hosts don't silently break a flow.

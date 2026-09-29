@@ -141,7 +141,7 @@ function RouteComponent() {
   const isV1Name = ownerQuery.data?.protocolVersion === 'ENSv1'
 
   // Gated because the read is not cheap, and a v2 name never needs it.
-  const { isMigratableByConnectedOwner } = useMigrationStatus(name, {
+  const { isMigratableByConnectedOwner, isWrapped } = useMigrationStatus(name, {
     enabled: isV1Name,
   })
 
@@ -214,7 +214,7 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       {isV1Name && isMigratableByConnectedOwner && (
-        <MigrateForRolesBanner name={name} />
+        <MigrateForRolesBanner name={name} isWrapped={isWrapped} />
       )}
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner graceEndDate={grace.graceEndDate} canExtend={canExtend} />
