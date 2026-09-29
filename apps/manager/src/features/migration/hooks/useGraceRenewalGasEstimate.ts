@@ -67,14 +67,14 @@ export const useGraceRenewalGasEstimate = ({
   v1Names,
   hcaAddress,
   publicClient,
-  enabled,
+  isEnabled,
 }: {
   readonly renewal: GraceRenewalQuoteState
   readonly selectedNames: readonly string[]
   readonly v1Names: readonly V1Domain[]
   readonly hcaAddress: Address | undefined
   readonly publicClient: PublicClient
-  readonly enabled: boolean
+  readonly isEnabled: boolean
 }): GraceRenewalGasEstimateState => {
   const wagmiConfig = useConfig()
   const quote = renewal.status === 'ready' ? renewal.quote : undefined
@@ -128,7 +128,7 @@ export const useGraceRenewalGasEstimate = ({
         hashKey([estimateIdentity])
         ? previousData
         : undefined,
-    enabled: enabled && !!quote && !!hcaAddress && selectedNames.length > 0,
+    enabled: isEnabled && !!quote && !!hcaAddress && selectedNames.length > 0,
     staleTime: 30_000,
     gcTime: 0,
     retry: false,
@@ -150,7 +150,7 @@ export const useGraceRenewalGasEstimate = ({
     },
   })
 
-  if (!enabled || renewal.status === 'idle' || renewal.status === 'error') {
+  if (!isEnabled || renewal.status === 'idle' || renewal.status === 'error') {
     return { status: 'idle' }
   }
   if (!quote || !hcaAddress) {

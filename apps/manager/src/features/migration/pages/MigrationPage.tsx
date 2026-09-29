@@ -257,7 +257,7 @@ export const MigrationPage = () => {
     v1Names,
     hcaAddress: hcaAddress as Address | undefined,
     publicClient: migrationExecutionClient as PublicClient,
-    enabled: step === 'select' && graceDomains.length > 0,
+    isEnabled: step === 'select' && graceDomains.length > 0,
   })
   const networkEstimate =
     graceDomains.length > 0 ? renewalGasEstimate : gasEstimate

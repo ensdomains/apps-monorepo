@@ -77,7 +77,7 @@ const params: Params = {
   v1Names: [graceDomain, activeDomain, unselectedDomain],
   hcaAddress: HCA,
   publicClient: { chain: { id: 1 } } as PublicClient,
-  enabled: true,
+  isEnabled: true,
 }
 const wagmiConfig = { chains: [{ id: 1 }] }
 const queryOptions = () =>
@@ -150,7 +150,7 @@ describe('useGraceRenewalGasEstimate', () => {
   })
 
   it.each([
-    { label: 'disabled', overrides: { enabled: false } },
+    { label: 'disabled', overrides: { isEnabled: false } },
     {
       label: 'no renewal',
       overrides: { renewal: { status: 'idle' as const } },
