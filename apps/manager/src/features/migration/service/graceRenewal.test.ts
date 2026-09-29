@@ -16,6 +16,7 @@ import {
   executeGraceRenewal,
   GRACE_RENEWAL_ABI,
   GRACE_RENEWAL_EXTENSION,
+  type GraceRenewalStatus,
   getGraceRenewalDuration,
   getGraceRenewalQuote,
 } from './graceRenewal'
@@ -336,29 +337,94 @@ describe('bulk grace renewal', () => {
   it('skips approval when allowance is sufficient', async () => {
     const s = setup()
     s.state.allowance = 1_000n
+    const onStatus = vi.fn<(status: GraceRenewalStatus) => void>()
+    const onApprovalRequired = vi.fn<(required: boolean) => void>()
     const result = await executeGraceRenewal({
       quote: await s.quote(),
       publicClient: s.publicClient,
       walletClient: s.walletClient,
+      onStatus,
+      onApprovalRequired,
     })
     expect(result.isOk()).toBe(true)
     expect(
       s.writeContract.mock.calls.map(([call]) => call.functionName),
     ).toEqual(['renewBatch'])
+    expect(onApprovalRequired).toHaveBeenCalledExactlyOnceWith(false)
+    expect(onStatus.mock.calls.map(([status]) => status)).toEqual([
+      'renewing',
+      'confirming',
+    ])
+  })
+
+  it('marks approval complete only after its successful receipt', async () => {
+    const s = setup()
+    const onStatus = vi.fn<(status: GraceRenewalStatus) => void>()
+    const onApprovalRequired = vi.fn<(required: boolean) => void>()
+    let completeApproval: ((receipt: { status: 'success' }) => void) | undefined
+    s.waitForTransactionReceipt.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          completeApproval = resolve
+        }),
+    )
+    const result = executeGraceRenewal({
+      quote: await s.quote(),
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+      onStatus,
+      onApprovalRequired,
+    })
+
+    await vi.waitFor(() =>
+      expect(s.waitForTransactionReceipt).toHaveBeenCalledWith({
+        hash: APPROVAL_HASH,
+      }),
+    )
+    expect(onApprovalRequired).toHaveBeenCalledExactlyOnceWith(true)
+    expect(onApprovalRequired).toHaveBeenCalledBefore(onStatus)
+    expect(onStatus.mock.calls.map(([status]) => status)).toEqual([
+      'approving',
+      'approval-confirming',
+    ])
+    expect(
+      s.writeContract.mock.calls.map(([call]) => call.functionName),
+    ).toEqual(['approve'])
+
+    s.state.allowance = 1_000n
+    completeApproval?.({ status: 'success' })
+
+    expect((await result).isOk()).toBe(true)
+    expect(onStatus.mock.calls.map(([status]) => status)).toEqual([
+      'approving',
+      'approval-confirming',
+      'approval-complete',
+      'renewing',
+      'confirming',
+    ])
   })
 
   it('does not submit renewal when approval reverts', async () => {
     const s = setup()
     s.state.approvalStatus = 'reverted'
+    const onStatus = vi.fn<(status: GraceRenewalStatus) => void>()
+    const onApprovalRequired = vi.fn<(required: boolean) => void>()
     const result = await executeGraceRenewal({
       quote: await s.quote(),
       publicClient: s.publicClient,
       walletClient: s.walletClient,
+      onStatus,
+      onApprovalRequired,
     })
     expect(result.isErr()).toBe(true)
     expect(
       s.writeContract.mock.calls.map(([call]) => call.functionName),
     ).toEqual(['approve'])
+    expect(onApprovalRequired).toHaveBeenCalledExactlyOnceWith(true)
+    expect(onStatus.mock.calls.map(([status]) => status)).toEqual([
+      'approving',
+      'approval-confirming',
+    ])
   })
 
   it('resumes a known transaction after a timeout without submitting again', async () => {

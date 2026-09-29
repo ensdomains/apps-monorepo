@@ -343,13 +343,21 @@ export const encodeGraceRenewal = (quote: GraceRenewalQuote): Hex =>
     args: getRenewalArgs(quote),
   })
 
+export type GraceRenewalStatus =
+  | 'approving'
+  | 'approval-confirming'
+  | 'approval-complete'
+  | 'renewing'
+  | 'confirming'
+
 type ExecuteGraceRenewalParameters = {
   readonly quote: GraceRenewalQuote
   readonly publicClient: PublicClient
   readonly walletClient: WalletClient
   readonly renewalHash?: Hex
   readonly signal?: AbortSignal
-  readonly onStatus?: (status: 'approving' | 'renewing' | 'confirming') => void
+  readonly onStatus?: (status: GraceRenewalStatus) => void
+  readonly onApprovalRequired?: (required: boolean) => void
   readonly onRenewalSubmitted?: (hash: Hex) => void
 }
 
@@ -594,7 +602,9 @@ export const executeGraceRenewal = (params: ExecuteGraceRenewalParameters) =>
           functionName: 'allowance',
           args: [quote.ownerAddress, quote.renewerAddress],
         })
-        if (allowance < quote.totalAmount) {
+        const approvalRequired = allowance < quote.totalAmount
+        params.onApprovalRequired?.(approvalRequired)
+        if (approvalRequired) {
           params.onStatus?.('approving')
           await assertWallet(params)
           const approvalHash = await walletClient.writeContract({
@@ -605,11 +615,13 @@ export const executeGraceRenewal = (params: ExecuteGraceRenewalParameters) =>
             functionName: 'approve',
             args: [quote.renewerAddress, quote.totalAmount],
           })
+          params.onStatus?.('approval-confirming')
           const receipt = await publicClient.waitForTransactionReceipt({
             hash: approvalHash,
           })
           if (receipt.status !== 'success')
             throw new Error('USDC approval reverted. Please try again.')
+          params.onStatus?.('approval-complete')
           domains = await validateGraceRenewal(params, readParams)
           if (hasReachedTargets(domains, quote)) return domains
         }

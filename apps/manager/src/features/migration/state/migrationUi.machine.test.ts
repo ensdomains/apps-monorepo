@@ -30,6 +30,7 @@ vi.mock('@/features/migration/service/prepareGraceRenewalMigration', () => ({
 }))
 
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
+import type { MigrationWalletRequestDescriptor } from '@/features/migration/service/buildStepDescriptors'
 import type {
   ClassifiedName,
   GroupedNames,
@@ -162,6 +163,7 @@ const makeRenewalQuote = (graceDomain: V1Domain): GraceRenewalQuote => ({
 
 const startRenewal = (
   domains: [V1Domain, ...V1Domain[]] = [domain('alice')],
+  requestSteps?: readonly MigrationWalletRequestDescriptor[],
 ) => {
   const actor = createActor(migrationUiMachine, {
     input: { wagmiConfig: WAGMI },
@@ -173,6 +175,7 @@ const startRenewal = (
       quote: makeRenewalQuote(domains[0]),
       domains,
       hcaAddress: SCA,
+      requestSteps,
     },
     signer: EOA_SIGNER,
     hcaClient: HCA_CLIENT,
@@ -180,6 +183,22 @@ const startRenewal = (
   })
   return actor
 }
+
+const MIGRATION_REQUEST_STEPS: MigrationPlan['stepDescriptors'] = [
+  {
+    type: 'atomic-batch',
+    index: 0,
+    total: 1,
+    count: 1,
+    migrateCount: 1,
+    copyCount: 0,
+  },
+]
+const RENEWAL_REQUEST_STEPS: readonly MigrationWalletRequestDescriptor[] = [
+  { type: 'renewal-approval' },
+  { type: 'renew-grace', count: 1 },
+  ...MIGRATION_REQUEST_STEPS,
+]
 
 const migrationResult = (
   overrides: Partial<MigrationResult> = {},
@@ -391,6 +410,252 @@ describe('migrationUiMachine', () => {
           description: 'Upgrading',
         })
       }
+      actor.stop()
+    })
+
+    it('starts with the complete preview of approval, renewal, and migration requests', () => {
+      executeGraceRenewalMock.mockReturnValue(
+        fromPromise(
+          new Promise<readonly V1Domain[]>(() => {}),
+          (cause) => new GraceRenewalError({ cause }),
+        ),
+      )
+
+      const actor = startRenewal([domain('alice')], RENEWAL_REQUEST_STEPS)
+
+      expect(actor.getSnapshot().context.stepDescriptors).toEqual(
+        RENEWAL_REQUEST_STEPS,
+      )
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 0,
+        totalSteps: 3,
+      })
+      expect(actor.getSnapshot().context.renewalApprovalCompleted).toBe(false)
+      actor.stop()
+    })
+
+    it('adds a required approval and distinguishes signing from both receipt waits', () => {
+      executeGraceRenewalMock.mockReturnValue(
+        fromPromise(
+          new Promise<readonly V1Domain[]>(() => {}),
+          (cause) => new GraceRenewalError({ cause }),
+        ),
+      )
+      const actor = startRenewal(
+        [domain('alice')],
+        RENEWAL_REQUEST_STEPS.filter(({ type }) => type !== 'renewal-approval'),
+      )
+      const callbacks = executeGraceRenewalMock.mock.calls[0]?.[0]
+
+      callbacks?.onApprovalRequired?.(true)
+      expect(actor.getSnapshot().context.stepDescriptors).toEqual(
+        RENEWAL_REQUEST_STEPS,
+      )
+      callbacks?.onStatus?.('approving')
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 0,
+        totalSteps: 3,
+        isAwaitingConfirmation: false,
+      })
+      callbacks?.onStatus?.('approval-confirming')
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 0,
+        totalSteps: 3,
+        isAwaitingConfirmation: true,
+      })
+      callbacks?.onStatus?.('approval-complete')
+      expect(actor.getSnapshot().context.renewalApprovalCompleted).toBe(true)
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 1,
+        totalSteps: 3,
+      })
+      callbacks?.onStatus?.('renewing')
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 1,
+        totalSteps: 3,
+        isAwaitingConfirmation: false,
+      })
+      callbacks?.onStatus?.('confirming')
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 1,
+        totalSteps: 3,
+        isAwaitingConfirmation: true,
+      })
+      actor.stop()
+    })
+
+    it('removes a preview approval when the current allowance already covers renewal', () => {
+      executeGraceRenewalMock.mockReturnValue(
+        fromPromise(
+          new Promise<readonly V1Domain[]>(() => {}),
+          (cause) => new GraceRenewalError({ cause }),
+        ),
+      )
+      const actor = startRenewal([domain('alice')], RENEWAL_REQUEST_STEPS)
+      const callbacks = executeGraceRenewalMock.mock.calls[0]?.[0]
+
+      callbacks?.onApprovalRequired?.(false)
+      callbacks?.onStatus?.('renewing')
+      expect(actor.getSnapshot().context.stepDescriptors).toEqual(
+        RENEWAL_REQUEST_STEPS.filter(({ type }) => type !== 'renewal-approval'),
+      )
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 0,
+        totalSteps: 2,
+        isAwaitingConfirmation: false,
+      })
+      callbacks?.onStatus?.('confirming')
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 0,
+        totalSteps: 2,
+        isAwaitingConfirmation: true,
+      })
+      expect(actor.getSnapshot().context.renewalApprovalCompleted).toBe(false)
+      actor.stop()
+    })
+
+    it('retains a completed approval when retrying a submitted renewal without requiring it again', async () => {
+      const renewalHash: Hex = '0x1234'
+      executeGraceRenewalMock
+        .mockImplementationOnce((params) => {
+          params.onApprovalRequired?.(true)
+          params.onStatus?.('approving')
+          params.onStatus?.('approval-confirming')
+          params.onStatus?.('approval-complete')
+          params.onRenewalSubmitted?.(renewalHash)
+          params.onStatus?.('confirming')
+          return errAsync(
+            new GraceRenewalError({
+              cause: new Error('Renewal receipt wait timed out'),
+            }),
+          )
+        })
+        .mockImplementationOnce((params) => {
+          params.onApprovalRequired?.(false)
+          params.onStatus?.('confirming')
+          return fromPromise(
+            new Promise<readonly V1Domain[]>(() => {}),
+            (cause) => new GraceRenewalError({ cause }),
+          )
+        })
+
+      const actor = startRenewal([domain('alice')], RENEWAL_REQUEST_STEPS)
+      await vi.advanceTimersByTimeAsync(1500)
+
+      expect(actor.getSnapshot().value).toBe('failure')
+      expect(actor.getSnapshot().context.renewalApprovalCompleted).toBe(true)
+      expect(actor.getSnapshot().context.renewalHash).toBe(renewalHash)
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 1,
+      })
+
+      actor.send({ type: 'retry' })
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(executeGraceRenewalMock).toHaveBeenCalledTimes(2)
+      expect(executeGraceRenewalMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ renewalHash }),
+      )
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'renewing' })
+      expect(actor.getSnapshot().context.renewalApprovalCompleted).toBe(true)
+      expect(actor.getSnapshot().context.stepDescriptors).toEqual(
+        RENEWAL_REQUEST_STEPS,
+      )
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 1,
+        totalSteps: 3,
+        isAwaitingConfirmation: true,
+      })
+      actor.stop()
+    })
+
+    it('preserves both completed renewal requests when plan preparation is retried', async () => {
+      const renewedDomains = [domain('alice')]
+      executeGraceRenewalMock.mockImplementation((params) => {
+        params.onApprovalRequired?.(true)
+        params.onStatus?.('approval-complete')
+        return okAsync(renewedDomains)
+      })
+      prepareGraceRenewalMigrationMock
+        .mockRejectedValueOnce(new Error('Could not fetch profiles'))
+        .mockResolvedValueOnce(
+          makePlan(renewedDomains, {
+            stepDescriptors: MIGRATION_REQUEST_STEPS,
+          }),
+        )
+      executeMigrationMock.mockImplementation(() => new Promise(() => {}))
+
+      const actor = startRenewal([domain('alice')], RENEWAL_REQUEST_STEPS)
+      await vi.advanceTimersByTimeAsync(1500)
+      expect(actor.getSnapshot().value).toBe('failure')
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 2,
+        totalSteps: 3,
+      })
+
+      actor.send({ type: 'retry' })
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(executeGraceRenewalMock).toHaveBeenCalledTimes(1)
+      expect(prepareGraceRenewalMigrationMock).toHaveBeenCalledTimes(2)
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'running' })
+      expect(actor.getSnapshot().context.renewalApprovalCompleted).toBe(true)
+      expect(actor.getSnapshot().context.stepDescriptors).toEqual(
+        RENEWAL_REQUEST_STEPS,
+      )
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 2,
+        totalSteps: 3,
+      })
+      actor.stop()
+    })
+
+    it('offsets migration progress and its final count by both completed renewal requests', async () => {
+      const renewedDomains = [domain('alice')]
+      executeGraceRenewalMock.mockImplementation((params) => {
+        params.onApprovalRequired?.(true)
+        params.onStatus?.('approval-complete')
+        return okAsync(renewedDomains)
+      })
+      prepareGraceRenewalMigrationMock.mockResolvedValue(
+        makePlan(renewedDomains, {
+          stepDescriptors: MIGRATION_REQUEST_STEPS,
+        }),
+      )
+      let finishMigration!: (result: MigrationResult) => void
+      executeMigrationMock.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishMigration = resolve
+          }),
+      )
+
+      const actor = startRenewal([domain('alice')], RENEWAL_REQUEST_STEPS)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 2,
+        totalSteps: 3,
+      })
+      expect(actor.getSnapshot().context.stepDescriptors).toEqual(
+        RENEWAL_REQUEST_STEPS,
+      )
+
+      const onProgress = executeMigrationMock.mock.calls[0]?.[0].onProgress
+      for (const currentStep of [0, 1]) {
+        onProgress?.({ currentStep, totalSteps: 1, description: 'Upgrading' })
+        expect(actor.getSnapshot().context.progress).toMatchObject({
+          currentStep: currentStep + 2,
+          totalSteps: 3,
+        })
+      }
+      finishMigration(migrationResult())
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'landing' })
+      expect(actor.getSnapshot().context.progress).toMatchObject({
+        currentStep: 3,
+        totalSteps: 3,
+      })
       actor.stop()
     })
   })

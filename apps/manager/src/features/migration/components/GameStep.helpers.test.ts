@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { MigrationStepDescriptor } from '@/features/migration/service/migrationService'
+import type { MigrationWalletRequestDescriptor } from '@/features/migration/service/buildStepDescriptors'
 import {
   computeBridgeLayout,
   describeNextStep,
@@ -167,7 +167,9 @@ describe('computeBridgeLayout', () => {
 })
 
 describe('describeNextStep', () => {
-  const descriptor = (d: MigrationStepDescriptor): MigrationStepDescriptor => d
+  const descriptor = (
+    d: MigrationWalletRequestDescriptor,
+  ): MigrationWalletRequestDescriptor => d
 
   it.each([
     [
@@ -197,9 +199,34 @@ describe('describeNextStep', () => {
       { kind: 'preparing' },
     ],
     [
+      'renewal approval waits for the wallet before submission',
+      {
+        progressDescription: '',
+        descriptor: descriptor({ type: 'renewal-approval' }),
+      },
+      { kind: 'renewal-approval', isAwaitingConfirmation: false },
+    ],
+    [
+      'renewal approval waits for confirmation after submission',
+      {
+        progressDescription: '',
+        descriptor: descriptor({ type: 'renewal-approval' }),
+        isAwaitingConfirmation: true,
+      },
+      { kind: 'renewal-approval', isAwaitingConfirmation: true },
+    ],
+    [
       'grace renewal descriptor',
       {
         descriptor: descriptor({ type: 'renew-grace', count: 3 }),
+      },
+      { kind: 'renew-grace', count: 3 },
+    ],
+    [
+      'renewal confirmation remains a renewal rather than payment approval',
+      {
+        descriptor: descriptor({ type: 'renew-grace', count: 3 }),
+        isAwaitingConfirmation: true,
       },
       { kind: 'renew-grace', count: 3 },
     ],

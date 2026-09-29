@@ -305,6 +305,10 @@ msgid "Approve renewal payment"
 msgstr "Approve renewal payment"
 
 #: src/features/migration/components/GameStep.tsx
+msgid "Approve renewal payment in your wallet"
+msgstr "Approve renewal payment in your wallet"
+
+#: src/features/migration/components/GameStep.tsx
 msgid "Approve restoring your managers in your wallet"
 msgstr "Approve restoring your managers in your wallet"
 
@@ -570,6 +574,10 @@ msgstr "Confirm purchase"
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "Confirm renewal"
 msgstr "Confirm renewal"
+
+#: src/features/migration/components/GameStep.tsx
+msgid "Confirming renewal payment approval..."
+msgstr "Confirming renewal payment approval..."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Confirming the name is now owned by your account"

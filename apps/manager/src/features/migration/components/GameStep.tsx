@@ -10,10 +10,8 @@ import {
 import { useId, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useElementWidth } from '@/features/migration/hooks/useElementWidth'
-import type {
-  MigrationProgress,
-  MigrationStepDescriptor,
-} from '@/features/migration/service/migrationService'
+import type { MigrationWalletRequestDescriptor } from '@/features/migration/service/buildStepDescriptors'
+import type { MigrationProgress } from '@/features/migration/service/migrationService'
 import { PARTY_WALK_MS } from '@/features/migration/state/migrationAnimationTiming'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
@@ -75,17 +73,24 @@ const BridgePlank = ({
 
 const useStepDescriptionText = (
   progressDescription: string | undefined,
-  descriptor: MigrationStepDescriptor | undefined,
+  descriptor: MigrationWalletRequestDescriptor | undefined,
+  isAwaitingConfirmation: boolean,
 ): string => {
   const { t } = useLingui()
   const stepDescription = describeNextStep({
     progressDescription,
     descriptor,
+    isAwaitingConfirmation,
   })
 
   return match(stepDescription)
     .with({ kind: 'progress' }, ({ text }) => text)
     .with({ kind: 'preparing' }, () => t`Getting ready...`)
+    .with({ kind: 'renewal-approval' }, ({ isAwaitingConfirmation }) =>
+      isAwaitingConfirmation
+        ? t`Confirming renewal payment approval...`
+        : t`Approve renewal payment in your wallet`,
+    )
     .with({ kind: 'renew-grace' }, ({ count }) =>
       plural(count, {
         one: 'Renewing # name...',
@@ -226,7 +231,7 @@ export const GameStepView = ({
   readonly isReuniting?: boolean
   readonly progress: MigrationProgress | undefined
   readonly selectedNameCount: number
-  readonly stepDescriptors: readonly MigrationStepDescriptor[]
+  readonly stepDescriptors: readonly MigrationWalletRequestDescriptor[]
 }) => {
   const { t } = useLingui()
   const layoutId = useId()
@@ -254,12 +259,13 @@ export const GameStepView = ({
     })
 
   const nextDescriptor = stepDescriptors[completedSteps] as
-    | MigrationStepDescriptor
+    | MigrationWalletRequestDescriptor
     | undefined
 
   const descriptionText = useStepDescriptionText(
     progress?.description,
     nextDescriptor,
+    progress?.isAwaitingConfirmation === true,
   )
 
   const stepIds = Array.from({ length: totalSteps }, (_, i) => `step-${i}`)

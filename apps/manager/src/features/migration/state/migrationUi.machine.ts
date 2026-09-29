@@ -13,6 +13,7 @@ import {
   adjustPlanForRetry,
   type MigrationPlan,
 } from '@/features/migration/service/buildMigrationPlan'
+import type { MigrationWalletRequestDescriptor } from '@/features/migration/service/buildStepDescriptors'
 import {
   decodeMigrationError,
   type MigrationError,
@@ -22,12 +23,12 @@ import {
   executeMigration,
   type MigrationProgress,
   type MigrationResult,
-  type MigrationStepDescriptor,
 } from '@/features/migration/service/migrationService'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import {
   executeGraceRenewal,
   type GraceRenewalQuote,
+  type GraceRenewalStatus,
 } from '../service/graceRenewal'
 import { prepareGraceRenewalMigration } from '../service/prepareGraceRenewalMigration'
 import type { V1Domain } from '../service/v1SubgraphClient'
@@ -43,7 +44,37 @@ type RenewalPreparation = {
   readonly quote: GraceRenewalQuote
   readonly domains: readonly V1Domain[]
   readonly hcaAddress: Address
+  readonly requestSteps?: readonly MigrationWalletRequestDescriptor[]
 }
+
+const renewalStepsOf = (steps: readonly MigrationWalletRequestDescriptor[]) =>
+  steps.filter(
+    ({ type }) => type === 'renewal-approval' || type === 'renew-grace',
+  )
+
+const withRenewalApproval = (
+  steps: readonly MigrationWalletRequestDescriptor[],
+  required: boolean,
+): readonly MigrationWalletRequestDescriptor[] => {
+  const withoutApproval = steps.filter(
+    ({ type }) => type !== 'renewal-approval',
+  )
+  return required
+    ? [{ type: 'renewal-approval' }, ...withoutApproval]
+    : withoutApproval
+}
+
+const renewalProgress = (
+  steps: readonly MigrationWalletRequestDescriptor[],
+  currentStep: number,
+  isAwaitingConfirmation = false,
+): MigrationProgress => ({
+  currentStep,
+  // Keep room for migration while its executable plan is prepared after renewal.
+  totalSteps: Math.max(steps.length, renewalStepsOf(steps).length + 1),
+  description: '',
+  isAwaitingConfirmation,
+})
 
 type Context = {
   wagmiConfig: WagmiConfig
@@ -56,11 +87,12 @@ type Context = {
   completedOperations: MigrationJournalOperation[]
   txHashes: readonly Hex[]
   progress?: MigrationProgress
-  stepDescriptors: readonly MigrationStepDescriptor[]
+  stepDescriptors: readonly MigrationWalletRequestDescriptor[]
   lastError?: MigrationError
   renewal?: RenewalPreparation
   renewalHash?: Hex
   renewedDomains?: readonly V1Domain[]
+  renewalApprovalCompleted: boolean
 }
 
 type Events =
@@ -73,6 +105,8 @@ type Events =
       refreshAccount: () => Promise<void>
     }
   | { type: 'renewal.submitted'; hash: Hex }
+  | { type: 'renewal.approvalRequired'; required: boolean }
+  | { type: 'renewal.status'; status: GraceRenewalStatus }
   | { type: 'renewal.complete'; domains: readonly V1Domain[] }
   | {
       type: 'migration.start'
@@ -109,6 +143,7 @@ const initialContext = (wagmiConfig: WagmiConfig): Context => ({
   renewal: undefined,
   renewalHash: undefined,
   renewedDomains: undefined,
+  renewalApprovalCompleted: false,
 })
 
 export const migrationUiMachine = setup({
@@ -151,17 +186,9 @@ export const migrationUiMachine = setup({
         signal: controller.signal,
         onRenewalSubmitted: (hash) =>
           sendBack({ type: 'renewal.submitted', hash }),
-        onStatus: (status) =>
-          sendBack({
-            type: 'migration.progress',
-            progress: {
-              currentStep: 0,
-              totalSteps: 2,
-              // The descriptor supplies the translated renewal label.
-              description: '',
-              isAwaitingConfirmation: status === 'confirming',
-            },
-          }),
+        onApprovalRequired: (required) =>
+          sendBack({ type: 'renewal.approvalRequired', required }),
+        onStatus: (status) => sendBack({ type: 'renewal.status', status }),
       }).then((result) => {
         if (controller.signal.aborted) return
         if (result.isErr()) {
@@ -267,6 +294,14 @@ export const migrationUiMachine = setup({
   actions: {
     captureRenewalStart: assign(({ event }) => {
       if (event.type !== 'migration.renewAndStart') return {}
+      const stepDescriptors = event.renewal.requestSteps ?? [
+        {
+          type: 'renew-grace' as const,
+          count: event.renewal.quote.items.filter(
+            ({ duration }) => duration > 0n,
+          ).length,
+        },
+      ]
       return {
         renewal: event.renewal,
         signer: event.signer,
@@ -276,14 +311,10 @@ export const migrationUiMachine = setup({
         plan: undefined,
         renewalHash: undefined,
         renewedDomains: undefined,
+        renewalApprovalCompleted: false,
         lastError: undefined,
-        progress: { currentStep: 0, totalSteps: 2, description: '' },
-        stepDescriptors: [
-          {
-            type: 'renew-grace' as const,
-            count: event.renewal.quote.items.length,
-          },
-        ],
+        progress: renewalProgress(stepDescriptors, 0),
+        stepDescriptors,
       }
     }),
     setSelection: assign({
@@ -305,6 +336,44 @@ export const migrationUiMachine = setup({
         renewal: undefined,
         renewalHash: undefined,
         renewedDomains: undefined,
+        renewalApprovalCompleted: false,
+      }
+    }),
+    setRenewalApprovalRequired: assign(({ context, event }) => {
+      if (event.type !== 'renewal.approvalRequired') return {}
+      const stepDescriptors = withRenewalApproval(
+        context.stepDescriptors,
+        event.required || context.renewalApprovalCompleted,
+      )
+      return {
+        stepDescriptors,
+        progress: renewalProgress(
+          stepDescriptors,
+          context.renewalApprovalCompleted ? 1 : 0,
+        ),
+      }
+    }),
+    setRenewalStatus: assign(({ context, event }) => {
+      if (event.type !== 'renewal.status') return {}
+      const isApproving =
+        event.status === 'approving' || event.status === 'approval-confirming'
+      const stepDescriptors =
+        isApproving || event.status === 'approval-complete'
+          ? withRenewalApproval(context.stepDescriptors, true)
+          : context.stepDescriptors
+      const hasApproval = stepDescriptors.some(
+        ({ type }) => type === 'renewal-approval',
+      )
+      return {
+        stepDescriptors,
+        renewalApprovalCompleted:
+          context.renewalApprovalCompleted || (!isApproving && hasApproval),
+        progress: renewalProgress(
+          stepDescriptors,
+          isApproving ? 0 : hasApproval ? 1 : 0,
+          event.status === 'approval-confirming' ||
+            event.status === 'confirming',
+        ),
       }
     }),
     setProgress: assign({
@@ -382,18 +451,12 @@ export const migrationUiMachine = setup({
       const completedNames = context.completedOperations.map(({ name }) => name)
       const nextPlan = adjustPlanForRetry(context.plan, completedNames)
       const completedSet = new Set(completedNames)
+      const renewalSteps = context.renewedDomains
+        ? renewalStepsOf(context.stepDescriptors)
+        : []
       return {
         plan: nextPlan,
-        stepDescriptors:
-          context.renewal && context.renewedDomains
-            ? [
-                {
-                  type: 'renew-grace' as const,
-                  count: context.renewal.quote.items.length,
-                },
-                ...nextPlan.stepDescriptors,
-              ]
-            : nextPlan.stepDescriptors,
+        stepDescriptors: [...renewalSteps, ...nextPlan.stepDescriptors],
         selectedNames: context.selectedNames.filter(
           (name) => !completedSet.has(name),
         ),
@@ -401,8 +464,8 @@ export const migrationUiMachine = setup({
         lastError: undefined,
         progress: context.renewedDomains
           ? {
-              currentStep: 1,
-              totalSteps: nextPlan.stepDescriptors.length + 1,
+              currentStep: renewalSteps.length,
+              totalSteps: nextPlan.stepDescriptors.length + renewalSteps.length,
               description: '',
             }
           : undefined,
@@ -461,6 +524,10 @@ export const migrationUiMachine = setup({
           },
           on: {
             'migration.progress': { actions: 'setProgress' },
+            'renewal.approvalRequired': {
+              actions: 'setRenewalApprovalRequired',
+            },
+            'renewal.status': { actions: 'setRenewalStatus' },
             'renewal.submitted': {
               actions: assign({ renewalHash: ({ event }) => event.hash }),
             },
@@ -468,11 +535,11 @@ export const migrationUiMachine = setup({
               target: 'preparing',
               actions: assign({
                 renewedDomains: ({ event }) => event.domains,
-                progress: () => ({
-                  currentStep: 1,
-                  totalSteps: 2,
-                  description: '',
-                }),
+                progress: ({ context }) =>
+                  renewalProgress(
+                    context.stepDescriptors,
+                    renewalStepsOf(context.stepDescriptors).length,
+                  ),
               }),
             },
             'migration.failed': { target: 'failing', actions: 'setError' },
@@ -493,21 +560,22 @@ export const migrationUiMachine = setup({
             },
             onDone: {
               target: 'running',
-              actions: assign(({ context, event }) => ({
-                plan: event.output,
-                stepDescriptors: [
-                  {
-                    type: 'renew-grace' as const,
-                    count: context.renewal?.quote.items.length ?? 0,
+              actions: assign(({ context, event }) => {
+                const renewalSteps = renewalStepsOf(context.stepDescriptors)
+                return {
+                  plan: event.output,
+                  stepDescriptors: [
+                    ...renewalSteps,
+                    ...event.output.stepDescriptors,
+                  ],
+                  progress: {
+                    currentStep: renewalSteps.length,
+                    totalSteps:
+                      event.output.stepDescriptors.length + renewalSteps.length,
+                    description: '',
                   },
-                  ...event.output.stepDescriptors,
-                ],
-                progress: {
-                  currentStep: 1,
-                  totalSteps: event.output.stepDescriptors.length + 1,
-                  description: '',
-                },
-              })),
+                }
+              }),
             },
             onError: {
               target: 'failing',
@@ -538,7 +606,9 @@ export const migrationUiMachine = setup({
                 hcaClient: context.hcaClient,
                 refreshAccount: context.refreshAccount,
                 reconcileBeforeSubmit: context.reconcileBeforeSubmit,
-                renewalStepCount: context.renewedDomains ? 1 : 0,
+                renewalStepCount: context.renewedDomains
+                  ? renewalStepsOf(context.stepDescriptors).length
+                  : 0,
               }
             },
           },

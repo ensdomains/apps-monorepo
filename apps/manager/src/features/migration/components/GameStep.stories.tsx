@@ -57,8 +57,8 @@ export const MultipleTransactions: Story = {
 }
 export const Complete: Story = { args: { completedSteps: 6 } }
 
-export const RenewingGraceNames: Story = {
-  render: () => (
+export const ApprovingRenewalPayment: Story = {
+  render: ({ isAwaitingConfirmation }) => (
     <div className="relative h-[700px] bg-ens-garnet-100">
       <GameStepView
         hasCollapsed={false}
@@ -66,10 +66,39 @@ export const RenewingGraceNames: Story = {
           currentStep: 0,
           totalSteps: 2,
           description: '',
+          isAwaitingConfirmation,
+        }}
+        selectedNameCount={3}
+        stepDescriptors={[
+          { type: 'renewal-approval' },
+          { type: 'renew-grace', count: 3 },
+        ]}
+      />
+    </div>
+  ),
+}
+
+export const ConfirmingRenewalPaymentApproval: Story = {
+  ...ApprovingRenewalPayment,
+  args: { isAwaitingConfirmation: true },
+}
+
+export const RenewingGraceNames: Story = {
+  render: () => (
+    <div className="relative h-[700px] bg-ens-garnet-100">
+      <GameStepView
+        hasCollapsed={false}
+        progress={{
+          currentStep: 1,
+          totalSteps: 2,
+          description: '',
           isAwaitingConfirmation: true,
         }}
         selectedNameCount={3}
-        stepDescriptors={[{ type: 'renew-grace', count: 3 }]}
+        stepDescriptors={[
+          { type: 'renewal-approval' },
+          { type: 'renew-grace', count: 3 },
+        ]}
       />
     </div>
   ),
