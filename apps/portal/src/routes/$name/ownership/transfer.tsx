@@ -5,6 +5,7 @@ import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
@@ -15,6 +16,7 @@ import { useCanTransferName } from '@/features/transfer/hooks/useCanTransferName
 import { getSubnameExpiryQueryOptions } from '@/features/transfer/queries/getSubnameExpiry'
 import { V1Transfer } from '@/features/transfer/v1/V1Transfer'
 import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
+import { isCanonicalName } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/ownership/transfer')({
   component: RouteComponent,
@@ -25,7 +27,25 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { address } = useConnection()
 
-  const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
+  // Every write below keys off the *normalised* label while the page shows the
+  // URL's spelling, and both names can be owned at once — a non-canonical label
+  // is registrable on-chain — so `ALICE.eth` would authorise here and move
+  // `alice.eth`. Refused, not redirected: the non-canonical name is a real
+  // token of its own, and a redirect would hide it.
+  const isCanonical = isCanonicalName(name)
+
+  const ownerQuery = useQuery({
+    ...getEnsOwnerQueryOptions({ name }),
+    enabled: isCanonical,
+  })
+
+  if (!isCanonical)
+    return (
+      <InvalidNameMessage
+        title="This name can’t be transferred"
+        description="This name isn’t written in its normalized form, so it isn’t the name it appears to be. Transferring it would move a different name."
+      />
+    )
 
   if (ownerQuery.isLoading) return <LoadingMessage />
 
