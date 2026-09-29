@@ -213,10 +213,22 @@ describe('fuses index route', () => {
 
     migrationResult = {
       ...SETTLED_EMPTY,
-      data: { migratable: true, tokenHolder: OWNER },
+      data: { migratable: true, tokenHolder: OWNER, tokenType: 'locked-2ld' },
     }
     render(<FusesRoute />)
 
     expect(screen.getByText('Upgrade to v2')).toBeVisible()
+  })
+
+  // Same label as the name page's banner, so the two never disagree.
+  it('labels the CTA "Unwrap and upgrade" for an unlocked wrapped name', () => {
+    migrationResult = {
+      ...SETTLED_EMPTY,
+      data: { migratable: true, tokenHolder: OWNER, tokenType: 'unlocked' },
+    }
+    render(<FusesRoute />)
+
+    expect(screen.getByText('Unwrap and upgrade')).toBeVisible()
+    expect(screen.queryByText('Upgrade to v2')).not.toBeInTheDocument()
   })
 })

@@ -101,17 +101,22 @@ const resolveEndpoints = (
 ): Record<keyof NetworkEndpoints, string> => {
   const profile = NETWORKS[network].endpoints
   const keys = Object.keys(profile) as (keyof NetworkEndpoints)[]
-  const entries = keys.map((key) => {
-    // `||`: an override that is set but empty must fall through.
+  const resolved: Partial<Record<keyof NetworkEndpoints, string>> = {}
+  const missing: string[] = []
+  for (const key of keys) {
+    // `||`: an override that is set but empty must fall through. A supplied
+    // value is checked here, so a malformed one is reported even when another
+    // endpoint is missing.
     const value = overrides?.[key] || profile[key]
-    if (!value) {
-      throw new NetworkConfigError(
-        `Network ${network} has no endpoint configured for: ${key}. Deploy the service and add it to NETWORKS, or pass an override.`,
-      )
-    }
-    return [key, requireUrl(value, `endpoint ${key}`)] as const
-  })
-  return Object.fromEntries(entries) as Record<keyof NetworkEndpoints, string>
+    if (value) resolved[key] = requireUrl(value, `endpoint ${key}`)
+    else missing.push(key)
+  }
+  if (missing.length > 0) {
+    throw new NetworkConfigError(
+      `Network ${network} has no endpoint configured for: ${missing.join(', ')}. Deploy the service and add it to NETWORKS, or pass an override.`,
+    )
+  }
+  return resolved as Record<keyof NetworkEndpoints, string>
 }
 
 const assertEnsV2Deployed = (

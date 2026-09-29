@@ -21,6 +21,7 @@ export type EnsNetwork = (typeof ENS_NETWORKS)[number]
 export type NetworkEndpoints = {
   /** ENSv2 indexer (Ponder) GraphQL endpoint. */
   readonly indexerGraphql: string | null
+  readonly bignameApi: string | null
 }
 
 export type NetworkProfile = {
@@ -51,6 +52,7 @@ export const NETWORKS = {
     endpoints: {
       // No mainnet ENSv2 indexer is deployed yet.
       indexerGraphql: null,
+      bignameApi: null,
     },
   },
   sepolia: {
@@ -64,6 +66,7 @@ export const NETWORKS = {
     ],
     endpoints: {
       indexerGraphql: 'https://staging-graphql.ens.dev/',
+      bignameApi: 'https://sepolia.api.bigname.sh',
     },
   },
 } as const satisfies Record<EnsNetwork, NetworkProfile>
