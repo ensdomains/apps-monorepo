@@ -150,8 +150,7 @@ const getIndexedRoleChangeLogs = ResultFn(async function* ({
   resource,
   account,
   fromBlock,
-}: Required<Pick<GetRoleChangeLogsParameters, 'fromBlock'>> &
-  Omit<GetRoleChangeLogsParameters, 'fromBlock'>) {
+}: GetRoleChangeLogsParameters & { readonly fromBlock: bigint }) {
   let timer: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<null>((resolve) => {
     timer = setTimeout(() => resolve(null), INDEXED_ROLE_EVENTS_TIMEOUT_MS)
