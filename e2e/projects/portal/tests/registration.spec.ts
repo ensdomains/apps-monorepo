@@ -1,5 +1,11 @@
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { getAvailable } from '@ensdomains/ensjs/public'
-import { Web3RequestKind } from '@ensdomains/headless-web3-provider'
+import {
+  type Web3ProviderBackend,
+  Web3RequestKind,
+} from '@ensdomains/headless-web3-provider'
+import type { Page } from '@playwright/test'
+import { type Address, formatUnits, parseAbi } from 'viem'
 import {
   connectWithHeadlessWallet,
   expect,
@@ -364,5 +370,457 @@ test.describe('Portal ENS name registration', () => {
     console.log(
       `[switch-test] final check: A (${NAME_A}) still available = ${stillAvailableA}`,
     )
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Registration success banner — WEB-1490 / Immunefi #92544 (PR #1247)
+//
+// The banner says "Congratulations! You are the owner of {name}" and prints a
+// "Paid" figure. It used to be driven by `?registered=true&duration=…&paid=…`,
+// so a link on the real portal origin could tell any visitor they owned a name
+// they had never touched, at any price the link chose — with Extend (which
+// renews the attacker's name from the visitor's wallet) the only call to action
+// on the page. The fix moves the banner into history state, which only the
+// app's own post-registration `navigate` writes, and parses it on read
+// (`readRegistrationSuccessState`).
+//
+// The PR's unit tests run the route with a stubbed router. These drive the real
+// router, real URL parsing and real history in a browser, on names that really
+// exist on chain.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+const MOCK_USDC = ensjsSepolia.usdc.address
+const ERC20_BALANCE_ABI = parseAbi([
+  'function balanceOf(address owner) view returns (uint256)',
+])
+
+/** The report's exact query string: 10 years, "free". */
+const REPORTED_CRAFTED_QUERY =
+  'registered=true&duration=315360000&paid=$0.00%20(free)'
+
+/**
+ * The page content. Assertions are scoped to it because in dev builds the
+ * TanStack Router devtools panel echoes the raw search params — so the link's
+ * `$0.00 (free)` is in the DOM there, in a panel no production visitor has.
+ */
+const content = (page: Page) => page.locator('main')
+
+/** `0x7099…79C8` — how the Owner row renders an address with no primary name. */
+const truncateAddress = (address: string) =>
+  `${address.slice(0, 6)}…${address.slice(-4)}`
+
+/**
+ * Waits for the name page to finish rendering its profile — the heading plus
+ * the Owner row showing `owner` — so the banner assertions after it can't pass
+ * vacuously on a page that simply hasn't loaded yet. The banner renders in the
+ * same component, in the same pass, as the Owner row.
+ */
+async function expectNamePageLoaded(page: Page, name: string, owner: Address) {
+  await expect(
+    content(page).getByRole('heading', { name, exact: true }),
+  ).toBeVisible({
+    timeout: 60_000,
+  })
+  await expect(
+    content(page).getByText(truncateAddress(owner)).first(),
+  ).toBeVisible({
+    timeout: 60_000,
+  })
+}
+
+async function expectNoSuccessBanner(page: Page, context: string) {
+  await expect(
+    content(page).getByText('Congratulations!'),
+    `${context}: no success banner`,
+  ).toHaveCount(0)
+  await expect(
+    content(page).getByText(/You are the owner of/),
+    `${context}: no ownership claim`,
+  ).toHaveCount(0)
+}
+
+async function readUsdcBalance(address: Address): Promise<bigint> {
+  return publicClient.readContract({
+    address: MOCK_USDC,
+    abi: ERC20_BALANCE_ABI,
+    functionName: 'balanceOf',
+    args: [address],
+  })
+}
+
+/**
+ * Registers `name` for the default 1 year with USDC through the real register
+ * page and transaction dialog — the same path the happy-path test above drives
+ * — and returns once the register transaction has succeeded.
+ */
+async function registerThroughUi(
+  page: Page,
+  wallet: Web3ProviderBackend,
+  name: string,
+) {
+  await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
+  await expect(page.getByText(name).first()).toBeVisible({ timeout: 30_000 })
+
+  const paymentSection = page.locator(
+    'section:has-text("Select payment method")',
+  )
+  await expect(paymentSection).toBeVisible({ timeout: 10_000 })
+  await paymentSection.getByRole('button', { name: 'USDC' }).first().click()
+  await paymentSection.getByRole('button', { name: /^Register$/i }).click()
+
+  const transactionDialog = page.locator('[data-slot="dialog-content"]')
+  await expect(transactionDialog).toBeVisible({ timeout: 30_000 })
+
+  let registerTxSucceeded = false
+  page.on('console', (msg) => {
+    if (msg.text().includes('Transaction tx-reg-register state: success')) {
+      registerTxSucceeded = true
+    }
+  })
+
+  await transactionDialog.getByRole('button', { name: /^Start$/i }).click()
+  await expect(transactionDialog.getByText('Transaction flow')).toBeVisible({
+    timeout: 30_000,
+  })
+
+  const deadline = Date.now() + 420_000
+  while (Date.now() < deadline && !registerTxSucceeded) {
+    const openWalletButton = transactionDialog.getByRole('button', {
+      name: /open wallet/i,
+    })
+    if (await openWalletButton.isVisible().catch(() => false)) {
+      await openWalletButton.click()
+      await authorizeTransaction(wallet, 60_000)
+      await page.waitForTimeout(500)
+      continue
+    }
+
+    const waitingButton = transactionDialog.getByRole('button', {
+      name: /^Waiting\.\.\.$/i,
+    })
+    if (await waitingButton.isVisible().catch(() => false)) {
+      const iconWalletButton = waitingButton.locator(
+        'xpath=preceding-sibling::button[1]',
+      )
+      if (await iconWalletButton.isVisible().catch(() => false)) {
+        await iconWalletButton.click()
+        await authorizeTransaction(wallet, 60_000)
+        await page.waitForTimeout(500)
+        continue
+      }
+    }
+
+    const primaryButton = transactionDialog.getByRole('button', {
+      name: /^(Start|Next|Done)$/i,
+    })
+    if (
+      (await primaryButton.isVisible().catch(() => false)) &&
+      (await primaryButton.isEnabled().catch(() => false))
+    ) {
+      await primaryButton.click({ timeout: 2_000 }).catch(() => {})
+      await page.waitForTimeout(500)
+      continue
+    }
+
+    await page.waitForTimeout(1_000)
+  }
+
+  expect(registerTxSucceeded, 'the register transaction should succeed').toBe(
+    true,
+  )
+}
+
+test.describe('Portal registration success banner — not forgeable from a link (WEB-1490)', () => {
+  test('the reported crafted link does not tell a visitor they own someone else’s name', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, makeName, accounts }) => {
+    test.setTimeout(180_000)
+
+    // The attacker's name. The visitor (`user`) has never touched it.
+    const name = await makeName({ label: 'banner-forged', owner: 'user2' })
+    const attacker = accounts.getAddress('user2')
+
+    await connectWithHeadlessWallet(page, wallet)
+    await page.goto(`${PORTAL_APP_URL}/${name}/?${REPORTED_CRAFTED_QUERY}`)
+
+    await expectNamePageLoaded(page, name, attacker)
+    await expectNoSuccessBanner(page, 'the report’s exact link')
+    await expect(
+      content(page).getByText('$0.00 (free)'),
+      'the link’s "paid" figure must never be rendered',
+    ).toHaveCount(0)
+    await expect(
+      content(page).getByText('10 years'),
+      'the link’s duration must never be rendered as a registration period',
+    ).toHaveCount(0)
+  })
+
+  test('the crafted link is ignored for a disconnected visitor too', async ({
+    portalPage: page,
+    makeName,
+    accounts,
+  }) => {
+    test.setTimeout(180_000)
+
+    const name = await makeName({ label: 'banner-anon', owner: 'user2' })
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/?${REPORTED_CRAFTED_QUERY}`)
+
+    await expectNamePageLoaded(page, name, accounts.getAddress('user2'))
+    await expectNoSuccessBanner(page, 'disconnected visitor')
+    await expect(content(page).getByText('$0.00 (free)')).toHaveCount(0)
+  })
+
+  test('the crafted link is ignored even on a name the visitor really owns', async ({
+    portalPage: page,
+    wallet,
+    makeName,
+    accounts,
+  }) => {
+    test.setTimeout(180_000)
+
+    // Ownership is real here, but no registration happened in this session —
+    // the banner is a "you just registered this" receipt, not an ownership
+    // badge, and its "Paid" figure would still be the link's invention.
+    const name = await makeName({ label: 'banner-own', owner: 'user' })
+
+    await connectWithHeadlessWallet(page, wallet)
+    await page.goto(`${PORTAL_APP_URL}/${name}/?${REPORTED_CRAFTED_QUERY}`)
+
+    await expectNamePageLoaded(page, name, accounts.getAddress('user'))
+    await expectNoSuccessBanner(page, 'owned name, crafted link')
+    await expect(content(page).getByText('$0.00 (free)')).toHaveCount(0)
+  })
+
+  test('no variant of the old query parameters brings the banner back', async ({
+    portalPage: page,
+    wallet,
+    makeName,
+    accounts,
+  }) => {
+    test.setTimeout(240_000)
+
+    const name = await makeName({ label: 'banner-variants', owner: 'user2' })
+    const attacker = accounts.getAddress('user2')
+
+    // Any native dialog (e.g. an injected `alert`) is a failure.
+    const dialogs: string[] = []
+    page.on('dialog', (dialog) => {
+      dialogs.push(dialog.message())
+      void dialog.dismiss()
+    })
+
+    await connectWithHeadlessWallet(page, wallet)
+
+    const variants: Array<[label: string, query: string]> = [
+      // The exact shape the pre-fix app itself wrote after a registration —
+      // i.e. an old bookmark, or a URL copied from a real success page.
+      [
+        'the pre-fix app’s own redirect URL',
+        'registered=true&duration=31536000&paid=%245.00',
+      ],
+      // TanStack Router JSON-parses search values, so these reach a
+      // validator as a real boolean / number / string.
+      [
+        'JSON-encoded values',
+        'registered=%22true%22&duration=%2231536000%22&paid=%22%245.00%22',
+      ],
+      ['numeric truthy flag', 'registered=1&duration=31536000&paid=%245.00'],
+      ['upper-case flag', 'registered=TRUE&duration=31536000&paid=%245.00'],
+      ['flag alone', 'registered=true'],
+      [
+        'markup in the paid figure',
+        `registered=true&duration=31536000&paid=${encodeURIComponent('<img src=x onerror=alert(1)>')}`,
+      ],
+      // The new history-state key, smuggled in as a search param instead.
+      [
+        'history-state key as a search param',
+        `registrationSuccess=${encodeURIComponent(
+          JSON.stringify({ durationSeconds: 31536000, paid: '$0.00 (free)' }),
+        )}`,
+      ],
+    ]
+
+    for (const [label, query] of variants) {
+      await page.goto(`${PORTAL_APP_URL}/${name}/?${query}`)
+      await expectNamePageLoaded(page, name, attacker)
+      await expectNoSuccessBanner(page, label)
+      await expect(
+        content(page).locator('img[src="x"]'),
+        `${label}: nothing from the link is rendered as markup`,
+      ).toHaveCount(0)
+    }
+
+    expect(dialogs, 'no script from a link should ever run').toEqual([])
+  })
+
+  test('a crafted link on an unregistered name shows it as available, not as yours', async ({
+    portalPage: page,
+    wallet,
+  }) => {
+    test.setTimeout(120_000)
+
+    // A guard, not a regression proof: the old banner lived inside the
+    // registered-name profile, so this passes on pre-fix code too. It pins
+    // that the available-name page never grows one — the claim would be just
+    // as false there, and more believable next to a Register button.
+    const name = `e2e-banner-free-${Date.now().toString(36)}.eth`
+    expect(await getAvailable(publicClient, { name })).toBe(true)
+
+    await connectWithHeadlessWallet(page, wallet)
+    await page.goto(`${PORTAL_APP_URL}/${name}/?${REPORTED_CRAFTED_QUERY}`)
+
+    await expect(content(page).getByText(`${name} is available!`)).toBeVisible({
+      timeout: 60_000,
+    })
+    await expectNoSuccessBanner(page, 'available name')
+    await expect(content(page).getByText('$0.00 (free)')).toHaveCount(0)
+  })
+
+  test('history state is parsed on read: a well-formed entry renders, malformed ones are ignored', async ({
+    portalPage: page,
+    makeName,
+    accounts,
+  }) => {
+    test.setTimeout(180_000)
+
+    // History state can only be written by script on the portal's own origin,
+    // so this is not an attack path — it is the in-browser check that the
+    // banner is still wired to history state at all (without it every
+    // negative test above would pass on a page that had lost the banner
+    // entirely), and that a malformed entry left behind by an older build or
+    // an extension neither renders nor breaks the page.
+    const name = await makeName({ label: 'banner-state', owner: 'user2' })
+    const owner = accounts.getAddress('user2')
+
+    await page.goto(`${PORTAL_APP_URL}/${name}`)
+    await expectNamePageLoaded(page, name, owner)
+    await expectNoSuccessBanner(page, 'plain name page')
+
+    const reloadWithState = async (registrationSuccess: unknown) => {
+      await page.evaluate((entry) => {
+        window.history.replaceState(
+          { ...window.history.state, registrationSuccess: entry },
+          '',
+        )
+      }, registrationSuccess)
+      await page.reload()
+      await expectNamePageLoaded(page, name, owner)
+    }
+
+    // Positive control: exactly what the app's own redirect writes.
+    await reloadWithState({ durationSeconds: 31536000, paid: '$4.21' })
+    await expect(content(page).getByText('Congratulations!')).toBeVisible()
+    await expect(
+      content(page).getByText(`You are the owner of ${name}`),
+    ).toBeVisible()
+    await expect(content(page).getByText('$4.21')).toBeVisible()
+
+    const malformed: Array<[label: string, entry: unknown]> = [
+      ['string entry', 'true'],
+      ['null entry', null],
+      ['missing paid', { durationSeconds: 31536000 }],
+      ['missing duration', { paid: '$4.21' }],
+      ['string duration', { durationSeconds: '31536000', paid: '$4.21' }],
+      ['numeric paid', { durationSeconds: 31536000, paid: 4.21 }],
+    ]
+    for (const [label, entry] of malformed) {
+      await reloadWithState(entry)
+      await expectNoSuccessBanner(page, `malformed state (${label})`)
+    }
+  })
+
+  test('a real registration still shows the banner, and the URL it lands on cannot reproduce it', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+  }) => {
+    test.setTimeout(420_000)
+
+    const name = `e2e-banner-real-${Date.now().toString(36)}.eth`
+    const registrant = accounts.getAddress('user')
+
+    await connectWithHeadlessWallet(page, wallet)
+
+    const usdcBefore = await readUsdcBalance(registrant)
+    await registerThroughUi(page, wallet, name)
+    const usdcSpent = usdcBefore - (await readUsdcBalance(registrant))
+    expect(
+      usdcSpent,
+      'the registration should have charged USDC',
+    ).toBeGreaterThan(0n)
+
+    // ── 1. The legitimate banner, with figures that match reality ──────────
+    await expect(content(page).getByText('Congratulations!')).toBeVisible({
+      timeout: 90_000,
+    })
+    await expect(
+      content(page).getByText(`You are the owner of ${name}`),
+    ).toBeVisible()
+    await expectNamePageLoaded(page, name, registrant)
+
+    // The "Paid" figure is what actually left the wallet, not a number from
+    // anywhere the user (or a link) could influence.
+    const expectedPaid = Number(formatUnits(usdcSpent, 6)).toLocaleString(
+      'en-US',
+      {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      },
+    )
+    await expect(
+      page
+        .getByText('Paid', { exact: true })
+        .locator('xpath=preceding-sibling::p[1]'),
+      'the banner’s Paid figure should equal the USDC actually spent',
+    ).toHaveText(expectedPaid)
+    await expect(
+      page
+        .getByText('Registration', { exact: true })
+        .locator('xpath=preceding-sibling::p[1]'),
+    ).toHaveText('1 year')
+
+    // ── 2. Nothing about the claim is in the URL any more ──────────────────
+    const landed = new URL(page.url())
+    expect(landed.pathname.replace(/\/$/, '')).toBe(`/${name}`)
+    for (const key of ['registered', 'duration', 'paid']) {
+      expect(
+        landed.searchParams.has(key),
+        `the post-registration URL must not carry "${key}"`,
+      ).toBe(false)
+    }
+    const state = await page.evaluate(() => window.history.state)
+    expect(state?.registrationSuccess).toEqual({
+      durationSeconds: expect.any(Number),
+      paid: expectedPaid,
+    })
+
+    // ── 3. Reloading the same history entry keeps the receipt ──────────────
+    // History state belongs to this tab's entry, so the registrant's own
+    // reload still shows it — only a *new* navigation should lose it.
+    await page.reload()
+    await expectNamePageLoaded(page, name, registrant)
+    await expect(content(page).getByText('Congratulations!')).toBeVisible()
+
+    // ── 4. Sharing the URL does not share the banner ───────────────────────
+    const sharedTab = await page.context().newPage()
+    await sharedTab.goto(page.url())
+    await expectNamePageLoaded(sharedTab, name, registrant)
+    await expectNoSuccessBanner(
+      sharedTab,
+      'the success URL opened in a new tab',
+    )
+    await expect(content(sharedTab).getByText(expectedPaid)).toHaveCount(0)
+    await sharedTab.close()
+
+    // ── 5. A fresh in-app visit to the name does not replay it ─────────────
+    await page.goto(`${PORTAL_APP_URL}/`)
+    await page.goto(`${PORTAL_APP_URL}/${name}`)
+    await expectNamePageLoaded(page, name, registrant)
+    await expectNoSuccessBanner(page, 'a later visit to the name')
   })
 })

@@ -35,9 +35,9 @@ applies across **all** of that config's projects — including the harness
 dependency — so the harness project itself is thinned down to just the
 fixture checks the smoke tests actually rely on, not all of it.
 
-## The curated list (12 tests, ~4.7 minutes measured)
+## The curated list (13 tests, ~4.4 minutes measured)
 
-### Portal — 9 tests, 160s measured (`playwright.smoke.config.ts`)
+### Portal — 10 tests, 144s measured (`playwright.smoke.config.ts`)
 
 | # | Test | File | Why it's here |
 |---|---|---|---|
@@ -48,6 +48,7 @@ fixture checks the smoke tests actually rely on, not all of it.
 | 7 | `transfers a name from wallet A to wallet B, and wallet B is shown as the owner` (`@scenario:F10`) | `transfer.spec.ts` | Canonical ownership-transfer happy path — the one clean, fast, representative transfer test (of the ~50 in this file). |
 | 8 | `blocks detaching a registry with third-party subnames until the exact blast radius is acknowledged, and voids that acknowledgement if the toggle is reset` (`@scenario:F41`) | `transfer.spec.ts` | **Mandated.** Regression coverage for a real security fix (PR #1170 / immunefi #93026): the registry-detach consent gate, including the "resetting the toggle voids the tick" re-attack the original bug allowed. |
 | 9 | `shows "Registry detached" instead of "Configure registry" after a detach transfer` (`@scenario:F42`) | `transfer.spec.ts` | Companion to F41, same PR (#1170), same vulnerability class: before the fix, a detached slot rendered as "Configure registry," letting the new holder deploy a fresh empty registry and re-mint the victim's old subname labels into it, stranding the original token. Added after the first measured run came in well under budget (145s for 8 tests) — this is the one "one more high-value test" the runbook invited, not padding: it is itself R0/R1 (irreversible token-stranding), cheap (mocked indexer, ~13s), and directly related to the other mandated regression. |
+| 10 | `the reported crafted link does not tell a visitor they own someone else’s name` | `registration.spec.ts` | **Mandated.** Regression coverage for PR #1247 / immunefi #92544 (WEB-1490): `/$name` used to render "Congratulations! You are the owner of {name}" and a `paid` figure straight from the query string, so a link could tell any visitor they owned an attacker's name — with Extend (renewing it from the visitor's wallet) the only call to action. No transactions, one seeded name, ~12s. The other six tests for the same fix (variants, history-state parsing, the real-registration path) stay in the nightly run; see [`registration-banner-web1490-test-plan.md`](./registration-banner-web1490-test-plan.md). |
 
 ### Manager — 3 tests, 121s measured (`playwright.smoke.config.ts`)
 
@@ -156,9 +157,9 @@ Full, clean, all-green run (2026-09-24, this session, fresh infra):
 
 | Suite | Tests | Time |
 |---|---|---|
-| Portal (`pnpm e2e:smoke:portal`) | 9 (3 harness + 6) | 160s (2m40s) |
+| Portal (`pnpm e2e:smoke:portal`) | 10 (3 harness + 7) | 144s (2m24s) — re-measured 2026-09-29 after adding #10 |
 | Manager (`pnpm e2e:smoke:manager`) | 3 (2 harness + 1) | 121s (2m01s) |
-| **Total (`pnpm e2e:smoke`, sequential)** | **12** | **281s (4m41s)** |
+| **Total (`pnpm e2e:smoke`, sequential)** | **13** | **265s (4m25s)** |
 
 This is comfortably under the ~10 minute target, with every test in the
 final set passing. The gap was **not** filled by padding: the D-tier and
