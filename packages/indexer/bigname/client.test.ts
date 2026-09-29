@@ -140,6 +140,17 @@ describe('createBignameClient', () => {
       expect(error.cause).toBeInstanceOf(SyntaxError)
     })
 
+    it('reports a 200 that is not JSON as malformed, keeping the parse error', async () => {
+      const { client } = clientWith(
+        new Response('<html>ok</html>', { status: 200 }),
+      )
+
+      const error = (await client.status())._unsafeUnwrapErr()
+
+      expect(error.code).toBe('malformed_response')
+      expect(error.cause).toBeInstanceOf(SyntaxError)
+    })
+
     it('reports a 200 without a full envelope as malformed', async () => {
       const { client } = clientWith(json({ data: {} }))
 

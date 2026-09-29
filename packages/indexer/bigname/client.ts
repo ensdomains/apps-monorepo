@@ -113,8 +113,12 @@ export const createBignameClient = (
 
     const parsed = yield* ResultAsync.fromPromise(
       response.json() as Promise<unknown>,
-      () =>
-        malformed(response, 'bigname responded with a body that is not JSON'),
+      (cause) =>
+        malformed(
+          response,
+          'bigname responded with a body that is not JSON',
+          cause,
+        ),
     )
     if (!isEnvelope(parsed)) {
       return err(
