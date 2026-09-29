@@ -3,6 +3,7 @@ import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
+import { TransactionSubmissionError } from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
 import { isRetryableSubmissionError } from '../retry-policy'
 import type { TOKEN_SYMBOL } from './registration.actors'
@@ -175,7 +176,7 @@ export type RegistrationContext = {
     | 'computingHcaBudget'
     | 'deployingResolver'
     | 'submittingSetupBundle'
-    | 'committingTransaction'
+    | 'preparingCommitment'
     | 'signingFundingPermit'
     | 'approvingToken'
     | 'registeringDomain'
@@ -958,7 +959,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'committingTransaction' as const,
+              retryTarget: () => 'preparingCommitment' as const,
             }),
             ({ event }) => {
               console.error(
@@ -1000,7 +1001,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'committingTransaction' as const,
+              retryTarget: () => 'preparingCommitment' as const,
             }),
             ({ event }) => {
               console.error(
@@ -1034,14 +1035,16 @@ export const registrationMachine = setup({
         // `commitmentAt` is set we continue, otherwise that state's retry
         // resubmits the correct (signer-aware) commit path.
         onError: [
-          // A declined commit never reached the chain: there is nothing to
-          // verify, and the retry below would just re-prompt the wallet.
+          // Warp can fill after a reported failure, so only HCA verifies.
           {
-            guard: ({ event }) => !isRetryableSubmissionError(event.error),
+            guard: ({ context, event }) =>
+              !isRetryableSubmissionError(event.error) ||
+              (context.signer?.type !== 'rhinestone' &&
+                event.error instanceof TransactionSubmissionError),
             target: 'error',
             actions: assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'committingTransaction' as const,
+              retryTarget: () => 'preparingCommitment' as const,
             }),
           },
           {
@@ -1151,7 +1154,7 @@ export const registrationMachine = setup({
               retryTarget: ({ context }) =>
                 context.signer?.type === 'rhinestone'
                   ? ('submittingSetupBundle' as const)
-                  : ('committingTransaction' as const),
+                  : ('preparingCommitment' as const),
             }),
             ({ event }) => {
               console.error(
@@ -1195,7 +1198,7 @@ export const registrationMachine = setup({
             retryTarget: ({ context }) =>
               context.signer?.type === 'rhinestone'
                 ? ('submittingSetupBundle' as const)
-                : ('committingTransaction' as const),
+                : ('preparingCommitment' as const),
           }),
         },
       },
@@ -1637,12 +1640,14 @@ export const registrationMachine = setup({
           },
           {
             guard: ({ context }) =>
-              context.retryTarget === 'committingTransaction',
-            target: 'committingTransaction',
+              context.retryTarget === 'preparingCommitment',
+            // The failed commitment may have landed, and a repeat reverts.
+            target: 'preparingCommitment',
             actions: assign(({ context }) => ({
               ...context,
               error: undefined,
               retryTarget: undefined,
+              commitment: undefined,
               commitmentTxId: undefined,
               approvalTxId: undefined,
               registrationTxId: undefined,
