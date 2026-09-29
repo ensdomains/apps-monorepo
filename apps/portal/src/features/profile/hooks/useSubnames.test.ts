@@ -105,6 +105,53 @@ describe('getSubnames', () => {
     ])
   })
 
+  it('names a V1 subname from its parent, not the indexer’s stale name', async () => {
+    mockEnsjsGetSubnames.mockResolvedValue([
+      {
+        name: '1.[d9212cee289e4bfe6f6deb963d8b06ce82538df961bf16733c3c34c2f8a057a0].eth',
+        labelName: '1',
+        labelhash:
+          '0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6',
+        owner: '0x1234567890123456789012345678901234567890',
+        wrappedOwner: null,
+      },
+    ])
+
+    const result = await getSubnames({
+      name: 'phantombug01.eth',
+      protocolVersion: 'ENSv1',
+    })
+
+    expect(result._unsafeUnwrap()[0]?.name).toBe('1.phantombug01.eth')
+  })
+
+  it('keeps an unknown subname label encoded under its parent', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      domains: [
+        {
+          subdomains: [
+            {
+              name: null,
+              labelName: null,
+              labelhash:
+                '0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6',
+              owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
+            },
+          ],
+        },
+      ],
+    })
+
+    const result = await getSubnames({
+      name: 'test.eth',
+      protocolVersion: 'ENSv2',
+    })
+
+    expect(result._unsafeUnwrap()[0]?.name).toBe(
+      '[c89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6].test.eth',
+    )
+  })
+
   it('returns empty array when domain has no subdomains', async () => {
     const mockGraphqlResponse = {
       domains: [{ subdomains: [] }],
