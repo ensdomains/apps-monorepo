@@ -56,3 +56,21 @@ export const MultipleTransactions: Story = {
   args: { completedSteps: 4, totalSteps: 10 },
 }
 export const Complete: Story = { args: { completedSteps: 6 } }
+
+export const RenewingGraceNames: Story = {
+  render: () => (
+    <div className="relative h-[700px] bg-ens-garnet-100">
+      <GameStepView
+        hasCollapsed={false}
+        progress={{
+          currentStep: 0,
+          totalSteps: 2,
+          description: '',
+          isAwaitingConfirmation: true,
+        }}
+        selectedNameCount={3}
+        stepDescriptors={[{ type: 'renew-grace', count: 3 }]}
+      />
+    </div>
+  ),
+}

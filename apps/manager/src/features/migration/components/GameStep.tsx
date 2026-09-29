@@ -86,6 +86,12 @@ const useStepDescriptionText = (
   return match(stepDescription)
     .with({ kind: 'progress' }, ({ text }) => text)
     .with({ kind: 'preparing' }, () => t`Getting ready...`)
+    .with({ kind: 'renew-grace' }, ({ count }) =>
+      plural(count, {
+        one: 'Renewing # name...',
+        other: 'Renewing # names...',
+      }),
+    )
     .with({ kind: 'deploy-hca' }, () => `${t`Setting things up`}...`)
     .with({ kind: 'approval' }, ({ approvalId }) =>
       match(approvalId)

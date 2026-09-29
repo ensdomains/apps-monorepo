@@ -30,16 +30,27 @@ export const useNameSelection = ({
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const { groups, orphans } = useMemo(() => groupByParent(eligible), [eligible])
-  const rootSubtrees = useMemo(
-    () => buildRootSubtreeIndex(groups, orphans),
-    [groups, orphans],
-  )
-  const allSelectable = useMemo(
+  const rootSubtrees = useMemo(() => {
+    const subtrees = new Map(buildRootSubtreeIndex(groups, orphans))
+    for (const { domain } of gracePeriodNames) {
+      subtrees.set(domain.name, new Set([domain.name]))
+    }
+    return subtrees
+  }, [groups, orphans, gracePeriodNames])
+  const eligibleSelectable = useMemo(
     () => collectAllSelectable(groups, orphans),
     [groups, orphans],
   )
+  const allSelectable = useMemo(
+    () =>
+      new Set([
+        ...eligibleSelectable,
+        ...gracePeriodNames.map(({ domain }) => domain.name),
+      ]),
+    [eligibleSelectable, gracePeriodNames],
+  )
   const initiallySelected = useMemo(() => {
-    if (isRecovery) return allSelectable
+    if (isRecovery) return eligibleSelectable
     const namesNeedingManagerRestoration = new Set(
       eligible
         .filter(({ managerAddress }) => managerAddress !== null)
@@ -48,19 +59,19 @@ export const useNameSelection = ({
         ]),
     )
     return new Set(
-      [...allSelectable].filter(
+      [...eligibleSelectable].filter(
         (name) => !namesNeedingManagerRestoration.has(name),
       ),
     )
-  }, [allSelectable, eligible, isRecovery, rootSubtrees])
+  }, [eligibleSelectable, eligible, isRecovery, rootSubtrees])
 
   const didSeed = useRef(false)
   useEffect(() => {
-    if (didSeed.current || isPending || eligible.length === 0) return
+    if (didSeed.current || isPending || allSelectable.size === 0) return
     didSeed.current = true
     setSelected(initiallySelected)
     onNamesChange([...initiallySelected])
-  }, [isPending, eligible.length, initiallySelected, onNamesChange])
+  }, [isPending, allSelectable.size, initiallySelected, onNamesChange])
 
   useEffect(() => {
     if (!didSeed.current || isPending) return
@@ -125,7 +136,7 @@ export const useNameSelection = ({
     selected: currentSelected,
     totalSelected: currentSelected.size,
     visibleCount: allSelectable.size,
-    displayedCount: allSelectable.size + gracePeriodNames.length,
+    displayedCount: allSelectable.size,
     allSelected,
     filteredGroups,
     filteredOrphans,

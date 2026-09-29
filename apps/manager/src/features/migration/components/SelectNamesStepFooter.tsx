@@ -7,6 +7,7 @@ import { match } from 'ts-pattern'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { migrationPreparationMessage } from '@/features/migration/service/migrationPreparationError'
+import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
 import { GrainOverlay } from './GrainOverlay'
 import { MigrationUpgradeButton } from './MigrationUpgradeButton'
 import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
@@ -132,6 +133,31 @@ type SelectNamesStepFooterProps = {
   readonly onUpgrade: () => void
   readonly totalSelected: number
   readonly visibleCount: number
+  readonly renewal: GraceRenewalQuoteState
+}
+
+const GraceRenewalStatus = ({
+  state,
+}: {
+  readonly state: GraceRenewalQuoteState
+}) => {
+  if (state.status === 'loading')
+    return (
+      <p>
+        <Trans>Checking renewal costs...</Trans>
+      </p>
+    )
+  if (state.status === 'error') return <p role="alert">{state.message}</p>
+  if (state.status === 'ready' && state.quote.balance < state.quote.totalAmount)
+    return (
+      <p className="text-destructive" role="alert">
+        <Trans>
+          Not enough USDC to renew these names. Add USDC to your wallet to
+          continue.
+        </Trans>
+      </p>
+    )
+  return null
 }
 
 export const SelectNamesStepFooter = ({
@@ -144,6 +170,7 @@ export const SelectNamesStepFooter = ({
   onUpgrade,
   totalSelected,
   visibleCount,
+  renewal,
 }: SelectNamesStepFooterProps) => {
   const { eligibility: nftEligibility, isConfirmedUnclaimed } =
     useVisibleCommemorativeNftStatus()
@@ -153,12 +180,16 @@ export const SelectNamesStepFooter = ({
     <div className="sticky inset-x-0 bottom-0 z-20 flex min-h-36 w-full shrink-0 flex-col items-stretch justify-start gap-4 bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 px-5 pt-4 pb-14 sm:min-h-28.75 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8 lg:px-37.5">
       <GrainOverlay />
       <div className="relative flex max-w-107.5 flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
-        <GasEstimateMessage
-          gasAffordability={gasAffordability}
-          gasEstimate={gasEstimate}
-          isWaitingForGasFunding={isWaitingForGasFunding}
-          totalSelected={totalSelected}
-        />
+        {renewal.status === 'idle' ? (
+          <GasEstimateMessage
+            gasAffordability={gasAffordability}
+            gasEstimate={gasEstimate}
+            isWaitingForGasFunding={isWaitingForGasFunding}
+            totalSelected={totalSelected}
+          />
+        ) : (
+          <GraceRenewalStatus state={renewal} />
+        )}
       </div>
       <div className="relative flex w-full flex-col gap-1 sm:w-auto">
         <MigrationUpgradeButton

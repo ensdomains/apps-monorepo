@@ -57,6 +57,18 @@ export const AllStates: Story = { render: () => <SelectionStates /> }
 
 export const GracePeriod: Story = {
   args: { isInGrace: true, isSelected: false },
+  render: (args) => <SelectableGraceName {...args} />,
+}
+
+const SelectableGraceName = (args: React.ComponentProps<typeof NameRow>) => {
+  const [selected, setSelected] = useState(false)
+  return (
+    <NameRow
+      {...args}
+      isSelected={selected}
+      onToggle={() => setSelected((value) => !value)}
+    />
+  )
 }
 
 export const MixedNames: Story = {

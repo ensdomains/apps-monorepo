@@ -16,6 +16,19 @@ type StepCopyProps = {
 
 const StepCopy = ({ step }: StepCopyProps) =>
   match(step)
+    .with({ type: 'renew-grace' }, ({ count }) => (
+      <>
+        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
+          <Plural one="Renew # name" other="Renew # names" value={count} />
+        </h3>
+        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
+          <Trans>
+            Renew your grace-period names together before upgrading. Your wallet
+            may first ask you to approve the renewal payment.
+          </Trans>
+        </p>
+      </>
+    ))
     .with({ type: 'deploy-hca' }, () => (
       <>
         <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
@@ -120,6 +133,7 @@ const StepCopy = ({ step }: StepCopyProps) =>
 
 const stepKey = (step: MigrationStepDescriptor): string =>
   match(step)
+    .with({ type: 'renew-grace' }, () => 'renew-grace')
     .with({ type: 'deploy-hca' }, () => 'deploy-hca')
     .with(
       { type: 'approval', approvalId: 'base-registrar:hca-token' },
@@ -137,6 +151,8 @@ type WalletConfirmationStepsDialogProps = {
 export const WalletConfirmationStepsDialog = ({
   steps,
 }: WalletConfirmationStepsDialogProps) => {
+  const includesRenewal = steps.some(({ type }) => type === 'renew-grace')
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -144,7 +160,11 @@ export const WalletConfirmationStepsDialog = ({
           className="cursor-pointer rounded-xs font-semibold underline decoration-ens-garnet-900/35 decoration-dotted underline-offset-2 transition-colors duration-150 hover:text-ens-garnet-900 hover:decoration-ens-garnet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900/50 focus-visible:ring-offset-2 focus-visible:ring-offset-ens-garnet-200 motion-reduce:duration-0"
           type="button"
         >
-          <Plural one="# request" other="# requests" value={steps.length} />
+          {includesRenewal ? (
+            <Plural one="# step" other="# steps" value={steps.length} />
+          ) : (
+            <Plural one="# request" other="# requests" value={steps.length} />
+          )}
         </button>
       </DialogTrigger>
 
@@ -157,11 +177,18 @@ export const WalletConfirmationStepsDialog = ({
             <Trans>What you&apos;ll approve</Trans>
           </DialogTitle>
           <DialogDescription className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-            <Plural
-              one="Your wallet will show one request."
-              other="Your wallet will show # requests in this order."
-              value={steps.length}
-            />
+            {includesRenewal ? (
+              <Trans>
+                Follow these steps in your wallet. Renewal may need an extra
+                payment approval.
+              </Trans>
+            ) : (
+              <Plural
+                one="Your wallet will show one request."
+                other="Your wallet will show # requests in this order."
+                value={steps.length}
+              />
+            )}
           </DialogDescription>
         </DialogHeader>
 

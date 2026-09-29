@@ -18,6 +18,11 @@ msgstr ""
 msgid "{0, plural, one {# request} other {# requests}}"
 msgstr "{0, plural, one {# request} other {# requests}}"
 
+#. placeholder {0}: steps.length
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{0, plural, one {# step} other {# steps}}"
+msgstr "{0, plural, one {# step} other {# steps}}"
+
 #. placeholder {0}: data.years
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx
 msgid "{0, plural, one {# year} other {# years}}"
@@ -55,6 +60,14 @@ msgstr "{count, plural, one {Approve # name} other {Approve # names}}"
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "{count, plural, one {Renew # name for} other {Renew # names for}}"
 msgstr "{count, plural, one {Renew # name for} other {Renew # names for}}"
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{count, plural, one {Renew # name} other {Renew # names}}"
+msgstr "{count, plural, one {Renew # name} other {Renew # names}}"
+
+#: src/features/migration/components/GameStep.tsx
+msgid "{count, plural, one {Renewing # name...} other {Renewing # names...}}"
+msgstr "{count, plural, one {Renewing # name...} other {Renewing # names...}}"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Upgrade # name} other {Upgrade # names}}"
@@ -146,12 +159,12 @@ msgid "{years} years"
 msgstr "{years} years"
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
-msgstr "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
+msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> names selected</3>"
+msgstr "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> names selected</3>"
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-msgid "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
-msgstr "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
+msgid "<0>All </0><1>{visibleCount}</1><2> names selected</2>"
+msgstr "<0>All </0><1>{visibleCount}</1><2> names selected</2>"
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 #: src/features/bulk-renew/components/DurationPresets.tsx
@@ -457,6 +470,10 @@ msgstr "Checking allowance"
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Checking migration access..."
 msgstr "Checking migration access..."
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking renewal costs..."
+msgstr "Checking renewal costs..."
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Checking status…"
@@ -997,6 +1014,10 @@ msgstr "Fee at this moment"
 msgid "Finishing setup"
 msgstr "Finishing setup"
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Follow these steps in your wallet. Renewal may need an extra payment approval."
+msgstr "Follow these steps in your wallet. Renewal may need an extra payment approval."
+
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 msgid "for"
 msgstr "for"
@@ -1068,7 +1089,6 @@ msgid "Go to slide {0}"
 msgstr "Go to slide {0}"
 
 #: src/features/grace/components/GracePeriodBadge.tsx
-#: src/features/migration/components/GracePeriodNameRow.tsx
 msgid "Grace period"
 msgstr "Grace period"
 
@@ -1453,6 +1473,10 @@ msgstr "No stablecoins available"
 msgid "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
 msgstr "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
+msgstr "Not enough USDC to renew these names. Add USDC to your wallet to continue."
+
 #. placeholder {0}: f.total.toFixed(2)
 #. placeholder {1}: f.hcaCredit.toFixed(2)
 #. placeholder {2}: f.walletDebit.toFixed(2)
@@ -1661,7 +1685,6 @@ msgstr "Price Cooldown"
 msgid "Price cooldown fee"
 msgstr "Price cooldown fee"
 
-#: src/features/migration/components/GracePeriodNameRow.tsx
 #: src/features/migration/components/NameRow.tsx
 msgid "Primary name"
 msgstr "Primary name"
@@ -1875,13 +1898,16 @@ msgstr "Removing..."
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
-#: src/features/migration/components/GracePeriodNameRow.tsx
 msgid "Renew"
 msgstr "Renew"
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "Renew before completing your upgrade"
 msgstr "Renew before completing your upgrade"
+
+#: src/features/migration/components/NameRow.tsx
+msgid "Renew before upgrade"
+msgstr "Renew before upgrade"
 
 #: src/features/dashboard/components/NameRow.tsx
 msgid "Renew name"
@@ -1910,6 +1936,10 @@ msgstr "Renew to date"
 #: src/features/bulk-renew/components/RenewToDatePopover.tsx
 msgid "Renew to date instead"
 msgstr "Renew to date instead"
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Renew your grace-period names together before upgrading. Your wallet may first ask you to approve the renewal payment."
+msgstr "Renew your grace-period names together before upgrading. Your wallet may first ask you to approve the renewal payment."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Renew your names before upgrading"

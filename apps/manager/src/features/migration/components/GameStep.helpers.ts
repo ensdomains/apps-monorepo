@@ -103,6 +103,7 @@ export const computeBridgeLayout = (params: {
 export type StepDescription =
   | { readonly kind: 'progress'; readonly text: string }
   | { readonly kind: 'preparing' }
+  | { readonly kind: 'renew-grace'; readonly count: number }
   | { readonly kind: 'deploy-hca' }
   | { readonly kind: 'approval'; readonly approvalId: MigrationApprovalId }
   | {
@@ -119,11 +120,15 @@ export const describeNextStep = (params: {
 }): StepDescription =>
   match(params)
     .with(
-      { progressDescription: P.string },
+      { progressDescription: P.string.minLength(1) },
       ({ progressDescription }) =>
         ({ kind: 'progress' as const, text: progressDescription }) as const,
     )
     .with({ descriptor: P.nullish }, () => ({ kind: 'preparing' as const }))
+    .with({ descriptor: { type: 'renew-grace' } }, ({ descriptor }) => ({
+      kind: 'renew-grace' as const,
+      count: descriptor.count,
+    }))
     .with({ descriptor: { type: 'deploy-hca' } }, () => ({
       kind: 'deploy-hca' as const,
     }))

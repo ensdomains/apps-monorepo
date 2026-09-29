@@ -21,14 +21,14 @@ const SelectedCountLabel = ({
     <Trans>
       <span>All </span>
       <span>{visibleCount}</span>
-      <span className="font-semi-mono uppercase"> eligible names selected</span>
+      <span className="font-semi-mono uppercase"> names selected</span>
     </Trans>
   ) : (
     <Trans>
       <span>{totalSelected}</span>
       <span> out of </span>
       <span>{visibleCount}</span>
-      <span className="font-semi-mono uppercase"> eligible names selected</span>
+      <span className="font-semi-mono uppercase"> names selected</span>
     </Trans>
   )
 
