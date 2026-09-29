@@ -33,15 +33,25 @@ const networkError = (cause: unknown) =>
     cause,
   })
 
-const malformed = (response: Response, message: string) =>
+const malformed = (response: Response, message: string, cause?: unknown) =>
   new BignameError({
     code: 'malformed_response',
     status: response.status,
     message,
+    cause,
   })
 
 const toApiError = async (response: Response): Promise<BignameError> => {
-  const body: unknown = await response.json().catch(() => undefined)
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch (cause) {
+    return malformed(
+      response,
+      `bigname responded ${response.status} with a body that is not JSON`,
+      cause,
+    )
+  }
   const error =
     typeof body === 'object' && body !== null && 'error' in body
       ? (

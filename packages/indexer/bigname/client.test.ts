@@ -136,6 +136,8 @@ describe('createBignameClient', () => {
 
       expect(error.code).toBe('malformed_response')
       expect(error.status).toBe(502)
+      // The parse failure is kept for debugging.
+      expect(error.cause).toBeInstanceOf(SyntaxError)
     })
 
     it('reports a 200 without a full envelope as malformed', async () => {
