@@ -1,14 +1,12 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
-import type { Address, Hex } from 'viem'
-import {
-  type GetLogsErrorType,
-  type GetLogsReturnType,
-  getLogs,
-} from 'viem/actions'
+import { type Address, getAddress, type Hex, isAddressEqual } from 'viem'
+import { type GetLogsErrorType, getLogs } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
+import { graphqlIndexerClient } from '@/lib/indexer'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
@@ -29,20 +27,147 @@ export type GetRoleChangeLogsParameters = {
   readonly fromBlock?: bigint
 }
 
+/** One `EACRolesChanged`, in the shape both sources are folded to. */
+export type RoleChangeLog = {
+  readonly blockNumber: bigint
+  readonly transactionHash: Hex
+  /** Set when the indexer supplied the row; a node log carries no time. */
+  readonly timestamp?: bigint
+  readonly args: {
+    readonly resource: bigint
+    readonly account: Address
+    readonly oldRoleBitmap: bigint
+    readonly newRoleBitmap: bigint
+  }
+}
+
 /**
- * `EACRolesChanged` logs for one resource on one registry.
- *
- * Filtered on the single event rather than ensjs's `eacRolesEvents` array: with
- * several events viem cannot apply the indexed `args` per event, so the filter
- * widens to every role event on the registry and the RPC rejects it outright
- * ("query returns too many logs, narrow your filter").
+ * Page size for the indexed read. A page this full may have been cut, so the
+ * caller falls back to the node rather than fold an incomplete history.
  */
-export const getRoleChangeLogs = ResultFn(async function* ({
+const INDEXED_ROLE_EVENTS_LIMIT = 1000
+
+const ROLE_CHANGE_EVENTS_QUERY = gql`
+  query RoleChangeEvents(
+    $contractAddress: String!
+    $resource: String!
+    $first: Int!
+  ) {
+    eacRolesChangeds(
+      where: { contractAddress: $contractAddress, resource: $resource }
+      first: $first
+      orderBy: blockNumber
+      orderDirection: asc
+    ) {
+      blockNumber
+      timestamp
+      transactionHash
+      asEACRolesChanged {
+        resource
+        account
+        oldRoleBitmap
+        newRoleBitmap
+      }
+    }
+  }
+`
+
+type RoleChangeEventRow = {
+  readonly blockNumber: number
+  readonly timestamp: number
+  readonly transactionHash: Hex
+  readonly asEACRolesChanged: {
+    readonly resource: Hex
+    readonly account: Address
+    readonly oldRoleBitmap: Hex
+    readonly newRoleBitmap: Hex
+  } | null
+}
+
+/**
+ * The indexed history for one resource, or null when the node has to answer:
+ * the indexer failed, or returned a full page that may hide older changes.
+ *
+ * The indexer has no filter on the changed account (`involved` is a different
+ * field), so `account` narrows the rows here. Rows come oldest-first, matching
+ * the node, since callers fold `newRoleBitmap` in that order.
+ */
+const getIndexedRoleChangeLogs = async ({
   registryAddress,
   resource,
   account,
-  fromBlock = ROLES_FROM_BLOCK,
-}: GetRoleChangeLogsParameters) {
+}: GetRoleChangeLogsParameters): Promise<RoleChangeLog[] | null> => {
+  try {
+    const { eacRolesChangeds } = await graphqlIndexerClient.request<{
+      eacRolesChangeds: readonly RoleChangeEventRow[]
+    }>(ROLE_CHANGE_EVENTS_QUERY, {
+      contractAddress: registryAddress.toLowerCase(),
+      resource: toResourceHex(resource),
+      first: INDEXED_ROLE_EVENTS_LIMIT,
+    })
+
+    if (eacRolesChangeds.length >= INDEXED_ROLE_EVENTS_LIMIT) return null
+
+    const logs: RoleChangeLog[] = []
+    for (const row of eacRolesChangeds) {
+      const change = row.asEACRolesChanged
+      if (!change) continue
+
+      // Checksummed like a node log, so Map keys and zero-address checks match.
+      const changedAccount = getAddress(change.account)
+      if (account && !isAddressEqual(changedAccount, account)) continue
+
+      logs.push({
+        blockNumber: BigInt(row.blockNumber),
+        transactionHash: row.transactionHash,
+        timestamp: BigInt(row.timestamp),
+        args: {
+          resource: BigInt(change.resource),
+          account: changedAccount,
+          oldRoleBitmap: BigInt(change.oldRoleBitmap),
+          newRoleBitmap: BigInt(change.newRoleBitmap),
+        },
+      })
+    }
+    return logs
+  } catch {
+    return null
+  }
+}
+
+/**
+ * `EACRolesChanged` logs for one resource on one registry.
+ *
+ * Read from the indexer first: the node path is a single `getLogs` over every
+ * block since `ROLES_FROM_BLOCK`, which drpc answers in 7 to 20 seconds, and
+ * because the transport batches JSON-RPC, every other read in the same batch
+ * waits on it (WEB-1540). The node remains the fallback for an indexer outage
+ * or a resource with more history than one page holds.
+ *
+ * The node read is filtered on the single event rather than ensjs's
+ * `eacRolesEvents` array: with several events viem cannot apply the indexed
+ * `args` per event, so the filter widens to every role event on the registry
+ * and the RPC rejects it outright ("query returns too many logs, narrow your
+ * filter").
+ */
+export const getRoleChangeLogs = ResultFn(async function* (
+  params: GetRoleChangeLogsParameters,
+) {
+  const indexed = yield* fromPromise(
+    getIndexedRoleChangeLogs(params),
+    () =>
+      // Unreachable: the indexed read resolves null on failure. Typed for the
+      // generator, which needs an error branch to yield through.
+      new GetRoleChangeLogsError({ cause: undefined as never }),
+  )
+  if (indexed) return ok(indexed)
+
+  const {
+    registryAddress,
+    resource,
+    account,
+    fromBlock = ROLES_FROM_BLOCK,
+  } = params
   const client = yield* safeGetClient()
 
   const logs = yield* fromPromise(
@@ -60,18 +185,8 @@ export const getRoleChangeLogs = ResultFn(async function* ({
     (e) => new GetRoleChangeLogsError({ cause: e as GetLogsErrorType }),
   )
 
-  return ok(logs)
+  return ok(logs as readonly RoleChangeLog[])
 })
-
-type RoleChangeEvent = (typeof eacRolesChangedEventSnippet)[0]
-
-// `abiEvents` has to be the event array rather than `undefined`: its default is
-// `[abiEvent]`, and overriding it with `undefined` drops `args` from the type.
-type RoleChangeLog = GetLogsReturnType<
-  RoleChangeEvent,
-  [RoleChangeEvent],
-  true
->[number]
 
 /** One `EACRolesChanged` log, decoded for display. */
 export type RoleHistoryEntry = {
@@ -93,9 +208,9 @@ class MissingBlockTimestampError extends TaggedError(
 /**
  * Decode role logs into display entries, newest first.
  *
- * Logs carry no timestamp, so block times are fetched in a second step. That
- * lookup answers for every block it is given or fails as a whole, so a missing
- * timestamp is a broken invariant rather than a date to guess at.
+ * Node logs carry no timestamp, so their block times are fetched in a second
+ * step. That lookup answers for every block it is given or fails as a whole,
+ * so a missing timestamp is a broken invariant rather than a date to guess at.
  */
 export const toRoleHistoryEntries = ResultFn(async function* ({
   logs,
@@ -104,15 +219,20 @@ export const toRoleHistoryEntries = ResultFn(async function* ({
   readonly logs: readonly RoleChangeLog[]
   readonly resource: bigint
 }) {
-  const timestamps = yield* getBlockTimestamps({
-    blocks: logs.map((log) => log.blockNumber),
-  })
+  // Indexed rows already carry their time; only node logs need the lookup.
+  const undated = logs.filter((log) => log.timestamp === undefined)
+  const timestamps =
+    undated.length > 0
+      ? yield* getBlockTimestamps({
+          blocks: undated.map((log) => log.blockNumber),
+        })
+      : new Map<bigint, bigint>()
 
   const resourceHex = toResourceHex(resource)
   const entries: RoleHistoryEntry[] = []
 
   for (const log of logs) {
-    const timestamp = timestamps.get(log.blockNumber)
+    const timestamp = log.timestamp ?? timestamps.get(log.blockNumber)
     if (timestamp === undefined) {
       return yield* new MissingBlockTimestampError({
         blockNumber: log.blockNumber,
