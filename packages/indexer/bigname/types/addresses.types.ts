@@ -10,8 +10,8 @@ import type {
   Timestamp,
 } from './common.types'
 import type {
+  AuthorityRelation,
   Relation,
-  RelationFilter,
   Restrictions,
   RoleSummary,
 } from './permissions.types'
@@ -19,7 +19,8 @@ import type {
 /** `GET /v1/addresses/{address}/names`: query. */
 export type AddressNamesQuery = Readonly<{
   namespace?: Namespace
-  relation?: RelationFilter
+  /** Control relations as a set, `any` for all three, or `resolves_to` on its own. */
+  relation?: readonly AuthorityRelation[] | 'any' | 'resolves_to'
   /** Only with `relation=resolves_to`: decimal coin type (default 60) or `evm`. */
   coin_type?: number | 'evm'
   authority?: Authority

@@ -50,7 +50,7 @@ export type NameHistoryQuery = Readonly<{
 export type AddressHistoryQuery = Readonly<{
   namespace?: Namespace
   /** Authority relations only; `resolves_to` is not accepted here. */
-  relation?: AuthorityRelation | 'any' | `${AuthorityRelation},${string}`
+  relation?: readonly AuthorityRelation[] | 'any'
   scope?: HistoryScope
   type?: readonly EventType[]
   order?: SortOrder
