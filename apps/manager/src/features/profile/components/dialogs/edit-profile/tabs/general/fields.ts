@@ -34,6 +34,15 @@ export const getTextRecordValue = (
 export const getGeneralUrlErrorMessage = (value: string | undefined) =>
   validateUrl(value)
 
+export const DESCRIPTION_MAX_LENGTH = 500
+
+export const isDescriptionOverLimit = (
+  description: string | undefined,
+  savedDescription: string | undefined,
+) =>
+  description !== savedDescription &&
+  (description?.length ?? 0) > DESCRIPTION_MAX_LENGTH
+
 export const getGeneralValidationIssues = (
   records: ProfileRecords,
 ): readonly GeneralValidationIssue[] => {

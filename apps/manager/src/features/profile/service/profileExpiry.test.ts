@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   client: {},
   getV1Expiry: vi.fn(),
   getV2Expiry: vi.fn(),
+  indexerQuery: vi.fn(),
   owner: null as null | { readonly owner?: string; readonly protocol: string },
 }))
 
@@ -11,6 +12,11 @@ vi.mock('./profileOwner', async () => {
   const { ok } = await import('neverthrow')
   return { getOwner: () => ok(mocks.owner) }
 })
+
+vi.mock('@/lib/indexer-client', () => ({ indexerClient: {} }))
+vi.mock('@ens-apps/indexer/urql', () => ({
+  graphqlRequest: (...args: unknown[]) => mocks.indexerQuery(...args),
+}))
 
 vi.mock('@ensdomains/ensjs/public/v1', () => ({
   getExpiry: mocks.getV1Expiry,
@@ -175,5 +181,48 @@ describe('getExpiry', () => {
     })
 
     expect(status.isInGrace).toBe(true)
+  })
+})
+
+describe('subnames', () => {
+  // Not clamped to the parent: a v2 label carries its own expiry in its
+  // registry, and a detached or custom subregistry can outlive its parent.
+  it('reads the expiry the indexer records for the subname itself', async () => {
+    mocks.indexerQuery.mockResolvedValue({
+      domains: [{ expiryDate: 1_821_700_419 }],
+    })
+
+    const result = await getExpiry('mini.shiba.eth')
+
+    expect(result._unsafeUnwrap()).toEqual({
+      expiry: 1_821_700_419n,
+      isNonExpiring: false,
+      protocol: 'v2',
+      isSubname: true,
+    })
+    expect(mocks.getV2Expiry).not.toHaveBeenCalled()
+  })
+
+  it('reports no expiry for a subname the indexer does not know', async () => {
+    mocks.indexerQuery.mockResolvedValue({ domains: [] })
+
+    const result = await getExpiry('mini.shiba.eth')
+
+    expect(result._unsafeUnwrap().expiry).toBeNull()
+  })
+
+  it('reports no grace window after a subname expires', async () => {
+    mocks.indexerQuery.mockResolvedValue({
+      domains: [{ expiryDate: 1_600_000_000 }],
+    })
+
+    const status = getProfileExpiryResultStatus(
+      (await getExpiry('mini.shiba.eth'))._unsafeUnwrap(),
+    )
+
+    expect(status.isInGrace).toBe(false)
+    expect(status.graceEndDate).toBeNull()
+    expect(status.isPastGrace).toBe(true)
+    expect(status.displayExpiryDate).toEqual(new Date(1_600_000_000 * 1000))
   })
 })

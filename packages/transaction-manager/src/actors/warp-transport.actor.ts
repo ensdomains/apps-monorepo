@@ -16,7 +16,6 @@ import { logger } from '@ens-apps/utils/logger'
 import type { TokenRequest, Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash } from 'viem'
-import { sepolia } from 'viem/chains'
 import {
   extractOrchestratorErrorContext,
   TransactionSubmissionError,
@@ -143,7 +142,9 @@ export function submitWarpTransaction(
 
   return fromPromise(
     (async () => {
-      const chain = config.chain || sepolia
+      // No fallback: `SmartAccountConfig.chain` is required, so an absent
+      // chain here is a construction bug, not a case to paper over.
+      const { chain } = config
 
       const sendStart = nowMs()
 

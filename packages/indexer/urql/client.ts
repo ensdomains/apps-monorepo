@@ -10,39 +10,15 @@ export {
 } from './request'
 
 /**
- * Resolve the indexer GraphQL URL.
+ * Build an indexer client for a GraphQL endpoint.
  *
- * `import.meta.env.VITE_INDEXER_GRAPHQL_URL` is inlined by Vite at build time,
- * so it's available in both browser and SSR contexts. The only edge case is
- * relative paths (e.g. `/indexer/graphql`) which need a browser origin to
- * resolve — during SSR we fall back to the public URL instead.
- *
- * Absolute URLs (e.g. `http://127.0.0.1:5655/graphql`) work in both contexts.
+ * The URL is a parameter rather than an env read so this package stays usable
+ * from the browser, a Cloudflare Worker and tests alike. Each app resolves the
+ * endpoint once at its composition root (`src/config.ts`) and passes it in.
  */
-function getIndexerUrl(): string {
-  try {
-    if (typeof import.meta !== 'undefined') {
-      const envUrl = import.meta.env?.VITE_INDEXER_GRAPHQL_URL
-      if (envUrl) {
-        // Relative paths only work in the browser (they need an origin).
-        // During SSR, fall back to the public endpoint.
-        if (envUrl.startsWith('/') && typeof window === 'undefined') {
-          return 'https://staging-graphql.ens.dev/'
-        }
-        return envUrl
-      }
-    }
-  } catch {
-    // Non-Vite environment — fall through to default
-  }
-  return 'https://staging-graphql.ens.dev/'
-}
-
-export const INDEXER_GRAPHQL_URL = getIndexerUrl()
-
-export const createIndexerClient = () =>
+export const createIndexerClient = (url: string) =>
   createClient({
-    url: INDEXER_GRAPHQL_URL,
+    url,
     requestPolicy: 'network-only',
     exchanges: [
       cacheExchange,
@@ -57,7 +33,3 @@ export const createIndexerClient = () =>
       fetchExchange,
     ],
   })
-
-const indexerClient = createIndexerClient()
-
-export default indexerClient

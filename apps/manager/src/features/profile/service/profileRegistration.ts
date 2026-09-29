@@ -1,5 +1,4 @@
 import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
-import indexerClient from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -9,9 +8,10 @@ import { getNameHistory as ensjs_getNameHistory } from '@ensdomains/ensjs/subgra
 import { err, fromPromise, ok } from 'neverthrow'
 import { namehash } from 'viem'
 import { getBlock } from 'viem/actions'
+import { indexerClient } from '@/lib/indexer-client'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { normalizeEth2LdName } from './profileName'
+import { normalizeEth2LdName, normalizeEthName } from './profileName'
 import { getOwner, type ProfileProtocol } from './profileOwner'
 
 class GetProfileRegistrationError extends TaggedError(
@@ -66,6 +66,16 @@ export const getRegistration = ResultFn(async function* (
   name: string,
   protocol?: ProfileProtocol,
 ) {
+  const subname = normalizeEthName(name)
+
+  // A subname is issued by its parent rather than registered with a registrar,
+  // so the indexer is the only source for its date and v1 has no equivalent.
+  if (subname && subname.parentLabelsRootFirst.length > 0) {
+    return ok({
+      registrationDate: await getIndexedRegistrationDate(subname.name),
+    })
+  }
+
   const ethName = normalizeEth2LdName(name)
 
   if (!ethName) {

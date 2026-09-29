@@ -2105,7 +2105,7 @@ export type SetReverseNameRequest =
  * Creates contract call parameters for setting reverse resolution
  * @param params.name - The ENS name to set
  * @param params.reverseRegistrarChainId - The chain ID for the reverse registrar
- * @param params.chain - Optional chain object to determine network
+ * @param params.network - ENS network the request targets
  * @param params.targetAddress - Optional address to set the name for
  * @returns Contract parameters to pass to writeContract
  * @throws Error if no registrar is found for the coin type
@@ -2113,15 +2113,14 @@ export type SetReverseNameRequest =
 export function createSetReverseNameRequest({
   name,
   reverseRegistrarChainId,
-  chain,
+  network,
   targetAddress,
 }: {
   name: string
   reverseRegistrarChainId: ReverseRegistrarChainId
-  chain?: Chain
+  network: NetworkKey
   targetAddress?: Address
 }): SetReverseNameRequest {
-  const network = resolveNetworkFromChain(chain)
   const registrarAddress = getRegistrarAddress(reverseRegistrarChainId, network)
   
   if (!registrarAddress) {
@@ -2408,20 +2407,22 @@ export const DeployButton = () => {
 #### With Simple Request Builders
 
 ```typescript
-import { useWriteContract } from 'wagmi'
 import { createSetReverseNameRequest } from '@ens-apps/l2-primary/utils'
+import { useWriteContract } from 'wagmi'
+import { envConfig } from '@/config'
 
 export const SetPrimaryNameButton = ({ name }: { name: string }) => {
-  const { chain } = useConnection()
   const { writeContractAsync } = useWriteContract()
   
   const handleSetPrimaryName = async () => {
     try {
-      // Create request
+      // Create request. The network is the one this build targets, never the
+      // wallet's chain: a wrong-network fallback produces valid calldata
+      // against the wrong contracts.
       const request = createSetReverseNameRequest({
         name,
         reverseRegistrarChainId: 60, // ETH
-        chain,
+        network: envConfig.network,
       })
       
       // Execute
@@ -2450,6 +2451,7 @@ export const SetPrimaryNameFlow = ({ name, address }: Props) => {
     const request = createSetReverseNameRequest({
       name,
       reverseRegistrarChainId: 60,
+      network: envConfig.network,
     })
     
     const hash = await writeContractAsync(request)

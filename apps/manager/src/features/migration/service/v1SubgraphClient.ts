@@ -1,6 +1,7 @@
 import type { V1Domain } from '@ens-apps/migration'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
+import { envConfig } from '@/config'
 import { withRequestDeadline } from './requestDeadline'
 
 export type { V1Domain }
@@ -11,9 +12,13 @@ export type { V1Domain }
  * therefore takes two edits, not one, and missing this one leaves the migration
  * list reading the public endpoint while everything else reads the fork — which
  * looks like the migration flow losing names rather than like a split config.
+ *
+ * Falls back to `envConfig.chain.subgraphs.ens.url` (ensjs's per-network v1
+ * subgraph, keyed off the build's network) rather than a pinned public URL,
+ * so a mainnet build reads the mainnet v1 subgraph instead of Sepolia's.
  */
 const V1_SUBGRAPH_URL =
-  import.meta.env?.VITE_V1_SUBGRAPH_URL || 'https://v1-graphql.ens.dev/subgraph'
+  import.meta.env?.VITE_V1_SUBGRAPH_URL || envConfig.chain.subgraphs.ens.url
 
 type V1SubgraphResponse = {
   data: {

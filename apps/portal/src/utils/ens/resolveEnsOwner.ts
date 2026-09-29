@@ -6,7 +6,7 @@
  * to import into the Cloudflare Workers bundle. Pass any viem Client whose chain
  * has been extended with the ENS contracts (e.g. `extendChainWithEns(sepolia)`).
  */
-import type { sepoliaWithEns } from '@ens-apps/indexer/chain'
+import type { EnsChain } from '@ens-apps/config'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getOwner as getOwnerV1 } from '@ensdomains/ensjs/public/v1'
 import {
@@ -23,8 +23,8 @@ export type ResolvedEnsOwner = {
   protocolVersion: ProtocolVersion
 } | null
 
-// A viem Client whose chain carries the ENS contract addresses (sepoliaWithEns).
-type EnsResolveClient = Client<Transport, typeof sepoliaWithEns>
+// A viem Client whose chain carries the ENS contract addresses.
+type EnsResolveClient = Client<Transport, EnsChain>
 
 /**
  * Resolve the owner of an `.eth` name (or subname) from the V2 registry.

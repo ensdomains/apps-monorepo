@@ -1,5 +1,4 @@
 import type { Address } from 'viem'
-import { mainnet } from 'viem/chains'
 import {
   getCommemorativeNftContractAddress,
   getCommemorativeNftTokenId,
@@ -66,11 +65,7 @@ export const buildCommemorativeNftShareUrls = (
 export const buildCommemorativeNftMarketplaceUrl = (params: {
   readonly chainId: number
   readonly ownerAddress: Address
-  readonly minted: boolean
 }): string | undefined => {
-  // OpenSea no longer indexes testnets.
-  if (!params.minted || params.chainId !== mainnet.id) return undefined
-
   const contractAddress = getCommemorativeNftContractAddress(params.chainId)
   if (!contractAddress) return undefined
 

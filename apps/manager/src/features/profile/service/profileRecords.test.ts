@@ -12,8 +12,8 @@ const mocks = vi.hoisted(() => ({
   graphqlRequest: vi.fn(),
 }))
 
+vi.mock('@/lib/indexer-client', () => ({ indexerClient: {} }))
 vi.mock('@ens-apps/indexer/urql', () => ({
-  default: {},
   graphqlRequest: mocks.graphqlRequest,
 }))
 vi.mock('@ensdomains/ensjs/public', () => ({
@@ -40,7 +40,7 @@ const ethAddress = '0x1111111111111111111111111111111111111111'
 const bytesResult = (value: Hex) =>
   encodeAbiParameters([{ type: 'bytes' }], [value])
 
-describe('profile records with bounded coin decoding', () => {
+describe('profile records', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.graphqlRequest.mockResolvedValue({ domain: { resolver: null } })
@@ -49,6 +49,43 @@ describe('profile records with bounded coin decoding', () => {
       contentHash: { protocolType: 'ipfs', decoded: 'example' },
       abi: { abi: [] },
       resolverAddress,
+    })
+  })
+
+  it.each([
+    { description: 'not indexed yet', indexedTexts: ['theme'] },
+    { description: 'already indexed', indexedTexts: ['theme', 'links'] },
+  ])('loads all saved links when the links key is $description', async ({
+    indexedTexts,
+  }) => {
+    const linksRecord = {
+      key: 'links',
+      value: JSON.stringify([
+        { name: 'Website', url: 'https://example.com' },
+        { name: 'Blog', url: 'https://blog.example.com' },
+      ]),
+    }
+    mocks.graphqlRequest.mockResolvedValue({
+      domain: {
+        resolver: { address: resolverAddress, texts: indexedTexts },
+      },
+    })
+    mocks.getRecords.mockImplementationOnce(
+      async (_client, { texts }: { texts: string[] }) => ({
+        texts: texts.includes('links') ? [linksRecord] : [],
+        resolverAddress,
+      }),
+    )
+    mocks.resolveNameData.mockResolvedValue(null)
+
+    const result = (await getProfileRecords('links.eth'))._unsafeUnwrap()
+
+    expect(result.texts).toEqual([linksRecord])
+    expect(mocks.getRecords).toHaveBeenCalledExactlyOnceWith(mocks.client, {
+      name: 'links.eth',
+      texts: ['avatar', 'theme', 'links'],
+      contentHash: true,
+      abi: true,
     })
   })
 
@@ -80,7 +117,7 @@ describe('profile records with bounded coin decoding', () => {
     // No untrusted coin may reach getRecords' internal, unbounded decoder.
     expect(mocks.getRecords).toHaveBeenCalledExactlyOnceWith(mocks.client, {
       name: 'gift.eth',
-      texts: ['avatar', 'theme'],
+      texts: ['avatar', 'theme', 'links'],
       contentHash: true,
       abi: true,
     })
