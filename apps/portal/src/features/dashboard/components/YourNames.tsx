@@ -8,11 +8,12 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { SettingsMenu } from '@/components/SettingsMenu'
 import { WalletMenu } from '@/components/WalletMenu'
+import { MS_PER_SECOND } from '@/features/renew/utils/nameExtension'
 import { cn } from '@/lib/utils'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import { truncateName } from '@/utils/formatting/truncateName'
 import { mergeNamesData } from '@/utils/names/mergeNamesData'
-import { dateToPlainDate } from '@/utils/temporal'
+import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
 import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
 import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
 
@@ -21,7 +22,11 @@ const PAGE_SIZE = 10
 const WARNING_DAYS = 30
 
 const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
-  const plainDate = expiryDate ? dateToPlainDate(expiryDate) : undefined
+  const plainDate = expiryDate
+    ? unixSecondsToPlainDateUtc(
+        Math.floor(expiryDate.getTime() / MS_PER_SECOND),
+      )
+    : undefined
   const duration = plainDate ? formatExpiryDuration(plainDate) : undefined
   const isWarning =
     !!plainDate &&
