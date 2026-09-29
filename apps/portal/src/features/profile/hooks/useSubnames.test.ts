@@ -125,11 +125,17 @@ describe('getSubnames', () => {
     expect(result._unsafeUnwrap()[0]?.name).toBe('1.phantombug01.eth')
   })
 
-  it('keeps an unknown subname label encoded under its parent', async () => {
+  it('names V2 subnames from their parent, encoding unknown labels', async () => {
     mockGraphqlRequest.mockResolvedValue({
       domains: [
         {
           subdomains: [
+            {
+              name: 'sub.[6d255fc3390ee6b41191da315958b7d6a1e5b17904cc7683558f98acc57977b4].eth',
+              labelName: 'sub',
+              labelhash: '0xabcd',
+              owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
+            },
             {
               name: null,
               labelName: null,
@@ -147,9 +153,10 @@ describe('getSubnames', () => {
       protocolVersion: 'ENSv2',
     })
 
-    expect(result._unsafeUnwrap()[0]?.name).toBe(
+    expect(result._unsafeUnwrap().map((s) => s.name)).toEqual([
+      'sub.test.eth',
       '[c89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6].test.eth',
-    )
+    ])
   })
 
   it('returns empty array when domain has no subdomains', async () => {
