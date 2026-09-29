@@ -41,9 +41,9 @@ const row = ({
   account = ACCOUNT,
   newRoleBitmap = '0x1',
 }: {
-  block: number
-  account?: string
-  newRoleBitmap?: string
+  readonly block: number
+  readonly account?: string
+  readonly newRoleBitmap?: string
 }) => ({
   blockNumber: block,
   timestamp: block * 12,
