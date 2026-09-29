@@ -72,6 +72,7 @@ describe('namesForAddress', () => {
       items: [
         {
           name: 'alice.eth',
+          displayName: 'alice.eth',
           namehash: '0xabc',
           protocol: 'v2',
           relations: ['owner', 'registrant'],

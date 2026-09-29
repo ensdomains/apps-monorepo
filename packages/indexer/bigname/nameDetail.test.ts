@@ -30,6 +30,7 @@ describe('readNameDetail', () => {
 
     expect(result._unsafeUnwrap()).toEqual({
       name: 'alice.eth',
+      displayName: 'alice.eth',
       namehash: '0xabc',
       protocol: 'v2',
       isSupported: true,
@@ -67,8 +68,14 @@ describe('readNameDetail', () => {
     expect(detail?.registrationStatus).toBeNull()
   })
 
-  it('answers null for a name bigname has not indexed', async () => {
-    const { client } = clientWith(apiError('not_found', 404))
+  it.each([
+    ['a 404', () => apiError('not_found', 404)],
+    [
+      'a 200 with status not_found',
+      () => envelope({ ...record, status: 'not_found' }),
+    ],
+  ])('answers null for a name bigname has not indexed, on %s', async (_, response) => {
+    const { client } = clientWith(response())
 
     expect(
       (await readNameDetail(client)({ name: 'nope.eth' }))._unsafeUnwrap(),
