@@ -15,8 +15,8 @@ msgstr ""
 
 #. placeholder {0}: steps.length
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "{0, plural, one {# request} other {# requests}}"
-msgstr "{0, plural, one {# request} other {# requests}}"
+#~ msgid "{0, plural, one {# request} other {# requests}}"
+#~ msgstr "{0, plural, one {# request} other {# requests}}"
 
 #. placeholder {0}: steps.length
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -35,8 +35,8 @@ msgstr "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
 
 #. placeholder {0}: steps.length
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
-msgstr "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
+#~ msgid "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
+#~ msgstr "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
 
 #. placeholder {0}: description.length
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
@@ -52,6 +52,10 @@ msgstr "{0} years"
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "{0}% discount"
 msgstr "{0}% discount"
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{count, plural, one {# request} other {# requests}}"
+msgstr "{count, plural, one {# request} other {# requests}}"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Approve # name} other {Approve # names}}"
@@ -83,6 +87,10 @@ msgstr "{count, plural, one {Upgrading # name...} other {Upgrading # names...}}"
 msgid "{count, plural, one {Upgrading batch {0} of {total} (# name)...} other {Upgrading batch {1} of {total} (# names)...}}"
 msgstr "{count, plural, one {Upgrading batch {0} of {total} (# name)...} other {Upgrading batch {1} of {total} (# names)...}}"
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{count, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
+msgstr "{count, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
+
 #: src/features/migration/components/MigrationModal.tsx
 msgid "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names in just a couple steps to unlock your new ENS profile and claim your personalized NFT.}}"
 msgstr "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names in just a couple steps to unlock your new ENS profile and claim your personalized NFT.}}"
@@ -91,14 +99,13 @@ msgstr "{eligibleNameCount, plural, one {Upgrade your name in just a couple step
 msgid "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile.} other {Upgrade your names in just a couple steps to unlock your new ENS profile.}}"
 msgstr "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile.} other {Upgrade your names in just a couple steps to unlock your new ENS profile.}}"
 
-#: src/features/migration/components/MigrationProgressBanner.tsx
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{gracePeriodNameCount, plural, one {# name needs renewal before it can be upgraded.} other {# names need renewal before they can be upgraded.}}"
 msgstr "{gracePeriodNameCount, plural, one {# name needs renewal before it can be upgraded.} other {# names need renewal before they can be upgraded.}}"
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
-msgid "{gracePeriodNameCount, plural, one {Renew your grace-period name before completing your upgrade.} other {Renew your # grace-period names before completing your upgrade.}}"
-msgstr "{gracePeriodNameCount, plural, one {Renew your grace-period name before completing your upgrade.} other {Renew your # grace-period names before completing your upgrade.}}"
+#~ msgid "{gracePeriodNameCount, plural, one {Renew your grace-period name before completing your upgrade.} other {Renew your # grace-period names before completing your upgrade.}}"
+#~ msgstr "{gracePeriodNameCount, plural, one {Renew your grace-period name before completing your upgrade.} other {Renew your # grace-period names before completing your upgrade.}}"
 
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{gracePeriodNameCount, plural, one {Renew your grace-period name before upgrading to your new ENS profile.} other {Renew your # grace-period names before upgrading to your new ENS profile.}}"
@@ -270,6 +277,10 @@ msgid "All Notifications"
 msgstr "All Notifications"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Allow the renewal contract to use USDC for your renewals."
+msgstr "Allow the renewal contract to use USDC for your renewals."
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Allow this temporary account to move this name."
 msgstr "Allow this temporary account to move this name."
 
@@ -288,6 +299,10 @@ msgstr "Approve {name}"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approve payment"
 msgstr "Approve payment"
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Approve renewal payment"
+msgstr "Approve renewal payment"
 
 #: src/features/migration/components/GameStep.tsx
 msgid "Approve restoring your managers in your wallet"
@@ -888,10 +903,18 @@ msgstr "Enter your email"
 msgid "Error loading names"
 msgstr "Error loading names"
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Estimated network fee"
+msgstr "Estimated network fee"
+
 #. placeholder {0}: estimate.formattedEth
 #: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Estimated network fee: <0>~{0} ETH</0>. You'll approve <1><2/>.</1><3/>Your wallet shows the final fee before you approve."
-msgstr "Estimated network fee: <0>~{0} ETH</0>. You'll approve <1><2/>.</1><3/>Your wallet shows the final fee before you approve."
+#~ msgid "Estimated network fee: <0>~{0} ETH</0>. You'll approve <1><2/>.</1><3/>Your wallet shows the final fee before you approve."
+#~ msgstr "Estimated network fee: <0>~{0} ETH</0>. You'll approve <1><2/>.</1><3/>Your wallet shows the final fee before you approve."
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Estimated renewal cost"
+msgstr "Estimated renewal cost"
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Estimating the network fee..."
@@ -1369,8 +1392,8 @@ msgid "Names"
 msgstr "Names"
 
 #: src/features/migration/components/SelectNamesStep.tsx
-msgid "Names with a different manager start unselected. Selecting one requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
-msgstr "Names with a different manager start unselected. Selecting one requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
+#~ msgid "Names with a different manager start unselected. Selecting one requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
+#~ msgstr "Names with a different manager start unselected. Selecting one requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
 
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
@@ -1470,8 +1493,12 @@ msgstr "No stablecoins available"
 #. placeholder {0}: formatGasEth(shortfall.requiredWei)
 #. placeholder {1}: formatGasEth(shortfall.balanceWei)
 #: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
-msgstr "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
+#~ msgid "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
+#~ msgstr "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
+msgstr "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
@@ -1902,8 +1929,8 @@ msgid "Renew"
 msgstr "Renew"
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
-msgid "Renew before completing your upgrade"
-msgstr "Renew before completing your upgrade"
+#~ msgid "Renew before completing your upgrade"
+#~ msgstr "Renew before completing your upgrade"
 
 #: src/features/migration/components/NameRow.tsx
 msgid "Renew before upgrade"
@@ -1919,7 +1946,6 @@ msgstr "Renew name"
 msgid "Renew Name"
 msgstr "Renew Name"
 
-#: src/features/migration/components/MigrationProgressBanner.tsx
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "Renew Names"
 msgstr "Renew Names"
@@ -1938,8 +1964,12 @@ msgid "Renew to date instead"
 msgstr "Renew to date instead"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Renew your grace-period names together before upgrading. Your wallet may first ask you to approve the renewal payment."
-msgstr "Renew your grace-period names together before upgrading. Your wallet may first ask you to approve the renewal payment."
+msgid "Renew your grace-period names together before upgrading."
+msgstr "Renew your grace-period names together before upgrading."
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+#~ msgid "Renew your grace-period names together before upgrading. Your wallet may first ask you to approve the renewal payment."
+#~ msgstr "Renew your grace-period names together before upgrading. Your wallet may first ask you to approve the renewal payment."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Renew your names before upgrading"
@@ -2733,6 +2763,10 @@ msgstr "Upgrade your names and bring their records across."
 msgid "Upgrading is optional. Your existing names keep working as they do today. Upgrading unlocks the latest features and lower fees, and you can do it whenever you're ready."
 msgstr "Upgrading is optional. Your existing names keep working as they do today. Upgrading unlocks the latest features and lower fees, and you can do it whenever you're ready."
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Upgrading names with a different manager requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
+msgstr "Upgrading names with a different manager requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "USD"
 msgstr "USD"
@@ -3024,6 +3058,10 @@ msgstr "You need to verify your wallet ownership to manage your notification pre
 msgid "You'll always see important notifications in the app."
 msgstr "You'll always see important notifications in the app."
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "You'll approve <0><1/>.</0>"
+msgstr "You'll approve <0><1/>.</0>"
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "You're all set."
 msgstr "You're all set."
@@ -3166,3 +3204,7 @@ msgstr "Your wallet address can only have one primary name, which will display i
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
 msgstr "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Your wallet shows the final fee before you approve."
+msgstr "Your wallet shows the final fee before you approve."

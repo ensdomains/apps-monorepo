@@ -13,7 +13,6 @@ type Params = {
   readonly eligible: readonly ClassifiedName[]
   readonly gracePeriodNames?: readonly IneligibleName[]
   readonly isPending: boolean
-  readonly isRecovery?: boolean
   readonly onNamesChange: (names: string[]) => void
 }
 
@@ -23,7 +22,6 @@ export const useNameSelection = ({
   eligible,
   gracePeriodNames = EMPTY_GRACE_PERIOD_NAMES,
   isPending,
-  isRecovery = false,
   onNamesChange,
 }: Params) => {
   const [search, setSearch] = useState('')
@@ -49,29 +47,13 @@ export const useNameSelection = ({
       ]),
     [eligibleSelectable, gracePeriodNames],
   )
-  const initiallySelected = useMemo(() => {
-    if (isRecovery) return eligibleSelectable
-    const namesNeedingManagerRestoration = new Set(
-      eligible
-        .filter(({ managerAddress }) => managerAddress !== null)
-        .flatMap(({ domain }) => [
-          ...(rootSubtrees.get(domain.name) ?? [domain.name]),
-        ]),
-    )
-    return new Set(
-      [...eligibleSelectable].filter(
-        (name) => !namesNeedingManagerRestoration.has(name),
-      ),
-    )
-  }, [eligibleSelectable, eligible, isRecovery, rootSubtrees])
-
   const didSeed = useRef(false)
   useEffect(() => {
     if (didSeed.current || isPending || allSelectable.size === 0) return
     didSeed.current = true
-    setSelected(initiallySelected)
-    onNamesChange([...initiallySelected])
-  }, [isPending, allSelectable.size, initiallySelected, onNamesChange])
+    setSelected(allSelectable)
+    onNamesChange([...allSelectable])
+  }, [isPending, allSelectable, onNamesChange])
 
   useEffect(() => {
     if (!didSeed.current || isPending) return

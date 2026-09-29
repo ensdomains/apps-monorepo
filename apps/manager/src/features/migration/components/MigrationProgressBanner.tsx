@@ -1,6 +1,5 @@
-import { Plural, Trans } from '@lingui/react/macro'
+import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
-import { match } from 'ts-pattern'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { MigrationUpgradeButton } from '@/features/migration/components/MigrationUpgradeButton'
@@ -14,11 +13,8 @@ export const MigrationProgressBanner = () => {
   const nftCopyEnabled = !!nftEligibility
   const navigate = useNavigate()
   const { isConnected } = useSmartAccountContext()
-  const {
-    eligible: eligibleV1Names,
-    gracePeriodNames,
-    isPending: isV1Pending,
-  } = useEligibleV1Names()
+  const { eligible: eligibleV1Names, isPending: isV1Pending } =
+    useEligibleV1Names()
   const { data: migratedCount, isPending: isCountPending } =
     useMigratedNamesCount()
 
@@ -27,11 +23,9 @@ export const MigrationProgressBanner = () => {
 
   const migrated = migratedCount ?? 0
   const remaining = eligibleV1Names.length
-  const gracePeriodNameCount = gracePeriodNames.length
-  const needsRenewal = remaining === 0
   const total = migrated + remaining
 
-  if (migrated < 1 || (remaining < 1 && gracePeriodNameCount < 1)) return null
+  if (migrated < 1 || remaining < 1) return null
 
   const progressPercent = Math.min(100, Math.max(0, (migrated / total) * 100))
 
@@ -61,56 +55,26 @@ export const MigrationProgressBanner = () => {
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-6">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             <h2 className="text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
-              {needsRenewal ? (
-                <Trans>Renew before completing your upgrade</Trans>
-              ) : (
-                <Trans>You're almost there!</Trans>
-              )}
+              <Trans>You're almost there!</Trans>
             </h2>
             <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
-              {match({ needsRenewal, nftCopyEnabled })
-                .with({ needsRenewal: true }, () => (
-                  <Plural
-                    one="Renew your grace-period name before completing your upgrade."
-                    other="Renew your # grace-period names before completing your upgrade."
-                    value={gracePeriodNameCount}
-                  />
-                ))
-                .with({ nftCopyEnabled: true }, () => (
-                  <Trans>
-                    Complete upgrade and receive a collectible marking your
-                    place in ENS history.
-                  </Trans>
-                ))
-                .otherwise(() => (
-                  <Trans>
-                    Complete upgrade to unlock your new ENS profile.
-                  </Trans>
-                ))}
+              {nftCopyEnabled ? (
+                <Trans>
+                  Complete upgrade and receive a collectible marking your place
+                  in ENS history.
+                </Trans>
+              ) : (
+                <Trans>Complete upgrade to unlock your new ENS profile.</Trans>
+              )}
             </p>
-            {!needsRenewal && gracePeriodNameCount > 0 ? (
-              <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
-                <Plural
-                  one="# name needs renewal before it can be upgraded."
-                  other="# names need renewal before they can be upgraded."
-                  value={gracePeriodNameCount}
-                />
-              </p>
-            ) : null}
           </div>
           <MigrationUpgradeButton
             className="w-full shrink-0 md:w-[338px]"
             onClick={() => navigate({ to: '/migration' })}
-            showNftPlaceholder={
-              !needsRenewal && nftCopyEnabled && isConfirmedUnclaimed
-            }
+            showNftPlaceholder={nftCopyEnabled && isConfirmedUnclaimed}
             type="button"
           >
-            {needsRenewal ? (
-              <Trans>Renew Names</Trans>
-            ) : (
-              <Trans>Complete Upgrade</Trans>
-            )}
+            <Trans>Complete Upgrade</Trans>
           </MigrationUpgradeButton>
         </div>
       </div>

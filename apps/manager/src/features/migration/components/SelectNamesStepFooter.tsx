@@ -1,22 +1,25 @@
-import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { useLingui } from '@lingui/react'
 import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { match } from 'ts-pattern'
+import { formatUnits } from 'viem'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { migrationPreparationMessage } from '@/features/migration/service/migrationPreparationError'
+import { TOKENS } from '@/lib/tokens'
+import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
 import { GrainOverlay } from './GrainOverlay'
 import { MigrationUpgradeButton } from './MigrationUpgradeButton'
 import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
 
 type GasEstimateMessageProps = {
-  readonly gasEstimate: MigrationGasEstimateState
+  readonly gasEstimate: MigrationGasEstimateState | GraceRenewalGasEstimateState
   readonly gasAffordability: GasAffordability
   readonly isWaitingForGasFunding: boolean
   readonly totalSelected: number
+  readonly renewal?: GraceRenewalQuoteState
 }
 
 const GasEstimateMessage = ({
@@ -24,6 +27,7 @@ const GasEstimateMessage = ({
   gasAffordability,
   isWaitingForGasFunding,
   totalSelected,
+  renewal,
 }: GasEstimateMessageProps) => {
   const { _ } = useLingui()
   if (totalSelected === 0) return null
@@ -38,64 +42,55 @@ const GasEstimateMessage = ({
     )
   }
 
-  return (
-    match({ gasEstimate, gasAffordability })
-      .with({ gasEstimate: { status: 'loading' } }, () => (
+  return match({ gasEstimate, gasAffordability })
+    .with({ gasEstimate: { status: 'loading' } }, () => (
+      <p>
+        <Trans>Estimating the network fee...</Trans>
+      </p>
+    ))
+    .with({ gasEstimate: { status: 'ready' } }, ({ gasEstimate: estimate }) => (
+      <div>
         <p>
-          <Trans>Estimating the network fee...</Trans>
+          <Trans>
+            You&apos;ll approve{' '}
+            <span className="whitespace-nowrap">
+              <WalletConfirmationStepsDialog
+                networkFeeEth={estimate.formattedEth}
+                renewalCostUsdc={
+                  renewal?.status === 'ready'
+                    ? formatUnits(
+                        renewal.quote.totalAmount,
+                        TOKENS.USDC.decimals,
+                      )
+                    : undefined
+                }
+                requestCount={estimate.transactionCount}
+                steps={
+                  'plan' in estimate
+                    ? estimate.plan.stepDescriptors
+                    : estimate.stepDescriptors
+                }
+              />
+              .
+            </span>
+          </Trans>
+          <br />
+          <Trans>Your wallet shows the final fee before you approve.</Trans>
         </p>
-      ))
-      // Every migration transaction is EOA-paid, so a short wallet stalls the run
-      // partway rather than failing cleanly. Matched ahead of the plain fee quote
-      // so the two can never render together and contradict each other.
-      .with(
-        {
-          gasEstimate: { status: 'ready' },
-          gasAffordability: { status: 'short' },
-        },
-        ({ gasAffordability: shortfall }) => (
+        {gasAffordability.status === 'short' && (
           <p className="text-destructive">
             <Trans>
-              Not enough ETH for gas. This upgrade needs about{' '}
-              <strong className="font-semibold">
-                {formatGasEth(shortfall.requiredWei)} ETH
-              </strong>{' '}
-              and your wallet holds {formatGasEth(shortfall.balanceWei)} ETH.
-              Top up before you start, or some names will be left mid-upgrade.
+              Not enough ETH for gas. Top up before you start, or some names
+              will be left mid-upgrade.
             </Trans>
           </p>
-        ),
-      )
-      .with(
-        { gasEstimate: { status: 'ready' } },
-        ({ gasEstimate: estimate }) => (
-          <p>
-            <Trans>
-              Estimated network fee:{' '}
-              <strong className="font-semibold">
-                ~{estimate.formattedEth} ETH
-              </strong>
-              . You&apos;ll approve{' '}
-              <span className="whitespace-nowrap">
-                <WalletConfirmationStepsDialog
-                  steps={estimate.plan.stepDescriptors}
-                />
-                .
-              </span>
-              <br />
-              Your wallet shows the final fee before you approve.
-            </Trans>
-          </p>
-        ),
-      )
-      .with(
-        { gasEstimate: { status: 'error' } },
-        ({ gasEstimate: estimate }) => (
-          <p>{_(migrationPreparationMessage(estimate))}</p>
-        ),
-      )
-      .otherwise(() => null)
-  )
+        )}
+      </div>
+    ))
+    .with({ gasEstimate: { status: 'error' } }, ({ gasEstimate: estimate }) => (
+      <p>{_(migrationPreparationMessage(estimate))}</p>
+    ))
+    .otherwise(() => null)
 }
 
 type UpgradeButtonLabelProps = {
@@ -134,6 +129,7 @@ type SelectNamesStepFooterProps = {
   readonly totalSelected: number
   readonly visibleCount: number
   readonly renewal: GraceRenewalQuoteState
+  readonly renewalGasEstimate: GraceRenewalGasEstimateState
 }
 
 const GraceRenewalStatus = ({
@@ -171,6 +167,7 @@ export const SelectNamesStepFooter = ({
   totalSelected,
   visibleCount,
   renewal,
+  renewalGasEstimate,
 }: SelectNamesStepFooterProps) => {
   const { eligibility: nftEligibility, isConfirmedUnclaimed } =
     useVisibleCommemorativeNftStatus()
@@ -188,7 +185,16 @@ export const SelectNamesStepFooter = ({
             totalSelected={totalSelected}
           />
         ) : (
-          <GraceRenewalStatus state={renewal} />
+          <>
+            <GraceRenewalStatus state={renewal} />
+            <GasEstimateMessage
+              gasAffordability={gasAffordability}
+              gasEstimate={renewalGasEstimate}
+              isWaitingForGasFunding={isWaitingForGasFunding}
+              renewal={renewal}
+              totalSelected={totalSelected}
+            />
+          </>
         )}
       </div>
       <div className="relative flex w-full flex-col gap-1 sm:w-auto">

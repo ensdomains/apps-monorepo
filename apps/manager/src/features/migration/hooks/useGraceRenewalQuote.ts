@@ -12,6 +12,18 @@ export type GraceRenewalQuoteState =
   | { readonly status: 'error'; readonly message: string }
   | { readonly status: 'ready'; readonly quote: GraceRenewalQuote }
 
+// Match the execution-time quote lifetime; a background refresh must not keep
+// an expired price actionable while its replacement is still loading.
+const QUOTE_LIFETIME_MS = 5 * 60 * 1000
+
+const isQuoteExpired = (quote: GraceRenewalQuote): boolean => {
+  const now = Date.now()
+  return (
+    BigInt(Math.floor(now / 1000)) >= quote.expiresAt ||
+    now - quote.quotedAtMs >= QUOTE_LIFETIME_MS
+  )
+}
+
 export const withRenewalAccountReadiness = (
   state: GraceRenewalQuoteState,
   ready: boolean,
@@ -57,8 +69,12 @@ export const useGraceRenewalQuote = ({
     },
   })
 
-  if (!enabled || domains.length === 0) return { status: 'idle' }
-  if (query.isPending || query.isFetching) return { status: 'loading' }
+  if (!enabled || !ownerAddress || domains.length === 0) {
+    return { status: 'idle' }
+  }
   if (query.isError) return { status: 'error', message: query.error.message }
+  if (query.isPending || !query.data || isQuoteExpired(query.data)) {
+    return { status: 'loading' }
+  }
   return { status: 'ready', quote: query.data }
 }

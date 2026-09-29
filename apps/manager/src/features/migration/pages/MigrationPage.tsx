@@ -19,6 +19,7 @@ import { MigrationSuccessDialog } from '@/features/migration/components/Migratio
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { CommemorativeNftClaimDialog } from '@/features/migration/components/success/CommemorativeNftClaimDialog'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
+import { useGraceRenewalGasEstimate } from '@/features/migration/hooks/useGraceRenewalGasEstimate'
 import {
   useGraceRenewalQuote,
   withRenewalAccountReadiness,
@@ -259,6 +260,20 @@ export const MigrationPage = () => {
     v1Names,
     enabled: step === 'select' && graceDomains.length === 0,
   })
+  const renewalGasEstimate = useGraceRenewalGasEstimate({
+    renewal,
+    selectedNames,
+    v1Names,
+    hcaAddress: hcaAddress as Address | undefined,
+    publicClient: migrationExecutionClient as PublicClient,
+    enabled: step === 'select' && graceDomains.length > 0,
+  })
+  const networkEstimate =
+    graceDomains.length > 0 ? renewalGasEstimate : gasEstimate
+  const renewalCanStart =
+    renewal.status === 'ready' &&
+    renewalGasEstimate.status === 'ready' &&
+    renewal.quote.balance >= renewal.quote.totalAmount
 
   // Migration is entirely EOA-paid, so a wallet short of sepETH stalls the run
   // partway. Checked against the same estimate the footer quotes.
@@ -268,7 +283,8 @@ export const MigrationPage = () => {
   })
   const gasAffordability = assessGasAffordability({
     balanceWei: ownerBalance?.value ?? null,
-    estimatedFeeWei: gasEstimate.status === 'ready' ? gasEstimate.feeWei : null,
+    estimatedFeeWei:
+      networkEstimate.status === 'ready' ? networkEstimate.feeWei : null,
   })
 
   // Top up the owner's sepETH on page entry — migration txs are all EOA-paid.
@@ -345,8 +361,7 @@ export const MigrationPage = () => {
     }
 
     try {
-      if (graceDomains.length > 0 && renewal.status === 'ready') {
-        if (renewal.quote.balance < renewal.quote.totalAmount) return false
+      if (graceDomains.length > 0 && renewalCanStart) {
         const selected = new Set(selectedNames)
         uiActor.send({
           type: 'migration.renewAndStart',
@@ -387,6 +402,7 @@ export const MigrationPage = () => {
     gasFundingStatus,
     graceDomains,
     renewal,
+    renewalCanStart,
     selectedNames,
     v1Names,
     uiActor,
@@ -419,6 +435,7 @@ export const MigrationPage = () => {
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}
             renewal={renewal}
+            renewalGasEstimate={renewalGasEstimate}
           />
         ))
         .with('migrate', () => <GameStep />)

@@ -7,6 +7,7 @@ import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMi
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { cn } from '@/lib/utils'
+import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
@@ -25,6 +26,7 @@ type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
   readonly renewal?: GraceRenewalQuoteState
+  readonly renewalGasEstimate?: GraceRenewalGasEstimateState
 }
 
 const SelectionTitle = ({
@@ -50,6 +52,7 @@ export const SelectNamesStep = ({
   onNamesChange,
   onNext,
   renewal = { status: 'idle' },
+  renewalGasEstimate = { status: 'idle' },
 }: SelectNamesStepProps) => {
   const { eligible, gracePeriodNames, isPending, recoveryState } =
     useEligibleV1Names()
@@ -76,18 +79,18 @@ export const SelectNamesStep = ({
     eligible,
     gracePeriodNames,
     isPending,
-    isRecovery: recoveryState.status === 'recovering',
     onNamesChange,
   })
 
   const needsRenewal = renewal.status !== 'idle'
   const isEstimatingGas = needsRenewal
-    ? renewal.status === 'loading'
+    ? renewalGasEstimate.status === 'loading'
     : gasEstimate.status === 'loading'
   const isWaitingForGasEstimate =
     totalSelected > 0 &&
     (needsRenewal
       ? renewal.status !== 'ready' ||
+        renewalGasEstimate.status !== 'ready' ||
         renewal.quote.balance < renewal.quote.totalAmount
       : gasEstimate.status !== 'ready')
   // The gas drip request only resolves once any sepETH top-up is confirmed
@@ -149,9 +152,9 @@ export const SelectNamesStep = ({
           {hasNamesNeedingManagerRestoration && !isRecoveryStale && (
             <p className="max-w-160 text-ens-garnet-900/75 text-sm leading-5 md:text-center">
               <Trans>
-                Names with a different manager start unselected. Selecting one
-                requires temporary permission for your smart account to manage
-                your names. We remove that permission after the upgrade.
+                Upgrading names with a different manager requires temporary
+                permission for your smart account to manage your names. We
+                remove that permission after the upgrade.
               </Trans>
             </p>
           )}
@@ -212,6 +215,7 @@ export const SelectNamesStep = ({
         isWaitingForGasFunding={isWaitingForGasFunding}
         onUpgrade={handleUpgrade}
         renewal={renewal}
+        renewalGasEstimate={renewalGasEstimate}
         totalSelected={totalSelected}
         visibleCount={visibleCount}
       />

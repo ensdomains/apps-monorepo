@@ -21,7 +21,7 @@ const makeGracePeriodName = (name: string): IneligibleName => ({
 })
 
 describe('useNameSelection', () => {
-  it('requires explicit selection before including grace-period names', async () => {
+  it('selects eligible and grace-period names by default and allows deselection', async () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()
     const eligible = [makeName('active.eth')]
     const gracePeriodNames = [makeGracePeriodName('grace.eth')]
@@ -34,14 +34,10 @@ describe('useNameSelection', () => {
       }),
     )
 
-    await waitFor(() => expect(result.current.totalSelected).toBe(1))
+    await waitFor(() => expect(result.current.totalSelected).toBe(2))
     expect(result.current.filteredGracePeriodNames).toEqual(gracePeriodNames)
     expect(result.current.visibleCount).toBe(2)
     expect(result.current.displayedCount).toBe(2)
-    expect(result.current.selected).toEqual(new Set(['active.eth']))
-    expect(result.current.allSelected).toBe(false)
-
-    act(() => result.current.toggleName('grace.eth'))
     expect(result.current.selected).toEqual(
       new Set(['active.eth', 'grace.eth']),
     )
@@ -50,6 +46,8 @@ describe('useNameSelection', () => {
 
     act(() => result.current.toggleName('grace.eth'))
     expect(result.current.selected).toEqual(new Set(['active.eth']))
+    expect(result.current.allSelected).toBe(false)
+    expect(onNamesChange).toHaveBeenLastCalledWith(['active.eth'])
 
     act(() => result.current.toggleAll())
     expect(result.current.selected).toEqual(
@@ -58,6 +56,39 @@ describe('useNameSelection', () => {
 
     act(() => result.current.toggleAll())
     expect(result.current.totalSelected).toBe(0)
+  })
+
+  it('waits for names to finish loading before selecting eligible and grace-period names', () => {
+    const onNamesChange = vi.fn<(names: string[]) => void>()
+    const { result, rerender } = renderHook(
+      (names: {
+        eligible: ClassifiedName[]
+        gracePeriodNames: IneligibleName[]
+        isPending: boolean
+      }) => useNameSelection({ ...names, onNamesChange }),
+      {
+        initialProps: {
+          eligible: [makeName('active.eth')],
+          gracePeriodNames: [] as IneligibleName[],
+          isPending: true,
+        },
+      },
+    )
+
+    expect(result.current.totalSelected).toBe(0)
+    expect(onNamesChange).not.toHaveBeenCalled()
+
+    rerender({
+      eligible: [makeName('active.eth')],
+      gracePeriodNames: [makeGracePeriodName('grace.eth')],
+      isPending: false,
+    })
+
+    expect(result.current.selected).toEqual(
+      new Set(['active.eth', 'grace.eth']),
+    )
+    expect(result.current.allSelected).toBe(true)
+    expect(onNamesChange).toHaveBeenLastCalledWith(['active.eth', 'grace.eth'])
   })
 
   it('includes grace-period names in case-insensitive search results', () => {
@@ -86,9 +117,12 @@ describe('useNameSelection', () => {
     expect(result.current.visibleCount).toBe(3)
   })
 
-  it('starts grace-only wallets unselected and allows selecting names to renew', () => {
+  it('selects every name by default for grace-only wallets', () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()
-    const gracePeriodNames = [makeGracePeriodName('grace.eth')]
+    const gracePeriodNames = [
+      makeGracePeriodName('grace.eth'),
+      makeGracePeriodName('other.eth'),
+    ]
     const { result } = renderHook(() =>
       useNameSelection({
         eligible: [],
@@ -99,17 +133,14 @@ describe('useNameSelection', () => {
     )
 
     expect(result.current.filteredGracePeriodNames).toEqual(gracePeriodNames)
-    expect(result.current.displayedCount).toBe(1)
-    expect(result.current.visibleCount).toBe(1)
-    expect(result.current.totalSelected).toBe(0)
-    expect(result.current.allSelected).toBe(false)
+    expect(result.current.displayedCount).toBe(2)
+    expect(result.current.visibleCount).toBe(2)
+    expect(result.current.totalSelected).toBe(2)
+    expect(result.current.allSelected).toBe(true)
+    expect(result.current.selected).toEqual(new Set(['grace.eth', 'other.eth']))
+    expect(onNamesChange).toHaveBeenLastCalledWith(['grace.eth', 'other.eth'])
 
     act(() => result.current.toggleAll())
-    expect(result.current.selected).toEqual(new Set(['grace.eth']))
-    expect(onNamesChange).toHaveBeenLastCalledWith(['grace.eth'])
-
-    act(() => result.current.toggleName('grace.eth'))
-
     expect(result.current.totalSelected).toBe(0)
     expect(result.current.selected).toEqual(new Set())
     expect(onNamesChange).toHaveBeenLastCalledWith([])
@@ -139,7 +170,7 @@ describe('useNameSelection', () => {
       },
     )
 
-    act(() => result.current.toggleName('selected.eth'))
+    act(() => result.current.toggleName('unselected.eth'))
     rerender({
       eligible: [makeName('selected.eth'), makeName('unselected.eth')],
       gracePeriodNames: [],
@@ -168,7 +199,9 @@ describe('useNameSelection', () => {
       },
     )
 
-    act(() => result.current.toggleName('grace.eth'))
+    expect(result.current.selected).toEqual(
+      new Set(['active.eth', 'grace.eth']),
+    )
     rerender({ gracePeriodNames: [] })
 
     expect(result.current.selected).toEqual(new Set(['active.eth']))
@@ -199,7 +232,7 @@ describe('useNameSelection', () => {
     expect(onNamesChange.mock.calls.at(-1)?.[0]).toEqual(['one.eth'])
   })
 
-  it('requires an explicit selection for a name needing manager restoration', async () => {
+  it('selects names needing manager restoration alongside eligible and grace-period names', async () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()
     const gifted = {
       ...makeName('gifted.eth'),
@@ -208,33 +241,21 @@ describe('useNameSelection', () => {
     const { result } = renderHook(() =>
       useNameSelection({
         eligible: [makeName('owned.eth'), gifted],
+        gracePeriodNames: [makeGracePeriodName('grace.eth')],
         isPending: false,
         onNamesChange,
       }),
     )
 
-    await waitFor(() => expect(result.current.totalSelected).toBe(1))
-    expect(result.current.selected.has('gifted.eth')).toBe(false)
-    expect(onNamesChange).toHaveBeenCalledWith(['owned.eth'])
-  })
-
-  it('restores a previously selected manager name during recovery', async () => {
-    const onNamesChange = vi.fn<(names: string[]) => void>()
-    const gifted = {
-      ...makeName('gifted.eth'),
-      managerAddress: '0x0000000000000000000000000000000000000002' as const,
-    } as ClassifiedName
-    const { result } = renderHook(() =>
-      useNameSelection({
-        eligible: [gifted],
-        isPending: false,
-        isRecovery: true,
-        onNamesChange,
-      }),
+    await waitFor(() => expect(result.current.totalSelected).toBe(3))
+    expect(result.current.selected).toEqual(
+      new Set(['gifted.eth', 'owned.eth', 'grace.eth']),
     )
-
-    await waitFor(() =>
-      expect(result.current.selected.has('gifted.eth')).toBe(true),
-    )
+    expect(result.current.allSelected).toBe(true)
+    expect(onNamesChange).toHaveBeenLastCalledWith([
+      'gifted.eth',
+      'owned.eth',
+      'grace.eth',
+    ])
   })
 })

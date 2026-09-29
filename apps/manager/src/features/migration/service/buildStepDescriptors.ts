@@ -42,6 +42,10 @@ export type BuildStepDescriptorsParams = {
   readonly registrationApprovalTargets: readonly RegistrationApprovalTarget[]
 }
 
+export type MigrationWalletRequestDescriptor =
+  | MigrationStepDescriptor
+  | { readonly type: 'renewal-approval' }
+
 export const buildStepDescriptors = (
   params: BuildStepDescriptorsParams,
 ): MigrationStepDescriptor[] => {

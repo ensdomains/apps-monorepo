@@ -202,14 +202,17 @@ describe('SelectNamesStep', () => {
     expect(queryByText(/Estimated network fee/i)).not.toBeInTheDocument()
   })
 
-  it('quotes the fee as usual when the balance cannot be read', () => {
+  it('keeps the fee in the requests dialog when the balance cannot be read', () => {
     // An unreadable balance is not evidence the user cannot pay.
-    const { getByText, queryByText } = renderStep({
+    const { getByRole, queryByText } = renderStep({
       gasEstimate: readyGasEstimate,
       gasAffordability: { status: 'unknown' },
     })
 
     expect(queryByText(/Not enough ETH for gas/i)).not.toBeInTheDocument()
-    expect(getByText(/Estimated network fee/i)).toBeInTheDocument()
+    expect(queryByText(/Estimated network fee/i)).not.toBeInTheDocument()
+    fireEvent.click(getByRole('button', { name: '1 request' }))
+    expect(getByRole('dialog')).toHaveTextContent('Estimated network fee')
+    expect(getByRole('dialog')).toHaveTextContent('~0.001 ETH')
   })
 })
