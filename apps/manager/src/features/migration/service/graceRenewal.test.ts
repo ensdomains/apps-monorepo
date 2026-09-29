@@ -1,7 +1,13 @@
 import type { V1Domain } from '@ens-apps/migration'
 import {
+  ChainMismatchError,
+  createWalletClient,
+  custom,
   decodeFunctionData,
   type Hex,
+  InsufficientFundsError,
+  InvalidInputRpcError,
+  NonceTooLowError,
   type PublicClient,
   type WalletClient,
   zeroAddress,
@@ -155,6 +161,15 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     getChainId: vi.fn(async () => state.chainId),
     getAddresses: vi.fn(async () => [state.account]),
     writeContract,
+    request: vi.fn(
+      async ({ params }: { params: readonly [{ readonly data: Hex }] }) => {
+        const { functionName, args } = decodeFunctionData({
+          abi: GRACE_RENEWAL_ABI,
+          data: params[0].data,
+        })
+        return writeContract({ functionName, args: args ?? [] })
+      },
+    ),
   } as unknown as WalletClient
   const quote = async () => {
     const result = await getGraceRenewalQuote({
@@ -318,6 +333,20 @@ describe('bulk grace renewal', () => {
       s.writeContract.mock.calls.map(([call]) => call.functionName),
     ).toEqual(['approve', 'renewBatch'])
     expect(s.writeContract.mock.calls[0]?.[0].args[1]).toBe(200n)
+    expect(s.walletClient.request).toHaveBeenCalledExactlyOnceWith(
+      {
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            from: OWNER,
+            to: quote.renewerAddress,
+            chainId: `0x${quote.chainId.toString(16)}`,
+            data: encodeGraceRenewal(quote),
+          },
+        ],
+      },
+      { retryCount: 0 },
+    )
     expect(onRenewalSubmitted).toHaveBeenCalledWith(RENEWAL_HASH)
     if (result.isOk()) {
       expect(result.value[0]?.registration?.expiryDate).toBe(
@@ -519,14 +548,21 @@ describe('bulk grace renewal', () => {
     expect(readPendingGraceRenewal(original)).toBeNull()
   })
 
-  it('preserves an unresolved wallet submission without a hash across retries', async () => {
+  it.each([
+    new Error('wallet response lost'),
+    Object.assign(new Error('request timed out'), { name: 'TimeoutError' }),
+    Object.assign(new Error('provider disconnected'), { code: 4900 }),
+    Object.assign(new Error('internal RPC error'), { code: -32603 }),
+    new InvalidInputRpcError(new Error('already known')),
+    new NonceTooLowError(),
+  ])('preserves an unresolved wallet submission after $message', async (error) => {
     const s = setup()
     const quote = await s.quote()
     s.state.allowance = 1000n
     s.writeContract.mockImplementationOnce(async () => {
       expect(readPendingGraceRenewal(quote)?.hash).toBeUndefined()
       expect(readPendingGraceRenewal(quote)?.items).toHaveLength(2)
-      throw new Error('wallet response lost')
+      throw new Error('Wallet request failed', { cause: error })
     })
     const run = () =>
       executeGraceRenewal({
@@ -540,19 +576,144 @@ describe('bulk grace renewal', () => {
     expect(readPendingGraceRenewal(quote)?.items).toHaveLength(2)
   })
 
-  it('clears a reservation only when the wallet definitively rejects the request', async () => {
+  it.each([
+    { code: -32603, message: 'wallet response lost' },
+    { code: -32603, message: 'insufficient funds for gas * price + value' },
+    { code: -32000, message: 'wallet response lost' },
+    { code: -32000, message: 'already known' },
+    { code: -32003, message: 'nonce too low' },
+  ])('preserves ambiguous RPC failure $code: $message without a fallback submission', async ({
+    code,
+    message,
+  }) => {
+    const s = setup()
+    const quote = await s.quote()
+    s.state.allowance = 1000n
+    const request = vi.fn(async ({ method }: { method: string }) => {
+      if (method === 'eth_chainId') return `0x${chain.id.toString(16)}`
+      if (method === 'eth_accounts') return [OWNER]
+      if (method === 'eth_sendTransaction')
+        throw Object.assign(new Error(message), {
+          code,
+        })
+      if (method === 'wallet_sendTransaction')
+        throw Object.assign(new Error('account unauthorized'), { code: 4100 })
+      throw new Error(`Unexpected wallet request: ${method}`)
+    })
+    const walletClient = createWalletClient({
+      chain,
+      transport: custom({ request }),
+    })
+    const run = () =>
+      executeGraceRenewal({
+        quote,
+        publicClient: s.publicClient,
+        walletClient,
+      })
+    expect((await run()).isErr()).toBe(true)
+    expect(readPendingGraceRenewal(quote)?.items).toHaveLength(2)
+    expect((await run()).isErr()).toBe(true)
+    expect(
+      request.mock.calls.filter(
+        ([{ method }]) => method === 'eth_sendTransaction',
+      ),
+    ).toHaveLength(1)
+    expect(
+      request.mock.calls.some(
+        ([{ method }]) => method === 'wallet_sendTransaction',
+      ),
+    ).toBe(false)
+  })
+
+  it.each([
+    { code: -32000, message: 'insufficient funds for gas * price + value' },
+    { code: -32000, message: 'max fee per gas less than block base fee' },
+    { code: -32003, message: 'intrinsic gas too low' },
+  ])('allows retry after the provider refuses creation with $message', async ({
+    code,
+    message,
+  }) => {
+    const s = setup()
+    const quote = await s.quote()
+    s.state.allowance = 1000n
+    const sendTransaction = vi
+      .fn()
+      .mockRejectedValueOnce(Object.assign(new Error(message), { code }))
+      .mockResolvedValue(RENEWAL_HASH)
+    const walletClient = createWalletClient({
+      chain,
+      transport: custom({
+        request: async ({ method }) => {
+          if (method === 'eth_chainId') return `0x${chain.id.toString(16)}`
+          if (method === 'eth_accounts') return [OWNER]
+          if (method === 'eth_sendTransaction') return sendTransaction()
+          throw new Error(`Unexpected wallet request: ${method}`)
+        },
+      }),
+    })
+    s.waitForTransactionReceipt.mockImplementationOnce(async () => {
+      for (const item of quote.items)
+        s.state.expiry.set(item.domain.labelhash, item.targetExpiry)
+      return { status: 'success' }
+    })
+    const run = () =>
+      executeGraceRenewal({
+        quote,
+        publicClient: s.publicClient,
+        walletClient,
+      })
+    expect((await run()).isErr()).toBe(true)
+    expect(sendTransaction).toHaveBeenCalledOnce()
+    expect(s.waitForTransactionReceipt).not.toHaveBeenCalled()
+    expect(readPendingGraceRenewal(quote)).toBeNull()
+    expect((await run()).isOk()).toBe(true)
+    expect(sendTransaction).toHaveBeenCalledTimes(2)
+    expect(s.waitForTransactionReceipt).toHaveBeenCalledOnce()
+    expect(readPendingGraceRenewal(quote)).toBeNull()
+  })
+
+  it.each([
+    ...[4001, 4100, 4200, -32700, -32600, -32601, -32602, -32004].map((code) =>
+      Object.assign(new Error(`RPC rejection ${code}`), { code }),
+    ),
+    new InsufficientFundsError(),
+    new ChainMismatchError({ chain, currentChainId: chain.id + 1 }),
+  ])('allows retry after a definitive submission failure: $message', async (error) => {
     const s = setup()
     const quote = await s.quote()
     s.state.allowance = 1000n
     s.writeContract.mockRejectedValueOnce(
-      Object.assign(new Error('rejected'), { code: 4001 }),
+      new Error('Wallet request failed', { cause: error }),
     )
+    const run = () =>
+      executeGraceRenewal({
+        quote,
+        publicClient: s.publicClient,
+        walletClient: s.walletClient,
+      })
+    expect((await run()).isErr()).toBe(true)
+    expect(s.writeContract).toHaveBeenCalledTimes(1)
+    expect(s.waitForTransactionReceipt).not.toHaveBeenCalled()
+    expect(readPendingGraceRenewal(quote)).toBeNull()
+    expect((await run()).isOk()).toBe(true)
+    expect(s.writeContract).toHaveBeenCalledTimes(2)
+    expect(s.waitForTransactionReceipt).toHaveBeenCalledOnce()
+    expect(readPendingGraceRenewal(quote)).toBeNull()
+  })
+
+  it('reconciles a lost hash once the renewal lands without resubmitting', async () => {
+    const s = setup()
+    const quote = await s.quote()
+    writePendingGraceRenewal(pendingGraceRenewalForQuote(quote))
+    for (const item of quote.items)
+      s.state.expiry.set(item.domain.labelhash, item.targetExpiry)
     const result = await executeGraceRenewal({
       quote,
       publicClient: s.publicClient,
       walletClient: s.walletClient,
     })
-    expect(result.isErr()).toBe(true)
+    expect(result.isOk()).toBe(true)
+    expect(s.writeContract).not.toHaveBeenCalled()
     expect(readPendingGraceRenewal(quote)).toBeNull()
   })
 

@@ -15,11 +15,6 @@ msgstr ""
 
 #. placeholder {0}: steps.length
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-#~ msgid "{0, plural, one {# request} other {# requests}}"
-#~ msgstr "{0, plural, one {# request} other {# requests}}"
-
-#. placeholder {0}: steps.length
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{0, plural, one {# step} other {# steps}}"
 msgstr "{0, plural, one {# step} other {# steps}}"
 
@@ -32,11 +27,6 @@ msgstr "{0, plural, one {# year} other {# years}}"
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
 msgstr "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
-
-#. placeholder {0}: steps.length
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-#~ msgid "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
-#~ msgstr "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
 
 #. placeholder {0}: description.length
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
@@ -102,10 +92,6 @@ msgstr "{eligibleNameCount, plural, one {Upgrade your name in just a couple step
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{gracePeriodNameCount, plural, one {# name needs renewal before it can be upgraded.} other {# names need renewal before they can be upgraded.}}"
 msgstr "{gracePeriodNameCount, plural, one {# name needs renewal before it can be upgraded.} other {# names need renewal before they can be upgraded.}}"
-
-#: src/features/migration/components/MigrationProgressBanner.tsx
-#~ msgid "{gracePeriodNameCount, plural, one {Renew your grace-period name before completing your upgrade.} other {Renew your # grace-period names before completing your upgrade.}}"
-#~ msgstr "{gracePeriodNameCount, plural, one {Renew your grace-period name before completing your upgrade.} other {Renew your # grace-period names before completing your upgrade.}}"
 
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{gracePeriodNameCount, plural, one {Renew your grace-period name before upgrading to your new ENS profile.} other {Renew your # grace-period names before upgrading to your new ENS profile.}}"
@@ -924,11 +910,6 @@ msgstr "Error loading names"
 msgid "Estimated network fee"
 msgstr "Estimated network fee"
 
-#. placeholder {0}: estimate.formattedEth
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-#~ msgid "Estimated network fee: <0>~{0} ETH</0>. You'll approve <1><2/>.</1><3/>Your wallet shows the final fee before you approve."
-#~ msgstr "Estimated network fee: <0>~{0} ETH</0>. You'll approve <1><2/>.</1><3/>Your wallet shows the final fee before you approve."
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Estimated renewal cost"
 msgstr "Estimated renewal cost"
@@ -1412,10 +1393,6 @@ msgstr "Name owner is not available yet. Try again in a moment."
 msgid "Names"
 msgstr "Names"
 
-#: src/features/migration/components/SelectNamesStep.tsx
-#~ msgid "Names with a different manager start unselected. Selecting one requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
-#~ msgstr "Names with a different manager start unselected. Selecting one requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
-
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"
@@ -1510,12 +1487,6 @@ msgstr "No recent searches"
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No stablecoins available"
 msgstr "No stablecoins available"
-
-#. placeholder {0}: formatGasEth(shortfall.requiredWei)
-#. placeholder {1}: formatGasEth(shortfall.balanceWei)
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-#~ msgid "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
-#~ msgstr "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
@@ -1949,10 +1920,6 @@ msgstr "Removing..."
 msgid "Renew"
 msgstr "Renew"
 
-#: src/features/migration/components/MigrationProgressBanner.tsx
-#~ msgid "Renew before completing your upgrade"
-#~ msgstr "Renew before completing your upgrade"
-
 #: src/features/migration/components/NameRow.tsx
 msgid "Renew before upgrade"
 msgstr "Renew before upgrade"
@@ -1987,10 +1954,6 @@ msgstr "Renew to date instead"
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Renew your grace-period names together before upgrading."
 msgstr "Renew your grace-period names together before upgrading."
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-#~ msgid "Renew your grace-period names together before upgrading. Your wallet may first ask you to approve the renewal payment."
-#~ msgstr "Renew your grace-period names together before upgrading. Your wallet may first ask you to approve the renewal payment."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Renew your names before upgrading"

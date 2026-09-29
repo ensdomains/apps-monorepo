@@ -20,11 +20,6 @@ msgstr ""
 
 #. placeholder {0}: steps.length
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-#~ msgid "{0, plural, one {# request} other {# requests}}"
-#~ msgstr ""
-
-#. placeholder {0}: steps.length
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{0, plural, one {# step} other {# steps}}"
 msgstr ""
 
@@ -37,11 +32,6 @@ msgstr ""
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
 msgstr ""
-
-#. placeholder {0}: steps.length
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-#~ msgid "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
-#~ msgstr ""
 
 #. placeholder {0}: description.length
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
@@ -107,10 +97,6 @@ msgstr ""
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{gracePeriodNameCount, plural, one {# name needs renewal before it can be upgraded.} other {# names need renewal before they can be upgraded.}}"
 msgstr ""
-
-#: src/features/migration/components/MigrationProgressBanner.tsx
-#~ msgid "{gracePeriodNameCount, plural, one {Renew your grace-period name before completing your upgrade.} other {Renew your # grace-period names before completing your upgrade.}}"
-#~ msgstr ""
 
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{gracePeriodNameCount, plural, one {Renew your grace-period name before upgrading to your new ENS profile.} other {Renew your # grace-period names before upgrading to your new ENS profile.}}"
@@ -929,11 +915,6 @@ msgstr "Fel vid laddning av namn"
 msgid "Estimated network fee"
 msgstr ""
 
-#. placeholder {0}: estimate.formattedEth
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-#~ msgid "Estimated network fee: <0>~{0} ETH</0>. You'll approve <1><2/>.</1><3/>Your wallet shows the final fee before you approve."
-#~ msgstr ""
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Estimated renewal cost"
 msgstr ""
@@ -1417,10 +1398,6 @@ msgstr ""
 msgid "Names"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx
-#~ msgid "Names with a different manager start unselected. Selecting one requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
-#~ msgstr ""
-
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"
@@ -1515,12 +1492,6 @@ msgstr ""
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No stablecoins available"
 msgstr ""
-
-#. placeholder {0}: formatGasEth(shortfall.requiredWei)
-#. placeholder {1}: formatGasEth(shortfall.balanceWei)
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-#~ msgid "Not enough ETH for gas. This upgrade needs about <0>{0} ETH</0> and your wallet holds {1} ETH. Top up before you start, or some names will be left mid-upgrade."
-#~ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
@@ -1954,10 +1925,6 @@ msgstr ""
 msgid "Renew"
 msgstr ""
 
-#: src/features/migration/components/MigrationProgressBanner.tsx
-#~ msgid "Renew before completing your upgrade"
-#~ msgstr ""
-
 #: src/features/migration/components/NameRow.tsx
 msgid "Renew before upgrade"
 msgstr ""
@@ -1992,10 +1959,6 @@ msgstr ""
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Renew your grace-period names together before upgrading."
 msgstr ""
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-#~ msgid "Renew your grace-period names together before upgrading. Your wallet may first ask you to approve the renewal payment."
-#~ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Renew your names before upgrading"

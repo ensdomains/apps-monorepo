@@ -13,11 +13,13 @@ import {
 import { fromPromise } from 'neverthrow'
 import {
   type Address,
+  BaseError,
   encodeFunctionData,
   erc20Abi,
   erc721Abi,
   type Hex,
   isAddressEqual,
+  numberToHex,
   type PublicClient,
   parseAbi,
   type WalletClient,
@@ -25,6 +27,7 @@ import {
   zeroHash,
 } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
+import { containsNodeError, getNodeError } from 'viem/utils'
 import { chain } from '@/config'
 import { resolveRenewalLabel } from '@/features/renew/utils/renewableName'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
@@ -551,18 +554,27 @@ const submitGraceRenewal = async (
   // when the wallet already broadcast the transaction.
   writePendingGraceRenewal(submitting)
   const submission = await fromPromise(
-    params.walletClient.writeContract({
-      account: quote.ownerAddress,
-      chain: params.publicClient.chain,
-      address: quote.renewerAddress,
-      abi: GRACE_RENEWAL_ABI,
-      functionName: 'renewBatch',
-      args: getRenewalArgs(quote),
-    }),
+    // Send once: writeContract can retry an ambiguous eth_sendTransaction
+    // failure through wallet_sendTransaction and hide the original error.
+    params.walletClient.request(
+      {
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            from: quote.ownerAddress,
+            to: quote.renewerAddress,
+            chainId: numberToHex(quote.chainId),
+            data: encodeGraceRenewal(quote),
+          },
+        ],
+      },
+      { retryCount: 0 },
+    ),
     (cause) => cause,
   )
   if (submission.isErr()) {
-    if (isUserRejection(submission.error)) clearPendingGraceRenewal(quote)
+    if (hasDefinitiveSubmissionFailure(submission.error))
+      clearPendingGraceRenewal(quote)
     throw submission.error
   }
   const hash = submission.value
@@ -643,13 +655,61 @@ export const executeGraceRenewal = (params: ExecuteGraceRenewalParameters) =>
     (cause) => new GraceRenewalError({ cause }),
   )
 
-const isUserRejection = (error: unknown): boolean => {
+const DEFINITIVE_SUBMISSION_ERROR_CODES = new Set([
+  4001, // User rejected the request.
+  4100, // Account or method is not authorized.
+  4200, // Provider does not support the method.
+  -32700, // Invalid JSON.
+  -32600, // Invalid request.
+  -32601, // Method not found.
+  -32602, // Invalid parameters.
+  -32004, // Method not supported.
+])
+
+const DEFINITIVE_SUBMISSION_ERROR_NAMES = new Set([
+  'UserRejectedRequestError',
+  'AccountNotFoundError',
+  'AccountTypeNotSupportedError',
+  'ChainMismatchError',
+  'ChainNotFoundError',
+  'ClientChainNotConfiguredError',
+  'InvalidChainIdError',
+  'InvalidAddressError',
+  'InsufficientFundsError',
+  'FeeCapTooHighError',
+  'FeeCapTooLowError',
+  'TipAboveFeeCapError',
+  'IntrinsicGasTooHighError',
+  'IntrinsicGasTooLowError',
+  'TransactionTypeNotSupportedError',
+  'ExecutionRevertedError',
+])
+
+const hasDefinitiveSubmissionFailure = (error: unknown): boolean => {
+  // Only discard the reservation when the wallet/node explicitly refused the
+  // request. Timeouts, disconnects, and generic RPC errors can lose a broadcast
+  // hash; even -32000 can mean "already known", so those must be reconciled.
   const seen = new Set<unknown>()
   let cause = error
   while (cause && typeof cause === 'object' && !seen.has(cause)) {
     seen.add(cause)
-    if ('code' in cause && cause.code === 4001) return true
-    if ('name' in cause && cause.name === 'UserRejectedRequestError')
+    if (
+      'code' in cause &&
+      typeof cause.code === 'number' &&
+      DEFINITIVE_SUBMISSION_ERROR_CODES.has(cause.code)
+    )
+      return true
+    if (
+      cause instanceof BaseError &&
+      containsNodeError(cause) &&
+      DEFINITIVE_SUBMISSION_ERROR_NAMES.has(getNodeError(cause, {}).name)
+    )
+      return true
+    if (
+      'name' in cause &&
+      typeof cause.name === 'string' &&
+      DEFINITIVE_SUBMISSION_ERROR_NAMES.has(cause.name)
+    )
       return true
     cause = 'cause' in cause ? cause.cause : undefined
   }

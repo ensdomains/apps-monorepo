@@ -1,3 +1,4 @@
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import type { Address, PublicClient } from 'viem'
 import {
@@ -11,6 +12,15 @@ export type GraceRenewalQuoteState =
   | { readonly status: 'loading' }
   | { readonly status: 'error'; readonly message: string }
   | { readonly status: 'ready'; readonly quote: GraceRenewalQuote }
+
+export const graceRenewalQuoteQueryKey = createQueryKey<
+  'migration-grace-renewal',
+  {
+    readonly chainId: number | undefined
+    readonly ownerAddress: string | undefined
+    readonly names: readonly string[]
+  }
+>('migration-grace-renewal')
 
 // Match the execution-time quote lifetime; a background refresh must not keep
 // an expired price actionable while its replacement is still loading.
@@ -26,12 +36,12 @@ const isQuoteExpired = (quote: GraceRenewalQuote): boolean => {
 
 export const withRenewalAccountReadiness = (
   state: GraceRenewalQuoteState,
-  ready: boolean,
+  isReady: boolean,
   error: string | null | undefined,
 ): GraceRenewalQuoteState => {
   if (state.status === 'idle') return state
   if (error) return { status: 'error', message: error }
-  if (!ready) return { status: 'loading' }
+  if (!isReady) return { status: 'loading' }
   return state
 }
 
@@ -47,12 +57,11 @@ export const useGraceRenewalQuote = ({
   readonly enabled: boolean
 }): GraceRenewalQuoteState => {
   const query = useQuery({
-    queryKey: [
-      'migration-grace-renewal',
-      publicClient.chain?.id,
-      ownerAddress?.toLowerCase(),
-      domains.map(({ name }) => name).sort(),
-    ],
+    queryKey: graceRenewalQuoteQueryKey({
+      chainId: publicClient.chain?.id,
+      ownerAddress: ownerAddress?.toLowerCase(),
+      names: domains.map(({ name }) => name).sort(),
+    }),
     enabled: enabled && !!ownerAddress && domains.length > 0,
     staleTime: 30_000,
     refetchInterval: enabled ? 30_000 : false,

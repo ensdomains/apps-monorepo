@@ -79,6 +79,7 @@ export const SelectNamesStep = ({
     eligible,
     gracePeriodNames,
     isPending,
+    isRecovery: recoveryState.status === 'recovering',
     onNamesChange,
   })
 

@@ -8,11 +8,13 @@ import {
 } from '../components/selectNames.helpers'
 import type { ClassifiedName, IneligibleName } from '../service/classifyNames'
 import { groupByParent } from '../service/groupByParent'
+import { hasManagerRestorationAfterRenewal } from './useNameSelection.helpers'
 
 type Params = {
   readonly eligible: readonly ClassifiedName[]
   readonly gracePeriodNames?: readonly IneligibleName[]
   readonly isPending: boolean
+  readonly isRecovery?: boolean
   readonly onNamesChange: (names: string[]) => void
 }
 
@@ -22,6 +24,7 @@ export const useNameSelection = ({
   eligible,
   gracePeriodNames = EMPTY_GRACE_PERIOD_NAMES,
   isPending,
+  isRecovery = false,
   onNamesChange,
 }: Params) => {
   const [search, setSearch] = useState('')
@@ -47,13 +50,43 @@ export const useNameSelection = ({
       ]),
     [eligibleSelectable, gracePeriodNames],
   )
+  const initiallySelected = useMemo(() => {
+    if (isRecovery) return eligibleSelectable
+    const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+    const namesNeedingManagerRestoration = new Set([
+      ...eligible
+        .filter(({ managerAddress }) => managerAddress !== null)
+        .flatMap(({ domain }) => [
+          ...(rootSubtrees.get(domain.name) ?? [domain.name]),
+        ]),
+      // Grace names have no classification yet, so check the unwrapped
+      // ownership that will require manager restoration after renewal.
+      ...gracePeriodNames
+        .filter(({ domain }) =>
+          hasManagerRestorationAfterRenewal(domain, nowSeconds),
+        )
+        .map(({ domain }) => domain.name),
+    ])
+    return new Set(
+      [...allSelectable].filter(
+        (name) => !namesNeedingManagerRestoration.has(name),
+      ),
+    )
+  }, [
+    allSelectable,
+    eligible,
+    eligibleSelectable,
+    gracePeriodNames,
+    isRecovery,
+    rootSubtrees,
+  ])
   const didSeed = useRef(false)
   useEffect(() => {
     if (didSeed.current || isPending || allSelectable.size === 0) return
     didSeed.current = true
-    setSelected(allSelectable)
-    onNamesChange([...allSelectable])
-  }, [isPending, allSelectable, onNamesChange])
+    setSelected(initiallySelected)
+    onNamesChange([...initiallySelected])
+  }, [isPending, allSelectable.size, initiallySelected, onNamesChange])
 
   useEffect(() => {
     if (!didSeed.current || isPending) return

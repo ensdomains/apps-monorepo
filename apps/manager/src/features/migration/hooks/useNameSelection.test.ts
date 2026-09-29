@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { makeDomain } from '../service/_fixtures'
+import { makeClassified, makeDomain, OTHER } from '../service/_fixtures'
 import type { ClassifiedName, IneligibleName } from '../service/classifyNames'
 import { useNameSelection } from './useNameSelection'
 
@@ -232,30 +232,141 @@ describe('useNameSelection', () => {
     expect(onNamesChange.mock.calls.at(-1)?.[0]).toEqual(['one.eth'])
   })
 
-  it('selects names needing manager restoration alongside eligible and grace-period names', async () => {
+  it('requires explicit selection of names needing manager restoration and their subtrees', () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()
-    const gifted = {
-      ...makeName('gifted.eth'),
-      managerAddress: '0x0000000000000000000000000000000000000002' as const,
-    } as ClassifiedName
+    const gifted = makeClassified({
+      name: 'gifted.eth',
+      managerAddress: OTHER,
+    })
+    const child = makeClassified({
+      name: 'child.gifted.eth',
+      parentName: 'gifted.eth',
+      tokenType: 'registry-child',
+    })
+    const grandchild = makeClassified({
+      name: 'deep.child.gifted.eth',
+      parentName: 'child.gifted.eth',
+      tokenType: 'registry-child',
+    })
     const { result } = renderHook(() =>
       useNameSelection({
-        eligible: [makeName('owned.eth'), gifted],
+        eligible: [makeName('owned.eth'), gifted, child, grandchild],
         gracePeriodNames: [makeGracePeriodName('grace.eth')],
         isPending: false,
         onNamesChange,
       }),
     )
 
-    await waitFor(() => expect(result.current.totalSelected).toBe(3))
+    expect(result.current.selected).toEqual(new Set(['owned.eth', 'grace.eth']))
+    expect(result.current.allSelected).toBe(false)
+    expect(onNamesChange).toHaveBeenLastCalledWith(['owned.eth', 'grace.eth'])
+
+    act(() => result.current.toggleName('gifted.eth'))
     expect(result.current.selected).toEqual(
-      new Set(['gifted.eth', 'owned.eth', 'grace.eth']),
+      new Set([
+        'owned.eth',
+        'grace.eth',
+        'gifted.eth',
+        'child.gifted.eth',
+        'deep.child.gifted.eth',
+      ]),
+    )
+    expect(result.current.allSelected).toBe(true)
+    expect(onNamesChange).toHaveBeenLastCalledWith([
+      'owned.eth',
+      'grace.eth',
+      'gifted.eth',
+      'child.gifted.eth',
+      'deep.child.gifted.eth',
+    ])
+
+    act(() => result.current.toggleName('gifted.eth'))
+    expect(result.current.selected).toEqual(new Set(['owned.eth', 'grace.eth']))
+  })
+
+  it('preserves saved recovery selections that need manager restoration', () => {
+    const onNamesChange = vi.fn<(names: string[]) => void>()
+    const eligible = [
+      makeClassified({ name: 'gifted.eth', managerAddress: OTHER }),
+      makeClassified({
+        name: 'child.gifted.eth',
+        parentName: 'gifted.eth',
+        tokenType: 'registry-child',
+      }),
+    ]
+    const { result } = renderHook(() =>
+      useNameSelection({
+        eligible,
+        isPending: false,
+        isRecovery: true,
+        onNamesChange,
+      }),
+    )
+
+    expect(result.current.selected).toEqual(
+      new Set(['gifted.eth', 'child.gifted.eth']),
     )
     expect(result.current.allSelected).toBe(true)
     expect(onNamesChange).toHaveBeenLastCalledWith([
       'gifted.eth',
-      'owned.eth',
+      'child.gifted.eth',
+    ])
+  })
+
+  it('requires explicit selection of grace names that need manager restoration after renewal', () => {
+    const onNamesChange = vi.fn<(names: string[]) => void>()
+    const gifted = {
+      ...makeGracePeriodName('gifted.eth'),
+      domain: makeDomain({ name: 'gifted.eth', ownerId: OTHER }),
+    }
+    const wrapped = {
+      ...makeGracePeriodName('wrapped.eth'),
+      domain: makeDomain({
+        name: 'wrapped.eth',
+        ownerId: OTHER,
+        isWrapped: true,
+      }),
+    }
+    const staleWrapped = {
+      ...makeGracePeriodName('stale-wrapped.eth'),
+      domain: makeDomain({
+        name: 'stale-wrapped.eth',
+        ownerId: OTHER,
+        isWrapped: true,
+        wrappedExpiry: '1',
+        wrappedOwnerId: OTHER,
+      }),
+    }
+    const { result } = renderHook(() =>
+      useNameSelection({
+        eligible: [],
+        gracePeriodNames: [
+          gifted,
+          wrapped,
+          staleWrapped,
+          makeGracePeriodName('grace.eth'),
+        ],
+        isPending: false,
+        onNamesChange,
+      }),
+    )
+
+    expect(result.current.selected).toEqual(
+      new Set(['wrapped.eth', 'grace.eth']),
+    )
+    expect(result.current.allSelected).toBe(false)
+    expect(onNamesChange).toHaveBeenLastCalledWith(['wrapped.eth', 'grace.eth'])
+
+    act(() => result.current.toggleName('gifted.eth'))
+    expect(result.current.allSelected).toBe(false)
+
+    act(() => result.current.toggleName('stale-wrapped.eth'))
+    expect(result.current.allSelected).toBe(true)
+    expect(onNamesChange).toHaveBeenLastCalledWith([
+      'wrapped.eth',
       'grace.eth',
+      'gifted.eth',
+      'stale-wrapped.eth',
     ])
   })
 })

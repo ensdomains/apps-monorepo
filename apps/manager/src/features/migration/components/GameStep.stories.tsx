@@ -12,7 +12,7 @@ const BridgePreview = ({
   readonly hasCollapsed: boolean
   readonly isAwaitingConfirmation: boolean
 }) => (
-  <div className="relative h-[700px] bg-ens-garnet-100">
+  <div className="relative h-175 bg-ens-garnet-100">
     <GameStepView
       hasCollapsed={hasCollapsed}
       progress={{
@@ -59,7 +59,7 @@ export const Complete: Story = { args: { completedSteps: 6 } }
 
 export const ApprovingRenewalPayment: Story = {
   render: ({ isAwaitingConfirmation }) => (
-    <div className="relative h-[700px] bg-ens-garnet-100">
+    <div className="relative h-175 bg-ens-garnet-100">
       <GameStepView
         hasCollapsed={false}
         progress={{
@@ -85,7 +85,7 @@ export const ConfirmingRenewalPaymentApproval: Story = {
 
 export const RenewingGraceNames: Story = {
   render: () => (
-    <div className="relative h-[700px] bg-ens-garnet-100">
+    <div className="relative h-175 bg-ens-garnet-100">
       <GameStepView
         hasCollapsed={false}
         progress={{

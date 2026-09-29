@@ -1,4 +1,5 @@
 import { formatGasEth } from '@ens-apps/utils/formatGasEth'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { hashKey, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { Address, PublicClient } from 'viem'
@@ -21,6 +22,44 @@ export type GraceRenewalGasEstimateState =
     > & {
       readonly stepDescriptors: readonly MigrationWalletRequestDescriptor[]
     })
+
+const graceRenewalGasEstimateQueryKey = createQueryKey<
+  'migration-grace-gas-estimate',
+  {
+    readonly estimateIdentity: {
+      readonly chainId: number | undefined
+      readonly ownerAddress: string | undefined
+      readonly hcaAddress: string | undefined
+      readonly selectedNames: readonly string[]
+      readonly domains: readonly V1Domain[]
+      readonly renewal:
+        | {
+            readonly chainId: number
+            readonly paymentToken: string
+            readonly renewerAddress: string
+            readonly items: readonly {
+              readonly domain: V1Domain
+              readonly label: string
+              readonly hasRenewal: boolean
+            }[]
+          }
+        | undefined
+    }
+    readonly quote: {
+      readonly quotedAtMs: number | undefined
+      readonly expiresAt: string | undefined
+      readonly totalAmount: string | undefined
+      readonly items:
+        | readonly {
+            readonly duration: string
+            readonly targetExpiry: string
+            readonly registrationExpiry: string
+            readonly amount: string
+          }[]
+        | undefined
+    }
+  }
+>('migration-grace-gas-estimate')
 
 export const useGraceRenewalGasEstimate = ({
   renewal,
@@ -56,15 +95,19 @@ export const useGraceRenewalGasEstimate = ({
       items: quote.items.map(({ domain, label, duration }) => ({
         domain,
         label,
-        needsRenewal: duration > 0n,
+        hasRenewal: duration > 0n,
       })),
     },
   }
-  const query = useQuery<GraceRenewalMigrationGasEstimate>({
-    queryKey: [
-      'migration-grace-gas-estimate',
+  const query = useQuery<
+    GraceRenewalMigrationGasEstimate,
+    Error,
+    GraceRenewalMigrationGasEstimate,
+    ReturnType<typeof graceRenewalGasEstimateQueryKey>
+  >({
+    queryKey: graceRenewalGasEstimateQueryKey({
       estimateIdentity,
-      {
+      quote: {
         quotedAtMs: quote?.quotedAtMs,
         expiresAt: quote?.expiresAt.toString(),
         totalAmount: quote?.totalAmount.toString(),
@@ -75,13 +118,14 @@ export const useGraceRenewalGasEstimate = ({
           amount: item.amount.toString(),
         })),
       },
-    ],
+    }),
     // Keep the requests dialog open while this selection's quote refreshes.
     // Prices and durations may drift; another wallet, selection, or renewal
     // route must never inherit the previous estimate or request descriptors.
     placeholderData: (previousData, previousQuery) =>
       previousQuery &&
-      hashKey([previousQuery.queryKey[1]]) === hashKey([estimateIdentity])
+      hashKey([previousQuery.queryKey[1].estimateIdentity]) ===
+        hashKey([estimateIdentity])
         ? previousData
         : undefined,
     enabled: enabled && !!quote && !!hcaAddress && selectedNames.length > 0,
@@ -89,7 +133,7 @@ export const useGraceRenewalGasEstimate = ({
     gcTime: 0,
     retry: false,
     refetchOnWindowFocus: false,
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ signal }): Promise<GraceRenewalMigrationGasEstimate> => {
       if (!quote || !hcaAddress || domains.length !== selectedNames.length) {
         throw new Error(
           'Could not estimate the network fee for every selected name.',

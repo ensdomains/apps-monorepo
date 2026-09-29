@@ -1,6 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import { assessGasAffordability } from '@ens-apps/utils/gasAffordability'
-import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
@@ -26,6 +25,7 @@ import {
 } from '@/features/migration/hooks/useGraceRenewalQuote'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { useMigrationGasFunding } from '@/features/migration/hooks/useMigrationGasFunding'
+import { useSyncRenewedV1Names } from '@/features/migration/hooks/useSyncRenewedV1Names'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import {
   decodeMigrationError,
@@ -41,7 +41,6 @@ import {
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient as migrationExecutionClient } from '@/lib/wagmi'
-import type { V1Domain } from '../service/v1SubgraphClient'
 import { isMigrationQueryKey } from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
@@ -207,14 +206,6 @@ export const MigrationPage = () => {
   const canGoBack = useCanGoBack()
   const { uiActor } = useMigrationUiContext()
   const migrationPlan = useSelector(uiActor, (state) => state.context.plan)
-  const renewedDomains = useSelector(
-    uiActor,
-    (state) => state.context.renewedDomains,
-  )
-  const renewalOwner = useSelector(
-    uiActor,
-    (state) => state.context.renewal?.quote.ownerAddress,
-  )
   const step = useMigrationStep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
   const completedOperations = useMigrationCompletedOperations(uiActor)
@@ -294,18 +285,7 @@ export const MigrationPage = () => {
   // button on `gasFundingStatus` to stop owners starting before the ETH lands.
   const gasFundingStatus = useMigrationGasFunding(ownerAddress)
 
-  useEffect(() => {
-    if (!renewedDomains || !renewalOwner) return
-    const renewed = new Map(renewedDomains.map((domain) => [domain.id, domain]))
-    queryClient.setQueriesData<readonly V1Domain[]>(
-      {
-        queryKey: qk('migration', 'v1_names', {
-          address: renewalOwner.toLowerCase(),
-        }),
-      },
-      (domains) => domains?.map((domain) => renewed.get(domain.id) ?? domain),
-    )
-  }, [queryClient, renewedDomains, renewalOwner])
+  useSyncRenewedV1Names()
 
   useEffect(() => {
     if (step === 'success') {

@@ -10,7 +10,10 @@ import type { Address, PublicClient } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeDomain } from '../service/_fixtures'
 import type { GraceRenewalQuote } from '../service/graceRenewal'
-import { useGraceRenewalQuote } from './useGraceRenewalQuote'
+import {
+  graceRenewalQuoteQueryKey,
+  useGraceRenewalQuote,
+} from './useGraceRenewalQuote'
 
 const mocks = vi.hoisted(() => ({ quote: vi.fn() }))
 vi.mock('../service/graceRenewal', () => ({
@@ -38,12 +41,12 @@ const params: Parameters<typeof useGraceRenewalQuote>[0] = {
 const queryKey = (
   ownerAddress: Address | undefined = OWNER,
   names: readonly string[] = [domain.name],
-) => [
-  'migration-grace-renewal',
-  CHAIN_ID,
-  ownerAddress?.toLowerCase(),
-  [...names].sort(),
-]
+) =>
+  graceRenewalQuoteQueryKey({
+    chainId: CHAIN_ID,
+    ownerAddress: ownerAddress?.toLowerCase(),
+    names: [...names].sort(),
+  })
 
 let queryClient: QueryClient
 const wrapper = ({ children }: { readonly children: ReactNode }) =>
@@ -128,12 +131,14 @@ describe('useGraceRenewalQuote background refresh', () => {
   })
 
   it('does not expose cached data when the owner is missing', () => {
-    cacheQuote(quote, [
-      'migration-grace-renewal',
-      CHAIN_ID,
-      undefined,
-      [domain.name],
-    ])
+    cacheQuote(
+      quote,
+      graceRenewalQuoteQueryKey({
+        chainId: CHAIN_ID,
+        ownerAddress: undefined,
+        names: [domain.name],
+      }),
+    )
     const { result } = renderHook(
       () => useGraceRenewalQuote({ ...params, ownerAddress: undefined }),
       { wrapper },

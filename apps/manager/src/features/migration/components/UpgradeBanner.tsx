@@ -41,7 +41,7 @@ export const UpgradeBanner = ({
   })
   const nameCount = eligibleV1Names.length
   const gracePeriodNameCount = gracePeriodNames.length
-  const needsRenewal = !isProfileBanner && nameCount === 0
+  const shouldRenewNames = !isProfileBanner && nameCount === 0
   const { data: migratedCount, isPending: isMigratedCountPending } =
     useMigratedNamesCount({ enabled: migrationEnabled && !isProfileBanner })
 
@@ -80,8 +80,8 @@ export const UpgradeBanner = ({
           </h2>
           <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
             <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
-              {match({ isProfileBanner, nftCopyEnabled, needsRenewal })
-                .with({ needsRenewal: true }, () => (
+              {match({ isProfileBanner, nftCopyEnabled, shouldRenewNames })
+                .with({ shouldRenewNames: true }, () => (
                   <Plural
                     one="Renew your grace-period name before upgrading to your new ENS profile."
                     other="Renew your # grace-period names before upgrading to your new ENS profile."
@@ -114,7 +114,7 @@ export const UpgradeBanner = ({
                 .exhaustive()}
             </p>
           </div>
-          {!isProfileBanner && !needsRenewal && gracePeriodNameCount > 0 ? (
+          {!isProfileBanner && !shouldRenewNames && gracePeriodNameCount > 0 ? (
             <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
               <Plural
                 one="# name needs renewal before it can be upgraded."
@@ -128,11 +128,11 @@ export const UpgradeBanner = ({
           className="w-full shrink-0 md:w-75"
           onClick={() => navigate({ to: '/migration' })}
           showNftPlaceholder={
-            !needsRenewal && nftCopyEnabled && isConfirmedUnclaimed
+            !shouldRenewNames && nftCopyEnabled && isConfirmedUnclaimed
           }
           type="button"
         >
-          {needsRenewal ? (
+          {shouldRenewNames ? (
             <Trans>Renew Names</Trans>
           ) : (
             <Trans>Upgrade Names</Trans>
