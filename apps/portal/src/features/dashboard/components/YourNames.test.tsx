@@ -160,4 +160,29 @@ describe('YourNames', () => {
       'whitespace-nowrap',
     )
   })
+
+  // Expiry 2026-06-03T12:00Z seen at 2026-06-02T11:30Z from UTC+13, where the
+  // local day has already rolled over to 06-03 while the name has 24h left.
+  it('counts down against the UTC day, not the viewer’s local day', async () => {
+    const plainDateISO = vi
+      .spyOn(Temporal.Now, 'plainDateISO')
+      .mockImplementation((timeZone) =>
+        Temporal.PlainDate.from(
+          timeZone === 'UTC' ? '2026-06-02' : '2026-06-03',
+        ),
+      )
+    renderNames([
+      {
+        name: 'utc.eth',
+        expiryDate: Date.UTC(2026, 5, 3, 12) / 1000,
+        roleBitmap: '0x1',
+        subdomainCount: 0,
+        recordCount: 0,
+      },
+    ])
+
+    expect(await screen.findByText('Expires in 1 day')).toBeInTheDocument()
+    expect(screen.queryByText('Expired')).toBeNull()
+    plainDateISO.mockRestore()
+  })
 })

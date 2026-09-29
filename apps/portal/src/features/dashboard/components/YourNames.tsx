@@ -27,10 +27,12 @@ const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
         Math.floor(expiryDate.getTime() / MS_PER_SECOND),
       )
     : undefined
-  const duration = plainDate ? formatExpiryDuration(plainDate) : undefined
-  const isWarning =
-    !!plainDate &&
-    Temporal.Now.plainDateISO().until(plainDate).days <= WARNING_DAYS
+  // `plainDate` is the UTC expiry day, so compare it against the UTC today.
+  const today = Temporal.Now.plainDateISO('UTC')
+  const duration = plainDate
+    ? formatExpiryDuration(plainDate, today)
+    : undefined
+  const isWarning = !!plainDate && today.until(plainDate).days <= WARNING_DAYS
 
   return (
     <span
