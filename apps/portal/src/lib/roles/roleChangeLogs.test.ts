@@ -179,6 +179,23 @@ describe('getRoleChangeLogs via the indexer', () => {
 
     expect(mockGetLogs).toHaveBeenCalledTimes(1)
   })
+
+  // A row the indexer sends that will not decode is a read to distrust, not a
+  // value to guess at.
+  it('falls back to the node when a row will not decode', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      eacRolesChangeds: [{ ...row({ block: 10 }), blockNumber: 'ten' }],
+    })
+    mockGetLogs.mockResolvedValue([{ blockNumber: 10n }])
+
+    const result = await getRoleChangeLogs({
+      registryAddress: REGISTRY,
+      resource: ROOT_RESOURCE,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(mockGetLogs).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('toRoleHistoryEntries', () => {

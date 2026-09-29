@@ -3,7 +3,7 @@ import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, getAddress, type Hex, isAddressEqual } from 'viem'
+import { type Address, getAddress, type Hex, isAddressEqual, isHex } from 'viem'
 import { type GetLogsErrorType, getLogs } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
@@ -85,19 +85,6 @@ const ROLE_CHANGE_EVENTS_QUERY = gql`
   }
 `
 
-/** The indexer's wire shape; `toRoleChangeLog` converts it to on-chain types. */
-type RoleChangeEventRow = {
-  readonly blockNumber: number
-  readonly timestamp: number
-  readonly transactionHash: Hex
-  readonly asEACRolesChanged: {
-    readonly resource: Hex
-    readonly account: Address
-    readonly oldRoleBitmap: Hex
-    readonly newRoleBitmap: Hex
-  } | null
-}
-
 class IndexedRoleChangeLogsError extends TaggedError(
   'IndexedRoleChangeLogsError',
 )<{
@@ -106,22 +93,45 @@ class IndexedRoleChangeLogsError extends TaggedError(
   cause: unknown
 }> {}
 
-const toRoleChangeLog = (
-  row: RoleChangeEventRow,
-): RoleChangeLog | undefined => {
-  const change = row.asEACRolesChanged
-  if (!change) return undefined
+// Rows are JSON from the indexer and are not trusted as typed. Each field is
+// checked and converted here, so a block number or timestamp never exists as a
+// `number` past this point, and a malformed row fails the read rather than
+// folding garbage into the role state.
+const asRecord = (value: unknown, name: string): Record<string, unknown> => {
+  if (value !== null && typeof value === 'object') {
+    return value as Record<string, unknown>
+  }
+  throw new Error(`Indexed role event: ${name} is not an object`)
+}
+
+const asHex = (value: unknown, name: string): Hex => {
+  if (typeof value === 'string' && isHex(value)) return value
+  throw new Error(`Indexed role event: ${name} is not hex`)
+}
+
+const asBigInt = (value: unknown, name: string): bigint => {
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) {
+    return BigInt(value)
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value)
+  throw new Error(`Indexed role event: ${name} is not an integer`)
+}
+
+const toRoleChangeLog = (raw: unknown): RoleChangeLog | undefined => {
+  const row = asRecord(raw, 'row')
+  if (row.asEACRolesChanged == null) return undefined
+  const change = asRecord(row.asEACRolesChanged, 'asEACRolesChanged')
 
   return {
-    blockNumber: BigInt(row.blockNumber),
-    transactionHash: row.transactionHash,
-    timestamp: BigInt(row.timestamp),
+    blockNumber: asBigInt(row.blockNumber, 'blockNumber'),
+    transactionHash: asHex(row.transactionHash, 'transactionHash'),
+    timestamp: asBigInt(row.timestamp, 'timestamp'),
     args: {
-      resource: BigInt(change.resource),
+      resource: BigInt(asHex(change.resource, 'resource')),
       // Checksummed like a node log, so Map keys and zero-address checks match.
-      account: getAddress(change.account),
-      oldRoleBitmap: BigInt(change.oldRoleBitmap),
-      newRoleBitmap: BigInt(change.newRoleBitmap),
+      account: getAddress(asHex(change.account, 'account')),
+      oldRoleBitmap: BigInt(asHex(change.oldRoleBitmap, 'oldRoleBitmap')),
+      newRoleBitmap: BigInt(asHex(change.newRoleBitmap, 'newRoleBitmap')),
     },
   }
 }
@@ -147,7 +157,7 @@ const getIndexedRoleChangeLogs = ResultFn(async function* ({
     timer = setTimeout(() => resolve(null), INDEXED_ROLE_EVENTS_TIMEOUT_MS)
   })
   const request = graphqlIndexerClient.request<{
-    eacRolesChangeds: readonly RoleChangeEventRow[]
+    eacRolesChangeds: readonly unknown[]
   }>(ROLE_CHANGE_EVENTS_QUERY, {
     contractAddress: registryAddress.toLowerCase(),
     resource: toResourceHex(resource),
