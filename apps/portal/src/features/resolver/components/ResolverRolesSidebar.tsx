@@ -21,7 +21,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import type { ResolverRolesAction } from '@/features/resolver/helpers/prepareResolverRolesIntent'
+import type {
+  ResolverRolesAction,
+  ResolverRolesSaveAction,
+} from '@/features/resolver/helpers/prepareResolverRolesIntent'
 import { useResolverRolesMutations } from '@/features/resolver/hooks/useResolverRolesMutations'
 import { buildResolverRolesTransactions } from '@/features/resolver/utils/buildResolverRolesTransactions'
 import { useResetMutationsOnAccountChange } from '@/features/roles/hooks/useResetMutationsOnAccountChange'
@@ -34,6 +37,7 @@ import {
   type ResolverRevocation,
   type ResolverRole,
   ROOT_RESOURCE,
+  ROOT_RESOURCE_LABEL,
   resolverPermissions,
   resolverRoleGroupId,
 } from '@/lib/roles/resolverRoles'
@@ -166,6 +170,71 @@ const RoleScopeSummary = ({
   </p>
 )
 
+/**
+ * Confirms a save, naming the scope it lands on. A root-scoped change reaches
+ * every name the resolver serves, so it is never issued without the operator
+ * reading the scope first (WEB-1513).
+ */
+const ConfirmSaveDialog = ({
+  save,
+  onOpenChange,
+  isPending,
+  onConfirm,
+}: {
+  readonly save: ResolverRolesSaveAction | null
+  readonly onOpenChange: (open: boolean) => void
+  readonly isPending: boolean
+  readonly onConfirm: () => void
+}) => {
+  const isRoot = save?.resource === ROOT_RESOURCE
+
+  return (
+    <Dialog open={Boolean(save)} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {isRoot ? 'Change global roles' : 'Change scoped roles'}
+          </DialogTitle>
+          <DialogDescription>
+            {save
+              ? `${truncateAddress(save.account, 6, 4)} will have these roles changed on ${save.resourceLabel}.`
+              : null}
+          </DialogDescription>
+          {isRoot && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Roles on <strong>{ROOT_RESOURCE_LABEL}</strong> apply to every
+                name this resolver serves, not to one name.
+              </AlertDescription>
+            </Alert>
+          )}
+          {save && save.rolesToGrant.length > 0 && (
+            <p className="text-sm">Granting: {save.rolesToGrant.join(', ')}</p>
+          )}
+          {save && save.rolesToRevoke.length > 0 && (
+            <p className="text-sm">Revoking: {save.rolesToRevoke.join(', ')}</p>
+          )}
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button
+            type="button"
+            variant={isRoot ? 'danger' : 'default'}
+            onClick={onConfirm}
+            disabled={isPending}
+          >
+            Confirm
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 /** Confirms "Remove user", listing every scope that will be revoked. */
 const RemoveUserDialog = ({
   open,
@@ -202,6 +271,14 @@ const RemoveUserDialog = ({
             </li>
           ))}
         </ul>
+        {revocations.some((r) => r.resource === ROOT_RESOURCE) && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              One of these scopes covers <strong>every name</strong> this
+              resolver serves, not one name.
+            </AlertDescription>
+          </Alert>
+        )}
       </DialogHeader>
       <DialogFooter>
         <DialogClose asChild>
@@ -246,7 +323,12 @@ export const ResolverRolesSidebar = ({
 
   const selectedAccount = group?.account as Address | undefined
   const decodedRoles = group?.decodedRoles ?? NO_ROLES
-  const resource = group ? BigInt(group.resource) : ROOT_RESOURCE
+  // The row's own resource, carried through rather than re-parsed from its
+  // string form — and `null` when there is no row. It is deliberately not
+  // defaulted to `ROOT_RESOURCE`: the empty case and "every name this resolver
+  // serves" are not the same scope, and a save must never reach the second by
+  // way of the first (WEB-1513).
+  const resource = group?.resourceId ?? null
   const originalPermissions = useMemo(
     () => roleToPermissions(decodedRoles),
     [decodedRoles],
@@ -288,9 +370,14 @@ export const ResolverRolesSidebar = ({
     removeUserMutation,
   )
 
+  /** The save the confirm dialog is asking about, or null when none is. */
+  const [pendingSave, setPendingSave] =
+    useState<ResolverRolesSaveAction | null>(null)
+
   const handleSaveChanges = () => {
-    if (!group || !selectedAccount || saveMutation.isPending) return
-    setPendingAction({
+    if (!group || !selectedAccount || resource === null) return
+    if (saveMutation.isPending) return
+    setPendingSave({
       type: 'save',
       resource,
       resourceLabel: group.resourceLabel,
@@ -298,6 +385,12 @@ export const ResolverRolesSidebar = ({
       rolesToGrant,
       rolesToRevoke,
     })
+  }
+
+  const handleConfirmSave = () => {
+    if (!pendingSave) return
+    setPendingSave(null)
+    setPendingAction(pendingSave)
     openModal()
   }
 
@@ -399,6 +492,17 @@ export const ResolverRolesSidebar = ({
                   }
                 />
 
+                {canEdit && resource === null && (
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      The scope of this grant can't be read, so it can't be
+                      changed from this page. Editing it would have to guess at
+                      a scope, and the only guess available is every name this
+                      resolver serves.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {canEdit && removalPlan?.type === 'unreadable' && (
                   <Alert variant="destructive">
                     <AlertDescription>
@@ -431,7 +535,8 @@ export const ResolverRolesSidebar = ({
                       disabled={
                         !hasChanges ||
                         saveMutation.isPending ||
-                        !isWalletConnected
+                        !isWalletConnected ||
+                        resource === null
                       }
                       onClick={handleSaveChanges}
                     >
@@ -447,6 +552,15 @@ export const ResolverRolesSidebar = ({
             )}
           </div>
         </div>
+
+        <ConfirmSaveDialog
+          save={pendingSave}
+          onOpenChange={(open) => {
+            if (!open) setPendingSave(null)
+          }}
+          isPending={saveMutation.isPending}
+          onConfirm={handleConfirmSave}
+        />
 
         {selectedAccount && (
           <RemoveUserDialog

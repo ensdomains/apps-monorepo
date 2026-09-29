@@ -14,14 +14,9 @@ const OTHER: Address = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 const RESOURCE = 0xabcd_0000_0007n
 
 const mockGetLogs = vi.fn()
-const mockGetResource = vi.fn()
 
 vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok({ chain: { id: 11155111 }, getLogs: mockGetLogs }),
-}))
-
-vi.mock('@ensdomains/ensjs/public/v2', () => ({
-  getResource: (...args: unknown[]) => mockGetResource(...args),
 }))
 
 const { getNameRolesAccounts } = await import('./useNameRoleAccounts')
@@ -40,24 +35,23 @@ const log = ({
   args: { resource: RESOURCE, account, oldRoleBitmap: 0n, newRoleBitmap },
 })
 
-const run = (name = 'test.chakri.eth') =>
-  getNameRolesAccounts({ name, registryAddress: REGISTRY })
+const run = (resource: bigint | null = RESOURCE) =>
+  getNameRolesAccounts({
+    resource: resource as never,
+    registryAddress: REGISTRY,
+  })
 
 describe('getNameRolesAccounts', () => {
   beforeEach(() => {
     mockGetLogs.mockReset()
     mockGetLogs.mockResolvedValue([])
-    mockGetResource.mockReset()
-    mockGetResource.mockResolvedValue(RESOURCE)
   })
 
-  it('pins the resource the registry reports, version bits included', async () => {
+  // The caller resolves the resource and hands it over, version bits included,
+  // so the rows are about the same resource the writes address (WEB-1458).
+  it('reads logs for the resource it was given, version bits included', async () => {
     await run()
 
-    expect(mockGetResource).toHaveBeenCalledWith(expect.anything(), {
-      label: 'test',
-      registryAddress: REGISTRY,
-    })
     expect(mockGetLogs).toHaveBeenCalledWith({
       address: REGISTRY,
       event: eacRolesChangedEventSnippet[0],
@@ -67,19 +61,10 @@ describe('getNameRolesAccounts', () => {
     })
   })
 
-  it('derives the label from the normalized name', async () => {
-    await run('TEST.chakri.eth')
+  it('reads nothing when there is no resource to read for', async () => {
+    const roles = (await run(null))._unsafeUnwrap()
 
-    expect(mockGetResource).toHaveBeenCalledWith(expect.anything(), {
-      label: 'test',
-      registryAddress: REGISTRY,
-    })
-  })
-
-  it('fails rather than guessing when the name will not normalize', async () => {
-    const result = await run('in..valid.eth')
-
-    expect(result.isErr()).toBe(true)
+    expect(roles.size).toBe(0)
     expect(mockGetLogs).not.toHaveBeenCalled()
   })
 

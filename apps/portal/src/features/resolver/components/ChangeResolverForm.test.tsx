@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { requireResourceIdForName } from '@/lib/resource/resourceId'
 import { ChangeResolverForm } from './ChangeResolverForm'
 
 // Captures the transaction descriptors so the tests can drive the lifecycle
@@ -134,6 +135,7 @@ describe('ChangeResolverForm', () => {
   const target = {
     protocol: 'ENSv2',
     registryAddress: '0x1234567890123456789012345678901234567890' as Address,
+    resourceId: requireResourceIdForName(name),
   } as const
 
   beforeEach(() => {

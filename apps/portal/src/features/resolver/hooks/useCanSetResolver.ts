@@ -21,31 +21,48 @@ import { useConnection } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import type { ResolverWriteTarget } from '@/features/resolver/helpers/changeResolver'
 import type { V1TransferSubject } from '@/features/transfer/types'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import { canSetV1Resolver } from '@/features/transfer/v1/rules'
+import { type ResourceId, resourceIdForName } from '@/lib/resource/resourceId'
 
 type UseCanSetResolverReturn = {
   readonly canSet: boolean
   readonly isLoading: boolean
-  /** Null while unknown, or when no registry holds the name. */
+  /**
+   * Null while unknown, when no registry holds the name, or when a V2 name's
+   * id cannot be established.
+   */
   readonly target: ResolverWriteTarget | null
+  /**
+   * Settled, and this V2 name has no id we can establish. Not a permission
+   * problem — there is no resource to ask a role question about.
+   */
+  readonly isUnsupported: boolean
 }
 
 type Derivation = {
   readonly isV2: boolean
   readonly registryAddress: Address | undefined
+  readonly resourceId: ResourceId | null
   readonly v1Subject: V1TransferSubject | null
 }
 
+// A V2 target needs the name's id as well as its registry: the write is
+// addressed by id, and a name that cannot yield one has no target rather than
+// a guessed-at one (WEB-1458). V1 addresses by namehash and needs neither.
 const deriveTarget = ({
   isV2,
   registryAddress,
+  resourceId,
   v1Subject,
 }: Derivation): ResolverWriteTarget | null => {
   if (isV2) {
-    return registryAddress ? { protocol: 'ENSv2', registryAddress } : null
+    return registryAddress && resourceId
+      ? { protocol: 'ENSv2', registryAddress, resourceId }
+      : null
   }
   if (!v1Subject) return null
   return { protocol: 'ENSv1', isWrapped: v1Subject.kind === 'v1-wrapped' }
@@ -90,14 +107,35 @@ export function useCanSetResolver({
     ? (registryQuery.data?.[1] ?? undefined)
     : undefined
 
+  // The name's id rather than its label: a label rendered `[<64 hex>]` does
+  // not say which name it is, so the gate and the write are both addressed
+  // with the id (WEB-1458). An ordinary first label is hashed here; only the
+  // ambiguous form costs a read.
+  const idFromName = resourceIdForName(name).unwrapOr(null)
+  const readIdQuery = useQuery({
+    ...getNameResourceIdQueryOptions({ name, registryAddress }),
+    enabled: isV2 && idFromName === null && !!registryAddress,
+  })
+  const resourceId = idFromName ?? readIdQuery.data ?? null
+  // Only the read can be outstanding, and only once it has a registry to ask.
+  const isResourceIdLoading =
+    idFromName === null && (!registryAddress || readIdQuery.isPending)
+  const isUnsupported =
+    idFromName === null &&
+    !!registryAddress &&
+    !readIdQuery.isPending &&
+    !readIdQuery.data
+
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: registryAddress ?? zeroAddress,
-      label: name.split('.')[0],
+      resource: resourceId,
       roles: ['ROLE_SET_RESOLVER'],
       account: account ?? zeroAddress,
     }),
-    enabled: !!account && !!registryAddress,
+    // Asked only once the id is known: a null resource answers a flat `false`,
+    // which the route would otherwise report as a permission problem.
+    enabled: !!account && !!registryAddress && !!resourceId,
   })
 
   const v1Query = useQuery({
@@ -110,7 +148,9 @@ export function useCanSetResolver({
   const v1Subject = isV1 ? (v1Query.data?.subject ?? null) : null
 
   const v2Loading =
-    registryQuery.isLoading || (!!registryAddress && roleQuery.isLoading)
+    registryQuery.isLoading ||
+    isResourceIdLoading ||
+    (!!registryAddress && !!resourceId && roleQuery.isLoading)
 
   return {
     canSet: deriveCanSet({ account, isV2, hasRole: roleQuery.data, v1Subject }),
@@ -118,6 +158,7 @@ export function useCanSetResolver({
       ownerQuery.isLoading ||
       (isV2 && v2Loading) ||
       (isV1 && v1Query.isLoading),
-    target: deriveTarget({ isV2, registryAddress, v1Subject }),
+    target: deriveTarget({ isV2, registryAddress, resourceId, v1Subject }),
+    isUnsupported: isV2 && isUnsupported,
   }
 }

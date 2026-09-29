@@ -1,8 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
 import { fromPromise } from 'neverthrow'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -20,6 +20,11 @@ import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
+import {
+  getResourceRolesQueryOptions,
+  holdsRolesOn,
+} from '@/features/registry/hooks/useResourceRoles'
 import { prepareDeleteSubnameTransaction } from '@/features/registry/utils/delete-subname.helpers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -27,6 +32,10 @@ import type {
   IntentContext,
   Transaction,
 } from '@/features/transaction-manager/types'
+import {
+  resourceIdForName,
+  resourceIdFromChainValue,
+} from '@/lib/resource/resourceId'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
@@ -107,32 +116,31 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
   })
 
-  // `unregister` checks ROLE_UNREGISTER on the subname being deleted, but the
-  // registry ORs the caller's ROOT roles into every resource, so a registry-wide
-  // holder can delete any of them — which is the permission this one button
-  // stands for. Someone granted the role on a single subname isn't covered here.
-  const { data: hasUnregisterRole } = useQuery({
-    ...getHasRolesQueryOptions({
-      registryAddress: subregistryAddress as Address,
-      roles: ['ROLE_UNREGISTER'],
-      account: connectedAccount as Address,
-    }),
-    enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
-  })
-
   // Check if connected account can deploy a subregistry (ROLE_SET_SUBREGISTRY on parent registry)
   const parentRegistryAddress = registriesData?.[1]
-  const firstLabel = name.split('.')[0]
+  // The name's own id, not its displayed label: a label rendered `[<64 hex>]`
+  // does not say which name it is, so the id is resolved once and the gate
+  // asks about that (WEB-1458). No id means no permission, never root.
+  const idFromName = resourceIdForName(name).unwrapOr(null)
+  const { data: readNameResourceId } = useQuery({
+    ...getNameResourceIdQueryOptions({
+      name,
+      registryAddress: parentRegistryAddress ?? undefined,
+    }),
+    enabled: idFromName === null && Boolean(parentRegistryAddress),
+  })
+  const nameResourceId = idFromName ?? readNameResourceId ?? null
   const { data: hasSetSubregistryRole } = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: parentRegistryAddress as Address,
-      label: firstLabel,
+      resource: nameResourceId,
       roles: ['ROLE_SET_SUBREGISTRY'],
       account: connectedAccount as Address,
     }),
     enabled:
       Boolean(parentRegistryAddress) &&
       Boolean(connectedAccount) &&
+      Boolean(nameResourceId) &&
       !hasSubregistry,
   })
 
@@ -177,19 +185,84 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     ReadonlySet<string>
   >(() => new Set())
 
-  /**
-   * Extract the first label from a full subname.
-   * e.g. "cold.domico.eth" → "cold"
-   */
-  const getLabel = useCallback(
-    (subname: string) => {
-      const suffix = `.${name}`
-      if (subname.endsWith(suffix)) {
-        return subname.slice(0, -suffix.length)
-      }
-      return subname.split('.')[0]
-    },
-    [name],
+  // Every row keeps the id the indexer holds for it. That id — not the label
+  // rendered in the cell — is what the delete call and the permission check
+  // are both asked about, so the row on screen and the resource in the
+  // calldata can never be two different names (WEB-1458). A row whose id the
+  // indexer could not give us is shown, but cannot be selected for deletion.
+  const visibleSubnames = useMemo(
+    () =>
+      (subnames ?? [])
+        .map((subname) => ({
+          name: subname.name || '',
+          owner: subname.owner,
+          resourceId: resourceIdFromChainValue(subname.labelhash).unwrapOr(
+            null,
+          ),
+        }))
+        .filter((subname) => !optimisticallyDeleted.has(subname.name)),
+    [subnames, optimisticallyDeleted],
+  )
+
+  // `unregister` checks ROLE_UNREGISTER on the subname's own resource, so the
+  // Delete control is gated per row rather than once on the registry's root.
+  //
+  // The registry ORs the caller's root roles into every resource, so the root
+  // question is asked first: it is one read on a key that does not change as
+  // rows come and go, and a `true` settles every row without a second call.
+  // Only when it is `false` is the per-row question worth asking.
+  const { data: hasRootUnregisterRole, isPending: isRootUnregisterPending } =
+    useQuery({
+      ...getHasRolesQueryOptions({
+        registryAddress: subregistryAddress as Address,
+        roles: ['ROLE_UNREGISTER'],
+        account: connectedAccount as Address,
+      }),
+      enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
+    })
+
+  const unregisterResources = useMemo(
+    () =>
+      visibleSubnames.flatMap((subname) =>
+        subname.resourceId ? [subname.resourceId.toString()] : [],
+      ),
+    [visibleSubnames],
+  )
+
+  const { data: perRowUnregisterRoles } = useQuery({
+    ...getResourceRolesQueryOptions({
+      registryAddress: (subregistryAddress as Address) ?? zeroAddress,
+      account: connectedAccount as Address,
+      roles: ['ROLE_UNREGISTER'],
+      resources: unregisterResources,
+    }),
+    enabled:
+      Boolean(hasSubregistry) &&
+      Boolean(connectedAccount) &&
+      !isRootUnregisterPending &&
+      hasRootUnregisterRole === false &&
+      unregisterResources.length > 0,
+    // The key carries the row list, so deleting or indexing a row makes a new
+    // key. Without this the answers would blank out and the delete controls
+    // would disappear for a round trip in the middle of a bulk delete.
+    placeholderData: keepPreviousData,
+  })
+
+  // The rows the table renders. Built here, not below the early returns, so
+  // the array identity is stable across renders — `useReactTable` re-runs its
+  // row models whenever `data` changes identity.
+  const subnameRows: readonly SubnameRow[] = useMemo(
+    () =>
+      visibleSubnames.map((subname) => ({
+        name: subname.name,
+        owner: subname.owner,
+        resourceId: subname.resourceId ?? undefined,
+        canDelete:
+          subname.resourceId !== null &&
+          (hasRootUnregisterRole === true ||
+            holdsRolesOn(perRowUnregisterRoles, subname.resourceId)),
+      })),
+    [visibleSubnames, hasRootUnregisterRole, perRowUnregisterRoles],
   )
 
   // Tracks names whose deleteSubnameAsync mutation is currently in flight.
@@ -202,6 +275,9 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const runDelete = useCallback(
     async (subname: SubnameRow, id: string) => {
       if (inFlightRef.current.has(subname.name)) return
+      // Nothing is signed for a row whose on-chain id the indexer did not give
+      // us: the label on screen is not a substitute for it (WEB-1458).
+      if (!subname.resourceId) return
       inFlightRef.current.add(subname.name)
 
       setPendingNames((prev) => {
@@ -214,7 +290,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
       const result = await fromPromise(
         deleteSubnameAsync({
           subname: subname.name,
-          label: getLabel(subname.name),
+          resourceId: subname.resourceId,
           id,
         }),
         (error) => error as Error,
@@ -235,19 +311,22 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
       }
       inFlightRef.current.delete(subname.name)
     },
-    [deleteSubnameAsync, getLabel],
+    [deleteSubnameAsync],
   )
 
   const queueForDeletion = useCallback(
     (rows: readonly SubnameRow[]) => {
-      if (rows.length === 0) return
-      setQueuedDeletes(rows)
+      // Rows without an id are never signed for, so they are never queued
+      // either — queuing them would only show a step that cannot run.
+      const deletable = rows.filter((row) => Boolean(row.resourceId))
+      if (deletable.length === 0) return
+      setQueuedDeletes(deletable)
       // Pre-mark every queued name as pending so all rows dim immediately,
       // not just the one currently being signed. runDelete pops each name
       // off as its tx settles; the close-cleanup effect handles abandons.
       setPendingNames((prev) => {
         const next = new Set(prev)
-        for (const r of rows) next.add(r.name)
+        for (const r of deletable) next.add(r.name)
         return next
       })
       openTransactionModal()
@@ -262,21 +341,23 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     queueForDeletion(selected)
 
   // The prepared delete transaction for a queued subname — deterministic given
-  // the registry and label, so the modal can estimate gas the moment it opens.
-  // Matches the call submitted by runDelete → useDeleteSubname (same registry,
-  // label and chainId) so the estimate stays byte-identical. Yields a lazy thunk
-  // (or undefined when there's no subregistry) the modal calls with the ready
-  // wallet context.
-  const getDeleteIntent = (subname: SubnameRow) =>
-    hasSubregistry && subregistryAddress
-      ? ({ walletClient, chainId }: IntentContext) =>
-          prepareDeleteSubnameTransaction({
-            registryAddress: subregistryAddress,
-            label: getLabel(subname.name),
-            walletClient,
-            chainId,
-          })
-      : undefined
+  // the registry and the row's id, so the modal can estimate gas the moment it
+  // opens. Matches the call submitted by runDelete → useDeleteSubname (same
+  // registry, id and chainId) so the estimate stays byte-identical. Yields a
+  // lazy thunk (or undefined when there's no subregistry, or no id for the row)
+  // the modal calls with the ready wallet context.
+  const getDeleteIntent = (subname: SubnameRow) => {
+    const resourceId = subname.resourceId
+    if (!hasSubregistry || !subregistryAddress || !resourceId) return undefined
+    return ({ walletClient, chainId }: IntentContext) =>
+      prepareDeleteSubnameTransaction({
+        registryAddress: subregistryAddress,
+        resourceId,
+        walletClient,
+        chainId,
+        subname: subname.name,
+      })
+  }
 
   // One Transaction entry per queued subname. The modal walks through them
   // top-to-bottom; intermediate onDone fires the next one's onStart so the
@@ -374,15 +455,11 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     )
   }
 
-  const canDeleteSubname = Boolean(hasUnregisterRole)
-
-  const subnameRows: SubnameRow[] = (subnames || [])
-    .filter((subname) => !optimisticallyDeleted.has(subname.name || ''))
-    .map((subname) => ({
-      name: subname.name || '',
-      owner: subname.owner,
-      canDelete: canDeleteSubname,
-    }))
+  // Whether the delete affordances exist at all. Driven by the stable root
+  // answer where possible, so the select column and Clear button do not come
+  // and go as the per-row answers refetch.
+  const canDeleteSubname =
+    hasRootUnregisterRole === true || subnameRows.some((row) => row.canDelete)
 
   const canCreateSubname = Boolean(hasRegistrarRole)
 

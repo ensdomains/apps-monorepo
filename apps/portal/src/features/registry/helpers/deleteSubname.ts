@@ -11,13 +11,14 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
+import type { ResourceId } from '@/lib/resource/resourceId'
 import { prepareDeleteSubnameTransaction } from '../utils/delete-subname.helpers'
 
 export interface DeleteSubnameParameters {
   /** The full subname (e.g., 'cold.domico.eth') – used for tx description */
   readonly name: string
-  /** The label of the subname (e.g., 'cold' for cold.domico.eth) */
-  readonly label: string
+  /** The subname's on-chain id, carried from the row the user clicked. */
+  readonly resourceId: ResourceId
   /** The parent registry (subregistry) address that manages this subname */
   readonly registryAddress: Address
   /** Transaction id used by transactionManager and TransactionModal */
@@ -38,7 +39,7 @@ export const deleteSubname = async (
 ): Promise<DeleteSubnameResult> => {
   const {
     name,
-    label,
+    resourceId,
     registryAddress,
     id,
     walletClient,
@@ -49,9 +50,10 @@ export const deleteSubname = async (
 
   const intent = prepareDeleteSubnameTransaction({
     registryAddress,
-    label,
+    resourceId,
     walletClient,
     chainId,
+    subname: name,
   })
 
   const txId = transactionManager.startTransaction(intent, signer, {

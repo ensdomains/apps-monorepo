@@ -26,6 +26,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
@@ -38,6 +39,7 @@ import { buildRoleTransactions } from '@/features/roles/utils/buildRoleTransacti
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { resourceIdForName } from '@/lib/resource/resourceId'
 import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import {
   computeRoleChanges,
@@ -79,6 +81,14 @@ export const RolesSidebar = <
 
   const { grantRoles } = useGrantRoles()
   const { revokeRoles } = useRevokeRoles()
+  // Resolved once, then carried into every call this sidebar builds (WEB-1458).
+  const idFromName = resourceIdForName(name).unwrapOr(null)
+  const { data: readId, isLoading: isReadingId } = useQuery({
+    ...getNameResourceIdQueryOptions({ name, registryAddress }),
+    enabled: idFromName === null,
+  })
+  const resourceId = idFromName ?? readId ?? null
+  const isResourceIdLoading = isReadingId
 
   const selectedAccount = row?.original.account
   const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
@@ -152,30 +162,35 @@ export const RolesSidebar = <
     })
   }
 
-  const isWalletConnected = Boolean(walletClient?.account)
+  // No id, no writes: there is no resource to scope a grant or revoke to, and
+  // guessing one is what WEB-1458 was about.
+  const canWriteRoles = Boolean(resourceId) && !isResourceIdLoading
+  const isWalletConnected = Boolean(walletClient?.account) && canWriteRoles
   const is2LD = name.split('.').length === 2
 
-  const transactions = selectedAccount
-    ? buildRoleTransactions(
-        pendingSave,
-        pendingRemove,
-        name,
-        {
-          grantRoles: (params) =>
-            grantRoles({
-              ...params,
-              roles: [...params.roles],
-            }),
-          revokeRoles: (params) =>
-            revokeRoles({
-              ...params,
-              roles: [...params.roles],
-            }),
-          handleDone,
-        },
-        registryAddress,
-      )
-    : []
+  const transactions =
+    selectedAccount && resourceId
+      ? buildRoleTransactions(
+          pendingSave,
+          pendingRemove,
+          name,
+          {
+            grantRoles: (params) =>
+              grantRoles({
+                ...params,
+                roles: [...params.roles],
+              }),
+            revokeRoles: (params) =>
+              revokeRoles({
+                ...params,
+                roles: [...params.roles],
+              }),
+            handleDone,
+          },
+          registryAddress,
+          resourceId,
+        )
+      : []
 
   return (
     <>

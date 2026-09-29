@@ -13,6 +13,7 @@ import {
 import { type Address, decodeFunctionData, type WalletClient } from 'viem'
 import { describe, expect, it } from 'vitest'
 import type { IntentContext } from '@/features/transaction-manager/types'
+import { resourceIdFromChainValue } from '@/lib/resource/resourceId'
 import {
   computeResolverResource,
   encodeResolverSetterScope,
@@ -109,7 +110,9 @@ describe('prepareRevokeResolverRolesTransaction', () => {
   })
 
   it('encodes revokeRoles(resource, ...) on a setter resource', () => {
-    const resource = computeResolverResource({ kind: 'address', coinType: 60n })
+    const resource = resourceIdFromChainValue(
+      computeResolverResource({ kind: 'address', coinType: 60n }),
+    )._unsafeUnwrap()
     const intent = prepareRevokeResolverRolesTransaction({
       resolverAddress,
       resource,
@@ -131,7 +134,9 @@ describe('prepareRevokeResolverRolesTransaction', () => {
 // estimate when the save is really two transactions.
 describe('prepareResolverRolesSaveIntent', () => {
   const ctx = { walletClient, chainId: 11155111 } as IntentContext
-  const avatar = computeResolverResource({ kind: 'text', key: 'avatar' })
+  const avatar = resourceIdFromChainValue(
+    computeResolverResource({ kind: 'text', key: 'avatar' }),
+  )._unsafeUnwrap()
   const save = (
     edit: Pick<
       ResolverRolesSaveAction,
