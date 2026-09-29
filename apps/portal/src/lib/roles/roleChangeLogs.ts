@@ -85,6 +85,7 @@ const ROLE_CHANGE_EVENTS_QUERY = gql`
   }
 `
 
+/** The indexer's wire shape; `toRoleChangeLog` converts it to on-chain types. */
 type RoleChangeEventRow = {
   readonly blockNumber: number
   readonly timestamp: number
@@ -102,7 +103,7 @@ class IndexedRoleChangeLogsError extends TaggedError(
 )<{
   /** Why the node has to answer instead. */
   reason: 'failed' | 'timeout' | 'truncated'
-  cause?: unknown
+  cause: unknown
 }> {}
 
 const toRoleChangeLog = (
@@ -161,11 +162,15 @@ const getIndexedRoleChangeLogs = ResultFn(async function* ({
     (cause) => new IndexedRoleChangeLogsError({ reason: 'failed', cause }),
   )
   if (page === null) {
-    return yield* new IndexedRoleChangeLogsError({ reason: 'timeout' }).toErr()
+    return yield* new IndexedRoleChangeLogsError({
+      reason: 'timeout',
+      cause: undefined,
+    }).toErr()
   }
   if (page.eacRolesChangeds.length >= INDEXED_ROLE_EVENTS_LIMIT) {
     return yield* new IndexedRoleChangeLogsError({
       reason: 'truncated',
+      cause: undefined,
     }).toErr()
   }
 

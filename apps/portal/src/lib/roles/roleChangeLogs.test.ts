@@ -17,7 +17,7 @@ vi.mock('@/lib/wagmi/helpers', () => ({
 }))
 
 vi.mock('@/features/profile/hooks/useBlockTimestamps', () => ({
-  getBlockTimestamps: (params: { blocks: bigint[] }) =>
+  getBlockTimestamps: (params: { blocks: readonly bigint[] }) =>
     mockGetBlockTimestamps(params),
 }))
 
