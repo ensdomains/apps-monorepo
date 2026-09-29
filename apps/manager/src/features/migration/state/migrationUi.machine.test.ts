@@ -164,6 +164,7 @@ const makeRenewalQuote = (graceDomain: V1Domain): GraceRenewalQuote => ({
 const startRenewal = (
   domains: [V1Domain, ...V1Domain[]] = [domain('alice')],
   requestSteps?: readonly MigrationWalletRequestDescriptor[],
+  quoteOverrides: Partial<GraceRenewalQuote> = {},
 ) => {
   const actor = createActor(migrationUiMachine, {
     input: { wagmiConfig: WAGMI },
@@ -172,7 +173,7 @@ const startRenewal = (
   actor.send({
     type: 'migration.renewAndStart',
     renewal: {
-      quote: makeRenewalQuote(domains[0]),
+      quote: { ...makeRenewalQuote(domains[0]), ...quoteOverrides },
       domains,
       hcaAddress: SCA,
       requestSteps,
@@ -222,6 +223,47 @@ beforeEach(() => {
 
 describe('migrationUiMachine', () => {
   describe('grace renewal before migration', () => {
+    it('keeps an underfunded selection from starting renewal or migration', async () => {
+      const actor = startRenewal([domain('alice'), domain('bob')], undefined, {
+        balance: 99n,
+      })
+      await vi.advanceTimersByTimeAsync(60_000)
+
+      expect(actor.getSnapshot().value).toBe('select')
+      expect(actor.getSnapshot().context.renewal).toBeUndefined()
+      expect(executeGraceRenewalMock).not.toHaveBeenCalled()
+      expect(prepareGraceRenewalMigrationMock).not.toHaveBeenCalled()
+      expect(executeMigrationMock).not.toHaveBeenCalled()
+      actor.stop()
+    })
+
+    it.each([
+      { scenario: 'the exact renewal balance', amount: 100n },
+      { scenario: 'a zero-cost renewal and zero balance', amount: 0n },
+    ])('allows $scenario to renew and then migrate', async ({ amount }) => {
+      const graceDomain = domain('alice')
+      const quote = makeRenewalQuote(graceDomain)
+      const renewedDomains = [graceDomain]
+      executeGraceRenewalMock.mockReturnValue(okAsync(renewedDomains))
+      prepareGraceRenewalMigrationMock.mockResolvedValue(
+        makePlan(renewedDomains),
+      )
+      executeMigrationMock.mockImplementation(() => new Promise(() => {}))
+
+      const actor = startRenewal([graceDomain], undefined, {
+        items: quote.items.map((item) => ({ ...item, amount })),
+        totalAmount: amount,
+        balance: amount,
+      })
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'running' })
+      expect(executeGraceRenewalMock).toHaveBeenCalledTimes(1)
+      expect(prepareGraceRenewalMigrationMock).toHaveBeenCalledTimes(1)
+      expect(executeMigrationMock).toHaveBeenCalledTimes(1)
+      actor.stop()
+    })
+
     it('waits for confirmed renewal and prepares the plan with refreshed names before starting migration', async () => {
       const graceDomain = domain('alice')
       const renewedDomain: V1Domain = {

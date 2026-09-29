@@ -1173,6 +1173,10 @@ msgstr "In-app notifications are always enabled"
 msgid "Inbox"
 msgstr "Inbox"
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Insufficient USDC"
+msgstr "Insufficient USDC"
+
 #: src/components/NameFallbackCard.tsx
 msgid "is too short to register"
 msgstr "is too short to register"

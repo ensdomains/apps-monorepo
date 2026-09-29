@@ -94,6 +94,7 @@ const GasEstimateMessage = ({
 }
 
 type UpgradeButtonLabelProps = {
+  readonly hasInsufficientUsdc: boolean
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
   readonly isWaitingForGasFunding: boolean
@@ -101,12 +102,14 @@ type UpgradeButtonLabelProps = {
 }
 
 const UpgradeButtonLabel = ({
+  hasInsufficientUsdc,
   isEstimatingGas,
   isStarting,
   isWaitingForGasFunding,
   totalSelected,
 }: UpgradeButtonLabelProps) => {
   if (isStarting) return <Trans>Starting...</Trans>
+  if (hasInsufficientUsdc) return <Trans>Insufficient USDC</Trans>
   if (isEstimatingGas) return <Trans>Estimating...</Trans>
   if (isWaitingForGasFunding) return <Trans>Preparing wallet...</Trans>
   return (
@@ -172,6 +175,9 @@ export const SelectNamesStepFooter = ({
   const { eligibility: nftEligibility, isConfirmedUnclaimed } =
     useVisibleCommemorativeNftStatus()
   const nftCopyEnabled = !!nftEligibility
+  const hasInsufficientUsdc =
+    renewal.status === 'ready' &&
+    renewal.quote.balance < renewal.quote.totalAmount
 
   return (
     <div className="sticky inset-x-0 bottom-0 z-20 flex min-h-36 w-full shrink-0 flex-col items-stretch justify-start gap-4 bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 px-5 pt-4 pb-14 sm:min-h-28.75 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8 lg:px-37.5">
@@ -200,7 +206,7 @@ export const SelectNamesStepFooter = ({
       <div className="relative flex w-full flex-col gap-1 sm:w-auto">
         <MigrationUpgradeButton
           className="w-full sm:w-[320px]"
-          disabled={isUpgradeDisabled}
+          disabled={isUpgradeDisabled || hasInsufficientUsdc}
           onClick={onUpgrade}
           showNftPlaceholder={
             nftCopyEnabled && isConfirmedUnclaimed && visibleCount > 0
@@ -208,6 +214,7 @@ export const SelectNamesStepFooter = ({
           type="button"
         >
           <UpgradeButtonLabel
+            hasInsufficientUsdc={hasInsufficientUsdc}
             isEstimatingGas={isEstimatingGas}
             isStarting={isStarting}
             isWaitingForGasFunding={isWaitingForGasFunding}

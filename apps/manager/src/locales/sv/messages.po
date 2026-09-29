@@ -1178,6 +1178,10 @@ msgstr ""
 msgid "Inbox"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Insufficient USDC"
+msgstr ""
+
 #: src/components/NameFallbackCard.tsx
 msgid "is too short to register"
 msgstr ""

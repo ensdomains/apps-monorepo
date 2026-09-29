@@ -500,7 +500,8 @@ export const migrationUiMachine = setup({
           target: 'migrate.renewing',
           guard: ({ event }) =>
             event.renewal.quote.items.length > 0 &&
-            event.renewal.domains.length > 0,
+            event.renewal.domains.length > 0 &&
+            event.renewal.quote.balance >= event.renewal.quote.totalAmount,
           actions: 'captureRenewalStart',
         },
       },

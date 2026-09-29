@@ -361,7 +361,9 @@ export const MigrationPage = () => {
     }
 
     try {
-      if (graceDomains.length > 0 && renewalCanStart) {
+      if (graceDomains.length > 0) {
+        // Selected grace-period names must renew before any migration starts.
+        if (!renewalCanStart) return false
         const selected = new Set(selectedNames)
         uiActor.send({
           type: 'migration.renewAndStart',
