@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { apiError, clientWith, envelope, requestOf } from './fetch.mock'
-import { namesForAddress } from './namesForAddress'
+import { readNamesForAddress } from './namesForAddress'
 import type { AddressName } from './types'
 
 const row = {
@@ -29,11 +29,11 @@ const page = {
   has_more: true,
 }
 
-describe('namesForAddress', () => {
+describe('readNamesForAddress', () => {
   it('serializes the query in bigname terms', async () => {
     const { client, fetch } = clientWith(envelope([], page))
 
-    await namesForAddress(client)({
+    await readNamesForAddress(client)({
       address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
       relations: ['owner', 'manager'],
       protocol: 'v1',
@@ -51,11 +51,15 @@ describe('namesForAddress', () => {
     )
   })
 
-  it('defaults to every relation and sends nothing else', async () => {
+  it.each([
+    undefined,
+    [],
+  ])('reads every relation when %s is asked for, and sends nothing else', async (relations) => {
     const { client, fetch } = clientWith(envelope([], page))
 
-    await namesForAddress(client)({
+    await readNamesForAddress(client)({
       address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
+      relations,
     })
 
     expect(requestOf(fetch).url).toMatch(/names\?relation=any$/)
@@ -64,7 +68,7 @@ describe('namesForAddress', () => {
   it('renders the wire rows the way the dashboards need them, with the page', async () => {
     const { client } = clientWith(envelope([row], page))
 
-    const result = await namesForAddress(client)({
+    const result = await readNamesForAddress(client)({
       address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
     })
 
@@ -102,7 +106,7 @@ describe('namesForAddress', () => {
     )
 
     const [summary] = (
-      await namesForAddress(client)({
+      await readNamesForAddress(client)({
         address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
       })
     )._unsafeUnwrap().items
@@ -112,7 +116,7 @@ describe('namesForAddress', () => {
     expect(summary?.protocol).toBe('v1')
 
     const legacy = (
-      await namesForAddress(
+      await readNamesForAddress(
         clientWith(envelope([{ ...bare, authority: 'ens_v0' }], page)).client,
       )({
         address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
@@ -126,7 +130,7 @@ describe('namesForAddress', () => {
     const { client } = clientWith(apiError('stale', 409))
 
     const error = (
-      await namesForAddress(client)({
+      await readNamesForAddress(client)({
         address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
         cursor: 'old',
       })

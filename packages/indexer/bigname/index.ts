@@ -11,5 +11,5 @@ export {
   isStale,
 } from './errors'
 export { readNameDetail } from './nameDetail'
-export { namesForAddress } from './namesForAddress'
+export { readNamesForAddress } from './namesForAddress'
 export type * from './types'

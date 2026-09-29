@@ -1,7 +1,7 @@
 import type {
   NameSummary,
-  NamesForAddress,
   NamesForAddressQuery,
+  ReadNamesForAddress,
 } from '../contracts/namesForAddress.types'
 import { toDate, toProtocol, toReadError, toRelations } from './adapters'
 import type { BignameClient } from './client'
@@ -19,7 +19,7 @@ const AUTHORITY: Record<'v1' | 'v2', Authority> = {
 }
 
 const toQuery = (query: NamesForAddressQuery): AddressNamesQuery => ({
-  relation: query.relations ?? 'any',
+  relation: query.relations?.length ? query.relations : 'any',
   authority: query.protocol && AUTHORITY[query.protocol],
   is_migrated: query.migratedOnly ? 'true' : undefined,
   q: query.prefix,
@@ -46,8 +46,8 @@ const toNameSummary = (row: AddressName): NameSummary => ({
   ...(row.record_count !== undefined && { recordCount: row.record_count }),
 })
 
-export const namesForAddress =
-  (client: BignameClient): NamesForAddress =>
+export const readNamesForAddress =
+  (client: BignameClient): ReadNamesForAddress =>
   (query) =>
     client
       .addressNames(query.address, toQuery(query))

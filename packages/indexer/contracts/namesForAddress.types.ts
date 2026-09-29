@@ -46,6 +46,6 @@ export type NameSummary = Readonly<{
   recordCount?: number
 }>
 
-export type NamesForAddress = (
+export type ReadNamesForAddress = (
   query: NamesForAddressQuery,
 ) => ResultAsync<Page<NameSummary>, IndexerReadError>
