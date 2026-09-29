@@ -249,3 +249,62 @@ describe('transfer route — v1 gate', () => {
     expect(screen.getByText('Couldn’t check this name')).toBeInTheDocument()
   })
 })
+
+// #89474: the steps derive their label from `getLabel(name)` (ENSIP-15), while
+// the page renders the URL's spelling. A non-canonical label is registrable
+// on-chain, so an attacker can gift the victim `ALICE.eth` — the owner read
+// then passes on the raw name while every write would key off `alice.eth`, the
+// victim's real name. The route has to refuse before the form is offered.
+describe('transfer route — non-canonical name gate', () => {
+  beforeEach(() => {
+    protocolVersion = 'ENSv2'
+    Object.assign(expiryQuery, {
+      data: BigInt(NOW_SECONDS + 86_400),
+      isLoading: false,
+      isError: false,
+    })
+  })
+
+  it.each([
+    ['an uppercase label', 'ALICE.eth'],
+    ['a fullwidth label', 'ａlice.eth'],
+    ['a non-canonical subname label', 'SUB.alice.eth'],
+  ])('refuses %s instead of offering the form', (_case, name) => {
+    currentName = name
+
+    render(<TransferRoute />)
+
+    expect(
+      screen.getByText('This name can’t be transferred'),
+    ).toBeInTheDocument()
+    expect(screen.queryByTestId('send-name-form')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('v1-send-name-form')).not.toBeInTheDocument()
+  })
+
+  it('refuses a non-canonical V1 name too — the V1 read normalizes as well', () => {
+    currentName = 'ALICE.eth'
+    protocolVersion = 'ENSv1'
+    // A state that would otherwise hand this wallet the V1 form.
+    v1StateQuery.data = {
+      subject: { kind: 'v1-registrar', registrant: OWNER, controller: OWNER },
+      registration: 'active',
+      resolverAddress: null,
+      parentOwner: null,
+    }
+
+    render(<TransferRoute />)
+
+    expect(
+      screen.getByText('This name can’t be transferred'),
+    ).toBeInTheDocument()
+    expect(screen.queryByTestId('v1-send-name-form')).not.toBeInTheDocument()
+  })
+
+  it('still offers the form for the canonical spelling', () => {
+    currentName = 'alice.eth'
+
+    render(<TransferRoute />)
+
+    expect(screen.getByTestId('send-name-form')).toBeInTheDocument()
+  })
+})
