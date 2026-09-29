@@ -11,19 +11,26 @@
  */
 
 import {
-  ENS_SEPOLIA_CONTRACTS,
   getResumeTarget,
   type PersistedRegistrationRecord,
 } from '@ens-apps/transaction-manager'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { ResultAsync } from 'neverthrow'
 import { type Address, type Client, erc20Abi, type Hash, parseAbi } from 'viem'
 import { getBlock, readContract } from 'viem/actions'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { PAYMENT_TOKENS, type PaymentToken } from '../constants/paymentTokens'
 
 const registrarAbi = parseAbi([
   'function commitmentAt(bytes32 commitment) view returns (uint64)',
   'function MAX_COMMITMENT_AGE() view returns (uint256)',
 ])
+
+/** The EOA path commits, approves and registers here (`submitCommitmentActor`). */
+const ethRegistrar = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 export type RegistrationResumeStaleReason =
   /** Written against a different chain. */
@@ -84,14 +91,13 @@ const readCommitment = (
   ResultAsync.fromPromise(
     Promise.all([
       readContract(client, {
-        // The EOA path commits on this registrar (see `submitCommitmentActor`).
-        address: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+        address: ethRegistrar,
         abi: registrarAbi,
         functionName: 'commitmentAt',
         args: [commitment],
       }),
       readContract(client, {
-        address: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+        address: ethRegistrar,
         abi: registrarAbi,
         functionName: 'MAX_COMMITMENT_AGE',
       }),
@@ -128,7 +134,7 @@ const readApprovalNeeded = (
       abi: erc20Abi,
       functionName: 'allowance',
       // The EOA path approves and registers on this registrar.
-      args: [params.owner, ENS_SEPOLIA_CONTRACTS.ETHRegistrar],
+      args: [params.owner, ethRegistrar],
     }),
     (error) => error,
   )

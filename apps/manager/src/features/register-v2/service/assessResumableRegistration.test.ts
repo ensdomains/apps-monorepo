@@ -1,6 +1,5 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import { buildRegistrationRecord } from '@ens-apps/transaction-manager'
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
@@ -213,9 +212,9 @@ describe('assessResumableRegistration', () => {
   })
 
   it('reads the commitment off the registrar the record was written against', async () => {
-    // Same contract on Sepolia today; the moment the deployments diverge, the
-    // live-mode registrar would report `commitmentAt == 0` for the other
-    // path's commitment and silently disable the expiry check.
+    // Both signer modes settle on the chain's one registrar, so the call shape
+    // is pinned here: a wrong address reports `commitmentAt == 0` for a live
+    // commitment and silently disables the expiry check.
     const eoaClient = publicClientWith(NOW - 60n)
     await assess({
       stored: storedRegistration({ signerType: 'eoa' }),
@@ -225,7 +224,7 @@ describe('assessResumableRegistration', () => {
     expect(eoaClient.readContract).toHaveBeenCalledWith(
       expect.objectContaining({
         functionName: 'commitmentAt',
-        address: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+        address: getDestinationContracts(CHAIN_ID).ethRegistrar,
       }),
     )
 

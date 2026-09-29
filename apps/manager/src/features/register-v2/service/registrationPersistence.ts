@@ -25,12 +25,9 @@ import {
   parseRegistrationRecord,
   serializeRegistrationRecord,
 } from '@ens-apps/transaction-manager'
-import {
-  type SUPPORTED_TOKEN,
-  SUPPORTED_TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import * as v from 'valibot'
 import type { Address } from 'viem'
+import { type SUPPORTED_TOKEN, SUPPORTED_TOKENS } from '@/lib/tokens'
 import type { RegistrationPostRegistrationSetup } from '../state/registrationAutoSetup'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
 

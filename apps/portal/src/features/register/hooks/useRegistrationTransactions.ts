@@ -246,15 +246,18 @@ export const useRegistrationTransactions = ({
     refetchAllowance,
   ])
 
-  // A resumed run reads the chain before it takes a retry: a commit that was
-  // never sent only fails its check after several seconds. A click landing in
-  // that window waits for the verdict instead of being dropped, so Start on
-  // that commit step puts the prompt back up.
   const handleProceed = useCallback(async () => {
-    await waitFor(
-      actor,
-      (snapshot) => !CHECKING_CHAIN_STATES.has(String(snapshot.value)),
-    ).catch(() => null)
+    // A resumed run reads the chain before it takes a retry: a commit that was
+    // never sent only fails its check after several seconds. A click landing in
+    // that window waits for the verdict instead of being dropped, so Start on
+    // that commit step puts the prompt back up. Only then — every other click
+    // resolves from the state already in hand, in the same tick.
+    if (CHECKING_CHAIN_STATES.has(String(actor.getSnapshot().value))) {
+      await waitFor(
+        actor,
+        (snapshot) => !CHECKING_CHAIN_STATES.has(String(snapshot.value)),
+      ).catch(() => null)
+    }
     // Read the state now, not the snapshot the wait resolved with: several
     // clicks can be waiting on the same verdict, and only the first may retry.
     // A later one would retire the transaction that retry just started.

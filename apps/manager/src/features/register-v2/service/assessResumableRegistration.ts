@@ -21,12 +21,8 @@ import {
   getDestinationContracts,
   readCommitmentAges,
 } from '@ens-apps/smart-account'
-import {
-  ENS_SEPOLIA_CONTRACTS,
-  type SUPPORTED_TOKEN,
-  TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { type Address, type PublicClient, parseAbi } from 'viem'
+import { type SUPPORTED_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { getQueryClient } from '@/utils/router/root-context'
 import {
@@ -44,20 +40,15 @@ const commitmentAtAbi = parseAbi([
 ])
 
 /**
- * The registrar a RECORD's commitment lives on, chosen by the signer mode that
- * wrote it — mirrors `registrarFor` in the persistence layer. The two
- * deployments are the same contract on Sepolia today; reading the record's own
- * registrar is what keeps the preflight honest the day they diverge, when the
- * live-mode registrar would report `commitmentAt == 0` for every record from
- * the other path and silently disable the expiry check.
+ * The registrar a RECORD's commitment lives on — mirrors `registrarFor` in the
+ * persistence layer. Both signer modes settle on the chain's one registrar, so
+ * this is keyed by the RECORD's chain rather than the live one: reading a
+ * record's own deployment is what keeps the preflight honest across a redeploy,
+ * where the current registrar would report `commitmentAt == 0` for every older
+ * record and silently disable the expiry check.
  */
-function registrarForRecord(
-  chainId: number,
-  signerType: 'eoa' | 'rhinestone' | undefined,
-): Address {
-  return signerType === 'rhinestone'
-    ? getDestinationContracts(chainId).ethRegistrar
-    : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+function registrarForRecord(chainId: number): Address {
+  return getDestinationContracts(chainId).ethRegistrar
 }
 
 export type ResumeStaleReason =
@@ -242,10 +233,7 @@ export async function assessResumableRegistration(params: {
         publicClient: params.publicClient,
         chainId: params.chainId,
         commitment,
-        registrar: registrarForRecord(
-          params.chainId,
-          stored.record.context.signerType,
-        ),
+        registrar: registrarForRecord(params.chainId),
       })
 
       // `>=`: the reveal window is the OPEN interval (commit+min, commit+max),

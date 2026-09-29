@@ -1,4 +1,4 @@
-import type { Hash, Hex, PublicClient } from 'viem'
+import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { validateCommitmentActor } from './registration.actors'
 
@@ -33,6 +33,9 @@ const validate = () =>
   validateCommitmentActor({
     commitment,
     publicClient: {} as PublicClient,
+    // Passed explicitly: the default resolves off the client's chain config,
+    // which this bare mock deliberately does not carry.
+    registrarAddress: '0xeeee000000000000000000000000000000000004' as Address,
   })
 
 describe('validateCommitmentActor', () => {
