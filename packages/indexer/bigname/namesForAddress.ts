@@ -32,6 +32,7 @@ const toQuery = (query: NamesForAddressQuery): AddressNamesQuery => ({
 
 const toNameSummary = (row: AddressName): NameSummary => ({
   name: row.name,
+  displayName: row.display_name,
   namehash: row.namehash,
   protocol: toProtocol(row.authority),
   relations: toRelations(row.relations),

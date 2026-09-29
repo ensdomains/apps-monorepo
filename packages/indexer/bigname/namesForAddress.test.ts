@@ -109,6 +109,15 @@ describe('namesForAddress', () => {
     expect(summary?.expiresAt).toBeNull()
     expect(summary?.isMigrated).toBe(false)
     expect(summary?.protocol).toBe('v1')
+
+    const legacy = (
+      await namesForAddress(
+        clientWith(envelope([{ ...bare, authority: 'ens_v0' }], page)).client,
+      )({
+        address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
+      })
+    )._unsafeUnwrap().items[0]
+    expect(legacy?.protocol).toBe('v1')
     expect(summary).not.toHaveProperty('subnameCount')
   })
 

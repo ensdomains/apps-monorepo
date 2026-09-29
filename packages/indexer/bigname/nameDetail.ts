@@ -7,6 +7,7 @@ import type { NameRecord } from './types'
 
 const toNameDetail = (record: NameRecord): NameDetail => ({
   name: record.name,
+  displayName: record.display_name,
   namehash: record.namehash,
   protocol: toProtocol(record.authority),
   isSupported: record.status !== 'unsupported',
@@ -21,13 +22,16 @@ const toNameDetail = (record: NameRecord): NameDetail => ({
   migratedAt: toDate(record.migrated_at),
 })
 
-// A 404 means the name is not indexed, which is an answer, not a failure.
+// A 404, or a 200 whose status is not_found, means the name is not indexed:
+// an answer, not a failure.
 export const readNameDetail =
   (client: BignameClient): ReadNameDetail =>
   ({ name }) =>
     client
       .name(name)
-      .map(({ data }): NameDetail | null => toNameDetail(data))
+      .map(({ data }): NameDetail | null =>
+        data.status === 'not_found' ? null : toNameDetail(data),
+      )
       .orElse((error) =>
         error.code === 'not_found'
           ? okAsync<NameDetail | null, IndexerReadError>(null)

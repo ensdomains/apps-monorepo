@@ -14,6 +14,8 @@ export type NameDetailQuery = Readonly<{
 /** A name as the profile pages render it. */
 export type NameDetail = Readonly<{
   name: string
+  /** The name as it should be shown, per ENSIP-15. */
+  displayName: string
   namehash: Hex
   /** Null when no deployment currently answers for the name. */
   protocol: ProtocolVersion | null

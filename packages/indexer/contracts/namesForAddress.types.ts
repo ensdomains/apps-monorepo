@@ -28,6 +28,8 @@ export type NamesForAddressQuery = Readonly<{
 /** A name as the dashboards and address pages render it. */
 export type NameSummary = Readonly<{
   name: string
+  /** The name as it should be shown, per ENSIP-15. */
+  displayName: string
   namehash: Hex
   /** Null when no deployment currently answers for the name. */
   protocol: ProtocolVersion | null
