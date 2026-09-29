@@ -436,6 +436,8 @@ export const registrationMachine = setup({
         hca: Address
         resolverAddress: Address
         publicClient: PublicClient
+        commitment: Hash
+        duration: bigint
       }) => {
         // One machine state, two deployments: the HCA path verifies against
         // the standalone registry, the EOA path against the old deployment.
@@ -445,6 +447,8 @@ export const registrationMachine = setup({
               wallet: input.owner,
               hca: input.hca,
               publicClient: input.publicClient,
+              commitment: input.commitment,
+              duration: input.duration,
             })
           : verifyRegistrationActor(input)
       },
@@ -1496,6 +1500,9 @@ export const registrationMachine = setup({
           resolverAddress: context.resolverAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          commitment: context.commitment!.commitment,
+          duration: context.duration,
         }),
         onDone: [
           {
@@ -1509,15 +1516,24 @@ export const registrationMachine = setup({
             target: 'error',
             actions: [
               assign({
+                // Prefer why the check refused over the polling error that sent
+                // us here — only the former means the name is now taken.
+                error: ({ context, event }) =>
+                  event.output.reason
+                    ? new Error(
+                        `This registration could not be confirmed as yours: ${event.output.reason}`,
+                        { cause: context.error },
+                      )
+                    : context.error,
                 retryTarget: ({ context }) =>
                   context.signer?.type === 'rhinestone'
                     ? ('submittingRhinestoneBundle' as const)
                     : ('registeringDomain' as const),
               }),
-              ({ context }) => {
+              ({ event }) => {
                 console.error(
-                  '❌ [REGISTRATION] Registration not present on-chain after fallback check:',
-                  context.error,
+                  '❌ [REGISTRATION] Registration not confirmed as ours after fallback check:',
+                  event.output.reason,
                 )
               },
             ],

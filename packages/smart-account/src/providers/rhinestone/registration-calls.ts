@@ -28,6 +28,7 @@ import {
   type PublicClient,
   parseAbi,
   toHex,
+  zeroAddress,
 } from 'viem'
 import { packetToBytes } from 'viem/ens'
 import { computeVerifiableProxyAddress } from '../../verifiable-factory'
@@ -37,7 +38,6 @@ import {
   getDestinationContracts,
   REFERER,
   ROLES_ALL,
-  ZERO_ADDRESS,
 } from './manifest'
 
 export interface Call {
@@ -102,7 +102,9 @@ export async function readCommitment(params: {
       params.label,
       params.wallet,
       params.secret,
-      ZERO_ADDRESS,
+      // No subregistry: nothing can mint under the name. Verification asserts
+      // this same value back (see `verifyHcaRegistrationActor`).
+      zeroAddress,
       params.resolver,
       params.duration,
       REFERER,
@@ -303,7 +305,8 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
         params.label,
         params.wallet,
         params.secret,
-        ZERO_ADDRESS,
+        // Must match the commitment's subregistry (see `readCommitment`).
+        zeroAddress,
         params.resolver,
         params.duration,
         c.usdc,
