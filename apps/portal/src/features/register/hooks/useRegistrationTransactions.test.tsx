@@ -1,11 +1,25 @@
 import {
   buildRegistrationRecord,
+  type EOASigner,
   REGISTRATION_TX_IDS,
   type Signer,
+  type TransactionRequest,
+  transactionManager,
 } from '@ens-apps/transaction-manager'
 import { act, renderHook } from '@testing-library/react'
-import type { Address, Hash, Hex } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import {
+  type Address,
+  createWalletClient,
+  custom,
+  type Hash,
+  type Hex,
+  type PublicClient,
+  type TransactionReceipt,
+  toHex,
+} from 'viem'
+import { sepolia } from 'viem/chains'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { waitFor } from 'xstate'
 import { PAYMENT_TOKENS } from '../constants/paymentTokens'
 import { useRegistrationTransactions } from './useRegistrationTransactions'
 
@@ -107,5 +121,110 @@ describe('useRegistrationTransactions after a resume', () => {
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
     ])
+  })
+})
+
+describe('useRegistrationTransactions retry after a failed step', () => {
+  const TX_HASH = `0x${'ef'.repeat(32)}` as Hash
+
+  const request: TransactionRequest = {
+    type: 'eoa',
+    from: OWNER,
+    to: '0x2222222222222222222222222222222222222222',
+    data: '0x',
+    value: 0n,
+    chainId: sepolia.id,
+  }
+
+  // A wallet whose first eth_sendTransaction fails transiently when `flaky`.
+  const signerWith = ({ flaky }: { flaky: boolean }): EOASigner => {
+    let sends = 0
+    return {
+      type: 'eoa',
+      walletClient: createWalletClient({
+        account: OWNER,
+        chain: sepolia,
+        transport: custom(
+          {
+            request: async ({ method }) => {
+              if (method === 'eth_chainId') return toHex(sepolia.id)
+              if (method === 'eth_sendTransaction') {
+                sends += 1
+                if (flaky && sends === 1) throw new Error('socket hang up')
+                return TX_HASH
+              }
+              throw new Error(`unexpected RPC call: ${method}`)
+            },
+          },
+          { retryCount: 0 },
+        ),
+      }),
+    }
+  }
+
+  const clientWith = (status: TransactionReceipt['status']) =>
+    ({
+      waitForTransactionReceipt: async () => ({
+        status,
+        transactionHash: TX_HASH,
+        blockNumber: 1n,
+      }),
+    }) as unknown as PublicClient
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    transactionManager.clear()
+  })
+
+  it('keeps a step that landed after an automatic resubmission', async () => {
+    // The commit needed a second wallet send but landed; the approve reverted.
+    transactionManager.startTransaction(request, signerWith({ flaky: true }), {
+      id: REGISTRATION_TX_IDS.commit,
+      publicClient: clientWith('success'),
+      retryDelay: 0,
+    })
+    transactionManager.startTransaction(request, signerWith({ flaky: false }), {
+      id: REGISTRATION_TX_IDS.approve,
+      publicClient: clientWith('reverted'),
+    })
+    const commitTx = transactionManager.getTransaction(
+      REGISTRATION_TX_IDS.commit,
+    )
+    const approveTx = transactionManager.getTransaction(
+      REGISTRATION_TX_IDS.approve,
+    )
+    if (!commitTx || !approveTx) throw new Error('transactions not started')
+    await waitFor(commitTx, (s) => s.matches('success'))
+    await waitFor(approveTx, (s) => s.matches('error'))
+    expect(commitTx.getSnapshot().context.retryCount).toBe(1)
+
+    const { result } = renderHook(() =>
+      useRegistrationTransactions({ name: 'leon.eth', duration: 31_536_000 }),
+    )
+    // Put the registration run in its failed state, as the reverted approve
+    // would, and keep the retry itself from driving the machine.
+    const { actor } = result.current
+    vi.spyOn(actor, 'getSnapshot').mockReturnValue({
+      ...actor.getSnapshot(),
+      value: 'error',
+    } as ReturnType<typeof actor.getSnapshot>)
+    const send = vi.spyOn(actor, 'send').mockImplementation(() => {})
+
+    const commitStep = result.current.transactions.find(
+      ({ id }) => id === REGISTRATION_TX_IDS.commit,
+    )
+    await act(async () => {
+      await (commitStep?.onStart() as unknown as Promise<void>)
+    })
+
+    expect(send).toHaveBeenCalledWith({ type: 'RETRY' })
+    // Only the failed approve is retired; the landed commit stays done.
+    expect(transactionManager.getTransaction(REGISTRATION_TX_IDS.approve)).toBe(
+      undefined,
+    )
+    expect(transactionManager.getTransaction(REGISTRATION_TX_IDS.commit)).toBe(
+      commitTx,
+    )
+    vi.restoreAllMocks()
   })
 })
