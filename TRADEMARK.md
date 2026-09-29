@@ -1,0 +1,106 @@
+# Trademark Policy
+
+The software in this repository is licensed under the terms in [LICENSE](LICENSE).
+Those licenses grant rights in **code**. They grant no rights in ENS Labs'
+trademarks, logos, or other brand features. AGPL-3.0 section 7(e) and the MIT
+license both leave trademark rights untouched, and this notice makes that
+explicit.
+
+You may exercise every right the code licenses give you (use, modify,
+redistribute, deploy) without any permission from us. You may not present the
+result as ENS, or as endorsed by or affiliated with ENS Labs.
+
+## The marks
+
+- **Word marks:** ENS™, Namechain™
+- **Visual marks:** the ENS logo and mark, ENS token icons, and the ENS Labs
+  brand system in all colour variants
+
+The full policy, including acceptable uses, uses requiring written permission,
+and prohibited uses, is published at:
+
+> **TODO:** canonical trademark policy URL (the page exists in the manager app at `/legal/trademark-guidelines`; needs its public URL)
+
+Brand assets and usage rules (clear space, minimum sizes, colour):
+
+> **TODO:** brand assets / media kit URL
+
+If this notice and the published policy ever disagree, the published policy
+governs.
+
+## Brand assets in this repository
+
+The license grants in [LICENSE](LICENSE) do not extend to the following files,
+wherever they appear and whichever directory license would otherwise cover them:
+
+```
+apps/manager/public/ens-logo.svg
+apps/manager/src/assets/ens-mark-badge.svg
+apps/manager/src/assets/og/ens-mark.svg
+apps/manager/src/assets/migration/ens-v2-logo.svg
+apps/manager/src/features/migration/components/success/EnsV2InlineLogo.tsx
+apps/portal/public/ens-logo.svg
+apps/portal/src/assets/fonts/og/ens-mark.svg
+apps/portal/src/assets/logo.tsx
+packages/dev-tools/src/EnsMark.tsx
+```
+
+Some of these are inline SVG inside `.tsx` files rather than image files, so
+unlike the font exclusion in [LICENSE](LICENSE) this list cannot be expressed by
+file extension. It is maintained by hand. A brand asset added later is excluded
+whether or not it has been added to this list; the list is a convenience, not
+the definition.
+
+To build and deploy from this repository, replace these files with your own
+branding.
+
+## Fonts
+
+The typefaces in this repository are licensed to ENS Labs for its own
+deployments and are excluded from both code licenses. See the EXCLUDED: FONTS
+section of [LICENSE](LICENSE) for the owners and terms. If you build with them,
+you are responsible for obtaining your own license from the foundry.
+
+## Official deployments
+
+**No deployment of this software is official, endorsed, or operated by ENS Labs
+unless it is listed at:**
+
+> **TODO:** canonical official-deployments URL, on a domain ENS Labs controls
+
+That page is the only authoritative list. A deployment not listed there is not
+ours, regardless of how it presents itself, what domain it uses, or what it
+claims. We may update the list at any time; the list at the URL above always
+governs over any copy of it, including this file.
+
+If you find a deployment presenting itself as official when it is not, report it
+to <legal@ens.domains>.
+
+## Running a modified version
+
+If you distribute or deploy a modified version, you must:
+
+1. **Remove the ENS marks.** Replace the brand assets listed above with your own,
+   and remove ENS™ and Namechain™ from the interface, the page title, the
+   favicon, metadata, and the name of the service.
+2. **Choose a distinct name.** Your name and branding must not be confusingly
+   similar to ENS, and must not incorporate "ENS" or "Namechain".
+3. **State that you are not us.** Display, where users will see it, wording to
+   the effect that your service "is not officially connected to or endorsed by
+   ENS Labs".
+4. **Mark your changes**, as AGPL-3.0 requires.
+
+You may say factually that your software interacts with, is compatible with, or
+is built on the ENS protocol. That is nominative use and needs no permission.
+You may not use the marks in your product name, company name, domain name, email
+address, or social handle.
+
+## Questions
+
+Licensing enquiries and permission requests: <legal@ens.domains>
+
+---
+
+*This notice describes how ENS Labs' trademark rights interact with the code
+licenses in this repository. It is not a grant of any trademark license and does
+not limit any right ENS Labs has in its marks.*
