@@ -105,13 +105,21 @@ describe('getSubnames', () => {
     ])
   })
 
-  it('names a V1 subname from its parent, not the indexer’s stale name', async () => {
+  it('names V1 subnames from their parent, encoding unknown labels', async () => {
     mockEnsjsGetSubnames.mockResolvedValue([
       {
         name: '1.[d9212cee289e4bfe6f6deb963d8b06ce82538df961bf16733c3c34c2f8a057a0].eth',
         labelName: '1',
         labelhash:
           '0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6',
+        owner: '0x1234567890123456789012345678901234567890',
+        wrappedOwner: null,
+      },
+      {
+        name: null,
+        labelName: null,
+        labelhash:
+          '0xad7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5',
         owner: '0x1234567890123456789012345678901234567890',
         wrappedOwner: null,
       },
@@ -122,7 +130,10 @@ describe('getSubnames', () => {
       protocolVersion: 'ENSv1',
     })
 
-    expect(result._unsafeUnwrap()[0]?.name).toBe('1.phantombug01.eth')
+    expect(result._unsafeUnwrap().map((s) => s.name)).toEqual([
+      '1.phantombug01.eth',
+      '[ad7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5].phantombug01.eth',
+    ])
   })
 
   it('names V2 subnames from their parent, encoding unknown labels', async () => {
