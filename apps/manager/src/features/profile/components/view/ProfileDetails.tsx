@@ -120,7 +120,7 @@ export const ProfileDetails = ({
           labelPaddingClassName="pl-[22px]"
           value={
             <Link
-              className="text-inherit hover:underline focus-visible:outline-2 focus-visible:outline-ens-quartz-700 focus-visible:outline-offset-2"
+              className="text-inherit hover:underline focus-visible:-mx-0.5 focus-visible:px-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-quartz-700 focus-visible:ring-inset"
               params={{ address: owner }}
               to="/$address"
             >
