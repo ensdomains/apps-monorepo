@@ -30,9 +30,8 @@ cp .env.example .env
 pnpm dev                 # http://localhost:3000
 ```
 
-From the repository root the same is `pnpm dev:manager`. The example env
-targets Sepolia and the hosted backend at `app-api.ens.dev`; to run the backend
-too, see [`workers/api-worker`](../../workers/api-worker).
+The example env targets Sepolia and the hosted backend at `app-api.ens.dev`;
+to run the backend too, see [`workers/api-worker`](../../workers/api-worker).
 
 `VITE_ENS_NETWORK` is required and the build fails without it. Every other
 variable is documented inline in [`.env.example`](.env.example). Three of them

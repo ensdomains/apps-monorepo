@@ -9,38 +9,18 @@ behind them.
 | [`apps/portal`](apps/portal) | The ENS Explorer for ENSv1 and ENSv2 names, addresses, resolvers and registries. Vite SPA behind a Cloudflare Worker. | https://explorer.ens.dev |
 | [`workers/api-worker`](workers/api-worker) | Backend for the manager: auth, favorites, notifications, migration faucet. Hono on Cloudflare Workers with Postgres and Queues. | https://app-api.ens.dev |
 
-The official app origins are listed in [TRADEMARK.md](TRADEMARK.md). ENSv2 is
-deployed on Sepolia only; each build targets one network via
-`VITE_ENS_NETWORK`, and `mainnet` fails the network check until its indexer
-endpoints exist.
-
-## Layout
-
-```
-apps/manager, apps/portal, workers/api-worker   the deployables above
-packages/
-  config                 network profiles and the fail-closed build-time config
-  indexer                bigname REST client and app-shaped read types
-  transaction-manager    XState + neverthrow transaction lifecycle
-  smart-account          Rhinestone smart-account helpers and sessions
-  migration              ENSv1 to ENSv2 migration service
-  l2-primary, og, shared-schema, utils, locales, weave-loader
-  dev-tools, dev-time-travel, dev-migration-tool, dev-dqa-overlay, dqa-server
-e2e/                     Playwright suites and their Docker stack
-docs/                    cross-cutting design docs
-```
+Shared code lives in `packages/`, end-to-end tests in `e2e/`. The official app
+origins are listed in [TRADEMARK.md](TRADEMARK.md). ENSv2 is deployed on
+Sepolia only; each build targets one network via `VITE_ENS_NETWORK`.
 
 ## Setup
 
-Node.js LTS and pnpm 12 (`npm install -g pnpm@12`; Corepack cannot launch
-pnpm 12). Docker for the api-worker database and the E2E stack.
-
 ```bash
-pnpm install                      # also installs the git hooks
+pnpm install
 
 # Manager, http://localhost:3000
 cp apps/manager/.env.example apps/manager/.env
-pnpm dev:manager
+pnpm --filter manager dev
 
 # Explorer, http://localhost:3001
 cp apps/portal/.env.example apps/portal/.env
@@ -54,28 +34,14 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres pnpm exec driz
 pnpm dev
 ```
 
-Each `.env.example` documents its variables. The debug flags in them
-(`VITE_FF_USE_EOA`, `VITE_USE_MOCK_WALLET`, `VITE_ENABLE_DEBUG_FEATURES`) are
-for local work only.
-
 The brand typefaces are not in the repository; official deployments load them
 from `fonts.ens.dev` and everything else falls back to the generic family. See
 [`apps/portal/src/assets/fonts/README.md`](apps/portal/src/assets/fonts/README.md).
 
-## Checks
-
-Scripts live in the root and package `package.json` files. Typecheck with
-`pnpm typecheck` from a package, not `npx tsc`. The E2E suites need the Docker
-stack from `pnpm e2e:infra:up`; see [`e2e/`](e2e/README.md).
-
-Lefthook formats staged files on commit and runs `biome ci` on push. CI
-typechecks, lints, tests and builds the packages a PR changes; E2E runs for PRs
-that touch the apps, packages, lockfile or `e2e/`.
-
 ## Conventions
 
-- [STYLEGUIDE.md](STYLEGUIDE.md): the coding standard. [REVIEW.md](REVIEW.md)
-  and [`.greptile/`](.greptile): what review flags; Greptile reviews every PR.
+- [STYLEGUIDE.md](STYLEGUIDE.md) is the coding standard; [REVIEW.md](REVIEW.md)
+  and [`.greptile/`](.greptile) define what review flags.
 - [docs/PACKAGE_CONTRACT.md](docs/PACKAGE_CONTRACT.md): required package
   scripts and `pre*` hooks.
 - Before touching transactions or the smart account:
@@ -83,9 +49,6 @@ that touch the apps, packages, lockfile or `e2e/`.
   [`packages/smart-account/DEBUGGING_INTENTS.md`](packages/smart-account/DEBUGGING_INTENTS.md).
 - Dependencies are pinned deliberately; the comments in
   [`pnpm-workspace.yaml`](pnpm-workspace.yaml) explain each constraint.
-- Keep PRs focused, run typecheck, tests and `pnpm check` for what you touched,
-  and summarize the change in the PR body. Owners in
-  [`.github/CODEOWNERS`](.github/CODEOWNERS) are requested automatically.
 
 ## Security
 
