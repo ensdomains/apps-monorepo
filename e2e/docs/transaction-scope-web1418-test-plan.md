@@ -154,3 +154,39 @@ modal with **X or Escape**. Do not press Done. Do not reload between attempts.
 | F6 | Info | Transfer, registry roles and resolver roles were covered by the PR's unit tests and typecheck only. They were not run end to end here (M5–M10) |
 
 No functional defects found in the PR's app code.
+
+---
+
+## 5. Retrofit note: scope added after verification
+
+The verification above ran against PR head `pr-1214-head` (40 files). Before
+merge the branch was rewritten, and the squash commit `e6a69772` touches 60
+files. The 40 verified files are identical in the merge, except
+`flow-identity.test.ts`, which is a unit test only.
+
+The **20 files added later** scope step ids for flows this plan did not run
+end to end:
+
+- **Renewal:** `ExtendNameButton`, `useRenewalTransactions`
+- **Resolver:** `ChangeResolverForm`, `useChangeResolver`, and `resolver/$address/create-link` and `links`
+- **Records and addresses:** `edit-records`, `AddressResolutionSidebar`, `ReverseResolutionSidebar`, `addr/$addr/names`
+- **Subnames and registry:** `subnames`, `create-subname`, `SubregistryConfigurator` (plus the `ConfigureRegistryForm` test)
+- **Other flows:** `fuses/burn`, `useDnsImportTransactions`, `useSyncManagerTransaction`, `ReclaimManagerButton`
+- **New unit tests:** `scopedStepFlows.test.ts`, `useTransferName.test.tsx`
+
+**Why it matters for this branch:** the records, resolver, subnames and
+transfer specs drive these flows through `driveTransactionsToSuccess` with
+fixed ids (`SAVE_RECORDS_TX`, `CHANGE_RESOLVER_TX`, `transferTxId(...)`).
+Once a flow logs a scoped id, only the ported anchored matcher (F1) keeps those
+specs green. The port is in place, but it has **not yet been run against the
+merged code**.
+
+**Pending, to run on `e2e-tests-coverage` after the retrofit:**
+
+1. Unit tests (`packages/transaction-manager`, and `apps/portal` in full) and typecheck (portal, transaction-manager, manager, e2e)
+2. `roles.spec.ts` (the WEB-1418 block, 3 tests) and `pnpm test:portal-smoke`
+3. `records.spec.ts`, `resolver.spec.ts`, `subnames.spec.ts`, `transfer.spec.ts`, to confirm the matcher against the newly scoped flows
+4. Manual spot checks M5–M10, plus one renewal and one records edit using the dismiss-then-repeat pattern from §3
+
+Wipe Panoptes before step 3 (F5): step 2's smoke run includes the harness
+project, which rewinds the chain.
