@@ -16,6 +16,22 @@ repository, even when a package manager installs them into it (node_modules/).
 Each remains under its own license.
 
 
+EXCLUDED: BRAND ASSETS
+
+The ENS marks are not licensed under AGPL-3.0-only or MIT, whatever directory
+they sit in: the ENS logo and wordmark, the ENS mark, and the ENS token icons,
+as artwork. That means the SVG path data that draws a mark and any raster
+export of it, wherever it appears, including inside a source file that one of
+the licenses above otherwise covers.
+
+Only the artwork is excluded. The code around it keeps the license for its
+directory, so a component that renders a mark is AGPL-3.0-only or MIT like any
+other file and you may copy and modify it. Replace the artwork with your own.
+
+TRADEMARK.md lists where the marks currently live and sets out what you may and
+may not do with them. Trademark rights are separate from the licenses above and
+are not granted by them (AGPL-3.0 section 7(e)).
+
 EXCLUDED: FONTS
 
 No font file in this repository is licensed under AGPL-3.0-only or MIT,
