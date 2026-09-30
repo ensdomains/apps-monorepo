@@ -53,7 +53,6 @@ const v2Name = (name: string, daysLeft: bigint): V2NameWithRoles => ({
   expiryDate: Number(BigInt(Math.floor(Date.now() / 1000)) + daysLeft * DAY),
   roleBitmap: '0x1',
   subdomainCount: 0,
-  recordCount: 0,
 })
 
 const renderNames = (names: V2NameWithRoles[] | Error, v1: [] | Error = []) => {
@@ -177,7 +176,6 @@ describe('YourNames', () => {
         expiryDate: Date.UTC(2026, 5, 3, 12) / 1000,
         roleBitmap: '0x1',
         subdomainCount: 0,
-        recordCount: 0,
       },
     ])
 
