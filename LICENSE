@@ -11,6 +11,10 @@ that applies to a file depends on where it lives:
 docs/ and e2e/ are not covered by either license. Neither is the material
 excluded below, even where it sits inside a directory that one of them covers.
 
+Third-party packages that this code depends on are not part of this
+repository, even when a package manager installs them into it (node_modules/).
+Each remains under its own license.
+
 
 EXCLUDED: FONTS
 
