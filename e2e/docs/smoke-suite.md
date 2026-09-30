@@ -35,9 +35,9 @@ applies across **all** of that config's projects — including the harness
 dependency — so the harness project itself is thinned down to just the
 fixture checks the smoke tests actually rely on, not all of it.
 
-## The curated list (14 tests, ~4.5 minutes measured)
+## The curated list (15 tests, ~4.7 minutes measured)
 
-### Portal — 11 tests, 150s measured (`playwright.smoke.config.ts`)
+### Portal — 12 tests, ~162s measured (`playwright.smoke.config.ts`)
 
 | # | Test | File | Why it's here |
 |---|---|---|---|
@@ -50,6 +50,7 @@ fixture checks the smoke tests actually rely on, not all of it.
 | 9 | `shows "Registry detached" instead of "Configure registry" after a detach transfer` (`@scenario:F42`) | `transfer.spec.ts` | Companion to F41, same PR (#1170), same vulnerability class: before the fix, a detached slot rendered as "Configure registry," letting the new holder deploy a fresh empty registry and re-mint the victim's old subname labels into it, stranding the original token. Added after the first measured run came in well under budget (145s for 8 tests) — this is the one "one more high-value test" the runbook invited, not padding: it is itself R0/R1 (irreversible token-stranding), cheap (mocked indexer, ~13s), and directly related to the other mandated regression. |
 | 10 | `the reported crafted link does not tell a visitor they own someone else’s name` | `registration.spec.ts` | **Mandated.** Regression coverage for PR #1247 / immunefi #92544 (WEB-1490): `/$name` used to render "Congratulations! You are the owner of {name}" and a `paid` figure straight from the query string, so a link could tell any visitor they owned an attacker's name — with Extend (renewing it from the visitor's wallet) the only call to action. No transactions, one seeded name, ~12s. The other six tests for the same fix (variants, history-state parsing, the real-registration path) stay in the nightly run; see [`registration-banner-web1490-test-plan.md`](./registration-banner-web1490-test-plan.md). |
 | 11 | `a second grant after dismissing the first asks the wallet again and lands on-chain` | `roles.spec.ts` | Regression coverage for PR #1214 (WEB-1418): a finished transaction actor stays in the manager so the modal can re-render it, and the roles flows used a fixed step id, so a second role change in the same session opened as the *first* change's receipt ("Done", with its actual cost) and pressing Done sent nothing. Chain-oracled (`assertRoleBitmap` on the second grantee), no indexer dependency, ~9s. It also guards the scoped-id console matcher in `helpers/transaction-modal.ts`, which every modal-driven test depends on. |
+| 12 | `does not ask a wallet on another network to send, and says why` | `transfer.spec.ts` | Regression coverage for PR #1108 (WEB-281): the portal declares Sepolia alone and never re-checks the chain after connect, so a wallet switched to another network got `walletClient.chain === undefined`, which the EOA transport passed to viem as `chain: null` — switching off viem's own chain check — and the wallet was asked to send Sepolia calldata on the other chain. Oracle is the headless wallet's `eth_sendTransaction` queue (must stay empty) plus a chain read of the name; it also pins the non-retryable branch (exactly one attempt). One seeded name, no indexer dependency, 11.8s. The recovery and Extend (USDC) tests for the same fix stay in the nightly run; see [`chain-mismatch-web281-test-plan.md`](./chain-mismatch-web281-test-plan.md). |
 
 ### Manager — 3 tests, 121s measured (`playwright.smoke.config.ts`)
 

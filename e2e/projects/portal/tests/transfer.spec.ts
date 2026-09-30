@@ -7,7 +7,10 @@ import {
   permissionedRegistryGetResolverSnippet,
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2'
-import { Web3RequestKind } from '@ensdomains/headless-web3-provider'
+import {
+  type Web3ProviderBackend,
+  Web3RequestKind,
+} from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import {
   type Address,
@@ -48,7 +51,11 @@ import {
   walletClient,
 } from '../../../helpers/anvil-client.js'
 import { waitForIndexedRegistry } from '../../../helpers/indexer-sync.js'
-import { authorizeTransaction } from '../../../helpers/portal-auth.js'
+import {
+  authorizeTransaction,
+  switchWalletToSepolia,
+  switchWalletToUndeclaredChain,
+} from '../../../helpers/portal-auth.js'
 import {
   assertLacksRoles,
   assertRoleBitmap,
@@ -1463,6 +1470,178 @@ test.describe('Portal name transfer', () => {
     // Idempotent resume: step 1 never re-ran even though the flow stalled
     // and was resumed after it had already succeeded.
     expect(successCount.get(detachId)).toBe(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// WEB-281: a wallet switched to a chain the portal does not declare
+//
+// Bug: `TransactionRequest.chainId` is fixed when a request is built (Sepolia
+// here: calldata, contract addresses and price all belong to it), but nothing
+// downstream compared it with the chain the wallet would actually send on. The
+// portal declares Sepolia alone and never re-checks the chain after connect, so
+// a wallet switched to another network gets `walletClient.chain === undefined`
+// from wagmi. The EOA transport passed that on as `chain: null`, which switches
+// OFF viem's own `assertCurrentChain` — so the wallet was asked to send the
+// Sepolia calldata on whatever chain it was on.
+//
+// Fix (#1108): the EOA transport refuses with `ChainIdMismatchError` before the
+// wallet is prompted, passes a real `Chain` to viem (never `null`), and the
+// machine treats the error as non-retryable.
+//
+// What these reach that the package's unit tests don't: the real wagmi
+// `walletClient` produced by a live `chainChanged` after connect (the unit
+// tests hand-build `{ chain: undefined }`), the real transaction machine with
+// its retry policy (the PR has no machine test), the modal copy a user reads,
+// and recovery in the same modal once the wallet is back on Sepolia.
+//
+// Oracle: the headless wallet's own queue of `eth_sendTransaction` prompts —
+// the exact boundary the bug crossed — plus chain reads of the name.
+// ---------------------------------------------------------------------------
+
+const CHAIN_MISMATCH_COPY =
+  'Chain mismatch: this transaction is for chain 11155111, but your wallet is on a network this app does not support.'
+
+/**
+ * Presses Start, then Open wallet, and waits until the first step has settled
+ * one way or the other: either the wallet got a send prompt, or the step shows
+ * a Transaction Error. Waiting on both keeps the pre-fix build failing on the
+ * prompt-count assertion that follows rather than on a timeout.
+ */
+async function submitFirstStep(page: Page, wallet: Web3ProviderBackend) {
+  const dialog = page.locator('[data-slot="dialog-content"]')
+  await dialog.getByRole('button', { name: 'Start', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Open wallet', exact: true }).click()
+  await expect
+    .poll(
+      async () =>
+        wallet.getPendingRequestCount(Web3RequestKind.SendTransaction) > 0 ||
+        (await dialog.getByText('Transaction Error').isVisible()),
+      { timeout: 30_000 },
+    )
+    .toBe(true)
+  return dialog
+}
+
+test.describe('Portal name transfer — wallet on an undeclared chain (WEB-281)', () => {
+  test('does not ask a wallet on another network to send, and says why', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(180_000)
+
+    const mismatchLogs: string[] = []
+    page.on('console', (msg) => {
+      if (msg.text().includes('EOA transaction chain mismatch'))
+        mismatchLogs.push(msg.text())
+    })
+
+    await connectWithHeadlessWallet(page, wallet)
+    const name = await makeName({
+      label: `web281-${Date.now().toString(36)}`,
+      owner: 'user',
+    })
+    const label = name.replace(/\.eth$/, '')
+    const owner = accounts.getAddress('user')
+    const [resolverBefore] = await readResolverAndSubregistry(label)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await expect(
+      page.getByRole('heading', { name: 'Transfer ownership' }),
+    ).toBeVisible({ timeout: 15_000 })
+
+    // The report's repro: connected on Sepolia, then the wallet is switched
+    // to another network. The page keeps offering the transfer.
+    await switchWalletToUndeclaredChain(page, wallet)
+    await page
+      .getByPlaceholder('ENS name or address')
+      .fill(accounts.getAddress('user2'))
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await transferButton.click()
+
+    const dialog = await submitFirstStep(page, wallet)
+
+    // ── The bug: the wallet was asked to send Sepolia calldata on chain 1 ──
+    expect(
+      wallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+      'the wallet must not be prompted to send while it is on another chain',
+    ).toBe(0)
+
+    // The user is told why, in the modal, instead of a silent failure.
+    await expect(dialog.getByText(CHAIN_MISMATCH_COPY).first()).toBeVisible()
+    await expect(
+      dialog.getByRole('button', { name: 'Try again', exact: true }),
+    ).toBeVisible()
+
+    // Non-retryable: the machine must not keep re-running the same check in
+    // the background. Give a retry policy time to fire, then count.
+    await page.waitForTimeout(5_000)
+    expect(
+      mismatchLogs,
+      'ChainIdMismatchError is not retried automatically',
+    ).toHaveLength(1)
+    expect(wallet.getPendingRequestCount(Web3RequestKind.SendTransaction)).toBe(
+      0,
+    )
+
+    // Nothing reached the chain: resolver still attached, owner unchanged.
+    const [resolverAfter] = await readResolverAndSubregistry(label)
+    expect(resolverAfter).toBe(resolverBefore)
+    expect(resolverAfter).not.toBe(zeroAddress)
+    expect((await ownerOfName(label)).toLowerCase()).toBe(owner.toLowerCase())
+  })
+
+  test('finishes the transfer from the same modal once the wallet is back on Sepolia', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+    makeName,
+  }) => {
+    test.setTimeout(240_000)
+
+    await connectWithHeadlessWallet(page, wallet)
+    const name = await makeName({
+      label: `web281-back-${Date.now().toString(36)}`,
+      owner: 'user',
+    })
+    const label = name.replace(/\.eth$/, '')
+    const recipient = accounts.getAddress('user2')
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await expect(
+      page.getByRole('heading', { name: 'Transfer ownership' }),
+    ).toBeVisible({ timeout: 15_000 })
+    await switchWalletToUndeclaredChain(page, wallet)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+    await page.getByRole('button', { name: 'Transfer name' }).click()
+
+    const dialog = await submitFirstStep(page, wallet)
+    expect(wallet.getPendingRequestCount(Web3RequestKind.SendTransaction)).toBe(
+      0,
+    )
+    await expect(dialog.getByText(CHAIN_MISMATCH_COPY).first()).toBeVisible()
+
+    // Positive control: the guard blocks the wrong chain, not the flow. Back
+    // on Sepolia, "Try again" re-resolves the signer and the wallet is asked.
+    await switchWalletToSepolia(page, wallet)
+    await dialog.getByRole('button', { name: 'Try again', exact: true }).click()
+    await expect
+      .poll(
+        () => wallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+        { timeout: 15_000 },
+      )
+      .toBe(1)
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'detach-resolver'),
+      transferTxId(name, 'transfer-token'),
+    ])
+
+    // Landed on Sepolia, where the calldata belongs.
+    expect((await ownerOfName(label)).toLowerCase()).toBe(
+      recipient.toLowerCase(),
+    )
+    const [resolverAfter] = await readResolverAndSubregistry(label)
+    expect(resolverAfter).toBe(zeroAddress)
   })
 })
 

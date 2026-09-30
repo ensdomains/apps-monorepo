@@ -1,5 +1,6 @@
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { getAvailable } from '@ensdomains/ensjs/public'
+import { getExpiry } from '@ensdomains/ensjs/public/v2'
 import {
   type Web3ProviderBackend,
   Web3RequestKind,
@@ -13,7 +14,13 @@ import {
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient } from '../../../helpers/anvil-client.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
-import { authorizeTransaction } from '../../../helpers/portal-auth.js'
+import { waitForIndexedName } from '../../../helpers/indexer-sync.js'
+import {
+  authorizeTransaction,
+  switchWalletToSepolia,
+  switchWalletToUndeclaredChain,
+} from '../../../helpers/portal-auth.js'
+import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 const DOMAIN_TO_REGISTER =
@@ -1065,5 +1072,135 @@ test.describe('Portal registration success banner — not forgeable from a link 
     await page.goto(`${PORTAL_APP_URL}/${nameA}`)
     await expectNamePageLoaded(page, nameA, owner)
     await expectNoSuccessBanner(page, 'A reached by a fresh navigation')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEB-281: Extend with the wallet on a chain the portal does not declare
+//
+// Bug: the portal builds every renewal step for Sepolia, but never compared
+// that with the chain the wallet would send on. A wallet switched to another
+// network after connecting yields `walletClient.chain === undefined`, which the
+// EOA transport passed to viem as `chain: null` — skipping viem's own chain
+// assertion — so the wallet was asked to send the USDC approval (and then the
+// paid renewal) on that other chain.
+//
+// Fix (#1108): the EOA transport refuses with `ChainIdMismatchError` before
+// the wallet is prompted.
+//
+// This is the money path the transfer tests in `transfer.spec.ts` don't cover:
+// the oracle is the wallet's own `eth_sendTransaction` queue plus the USDC
+// balance, the renewer's allowance and the on-chain expiry. The second half is
+// the positive control: back on Sepolia, the same modal renews and charges.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const V2_RENEWER = ensjsSepolia.ensEthRegistrar.address
+const ERC20_ALLOWANCE_ABI = parseAbi([
+  'function allowance(address owner, address spender) view returns (uint256)',
+])
+
+async function readRenewerAllowance(owner: Address): Promise<bigint> {
+  return publicClient.readContract({
+    address: MOCK_USDC,
+    abi: ERC20_ALLOWANCE_ABI,
+    functionName: 'allowance',
+    args: [owner, V2_RENEWER],
+  })
+}
+
+test.describe('Portal Extend — wallet on an undeclared chain (WEB-281)', () => {
+  test('does not ask a wallet on another network to approve or pay, and renews once it is back on Sepolia', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+    makeName,
+  }) => {
+    test.setTimeout(300_000)
+
+    await connectWithHeadlessWallet(page, wallet)
+    const owner = accounts.getAddress('user')
+    const name = await makeName({
+      label: `web281-ext-${Date.now().toString(36)}`,
+      owner: 'user',
+    })
+    // Extend only renders once the indexer knows the name's expiry.
+    await waitForIndexedName(name)
+
+    const expiryBefore = await getExpiry(publicClient as never, { name })
+    const usdcBefore = await readUsdcBalance(owner)
+    const allowanceBefore = await readRenewerAllowance(owner)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}`)
+    await expectNamePageLoaded(page, name, owner)
+    await content(page)
+      .getByRole('button', { name: 'Extend', exact: true })
+      .click()
+    const extendDialog = page.getByRole('dialog')
+    await expect(extendDialog.getByText('Extend name')).toBeVisible()
+    await extendDialog.getByRole('button', { name: 'Next' }).click()
+    await expect(extendDialog.getByText('Confirm extension')).toBeVisible()
+    await extendDialog.getByRole('button', { name: /^USDC/ }).click()
+
+    // The wallet moves to another network between pricing and confirming.
+    await switchWalletToUndeclaredChain(page, wallet)
+    await extendDialog.getByRole('button', { name: 'Confirm' }).click()
+
+    const txDialog = page.locator('[data-slot="dialog-content"]')
+    await txDialog.getByRole('button', { name: 'Start', exact: true }).click()
+    await txDialog
+      .getByRole('button', { name: 'Open wallet', exact: true })
+      .click()
+    await expect
+      .poll(
+        async () =>
+          wallet.getPendingRequestCount(Web3RequestKind.SendTransaction) > 0 ||
+          (await txDialog.getByText('Transaction Error').isVisible()),
+        { timeout: 30_000 },
+      )
+      .toBe(true)
+
+    // ── The bug: the USDC approval was sent to the wallet on chain 1 ──
+    expect(
+      wallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+      'the wallet must not be prompted to approve while it is on another chain',
+    ).toBe(0)
+    await expect(
+      txDialog
+        .getByText(/^Chain mismatch: this transaction is for chain/)
+        .first(),
+    ).toBeVisible()
+    await expect(
+      txDialog.getByText('Approve USDC for v2 renewal'),
+    ).toBeVisible()
+
+    // Nothing moved: balance, allowance and expiry are exactly as before.
+    expect(await readUsdcBalance(owner)).toBe(usdcBefore)
+    expect(await readRenewerAllowance(owner)).toBe(allowanceBefore)
+    expect(await getExpiry(publicClient as never, { name })).toBe(expiryBefore)
+
+    // ── Positive control: back on Sepolia, the same modal renews ──
+    await switchWalletToSepolia(page, wallet)
+    await txDialog
+      .getByRole('button', { name: 'Try again', exact: true })
+      .click()
+    await expect
+      .poll(
+        () => wallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+        { timeout: 15_000 },
+      )
+      .toBe(1)
+    await driveTransactionsToSuccess(page, wallet, [
+      `renewal-approve-${V2_RENEWER}`,
+      `renewal-renew-${name}`,
+    ])
+
+    // Charged and renewed on Sepolia, where the calldata belongs. The duration
+    // is whatever the modal defaulted to, so compare directions, not amounts.
+    await expect
+      .poll(() => getExpiry(publicClient as never, { name }), {
+        timeout: 30_000,
+      })
+      .toBeGreaterThan(expiryBefore)
+    expect(await readUsdcBalance(owner)).toBeLessThan(usdcBefore)
   })
 })
