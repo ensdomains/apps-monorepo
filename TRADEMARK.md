@@ -64,14 +64,16 @@ you are responsible for obtaining your own license from the foundry.
 ## Official deployments
 
 **No deployment of this software is official, endorsed, or operated by ENS Labs
-unless it is listed at:**
+unless it is served from one of these origins:**
 
-> **TODO:** canonical official-deployments URL, on a domain ENS Labs controls
+- https://app.ens.domains
+- https://app.ens.dev
+- https://explorer.ens.dev
 
-That page is the only authoritative list. A deployment not listed there is not
-ours, regardless of how it presents itself, what domain it uses, or what it
-claims. We may update the list at any time; the list at the URL above always
-governs over any copy of it, including this file.
+A deployment not listed here is not ours, regardless of how it presents itself,
+what domain it uses, or what it claims. We may update this list at any time. The
+copy of this file in https://github.com/ensdomains/apps-monorepo is the only
+authoritative one; a copy in a fork or a redistributed build does not change it.
 
 If you find a deployment presenting itself as official when it is not, report it
 to <legal@ens.domains>.

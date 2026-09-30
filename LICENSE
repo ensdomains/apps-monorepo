@@ -32,9 +32,10 @@ you no rights in them. To use one, get a license from its owner.
                 apps/portal/src/assets/fonts/og/
 
 The web font files (WOFF2) for these typefaces are not in this repository. The
-apps load them at runtime from https://fonts.ens.dev, which serves them for ENS
-Labs' own deployments only. The TrueType files listed above are the exception:
-the Open Graph image renderer cannot read WOFF2.
+apps load them at runtime from https://fonts.ens.dev, which serves them only for
+ENS Labs' own deployments, listed under "Official deployments" in TRADEMARK.md.
+The TrueType files listed above are the exception: the Open Graph image renderer
+cannot read WOFF2.
 
 If you build or deploy anything from this repository, you are responsible for
 licensing any of these fonts you use, or for replacing them. That includes
