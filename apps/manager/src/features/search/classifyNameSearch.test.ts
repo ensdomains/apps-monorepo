@@ -110,13 +110,37 @@ describe('classifyNameSearch', () => {
     ).toEqual({ type: 'loading', name: '1.1.sugh004.eth' })
   })
 
-  it('keeps an unknown DNS 2LD viewable when it is not found', () => {
+  it('treats an unowned DNS 2LD as not imported', () => {
     expect(
       classifyNameSearch({
         kind: dnsName,
         existence: { status: 'unowned' },
         availability: { status: 'skipped' },
       }),
-    ).toEqual({ type: 'not-found', name: 'vitalik.xyz' })
+    ).toEqual({ type: 'not-imported', name: 'vitalik.xyz' })
+  })
+
+  it('treats an unowned DNS subname as not found', () => {
+    expect(
+      classifyNameSearch({
+        kind: { type: 'dns-name', name: 'sub.vitalik.xyz', isSubname: true },
+        existence: { status: 'unowned' },
+        availability: { status: 'skipped' },
+      }),
+    ).toEqual({ type: 'not-found', name: 'sub.vitalik.xyz' })
+  })
+
+  it.each([
+    [{ status: 'owned' }, 'owned'],
+    [{ status: 'pending' }, 'loading'],
+    [{ status: 'unknown' }, 'error'],
+  ] as const)('keeps DNS 2LD existence %o as %s', (existence, type) => {
+    expect(
+      classifyNameSearch({
+        kind: dnsName,
+        existence,
+        availability: { status: 'skipped' },
+      }),
+    ).toEqual({ type, name: 'vitalik.xyz' })
   })
 })

@@ -46,3 +46,5 @@ export type NameSearchOutcome =
   | { readonly type: 'owned'; readonly name: string }
   | { readonly type: 'error'; readonly name: string }
   | { readonly type: 'not-found'; readonly name: string }
+  /** An unowned DNS 2LD; Explorer decides whether/how it can be imported */
+  | { readonly type: 'not-imported'; readonly name: string }

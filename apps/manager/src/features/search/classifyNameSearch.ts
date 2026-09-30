@@ -73,6 +73,14 @@ export const classifyNameSearch = ({
     .with({ type: 'eth-subname' }, (subname) =>
       classifyProfileName(subname.name, existence),
     )
+    .with({ type: 'dns-name', isSubname: false }, (dnsName) => {
+      const outcome = classifyProfileName(dnsName.name, existence)
+      // An unowned DNS 2LD may just not be imported yet, so don't report it
+      // as missing. DNS subnames keep the generic not-found outcome.
+      return outcome.type === 'not-found'
+        ? { type: 'not-imported' as const, name: dnsName.name }
+        : outcome
+    })
     .with({ type: 'dns-name' }, (dnsName) =>
       classifyProfileName(dnsName.name, existence),
     )
