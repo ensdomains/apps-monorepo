@@ -23,7 +23,7 @@ and prohibited uses, is published at:
 
 Brand assets and usage rules (clear space, minimum sizes, colour):
 
-> **TODO:** brand assets / media kit URL
+> https://ens.domains/brand
 
 If this notice and the published policy ever disagree, the published policy
 governs.
