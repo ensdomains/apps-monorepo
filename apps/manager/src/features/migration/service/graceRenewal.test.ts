@@ -1,5 +1,6 @@
 import type { V1Domain } from '@ens-apps/migration'
 import {
+  type Address,
   ChainMismatchError,
   createWalletClient,
   custom,
@@ -76,7 +77,7 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
   const pending = new Map<string, bigint>()
   const findToken = (tokenId: bigint) =>
     domains.find((d) => BigInt(d.labelhash) === tokenId)
-  const getWrapperData = (node: unknown) => {
+  const getWrapperData = (node: unknown): [Address, number, bigint] => {
     const d = domains.find((item) => BigInt(item.id) === node)
     if (!d?.wrappedDomain) return [zeroAddress, 0, 0n]
     return [OWNER, 1, (state.expiry.get(d.labelhash) ?? 0n) + 90n * DAY]
@@ -235,6 +236,143 @@ describe('bulk grace renewal', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+  })
+
+  it.each([
+    false,
+    true,
+  ])('rejects a foreign owner before quoting or paying (wrapped: %s)', async (isWrapped) => {
+    const s = setup([domain('alice.eth', isWrapped)])
+    const quote = await s.quote()
+    const foreign = {
+      ...domain('alice.eth', isWrapped),
+      registrant: { id: OTHER },
+    }
+    if (isWrapped) {
+      const originalRead = s.readContract.getMockImplementation()
+      if (!originalRead) throw new Error('Missing contract mock')
+      s.readContract.mockImplementation(async (request) =>
+        request.functionName === 'getData'
+          ? [OTHER, 1, NOW + 60n * DAY]
+          : originalRead(request),
+      )
+    }
+    const result = await getGraceRenewalQuote({
+      domains: [foreign],
+      ownerAddress: OWNER,
+      publicClient: s.publicClient,
+    })
+    expect(result).toMatchObject({
+      error: { message: 'alice.eth is no longer owned by this wallet.' },
+    })
+    const execution = await executeGraceRenewal({
+      quote: {
+        ...quote,
+        items: quote.items.map((item) => ({ ...item, domain: foreign })),
+      },
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+    })
+    expect(execution).toMatchObject({
+      error: { message: 'alice.eth is no longer owned by this wallet.' },
+    })
+    expect(s.writeContract).not.toHaveBeenCalled()
+    expect(s.walletClient.request).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    false,
+    true,
+  ])('discards a hashless reservation only after confirmation: %s', async (confirmed) => {
+    const s = setup()
+    const quote = await s.quote()
+    const pending = pendingGraceRenewalForQuote(quote)
+    writePendingGraceRenewal(pending)
+    const confirmDiscardUnsubmittedRenewal = vi.fn(async () => confirmed)
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+      confirmDiscardUnsubmittedRenewal,
+    })
+    expect(result.isErr()).toBe(true)
+    expect(confirmDiscardUnsubmittedRenewal).toHaveBeenCalledWith(pending)
+    expect(readPendingGraceRenewal(quote)).toEqual(confirmed ? null : pending)
+    expect(s.writeContract).not.toHaveBeenCalled()
+    if (confirmed) {
+      expect(
+        (
+          await executeGraceRenewal({
+            quote: await s.quote(),
+            publicClient: s.publicClient,
+            walletClient: s.walletClient,
+          })
+        ).isOk(),
+      ).toBe(true)
+    }
+  })
+
+  it('holds the lock during discard confirmation and reconciles a late broadcast', async () => {
+    const s = setup()
+    const quote = await s.quote()
+    writePendingGraceRenewal(pendingGraceRenewalForQuote(quote))
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+      confirmDiscardUnsubmittedRenewal: async () => {
+        const concurrent = await executeGraceRenewal({
+          quote,
+          publicClient: s.publicClient,
+          walletClient: s.walletClient,
+        })
+        expect(concurrent.isErr()).toBe(true)
+        for (const item of quote.items)
+          s.state.expiry.set(item.domain.labelhash, item.targetExpiry)
+        return true
+      },
+    })
+    expect(result.isOk()).toBe(true)
+    expect(readPendingGraceRenewal(quote)).toBeNull()
+    expect(s.writeContract).not.toHaveBeenCalled()
+  })
+
+  it('retains the reservation when confirmation is aborted', async () => {
+    const s = setup()
+    const quote = await s.quote()
+    const pending = pendingGraceRenewalForQuote(quote)
+    writePendingGraceRenewal(pending)
+    const controller = new AbortController()
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+      signal: controller.signal,
+      confirmDiscardUnsubmittedRenewal: async () => {
+        controller.abort()
+        return true
+      },
+    })
+    expect(result.isErr()).toBe(true)
+    expect(readPendingGraceRenewal(quote)).toEqual(pending)
+    expect(s.writeContract).not.toHaveBeenCalled()
+  })
+
+  it('does not offer discard for a renewal with a transaction hash', async () => {
+    const s = setup()
+    const quote = await s.quote()
+    writePendingGraceRenewal(pendingGraceRenewalForQuote(quote, RENEWAL_HASH))
+    const confirmDiscardUnsubmittedRenewal = vi.fn(async () => true)
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+      confirmDiscardUnsubmittedRenewal,
+    })
+    expect(result.isErr()).toBe(true)
+    expect(confirmDiscardUnsubmittedRenewal).not.toHaveBeenCalled()
+    expect(readPendingGraceRenewal(quote)?.hash).toBe(RENEWAL_HASH)
+    expect(s.writeContract).not.toHaveBeenCalled()
   })
 
   it('quotes each name from chain expiry and encodes one batch', async () => {

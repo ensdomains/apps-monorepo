@@ -362,6 +362,9 @@ type ExecuteGraceRenewalParameters = {
   readonly onStatus?: (status: GraceRenewalStatus) => void
   readonly onApprovalRequired?: (required: boolean) => void
   readonly onRenewalSubmitted?: (hash: Hex) => void
+  readonly confirmDiscardUnsubmittedRenewal?: (
+    pending: PendingGraceRenewal,
+  ) => Promise<boolean>
 }
 
 const assertWallet = async ({
@@ -446,6 +449,21 @@ const reconcilePendingRenewal = async (
     await waitForRenewal(params, { ...pending, hash: pending.hash })
   }
   if (!(await pendingTargetsReached(params.publicClient, pending))) {
+    if (
+      !pending.hash &&
+      (await params.confirmDiscardUnsubmittedRenewal?.(pending))
+    ) {
+      params.signal?.throwIfAborted()
+      await assertWallet(params)
+      // The exclusive renewal lock remains held throughout confirmation. Recheck
+      // chain state in case the missing-hash transaction landed while it was open.
+      if (await pendingTargetsReached(params.publicClient, pending))
+        return reconcilePendingRenewal(params, pending)
+      clearPendingGraceRenewal(pending)
+      throw new Error(
+        'Previous renewal discarded. Return to name selection for a fresh quote.',
+      )
+    }
     throw new Error(
       'A previous renewal is still unresolved. Check its wallet transaction before trying again.',
     )

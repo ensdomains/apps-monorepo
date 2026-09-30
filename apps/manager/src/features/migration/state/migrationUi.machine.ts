@@ -30,6 +30,7 @@ import {
   type GraceRenewalQuote,
   type GraceRenewalStatus,
 } from '../service/graceRenewal'
+import type { PendingGraceRenewal } from '../service/graceRenewalPending'
 import { prepareGraceRenewalMigration } from '../service/prepareGraceRenewalMigration'
 import type { V1Domain } from '../service/v1SubgraphClient'
 import {
@@ -93,6 +94,10 @@ type Context = {
   renewalHash?: Hex
   renewedDomains?: readonly V1Domain[]
   renewalApprovalCompleted: boolean
+  renewalDiscardConfirmation?: {
+    readonly pending: PendingGraceRenewal
+    readonly resolve: (confirmed: boolean) => void
+  }
 }
 
 type Events =
@@ -103,6 +108,10 @@ type Events =
       signer: Signer
       hcaClient: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
       refreshAccount: () => Promise<void>
+    }
+  | {
+      type: 'renewal.discardConfirmation'
+      confirmation: NonNullable<Context['renewalDiscardConfirmation']>
     }
   | { type: 'renewal.submitted'; hash: Hex }
   | { type: 'renewal.approvalRequired'; required: boolean }
@@ -184,6 +193,16 @@ export const migrationUiMachine = setup({
         publicClient: defaultPublicClient as PublicClient,
         renewalHash: input.renewalHash,
         signal: controller.signal,
+        confirmDiscardUnsubmittedRenewal: (pending) =>
+          new Promise<boolean>((resolve) => {
+            controller.signal.addEventListener('abort', () => resolve(false), {
+              once: true,
+            })
+            sendBack({
+              type: 'renewal.discardConfirmation',
+              confirmation: { pending, resolve },
+            })
+          }),
         onRenewalSubmitted: (hash) =>
           sendBack({ type: 'renewal.submitted', hash }),
         onApprovalRequired: (required) =>
@@ -511,6 +530,7 @@ export const migrationUiMachine = setup({
       states: {
         renewing: {
           tags: 'running',
+          exit: assign({ renewalDiscardConfirmation: undefined }),
           invoke: {
             src: 'renewGraceNames',
             input: ({ context }) => {
@@ -524,6 +544,11 @@ export const migrationUiMachine = setup({
             },
           },
           on: {
+            'renewal.discardConfirmation': {
+              actions: assign({
+                renewalDiscardConfirmation: ({ event }) => event.confirmation,
+              }),
+            },
             'migration.progress': { actions: 'setProgress' },
             'renewal.approvalRequired': {
               actions: 'setRenewalApprovalRequired',

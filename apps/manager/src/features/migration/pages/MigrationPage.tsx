@@ -9,6 +9,7 @@ import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { useBalance, useWalletClient } from 'wagmi'
+import * as AlertDialog from '@/components/ui/alert-dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
@@ -205,6 +206,10 @@ export const MigrationPage = () => {
   const navigate = useNavigate()
   const canGoBack = useCanGoBack()
   const { uiActor } = useMigrationUiContext()
+  const discardConfirmation = useSelector(
+    uiActor,
+    (snapshot) => snapshot.context.renewalDiscardConfirmation,
+  )
   const migrationPlan = useSelector(uiActor, (state) => state.context.plan)
   const step = useMigrationStep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
@@ -485,6 +490,41 @@ export const MigrationPage = () => {
           ),
         )
         .exhaustive()}
+
+      <AlertDialog.Root open={!!discardConfirmation}>
+        <AlertDialog.Content>
+          <AlertDialog.Header>
+            <AlertDialog.Title>
+              <Trans>Discard unresolved renewal?</Trans>
+            </AlertDialog.Title>
+            <AlertDialog.Description>
+              <Trans>
+                Check your wallet activity first. Only discard if the previous
+                renewal was never sent or was cancelled. If it is still pending
+                and you renew again, you could pay twice. Discarding does not
+                cancel a wallet transaction.
+              </Trans>
+            </AlertDialog.Description>
+          </AlertDialog.Header>
+          <ul>
+            {discardConfirmation?.pending.items.map((item) => (
+              <li key={item.id}>{item.name}</li>
+            ))}
+          </ul>
+          <AlertDialog.Footer>
+            <AlertDialog.Cancel
+              onClick={() => discardConfirmation?.resolve(false)}
+            >
+              <Trans>Keep renewal</Trans>
+            </AlertDialog.Cancel>
+            <AlertDialog.Action
+              onClick={() => discardConfirmation?.resolve(true)}
+            >
+              <Trans>Discard renewal</Trans>
+            </AlertDialog.Action>
+          </AlertDialog.Footer>
+        </AlertDialog.Content>
+      </AlertDialog.Root>
 
       {migrationNftEnabled ? (
         <CommemorativeNftClaimDialog

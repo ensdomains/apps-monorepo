@@ -264,6 +264,43 @@ describe('migrationUiMachine', () => {
       actor.stop()
     })
 
+    it('exposes discard confirmation and clears it when renewal fails', async () => {
+      const graceDomain = domain('alice')
+      const quote = makeRenewalQuote(graceDomain)
+      const pending = {
+        ownerAddress: quote.ownerAddress,
+        chainId: quote.chainId,
+        items: quote.items.map(({ domain, targetExpiry }) => ({
+          id: domain.id,
+          name: domain.name,
+          targetExpiry,
+        })),
+      }
+      executeGraceRenewalMock.mockImplementation((params) =>
+        fromPromise(
+          (async () => {
+            expect(
+              await params.confirmDiscardUnsubmittedRenewal?.(pending),
+            ).toBe(false)
+            throw new Error('Previous renewal unresolved')
+          })(),
+          (cause) => new GraceRenewalError({ cause }),
+        ),
+      )
+      const actor = startRenewal([graceDomain])
+      await vi.advanceTimersByTimeAsync(0)
+      const confirmation =
+        actor.getSnapshot().context.renewalDiscardConfirmation
+      expect(confirmation?.pending).toEqual(pending)
+      confirmation?.resolve(false)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(
+        actor.getSnapshot().context.renewalDiscardConfirmation,
+      ).toBeUndefined()
+      expect(executeMigrationMock).not.toHaveBeenCalled()
+      actor.stop()
+    })
+
     it('waits for confirmed renewal and prepares the plan with refreshed names before starting migration', async () => {
       const graceDomain = domain('alice')
       const renewedDomain: V1Domain = {
