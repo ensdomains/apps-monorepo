@@ -8,8 +8,8 @@ import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 import { isFeatureEnabled } from '@/utils/feature-flags'
-import { createRegistrationPersistenceAdapter } from '../service/registrationPersistence'
 import { releaseHolderLocks } from '../service/registrationLock'
+import { createRegistrationPersistenceAdapter } from '../service/registrationPersistence'
 import {
   getRegistrationV2ChildActor,
   getSuspendableRunOwner,

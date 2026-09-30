@@ -791,6 +791,46 @@ describe('registrationV2UiMachine — registration.resume', () => {
     walletClient: {},
   } as unknown as SmartAccountContextValue
 
+  // A reload drops this tab's claim, so the resumed run has to take it again
+  // before it continues a commit on the wallet's nonce.
+  it('refuses to resume while the wallet is registering another name', async () => {
+    const { acquireRegistrationLock, releaseRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    asAnotherTab(() => acquireRegistrationLock(EOA_ADDRESS, 'othername.eth'))
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+
+    actor.send(resumeEvent(hcaAccount))
+
+    const refused = actor.getSnapshot()
+    expect(refused.value).toBe('failure')
+    expect(refused.context.lastErrorMessage).toMatch(/othername\.eth/i)
+
+    asAnotherTab(() => releaseRegistrationLock(EOA_ADDRESS))
+    actor.send({ type: 'retry' })
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+  })
+
+  it('claims the wallet when it resumes', async () => {
+    const { acquireRegistrationLock } = await import(
+      '../service/registrationLock'
+    )
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+
+    actor.send(resumeEvent(hcaAccount))
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+
+    asAnotherTab(() => {
+      expect(acquireRegistrationLock(EOA_ADDRESS, 'other.eth')).toBe(false)
+    })
+  })
+
   it('resumes from the pricing step a fresh mount lands on', () => {
     // A reload puts the UI machine in `pricing.duration`, not `pricing.tokens`.
     // The event is handled on the `pricing` state precisely so both work.
