@@ -1,10 +1,10 @@
 import { createOgFontCache } from '@ens-apps/og/fonts'
 import type { OgFont } from '@ens-apps/og/render'
 
-import ogSansFontUrl from '../assets/fonts/og/abc-monument-grotesk-medium.ttf?url'
-import ogMonoFontUrl from '../assets/fonts/og/abc-monument-grotesk-mono-regular.ttf?url'
-import ogSemiMonoMediumFontUrl from '../assets/fonts/og/abc-monument-grotesk-semi-mono-medium.ttf?url'
-import ogSemiMonoFontUrl from '../assets/fonts/og/abc-monument-grotesk-semi-mono-regular.ttf?url'
+import ogSansFontUrl from '../assets/fonts/og/Geist-Medium.ttf?url'
+import ogSemiMonoMediumFontUrl from '../assets/fonts/og/GeistMono-Medium.ttf?url'
+import ogMonoFontUrl from '../assets/fonts/og/GeistMono-Regular.ttf?url'
+import ogSemiMonoFontUrl from '../assets/fonts/og/GeistMono-Regular.ttf?url'
 
 const fontCache = createOgFontCache()
 

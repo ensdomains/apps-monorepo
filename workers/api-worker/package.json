@@ -1,5 +1,6 @@
 {
   "name": "api-worker",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "main": "src/worker.ts",
   "exports": {
@@ -24,7 +25,7 @@
     "lint": "biome check"
   },
   "dependencies": {
-    "@block65/webcrypto-web-push": "^1.0.2",
+    "@block65/webcrypto-web-push": "^2.0.0",
     "@ens-apps/config": "workspace:*",
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/shared-schema": "workspace:*",
