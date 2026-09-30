@@ -53,6 +53,12 @@ const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
 ])
 
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
+import {
+  awaitTransactionOutcome,
+  isErrorSnapshot,
+  isSuccessSnapshot,
+  type ReadOutcome,
+} from '../../helpers/awaitTransactionOutcome'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
 import { transactionManager } from '../../providers/transactionManager'
 import type { Call, TransactionRequest } from '../../types/transaction.types'
@@ -1184,32 +1190,34 @@ export function pollTransactionStatusActor(input: {
     return errAsync(new Error(`Transaction ${input.txId} not found`))
   }
 
-  return fromPromise(
-    new Promise<void>((resolve, reject) => {
-      const subscription = txActor.subscribe((snapshot) => {
-        console.log('🔍 [POLL TX STATUS] Transaction state:', {
-          txId: input.txId,
-          state: snapshot.value,
-          hasError: !!snapshot.context.error,
-          error: snapshot.context.error?.message,
-        })
+  const read: ReadOutcome<void> = (snapshot) => {
+    console.log('🔍 [POLL TX STATUS] Transaction state:', {
+      txId: input.txId,
+      state: snapshot.value,
+      hasError: !!snapshot.context.error,
+      error: snapshot.context.error?.message,
+    })
 
-        if (snapshot.matches('success' as unknown as never)) {
-          console.log('✅ [POLL TX STATUS] Transaction succeeded')
-          subscription.unsubscribe()
-          resolve()
-        }
-        // Check if we're in any error state (handles nested states like error.submission, error.reverted, etc.)
-        if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
-          console.error('❌ [POLL TX STATUS] Transaction failed:', {
-            errorState: snapshot.value,
-            error: snapshot.context.error,
-          })
-          subscription.unsubscribe()
-          reject(snapshot.context.error || new Error('Transaction failed'))
-        }
+    if (isSuccessSnapshot(snapshot)) {
+      console.log('✅ [POLL TX STATUS] Transaction succeeded')
+      return { settled: true, value: undefined }
+    }
+    // Any error state (handles nested states like error.submission, error.reverted, etc.)
+    if (isErrorSnapshot(snapshot)) {
+      console.error('❌ [POLL TX STATUS] Transaction failed:', {
+        errorState: snapshot.value,
+        error: snapshot.context.error,
       })
-    }),
+      return {
+        settled: false,
+        error: snapshot.context.error || new Error('Transaction failed'),
+      }
+    }
+    return undefined
+  }
+
+  return fromPromise(
+    awaitTransactionOutcome(input.txId, txActor, read),
     (error) => error as Error,
   )
 }

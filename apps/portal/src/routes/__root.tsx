@@ -10,6 +10,7 @@ import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { useTransactionManagerAccount } from '@/features/transaction-manager/hooks/useTransactionManagerAccount'
 import { useTransactionModalRouteReset } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ConnectModalProvider } from '@/features/wallet/ConnectModalProvider'
 import { MockWalletAutoConnect } from '@/features/wallet/MockWalletAutoConnect'
@@ -25,6 +26,7 @@ function TransactionManagerSetup({ children }: { children: ReactNode }) {
 
   useAutoFundOnLowBalance()
   useTransactionModalRouteReset()
+  useTransactionManagerAccount()
 
   useEffect(() => {
     if (publicClient) {

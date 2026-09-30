@@ -15,8 +15,17 @@ const RESOLVER = '0x2222222222222222222222222222222222222222' as Address
 const openModal = vi.fn()
 
 vi.mock('@ens-apps/transaction-manager', () => ({
-  transactionManager: { startTransaction: vi.fn(), clear: vi.fn() },
+  transactionManager: {
+    startTransaction: vi.fn(),
+    clear: vi.fn(),
+    getTransaction: vi.fn(),
+  },
   waitForTransaction: vi.fn(),
+  createFlowScope: (address: Address) => ({
+    account: address.toLowerCase(),
+    nonce: 'scope1',
+  }),
+  scopeTransactionId: (id: string) => id,
 }))
 
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }))
@@ -36,6 +45,13 @@ vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
     closeModal: vi.fn(),
     clearTransaction: vi.fn(),
   }),
+}))
+
+// `useFlowAttempt` opens the modal when the attempt is named, so a real scope
+// is needed for the canonical case to reach `openModal` at all. The scope
+// itself is asserted elsewhere (scopedStepFlows.test.ts).
+vi.mock('@/features/transaction-manager/hooks/useFlowAttempt', () => ({
+  useFlowAttempt: () => ({ scope: null, start: openModal, end: vi.fn() }),
 }))
 
 // The preflight estimate and the intent builder have their own tests; hold both

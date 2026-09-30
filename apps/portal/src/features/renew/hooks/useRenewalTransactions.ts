@@ -1,5 +1,10 @@
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
-import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
+import {
+  type FlowScope,
+  type Signer,
+  scopeTransactionId,
+  transactionManager,
+} from '@ens-apps/transaction-manager'
 import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet'
 import { useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
@@ -20,6 +25,7 @@ import {
   buildApproveIntent,
   toEoaCustomIntent,
 } from '@/features/transaction-manager/helpers/intents'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -45,8 +51,13 @@ export type RenewalFlowType = 'single' | 'multi'
 export const RENEWAL_TX_IDS = {
   // Keyed by renewer (spender) so a mixed batch's two approvals — one to the v2
   // ETHRegistrar, one to ETHRenewerV1 — get distinct ids and don't collide.
-  approve: (renewer: Address) => `renewal-approve-${renewer}`,
-  renew: (name: string) => `renewal-renew-${name}`,
+  // Still scoped per attempt: renewing the same name twice in a session would
+  // otherwise leave the first run's finished actor under this id, and the
+  // second run's modal would read it as already renewed.
+  approve: (renewer: Address, scope: FlowScope | null) =>
+    scopeTransactionId(`renewal-approve-${renewer}`, scope),
+  renew: (name: string, scope: FlowScope | null) =>
+    scopeTransactionId(`renewal-renew-${name}`, scope),
 } as const
 
 // The resolved payment for a flow: token + prices + the human symbol we derive
@@ -169,7 +180,10 @@ function buildApproveTransaction(
   signer: Signer,
   // A mixed batch emits two approvals; only the first resets the manager. Later
   // approvals pass skipClear so they don't stop/clear the already-completed one.
-  { skipClear = false }: { skipClear?: boolean } = {},
+  {
+    skipClear = false,
+    scope,
+  }: { skipClear?: boolean; scope: FlowScope | null },
 ) {
   if (!skipClear) transactionManager.clear()
 
@@ -182,7 +196,7 @@ function buildApproveTransaction(
     }),
     signer,
     {
-      id: RENEWAL_TX_IDS.approve(params.renewer),
+      id: RENEWAL_TX_IDS.approve(params.renewer, scope),
       publicClient: params.publicClient,
       description: approveLabel(params.tokenSymbol, params.renewer),
     },
@@ -231,9 +245,13 @@ export function buildRenewIntent(params: RenewParams): CustomTransactionIntent {
   })
 }
 
-function buildRenewTransaction(params: RenewParams, signer: Signer) {
+function buildRenewTransaction(
+  params: RenewParams,
+  signer: Signer,
+  scope: FlowScope | null,
+) {
   transactionManager.startTransaction(buildRenewIntent(params), signer, {
-    id: RENEWAL_TX_IDS.renew(params.name),
+    id: RENEWAL_TX_IDS.renew(params.name, scope),
     publicClient: params.publicClient,
     description: `Renew ${params.name}`,
   })
@@ -256,7 +274,10 @@ function buildMultiTransactions({
   publicClient,
   getSigner,
   handleDone,
-}: BuildMultiTransactionsParams): Transaction[] {
+  scope,
+}: BuildMultiTransactionsParams & {
+  scope: FlowScope | null
+}): Transaction[] {
   const { renewals, tokenAddress, tokenSymbol, payments } = multiFlow
 
   // Pure planner decides the ordered approve-then-renew steps (and which
@@ -275,7 +296,7 @@ function buildMultiTransactions({
   const flowSteps: FlowStep[] = plannedSteps.map((step) =>
     step.kind === 'approve'
       ? {
-          id: RENEWAL_TX_IDS.approve(step.renewer),
+          id: RENEWAL_TX_IDS.approve(step.renewer, scope),
           title: 'Approve payment',
           transactionName: approveLabel(tokenSymbol, step.renewer),
           prepareIntent: ({ walletClient }) =>
@@ -297,12 +318,12 @@ function buildMultiTransactions({
                 renewer: step.renewer,
               },
               signer,
-              { skipClear: step.skipClear },
+              { skipClear: step.skipClear, scope },
             )
           },
         }
       : {
-          id: RENEWAL_TX_IDS.renew(step.name),
+          id: RENEWAL_TX_IDS.renew(step.name, scope),
           title: `Extend ${step.name}`,
           transactionName: `Extend ${step.name}`,
           prepareIntent: renewersPendingApproval.has(
@@ -330,6 +351,7 @@ function buildMultiTransactions({
                 isV2: step.isV2,
               },
               signer,
+              scope,
             )
           },
         },
@@ -352,7 +374,15 @@ export const useRenewalTransactions = ({
   const connection = useConnection()
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
-  const { closeModal, clearTransaction } = useTransactionModal()
+  const {
+    openModal: openTransactionModal,
+    closeModal,
+    clearTransaction,
+  } = useTransactionModal()
+  // Names the attempt the modal is showing. Both a single renewal and a batch
+  // are steps keyed by name/renewer, which are stable across attempts, so an
+  // abandoned run would otherwise leave its finished actors behind.
+  const attempt = useFlowAttempt()
   const [flow, setFlow] = useState<RenewalFlow | null>(null)
 
   const getRuntime = async (): Promise<RenewalRuntime | null> => {
@@ -388,6 +418,7 @@ export const useRenewalTransactions = ({
           : []
     closeModal()
     clearTransaction()
+    attempt.end()
     setFlow(null)
     // Renewing pushes each name's expiry forward. Invalidate the expiry queries
     // so grace banners clear and the new expiry shows on return. For v1 names
@@ -432,6 +463,7 @@ export const useRenewalTransactions = ({
         renewer: getRenewerAddress(flow.selectedName.isV2),
       },
       runtime.signer,
+      { scope: attempt.scope },
     )
   }
 
@@ -451,6 +483,7 @@ export const useRenewalTransactions = ({
         isV2: flow.selectedName.isV2,
       },
       runtime.signer,
+      attempt.scope,
     )
   }
 
@@ -464,13 +497,14 @@ export const useRenewalTransactions = ({
         publicClient,
         getSigner,
         handleDone,
+        scope: attempt.scope,
       })
     })
     .with({ kind: 'single' }, (single) => {
       const renewer = getRenewerAddress(single.selectedName.isV2)
 
       const renewTx: Transaction = {
-        id: RENEWAL_TX_IDS.renew(single.selectedName.name),
+        id: RENEWAL_TX_IDS.renew(single.selectedName.name, attempt.scope),
         title: `Extend ${single.selectedName.name}`,
         transactionName: `Extend ${single.selectedName.name}`,
         // Renew pulls the ERC-20 payment, so a live estimate reverts until the
@@ -497,7 +531,7 @@ export const useRenewalTransactions = ({
       if (single.tokenAllowance >= single.tokenPrice) return [renewTx]
 
       const approveTx: Transaction = {
-        id: RENEWAL_TX_IDS.approve(renewer),
+        id: RENEWAL_TX_IDS.approve(renewer, attempt.scope),
         title: 'Approve payment',
         transactionName: approveLabel(single.tokenSymbol, renewer),
         intent: {
@@ -517,11 +551,17 @@ export const useRenewalTransactions = ({
     })
     .exhaustive()
 
+  // Both starters name the attempt themselves, so a caller cannot open the
+  // modal on unscoped step ids by forgetting to call `attempt.start`.
   const startFlow = (name: SelectedName, flowConfig: StartFlowConfig) => {
     const tokenSymbol = getTokenMetadataWithAddress(
       flowConfig.tokenAddress,
     ).symbol
 
+    if (connection.address) {
+      attempt.start(connection.address)
+      openTransactionModal()
+    }
     setFlow({
       kind: 'single',
       selectedName: name,
@@ -538,6 +578,10 @@ export const useRenewalTransactions = ({
       flowConfig.tokenAddress,
     ).symbol
 
+    if (connection.address) {
+      attempt.start(connection.address)
+      openTransactionModal()
+    }
     setFlow({
       kind: 'multi',
       // No v1 filter here anymore: the caller (names table) already excludes v1
@@ -565,5 +609,9 @@ export const useRenewalTransactions = ({
     startFlow,
     startMultiFlow,
     clearIncompatibleRenewalState,
+    // Exposed so a caller that reopens the modal for an already-named flow
+    // (the "a transaction is already in flight" path) can open it without
+    // minting a second scope for the same attempt.
+    openModal: openTransactionModal,
   }
 }
