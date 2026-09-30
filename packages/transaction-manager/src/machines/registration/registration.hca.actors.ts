@@ -955,9 +955,13 @@ export function verifyHcaRegistrationActor(
       signal?: AbortSignal,
     ) => Promise<string | null>
   } & VerifyPollOptions,
-): ResultAsync<{ verified: boolean; reason?: string }, Error> {
+): ResultAsync<
+  { verified: boolean; registeredToOther: boolean; reason?: string },
+  Error
+> {
   const readRegistryState = async (): Promise<{
     verified: boolean
+    registeredToOther: boolean
     reason?: string
   }> => {
     const chainId = requireChainId(input.publicClient, 'HCA registration')
@@ -996,6 +1000,12 @@ export function verifyHcaRegistrationActor(
         }),
       ])
 
+    // Lost the race: registered, but to another wallet. No retry can win it
+    // back, so the caller must stop rather than resubmit the reveal.
+    const registeredToOther =
+      Number(state.status) === STATUS_REGISTERED &&
+      !isAddressEqual(state.latestOwner, input.wallet)
+
     const reason = firstFailure([
       [
         Number(state.status) === STATUS_REGISTERED,
@@ -1026,7 +1036,9 @@ export function verifyHcaRegistrationActor(
       ],
     ])
 
-    return reason ? { verified: false, reason } : { verified: true }
+    return reason
+      ? { verified: false, registeredToOther, reason }
+      : { verified: true, registeredToOther: false }
   }
 
   // A definitive FAILED / EXPIRED from the orchestrator means the fill can

@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/dev-tools",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "DEV-only unified developer tooling drawer for ENS apps.",
   "type": "module",
   "private": true,

@@ -1,4 +1,5 @@
 import { isTimeTravelEnabled } from '@ens-apps/dev-time-travel'
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { getResolver } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
@@ -26,6 +27,7 @@ import { useCreateSubname } from '@/features/registry/hooks/useCreateSubname'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabelRegistrationError } from '@/utils/token/isNormalized'
@@ -120,11 +122,16 @@ const CreateSubnameForm = ({
     setOwnerInput,
   )
 
-  const {
-    openModal: openTransactionModal,
-    closeModal: closeTransactionModal,
-    clearTransaction,
-  } = useTransactionModal()
+  const { closeModal: closeTransactionModal, clearTransaction } =
+    useTransactionModal()
+
+  // Names the attempt the modal is showing, so a run abandoned mid-flight can't
+  // leave a settled actor under the fixed id the next attempt would look up.
+  const attempt = useFlowAttempt()
+  const createSubnameTxId = scopeTransactionId(
+    CREATE_SUBNAME_TRANSACTION_ID,
+    attempt.scope,
+  )
 
   const {
     createSubname,
@@ -166,7 +173,7 @@ const CreateSubnameForm = ({
       resolverAddress,
       parentName: name,
       protocolVersion,
-      id: CREATE_SUBNAME_TRANSACTION_ID,
+      id: createSubnameTxId,
       expires: computeSubnameExpires(),
     })
   }
@@ -206,7 +213,7 @@ const CreateSubnameForm = ({
     }
 
     setResolverAddress(resolverResult.value)
-    openTransactionModal()
+    if (connectedAddress) attempt.start(connectedAddress)
   }
 
   if (registriesLoading) {
@@ -317,7 +324,7 @@ const CreateSubnameForm = ({
       <TransactionModal
         transactions={[
           {
-            id: CREATE_SUBNAME_TRANSACTION_ID,
+            id: createSubnameTxId,
             title: 'Create subname',
             transactionName: `Create ${label.trim()}.${name}`,
             // The prepared createSubname transaction for the pre-start gas
@@ -342,6 +349,7 @@ const CreateSubnameForm = ({
             onDone: () => {
               closeTransactionModal()
               clearTransaction()
+              attempt.end()
               navigate({ to: '/$name/subnames', params: { name } })
             },
           },

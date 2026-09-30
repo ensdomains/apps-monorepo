@@ -17,6 +17,7 @@ import type { TokenRequest, Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash } from 'viem'
 import {
+  ChainIdMismatchError,
   extractOrchestratorErrorContext,
   TransactionSubmissionError,
 } from '../errors/transaction.errors'
@@ -44,7 +45,7 @@ export interface SubmitWarpTransactionInput {
 
 export function submitWarpTransaction(
   input: SubmitWarpTransactionInput,
-): ResultAsync<Hash, TransactionSubmissionError> {
+): ResultAsync<Hash, TransactionSubmissionError | ChainIdMismatchError> {
   const { request, signer } = input
   const { account, config } = signer
 
@@ -57,6 +58,27 @@ export function submitWarpTransaction(
         ),
       ),
     )
+  }
+
+  // The signer's chain is handed to the orchestrator as BOTH `sourceChains` and
+  // `targetChain`, so it decides where the intent is planned, quoted and
+  // filled. It used to fall back to `sepolia` when `config.chain` was unset,
+  // which silently re-routed the whole intent away from the chain the calls
+  // were built for. Assert instead — the session digest binds a chain on-chain
+  // and would fail with an opaque `InvalidSignature()` at best.
+  //
+  // This cannot fire today: manager is the only warp consumer and sets
+  // `config.chain` to `customSepolia` unconditionally, with `request.chainId`
+  // derived from the same constant. So this states the invariant rather than
+  // closing a live hole — the EOA guard is the one that bites — and keeps the
+  // next signer wiring from quietly reintroducing the default.
+  const chain = config.chain
+  if (!chain || chain.id !== request.chainId) {
+    logger.error('Warp intent chain mismatch', {
+      requestChainId: request.chainId,
+      signerChainId: chain?.id,
+    })
+    return errAsync(new ChainIdMismatchError(request.chainId, chain))
   }
 
   const { calls, feeAsset, sessionEnableData, tokenRequests, auxiliaryFunds } =
@@ -142,10 +164,9 @@ export function submitWarpTransaction(
 
   return fromPromise(
     (async () => {
-      // No fallback: `SmartAccountConfig.chain` is required, so an absent
-      // chain here is a construction bug, not a case to paper over.
-      const { chain } = config
-
+      // `chain` is the one asserted above: it is a `const`, so TypeScript keeps
+      // the non-undefined narrowing from the guard into this closure, and there
+      // is no fallback here to paper over an absent `config.chain`.
       const sendStart = nowMs()
 
       // Log raw call data before SDK processes it

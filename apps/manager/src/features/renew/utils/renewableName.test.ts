@@ -46,11 +46,16 @@ describe('resolveRenewalLabel', () => {
   it.each([
     'ALICE.eth',
     'Alice.ETH',
-    'ali\u00ADce.eth',
   ])('refuses %s rather than resolving it to a twin label', (name) => {
     const result = resolveRenewalLabel(name)
     expect(result.isErr()).toBe(true)
     expect(result._unsafeUnwrapErr().reason).toBe('LABEL_NOT_NORMALIZED')
+  })
+
+  it('refuses an invisible character at parse time, before normalising', () => {
+    const result = resolveRenewalLabel('ali\u00ADce.eth')
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().reason).toBe('NOT_NORMALIZED')
   })
 })
 
@@ -59,9 +64,14 @@ describe('toCanonicalRenewableName', () => {
     ['alice.eth', 'alice.eth'],
     ['ALICE.eth', 'alice.eth'],
     ['alice', 'alice.eth'],
-    ['ali\u00ADce.eth', 'alice.eth'],
   ])('canonicalizes %s to %s', (input, expected) => {
     expect(toCanonicalRenewableName(input)).toBe(expected)
+  })
+
+  it('has no canonical name for a label hiding an invisible character', () => {
+    // A soft hyphen renders as `alice` but isn't typed as one; redirecting it
+    // to `alice.eth` would quietly swap the name the user followed.
+    expect(toCanonicalRenewableName('ali\u00ADce.eth')).toBeNull()
   })
 
   it('returns null for names that are not renewable at all', () => {

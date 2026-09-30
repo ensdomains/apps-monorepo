@@ -26,6 +26,7 @@ import { useResolverRolesMutations } from '@/features/resolver/hooks/useResolver
 import { buildResolverRolesTransactions } from '@/features/resolver/utils/buildResolverRolesTransactions'
 import { useResetMutationsOnAccountChange } from '@/features/roles/hooks/useResetMutationsOnAccountChange'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
@@ -236,7 +237,10 @@ export const ResolverRolesSidebar = ({
   const [pendingAction, setPendingAction] =
     useState<ResolverRolesAction | null>(null)
 
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
+  // Names the attempt currently in the modal, so a second save or removal in
+  // the same session can't be served by the first one's finished actor.
+  const attempt = useFlowAttempt()
   const {
     saveMutation,
     removeUserMutation,
@@ -289,7 +293,13 @@ export const ResolverRolesSidebar = ({
   )
 
   const handleSaveChanges = () => {
-    if (!group || !selectedAccount || saveMutation.isPending) return
+    if (
+      !group ||
+      !selectedAccount ||
+      !connectedAddress ||
+      saveMutation.isPending
+    )
+      return
     setPendingAction({
       type: 'save',
       resource,
@@ -298,7 +308,7 @@ export const ResolverRolesSidebar = ({
       rolesToGrant,
       rolesToRevoke,
     })
-    openModal()
+    attempt.start(connectedAddress)
   }
 
   const handleRemoveUser = () => {
@@ -306,6 +316,7 @@ export const ResolverRolesSidebar = ({
     if (
       !selectedAccount ||
       revocations.length === 0 ||
+      !connectedAddress ||
       removeUserMutation.isPending
     )
       return
@@ -316,7 +327,7 @@ export const ResolverRolesSidebar = ({
       account: selectedAccount,
       revocations,
     })
-    openModal()
+    attempt.start(connectedAddress)
   }
 
   const handlePermissionChange = (
@@ -338,15 +349,17 @@ export const ResolverRolesSidebar = ({
     pendingAction,
     resolverAddress,
     {
-      save: (action) => saveMutation.mutate(action),
+      save: (action, id) => saveMutation.mutate({ ...action, id }),
       revoke: (params) => removeUserMutation.mutate(params),
       done: () => {
         closeModal()
         clearTransaction()
         setPendingAction(null)
+        attempt.end()
         setOpen(false)
       },
     },
+    attempt.scope,
   )
 
   const isSelf = Boolean(

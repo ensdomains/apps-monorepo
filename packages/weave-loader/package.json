@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/weave-loader",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "Standalone weave loader: WebGL woven-fabric shader, animated name fill, and progress primitives for ENS apps",
   "type": "module",
   "private": true,

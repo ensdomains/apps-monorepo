@@ -4,7 +4,12 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { registryOwnerSnippet } from '@ensdomains/ensjs-abi/registry'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, namehash, type ReadContractErrorType } from 'viem'
+import {
+  type Address,
+  isAddressEqual,
+  namehash,
+  type ReadContractErrorType,
+} from 'viem'
 import { readContract } from 'viem/actions'
 import { normalize } from 'viem/ens'
 import { getAction } from 'viem/utils'
@@ -28,10 +33,14 @@ type GetV1NameManagerParameters = {
  * 2LD this is the controller, which can be a different wallet from the
  * registrant holding the ERC-721 — see `getV1NameState` for the full shape.
  *
+ * Null for a wrapped name: its slot is held by the NameWrapper contract, and
+ * the wrapper owner the Owner row already names is the only account in control
+ * — there is no separate manager to show (WEB-1514).
+ *
  * Its own query (rather than a `useReadContract` inside the row that renders
  * it) so the reclaim flow can invalidate it by key once the role has moved.
  */
-const getV1NameManager = ResultFn(async function* ({
+export const getV1NameManager = ResultFn(async function* ({
   name: rawName,
 }: GetV1NameManagerParameters) {
   // Route-supplied, so normalise before hashing — an unnormalised spelling
@@ -61,7 +70,17 @@ const getV1NameManager = ResultFn(async function* ({
     (e) => new GetV1NameManagerError({ cause: e as ReadContractErrorType }),
   )
 
-  return ok<Address>(manager)
+  return ok<Address | null>(
+    isAddressEqual(
+      manager,
+      getChainContractAddress({
+        chain: client.chain,
+        contract: 'ensNameWrapper',
+      }),
+    )
+      ? null
+      : manager,
+  )
 })
 
 const getV1NameManagerQueryKey = createQueryKey<
