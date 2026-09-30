@@ -11,9 +11,9 @@ import type { OgFont } from '@ens-apps/og/render'
  */
 
 const FONT_PATHS = {
-  mono: '/og/fonts/abc-monument-grotesk-mono-regular.ttf',
-  sans: '/og/fonts/abc-monument-grotesk-medium.ttf',
-  semiMono: '/og/fonts/abc-monument-grotesk-semi-mono-regular.ttf',
+  mono: '/og/fonts/GeistMono-Regular.ttf',
+  sans: '/og/fonts/Geist-Medium.ttf',
+  semiMono: '/og/fonts/GeistMono-Regular.ttf',
 } as const
 
 const fontCache = createOgFontCache()
