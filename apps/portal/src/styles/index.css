@@ -398,10 +398,10 @@
 }
 
 @theme {
-  --font-sans: "ABCMonumentGrotesk";
-  --font-mono: "ABCMonumentGroteskMono";
-  --font-semi-mono: "ABCMonumentGroteskSemiMono";
-  --font-serif: "ABCMarist";
+  --font-sans: "ABCMonumentGrotesk", sans-serif;
+  --font-mono: "ABCMonumentGroteskMono", monospace;
+  --font-semi-mono: "ABCMonumentGroteskSemiMono", monospace;
+  --font-serif: "ABCMarist", serif;
   --text-heading: 1.75rem;
 
   /* Type scale — 1:1 with the ENS Builder / Figma type styles (WEB-595).
