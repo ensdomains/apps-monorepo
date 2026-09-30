@@ -9,7 +9,7 @@
     "./urql": "./urql/client.ts",
     "./urql/request": "./urql/request.ts",
     "./bigname": "./bigname/index.ts",
-    "./contracts": "./contracts/index.ts"
+    "./reads": "./reads/index.ts"
   },
   "scripts": {
     "codegen": "graphql-codegen",

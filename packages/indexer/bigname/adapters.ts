@@ -3,8 +3,8 @@ import type {
   Address,
   NameRelation,
   ProtocolVersion,
-} from '../contracts/common.types'
-import { IndexerReadError } from '../contracts/errors'
+} from '../reads/common.types'
+import { IndexerReadError } from '../reads/errors'
 import type { BignameError } from './errors'
 import type { Authority, Relation, Timestamp } from './types'
 

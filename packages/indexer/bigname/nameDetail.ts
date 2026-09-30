@@ -1,6 +1,6 @@
 import { errAsync, okAsync } from 'neverthrow'
-import type { IndexerReadError } from '../contracts/errors'
-import type { NameDetail, ReadNameDetail } from '../contracts/nameDetail.types'
+import type { IndexerReadError } from '../reads/errors'
+import type { NameDetail, ReadNameDetail } from '../reads/nameDetail.types'
 import { toAddress, toDate, toProtocol, toReadError } from './adapters'
 import type { BignameClient } from './client'
 import type { NameRecord } from './types'

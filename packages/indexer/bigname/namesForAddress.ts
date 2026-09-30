@@ -2,7 +2,7 @@ import type {
   NameSummary,
   NamesForAddressQuery,
   ReadNamesForAddress,
-} from '../contracts/namesForAddress.types'
+} from '../reads/namesForAddress.types'
 import { toDate, toProtocol, toReadError, toRelations } from './adapters'
 import type { BignameClient } from './client'
 import type { AddressName, AddressNamesQuery, Authority } from './types'
