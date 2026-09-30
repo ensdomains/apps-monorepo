@@ -88,7 +88,11 @@ const ProfileDetail = ({
       <span>{label}</span>
     </div>
     <div className="flex min-w-0 items-center gap-1 pl-6 lg:landscape:pl-0">
-      <span className={`${detailValueClassName} truncate`}>{value}</span>
+      <span
+        className={`${detailValueClassName} truncate focus-within:overflow-visible`}
+      >
+        {value}
+      </span>
       {copyValue ? <ProfileDetailCopyButton value={copyValue} /> : null}
     </div>
   </div>
@@ -120,7 +124,7 @@ export const ProfileDetails = ({
           labelPaddingClassName="pl-[22px]"
           value={
             <Link
-              className="text-inherit hover:underline focus-visible:-mx-0.5 focus-visible:px-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-quartz-700 focus-visible:ring-inset"
+              className="inline-block max-w-full truncate text-inherit hover:underline focus-visible:relative focus-visible:z-10 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-quartz-700 focus-visible:ring-offset-2"
               params={{ address: owner }}
               to="/$address"
             >
