@@ -9,8 +9,8 @@ behind them. Three deployables live here:
 | [`apps/portal`](apps/portal) | The ENS Explorer: browse and manage names on both ENSv1 and ENSv2 (records, renewals, transfers, DNS import), plus addresses, resolvers and registries, with server-rendered Open Graph cards. A Vite SPA fronted by a Cloudflare Worker. | https://explorer.ens.dev |
 | [`workers/api-worker`](workers/api-worker) | The backend for the manager app: SIWE auth, favorites, name notifications (email, Web Push, Telegram), a testnet gas faucet for migrations, and the scheduled sweeps that feed them. Hono on Cloudflare Workers with Postgres, KV and Queues. | https://app-api.ens.dev |
 
-Only deployments served from the origins listed in [TRADEMARK.md](TRADEMARK.md)
-are operated by ENS Labs.
+The official app origins are the ones listed in [TRADEMARK.md](TRADEMARK.md);
+a deployment anywhere else is not operated by ENS Labs.
 
 ENSv2 is deployed on Sepolia only. The apps target one network per build
 (`VITE_ENS_NETWORK`), and today `sepolia` is the only network with a complete
@@ -97,8 +97,15 @@ pnpm --filter portal dev    # http://localhost:3001
 cd workers/api-worker
 cp .dev.vars.example .dev.vars   # fill in an RPC URL; provider keys are optional
 docker compose up -d             # Postgres + a local Neon HTTP proxy
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres pnpm exec drizzle-kit migrate
 pnpm dev                         # http://localhost:2999
 ```
+
+The worker talks to Postgres over Neon's HTTP driver, so `DATABASE_URL` in
+`.dev.vars` uses the `db.localtest.me` host, which the driver routes to the
+local proxy; the example file has it. The migrate step applies the checked-in
+Drizzle migrations over a direct connection and is needed once per fresh
+database.
 
 The worker's testing approach, including the real-database tests behind
 `pnpm test:db`, is described in
@@ -125,7 +132,7 @@ Run these from the repository root unless noted.
 | Build | `pnpm build:manager`, `pnpm build:portal` |
 | Storybook (manager) | `pnpm --filter manager storybook:dev` |
 | Translations (manager) | `pnpm --filter manager i18n:extract`, see [`apps/manager/docs/I18N.md`](apps/manager/docs/I18N.md) |
-| E2E | `pnpm e2e:infra:up`, then `pnpm e2e:manager` / `pnpm e2e:portal` / `pnpm e2e:cross-app` |
+| E2E | `pnpm e2e:infra:up`, then `pnpm e2e:manager` or `pnpm e2e:portal` (`e2e:cross-app` is an empty placeholder) |
 
 Typecheck from the app directory with `pnpm typecheck`, not `npx tsc`: the
 manager's typecheck first builds the api-worker's exported types, and a bare
@@ -151,9 +158,10 @@ Lefthook runs on every commit and push:
   [`e2e/README.md`](e2e/README.md) covers the stack, the headless wallet, and
   manual time travel for grace-period and premium testing.
 
-CI typechecks, lints and tests the packages changed by a PR, verifies the
-builds, runs the E2E suites, and runs `npm audit` and CodeQL on every push to
-`main` and weekly.
+CI typechecks, lints and tests the packages changed by a PR and verifies the
+builds. The E2E suites run for PRs that touch the apps, packages, lockfile or
+`e2e/`, scoped to the apps affected. `pnpm audit` and CodeQL run on every push
+to `main` and weekly.
 
 ## Conventions
 
@@ -203,8 +211,9 @@ ENS runs a bug bounty on Immunefi that covers these applications.
 
 ## License
 
-Code under `apps/` and `workers/` is licensed under AGPL-3.0-only; everything
-else is MIT. The ENS marks and all font files are excluded from both. See
+Code under `apps/` and `workers/` is licensed under AGPL-3.0-only; other code
+is MIT. `docs/` and `e2e/` are excluded from both licenses, as are the ENS
+marks and all font files. See
 [LICENSE](LICENSE) for the exact terms and exclusions, and
 [TRADEMARK.md](TRADEMARK.md) for what you must change before deploying a
 modified version.
