@@ -2,6 +2,7 @@ import type { ResultAsync } from 'neverthrow'
 import { describe, expect, it } from 'vitest'
 import { createBignameClient } from './client'
 import { type BignameError, isStale } from './errors'
+import type { Address } from './types'
 
 /**
  * Drift detection for the hand-written types: every typed route is read from
@@ -63,6 +64,11 @@ const expectShape = (value: unknown, shape: Shape) => {
 
 const unwrap = <T>(result: { _unsafeUnwrap: () => T }) => result._unsafeUnwrap()
 
+const ownerOf = (owner: Address | undefined): Address => {
+  expect(owner).toBeTypeOf('string')
+  return owner as Address
+}
+
 // A current-state collection's first page answers 409 when the publication
 // moves mid-read. Retrying is the caller's job, and here the caller is us.
 const once = async <T>(
@@ -74,7 +80,7 @@ const once = async <T>(
 }
 
 describe.skipIf(!integration)(
-  'bigname contract on sepolia',
+  'bigname wire shapes on sepolia',
   { timeout: 30_000 },
   () => {
     const client = createBignameClient('https://sepolia.api.bigname.sh')
@@ -218,7 +224,7 @@ describe.skipIf(!integration)(
     })
 
     it('address history', async () => {
-      const owner = unwrap(await client.name(NAME)).data.owner as string
+      const owner = ownerOf(unwrap(await client.name(NAME)).data.owner)
       const { data, page } = unwrap(
         await client.addressHistory(owner, { include: ['data'], page_size: 5 }),
       )
@@ -261,13 +267,13 @@ describe.skipIf(!integration)(
           authority_context: 'string',
         })
       }
-      // Partial by contract: the surfaces not listed are named in meta.
+      // Partial by design: the surfaces not listed are named in meta.
       expect(response.meta.completeness).toBe('partial')
       expect(response.meta.unlisted_permission_surfaces).toBeTypeOf('object')
     })
 
     it('lookup', async () => {
-      const owner = unwrap(await client.name(NAME)).data.owner as string
+      const owner = ownerOf(unwrap(await client.name(NAME)).data.owner)
       const { data } = unwrap(
         await client.lookup({
           inputs: [

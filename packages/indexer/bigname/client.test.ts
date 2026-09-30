@@ -1,31 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createBignameClient } from './client'
 import { BignameError, isStale } from './errors'
-
-const json = (body: unknown, status = 200, headers?: Record<string, string>) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json', ...headers },
-  })
-
-const envelope = (data: unknown) => json({ data, meta: { as_of: {} } })
-
-const apiError = (code: string, status: number) =>
-  json({ error: { code, message: `${code} happened`, details: {} } }, status)
-
-/** A client whose fetch replays the given responses in order. */
-const clientWith = (...responses: Response[]) => {
-  const fetch = vi.fn(async () => responses.shift() ?? json({}, 500))
-  const client = createBignameClient('https://bigname.example/', {
-    fetch: fetch as unknown as typeof globalThis.fetch,
-  })
-  return { client, fetch }
-}
-
-const requestOf = (fetch: ReturnType<typeof vi.fn>, call = 0) => {
-  const [url, init] = fetch.mock.calls[call] as [string, RequestInit]
-  return { url, init }
-}
+import { apiError, clientWith, envelope, json, requestOf } from './fetch.mock'
 
 describe('createBignameClient', () => {
   describe('requests', () => {
