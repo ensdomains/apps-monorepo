@@ -19,7 +19,7 @@ result as ENS, or as endorsed by or affiliated with ENS Labs.
 The full policy, including acceptable uses, uses requiring written permission,
 and prohibited uses, is published at:
 
-> **TODO:** canonical trademark policy URL (the page exists in the manager app at `/legal/trademark-guidelines`; needs its public URL)
+> https://ens.domains/legal/trademark-guidelines
 
 Brand assets and usage rules (clear space, minimum sizes, colour):
 
