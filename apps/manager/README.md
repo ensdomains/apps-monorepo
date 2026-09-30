@@ -45,19 +45,13 @@ are debug-only and must never reach a production deploy:
 - `VITE_ENABLE_DEBUG_FEATURES` exposes the `/debug/*` routes and the backend
   override. It is on automatically in `vite dev`.
 
-## Commands
+## Notes
 
-| Task | Command |
-| --- | --- |
-| Dev server | `pnpm dev`, or `pnpm dev:inspect` with the XState inspector |
-| Typecheck | `pnpm typecheck` (builds the api-worker's exported types first) |
-| Tests | `pnpm test`, `pnpm test:coverage` |
-| Lint | `pnpm lint`, `pnpm lint:fix` |
-| Production build | `pnpm build`, then `pnpm preview` to serve it with wrangler |
-| Storybook | `pnpm storybook:dev` |
-| Translations | `pnpm i18n:extract`, `pnpm i18n:compile`; push and pull via Crowdin with `i18n:push` / `i18n:pull` |
-| Worker types | `pnpm cf-typegen` after changing `wrangler.jsonc` |
-| Rhinestone debug page | `pnpm debug:rhinestone-browser`, see [`rhinestone-browser-debug/`](rhinestone-browser-debug/README.md) |
+- `pnpm typecheck` builds the api-worker's exported types first.
+- `pnpm dev:inspect` runs the dev server with the XState inspector.
+- `pnpm cf-typegen` regenerates the Worker bindings after a `wrangler.jsonc` change.
+- [`rhinestone-browser-debug/`](rhinestone-browser-debug/README.md) is a
+  standalone page for isolating the smart-account flow with a browser wallet.
 
 ## Layout
 

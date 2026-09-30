@@ -62,15 +62,11 @@ The brand typefaces are not in the repository; official deployments load them
 from `fonts.ens.dev` and everything else falls back to the generic family. See
 [`apps/portal/src/assets/fonts/README.md`](apps/portal/src/assets/fonts/README.md).
 
-## Commands
+## Checks
 
-| Task | Command |
-| --- | --- |
-| Typecheck | `pnpm typecheck:manager`, `pnpm typecheck:portal`, or `pnpm typecheck` in a package (not `npx tsc`) |
-| Tests | `pnpm test:manager`, `pnpm test:portal`, `pnpm --filter api-worker test`, `pnpm test:all` |
-| Lint | `pnpm check`, `pnpm check:fix` |
-| Build | `pnpm build:manager`, `pnpm build:portal` |
-| E2E | `pnpm e2e:infra:up`, then `pnpm e2e:manager` or `pnpm e2e:portal` (see [`e2e/`](e2e/README.md)) |
+Scripts live in the root and package `package.json` files. Typecheck with
+`pnpm typecheck` from a package, not `npx tsc`. The E2E suites need the Docker
+stack from `pnpm e2e:infra:up`; see [`e2e/`](e2e/README.md).
 
 Lefthook formats staged files on commit and runs `biome ci` on push. CI
 typechecks, lints, tests and builds the packages a PR changes; E2E runs for PRs

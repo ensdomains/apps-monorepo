@@ -46,21 +46,11 @@ development the Worker is not run, so meta tags and OG images are served by
 the "Upgrade to v2" banner, and the mock wallet and time-travel switches for
 automated testing, which must never reach a production deploy.
 
-## Commands
+## Notes
 
-| Task | Command |
-| --- | --- |
-| Dev server | `pnpm dev` |
-| Typecheck | `pnpm typecheck` |
-| Tests | `pnpm test`, `pnpm test:watch`, `pnpm test:ui`, `pnpm test:coverage` |
-| Lint | `pnpm lint` |
-| Production build | `pnpm build` (Vite build plus a typecheck), `pnpm serve` to preview it |
-| Deploy | `pnpm deploy` (wrangler), `pnpm deploy:version` for a preview version |
-| Worker types | `pnpm cf-typegen` after changing `wrangler.jsonc` |
-| Unused code | `pnpm knip` |
-
-There is also a `deploy-portal` workflow that publishes a GitHub release to
-IPFS, but it has never run; deploys go through wrangler.
+- `pnpm cf-typegen` regenerates the Worker bindings after a `wrangler.jsonc` change.
+- Deploys go through wrangler. The `deploy-portal` workflow that publishes a
+  release to IPFS exists but has never run.
 
 ## Layout
 
