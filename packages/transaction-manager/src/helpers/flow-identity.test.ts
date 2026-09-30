@@ -51,4 +51,23 @@ describe('scopeTransactionId', () => {
       scopeTransactionId('step', scope),
     )
   })
+
+  // The modal's console matcher is `Transaction <id> state: <state>`, and step
+  // ids are built by concatenating a label (`tx-delete-ens-subname` +
+  // subname), so one id can prefix another. The scope suffix is what keeps a
+  // parent's matcher from reading a child's log line as its own success.
+  it('does not let an id match another that prefixes it', () => {
+    const scope = createFlowScope(ACCOUNT)
+    const parent = scopeTransactionId('tx-delete-ens-subname', scope)
+    const child = scopeTransactionId('tx-delete-ens-subname-a.sub.eth', scope)
+    const matches = (id: string) =>
+      new RegExp(`Transaction ${id}(--\\S+)? state: success`)
+
+    expect(matches(parent).test(`Transaction ${child} state: success`)).toBe(
+      false,
+    )
+    expect(matches(child).test(`Transaction ${child} state: success`)).toBe(
+      true,
+    )
+  })
 })

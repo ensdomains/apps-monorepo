@@ -1,3 +1,4 @@
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
@@ -25,6 +26,7 @@ import { useUserPermissionedResolvers } from '@/features/resolver/hooks/useUserP
 import { getIsSubmitDisabled } from '@/features/resolver/utils/getIsSubmitDisabled'
 import { generateResolverSalt } from '@/features/resolver/utils/permissionedResolver'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 
 const DEPLOY_RESOLVER_TX_ID = 'tx-deploy-permissioned-resolver'
@@ -71,11 +73,20 @@ export const ChangeResolverForm = ({
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
   const deployedResolverAddressRef = useRef<Address | null>(null)
 
-  const {
-    openModal: openTransactionModal,
-    closeModal: closeTransactionModal,
-    clearTransaction,
-  } = useTransactionModal()
+  const { closeModal: closeTransactionModal, clearTransaction } =
+    useTransactionModal()
+  // Names the attempt the modal is showing. The deploy path chains two steps,
+  // so an abandoned run would otherwise leave its deploy actor behind and the
+  // next attempt would skip straight to "Change resolver" without deploying.
+  const attempt = useFlowAttempt()
+  const deployResolverTxId = scopeTransactionId(
+    DEPLOY_RESOLVER_TX_ID,
+    attempt.scope,
+  )
+  const changeResolverTxId = scopeTransactionId(
+    CHANGE_RESOLVER_TX_ID,
+    attempt.scope,
+  )
 
   const {
     data: existingResolvers = [],
@@ -92,7 +103,7 @@ export const ChangeResolverForm = ({
   } = useChangeResolver({
     name,
     target,
-    id: CHANGE_RESOLVER_TX_ID,
+    id: changeResolverTxId,
   })
 
   const {
@@ -147,7 +158,7 @@ export const ChangeResolverForm = ({
   const handleDeployResolverStart = async () => {
     await ResultAsync.fromPromise(
       deployPermissionedResolverAsync({
-        id: DEPLOY_RESOLVER_TX_ID,
+        id: deployResolverTxId,
       }),
       () => undefined,
     ).match(
@@ -175,24 +186,27 @@ export const ChangeResolverForm = ({
   const handleChangeResolverTransactionDone = () => {
     closeTransactionModal()
     clearTransaction()
+    attempt.end()
     navigate({ to: '/$name/resolver', params: { name } })
   }
 
   const handleSubmit = async () => {
     try {
+      if (!connectedAddress) return
+
       if (useCustomResolver) {
         if (!isAddress(resolverAddress)) return
-        openTransactionModal()
+        attempt.start(connectedAddress)
         return
       }
 
       if (deployNewResolver) {
-        openTransactionModal()
+        attempt.start(connectedAddress)
         return
       }
 
       if (!isAddress(selectedExistingResolver)) return
-      openTransactionModal()
+      attempt.start(connectedAddress)
     } catch (err) {
       console.error('Failed to update resolver:', err)
     }
@@ -333,7 +347,7 @@ export const ChangeResolverForm = ({
           isDeployPath
             ? [
                 {
-                  id: DEPLOY_RESOLVER_TX_ID,
+                  id: deployResolverTxId,
                   title: 'Deploy permissioned resolver',
                   transactionName: `Deploy resolver for ${name}`,
                   intent: {
@@ -348,7 +362,7 @@ export const ChangeResolverForm = ({
                   onDone: handleChangeResolverAfterDeployStart,
                 },
                 {
-                  id: CHANGE_RESOLVER_TX_ID,
+                  id: changeResolverTxId,
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
                   // No pre-start estimate by design: the target is the resolver
@@ -360,7 +374,7 @@ export const ChangeResolverForm = ({
               ]
             : [
                 {
-                  id: CHANGE_RESOLVER_TX_ID,
+                  id: changeResolverTxId,
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
                   intent: {
