@@ -25,7 +25,7 @@ export const MigrateRegistryPrompt = ({ name }: { readonly name: string }) => {
   return (
     <RegistryPanel>
       <div className="flex flex-col gap-2 bg-muted p-5 rounded-lg">
-        <h3 className="text-3xl font-medium font-serif">
+        <h3 className="text-3xl font-normal font-serif">
           No registry configured
         </h3>
         <p className="text-base">

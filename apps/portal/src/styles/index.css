@@ -1,6 +1,5 @@
 @import "tw-animate-css";
 @import "tailwindcss";
-@import "./fonts.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -398,15 +397,14 @@
 }
 
 @theme {
-  --font-sans: "ABCMonumentGrotesk", sans-serif;
-  --font-mono: "ABCMonumentGroteskMono", monospace;
-  --font-semi-mono: "ABCMonumentGroteskSemiMono", monospace;
-  --font-serif: "ABCMarist", serif;
+  --font-sans: "Geist", sans-serif;
+  --font-mono: "Geist Mono", monospace;
+  --font-semi-mono: "Geist Mono", monospace;
+  --font-serif: "Libre Baskerville", serif;
   --text-heading: 1.75rem;
 
   /* Type scale — 1:1 with the ENS Builder / Figma type styles (WEB-595).
-     Weights 360/425 are real instances on the Grotesk variable wght axis
-     (see fonts.css). */
+     Weights 360/425 are real instances on the Geist variable wght axis. */
   --text-h1: 2.125rem; /* 34px */
   --text-h1--line-height: 2.375rem; /* 38px */
   --text-h1--font-weight: 425;
