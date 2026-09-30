@@ -35,9 +35,9 @@ applies across **all** of that config's projects — including the harness
 dependency — so the harness project itself is thinned down to just the
 fixture checks the smoke tests actually rely on, not all of it.
 
-## The curated list (13 tests, ~4.4 minutes measured)
+## The curated list (14 tests, ~4.5 minutes measured)
 
-### Portal — 10 tests, 144s measured (`playwright.smoke.config.ts`)
+### Portal — 11 tests, 150s measured (`playwright.smoke.config.ts`)
 
 | # | Test | File | Why it's here |
 |---|---|---|---|
@@ -49,6 +49,7 @@ fixture checks the smoke tests actually rely on, not all of it.
 | 8 | `blocks detaching a registry with third-party subnames until the exact blast radius is acknowledged, and voids that acknowledgement if the toggle is reset` (`@scenario:F41`) | `transfer.spec.ts` | **Mandated.** Regression coverage for a real security fix (PR #1170 / immunefi #93026): the registry-detach consent gate, including the "resetting the toggle voids the tick" re-attack the original bug allowed. |
 | 9 | `shows "Registry detached" instead of "Configure registry" after a detach transfer` (`@scenario:F42`) | `transfer.spec.ts` | Companion to F41, same PR (#1170), same vulnerability class: before the fix, a detached slot rendered as "Configure registry," letting the new holder deploy a fresh empty registry and re-mint the victim's old subname labels into it, stranding the original token. Added after the first measured run came in well under budget (145s for 8 tests) — this is the one "one more high-value test" the runbook invited, not padding: it is itself R0/R1 (irreversible token-stranding), cheap (mocked indexer, ~13s), and directly related to the other mandated regression. |
 | 10 | `the reported crafted link does not tell a visitor they own someone else’s name` | `registration.spec.ts` | **Mandated.** Regression coverage for PR #1247 / immunefi #92544 (WEB-1490): `/$name` used to render "Congratulations! You are the owner of {name}" and a `paid` figure straight from the query string, so a link could tell any visitor they owned an attacker's name — with Extend (renewing it from the visitor's wallet) the only call to action. No transactions, one seeded name, ~12s. The other six tests for the same fix (variants, history-state parsing, the real-registration path) stay in the nightly run; see [`registration-banner-web1490-test-plan.md`](./registration-banner-web1490-test-plan.md). |
+| 11 | `a second grant after dismissing the first asks the wallet again and lands on-chain` | `roles.spec.ts` | Regression coverage for PR #1214 (WEB-1418): a finished transaction actor stays in the manager so the modal can re-render it, and the roles flows used a fixed step id, so a second role change in the same session opened as the *first* change's receipt ("Done", with its actual cost) and pressing Done sent nothing. Chain-oracled (`assertRoleBitmap` on the second grantee), no indexer dependency, ~9s. It also guards the scoped-id console matcher in `helpers/transaction-modal.ts`, which every modal-driven test depends on. |
 
 ### Manager — 3 tests, 121s measured (`playwright.smoke.config.ts`)
 
@@ -157,9 +158,9 @@ Full, clean, all-green run (2026-09-24, this session, fresh infra):
 
 | Suite | Tests | Time |
 |---|---|---|
-| Portal (`pnpm e2e:smoke:portal`) | 10 (3 harness + 7) | 144s (2m24s) — re-measured 2026-09-29 after adding #10 |
+| Portal (`pnpm e2e:smoke:portal`) | 11 (3 harness + 8) | 150s (2m30s) — re-measured 2026-09-30 after adding #11 |
 | Manager (`pnpm e2e:smoke:manager`) | 3 (2 harness + 1) | 121s (2m01s) |
-| **Total (`pnpm e2e:smoke`, sequential)** | **13** | **265s (4m25s)** |
+| **Total (`pnpm e2e:smoke`, sequential)** | **14** | **271s (4m31s)** |
 
 This is comfortably under the ~10 minute target, with every test in the
 final set passing. The gap was **not** filled by padding: the D-tier and

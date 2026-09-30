@@ -23,6 +23,8 @@ import {
   grantRolesWriteParameters,
   revokeRolesWriteParameters,
 } from '@ensdomains/ensjs/wallet/v2'
+import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
+import type { Page } from '@playwright/test'
 import {
   type Account,
   type Address,
@@ -30,6 +32,7 @@ import {
   type Hash,
   parseAbi,
 } from 'viem'
+import { generatePrivateKey, privateKeyToAddress } from 'viem/accounts'
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import {
   connectWithHeadlessWallet,
@@ -38,6 +41,7 @@ import {
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
 import { waitForIndexedRoles } from '../../../helpers/indexer-sync.js'
+import { authorizeTransaction } from '../../../helpers/portal-auth.js'
 import {
   assertRoleBitmap,
   ETH_REGISTRY,
@@ -929,5 +933,275 @@ test.describe('Portal name roles', () => {
       panel.getByText('No role holders yet'),
       'and the empty state — indistinguishable from "nobody holds any role" — must not be shown',
     ).toBeHidden()
+  })
+})
+
+/**
+ * WEB-1418 (PR #1214) — a finished role change must not satisfy the next one.
+ *
+ * The bug: a transaction actor that reaches `success` stays in the manager's
+ * map on purpose, so the modal can keep rendering the finished step. The
+ * roles flows named their single step with a fixed id (`tx-grant-roles`,
+ * `tx-revoke-roles`), so a second change in the same session looked up the
+ * first change's actor: the step opened already "Done", showing the first
+ * transaction's actual cost, and pressing Done sent nothing. The user sees a
+ * completed change that never reached the chain.
+ *
+ * Reaching it needs the modal dismissed (X / Escape) rather than finished
+ * with Done — Done runs `transactionManager.clear()`, which hides the bug.
+ * Dismissing a successful modal is the supported "reopen and see the result"
+ * path (`TransactionModal`'s `onOpenChange` only clears on error).
+ *
+ * The fix: `useFlowAttempt` names each attempt with a scope (account +
+ * nonce) that `scopeTransactionId` appends to the step id, and the manager
+ * retires another account's settled actors on an account switch.
+ *
+ * What these reach that the unit tests don't: the real sheet → modal →
+ * wallet path with the real module-level manager surviving between two
+ * attempts in one page, a real `accountsChanged` switch, and the chain
+ * bitmap as the oracle for "the second change actually happened".
+ */
+test.describe('Portal name roles — repeat changes in one session (WEB-1418)', () => {
+  /** A console line for `baseId`'s step reaching success, scoped or not. */
+  const successLine = (baseId: string) =>
+    new RegExp(`Transaction ${baseId}(--\\S+)? state: success`)
+
+  /**
+   * Sends the open modal's single step and then *dismisses* the modal with
+   * Escape instead of pressing Done — the path that leaves the finished actor
+   * in the manager. Returns the id the step was logged under.
+   */
+  async function sendThenDismiss(
+    page: Page,
+    wallet: Web3ProviderBackend,
+    baseId: string,
+  ): Promise<string> {
+    const dialog = page.locator('[data-slot="dialog-content"]')
+    await expect(dialog).toBeVisible({ timeout: 30_000 })
+
+    let loggedId: string | undefined
+    const onConsole = (msg: { text(): string }) => {
+      const match = msg.text().match(successLine(baseId))
+      if (match) loggedId = `${baseId}${match[1] ?? ''}`
+    }
+    page.on('console', onConsole)
+    try {
+      const deadline = Date.now() + 120_000
+      while (!loggedId && Date.now() < deadline) {
+        const openWallet = dialog.getByRole('button', { name: /open wallet/i })
+        if (await openWallet.isVisible().catch(() => false)) {
+          await openWallet.click()
+          await authorizeTransaction(wallet, 60_000)
+          continue
+        }
+        const start = dialog.getByRole('button', { name: /^(Start|Next)$/i })
+        if (
+          (await start.isVisible().catch(() => false)) &&
+          (await start.isEnabled().catch(() => false))
+        ) {
+          await start.click()
+        }
+        await page.waitForTimeout(500)
+      }
+    } finally {
+      page.off('console', onConsole)
+    }
+    expect(loggedId, `${baseId} never logged success`).toBeDefined()
+
+    // The finished step is on screen, with its Done button — which is exactly
+    // what must NOT be pressed here.
+    await expect(dialog.getByRole('button', { name: 'Done' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    return loggedId as string
+  }
+
+  /**
+   * The second attempt's modal, asserted on the symptom first (softly, so
+   * the chain read still runs and is what the failure reports), then driven.
+   * `driveTransactionsToSuccess`'s own count assertion is caught: on the
+   * buggy build it has nothing to count, and the chain read below is the
+   * better witness of that.
+   */
+  async function driveSecondAttempt(
+    page: Page,
+    wallet: Web3ProviderBackend,
+    baseId: string,
+  ) {
+    const dialog = page.locator('[data-slot="dialog-content"]')
+    await expect(dialog).toBeVisible({ timeout: 30_000 })
+    await expect
+      .soft(
+        dialog.getByText('Not Started'),
+        "the second attempt must open unsent, not as the first attempt's finished step",
+      )
+      .toBeVisible({ timeout: 10_000 })
+    await expect
+      .soft(
+        dialog.getByText('Actual Cost'),
+        "an actual cost on an unsent step is the first attempt's receipt",
+      )
+      .toHaveCount(0)
+    await driveTransactionsToSuccess(page, wallet, [baseId], 60_000).catch(
+      () => undefined,
+    )
+  }
+
+  const openAddUser = async (page: Page) => {
+    await page.getByRole('button', { name: 'Add user' }).click()
+    await expect(page.getByRole('heading', { name: 'Add user' })).toBeVisible({
+      timeout: 20_000,
+    })
+  }
+
+  test('a second grant after dismissing the first asks the wallet again and lands on-chain', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const manager = wallets.address('manager')
+    const stranger = wallets.address('stranger')
+    const name = await makeName({ label: 'roles-w1418-grant', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    await assertRoleBitmap({ label }, stranger, [])
+
+    await page.goto(rolesPage(name))
+
+    // Attempt 1 — the legitimate path, and the positive control: it reaches
+    // the chain.
+    await openAddUser(page)
+    await page.getByLabel('User name or address').fill(manager)
+    await page.locator('#add-ROLE_SET_RESOLVER-manager').click()
+    await page.getByRole('button', { name: 'Save' }).click()
+    const firstId = await sendThenDismiss(
+      page,
+      wallet,
+      PORTAL_TRANSACTION_IDS.grantRoles,
+    )
+    await assertRoleBitmap({ label }, manager, ['ROLE_SET_RESOLVER'])
+
+    // Close the sheet the modal was opened from, then start over — same
+    // page, same in-memory transaction manager.
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('heading', { name: 'Add user' })).toBeHidden()
+
+    // Attempt 2, for a different grantee.
+    await openAddUser(page)
+    await page.getByLabel('User name or address').fill(stranger)
+    await page.locator('#add-ROLE_SET_RESOLVER-manager').click()
+    await page.getByRole('button', { name: 'Save' }).click()
+    await driveSecondAttempt(page, wallet, PORTAL_TRANSACTION_IDS.grantRoles)
+
+    // The oracle: the second grant exists on-chain. Before the fix the step
+    // opened as the first grant's receipt and nothing was sent.
+    await assertRoleBitmap({ label }, stranger, ['ROLE_SET_RESOLVER'])
+    // Scoped ids are what keep the two attempts apart.
+    expect(firstId).not.toBe(PORTAL_TRANSACTION_IDS.grantRoles)
+  })
+
+  test('a second revoke from the role editor revokes on-chain instead of replaying the first', async ({
+    portalPage: page,
+    wallet,
+    makeName,
+    wallets,
+  }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const manager = wallets.address('manager')
+    const name = await makeName({ label: 'roles-w1418-revoke', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+
+    // Precondition on-chain, so a grant regression can't masquerade as this.
+    await grantNameRoles(
+      { label },
+      manager,
+      ['ROLE_SET_RESOLVER', 'ROLE_SET_SUBREGISTRY'],
+      wallets.account('owner'),
+    )
+    await awaitIndexed(label, [manager])
+
+    await page.goto(rolesPage(name))
+    const managerRow = parentRegistryRolesPanel(page).locator('tr', {
+      hasText: truncate(manager),
+    })
+    await expect(managerRow).toHaveCount(1, { timeout: 30_000 })
+
+    // Revoke 1 — the positive control.
+    await managerRow.getByRole('button', { name: 'Edit user roles' }).click()
+    await expect(
+      page.getByRole('heading', { name: truncate(manager) }),
+    ).toBeVisible({ timeout: 20_000 })
+    await page.locator('#ROLE_SET_RESOLVER-manager').click()
+    await page.getByRole('button', { name: 'Save' }).click()
+    await sendThenDismiss(page, wallet, PORTAL_TRANSACTION_IDS.revokeRoles)
+    await assertRoleBitmap({ label }, manager, ['ROLE_SET_SUBREGISTRY'])
+
+    // Revoke 2, same session, same editor.
+    await managerRow.getByRole('button', { name: 'Edit user roles' }).click()
+    await expect(
+      page.getByRole('heading', { name: truncate(manager) }),
+    ).toBeVisible({ timeout: 20_000 })
+    await page.locator('#ROLE_SET_SUBREGISTRY-manager').click()
+    await page.getByRole('button', { name: 'Save' }).click()
+    await driveSecondAttempt(page, wallet, PORTAL_TRANSACTION_IDS.revokeRoles)
+
+    await assertRoleBitmap({ label }, manager, [])
+  })
+
+  test("after an account switch, the new wallet's grant is not satisfied by the previous wallet's receipt", async ({
+    portalPage: page,
+    wallet,
+    makeName,
+    wallets,
+  }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const stranger = wallets.address('stranger')
+    // A throwaway grantee, so the oracle can't be satisfied by anything else.
+    const grantee = privateKeyToAddress(generatePrivateKey())
+    const ownersName = await makeName({
+      label: 'roles-w1418-switch-a',
+      owner: 'user',
+    })
+    const managersName = await makeName({
+      label: 'roles-w1418-switch-b',
+      owner: 'user2',
+    })
+    const ownersLabel = ownersName.replace(/\.eth$/, '')
+    const label = managersName.replace(/\.eth$/, '')
+    await assertRoleBitmap({ label }, grantee, [])
+
+    await page.goto(rolesPage(ownersName))
+
+    // The owner's attempt, dismissed — its finished actor stays behind.
+    await openAddUser(page)
+    await page.getByLabel('User name or address').fill(stranger)
+    await page.locator('#add-ROLE_SET_RESOLVER-manager').click()
+    await page.getByRole('button', { name: 'Save' }).click()
+    await sendThenDismiss(page, wallet, PORTAL_TRANSACTION_IDS.grantRoles)
+    await assertRoleBitmap({ label: ownersLabel }, stranger, [
+      'ROLE_SET_RESOLVER',
+    ])
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('heading', { name: 'Add user' })).toBeHidden()
+
+    // A real `accountsChanged`, and a client-side navigation to the manager's
+    // own name: no reload, so the transaction manager's map survives.
+    await wallets.switchTo('manager')
+    await page.evaluate((path) => {
+      window.history.pushState({}, '', path)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }, `/${managersName}/roles`)
+    await expect(
+      page.getByRole('link', { name: managersName }).first(),
+    ).toBeVisible({ timeout: 20_000 })
+
+    await openAddUser(page)
+    await page.getByLabel('User name or address').fill(grantee)
+    await page.locator('#add-ROLE_SET_RESOLVER-manager').click()
+    await page.getByRole('button', { name: 'Save' }).click()
+    await driveSecondAttempt(page, wallet, PORTAL_TRANSACTION_IDS.grantRoles)
+
+    await assertRoleBitmap({ label }, grantee, ['ROLE_SET_RESOLVER'])
   })
 })
