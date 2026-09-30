@@ -52,25 +52,6 @@ automated testing, which must never reach a production deploy.
 - Deploys go through wrangler. The `deploy-portal` workflow that publishes a
   release to IPFS exists but has never run.
 
-## Layout
-
-```
-src/
-  routes/            File-based routes: /$name/*, /addr/$addr/*, /resolver/$address/*,
-                     /registry/$address/*, /tld/$tld, /register, /import/$name
-  features/          One folder per product area (names, records, ownership,
-                     transfer, resolver, registry, roles, fuses, history, address,
-                     forward-resolution, reverse-resolution, register, renew,
-                     migration, dns-import, namewrapper, wallet, ...)
-  worker/            The Cloudflare Worker: HTML rewriting, OG rendering, avatar
-                     proxy, CSP
-  components/        Shared UI, with shadcn primitives under components/ui
-  lib/ hooks/ utils/ Providers, wagmi setup, shared hooks and helpers
-  assets/fonts/      OG fonts (Geist, committed) and the note on the runtime-loaded
-                     Dinamo faces
-scripts/             Pre-build network config check
-```
-
 ## Further reading
 
 - [`src/assets/fonts/README.md`](src/assets/fonts/README.md): why the brand

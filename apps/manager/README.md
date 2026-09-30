@@ -53,27 +53,6 @@ are debug-only and must never reach a production deploy:
 - [`rhinestone-browser-debug/`](rhinestone-browser-debug/README.md) is a
   standalone page for isolating the smart-account flow with a browser wallet.
 
-## Layout
-
-```
-src/
-  routes/            File-based routes: /, /$name, /$address, /register/$name,
-                     /renew/$name, /renew-v1/$name, /migration, /dashboard,
-                     /notifications, /p/$name, /og/$name, /legal/*, /debug/*
-  features/          One folder per product area (register-v2, renew, bulk-renew,
-                     migration, profile, dashboard, notifications, search, wallet,
-                     grace, weave-registration, og, ...)
-  components/        Shared UI, with shadcn primitives under components/ui
-  lib/               Providers, wagmi and wallet setup, smart-account wiring,
-                     PostHog, locale config
-  server/            Server-only code (CSP headers)
-  locales/           Lingui catalogs (extracted by the pre-commit hook)
-  hooks/ utils/      Shared hooks and helpers
-docs/                Feature flags, i18n, and the HCA migration release notes
-.storybook/          Storybook config
-scripts/             Pre-build network config check
-```
-
 ## Further reading
 
 - [`docs/FEATURE_FLAGS.md`](docs/FEATURE_FLAGS.md): env-var and per-user flags.
