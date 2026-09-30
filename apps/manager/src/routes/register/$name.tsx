@@ -13,7 +13,9 @@ import {
   parseName,
   RegisteringStep,
   RegistrationV2UiProvider,
+  ResumeCheckPlaceholder,
   SuccessStep,
+  useRegistrationV2Context,
 } from '@/features/register-v2'
 import { useRegistrationFlowController } from '@/features/weave-registration'
 
@@ -35,26 +37,34 @@ export const Route = createFileRoute('/register/$name')({
       throw new Error('Subnames are not supported')
     }
 
+    // Availability, display and commit/reveal calldata all read this one
+    // normalised name, so the label hashed is the label checked as available.
+    const { label, name: normalizedName } = parsedName.value
+
     // Labels under 3 code points can't be registered; send them to the
     // profile fallback instead of surfacing the availability error
-    if ([...parsedName.value.label].length < 3) {
-      throw redirect({ params: { name }, to: '/$name', replace: true })
+    if ([...label].length < 3) {
+      throw redirect({
+        params: { name: normalizedName },
+        to: '/$name',
+        replace: true,
+      })
     }
 
     const availability = await queryClient.ensureQueryData(
-      getRegistrationV2AvailabilityQueryOptions(name),
+      getRegistrationV2AvailabilityQueryOptions(normalizedName),
     )
 
     if (!availability.isAvailable) {
       throw redirect({
         to: '/$name',
-        params: { name: name },
+        params: { name: normalizedName },
       })
     }
 
     return {
       fallback: undefined,
-      label: parsedName.value.label,
+      label,
     }
   },
   component: RouteComponent,
@@ -90,6 +100,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
 }
 
 function PageContent() {
+  const { resume } = useRegistrationV2Context()
   const {
     step,
     sawWeaveFlow,
@@ -113,6 +124,12 @@ function PageContent() {
         showRegisteringCompletion={showRegisteringCompletion}
       />
     )
+  }
+
+  // A stored run for this name may be about to take the page over; hold
+  // pricing back until the resume has decided.
+  if (step === 'pricing' && resume.status === 'checking') {
+    return <ResumeCheckPlaceholder />
   }
 
   return (

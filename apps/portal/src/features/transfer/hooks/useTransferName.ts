@@ -7,7 +7,14 @@ import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
-import { err, fromPromise, ok, okAsync, type ResultAsync } from 'neverthrow'
+import {
+  err,
+  errAsync,
+  fromPromise,
+  ok,
+  okAsync,
+  type ResultAsync,
+} from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -21,6 +28,7 @@ import {
   type getIsPermissionedResolver,
   getIsPermissionedResolverQueryOptions,
 } from '@/features/resolver/hooks/useIsPermissionedResolver'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import {
   estimateGasForCall,
   isRevertError,
@@ -31,6 +39,7 @@ import { sepoliaWithEns } from '@/lib/wagmi'
 import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getLabel } from '@/utils/token/getLabel'
+import { isCanonicalName } from '@/utils/token/isNormalized'
 import type { WalletClientWithAccount } from '@/utils/types'
 import { getEthAddressQueryOptions } from '../queries/getEthAddress'
 import {
@@ -44,6 +53,8 @@ import {
   type TransferOptions,
 } from '../utils/buildTransferPlan'
 import { buildTransferStepIntent } from '../utils/buildTransferStepIntent'
+import { canStartStep } from '../utils/canStartStep'
+import { transferStepId } from '../utils/transferStepId'
 import {
   type GetV1NameStateError,
   getV1NameStateQueryOptions,
@@ -93,6 +104,16 @@ export class V1TransferRefusedError extends TaggedError(
     /** Still allowed, but in the other role — the form was built for this one. */
     | 'actor-changed'
 }> {}
+
+/**
+ * The name isn't its own ENSIP-15 form, so the label every step hashes names a
+ * different token than the form showed. The route refuses these before the form
+ * is offered; this is the same gate at the point of signing, so no path into the
+ * hook can substitute the canonical twin.
+ */
+export class NonCanonicalNameError extends TaggedError(
+  'NonCanonicalNameError',
+) {}
 
 /** Simulating the move step failed, so no config step was sent. */
 export class TransferPreflightError extends TaggedError(
@@ -164,9 +185,13 @@ export const useTransferName = ({
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
 
   const [savedParams, setSavedParams] = useState<SavedParams | null>(null)
+  // Names the attempt the modal is showing. Rebuilt every time the flow is
+  // prepared, so an attempt abandoned partway can't hand its finished step
+  // actors to the next one.
+  const attempt = useFlowAttempt()
 
   // `startedSteps` makes each step's `onStart` idempotent — both the modal UI and
   // the previous step's auto-fired `onDone` route into it (see
@@ -177,6 +202,7 @@ export const useTransferName = ({
     closeModal()
     clearTransaction()
     setSavedParams(null)
+    attempt.end()
     // The parent's subname table lists this name's owner, so it goes stale too.
     // Only relevant below the TLD — a 2LD's "parent" is `eth`, which has no
     // subname listing of its own in the app.
@@ -324,6 +350,7 @@ export const useTransferName = ({
     | ErrorOf<ReturnType<typeof readV1>>
     | ErrorOf<ReturnType<typeof readV2>>
     | ErrorOf<ReturnType<typeof readResolverKind>>
+    | NonCanonicalNameError
     | TransferPreflightError
 
   // Prepares the flow: re-reads the name's state (V1) or its own resolver and
@@ -336,15 +363,31 @@ export const useTransferName = ({
       mutationFn: (
         params: StartTransferParams,
       ): ResultAsync<SavedParams, PrepareError> =>
-        subject.kind === 'v2'
-          ? readV2(params, subject.registryAddress)
+        match({ canonical: isCanonicalName(name), subject })
+          .with({ canonical: false }, () =>
+            errAsync(
+              new NonCanonicalNameError({
+                message:
+                  'This name isn’t written in its normalized form, so transferring it would move a different name. Nothing was sent.',
+              }),
+            ),
+          )
+          .with({ subject: { kind: 'v2' } }, ({ subject }) =>
+            readV2(params, subject.registryAddress)
               .andThen(readResolverKind)
-              .andThen(preflightMove)
-          : readV1(params).andThen(readResolverKind).andThen(preflightMove),
+              .andThen(preflightMove),
+          )
+          // Every remaining kind is a V1 subject.
+          .otherwise(() =>
+            readV1(params).andThen(readResolverKind).andThen(preflightMove),
+          ),
       onSuccess: (params) => {
         startedStepsRef.current = new Set()
         setSavedParams(params)
-        openModal()
+        // A fresh scope is what keeps an abandoned attempt's finished step
+        // actors from satisfying this one; the manager is deliberately not
+        // cleared, since that would also stop unrelated in-flight work.
+        attempt.start(account)
       },
     }),
   )
@@ -360,8 +403,15 @@ export const useTransferName = ({
     // the prior step's auto-advance `onDone`). Errors clear the guard so the
     // step can be retried; the tx error surfaces via the modal's machine state.
     const runners = steps.map((step) => async () => {
-      const id = `transfer-${name}-${step}`
-      if (startedStepsRef.current.has(id)) return
+      const id = transferStepId(name, step, attempt.scope)
+      if (
+        !canStartStep({
+          startedSteps: startedStepsRef.current,
+          id,
+          hasActor: Boolean(transactionManager.getTransaction(id)),
+        })
+      )
+        return
       startedStepsRef.current.add(id)
       try {
         const walletClient = await getWalletClient(config, { account })
@@ -384,16 +434,18 @@ export const useTransferName = ({
         await waitForTransaction(txId)
       } catch (err) {
         // Tx reverts surface via the modal's machine state. Non-tx failures
-        // (e.g. the wallet resolving without a connected account) aren't tracked
-        // there, so log them rather than swallow silently. Clearing the guard
-        // allows a retry from the modal.
+        // (e.g. the wallet resolving without a connected account, or the step's
+        // actor being stopped) aren't tracked there, so log them rather than
+        // swallow silently. Clearing the guard allows a retry from the modal.
+        // Deliberately not a `finally`: a step that succeeded must stay
+        // guarded, or a stray `onStart` would send it a second time.
         console.error(`Transfer step "${step}" failed:`, err)
         startedStepsRef.current.delete(id)
       }
     })
 
     return steps.map((step, i) => ({
-      id: `transfer-${name}-${step}`,
+      id: transferStepId(name, step, attempt.scope),
       title: STEP_LABELS[step],
       transactionName: `${STEP_LABELS[step]} - ${name}`,
       // Same builder as the submit path, so the modal's live gas estimate is

@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/l2-primary",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "Shared ABIs for ENS apps",
   "type": "module",
   "private": true,

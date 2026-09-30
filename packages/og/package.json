@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/og",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "Shared primitives for rendering OpenGraph cards on the worker",
   "type": "module",
   "private": true,

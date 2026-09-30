@@ -39,7 +39,6 @@ export type V2NameWithRoles = {
   expiryDate: number | null
   roleBitmap: string
   subdomainCount: number
-  recordCount: number
 }
 
 /**
@@ -97,7 +96,6 @@ export const mergeNamesData = (
     const hasSubdomainsArray = 'subdomains' in item
     const hasSubdomainCount = 'subdomainCount' in item
     const hasRoleBitmap = 'roleBitmap' in item
-    const hasRecordCount = 'recordCount' in item
 
     return {
       name: item.name,
@@ -111,7 +109,9 @@ export const mergeNamesData = (
         : hasSubdomainCount
           ? item.subdomainCount
           : undefined,
-      recordCount: hasRecordCount ? item.recordCount : undefined,
+      // No v2 source reports a record count, so this stays undefined and the
+      // consumers that show one fall back to 0. See NameMobileCard.
+      recordCount: undefined,
       roleBitmap: hasRoleBitmap ? item.roleBitmap : null,
       v1Roles: null,
     }

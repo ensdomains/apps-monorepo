@@ -1,5 +1,6 @@
 {
   "name": "manager",
+  "license": "AGPL-3.0-only",
   "private": true,
   "type": "module",
   "scripts": {
@@ -96,7 +97,8 @@
     "vaul": "^1.1.2",
     "viem": "catalog:",
     "wagmi": "catalog:",
-    "xstate": "catalog:"
+    "xstate": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@base-ui/react": "^1.1.0",

@@ -12,6 +12,12 @@ let migrationStatus: {
   isMigratableByConnectedOwner: boolean
   isWrapped: boolean
 } = { isMigratableByConnectedOwner: false, isWrapped: false }
+// Stands in for the router's location: `search` is whatever the URL carries,
+// `state` is history state, which only the app's own navigate can write.
+let location: {
+  search: Record<string, unknown>
+  state: Record<string, unknown>
+} = { search: {}, state: {} }
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-router')>()
@@ -21,9 +27,21 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
       <a href={to}>{children}</a>
     ),
     useParams: () => ({ name: 'alice.eth' }),
+    useRouterState: ({
+      select,
+    }: {
+      select: (state: { location: typeof location }) => unknown
+    }) => select({ location }),
     createFileRoute: () => (options: Record<string, unknown>) => ({
       ...options,
-      useSearch: () => ({}),
+      // Run the route's own `validateSearch` the way the router would, so a
+      // crafted URL reaches the component exactly as it would in the browser.
+      useSearch: () =>
+        typeof options.validateSearch === 'function'
+          ? (options.validateSearch as (search: unknown) => unknown)(
+              location.search,
+            )
+          : location.search,
     }),
   }
 })
@@ -252,5 +270,47 @@ describe('name route — upgrade banner', () => {
       screen.getByRole('link', { name: /Upgrade to v2/ }),
     ).toBeInTheDocument()
     expect(screen.queryByText(/must be unwrapped/)).not.toBeInTheDocument()
+  })
+})
+
+// Immunefi #92544 (WEB-1490): the banner says "You are the owner of {name}" and
+// prints the paid figure verbatim, so it must never be reachable from a link.
+describe('name route — registration success banner', () => {
+  afterEach(() => {
+    location = { search: {}, state: {} }
+  })
+
+  it('ignores a crafted URL claiming a registration', () => {
+    location = {
+      search: {
+        registered: 'true',
+        duration: 315360000,
+        paid: '$0.00 (free)',
+      },
+      state: {},
+    }
+
+    renderRoute()
+
+    expect(screen.queryByText('Congratulations!')).toBeNull()
+    expect(screen.queryByText(/You are the owner of/)).toBeNull()
+    expect(screen.queryByText('$0.00 (free)')).toBeNull()
+  })
+
+  it('renders after a registration this session performed', () => {
+    location = {
+      search: {},
+      state: {
+        registrationSuccess: { durationSeconds: 31536000, paid: '$5.00' },
+      },
+    }
+
+    renderRoute()
+
+    expect(screen.getByText('Congratulations!')).toBeInTheDocument()
+    expect(
+      screen.getByText('You are the owner of alice.eth'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('$5.00')).toBeInTheDocument()
   })
 })

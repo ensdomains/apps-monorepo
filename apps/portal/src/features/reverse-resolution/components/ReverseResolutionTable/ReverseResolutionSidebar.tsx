@@ -1,4 +1,5 @@
 import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -36,6 +37,7 @@ import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useIsConnectedAddress } from '@/hooks/useIsConnectedAddress'
@@ -509,11 +511,20 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     displayName,
   })
 
-  const {
-    openModal: openTransactionModal,
-    closeModal: closeTransactionModal,
-    clearTransaction,
-  } = useTransactionModal()
+  const { closeModal: closeTransactionModal, clearTransaction } =
+    useTransactionModal()
+  // Names the attempt the modal is showing, so a reverse or primary-name run
+  // abandoned mid-flight can't leave a settled actor under the fixed id the
+  // next attempt looks up.
+  const attempt = useFlowAttempt()
+  const updateReverseNameTxId = scopeTransactionId(
+    UPDATE_REVERSE_NAME_TX_ID,
+    attempt.scope,
+  )
+  const setPrimaryNameTxId = scopeTransactionId(
+    SET_PRIMARY_NAME_TX_ID,
+    attempt.scope,
+  )
 
   const [activeFlow, setActiveFlow] = useState<ActiveFlow | null>(null)
 
@@ -522,7 +533,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     isPending: isReverseResolutionPending,
   } = useSetReverseResolution({
     chainId: requiredChainId,
-    id: UPDATE_REVERSE_NAME_TX_ID,
+    id: updateReverseNameTxId,
   })
 
   const {
@@ -670,8 +681,9 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       }
       const switched = await switchChainIfNeeded()
       if (!switched) return
+      if (!connectedAddress) return
       setActiveFlow('reverse')
-      openTransactionModal()
+      attempt.start(connectedAddress)
     })()
   }
 
@@ -695,6 +707,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   const handleUpdateReverseDone = () => {
     closeTransactionModal()
     clearTransaction()
+    attempt.end()
     setNameInput('')
   }
 
@@ -721,8 +734,9 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     void (async () => {
       const switched = await switchToL1IfNeeded()
       if (!switched) return
+      if (!connectedAddress) return
       setActiveFlow('primary')
-      openTransactionModal()
+      attempt.start(connectedAddress)
     })()
   }
 
@@ -755,6 +769,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   const handleSetPrimaryNameDone = () => {
     closeTransactionModal()
     clearTransaction()
+    attempt.end()
   }
 
   return (
@@ -888,7 +903,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
           activeFlow === 'reverse'
             ? [
                 {
-                  id: UPDATE_REVERSE_NAME_TX_ID,
+                  id: updateReverseNameTxId,
                   title: 'Update reverse name',
                   transactionName: `Set reverse name to ${nameInput}`,
                   intent: {
@@ -911,7 +926,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
               ]
             : [
                 {
-                  id: SET_PRIMARY_NAME_TX_ID,
+                  id: setPrimaryNameTxId,
                   title: 'Set primary name',
                   transactionName: `Set primary name to ${displayName}`,
                   intent: {

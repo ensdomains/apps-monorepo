@@ -7,7 +7,7 @@ const TEST_ACCOUNT_2 = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const
 
 describe('buildRoleTransactionDescriptors', () => {
   it('returns empty array when both pendingSave and pendingRemove are null', () => {
-    const result = buildRoleTransactionDescriptors(null, null, 'test.eth')
+    const result = buildRoleTransactionDescriptors(null, null, 'test.eth', null)
     expect(result).toEqual([])
   })
 
@@ -20,6 +20,7 @@ describe('buildRoleTransactionDescriptors', () => {
       },
       null,
       'test.eth',
+      null,
     )
     expect(result).toEqual([])
   })
@@ -34,6 +35,7 @@ describe('buildRoleTransactionDescriptors', () => {
       },
       null,
       'test.eth',
+      null,
     )
 
     expect(result).toHaveLength(1)
@@ -57,6 +59,7 @@ describe('buildRoleTransactionDescriptors', () => {
       },
       null,
       'myname.eth',
+      null,
     )
 
     expect(result).toHaveLength(1)
@@ -81,6 +84,7 @@ describe('buildRoleTransactionDescriptors', () => {
       },
       null,
       'example.eth',
+      null,
     )
 
     expect(result).toHaveLength(2)
@@ -111,6 +115,7 @@ describe('buildRoleTransactionDescriptors', () => {
         roles,
       },
       'parent.eth',
+      null,
     )
 
     expect(result).toHaveLength(1)
@@ -136,6 +141,7 @@ describe('buildRoleTransactionDescriptors', () => {
         roles: ['ROLE_UNREGISTER'],
       },
       'test.eth',
+      null,
     )
 
     expect(result).toHaveLength(1)

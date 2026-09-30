@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/utils",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "",
   "main": "index.js",
   "type": "module",

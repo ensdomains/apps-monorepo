@@ -69,7 +69,11 @@ vi.mock('wagmi', async (importOriginal) => ({
   useConfig: () => ({}),
   useConnection: () => ({ address: ACCOUNT }),
   usePublicClient: () => ({}),
-  useReadContract: () => ({ data: undefined }),
+  // The flow re-reads the allowance on start instead of trusting the cache.
+  useReadContract: () => ({
+    data: undefined,
+    refetch: async () => ({ data: undefined }),
+  }),
 }))
 
 vi.mock('@wagmi/core/actions', () => ({

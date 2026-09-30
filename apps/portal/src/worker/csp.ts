@@ -198,8 +198,10 @@ const BASE_DIRECTIVES = [
   // subresources to https:, and browsers block mixed content on https pages
   // regardless, so a plaintext http: image can never actually load.
   "img-src 'self' data: blob: https:",
-  // Intercom Messenger webfonts.
-  "font-src 'self' data: https://js.intercomcdn.com https://fonts.intercomcdn.com",
+  // Intercom Messenger webfonts, plus fonts.ens.dev which serves the ABC/Dinamo
+  // faces (the font license forbids redistributing them in this repo, so they
+  // are fetched at runtime instead of vendored).
+  "font-src 'self' data: https://js.intercomcdn.com https://fonts.intercomcdn.com https://fonts.ens.dev",
   `connect-src 'self' ${CONNECT_HOSTS.join(' ')}`,
   // WalletConnect renders its verify/modal in iframes. Intercom sheets/reporting
   // frames are required for the messenger article viewer.

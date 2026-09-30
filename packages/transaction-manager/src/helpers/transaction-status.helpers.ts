@@ -1,9 +1,17 @@
 import type { TransactionReceipt } from 'viem'
 import { transactionManager } from '../providers/transactionManager'
+import {
+  awaitTransactionOutcome,
+  isErrorSnapshot,
+  isSuccessSnapshot,
+  type ReadOutcome,
+} from './awaitTransactionOutcome'
 
 /**
  * Wait for a transaction to complete and return its receipt.
  * Subscribes to the transaction actor and resolves when successful.
+ *
+ * @throws Error if transaction not found, fails, or is stopped before completing
  */
 export async function waitForTransactionReceiptById(
   txId: string,
@@ -14,44 +22,20 @@ export async function waitForTransactionReceiptById(
     throw new Error(`Transaction ${txId} not found`)
   }
 
-  const snapshot = txActor.getSnapshot()
-
-  // Already complete?
-  if (
-    (snapshot.matches?.('success' as never) || snapshot.value === 'success') &&
-    snapshot.context.receipt
-  ) {
-    return snapshot.context.receipt
+  const read: ReadOutcome<TransactionReceipt> = (snapshot) => {
+    if (isSuccessSnapshot(snapshot) && snapshot.context.receipt) {
+      return { settled: true, value: snapshot.context.receipt }
+    }
+    if (isErrorSnapshot(snapshot)) {
+      return {
+        settled: false,
+        error:
+          snapshot.context.error ||
+          new Error(`Transaction ${txId} failed during execution`),
+      }
+    }
+    return undefined
   }
 
-  // Already failed?
-  if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
-    throw snapshot.context.error || new Error(`Transaction ${txId} failed`)
-  }
-
-  // Subscribe and wait
-  return new Promise<TransactionReceipt>((resolve, reject) => {
-    const subscription = txActor.subscribe((nextSnapshot) => {
-      if (
-        (nextSnapshot.matches?.('success' as never) ||
-          nextSnapshot.value === 'success') &&
-        nextSnapshot.context.receipt
-      ) {
-        subscription.unsubscribe()
-        resolve(nextSnapshot.context.receipt)
-        return
-      }
-
-      if (
-        typeof nextSnapshot.value === 'object' &&
-        'error' in nextSnapshot.value
-      ) {
-        subscription.unsubscribe()
-        reject(
-          nextSnapshot.context.error ||
-            new Error(`Transaction ${txId} failed during execution`),
-        )
-      }
-    })
-  })
+  return awaitTransactionOutcome(txId, txActor, read)
 }

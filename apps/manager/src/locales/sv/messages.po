@@ -258,6 +258,10 @@ msgstr ""
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 msgstr ""
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
+msgstr ""
+
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr ""
@@ -448,6 +452,10 @@ msgstr ""
 msgid "Checking allowance"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/ResumeCheckPlaceholder.tsx
+msgid "Checking for an unfinished registration"
+msgstr ""
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Checking migration access..."
 msgstr ""
@@ -564,6 +572,11 @@ msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Connect Wallet"
+msgstr ""
+
+#. placeholder {0}: truncateAddress(resume.expectedOwner)
+#: src/features/register-v2/workflow/pricing/components/ResumeConnectWalletBanner.tsx
+msgid "Connect wallet {0} to resume registering {label}.eth. Starting over from another wallet would abandon the payment already made."
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
@@ -1328,6 +1341,10 @@ msgstr "Namn"
 msgid "Name Expiry"
 msgstr ""
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Name No Longer Available"
+msgstr ""
+
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Name not found"
@@ -1970,6 +1987,10 @@ msgstr ""
 msgid "Restore your managers"
 msgstr ""
 
+#: src/features/register-v2/state/useRegistrationResume.ts
+msgid "Resuming your registration."
+msgstr ""
+
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Retry artwork"
 msgstr ""
@@ -2392,6 +2413,10 @@ msgstr ""
 msgid "Terms of Use"
 msgstr ""
 
+#: src/features/register-v2/state/useOrphanRegistrationCleanup.ts
+msgid "That name was registered by someone else. You were not charged."
+msgstr ""
+
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "That's generous of you!"
 msgstr ""
@@ -2596,6 +2621,10 @@ msgstr ""
 
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Unable to load names for this address. Please try again."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/ResumeConnectWalletBanner.tsx
+msgid "Unfinished registration"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
@@ -2987,6 +3016,11 @@ msgstr ""
 msgid "Your account"
 msgstr ""
 
+#. placeholder {0}: f.total.toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your account already holds the {0} USDC this registration needs, so you won't be asked to approve a payment."
+msgstr ""
+
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Your account could not be checked. Please try again."
 msgstr ""
@@ -3072,6 +3106,10 @@ msgstr ""
 msgid "Your permissions changed. Go back to check the updated estimate."
 msgstr ""
 
+#: src/features/register-v2/state/useRegistrationResume.ts
+msgid "Your previous registration attempt expired. Starting over."
+msgstr ""
+
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
 msgstr ""
@@ -3082,6 +3120,10 @@ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
+msgstr ""
+
+#: src/features/register-v2/state/useOrphanRegistrationCleanup.ts
+msgid "Your registration completed while you were away."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx

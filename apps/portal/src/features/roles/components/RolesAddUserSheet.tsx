@@ -1,3 +1,4 @@
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useEffect, useState } from 'react'
@@ -20,6 +21,7 @@ import { prepareGrantRolesTransaction } from '@/features/roles/helpers/grantRole
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import {
   isAdminRole,
@@ -73,7 +75,11 @@ export const RolesAddUserSheet = ({
   const resolution = useAddressResolution(userInput)
   const { address, isResolving } = resolution
 
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
+  // Names this attempt, so a second grant in the same session can't be served
+  // by the finished actor the first one left behind.
+  const attempt = useFlowAttempt()
+  const grantTxId = scopeTransactionId(GRANT_ROLES_TX_ID, attempt.scope)
   const { grantRoles, isPending, isSuccess, reset } = useGrantRoles()
 
   // Reset form + mutation when the sheet closes, otherwise `isSuccess` sticks
@@ -84,8 +90,9 @@ export const RolesAddUserSheet = ({
     setUserInput('')
     setSelectedRoles(new Set())
     setPendingGrant(null)
+    attempt.end()
     reset()
-  }, [open, reset])
+  }, [open, reset, attempt.end])
 
   const toggleRole = (role: Role, checked: boolean) => {
     setSelectedRoles((prev) => {
@@ -101,10 +108,11 @@ export const RolesAddUserSheet = ({
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!address || selectedRoles.size === 0) return
+    const signer = walletClient?.account?.address
+    if (!address || selectedRoles.size === 0 || !signer) return
     reset()
     setPendingGrant({ account: address, roles: Array.from(selectedRoles) })
-    openModal()
+    attempt.start(signer)
   }
 
   const handleStartTransaction = () => {
@@ -113,7 +121,7 @@ export const RolesAddUserSheet = ({
       name,
       account: pendingGrant.account,
       roles: pendingGrant.roles,
-      id: GRANT_ROLES_TX_ID,
+      id: grantTxId,
       registryAddress,
     })
   }
@@ -122,6 +130,7 @@ export const RolesAddUserSheet = ({
     closeModal()
     clearTransaction()
     setPendingGrant(null)
+    attempt.end()
     onOpenChange(false)
   }
 
@@ -239,7 +248,7 @@ export const RolesAddUserSheet = ({
             <TransactionModal
               transactions={[
                 {
-                  id: GRANT_ROLES_TX_ID,
+                  id: grantTxId,
                   title: 'Grant roles',
                   transactionName: address
                     ? `Grant roles for ${truncateAddress(address, 6, 4)}`

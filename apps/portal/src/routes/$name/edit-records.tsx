@@ -1,3 +1,4 @@
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
@@ -29,6 +30,7 @@ import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsStat
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
@@ -268,12 +270,23 @@ const EditRecordsContent = ({
 
   const {
     isOpen: isTransactionModalOpen,
-    openModal: openTransactionModal,
     closeModal: closeTransactionModal,
     clearTransaction,
   } = useTransactionModal()
 
   const { data: walletClient } = useWalletClient()
+
+  // Names the attempt the modal is showing. Without this the step id is a fixed
+  // string, so an attempt abandoned while its transaction was still in flight
+  // leaves a settled actor under that id: the next attempt's modal reads it as
+  // Done, the button becomes "Done", and the save is never sent. The modal only
+  // clears on error, and a route change only closes it, so that actor can
+  // outlive the attempt that made it.
+  const attempt = useFlowAttempt()
+  const saveRecordsTxId = scopeTransactionId(
+    SAVE_RECORDS_TRANSACTION_ID,
+    attempt.scope,
+  )
 
   // Validate records whenever they change
   const validationErrors = useMemo(() => validateRecords(records), [records])
@@ -307,7 +320,7 @@ const EditRecordsContent = ({
       resolverAddress,
       originalRecords,
       pendingChanges,
-      id: SAVE_RECORDS_TRANSACTION_ID,
+      id: saveRecordsTxId,
     })
   }
 
@@ -351,7 +364,10 @@ const EditRecordsContent = ({
       return
     }
 
-    openTransactionModal()
+    const signer = walletClient?.account?.address
+    if (!signer) return
+
+    attempt.start(signer)
   }
 
   // Compute counts for each tab (excluding deleted records)
@@ -591,7 +607,7 @@ const EditRecordsContent = ({
       <TransactionModal
         transactions={[
           {
-            id: SAVE_RECORDS_TRANSACTION_ID,
+            id: saveRecordsTxId,
             title: 'Save records',
             transactionName: 'Set resolver records',
             intent: {
@@ -603,6 +619,7 @@ const EditRecordsContent = ({
             onDone: () => {
               closeTransactionModal()
               clearTransaction()
+              attempt.end()
             },
           },
         ]}

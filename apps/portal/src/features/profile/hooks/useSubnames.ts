@@ -6,6 +6,7 @@ import {
   getSubnames as ensjs_getSubnames,
   type GetSubnamesErrorType,
 } from '@ensdomains/ensjs/subgraph'
+import { encodeLabelhash } from '@ensdomains/ensjs/utils'
 import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, checksumAddress, type Hex } from 'viem'
@@ -18,11 +19,17 @@ class GetSubnamesError extends TaggedError('GetSubnamesError')<{
 }> {}
 
 type Subname = {
-  name: string | null
+  name: string
   labelName: string | null
   labelhash: Hex
   owner: Address
 }
+
+// The indexer's `name` is frozen at creation, so a parent label healed later never reaches it.
+const toSubnameName = (
+  parentName: string,
+  { labelName, labelhash }: Pick<Subname, 'labelName' | 'labelhash'>,
+) => `${labelName ?? encodeLabelhash(labelhash)}.${parentName}`
 
 type GetSubnamesParameters = {
   name: string
@@ -53,6 +60,7 @@ export const getSubnames = ResultFn(async function* ({
       (subnames ?? []).map(
         ({ owner, wrappedOwner, ...subname }): Subname => ({
           ...subname,
+          name: toSubnameName(name, subname),
           owner: wrappedOwner ?? owner,
         }),
       ),
@@ -90,10 +98,13 @@ export const getSubnames = ResultFn(async function* ({
     )
 
     const domain = v2Request.domains[0]
-    const subnames = (domain?.subdomains ?? []).map(({ owner, ...name }) => ({
-      ...name,
-      owner: checksumAddress(owner.id),
-    }))
+    const subnames = (domain?.subdomains ?? []).map(
+      ({ owner, ...subname }) => ({
+        ...subname,
+        name: toSubnameName(name, subname),
+        owner: checksumAddress(owner.id),
+      }),
+    )
     return ok(subnames)
   }
 })

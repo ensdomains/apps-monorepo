@@ -253,6 +253,10 @@ msgstr "Allow this temporary account to move this name."
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
+msgstr "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
+
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr "Approve"
@@ -443,6 +447,10 @@ msgstr "Checking"
 msgid "Checking allowance"
 msgstr "Checking allowance"
 
+#: src/features/register-v2/workflow/pricing/components/ResumeCheckPlaceholder.tsx
+msgid "Checking for an unfinished registration"
+msgstr "Checking for an unfinished registration"
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Checking migration access..."
 msgstr "Checking migration access..."
@@ -560,6 +568,11 @@ msgstr "Connect to renew"
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Connect Wallet"
 msgstr "Connect Wallet"
+
+#. placeholder {0}: truncateAddress(resume.expectedOwner)
+#: src/features/register-v2/workflow/pricing/components/ResumeConnectWalletBanner.tsx
+msgid "Connect wallet {0} to resume registering {label}.eth. Starting over from another wallet would abandon the payment already made."
+msgstr "Connect wallet {0} to resume registering {label}.eth. Starting over from another wallet would abandon the payment already made."
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Connect your wallet"
@@ -1323,6 +1336,10 @@ msgstr "Name"
 msgid "Name Expiry"
 msgstr "Name Expiry"
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Name No Longer Available"
+msgstr "Name No Longer Available"
+
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Name not found"
@@ -1965,6 +1982,10 @@ msgstr "Reserving your name"
 msgid "Restore your managers"
 msgstr "Restore your managers"
 
+#: src/features/register-v2/state/useRegistrationResume.ts
+msgid "Resuming your registration."
+msgstr "Resuming your registration."
+
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Retry artwork"
 msgstr "Retry artwork"
@@ -2387,6 +2408,10 @@ msgstr "Temporary migration access is still active. Retry to remove it and conti
 msgid "Terms of Use"
 msgstr "Terms of Use"
 
+#: src/features/register-v2/state/useOrphanRegistrationCleanup.ts
+msgid "That name was registered by someone else. You were not charged."
+msgstr "That name was registered by someone else. You were not charged."
+
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "That's generous of you!"
 msgstr "That's generous of you!"
@@ -2592,6 +2617,10 @@ msgstr "Try it out"
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Unable to load names for this address. Please try again."
 msgstr "Unable to load names for this address. Please try again."
+
+#: src/features/register-v2/workflow/pricing/components/ResumeConnectWalletBanner.tsx
+msgid "Unfinished registration"
+msgstr "Unfinished registration"
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "unique searches in the last 30 days"
@@ -2982,6 +3011,11 @@ msgstr "You're on ENSv2!"
 msgid "Your account"
 msgstr "Your account"
 
+#. placeholder {0}: f.total.toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your account already holds the {0} USDC this registration needs, so you won't be asked to approve a payment."
+msgstr "Your account already holds the {0} USDC this registration needs, so you won't be asked to approve a payment."
+
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Your account could not be checked. Please try again."
 msgstr "Your account could not be checked. Please try again."
@@ -3067,6 +3101,10 @@ msgstr "Your new profile is ready."
 msgid "Your permissions changed. Go back to check the updated estimate."
 msgstr "Your permissions changed. Go back to check the updated estimate."
 
+#: src/features/register-v2/state/useRegistrationResume.ts
+msgid "Your previous registration attempt expired. Starting over."
+msgstr "Your previous registration attempt expired. Starting over."
+
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
 msgstr "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
@@ -3078,6 +3116,10 @@ msgstr "Your primary name has expired."
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
 msgstr "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
+
+#: src/features/register-v2/state/useOrphanRegistrationCleanup.ts
+msgid "Your registration completed while you were away."
+msgstr "Your registration completed while you were away."
 
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"

@@ -1,5 +1,6 @@
 {
   "name": "portal",
+  "license": "AGPL-3.0-only",
   "private": true,
   "type": "module",
   "scripts": {
@@ -92,7 +93,8 @@
     "use-local-storage-state": "^20.0.0",
     "viem": "catalog:",
     "wagmi": "catalog:",
-    "xstate": "catalog:"
+    "xstate": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "catalog:",
