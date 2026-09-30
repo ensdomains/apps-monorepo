@@ -111,22 +111,28 @@ describe.each([
       }),
     )
     expect(providers[channel]).toHaveBeenCalledOnce()
-    if (channel === 'email')
+    if (channel === 'email') {
       expect(providers.email).toHaveBeenCalledWith(
         'test',
         expect.objectContaining({
-          template_id: env.SENDGRID_TEMPLATE_IDS['name-expiry'],
-          personalizations: [
-            expect.objectContaining({
-              to: [{ email: targets.email }],
-              dynamic_template_data: expect.objectContaining({
-                name: 'alpha.eth',
-                isOwner: true,
-              }),
-            }),
+          subject: 'Domain grace period ended',
+          personalizations: [{ to: [{ email: targets.email }] }],
+          content: [
+            {
+              type: 'text/plain',
+              value: expect.stringContaining('alpha.eth'),
+            },
+            {
+              type: 'text/html',
+              value: expect.stringContaining('alpha.eth'),
+            },
           ],
         }),
       )
+      expect(providers.email.mock.calls[0]?.[1]).not.toHaveProperty(
+        'template_id',
+      )
+    }
     if (channel === 'push')
       expect(providers.push).toHaveBeenCalledWith(targets.push, {
         method: 'POST',

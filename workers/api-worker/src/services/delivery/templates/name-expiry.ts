@@ -77,33 +77,3 @@ export const formatDayCount = (days: number): string => {
   const remaining = Math.max(days, 0)
   return `${remaining} day${remaining === 1 ? '' : 's'}`
 }
-
-export const buildNameExpiryEmailContent = (
-  payload: NameExpiryPayload,
-  options: NameExpiryRenderOptions,
-) => {
-  const context = buildNameExpiryDeliveryContext(payload, options)
-  const subject = {
-    'pre-expiry': 'Domain expiration alert',
-    'grace-start': 'Domain grace period started',
-    'grace-ending': 'Domain grace period ending soon',
-    'premium-start': 'Domain grace period ended',
-  }[context.noticeKind]
-
-  return {
-    dynamicData: {
-      // SendGrid must render this through escaped Handlebars `{{name}}`.
-      name: context.name,
-      expiryDate: formatCalendarDate(context.expiryDate),
-      graceEndDate: formatCalendarDate(context.graceEndDate),
-      daysUntilExpiry: context.daysUntilExpiry,
-      daysUntilGraceEnd: context.daysUntilGraceEnd,
-      isOwner: payload.watchReason === 'owned',
-      isPreExpiry: context.noticeKind === 'pre-expiry',
-      isGraceStart: context.noticeKind === 'grace-start',
-      isGraceEnding: context.noticeKind === 'grace-ending',
-      isPremiumStart: context.noticeKind === 'premium-start',
-    },
-    subject,
-  }
-}

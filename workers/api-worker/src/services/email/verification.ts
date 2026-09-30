@@ -1,18 +1,9 @@
 import { ResultFn } from '@ens-apps/utils/neverthrow'
-import { ok } from 'neverthrow'
-import { type MailJSONRequired, sendMailV3 } from './utils.js'
-
-const escapeHtml = (value: string) =>
-  value.replace(/[&<>"']/g, (character) => {
-    const entities: Record<string, string> = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    }
-    return entities[character] ?? character
-  })
+import { fromPromise, ok } from 'neverthrow'
+import { createIntoError } from '#utils/result.js'
+import { EMAIL_OTP_TTL_MS } from './challenges.js'
+import { sendRenderedEmail } from './send.js'
+import { renderVerificationEmail } from './templates/VerificationEmail.js'
 
 export const sendVerificationEmail = ResultFn(async function* (
   apiKey: string,
@@ -21,30 +12,16 @@ export const sendVerificationEmail = ResultFn(async function* (
   otp: string,
   accountAddress: string,
 ) {
-  const emailContent: MailJSONRequired = {
-    personalizations: [{ to: [{ email: toEmail }] }],
-    from: { email: fromEmail },
-    subject: 'Your ENS email verification code',
-    content: [
-      {
-        type: 'text/plain',
-        value: `Your ENS email verification code is ${otp}.
+  const email = yield* fromPromise(
+    renderVerificationEmail({
+      otp,
+      accountAddress,
+      expiresInMinutes: EMAIL_OTP_TTL_MS / 60_000,
+    }),
+    createIntoError('EMAIL_RENDER_ERROR'),
+  )
 
-Enter this code in Notification Settings while signed in as ${accountAddress}.
-The code expires in 10 minutes. If you did not request it, you can safely ignore this email.`,
-      },
-      {
-        type: 'text/html',
-        value: `<!doctype html><html><body style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;color:#202124">
-<h1>Verify your email for ENS notifications</h1>
-<p>Enter this code in Notification Settings:</p>
-<p style="font-size:32px;font-weight:bold;letter-spacing:0.2em">${otp}</p>
-<p>Requested for wallet <strong>${escapeHtml(accountAddress)}</strong>.</p>
-<p>This code expires in 10 minutes. If you did not request it, you can safely ignore this email.</p>
-</body></html>`,
-      },
-    ],
-  }
-
-  return ok(yield* sendMailV3(apiKey, emailContent))
+  return ok(
+    yield* sendRenderedEmail(apiKey, { from: fromEmail, to: toEmail, email }),
+  )
 })
