@@ -15,3 +15,14 @@ e2e/test-results/*
 # E2E infra secrets (Linear OAuth for the dqa service, etc.)
 e2e/infra/.env
 *.tsbuildinfo
+
+# The ABC / Dinamo faces (ABC Monument Grotesk, ABC Monument Grotesk Mono,
+# ABC Monument Grotesk Semi Mono, ABC Marist) are not redistributable in an
+# open source repo. They are loaded at runtime from fonts.ens.dev — see
+# apps/{portal,manager}/src/assets/fonts/README.md. The TTF
+# files under */assets/fonts/og and apps/manager/public/og/fonts are the
+# deliberate exception (satori cannot read WOFF2) and must still be committed.
+apps/*/src/assets/fonts/**/*.woff
+apps/*/src/assets/fonts/**/*.woff2
+apps/*/src/assets/fonts/**/*.otf
+apps/*/public/fonts/
