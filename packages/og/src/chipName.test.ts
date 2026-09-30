@@ -10,7 +10,7 @@ describe('fitOgChipName', () => {
   })
 
   it('fits more characters per line when there is no avatar', () => {
-    const name = `${'a'.repeat(22)}.eth` // 26 chars
+    const name = `${'a'.repeat(21)}.eth` // 25 chars
 
     expect(fitOgChipName(name, true).isWide).toBe(true)
     expect(fitOgChipName(name, false).isWide).toBe(false)
@@ -29,13 +29,13 @@ describe('fitOgChipName', () => {
     )
 
     expect(isWide).toBe(true)
-    expect(text).toBe('thebesteverdeathmetalbandindentonneversettle…eth')
-    expect(text.length).toBeLessThanOrEqual(48)
+    expect(text).toBe('thebesteverdeathmetalbandindentonneversett…eth')
+    expect(text.length).toBeLessThanOrEqual(46)
   })
 
   it('ellipsises a name with no TLD', () => {
     const { text } = fitOgChipName('b'.repeat(80), true)
 
-    expect(text).toBe(`${'b'.repeat(47)}…`)
+    expect(text).toBe(`${'b'.repeat(45)}…`)
   })
 })
