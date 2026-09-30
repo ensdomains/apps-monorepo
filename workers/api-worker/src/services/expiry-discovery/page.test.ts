@@ -33,7 +33,7 @@ describe('expiry page planning', () => {
   beforeEach(() => vi.mocked(fetchExpiringNamesPage).mockReset())
 
   it.each([
-    250,
+    50,
     PROCESS_PAGE_SIZE,
   ])('completes a normal page of %i rows', (count) => {
     const plan = planNormalExpiryPage(uniqueDomains(count), 50)
@@ -64,8 +64,11 @@ describe('expiry page planning', () => {
   })
 
   it('processes a bounded exact timestamp bucket and reports overflow', () => {
-    const fitting = planExactTimestampPage(domainsAt(500, 10_000), 10_000)
-    expect(fitting.domains).toHaveLength(500)
+    const fitting = planExactTimestampPage(
+      domainsAt(QUERY_PAGE_SIZE - 1, 10_000),
+      10_000,
+    )
+    expect(fitting.domains).toHaveLength(QUERY_PAGE_SIZE - 1)
     expect(fitting.overflow).toBe(false)
 
     const overflow = planExactTimestampPage(
@@ -92,10 +95,15 @@ describe('expiry page planning', () => {
         okAsync({
           domains: [...beforeTimestamp, ...exactDomains.slice(0, 2)],
           hasMore: true,
+          indexedAtSec: 1_700_000_000,
         }),
       )
       .mockReturnValueOnce(
-        okAsync({ domains: exactDomains, hasMore: expectedOverflow }),
+        okAsync({
+          domains: exactDomains,
+          hasMore: expectedOverflow,
+          indexedAtSec: 1_700_000_000,
+        }),
       )
 
     const env = {} as CloudflareBindings
@@ -125,6 +133,7 @@ describe('expiry page planning', () => {
       domains: [...beforeTimestamp, ...exactDomains.slice(0, QUERY_PAGE_SIZE)],
       cursorEnd: timestamp,
       hasMore: true,
+      indexedAtSec: 1_700_000_000,
       overflow: expectedOverflow
         ? { expiryTimestamp: timestamp, processedCount: QUERY_PAGE_SIZE }
         : undefined,

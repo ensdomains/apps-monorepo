@@ -19,6 +19,9 @@ import {
 } from './stages.js'
 
 const QUEUE_BATCH_SIZE = 100
+// A run advances a stage cursor only if the index has caught up to about now;
+// an empty window from a lagging index is not proof the window is empty.
+const MAX_INDEX_LAG_SECONDS = 60 * 60
 
 class QueuePublishError extends TaggedError('QUEUE_PUBLISH_ERROR')<{
   stageId: string
@@ -121,6 +124,33 @@ const processStage = ResultFn(async function* (ctx: {
     cursor: queryCursor,
     upperBound,
   })
+
+  const indexLagSec = ctx.nowSec - page.indexedAtSec
+  if (indexLagSec > MAX_INDEX_LAG_SECONDS) {
+    logger.warn('Expiry stage held: indexer is behind', {
+      stageId: ctx.stage.id,
+      cursorStart: ctx.cursor,
+      queryCursor,
+      upperBound,
+      indexLagSec,
+    })
+    return ok({
+      stageId: ctx.stage.id,
+      cursorStart: ctx.cursor,
+      cursorEnd: ctx.cursor,
+      queryCursor,
+      lowerBound,
+      upperBound,
+      lagSec,
+      enqueuedCount: 0,
+      pageDomainCount: 0,
+      chunkCount: 0,
+      hasMore: false,
+      overflow: false,
+      firstExpiryDate: undefined,
+      lastExpiryDate: undefined,
+    } satisfies StageRunMetrics)
+  }
 
   if (page.overflow) {
     await reportExpiryTimestampOverflow({

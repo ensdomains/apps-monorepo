@@ -2,6 +2,7 @@ import { errAsync } from 'neverthrow'
 import { describe, expect, it, vi } from 'vitest'
 import { makeTelegramRequest } from '#services/telegram/utils.js'
 import { logger } from '#utils/logger.js'
+import { QUERY_PAGE_SIZE } from './indexer.js'
 import { reportExpiryTimestampOverflow } from './overflow-alert.js'
 
 vi.mock('#services/telegram/utils.js', () => ({
@@ -34,7 +35,7 @@ describe('expiry timestamp overflow reporting', () => {
         expiryTimestamp: 1_700_000_000,
         expiryTimestampIso: expect.any(String),
         processedCount: 1000,
-        maxPerTimestamp: 1000,
+        maxPerTimestamp: QUERY_PAGE_SIZE,
         detail: expect.any(String),
       }),
     )
