@@ -30,8 +30,13 @@ governs.
 
 ## Brand assets in this repository
 
-The license grants in [LICENSE](LICENSE) do not extend to the following files,
-wherever they appear and whichever directory license would otherwise cover them:
+The ENS marks are excluded from the code licenses as artwork; see
+EXCLUDED: BRAND ASSETS in [LICENSE](LICENSE). Only the artwork is excluded: the
+SVG path data that draws a mark, and any raster export of it. The code around it
+is licensed normally, so a component that renders a mark is AGPL-3.0-only or MIT
+like any other file and you may copy and modify it.
+
+The marks currently live in these files:
 
 ```
 apps/manager/public/ens-logo.svg
@@ -46,13 +51,13 @@ packages/dev-tools/src/EnsMark.tsx
 ```
 
 Some of these are inline SVG inside `.tsx` files rather than image files, so
-unlike the font exclusion in [LICENSE](LICENSE) this list cannot be expressed by
-file extension. It is maintained by hand. A brand asset added later is excluded
-whether or not it has been added to this list; the list is a convenience, not
-the definition.
+unlike the font exclusion in [LICENSE](LICENSE) this cannot be expressed by file
+extension. The list is maintained by hand and is a locator, not the definition:
+a mark added later is excluded whether or not it appears here.
 
-To build and deploy from this repository, replace these files with your own
-branding.
+To build and deploy from this repository, replace the artwork with your own
+branding. For the `.tsx` files that means swapping the mark's path data; the
+component itself stays under its directory's license and is yours to keep.
 
 ## Fonts
 
