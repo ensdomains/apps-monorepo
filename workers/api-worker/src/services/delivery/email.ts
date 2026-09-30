@@ -1,12 +1,13 @@
 import type { AnyPersonalNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
-import { ok } from 'neverthrow'
+import { fromPromise, ok } from 'neverthrow'
 import type { Database } from '#core/database/index.js'
 import { TABLE } from '#core/database/index.js'
-import { sendMailV3 } from '#services/email/utils.js'
+import { sendRenderedEmail } from '#services/email/send.js'
 import type { EmailDeliveryJob } from '#types/delivery.js'
 import { logger } from '#utils/logger.js'
+import { createIntoError } from '#utils/result.js'
 import {
   NotificationDeliveryNotFoundError,
   UnsupportedNotificationTypeError,
@@ -59,33 +60,18 @@ export const deliverEmailNotification = ResultFn(async function* (
     })
   }
 
-  // Generate the template data
-  const templateData = template(
-    deliveryJob.notification.payload as AnyPersonalNotificationPayload,
+  // Render locally; SendGrid only receives the finished email
+  const email = yield* fromPromise(
+    template(
+      deliveryJob.notification.payload as AnyPersonalNotificationPayload,
+    ),
+    createIntoError('EMAIL_RENDER_ERROR'),
   )
 
-  if (!templateData.templateId) {
-    return yield* new UnsupportedNotificationTypeError({
-      message: `Missing template ID for: ${job.kind}`,
-    })
-  }
-
-  // Send via SendGrid API
-  const result = yield* sendMailV3(apiKey, {
-    personalizations: [
-      {
-        to: [
-          {
-            email: deliveryJob.target,
-          },
-        ],
-        // biome-ignore lint/suspicious/noExplicitAny: template data contains non-string values (numbers, booleans) that SendGrid handles at runtime, but its types expect Record<string, string>
-        dynamic_template_data: templateData.dynamicData as any,
-      },
-    ],
-    from: { email: fromEmail },
-    subject: templateData.subject,
-    template_id: templateData.templateId,
+  const result = yield* sendRenderedEmail(apiKey, {
+    from: fromEmail,
+    to: deliveryJob.target,
+    email,
   })
 
   // Update delivery record
@@ -105,7 +91,6 @@ export const deliverEmailNotification = ResultFn(async function* (
   logger.debug('Email notification delivered', {
     jobId: job.id,
     kind: job.kind,
-    templateId: templateData.templateId,
     to: deliveryJob.target,
   })
 
