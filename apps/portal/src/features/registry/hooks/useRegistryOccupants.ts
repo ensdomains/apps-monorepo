@@ -15,6 +15,8 @@ class GetRegistryOccupantsError extends TaggedError(
 
 type GetRegistryOccupantsParameters = {
   readonly address: Address
+  /** The name whose subregistry `address` is — its subnames are the ones counted. */
+  readonly name: string
   /** Whoever is about to write; every other holder in the registry is a third party. */
   readonly account: Address
 }
@@ -49,21 +51,38 @@ export type RegistryOccupants = {
  * minus the caller's own — both filtered server-side, nothing interpolated into
  * the document. `registry(address:)` still rides along, purely as the
  * existence probe the connection can't provide.
+ *
+ * A registry can be shared by several parents, and the indexer keeps one
+ * domain per label per parent, so the registry-wide total counts each label
+ * once per parent. `count` is the name's own `subdomainsCount` instead — the
+ * subnames that stop resolving when this name detaches. The third-party check
+ * stays registry-wide: ownership belongs to the label's token, so every copy
+ * has the same owner and the difference is non-zero exactly when some label is
+ * held by someone else.
  */
 const getRegistryOccupants = ResultFn(async function* ({
   address,
+  name,
   account,
 }: GetRegistryOccupantsParameters) {
-  const { registry, total, own } = yield* fromPromise(
+  const { registry, domains, total, own } = yield* fromPromise(
     graphqlIndexerClient.request<{
       registry: { labelCount: number } | null
+      domains: { subdomainsCount: number }[]
       total: { totalCount: number | null }
       own: { totalCount: number | null }
     }>(
       gql`
-        query getRegistryOccupants($registry: String!, $account: String!) {
+        query getRegistryOccupants(
+          $registry: String!
+          $name: String!
+          $account: String!
+        ) {
           registry(address: $registry) {
             labelCount
+          }
+          domains(where: { name: $name }) {
+            subdomainsCount
           }
           total: domainConnection(first: 1, where: { registry: $registry }) {
             totalCount
@@ -76,7 +95,11 @@ const getRegistryOccupants = ResultFn(async function* ({
           }
         }
       `,
-      { registry: address.toLowerCase(), account: account.toLowerCase() },
+      {
+        registry: address.toLowerCase(),
+        name,
+        account: account.toLowerCase(),
+      },
     ),
     (e) => new GetRegistryOccupantsError({ cause: e as GraphqlRequestError }),
   )
@@ -92,8 +115,12 @@ const getRegistryOccupants = ResultFn(async function* ({
   // caller renders this as "we couldn't check" and blocks the write.
   if (total.totalCount === null || own.totalCount === null) return ok(null)
 
+  // No record of the name itself leaves the count unknown, same as above.
+  const domain = domains[0]
+  if (!domain) return ok(null)
+
   return ok({
-    count: total.totalCount,
+    count: domain.subdomainsCount,
     thirdPartyCount: Math.max(0, total.totalCount - own.totalCount),
   } satisfies RegistryOccupants)
 })

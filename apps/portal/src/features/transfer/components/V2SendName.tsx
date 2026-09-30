@@ -44,6 +44,7 @@ export const V2SendName = ({
   // subregistry `detachTargets` already resolved, so visibility and blast
   // radius can't describe different registries.
   const registryDetachImpact = useRegistryDetachImpact({
+    name,
     subregistryAddress: detachTargets.subregistryAddress,
     owner,
   })
