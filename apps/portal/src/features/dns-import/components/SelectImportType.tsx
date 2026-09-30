@@ -7,7 +7,7 @@ const OPTIONS: readonly {
   readonly value: DnsImportType
   readonly title: string
   readonly description: string
-  /** Shown under the option, before the next one. */
+  /** Shown under the option, before the next one, only while it is selected. */
   readonly notice?: string
 }[] = [
   {
@@ -67,7 +67,7 @@ export const SelectImportType = ({
                 </span>
               </div>
             </label>
-            {option.notice && (
+            {option.notice && type === option.value && (
               <div className="flex items-start gap-2 rounded-sm bg-message-warning-fill p-3 text-sm text-message-warning-text">
                 <TriangleAlert
                   className="size-4 shrink-0 mt-0.5"
