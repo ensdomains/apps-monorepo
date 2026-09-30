@@ -49,6 +49,10 @@ export const V1NameManagerRecord = ({
     return <LoadingMessage title="Loading manager" />
   }
 
+  // A wrapped name: the NameWrapper holds the slot, so the Owner row's account
+  // is the only one in control.
+  if (!managerAddress) return null
+
   return (
     <Owner
       label="Manager"
