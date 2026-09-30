@@ -80,7 +80,7 @@ const once = async <T>(
 }
 
 describe.skipIf(!integration)(
-  'bigname contract on sepolia',
+  'bigname wire shapes on sepolia',
   { timeout: 30_000 },
   () => {
     const client = createBignameClient('https://sepolia.api.bigname.sh')
@@ -267,7 +267,7 @@ describe.skipIf(!integration)(
           authority_context: 'string',
         })
       }
-      // Partial by contract: the surfaces not listed are named in meta.
+      // Partial by design: the surfaces not listed are named in meta.
       expect(response.meta.completeness).toBe('partial')
       expect(response.meta.unlisted_permission_surfaces).toBeTypeOf('object')
     })
