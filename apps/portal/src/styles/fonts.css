@@ -4,11 +4,12 @@
  */
 @font-face {
   font-family: "ABCMonumentGrotesk";
-  src: url("@/assets/fonts/abc-monument-grotesk-variable.woff2") format("woff2");
-  /* Expose the full wght axis (verified via fonttools: 200–1000) so the
-     Builder type styles' 360/425 weights render as real variable-font
-     instances instead of clamping to 400. */
-  font-weight: 200 1000;
+  src: url("https://fonts.ens.dev/fonts/Monument%20Grotesk%20Variable/ABCMonumentGroteskVariable.woff2")
+    format("woff2");
+  /* Expose the full wght axis of the docs-hosted cut (verified via fvar:
+     200–900) so the Builder type styles' 360/425 weights render as real
+     variable-font instances instead of clamping to 400. */
+  font-weight: 200 900;
 }
 
 /* ===============================
@@ -17,7 +18,7 @@
  */
 @font-face {
   font-family: "ABCMonumentGroteskMono";
-  src: url("@/assets/fonts/ABCMonumentGroteskMono/abc-monument-grotesk-mono-regular.woff2")
+  src: url("https://fonts.ens.dev/fonts/Monument%20Grotesk%20Mono/ABCMonumentGroteskMono-Regular.woff2")
     format("woff2");
   font-weight: 400;
   font-style: normal;
@@ -25,7 +26,7 @@
 
 @font-face {
   font-family: "ABCMonumentGroteskMono";
-  src: url("@/assets/fonts/ABCMonumentGroteskMono/abc-monument-grotesk-mono-regular-italic.woff2")
+  src: url("https://fonts.ens.dev/fonts/Monument%20Grotesk%20Mono/ABCMonumentGroteskMono-RegularItalic.woff2")
     format("woff2");
   font-weight: 400;
   font-style: italic;
@@ -33,7 +34,7 @@
 
 @font-face {
   font-family: "ABCMonumentGroteskMono";
-  src: url("@/assets/fonts/ABCMonumentGroteskMono/abc-monument-grotesk-mono-medium.woff2")
+  src: url("https://fonts.ens.dev/fonts/Monument%20Grotesk%20Mono/ABCMonumentGroteskMono-Medium.woff2")
     format("woff2");
   font-weight: 500;
   font-style: normal;
@@ -41,7 +42,7 @@
 
 @font-face {
   font-family: "ABCMonumentGroteskMono";
-  src: url("@/assets/fonts/ABCMonumentGroteskMono/abc-monument-grotesk-mono-medium-italic.woff2")
+  src: url("https://fonts.ens.dev/fonts/Monument%20Grotesk%20Mono/ABCMonumentGroteskMono-MediumItalic.woff2")
     format("woff2");
   font-weight: 500;
   font-style: italic;
@@ -53,7 +54,7 @@
  */
 @font-face {
   font-family: "ABCMonumentGroteskSemiMono";
-  src: url("@/assets/fonts/ABCMonumentGroteskSemiMono/abc-monument-grotesk-semi-mono-regular.woff2")
+  src: url("https://fonts.ens.dev/fonts/Monument%20Grotesk%20Semi-Mono/ABCMonumentGroteskSemi-Mono-Regular.woff2")
     format("woff2");
   font-weight: 400;
   font-style: normal;
@@ -61,7 +62,7 @@
 
 @font-face {
   font-family: "ABCMonumentGroteskSemiMono";
-  src: url("@/assets/fonts/ABCMonumentGroteskSemiMono/abc-monument-grotesk-semi-mono-regular-italic.woff2")
+  src: url("https://fonts.ens.dev/fonts/Monument%20Grotesk%20Semi-Mono/ABCMonumentGroteskSemi-Mono-RegularItalic.woff2")
     format("woff2");
   font-weight: 400;
   font-style: italic;
@@ -69,7 +70,7 @@
 
 @font-face {
   font-family: "ABCMonumentGroteskSemiMono";
-  src: url("@/assets/fonts/ABCMonumentGroteskSemiMono/abc-monument-grotesk-semi-mono-medium.woff2")
+  src: url("https://fonts.ens.dev/fonts/Monument%20Grotesk%20Semi-Mono/ABCMonumentGroteskSemi-Mono-Medium.woff2")
     format("woff2");
   font-weight: 500;
   font-style: normal;
@@ -77,7 +78,7 @@
 
 @font-face {
   font-family: "ABCMonumentGroteskSemiMono";
-  src: url("@/assets/fonts/ABCMonumentGroteskSemiMono/abc-monument-grotesk-semi-mono-medium-italic.woff2")
+  src: url("https://fonts.ens.dev/fonts/Monument%20Grotesk%20Semi-Mono/ABCMonumentGroteskSemi-Mono-MediumItalic.woff2")
     format("woff2");
   font-weight: 500;
   font-style: italic;
@@ -89,14 +90,15 @@
  */
 @font-face {
   font-family: "ABCMarist";
-  src: url("@/assets/fonts/ABCMarist/abc-marist-regular.woff2") format("woff2");
+  src: url("https://fonts.ens.dev/fonts/Marist/ABCMarist-Book.woff2")
+    format("woff2");
   font-weight: 400;
   font-style: normal;
 }
 
 @font-face {
   font-family: "ABCMarist";
-  src: url("@/assets/fonts/ABCMarist/abc-marist-regular-italic.woff2")
+  src: url("https://fonts.ens.dev/fonts/Marist/ABCMarist-BookItalic.woff2")
     format("woff2");
   font-weight: 400;
   font-style: italic;

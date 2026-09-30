@@ -10,4 +10,6 @@ export {
   type BignameErrorCode,
   isStale,
 } from './errors'
+export { readNameDetail } from './nameDetail'
+export { readNamesForAddress } from './namesForAddress'
 export type * from './types'

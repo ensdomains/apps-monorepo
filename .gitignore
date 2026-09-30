@@ -28,3 +28,13 @@ e2e/infra/.env
 # Zero-byte files left by mistyped shell redirects (`> apps@`, `> pnpm`).
 /apps@
 /pnpm
+# The ABC / Dinamo faces (ABC Monument Grotesk, ABC Monument Grotesk Mono,
+# ABC Monument Grotesk Semi Mono, ABC Marist) are not redistributable in an
+# open source repo. They are loaded at runtime from fonts.ens.dev — see
+# apps/{portal,manager}/src/assets/fonts/README.md. The Geist TTFs used for OG
+# images (apps/portal/src/assets/fonts/og, apps/manager/public/og/fonts) are OFL
+# and are committed on purpose.
+apps/*/src/assets/fonts/**/*.woff
+apps/*/src/assets/fonts/**/*.woff2
+apps/*/src/assets/fonts/**/*.otf
+apps/*/public/fonts/

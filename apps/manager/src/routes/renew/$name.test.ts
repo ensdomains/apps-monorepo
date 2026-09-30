@@ -105,10 +105,7 @@ describe('/renew/$name loader', () => {
       protocol: 'v2',
     })
 
-    expect(outcome).toBeInstanceOf(Error)
-    expect((outcome as Error).message).toBe(
-      'This name is not in its normalized form, so it cannot be renewed here',
-    )
+    expect(outcome).toMatchObject({ reason: 'NOT_NORMALIZED' })
     expect(fetchQuery).not.toHaveBeenCalled()
   })
 
@@ -156,6 +153,51 @@ describe('/renew/$name loader', () => {
         replace: true,
       },
     })
+  })
+
+  it('renews the normalised label for an upper-case name', async () => {
+    // Upper case never reaches the loader: it is redirected to the normalised
+    // name first, and the expiry is then read for exactly that name.
+    expect(runBeforeLoad('ALICE.ETH')).toEqual({
+      redirect: {
+        params: { name: 'alice.eth' },
+        to: '/renew/$name',
+        replace: true,
+      },
+    })
+
+    const { outcome, fetchQuery } = await runLoader('alice.eth', {
+      expiry: EXPIRY_2030,
+      isNonExpiring: false,
+      protocol: 'v2',
+    })
+
+    // Asserted by name, not just call count: reading the expiry for another
+    // spelling would price a different registration than the one renewed.
+    expect(fetchQuery).toHaveBeenCalledOnce()
+    expect(fetchQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: [expect.objectContaining({ name: 'alice.eth' })],
+      }),
+    )
+    expect(outcome).toEqual({ label: 'alice', currentExpiry: EXPIRY_2030 })
+  })
+
+  it.each([
+    ['a zero-width space', 'ali\u200bce.eth'],
+    ['a stray variation selector', 'alice\ufe0f.eth'],
+  ])('refuses a label containing %s', async (_label, name) => {
+    // The registrar hashes the label bytes it is handed, so a name that renders
+    // as `alice` but carries an invisible character would renew a different
+    // registration than the one the gate priced.
+    const { outcome, fetchQuery } = await runLoader(name, {
+      expiry: EXPIRY_2030,
+      isNonExpiring: false,
+      protocol: 'v2',
+    })
+
+    expect(fetchQuery).not.toHaveBeenCalled()
+    expect(outcome).toMatchObject({ reason: 'NOT_NORMALIZED' })
   })
 
   it('routes a v1 name to the v1 renewal flow', async () => {
