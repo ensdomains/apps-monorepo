@@ -311,7 +311,10 @@ test.describe('DNS import flow', () => {
     await expect(
       page.getByText(`ENS1 ${OFFICIAL_SEPOLIA_RESOLVER} <your address>`),
     ).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible()
+    // Scoped to the page body: the header has its own account Connect button.
+    await expect(
+      page.getByRole('main').getByRole('button', { name: 'Connect' }),
+    ).toBeVisible()
 
     // The record name is real and copyable; the sample value is not, so the
     // placeholder cannot be pasted into a DNS manager as-is.
