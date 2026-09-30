@@ -1,6 +1,6 @@
 import { YieldableError } from '@ens-apps/utils/neverthrow'
 import type { ITaggedError } from '@ens-apps/utils/neverthrow/error-classes'
-import type { Address, Hash, UserRejectedRequestError } from 'viem'
+import type { Address, Hash } from 'viem'
 import type { TransactionRequest } from '../types/transaction.types'
 
 // Base error class for transaction errors
@@ -118,10 +118,34 @@ export class TransactionUserRejectedError
   readonly _tag = 'TransactionUserRejectedError'
   constructor(
     public readonly request: TransactionRequest,
-    cause?: UserRejectedRequestError,
+    cause?: unknown,
   ) {
     super('User rejected transaction', cause)
   }
+}
+
+/**
+ * Whether `error` is the user declining a wallet request.
+ *
+ * Narrows viem errors by `name`, as viem documents
+ * (https://viem.sh/docs/error-handling), not by `instanceof`. The wallet client
+ * is built by the app, and its errors are instances of the viem classes
+ * imported here only while the app and this package share one viem copy. pnpm
+ * keys viem copies by their resolved peers (see the `zod` catalog entry), so a
+ * dependency change can split them again, and nothing fails loudly when that
+ * happens. `BaseError.walk` sits behind the same `instanceof`, so the `cause`
+ * chain is followed directly; that also reaches through our own wrappers.
+ */
+export function isUserRejectionError(error: unknown): boolean {
+  let current: unknown = error
+
+  while (current instanceof Error) {
+    if (current instanceof TransactionUserRejectedError) return true
+    if (current.name === 'UserRejectedRequestError') return true
+    current = current.cause
+  }
+
+  return false
 }
 
 export class TransactionTimeoutError
@@ -142,6 +166,27 @@ export class TransactionRevertedError
   implements ITaggedError
 {
   readonly _tag = 'TransactionRevertedError'
+}
+
+/**
+ * The transaction's actor was stopped before it reached success or error, so
+ * nothing more will ever be learned about it here.
+ *
+ * Waiters have to be told: a stopped actor emits no further snapshots, so a
+ * caller awaiting one would otherwise hang forever — its mutation stuck
+ * pending, its invalidation and history reporting never running — while the
+ * transaction itself may well be on-chain.
+ */
+export class TransactionStoppedError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'TransactionStoppedError'
+  constructor(public readonly txId: string) {
+    super(
+      `Transaction ${txId} stopped before completing. It may still be on-chain.`,
+    )
+  }
 }
 
 export class EthCallFallbackError

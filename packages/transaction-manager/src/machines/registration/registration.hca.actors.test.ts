@@ -243,6 +243,10 @@ describe('verifyHcaRegistrationActor', () => {
       .mockResolvedValueOnce(commitTime as unknown)
   }
 
+  // `graceWindowMs: 0` pins these to ONE read: they are about how a registry
+  // response is interpreted, not about the grace-poll (covered separately in
+  // registration.verify-poll.test.ts). Without it, every negative case would
+  // re-read for the default 30s.
   const verify = () =>
     verifyHcaRegistrationActor({
       name: 'myname.eth',
@@ -251,12 +255,36 @@ describe('verifyHcaRegistrationActor', () => {
       publicClient,
       commitment: COMMITMENT,
       duration: DURATION,
+      graceWindowMs: 0,
     })
 
   it('verifies a name owned by the wallet and resolved by the HCA resolver', async () => {
     mockRegistry(registeredState(WALLET), hcaResolver)
 
     expect((await verify())._unsafeUnwrap().verified).toBe(true)
+  })
+
+  it('re-reads until the reveal lands, rather than failing on the first look', async () => {
+    // A resumed run reaches verification while the intent is still filling
+    // server-side. One read would report a false failure and push the user
+    // into a retry for a name they are about to own.
+    mockRegistry(registeredState(WALLET), zeroAddress)
+    mockRegistry(registeredState(WALLET), hcaResolver)
+
+    const result = await verifyHcaRegistrationActor({
+      name: 'myname.eth',
+      wallet: WALLET,
+      hca: HCA,
+      publicClient,
+      commitment: COMMITMENT,
+      duration: DURATION,
+      graceWindowMs: 500,
+      pollIntervalMs: 10,
+    })
+
+    expect(result._unsafeUnwrap().verified).toBe(true)
+    // Four registry reads per poll iteration, two iterations.
+    expect(readContract).toHaveBeenCalledTimes(8)
   })
 
   it('rejects a name whose owner is the HCA instead of the wallet', async () => {

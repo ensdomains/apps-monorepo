@@ -1,3 +1,7 @@
+import {
+  type FlowScope,
+  scopeTransactionId,
+} from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
@@ -22,6 +26,7 @@ import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { prepareDeleteSubnameTransaction } from '@/features/registry/utils/delete-subname.helpers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type {
   IntentContext,
@@ -31,8 +36,8 @@ import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 const DELETE_SUBNAME_TX_ID_PREFIX = 'tx-delete-ens-subname'
-const deleteTxId = (subnameName: string) =>
-  `${DELETE_SUBNAME_TX_ID_PREFIX}-${subnameName}`
+const deleteTxId = (subnameName: string, scope: FlowScope | null): string =>
+  scopeTransactionId(`${DELETE_SUBNAME_TX_ID_PREFIX}-${subnameName}`, scope)
 
 export const Route = createFileRoute('/$name/subnames')({
   component: RouteComponent,
@@ -156,10 +161,14 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
 
   const {
     isOpen: isTransactionModalOpen,
-    openModal: openTransactionModal,
     closeModal: closeTransactionModal,
     clearTransaction,
   } = useTransactionModal()
+
+  // Names the attempt the modal is showing. A bulk delete queues several steps
+  // under one attempt, so an abandoned run cannot hand its finished actors to
+  // the next one and skip straight to the last subname.
+  const attempt = useFlowAttempt()
 
   // Subnames queued for the current modal session. Length 1 for single delete
   // (inline confirm), N for bulk Clear. The modal walks through them in order.
@@ -250,9 +259,9 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         for (const r of rows) next.add(r.name)
         return next
       })
-      openTransactionModal()
+      if (connectedAccount) attempt.start(connectedAccount)
     },
-    [openTransactionModal],
+    [attempt, connectedAccount],
   )
 
   const handleDeleteSubname = (subname: SubnameRow) =>
@@ -284,7 +293,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   // each. Last onDone wraps up the modal session.
   const deleteTransactions: readonly Transaction[] = queuedDeletes.map(
     (subname, i) => {
-      const id = deleteTxId(subname.name)
+      const id = deleteTxId(subname.name, attempt.scope)
       const isLast = i === queuedDeletes.length - 1
       const next = queuedDeletes[i + 1]
       return {
@@ -299,10 +308,11 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
           ? () => {
               closeTransactionModal()
               clearTransaction()
+              attempt.end()
               setQueuedDeletes([])
             }
           : () => {
-              void runDelete(next, deleteTxId(next.name))
+              void runDelete(next, deleteTxId(next.name, attempt.scope))
             },
       }
     },

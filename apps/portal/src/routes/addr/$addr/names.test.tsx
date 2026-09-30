@@ -70,7 +70,6 @@ const V2_NAMES = [
     expiryDate: Math.floor((Date.now() + 730 * MS_PER_DAY) / 1000),
     roleBitmap: '0x5',
     subdomainCount: 0,
-    recordCount: 0,
   },
 ] satisfies V2NameWithRoles[]
 

@@ -16,7 +16,6 @@ type DomainData = {
   name: string
   expiryDate: number | null
   subdomainCount: number
-  recordCount: number
 }
 
 export type V2NameWithRoles = {
@@ -24,7 +23,6 @@ export type V2NameWithRoles = {
   expiryDate: number | null
   roleBitmap: string
   subdomainCount: number
-  recordCount: number
 }
 
 class GetV2NamesWithRolesForAddressError extends TaggedError(
@@ -57,7 +55,6 @@ const getV2NamesWithRolesForAddress = ResultFn(async function* ({
             name
             expiryDate
             subdomainCount
-            recordCount
           }
         }
       `,
@@ -88,7 +85,6 @@ const getV2NamesWithRolesForAddress = ResultFn(async function* ({
       roleBitmap: rolesMap.get(domain.name) ?? '0',
       expiryDate: domain.expiryDate,
       subdomainCount: domain.subdomainCount,
-      recordCount: domain.recordCount,
     })
   }
 

@@ -148,6 +148,7 @@ function RouteComponent() {
     startFlow,
     startMultiFlow,
     clearIncompatibleRenewalState,
+    openModal: openRenewalModal,
   } = useRenewalTransactions({
     onComplete: () => {
       setRowSelection({})
@@ -162,7 +163,7 @@ function RouteComponent() {
   })
 
   const activeTxState = useActiveTransactionState()
-  const { isOpen: isTransactionModalOpen, openModal } = useTransactionModal()
+  const { isOpen: isTransactionModalOpen } = useTransactionModal()
 
   // Filter state
   const [expiryDateRange, setExpiryDateRange] = useState<DateRange>({})
@@ -330,12 +331,16 @@ function RouteComponent() {
               disabled={extendableNames.length === 0 || renewabilityLoading}
               onClick={() => {
                 if (isTransactionInFlight(activeTxState)) {
-                  openModal()
+                  // Reopening an attempt that is already running: reuse the
+                  // scope it was started with rather than naming a new one.
+                  openRenewalModal()
                   return
                 }
-                // Stale terminal-state transactions (success/error) block the
-                // modal; remove only that entry so a fresh extend flow can
-                // start without touching any other in-flight transactions.
+                // A terminal actor from a previous attempt is stale for a new
+                // one, and the step ids are scoped, so it no longer shadows
+                // the fresh attempt. Cancelling is still wanted to keep the
+                // manager's list from growing, and it is the one actor the
+                // modal's `activeTxState` lookup points at.
                 if (activeTxState) {
                   transactionManager.cancelTransaction(activeTxState.txId)
                 }
@@ -393,8 +398,8 @@ function RouteComponent() {
           onClose={() => setExtendModalOpen(false)}
           selectedName={extendableNames[0]}
           onExtend={(config) => {
+            // `startFlow` names the attempt and opens the modal.
             startFlow(extendableNames[0], config)
-            openModal()
           }}
         />
       )}
@@ -404,12 +409,12 @@ function RouteComponent() {
           onClose={() => setExtendModalOpen(false)}
           selectedNames={extendableNames}
           onExtend={(config) => {
+            // `startMultiFlow` names the attempt and opens the modal.
             startMultiFlow({
               renewals: config.renewals,
               tokenAddress: config.selection.tokenAddress,
               payments: config.selection.payments,
             })
-            openModal()
           }}
         />
       )}

@@ -1,4 +1,5 @@
 import {
+  scopeTransactionId,
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
@@ -10,6 +11,7 @@ import { useRef, useState } from 'react'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -34,7 +36,8 @@ export const useSyncManagerTransaction = ({
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
   const { address: connectedAddress } = useConnection()
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
+  const attempt = useFlowAttempt()
 
   const [proof, setProof] = useState<GetDnsImportDataReturnType | null>(null)
   const startedRef = useRef(false)
@@ -45,16 +48,17 @@ export const useSyncManagerTransaction = ({
       onSuccess: (dnsImportData) => {
         startedRef.current = false
         setProof(dnsImportData)
-        openModal()
+        if (connectedAddress) attempt.start(connectedAddress)
       },
     }),
   )
 
-  const txId = `dns-sync-manager-${name}`
+  const txId = scopeTransactionId(`dns-sync-manager-${name}`, attempt.scope)
 
   const finishFlow = () => {
     closeModal()
     clearTransaction()
+    attempt.end()
     setProof(null)
     void Promise.all([
       queryClient.invalidateQueries({

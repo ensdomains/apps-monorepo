@@ -1,3 +1,4 @@
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, CircleCheck, Loader2 } from 'lucide-react'
@@ -28,6 +29,7 @@ import {
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
@@ -99,7 +101,11 @@ function RouteComponent() {
     readonly fromName: string
     readonly toName: string
   } | null>(null)
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
+  // Names the attempt the modal is showing, so a link abandoned mid-flight
+  // can't leave a settled actor under the fixed id the next attempt looks up.
+  const attempt = useFlowAttempt()
+  const createLinkTxId = scopeTransactionId(CREATE_LINK_TX_ID, attempt.scope)
 
   const {
     data: resolver,
@@ -143,7 +149,7 @@ function RouteComponent() {
     walletClient,
     publicClient,
     chainId,
-    id: CREATE_LINK_TX_ID,
+    id: createLinkTxId,
   })
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -151,7 +157,7 @@ function RouteComponent() {
     if (!fromName || !toName) return
     mutation.reset()
     setPendingLink({ fromName, toName })
-    openModal()
+    if (accountAddress) attempt.start(accountAddress)
   }
 
   if (isLoading) return <LoadingMessage />
@@ -328,7 +334,7 @@ function RouteComponent() {
       <TransactionModal
         transactions={[
           {
-            id: CREATE_LINK_TX_ID,
+            id: createLinkTxId,
             title: 'Link name',
             transactionName: `Link ${pendingLink?.fromName ?? ''} to the record of ${pendingLink?.toName ?? ''}`,
             intent: {
@@ -353,6 +359,7 @@ function RouteComponent() {
             onDone: () => {
               closeModal()
               clearTransaction()
+              attempt.end()
               setPendingLink(null)
               navigate({
                 to: '/resolver/$address/links',

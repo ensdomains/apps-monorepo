@@ -33,7 +33,7 @@ export const ExtendNameButton = ({
 
   const { canExtend, selectedName } = useCanExtend({ name, protocolVersion })
 
-  const { transactions, startFlow, clearIncompatibleRenewalState } =
+  const { transactions, startFlow, clearIncompatibleRenewalState, openModal } =
     useRenewalTransactions({
       onComplete: () => {
         setOpen(false)
@@ -41,7 +41,7 @@ export const ExtendNameButton = ({
     })
 
   const activeTxState = useActiveTransactionState()
-  const { isOpen: isTransactionModalOpen, openModal } = useTransactionModal()
+  const { isOpen: isTransactionModalOpen } = useTransactionModal()
 
   if (!canExtend) return null
 
@@ -54,9 +54,9 @@ export const ExtendNameButton = ({
             openModal()
             return
           }
-          // Stale terminal-state transactions (success/error) block the modal;
-          // remove only that entry so a fresh extend flow can start without
-          // touching any other in-flight transactions in the manager.
+          // A terminal actor from a previous attempt is stale for a new one.
+          // Step ids are scoped, so it no longer shadows the fresh attempt;
+          // cancelling keeps the manager's list from growing.
           if (activeTxState) {
             transactionManager.cancelTransaction(activeTxState.txId)
           }
@@ -74,8 +74,9 @@ export const ExtendNameButton = ({
         }}
         selectedName={selectedName}
         onExtend={(config) => {
+          // `startFlow` names the attempt; it also opens the modal, since the
+          // step ids it builds are scoped to that attempt.
           startFlow(selectedName, config)
-          openModal()
         }}
       />
       <TransactionModal transactions={transactions} />

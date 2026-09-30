@@ -1,3 +1,4 @@
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
@@ -43,6 +44,7 @@ import {
 } from '@/features/resolver/hooks/useResolverOverview'
 import { useUnlink } from '@/features/resolver/hooks/useUnlink'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -157,7 +159,11 @@ function RouteComponent() {
   const publicClient = usePublicClient()
   const { address: accountAddress } = useConnection()
   const [pendingUnlink, setPendingUnlink] = useState<ResolverLink | null>(null)
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
+  // Names the attempt the modal is showing, so an unlink abandoned mid-flight
+  // can't leave a settled actor under the fixed id the next attempt looks up.
+  const attempt = useFlowAttempt()
+  const unlinkTxId = scopeTransactionId(UNLINK_TX_ID, attempt.scope)
 
   const {
     data: resolver,
@@ -188,13 +194,13 @@ function RouteComponent() {
     walletClient,
     publicClient,
     chainId,
-    id: UNLINK_TX_ID,
+    id: unlinkTxId,
   })
 
   const handleUnlink = (link: ResolverLink) => {
     unlinkMutation.reset()
     setPendingUnlink(link)
-    openModal()
+    if (accountAddress) attempt.start(accountAddress)
   }
 
   const table = useReactTable({
@@ -259,7 +265,7 @@ function RouteComponent() {
       <TransactionModal
         transactions={[
           {
-            id: UNLINK_TX_ID,
+            id: unlinkTxId,
             title: 'Unlink name',
             transactionName: `Unlink ${pendingUnlink?.name ?? ''}`,
             intent: {
@@ -280,6 +286,7 @@ function RouteComponent() {
             onDone: () => {
               closeModal()
               clearTransaction()
+              attempt.end()
               setPendingUnlink(null)
             },
           },

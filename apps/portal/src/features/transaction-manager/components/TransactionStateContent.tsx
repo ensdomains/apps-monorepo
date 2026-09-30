@@ -142,8 +142,6 @@ export const TransactionStateContent = ({
                   )}
                   {shouldShowWaitCountdown(
                     transaction,
-                    index,
-                    transactions,
                     activeTransactionsMap,
                   ) && transaction.waitUntil ? (
                     <TransactionWaitCountdown

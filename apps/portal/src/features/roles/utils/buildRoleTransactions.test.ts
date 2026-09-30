@@ -23,6 +23,7 @@ describe('buildRoleTransactions', () => {
       'test.eth',
       mockHandlers,
       TEST_REGISTRY,
+      null,
     )
     expect(result).toEqual([])
     expect(mockHandlers.grantRoles).not.toHaveBeenCalled()
@@ -41,6 +42,7 @@ describe('buildRoleTransactions', () => {
       'test.eth',
       mockHandlers,
       TEST_REGISTRY,
+      null,
     )
 
     expect(result).toHaveLength(1)
@@ -76,6 +78,7 @@ describe('buildRoleTransactions', () => {
       'example.eth',
       mockHandlers,
       TEST_REGISTRY,
+      null,
     )
 
     expect(result).toHaveLength(2)
@@ -101,6 +104,7 @@ describe('buildRoleTransactions', () => {
       'parent.eth',
       mockHandlers,
       TEST_REGISTRY,
+      null,
     )
 
     expect(result).toHaveLength(1)
