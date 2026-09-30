@@ -13,7 +13,7 @@ type RegistrationStubEvent =
   | { type: 'START_REGISTRATION'; primaryName?: string }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
   | { type: 'FORCE_SUCCESS' }
-  | { type: 'FORCE_ERROR'; error: Error }
+  | { type: 'FORCE_ERROR'; error: Error; nameUnavailable?: boolean }
   | { type: 'RETRY' }
   | { type: 'SUSPEND' }
 
@@ -36,6 +36,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       registrationTxId: 'tx-register',
       registerReadyTimestamp: null as number | null,
       error: undefined as Error | undefined,
+      nameUnavailable: undefined as boolean | undefined,
       retryCount: 0,
       primaryName: undefined as string | undefined,
       /** Captures the RESUME payload so tests can assert what was forwarded. */
@@ -90,6 +91,10 @@ vi.mock('@ens-apps/transaction-manager', () => ({
             actions: assign({
               error: ({ event }) =>
                 event.type === 'FORCE_ERROR' ? event.error : undefined,
+              nameUnavailable: ({ event }) =>
+                event.type === 'FORCE_ERROR'
+                  ? event.nameUnavailable
+                  : undefined,
             }),
           },
           RETRY: {
@@ -100,7 +105,19 @@ vi.mock('@ens-apps/transaction-manager', () => ({
         },
       },
       success: {},
-      error: {},
+      // The real machine leaves `error` on RETRY (except for a name another
+      // address already registered, which the UI is expected to stop before
+      // it ever reaches the child).
+      error: {
+        on: {
+          RETRY: {
+            target: 'running',
+            actions: assign({
+              retryCount: ({ context }) => context.retryCount + 1,
+            }),
+          },
+        },
+      },
     },
   }),
   waitForTransaction: vi.fn(async () => ({ hash: '0xhash' })),
@@ -216,6 +233,11 @@ const sendToChild = (
   }
   child.send(event)
 }
+
+/** `retryCount` is the stub's own counter — see `sendToChild` on the cast. */
+const childRetryCount = (actor: ReturnType<typeof startActorInTokens>) =>
+  (getChild(actor).getSnapshot().context as unknown as { retryCount: number })
+    .retryCount
 
 const deferred = <T>() => {
   let resolve!: (value: T | PromiseLike<T>) => void
@@ -936,5 +958,60 @@ describe('registrationV2UiMachine — registration.suspend', () => {
 
     expect(actor.getSnapshot().value).toMatchObject({ pricing: {} })
     expect(isChildSuspended(actor)).toBe(true)
+  })
+})
+
+describe('registrationV2UiMachine — name lost to another registrant', () => {
+  const eoaAccount = {
+    signer: { type: 'eoa', walletClient: {} as never },
+    accountAddress: EOA_ADDRESS,
+    ownerAddress: EOA_ADDRESS,
+    walletClient: { account: { address: EOA_ADDRESS } } as any,
+  } as unknown as SmartAccountContextValue
+
+  const failWithNameTaken = async () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    sendToChild(actor, {
+      type: 'FORCE_ERROR',
+      error: new Error('example.eth was registered by another address first.'),
+      nameUnavailable: true,
+    })
+    await flush()
+    return actor
+  }
+
+  it('carries the lost-race flag onto the failure screen', async () => {
+    const actor = await failWithNameTaken()
+
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(actor.getSnapshot().context.nameUnavailable).toBe(true)
+  })
+
+  it('refuses retry rather than parking on the pending screen', async () => {
+    // The child refuses the forwarded RETRY, so moving back to `registering`
+    // would leave the user watching a spinner that can never resolve.
+    const actor = await failWithNameTaken()
+
+    actor.send({ type: 'retry' })
+    await flush()
+
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(childRetryCount(actor)).toBe(0)
+  })
+
+  it('still retries an ordinary failure', async () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    sendToChild(actor, { type: 'FORCE_ERROR', error: new Error('rpc down') })
+    await flush()
+
+    expect(actor.getSnapshot().context.nameUnavailable).toBe(false)
+
+    actor.send({ type: 'retry' })
+    await flush()
+
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+    expect(childRetryCount(actor)).toBe(1)
   })
 })

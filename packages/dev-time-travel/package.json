@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/dev-time-travel",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "DEV-only manual time-travel tooling (Anvil clock control + panel) for the ENS apps.",
   "type": "module",
   "private": true,

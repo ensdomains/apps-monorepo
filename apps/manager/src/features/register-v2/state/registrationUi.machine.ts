@@ -94,6 +94,11 @@ type Context = {
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
   lastErrorMessage?: string
+  /**
+   * The registration failed because another address registered the name first.
+   * Nothing to retry — the failure screen offers only a way back.
+   */
+  nameUnavailable: boolean
   confirmedData?: RegistrationConfirmedData
   postRegistrationSetup?: RegistrationPostRegistrationSetup
   postRegistrationData?: PostRegistrationData
@@ -169,7 +174,7 @@ type Events =
   | { type: 'registration.completed' }
   | { type: 'notifications.step.next' }
   | { type: 'transaction.success' }
-  | { type: 'transaction.failed'; message?: string }
+  | { type: 'transaction.failed'; message?: string; nameUnavailable?: boolean }
   | { type: 'retry' }
   | { type: 'cancel' }
   | { type: 'label.changed' }
@@ -371,6 +376,7 @@ const machineSetup = setup({
     }),
     clearError: assign({
       lastErrorMessage: () => undefined,
+      nameUnavailable: () => false,
     }),
     clearMaxProgress: assign({
       maxProgressReached: () => undefined,
@@ -381,6 +387,13 @@ const machineSetup = setup({
           .with({ type: 'transaction.failed' }, ({ message }) => message)
           .with({ type: '$error' }, ({ error }) => error.message)
           .otherwise(() => undefined),
+      nameUnavailable: ({ event }) =>
+        match(event)
+          .with(
+            { type: 'transaction.failed' },
+            ({ nameUnavailable }) => nameUnavailable === true,
+          )
+          .otherwise(() => false),
     }),
     setInvokeError: assign({
       lastErrorMessage: ({ event }) => {
@@ -772,6 +785,9 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           raise(({ event: { snapshot } }) => ({
             type: 'transaction.failed',
             message: snapshot.context.error?.message,
+            // Lost a same-name race: the child refuses RETRY, so the failure
+            // screen must not offer one either.
+            nameUnavailable: snapshot.context.nameUnavailable === true,
           })),
         ],
       },
@@ -788,6 +804,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     duration: getDurationInSecondsFromYears(3),
     selectedToken: undefined,
     lastErrorMessage: undefined,
+    nameUnavailable: false,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
     registrationCompleted: false,
     postRegistrationSetupFailed: false,
@@ -1164,6 +1181,9 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     failure: {
       on: {
         retry: {
+          // Retrying a name someone else now owns would park the UI back on
+          // the pending screen while the child refuses the RETRY it forwards.
+          guard: ({ context }) => !context.nameUnavailable,
           target: 'registering',
           actions: ['clearError', 'forwardRetry'],
         },

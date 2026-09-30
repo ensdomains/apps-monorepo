@@ -1,5 +1,11 @@
 import type { Hash, TransactionReceipt } from 'viem'
 import { transactionManager } from '../providers/transactionManager'
+import {
+  awaitTransactionOutcome,
+  isErrorSnapshot,
+  isSuccessSnapshot,
+  type ReadOutcome,
+} from './awaitTransactionOutcome'
 
 /**
  * Result returned when a transaction completes successfully
@@ -20,32 +26,22 @@ export async function waitForTransactionHash(txId: string): Promise<Hash> {
     throw new Error(`Transaction ${txId} not found`)
   }
 
-  const snapshot = txActor.getSnapshot()
-  if (snapshot.context.hash) return snapshot.context.hash
-  if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
-    throw snapshot.context.error || new Error(`Transaction ${txId} failed`)
+  const read: ReadOutcome<Hash> = (snapshot) => {
+    if (snapshot.context.hash) {
+      return { settled: true, value: snapshot.context.hash }
+    }
+    if (isErrorSnapshot(snapshot)) {
+      return {
+        settled: false,
+        error:
+          snapshot.context.error ||
+          new Error(`Transaction ${txId} failed during submission`),
+      }
+    }
+    return undefined
   }
 
-  return new Promise<Hash>((resolve, reject) => {
-    const subscription = txActor.subscribe((nextSnapshot) => {
-      if (nextSnapshot.context.hash) {
-        subscription.unsubscribe()
-        resolve(nextSnapshot.context.hash)
-        return
-      }
-
-      if (
-        typeof nextSnapshot.value === 'object' &&
-        'error' in nextSnapshot.value
-      ) {
-        subscription.unsubscribe()
-        reject(
-          nextSnapshot.context.error ||
-            new Error(`Transaction ${txId} failed during submission`),
-        )
-      }
-    })
-  })
+  return awaitTransactionOutcome(txId, txActor, read)
 }
 
 /**
@@ -57,7 +53,7 @@ export async function waitForTransactionHash(txId: string): Promise<Hash> {
  *
  * @param txId - The transaction ID returned from transactionManager.startTransaction()
  * @returns Promise that resolves with hash and receipt on success
- * @throws Error if transaction not found or fails
+ * @throws Error if transaction not found, fails, or is stopped before completing
  *
  * @example
  * ```ts
@@ -74,55 +70,25 @@ export async function waitForTransaction(
     throw new Error(`Transaction ${txId} not found`)
   }
 
-  const snapshot = txActor.getSnapshot()
-  const completedHash =
-    snapshot.context.receipt?.transactionHash ?? snapshot.context.hash
-
-  // Already complete?
-  if (
-    (snapshot.matches?.('success' as never) || snapshot.value === 'success') &&
-    completedHash
-  ) {
-    return {
-      hash: completedHash,
-      receipt: snapshot.context.receipt,
+  const read: ReadOutcome<WaitForTransactionResult> = (snapshot) => {
+    const completedHash =
+      snapshot.context.receipt?.transactionHash ?? snapshot.context.hash
+    if (isSuccessSnapshot(snapshot) && completedHash) {
+      return {
+        settled: true,
+        value: { hash: completedHash, receipt: snapshot.context.receipt },
+      }
     }
+    if (isErrorSnapshot(snapshot)) {
+      return {
+        settled: false,
+        error:
+          snapshot.context.error ||
+          new Error(`Transaction ${txId} failed during execution`),
+      }
+    }
+    return undefined
   }
 
-  // Already failed?
-  if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
-    throw snapshot.context.error || new Error(`Transaction ${txId} failed`)
-  }
-
-  // Subscribe and wait
-  return new Promise<WaitForTransactionResult>((resolve, reject) => {
-    const subscription = txActor.subscribe((nextSnapshot) => {
-      const completedHash =
-        nextSnapshot.context.receipt?.transactionHash ??
-        nextSnapshot.context.hash
-      if (
-        (nextSnapshot.matches?.('success' as never) ||
-          nextSnapshot.value === 'success') &&
-        completedHash
-      ) {
-        subscription.unsubscribe()
-        resolve({
-          hash: completedHash,
-          receipt: nextSnapshot.context.receipt,
-        })
-        return
-      }
-
-      if (
-        typeof nextSnapshot.value === 'object' &&
-        'error' in nextSnapshot.value
-      ) {
-        subscription.unsubscribe()
-        reject(
-          nextSnapshot.context.error ||
-            new Error(`Transaction ${txId} failed during execution`),
-        )
-      }
-    })
-  })
+  return awaitTransactionOutcome(txId, txActor, read)
 }

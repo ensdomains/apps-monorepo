@@ -1,10 +1,17 @@
 // Contracts
 // Errors
 export {
+  ChainIdMismatchError,
   SignerAddressMismatchError,
+  TransactionStoppedError,
   TransactionSubmissionError,
 } from './errors/transaction.errors'
 // Helpers
+export {
+  createFlowScope,
+  type FlowScope,
+  scopeTransactionId,
+} from './helpers/flow-identity'
 export { getSmartAccountAddress } from './helpers/getSmartAccountAddress'
 export {
   HCA_MAX_STANDALONE_INTENT_FEE_USDC,

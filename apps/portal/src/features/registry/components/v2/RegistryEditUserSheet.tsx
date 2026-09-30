@@ -1,3 +1,4 @@
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
@@ -28,6 +29,7 @@ import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGran
 import { useRevokeRegistryRolesMutation } from '@/features/registry/hooks/useRevokeRegistryRoles'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type {
   IntentContext,
@@ -93,7 +95,12 @@ export const RegistryEditUserSheet = ({
   const [submitFeedback, setSubmitFeedback] = useState<string | null>(null)
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false)
 
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
+  // Names this attempt, so a second edit in the same session can't be served
+  // by the finished actors the first one left behind.
+  const attempt = useFlowAttempt()
+  const grantTxId = scopeTransactionId(GRANT_TX_ID, attempt.scope)
+  const revokeTxId = scopeTransactionId(REVOKE_TX_ID, attempt.scope)
   const { grantRegistryRoles, isPending: isGrantPending } =
     useGrantRegistryRolesMutation()
   const { revokeRegistryRoles, isPending: isRevokePending } =
@@ -140,10 +147,10 @@ export const RegistryEditUserSheet = ({
   const willLockOutAdmin = adminLockoutRoles.length > 0
 
   const runEdit = (toGrant: Role[], toRevoke: Role[]) => {
-    if (!account || !walletClient?.account) return
+    if (!account || !callerAddress) return
     if (toGrant.length === 0 && toRevoke.length === 0) return
     setPending({ toGrant, toRevoke })
-    openModal()
+    attempt.start(callerAddress)
   }
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -186,6 +193,7 @@ export const RegistryEditUserSheet = ({
     closeModal()
     clearTransaction()
     setPending(null)
+    attempt.end()
     onOpenChange(false)
   }
 
@@ -223,7 +231,7 @@ export const RegistryEditUserSheet = ({
 
     if (toGrant.length > 0) {
       steps.push({
-        id: GRANT_TX_ID,
+        id: grantTxId,
         title: 'Grant roles',
         transactionName: 'Grant registry roles',
         intent: { prepare: rolesIntentThunk('grant', toGrant) },
@@ -232,7 +240,7 @@ export const RegistryEditUserSheet = ({
             registryAddress,
             account,
             roles: toGrant,
-            id: GRANT_TX_ID,
+            id: grantTxId,
           }),
         onDone: hasRevokeStep ? handleStepDone : handleDone,
       })
@@ -240,7 +248,7 @@ export const RegistryEditUserSheet = ({
 
     if (hasRevokeStep) {
       steps.push({
-        id: REVOKE_TX_ID,
+        id: revokeTxId,
         title: 'Revoke roles',
         transactionName: 'Revoke registry roles',
         intent: { prepare: rolesIntentThunk('revoke', toRevoke) },
@@ -249,7 +257,7 @@ export const RegistryEditUserSheet = ({
             registryAddress,
             account,
             roles: toRevoke,
-            id: REVOKE_TX_ID,
+            id: revokeTxId,
           }),
         onDone: handleDone,
       })

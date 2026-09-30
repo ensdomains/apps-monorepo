@@ -12,8 +12,12 @@ const CONTENT_WIDTH = 960
 const CHIP_INNER_WIDTH = CONTENT_WIDTH - 12 * 2
 /** Avatar (80px) plus the 16px gap that follows it. */
 const AVATAR_WIDTH = 80 + 16
-/** Advance of one semi-mono glyph at the chip's 60px type size. */
-const CHAR_WIDTH = 34
+/**
+ * Advance of one Geist Mono glyph at the chip's 60px type size (0.6em = 36px)
+ * plus the chip's 0.384px letter-spacing. Geist Mono is true monospace, so
+ * this is exact, not an average.
+ */
+const CHAR_WIDTH = 36 + 0.384
 /** The chip never grows past the two lines the design tops out at. */
 const MAX_LINES = 2
 

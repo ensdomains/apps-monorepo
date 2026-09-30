@@ -5,6 +5,10 @@
  * Transaction objects with onStart/onDone callbacks.
  */
 
+import {
+  type FlowScope,
+  scopeTransactionId,
+} from '@ens-apps/transaction-manager'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -41,12 +45,23 @@ export type RoleTransactionDescriptor = {
  *
  * For pending remove:
  * - Adds single revoke descriptor
+ *
+ * `flowScope` names the attempt these descriptors belong to, and is required
+ * rather than optional: left unscoped the ids are fixed strings, so a second
+ * grant/revoke in the same session matches the actor the first one left
+ * behind — the modal renders it as already done and the wallet is never
+ * asked. `null` is only for a flow that has not started an attempt yet and so
+ * has nothing to run.
  */
 export function buildRoleTransactionDescriptors(
   pendingSave: PendingSave | null,
   pendingRemove: PendingRemove | null,
   name: string,
+  flowScope: FlowScope | null,
 ): readonly RoleTransactionDescriptor[] {
+  const grantId = scopeTransactionId(GRANT_ROLES_TX_ID, flowScope)
+  const revokeId = scopeTransactionId(REVOKE_ROLES_TX_ID, flowScope)
+
   if (pendingSave) {
     const {
       account,
@@ -57,7 +72,7 @@ export function buildRoleTransactionDescriptors(
 
     if (toGrant.length > 0) {
       descriptors.push({
-        id: GRANT_ROLES_TX_ID,
+        id: grantId,
         title: 'Grant roles',
         transactionName: `Grant roles for ${truncateAddress(account, 6, 4)}`,
         type: 'grant',
@@ -68,7 +83,7 @@ export function buildRoleTransactionDescriptors(
 
     if (toRevoke.length > 0) {
       descriptors.push({
-        id: REVOKE_ROLES_TX_ID,
+        id: revokeId,
         title: 'Revoke roles',
         transactionName: `Revoke roles for ${truncateAddress(account, 6, 4)}`,
         type: 'revoke',
@@ -84,7 +99,7 @@ export function buildRoleTransactionDescriptors(
     const { account, roles } = pendingRemove
     return [
       {
-        id: REVOKE_ROLES_TX_ID,
+        id: revokeId,
         title: 'Remove user',
         transactionName: `Remove ${truncateAddress(account, 6, 4)} from ${name}`,
         type: 'revoke',
