@@ -1,102 +1,48 @@
+import { createBignameClient } from '@ens-apps/indexer/bigname'
 import { getConfig } from '#core/config.js'
 import { logger } from '#utils/logger.js'
 
-/**
- * ENS v1 subgraph used to check whether an address still owns v1 names.
- * Mirrors the manager's `v1SubgraphClient` (apps/manager
- * src/features/migration/service/v1SubgraphClient.ts) — same endpoint and the
- * same eligibility filters — so the faucet's "owns v1 names" verdict can't
- * drift from what the migration flow actually shows the user.
- *
- * Both now read the chain's subgraph from ensjs, which keys it per network.
- * They had drifted onto different hosts despite the comment above, and the
- * one here no longer resolves.
- */
+// Reverse records are not migratable names.
+const REVERSE_SUFFIX = '.addr.reverse'
 
-// keccak-derived namehash of `addr.reverse` — reverse records are not
-// migratable names, so they're excluded just like in the manager.
-const REVERSE_NODE =
-  '0x91d1777781884d03a6757a803996e38de2a42967fb37eeaca72729271025a9e2'
-
-const HAS_NAMES_QUERY = `
-query hasV1NamesForAddress($whereFilter: Domain_filter) {
-  domains(first: 1, where: $whereFilter) {
-    id
-  }
-}
-`
-
-type V1SubgraphResponse = {
-  data?: {
-    domains: Array<{ id: string }>
-  }
-  errors?: Array<{ message: string }>
-}
+// Enough rows to step past reverse records at the top of the sort.
+const PAGE_SIZE = 10
 
 /**
- * Whether `address` owns (owner / registrant / wrappedOwner) at least one
- * live, migratable ENS v1 name. A single `first: 1` existence query — we only
- * need the verdict, not the names.
+ * Whether `address` owns, manages or registered at least one live ENS v1
+ * name, for the migration-gas drip.
  *
- * Throws on subgraph/network errors so callers can decide the failure mode
- * (the faucet treats a failed check as "no drip", fail-closed).
+ * One request: the address's v1 names sorted by expiry, latest first. bigname
+ * puts names with no expiry ahead of the rest in that order, and keeps
+ * released names with their lapsed expiry, so the first non-reverse row
+ * decides: live if it has no expiry or expires in the future.
+ *
+ * Throws on any failure so the caller stays fail-closed (no drip).
  */
 export const hasV1Names = async (
   address: string,
   env: CloudflareBindings,
 ): Promise<boolean> => {
   const addr = address.toLowerCase()
-  const now = Math.floor(Date.now() / 1000).toString()
+  const bigname = createBignameClient(getConfig(env).endpoints.bignameApi)
 
-  // Same filter set as the manager's getV1NamesForAddress: owned by the
-  // address, not a reverse record, not expired, and not an empty husk
-  // (zero owner with no resolver/registrant).
-  const whereFilter = {
-    and: [
-      {
-        or: [{ owner: addr }, { registrant: addr }, { wrappedOwner: addr }],
-      },
-      { parent_not: REVERSE_NODE },
-      {
-        or: [{ expiryDate_gt: now }, { expiryDate: null }],
-      },
-      {
-        or: [
-          { owner_not: '0x0000000000000000000000000000000000000000' },
-          { resolver_not: null },
-          {
-            and: [
-              {
-                registrant_not: '0x0000000000000000000000000000000000000000',
-              },
-              { registrant_not: null },
-            ],
-          },
-        ],
-      },
-    ],
-  }
-
-  const response = await fetch(getConfig(env).chain.subgraphs.ens.url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      query: HAS_NAMES_QUERY,
-      variables: { whereFilter },
-      operationName: 'hasV1NamesForAddress',
-    }),
+  const result = await bigname.addressNames(addr, {
+    relation: 'any',
+    authority: 'ens_v1',
+    sort: 'expires_at',
+    order: 'desc',
+    page_size: PAGE_SIZE,
   })
+  if (result.isErr()) throw result.error
 
-  if (!response.ok) {
-    throw new Error(`V1 subgraph request failed: ${response.status}`)
-  }
+  const latest = result.value.data.find(
+    (row) => !row.name.endsWith(REVERSE_SUFFIX),
+  )
+  const owns =
+    latest !== undefined &&
+    (latest.expires_at === undefined ||
+      new Date(latest.expires_at) > new Date())
 
-  const json: V1SubgraphResponse = await response.json()
-  if (json.errors?.length && json.errors[0]) {
-    throw new Error(`V1 subgraph error: ${json.errors[0].message}`)
-  }
-
-  const owns = (json.data?.domains.length ?? 0) > 0
   logger.debug('Checked v1 name ownership', { address: addr, owns })
   return owns
 }
