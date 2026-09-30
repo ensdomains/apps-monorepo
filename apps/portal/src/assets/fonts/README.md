@@ -14,8 +14,9 @@ for the `font-src` allowance.
 bytes stay out of the repository. The paths are immutable-cached for a year, so
 replacing a face means a new path, not a re-upload.
 
-## Exception: the OG TTF files
+## The OG image fonts
 
-`og/*.ttf` are still vendored. satori cannot read the WOFF2 faces, so the OG
-renderer needs real TrueType files in the Worker bundle, and fonts.ens.dev
-only serves WOFF2. These are covered by the font carve-out in the root `LICENSE`.
+The Open Graph renderer uses Geist and Geist Mono, which are open source (SIL
+Open Font License 1.1) and committed under `og/`, with the license text in
+`og/LICENSE-OFL.txt`. satori cannot read WOFF2, so it needs these TrueType files
+in the Worker bundle.
