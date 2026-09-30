@@ -111,6 +111,11 @@ export type NameConfig = {
   /** The label (without `.eth`). A timestamp suffix is appended for uniqueness. */
   label: string
   /**
+   * Register `label` verbatim, without the timestamp suffix. For a rival
+   * registrant that must take the exact label another flow committed to.
+   */
+  exactLabel?: boolean
+  /**
    * Duration in seconds.
    *  - Positive: name will expire this many seconds from now.
    *  - Negative: name will have expired |duration| seconds ago
@@ -151,6 +156,10 @@ async function waitForTx(hash: Hash) {
   return publicClient.waitForTransactionReceipt({ hash })
 }
 
+function resolveLabel(config: NameConfig, timestamp: number) {
+  return config.exactLabel ? config.label : `${config.label}-${timestamp}`
+}
+
 function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms))
 }
@@ -177,7 +186,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
     const ownerAddress = accounts.getAddress(ownerKey)
     const ownerAccount = privateKeyToAccount(accounts.getPrivateKey(ownerKey))
     const timestamp = Math.floor(Date.now() / 1000)
-    const uniqueLabel = `${config.label}-${timestamp}`
+    const uniqueLabel = resolveLabel(config, timestamp)
 
     // Determine actual on-chain duration and the desired gap past expiry
     const requestedDuration = config.duration ?? MIN_REGISTRATION_DURATION

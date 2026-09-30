@@ -18,6 +18,7 @@
  *   EXPIRED_AGO_DAYS=5  pnpm --filter @ens-apps/e2e seed:name      # 5 days past expiry
  *   OWNER=user STATE=grace pnpm --filter @ens-apps/e2e seed:name   # connected wallet owns it
  *   RECORDS='com.twitter=ensdomains;url=https://ens.domains' STATE=active pnpm ... seed:name
+ *   OWNER=user2 STATE=active LABEL=my-label EXACT_LABEL=1 pnpm ... seed:name  # no timestamp suffix
  *
  * States (boundaries reflect the app's V2 grace = 28d + premium = 21d windows;
  * exact on-chain availability/premium depends on the fork's oracle config):
@@ -108,6 +109,8 @@ export type SeedNameOptions = {
   /** Signed seconds: positive = expires in N; negative = expired N ago. */
   durationSeconds: number
   records?: { key: string; value: string }[]
+  /** Register `label` verbatim instead of suffixing a timestamp. */
+  exactLabel?: boolean
 }
 
 /** Register a name on the fork in the requested state; returns the full name. */
@@ -119,6 +122,7 @@ export async function seedName(options: SeedNameOptions): Promise<string> {
   return makeName(
     {
       label: options.label,
+      exactLabel: options.exactLabel,
       duration: options.durationSeconds,
       owner: options.owner,
       records: options.records,
@@ -181,7 +185,14 @@ async function main() {
     )
   }
 
-  const name = await seedName({ label, owner, durationSeconds, records })
+  const exactLabel = process.env.EXACT_LABEL === '1'
+  const name = await seedName({
+    label,
+    owner,
+    durationSeconds,
+    records,
+    exactLabel,
+  })
   const block = await publicClient.getBlock()
 
   console.log('\n──────────────────────────────────────────────')
