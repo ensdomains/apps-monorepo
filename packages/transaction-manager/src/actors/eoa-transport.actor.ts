@@ -2,6 +2,7 @@ import { logger } from '@ens-apps/utils/logger'
 import { errAsync, type ResultAsync } from 'neverthrow'
 import { type Hash, isAddressEqual } from 'viem'
 import {
+  ChainIdMismatchError,
   isUserRejectionError,
   SignerAddressMismatchError,
   TransactionSubmissionError,
@@ -28,6 +29,7 @@ export function submitEOATransaction(input: {
   | TransactionSubmissionError
   | TransactionUserRejectedError
   | SignerAddressMismatchError
+  | ChainIdMismatchError
 > {
   const { request, signer } = input
   const { walletClient } = signer
@@ -48,6 +50,31 @@ export function submitEOATransaction(input: {
     )
   }
 
+  // Verify the wallet is on the chain this request was prepared for.
+  //
+  // `chain` is the only lever we have over viem's own guard: `sendTransaction`
+  // runs a live `eth_chainId` and calls `assertCurrentChain` — but ONLY when
+  // `chain !== null`. The previous `?? null` therefore turned the one case that
+  // matters into a silent skip: wagmi resolves `walletClient.chain` by looking
+  // the connection's live chainId up in `config.chains`, so a wallet switched
+  // to a chain the app does not declare (portal declares Sepolia alone, with
+  // `syncConnectedChain: false`) yields `undefined` — and the transaction was
+  // then broadcast, and paid for, on that chain.
+  //
+  // Passing a real `Chain` keeps that guard switched on. The two checks cover
+  // different things and both are needed: we prove `walletClient.chain` is the
+  // request's chain here, and viem then re-checks that same chain against a
+  // live `eth_chainId` at send time — catching a provider that moves in
+  // between.
+  const walletChain = walletClient.chain
+  if (!walletChain || walletChain.id !== eoaRequest.chainId) {
+    logger.error('EOA transaction chain mismatch', {
+      requestChainId: eoaRequest.chainId,
+      walletChainId: walletChain?.id,
+    })
+    return errAsync(new ChainIdMismatchError(eoaRequest.chainId, walletChain))
+  }
+
   // Build transaction params - either legacy (gasPrice) or EIP-1559 (maxFeePerGas)
   // biome-ignore lint/suspicious/noExplicitAny: txParams is built dynamically with conditional gas fields, not expressible as a single static type
   const txParams: any = {
@@ -57,7 +84,7 @@ export function submitEOATransaction(input: {
     data: eoaRequest.data,
     gas: eoaRequest.gas,
     nonce: eoaRequest.nonce,
-    chain: walletClient.chain ?? null,
+    chain: walletChain,
   }
 
   // Use either legacy or EIP-1559 gas pricing (not both)
