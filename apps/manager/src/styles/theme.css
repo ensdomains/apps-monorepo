@@ -1,8 +1,8 @@
 @theme {
-  --font-sans: "ABCMonumentGrotesk", sans-serif;
-  --font-mono: "ABCMonumentGroteskMono", monospace;
-  --font-semi-mono: "ABCMonumentGroteskSemiMono", monospace;
-  --font-serif: "ABCMarist", serif;
+  --font-sans: "Geist", sans-serif;
+  --font-mono: "Geist Mono", monospace;
+  --font-semi-mono: "Geist Mono", monospace;
+  --font-serif: "Libre Baskerville", serif;
 
   /* Line heights */
   --leading-ens-none: 96%;

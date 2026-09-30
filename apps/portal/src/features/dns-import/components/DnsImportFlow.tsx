@@ -81,7 +81,7 @@ export const DnsImportFlow = ({
 
   return (
     <div className="w-full max-w-xl mx-auto flex flex-col gap-6 pt-6">
-      <h1 className="font-serif text-4xl font-medium leading-none">{name}</h1>
+      <h1 className="font-serif text-4xl font-normal leading-none">{name}</h1>
       {match(search.step)
         .with('start', () => (
           <SelectImportType
