@@ -323,14 +323,10 @@ export const VerifyOwnership = ({
           />
         )
       ) : (
-        <div className="flex gap-3">
-          <Button variant="outline" className="flex-1" onClick={onBack}>
-            Back
-          </Button>
-          <Button className="flex-1" onClick={() => openConnectModal()}>
-            Connect
-          </Button>
-        </div>
+        <StepActions
+          onBack={onBack}
+          primary={{ label: 'Connect', onClick: () => openConnectModal() }}
+        />
       )}
     </div>
   )

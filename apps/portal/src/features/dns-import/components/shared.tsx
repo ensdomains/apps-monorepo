@@ -127,7 +127,7 @@ export const StepActions = ({
     </Button>
     <Button
       className={cn(
-        'flex-1',
+        'flex-2',
         primary.tone === 'danger' &&
           'bg-message-danger-fill text-message-danger-text hover:bg-message-danger-fill/80',
       )}
