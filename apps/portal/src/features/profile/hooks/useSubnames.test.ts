@@ -170,6 +170,43 @@ describe('getSubnames', () => {
     ])
   })
 
+  it('pages through every V2 subname, not just the first page', async () => {
+    const subdomain = (i: number) => ({
+      name: `sub${i}.test.eth`,
+      labelName: `sub${i}`,
+      labelhash: '0xabcd',
+      owner: { id: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
+    })
+    mockGraphqlRequest
+      .mockResolvedValueOnce({
+        domains: [
+          { subdomains: Array.from({ length: 40 }, (_, i) => subdomain(i)) },
+        ],
+      })
+      .mockResolvedValueOnce({
+        domains: [
+          {
+            subdomains: Array.from({ length: 11 }, (_, i) => subdomain(40 + i)),
+          },
+        ],
+      })
+
+    const result = await getSubnames({
+      name: 'test.eth',
+      protocolVersion: 'ENSv2',
+    })
+
+    const subnames = result._unsafeUnwrap()
+    expect(subnames).toHaveLength(51)
+    expect(subnames.at(-1)?.name).toBe('sub50.test.eth')
+    expect(
+      mockGraphqlRequest.mock.calls.map(([, variables]) => variables),
+    ).toEqual([
+      { name: 'test.eth', skip: 0 },
+      { name: 'test.eth', skip: 40 },
+    ])
+  })
+
   it('returns empty array when domain has no subdomains', async () => {
     const mockGraphqlResponse = {
       domains: [{ subdomains: [] }],

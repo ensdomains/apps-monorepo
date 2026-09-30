@@ -36,6 +36,36 @@ type GetSubnamesParameters = {
   protocolVersion: ProtocolVersion
 }
 
+type IndexerSubname = Omit<Subname, 'owner'> & {
+  owner: { id: Address }
+}
+
+const SUBNAMES_PAGE_SIZE = 40
+
+const getSubnamesPage = ({ name, skip }: { name: string; skip: number }) =>
+  fromPromise(
+    graphqlIndexerClient.request<
+      { domains: { subdomains: IndexerSubname[] }[] },
+      { name: string; skip: number }
+    >(
+      gql`
+      query getSubnames($name: String!, $skip: Int!) {
+        domains(where: { name: $name }) {
+          subdomains(first: ${String(SUBNAMES_PAGE_SIZE)}, skip: $skip) {
+            name
+            labelName
+            labelhash
+            owner {
+              id
+            }
+          }
+        }
+      }`,
+      { name, skip },
+    ),
+    (e) => new GetSubnamesError({ cause: e as GraphqlRequestError }),
+  )
+
 export const getSubnames = ResultFn(async function* ({
   name,
   protocolVersion,
@@ -66,45 +96,22 @@ export const getSubnames = ResultFn(async function* ({
       ),
     )
   } else {
-    const v2Request = yield* fromPromise(
-      graphqlIndexerClient.request<
-        {
-          domains: [
-            {
-              subdomains: (Omit<Subname, 'owner'> & {
-                owner: { id: Address }
-              })[]
-            },
-          ]
-        },
-        { name: string }
-      >(
-        gql`
-      query getSubnames($name: String!) {
-        domains(where: { name: $name }) {
-          subdomains {
-            name
-            labelName
-            labelhash
-            owner {
-              id
-            }
-          }
-        }
-      }`,
-        { name },
-      ),
-      (e) => new GetSubnamesError({ cause: e as GraphqlRequestError }),
-    )
+    let subdomains: readonly IndexerSubname[] = []
+    let page: readonly IndexerSubname[]
+    do {
+      const { domains } = yield* getSubnamesPage({
+        name,
+        skip: subdomains.length,
+      })
+      page = domains[0]?.subdomains ?? []
+      subdomains = [...subdomains, ...page]
+    } while (page.length === SUBNAMES_PAGE_SIZE)
 
-    const domain = v2Request.domains[0]
-    const subnames = (domain?.subdomains ?? []).map(
-      ({ owner, ...subname }) => ({
-        ...subname,
-        name: toSubnameName(name, subname),
-        owner: checksumAddress(owner.id),
-      }),
-    )
+    const subnames = subdomains.map(({ owner, ...subname }) => ({
+      ...subname,
+      name: toSubnameName(name, subname),
+      owner: checksumAddress(owner.id),
+    }))
     return ok(subnames)
   }
 })
