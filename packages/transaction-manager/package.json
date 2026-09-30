@@ -1,6 +1,7 @@
 {
   "name": "@ens-apps/transaction-manager",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "Transaction management library for ENS applications",
   "type": "module",
   "private": true,

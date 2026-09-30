@@ -1,3 +1,4 @@
+import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useEffect, useState } from 'react'
@@ -18,6 +19,7 @@ import { prepareGrantRegistryRolesTransaction } from '@/features/registry/helper
 import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { getAccountAdminRoles } from '../../utils/registryRoleAccess'
 import { RegistryRolePermissionList } from './RegistryRolePermissionList'
@@ -66,7 +68,14 @@ export const RegistryAddUserSheet = ({
   const resolution = useAddressResolution(nameOrAddressInput)
   const { address, isResolving: isResolvingAddress, isInvalid } = resolution
 
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
+  // Names this attempt, so a second grant in the same session can't be served
+  // by the finished actor the first one left behind.
+  const attempt = useFlowAttempt()
+  const grantTxId = scopeTransactionId(
+    GRANT_REGISTRY_ROLES_TX_ID,
+    attempt.scope,
+  )
   const { grantRegistryRoles, isPending, isSuccess, reset } =
     useGrantRegistryRolesMutation()
 
@@ -79,8 +88,9 @@ export const RegistryAddUserSheet = ({
     setSelectedRoles(new Set())
     setPendingGrant(null)
     setFormError(null)
+    attempt.end()
     reset()
-  }, [open, reset])
+  }, [open, reset, attempt.end])
 
   const handleInputChange = (value: string) => {
     setNameOrAddressInput(value)
@@ -113,10 +123,10 @@ export const RegistryAddUserSheet = ({
       return
     }
 
-    if (isResolvingAddress || !address) return
+    if (isResolvingAddress || !address || !callerAddress) return
 
     setPendingGrant({ account: address, roles })
-    openModal()
+    attempt.start(callerAddress)
   }
 
   const handleStartTransaction = () => {
@@ -125,7 +135,7 @@ export const RegistryAddUserSheet = ({
       registryAddress,
       account: pendingGrant.account,
       roles: pendingGrant.roles,
-      id: GRANT_REGISTRY_ROLES_TX_ID,
+      id: grantTxId,
     })
   }
 
@@ -133,6 +143,7 @@ export const RegistryAddUserSheet = ({
     closeModal()
     clearTransaction()
     setPendingGrant(null)
+    attempt.end()
     onOpenChange(false)
   }
 
@@ -191,7 +202,7 @@ export const RegistryAddUserSheet = ({
             <TransactionModal
               transactions={[
                 {
-                  id: GRANT_REGISTRY_ROLES_TX_ID,
+                  id: grantTxId,
                   title: 'Grant roles',
                   transactionName: 'Grant registry roles',
                   // Deterministic once the user has picked an account + roles, so

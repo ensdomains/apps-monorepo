@@ -160,6 +160,8 @@ describe('csp', () => {
         'data:',
         'https://js.intercomcdn.com',
         'https://fonts.intercomcdn.com',
+        // Serves the ABC/Dinamo faces, which are not vendored in this repo.
+        'https://fonts.ens.dev',
       ])
       expect(header['frame-src']).toContain('https://intercom-sheets.com')
       expect(header['frame-src']).toContain(

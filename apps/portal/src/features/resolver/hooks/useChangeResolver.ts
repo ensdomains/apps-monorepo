@@ -17,6 +17,11 @@ import {
 } from '../helpers/changeResolver'
 import { invalidateResolverQueries } from '../utils/invalidateResolverQueries'
 
+/**
+ * Only a fallback. `ChangeResolverForm` passes a per-attempt id; a caller that
+ * omits one gets this fixed string and reintroduces the stale-actor problem
+ * this default exists to avoid silently.
+ */
 const CHANGE_RESOLVER_TX_ID = 'tx-change-resolver'
 
 type UseChangeResolverParams = {

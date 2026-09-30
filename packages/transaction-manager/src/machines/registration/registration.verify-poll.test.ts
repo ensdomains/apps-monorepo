@@ -47,6 +47,25 @@ describe('pollUntilVerified', () => {
     expect(check.mock.calls.length).toBeGreaterThan(1)
   })
 
+  it('stops at a name registered to someone else rather than waiting it out', async () => {
+    // A lost race is as conclusive as a win: waiting cannot make it ours.
+    const check = vi.fn(async () => ({
+      verified: false,
+      registeredToOther: true,
+    }))
+    const isDefinitivelyDead = vi.fn(async () => false)
+
+    const result = await pollUntilVerified(check, {
+      graceWindowMs: 30_000,
+      pollIntervalMs: 10,
+      isDefinitivelyDead,
+    })
+
+    expect(result).toEqual({ verified: false, registeredToOther: true })
+    expect(check).toHaveBeenCalledTimes(1)
+    expect(isDefinitivelyDead).not.toHaveBeenCalled()
+  })
+
   it('degrades to a single read with no grace window', async () => {
     const check = vi.fn(async () => ({ verified: false }))
 

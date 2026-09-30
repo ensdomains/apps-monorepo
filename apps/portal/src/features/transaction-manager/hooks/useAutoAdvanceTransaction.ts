@@ -9,6 +9,12 @@ import type { Transaction } from '../types'
  * `autoAdvanceTxId` changes — callers pass an inline array that gets a new
  * reference on every render, and including it in deps would cause an infinite
  * loop when `onDone` triggers a state update.
+ *
+ * `autoAdvanceTxId` comes from whichever actor the transaction manager holds,
+ * which may belong to an earlier attempt or another flow entirely. Only an id
+ * present in the current `transactions` advances anything, and multi-step
+ * flows scope their step ids to the attempt (see `scopeTransactionId`), so an
+ * `onDone` can only ever fire for an actor this attempt created.
  */
 export function useAutoAdvanceTransaction(
   autoAdvanceTxId: string | null,

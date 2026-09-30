@@ -1,3 +1,7 @@
+import {
+  createFlowScope,
+  scopeTransactionId,
+} from '@ens-apps/transaction-manager'
 import { computeResolverResource } from '@ensdomains/ensjs/utils/v2'
 import {
   permissionedResolverRevokeRolesSnippet,
@@ -57,7 +61,12 @@ const requestData = (step: {
 describe('buildResolverRolesTransactions', () => {
   it('has no steps while nothing is pending', () => {
     expect(
-      buildResolverRolesTransactions(null, resolverAddress, makeHandlers()),
+      buildResolverRolesTransactions(
+        null,
+        resolverAddress,
+        makeHandlers(),
+        null,
+      ),
     ).toEqual([])
   })
 
@@ -76,6 +85,7 @@ describe('buildResolverRolesTransactions', () => {
       save,
       resolverAddress,
       handlers,
+      null,
     )
 
     expect(rest).toHaveLength(0)
@@ -84,7 +94,7 @@ describe('buildResolverRolesTransactions', () => {
       `Update roles for ${account} on All names`,
     )
     step?.onStart()
-    expect(handlers.save).toHaveBeenCalledWith(save)
+    expect(handlers.save).toHaveBeenCalledWith(save, SAVE_RESOLVER_ROLES_TX_ID)
     step?.onDone()
     expect(handlers.done).toHaveBeenCalledOnce()
   })
@@ -108,6 +118,7 @@ describe('buildResolverRolesTransactions', () => {
       { type: 'remove', account, revocations: [root, scoped] },
       resolverAddress,
       handlers,
+      null,
     )
 
     expect(steps.map((step) => step.id)).toEqual([
@@ -146,5 +157,67 @@ describe('buildResolverRolesTransactions', () => {
 
     steps[1]?.onDone()
     expect(handlers.done).toHaveBeenCalledOnce()
+  })
+
+  // A finished actor stays in the manager under its id, so a second save or
+  // removal in the same session with fixed ids would be matched to the first
+  // one's receipt and never reach the wallet.
+  it('names every step after the attempt, and passes that id on', () => {
+    const scope = createFlowScope(account)
+    const handlers = makeHandlers()
+    const save = {
+      type: 'save',
+      resource: ROOT_RESOURCE,
+      resourceLabel: 'All names',
+      account,
+      rolesToGrant: ['ROLE_SET_TEXT'],
+      rolesToRevoke: [],
+    } as const
+
+    const [saveStep] = buildResolverRolesTransactions(
+      save,
+      resolverAddress,
+      handlers,
+      scope,
+    )
+    const saveId = scopeTransactionId(SAVE_RESOLVER_ROLES_TX_ID, scope)
+    expect(saveStep?.id).toBe(saveId)
+    saveStep?.onStart()
+    expect(handlers.save).toHaveBeenCalledWith(save, saveId)
+
+    const [removeStep] = buildResolverRolesTransactions(
+      {
+        type: 'remove',
+        account,
+        revocations: [
+          {
+            resource: ROOT_RESOURCE,
+            resourceLabel: 'All names',
+            roles: ['ROLE_SET_TEXT'],
+          },
+        ],
+      },
+      resolverAddress,
+      handlers,
+      scope,
+    )
+    const removeId = scopeTransactionId(
+      removeResolverUserTxId(account, ROOT_RESOURCE),
+      scope,
+    )
+    expect(removeStep?.id).toBe(removeId)
+    removeStep?.onStart()
+    expect(handlers.revoke).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: removeId }),
+    )
+
+    // A new attempt gets different ids.
+    const [again] = buildResolverRolesTransactions(
+      save,
+      resolverAddress,
+      handlers,
+      createFlowScope(account),
+    )
+    expect(again?.id).not.toBe(saveId)
   })
 })

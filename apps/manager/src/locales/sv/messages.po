@@ -279,6 +279,10 @@ msgstr ""
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the rent, in the same approval."
 msgstr ""
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
+msgstr ""
+
 #: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr ""
@@ -1383,6 +1387,10 @@ msgstr "Namn"
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "Name Expiry"
+msgstr ""
+
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Name No Longer Available"
 msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx

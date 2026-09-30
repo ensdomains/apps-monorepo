@@ -79,6 +79,18 @@ vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
   }),
 }))
 
+// The form scopes its step ids per attempt, so a fixed scope keeps the ids the
+// buttons below are found by readable. `start` still opens the modal, which is
+// what these tests wait on.
+const SCOPE = { account: CONNECTED.toLowerCase(), nonce: 'scope1' } as const
+vi.mock('@/features/transaction-manager/hooks/useFlowAttempt', () => ({
+  useFlowAttempt: () => ({
+    scope: SCOPE,
+    start: openModal,
+    end: vi.fn(),
+  }),
+}))
+
 // Stands in for the real modal by exposing each transaction's `onStart`, which
 // is how the modal drives the writes.
 vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
@@ -238,14 +250,18 @@ describe('ConfigureRegistryForm', () => {
     await waitFor(() => expect(openModal).toHaveBeenCalledOnce())
 
     await user.click(
-      screen.getByRole('button', { name: 'start:tx-deploy-subregistry' }),
+      screen.getByRole('button', {
+        name: `start:tx-deploy-subregistry--${CONNECTED.toLowerCase()}-scope1`,
+      }),
     )
     await waitFor(() => expect(deploySubregistryAsync).toHaveBeenCalledOnce())
 
     // Someone configures the registry while the deploy is mining.
     readSubregistry.mockResolvedValue(ok(LIVE_REGISTRY))
     await user.click(
-      screen.getByRole('button', { name: 'start:tx-set-subregistry' }),
+      screen.getByRole('button', {
+        name: `start:tx-set-subregistry--${CONNECTED.toLowerCase()}-scope1`,
+      }),
     )
 
     expect(
@@ -267,13 +283,17 @@ describe('ConfigureRegistryForm', () => {
     await submitForm(user)
     await waitFor(() => expect(openModal).toHaveBeenCalledTimes(1))
     await user.click(
-      screen.getByRole('button', { name: 'start:tx-deploy-subregistry' }),
+      screen.getByRole('button', {
+        name: `start:tx-deploy-subregistry--${CONNECTED.toLowerCase()}-scope1`,
+      }),
     )
 
     await user.click(screen.getByRole('button', { name: 'Deploy' }))
     await waitFor(() => expect(openModal).toHaveBeenCalledTimes(2))
     await user.click(
-      screen.getByRole('button', { name: 'start:tx-deploy-subregistry' }),
+      screen.getByRole('button', {
+        name: `start:tx-deploy-subregistry--${CONNECTED.toLowerCase()}-scope1`,
+      }),
     )
 
     await waitFor(() => expect(deploySubregistryAsync).toHaveBeenCalledTimes(2))

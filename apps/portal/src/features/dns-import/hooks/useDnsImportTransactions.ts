@@ -1,4 +1,5 @@
 import {
+  scopeTransactionId,
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
@@ -18,6 +19,7 @@ import {
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -69,7 +71,8 @@ export const useDnsImportTransactions = ({
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { address: connectedAddress } = useConnection()
-  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { closeModal, clearTransaction } = useTransactionModal()
+  const attempt = useFlowAttempt()
 
   // Idempotent per-step start guard — both the modal UI and the previous
   // step's auto-advance `onDone` route into the runners (transfer-flow pattern).
@@ -118,6 +121,7 @@ export const useDnsImportTransactions = ({
   const finishFlow = () => {
     closeModal()
     clearTransaction()
+    attempt.end()
     void Promise.all([
       queryClient.invalidateQueries({
         queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
@@ -142,8 +146,11 @@ export const useDnsImportTransactions = ({
     }
   }
 
-  const approveId = `dns-import-approve-${name}`
-  const claimId = `dns-import-claim-${name}`
+  const approveId = scopeTransactionId(
+    `dns-import-approve-${name}`,
+    attempt.scope,
+  )
+  const claimId = scopeTransactionId(`dns-import-claim-${name}`, attempt.scope)
 
   const runApprove = () =>
     runStep(approveId, async () => {
@@ -262,7 +269,7 @@ export const useDnsImportTransactions = ({
 
   const startImport = () => {
     startedStepsRef.current = new Set()
-    openModal()
+    if (connectedAddress) attempt.start(connectedAddress)
   }
 
   return {
