@@ -9,11 +9,17 @@ export const FailureStep = () => {
   const message = RegisterV2Context.useSelector(
     (state) => state.context.lastErrorMessage,
   )
+  // Someone else registered the name first. Retrying can only fail the same
+  // way, so the only way out is back to the quote with a different name.
+  const nameUnavailable = RegisterV2Context.useSelector(
+    (state) => state.context.nameUnavailable,
+  )
 
   return (
     <FailureStepView
       label={label}
       message={message}
+      nameUnavailable={nameUnavailable}
       onCancel={() => uiActor.send({ type: 'cancel' })}
       onRetry={() => uiActor.send({ type: 'retry' })}
     />
@@ -23,6 +29,7 @@ export const FailureStep = () => {
 interface FailureStepViewProps {
   readonly label: string
   readonly message?: string
+  readonly nameUnavailable?: boolean
   readonly onRetry: () => void
   readonly onCancel: () => void
 }
@@ -30,6 +37,7 @@ interface FailureStepViewProps {
 export const FailureStepView = ({
   label,
   message,
+  nameUnavailable,
   onRetry,
   onCancel,
 }: FailureStepViewProps) => {
@@ -44,7 +52,11 @@ export const FailureStepView = ({
         />
         <div className="flex min-w-0 flex-col gap-1">
           <p className="font-medium text-ens-lapis-dense text-sm leading-5">
-            <Trans>Registration Failed</Trans>
+            {nameUnavailable ? (
+              <Trans>Name No Longer Available</Trans>
+            ) : (
+              <Trans>Registration Failed</Trans>
+            )}
           </p>
           <p className="wrap-anywhere max-h-32 overflow-y-auto text-ens-lapis-dense/70 text-sm leading-5">
             {message ??
@@ -64,29 +76,38 @@ export const FailureStepView = ({
               <Trans>What would you like to do?</Trans>
             </h3>
             <p className="text-ens-gray text-sm">
-              <Trans>
-                Retrying will attempt the registration again from where it left
-                off.
-              </Trans>
+              {nameUnavailable ? (
+                <Trans>
+                  Another address registered this name first, so it can no
+                  longer be registered here. Go back to pick a different name.
+                </Trans>
+              ) : (
+                <Trans>
+                  Retrying will attempt the registration again from where it
+                  left off.
+                </Trans>
+              )}
             </p>
           </div>
 
           <div className="flex gap-3">
-            <Button
-              className="flex-1"
-              onClick={onRetry}
-              size="xl"
-              type="button"
-              variant="blue"
-            >
-              <Trans>Try Again</Trans>
-            </Button>
+            {!nameUnavailable && (
+              <Button
+                className="flex-1"
+                onClick={onRetry}
+                size="xl"
+                type="button"
+                variant="blue"
+              >
+                <Trans>Try Again</Trans>
+              </Button>
+            )}
             <Button
               className="flex-1"
               onClick={onCancel}
               size="xl"
               type="button"
-              variant="lightBlue"
+              variant={nameUnavailable ? 'blue' : 'lightBlue'}
             >
               <Trans>Back to Quote</Trans>
             </Button>
