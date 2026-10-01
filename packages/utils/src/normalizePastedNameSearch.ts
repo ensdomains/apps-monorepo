@@ -1,11 +1,18 @@
 import type { ClipboardEvent } from 'react'
 
 /** Whitespace and copy/paste artifacts that should not appear in an ENS search. */
-const PASTED_NAME_NOISE = /[\s\u200B-\u200D\uFEFF\u00AD]/g
+const PASTED_NAME_NOISE = /[\s\u200B\u200C\uFEFF\u00AD]/g
+
+/** A zero-width joiner is noise unless it joins two emoji, where ENS keeps it as part of the name. */
+const STRAY_ZERO_WIDTH_JOINER =
+  /(?<!\p{Extended_Pictographic}|\uFE0F|[\u{1F3FB}-\u{1F3FF}])\u200D|\u200D(?!\p{Extended_Pictographic})/gu
 
 /** Lowercase pasted text and strip spaces so "Hello World" becomes "helloworld". */
 export const normalizePastedNameSearch = (text: string): string =>
-  text.toLowerCase().replaceAll(PASTED_NAME_NOISE, '')
+  text
+    .toLowerCase()
+    .replaceAll(PASTED_NAME_NOISE, '')
+    .replaceAll(STRAY_ZERO_WIDTH_JOINER, '')
 
 export const insertNormalizedNameSearchPaste = (
   currentValue: string,
