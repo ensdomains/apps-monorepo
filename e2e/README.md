@@ -26,6 +26,16 @@ The E2E test suite lives in `e2e/` at the monorepo root and uses **Playwright** 
 
 The header comment in `docker-compose.yml` records the resolved versions, the evidence, and the procedure for bumping a pin. Alto, the paymaster and Panoptes are intentionally still on moving tags.
 
+### Pinned Sepolia state
+
+The live-fork stack also pins Sepolia to block **11,821,650**, matching the
+checked-in ENS deployment. Later Sepolia state removed the configured HCA
+adapter's controller permission on the default reverse registrar, so forking
+the latest block made primary-name tests fail without a code change. Set
+`SEPOLIA_FORK_BLOCK` to test another block. Update the default together with
+deployment addresses, and verify both Manager and Portal E2E suites before
+moving it forward.
+
 ---
 
 ## Project Structure
