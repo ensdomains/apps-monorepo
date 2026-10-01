@@ -18,13 +18,18 @@ export const Layout = ({ children }: LayoutProps) => {
     select: (matches) =>
       matches.find((routeMatch) => routeMatch.routeId === '/$name'),
   })
+  const isAddressProfilePage = useMatches({
+    select: (matches) =>
+      matches.some((routeMatch) => routeMatch.routeId === '/$address'),
+  })
   const isMigrationPage = useMatches({
     select: (matches) =>
       matches.some((routeMatch) => routeMatch.routeId === '/migration'),
   })
   const migrationHeaderColor = '#e72a96'
   const isEnsNameProfilePage = profileRouteMatch !== undefined
-  const isSepoliaBannerVisible = !isMigrationPage && !isEnsNameProfilePage
+  const isProfilePage = isEnsNameProfilePage || isAddressProfilePage
+  const isSepoliaBannerVisible = !isMigrationPage && !isProfilePage
   const profileName = profileRouteMatch?.params.name ?? ''
   const profileRecords = useQuery({
     ...profileRecordsQuery(profileName),
@@ -45,12 +50,12 @@ export const Layout = ({ children }: LayoutProps) => {
     >
       <div className="sticky inset-x-0 top-0 z-30 shrink-0">
         <Header
-          desktopBreakpoint={isEnsNameProfilePage ? 'lg-landscape' : 'md'}
-          hasMobileBlurredBackground={isEnsNameProfilePage}
+          desktopBreakpoint={isProfilePage ? 'lg-landscape' : 'md'}
+          hasMobileBlurredBackground={isProfilePage}
           profileThemeColor={
             isMigrationPage ? migrationHeaderColor : profileThemeColor
           }
-          transparentBackground={isEnsNameProfilePage || isMigrationPage}
+          transparentBackground={isProfilePage || isMigrationPage}
         />
       </div>
 
@@ -62,7 +67,7 @@ export const Layout = ({ children }: LayoutProps) => {
           )}
         >
           <LayoutBackAndNoticeRow
-            isHidden={isEnsNameProfilePage}
+            isHidden={isProfilePage}
             isSepoliaBannerVisible={isSepoliaBannerVisible}
           />
           {children}

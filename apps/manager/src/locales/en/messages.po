@@ -2068,6 +2068,11 @@ msgstr "Retrying will attempt the renewal again from where it left off."
 msgid "Return to Dashboard"
 msgstr "Return to Dashboard"
 
+#. placeholder {0}: truncateAddress(address)
+#: src/features/profile/components/view/ReverseNameView.tsx
+msgid "Reverse record for {0}"
+msgstr "Reverse record for {0}"
+
 #: src/features/migration/pages/MigrationPermissionsPage.tsx
 msgid "Review access granted during ENS name upgrades."
 msgstr "Review access granted during ENS name upgrades."
@@ -2137,9 +2142,7 @@ msgstr "Search notifications"
 msgid "See all"
 msgstr "See all"
 
-#. placeholder {0}: name.label
 #. placeholder {0}: stablecoin.symbol
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Select {0}"
 msgstr "Select {0}"
@@ -2154,7 +2157,6 @@ msgstr "Select {label} as primary name"
 
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Select all"
 msgstr "Select all"
 
@@ -2827,6 +2829,10 @@ msgstr "Verify your wallet"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Verifying registration on-chain"
 msgstr "Verifying registration on-chain"
+
+#: src/features/profile/components/view/ReverseNameView.tsx
+msgid "View address"
+msgstr "View address"
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
 msgid "View NFT traits"

@@ -1,5 +1,6 @@
 import { Copy } from 'lucide-react'
 import { motion } from 'motion/react'
+import { Card } from '@/components/ui/card'
 import {
   type MaterialSymbolProps,
   MSymbol,
@@ -183,7 +184,7 @@ export const ProfileHeaderLoading = ({
         className="hidden size-45.5 shrink-0 rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)] lg:landscape:block"
         shouldReduceMotion={shouldReduceMotion}
       />
-      <div className="flex min-h-0 flex-1 rounded-none border-none bg-transparent p-0 shadow-none lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-[0_2px_6px_rgba(0,0,0,0.06)]">
+      <Card className="min-h-0 flex-1 rounded-none border-0 bg-transparent p-0 shadow-none lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:rounded-xl lg:landscape:border-[0.5px] lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-temp-card">
         <div className="grid w-full gap-8 lg:landscape:grid-cols-[minmax(0,346.5px)_228px] lg:landscape:gap-3">
           <div className="min-w-0">
             <SkeletonBlock
@@ -226,7 +227,7 @@ export const ProfileHeaderLoading = ({
             ))}
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   </motion.div>
 )

@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { Card } from '@/components/ui/card'
 import { ContactMethods } from '@/features/notifications/settings/contact-methods'
 import { NotificationPreferences } from '@/features/notifications/settings/preferences'
 
@@ -17,9 +18,9 @@ export const NotificationSettingsPage = () => {
       </div>
 
       <div className="grid grid-cols-1 items-start gap-2 md:grid-cols-[3fr_2fr]">
-        <div className="rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)]">
+        <Card className="block p-6">
           <ContactMethods />
-        </div>
+        </Card>
 
         <NotificationPreferences />
       </div>

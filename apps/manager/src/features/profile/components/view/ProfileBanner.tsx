@@ -1,7 +1,9 @@
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { cn } from '@/lib/utils'
 
 type ProfileBannerProps = {
   readonly defaultHeaderUrl: string
+  readonly fadeClassName?: string
   readonly headerLoading: boolean
   readonly headerUrl?: string
   readonly name: string
@@ -9,6 +11,7 @@ type ProfileBannerProps = {
 
 export const ProfileBanner = ({
   defaultHeaderUrl,
+  fadeClassName,
   headerLoading,
   headerUrl,
   name,
@@ -34,6 +37,11 @@ export const ProfileBanner = ({
         </ImageFallback.Fallback>
       </ImageFallback.Root>
     </div>
-    <div className="mask-[linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)] pointer-events-none absolute inset-x-0 -bottom-10 h-62.5 bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-sm" />
+    <div
+      className={cn(
+        'mask-[linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)] pointer-events-none absolute inset-x-0 h-62.5 bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-sm',
+        fadeClassName ?? '-bottom-10',
+      )}
+    />
   </div>
 )

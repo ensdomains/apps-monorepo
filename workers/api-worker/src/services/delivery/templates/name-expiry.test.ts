@@ -1,10 +1,7 @@
 import type { PersonalNotificationPayloads } from '@ens-apps/shared-schema/notifications'
 import { getGraceEndDate, MS_PER_DAY } from '@ens-apps/utils/gracePeriod'
 import { describe, expect, it } from 'vitest'
-import {
-  buildNameExpiryEmailContent,
-  type NameExpiryRenderOptions,
-} from './name-expiry.js'
+import type { NameExpiryRenderOptions } from './name-expiry.js'
 import { buildNameExpiryPushNotification } from './push.js'
 import { buildNameExpiryTelegramMessage } from './telegram.js'
 
@@ -25,36 +22,6 @@ const options = (now: Date): NameExpiryRenderOptions => ({
 })
 
 describe('name expiry lifecycle delivery rendering', () => {
-  it.each([
-    ['expiry-7d', 'Domain expiration alert', 'isPreExpiry'],
-    ['grace-start', 'Domain grace period started', 'isGraceStart'],
-    ['grace-1d', 'Domain grace period ending soon', 'isGraceEnding'],
-    ['premium-start', 'Domain grace period ended', 'isPremiumStart'],
-  ] as const)('maps %s to SendGrid lifecycle data', (stage, subject, flag) => {
-    const now =
-      stage === 'premium-start'
-        ? getGraceEndDate(expiry, 'v2')
-        : stage === 'grace-1d'
-          ? new Date(getGraceEndDate(expiry, 'v2').getTime() - MS_PER_DAY)
-          : expiry
-    const content = buildNameExpiryEmailContent(
-      payload({ stage }),
-      options(now),
-    )
-    expect(content.subject).toBe(subject)
-    expect(content.dynamicData[flag]).toBe(true)
-    expect(content.dynamicData).not.toHaveProperty('renewUrl')
-    expect(content.dynamicData).not.toHaveProperty('registerUrl')
-  })
-
-  it('passes normalized but unescaped names to escaped SendGrid Handlebars', () => {
-    const content = buildNameExpiryEmailContent(
-      payload({ name: ' <b>{{name}}</b>.eth\n' }),
-      options(expiry),
-    )
-    expect(content.dynamicData.name).toBe('<b>{{name}}</b>.eth')
-  })
-
   it('uses stage-specific push copy and encoded navigation paths', () => {
     const grace = buildNameExpiryPushNotification(
       payload({ name: 'foo/bar.eth', stage: 'grace-7d' }),

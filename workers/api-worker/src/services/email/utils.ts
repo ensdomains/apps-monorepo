@@ -17,8 +17,9 @@ const SendGridErrorResponseSchema = v.object({
   ),
 })
 
-export type MailJSONRequired = Omit<MailJSON, 'content'> &
-  ({ template_id: string } | { content: MailContent[] & { 0: MailContent } })
+export type MailJSONRequired = Omit<MailJSON, 'content'> & {
+  content: MailContent[] & { 0: MailContent }
+}
 
 export const sendMailV3 = ResultFn(async function* (
   apiKey: string,

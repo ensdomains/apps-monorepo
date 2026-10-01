@@ -1,6 +1,7 @@
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useCallback, useMemo } from 'react'
+import { Card } from '@/components/ui/card'
 import { getStartOfDay } from '@/features/register-v2/utils/time'
 import { TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -74,7 +75,7 @@ export const DurationSelector = () => {
   )
 
   return (
-    <div className="flex h-full flex-col justify-between gap-3 rounded-xl border-[#DDDDDE] border-[0.5px] bg-white p-3 shadow-temp-card">
+    <Card className="h-full justify-between gap-3 p-3">
       {presetDurations.map((data, idx) => {
         const query = presetPricingQueries[idx]
         if (!query) {
@@ -112,6 +113,6 @@ export const DurationSelector = () => {
         selectedDuration={selectedDuration}
         type="register"
       />
-    </div>
+    </Card>
   )
 }

@@ -472,6 +472,9 @@ const EditRecordsContent = ({
                 value={keyInput}
                 onChange={setKeyInput}
                 placeholder="Select coin..."
+                // Sits in a row of plain inputs, so it takes their flat fill
+                // rather than the outline button's dark tint.
+                className="dark:bg-background dark:hover:bg-accent"
               />
             </div>
           )}

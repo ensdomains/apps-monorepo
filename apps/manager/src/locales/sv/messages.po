@@ -2073,6 +2073,11 @@ msgstr ""
 msgid "Return to Dashboard"
 msgstr ""
 
+#. placeholder {0}: truncateAddress(address)
+#: src/features/profile/components/view/ReverseNameView.tsx
+msgid "Reverse record for {0}"
+msgstr ""
+
 #: src/features/migration/pages/MigrationPermissionsPage.tsx
 msgid "Review access granted during ENS name upgrades."
 msgstr ""
@@ -2142,9 +2147,7 @@ msgstr ""
 msgid "See all"
 msgstr ""
 
-#. placeholder {0}: name.label
 #. placeholder {0}: stablecoin.symbol
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Select {0}"
 msgstr ""
@@ -2159,7 +2162,6 @@ msgstr "Välj {label} som primärt namn"
 
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Select all"
 msgstr ""
 
@@ -2831,6 +2833,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Verifying registration on-chain"
+msgstr ""
+
+#: src/features/profile/components/view/ReverseNameView.tsx
+msgid "View address"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
